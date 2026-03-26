@@ -1,0 +1,165 @@
+
+
+.lightTheme {
+    --background: #ffffff;
+    --foreground: #000000;
+    --muted-foreground: #666666;
+    --border: #e5e7eb; /* Soft light gray for borders */
+    --primary: #111827;
+    --primary-foreground: #ffffff;
+    --secondary: #f3f4f6;
+    --secondary-foreground: #000000;
+    --header-bg: rgba(255, 255, 255, 0.95);
+    --popular-badge-bg: #ef4444;
+    --recommended-badge-bg: #374151; /* Dark Gray */
+    --popular-plan-gradient-start: rgba(239, 68, 68, 0.1);
+    --recommended-plan-gradient-start: rgba(55, 65, 81, 0.1); /* Dark Gray with alpha */
+    --popular-border-color: rgba(239, 68, 68, 0.3);
+    --recommended-border-color: rgba(55, 65, 81, 0.3); /* Dark Gray with alpha */
+  }
+  
+  .header {
+    background-color: var(--header-bg);
+    border-bottom-color: var(--border);
+  }
+  
+  .mutedForeground {
+    color: var(--muted-foreground);
+  }
+  
+  .ghostButton {
+    color: var(--muted-foreground);
+  }
+  
+  .ghostButton:hover {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+  
+  .primaryButton {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+  
+  .primaryButton:hover {
+    background-color: rgba(17, 24, 39, 0.9);
+  }
+  
+  .secondaryButton {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+  
+  .secondaryButton:hover {
+    background-color: rgba(243, 244, 246, 0.8);
+  }
+  
+  .yearlyBadge {
+    background-color: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #16a34a;
+  }
+  
+  .scrollButton {
+    border-color: var(--border);
+  }
+  
+  .scrollButton:hover {
+    background-color: var(--secondary);
+  }
+  
+  .tableHeaderTopLeft {
+      background-color: var(--background);
+      border-bottom: 1px solid var(--border);
+  }
+  
+  .popularBadge {
+    background-color: var(--popular-badge-bg);
+    color: #ffffff;
+  }
+  
+  .recommendedBadge {
+    background-color: var(--recommended-badge-bg);
+    color: #ffffff;
+  }
+  
+  .popularBadge:hover,
+  .recommendedBadge:hover {
+    background-color: var(--popular-badge-bg);
+    color: #ffffff;
+  }
+  
+  .recommendedBadge:hover {
+      background-color: var(--recommended-badge-bg);
+  }
+  
+  
+  .popularPlan {
+    background-image: linear-gradient(to bottom, var(--popular-plan-gradient-start), transparent);
+  }
+  
+  .recommendedPlan {
+    background-image: linear-gradient(to bottom, var(--recommended-plan-gradient-start), transparent);
+  }
+  
+  .popularBorder {
+    border-color: var(--popular-border-color);
+  }
+  
+  .recommendedBorder {
+    border-color: var(--recommended-border-color);
+  }
+  
+  .defaultBorder {
+    border-color: var(--border);
+  }
+  
+  .monthlyBadge {
+    background-color: rgba(249, 115, 22, 0.1);
+    border-color: rgba(249, 115, 22, 0.3);
+    color: #f97316;
+  }
+  
+  .stickyColumn {
+    border-right: 1px solid var(--border);
+  }
+  
+  .featureSectionHeader {
+    background-color: #fafafa;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .featureSectionHeader[data-section-title="Credits"] {
+    border-top: 1px solid var(--border);
+  }
+  
+  .featureNameCell {
+    background-color: var(--background);
+  }
+  
+  .featureValueCell {
+    border-left: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+  }
+  
+  .accordionItem {
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .accordionTrigger {
+    color: var(--foreground);
+  }
+  
+  .accordionContent {
+    color: var(--muted-foreground);
+  }
+  
+  .billingSwitch[data-state='checked'] {
+      background-color: #e5e7eb;
+  }
+  
+  .billingSwitch[data-state='checked'] > span {
+    background-color: var(--primary);
+  }
+  
