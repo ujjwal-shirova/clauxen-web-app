@@ -12,20 +12,26 @@ import { ChatViewPane } from './chat-view-pane';
 interface ChatAreaProps {
   messages: Message[];
   onSendMessage: (prompt: string) => void;
+  onStopGeneration: () => void;
   isGenerating: boolean;
   onUpgradeClick: () => void;
   updateMessage: (chatId: string, messageId: string, newContent: string) => void;
   activeChatId: string | null;
+  activeChatTitle?: string;
+  isActiveChatTitleStreaming?: boolean;
   onOpenAgentSwarm: () => void;
 }
 
 export function ChatArea({
   messages,
   onSendMessage,
+  onStopGeneration,
   isGenerating,
   onUpgradeClick,
   updateMessage,
   activeChatId,
+  activeChatTitle,
+  isActiveChatTitleStreaming,
   onOpenAgentSwarm,
 }: ChatAreaProps) {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
@@ -35,41 +41,107 @@ export function ChatArea({
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [isAgentSwarmOpen, setIsAgentSwarmOpen] = useState(false);
+  const [showScrollToBottomButton, setShowScrollToBottomButton] = useState(false);
+  const deferredMessages = React.useDeferredValue(messages);
+  const scrollRafRef = React.useRef<number | null>(null);
+  const scrollViewportRef = React.useRef<HTMLDivElement | null>(null);
+  const isAutoScrollEnabledRef = React.useRef(true);
 
   const isConversationStarted = messages.length > 0;
 
   React.useEffect(() => {
-    if (isConversationStarted && scrollAreaRef.current) {
-      const scrollableViewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-      if (scrollableViewport) {
+    if (!isConversationStarted) {
+      isAutoScrollEnabledRef.current = true;
+    }
+  }, [isConversationStarted]);
+
+  React.useEffect(() => {
+    if (!isConversationStarted || !scrollAreaRef.current) return;
+    const scrollableViewport = scrollAreaRef.current.querySelector<HTMLDivElement>('div[data-radix-scroll-area-viewport]');
+    if (!scrollableViewport) return;
+    scrollViewportRef.current = scrollableViewport;
+
+    if (!isAutoScrollEnabledRef.current) {
+      return;
+    }
+
+    if (scrollRafRef.current !== null) {
+      cancelAnimationFrame(scrollRafRef.current);
+    }
+
+    scrollRafRef.current = requestAnimationFrame(() => {
+      const distanceToBottom =
+        scrollableViewport.scrollHeight - scrollableViewport.scrollTop - scrollableViewport.clientHeight;
+      const shouldAutoScroll = distanceToBottom < 180;
+
+      if (shouldAutoScroll) {
         scrollableViewport.scrollTop = scrollableViewport.scrollHeight;
       }
-    }
-  }, [messages, isGenerating, isConversationStarted]);
+    });
 
-  const handleCopy = (id: string, text: string) => {
+    return () => {
+      if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
+    };
+  }, [deferredMessages, isConversationStarted]);
+
+  React.useEffect(() => {
+    if (!isConversationStarted || !scrollAreaRef.current) {
+      setShowScrollToBottomButton(false);
+      return;
+    }
+
+    const viewport = scrollAreaRef.current.querySelector<HTMLDivElement>('div[data-radix-scroll-area-viewport]');
+    if (!viewport) return;
+    scrollViewportRef.current = viewport;
+
+    const updateButtonVisibility = () => {
+      const distanceToBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      const isAtBottom = distanceToBottom <= 80;
+      isAutoScrollEnabledRef.current = isAtBottom;
+      setShowScrollToBottomButton(!isAtBottom);
+    };
+
+    updateButtonVisibility();
+    viewport.addEventListener('scroll', updateButtonVisibility, { passive: true });
+    return () => viewport.removeEventListener('scroll', updateButtonVisibility);
+  }, [isConversationStarted, deferredMessages.length]);
+
+  const scrollToBottom = React.useCallback(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+
+    isAutoScrollEnabledRef.current = true;
+    viewport.scrollTo({
+      top: viewport.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, []);
+
+  const handleCopy = React.useCallback((id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  };
+  }, []);
 
-  const handleStartEdit = (message: Message) => {
+  const handleStartEdit = React.useCallback((message: Message) => {
     setEditingMessageId(message.id);
     setEditValue(message.content);
-  };
+  }, []);
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = React.useCallback(() => {
     setEditingMessageId(null);
     setEditValue('');
-  };
+  }, []);
 
-  const handleSaveEdit = (messageId: string) => {
+  const handleSaveEdit = React.useCallback((messageId: string) => {
     if (activeChatId && editValue.trim()) {
       updateMessage(activeChatId, messageId, editValue);
     }
     setEditingMessageId(null);
     setEditValue('');
-  };
+  }, [activeChatId, editValue, updateMessage]);
 
   const openAgentSwarm = () => {
     setActiveChip(null);
@@ -85,6 +157,9 @@ export function ChatArea({
           promptInput={
             <PromptInput
               onSendMessage={onSendMessage}
+              onStopGeneration={onStopGeneration}
+              onScrollToBottom={scrollToBottom}
+              showScrollToBottomButton={showScrollToBottomButton}
               isConversationStarted={isConversationStarted}
               isGenerating={isGenerating}
             />
@@ -97,8 +172,7 @@ export function ChatArea({
           onShareClick={() => setIsShareDialogOpen(true)}
           conversation={
             <ConversationThread
-              messages={messages}
-              isGenerating={isGenerating}
+              messages={deferredMessages}
               editingMessageId={editingMessageId}
               editValue={editValue}
               copiedId={copiedId}
@@ -117,6 +191,8 @@ export function ChatArea({
             isConversationStarted={isConversationStarted}
             onUpgradeClick={onUpgradeClick}
             onShareClick={() => setIsShareDialogOpen(true)}
+            chatTitle={activeChatTitle}
+            isTitleStreaming={isActiveChatTitleStreaming}
           />
           <ChatViewPane
             hasConversation={isConversationStarted}
@@ -128,14 +204,16 @@ export function ChatArea({
             promptInput={
               <PromptInput
                 onSendMessage={onSendMessage}
+                onStopGeneration={onStopGeneration}
+                onScrollToBottom={scrollToBottom}
+                showScrollToBottomButton={showScrollToBottomButton}
                 isConversationStarted={isConversationStarted}
                 isGenerating={isGenerating}
               />
             }
             conversation={
               <ConversationThread
-                messages={messages}
-                isGenerating={isGenerating}
+                messages={deferredMessages}
                 editingMessageId={editingMessageId}
                 editValue={editValue}
                 copiedId={copiedId}

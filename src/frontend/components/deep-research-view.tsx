@@ -6,6 +6,7 @@ import { PromptInput } from './prompt-input';
 
 interface DeepResearchViewProps {
   onSendMessage: (prompt: string) => void;
+  onStopGeneration: () => void;
   isGenerating: boolean;
 }
 
@@ -32,7 +33,11 @@ const suggestions = [
   },
 ];
 
-export function DeepResearchView({ onSendMessage, isGenerating }: DeepResearchViewProps) {
+export function DeepResearchView({
+  onSendMessage,
+  onStopGeneration,
+  isGenerating,
+}: DeepResearchViewProps) {
   return (
     <div className="flex flex-1 w-full bg-[#faf9f5] font-sans overflow-y-auto">
       <div className="w-full px-4 sm:px-6 lg:px-16 pb-12">
@@ -52,6 +57,7 @@ export function DeepResearchView({ onSendMessage, isGenerating }: DeepResearchVi
           <div className="w-full pt-10">
             <PromptInput
               onSendMessage={onSendMessage}
+              onStopGeneration={onStopGeneration}
               isConversationStarted={false}
               isGenerating={isGenerating}
             />

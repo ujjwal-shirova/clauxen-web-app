@@ -29,10 +29,10 @@ export function ShareDialog({ isOpen, onClose }: ShareDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="w-[calc(100vw-24px)] sm:w-[calc(100vw-32px)] max-w-[540px] max-h-[calc(100vh-24px)] sm:max-h-[calc(100vh-32px)] overflow-visible p-6 sm:p-8 bg-[#FAF9F5] border-[#1F1E1D]/15 rounded-[16px] shadow-2xl font-sans border-[0.666667px] gap-0 duration-200 ease-out [&>button]:hidden"
+        className="w-[calc(100vw-24px)] sm:w-[calc(100vw-32px)] max-w-[560px] max-h-[calc(100vh-24px)] sm:max-h-[calc(100vh-32px)] overflow-hidden p-0 bg-[#FAF9F5] border-[#1F1E1D]/15 rounded-[18px] shadow-[0_24px_60px_rgba(0,0,0,0.18)] font-sans border-[0.666667px] gap-0 duration-200 ease-out [&>button]:hidden"
       >
-        <div className="flex max-h-[calc(100vh-72px)] flex-col gap-6 overflow-y-auto pr-1 sm:max-h-[calc(100vh-96px)]">
-          <DialogHeader className="flex flex-row items-center justify-between space-y-0 text-left">
+        <div className="flex max-h-[calc(100vh-72px)] flex-col overflow-y-auto sm:max-h-[calc(100vh-96px)]">
+          <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between space-y-0 border-b border-[#1F1E1D]/10 bg-[#FAF9F5]/95 px-6 py-5 text-left backdrop-blur-sm sm:px-8">
             <DialogTitle className="text-[20px] font-semibold text-[#1F1E1D] leading-[28px]">
               Chat shared
             </DialogTitle>
@@ -48,7 +48,7 @@ export function ShareDialog({ isOpen, onClose }: ShareDialogProps) {
             Manage sharing settings for this conversation.
           </DialogDescription>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 px-6 pb-6 pt-5 sm:px-8 sm:pb-8 sm:pt-6">
             <div className="pb-2">
               <span className="text-[14px] text-[#3D3D3A] font-[430]">Future messages aren’t included</span>
             </div>
@@ -81,7 +81,7 @@ export function ShareDialog({ isOpen, onClose }: ShareDialogProps) {
             </div>
 
             {/* Link URL and Copy Section */}
-            <div className="mt-2 flex flex-col gap-3 rounded-xl border-[0.666667px] border-[#1F1E1D]/30 bg-[#F5F4ED] p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-3 group relative">
+            <div className="mt-2 flex flex-col gap-3 rounded-xl border-[0.666667px] border-[#1F1E1D]/24 bg-[#F5F4ED] p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-3 group relative">
               <div className="relative min-w-0 flex-1">
                 <span className="block break-all pr-8 text-[14px] font-[430] text-[#3D3D3A] sm:truncate sm:break-normal">
                   {shareUrl}

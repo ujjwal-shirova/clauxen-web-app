@@ -138,7 +138,7 @@ interface CodeBlockFrameProps {
 
 export const CodeBlockFrame = ({ language, children, onCopy, isCopied }: CodeBlockFrameProps) => (
   <div className="my-6 overflow-hidden rounded-2xl border border-[#1f1e1d]/10 bg-[#f7f5ef] shadow-[0_12px_32px_rgba(31,30,29,0.05)]">
-    <div className="flex items-center justify-between border-b border-[#1f1e1d]/8 bg-[#f0eee6] px-4 py-3">
+    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#1f1e1d]/8 bg-[#f0eee6]/95 px-4 py-3 backdrop-blur-sm">
       <span className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-[#73726c]">
         {language || 'plaintext'}
       </span>
@@ -151,7 +151,7 @@ export const CodeBlockFrame = ({ language, children, onCopy, isCopied }: CodeBlo
       </button>
     </div>
 
-    <div className="bg-[#fcfbf8] [&_pre]:!bg-transparent [&_pre]:text-[14px] [&_pre]:leading-[1.75]">
+    <div className="code-scrollbars max-h-[28rem] overflow-auto bg-[#fcfbf8] [&_pre]:!bg-transparent [&_pre]:text-[14px] [&_pre]:leading-[1.75]">
       {children}
     </div>
   </div>

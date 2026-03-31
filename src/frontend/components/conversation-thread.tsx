@@ -1,14 +1,15 @@
 'use client';
 
+import React from 'react';
 import { Check } from 'lucide-react';
 import { MarkdownRenderer } from './markdown-renderer';
 import { ThinkingBlock } from './thinking-block';
+import { OrbCursor } from './ui/orb-cursor';
 import type { Message } from '@/frontend/lib/types';
 import { cn } from '@/frontend/lib/utils';
 
 interface ConversationThreadProps {
   messages: Message[];
-  isGenerating: boolean;
   editingMessageId: string | null;
   editValue: string;
   copiedId: string | null;
@@ -56,9 +57,119 @@ const InfoIcon = () => (
   </svg>
 );
 
+interface MessageRowProps {
+  message: Message;
+  editingMessageId: string | null;
+  editValue: string;
+  copiedId: string | null;
+  onEditValueChange: (value: string) => void;
+  onStartEdit: (message: Message) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: (messageId: string) => void;
+  onCopy: (id: string, text: string) => void;
+}
+
+const MessageRow = React.memo(
+  function MessageRow({
+    message,
+    editingMessageId,
+    editValue,
+    copiedId,
+    onEditValueChange,
+    onStartEdit,
+    onCancelEdit,
+    onSaveEdit,
+    onCopy,
+  }: MessageRowProps) {
+    return (
+      <div
+        className={cn(
+          'flex flex-col animate-in fade-in duration-500 group',
+          message.role === 'user' ? 'items-end' : 'items-start w-full'
+        )}
+        style={{ contentVisibility: 'auto', containIntrinsicSize: '240px' }}
+      >
+        {message.role === 'user' ? (
+          editingMessageId === message.id ? (
+            <div className="bg-[#f0eee6] rounded-[12px] p-[10px] flex flex-col gap-2 w-full max-w-[724.8px] animate-in fade-in duration-300">
+              <textarea
+                className="w-full bg-white border border-[#1f1e1d]/15 rounded-[9.6px] p-3 text-[15px] resize-none outline-none focus:ring-2 focus:ring-[#1b67b2]/20 font-sans min-h-[100px]"
+                value={editValue}
+                onChange={(e) => onEditValueChange(e.target.value)}
+                autoFocus
+              />
+              <div className="flex items-center justify-between">
+                <div className="flex items-start gap-2 text-[12px] text-[#3d3d3a] max-w-[70%] leading-relaxed">
+                  <InfoIcon />
+                  <span>Editing this message will create a new conversation branch.</span>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={onCancelEdit} className="h-9 px-4 border border-[#1f1e1d]/30 rounded-lg text-[14px] font-medium hover:bg-black/5 transition-colors">Cancel</button>
+                  <button onClick={() => onSaveEdit(message.id)} className="h-9 px-4 bg-black text-white rounded-lg text-[14px] font-medium hover:bg-black/90 transition-colors">Save</button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-end gap-1 w-full font-sans">
+              <div className="px-4 py-2.5 rounded-[12px] max-w-[85%] bg-[#f0eee6] text-[#3d3d3a] shadow-sm relative transition-all">
+                <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message.content}</p>
+              </div>
+              <div className="flex items-center gap-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-8">
+                <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all" title="Retry"><RetryIcon /></button>
+                <button onClick={() => onStartEdit(message)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all" title="Edit"><EditPenIcon /></button>
+                <button onClick={() => onCopy(message.id, message.content)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all" title="Copy">
+                  {copiedId === message.id ? <Check className="w-4 h-4 text-green-600" /> : <CustomCopyIcon />}
+                </button>
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="w-full assistant-message text-gray-800 leading-relaxed group">
+            {(message.hasThinking || (message.thinkingContent?.trim().length ?? 0) > 0) && (
+              <ThinkingBlock
+                content={message.thinkingContent}
+                isStreaming={!!message.isThinkingStreaming}
+                thinkingDurationSeconds={message.thinkingDurationSeconds}
+                className="mb-4"
+              />
+            )}
+            {message.isStreaming && message.content.trim().length === 0 && (
+              <div className="flex items-center py-1">
+                <OrbCursor />
+              </div>
+            )}
+            {message.content.trim().length > 0 ? (
+              <>
+                <MarkdownRenderer content={message.content} isStreaming={message.isStreaming} />
+                {!message.isStreaming && (
+                  <div className="flex justify-start items-center gap-1 mt-3 text-[#73726c] font-sans">
+                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Copy"><CustomCopyIcon /></button>
+                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Positive feedback"><ThumbsUpIcon /></button>
+                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Negative feedback"><ThumbsDownIcon /></button>
+                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Retry"><RetryIcon /></button>
+                  </div>
+                )}
+              </>
+            ) : null}
+          </div>
+        )}
+      </div>
+    );
+  },
+  (prev, next) =>
+    prev.message === next.message &&
+    prev.editingMessageId === next.editingMessageId &&
+    prev.editValue === next.editValue &&
+    prev.copiedId === next.copiedId &&
+    prev.onEditValueChange === next.onEditValueChange &&
+    prev.onStartEdit === next.onStartEdit &&
+    prev.onCancelEdit === next.onCancelEdit &&
+    prev.onSaveEdit === next.onSaveEdit &&
+    prev.onCopy === next.onCopy
+);
+
 export function ConversationThread({
   messages,
-  isGenerating,
   editingMessageId,
   editValue,
   copiedId,
@@ -69,75 +180,22 @@ export function ConversationThread({
   onCopy,
   className,
 }: ConversationThreadProps) {
+
   return (
     <div className={cn('flex flex-col gap-10 py-8 w-full max-w-[768px] mx-auto px-4', className)}>
       {messages.map((message) => (
-        <div
+        <MessageRow
           key={message.id}
-          className={cn(
-            'flex flex-col animate-in fade-in duration-500 group',
-            message.role === 'user' ? 'items-end' : 'items-start w-full'
-          )}
-        >
-          {message.role === 'user' ? (
-            editingMessageId === message.id ? (
-              <div className="bg-[#f0eee6] rounded-[12px] p-[10px] flex flex-col gap-2 w-full max-w-[724.8px] animate-in fade-in duration-300">
-                <textarea
-                  className="w-full bg-white border border-[#1f1e1d]/15 rounded-[9.6px] p-3 text-[15px] resize-none outline-none focus:ring-2 focus:ring-[#1b67b2]/20 font-sans min-h-[100px]"
-                  value={editValue}
-                  onChange={(e) => onEditValueChange(e.target.value)}
-                  autoFocus
-                />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start gap-2 text-[12px] text-[#3d3d3a] max-w-[70%] leading-relaxed">
-                    <InfoIcon />
-                    <span>Editing this message will create a new conversation branch.</span>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button onClick={onCancelEdit} className="h-9 px-4 border border-[#1f1e1d]/30 rounded-lg text-[14px] font-medium hover:bg-black/5 transition-colors">Cancel</button>
-                    <button onClick={() => onSaveEdit(message.id)} className="h-9 px-4 bg-black text-white rounded-lg text-[14px] font-medium hover:bg-black/90 transition-colors">Save</button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-end gap-1 w-full font-sans">
-                <div className="px-4 py-2.5 rounded-[12px] max-w-[85%] bg-[#f0eee6] text-[#3d3d3a] shadow-sm relative transition-all">
-                  <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message.content}</p>
-                </div>
-                <div className="flex items-center gap-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-8">
-                  <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all" title="Retry"><RetryIcon /></button>
-                  <button onClick={() => onStartEdit(message)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all" title="Edit"><EditPenIcon /></button>
-                  <button onClick={() => onCopy(message.id, message.content)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all" title="Copy">
-                    {copiedId === message.id ? <Check className="w-4 h-4 text-green-600" /> : <CustomCopyIcon />}
-                  </button>
-                </div>
-              </div>
-            )
-          ) : (
-            <div className="w-full assistant-message text-gray-800 leading-relaxed group">
-              {(message.hasThinking || (message.thinkingContent?.trim().length ?? 0) > 0) && (
-                <ThinkingBlock
-                  content={message.thinkingContent}
-                  isStreaming={message.isStreaming}
-                  className="mb-4"
-                />
-              )}
-              {message.content.trim().length > 0 ? (
-                <>
-                  <MarkdownRenderer content={message.content} isStreaming={message.isStreaming} />
-                  {!message.isStreaming && (
-                    <div className="flex justify-start items-center gap-1 mt-3 text-[#73726c] font-sans">
-                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Copy"><CustomCopyIcon /></button>
-                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Positive feedback"><ThumbsUpIcon /></button>
-                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Negative feedback"><ThumbsDownIcon /></button>
-                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Retry"><RetryIcon /></button>
-                    </div>
-                  )}
-                </>
-              ) : null}
-            </div>
-          )}
-        </div>
+          message={message}
+          editingMessageId={editingMessageId}
+          editValue={editValue}
+          copiedId={copiedId}
+          onEditValueChange={onEditValueChange}
+          onStartEdit={onStartEdit}
+          onCancelEdit={onCancelEdit}
+          onSaveEdit={onSaveEdit}
+          onCopy={onCopy}
+        />
       ))}
     </div>
   );

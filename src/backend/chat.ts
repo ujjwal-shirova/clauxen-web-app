@@ -20,46 +20,6 @@ function encodeEvent(event: ChatStreamEvent) {
   return `data: ${JSON.stringify(event)}\n\n`;
 }
 
-function extractThinkingAndAnswer(raw: string) {
-  let thinkingContent = '';
-  let answerContent = '';
-  let cursor = 0;
-  let isInsideThink = false;
-
-  while (cursor < raw.length) {
-    if (!isInsideThink) {
-      const openIndex = raw.indexOf('<think>', cursor);
-
-      if (openIndex === -1) {
-        answerContent += raw.slice(cursor);
-        break;
-      }
-
-      answerContent += raw.slice(cursor, openIndex);
-      cursor = openIndex + '<think>'.length;
-      isInsideThink = true;
-      continue;
-    }
-
-    const closeIndex = raw.indexOf('</think>', cursor);
-
-    if (closeIndex === -1) {
-      thinkingContent += raw.slice(cursor);
-      break;
-    }
-
-    thinkingContent += raw.slice(cursor, closeIndex);
-    cursor = closeIndex + '</think>'.length;
-    isInsideThink = false;
-  }
-
-  return {
-    thinkingContent,
-    answerContent,
-    hasThinkTag: raw.includes('<think>'),
-  };
-}
-
 function sanitizeMessages(input: unknown): IncomingMessage[] {
   if (!Array.isArray(input)) {
     return [];
@@ -103,11 +63,13 @@ export async function handleChatPost(request: Request) {
       messages: [
         {
           role: 'system',
-          content:
-            'You are a helpful assistant. Always begin your response with <think> and stream your live reasoning inside that tag. When you are ready to answer the user, close </think> and continue with the user-facing response in polished markdown outside the think tags.',
+          content: 'You are a helpful assistant.',
         },
         ...messages,
       ],
+      extra_body: {
+        include_reasoning: true,
+      },
       response_format: { type: 'text' },
       max_tokens: 131072,
       temperature: 1,
@@ -128,34 +90,23 @@ export async function handleChatPost(request: Request) {
 
         try {
           push({ type: 'start' });
-
-          let raw = '';
-          let sentThinkingLength = 0;
-          let sentAnswerLength = 0;
           let thinkingStarted = false;
 
           for await (const chunk of streamedCompletion) {
-            const delta = chunk?.choices?.[0]?.delta?.content ?? '';
-            if (!delta) continue;
+            const delta = chunk?.choices?.[0]?.delta ?? {};
+            const reasoningDelta = delta?.reasoning_content ?? '';
+            const answerDelta = delta?.content ?? '';
 
-            raw += delta;
-            const parsed = extractThinkingAndAnswer(raw);
-
-            if (!thinkingStarted && parsed.hasThinkTag) {
+            if (reasoningDelta && !thinkingStarted) {
               thinkingStarted = true;
               push({ type: 'thinking_start' });
             }
 
-            const thinkingDelta = parsed.thinkingContent.slice(sentThinkingLength);
-            const answerDelta = parsed.answerContent.slice(sentAnswerLength);
-
-            if (thinkingDelta) {
-              sentThinkingLength = parsed.thinkingContent.length;
-              push({ type: 'thinking_delta', delta: thinkingDelta });
+            if (reasoningDelta) {
+              push({ type: 'thinking_delta', delta: reasoningDelta });
             }
 
             if (answerDelta) {
-              sentAnswerLength = parsed.answerContent.length;
               push({ type: 'answer_delta', delta: answerDelta });
             }
           }
@@ -182,6 +133,48 @@ export async function handleChatPost(request: Request) {
     });
   } catch (error: any) {
     console.error('Error while calling Clauxen:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Unknown error occurred' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function handleChatTitlePost(request: Request) {
+  try {
+    if (!process.env.NOVITA_API_KEY) {
+      return NextResponse.json({ error: 'NOVITA_API_KEY is not configured.' }, { status: 500 });
+    }
+
+    const body = await request.json();
+    const messages = sanitizeMessages(body?.messages).slice(0, 2);
+
+    if (messages.length < 2) {
+      return NextResponse.json({ error: 'First user and assistant messages are required to generate a title.' }, { status: 400 });
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: 'moonshotai/kimi-k2.5',
+      messages: [
+        {
+          role: 'system',
+          content:
+            "Summarize the user's topic into a 3-5 word title. Return ONLY the title text, no quotes.",
+        },
+        ...messages,
+      ],
+      response_format: { type: 'text' },
+      max_tokens: 24,
+      temperature: 0.2,
+      top_p: 1,
+    } as any);
+
+    const rawTitle = completion.choices?.[0]?.message?.content?.trim() || 'New Chat';
+    const normalizedTitle = rawTitle.replace(/^["'`]+|["'`]+$/g, '').slice(0, 60) || 'New Chat';
+
+    return NextResponse.json({ title: normalizedTitle });
+  } catch (error: any) {
+    console.error('Error while generating chat title:', error);
     return NextResponse.json(
       { error: error?.message || 'Unknown error occurred' },
       { status: 500 }

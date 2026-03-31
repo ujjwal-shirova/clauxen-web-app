@@ -18,9 +18,13 @@ import { cn } from '@/frontend/lib/utils';
 export default function Home() {
   const {
     messages,
+    recentChats,
+    activeChat,
     isGenerating,
     handleSendMessage,
+    stopGeneration,
     startNewChat,
+    handleSelectChat,
     updateMessage,
     activeChatId,
   } = useChat();
@@ -75,6 +79,9 @@ export default function Home() {
         onClawClick={() => handleGoToView('claw')}
         onHistoryClick={() => handleGoToView('chat')}
         activeView={activeView}
+        recentChats={recentChats}
+        activeChatId={activeChatId}
+        onSelectChat={handleSelectChat}
       />
 
       <main
@@ -90,10 +97,13 @@ export default function Home() {
                 key={`${activeChatId ?? 'new-chat'}-${chatRenderKey}`}
                 messages={messages}
                 onSendMessage={handleSendMessage}
+                onStopGeneration={stopGeneration}
                 isGenerating={isGenerating}
                 onUpgradeClick={() => setShowUpgradeView(true)}
                 updateMessage={updateMessage}
                 activeChatId={activeChatId}
+                activeChatTitle={activeChat?.name ?? 'New Chat'}
+                isActiveChatTitleStreaming={!!activeChat?.isTitleStreaming}
                 onOpenAgentSwarm={() => setIsSidebarCollapsed(true)}
               />
             )}
@@ -126,6 +136,7 @@ export default function Home() {
                   handleSendMessage(prompt);
                   setActiveView('chat');
                 }}
+                onStopGeneration={stopGeneration}
                 isGenerating={isGenerating}
               />
             )}

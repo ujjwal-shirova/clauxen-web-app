@@ -13,6 +13,10 @@ import {
   Languages,
   Library,
   Microscope,
+  Star,
+  Pencil,
+  FolderPlus,
+  Trash2,
 } from 'lucide-react';
 import { 
   SidebarToggleIcon, 
@@ -39,6 +43,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
 } from "@/frontend/components/ui/dropdown-menu";
+import { OrbCursor } from './ui/orb-cursor';
+import type { RecentChat } from '@/frontend/lib/types';
 
 const DownloadButton = ({ size = "md", className }: { size?: "sm" | "md" | "lg", className?: string }) => (
   <div className={cn("relative group cursor-pointer", className)}>
@@ -83,6 +89,9 @@ interface SidebarProps {
   onDeepResearchClick: () => void;
   onClawClick: () => void;
   activeView?: string;
+  recentChats: RecentChat[];
+  activeChatId: string | null;
+  onSelectChat: (chatId: string) => void;
 }
 
 export function Sidebar({ 
@@ -99,7 +108,10 @@ export function Sidebar({
   onArtifactsClick,
   onDeepResearchClick,
   onClawClick,
-  activeView
+  activeView,
+  recentChats,
+  activeChatId,
+  onSelectChat,
 }: SidebarProps) {
   const isCustomizeActive = activeView === 'customize';
 
@@ -107,7 +119,7 @@ export function Sidebar({
     <nav 
       onClick={() => isCollapsed && !isCustomizeActive && setIsCollapsed(false)}
       className={cn(
-        "bg-[#f7f8f2] flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out select-none fixed left-0 top-0 z-30",
+        "sidebar-hover-area bg-[#f7f8f2] flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out select-none fixed left-0 top-0 z-30",
         isCollapsed ? "w-[48.8px] cursor-pointer" : "w-[288px]"
       )}
     >
@@ -128,8 +140,8 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide">
-        <div className="px-2 space-y-0.5">
+      <div className="sidebar-scrollable flex-1 overflow-y-auto overflow-x-hidden">
+        <div className={cn("sticky top-0 z-10 bg-[#f7f8f2] px-2", isCollapsed ? "pt-1 pb-2" : "pt-1 pb-2")}>
           <div className={cn("py-1 mb-1", isCollapsed ? "px-0" : "px-2")}>
             {isCollapsed ? (
               <button onClick={(e) => e.stopPropagation()} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all mx-auto"><Search className="w-5 h-5 opacity-70" /></button>
@@ -149,6 +161,9 @@ export function Sidebar({
             <div className="flex items-center justify-center w-5 h-5 bg-[#73726c]/15 rounded-full shrink-0"><NewChatIcon className="w-3.5 h-3.5 text-[#3d3d3a]" /></div>
             {!isCollapsed && <span className="flex-1 text-left truncate">New chat</span>}
           </Button>
+        </div>
+
+        <div className="px-2 space-y-0.5">
 
           <button
             onClick={(e) => { e.stopPropagation(); onHistoryClick(); }}
@@ -221,6 +236,70 @@ export function Sidebar({
               </button>
             ))}
           </div>
+
+          {!isCollapsed && recentChats.length > 0 && (
+            <div className="mt-4 mb-4 px-1">
+              <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#73726c]/80">
+                Chats
+              </p>
+              <div className="mt-1 space-y-0.5">
+                {recentChats.map((chat) => (
+                  <div
+                    key={chat.id}
+                    className={cn(
+                      'group/chat flex h-9 w-full items-center rounded-lg px-3 text-left text-[13px] font-[430] text-[#3d3d3a] transition-colors hover:bg-black/5',
+                      activeChatId === chat.id && 'bg-black/[0.06]'
+                    )}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectChat(chat.id);
+                        onHistoryClick();
+                      }}
+                      className="flex min-w-0 flex-1 items-center text-left"
+                    >
+                      <span className="truncate">{chat.name || 'New Chat'}</span>
+                      {chat.isTitleStreaming && <OrbCursor />}
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className="ml-2 flex h-6 w-6 items-center justify-center rounded-md text-[#73726c] opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-black/5 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
+                        >
+                          <MoreVertical className="icon-md icon-muted" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        side="right"
+                        className="min-w-[160px] rounded-xl border border-[#1f1e1d]/30 bg-white/95 p-1.5 text-[#3d3d3a] shadow-[0_2px_8px_rgba(0,0,0,0.08)] backdrop-blur-xl"
+                      >
+                        <DropdownMenuItem className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] transition-colors hover:bg-black/5 focus:bg-black/5">
+                          <Star className="icon-md mr-2" />
+                          Star
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] transition-colors hover:bg-black/5 focus:bg-black/5">
+                          <Pencil className="icon-md mr-2" />
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] transition-colors hover:bg-black/5 focus:bg-black/5">
+                          <FolderPlus className="icon-md mr-2" />
+                          Add to project
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="my-1 bg-[#1f1e1d]/15" />
+                        <DropdownMenuItem className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] text-[#8a2424] transition-colors hover:bg-[#8a2424]/10 focus:bg-[#8a2424]/10">
+                          <Trash2 className="icon-md mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

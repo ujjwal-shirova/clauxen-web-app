@@ -9,8 +9,6 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-
-// Changed from oneDark to vs (Visual Studio Light) to match the white theme requirement
 import { vs } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 
 import 'katex/dist/katex.min.css';
@@ -38,6 +36,11 @@ import {
 } from './markdown-styles';
 
 import { OrbCursor } from './ui/orb-cursor';
+
+const normalizeLatexDelimiters = (input: string) =>
+  input
+    .replace(/\\\[((?:.|\n)*?)\\\]/g, (_match, expression) => `\n$$\n${expression}\n$$\n`)
+    .replace(/\\\(((?:.|\n)*?)\\\)/g, (_match, expression) => `$${expression}$`);
 
 function CodeRenderer({
   inline,
@@ -77,15 +80,17 @@ function CodeRenderer({
             color: '#6e7781',
             textAlign: 'right',
             userSelect: 'none',
-            fontSize: '14px',
+            fontSize: '13px',
             marginTop: '2px',
           }}
           customStyle={{
             margin: 0,
             padding: '1.25rem',
             background: 'transparent',
-            fontSize: '15px',
-            lineHeight: '1.7',
+            fontSize: '14px',
+            lineHeight: '1.65',
+            color: '#24292f',
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
             border: 'none',
           }}
           {...props}
@@ -155,86 +160,55 @@ const components = {
 
 
 
-// Custom renderer to handle the cursor marker
+const CURSOR_SENTINEL = '\uE000';
+const TRAILING_CURSOR_SENTINEL_REGEX = new RegExp(`${CURSOR_SENTINEL}+$`);
 
+// Inject cursor only at the terminal render node using a strict trailing marker regex.
 const MarkdownContent = ({ children, isTyping }: { children: any; isTyping: boolean }) => {
-
   const injectCursor = (nodes: any, path = 'root'): any => {
-
     if (!isTyping) return nodes;
 
-
-
     if (typeof nodes === 'string') {
-
-      if (nodes.endsWith('█')) {
-
-        return (
-
-          <React.Fragment key={`${path}-cursor-wrapper`}>
-
-            {nodes.slice(0, -1)}
-
-            <OrbCursor key={`${path}-cursor`} />
-
-          </React.Fragment>
-
-        );
-
+      if (!TRAILING_CURSOR_SENTINEL_REGEX.test(nodes)) {
+        return nodes;
       }
 
-      return nodes;
-
+      return (
+        <React.Fragment key={`${path}-cursor-wrapper`}>
+          {nodes.replace(TRAILING_CURSOR_SENTINEL_REGEX, '')}
+          <OrbCursor key={`${path}-cursor`} />
+        </React.Fragment>
+      );
     }
-
-
 
     if (Array.isArray(nodes)) {
-
-      const lastIdx = nodes.length - 1;
-
-      return nodes.map((node, i) => {
-
-        const key = (React.isValidElement(node) && node.key) || `${path}-${i}`;
-
-        return i === lastIdx ? injectCursor(node, `${path}-${i}`) : React.cloneElement(React.isValidElement(node) ? node : <React.Fragment key={key}>{node}</React.Fragment>, { key } as any);
-
-      });
-
-    }
-
-
-
-    if (React.isValidElement(nodes)) {
-
-      const key = nodes.key || path;
-
-      if ((nodes.props as any).children) {
-
-        return React.cloneElement(nodes, {
-
-          key,
-
-          children: injectCursor((nodes.props as any).children, `${path}-c`),
-
-        } as any);
-
+      let lastRenderableIndex = -1;
+      for (let i = nodes.length - 1; i >= 0; i -= 1) {
+        if (nodes[i] !== null && nodes[i] !== undefined && nodes[i] !== false) {
+          lastRenderableIndex = i;
+          break;
+        }
       }
 
-      return React.cloneElement(nodes, { key } as any);
+      if (lastRenderableIndex === -1) {
+        return nodes;
+      }
 
+      const nextNodes = [...nodes];
+      nextNodes[lastRenderableIndex] = injectCursor(nextNodes[lastRenderableIndex], `${path}-${lastRenderableIndex}`);
+      return nextNodes;
     }
 
-
+    if (React.isValidElement(nodes) && (nodes.props as any)?.children) {
+      return React.cloneElement(nodes, {
+        children: injectCursor((nodes.props as any).children, `${path}-c`),
+      } as any);
+    }
 
     return nodes;
-
   };
 
-
-
   return <>{injectCursor(children)}</>;
-
 };
 
 
@@ -243,9 +217,18 @@ const MarkdownContent = ({ children, isTyping }: { children: any; isTyping: bool
 
 
 
-export const MarkdownOrchestrator = ({ text, isTyping }: { text: string; isTyping: boolean }) => {
+export const MarkdownOrchestrator = ({
+  text,
+  isTyping,
+  showCursor = true,
+}: {
+  text: string;
+  isTyping: boolean;
+  showCursor?: boolean;
+}) => {
 
-  const processedText = isTyping ? text + "█" : text;
+  const normalizedText = normalizeLatexDelimiters(text);
+  const processedText = isTyping && showCursor ? `${normalizedText}${CURSOR_SENTINEL}` : normalizedText;
 
 
 
@@ -305,7 +288,8 @@ export const MarkdownMessage = ({
 
   onTypingComplete,
 
-  isStreaming
+  isStreaming,
+  showCursor = true,
 
 }: {
 
@@ -314,6 +298,7 @@ export const MarkdownMessage = ({
   onTypingComplete?: () => void;
 
   isStreaming?: boolean;
+  showCursor?: boolean;
 
 }) => {
 
@@ -329,16 +314,18 @@ export const MarkdownMessage = ({
 
 
 
-  return <MarkdownOrchestrator text={content} isTyping={!!isStreaming} />;
+  return <MarkdownOrchestrator text={content} isTyping={!!isStreaming} showCursor={showCursor} />;
 
 };
 
 export const MarkdownRenderer = ({
   content,
   isStreaming = false,
+  showCursor = true,
 }: {
   content: string;
   isStreaming?: boolean;
+  showCursor?: boolean;
 }) => (
-  <MarkdownMessage content={content} isStreaming={isStreaming} />
+  <MarkdownMessage content={content} isStreaming={isStreaming} showCursor={showCursor} />
 );
