@@ -1,12 +1,12 @@
 import React from 'react';
 import { Check, Copy } from 'lucide-react';
 
-
-// --- TYPOGRAPHY COMPONENTS ---
+const bodyTextClass = 'font-sans text-[15px] leading-[1.85] text-[#3d3d3a]';
+const subtleTextClass = 'font-sans text-[14px] leading-[1.75] text-[#73726c]';
 
 export const StyledH1 = ({ children, hasCursor, Cursor }: any) => (
-  <div className="mt-8 mb-5">
-    <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight source-code-pro font-mono">
+  <div className="mb-5 mt-8">
+    <h1 className="font-serif text-[30px] font-semibold leading-[1.2] tracking-[-0.02em] text-[#1f1e1d] sm:text-[34px]">
       {children}
       {hasCursor && <Cursor />}
     </h1>
@@ -14,8 +14,8 @@ export const StyledH1 = ({ children, hasCursor, Cursor }: any) => (
 );
 
 export const StyledH2 = ({ children, hasCursor, Cursor }: any) => (
-  <div className="mt-6 mb-4">
-    <h2 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight source-code-pro font-mono">
+  <div className="mb-4 mt-7">
+    <h2 className="font-serif text-[24px] font-semibold leading-[1.25] tracking-[-0.015em] text-[#1f1e1d] sm:text-[28px]">
       {children}
       {hasCursor && <Cursor />}
     </h2>
@@ -23,8 +23,8 @@ export const StyledH2 = ({ children, hasCursor, Cursor }: any) => (
 );
 
 export const StyledH3 = ({ children, hasCursor, Cursor }: any) => (
-  <div className="mt-5 mb-3">
-    <h3 className="text-base sm:text-lg font-medium text-foreground source-code-pro font-mono">
+  <div className="mb-3 mt-6">
+    <h3 className="font-sans text-[18px] font-semibold leading-[1.35] text-[#2b2a28] sm:text-[20px]">
       {children}
       {hasCursor && <Cursor />}
     </h3>
@@ -32,37 +32,33 @@ export const StyledH3 = ({ children, hasCursor, Cursor }: any) => (
 );
 
 export const StyledParagraph = ({ children, hasCursor, Cursor }: any) => (
-  <div className="mb-3 leading-7 text-muted-foreground text-[15px] sm:text-[16px] source-code-pro font-mono">
+  <div className={`${bodyTextClass} mb-4`}>
     {children}
     {hasCursor && <Cursor />}
   </div>
 );
 
-// --- INLINE STYLES ---
-
 export const StyledBold = ({ children }: { children: React.ReactNode }) => (
-  <strong className="font-semibold text-foreground source-code-pro font-mono">{children}</strong>
+  <strong className="font-semibold text-[#1f1e1d]">{children}</strong>
 );
 
 export const StyledItalic = ({ children }: { children: React.ReactNode }) => (
-  <em className="italic text-muted-foreground source-code-pro font-mono">{children}</em>
+  <em className="italic text-[#5e5c57]">{children}</em>
 );
 
 export const StyledInlineCode = ({ children }: { children: React.ReactNode }) => (
-  <code className="px-1.5 py-0.5 mx-0.5 rounded-md text-[13px] sm:text-sm bg-accent text-foreground font-mono source-code-pro border border-border/60">
+  <code className="mx-0.5 rounded-md border border-[#1f1e1d]/10 bg-[#f0eee6] px-1.5 py-0.5 font-mono text-[13px] text-[#2f5f8f]">
     {children}
   </code>
 );
 
-// --- COMPLEX BLOCK COMPONENTS ---
-
 export const StyledHorizontalRule = () => (
-  <hr className="my-6 sm:my-8 border-border" />
+  <hr className="my-7 border-0 border-t border-[#1f1e1d]/10" />
 );
 
 export const StyledBlockquote = ({ children, hasCursor, Cursor }: any) => (
-  <blockquote className="my-4 px-4 sm:px-5 py-3 sm:py-4 border-l-4 border-primary/30 bg-accent/50 rounded-r-xl source-code-pro font-mono">
-    <div className="text-muted-foreground italic text-[14px] sm:text-[15px]">
+  <blockquote className="my-5 rounded-r-2xl border-l-[3px] border-[#b7aa8b] bg-[#f6f3eb] px-4 py-3">
+    <div className={`${subtleTextClass} italic`}>
       {children}
       {hasCursor && <Cursor />}
     </div>
@@ -71,20 +67,17 @@ export const StyledBlockquote = ({ children, hasCursor, Cursor }: any) => (
 
 export const StyledList = ({ children, isOrdered, index, hasCursor, Cursor }: any) => {
   return (
-    <div className="ml-0 pl-1 my-2 sm:my-3 flex items-start">
+    <div className="my-2.5 flex items-start pl-1">
       <span
-        className={`flex items-center justify-center shrink-0 mr-2 sm:mr-3 mt-[3px] ${isOrdered
-          ? 'w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-accent text-[10px] sm:text-[11px] font-semibold text-muted-foreground border border-border'
-          : 'w-5 h-5 sm:w-6 sm:h-6'
-          }`}
+        className={`mr-3 mt-[5px] flex shrink-0 items-center justify-center ${
+          isOrdered
+            ? 'h-6 w-6 rounded-full border border-[#1f1e1d]/10 bg-[#f0eee6] text-[11px] font-semibold text-[#5e5c57]'
+            : 'h-6 w-6'
+        }`}
       >
-        {isOrdered ? (
-          index
-        ) : (
-          <div className="w-1.5 h-1.5 rounded-sm bg-muted-foreground/60 rotate-45" />
-        )}
+        {isOrdered ? index : <div className="h-1.5 w-1.5 rotate-45 rounded-[1px] bg-[#8a857a]" />}
       </span>
-      <span className="text-muted-foreground flex-1 pt-[1px] leading-7 text-[14px] sm:text-[15px] source-code-pro font-mono">
+      <span className={`${bodyTextClass} flex-1 pt-[1px]`}>
         {children}
         {hasCursor && <Cursor />}
       </span>
@@ -92,48 +85,49 @@ export const StyledList = ({ children, isOrdered, index, hasCursor, Cursor }: an
   );
 };
 
-// --- TABLE COMPONENTS (Improved with proper overflow handling) ---
-
 export const StyledTableContainer = ({ children }: { children: React.ReactNode }) => (
-  <div className="table-block-container my-4 sm:my-6">
-    <div className="rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      <div className="table-scroll-area">
-        <table className="text-[13px] sm:text-sm text-left source-code-pro font-mono w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-          {children}
-        </table>
-      </div>
+  <div className="my-6 overflow-hidden rounded-2xl border border-[#1f1e1d]/10 bg-[#fcfbf8] shadow-[0_10px_30px_rgba(31,30,29,0.04)]">
+    <div className="overflow-x-auto">
+      <table
+        className="w-full min-w-[520px] border-separate text-left font-sans text-[14px] text-[#3d3d3a]"
+        style={{ borderSpacing: 0 }}
+      >
+        {children}
+      </table>
     </div>
   </div>
 );
 
 export const StyledTableHeader = ({ children }: { children: React.ReactNode }) => (
-  <thead className="bg-accent/60">{children}</thead>
+  <thead className="bg-[#f0eee6]">{children}</thead>
 );
 
 export const StyledTableHeadCell = ({ children }: { children: React.ReactNode }) => (
-  <th className="px-3 sm:px-5 py-3 font-semibold text-foreground text-[11px] sm:text-xs uppercase tracking-wider sticky top-0 bg-accent/60 z-10 whitespace-nowrap min-w-[100px] first:rounded-tl-xl first:sm:rounded-tl-2xl last:rounded-tr-xl last:sm:rounded-tr-2xl">
+  <th className="border-b border-[#1f1e1d]/10 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#73726c] first:rounded-tl-2xl last:rounded-tr-2xl">
     {children}
   </th>
 );
 
 export const StyledTableBody = ({ children }: { children: React.ReactNode }) => (
-  <tbody className="bg-card divide-y divide-border">{children}</tbody>
+  <tbody className="bg-[#fcfbf8]">{children}</tbody>
 );
 
 export const StyledTableRow = ({ children }: { children: React.ReactNode }) => (
-  <tr className="hover:bg-accent/30 transition-colors">{children}</tr>
+  <tr className="transition-colors hover:bg-[#f6f3eb]">{children}</tr>
 );
 
 export const StyledTableCell = ({ children, isLast, hasCursor, Cursor, isLastRow }: any) => (
-  <td className={`px-3 sm:px-5 py-3 text-muted-foreground text-[13px] sm:text-sm min-w-[100px] max-w-[300px] ${isLastRow ? 'first:rounded-bl-xl first:sm:rounded-bl-2xl last:rounded-br-xl last:sm:rounded-br-2xl' : ''}`}>
+  <td
+    className={`border-b border-[#1f1e1d]/8 px-4 py-3 align-top text-[14px] leading-[1.7] text-[#4a4945] ${
+      isLastRow ? 'border-b-0 first:rounded-bl-2xl last:rounded-br-2xl' : ''
+    }`}
+  >
     <div className="break-words">
       {children}
       {isLast && hasCursor && <Cursor />}
     </div>
   </td>
 );
-
-// --- CODE BLOCK FRAME (Updated to Light Theme / Vercel-like Design) ---
 
 interface CodeBlockFrameProps {
   language: string;
@@ -143,42 +137,22 @@ interface CodeBlockFrameProps {
 }
 
 export const CodeBlockFrame = ({ language, children, onCopy, isCopied }: CodeBlockFrameProps) => (
-  <div className="code-block-container my-6">
-    {/* Updated Container: 
-       - White background (bg-white)
-       - Subtle gray border (border-gray-200) for that clean Vercel/Apple look
-    */}
-    <div className="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+  <div className="my-6 overflow-hidden rounded-2xl border border-[#1f1e1d]/10 bg-[#f7f5ef] shadow-[0_12px_32px_rgba(31,30,29,0.05)]">
+    <div className="flex items-center justify-between border-b border-[#1f1e1d]/8 bg-[#f0eee6] px-4 py-3">
+      <span className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-[#73726c]">
+        {language || 'plaintext'}
+      </span>
+      <button
+        onClick={onCopy}
+        className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-[#73726c] transition-colors hover:bg-[#e9e5da] hover:text-[#3d3d3a]"
+      >
+        {isCopied ? <Check size={12} className="text-[#5b7f56]" /> : <Copy size={12} />}
+        <span>{isCopied ? 'Copied' : 'Copy'}</span>
+      </button>
+    </div>
 
-      {/* Updated Header:
-         - Light gray background (bg-gray-50/50)
-         - Subtle separator
-         - Darker text for contrast on light theme
-      */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/50 border-b border-gray-100">
-        <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider font-mono">
-          {language || 'plaintext'}
-        </span>
-        <button
-          onClick={onCopy}
-          className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-gray-700 transition-all hover:bg-gray-100 px-2 py-1 rounded-md"
-        >
-          {isCopied ? (
-            <Check size={12} className="text-green-500" />
-          ) : (
-            <Copy size={12} />
-          )}
-          <span>{isCopied ? 'Copied' : 'Copy'}</span>
-        </button>
-      </div>
-
-      {/* Content Area: 
-         - Explicitly white background to cover the whole area
-         - No padding adjustments to keep "lines like vs code" alignment
-      */}
-      <div className="code-scroll-area bg-white">
-        {children}
-      </div>
+    <div className="bg-[#fcfbf8] [&_pre]:!bg-transparent [&_pre]:text-[14px] [&_pre]:leading-[1.75]">
+      {children}
     </div>
   </div>
 );

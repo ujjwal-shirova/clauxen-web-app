@@ -3,43 +3,49 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/frontend/lib/utils';
+import { OrbCursor } from './ui/orb-cursor';
 
-const defaultSteps = [
-  'Reading your message and shaping the response.',
-  'Breaking the request into smaller pieces.',
-  'Checking the layout and visual rhythm of the block.',
-  'Aligning the shimmer treatment with the label style.',
-  'Refining spacing so the block feels intentional.',
-  'Keeping the pending assistant state clean and minimal.',
-  'Preparing the final reply structure for the next step.',
-];
-
-const extraSteps = [
-  'Reviewing whether the interaction needs any final polish before the real assistant response is connected.',
-  'Holding the pending state in place so the block feels stable while the message is still in progress.',
-];
+import { useEffect, useMemo, useRef } from 'react';
 
 interface ThinkingBlockProps {
   className?: string;
   label?: string;
-  steps?: string[];
+  content?: string;
+  isStreaming?: boolean;
 }
 
 export function ThinkingBlock({
   className,
   label = 'Thinking',
-  steps = defaultSteps,
+  content = '',
+  isStreaming = false,
 }: ThinkingBlockProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const visibleSteps = isExpanded ? [...steps, ...extraSteps] : steps;
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const lines = useMemo(() => {
+    return content
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }, [content]);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [lines, isExpanded]);
+
+  if (lines.length === 0) {
+    return null;
+  }
 
   return (
-    <div className={cn('w-full animate-in fade-in duration-300', className)}>
+    <div className={cn('w-full animate-in fade-in slide-in-from-top-1 duration-300', className)}>
       <div className="px-2 py-2">
         <div className="grid gap-y-2">
           <div className="min-w-0">
             <div
-              className="flex items-center gap-2 rounded-[10px] py-0.5 text-left text-[14px] leading-5 text-[#73726c]"
+              className="flex items-center gap-2 rounded-[10px] py-0.5 text-left text-[14px] leading-5 text-[#73726c] transition-all duration-200"
               aria-expanded="true"
             >
               <span className="truncate font-medium shimmer-text">{label}</span>
@@ -49,9 +55,24 @@ export function ThinkingBlock({
 
           <div className="overflow-hidden pt-0.5">
             <div className="grid gap-3 rounded-[12px] border border-[#1f1e1d]/8 bg-[#faf9f5] px-3 py-2.5 text-[14px] font-[430] leading-[1.4] text-[#3d3d3a]">
-              {visibleSteps.map((step) => (
-                <p key={step}>{step}</p>
-              ))}
+              <div
+                ref={scrollRef}
+                className={cn(
+                  'overflow-y-auto pr-1 text-[14px] leading-[1.55] text-[#3d3d3a] scrollbar-thin',
+                  isExpanded ? 'max-h-[16.4rem]' : 'max-h-[10.85rem]'
+                )}
+              >
+                <div className="grid gap-3">
+                  {lines.map((step, index) => (
+                    <p key={`${index}-${step}`}>{step}</p>
+                  ))}
+                  {isStreaming && (
+                    <div className="flex items-center">
+                      <OrbCursor />
+                    </div>
+                  )}
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsExpanded((value) => !value)}

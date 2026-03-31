@@ -1,5 +1,8 @@
 import React from 'react';
 
+const THINK_OPEN_TAG = '<think>';
+const THINK_CLOSE_TAG = '</think>';
+
 // Parse incoming markdown-like stream into text/code blocks
 export const parseStreamToBlocks = (text: string) => {
   const blocks: any[] = [];
@@ -38,6 +41,46 @@ export const parseStreamToBlocks = (text: string) => {
   }
 
   return blocks;
+};
+
+export const extractThinkingAndAnswer = (raw: string) => {
+  let thinkingContent = '';
+  let answerContent = '';
+  let cursor = 0;
+  let isInsideThink = false;
+
+  while (cursor < raw.length) {
+    if (!isInsideThink) {
+      const openIndex = raw.indexOf(THINK_OPEN_TAG, cursor);
+
+      if (openIndex === -1) {
+        answerContent += raw.slice(cursor);
+        break;
+      }
+
+      answerContent += raw.slice(cursor, openIndex);
+      cursor = openIndex + THINK_OPEN_TAG.length;
+      isInsideThink = true;
+      continue;
+    }
+
+    const closeIndex = raw.indexOf(THINK_CLOSE_TAG, cursor);
+
+    if (closeIndex === -1) {
+      thinkingContent += raw.slice(cursor);
+      break;
+    }
+
+    thinkingContent += raw.slice(cursor, closeIndex);
+    cursor = closeIndex + THINK_CLOSE_TAG.length;
+    isInsideThink = false;
+  }
+
+  return {
+    thinkingContent: thinkingContent.trim(),
+    answerContent: answerContent.trim(),
+    hasOpenThinkTag: isInsideThink,
+  };
 };
 
 export const OrbCursor = () => (

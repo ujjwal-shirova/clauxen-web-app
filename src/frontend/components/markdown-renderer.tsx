@@ -333,6 +333,12 @@ export const MarkdownMessage = ({
 
 };
 
-export const MarkdownRenderer = ({ content }: { content: string }) => (
-  <MarkdownMessage content={content} isStreaming={false} />
+export const MarkdownRenderer = ({
+  content,
+  isStreaming = false,
+}: {
+  content: string;
+  isStreaming?: boolean;
+}) => (
+  <MarkdownMessage content={content} isStreaming={isStreaming} />
 );
