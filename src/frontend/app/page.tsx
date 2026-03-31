@@ -11,6 +11,8 @@ import { GiftView } from '@/frontend/components/gift-view';
 import { CustomizePage } from '@/frontend/components/customize-page';
 import { ProjectsView } from '@/frontend/components/projects-view';
 import { ArtifactsView } from '@/frontend/components/artifacts-view';
+import { ClauxenClawView } from '@/frontend/components/clauxen-claw-view';
+import { DeepResearchView } from '@/frontend/components/deep-research-view';
 import { cn } from '@/frontend/lib/utils';
 
 export default function Home() {
@@ -24,7 +26,7 @@ export default function Home() {
   } = useChat();
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [activeView, setActiveView] = useState<'chat' | 'settings' | 'customize' | 'projects' | 'artifacts'>('chat');
+  const [activeView, setActiveView] = useState<'chat' | 'settings' | 'customize' | 'projects' | 'artifacts' | 'claw' | 'deep-research'>('chat');
   const [showUpgradeView, setShowUpgradeView] = useState(false);
   const [showAppsView, setShowAppsView] = useState(false);
   const [showGiftView, setShowGiftView] = useState(false);
@@ -45,7 +47,7 @@ export default function Home() {
     setChatRenderKey((current) => current + 1);
   };
 
-  const handleGoToView = (view: 'chat' | 'settings' | 'customize' | 'projects' | 'artifacts', tab?: 'skills' | 'connectors') => {
+  const handleGoToView = (view: 'chat' | 'settings' | 'customize' | 'projects' | 'artifacts' | 'claw' | 'deep-research', tab?: 'skills' | 'connectors') => {
     setCustomizeTab(tab || null);
     setActiveView(view);
 
@@ -69,6 +71,8 @@ export default function Home() {
         onGiftClick={() => setShowGiftView(true)}
         onProjectsClick={() => handleGoToView('projects')}
         onArtifactsClick={() => handleGoToView('artifacts')}
+        onDeepResearchClick={() => handleGoToView('deep-research')}
+        onClawClick={() => handleGoToView('claw')}
         onHistoryClick={() => handleGoToView('chat')}
         activeView={activeView}
       />
@@ -112,6 +116,18 @@ export default function Home() {
             )}
             {activeView === 'artifacts' && (
               <ArtifactsView />
+            )}
+            {activeView === 'claw' && (
+              <ClauxenClawView />
+            )}
+            {activeView === 'deep-research' && (
+              <DeepResearchView
+                onSendMessage={(prompt) => {
+                  handleSendMessage(prompt);
+                  setActiveView('chat');
+                }}
+                isGenerating={isGenerating}
+              />
             )}
           </div>
         </div>

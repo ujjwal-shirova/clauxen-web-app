@@ -8,13 +8,10 @@ export async function handleChatPost(request: Request) {
     if (!message) {
       return NextResponse.json({ error: 'Message is required.' }, { status: 400 });
     }
-
-    const encoder = new TextEncoder();
-    const reply = `Clauxen local mode received: ${message}`;
     const readableStream = new ReadableStream<Uint8Array>({
       async start(controller) {
         try {
-          controller.enqueue(encoder.encode(reply));
+          await new Promise((resolve) => setTimeout(resolve, 1600));
           controller.close();
         } catch (error) {
           controller.error(error);

@@ -14,10 +14,11 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ScrollArea } from '@/frontend/components/ui/scroll-area';
 import { FeaturedAgentCases } from './featured-agent-cases';
 import { PromptSuggestions } from './prompt-suggestions';
+import { GlossyTextReveal } from '@/frontend/components/ui/glossy-text-reveal';
 
 interface ChatViewPaneProps {
   hasConversation: boolean;
@@ -56,6 +57,25 @@ export function ChatViewPane({
   scrollAreaRef,
   className,
 }: ChatViewPaneProps) {
+  const [mockMarkdownText, setMockMarkdownText] = useState<string>('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch('/mock/chat-animation-preview.md')
+      .then((response) => response.text())
+      .then((text) => {
+        if (!cancelled) setMockMarkdownText(text);
+      })
+      .catch(() => {
+        if (!cancelled) setMockMarkdownText('');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section className={className}>
       <ScrollArea className="flex-1 w-full" ref={scrollAreaRef}>
@@ -119,6 +139,18 @@ export function ChatViewPane({
                 </div>
 
                 <FeaturedAgentCases />
+
+                {mockMarkdownText && (
+                  <div className="w-full mt-1 rounded-2xl border border-[#1f1e1d]/10 bg-white/65 backdrop-blur-[6px] px-5 py-4 shadow-[0_10px_30px_rgba(20,20,19,0.05)]">
+                    <p className="text-[12px] font-medium text-[#73726c] mb-2">
+                      Animated text preview
+                    </p>
+                    <GlossyTextReveal
+                      text={mockMarkdownText}
+                      className="text-[14px] leading-[1.8] whitespace-pre-wrap"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

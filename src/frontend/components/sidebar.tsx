@@ -80,6 +80,8 @@ interface SidebarProps {
   onGiftClick: () => void;
   onProjectsClick: () => void;
   onArtifactsClick: () => void;
+  onDeepResearchClick: () => void;
+  onClawClick: () => void;
   activeView?: string;
 }
 
@@ -95,6 +97,8 @@ export function Sidebar({
   onGiftClick,
   onProjectsClick,
   onArtifactsClick,
+  onDeepResearchClick,
+  onClawClick,
   activeView
 }: SidebarProps) {
   const isCustomizeActive = activeView === 'customize';
@@ -197,12 +201,12 @@ export function Sidebar({
             </button>
 
             {[
-              { id: 'deep-research', icon: Microscope, label: 'Deep Research' },
-              { id: 'clauxen-claw', icon: CreateWithClaudeIcon, label: 'Clauxen Claw' },
+              { id: 'deep-research', icon: Microscope, label: 'Deep Research', onClick: onDeepResearchClick },
+              { id: 'clauxen-claw', icon: CreateWithClaudeIcon, label: 'Clauxen Claw', onClick: onClawClick },
             ].map((item) => (
               <button
                 key={item.id}
-                onClick={(e) => { e.stopPropagation(); }}
+                onClick={(e) => { e.stopPropagation(); item.onClick(); }}
                 className={cn(
                   "flex items-center w-full h-9 rounded-lg text-[#3D3D3A] text-[14px] font-[430] leading-[20px] transition-all duration-75 hover:bg-black/5",
                   isCollapsed ? "justify-center w-9 h-9 mx-auto" : "justify-start px-3.5"
@@ -237,10 +241,46 @@ export function Sidebar({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="end" className="w-[272px] bg-white/80 backdrop-blur-3xl border-[#1f1e1d]/30 rounded-xl shadow-lg p-1.5 z-50 font-sans">
-            <DropdownMenuItem onClick={onSettingsClick} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer"><div className="flex items-center gap-2"><Settings className="w-5 h-5 text-[#3d3d3a]" /><span>Settings</span></div></DropdownMenuItem>
+            <DropdownMenuLabel className="px-2 py-1 text-[12px] font-[430] text-[#73726c] truncate">
+              revl.developer.go@gmail.com
+            </DropdownMenuLabel>
+            <DropdownMenuItem onClick={onSettingsClick} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer">
+              <div className="flex items-center gap-2"><Settings className="w-5 h-5 text-[#3d3d3a]" /><span>Settings</span></div>
+              <span className="text-[12px] text-[#73726c]">⇧⌘,</span>
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 rounded-lg data-[state=open]:bg-black/5 cursor-pointer">
+                <Languages className="w-5 h-5 text-[#3d3d3a]" />
+                <span>Language</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-[#1f1e1d]/30 rounded-xl shadow-lg p-1.5 z-50 font-sans">
+                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer">English</DropdownMenuItem>
+                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer">Hindi</DropdownMenuItem>
+                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer">Tamil</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+            <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer">
+              <HelpCircle className="w-5 h-5 text-[#3d3d3a]" />
+              <span>Get help</span>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onUpgradeClick} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer"><ArrowUpCircle className="w-5 h-5 text-[#3d3d3a]" /><span>Upgrade plan</span></DropdownMenuItem>
             <DropdownMenuItem onClick={onAppsExtensionsClick} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer"><DownloadButton size="sm" /><span className="ml-2">Apps and extensions</span></DropdownMenuItem>
             <DropdownMenuItem onClick={onGiftClick} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer"><Gift className="w-5 h-5 text-[#3d3d3a]" /><span>Gift Clauxen</span></DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 rounded-lg data-[state=open]:bg-black/5 cursor-pointer">
+                <HelpCircle className="w-5 h-5 text-[#3d3d3a]" />
+                <span>Learn more</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-[#1f1e1d]/30 rounded-xl shadow-lg p-1.5 z-50 font-sans">
+                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer">Release notes</DropdownMenuItem>
+                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer">Documentation</DropdownMenuItem>
+                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer">Community</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
             <DropdownMenuSeparator className="my-1.5 bg-[#1f1e1d]/10" />
             <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5 cursor-pointer text-destructive"><LogOut className="w-5 h-5" /><span>Log out</span></DropdownMenuItem>
           </DropdownMenuContent>

@@ -2,7 +2,7 @@
 
 import { Check } from 'lucide-react';
 import { MarkdownRenderer } from './markdown-renderer';
-import { MessageSkeleton } from './message-skeleton';
+import { ThinkingBlock } from './thinking-block';
 import type { Message } from '@/frontend/lib/types';
 import { cn } from '@/frontend/lib/utils';
 
@@ -115,18 +115,23 @@ export function ConversationThread({
             )
           ) : (
             <div className="w-full assistant-message text-gray-800 leading-relaxed group">
-              <MarkdownRenderer content={message.content} />
-              <div className="flex justify-start items-center gap-1 mt-3 text-[#73726c] font-sans">
-                <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Copy"><CustomCopyIcon /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Positive feedback"><ThumbsUpIcon /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Negative feedback"><ThumbsDownIcon /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Retry"><RetryIcon /></button>
-              </div>
+              {message.content.trim().length === 0 ? (
+                <ThinkingBlock />
+              ) : (
+                <>
+                  <MarkdownRenderer content={message.content} />
+                  <div className="flex justify-start items-center gap-1 mt-3 text-[#73726c] font-sans">
+                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Copy"><CustomCopyIcon /></button>
+                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Positive feedback"><ThumbsUpIcon /></button>
+                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Negative feedback"><ThumbsDownIcon /></button>
+                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Retry"><RetryIcon /></button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
       ))}
-      {isGenerating && messages[messages.length - 1]?.role === 'user' && <MessageSkeleton />}
     </div>
   );
 }
