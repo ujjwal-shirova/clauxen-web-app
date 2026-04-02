@@ -106,13 +106,14 @@ const moreItems: PromptMenuItem[] = [
   },
 ];
 
-function PromptAddMenuItem({ item }: { item: PromptMenuItem }) {
+function PromptAddMenuItem({ item, onClick }: { item: PromptMenuItem; onClick?: () => void }) {
   const Icon = item.icon;
   const isActive = Boolean(item.active);
 
   return (
     <button
       type="button"
+      onClick={onClick}
       className={cn(
         'group relative flex min-h-8 w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[14px] leading-5 transition-colors hover:bg-black/[0.03] focus:outline-none focus-visible:outline-none focus-visible:ring-0',
         isActive ? 'text-[#2c84db]' : 'text-[#141413]'
@@ -163,15 +164,34 @@ interface PromptAddMenuProps {
 }
 
 export function PromptAddMenu({ trigger, onQuickActionSelect }: PromptAddMenuProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [isSkillsOpen, setIsSkillsOpen] = useState(false);
   const [isStyleOpen, setIsStyleOpen] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState('Normal');
   const styleItems = ['Normal', 'Learning', 'Concise', 'Explanatory', 'Formal'];
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+    setIsMoreOpen(false);
+    setIsProjectOpen(false);
+    setIsSkillsOpen(false);
+    setIsStyleOpen(false);
+  };
 
   return (
-    <Popover>
+    <Popover
+      open={isMenuOpen}
+      onOpenChange={(open) => {
+        setIsMenuOpen(open);
+        if (!open) {
+          setIsMoreOpen(false);
+          setIsProjectOpen(false);
+          setIsSkillsOpen(false);
+          setIsStyleOpen(false);
+        }
+      }}
+    >
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
         side="top"
@@ -183,14 +203,14 @@ export function PromptAddMenu({ trigger, onQuickActionSelect }: PromptAddMenuPro
       >
         <div role="menu" aria-orientation="vertical" className="outline-none">
           {primaryItems.map((item) => (
-            <PromptAddMenuItem key={item.label} item={item} />
+            <PromptAddMenuItem key={item.label} item={item} onClick={item.trailing === 'chevron' ? undefined : closeMenu} />
           ))}
 
           <PromptAddMenuSeparator label="separator-center" />
 
           {centerItems.map((item) => {
             if (item.label !== 'Add to project') {
-              return <PromptAddMenuItem key={item.label} item={item} />;
+              return <PromptAddMenuItem key={item.label} item={item} onClick={item.trailing === 'chevron' ? undefined : closeMenu} />;
             }
 
             return (
@@ -221,6 +241,7 @@ export function PromptAddMenu({ trigger, onQuickActionSelect }: PromptAddMenuPro
                   <div className="absolute bottom-[-18px] left-[calc(100%-4px)] z-[70] flex min-w-[192px] max-w-[320px] flex-col rounded-[12px] border border-[#1f1e1d]/30 bg-white p-[6px] shadow-[0_2px_8px_rgba(0,0,0,0.08)] backdrop-blur-3xl">
                     <button
                       type="button"
+                      onClick={closeMenu}
                       className="group relative flex min-h-8 w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[14px] leading-5 text-[#141413] transition-colors hover:bg-black/[0.03] focus:outline-none"
                     >
                       <div className="flex items-center gap-2">
@@ -271,18 +292,16 @@ export function PromptAddMenu({ trigger, onQuickActionSelect }: PromptAddMenuPro
                   const quickAction = actionByLabel[item.label];
 
                   return (
-                    <button
+                    <PromptAddMenuItem
                       key={item.label}
-                      type="button"
+                      item={item}
                       onClick={() => {
                         if (quickAction) {
                           onQuickActionSelect?.(quickAction);
+                          closeMenu();
                         }
                       }}
-                      className="w-full"
-                    >
-                      <PromptAddMenuItem item={item} />
-                    </button>
+                    />
                   );
                 })}
               </div>
@@ -321,6 +340,7 @@ export function PromptAddMenu({ trigger, onQuickActionSelect }: PromptAddMenuPro
                     <div className="absolute bottom-[-18px] left-[calc(100%-4px)] z-[70] flex max-h-[324px] min-w-[192px] max-w-[320px] flex-col overflow-x-auto overflow-y-auto rounded-[12px] border border-[#1f1e1d]/30 bg-white p-[6px] shadow-[0_2px_8px_rgba(0,0,0,0.08)] backdrop-blur-3xl">
                       <button
                         type="button"
+                        onClick={closeMenu}
                         className="group relative flex min-h-8 w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[14px] leading-5 text-[#141413] transition-colors hover:bg-black/[0.03] focus:outline-none"
                       >
                         <div className="flex items-center gap-2">
@@ -336,6 +356,7 @@ export function PromptAddMenu({ trigger, onQuickActionSelect }: PromptAddMenuPro
                         />
                         <button
                           type="button"
+                          onClick={closeMenu}
                           className="group relative flex min-h-8 w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[14px] leading-5 text-[#141413] transition-colors hover:bg-black/[0.03] focus:outline-none"
                         >
                           <div className="flex items-center gap-2">
@@ -353,7 +374,7 @@ export function PromptAddMenu({ trigger, onQuickActionSelect }: PromptAddMenuPro
             }
 
             if (item.label !== 'Use style') {
-              return <PromptAddMenuItem key={item.label} item={item} />;
+              return <PromptAddMenuItem key={item.label} item={item} onClick={item.trailing === 'chevron' ? undefined : closeMenu} />;
             }
 
             return (
@@ -389,7 +410,10 @@ export function PromptAddMenu({ trigger, onQuickActionSelect }: PromptAddMenuPro
                         <button
                           key={styleName}
                           type="button"
-                          onClick={() => setSelectedStyle(styleName)}
+                          onClick={() => {
+                            setSelectedStyle(styleName);
+                            closeMenu();
+                          }}
                           className={cn(
                             'group relative flex min-h-8 w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[14px] leading-5 transition-colors hover:bg-black/[0.03] focus:outline-none',
                             isActive ? 'text-[#2c84db]' : 'text-[#141413]'
@@ -412,6 +436,7 @@ export function PromptAddMenu({ trigger, onQuickActionSelect }: PromptAddMenuPro
                     <PromptAddMenuSeparator label="separator-style" />
                     <button
                       type="button"
+                      onClick={closeMenu}
                       className="group relative flex min-h-8 w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[14px] leading-5 text-[#141413] transition-colors hover:bg-black/[0.03] focus:outline-none"
                     >
                       <div className="flex items-center gap-2">

@@ -25,7 +25,9 @@ export default function Home() {
     stopGeneration,
     startNewChat,
     handleSelectChat,
-    updateMessage,
+    editMessageWithBranch,
+    retryAssistantWithBranch,
+    switchMessageBranch,
     activeChatId,
   } = useChat();
 
@@ -100,11 +102,14 @@ export default function Home() {
                 onStopGeneration={stopGeneration}
                 isGenerating={isGenerating}
                 onUpgradeClick={() => setShowUpgradeView(true)}
-                updateMessage={updateMessage}
+                editMessageWithBranch={editMessageWithBranch}
+                retryAssistantWithBranch={retryAssistantWithBranch}
+                switchMessageBranch={switchMessageBranch}
                 activeChatId={activeChatId}
                 activeChatTitle={activeChat?.name ?? 'New Chat'}
                 isActiveChatTitleStreaming={!!activeChat?.isTitleStreaming}
                 onOpenAgentSwarm={() => setIsSidebarCollapsed(true)}
+                onRequestCollapseSidebar={() => setIsSidebarCollapsed(true)}
               />
             )}
             {activeView === 'settings' && (

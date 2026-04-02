@@ -15,6 +15,8 @@ interface ChatViewHeaderProps {
   isConversationStarted: boolean;
   onUpgradeClick: () => void;
   onShareClick?: () => void;
+  onToggleArtifactsPanel?: () => void;
+  isArtifactsPanelOpen?: boolean;
   chatTitle?: string;
   isTitleStreaming?: boolean;
 }
@@ -23,6 +25,8 @@ export function ChatViewHeader({
   isConversationStarted,
   onUpgradeClick,
   onShareClick,
+  onToggleArtifactsPanel,
+  isArtifactsPanelOpen = false,
   chatTitle = 'New Chat',
   isTitleStreaming = false,
 }: ChatViewHeaderProps) {
@@ -72,6 +76,17 @@ export function ChatViewHeader({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={onToggleArtifactsPanel}
+              aria-label="Open sidebar"
+              aria-pressed={isArtifactsPanelOpen}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#3d3d3a] transition-all hover:bg-black/5 data-[state=open]:bg-black/5"
+              data-state={isArtifactsPanelOpen ? 'open' : 'closed'}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M11.586 2a1.5 1.5 0 0 1 1.06.44l2.914 2.914a1.5 1.5 0 0 1 .44 1.06V16.5a1.5 1.5 0 0 1-1.5 1.5h-9a1.5 1.5 0 0 1-1.492-1.347L4 16.5v-13A1.5 1.5 0 0 1 5.5 2zM5.5 3a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V7h-2.5A1.5 1.5 0 0 1 11 5.5V3zm7.04 10.304a.5.5 0 0 1 .92.392c-.295.69-.871 1.304-1.66 1.304-.487 0-.892-.234-1.2-.574-.309.34-.713.574-1.2.574-.486 0-.892-.233-1.2-.574-.31.34-.714.574-1.2.574a.5.5 0 0 1 0-1c.212 0 .52-.18.74-.696l.034-.067a.5.5 0 0 1 .886.067c.221.516.528.696.74.696.213 0 .52-.18.74-.696l.035-.067a.5.5 0 0 1 .885.067c.22.516.527.696.74.696s.519-.18.74-.696m0-4a.5.5 0 0 1 .92.392c-.295.69-.871 1.304-1.66 1.304-.487 0-.892-.234-1.2-.574-.309.34-.713.574-1.2.574-.486 0-.892-.233-1.2-.574-.31.34-.714.574-1.2.574a.5.5 0 0 1 0-1c.212 0 .52-.18.74-.696l.034-.067a.5.5 0 0 1 .886.067c.221.516.528.696.74.696.213 0 .52-.18.74-.696l.035-.067a.5.5 0 0 1 .885.067c.22.516.527.696.74.696s.519-.18.74-.696M12 5.5a.5.5 0 0 0 .5.5h2.293L12 3.207z" />
+              </svg>
+            </button>
             <button
               onClick={onShareClick}
               className="flex h-8 min-w-[64px] items-center justify-center rounded-md border border-black/30 bg-transparent px-3 text-[12px] font-medium text-[#3d3d3a] transition-all hover:bg-black/5"

@@ -10,14 +10,9 @@ import { cn } from '@/frontend/lib/utils';
 
 interface ConversationThreadProps {
   messages: Message[];
-  editingMessageId: string | null;
-  editValue: string;
-  copiedId: string | null;
-  onEditValueChange: (value: string) => void;
-  onStartEdit: (message: Message) => void;
-  onCancelEdit: () => void;
-  onSaveEdit: (messageId: string) => void;
-  onCopy: (id: string, text: string) => void;
+  onSaveEditedMessage: (messageId: string, newContent: string) => Promise<void> | void;
+  onRetryAssistant: (messageId: string) => void;
+  onSwitchBranch: (messageId: string, direction: 'prev' | 'next') => void;
   className?: string;
 }
 
@@ -60,13 +55,15 @@ const InfoIcon = () => (
 interface MessageRowProps {
   message: Message;
   editingMessageId: string | null;
-  editValue: string;
+  editValue?: string;
   copiedId: string | null;
   onEditValueChange: (value: string) => void;
   onStartEdit: (message: Message) => void;
   onCancelEdit: () => void;
   onSaveEdit: (messageId: string) => void;
   onCopy: (id: string, text: string) => void;
+  onRetryAssistant: (messageId: string) => void;
+  onSwitchBranch: (messageId: string, direction: 'prev' | 'next') => void;
 }
 
 const MessageRow = React.memo(
@@ -80,7 +77,12 @@ const MessageRow = React.memo(
     onCancelEdit,
     onSaveEdit,
     onCopy,
+    onRetryAssistant,
+    onSwitchBranch,
   }: MessageRowProps) {
+    const branchVersions = message.branchVersions?.length ?? 1;
+    const activeBranchIndex = message.activeBranchIndex ?? branchVersions - 1;
+
     return (
       <div
         className={cn(
@@ -94,7 +96,7 @@ const MessageRow = React.memo(
             <div className="bg-[#f0eee6] rounded-[12px] p-[10px] flex flex-col gap-2 w-full max-w-[724.8px] animate-in fade-in duration-300">
               <textarea
                 className="w-full bg-white border border-[#1f1e1d]/15 rounded-[9.6px] p-3 text-[15px] resize-none outline-none focus:ring-2 focus:ring-[#1b67b2]/20 font-sans min-h-[100px]"
-                value={editValue}
+                value={editValue ?? ''}
                 onChange={(e) => onEditValueChange(e.target.value)}
                 autoFocus
               />
@@ -120,6 +122,27 @@ const MessageRow = React.memo(
                 <button onClick={() => onCopy(message.id, message.content)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all" title="Copy">
                   {copiedId === message.id ? <Check className="w-4 h-4 text-green-600" /> : <CustomCopyIcon />}
                 </button>
+                {branchVersions > 1 ? (
+                  <div className="ml-1 flex items-center gap-1 text-[#73726c]">
+                    <button
+                      onClick={() => onSwitchBranch(message.id, 'prev')}
+                      disabled={activeBranchIndex <= 0}
+                      className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
+                      title="Previous version"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" /></svg>
+                    </button>
+                    <span className="min-w-[34px] text-center text-[12px] font-[430]">{activeBranchIndex + 1} / {branchVersions}</span>
+                    <button
+                      onClick={() => onSwitchBranch(message.id, 'next')}
+                      disabled={activeBranchIndex >= branchVersions - 1}
+                      className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
+                      title="Next version"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" /></svg>
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           )
@@ -143,10 +166,31 @@ const MessageRow = React.memo(
                 <MarkdownRenderer content={message.content} isStreaming={message.isStreaming} />
                 {!message.isStreaming && (
                   <div className="flex justify-start items-center gap-1 mt-3 text-[#73726c] font-sans">
-                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Copy"><CustomCopyIcon /></button>
+                    <button onClick={() => onCopy(message.id, message.content)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Copy"><CustomCopyIcon /></button>
                     <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Positive feedback"><ThumbsUpIcon /></button>
                     <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Negative feedback"><ThumbsDownIcon /></button>
-                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Retry"><RetryIcon /></button>
+                    <button onClick={() => onRetryAssistant(message.id)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Retry"><RetryIcon /></button>
+                    {branchVersions > 1 ? (
+                      <div className="ml-1 flex items-center gap-1 text-[#73726c]">
+                        <button
+                          onClick={() => onSwitchBranch(message.id, 'prev')}
+                          disabled={activeBranchIndex <= 0}
+                          className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
+                          title="Previous version"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" /></svg>
+                        </button>
+                        <span className="min-w-[34px] text-center text-[12px] font-[430]">{activeBranchIndex + 1} / {branchVersions}</span>
+                        <button
+                          onClick={() => onSwitchBranch(message.id, 'next')}
+                          disabled={activeBranchIndex >= branchVersions - 1}
+                          className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
+                          title="Next version"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" /></svg>
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </>
@@ -165,21 +209,48 @@ const MessageRow = React.memo(
     prev.onStartEdit === next.onStartEdit &&
     prev.onCancelEdit === next.onCancelEdit &&
     prev.onSaveEdit === next.onSaveEdit &&
-    prev.onCopy === next.onCopy
+    prev.onCopy === next.onCopy &&
+    prev.onRetryAssistant === next.onRetryAssistant &&
+    prev.onSwitchBranch === next.onSwitchBranch
 );
 
 export function ConversationThread({
   messages,
-  editingMessageId,
-  editValue,
-  copiedId,
-  onEditValueChange,
-  onStartEdit,
-  onCancelEdit,
-  onSaveEdit,
-  onCopy,
+  onSaveEditedMessage,
+  onRetryAssistant,
+  onSwitchBranch,
   className,
 }: ConversationThreadProps) {
+  const [editingMessageId, setEditingMessageId] = React.useState<string | null>(null);
+  const [editValue, setEditValue] = React.useState('');
+  const [copiedId, setCopiedId] = React.useState<string | null>(null);
+
+  const handleCopy = React.useCallback((id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }, []);
+
+  const handleStartEdit = React.useCallback((message: Message) => {
+    setEditingMessageId(message.id);
+    setEditValue(message.content);
+  }, []);
+
+  const handleCancelEdit = React.useCallback(() => {
+    setEditingMessageId(null);
+    setEditValue('');
+  }, []);
+
+  const handleSaveEdit = React.useCallback(
+    async (messageId: string) => {
+      const trimmed = editValue.trim();
+      if (!trimmed) return;
+      await onSaveEditedMessage(messageId, trimmed);
+      setEditingMessageId(null);
+      setEditValue('');
+    },
+    [editValue, onSaveEditedMessage]
+  );
 
   return (
     <div className={cn('flex flex-col gap-10 py-8 w-full max-w-[768px] mx-auto px-4', className)}>
@@ -188,13 +259,15 @@ export function ConversationThread({
           key={message.id}
           message={message}
           editingMessageId={editingMessageId}
-          editValue={editValue}
+          editValue={editingMessageId === message.id ? editValue : undefined}
           copiedId={copiedId}
-          onEditValueChange={onEditValueChange}
-          onStartEdit={onStartEdit}
-          onCancelEdit={onCancelEdit}
-          onSaveEdit={onSaveEdit}
-          onCopy={onCopy}
+          onEditValueChange={setEditValue}
+          onStartEdit={handleStartEdit}
+          onCancelEdit={handleCancelEdit}
+          onSaveEdit={handleSaveEdit}
+          onCopy={handleCopy}
+          onRetryAssistant={onRetryAssistant}
+          onSwitchBranch={onSwitchBranch}
         />
       ))}
     </div>

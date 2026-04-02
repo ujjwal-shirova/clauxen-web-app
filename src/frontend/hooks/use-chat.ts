@@ -3,13 +3,71 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createSseParser, type StreamEvent } from '@/frontend/lib/chat-stream';
-import type { Message, RecentChat } from '@/frontend/lib/types';
+import type { Message, MessageBranchVersion, RecentChat } from '@/frontend/lib/types';
 
 type AllChats = { [key: string]: Message[] };
 const CHAT_STORAGE_KEY = 'clauxen-chat-state-v1';
+const BRANCH_DATASET_KEY = 'clauxen-branch-dataset-v1';
+type BranchDataset = Record<string, Record<string, { activeIndex: number; totalVersions: number; updatedAt: number }>>;
+
+const stripMessageForSnapshot = (message: Message): Message => ({
+  id: message.id,
+  role: message.role,
+  content: message.content,
+  thinkingContent: message.thinkingContent,
+  hasThinking: message.hasThinking,
+  thinkingDurationSeconds: message.thinkingDurationSeconds,
+});
+
+const createChatSnapshot = (messages: Message[]): Message[] => messages.map(stripMessageForSnapshot);
+
+const mergeSnapshotWithBranchMeta = (snapshot: Message[], currentMessages: Message[]): Message[] => {
+  const branchMetaMap = new Map(
+    currentMessages.map((msg) => [msg.id, { branchVersions: msg.branchVersions, activeBranchIndex: msg.activeBranchIndex }] as const)
+  );
+
+  return snapshot.map((msg) => {
+    const meta = branchMetaMap.get(msg.id);
+    if (!meta) return msg;
+    return {
+      ...msg,
+      branchVersions: meta.branchVersions,
+      activeBranchIndex: meta.activeBranchIndex,
+    };
+  });
+};
+
+const ensureBranchVersions = (message: Message): MessageBranchVersion[] =>
+  message.branchVersions?.length
+    ? message.branchVersions
+    : [
+        {
+          content: message.content,
+          thinkingContent: message.thinkingContent,
+          hasThinking: message.hasThinking,
+          thinkingDurationSeconds: message.thinkingDurationSeconds,
+        },
+      ];
+
+const hydrateMessageFromActiveBranch = (message: Message, branchIndex: number): Message => {
+  const versions = ensureBranchVersions(message);
+  const safeIndex = Math.max(0, Math.min(branchIndex, versions.length - 1));
+  const active = versions[safeIndex];
+
+  return {
+    ...message,
+    content: active.content,
+    thinkingContent: active.thinkingContent,
+    hasThinking: active.hasThinking,
+    thinkingDurationSeconds: active.thinkingDurationSeconds,
+    activeBranchIndex: safeIndex,
+    branchVersions: versions,
+  };
+};
 
 export function useChat() {
   const [allChats, setAllChats] = useState<AllChats>({});
+  const [branchDataset, setBranchDataset] = useState<BranchDataset>({});
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -42,6 +100,7 @@ export function useChat() {
         allChats?: AllChats;
         recentChats?: RecentChat[];
         activeChatId?: string | null;
+        branchDataset?: BranchDataset;
       };
 
       if (parsed.allChats) {
@@ -62,6 +121,7 @@ export function useChat() {
         );
       }
       if (parsed.activeChatId !== undefined) setActiveChatId(parsed.activeChatId);
+      if (parsed.branchDataset) setBranchDataset(parsed.branchDataset);
     } catch (error) {
       console.error('Failed to restore chat state:', error);
     }
@@ -77,8 +137,9 @@ export function useChat() {
     persistTimeoutRef.current = setTimeout(() => {
       window.localStorage.setItem(
         CHAT_STORAGE_KEY,
-        JSON.stringify({ allChats, recentChats, activeChatId })
+        JSON.stringify({ allChats, recentChats, activeChatId, branchDataset })
       );
+      window.localStorage.setItem(BRANCH_DATASET_KEY, JSON.stringify(branchDataset));
     }, isGenerating ? 900 : 200);
 
     return () => {
@@ -86,7 +147,7 @@ export function useChat() {
         clearTimeout(persistTimeoutRef.current);
       }
     };
-  }, [allChats, recentChats, activeChatId, isGenerating]);
+  }, [allChats, recentChats, activeChatId, branchDataset, isGenerating]);
 
   const finalizeAssistantMessage = useCallback((chatId: string, assistantMessageId: string) => {
     setAllChats((prev) => {
@@ -226,6 +287,231 @@ export function useChat() {
     setActiveChatId(null);
   }, []);
 
+  const streamAssistantResponse = useCallback(
+    async ({
+      chatId,
+      assistantMessageId,
+      conversationForApi,
+      onCompleted,
+    }: {
+      chatId: string;
+      assistantMessageId: string;
+      conversationForApi: Array<{ role: 'user' | 'assistant'; content: string }>;
+      onCompleted?: () => void;
+    }) => {
+      const requestController = new AbortController();
+      activeRequestRef.current = requestController;
+      activeGenerationRef.current = {
+        chatId,
+        assistantMessageId,
+      };
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ messages: conversationForApi }),
+          signal: requestController.signal,
+        });
+
+        if (!response.ok || !response.body) {
+          throw new Error('Failed to generate response');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let pendingThinkingDelta = '';
+        let pendingAnswerDelta = '';
+        let frameId: number | null = null;
+        const THINK_TAG_REGEX = /<\/?think>/gi;
+
+        const applyAssistantPatch = (updater: (message: Message) => Message) => {
+          setAllChats((prev) => {
+            const currentMessages = prev[chatId] || [];
+            return {
+              ...prev,
+              [chatId]: currentMessages.map((message) =>
+                message.id === assistantMessageId ? updater(message) : message
+              ),
+            };
+          });
+        };
+
+        const flushPendingDeltas = () => {
+          if (!pendingThinkingDelta && !pendingAnswerDelta) {
+            return;
+          }
+
+          const thinkingDelta = pendingThinkingDelta;
+          const answerDelta = pendingAnswerDelta;
+          pendingThinkingDelta = '';
+          pendingAnswerDelta = '';
+
+          applyAssistantPatch((message) => {
+            const nextMessage: Message = {
+              ...message,
+              hasThinking: message.hasThinking || thinkingDelta.length > 0,
+              thinkingContent: `${message.thinkingContent ?? ''}${thinkingDelta}`,
+              content: `${message.content}${answerDelta}`,
+              isStreaming: true,
+            };
+
+            if (nextMessage.activeBranchIndex !== undefined) {
+              const versions = ensureBranchVersions(nextMessage);
+              const branchIndex = nextMessage.activeBranchIndex;
+              const nextVersions = [...versions];
+              nextVersions[branchIndex] = {
+                content: nextMessage.content,
+                thinkingContent: nextMessage.thinkingContent,
+                hasThinking: nextMessage.hasThinking,
+                thinkingDurationSeconds: nextMessage.thinkingDurationSeconds,
+              };
+              nextMessage.branchVersions = nextVersions;
+            }
+
+            return nextMessage;
+          });
+        };
+
+        const scheduleDeltaFlush = () => {
+          if (frameId !== null) {
+            return;
+          }
+
+          frameId = window.requestAnimationFrame(() => {
+            frameId = null;
+            flushPendingDeltas();
+          });
+        };
+
+        const handleEvent = (event: StreamEvent) => {
+          switch (event.type) {
+            case 'start':
+              applyAssistantPatch((message) => ({ ...message, isStreaming: true }));
+              break;
+            case 'thinking_start':
+              applyAssistantPatch((message) => ({
+                ...message,
+                hasThinking: true,
+                isThinkingStreaming: true,
+                thinkingStartedAtMs: message.thinkingStartedAtMs ?? Date.now(),
+                isStreaming: true,
+              }));
+              break;
+            case 'thinking_delta':
+              {
+                const sawCloseThinkTag = /<\/think>/i.test(event.delta);
+                const normalizedThinkingDelta = event.delta.replace(THINK_TAG_REGEX, '');
+                pendingThinkingDelta += normalizedThinkingDelta;
+                if (sawCloseThinkTag) {
+                  finalizeThinkingTimer(chatId, assistantMessageId);
+                  applyAssistantPatch((message) => ({
+                    ...message,
+                    isThinkingStreaming: false,
+                  }));
+                }
+              }
+              scheduleDeltaFlush();
+              break;
+            case 'answer_delta':
+              finalizeThinkingTimer(chatId, assistantMessageId);
+              applyAssistantPatch((message) => ({
+                ...message,
+                isThinkingStreaming: false,
+              }));
+              pendingAnswerDelta += event.delta;
+              scheduleDeltaFlush();
+              break;
+            case 'done':
+              if (frameId !== null) {
+                window.cancelAnimationFrame(frameId);
+                frameId = null;
+              }
+              flushPendingDeltas();
+              applyAssistantPatch((message) => ({
+                ...message,
+                isThinkingStreaming: false,
+                isStreaming: false,
+              }));
+              finalizeThinkingTimer(chatId, assistantMessageId);
+              activeRequestRef.current = null;
+              activeGenerationRef.current = null;
+              setIsGenerating(false);
+              void maybeGenerateChatTitle(chatId);
+              onCompleted?.();
+              break;
+            case 'error':
+              if (frameId !== null) {
+                window.cancelAnimationFrame(frameId);
+                frameId = null;
+              }
+              flushPendingDeltas();
+              applyAssistantPatch((message) => ({
+                ...message,
+                content: message.content || event.message,
+                isThinkingStreaming: false,
+                isStreaming: false,
+              }));
+              finalizeThinkingTimer(chatId, assistantMessageId);
+              activeRequestRef.current = null;
+              activeGenerationRef.current = null;
+              setIsGenerating(false);
+              void maybeGenerateChatTitle(chatId);
+              onCompleted?.();
+              break;
+          }
+        };
+
+        const parseChunk = createSseParser(handleEvent);
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            finalizeThinkingTimer(chatId, assistantMessageId);
+            activeRequestRef.current = null;
+            activeGenerationRef.current = null;
+            setIsGenerating(false);
+            void maybeGenerateChatTitle(chatId);
+            onCompleted?.();
+            break;
+          }
+
+          const textChunk = decoder.decode(value, { stream: true });
+          parseChunk(textChunk);
+        }
+      } catch (error: any) {
+        activeRequestRef.current = null;
+        const generationContext = activeGenerationRef.current;
+        activeGenerationRef.current = null;
+
+        if (error?.name === 'AbortError') {
+          if (generationContext) {
+            finalizeThinkingTimer(generationContext.chatId, generationContext.assistantMessageId);
+            finalizeAssistantMessage(generationContext.chatId, generationContext.assistantMessageId);
+          }
+          setIsGenerating(false);
+          return;
+        }
+
+        console.error('Error generating response:', error);
+        const errorMessage = 'Sorry, I encountered an error. Please try again.';
+        setAllChats((prev) => {
+          const currentMessages = prev[chatId] || [];
+          const updatedMessages = currentMessages.map((msg) =>
+            msg.id === assistantMessageId
+              ? { ...msg, content: errorMessage, thinkingContent: '', isStreaming: false, hasThinking: false }
+              : msg
+          );
+          return { ...prev, [chatId]: updatedMessages };
+        });
+        setIsGenerating(false);
+      }
+    },
+    [finalizeAssistantMessage, finalizeThinkingTimer, maybeGenerateChatTitle]
+  );
+
   const handleSendMessage = async (prompt: string) => {
     const cleanPrompt = prompt?.trim();
     if (!cleanPrompt || isGenerating) return;
@@ -244,7 +530,13 @@ export function useChat() {
       setActiveChatId(currentChatId);
     }
     
-    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: cleanPrompt };
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: cleanPrompt,
+      activeBranchIndex: 0,
+      branchVersions: [{ content: cleanPrompt }],
+    };
     const assistantMessage: Message = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
@@ -253,6 +545,8 @@ export function useChat() {
       isStreaming: true,
       isThinkingStreaming: false,
       hasThinking: false,
+      activeBranchIndex: 0,
+      branchVersions: [{ content: '', thinkingContent: '', hasThinking: false }],
     };
 
     const conversationForApi = [...messages, userMessage]
@@ -267,209 +561,284 @@ export function useChat() {
       [currentChatId!]: [...(prev[currentChatId!] || []), userMessage, assistantMessage],
     }));
 
-    const requestController = new AbortController();
-    activeRequestRef.current = requestController;
-    activeGenerationRef.current = {
+    await streamAssistantResponse({
       chatId: currentChatId!,
       assistantMessageId: assistantMessage.id,
-    };
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ messages: conversationForApi }),
-        signal: requestController.signal,
-      });
-
-      if (!response.ok || !response.body) {
-        throw new Error('Failed to generate response');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let pendingThinkingDelta = '';
-      let pendingAnswerDelta = '';
-      let frameId: number | null = null;
-      const THINK_TAG_REGEX = /<\/?think>/gi;
-
-      const applyAssistantPatch = (updater: (message: Message) => Message) => {
-        setAllChats(prev => {
-          const currentMessages = prev[currentChatId!] || [];
+      conversationForApi,
+      onCompleted: () => {
+        const finalMessages = allChatsRef.current[currentChatId!] || [];
+        const snapshot = createChatSnapshot(finalMessages);
+        setAllChats((prev) => {
+          const chatMessages = prev[currentChatId!] || [];
           return {
             ...prev,
-            [currentChatId!]: currentMessages.map((message) =>
-              message.id === assistantMessage.id ? updater(message) : message
-            ),
+            [currentChatId!]: chatMessages.map((msg) => {
+              if (!msg.branchVersions?.length) return msg;
+              const active = msg.activeBranchIndex ?? msg.branchVersions.length - 1;
+              const versions = [...msg.branchVersions];
+              versions[active] = {
+                ...versions[active],
+                snapshot,
+              };
+              return { ...msg, branchVersions: versions };
+            }),
           };
         });
-      };
-
-      const flushPendingDeltas = () => {
-        if (!pendingThinkingDelta && !pendingAnswerDelta) {
-          return;
-        }
-
-        const thinkingDelta = pendingThinkingDelta;
-        const answerDelta = pendingAnswerDelta;
-        pendingThinkingDelta = '';
-        pendingAnswerDelta = '';
-
-        applyAssistantPatch((message) => ({
-          ...message,
-          hasThinking: message.hasThinking || thinkingDelta.length > 0,
-          thinkingContent: `${message.thinkingContent ?? ''}${thinkingDelta}`,
-          content: `${message.content}${answerDelta}`,
-          isStreaming: true,
-        }));
-      };
-
-      const scheduleDeltaFlush = () => {
-        if (frameId !== null) {
-          return;
-        }
-
-        frameId = window.requestAnimationFrame(() => {
-          frameId = null;
-          flushPendingDeltas();
-        });
-      };
-
-      const handleEvent = (event: StreamEvent) => {
-        switch (event.type) {
-          case 'start':
-            applyAssistantPatch((message) => ({ ...message, isStreaming: true }));
-            break;
-          case 'thinking_start':
-            applyAssistantPatch((message) => ({
-              ...message,
-              hasThinking: true,
-              isThinkingStreaming: true,
-              thinkingStartedAtMs: message.thinkingStartedAtMs ?? Date.now(),
-              isStreaming: true,
-            }));
-            break;
-          case 'thinking_delta':
-            {
-              const sawCloseThinkTag = /<\/think>/i.test(event.delta);
-              const normalizedThinkingDelta = event.delta.replace(THINK_TAG_REGEX, '');
-              pendingThinkingDelta += normalizedThinkingDelta;
-              if (sawCloseThinkTag) {
-                finalizeThinkingTimer(currentChatId!, assistantMessage.id);
-                applyAssistantPatch((message) => ({
-                  ...message,
-                  isThinkingStreaming: false,
-                }));
-              }
-            }
-            scheduleDeltaFlush();
-            break;
-          case 'answer_delta':
-            finalizeThinkingTimer(currentChatId!, assistantMessage.id);
-            applyAssistantPatch((message) => ({
-              ...message,
-              isThinkingStreaming: false,
-            }));
-            pendingAnswerDelta += event.delta;
-            scheduleDeltaFlush();
-            break;
-          case 'done':
-            if (frameId !== null) {
-              window.cancelAnimationFrame(frameId);
-              frameId = null;
-            }
-            flushPendingDeltas();
-            applyAssistantPatch((message) => ({
-              ...message,
-              isThinkingStreaming: false,
-              isStreaming: false,
-            }));
-            finalizeThinkingTimer(currentChatId!, assistantMessage.id);
-            activeRequestRef.current = null;
-            activeGenerationRef.current = null;
-            setIsGenerating(false);
-            void maybeGenerateChatTitle(currentChatId!);
-            break;
-          case 'error':
-            if (frameId !== null) {
-              window.cancelAnimationFrame(frameId);
-              frameId = null;
-            }
-            flushPendingDeltas();
-            applyAssistantPatch((message) => ({
-              ...message,
-              content: message.content || event.message,
-              isThinkingStreaming: false,
-              isStreaming: false,
-            }));
-            finalizeThinkingTimer(currentChatId!, assistantMessage.id);
-            activeRequestRef.current = null;
-            activeGenerationRef.current = null;
-            setIsGenerating(false);
-            void maybeGenerateChatTitle(currentChatId!);
-            break;
-        }
-      };
-
-      const parseChunk = createSseParser(handleEvent);
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          finalizeThinkingTimer(currentChatId!, assistantMessage.id);
-          activeRequestRef.current = null;
-          activeGenerationRef.current = null;
-          setIsGenerating(false);
-          void maybeGenerateChatTitle(currentChatId!);
-          break;
-        }
-
-        const textChunk = decoder.decode(value, { stream: true });
-        parseChunk(textChunk);
-      }
-
-    } catch (error: any) {
-      activeRequestRef.current = null;
-      const generationContext = activeGenerationRef.current;
-      activeGenerationRef.current = null;
-
-      if (error?.name === 'AbortError') {
-        if (generationContext) {
-          finalizeThinkingTimer(generationContext.chatId, generationContext.assistantMessageId);
-          finalizeAssistantMessage(generationContext.chatId, generationContext.assistantMessageId);
-        }
-        setIsGenerating(false);
-        return;
-      }
-
-      console.error("Error generating response:", error);
-      const errorMessage = "Sorry, I encountered an error. Please try again.";
-      setAllChats(prev => {
-        const currentMessages = prev[currentChatId!] || [];
-        const updatedMessages = currentMessages.map(msg => 
-          msg.id === assistantMessage.id
-            ? { ...msg, content: errorMessage, thinkingContent: '', isStreaming: false, hasThinking: false }
-            : msg
-        );
-        return { ...prev, [currentChatId!]: updatedMessages };
-      });
-      setIsGenerating(false);
-    }
+      },
+    });
   };
 
-  const updateMessage = useCallback((chatId: string, messageId: string, newContent: string) => {
-    setAllChats(prev => {
+  const switchMessageBranch = useCallback((chatId: string, messageId: string, direction: 'prev' | 'next') => {
+    setAllChats((prev) => {
       const chatMessages = prev[chatId] || [];
+      const targetMessage = chatMessages.find((msg) => msg.id === messageId);
+      if (!targetMessage) return prev;
+      const versions = ensureBranchVersions(targetMessage);
+      if (versions.length <= 1) return prev;
+      const current = targetMessage.activeBranchIndex ?? versions.length - 1;
+      const next = direction === 'prev' ? current - 1 : current + 1;
+      if (next < 0 || next >= versions.length) return prev;
+      const nextVersion = versions[next];
+      const snapshot = nextVersion.snapshot;
+
+      if (!snapshot || snapshot.length === 0) {
+        return {
+          ...prev,
+          [chatId]: chatMessages.map((msg) =>
+            msg.id === messageId ? hydrateMessageFromActiveBranch(msg, next) : msg
+          ),
+        };
+      }
+
+      const snapshotWithMeta = mergeSnapshotWithBranchMeta(snapshot, chatMessages).map((msg) =>
+        msg.id === messageId ? hydrateMessageFromActiveBranch(msg, next) : msg
+      );
+
       return {
         ...prev,
-        [chatId]: chatMessages.map(msg => 
-          msg.id === messageId ? { ...msg, content: newContent } : msg
-        )
+        [chatId]: snapshotWithMeta,
+      };
+    });
+    setBranchDataset((prev) => {
+      const chatEntry = prev[chatId] || {};
+      const current = chatEntry[messageId];
+      if (!current) return prev;
+      const nextActive = direction === 'prev' ? current.activeIndex - 1 : current.activeIndex + 1;
+      if (nextActive < 0 || nextActive >= current.totalVersions) return prev;
+      return {
+        ...prev,
+        [chatId]: {
+          ...chatEntry,
+          [messageId]: {
+            ...current,
+            activeIndex: nextActive,
+            updatedAt: Date.now(),
+          },
+        },
       };
     });
   }, []);
+
+  const editMessageWithBranch = useCallback(
+    async (chatId: string, messageId: string, newContent: string) => {
+      const trimmed = newContent.trim();
+      if (!trimmed || isGenerating) return;
+      const existing = allChatsRef.current[chatId] || [];
+      const targetIndex = existing.findIndex((msg) => msg.id === messageId && msg.role === 'user');
+      if (targetIndex === -1) return;
+
+      setIsGenerating(true);
+
+      const targetMessage = existing[targetIndex];
+      const targetVersions = ensureBranchVersions(targetMessage);
+      const baseSnapshot = createChatSnapshot(existing);
+      const normalizedTargetVersions = [...targetVersions];
+      const currentTargetIndex = targetMessage.activeBranchIndex ?? normalizedTargetVersions.length - 1;
+      if (!normalizedTargetVersions[currentTargetIndex]?.snapshot) {
+        normalizedTargetVersions[currentTargetIndex] = {
+          ...normalizedTargetVersions[currentTargetIndex],
+          snapshot: baseSnapshot,
+        };
+      }
+      const nextUserVersions = [...normalizedTargetVersions, { content: trimmed }];
+      const updatedUserMessage: Message = {
+        ...targetMessage,
+        content: trimmed,
+        branchVersions: nextUserVersions,
+        activeBranchIndex: nextUserVersions.length - 1,
+      };
+
+      const assistantMessage: Message = {
+        id: `${Date.now()}`,
+        role: 'assistant',
+        content: '',
+        thinkingContent: '',
+        isStreaming: true,
+        isThinkingStreaming: false,
+        hasThinking: false,
+        activeBranchIndex: 0,
+        branchVersions: [{ content: '', thinkingContent: '', hasThinking: false }],
+      };
+
+      const nextChat = [...existing.slice(0, targetIndex), updatedUserMessage, assistantMessage];
+      setAllChats((prev) => ({
+        ...prev,
+        [chatId]: nextChat,
+      }));
+
+      const conversationForApi = nextChat
+        .filter((entry) => entry.role === 'user' || entry.content.trim().length > 0)
+        .map((entry) => ({
+          role: entry.role,
+          content: entry.content,
+        }));
+
+      await streamAssistantResponse({
+        chatId,
+        assistantMessageId: assistantMessage.id,
+        conversationForApi,
+        onCompleted: () => {
+          const finalMessages = allChatsRef.current[chatId] || [];
+          const snapshot = createChatSnapshot(finalMessages);
+          setAllChats((prev) => {
+            const chatMessages = prev[chatId] || [];
+            return {
+              ...prev,
+              [chatId]: chatMessages.map((msg) => {
+                if (msg.id !== messageId) return msg;
+                const versions = ensureBranchVersions(msg);
+                const active = msg.activeBranchIndex ?? versions.length - 1;
+                const nextVersions = [...versions];
+                nextVersions[active] = {
+                  ...nextVersions[active],
+                  snapshot,
+                };
+                return { ...msg, branchVersions: nextVersions };
+              }),
+            };
+          });
+          setBranchDataset((prev) => {
+            const target = allChatsRef.current[chatId]?.find((m) => m.id === messageId);
+            const versionsCount = target ? ensureBranchVersions(target).length : 1;
+            return {
+              ...prev,
+              [chatId]: {
+                ...(prev[chatId] || {}),
+                [messageId]: {
+                  activeIndex: Math.max(0, versionsCount - 1),
+                  totalVersions: versionsCount,
+                  updatedAt: Date.now(),
+                },
+              },
+            };
+          });
+        },
+      });
+    },
+    [isGenerating, streamAssistantResponse]
+  );
+
+  const retryAssistantWithBranch = useCallback(
+    async (chatId: string, assistantMessageId: string) => {
+      if (isGenerating) return;
+      const existing = allChatsRef.current[chatId] || [];
+      const assistantIndex = existing.findIndex((msg) => msg.id === assistantMessageId && msg.role === 'assistant');
+      if (assistantIndex === -1) return;
+
+      setIsGenerating(true);
+
+      const assistantMessage = existing[assistantIndex];
+      const existingVersions = ensureBranchVersions(assistantMessage);
+      const baseSnapshot = createChatSnapshot(existing);
+      const normalizedAssistantVersions = [...existingVersions];
+      const currentAssistantIndex = assistantMessage.activeBranchIndex ?? normalizedAssistantVersions.length - 1;
+      if (!normalizedAssistantVersions[currentAssistantIndex]?.snapshot) {
+        normalizedAssistantVersions[currentAssistantIndex] = {
+          ...normalizedAssistantVersions[currentAssistantIndex],
+          snapshot: baseSnapshot,
+        };
+      }
+      const nextBranchIndex = normalizedAssistantVersions.length;
+      const nextVersions = [
+        ...normalizedAssistantVersions,
+        {
+          content: '',
+          thinkingContent: '',
+          hasThinking: false,
+        },
+      ];
+
+      const updatedAssistant: Message = {
+        ...assistantMessage,
+        content: '',
+        thinkingContent: '',
+        hasThinking: false,
+        isStreaming: true,
+        isThinkingStreaming: false,
+        thinkingDurationSeconds: undefined,
+        thinkingStartedAtMs: undefined,
+        branchVersions: nextVersions,
+        activeBranchIndex: nextBranchIndex,
+      };
+
+      const nextChat = [...existing.slice(0, assistantIndex), updatedAssistant];
+      setAllChats((prev) => ({
+        ...prev,
+        [chatId]: nextChat,
+      }));
+
+      const conversationForApi = nextChat
+        .slice(0, assistantIndex)
+        .filter((entry) => entry.role === 'user' || entry.content.trim().length > 0)
+        .map((entry) => ({
+          role: entry.role,
+          content: entry.content,
+        }));
+
+      await streamAssistantResponse({
+        chatId,
+        assistantMessageId,
+        conversationForApi,
+        onCompleted: () => {
+          const finalMessages = allChatsRef.current[chatId] || [];
+          const snapshot = createChatSnapshot(finalMessages);
+          setAllChats((prev) => {
+            const chatMessages = prev[chatId] || [];
+            return {
+              ...prev,
+              [chatId]: chatMessages.map((msg) => {
+                if (msg.id !== assistantMessageId) return msg;
+                const versions = ensureBranchVersions(msg);
+                const active = msg.activeBranchIndex ?? versions.length - 1;
+                const nextVersionList = [...versions];
+                nextVersionList[active] = {
+                  ...nextVersionList[active],
+                  snapshot,
+                };
+                return { ...msg, branchVersions: nextVersionList };
+              }),
+            };
+          });
+          setBranchDataset((prev) => {
+            const target = allChatsRef.current[chatId]?.find((m) => m.id === assistantMessageId);
+            const versionsCount = target ? ensureBranchVersions(target).length : 1;
+            return {
+              ...prev,
+              [chatId]: {
+                ...(prev[chatId] || {}),
+                [assistantMessageId]: {
+                  activeIndex: Math.max(0, versionsCount - 1),
+                  totalVersions: versionsCount,
+                  updatedAt: Date.now(),
+                },
+              },
+            };
+          });
+        },
+      });
+    },
+    [isGenerating, streamAssistantResponse]
+  );
 
   const handleSelectChat = useCallback((chatId: string | null) => {
     if(chatId) {
@@ -489,6 +858,11 @@ export function useChat() {
 
     const newRecentChats = recentChats.filter(chat => chat.id !== chatId);
     setRecentChats(newRecentChats);
+    setBranchDataset((prev) => {
+      const next = { ...prev };
+      delete next[chatId];
+      return next;
+    });
 
     if (activeChatId === chatId) {
         if (newRecentChats.length > 0) {
@@ -517,6 +891,8 @@ export function useChat() {
     handleSelectChat,
     handleDeleteChat,
     handleRenameChat,
-    updateMessage,
+    editMessageWithBranch,
+    retryAssistantWithBranch,
+    switchMessageBranch,
   };
 }

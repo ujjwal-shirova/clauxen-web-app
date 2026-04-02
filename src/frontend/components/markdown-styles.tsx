@@ -56,6 +56,18 @@ export const StyledHorizontalRule = () => (
   <hr className="my-7 border-0 border-t border-[#1f1e1d]/10" />
 );
 
+export const StyledDetails = ({ children }: { children: React.ReactNode }) => (
+  <details className="my-4 overflow-hidden rounded-xl border border-[#1f1e1d]/12 bg-[#fcfbf8]">
+    {children}
+  </details>
+);
+
+export const StyledSummary = ({ children }: { children: React.ReactNode }) => (
+  <summary className="cursor-pointer list-none select-none px-4 py-3 text-[14px] font-medium text-[#2f2e2b] transition-colors hover:bg-[#f3f1ea] [&::-webkit-details-marker]:hidden">
+    <span className="inline-flex items-center gap-2">{children}</span>
+  </summary>
+);
+
 export const StyledBlockquote = ({ children, hasCursor, Cursor }: any) => (
   <blockquote className="my-5 rounded-r-2xl border-l-[3px] border-[#b7aa8b] bg-[#f6f3eb] px-4 py-3">
     <div className={`${subtleTextClass} italic`}>

@@ -1,4 +1,12 @@
 
+export type MessageBranchVersion = {
+  content: string;
+  thinkingContent?: string;
+  hasThinking?: boolean;
+  thinkingDurationSeconds?: number;
+  snapshot?: Message[];
+};
+
 export type Message = {
   id: string;
   role: "user" | "assistant";
@@ -9,6 +17,8 @@ export type Message = {
   hasThinking?: boolean;
   thinkingStartedAtMs?: number;
   thinkingDurationSeconds?: number;
+  branchVersions?: MessageBranchVersion[];
+  activeBranchIndex?: number;
 };
 
 export type RecentChat = {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { ArrowDown, ArrowUp, AudioLines, ChevronDown, Square } from 'lucide-react';
+import { ArrowDown, ArrowUp, AudioLines, ChevronDown, Square, X } from 'lucide-react';
 import { cn } from '@/frontend/lib/utils';
 import { VoiceCall } from './voice-call';
 import { PlusIcon } from './icons';
@@ -26,6 +26,7 @@ export function PromptInput({
 }: PromptInputProps) {
   const [prompt, setPrompt] = useState('');
   const [voiceCallOpen, setVoiceCallOpen] = useState(false);
+  const [selectedQuickActions, setSelectedQuickActions] = useState<Array<'image' | 'video' | 'music' | 'deep-research'>>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize logic with 7 line limit (approx 168px)
@@ -54,6 +55,21 @@ export function PromptInput({
     }
   };
 
+  const quickActionLabelMap: Record<'image' | 'video' | 'music' | 'deep-research', string> = {
+    image: 'Image',
+    video: 'Video',
+    music: 'Music',
+    'deep-research': 'Deep research',
+  };
+
+  const handleQuickActionSelect = (action: 'image' | 'video' | 'music' | 'deep-research') => {
+    setSelectedQuickActions((prev) => (prev.includes(action) ? prev : [...prev, action]));
+  };
+
+  const handleQuickActionRemove = (action: 'image' | 'video' | 'music' | 'deep-research') => {
+    setSelectedQuickActions((prev) => prev.filter((item) => item !== action));
+  };
+
   return (
     <>
       <div className="w-full flex flex-col items-center">
@@ -73,10 +89,11 @@ export function PromptInput({
             "w-full bg-white rounded-[28px] transition-all duration-200 ring-[0.5px] ring-black/10 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden focus-within:ring-black/20 focus-within:shadow-[0_4px_16px_rgba(0,0,0,0.06)] border-none",
             isConversationStarted ? "max-w-4xl" : "max-w-3xl"
           )}>
-          <div className="px-[10px] py-[8px] flex items-start gap-1 min-h-[56px]">
+          <div className={cn("px-[10px] py-[8px] flex items-start gap-1 min-h-[56px]", selectedQuickActions.length > 0 && "min-h-[96px]")}>
             {/* Leading Icon - Fixed at Top Center of line 1 */}
             <div className="flex items-center justify-center shrink-0 w-[44px] h-[40px]">
               <PromptAddMenu
+                onQuickActionSelect={handleQuickActionSelect}
                 trigger={
                   <button 
                     className="menu-trigger-active flex h-9 w-9 items-center justify-center rounded-full text-[#3d3d3a]"
@@ -99,6 +116,21 @@ export function PromptInput({
                 className="w-full bg-transparent border-none focus:ring-0 focus:outline-none resize-none text-[16px] text-[#3d3d3a] placeholder-[#73726c]/60 font-[430] leading-[22.4px] min-h-[22.4px] py-[8px] shadow-none ring-0 outline-none border-0 block"
                 rows={1}
               />
+              {selectedQuickActions.length > 0 ? (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {selectedQuickActions.map((action) => (
+                    <button
+                      key={action}
+                      type="button"
+                      onClick={() => handleQuickActionRemove(action)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#0285ff]/20 bg-[#0285ff]/10 px-2.5 text-[13px] font-medium text-[#0285ff] transition-colors hover:bg-[#0285ff]/15"
+                    >
+                      <span>{quickActionLabelMap[action]}</span>
+                      <X className="icon-sm" />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
             
             {/* Trailing Icons - Fixed at Top Center of line 1 */}
