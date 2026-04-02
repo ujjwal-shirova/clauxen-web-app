@@ -5,6 +5,7 @@ import { Check } from 'lucide-react';
 import { MarkdownRenderer } from './markdown-renderer';
 import { ThinkingBlock } from './thinking-block';
 import { OrbCursor } from './ui/orb-cursor';
+import { HintTooltip } from './ui/hint-tooltip';
 import type { Message } from '@/frontend/lib/types';
 import { cn } from '@/frontend/lib/utils';
 
@@ -117,30 +118,38 @@ const MessageRow = React.memo(
                 <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message.content}</p>
               </div>
               <div className="flex items-center gap-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-8">
-                <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all" title="Retry"><RetryIcon /></button>
-                <button onClick={() => onStartEdit(message)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all" title="Edit"><EditPenIcon /></button>
-                <button onClick={() => onCopy(message.id, message.content)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all" title="Copy">
-                  {copiedId === message.id ? <Check className="w-4 h-4 text-green-600" /> : <CustomCopyIcon />}
-                </button>
+                <HintTooltip content="Retry">
+                  <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all"><RetryIcon /></button>
+                </HintTooltip>
+                <HintTooltip content="Edit">
+                  <button onClick={() => onStartEdit(message)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all"><EditPenIcon /></button>
+                </HintTooltip>
+                <HintTooltip content="Copy">
+                  <button onClick={() => onCopy(message.id, message.content)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 text-[#73726c] transition-all">
+                    {copiedId === message.id ? <Check className="w-4 h-4 text-green-600" /> : <CustomCopyIcon />}
+                  </button>
+                </HintTooltip>
                 {branchVersions > 1 ? (
                   <div className="ml-1 flex items-center gap-1 text-[#73726c]">
-                    <button
-                      onClick={() => onSwitchBranch(message.id, 'prev')}
-                      disabled={activeBranchIndex <= 0}
-                      className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
-                      title="Previous version"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" /></svg>
-                    </button>
+                    <HintTooltip content="Previous version">
+                      <button
+                        onClick={() => onSwitchBranch(message.id, 'prev')}
+                        disabled={activeBranchIndex <= 0}
+                        className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
+                      >
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" /></svg>
+                      </button>
+                    </HintTooltip>
                     <span className="min-w-[34px] text-center text-[12px] font-[430]">{activeBranchIndex + 1} / {branchVersions}</span>
-                    <button
-                      onClick={() => onSwitchBranch(message.id, 'next')}
-                      disabled={activeBranchIndex >= branchVersions - 1}
-                      className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
-                      title="Next version"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" /></svg>
-                    </button>
+                    <HintTooltip content="Next version">
+                      <button
+                        onClick={() => onSwitchBranch(message.id, 'next')}
+                        disabled={activeBranchIndex >= branchVersions - 1}
+                        className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
+                      >
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" /></svg>
+                      </button>
+                    </HintTooltip>
                   </div>
                 ) : null}
               </div>
@@ -166,29 +175,39 @@ const MessageRow = React.memo(
                 <MarkdownRenderer content={message.content} isStreaming={message.isStreaming} />
                 {!message.isStreaming && (
                   <div className="flex justify-start items-center gap-1 mt-3 text-[#73726c] font-sans">
-                    <button onClick={() => onCopy(message.id, message.content)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Copy"><CustomCopyIcon /></button>
-                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Positive feedback"><ThumbsUpIcon /></button>
-                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Negative feedback"><ThumbsDownIcon /></button>
-                    <button onClick={() => onRetryAssistant(message.id)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all" title="Retry"><RetryIcon /></button>
+                    <HintTooltip content="Copy">
+                      <button onClick={() => onCopy(message.id, message.content)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all"><CustomCopyIcon /></button>
+                    </HintTooltip>
+                    <HintTooltip content="Positive feedback">
+                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all"><ThumbsUpIcon /></button>
+                    </HintTooltip>
+                    <HintTooltip content="Negative feedback">
+                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all"><ThumbsDownIcon /></button>
+                    </HintTooltip>
+                    <HintTooltip content="Retry">
+                      <button onClick={() => onRetryAssistant(message.id)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-all"><RetryIcon /></button>
+                    </HintTooltip>
                     {branchVersions > 1 ? (
                       <div className="ml-1 flex items-center gap-1 text-[#73726c]">
-                        <button
-                          onClick={() => onSwitchBranch(message.id, 'prev')}
-                          disabled={activeBranchIndex <= 0}
-                          className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
-                          title="Previous version"
-                        >
-                          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" /></svg>
-                        </button>
+                        <HintTooltip content="Previous version">
+                          <button
+                            onClick={() => onSwitchBranch(message.id, 'prev')}
+                            disabled={activeBranchIndex <= 0}
+                            className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
+                          >
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" /></svg>
+                          </button>
+                        </HintTooltip>
                         <span className="min-w-[34px] text-center text-[12px] font-[430]">{activeBranchIndex + 1} / {branchVersions}</span>
-                        <button
-                          onClick={() => onSwitchBranch(message.id, 'next')}
-                          disabled={activeBranchIndex >= branchVersions - 1}
-                          className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
-                          title="Next version"
-                        >
-                          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" /></svg>
-                        </button>
+                        <HintTooltip content="Next version">
+                          <button
+                            onClick={() => onSwitchBranch(message.id, 'next')}
+                            disabled={activeBranchIndex >= branchVersions - 1}
+                            className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
+                          >
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" /></svg>
+                          </button>
+                        </HintTooltip>
                       </div>
                     ) : null}
                   </div>

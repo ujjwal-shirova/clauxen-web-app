@@ -6,6 +6,7 @@ import { cn } from '@/frontend/lib/utils';
 import { VoiceCall } from './voice-call';
 import { PlusIcon } from './icons';
 import { PromptAddMenu } from './prompt-add-menu';
+import { HintTooltip } from './ui/hint-tooltip';
 
 interface PromptInputProps {
   onSendMessage: (prompt: string) => void;
@@ -75,14 +76,15 @@ export function PromptInput({
       <div className="w-full flex flex-col items-center">
         <div className="relative w-full flex justify-center">
           {showScrollToBottomButton && onScrollToBottom && (
-            <button
-              type="button"
-              onClick={onScrollToBottom}
-              className="absolute -top-10 right-2 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-[#1f1e1d]/15 bg-white/95 text-[#3d3d3a] transition-all hover:-translate-y-0.5 hover:bg-white"
-              title="Scroll to latest"
-            >
-              <ArrowDown className="icon-md" />
-            </button>
+            <HintTooltip content="Scroll to latest">
+              <button
+                type="button"
+                onClick={onScrollToBottom}
+                className="absolute -top-10 right-2 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-[#1f1e1d]/15 bg-white/95 text-[#3d3d3a] transition-all hover:-translate-y-0.5 hover:bg-white"
+              >
+                <ArrowDown className="icon-md" />
+              </button>
+            </HintTooltip>
           )}
 
           <div className={cn(
@@ -142,29 +144,32 @@ export function PromptInput({
 
               <div className="w-[40px] flex items-center justify-center">
                 {isGenerating ? (
-                  <button 
-                    onClick={onStopGeneration}
-                    className="w-9 h-9 flex items-center justify-center rounded-full bg-[#3d3d3a] text-white transition-all duration-200 hover:bg-black"
-                    title="Stop generating"
-                  >
-                    <Square className="icon-md fill-current" />
-                  </button>
+                  <HintTooltip content="Stop generating">
+                    <button 
+                      onClick={onStopGeneration}
+                      className="w-9 h-9 flex items-center justify-center rounded-full bg-[#3d3d3a] text-white transition-all duration-200 hover:bg-black"
+                    >
+                      <Square className="icon-md fill-current" />
+                    </button>
+                  </HintTooltip>
                 ) : prompt.trim() ? (
-                  <button 
-                    onClick={handleSubmit}
-                    className="w-9 h-9 flex items-center justify-center rounded-full bg-black text-white transition-all duration-200"
-                    title="Send"
-                  >
-                    <ArrowUp className="icon-xl" />
-                  </button>
+                  <HintTooltip content="Send">
+                    <button 
+                      onClick={handleSubmit}
+                      className="w-9 h-9 flex items-center justify-center rounded-full bg-black text-white transition-all duration-200"
+                    >
+                      <ArrowUp className="icon-xl" />
+                    </button>
+                  </HintTooltip>
                 ) : (
-                  <button 
-                    onClick={() => setVoiceCallOpen(true)}
-                    className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f0eee6] text-[#3d3d3a] transition-all"
-                    title="Dictate"
-                  >
-                    <AudioLines className="icon-xl opacity-70" />
-                  </button>
+                  <HintTooltip content="Dictate">
+                    <button 
+                      onClick={() => setVoiceCallOpen(true)}
+                      className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f0eee6] text-[#3d3d3a] transition-all"
+                    >
+                      <AudioLines className="icon-xl opacity-70" />
+                    </button>
+                  </HintTooltip>
                 )}
               </div>
             </div>
