@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowLeft, Monitor, Smartphone, Chrome, Laptop, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Monitor, Smartphone, Laptop, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/frontend/components/ui/button';
 

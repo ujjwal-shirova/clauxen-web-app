@@ -11,10 +11,22 @@ type ChatStreamEvent =
   | { type: 'done' }
   | { type: 'error'; message: string };
 
-const openai = new OpenAI({
-  baseURL: 'https://api.novita.ai/openai',
-  apiKey: process.env.NOVITA_API_KEY,
-});
+let openai: OpenAI | null = null;
+
+function getOpenAIClient() {
+  if (!process.env.NOVITA_API_KEY) {
+    throw new Error('NOVITA_API_KEY is not configured.');
+  }
+
+  if (!openai) {
+    openai = new OpenAI({
+      baseURL: 'https://api.novita.ai/openai',
+      apiKey: process.env.NOVITA_API_KEY,
+    });
+  }
+
+  return openai;
+}
 
 function encodeEvent(event: ChatStreamEvent) {
   return `data: ${JSON.stringify(event)}\n\n`;
@@ -57,7 +69,7 @@ export async function handleChatPost(request: Request) {
       return NextResponse.json({ error: 'At least one message is required.' }, { status: 400 });
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
       model: 'moonshotai/kimi-k2.5',
       stream: true,
       messages: [
@@ -153,7 +165,7 @@ export async function handleChatTitlePost(request: Request) {
       return NextResponse.json({ error: 'First user and assistant messages are required to generate a title.' }, { status: 400 });
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
       model: 'moonshotai/kimi-k2.5',
       messages: [
         {
