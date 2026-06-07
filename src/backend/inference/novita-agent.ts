@@ -322,7 +322,7 @@ export async function runNovitaAgentChat(
 
 export async function listNovitaModels(signal?: AbortSignal) {
   const apiKey = requireNovitaApiKey();
-  const response = await fetch("https://api.novita.ai/openai/v1/models", {
+  const response = await fetch(env.novitaModelsUrl, {
     headers: novitaHeaders(apiKey),
     signal,
   });

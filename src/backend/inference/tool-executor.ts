@@ -1,5 +1,11 @@
 import { env } from "@/backend/config/env";
-import { ensureSandboxReady } from "@/backend/inference/sandbox-session";
+import {
+  getOrCreateSandbox,
+  readSandboxFile,
+  writeSandboxFile,
+  runSandboxCommand,
+  runSandboxCode,
+} from "@/backend/sandbox/sandbox-manager";
 import {
   inferLanguage,
   type PlatformToolName,
@@ -19,6 +25,14 @@ function parseArgs(raw?: string): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+async function resolveSandboxId(context?: {
+  userId?: string;
+  conversationId?: string;
+}) {
+  const { info } = await getOrCreateSandbox(context);
+  return info.sandboxId;
 }
 
 export async function executePlatformTool(
@@ -73,24 +87,25 @@ export async function executePlatformTool(
       const path = String(args.path ?? "");
       const content = String(args.file_text ?? args.content ?? "");
       const description = String(args.description ?? "");
-      const { sandbox } = await ensureSandboxReady(context);
-      await sandbox.files.write(path, content);
+      const sandboxId = await resolveSandboxId(context);
+      await writeSandboxFile(sandboxId, path, content);
       send("file_created", {
         path,
         content,
         description,
         language: inferLanguage(path),
       });
-      send("sandbox_ready", { auto_created: true });
+      send("sandbox_ready", { auto_created: true, sandboxId });
       return `File created at ${path} (${content.length} chars).`;
     }
 
     case "bash_tool": {
       const command = String(args.command ?? "");
       const description = String(args.description ?? "");
-      const { sandbox } = await ensureSandboxReady(context);
-      send("sandbox_ready", { auto_created: true });
-      const result = await sandbox.commands.run(command, {
+      const sandboxId = await resolveSandboxId(context);
+      send("sandbox_ready", { auto_created: true, sandboxId });
+      const result = await runSandboxCommand(sandboxId, {
+        command,
         onStdout: (text) => send("bash_stdout", { text, description }),
         onStderr: (text) => send("bash_stderr", { text, description }),
       });
@@ -100,8 +115,8 @@ export async function executePlatformTool(
     case "view": {
       const path = String(args.path ?? "");
       const viewRange = args.view_range as [number, number] | undefined;
-      const { sandbox } = await ensureSandboxReady(context);
-      const content = await sandbox.files.read(path);
+      const sandboxId = await resolveSandboxId(context);
+      const content = await readSandboxFile(sandboxId, path);
       if (viewRange) {
         const lines = content.split("\n");
         const [start, end] = viewRange;
@@ -117,15 +132,15 @@ export async function executePlatformTool(
       const path = String(args.path ?? "");
       const oldStr = String(args.old_str ?? "");
       const newStr = String(args.new_str ?? "");
-      const { sandbox } = await ensureSandboxReady(context);
-      const content = await sandbox.files.read(path);
+      const sandboxId = await resolveSandboxId(context);
+      const content = await readSandboxFile(sandboxId, path);
       const count = content.split(oldStr).length - 1;
       if (count === 0) throw new Error(`old_str not found in ${path}`);
       if (count > 1) {
         throw new Error(`old_str appears ${count} times in ${path}; must be unique`);
       }
       const updated = content.replace(oldStr, newStr);
-      await sandbox.files.write(path, updated);
+      await writeSandboxFile(sandboxId, path, updated);
       send("file_updated", {
         path,
         content: updated,
@@ -138,9 +153,9 @@ export async function executePlatformTool(
       const filepaths = Array.isArray(args.filepaths)
         ? (args.filepaths as string[])
         : [];
-      const { sandbox } = await ensureSandboxReady(context);
+      const sandboxId = await resolveSandboxId(context);
       for (const path of filepaths) {
-        const content = await sandbox.files.read(path);
+        const content = await readSandboxFile(sandboxId, path);
         send("file_created", {
           path,
           content,
@@ -260,23 +275,24 @@ export async function executePlatformTool(
     case "run_code_interpreter": {
       const language = String(args.language ?? "python");
       const code = String(args.code ?? "");
-      const { sandbox } = await ensureSandboxReady(context);
-      send("sandbox_ready", { auto_created: true });
-      if (language === "python" && sandbox.runCode) {
-        const result = await sandbox.runCode(code);
+      const sandboxId = await resolveSandboxId(context);
+      send("sandbox_ready", { auto_created: true, sandboxId });
+      if (language === "python") {
+        const result = await runSandboxCode(sandboxId, code);
         send("code_executed", { language, code, result });
         return JSON.stringify({
-          stdout: result.stdout ?? result.logs?.stdout?.join("") ?? "",
-          stderr: result.stderr ?? result.logs?.stderr?.join("") ?? "",
+          stdout: result.text ?? result.logs?.stdout?.join("") ?? "",
+          stderr: result.logs?.stderr?.join("") ?? "",
           output: result.results ?? [],
+          error: result.error,
         });
       }
       const ext = language === "typescript" ? "ts" : "js";
       const filename = `/tmp/code_${Date.now()}.${ext}`;
-      await sandbox.files.write(filename, code);
+      await writeSandboxFile(sandboxId, filename, code);
       const cmd =
         language === "typescript" ? `npx ts-node ${filename}` : `node ${filename}`;
-      const result = await sandbox.commands.run(cmd);
+      const result = await runSandboxCommand(sandboxId, { command: cmd });
       send("code_executed", { language, code, result });
       return JSON.stringify(result);
     }

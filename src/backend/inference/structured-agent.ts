@@ -1,5 +1,7 @@
-import { env, requireNovitaApiKey } from "@/backend/config/env";
+import { getNovitaClient, DEFAULT_MODEL } from "@/backend/inference/novita-client";
+import { extractPromptCacheStats } from "@/backend/inference/prompt-cache";
 import { extractUpstreamError } from "@/backend/inference/novita";
+import { env } from "@/backend/config/env";
 
 export const defaultStructuredSchema = () =>
   ({
@@ -25,6 +27,28 @@ export const defaultStructuredSchema = () =>
     required: ["summary", "actions"],
   }) as const;
 
+export const expenseTrackingSchema = () =>
+  ({
+    type: "object",
+    properties: {
+      expenses: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            description: { type: "string" },
+            amount: { type: "number" },
+            date: { type: "string" },
+            category: { type: "string" },
+          },
+          required: ["description", "amount"],
+        },
+      },
+      total: { type: "number" },
+    },
+    required: ["expenses", "total"],
+  }) as const;
+
 export async function structuredAgentCompletion(opts: {
   schema: Record<string, unknown>;
   schemaName: string;
@@ -32,22 +56,18 @@ export async function structuredAgentCompletion(opts: {
   systemPrompt?: string;
   model?: string;
   signal?: AbortSignal;
-}): Promise<unknown> {
-  const apiKey = requireNovitaApiKey();
-  const response = await fetch(env.novitaChatUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    signal: opts.signal,
-    body: JSON.stringify({
+  temperature?: number;
+  maxTokens?: number;
+}) {
+  const client = getNovitaClient();
+  const response = await client.chat.completions.create(
+    {
       model: opts.model ?? env.defaultModel,
       messages: [
         ...(opts.systemPrompt
-          ? [{ role: "system", content: opts.systemPrompt }]
+          ? [{ role: "system" as const, content: opts.systemPrompt }]
           : []),
-        { role: "user", content: opts.prompt },
+        { role: "user" as const, content: opts.prompt },
       ],
       response_format: {
         type: "json_schema",
@@ -57,21 +77,39 @@ export async function structuredAgentCompletion(opts: {
           strict: true,
         },
       },
-      max_tokens: 1024,
-      temperature: 0.3,
-      enable_thinking: false,
-    }),
-  });
+      max_tokens: opts.maxTokens ?? 1024,
+      temperature: opts.temperature ?? 0.3,
+      stream: false,
+    },
+    { signal: opts.signal },
+  );
 
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(extractUpstreamError(body, "Structured completion failed."));
-  }
-
-  const content = (
-    body as { choices?: Array<{ message?: { content?: string } }> }
-  )?.choices?.[0]?.message?.content;
+  const content = response.choices[0]?.message?.content;
   if (!content) throw new Error("Empty structured response");
 
-  return JSON.parse(content) as unknown;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error(`Failed to parse structured JSON: ${content.slice(0, 200)}`);
+  }
+
+  return {
+    data: parsed,
+    usage: extractPromptCacheStats(response.usage),
+    model: opts.model ?? DEFAULT_MODEL,
+  };
+}
+
+export async function structuredExpenseExtraction(prompt: string) {
+  return structuredAgentCompletion({
+    schemaName: "expense_tracking_schema",
+    schema: expenseTrackingSchema(),
+    systemPrompt:
+      "You are an expense tracking assistant. Extract expense information from the user's input and format it according to the provided schema.",
+    prompt,
+    model: "mistralai/mistral-7b-instruct",
+    temperature: 0.8,
+    maxTokens: 1024,
+  });
 }

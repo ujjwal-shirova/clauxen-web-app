@@ -33,6 +33,12 @@ import {
   type NovitaModel,
   type SandboxRecipe,
 } from "@/frontend/lib/api/agent";
+import {
+  createSandbox as createManagedSandbox,
+  listSandboxes,
+  killSandbox,
+  type SandboxInfo,
+} from "@/frontend/lib/api/sandbox";
 
 const DEFAULT_MODEL = "moonshotai/kimi-k2.6";
 const DEFAULT_VISION_MODEL = "qwen/qwen2.5-vl-72b-instruct";
@@ -156,7 +162,26 @@ export function ClauxenClawView() {
   const [artifacts, setArtifacts] = React.useState<AgentArtifact[]>([]);
   const [activeArtifactId, setActiveArtifactId] = React.useState<string | null>(null);
   const [sandboxReady, setSandboxReady] = React.useState(false);
+  const [activeSandboxId, setActiveSandboxId] = React.useState<string | null>(
+    null,
+  );
+  const [managedSandboxes, setManagedSandboxes] = React.useState<SandboxInfo[]>(
+    [],
+  );
   const abortRef = React.useRef<AbortController | null>(null);
+
+  const refreshSandboxes = React.useCallback(async () => {
+    try {
+      const payload = await listSandboxes("running,paused");
+      setManagedSandboxes(payload.sandboxes ?? []);
+    } catch {
+      setManagedSandboxes([]);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void refreshSandboxes();
+  }, [refreshSandboxes]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -310,7 +335,12 @@ export function ClauxenClawView() {
               return [...prev, artifact];
             });
           },
-          onSandboxReady: () => setSandboxReady(true),
+          onSandboxReady: (payload) => {
+            setSandboxReady(true);
+            if (payload.sandboxId) setActiveSandboxId(payload.sandboxId);
+            void refreshSandboxes();
+          },
+          onCacheUsage: () => {},
           onBashOutput: ({ text, kind }) => {
             setToolExecutions((prev) => {
               const last = prev[prev.length - 1];
@@ -615,6 +645,68 @@ export function ClauxenClawView() {
                   Sandbox active
                 </span>
               ) : null}
+            </div>
+
+            <div className="rounded-lg border border-zinc-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-[15px] font-semibold text-zinc-900">
+                    Live sandboxes
+                  </h2>
+                  <p className="mt-1 text-[12px] text-zinc-500">
+                    Novita Agent Sandbox lifecycle — auto-resume on tool use.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void createManagedSandbox({ autoResume: true }).then(
+                      (sandbox) => {
+                        setActiveSandboxId(sandbox.sandboxId);
+                        setSandboxReady(true);
+                        void refreshSandboxes();
+                      },
+                    )
+                  }
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] transition-colors hover:bg-zinc-50"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Create</span>
+                </button>
+              </div>
+              {activeSandboxId ? (
+                <p className="mb-2 font-mono text-[12px] text-emerald-700">
+                  Active: {activeSandboxId}
+                </p>
+              ) : null}
+              <ul className="space-y-2">
+                {managedSandboxes.slice(0, 6).map((sandbox) => (
+                  <li
+                    key={sandbox.sandboxId}
+                    className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-[12px] text-zinc-800">
+                        {sandbox.sandboxId}
+                      </p>
+                      <p className="text-[11px] text-zinc-500">
+                        {sandbox.state ?? "unknown"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void killSandbox(sandbox.sandboxId).then(() =>
+                          refreshSandboxes(),
+                        )
+                      }
+                      className="text-[12px] text-red-600 hover:underline"
+                    >
+                      Kill
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             <div className="rounded-lg border border-zinc-200 bg-white p-4">

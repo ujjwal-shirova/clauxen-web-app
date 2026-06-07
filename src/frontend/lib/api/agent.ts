@@ -86,7 +86,11 @@ export type AgentStreamHandlers = {
     content: string;
     language?: string;
   }) => void;
-  onSandboxReady?: (payload: { auto_created?: boolean }) => void;
+  onSandboxReady?: (payload: {
+    auto_created?: boolean;
+    sandboxId?: string;
+  }) => void;
+  onCacheUsage?: (payload: Record<string, unknown>) => void;
   onBashOutput?: (payload: { text: string; kind: "stdout" | "stderr" }) => void;
   onDone?: (payload: { finish_reason: string }) => void;
   onError?: (message: string) => void;
@@ -195,6 +199,9 @@ export async function streamAgentChat(
             text: String(data.text ?? ""),
             kind: "stderr",
           });
+          break;
+        case "cache_usage":
+          handlers.onCacheUsage?.(data as Record<string, unknown>);
           break;
         case "done":
           handlers.onDone?.({

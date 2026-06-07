@@ -8,6 +8,10 @@ import {
   executePlatformTool,
   type ToolEventSender,
 } from "@/backend/inference/tool-executor";
+import {
+  extractPromptCacheStats,
+  buildCacheableSystemPrefix,
+} from "@/backend/inference/prompt-cache";
 import { defaultStructuredSchema } from "@/backend/inference/structured-agent";
 import type {
   AgentChatRequest,
@@ -52,18 +56,19 @@ function buildResponseFormat(request: AgentChatRequest) {
 
 function buildSystemPrompt(request: AgentChatRequest) {
   const toolNames = platformTools().map((t) => t.function.name);
-  return [
-    "You are Clauxen Agent, a production AI assistant on Novita AI (Kimi K2.6).",
-    "Use tools for coding, sandbox execution, web research, and file artifacts.",
-    "When creating files, use create_file — they appear in the user's artifact panel.",
-    "For shell work use bash_tool. For edits use str_replace after view.",
-    "Never provide malware, credential theft, or abuse guidance.",
-    `Available tools: ${toolNames.join(", ")}.`,
-    `Date: ${new Date().toISOString()}.`,
-    request.enableTools === false ? "Tools are disabled for this turn." : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  return buildCacheableSystemPrefix(
+    [
+      "You are Clauxen Agent, a production AI assistant on Novita AI (Kimi K2.6).",
+      "Use tools for coding, sandbox execution, web research, and file artifacts.",
+      "When creating files, use create_file — they appear in the user's artifact panel.",
+      "For shell work use bash_tool. For edits use str_replace after view.",
+      "Never provide malware, credential theft, or abuse guidance.",
+      `Available tools: ${toolNames.join(", ")}.`,
+      request.enableTools === false ? "Tools are disabled for this turn." : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
 }
 
 type AccumulatedToolCall = {
@@ -122,7 +127,7 @@ export async function streamNovitaAgentChat(
     let accumulatedReasoning = "";
     const accumulatedToolCalls: Record<number, AccumulatedToolCall> = {};
     let finishReason: string | null = null;
-    let reasoningDetails: unknown = undefined;
+    let reasoningDetails: Array<Record<string, unknown>> = [];
 
     const reader = upstream.body.getReader();
     const decoder = new TextDecoder();
@@ -165,7 +170,10 @@ export async function streamNovitaAgentChat(
           continue;
         }
 
-        if (parsed.usage) finalUsage = parsed.usage;
+        if (parsed.usage) {
+          finalUsage = parsed.usage;
+          send("cache_usage", extractPromptCacheStats(parsed.usage));
+        }
 
         const choice = parsed.choices?.[0];
         const delta = choice?.delta;
@@ -182,8 +190,8 @@ export async function streamNovitaAgentChat(
         }
 
         if (delta.reasoning_details) {
-          reasoningDetails = delta.reasoning_details;
           for (const detail of delta.reasoning_details) {
+            reasoningDetails.push(detail as Record<string, unknown>);
             if (detail.text) {
               accumulatedReasoning += detail.text;
               send("reasoning_delta", { text: detail.text });
@@ -232,7 +240,8 @@ export async function streamNovitaAgentChat(
             }))
           : undefined,
       reasoning_content: accumulatedReasoning || undefined,
-      reasoning_details: reasoningDetails,
+      reasoning_details:
+        reasoningDetails.length > 0 ? reasoningDetails : undefined,
     });
 
     if (finishReason === "tool_calls" && toolCallsArray.length > 0) {
@@ -285,7 +294,11 @@ export async function streamNovitaAgentChat(
       continue;
     }
 
-    send("done", { finish_reason: finishReason ?? "stop", usage: finalUsage });
+    send("done", {
+      finish_reason: finishReason ?? "stop",
+      usage: finalUsage,
+      cache: extractPromptCacheStats(finalUsage),
+    });
     return {
       content: accumulatedContent,
       reasoning: accumulatedReasoning,

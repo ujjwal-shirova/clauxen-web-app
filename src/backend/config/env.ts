@@ -20,6 +20,17 @@ export const env = {
     "SHIROVA_NOVITA_CHAT_COMPLETIONS_URL",
     "https://api.novita.ai/openai/chat/completions",
   ),
+  novitaOpenAiBaseUrl: optional(
+    "NOVITA_OPENAI_BASE_URL",
+    "https://api.novita.ai/openai",
+  ),
+  novitaModelsUrl: optional(
+    "NOVITA_MODELS_URL",
+    "https://api.novita.ai/openai/v1/models",
+  ),
+  defaultSandboxTimeoutMs: Number(
+    optional("NOVITA_SANDBOX_TIMEOUT_MS", "300000"),
+  ),
   defaultModel: optional("SHIROVA_DEFAULT_MODEL", "moonshotai/kimi-k2.6"),
   /** Kimi thinking: enabled | disabled -> Novita enable_thinking flag. */
   thinkingType:
