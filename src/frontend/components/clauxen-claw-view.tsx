@@ -26,12 +26,15 @@ import { useAuth } from "@/frontend/hooks/use-auth";
 import {
   createSandboxRecipe,
   listAgentModels,
-  runAgentChat,
+  streamAgentChat,
+  type AgentArtifact,
   type AgentContentPart,
+  type AgentToolExecution,
   type NovitaModel,
   type SandboxRecipe,
 } from "@/frontend/lib/api/agent";
 
+const DEFAULT_MODEL = "moonshotai/kimi-k2.6";
 const DEFAULT_VISION_MODEL = "qwen/qwen2.5-vl-72b-instruct";
 const DEFAULT_REASONING_MODEL = "minimax/minimax-m2";
 const MAX_LOCAL_IMAGE_BYTES = 1_000_000;
@@ -52,13 +55,13 @@ const capabilityItems = [
     icon: Boxes,
     label: "Tool execution",
     detail:
-      "Safe allowlisted tools for time, media metadata, and sandbox recipes.",
+      "Live sandbox tools: bash, create_file, view, str_replace, web search, code interpreter.",
   },
   {
     icon: Monitor,
-    label: "Sandbox use",
+    label: "Auto sandbox",
     detail:
-      "Python-only BrowserUse and E2B Desktop recipes for Novita sandboxes.",
+      "Novita Agent Sandbox is created automatically on first tool call and reused per session.",
   },
 ];
 
@@ -127,9 +130,9 @@ export function ClauxenClawView() {
   );
   const deployments = settings?.claw.deployments ?? [];
 
-  const [model, setModel] = React.useState(DEFAULT_REASONING_MODEL);
+  const [model, setModel] = React.useState(DEFAULT_MODEL);
   const [task, setTask] = React.useState(
-    "Analyze the attached visual context and produce an actionable agent plan.",
+    "Create a hello.py file in the sandbox, run it with bash, and summarize the output.",
   );
   const [imageDataUrl, setImageDataUrl] = React.useState("");
   const [imageUrl, setImageUrl] = React.useState("");
@@ -149,6 +152,11 @@ export function ClauxenClawView() {
   );
   const [creatingDeployment, setCreatingDeployment] = React.useState(false);
   const [linkEndpoint, setLinkEndpoint] = React.useState("");
+  const [toolExecutions, setToolExecutions] = React.useState<AgentToolExecution[]>([]);
+  const [artifacts, setArtifacts] = React.useState<AgentArtifact[]>([]);
+  const [activeArtifactId, setActiveArtifactId] = React.useState<string | null>(null);
+  const [sandboxReady, setSandboxReady] = React.useState(false);
+  const abortRef = React.useRef<AbortController | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -230,26 +238,105 @@ export function ClauxenClawView() {
     setAgentError("");
     setAgentAnswer("");
     setAgentReasoning("");
+    setToolExecutions([]);
+    setArtifacts([]);
+    setActiveArtifactId(null);
+    setSandboxReady(false);
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+
     try {
-      const response = await runAgentChat({
-        model,
-        mode: structured ? "structured" : "chat",
-        enableThinking: thinking,
-        enableTools: tools,
-        reasoningSplit: thinking,
-        messages: [{ role: "user", content: buildContent() }],
-      });
-      const content = response.message.content;
-      setAgentAnswer(
-        typeof content === "string"
-          ? content
-          : JSON.stringify(content, null, 2),
+      await streamAgentChat(
+        {
+          model,
+          mode: structured ? "structured" : "chat",
+          enableThinking: thinking,
+          enableTools: tools,
+          reasoningSplit: thinking,
+          messages: [{ role: "user", content: buildContent() }],
+        },
+        {
+          onTextDelta: (text) => setAgentAnswer((prev) => prev + text),
+          onReasoningDelta: (text) =>
+            setAgentReasoning((prev) => prev + text),
+          onToolExecuting: ({ tool_call_id, name }) => {
+            setToolExecutions((prev) => [
+              ...prev,
+              {
+                id: tool_call_id,
+                name,
+                status: "running",
+                startedAt: Date.now(),
+              },
+            ]);
+          },
+          onToolResult: ({ tool_call_id }) => {
+            setToolExecutions((prev) =>
+              prev.map((item) =>
+                item.id === tool_call_id
+                  ? { ...item, status: "done", completedAt: Date.now() }
+                  : item,
+              ),
+            );
+          },
+          onFileCreated: ({ path, content, language, description }) => {
+            const artifact: AgentArtifact = {
+              id: crypto.randomUUID(),
+              path,
+              content,
+              language: language ?? "text",
+              description,
+            };
+            setArtifacts((prev) => [...prev, artifact]);
+            setActiveArtifactId(artifact.id);
+          },
+          onFileUpdated: ({ path, content, language }) => {
+            setArtifacts((prev) => {
+              const existing = prev.find((a) => a.path === path);
+              if (existing) {
+                return prev.map((a) =>
+                  a.path === path
+                    ? { ...a, content, language: language ?? a.language }
+                    : a,
+                );
+              }
+              const artifact: AgentArtifact = {
+                id: crypto.randomUUID(),
+                path,
+                content,
+                language: language ?? "text",
+              };
+              setActiveArtifactId(artifact.id);
+              return [...prev, artifact];
+            });
+          },
+          onSandboxReady: () => setSandboxReady(true),
+          onBashOutput: ({ text, kind }) => {
+            setToolExecutions((prev) => {
+              const last = prev[prev.length - 1];
+              if (!last) return prev;
+              return prev.map((item, index) =>
+                index === prev.length - 1
+                  ? {
+                      ...item,
+                      output:
+                        (item.output ?? "") +
+                        `[${kind}] ${text}`,
+                    }
+                  : item,
+              );
+            });
+          },
+          onError: (message) => setAgentError(message),
+        },
+        abortRef.current.signal,
       );
-      setAgentReasoning(response.message.reasoning_content ?? "");
     } catch (error) {
-      setAgentError(
-        error instanceof Error ? error.message : "The agent request failed.",
-      );
+      if ((error as Error).name !== "AbortError") {
+        setAgentError(
+          error instanceof Error ? error.message : "The agent request failed.",
+        );
+      }
     } finally {
       setRunning(false);
     }
@@ -394,6 +481,7 @@ export function ClauxenClawView() {
                 onChange={(event) => setModel(event.target.value)}
                 className="mb-4 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-[13px] outline-none focus:border-zinc-300"
               >
+                <option value={DEFAULT_MODEL}>{DEFAULT_MODEL}</option>
                 <option value={DEFAULT_REASONING_MODEL}>
                   {DEFAULT_REASONING_MODEL}
                 </option>
@@ -510,8 +598,23 @@ export function ClauxenClawView() {
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
-                <span>Run agent</span>
+                <span>{running ? "Streaming…" : "Run agent (stream)"}</span>
               </button>
+              {running ? (
+                <button
+                  type="button"
+                  onClick={() => abortRef.current?.abort()}
+                  className="ml-2 inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-[14px] font-medium transition-colors hover:bg-zinc-50"
+                >
+                  Stop
+                </button>
+              ) : null}
+              {sandboxReady ? (
+                <span className="ml-3 inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-600">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Sandbox active
+                </span>
+              ) : null}
             </div>
 
             <div className="rounded-lg border border-zinc-200 bg-white p-4">
@@ -562,6 +665,69 @@ export function ClauxenClawView() {
           </section>
 
           <aside className="space-y-4">
+            {toolExecutions.length > 0 ? (
+              <div className="rounded-lg border border-zinc-200 bg-white p-4">
+                <h2 className="text-[15px] font-semibold text-zinc-900">Tool runs</h2>
+                <ul className="mt-3 space-y-2">
+                  {toolExecutions.map((exec) => (
+                    <li
+                      key={exec.id}
+                      className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[12px] text-zinc-700">
+                          {exec.name}
+                        </span>
+                        {exec.status === "running" ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        )}
+                      </div>
+                      {exec.output ? (
+                        <pre className="mt-2 max-h-24 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-zinc-500">
+                          {exec.output}
+                        </pre>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {artifacts.length > 0 ? (
+              <div className="rounded-lg border border-zinc-200 bg-white p-4">
+                <h2 className="text-[15px] font-semibold text-zinc-900">Artifacts</h2>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {artifacts.map((artifact) => (
+                    <button
+                      key={artifact.id}
+                      type="button"
+                      onClick={() => setActiveArtifactId(artifact.id)}
+                      className={cn(
+                        "rounded-lg border px-3 py-1.5 text-[12px] transition-colors",
+                        activeArtifactId === artifact.id
+                          ? "border-zinc-900 bg-zinc-900 text-white"
+                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50",
+                      )}
+                    >
+                      {artifact.path.split("/").pop()}
+                    </button>
+                  ))}
+                </div>
+                {activeArtifactId ? (
+                  <div className="mt-3">
+                    <CodeBlock
+                      code={
+                        artifacts.find((a) => a.id === activeArtifactId)
+                          ?.content ?? ""
+                      }
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="rounded-lg border border-zinc-200 bg-white p-4">
               <h2 className="text-[15px] font-semibold text-zinc-900">Agent output</h2>
               {agentError ? (
