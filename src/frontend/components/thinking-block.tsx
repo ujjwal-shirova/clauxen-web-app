@@ -69,39 +69,43 @@ export function ThinkingBlock({
             <button
               type="button"
               onClick={() => setIsVisible((value) => !value)}
-              className="flex w-full items-center gap-2 rounded-[10px] py-0.5 text-left text-[14px] leading-5 text-[#73726c] transition-all duration-200 hover:text-[#3d3d3a]"
+              className="flex w-full items-center gap-2 rounded-[10px] py-0.5 text-left text-[14px] leading-5 text-zinc-500 transition-all duration-200 hover:text-zinc-800"
               aria-expanded={isVisible}
             >
               <span className={cn('truncate font-medium', isStreaming && 'shimmer-text')}>{displayLabel}</span>
               <ChevronDown
                 className={cn(
-                  'h-4 w-4 shrink-0 text-[#73726c] transition-transform duration-200',
+                  'icon-md shrink-0 icon-muted transition-transform duration-200',
                   isVisible && 'rotate-180'
                 )}
-                strokeWidth={1.8}
               />
             </button>
           </div>
 
           {isVisible && (
             <div className="overflow-hidden pt-0.5">
-            <div className="grid gap-3 rounded-[12px] border border-[#1f1e1d]/8 bg-[#faf9f5] px-3 py-2.5 text-[14px] font-[430] leading-[1.4] text-[#3d3d3a]">
+            <div className="grid gap-3 rounded-[12px] border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-[14px] font-[430] leading-[1.4] text-zinc-700">
               <div
                 ref={scrollRef}
                 className={cn(
-                  'overflow-y-auto pr-1 text-[14px] leading-[1.55] text-[#3d3d3a] scrollbar-thin',
+                  'scrollbar-hide overflow-y-auto pr-1 text-[14px] leading-[1.55] text-zinc-700',
                   isExpanded ? 'max-h-[20.5rem]' : 'max-h-[10.85rem]'
                 )}
               >
                 <div className="thinking-markdown">
-                  <MarkdownRenderer content={content} isStreaming={isStreaming} showCursor={false} />
+                  <MarkdownRenderer
+                    content={content}
+                    isStreaming={isStreaming}
+                    showCursor={false}
+                    lightweightStream={isStreaming}
+                  />
                 </div>
               </div>
               {lineCount > 4 && (
                 <button
                   type="button"
                   onClick={() => setIsExpanded((value) => !value)}
-                  className="w-fit text-[12px] font-medium text-[#73726c] transition-colors hover:text-[#3d3d3a]"
+                  className="w-fit text-[12px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
                 >
                   {isExpanded ? 'Show less' : 'Show more'}
                 </button>

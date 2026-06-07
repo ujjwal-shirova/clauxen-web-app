@@ -1,17 +1,22 @@
+
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowLeft, Check, Mail, Link as LinkIcon } from 'lucide-react';
-import { Button } from '@/frontend/components/ui/button';
-import { cn } from '@/frontend/lib/utils';
+import { ArrowLeft, Check, Mail, Link as LinkIcon } from 'lucide-react'; // icons — back navigation, color check, email/link delivery affordances
+import { Button } from '@/frontend/components/ui/button'; // shadcn Button — primary/secondary CTAs
+import { cn } from '@/frontend/lib/utils'; // className merge utility — selected/unselected Tailwind states
+import { appBtn } from '@/frontend/lib/app-buttons';
 import { GiftPayment } from './gift-payment';
 import { GiftAnimation } from './gift-animation';
+import { purchaseGift } from '@/frontend/lib/api/gifts';
+import { ApiError } from '@/frontend/lib/api/client';
+import { useAuth } from '@/frontend/hooks/use-auth';
 
 interface GiftViewProps {
   onClose: () => void;
 }
 
-const colors = [
+const colors = [ // gift card preview background theme palette — id, hex value, accessibility label
   { id: 'clay', value: '#DD8164', label: 'Clay' },
   { id: 'sky', value: '#77A3CF', label: 'Sky' },
   { id: 'olive', value: '#839569', label: 'Olive' },
@@ -22,7 +27,7 @@ const colors = [
 ];
 
 const plans = [
-  { id: 'go', name: 'Go', subtitle: 'Affordable entry', monthlyPrice: 299 },
+  { id: 'go', name: 'Go', subtitle: 'Affordable entry', monthlyPrice: 99 },
   { id: 'pro', name: 'Pro', subtitle: 'For the curious', monthlyPrice: 2499 },
   { id: 'max5x', name: 'Max 5x', subtitle: 'For the enthusiast', monthlyPrice: 9999 },
   { id: 'max20x', name: 'Max 20x', subtitle: 'For the power user', monthlyPrice: 19999 },
@@ -35,21 +40,40 @@ const durations = [
   { id: '1year', label: '1 year', months: 12 },
 ];
 
-export function GiftView({ onClose }: GiftViewProps) {
-  const [step, setStep] = useState(1);
-  const [selectedPlan, setSelectedPlan] = useState('pro');
-  const [selectedDuration, setSelectedDuration] = useState('6months');
-  const [selectedColor, setSelectedColor] = useState(colors[0]);
-  const [deliveryMethod, setDeliveryMethod] = useState('email');
-  
-  // Form fields
-  const [recipientName, setRecipientName] = useState('');
-  const [giftNote, setGiftNote] = useState('');
-  const [yourName, setYourName] = useState('Revlon');
-  const [yourEmail, setYourEmail] = useState('revl.developer.go@gmail.com');
+const GIFT_PLAN_IDS = new Set(plans.map((plan) => plan.id));
+const GIFT_DURATION_MONTHS = new Set(durations.map((duration) => duration.months));
+const GIFT_COLOR_VALUES = new Set(colors.map((color) => color.value));
 
-  const currentPlan = plans.find(p => p.id === selectedPlan) || plans[0];
-  const currentDuration = durations.find(d => d.id === selectedDuration) || durations[2];
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+type GiftCheckoutState = {
+  giftCode: string;
+  razorpay: { orderId: string; amount: number; currency: string; keyId?: string };
+  pricing: { subtotalPaise: number; taxPaise: number; amountPaise: number };
+};
+
+export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purchase overlay — 3-step wizard
+  const auth = useAuth();
+  const [step, setStep] = useState(1); // wizard step: 1=plan, 2=personalize, 3=payment/success
+  const [selectedPlan, setSelectedPlan] = useState('pro');
+  const [selectedDuration, setSelectedDuration] = useState('6months'); // default 6 months — UX sweet spot
+  const [selectedColor, setSelectedColor] = useState(colors[0]); // preview card background — colors[0] clay default
+  const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'link'>('email');
+  const [checkout, setCheckout] = useState<GiftCheckoutState | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [purchaseComplete, setPurchaseComplete] = useState(false);
+
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [giftNote, setGiftNote] = useState('');
+  const [yourName, setYourName] = useState(auth.user?.displayName ?? '');
+  const [yourEmail, setYourEmail] = useState(auth.user?.email ?? '');
+
+  const currentPlan = plans.find(p => p.id === selectedPlan) || plans[0]; // selected plan object — pricing/display
+  const currentDuration = durations.find(d => d.id === selectedDuration) || durations[2]; // selected months — fallback 6mo
   const total = currentPlan.monthlyPrice * currentDuration.months;
 
   const handleBack = () => {
@@ -57,33 +81,70 @@ export function GiftView({ onClose }: GiftViewProps) {
     else onClose();
   };
 
+  const startCheckout = async () => { // step 2 → server gift order + Razorpay order create
+    if (!GIFT_PLAN_IDS.has(selectedPlan) || !GIFT_DURATION_MONTHS.has(currentDuration.months)) {
+      return;
+    }
+    if (deliveryMethod === 'email' && !isValidEmail(recipientEmail.trim())) {
+      return;
+    }
+    setCheckoutError(null);
+    setCheckoutLoading(true); // UI disabled/loading text
+    try {
+      const themeColor = GIFT_COLOR_VALUES.has(selectedColor.value)
+        ? selectedColor.value
+        : colors[0].value;
+      const result = await purchaseGift({ // POST /api gifts — DB gift row + Razorpay orderId
+        planId: selectedPlan,
+        months: currentDuration.months,
+        recipientEmail: deliveryMethod === 'email' ? recipientEmail.trim() : undefined,
+        recipientName: deliveryMethod === 'email' ? recipientName.trim() : undefined,
+        senderName: yourName || auth.user?.displayName || 'Clauxen user',
+        senderEmail: yourEmail || auth.user?.email || '',
+        deliveryMethod,
+        message: giftNote || undefined,
+        themeColor,
+      });
+      setCheckout({
+        giftCode: result.gift.code,
+        razorpay: result.razorpay,
+        pricing: result.pricing,
+      });
+      setStep(3); // payment step — GiftPayment render
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : 'Could not start checkout.'); // user-readable error
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-[100] bg-white flex overflow-hidden animate-in fade-in duration-300 font-sans">
-      {/* Back Button Overlay */}
-      <button 
-        onClick={handleBack} 
-        className="absolute left-6 top-6 p-2 hover:bg-black/5 rounded-lg transition-all z-[110]"
+    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-white font-sans animate-in fade-in duration-300 lg:flex-row">
+      
+      <button
+        onClick={handleBack}
+        className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-[110] rounded-lg p-2 transition-all hover:bg-zinc-100 sm:left-6 sm:top-6"
         aria-label="Back"
       >
-        <ArrowLeft className="w-5 h-5 text-[#3D3D3A]" />
+        <ArrowLeft className="w-5 h-5 text-zinc-800" />
       </button>
 
-      {/* Left Part: Configuration */}
-      <div className="flex-[1.6] bg-white overflow-y-auto border-r border-black/5 scrollbar-hide relative">
-        <div className="max-w-[512px] mx-auto px-8 py-24 flex flex-col justify-center min-h-full">
+      
+      <div className="relative min-h-0 flex-[1.6] overflow-y-auto border-b border-black/5 bg-white scrollbar-hide lg:border-b-0 lg:border-r">
+        <div className="mx-auto flex min-h-full max-w-[512px] flex-col justify-center px-4 pb-8 pt-16 sm:px-8 sm:py-24">
           
           {step === 1 && (
             <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-              <h1 className="text-[38px] font-serif font-medium text-[#3D3D3A] leading-[1.4] mb-2">
+              <h1 className="mb-2 font-serif text-[30px] font-medium leading-[1.3] text-zinc-800 sm:text-[38px] sm:leading-[1.4]">
                 Give the gift of Clauxen
               </h1>
-              <p className="text-[16px] text-[#3D3D3A] font-[430] leading-relaxed mb-10">
+              <p className="text-[16px] text-zinc-800 font-[430] leading-relaxed mb-10">
                 Every plan includes Clauxen Code, unlimited projects, and access to our latest models.
               </p>
 
-              {/* Plan Selection */}
+              
               <div className="mb-8">
-                <span className="block text-[14px] font-semibold text-[#3D3D3A] mb-3">
+                <span className="block text-[14px] font-semibold text-zinc-800 mb-3">
                   Which plan?
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -93,21 +154,21 @@ export function GiftView({ onClose }: GiftViewProps) {
                       onClick={() => setSelectedPlan(plan.id)}
                       className={cn(
                         "p-4 rounded-xl border text-left transition-all duration-200 outline-none",
-                        selectedPlan === plan.id 
-                          ? "border-[#1f1e1d] ring-1 ring-[#1f1e1d] shadow-sm bg-white" 
+                        selectedPlan === plan.id
+                          ? "border-zinc-900 ring-1 ring-zinc-900 shadow-sm bg-white" // selected — ring highlight
                           : "border-black/15 hover:border-black/30 bg-transparent"
                       )}
                     >
-                      <div className="text-[14px] font-semibold text-[#3D3D3A]">{plan.name}</div>
-                      <div className="text-[14px] text-[#73726C] font-[430] leading-tight mt-1">{plan.subtitle}</div>
+                      <div className="text-[14px] font-semibold text-zinc-800">{plan.name}</div>
+                      <div className="text-[14px] text-zinc-500 font-[430] leading-tight mt-1">{plan.subtitle}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Duration Selection */}
+              
               <div className="mb-8">
-                <span className="block text-[14px] font-semibold text-[#3D3D3A] mb-3">
+                <span className="block text-[14px] font-semibold text-zinc-800 mb-3">
                   How many months?
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -117,32 +178,30 @@ export function GiftView({ onClose }: GiftViewProps) {
                       onClick={() => setSelectedDuration(duration.id)}
                       className={cn(
                         "py-3 px-2 rounded-xl border text-center transition-all duration-200 outline-none",
-                        selectedDuration === duration.id 
-                          ? "border-[#1f1e1d] ring-1 ring-[#1f1e1d] shadow-sm bg-white" 
+                        selectedDuration === duration.id
+                          ? "border-zinc-900 ring-1 ring-zinc-900 shadow-sm bg-white"
                           : "border-black/15 hover:border-black/30 bg-transparent"
                       )}
                     >
-                      <div className="text-[14px] font-semibold text-[#3D3D3A]">{duration.label}</div>
+                      <div className="text-[14px] font-semibold text-zinc-800">{duration.label}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Total */}
+              
               <div className="mb-10">
-                <span className="block text-[14px] font-semibold text-[#3D3D3A] mb-1">
+                <span className="block text-[14px] font-semibold text-zinc-800 mb-1">
                   Total
                 </span>
-                <div className="text-[24px] font-bold text-[#3D3D3A]">
+                <div className="text-[24px] font-bold text-zinc-800">
                   ₹{total.toLocaleString('en-IN')}.00
                 </div>
               </div>
 
+              
               <div className="flex justify-end pt-4 border-t border-black/5">
-                <Button 
-                  onClick={() => setStep(2)}
-                  className="h-10 px-8 bg-black text-white hover:bg-black/90 rounded-xl font-medium transition-all transform active:scale-95"
-                >
+                <Button onClick={() => setStep(2)} className={cn(appBtn.primaryLgAuto, "px-8")}>
                   Next
                 </Button>
               </div>
@@ -151,13 +210,13 @@ export function GiftView({ onClose }: GiftViewProps) {
 
           {step === 2 && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-              <h1 className="text-[28px] font-serif font-medium text-[#3D3D3A] mb-6">
+              <h1 className="text-[28px] font-serif font-medium text-zinc-800 mb-6">
                 Personalize your gift
               </h1>
 
-              {/* Color Picker */}
+              
               <div className="mb-8">
-                <span className="block text-[14px] font-semibold text-[#3D3D3A] mb-3">
+                <span className="block text-[14px] font-semibold text-zinc-800 mb-3">
                   Pick a color
                 </span>
                 <div className="flex flex-wrap gap-3">
@@ -180,33 +239,33 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </div>
               </div>
 
-              {/* Delivery Method */}
+              
               <div className="mb-8">
-                <span className="block text-[14px] font-semibold text-[#3D3D3A] mb-3">
+                <span className="block text-[14px] font-semibold text-zinc-800 mb-3">
                   Choose how to send
                 </span>
                 <div className="space-y-3">
                   <button
-                    onClick={() => setDeliveryMethod('email')}
+                    onClick={() => setDeliveryMethod('email' as const)}
                     className={cn(
                       "w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-all",
                       deliveryMethod === 'email' ? "border-black bg-black/5" : "border-black/15 hover:border-black/30"
                     )}
                   >
-                    <Mail className="w-5 h-5 text-[#73726C]" />
+                    <Mail className="w-5 h-5 text-zinc-500" />
                     <div className="flex-1">
                       <div className="text-[14px] font-semibold">Send an email</div>
                     </div>
                     {deliveryMethod === 'email' && <div className="w-2.5 h-2.5 bg-black rounded-full" />}
                   </button>
                   <button
-                    onClick={() => setDeliveryMethod('link')}
+                    onClick={() => setDeliveryMethod('link' as const)}
                     className={cn(
                       "w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-all",
                       deliveryMethod === 'link' ? "border-black bg-black/5" : "border-black/15 hover:border-black/30"
                     )}
                   >
-                    <LinkIcon className="w-5 h-5 text-[#73726C]" />
+                    <LinkIcon className="w-5 h-5 text-zinc-500" />
                     <div className="flex-1">
                       <div className="text-[14px] font-semibold">Get a link to share</div>
                     </div>
@@ -215,14 +274,14 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </div>
               </div>
 
-              {/* Form Fields */}
+              
               <div className="space-y-4 mb-10">
                 {deliveryMethod === 'email' && (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[14px] font-medium text-[#3D3D3A]">Recipient's name</label>
-                      <input 
-                        type="text" 
+                      <label className="text-[14px] font-medium text-zinc-800">Recipient's name</label>
+                      <input
+                        type="text"
                         placeholder="Name"
                         value={recipientName}
                         onChange={(e) => setRecipientName(e.target.value)}
@@ -230,27 +289,29 @@ export function GiftView({ onClose }: GiftViewProps) {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[14px] font-medium text-[#3D3D3A]">Recipient's email</label>
-                      <input 
-                        type="email" 
+                      <label className="text-[14px] font-medium text-zinc-800">Recipient's email</label>
+                      <input
+                        type="email"
                         placeholder="Email"
+                        value={recipientEmail}
+                        onChange={(e) => setRecipientEmail(e.target.value)}
                         className="w-full h-10 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all"
                       />
                     </div>
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <label className="text-[14px] font-medium text-[#3D3D3A]">Your name</label>
-                  <input 
-                    type="text" 
+                  <label className="text-[14px] font-medium text-zinc-800">Your name</label>
+                  <input
+                    type="text"
                     value={yourName}
                     onChange={(e) => setYourName(e.target.value)}
                     className="w-full h-10 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[14px] font-medium text-[#3D3D3A]">Add a note</label>
-                  <textarea 
+                  <label className="text-[14px] font-medium text-zinc-800">Add a note</label>
+                  <textarea
                     placeholder="Gift message"
                     rows={3}
                     value={giftNote}
@@ -259,9 +320,9 @@ export function GiftView({ onClose }: GiftViewProps) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[14px] font-medium text-[#3D3D3A]">Your email</label>
-                  <input 
-                    type="email" 
+                  <label className="text-[14px] font-medium text-zinc-800">Your email</label>
+                  <input
+                    type="email"
                     value={yourEmail}
                     onChange={(e) => setYourEmail(e.target.value)}
                     className="w-full h-10 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all"
@@ -269,41 +330,67 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </div>
               </div>
 
+              {/* step 2 footer — Back step 1; Check out purchaseGift trigger */}
               <div className="flex justify-end gap-3 pt-4 border-t border-black/5">
-                <Button 
+                <Button
                   variant="outline"
                   onClick={() => setStep(1)}
-                  className="h-10 px-8 border-black/15 text-[#3D3D3A] rounded-xl font-medium"
+                  className={cn(appBtn.secondary, "h-10 rounded-xl px-8")}
                 >
                   Back
                 </Button>
-                <Button 
-                  onClick={() => setStep(3)}
-                  className="h-10 px-8 bg-black text-white hover:bg-black/90 rounded-xl font-medium"
+                <Button
+                  onClick={() => void startCheckout()}
+                  disabled={
+                    checkoutLoading ||
+                    (deliveryMethod === 'email' && !isValidEmail(recipientEmail.trim()))
+                  }
+                  className={cn(appBtn.primaryLgAuto, "px-8")}
                 >
-                  Check out
+                  {checkoutLoading ? 'Preparing…' : 'Check out'}
                 </Button>
+                {checkoutError && (
+                  <p className="mt-2 text-[12px] text-red-600">{checkoutError}</p>
+                )}
               </div>
             </div>
           )}
 
-          {step === 3 && (
-            <GiftPayment 
-              onBack={() => setStep(2)} 
-              currentDurationLabel={currentDuration.label} 
+          {step === 3 && checkout && !purchaseComplete && (
+            <GiftPayment
+              onBack={() => setStep(2)}
+              currentDurationLabel={currentDuration.label}
+              giftCode={checkout.giftCode}
+              razorpay={checkout.razorpay}
+              pricing={checkout.pricing}
+              onPaid={() => setPurchaseComplete(true)}
             />
+          )}
+          {step === 3 && purchaseComplete && checkout && (
+            <div className="animate-in fade-in duration-300 rounded-xl border border-black/15 bg-zinc-50 p-6">
+              <h2 className="text-[20px] font-medium mb-2">Gift purchased</h2>
+              <p className="text-[14px] text-zinc-500 mb-4">
+                Share this code with your recipient. It is shown only once.
+              </p>
+              <code className="block rounded-lg bg-white border border-black/15 px-4 py-3 text-[16px] font-semibold tracking-wide">
+                {checkout.giftCode}
+              </code>
+              <Button onClick={onClose} className={cn(appBtn.primaryLg, "mt-6")}>
+                Done
+              </Button>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Right Part: Preview (Sticky) */}
-      <div className="flex-1 bg-[#F5F4ED] flex flex-col items-center justify-center p-8 sticky top-0 h-full">
-        <div style={{ transform: "matrix(1.25, 0, 0, 1.25, 0, 0)" }} className="relative transition-all duration-500 animate-in zoom-in-95 flex flex-col items-center gap-4">
-          <div style={{ width: '288px', position: 'relative' }}>
-            <div 
+      
+      <div className="flex shrink-0 flex-col items-center justify-center bg-zinc-50 p-5 sm:p-8 lg:sticky lg:top-0 lg:h-full lg:flex-1">
+        <div className="relative flex scale-[0.92] flex-col items-center gap-4 transition-all duration-500 animate-in zoom-in-95 sm:scale-100 lg:scale-[1.25]">
+          <div className="relative w-[min(100%,240px)] sm:w-[288px]">
+            <div
               className="relative overflow-hidden transition-colors duration-500"
               style={{ 
-                aspectRatio: '3 / 2', 
+                aspectRatio: '3 / 2',
                 backgroundColor: selectedColor.value,
                 borderBottomLeftRadius: '16px',
                 borderBottomRightRadius: '16px',
@@ -313,7 +400,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                 boxShadow: 'rgb(255, 255, 255) 0px 0px 0px 0px inset, rgba(255, 255, 255, 0.3) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px'
               }}
             >
-              {/* Background Pattern */}
+              {/* decorative background layers — gradients, blur blobs, wave SVG; pointer-events-none */}
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 <div
                   className="absolute inset-0"
@@ -392,12 +479,12 @@ export function GiftView({ onClose }: GiftViewProps) {
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_36%,rgba(255,255,255,0.52),transparent_36%)]" />
               </div>
               
-              {/* Gift Content */}
+              {/* gift card foreground — GiftAnimation + plan/duration label */}
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center">
                 <GiftAnimation />
                 <div className="mt-[6px] text-center">
-                  <div 
-                    className="text-[12px] font-semibold leading-[16.8px] text-[#3D3D3A]"
+                  <div
+                    className="text-[12px] font-semibold leading-[16.8px] text-zinc-800"
                   >
                     {currentDuration.label} of Clauxen {currentPlan.name}
                   </div>
@@ -406,13 +493,13 @@ export function GiftView({ onClose }: GiftViewProps) {
             </div>
           </div>
 
-          {/* Dynamic Message Box Container */}
+          
           {deliveryMethod === 'email' && (recipientName || giftNote) && (
-            <div className="w-72 bg-[#FAF9F5]/50 border border-[#1F1E1D]/15 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="text-[12px] font-semibold text-[#1F1E1D] mb-1">
+            <div className="w-72 bg-zinc-50/50 border border-zinc-200 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="text-[12px] font-semibold text-zinc-900 mb-1">
                 To: {recipientName}
               </div>
-              <p className="text-[12px] text-[#3D3D3A] font-[430] leading-relaxed break-words">
+              <p className="text-[12px] text-zinc-800 font-[430] leading-relaxed break-words">
                 {giftNote}
               </p>
             </div>

@@ -156,10 +156,15 @@
   }
   
   .billingSwitch[data-state='checked'] {
-      background-color: #e5e7eb;
+    background-color: #0d0d0d;
   }
-  
-  .billingSwitch[data-state='checked'] > span {
-    background-color: var(--primary);
+
+  .billingSwitch[data-state='unchecked'] {
+    background-color: rgba(13, 13, 13, 0.25);
+  }
+
+  .billingSwitch[data-state='checked'] > span,
+  .billingSwitch[data-state='unchecked'] > span {
+    background-color: #ffffff;
   }
   

@@ -1,16 +1,18 @@
+"use client";
 
-'use client';
-
-import React from 'react';
-import { Skeleton } from '@/frontend/components/ui/skeleton';
+import { Skeleton } from "@/frontend/components/ui/skeleton";
 
 export function MessageSkeleton() {
   return (
-    <div className="flex items-start gap-4 animate-in fade-in">
-      <div className="space-y-2 flex-1">
-        <Skeleton className="h-4 w-full bg-gray-200" />
-        <Skeleton className="h-4 w-5/6 bg-gray-200" />
-        <Skeleton className="h-4 w-3/4 bg-gray-200" />
+    <div
+      className="flex animate-in fade-in items-start gap-4"
+      aria-busy="true"
+      aria-label="Loading message"
+    >
+      <div className="flex flex-1 flex-col gap-2">
+        <Skeleton className="w-full" variant="text" />
+        <Skeleton className="w-5/6" variant="text" style={{ ["--skeleton-delay" as string]: "80ms" }} />
+        <Skeleton className="w-3/4" variant="text" style={{ ["--skeleton-delay" as string]: "160ms" }} />
       </div>
     </div>
   );

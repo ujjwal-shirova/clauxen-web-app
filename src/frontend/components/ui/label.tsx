@@ -18,7 +18,7 @@ const Label = React.forwardRef<
   <LabelPrimitive.Root
     ref={ref}
     className={cn(labelVariants(), className)}
-    {...props}
+    {...props} // Radix-supported props pass-through — htmlFor, children text, aria-*, onClick, data-* attributes
   />
 ))
 Label.displayName = LabelPrimitive.Root.displayName

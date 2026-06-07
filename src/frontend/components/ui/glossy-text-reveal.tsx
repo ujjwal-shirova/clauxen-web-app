@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 
 interface GlossyTextRevealProps {
   text: string;
-  className?: string;
+  className?: string; // optional Tailwind/CSS className override
 }
 
 export function GlossyTextReveal({ text, className }: GlossyTextRevealProps) {
@@ -18,17 +18,17 @@ export function GlossyTextReveal({ text, className }: GlossyTextRevealProps) {
 
         return (
           <motion.span
-            key={`word-${index}`}
+            key={`word-${index}`} // React list key — index-based unique id
             initial={{ opacity: 0, y: 4, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} // animate state: fully visible, sharp, original position
             transition={{
               duration: 0.34,
-              ease: [0.2, 0.65, 0.2, 1],
+              ease: [0.2, 0.65, 0.2, 1], // custom cubic-bezier easing curve
               delay: index * 0.02,
             }}
-            className="inline-block text-[#3d3d3a] [text-shadow:0_0_14px_rgba(255,255,255,0.48)]"
+            className="inline-block text-zinc-800 [text-shadow:0_0_14px_rgba(255,255,255,0.48)]" // glossy text styling + white glow shadow
           >
-            {word}
+            {word} {/* animated word content */}
           </motion.span>
         );
       })}

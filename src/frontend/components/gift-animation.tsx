@@ -10,6 +10,7 @@ export function GiftAnimation() {
         fontFamily: '"Anthropic Sans", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
       }}
     >
+      
       <div className="pointer-events-none absolute inset-[1px] rounded-[17px] bg-gradient-to-br from-white/55 via-white/10 to-white/35" />
       <img
         src="https://claude.ai/images/gift/gift-giving.gif"
@@ -17,6 +18,7 @@ export function GiftAnimation() {
         width={120}
         height={90}
         loading="lazy"
+        referrerPolicy="no-referrer"
         className="relative z-10 block h-[90px] w-[120px] object-contain align-middle"
       />
     </div>

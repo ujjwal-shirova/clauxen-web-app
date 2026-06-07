@@ -8,8 +8,25 @@ import type {
 
 import { cn } from "@/frontend/lib/utils"
 
-// Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
+
+const SAFE_CONFIG_KEY = /^[a-zA-Z0-9_-]+$/
+const SAFE_CSS_COLOR =
+  /^(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|var\(--[a-zA-Z0-9_-]+\)|[a-zA-Z]+)$/
+
+function sanitizeChartId(value: string): string {
+  const sanitized = value.replace(/[^a-zA-Z0-9_-]/g, "")
+  return sanitized || "chart"
+}
+
+function sanitizeConfigKey(key: string): string | null {
+  return SAFE_CONFIG_KEY.test(key) ? key : null
+}
+
+function sanitizeCssColor(color: string): string | null {
+  const trimmed = color.trim()
+  return SAFE_CSS_COLOR.test(trimmed) ? trimmed : null
+}
 
 export type ChartConfig = {
   [k in string]: {
@@ -27,7 +44,7 @@ type ChartContextProps = {
 
 const ChartContext = React.createContext<ChartContextProps | null>(null)
 
-function useChart() {
+function useChart() { // function — helper
   const context = React.useContext(ChartContext)
 
   if (!context) {
@@ -37,7 +54,7 @@ function useChart() {
   return context
 }
 
-const ChartContainer = React.forwardRef<
+const ChartContainer = React.forwardRef< // forwardRef — UI primitive
   HTMLDivElement,
   React.ComponentProps<"div"> & {
     config: ChartConfig
@@ -84,19 +101,25 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join("\n")}
-}
-`
+            ([theme, prefix]) => {
+              const cssVars = colorConfig
+                .map(([key, itemConfig]) => {
+                  const safeKey = sanitizeConfigKey(key)
+                  if (!safeKey) return null
+                  const rawColor =
+                    itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+                    itemConfig.color
+                  if (typeof rawColor !== "string") return null
+                  const color = sanitizeCssColor(rawColor)
+                  return color ? `  --color-${safeKey}: ${color};` : null
+                })
+                .filter(Boolean)
+                .join("\n")
+              if (!cssVars) return ""
+              return `${prefix} [data-chart="${sanitizeChartId(id)}"] {\n${cssVars}\n}`
+            }
           )
+          .filter(Boolean)
           .join("\n"),
       }}
     />
@@ -105,7 +128,7 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
-const ChartTooltipContent = React.forwardRef<
+const ChartTooltipContent = React.forwardRef< // forwardRef — UI primitive
   HTMLDivElement,
   RechartsTooltipContentProps<any, any> &
     React.ComponentProps<"div"> & {
@@ -136,7 +159,7 @@ const ChartTooltipContent = React.forwardRef<
   ) => {
     const { config } = useChart()
 
-    const tooltipLabel = React.useMemo(() => {
+    const tooltipLabel = React.useMemo(() => { // useMemo — memoized value
       if (hideLabel || !payload?.length) {
         return null
       }
@@ -268,7 +291,7 @@ type ChartLegendContentProps = React.ComponentProps<"div"> & {
   nameKey?: string
 }
 
-const ChartLegendContent = React.forwardRef<
+const ChartLegendContent = React.forwardRef< // forwardRef — UI primitive
   HTMLDivElement,
   ChartLegendContentProps
 >(
@@ -322,8 +345,7 @@ const ChartLegendContent = React.forwardRef<
 )
 ChartLegendContent.displayName = "ChartLegend"
 
-// Helper to extract item config from a payload.
-function getPayloadConfigFromPayload(
+function getPayloadConfigFromPayload( // function — helper
   config: ChartConfig,
   payload: unknown,
   key: string

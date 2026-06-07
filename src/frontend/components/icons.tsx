@@ -1,6 +1,7 @@
 'use client';
 
 import type { SVGProps } from "react";
+import { cn } from "@/frontend/lib/utils";
 
 export function ClaudeStar(props: SVGProps<SVGSVGElement>) {
   return (
@@ -92,9 +93,17 @@ export function NewChatIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function PlusIcon(props: SVGProps<SVGSVGElement>) {
+export function PlusIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      stroke="none"
+      aria-hidden
+      className={cn("shrink-0", className)}
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path d="M10 3C10.2761 3 10.5 3.22386 10.5 3.5V9.5H16.5L16.6006 9.50977C16.8286 9.55629 17 9.75829 17 10C17 10.2417 16.8286 10.4437 16.6006 10.4902L16.5 10.5H10.5V16.5C10.5 16.7761 10.2761 17 10 17C9.72386 17 9.5 16.7761 9.5 16.5V10.5H3.5C3.22386 10.5 3 10.2761 3 10C3 9.72386 3.22386 9.5 3.5 9.5H9.25V3.5C9.5 3.22386 9.72386 3 10 3Z" />
     </svg>
   );
@@ -102,7 +111,7 @@ export function PlusIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptAddFilesIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="17 8 12 3 7 8" />
       <line x1="12" y1="3" x2="12" y2="15" />
@@ -112,7 +121,7 @@ export function PromptAddFilesIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptScreenshotIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -121,7 +130,7 @@ export function PromptScreenshotIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptProjectIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
     </svg>
   );
@@ -129,7 +138,7 @@ export function PromptProjectIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptWebSearchIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <circle cx="12" cy="12" r="10" />
       <line x1="2" y1="12" x2="22" y2="12" />
       <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -139,7 +148,7 @@ export function PromptWebSearchIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptStyleIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M12 19l7-7 3 3-7 7-3-3z" />
       <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
       <path d="M2 2l7.586 7.586" />
@@ -150,7 +159,7 @@ export function PromptStyleIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptConnectorsIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
     </svg>
   );
@@ -158,7 +167,7 @@ export function PromptConnectorsIcon(props: SVGProps<SVGSVGElement>) {
 
 export function CheckIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <polyline points="20 6 9 17 4 12" />
     </svg>
   );

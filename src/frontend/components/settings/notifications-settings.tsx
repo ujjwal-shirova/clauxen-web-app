@@ -1,9 +1,17 @@
-'use client';
+"use client";
 
-import { ChevronDown } from 'lucide-react';
-import { Switch } from '@/frontend/components/ui/switch';
+import {
+  notificationDeliveryOptions,
+} from "@/frontend/components/settings/constants";
+import {
+  SettingsOptionPicker,
+  SettingsPanelTitle,
+  SettingsRow,
+  SettingsToggleRow,
+} from "@/frontend/components/settings/settings-ui";
 
 interface NotificationsSettingsProps {
+  codexChannel: string;
   responseChannel: string;
   groupChatChannel: string;
   tasksChannel: string;
@@ -11,44 +19,20 @@ interface NotificationsSettingsProps {
   recommendationsChannel: string;
   usageChannel: string;
   desktopAlerts: boolean;
-  setDesktopAlerts: (value: boolean) => void;
   soundEffects: boolean;
+  setCodexChannel: (value: string) => void;
+  setResponseChannel: (value: string) => void;
+  setGroupChatChannel: (value: string) => void;
+  setTasksChannel: (value: string) => void;
+  setProjectsChannel: (value: string) => void;
+  setRecommendationsChannel: (value: string) => void;
+  setUsageChannel: (value: string) => void;
+  setDesktopAlerts: (value: boolean) => void;
   setSoundEffects: (value: boolean) => void;
-  onCycleResponseChannel: () => void;
-  onCycleGroupChatChannel: () => void;
-  onCycleTasksChannel: () => void;
-  onCycleProjectsChannel: () => void;
-  onCycleRecommendationsChannel: () => void;
-  onCycleUsageChannel: () => void;
-}
-
-interface NotificationRowProps {
-  title: string;
-  description: React.ReactNode;
-  value: string;
-  onClick: () => void;
-  borderless?: boolean;
-}
-
-function NotificationRow({ title, description, value, onClick, borderless = false }: NotificationRowProps) {
-  return (
-    <div className={`flex min-h-[68px] items-start justify-between gap-6 py-3 ${borderless ? '' : 'border-b border-[#1f1e1d]/5'}`}>
-      <div className="pr-8">
-        <h3 className="text-[14px] font-[430] text-[#3d3d3a]">{title}</h3>
-        <p className="mt-1 text-[12px] leading-5 text-[#8f8f8f]">{description}</p>
-      </div>
-      <button
-        onClick={onClick}
-        className="flex h-9 shrink-0 items-center gap-2 rounded-lg border border-[#1f1e1d]/10 bg-white px-3 text-[14px] text-[#3d3d3a] shadow-sm transition-colors hover:bg-[#f7f6f0]"
-      >
-        <span>{value}</span>
-        <ChevronDown className="h-4 w-4 text-[#73726c]" />
-      </button>
-    </div>
-  );
 }
 
 export function NotificationsSettings({
+  codexChannel,
   responseChannel,
   groupChatChannel,
   tasksChannel,
@@ -56,81 +40,126 @@ export function NotificationsSettings({
   recommendationsChannel,
   usageChannel,
   desktopAlerts,
-  setDesktopAlerts,
   soundEffects,
+  setCodexChannel,
+  setResponseChannel,
+  setGroupChatChannel,
+  setTasksChannel,
+  setProjectsChannel,
+  setRecommendationsChannel,
+  setUsageChannel,
+  setDesktopAlerts,
   setSoundEffects,
-  onCycleResponseChannel,
-  onCycleGroupChatChannel,
-  onCycleTasksChannel,
-  onCycleProjectsChannel,
-  onCycleRecommendationsChannel,
-  onCycleUsageChannel,
 }: NotificationsSettingsProps) {
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in duration-300">
-      <section className="flex flex-col gap-6 pb-8 border-b border-[#1f1e1d]/10">
-        <h2 className="text-[16px] font-semibold text-[#3d3d3a]">Notifications</h2>
-        <div className="rounded-2xl border border-[#1f1e1d]/10 bg-white/80 px-4 py-2">
-          <NotificationRow
-            title="Responses"
-            description="Get notified when Clauxen responds to requests that take time, like research, coding tasks, or image generation."
-            value={responseChannel}
-            onClick={onCycleResponseChannel}
-          />
-          <NotificationRow
-            title="Group chats"
-            description="You'll receive notifications for new messages from group chats."
-            value={groupChatChannel}
-            onClick={onCycleGroupChatChannel}
-          />
-          <NotificationRow
-            title="Tasks"
-            description={<><span>Get notified when tasks you&apos;ve created have updates. </span><a href="#" className="underline decoration-[#8f8f8f]/60 hover:text-[#3d3d3a]">Manage tasks</a></>}
-            value={tasksChannel}
-            onClick={onCycleTasksChannel}
-          />
-          <NotificationRow
-            title="Projects"
-            description="Get notified when you receive an email invitation to a shared project."
-            value={projectsChannel}
-            onClick={onCycleProjectsChannel}
-          />
-          <NotificationRow
-            title="Recommendations"
-            description="Stay in the loop on new tools, tips, and features from Clauxen."
-            value={recommendationsChannel}
-            onClick={onCycleRecommendationsChannel}
-          />
-          <NotificationRow
-            title="Usage"
-            description="We'll notify you when limits reset for features like image creation and intensive tools."
-            value={usageChannel}
-            onClick={onCycleUsageChannel}
-            borderless
-          />
-        </div>
-      </section>
+    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900">
+      <SettingsPanelTitle>Notifications</SettingsPanelTitle>
 
-      <section className="flex flex-col gap-6">
-        <h2 className="text-[16px] font-semibold text-[#3d3d3a]">Local alerts</h2>
-        <div className="flex items-center justify-between gap-8">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[14px] font-[430] text-[#3d3d3a]">Desktop alerts</p>
-            <p className="text-[14px] leading-snug text-[#73726c]">
-              Show browser notifications when background chats, builds, and research tasks finish.
-            </p>
-          </div>
-          <Switch checked={desktopAlerts} onCheckedChange={setDesktopAlerts} />
-        </div>
-        <div className="flex items-center justify-between gap-8">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[14px] font-[430] text-[#3d3d3a]">Sound effects</p>
-            <p className="text-[14px] leading-snug text-[#73726c]">
-              Play subtle sounds for message delivery, call state changes, and completed actions.
-            </p>
-          </div>
-          <Switch checked={soundEffects} onCheckedChange={setSoundEffects} />
-        </div>
+      <div className="flex flex-col">
+        <SettingsRow
+          label="Codex"
+          description="Get notified about Codex tasks."
+        >
+          <SettingsOptionPicker
+            value={codexChannel}
+            options={notificationDeliveryOptions}
+            onValueChange={setCodexChannel}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Group chats"
+          description="You'll receive notifications for new messages from group chats."
+        >
+          <SettingsOptionPicker
+            value={groupChatChannel}
+            options={notificationDeliveryOptions}
+            onValueChange={setGroupChatChannel}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Projects"
+          description="Get notified when you receive an email invitation to a shared project."
+        >
+          <SettingsOptionPicker
+            value={projectsChannel}
+            options={notificationDeliveryOptions}
+            onValueChange={setProjectsChannel}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Recommendations"
+          description="Stay in the loop on new tools, tips, and features from Clauxen."
+        >
+          <SettingsOptionPicker
+            value={recommendationsChannel}
+            options={notificationDeliveryOptions}
+            onValueChange={setRecommendationsChannel}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Responses"
+          description="Get notified when Clauxen responds to requests that take time, like research or image generation."
+        >
+          <SettingsOptionPicker
+            value={responseChannel}
+            options={notificationDeliveryOptions}
+            onValueChange={setResponseChannel}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Tasks"
+          description={
+            <>
+              Get notified when tasks you&apos;ve created have updates.{" "}
+              <button
+                type="button"
+                className="underline decoration-zinc-400/60 underline-offset-2 hover:text-zinc-900"
+              >
+                Manage tasks
+              </button>
+            </>
+          }
+        >
+          <SettingsOptionPicker
+            value={tasksChannel}
+            options={notificationDeliveryOptions}
+            onValueChange={setTasksChannel}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Usage"
+          description="We'll notify you when limits reset for features like image creation."
+          borderless
+        >
+          <SettingsOptionPicker
+            value={usageChannel}
+            options={notificationDeliveryOptions}
+            onValueChange={setUsageChannel}
+          />
+        </SettingsRow>
+      </div>
+
+      <section className="flex flex-col gap-2 border-t border-zinc-200 pt-4">
+        <h3 className="text-[14px] font-semibold text-zinc-700">Local alerts</h3>
+        <SettingsToggleRow
+          label="Desktop alerts"
+          description="Show browser notifications when background chats, builds, and research tasks finish."
+          checked={desktopAlerts}
+          onCheckedChange={setDesktopAlerts}
+        />
+        <SettingsToggleRow
+          label="Sound effects"
+          description="Play subtle sounds for message delivery, call state changes, and completed actions."
+          checked={soundEffects}
+          onCheckedChange={setSoundEffects}
+          borderless
+        />
       </section>
     </div>
   );

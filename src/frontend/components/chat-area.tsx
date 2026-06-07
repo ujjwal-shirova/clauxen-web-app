@@ -1,13 +1,17 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { PromptInput } from './prompt-input';
-import type { Message } from '@/frontend/lib/types';
-import { ConversationThread } from './conversation-thread';
-import { AgentSwarmWorkspace } from './agent-swarm/agent-swarm-workspace';
-import { ShareDialog } from './share-dialog';
-import { ChatViewHeader } from './chat-view-header';
-import { ChatViewPane } from './chat-view-pane';
+import React, { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { PromptInput } from "./prompt-input";
+import type { Message } from "@/frontend/lib/types";
+import { ConversationThread } from "./conversation-thread";
+import { ShareDialog } from "./share-dialog";
+import { ChatViewHeader } from "./chat-view-header";
+import { ChatViewPane } from "./chat-view-pane";
+import { ChatArtifactsPanel } from "./chat-artifacts-panel";
+import { ChatMessageNavigator } from "./chat-message-navigator";
+import { useIsMobile } from "@/frontend/hooks/use-mobile";
+import { cn } from "@/frontend/lib/utils";
 
 interface ChatAreaProps {
   messages: Message[];
@@ -15,15 +19,30 @@ interface ChatAreaProps {
   onStopGeneration: () => void;
   isGenerating: boolean;
   onUpgradeClick: () => void;
-  editMessageWithBranch: (chatId: string, messageId: string, newContent: string) => Promise<void>;
-  retryAssistantWithBranch: (chatId: string, assistantMessageId: string) => Promise<void>;
-  switchMessageBranch: (chatId: string, messageId: string, direction: 'prev' | 'next') => void;
+  editMessageWithBranch: (
+    chatId: string,
+    messageId: string,
+    newContent: string,
+  ) => Promise<void>;
+  retryAssistantWithBranch: (
+    chatId: string,
+    assistantMessageId: string,
+  ) => Promise<void>;
+  switchMessageBranch: (
+    chatId: string,
+    messageId: string,
+    direction: "prev" | "next",
+  ) => void;
   activeChatId: string | null;
   activeChatTitle?: string;
   isActiveChatTitleStreaming?: boolean;
-  onOpenAgentSwarm: () => void;
-  onRequestCollapseSidebar: () => void;
+  onDeleteChat?: (chatId: string) => void;
+  onOpenSettings?: () => void;
+  thinkingEnabled: boolean;
+  onThinkingEnabledChange: (enabled: boolean) => void;
 }
+
+const ARTIFACTS_PANEL_WIDTH = 360;
 
 export function ChatArea({
   messages,
@@ -37,16 +56,22 @@ export function ChatArea({
   activeChatId,
   activeChatTitle,
   isActiveChatTitleStreaming,
-  onOpenAgentSwarm,
-  onRequestCollapseSidebar,
+  onDeleteChat,
+  onOpenSettings,
+  thinkingEnabled,
+  onThinkingEnabledChange,
 }: ChatAreaProps) {
+  const isMobile = useIsMobile();
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [activeChip, setActiveChip] = useState<string | null>(null);
-  const [isAgentSwarmOpen, setIsAgentSwarmOpen] = useState(false);
+  const [hasPromptDraft, setHasPromptDraft] = useState(false);
+  const [isImageExploreMode, setIsImageExploreMode] = useState(false);
   const [isArtifactsPanelOpen, setIsArtifactsPanelOpen] = useState(false);
-  const [showScrollToBottomButton, setShowScrollToBottomButton] = useState(false);
+  const [showScrollToBottomButton, setShowScrollToBottomButton] =
+    useState(false);
   const deferredMessages = React.useDeferredValue(messages);
+  const displayMessages = isGenerating ? messages : deferredMessages;
   const scrollRafRef = React.useRef<number | null>(null);
   const scrollViewportRef = React.useRef<HTMLDivElement | null>(null);
   const isAutoScrollEnabledRef = React.useRef(true);
@@ -54,14 +79,24 @@ export function ChatArea({
   const isConversationStarted = messages.length > 0;
 
   React.useEffect(() => {
+    setHasPromptDraft(false);
+    setIsImageExploreMode(false);
+  }, [activeChatId]);
+
+  React.useEffect(() => {
     if (!isConversationStarted) {
       isAutoScrollEnabledRef.current = true;
+    } else {
+      setIsImageExploreMode(false);
     }
   }, [isConversationStarted]);
 
   React.useEffect(() => {
     if (!isConversationStarted || !scrollAreaRef.current) return;
-    const scrollableViewport = scrollAreaRef.current.querySelector<HTMLDivElement>('div[data-radix-scroll-area-viewport]');
+    const scrollableViewport =
+      scrollAreaRef.current.querySelector<HTMLDivElement>(
+        "div[data-radix-scroll-area-viewport]",
+      );
     if (!scrollableViewport) return;
     scrollViewportRef.current = scrollableViewport;
 
@@ -74,13 +109,7 @@ export function ChatArea({
     }
 
     scrollRafRef.current = requestAnimationFrame(() => {
-      const distanceToBottom =
-        scrollableViewport.scrollHeight - scrollableViewport.scrollTop - scrollableViewport.clientHeight;
-      const shouldAutoScroll = distanceToBottom < 180;
-
-      if (shouldAutoScroll) {
-        scrollableViewport.scrollTop = scrollableViewport.scrollHeight;
-      }
+      scrollableViewport.scrollTop = scrollableViewport.scrollHeight;
     });
 
     return () => {
@@ -88,7 +117,7 @@ export function ChatArea({
         cancelAnimationFrame(scrollRafRef.current);
       }
     };
-  }, [deferredMessages, isConversationStarted]);
+  }, [displayMessages, isConversationStarted]);
 
   React.useEffect(() => {
     if (!isConversationStarted || !scrollAreaRef.current) {
@@ -96,21 +125,31 @@ export function ChatArea({
       return;
     }
 
-    const viewport = scrollAreaRef.current.querySelector<HTMLDivElement>('div[data-radix-scroll-area-viewport]');
+    const viewport = scrollAreaRef.current.querySelector<HTMLDivElement>(
+      "div[data-radix-scroll-area-viewport]",
+    );
     if (!viewport) return;
     scrollViewportRef.current = viewport;
 
     const updateButtonVisibility = () => {
-      const distanceToBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-      const isAtBottom = distanceToBottom <= 80;
-      isAutoScrollEnabledRef.current = isAtBottom;
-      setShowScrollToBottomButton(!isAtBottom);
+      const distanceToBottom =
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+
+      if (distanceToBottom > 120) {
+        isAutoScrollEnabledRef.current = false;
+      } else if (distanceToBottom <= 15) {
+        isAutoScrollEnabledRef.current = true;
+      }
+
+      setShowScrollToBottomButton(distanceToBottom > 15);
     };
 
     updateButtonVisibility();
-    viewport.addEventListener('scroll', updateButtonVisibility, { passive: true });
-    return () => viewport.removeEventListener('scroll', updateButtonVisibility);
-  }, [isConversationStarted, deferredMessages.length]);
+    viewport.addEventListener("scroll", updateButtonVisibility, {
+      passive: true,
+    });
+    return () => viewport.removeEventListener("scroll", updateButtonVisibility);
+  }, [isConversationStarted, displayMessages.length]);
 
   const scrollToBottom = React.useCallback(() => {
     const viewport = scrollViewportRef.current;
@@ -119,7 +158,7 @@ export function ChatArea({
     isAutoScrollEnabledRef.current = true;
     viewport.scrollTo({
       top: viewport.scrollHeight,
-      behavior: 'smooth',
+      behavior: "smooth",
     });
   }, []);
 
@@ -128,144 +167,193 @@ export function ChatArea({
       if (!activeChatId) return;
       await editMessageWithBranch(activeChatId, messageId, newContent);
     },
-    [activeChatId, editMessageWithBranch]
+    [activeChatId, editMessageWithBranch],
   );
 
-  const handleRetryAssistant = React.useCallback(async (messageId: string) => {
-    if (!activeChatId) return;
-    await retryAssistantWithBranch(activeChatId, messageId);
-  }, [activeChatId, retryAssistantWithBranch]);
+  const handleRetryAssistant = React.useCallback(
+    async (messageId: string) => {
+      if (!activeChatId) return;
+      await retryAssistantWithBranch(activeChatId, messageId);
+    },
+    [activeChatId, retryAssistantWithBranch],
+  );
 
-  const handleSwitchBranch = React.useCallback((messageId: string, direction: 'prev' | 'next') => {
-    if (!activeChatId) return;
-    switchMessageBranch(activeChatId, messageId, direction);
-  }, [activeChatId, switchMessageBranch]);
+  const handleSwitchBranch = React.useCallback(
+    (messageId: string, direction: "prev" | "next") => {
+      if (!activeChatId) return;
+      switchMessageBranch(activeChatId, messageId, direction);
+    },
+    [activeChatId, switchMessageBranch],
+  );
 
-  const handleSendMessageAndScroll = React.useCallback((prompt: string) => {
-    isAutoScrollEnabledRef.current = true;
-    setShowScrollToBottomButton(false);
-    onSendMessage(prompt);
-    requestAnimationFrame(() => {
-      const viewport = scrollViewportRef.current;
-      if (!viewport) return;
-      viewport.scrollTop = viewport.scrollHeight;
-    });
-  }, [onSendMessage]);
-
-  const openAgentSwarm = () => {
-    setActiveChip(null);
-    setIsAgentSwarmOpen(true);
-    onOpenAgentSwarm();
-  };
+  const handleSendMessageAndScroll = React.useCallback(
+    (prompt: string) => {
+      isAutoScrollEnabledRef.current = true;
+      setShowScrollToBottomButton(false);
+      onSendMessage(prompt);
+      requestAnimationFrame(() => {
+        const viewport = scrollViewportRef.current;
+        if (!viewport) return;
+        viewport.scrollTop = viewport.scrollHeight;
+      });
+    },
+    [onSendMessage],
+  );
 
   const toggleArtifactsPanel = React.useCallback(() => {
-    const next = !isArtifactsPanelOpen;
-    if (next) {
-      onRequestCollapseSidebar();
-    }
-    setIsArtifactsPanelOpen(next);
-  }, [isArtifactsPanelOpen, onRequestCollapseSidebar]);
+    setIsArtifactsPanelOpen((open) => !open);
+  }, []);
+
+  const handleDeleteActiveChat = React.useCallback(() => {
+    if (!activeChatId) return;
+    onDeleteChat?.(activeChatId);
+  }, [activeChatId, onDeleteChat]);
+
+  const promptInput = (
+    <PromptInput
+      key="prompt-input"
+      onSendMessage={handleSendMessageAndScroll}
+      onStopGeneration={onStopGeneration}
+      onScrollToBottom={scrollToBottom}
+      showScrollToBottomButton={showScrollToBottomButton}
+      isConversationStarted={isConversationStarted}
+      isGenerating={isGenerating}
+      onPromptChange={(value) => {
+        const has = value.trim().length > 0;
+        setHasPromptDraft(has);
+        if (has) setActiveChip(null);
+      }}
+      onImageModeChange={setIsImageExploreMode}
+      imageModeEnabled={!isConversationStarted ? isImageExploreMode : undefined}
+      focusKey={activeChatId ?? "new"}
+      onUpgradeClick={onUpgradeClick}
+      thinkingEnabled={thinkingEnabled}
+      onThinkingEnabledChange={onThinkingEnabledChange}
+      showModelSelector={isConversationStarted}
+    />
+  );
 
   return (
-    <div className="flex flex-col flex-1 relative h-full w-full bg-[#faf9f5] overflow-hidden">
-      {isAgentSwarmOpen ? (
-        <AgentSwarmWorkspace
-          hasConversation={isConversationStarted}
-          promptInput={
-            <PromptInput
-              onSendMessage={handleSendMessageAndScroll}
-              onStopGeneration={onStopGeneration}
-              onScrollToBottom={scrollToBottom}
-              showScrollToBottomButton={showScrollToBottomButton}
-              isConversationStarted={isConversationStarted}
+    <div className="relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-white">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0 pb-2 sm:px-5 sm:pb-2 md:px-6">
+          {!isConversationStarted ? (
+            <ChatViewHeader
+              isConversationStarted={false}
               isGenerating={isGenerating}
+              onUpgradeClick={onUpgradeClick}
+              onShareClick={() => setIsShareDialogOpen(true)}
+              onToggleArtifactsPanel={toggleArtifactsPanel}
+              isArtifactsPanelOpen={isArtifactsPanelOpen}
+              chatTitle={activeChatTitle}
+              isTitleStreaming={isActiveChatTitleStreaming}
+              onDeleteChat={handleDeleteActiveChat}
+              onOpenSettings={onOpenSettings}
+              thinkingEnabled={thinkingEnabled}
+              onThinkingEnabledChange={onThinkingEnabledChange}
+              className="relative z-20 shrink-0"
             />
-          }
-          activeChip={activeChip}
-          onActiveChipChange={setActiveChip}
-          onOpenAgentSwarm={openAgentSwarm}
-          onSendMessage={handleSendMessageAndScroll}
-          onUpgradeClick={onUpgradeClick}
-          onShareClick={() => setIsShareDialogOpen(true)}
-          conversation={
-            <ConversationThread
-              messages={deferredMessages}
-              onSaveEditedMessage={handleSaveEditedMessage}
-              onRetryAssistant={handleRetryAssistant}
-              onSwitchBranch={handleSwitchBranch}
-              className="max-w-full px-0 py-2"
-            />
-          }
-        />
-      ) : (
-        <>
-          <ChatViewHeader
-            isConversationStarted={isConversationStarted}
-            onUpgradeClick={onUpgradeClick}
-            onShareClick={() => setIsShareDialogOpen(true)}
-            onToggleArtifactsPanel={toggleArtifactsPanel}
-            isArtifactsPanelOpen={isArtifactsPanelOpen}
-            chatTitle={activeChatTitle}
-            isTitleStreaming={isActiveChatTitleStreaming}
+          ) : null}
+          <ChatViewPane
+            className="flex min-h-0 flex-1 flex-col"
+            hasConversation={isConversationStarted}
+            isGenerating={isGenerating}
+            hasPromptDraft={hasPromptDraft}
+            isImageExploreMode={isImageExploreMode}
+            onCreateImage={() => setIsImageExploreMode(true)}
+            activeChip={activeChip}
+            onActiveChipChange={setActiveChip}
+            onSendMessage={handleSendMessageAndScroll}
+            scrollAreaRef={scrollAreaRef}
+            conversation={
+              <ConversationThread
+                messages={displayMessages}
+                onSaveEditedMessage={handleSaveEditedMessage}
+                onRetryAssistant={handleRetryAssistant}
+                onSwitchBranch={handleSwitchBranch}
+              />
+            }
+            promptInput={promptInput}
+            messageNavigator={
+              isConversationStarted ? (
+                <ChatMessageNavigator
+                  messages={displayMessages}
+                  scrollAreaRef={scrollAreaRef}
+                />
+              ) : null
+            }
           />
-          <div className="flex min-h-0 flex-1 gap-2 px-2 pb-2">
-            <ChatViewPane
-              hasConversation={isConversationStarted}
-              activeChip={activeChip}
-              onActiveChipChange={setActiveChip}
-              onOpenAgentSwarm={openAgentSwarm}
-              onSendMessage={handleSendMessageAndScroll}
-              scrollAreaRef={scrollAreaRef}
-              promptInput={
-                <PromptInput
-                  onSendMessage={handleSendMessageAndScroll}
-                  onStopGeneration={onStopGeneration}
-                  onScrollToBottom={scrollToBottom}
-                  showScrollToBottomButton={showScrollToBottomButton}
-                  isConversationStarted={isConversationStarted}
-                  isGenerating={isGenerating}
-                />
-              }
-              conversation={
-                <ConversationThread
-                  messages={deferredMessages}
-                  onSaveEditedMessage={handleSaveEditedMessage}
-                  onRetryAssistant={handleRetryAssistant}
-                  onSwitchBranch={handleSwitchBranch}
-                />
-              }
-              className="flex min-h-0 flex-1 flex-col"
+          {isConversationStarted ? (
+            <ChatViewHeader
+              isConversationStarted
+              isGenerating={isGenerating}
+              onUpgradeClick={onUpgradeClick}
+              onShareClick={() => setIsShareDialogOpen(true)}
+              onToggleArtifactsPanel={toggleArtifactsPanel}
+              isArtifactsPanelOpen={isArtifactsPanelOpen}
+              chatTitle={activeChatTitle}
+              isTitleStreaming={isActiveChatTitleStreaming}
+              onDeleteChat={handleDeleteActiveChat}
+              onOpenSettings={onOpenSettings}
+              className="z-20"
             />
+          ) : null}
+        </div>
 
-            {isArtifactsPanelOpen ? (
-              <aside className="h-full w-[384px] overflow-y-auto rounded-2xl border border-[#1f1e1d]/15 bg-[#faf9f5] p-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[14px] font-medium text-[#3d3d3a]">Artifacts</h3>
-                  <button className="inline-flex h-8 min-w-[64px] items-center gap-1 rounded-md px-2.5 text-[12px] font-[430] text-[#3d3d3a] transition-colors hover:bg-black/5">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z" /></svg>
-                    <span>Download all</span>
-                  </button>
+        <AnimatePresence initial={false}>
+          {isArtifactsPanelOpen ? (
+            <>
+              <motion.div
+                key="artifacts-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+                className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px] lg:hidden"
+                aria-hidden
+                onClick={() => setIsArtifactsPanelOpen(false)}
+              />
+              <motion.div
+                key="artifacts-panel"
+                initial={
+                  isMobile
+                    ? { x: "100%", opacity: 0 }
+                    : { width: 0, opacity: 0 }
+                }
+                animate={
+                  isMobile
+                    ? { x: 0, opacity: 1 }
+                    : { width: ARTIFACTS_PANEL_WIDTH, opacity: 1 }
+                }
+                exit={
+                  isMobile
+                    ? { x: "100%", opacity: 0 }
+                    : { width: 0, opacity: 0 }
+                }
+                transition={{
+                  duration: isMobile ? 0.5 : 0.32,
+                  ease: [0.32, 0.72, 0, 1],
+                }}
+                className={cn(
+                  "fixed inset-y-0 right-0 z-50 flex shrink-0 overflow-hidden shadow-[-8px_0_28px_rgba(26,23,18,0.12)] will-change-[transform,width,opacity] lg:static lg:z-auto lg:shadow-none",
+                )}
+              >
+                <div className="h-full w-[min(100vw,360px)] shrink-0 lg:w-[360px]">
+                  <ChatArtifactsPanel
+                    onClose={() => setIsArtifactsPanelOpen(false)}
+                  />
                 </div>
-                <div className="mt-3 space-y-2">
-                  {['Gitee dataset metadata', 'Jihulab dataset documentation', 'Notabug dataset documentation', 'Gitflic dataset documentation', 'Gitverse dataset documentation'].map((item) => (
-                    <button key={item} className="flex w-full items-center justify-between rounded-lg border border-[#1f1e1d]/15 px-4 py-3 text-left transition-colors hover:bg-[#f3f1ea]">
-                      <div className="min-w-0">
-                        <p className="truncate text-[14px] text-[#3d3d3a]">{item}</p>
-                        <p className="text-[12px] text-[#73726c]">Document · MD</p>
-                      </div>
-                      <span className="ml-2 text-[#73726c]">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M16.5 13a.5.5 0 0 1 .5.5v2a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15.5v-2a.5.5 0 0 1 1 0v2a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 1 .5-.5M10 3a.5.5 0 0 1 .5.5v8.686l3.126-3.518a.5.5 0 0 1 .748.664l-4 4.5-.08.071a.5.5 0 0 1-.668-.071l-4-4.5-.059-.082A.5.5 0 0 1 6.3 8.6l.075.068L9.5 12.186V3.5A.5.5 0 0 1 10 3" /></svg>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </aside>
-            ) : null}
-          </div>
-        </>
-      )}
+              </motion.div>
+            </>
+          ) : null}
+        </AnimatePresence>
+      </div>
 
-      <ShareDialog isOpen={isShareDialogOpen} onClose={() => setIsShareDialogOpen(false)} />
+      <ShareDialog
+        isOpen={isShareDialogOpen}
+        onClose={() => setIsShareDialogOpen(false)}
+        chatId={activeChatId}
+      />
     </div>
   );
 }

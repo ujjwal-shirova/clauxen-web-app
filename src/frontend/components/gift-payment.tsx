@@ -1,214 +1,128 @@
 'use client';
 
-import React from 'react';
-import { Info, Lock, ChevronDown } from 'lucide-react';
-import { Button } from '@/frontend/components/ui/button';
+import React, { useState } from 'react';
+import { Button } from '@/frontend/components/ui/button'; // Button UI component — Back/Pay now actions
+import { cn } from '@/frontend/lib/utils';
+import { appBtn } from '@/frontend/lib/app-buttons';
+import { ApiError } from '@/frontend/lib/api/client'; // ApiError — server-sanitized messages only in UI
+import { verifyGiftPayment } from '@/frontend/lib/api/gifts'; // verifyGiftPayment API — Razorpay payment signature server-side verify
+import { openRazorpayCheckout } from '@/frontend/lib/razorpay-checkout'; // openRazorpayCheckout helper — Razorpay modal checkout launch
+import { useAuth } from '@/frontend/hooks/use-auth'; // useAuth hook — logged-in user name/email checkout prefill
 
-interface GiftPaymentProps {
+interface GiftPaymentProps { // GiftPaymentProps interface — gift checkout step parent props
   onBack: () => void;
-  currentDurationLabel: string;
+  currentDurationLabel: string; // currentDurationLabel — selected plan duration display (e.g. "1 month")
+  giftCode: string;
+  razorpay: { orderId: string; amount: number; currency: string; keyId?: string };
+  pricing: { subtotalPaise: number; taxPaise: number; amountPaise: number };
+  onPaid: () => void;
 }
 
-const indianStates = [
-  "Andaman & Nicobar", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", 
-  "Chandigarh", "Chhattisgarh", "Dadra & Nagar Haveli & Daman & Diu", "Delhi", 
-  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu & Kashmir", "Jharkhand", 
-  "Karnataka", "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh", "Maharashtra", 
-  "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Puducherry", "Punjab", 
-  "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", 
-  "Uttarakhand", "West Bengal"
-];
+export function GiftPayment({
+  onBack, // onBack prop destructure — back navigation handler
+  currentDurationLabel, // currentDurationLabel prop destructure — plan duration label display
+  giftCode,
+  razorpay, // razorpay prop destructure — Razorpay order config
+  pricing, // pricing prop destructure — price breakdown amounts
+  onPaid, // onPaid prop destructure — payment success completion handler
+}: GiftPaymentProps) {
+  const auth = useAuth(); // auth state — current user displayName/email Razorpay prefill
+  const [paying, setPaying] = useState(false); // paying state — checkout modal open/processing indicator
+  const [payError, setPayError] = useState<string | null>(null); // payError state — payment failure message display
 
-export function GiftPayment({ onBack, currentDurationLabel }: GiftPaymentProps) {
+  const formatPaise = (paise: number) =>
+    `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+  const handlePay = async () => {
+    if (!razorpay.keyId) {
+      setPayError('Razorpay is not configured.');
+      return;
+    }
+    setPayError(null);
+    setPaying(true);
+    try {
+      await openRazorpayCheckout({
+        keyId: razorpay.keyId, // Razorpay merchant public key
+        orderId: razorpay.orderId, // server-side created order ID
+        amount: razorpay.amount,
+        currency: razorpay.currency, // currency code (INR)
+        name: 'Clauxen Gift', // checkout modal merchant display name
+        description: `Gift subscription · ${currentDurationLabel}`,
+        prefill: {
+          name: auth.user?.displayName ?? undefined, // user display name optional prefill
+          email: auth.user?.email ?? undefined, // user email optional prefill
+        },
+        onSuccess: async (payment) => {
+          await verifyGiftPayment({
+            razorpayOrderId: payment.razorpay_order_id,
+            razorpayPaymentId: payment.razorpay_payment_id,
+            razorpaySignature: payment.razorpay_signature,
+          });
+          onPaid();
+        },
+      });
+    } catch (error) { // catch block — checkout cancel, network failure, verification error
+      setPayError(error instanceof ApiError ? error.message : 'Payment failed.');
+    } finally {
+      setPaying(false); // paying false — button re-enable, loading state reset
+    }
+  };
+
   return (
-    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-      <h1 className="text-[28px] font-serif font-medium text-[#3D3D3A] mb-6">
-        Review your details
-      </h1>
+    <div className="animate-in fade-in slide-in-from-right-4 duration-500"> {/* root container — step transition animation */}
+      <h1 className="text-[28px] font-serif font-medium text-zinc-800 mb-6">
+        Review and pay
+      </h1> {/* page heading — checkout review step title */}
 
-      {/* Payment Method Section */}
-      <div className="p-4 rounded-xl border border-black/15 mb-4 bg-white">
-        <h2 className="text-[14px] font-semibold text-[#3D3D3A] mb-4">Payment method</h2>
-        
-        {/* Stripe-like Tabs */}
-        <div className="flex p-1 bg-[#F0EEE6] rounded-lg mb-4">
-          <button className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md bg-white shadow-sm text-[14px] font-semibold text-[#0570DE] ring-1 ring-[#0570DE]">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-              <path fillRule="evenodd" d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2H0zm0 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6H0zm3 5a1 1 0 0 1 1-1h1a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1z" clipRule="evenodd" />
-            </svg>
-            Card
-          </button>
-          <button className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-[14px] font-semibold text-[#5A5A58] hover:bg-black/5 transition-colors">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-              <path fillRule="evenodd" d="M5 7.5V14h1.5V7.5h3V14H11V7.5h3V14h1a1 1 0 0 1 1 1v1H0v-1a1 1 0 0 1 1-1h1V7.5h3zM8 0c4.681 2.572 7.181 3.95 7.5 4.134A1 1 0 0 1 14.98 6H1.02A1 1 0 0 1 .5 4.134C.82 3.95 3.32 2.572 8 0z" clipRule="evenodd" />
-            </svg>
-            US bank account
-          </button>
-        </div>
-
-        {/* Link Prompt */}
-        <button className="w-full flex items-center justify-center py-3 px-4 mb-4 border border-black/10 rounded-lg hover:bg-black/[0.02] transition-colors">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-[#00D66F] rounded-sm flex items-center justify-center">
-              <Lock className="w-2.5 h-2.5 text-white fill-current" />
-            </div>
-            <span className="text-[14px] font-semibold text-[#0570DE]">Secure, fast checkout with Link</span>
-            <ChevronDown className="w-4 h-4 text-[#0570DE] opacity-60" />
-          </div>
-        </button>
-
-        {/* Card Fields */}
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[14px] font-medium text-[#3D3D3A]">Card number</label>
-            <div className="relative">
-              <input 
-                type="text" 
-                placeholder="1234 1234 1234 1234"
-                className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all pr-24"
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 opacity-60">
-                <img src="https://claude.ai/images/home-page-assets/visa.svg" alt="Visa" className="h-4" />
-                <img src="https://claude.ai/images/home-page-assets/mastercard.svg" alt="Mastercard" className="h-4" />
-                <ChevronDown className="w-3.5 h-3.5" />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[14px] font-medium text-[#3D3D3A]">Expiration date</label>
-              <input 
-                type="text" 
-                placeholder="MM / YY"
-                className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[14px] font-medium text-[#3D3D3A]">Security code</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  placeholder="CVC"
-                  className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all pr-10"
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-40">
-                  <Info className="w-4 h-4" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="p-4 rounded-xl border border-black/15 mb-4 bg-zinc-50"> {/* pricing card — subtotal/tax/total breakdown */}
+        <div className="flex justify-between text-[14px] mb-2">
+          <span>Subtotal</span>
+          <span className="font-medium">{formatPaise(pricing.subtotalPaise)}</span>
+        </div> {/* subtotal row — pre-tax amount */}
+        <div className="flex justify-between text-[14px] mb-2">
+          <span>Tax (18% GST)</span>
+          <span className="font-medium">{formatPaise(pricing.taxPaise)}</span>
+        </div> {/* tax row — 18% GST amount */}
+        <div className="flex justify-between text-[14px] font-semibold pt-2 border-t border-black/10">
+          <span>Total due today</span>
+          <span>{formatPaise(pricing.amountPaise)}</span>
+        </div> 
       </div>
 
-      {/* Billing Address Section */}
-      <div className="p-4 rounded-xl border border-black/15 mb-4 bg-white">
-        <h3 className="text-[14px] font-semibold text-[#3D3D3A] mb-4">Billing address</h3>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[14px] font-medium text-[#3D3D3A]">Full name</label>
-            <input 
-              type="text" 
-              placeholder="Full name on card"
-              className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[14px] font-medium text-[#3D3D3A]">Country or region</label>
-            <div className="relative">
-              <select className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all appearance-none">
-                <option value="IN">India</option>
-                <option value="US">United States</option>
-                <option value="GB">United Kingdom</option>
-                {/* Simplified list for brevity, can be expanded */}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40 pointer-events-none" />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[14px] font-medium text-[#3D3D3A]">Address</label>
-            <div className="space-y-2">
-              <input 
-                type="text" 
-                placeholder="Address line 1"
-                className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all"
-              />
-              <input 
-                type="text" 
-                placeholder="Address line 2 (optional)"
-                className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[14px] font-medium text-[#3D3D3A]">City</label>
-              <input 
-                type="text" 
-                placeholder="City"
-                className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[14px] font-medium text-[#3D3D3A]">PIN</label>
-              <input 
-                type="text" 
-                placeholder="Postal code"
-                className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[14px] font-medium text-[#3D3D3A]">State</label>
-            <div className="relative">
-              <select className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all appearance-none">
-                <option value="">Select State</option>
-                {indianStates.map((state) => (
-                  <option key={state} value={state}>{state}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40 pointer-events-none" />
-            </div>
-          </div>
-        </div>
+      <div className="p-4 rounded-xl border border-black/15 mb-6 bg-white"> {/* gift code card — redeem code display */}
+        <p className="text-[12px] text-zinc-500 mb-1">Gift code (save after payment)</p> 
+        <code className="text-[14px] font-semibold text-zinc-800">{giftCode}</code> {/* giftCode monospace — copy-friendly redeem code */}
       </div>
 
-      {/* Summary Info */}
-      <div className="p-4 bg-[#FAF9F5]/50 border border-black/15 rounded-xl mb-4">
-        <p className="text-[14px] text-[#3D3D3A] font-[430]">
-          Enter your billing address to see the total.
-        </p>
-      </div>
-
-      <div className="space-y-4 mb-8 text-[12px] text-[#73726C] leading-relaxed">
+      <div className="space-y-4 mb-8 text-[12px] text-zinc-500 leading-relaxed"> {/* legal/disclaimer section — subscription terms */}
         <p>
-          Recipients can receive up to 12 months of a gifted plan. If they've already been gifted months, they may not be able to redeem the full amount. <a href="#" className="underline decoration-[#73726C]/30 hover:text-black">Learn more</a>.
-        </p>
+          Your gift subscription ends after {currentDurationLabel} and will not auto-renew.
+          Unredeemed gifts expire one year after purchase.
+        </p> {/* expiry disclaimer — non-renewing gift, 1 year unredeemed expiry */}
         <p>
-          Your gift subscription will end after {currentDurationLabel} and won’t auto-renew. Unredeemed gifts expire 1 year after purchase. By clicking “Pay now,” you authorize Clauxen to charge your payment method for the amount shown.
-        </p>
+          By clicking Pay now, you authorize Clauxen to charge your payment method for the
+          amount shown.
+        </p> {/* payment authorization disclaimer — charge consent */}
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-3 pt-4 border-t border-black/5">
-        <Button 
+      <div className="flex justify-end gap-3 pt-4 border-t border-black/5"> 
+        <Button
           variant="outline"
-          onClick={onBack}
-          className="h-10 px-8 border-black/15 text-[#3D3D3A] rounded-xl font-medium"
+          onClick={onBack} // Back button — previous gift configuration step
+          className={cn(appBtn.secondary, "h-10 rounded-xl px-8")}
         >
           Back
-        </Button>
-        <Button 
-          disabled
-          className="h-10 px-8 bg-black text-white hover:bg-black/90 rounded-xl font-medium opacity-50 cursor-not-allowed"
+        </Button> {/* outline Back button — non-destructive navigation */}
+        <Button
+          type="button"
+          disabled={paying} // disabled while paying — duplicate checkout prevent
+          onClick={() => void handlePay()} // Pay now click — async handlePay invoke (void unhandled promise)
+          className={cn(appBtn.primaryLgAuto, "px-8")}
         >
-          Pay now
-        </Button>
+          {paying ? 'Opening checkout…' : 'Pay now'} {/* dynamic label — loading vs ready state */}
+        </Button> {/* primary Pay button — Razorpay checkout trigger */}
       </div>
+      {payError && <p className="mt-3 text-[12px] text-red-600">{payError}</p>} {/* conditional error — payment failure message red text */}
     </div>
   );
 }

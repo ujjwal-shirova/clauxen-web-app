@@ -5,7 +5,24 @@ import * as AvatarPrimitive from "@radix-ui/react-avatar"
 
 import { cn } from "@/frontend/lib/utils"
 
-const Avatar = React.forwardRef<
+function isSafeAvatarSrc(src: string): boolean {
+  const trimmed = src.trim()
+  if (!trimmed) return false
+  const lower = trimmed.toLowerCase()
+  if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) {
+    return false
+  }
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return true
+  if (trimmed.startsWith("blob:")) return true
+  try {
+    const url = new URL(trimmed)
+    return url.protocol === "https:" || url.protocol === "http:"
+  } catch {
+    return false
+  }
+}
+
+const Avatar = React.forwardRef< // forwardRef — UI primitive
   React.ElementRef<typeof AvatarPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>
 >(({ className, ...props }, ref) => (
@@ -20,19 +37,21 @@ const Avatar = React.forwardRef<
 ))
 Avatar.displayName = AvatarPrimitive.Root.displayName
 
-const AvatarImage = React.forwardRef<
+const AvatarImage = React.forwardRef< // forwardRef — UI primitive
   React.ElementRef<typeof AvatarPrimitive.Image>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, ...props }, ref) => (
+>(({ className, src, ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
     className={cn("aspect-square h-full w-full", className)}
+    src={typeof src === "string" && isSafeAvatarSrc(src) ? src : undefined} // unsafe schemes blocked — fallback renders
+    referrerPolicy="no-referrer"
     {...props}
   />
 ))
 AvatarImage.displayName = AvatarPrimitive.Image.displayName
 
-const AvatarFallback = React.forwardRef<
+const AvatarFallback = React.forwardRef< // forwardRef — UI primitive
   React.ElementRef<typeof AvatarPrimitive.Fallback>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
 >(({ className, ...props }, ref) => (
