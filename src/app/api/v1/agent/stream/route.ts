@@ -1,7 +1,5 @@
 import { withApiHandler } from "@/backend/http/api-handler";
-import {
-  createAgentSseStream,
-} from "@/backend/inference/agent-stream";
+import { createAgentSseStream } from "@/backend/inference/agent-stream";
 import {
   sanitizeAgentMessages,
   type AgentChatRequest,
@@ -22,14 +20,10 @@ export const POST = withApiHandler(
       });
     }
 
-    const stream = createAgentSseStream(
-      { ...body, messages },
-      request.signal,
-      {
-        userId: session?.id,
-        conversationId: body.conversationId,
-      },
-    );
+    const stream = createAgentSseStream({ ...body, messages }, request.signal, {
+      userId: session?.id,
+      conversationId: body.conversationId,
+    });
 
     return new Response(stream, {
       headers: {
