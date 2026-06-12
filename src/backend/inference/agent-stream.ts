@@ -1,5 +1,10 @@
-import { env, requireNovitaApiKey } from "@/backend/config/env";
-import { extractUpstreamError } from "@/backend/inference/novita";
+import { env } from "@/backend/config/env";
+import {
+  buildStructuredOutputTool,
+  convertAgentMessagesToAnthropic,
+  consumeAnthropicMessageStream,
+} from "@/backend/inference/anthropic-adapter";
+import { getAnthropicClient } from "@/backend/inference/anthropic-client";
 import {
   platformTools,
   type PlatformToolName,
@@ -17,6 +22,10 @@ import type {
   AgentChatRequest,
   AgentMessage,
 } from "@/backend/inference/novita-agent";
+import {
+  splitFinalAnswerContent,
+  streamTextInChunks,
+} from "@/lib/chat-routing";
 
 export type AgentStreamEvent =
   | { event: "text_delta"; data: { text: string } }
@@ -24,8 +33,22 @@ export type AgentStreamEvent =
   | { event: "tool_call_streaming"; data: { tool_calls: unknown } }
   | { event: "tool_calls_start"; data: { tool_calls: unknown[] } }
   | { event: "tool_executing"; data: { tool_call_id: string; name: string } }
-  | { event: "tool_result"; data: { tool_call_id: string; name: string; result: string } }
-  | { event: "file_created" | "file_updated" | "bash_stdout" | "bash_stderr" | "sandbox_ready" | "weather_data" | "places_data" | "code_executed"; data: unknown }
+  | {
+      event: "tool_result";
+      data: { tool_call_id: string; name: string; result: string };
+    }
+  | {
+      event:
+        | "file_created"
+        | "file_updated"
+        | "bash_stdout"
+        | "bash_stderr"
+        | "sandbox_ready"
+        | "weather_data"
+        | "places_data"
+        | "code_executed";
+      data: unknown;
+    }
   | { event: "done"; data: { finish_reason: string; usage?: unknown } }
   | { event: "error"; data: { message: string } };
 
@@ -35,48 +58,38 @@ function encodeAgentSse(event: string, data: unknown) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-function novitaHeaders(apiKey: string) {
-  return {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-  };
+function resolveAgentTools(request: AgentChatRequest) {
+  if (request.enableTools === false) return undefined;
+  const all = platformTools();
+  if (request.allowedTools?.length) {
+    const allowed = new Set(request.allowedTools);
+    return all.filter((tool) => allowed.has(tool.name as PlatformToolName));
+  }
+  return all;
 }
 
-function buildResponseFormat(request: AgentChatRequest) {
-  if (request.mode !== "structured") return undefined;
-  return {
-    type: "json_schema",
-    json_schema: {
-      name: "clauxen_agent_result",
-      strict: true,
-      schema: request.responseSchema ?? defaultStructuredSchema(),
-    },
-  };
+function buildSystemPrompt(_request: AgentChatRequest) {
+  return buildCacheableSystemPrefix("You are Clauxen.");
 }
 
-function buildSystemPrompt(request: AgentChatRequest) {
-  const toolNames = platformTools().map((t) => t.function.name);
-  return buildCacheableSystemPrefix(
-    [
-      "You are Clauxen Agent, a production AI assistant on Novita AI (Kimi K2.6).",
-      "Use tools for coding, sandbox execution, web research, and file artifacts.",
-      "When creating files, use create_file — they appear in the user's artifact panel.",
-      "For shell work use bash_tool. For edits use str_replace after view.",
-      "Never provide malware, credential theft, or abuse guidance.",
-      `Available tools: ${toolNames.join(", ")}.`,
-      request.enableTools === false ? "Tools are disabled for this turn." : "",
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  );
-}
-
-type AccumulatedToolCall = {
+type AccumulatedToolUse = {
   id: string;
-  type: string;
-  function: { name: string; arguments: string };
-  index: number;
+  name: string;
+  inputJson: string;
 };
+
+function resolveStructuredTools(request: AgentChatRequest) {
+  if (request.mode !== "structured") return undefined;
+  return [
+    buildStructuredOutputTool(
+      "clauxen_agent_result",
+      (request.responseSchema ?? defaultStructuredSchema()) as Record<
+        string,
+        unknown
+      >,
+    ),
+  ];
+}
 
 export async function streamNovitaAgentChat(
   request: AgentChatRequest,
@@ -84,9 +97,11 @@ export async function streamNovitaAgentChat(
   signal?: AbortSignal,
   context?: { userId?: string; conversationId?: string },
 ) {
-  const apiKey = requireNovitaApiKey();
+  const client = getAnthropicClient();
   const model = request.model?.trim() || env.defaultModel;
-  const tools = request.enableTools === false ? undefined : platformTools();
+  const platformToolList = resolveAgentTools(request);
+  const structuredTools = resolveStructuredTools(request);
+  const tools = structuredTools ?? platformToolList;
 
   const conversation: AgentMessage[] = [
     { role: "system", content: buildSystemPrompt(request) },
@@ -99,194 +114,179 @@ export async function streamNovitaAgentChat(
   while (loopCount < MAX_LOOPS) {
     loopCount += 1;
 
-    const upstream = await fetch(env.novitaChatUrl, {
-      method: "POST",
-      headers: novitaHeaders(apiKey),
-      signal,
-      body: JSON.stringify({
+    const { system, messages } = convertAgentMessagesToAnthropic(conversation);
+    const stream = client.messages.stream(
+      {
         model,
-        messages: conversation,
-        tools,
-        tool_choice: tools ? "auto" : undefined,
-        stream: true,
         max_tokens: 8192,
         temperature: 0.7,
-        response_format: buildResponseFormat(request),
-        enable_thinking: Boolean(request.enableThinking),
-        separate_reasoning: Boolean(request.enableThinking),
-        reasoning_split: Boolean(request.reasoningSplit ?? request.enableThinking),
-      }),
-    });
-
-    if (!upstream.ok || !upstream.body) {
-      const body = await upstream.json().catch(() => null);
-      throw new Error(extractUpstreamError(body, "Novita agent stream failed."));
-    }
+        system,
+        messages,
+        tools: tools?.length ? tools : undefined,
+        tool_choice:
+          structuredTools?.length === 1
+            ? { type: "tool", name: "clauxen_agent_result" }
+            : tools?.length
+              ? { type: "auto" }
+              : undefined,
+        thinking: request.enableThinking
+          ? { type: "enabled", budget_tokens: 8192 }
+          : undefined,
+        stream: true,
+      },
+      { signal },
+    );
 
     let accumulatedContent = "";
     let accumulatedReasoning = "";
-    const accumulatedToolCalls: Record<number, AccumulatedToolCall> = {};
+    let pendingInterleaved = "";
+    let streamedInterleavedChars = 0;
+    const accumulatedToolUses: AccumulatedToolUse[] = [];
     let finishReason: string | null = null;
-    let reasoningDetails: Array<Record<string, unknown>> = [];
 
-    const reader = upstream.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+    const flushInterleaved = (text: string) => {
+      if (!text) return;
+      send("reasoning_delta", { text });
+      streamedInterleavedChars += text.length;
+    };
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const payload = line.slice(6).trim();
-        if (!payload || payload === "[DONE]") continue;
-
-        let parsed: {
-          choices?: Array<{
-            finish_reason?: string;
-            delta?: {
-              content?: string;
-              reasoning_content?: string;
-              reasoning_details?: Array<{ type: string; text: string }>;
-              tool_calls?: Array<{
-                index: number;
-                id?: string;
-                type?: string;
-                function?: { name?: string; arguments?: string };
-              }>;
-            };
-          }>;
-          usage?: unknown;
-        };
-
-        try {
-          parsed = JSON.parse(payload) as typeof parsed;
-        } catch {
-          continue;
-        }
-
-        if (parsed.usage) {
-          finalUsage = parsed.usage;
-          send("cache_usage", extractPromptCacheStats(parsed.usage));
-        }
-
-        const choice = parsed.choices?.[0];
-        const delta = choice?.delta;
-        if (!delta) continue;
-
-        if (delta.content) {
-          accumulatedContent += delta.content;
-          send("text_delta", { text: delta.content });
-        }
-
-        if (delta.reasoning_content) {
-          accumulatedReasoning += delta.reasoning_content;
-          send("reasoning_delta", { text: delta.reasoning_content });
-        }
-
-        if (delta.reasoning_details) {
-          for (const detail of delta.reasoning_details) {
-            reasoningDetails.push(detail as Record<string, unknown>);
-            if (detail.text) {
-              accumulatedReasoning += detail.text;
-              send("reasoning_delta", { text: detail.text });
-            }
+    await consumeAnthropicMessageStream(
+      stream,
+      {
+        onUsage: (usage) => {
+          finalUsage = usage;
+          send("cache_usage", extractPromptCacheStats(usage));
+        },
+        onTextDelta: (delta) => {
+          accumulatedContent += delta;
+          const hasToolCallsInTurn = accumulatedToolUses.length > 0;
+          if (hasToolCallsInTurn) {
+            flushInterleaved(delta);
+          } else {
+            pendingInterleaved += delta;
           }
-        }
-
-        if (delta.tool_calls) {
-          for (const tc of delta.tool_calls) {
-            if (!accumulatedToolCalls[tc.index]) {
-              accumulatedToolCalls[tc.index] = {
-                id: tc.id ?? "",
-                type: tc.type ?? "function",
-                function: { name: tc.function?.name ?? "", arguments: "" },
-                index: tc.index,
-              };
-            }
-            const slot = accumulatedToolCalls[tc.index];
-            if (tc.id) slot.id = tc.id;
-            if (tc.function?.name) slot.function.name = tc.function.name;
-            if (tc.function?.arguments) {
-              slot.function.arguments += tc.function.arguments;
-            }
+        },
+        onThinkingDelta: (delta) => {
+          accumulatedReasoning += delta;
+          send("reasoning_delta", { text: delta });
+        },
+        onToolUseStart: (tool) => {
+          if (pendingInterleaved.trim()) {
+            flushInterleaved(pendingInterleaved);
+            pendingInterleaved = "";
           }
-          send("tool_call_streaming", { tool_calls: delta.tool_calls });
-        }
+          accumulatedToolUses.push({
+            id: tool.id,
+            name: tool.name,
+            inputJson: "",
+          });
+          send("tool_call_streaming", {
+            tool_calls: [{ id: tool.id, name: tool.name }],
+          });
+        },
+        onToolInputDelta: (partial) => {
+          const slot = accumulatedToolUses[accumulatedToolUses.length - 1];
+          if (slot) {
+            slot.inputJson += partial;
+          }
+        },
+        onStopReason: (reason) => {
+          finishReason = reason;
+        },
+      },
+      signal,
+    );
 
-        if (choice.finish_reason) finishReason = choice.finish_reason;
-      }
-    }
-
-    const toolCallsArray = Object.values(accumulatedToolCalls);
+    const toolUsesArray = accumulatedToolUses;
 
     conversation.push({
       role: "assistant",
       content: accumulatedContent || null,
-      tool_calls:
-        toolCallsArray.length > 0
-          ? toolCallsArray.map((tc) => ({
-              id: tc.id,
-              type: "function" as const,
-              function: {
-                name: tc.function.name,
-                arguments: tc.function.arguments,
-              },
-            }))
+      thinking: accumulatedReasoning || undefined,
+      tool_uses:
+        toolUsesArray.length > 0
+          ? toolUsesArray.map((toolUse) => {
+              let input: Record<string, unknown> = {};
+              try {
+                input = JSON.parse(toolUse.inputJson || "{}") as Record<
+                  string,
+                  unknown
+                >;
+              } catch {
+                input = {};
+              }
+              return {
+                id: toolUse.id,
+                name: toolUse.name,
+                input,
+              };
+            })
           : undefined,
-      reasoning_content: accumulatedReasoning || undefined,
-      reasoning_details:
-        reasoningDetails.length > 0 ? reasoningDetails : undefined,
     });
 
-    if (finishReason === "tool_calls" && toolCallsArray.length > 0) {
+    if (finishReason === "tool_use" && toolUsesArray.length > 0) {
+      if (pendingInterleaved.trim()) {
+        flushInterleaved(pendingInterleaved);
+        pendingInterleaved = "";
+      }
+
       send("tool_calls_start", {
-        tool_calls: toolCallsArray.map((tc) => ({
-          id: tc.id,
-          name: tc.function.name,
-          input: tc.function.arguments,
+        tool_calls: toolUsesArray.map((toolUse) => ({
+          id: toolUse.id,
+          name: toolUse.name,
+          input: toolUse.inputJson,
         })),
       });
 
-      for (const tc of toolCallsArray) {
+      for (const toolUse of toolUsesArray) {
+        let parsedArgs: Record<string, unknown> = {};
+        try {
+          parsedArgs = JSON.parse(toolUse.inputJson || "{}") as Record<
+            string,
+            unknown
+          >;
+        } catch {
+          parsedArgs = {};
+        }
+
         send("tool_executing", {
-          tool_call_id: tc.id,
-          name: tc.function.name,
+          tool_call_id: toolUse.id,
+          name: toolUse.name,
+          args: parsedArgs,
+          description:
+            typeof parsedArgs.description === "string"
+              ? parsedArgs.description
+              : undefined,
         });
 
         try {
           const result = await executePlatformTool(
-            tc.function.name as PlatformToolName,
-            tc.function.arguments,
+            toolUse.name as PlatformToolName,
+            toolUse.inputJson,
             send,
             context,
           );
           send("tool_result", {
-            tool_call_id: tc.id,
-            name: tc.function.name,
+            tool_call_id: toolUse.id,
+            name: toolUse.name,
             result,
           });
           conversation.push({
             role: "tool",
-            tool_call_id: tc.id,
+            tool_use_id: toolUse.id,
             content: result,
           });
         } catch (error) {
           const message =
             error instanceof Error ? error.message : "Tool execution failed";
           send("tool_result", {
-            tool_call_id: tc.id,
-            name: tc.function.name,
+            tool_call_id: toolUse.id,
+            name: toolUse.name,
             result: JSON.stringify({ error: message }),
           });
           conversation.push({
             role: "tool",
-            tool_call_id: tc.id,
+            tool_use_id: toolUse.id,
             content: JSON.stringify({ error: message }),
           });
         }
@@ -294,8 +294,19 @@ export async function streamNovitaAgentChat(
       continue;
     }
 
+    const finalTurnText = accumulatedContent.slice(streamedInterleavedChars);
+    const { preamble, answer } = splitFinalAnswerContent(finalTurnText);
+    if (preamble) {
+      flushInterleaved(preamble);
+    }
+
+    send("frame_complete", {});
+    streamTextInChunks(answer, (chunk) => {
+      send("text_delta", { text: chunk });
+    });
+
     send("done", {
-      finish_reason: finishReason ?? "stop",
+      finish_reason: finishReason ?? "end_turn",
       usage: finalUsage,
       cache: extractPromptCacheStats(finalUsage),
     });
@@ -307,6 +318,7 @@ export async function streamNovitaAgentChat(
     };
   }
 
+  send("frame_complete", {});
   send("done", { finish_reason: "max_loops", usage: finalUsage });
   return { content: "", reasoning: "", usage: finalUsage, model };
 }
@@ -327,7 +339,8 @@ export function createAgentSseStream(
         await streamNovitaAgentChat(request, send, signal, context);
         controller.close();
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Stream failed";
+        const message =
+          error instanceof Error ? error.message : "Stream failed";
         send("error", { message });
         controller.close();
       }

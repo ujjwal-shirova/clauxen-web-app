@@ -9,20 +9,34 @@ export type NovitaUsage = {
   prompt_tokens?: number;
   completion_tokens?: number;
   total_tokens?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
   prompt_tokens_details?: PromptTokenDetails;
 };
 
 export function extractPromptCacheStats(usage: unknown) {
   const row = usage as NovitaUsage | null | undefined;
   const details = row?.prompt_tokens_details;
+  const inputTokens = row?.input_tokens ?? row?.prompt_tokens ?? 0;
+  const outputTokens = row?.output_tokens ?? row?.completion_tokens ?? 0;
+  const cacheRead =
+    row?.cache_read_input_tokens ?? details?.cache_read_prompt_tokens ?? 0;
+  const cacheCreation =
+    row?.cache_creation_input_tokens ??
+    details?.cache_creation_prompt_tokens ??
+    0;
+  const cachedTokens = details?.cached_tokens ?? cacheRead;
+
   return {
-    promptTokens: row?.prompt_tokens ?? 0,
-    completionTokens: row?.completion_tokens ?? 0,
-    totalTokens: row?.total_tokens ?? 0,
-    cachedTokens: details?.cached_tokens ?? 0,
-    cacheCreationTokens: details?.cache_creation_prompt_tokens ?? 0,
-    cacheReadTokens: details?.cache_read_prompt_tokens ?? 0,
-    cacheHit: (details?.cached_tokens ?? 0) > 0,
+    promptTokens: inputTokens,
+    completionTokens: outputTokens,
+    totalTokens: row?.total_tokens ?? inputTokens + outputTokens,
+    cachedTokens,
+    cacheCreationTokens: cacheCreation,
+    cacheReadTokens: cacheRead,
+    cacheHit: cachedTokens > 0 || cacheRead > 0,
   };
 }
 

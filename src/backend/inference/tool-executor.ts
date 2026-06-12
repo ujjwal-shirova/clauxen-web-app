@@ -1,5 +1,10 @@
 import { env } from "@/backend/config/env";
 import {
+  fetchUrlContentsWithExa,
+  isExaConfigured,
+  searchWebWithExa,
+} from "@/backend/search/exa";
+import {
   getOrCreateSandbox,
   readSandboxFile,
   writeSandboxFile,
@@ -64,7 +69,7 @@ export async function executePlatformTool(
           E2B_DOMAIN: "sandbox.novita.ai",
           NOVITA_API_KEY: "required",
           LLM_API_KEY: "required",
-          LLM_BASE_URL: "https://api.novita.ai/openai",
+          LLM_BASE_URL: "https://api.novita.ai/anthropic",
         },
         code: browserUseRecipe(
           String(args.task ?? "Open example.com"),
@@ -137,7 +142,9 @@ export async function executePlatformTool(
       const count = content.split(oldStr).length - 1;
       if (count === 0) throw new Error(`old_str not found in ${path}`);
       if (count > 1) {
-        throw new Error(`old_str appears ${count} times in ${path}; must be unique`);
+        throw new Error(
+          `old_str appears ${count} times in ${path}; must be unique`,
+        );
       }
       const updated = content.replace(oldStr, newStr);
       await writeSandboxFile(sandboxId, path, updated);
@@ -167,37 +174,44 @@ export async function executePlatformTool(
     }
 
     case "web_search": {
-      const query = String(args.query ?? "");
-      const token = process.env.BRAVE_SEARCH_API_KEY ?? "";
-      if (!token) {
+      const query = String(args.query ?? "").trim();
+      if (!query) {
+        return JSON.stringify({ error: "query is required" });
+      }
+      if (!isExaConfigured()) {
         return JSON.stringify({
-          error: "BRAVE_SEARCH_API_KEY not configured",
+          error: "EXA_API_KEY is not configured",
           query,
         });
       }
-      const response = await fetch(
-        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=10`,
-        {
-          headers: {
-            Accept: "application/json",
-            "X-Subscription-Token": token,
-          },
-        },
-      );
-      const data = (await response.json()) as {
-        web?: { results?: Array<{ title: string; url: string; description: string }> };
-      };
-      return JSON.stringify(
-        (data.web?.results ?? []).map((r) => ({
-          title: r.title,
-          url: r.url,
-          snippet: r.description,
-        })),
-      );
+      try {
+        const results = await searchWebWithExa(query);
+        send("web_search_results", { query, results });
+        return JSON.stringify(results);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Exa search failed";
+        return JSON.stringify({ error: message, query });
+      }
     }
 
     case "web_fetch": {
-      const url = String(args.url ?? "");
+      const url = String(args.url ?? "").trim();
+      if (!url) {
+        return JSON.stringify({ error: "url is required" });
+      }
+
+      if (isExaConfigured()) {
+        try {
+          const [result] = await fetchUrlContentsWithExa([url]);
+          if (result?.snippet) {
+            return result.snippet;
+          }
+        } catch {
+          // fall through to direct fetch
+        }
+      }
+
       const response = await fetch(url, {
         headers: { "User-Agent": "Clauxen-Agent/1.0" },
       });
@@ -240,7 +254,10 @@ export async function executePlatformTool(
         ? (args.queries as Array<{ query: string; max_results?: number }>)
         : [];
       if (!apiKey) {
-        return JSON.stringify({ error: "GOOGLE_PLACES_API_KEY not configured", queries });
+        return JSON.stringify({
+          error: "GOOGLE_PLACES_API_KEY not configured",
+          queries,
+        });
       }
       const results: unknown[] = [];
       for (const q of queries) {
@@ -258,14 +275,16 @@ export async function executePlatformTool(
         };
         results.push({
           query: q.query,
-          places: (data.results ?? []).slice(0, q.max_results ?? 5).map((p) => ({
-            name: p.name,
-            address: p.formatted_address,
-            rating: p.rating,
-            lat: p.geometry.location.lat,
-            lng: p.geometry.location.lng,
-            place_id: p.place_id,
-          })),
+          places: (data.results ?? [])
+            .slice(0, q.max_results ?? 5)
+            .map((p) => ({
+              name: p.name,
+              address: p.formatted_address,
+              rating: p.rating,
+              lat: p.geometry.location.lat,
+              lng: p.geometry.location.lng,
+              place_id: p.place_id,
+            })),
         });
       }
       send("places_data", { results });
@@ -291,7 +310,9 @@ export async function executePlatformTool(
       const filename = `/tmp/code_${Date.now()}.${ext}`;
       await writeSandboxFile(sandboxId, filename, code);
       const cmd =
-        language === "typescript" ? `npx ts-node ${filename}` : `node ${filename}`;
+        language === "typescript"
+          ? `npx ts-node ${filename}`
+          : `node ${filename}`;
       const result = await runSandboxCommand(sandboxId, { command: cmd });
       send("code_executed", { language, code, result });
       return JSON.stringify(result);

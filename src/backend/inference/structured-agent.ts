@@ -1,6 +1,12 @@
-import { getNovitaClient, DEFAULT_MODEL } from "@/backend/inference/novita-client";
+import {
+  buildStructuredOutputTool,
+  extractAnthropicText,
+} from "@/backend/inference/anthropic-adapter";
+import {
+  getAnthropicClient,
+  DEFAULT_MODEL,
+} from "@/backend/inference/anthropic-client";
 import { extractPromptCacheStats } from "@/backend/inference/prompt-cache";
-import { extractUpstreamError } from "@/backend/inference/novita";
 import { env } from "@/backend/config/env";
 
 export const defaultStructuredSchema = () =>
@@ -59,39 +65,34 @@ export async function structuredAgentCompletion(opts: {
   temperature?: number;
   maxTokens?: number;
 }) {
-  const client = getNovitaClient();
-  const response = await client.chat.completions.create(
+  const client = getAnthropicClient();
+  const tool = buildStructuredOutputTool(opts.schemaName, opts.schema);
+  const response = await client.messages.create(
     {
       model: opts.model ?? env.defaultModel,
-      messages: [
-        ...(opts.systemPrompt
-          ? [{ role: "system" as const, content: opts.systemPrompt }]
-          : []),
-        { role: "user" as const, content: opts.prompt },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: opts.schemaName,
-          schema: opts.schema,
-          strict: true,
-        },
-      },
       max_tokens: opts.maxTokens ?? 1024,
       temperature: opts.temperature ?? 0.3,
-      stream: false,
+      system: opts.systemPrompt,
+      messages: [{ role: "user", content: opts.prompt }],
+      tools: [tool],
+      tool_choice: { type: "tool", name: opts.schemaName },
     },
     { signal: opts.signal },
   );
 
-  const content = response.choices[0]?.message?.content;
+  const toolUse = response.content.find((block) => block.type === "tool_use");
+  const content = toolUse
+    ? JSON.stringify(toolUse.input)
+    : extractAnthropicText(response.content);
   if (!content) throw new Error("Empty structured response");
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
   } catch {
-    throw new Error(`Failed to parse structured JSON: ${content.slice(0, 200)}`);
+    throw new Error(
+      `Failed to parse structured JSON: ${content.slice(0, 200)}`,
+    );
   }
 
   return {

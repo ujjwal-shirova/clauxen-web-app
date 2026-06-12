@@ -16,23 +16,21 @@ export const env = {
   authDevBypass: optional("AUTH_DEV_BYPASS", "true") === "true",
   cockroachDatabaseUrl: optional("COCKROACH_DATABASE_URL"),
   novitaApiKey: optional("NOVITA_AI_KEY") || optional("NOVITA_API_KEY"),
-  novitaChatUrl: optional(
-    "SHIROVA_NOVITA_CHAT_COMPLETIONS_URL",
-    "https://api.novita.ai/openai/chat/completions",
+  novitaAnthropicBaseUrl: optional(
+    "NOVITA_ANTHROPIC_BASE_URL",
+    "https://api.novita.ai/anthropic",
   ),
-  novitaOpenAiBaseUrl: optional(
-    "NOVITA_OPENAI_BASE_URL",
-    "https://api.novita.ai/openai",
+  novitaMessagesUrl: optional(
+    "SHIROVA_NOVITA_MESSAGES_URL",
+    "https://api.novita.ai/anthropic/v1/messages",
   ),
-  novitaModelsUrl: optional(
-    "NOVITA_MODELS_URL",
-    "https://api.novita.ai/openai/v1/models",
-  ),
+  novitaModelsUrl: optional("NOVITA_MODELS_URL", ""),
   defaultSandboxTimeoutMs: Number(
     optional("NOVITA_SANDBOX_TIMEOUT_MS", "300000"),
   ),
   defaultModel: optional("SHIROVA_DEFAULT_MODEL", "moonshotai/kimi-k2.6"),
-  /** Kimi thinking: enabled | disabled -> Novita enable_thinking flag. */
+  exaApiKey: optional("EXA_API_KEY"),
+  /** Kimi thinking: enabled | disabled -> Anthropic extended thinking. */
   thinkingType:
     optional("SHIROVA_THINKING_TYPE", "disabled") === "enabled"
       ? ("enabled" as const)
@@ -41,6 +39,8 @@ export const env = {
   razorpayKeySecret: optional("RAZORPAY_KEY_SECRET"),
   razorpayWebhookSecret: optional("RAZORPAY_WEBHOOK_SECRET"),
   publicRazorpayKeyId: optional("NEXT_PUBLIC_RAZORPAY_KEY_ID"),
+  applePayDomainAssociation: optional("APPLE_PAY_DOMAIN_ASSOCIATION"),
+  checkoutUsdInrRate: optional("CHECKOUT_USD_INR_RATE"),
   oryKratosPublicUrl: optional("ORY_KRATOS_PUBLIC_URL"),
   oryKratosAdminUrl: optional("ORY_KRATOS_ADMIN_URL"),
   oryHydraPublicUrl: optional("ORY_HYDRA_PUBLIC_URL"),

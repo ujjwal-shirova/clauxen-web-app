@@ -1,4 +1,11 @@
-import { env, requireNovitaApiKey } from "@/backend/config/env";
+import { env } from "@/backend/config/env";
+import {
+  buildAnthropicChatParams,
+  consumeAnthropicMessageStream,
+  convertIncomingToAnthropic,
+  extractAnthropicText,
+} from "@/backend/inference/anthropic-adapter";
+import { getAnthropicClient } from "@/backend/inference/anthropic-client";
 import {
   buildTitlePromptPayload,
   deriveTitleFromExchange,
@@ -15,19 +22,44 @@ export function resolveThinkingType(input?: {
   thinkingEnabled?: boolean;
   thinkingType?: string;
 }): ThinkingType {
-  if (input?.thinkingEnabled === false) return "disabled";
   if (input?.thinkingEnabled === true) return "enabled";
-  if (input?.thinkingType === "disabled" || input?.thinkingType === "enabled") {
-    return input.thinkingType;
-  }
-  return env.thinkingType;
+  if (input?.thinkingEnabled === false) return "disabled";
+  if (input?.thinkingType === "enabled") return "enabled";
+  return "disabled";
 }
 
+export type AgentSegmentKind = "thinking" | "text" | "tool";
+
 export type ChatStreamEvent =
-  | { type: "start" }
+  | { type: "start"; agentMode?: boolean }
   | { type: "thinking_start" }
-  | { type: "thinking_delta"; delta: string }
-  | { type: "answer_delta"; delta: string }
+  | { type: "thinking_delta"; delta: string; segmentId?: string }
+  | { type: "thinking_end"; segmentId?: string }
+  | { type: "segment_start"; segmentId: string; kind: AgentSegmentKind }
+  | { type: "segment_end"; segmentId: string; kind: AgentSegmentKind }
+  | { type: "answer_delta"; delta: string; segmentId?: string }
+  | {
+      type: "tool_start";
+      toolCallId: string;
+      name: string;
+      args?: Record<string, unknown>;
+      description?: string;
+    }
+  | {
+      type: "tool_output_delta";
+      toolCallId: string;
+      kind: "stdout" | "stderr";
+      delta: string;
+    }
+  | { type: "tool_data"; toolCallId: string; data: Record<string, unknown> }
+  | {
+      type: "tool_end";
+      toolCallId: string;
+      name: string;
+      result: string;
+    }
+  | { type: "step_done"; label?: string }
+  | { type: "agent_frame_complete" }
   | { type: "done" }
   | { type: "error"; message: string };
 
@@ -51,16 +83,9 @@ export function sanitizeMessages(input: unknown): IncomingMessage[] {
     .map((message) => ({ role: message.role, content: message.content }));
 }
 
-function novitaHeaders(apiKey: string) {
-  return {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-  };
-}
-
 export function extractUpstreamError(body: unknown, fallback: string) {
   const candidate = body as {
-    error?: { message?: unknown } | string;
+    error?: { message?: unknown; type?: unknown } | string;
     message?: unknown;
   };
 
@@ -76,71 +101,31 @@ export function extractUpstreamError(body: unknown, fallback: string) {
   return fallback;
 }
 
-export type NovitaChatRequestOptions = {
+export type AnthropicChatRequestOptions = {
   stream?: boolean;
   thinkingType?: ThinkingType;
   maxTokens?: number;
 };
 
-/** Request body for Novita OpenAI-compatible chat (Kimi K2.6). */
-export function buildNovitaChatBody(
-  messages: IncomingMessage[],
-  options: NovitaChatRequestOptions = {},
-) {
-  const stream = options.stream ?? true;
-  const thinkingType = options.thinkingType ?? env.thinkingType;
-  const hasSystem = messages.some((message) => message.role === "system");
-  const fullMessages = hasSystem
-    ? messages
-    : [{ role: "system" as const, content: "Be a helpful assistant." }, ...messages];
-
-  return {
-    model: env.defaultModel,
-    messages: fullMessages,
-    stream,
-    response_format: { type: "text" as const },
-    max_tokens: options.maxTokens ?? 131072,
-    temperature: 1,
-    top_p: 1,
-    min_p: 0,
-    top_k: 50,
-    presence_penalty: 0,
-    frequency_penalty: 0,
-    repetition_penalty: 1,
-    enable_thinking: thinkingType === "enabled",
-    separate_reasoning: true,
-  };
-}
-
-export async function streamNovitaChat(
+export async function streamAnthropicChat(
   messages: IncomingMessage[],
   signal?: AbortSignal,
-  options?: Pick<NovitaChatRequestOptions, "thinkingType">,
+  options?: Pick<AnthropicChatRequestOptions, "thinkingType">,
 ) {
-  const apiKey = requireNovitaApiKey();
-  const upstream = await fetch(env.novitaChatUrl, {
-    method: "POST",
-    headers: novitaHeaders(apiKey),
-    signal,
-    body: JSON.stringify(
-      buildNovitaChatBody(messages, {
-        stream: true,
-        thinkingType: options?.thinkingType,
-      }),
-    ),
-  });
-
-  if (!upstream.ok || !upstream.body) {
-    const body = await upstream.json().catch(() => null);
-    throw new Error(extractUpstreamError(body, "Novita chat request failed."));
-  }
-
-  return upstream;
+  const client = getAnthropicClient();
+  return client.messages.stream(
+    buildAnthropicChatParams(messages, {
+      stream: true,
+      thinkingType: options?.thinkingType,
+    }),
+    { signal },
+  );
 }
 
 function titleExchangeFromMessages(messages: IncomingMessage[]): TitleExchange {
   return {
-    userContent: messages.find((message) => message.role === "user")?.content ?? "",
+    userContent:
+      messages.find((message) => message.role === "user")?.content ?? "",
     assistantContent:
       messages.find((message) => message.role === "assistant")?.content ?? "",
   };
@@ -148,17 +133,23 @@ function titleExchangeFromMessages(messages: IncomingMessage[]): TitleExchange {
 
 export function deriveTitleFallback(messages: IncomingMessage[]): string {
   const exchange = titleExchangeFromMessages(messages);
-  return deriveTitleFromExchange(exchange.userContent, exchange.assistantContent);
+  return deriveTitleFromExchange(
+    exchange.userContent,
+    exchange.assistantContent,
+  );
 }
 
-export function sanitizeGeneratedTitle(raw: string, exchange: TitleExchange): string {
+export function sanitizeGeneratedTitle(
+  raw: string,
+  exchange: TitleExchange,
+): string {
   return normalizeChatTitle(raw, exchange);
 }
 
-/** Title requests never use thinking/reasoning - answer text only. */
-export function buildNovitaTitleBody(messages: IncomingMessage[]) {
+/** Title requests never use thinking — answer text only. */
+export function buildAnthropicTitleParams(messages: IncomingMessage[]) {
   const exchange = titleExchangeFromMessages(messages);
-  const titleMessages: IncomingMessage[] = [
+  const { system, messages: anthropicMessages } = convertIncomingToAnthropic([
     {
       role: "system",
       content: [
@@ -174,51 +165,28 @@ export function buildNovitaTitleBody(messages: IncomingMessage[]) {
       role: "user",
       content: buildTitlePromptPayload(exchange),
     },
-  ];
+  ]);
 
   return {
     model: env.defaultModel,
-    messages: titleMessages,
-    stream: false,
+    system,
+    messages: anthropicMessages,
     max_tokens: 48,
     temperature: 0.3,
-    enable_thinking: false,
-    separate_reasoning: false,
   };
 }
 
-export async function generateNovitaTitle(messages: IncomingMessage[]) {
-  const apiKey = requireNovitaApiKey();
+export async function generateAnthropicTitle(messages: IncomingMessage[]) {
   const exchange = titleExchangeFromMessages(messages);
   const fallbackTitle = deriveTitleFromExchange(
     exchange.userContent,
     exchange.assistantContent,
   );
 
-  const upstream = await fetch(env.novitaChatUrl, {
-    method: "POST",
-    headers: novitaHeaders(apiKey),
-    body: JSON.stringify(buildNovitaTitleBody(messages)),
-  });
-
-  const body = await upstream.json().catch(() => null);
-  if (!upstream.ok) {
-    throw new Error(extractUpstreamError(body, "Novita title request failed."));
-  }
-
-  const message = (
-    body as {
-      choices?: {
-        message?: {
-          content?: string | null;
-          reasoning_content?: string | null;
-        };
-      }[];
-    }
-  )?.choices?.[0]?.message;
-
-  const answer =
-    message?.content?.trim() || message?.reasoning_content?.trim() || "";
+  const client = getAnthropicClient();
+  const titleParams = buildAnthropicTitleParams(messages);
+  const response = await client.messages.create(titleParams);
+  const answer = extractAnthropicText(response.content).trim();
   if (answer) {
     return sanitizeGeneratedTitle(answer, exchange);
   }
@@ -226,20 +194,21 @@ export async function generateNovitaTitle(messages: IncomingMessage[]) {
   return fallbackTitle;
 }
 
-export function transformNovitaStream(
-  upstream: ReadableStream<Uint8Array>,
-  onAnswerDelta: (delta: string) => void,
-  onThinkingDelta: (delta: string) => void,
+/** Pass-through for agent/chat SSE while tapping answer/thinking deltas for persistence. */
+export function tapChatSseStream(
+  source: ReadableStream<Uint8Array>,
+  callbacks: {
+    onAnswerDelta?: (delta: string) => void;
+    onThinkingDelta?: (delta: string) => void;
+  },
   signal?: AbortSignal,
 ): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder();
   let buffer = "";
-  let thinking = false;
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
-      controller.enqueue(new TextEncoder().encode(encodeSseEvent({ type: "start" })));
-      const reader = upstream.getReader();
+      const reader = source.getReader();
 
       const onAbort = () => {
         try {
@@ -260,75 +229,109 @@ export function transformNovitaStream(
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
+          controller.enqueue(value);
 
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
+          if (buffer.length > 512 * 1024) {
+            buffer = buffer.slice(-256 * 1024);
+          }
+          const chunks = buffer.split("\n\n");
+          buffer = chunks.pop() ?? "";
 
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const payload = line.slice(6).trim();
-            if (!payload || payload === "[DONE]") continue;
-
-            let parsed: {
-              choices?: {
-                delta?: {
-                  content?: string;
-                  reasoning_content?: string;
-                  reasoning?: string;
-                };
-              }[];
-            };
+          for (const rawEvent of chunks) {
+            const dataLine = rawEvent
+              .split("\n")
+              .find((line) => line.startsWith("data: "));
+            if (!dataLine) continue;
 
             try {
-              parsed = JSON.parse(payload) as typeof parsed;
+              const parsed = JSON.parse(dataLine.slice(6)) as {
+                type?: string;
+                delta?: string;
+              };
+              if (parsed.type === "answer_delta" && typeof parsed.delta === "string") {
+                callbacks.onAnswerDelta?.(parsed.delta);
+              }
+              if (
+                parsed.type === "thinking_delta" &&
+                typeof parsed.delta === "string"
+              ) {
+                callbacks.onThinkingDelta?.(parsed.delta);
+              }
             } catch {
               continue;
             }
-
-            const delta = parsed.choices?.[0]?.delta;
-            const reasoning =
-              delta?.reasoning_content ?? delta?.reasoning ?? "";
-            const content = delta?.content ?? "";
-
-            if (reasoning) {
-              if (!thinking) {
-                thinking = true;
-                controller.enqueue(
-                  new TextEncoder().encode(encodeSseEvent({ type: "thinking_start" })),
-                );
-              }
-              onThinkingDelta(reasoning);
-              controller.enqueue(
-                new TextEncoder().encode(
-                  encodeSseEvent({ type: "thinking_delta", delta: reasoning }),
-                ),
-              );
-            }
-
-            if (content) {
-              onAnswerDelta(content);
-              controller.enqueue(
-                new TextEncoder().encode(
-                  encodeSseEvent({ type: "answer_delta", delta: content }),
-                ),
-              );
-            }
           }
         }
-
-        controller.enqueue(new TextEncoder().encode(encodeSseEvent({ type: "done" })));
         controller.close();
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Stream failed.";
-        controller.enqueue(
-          new TextEncoder().encode(encodeSseEvent({ type: "error", message })),
-        );
-        controller.close();
+        controller.error(error);
       } finally {
         if (signal) {
           signal.removeEventListener("abort", onAbort);
         }
+      }
+    },
+  });
+}
+
+export function transformAnthropicStream(
+  stream: AsyncIterable<import("@anthropic-ai/sdk/resources/messages").RawMessageStreamEvent>,
+  onAnswerDelta: (delta: string) => void,
+  onThinkingDelta: (delta: string) => void,
+  signal?: AbortSignal,
+): ReadableStream<Uint8Array> {
+  let thinking = false;
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      controller.enqueue(
+        new TextEncoder().encode(encodeSseEvent({ type: "start" })),
+      );
+
+      try {
+        await consumeAnthropicMessageStream(
+          stream,
+          {
+            onThinkingDelta: (delta) => {
+              if (!thinking) {
+                thinking = true;
+                controller.enqueue(
+                  new TextEncoder().encode(
+                    encodeSseEvent({ type: "thinking_start" }),
+                  ),
+                );
+              }
+              onThinkingDelta(delta);
+              controller.enqueue(
+                new TextEncoder().encode(
+                  encodeSseEvent({ type: "thinking_delta", delta }),
+                ),
+              );
+            },
+            onTextDelta: (delta) => {
+              onAnswerDelta(delta);
+              controller.enqueue(
+                new TextEncoder().encode(
+                  encodeSseEvent({ type: "answer_delta", delta }),
+                ),
+              );
+            },
+          },
+          signal,
+        );
+
+        controller.enqueue(
+          new TextEncoder().encode(encodeSseEvent({ type: "done" })),
+        );
+        controller.close();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Stream failed.";
+        controller.enqueue(
+          new TextEncoder().encode(encodeSseEvent({ type: "error", message })),
+        );
+        controller.close();
       }
     },
   });

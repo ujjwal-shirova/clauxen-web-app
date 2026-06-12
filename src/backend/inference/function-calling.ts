@@ -1,9 +1,17 @@
-import type {
-  ChatCompletionMessageParam,
-  ChatCompletionTool,
-} from "openai/resources/chat/completions";
-import { getNovitaClient, DEFAULT_MODEL } from "@/backend/inference/novita-client";
+import type Anthropic from "@anthropic-ai/sdk";
+import {
+  buildStructuredOutputTool,
+  convertAgentMessagesToAnthropic,
+  extractAnthropicText,
+} from "@/backend/inference/anthropic-adapter";
+import {
+  getAnthropicClient,
+  DEFAULT_MODEL,
+} from "@/backend/inference/anthropic-client";
 import { extractPromptCacheStats } from "@/backend/inference/prompt-cache";
+
+export type AnthropicMessageParam = Anthropic.MessageParam;
+export type AnthropicTool = Anthropic.Messages.Tool;
 
 export type FunctionCallingStep = {
   type: "assistant" | "tool" | "final";
@@ -14,78 +22,78 @@ export type FunctionCallingStep = {
 
 export async function runFunctionCallingLoop(opts: {
   model?: string;
-  messages: ChatCompletionMessageParam[];
-  tools: ChatCompletionTool[];
-  executeTool: (
-    name: string,
-    args: Record<string, unknown>,
-  ) => Promise<string>;
+  messages: AnthropicMessageParam[];
+  tools: AnthropicTool[];
+  executeTool: (name: string, args: Record<string, unknown>) => Promise<string>;
   maxRounds?: number;
   signal?: AbortSignal;
   onStep?: (step: FunctionCallingStep) => void;
 }) {
-  const client = getNovitaClient();
+  const client = getAnthropicClient();
   const model = opts.model ?? DEFAULT_MODEL;
   const conversation = [...opts.messages];
   const steps: FunctionCallingStep[] = [];
   const maxRounds = opts.maxRounds ?? 8;
 
   for (let round = 0; round < maxRounds; round += 1) {
-    const response = await client.chat.completions.create(
+    const response = await client.messages.create(
       {
         model,
+        max_tokens: 8192,
         messages: conversation,
         tools: opts.tools,
-        tool_choice: "auto",
-        stream: false,
+        tool_choice: { type: "auto" },
       },
       { signal: opts.signal },
     );
 
-    const choice = response.choices[0];
-    const message = choice.message;
     const usage = extractPromptCacheStats(response.usage);
+    const text = extractAnthropicText(response.content);
+    const toolUses = response.content.filter(
+      (block) => block.type === "tool_use",
+    );
 
-    conversation.push(message as ChatCompletionMessageParam);
-    steps.push({ type: "assistant", message });
+    const assistantMessage: AnthropicMessageParam = {
+      role: "assistant",
+      content: response.content,
+    };
+    conversation.push(assistantMessage);
+    steps.push({ type: "assistant", message: assistantMessage });
 
-    if (choice.finish_reason === "tool_calls" && message.tool_calls?.length) {
-      for (const toolCall of message.tool_calls) {
-        if (toolCall.type !== "function") continue;
-        let args: Record<string, unknown> = {};
-        try {
-          args = JSON.parse(toolCall.function.arguments) as Record<string, unknown>;
-        } catch {
-          args = {};
-        }
+    if (response.stop_reason === "tool_use" && toolUses.length > 0) {
+      const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
 
-        const result = await opts.executeTool(toolCall.function.name, args);
-        const toolMessage: ChatCompletionMessageParam = {
-          role: "tool",
-          tool_call_id: toolCall.id,
+      for (const toolUse of toolUses) {
+        const args = toolUse.input as Record<string, unknown>;
+        const result = await opts.executeTool(toolUse.name, args);
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: toolUse.id,
           content: result,
-        };
-        conversation.push(toolMessage);
+        });
         steps.push({
           type: "tool",
-          toolName: toolCall.function.name,
+          toolName: toolUse.name,
           toolResult: result,
-          message: toolMessage,
+          message: toolResults[toolResults.length - 1],
         });
         opts.onStep?.({
           type: "tool",
-          toolName: toolCall.function.name,
+          toolName: toolUse.name,
           toolResult: result,
         });
       }
+
+      conversation.push({ role: "user", content: toolResults });
       continue;
     }
 
-    steps.push({ type: "final", message });
-    opts.onStep?.({ type: "final", message });
+    const finalMessage = { role: "assistant" as const, content: text };
+    steps.push({ type: "final", message: finalMessage });
+    opts.onStep?.({ type: "final", message: finalMessage });
 
     return {
-      message,
+      message: finalMessage,
       conversation,
       steps,
       usage,
@@ -96,23 +104,28 @@ export async function runFunctionCallingLoop(opts: {
   throw new Error("Function calling exceeded maximum rounds.");
 }
 
-/** Final answer turn omits tools per Novita function-calling guide. */
+/** Final answer turn omits tools. */
 export async function runFunctionCallingFinalAnswer(opts: {
   model?: string;
-  messages: ChatCompletionMessageParam[];
+  messages: AnthropicMessageParam[];
   signal?: AbortSignal;
 }) {
-  const client = getNovitaClient();
-  const response = await client.chat.completions.create(
+  const client = getAnthropicClient();
+  const response = await client.messages.create(
     {
       model: opts.model ?? DEFAULT_MODEL,
+      max_tokens: 8192,
       messages: opts.messages,
-      stream: false,
     },
     { signal: opts.signal },
   );
   return {
-    message: response.choices[0].message,
+    message: {
+      role: "assistant" as const,
+      content: extractAnthropicText(response.content),
+    },
     usage: extractPromptCacheStats(response.usage),
   };
 }
+
+export { convertAgentMessagesToAnthropic, buildStructuredOutputTool };

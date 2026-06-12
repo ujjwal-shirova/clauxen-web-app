@@ -1,9 +1,26 @@
 import { env, requireNovitaApiKey } from "@/backend/config/env";
+import {
+  buildAssistantAgentMessage,
+  buildStructuredOutputTool,
+  convertAgentMessagesToAnthropic,
+  extractAnthropicToolUses,
+  type AgentToolUse,
+} from "@/backend/inference/anthropic-adapter";
+import {
+  getAnthropicClient,
+  AVAILABLE_MODELS,
+} from "@/backend/inference/anthropic-client";
 import { extractUpstreamError } from "@/backend/inference/novita";
-import { platformTools, type PlatformToolName } from "@/backend/inference/platform-tools";
+import {
+  platformTools,
+  type PlatformToolName,
+} from "@/backend/inference/platform-tools";
 import { executePlatformTool } from "@/backend/inference/tool-executor";
 import { defaultStructuredSchema } from "@/backend/inference/structured-agent";
-import { browserUseRecipe, desktopRecipe } from "@/backend/inference/novita-agent-recipes";
+import {
+  browserUseRecipe,
+  desktopRecipe,
+} from "@/backend/inference/novita-agent-recipes";
 
 export type { PlatformToolName };
 
@@ -22,13 +39,17 @@ type AudioPart = {
 
 export type AgentContentPart = TextPart | ImagePart | VideoPart | AudioPart;
 
+export type { AgentToolUse };
+
 export type AgentMessage = {
   role: AgentRole;
   content: string | AgentContentPart[] | null;
+  /** Anthropic tool_result.tool_use_id */
+  tool_use_id?: string;
+  /** @deprecated Use tool_use_id */
   tool_call_id?: string;
-  tool_calls?: unknown;
-  reasoning_content?: string | null;
-  reasoning_details?: unknown;
+  tool_uses?: AgentToolUse[];
+  thinking?: string | null;
 };
 
 /** @deprecated Use PlatformToolName */
@@ -40,6 +61,8 @@ export type AgentChatRequest = {
   mode?: "chat" | "structured";
   enableThinking?: boolean;
   enableTools?: boolean;
+  allowedTools?: PlatformToolName[];
+  webSearchMode?: boolean;
   reasoningSplit?: boolean;
   responseSchema?: Record<string, unknown>;
   conversationId?: string;
@@ -176,56 +199,52 @@ export async function executeAgentTool(
 
 export { browserUseRecipe, desktopRecipe };
 
-function buildResponseFormat(request: AgentChatRequest) {
+function resolveStructuredTools(request: AgentChatRequest) {
   if (request.mode !== "structured") return undefined;
-  return {
-    type: "json_schema",
-    json_schema: {
-      name: "clauxen_agent_result",
-      strict: true,
-      schema: request.responseSchema ?? defaultStructuredSchema(),
-    },
-  };
+  return [
+    buildStructuredOutputTool(
+      "clauxen_agent_result",
+      (request.responseSchema ?? defaultStructuredSchema()) as Record<
+        string,
+        unknown
+      >,
+    ),
+  ];
 }
 
-function novitaHeaders(apiKey: string) {
-  return {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-  };
-}
-
-async function createChatCompletion(
-  body: Record<string, unknown>,
+async function createAnthropicMessage(
+  conversation: AgentMessage[],
+  request: AgentChatRequest,
   signal?: AbortSignal,
 ) {
-  const apiKey = requireNovitaApiKey();
-  const upstream = await fetch(env.novitaChatUrl, {
-    method: "POST",
-    headers: novitaHeaders(apiKey),
-    signal,
-    body: JSON.stringify(body),
-  });
+  const client = getAnthropicClient();
+  const model = request.model?.trim() || env.defaultModel;
+  const platformToolList =
+    request.enableTools === false ? undefined : platformTools();
+  const structuredTools = resolveStructuredTools(request);
+  const tools = structuredTools ?? platformToolList;
+  const { system, messages } = convertAgentMessagesToAnthropic(conversation);
 
-  const payload = await upstream.json().catch(() => null);
-  if (!upstream.ok) {
-    throw new Error(
-      extractUpstreamError(payload, "Novita agent request failed."),
-    );
-  }
-  return payload as {
-    choices?: Array<{
-      finish_reason?: string;
-      message?: AgentMessage & {
-        tool_calls?: Array<{
-          id: string;
-          type: "function";
-          function: { name: string; arguments?: string };
-        }>;
-      };
-    }>;
-    usage?: unknown;
-  };
+  return client.messages.create(
+    {
+      model,
+      max_tokens: 8192,
+      temperature: 0.6,
+      system,
+      messages,
+      tools: tools?.length ? tools : undefined,
+      tool_choice:
+        structuredTools?.length === 1
+          ? { type: "tool", name: "clauxen_agent_result" }
+          : tools?.length
+            ? { type: "auto" }
+            : undefined,
+      thinking: request.enableThinking
+        ? { type: "enabled", budget_tokens: 8192 }
+        : undefined,
+    },
+    { signal },
+  );
 }
 
 export async function runNovitaAgentChat(
@@ -246,81 +265,53 @@ export async function runNovitaAgentChat(
     },
     ...messages,
   ];
-  const tools = request.enableTools === false ? undefined : platformTools();
   const model = request.model?.trim() || env.defaultModel;
 
-  let response = await createChatCompletion(
-    {
-      model,
-      messages: conversation,
-      stream: false,
-      max_tokens: 8192,
-      temperature: 0.6,
-      top_p: 0.95,
-      tools,
-      tool_choice: tools ? "auto" : undefined,
-      response_format: buildResponseFormat(request),
-      enable_thinking: Boolean(request.enableThinking),
-      separate_reasoning: Boolean(request.enableThinking),
-      reasoning_split: Boolean(
-        request.reasoningSplit ?? request.enableThinking,
-      ),
-    },
-    signal,
-  );
+  let response = await createAnthropicMessage(conversation, request, signal);
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-    const message = response.choices?.[0]?.message;
-    const toolCalls = message?.tool_calls ?? [];
-    if (!message || toolCalls.length === 0) break;
+    const assistantMessage = buildAssistantAgentMessage(response.content);
+    const toolUses = extractAnthropicToolUses(response.content);
+    if (toolUses.length === 0) break;
 
-    conversation.push(message);
-    for (const toolCall of toolCalls as Array<{
-      id: string;
-      function: { name: string; arguments?: string };
-    }>) {
+    conversation.push(assistantMessage);
+    for (const toolUse of toolUses) {
       const result = await executeAgentTool(
-        toolCall.function.name,
-        toolCall.function.arguments,
+        toolUse.name,
+        JSON.stringify(toolUse.input),
         context,
       );
       conversation.push({
         role: "tool",
-        tool_call_id: toolCall.id,
+        tool_use_id: toolUse.id,
         content: result,
       });
     }
 
-    response = await createChatCompletion(
-      {
-        model,
-        messages: conversation,
-        stream: false,
-        max_tokens: 8192,
-        temperature: 0.6,
-        top_p: 0.95,
-        tools,
-        tool_choice: tools ? "auto" : undefined,
-        response_format: buildResponseFormat(request),
-        enable_thinking: Boolean(request.enableThinking),
-        separate_reasoning: Boolean(request.enableThinking),
-        reasoning_split: Boolean(
-          request.reasoningSplit ?? request.enableThinking,
-        ),
-      },
-      signal,
-    );
+    response = await createAnthropicMessage(conversation, request, signal);
   }
 
-  const finalMessage = response.choices?.[0]?.message;
+  const finalMessage = buildAssistantAgentMessage(response.content);
   return {
-    message: finalMessage ?? { role: "assistant", content: "" },
+    message: finalMessage,
     usage: response.usage ?? null,
     model,
   };
 }
 
+function novitaHeaders(apiKey: string) {
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+    "anthropic-version": "2023-06-01",
+  };
+}
+
 export async function listNovitaModels(signal?: AbortSignal) {
+  if (!env.novitaModelsUrl) {
+    return { data: AVAILABLE_MODELS.map((model) => ({ id: model.id })) };
+  }
+
   const apiKey = requireNovitaApiKey();
   const response = await fetch(env.novitaModelsUrl, {
     headers: novitaHeaders(apiKey),
