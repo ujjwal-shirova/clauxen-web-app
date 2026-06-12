@@ -14,7 +14,10 @@ import {
 type CreateProjectDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { name: string; description: string }) => void | Promise<void>;
+  onSubmit: (data: {
+    name: string;
+    description: string;
+  }) => void | Promise<void>;
   isSubmitting?: boolean;
 };
 
@@ -70,7 +73,10 @@ export function CreateProjectDialog({
               type="button"
               aria-label="Close"
               onClick={() => onOpenChange(false)}
-              className={cn(appBtn.ghostIcon, "mr-[-8px] mt-[-8px] text-zinc-500")}
+              className={cn(
+                appBtn.ghostIcon,
+                "mr-[-8px] mt-[-8px] text-zinc-500",
+              )}
             >
               <X className="h-4 w-4" />
             </button>
@@ -88,8 +94,8 @@ export function CreateProjectDialog({
                   themed collections that Claude can reference again and again.
                 </p>
                 <p>
-                  Start by creating a memorable title and description to organize
-                  your project. You can always edit it later.
+                  Start by creating a memorable title and description to
+                  organize your project. You can always edit it later.
                 </p>
               </div>
             </div>

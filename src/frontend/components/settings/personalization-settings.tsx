@@ -1,12 +1,12 @@
 "use client";
 
 import { Button } from "@/frontend/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/frontend/components/ui/radio-group";
-import type { PersonalizationSettings } from "@/frontend/lib/api/settings";
 import {
-  baseStyleToneOptions,
-  characteristicLevelOptions,
-} from "./constants";
+  RadioGroup,
+  RadioGroupItem,
+} from "@/frontend/components/ui/radio-group";
+import type { PersonalizationSettings } from "@/frontend/lib/api/settings";
+import { baseStyleToneOptions, characteristicLevelOptions } from "./constants";
 import {
   SettingsCharacteristicSelect,
   SettingsOptionPicker,
@@ -53,7 +53,9 @@ export function PersonalizationSettingsPanel({
         </SettingsRow>
 
         <div className="pb-2 pt-1">
-          <p className="text-[14px] font-[430] text-zinc-900">Characteristics</p>
+          <p className="text-[14px] font-[430] text-zinc-900">
+            Characteristics
+          </p>
           <p className="mt-1 text-[12px] leading-4 text-zinc-400">
             Choose additional customizations on top of your base style and tone.
           </p>
@@ -156,14 +158,18 @@ export function PersonalizationSettingsPanel({
           label="Reference saved memories"
           description="Let Clauxen save and use memories when responding."
           checked={p.referenceSavedMemories}
-          onCheckedChange={(checked) => onChange({ referenceSavedMemories: checked })}
+          onCheckedChange={(checked) =>
+            onChange({ referenceSavedMemories: checked })
+          }
         />
 
         <SettingsToggleRow
           label="Reference chat history"
           description="Let Clauxen reference all previous conversations when responding."
           checked={p.referenceChatHistory}
-          onCheckedChange={(checked) => onChange({ referenceChatHistory: checked })}
+          onCheckedChange={(checked) =>
+            onChange({ referenceChatHistory: checked })
+          }
           borderless
         />
 
@@ -182,7 +188,9 @@ export function PersonalizationSettingsPanel({
           label="Reference record history"
           description="Let Clauxen reference all previous recording transcripts and notes when responding."
           checked={p.referenceRecordHistory}
-          onCheckedChange={(checked) => onChange({ referenceRecordHistory: checked })}
+          onCheckedChange={(checked) =>
+            onChange({ referenceRecordHistory: checked })
+          }
           borderless
         />
       </section>
@@ -192,20 +200,43 @@ export function PersonalizationSettingsPanel({
 
         <div className="flex flex-col gap-3 pb-4">
           <p className="text-[14px] font-semibold text-zinc-800">Tool access</p>
-          <RadioGroup value={toolMode} onValueChange={onToolModeChange} className="gap-3">
+          <RadioGroup
+            value={toolMode}
+            onValueChange={onToolModeChange}
+            className="gap-3"
+          >
             {[
-              { value: "auto", label: "Auto", hint: "Let Clauxen decide when to use tools." },
-              { value: "always", label: "Always", hint: "Prefer tools when available." },
-              { value: "never", label: "Never", hint: "Disable tool use in chat." },
+              {
+                value: "auto",
+                label: "Auto",
+                hint: "Let Clauxen decide when to use tools.",
+              },
+              {
+                value: "always",
+                label: "Always",
+                hint: "Prefer tools when available.",
+              },
+              {
+                value: "never",
+                label: "Never",
+                hint: "Disable tool use in chat.",
+              },
             ].map((option) => (
               <label
                 key={option.value}
                 className="flex cursor-pointer items-start gap-3 rounded-lg p-2 transition-colors hover:bg-zinc-100"
               >
-                <RadioGroupItem value={option.value} className={settingsRadioItemClass} />
+                <RadioGroupItem
+                  value={option.value}
+                  className={settingsRadioItemClass}
+                />
                 <span>
-                  <span className="block text-[14px] font-[430]">{option.label}</span>
-                  <span className="block text-[12px] text-zinc-400">{option.hint}</span>
+                  <span className="block text-[14px] font-[430]">
+                    {option.label}
+                  </span>
+                  <span className="block text-[12px] text-zinc-400">
+                    {option.hint}
+                  </span>
                 </span>
               </label>
             ))}

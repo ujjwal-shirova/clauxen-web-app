@@ -12,13 +12,12 @@ export function withApiRoute(
 }
 
 export function withApiRouteParams<T extends Record<string, string>>(
-  handler: (ctx: Parameters<ApiHandler>[0] & { params: T }) => Promise<Response>,
+  handler: (
+    ctx: Parameters<ApiHandler>[0] & { params: T },
+  ) => Promise<Response>,
   options?: { requireAuth?: boolean; requireChatAuth?: boolean },
 ) {
-  return async (
-    request: NextRequest,
-    context: { params: Promise<T> },
-  ) => {
+  return async (request: NextRequest, context: { params: Promise<T> }) => {
     const params = await context.params;
     return withApiHandler(
       (ctx) => handler({ ...ctx, params }),

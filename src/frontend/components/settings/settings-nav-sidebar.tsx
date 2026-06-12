@@ -2,14 +2,20 @@
 
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
-import { settingsNav, type SettingsTab } from "@/frontend/components/settings/constants";
+import {
+  settingsNav,
+  type SettingsTab,
+} from "@/frontend/components/settings/constants";
 
 interface SettingsNavSidebarProps {
   activeTab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
 }
 
-export function SettingsNavSidebar({ activeTab, onTabChange }: SettingsNavSidebarProps) {
+export function SettingsNavSidebar({
+  activeTab,
+  onTabChange,
+}: SettingsNavSidebarProps) {
   return (
     <>
       <div className="md:hidden">
@@ -34,7 +40,10 @@ export function SettingsNavSidebar({ activeTab, onTabChange }: SettingsNavSideba
       </div>
 
       <aside className="hidden self-start md:sticky md:top-4 md:block md:w-[220px]">
-        <nav className="flex flex-col gap-0.5 pr-2" aria-label="Settings categories">
+        <nav
+          className="flex flex-col gap-0.5 pr-2"
+          aria-label="Settings categories"
+        >
           {settingsNav.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.name;

@@ -1,47 +1,55 @@
+"use client";
 
-'use client';
-
-import React, { useState } from 'react';
-import { ArrowLeft, Check, Mail, Link as LinkIcon } from 'lucide-react'; // icons — back navigation, color check, email/link delivery affordances
-import { Button } from '@/frontend/components/ui/button'; // shadcn Button — primary/secondary CTAs
-import { cn } from '@/frontend/lib/utils'; // className merge utility — selected/unselected Tailwind states
-import { appBtn } from '@/frontend/lib/app-buttons';
-import { GiftPayment } from './gift-payment';
-import { GiftAnimation } from './gift-animation';
-import { purchaseGift } from '@/frontend/lib/api/gifts';
-import { ApiError } from '@/frontend/lib/api/client';
-import { useAuth } from '@/frontend/hooks/use-auth';
+import React, { useState } from "react";
+import { ArrowLeft, Check, Mail, Link as LinkIcon } from "lucide-react"; // icons — back navigation, color check, email/link delivery affordances
+import { Button } from "@/frontend/components/ui/button"; // shadcn Button — primary/secondary CTAs
+import { cn } from "@/frontend/lib/utils"; // className merge utility — selected/unselected Tailwind states
+import { appBtn } from "@/frontend/lib/app-buttons";
+import { GiftPayment } from "./gift-payment";
+import { GiftAnimation } from "./gift-animation";
+import { purchaseGift } from "@/frontend/lib/api/gifts";
+import { ApiError } from "@/frontend/lib/api/client";
+import { useAuth } from "@/frontend/hooks/use-auth";
+import {
+  GIFT_PLAN_IDS,
+  GIFT_PLANS,
+  type GiftPlanId,
+} from "@/lib/plans-catalog";
+import { useCheckoutCurrency } from "@/frontend/hooks/use-checkout-currency";
+import { formatCheckoutAmountFromPaise } from "@/lib/checkout-currency";
 
 interface GiftViewProps {
   onClose: () => void;
 }
 
-const colors = [ // gift card preview background theme palette — id, hex value, accessibility label
-  { id: 'clay', value: '#DD8164', label: 'Clay' },
-  { id: 'sky', value: '#77A3CF', label: 'Sky' },
-  { id: 'olive', value: '#839569', label: 'Olive' },
-  { id: 'fig', value: '#C8728F', label: 'Fig' },
-  { id: 'coral', value: '#EFD9D9', label: 'Coral' },
-  { id: 'cactus', value: '#CBDCD5', label: 'Cactus' },
-  { id: 'heather', value: '#D7D6E1', label: 'Heather' },
+const colors = [
+  // gift card preview background theme palette — id, hex value, accessibility label
+  { id: "clay", value: "#DD8164", label: "Clay" },
+  { id: "sky", value: "#77A3CF", label: "Sky" },
+  { id: "olive", value: "#839569", label: "Olive" },
+  { id: "fig", value: "#C8728F", label: "Fig" },
+  { id: "coral", value: "#EFD9D9", label: "Coral" },
+  { id: "cactus", value: "#CBDCD5", label: "Cactus" },
+  { id: "heather", value: "#D7D6E1", label: "Heather" },
 ];
 
-const plans = [
-  { id: 'go', name: 'Go', subtitle: 'Affordable entry', monthlyPrice: 99 },
-  { id: 'pro', name: 'Pro', subtitle: 'For the curious', monthlyPrice: 2499 },
-  { id: 'max5x', name: 'Max 5x', subtitle: 'For the enthusiast', monthlyPrice: 9999 },
-  { id: 'max20x', name: 'Max 20x', subtitle: 'For the power user', monthlyPrice: 19999 },
-];
+const plans = GIFT_PLANS.map((plan) => ({
+  id: plan.id,
+  name: plan.name,
+  subtitle: plan.subtitle,
+  monthlyPrice: plan.monthlyPriceInr,
+}));
 
 const durations = [
-  { id: '1month', label: '1 month', months: 1 },
-  { id: '3months', label: '3 months', months: 3 },
-  { id: '6months', label: '6 months', months: 6 },
-  { id: '1year', label: '1 year', months: 12 },
+  { id: "1month", label: "1 month", months: 1 },
+  { id: "3months", label: "3 months", months: 3 },
+  { id: "6months", label: "6 months", months: 6 },
+  { id: "1year", label: "1 year", months: 12 },
 ];
 
-const GIFT_PLAN_IDS = new Set(plans.map((plan) => plan.id));
-const GIFT_DURATION_MONTHS = new Set(durations.map((duration) => duration.months));
+const GIFT_DURATION_MONTHS = new Set(
+  durations.map((duration) => duration.months),
+);
 const GIFT_COLOR_VALUES = new Set(colors.map((color) => color.value));
 
 function isValidEmail(value: string): boolean {
@@ -50,30 +58,40 @@ function isValidEmail(value: string): boolean {
 
 type GiftCheckoutState = {
   giftCode: string;
-  razorpay: { orderId: string; amount: number; currency: string; keyId?: string };
+  razorpay: {
+    orderId: string;
+    amount: number;
+    currency: string;
+    keyId?: string;
+  };
   pricing: { subtotalPaise: number; taxPaise: number; amountPaise: number };
 };
 
-export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purchase overlay — 3-step wizard
+export function GiftView({ onClose }: GiftViewProps) {
+  // full-screen gift purchase overlay — 3-step wizard
   const auth = useAuth();
+  const { currency, usdInrRate } = useCheckoutCurrency();
   const [step, setStep] = useState(1); // wizard step: 1=plan, 2=personalize, 3=payment/success
-  const [selectedPlan, setSelectedPlan] = useState('pro');
-  const [selectedDuration, setSelectedDuration] = useState('6months'); // default 6 months — UX sweet spot
+  const [selectedPlan, setSelectedPlan] = useState<GiftPlanId>("plus");
+  const [selectedDuration, setSelectedDuration] = useState("6months"); // default 6 months — UX sweet spot
   const [selectedColor, setSelectedColor] = useState(colors[0]); // preview card background — colors[0] clay default
-  const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'link'>('email');
+  const [deliveryMethod, setDeliveryMethod] = useState<"email" | "link">(
+    "email",
+  );
   const [checkout, setCheckout] = useState<GiftCheckoutState | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
 
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientEmail, setRecipientEmail] = useState('');
-  const [giftNote, setGiftNote] = useState('');
-  const [yourName, setYourName] = useState(auth.user?.displayName ?? '');
-  const [yourEmail, setYourEmail] = useState(auth.user?.email ?? '');
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [giftNote, setGiftNote] = useState("");
+  const [yourName, setYourName] = useState(auth.user?.displayName ?? "");
+  const [yourEmail, setYourEmail] = useState(auth.user?.email ?? "");
 
-  const currentPlan = plans.find(p => p.id === selectedPlan) || plans[0]; // selected plan object — pricing/display
-  const currentDuration = durations.find(d => d.id === selectedDuration) || durations[2]; // selected months — fallback 6mo
+  const currentPlan = plans.find((p) => p.id === selectedPlan) || plans[0]; // selected plan object — pricing/display
+  const currentDuration =
+    durations.find((d) => d.id === selectedDuration) || durations[2]; // selected months — fallback 6mo
   const total = currentPlan.monthlyPrice * currentDuration.months;
 
   const handleBack = () => {
@@ -81,11 +99,15 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
     else onClose();
   };
 
-  const startCheckout = async () => { // step 2 → server gift order + Razorpay order create
-    if (!GIFT_PLAN_IDS.has(selectedPlan) || !GIFT_DURATION_MONTHS.has(currentDuration.months)) {
+  const startCheckout = async () => {
+    // step 2 → server gift order + Razorpay order create
+    if (
+      !GIFT_PLAN_IDS.has(selectedPlan) ||
+      !GIFT_DURATION_MONTHS.has(currentDuration.months)
+    ) {
       return;
     }
-    if (deliveryMethod === 'email' && !isValidEmail(recipientEmail.trim())) {
+    if (deliveryMethod === "email" && !isValidEmail(recipientEmail.trim())) {
       return;
     }
     setCheckoutError(null);
@@ -94,13 +116,17 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
       const themeColor = GIFT_COLOR_VALUES.has(selectedColor.value)
         ? selectedColor.value
         : colors[0].value;
-      const result = await purchaseGift({ // POST /api gifts — DB gift row + Razorpay orderId
+      const result = await purchaseGift({
+        // POST /api gifts — DB gift row + Razorpay orderId
         planId: selectedPlan,
         months: currentDuration.months,
-        recipientEmail: deliveryMethod === 'email' ? recipientEmail.trim() : undefined,
-        recipientName: deliveryMethod === 'email' ? recipientName.trim() : undefined,
-        senderName: yourName || auth.user?.displayName || 'Clauxen user',
-        senderEmail: yourEmail || auth.user?.email || '',
+        currency,
+        recipientEmail:
+          deliveryMethod === "email" ? recipientEmail.trim() : undefined,
+        recipientName:
+          deliveryMethod === "email" ? recipientName.trim() : undefined,
+        senderName: yourName || auth.user?.displayName || "Clauxen user",
+        senderEmail: yourEmail || auth.user?.email || "",
         deliveryMethod,
         message: giftNote || undefined,
         themeColor,
@@ -112,37 +138,36 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
       });
       setStep(3); // payment step — GiftPayment render
     } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : 'Could not start checkout.'); // user-readable error
+      setCheckoutError(
+        error instanceof Error ? error.message : "Could not start checkout.",
+      ); // user-readable error
     } finally {
       setCheckoutLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-white font-sans animate-in fade-in duration-300 lg:flex-row">
-      
+    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] font-sans animate-in fade-in duration-300 lg:flex-row lg:pt-0">
       <button
         onClick={handleBack}
-        className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-[110] rounded-lg p-2 transition-all hover:bg-zinc-100 sm:left-6 sm:top-6"
+        className="absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[110] rounded-lg p-2 transition-all hover:bg-zinc-100 sm:left-6 sm:top-6"
         aria-label="Back"
       >
         <ArrowLeft className="w-5 h-5 text-zinc-800" />
       </button>
 
-      
-      <div className="relative min-h-0 flex-[1.6] overflow-y-auto border-b border-black/5 bg-white scrollbar-hide lg:border-b-0 lg:border-r">
-        <div className="mx-auto flex min-h-full max-w-[512px] flex-col justify-center px-4 pb-8 pt-16 sm:px-8 sm:py-24">
-          
+      <div className="app-scrollbar relative min-h-0 flex-[1.6] overflow-y-auto border-b border-black/5 bg-white lg:border-b-0 lg:border-r">
+        <div className="mobile-page-inset mx-auto flex min-h-full max-w-[512px] flex-col justify-center pb-8 pt-14 sm:px-8 sm:py-24 lg:pt-16">
           {step === 1 && (
             <div className="animate-in fade-in slide-in-from-left-4 duration-500">
               <h1 className="mb-2 font-serif text-[30px] font-medium leading-[1.3] text-zinc-800 sm:text-[38px] sm:leading-[1.4]">
                 Give the gift of Clauxen
               </h1>
               <p className="text-[16px] text-zinc-800 font-[430] leading-relaxed mb-10">
-                Every plan includes Clauxen Code, unlimited projects, and access to our latest models.
+                Every plan includes Clauxen Code, unlimited projects, and access
+                to our latest models.
               </p>
 
-              
               <div className="mb-8">
                 <span className="block text-[14px] font-semibold text-zinc-800 mb-3">
                   Which plan?
@@ -156,17 +181,20 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                         "p-4 rounded-xl border text-left transition-all duration-200 outline-none",
                         selectedPlan === plan.id
                           ? "border-zinc-900 ring-1 ring-zinc-900 shadow-sm bg-white" // selected — ring highlight
-                          : "border-black/15 hover:border-black/30 bg-transparent"
+                          : "border-black/15 hover:border-black/30 bg-transparent",
                       )}
                     >
-                      <div className="text-[14px] font-semibold text-zinc-800">{plan.name}</div>
-                      <div className="text-[14px] text-zinc-500 font-[430] leading-tight mt-1">{plan.subtitle}</div>
+                      <div className="text-[14px] font-semibold text-zinc-800">
+                        {plan.name}
+                      </div>
+                      <div className="text-[14px] text-zinc-500 font-[430] leading-tight mt-1">
+                        {plan.subtitle}
+                      </div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              
               <div className="mb-8">
                 <span className="block text-[14px] font-semibold text-zinc-800 mb-3">
                   How many months?
@@ -180,28 +208,35 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                         "py-3 px-2 rounded-xl border text-center transition-all duration-200 outline-none",
                         selectedDuration === duration.id
                           ? "border-zinc-900 ring-1 ring-zinc-900 shadow-sm bg-white"
-                          : "border-black/15 hover:border-black/30 bg-transparent"
+                          : "border-black/15 hover:border-black/30 bg-transparent",
                       )}
                     >
-                      <div className="text-[14px] font-semibold text-zinc-800">{duration.label}</div>
+                      <div className="text-[14px] font-semibold text-zinc-800">
+                        {duration.label}
+                      </div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              
               <div className="mb-10">
                 <span className="block text-[14px] font-semibold text-zinc-800 mb-1">
                   Total
                 </span>
                 <div className="text-[24px] font-bold text-zinc-800">
-                  ₹{total.toLocaleString('en-IN')}.00
+                  {formatCheckoutAmountFromPaise(
+                    total * 100,
+                    currency,
+                    usdInrRate,
+                  )}
                 </div>
               </div>
 
-              
               <div className="flex justify-end pt-4 border-t border-black/5">
-                <Button onClick={() => setStep(2)} className={cn(appBtn.primaryLgAuto, "px-8")}>
+                <Button
+                  onClick={() => setStep(2)}
+                  className={cn(appBtn.primaryLgAuto, "px-8")}
+                >
                   Next
                 </Button>
               </div>
@@ -214,7 +249,6 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                 Personalize your gift
               </h1>
 
-              
               <div className="mb-8">
                 <span className="block text-[14px] font-semibold text-zinc-800 mb-3">
                   Pick a color
@@ -226,60 +260,83 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                       onClick={() => setSelectedColor(color)}
                       className={cn(
                         "w-9 h-9 rounded-full border-2 transition-all flex items-center justify-center",
-                        selectedColor.id === color.id ? "border-black" : "border-transparent"
+                        selectedColor.id === color.id
+                          ? "border-black"
+                          : "border-transparent",
                       )}
                       style={{ backgroundColor: color.value }}
                       aria-label={color.label}
                     >
                       {selectedColor.id === color.id && (
-                        <Check className={cn("w-4 h-4", color.id === 'coral' || color.id === 'cactus' || color.id === 'heather' ? "text-black" : "text-white")} />
+                        <Check
+                          className={cn(
+                            "w-4 h-4",
+                            color.id === "coral" ||
+                              color.id === "cactus" ||
+                              color.id === "heather"
+                              ? "text-black"
+                              : "text-white",
+                          )}
+                        />
                       )}
                     </button>
                   ))}
                 </div>
               </div>
 
-              
               <div className="mb-8">
                 <span className="block text-[14px] font-semibold text-zinc-800 mb-3">
                   Choose how to send
                 </span>
                 <div className="space-y-3">
                   <button
-                    onClick={() => setDeliveryMethod('email' as const)}
+                    onClick={() => setDeliveryMethod("email" as const)}
                     className={cn(
                       "w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-all",
-                      deliveryMethod === 'email' ? "border-black bg-black/5" : "border-black/15 hover:border-black/30"
+                      deliveryMethod === "email"
+                        ? "border-black bg-black/5"
+                        : "border-black/15 hover:border-black/30",
                     )}
                   >
                     <Mail className="w-5 h-5 text-zinc-500" />
                     <div className="flex-1">
-                      <div className="text-[14px] font-semibold">Send an email</div>
+                      <div className="text-[14px] font-semibold">
+                        Send an email
+                      </div>
                     </div>
-                    {deliveryMethod === 'email' && <div className="w-2.5 h-2.5 bg-black rounded-full" />}
+                    {deliveryMethod === "email" && (
+                      <div className="w-2.5 h-2.5 bg-black rounded-full" />
+                    )}
                   </button>
                   <button
-                    onClick={() => setDeliveryMethod('link' as const)}
+                    onClick={() => setDeliveryMethod("link" as const)}
                     className={cn(
                       "w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-all",
-                      deliveryMethod === 'link' ? "border-black bg-black/5" : "border-black/15 hover:border-black/30"
+                      deliveryMethod === "link"
+                        ? "border-black bg-black/5"
+                        : "border-black/15 hover:border-black/30",
                     )}
                   >
                     <LinkIcon className="w-5 h-5 text-zinc-500" />
                     <div className="flex-1">
-                      <div className="text-[14px] font-semibold">Get a link to share</div>
+                      <div className="text-[14px] font-semibold">
+                        Get a link to share
+                      </div>
                     </div>
-                    {deliveryMethod === 'link' && <div className="w-2.5 h-2.5 bg-black rounded-full" />}
+                    {deliveryMethod === "link" && (
+                      <div className="w-2.5 h-2.5 bg-black rounded-full" />
+                    )}
                   </button>
                 </div>
               </div>
 
-              
               <div className="space-y-4 mb-10">
-                {deliveryMethod === 'email' && (
+                {deliveryMethod === "email" && (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[14px] font-medium text-zinc-800">Recipient's name</label>
+                      <label className="text-[14px] font-medium text-zinc-800">
+                        Recipient's name
+                      </label>
                       <input
                         type="text"
                         placeholder="Name"
@@ -289,7 +346,9 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[14px] font-medium text-zinc-800">Recipient's email</label>
+                      <label className="text-[14px] font-medium text-zinc-800">
+                        Recipient's email
+                      </label>
                       <input
                         type="email"
                         placeholder="Email"
@@ -301,7 +360,9 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <label className="text-[14px] font-medium text-zinc-800">Your name</label>
+                  <label className="text-[14px] font-medium text-zinc-800">
+                    Your name
+                  </label>
                   <input
                     type="text"
                     value={yourName}
@@ -310,7 +371,9 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[14px] font-medium text-zinc-800">Add a note</label>
+                  <label className="text-[14px] font-medium text-zinc-800">
+                    Add a note
+                  </label>
                   <textarea
                     placeholder="Gift message"
                     rows={3}
@@ -320,7 +383,9 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[14px] font-medium text-zinc-800">Your email</label>
+                  <label className="text-[14px] font-medium text-zinc-800">
+                    Your email
+                  </label>
                   <input
                     type="email"
                     value={yourEmail}
@@ -343,14 +408,17 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                   onClick={() => void startCheckout()}
                   disabled={
                     checkoutLoading ||
-                    (deliveryMethod === 'email' && !isValidEmail(recipientEmail.trim()))
+                    (deliveryMethod === "email" &&
+                      !isValidEmail(recipientEmail.trim()))
                   }
                   className={cn(appBtn.primaryLgAuto, "px-8")}
                 >
-                  {checkoutLoading ? 'Preparing…' : 'Check out'}
+                  {checkoutLoading ? "Preparing…" : "Check out"}
                 </Button>
                 {checkoutError && (
-                  <p className="mt-2 text-[12px] text-red-600">{checkoutError}</p>
+                  <p className="mt-2 text-[12px] text-red-600">
+                    {checkoutError}
+                  </p>
                 )}
               </div>
             </div>
@@ -363,6 +431,8 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
               giftCode={checkout.giftCode}
               razorpay={checkout.razorpay}
               pricing={checkout.pricing}
+              displayCurrency={currency}
+              usdInrRate={usdInrRate}
               onPaid={() => setPurchaseComplete(true)}
             />
           )}
@@ -375,7 +445,10 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
               <code className="block rounded-lg bg-white border border-black/15 px-4 py-3 text-[16px] font-semibold tracking-wide">
                 {checkout.giftCode}
               </code>
-              <Button onClick={onClose} className={cn(appBtn.primaryLg, "mt-6")}>
+              <Button
+                onClick={onClose}
+                className={cn(appBtn.primaryLg, "mt-6")}
+              >
                 Done
               </Button>
             </div>
@@ -383,21 +456,21 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
         </div>
       </div>
 
-      
       <div className="flex shrink-0 flex-col items-center justify-center bg-zinc-50 p-5 sm:p-8 lg:sticky lg:top-0 lg:h-full lg:flex-1">
         <div className="relative flex scale-[0.92] flex-col items-center gap-4 transition-all duration-500 animate-in zoom-in-95 sm:scale-100 lg:scale-[1.25]">
           <div className="relative w-[min(100%,240px)] sm:w-[288px]">
             <div
               className="relative overflow-hidden transition-colors duration-500"
-              style={{ 
-                aspectRatio: '3 / 2',
+              style={{
+                aspectRatio: "3 / 2",
                 backgroundColor: selectedColor.value,
-                borderBottomLeftRadius: '16px',
-                borderBottomRightRadius: '16px',
-                borderRadius: '16px',
-                borderTopLeftRadius: '16px',
-                borderTopRightRadius: '16px',
-                boxShadow: 'rgb(255, 255, 255) 0px 0px 0px 0px inset, rgba(255, 255, 255, 0.3) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px'
+                borderBottomLeftRadius: "16px",
+                borderBottomRightRadius: "16px",
+                borderRadius: "16px",
+                borderTopLeftRadius: "16px",
+                borderTopRightRadius: "16px",
+                boxShadow:
+                  "rgb(255, 255, 255) 0px 0px 0px 0px inset, rgba(255, 255, 255, 0.3) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px",
               }}
             >
               {/* decorative background layers — gradients, blur blobs, wave SVG; pointer-events-none */}
@@ -406,39 +479,39 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                   className="absolute inset-0"
                   style={{
                     background:
-                      'linear-gradient(135deg, rgba(255,250,244,0.96) 0%, rgba(244,240,234,0.86) 32%, rgba(232,231,235,0.78) 68%, rgba(249,244,238,0.88) 100%)',
+                      "linear-gradient(135deg, rgba(255,250,244,0.96) 0%, rgba(244,240,234,0.86) 32%, rgba(232,231,235,0.78) 68%, rgba(249,244,238,0.88) 100%)",
                   }}
                 />
                 <div
                   className="absolute -left-14 top-0 h-28 w-72 rounded-[999px] opacity-80 blur-2xl"
                   style={{
                     background:
-                      'linear-gradient(90deg, rgba(255,255,255,0.92) 0%, rgba(226,223,236,0.58) 46%, rgba(243,235,226,0.72) 100%)',
-                    transform: 'rotate(-14deg)',
+                      "linear-gradient(90deg, rgba(255,255,255,0.92) 0%, rgba(226,223,236,0.58) 46%, rgba(243,235,226,0.72) 100%)",
+                    transform: "rotate(-14deg)",
                   }}
                 />
                 <div
                   className="absolute -right-16 top-10 h-24 w-72 rounded-[999px] opacity-70 blur-2xl"
                   style={{
                     background:
-                      'linear-gradient(90deg, rgba(227,227,233,0.72) 0%, rgba(255,247,240,0.8) 52%, rgba(235,241,246,0.62) 100%)',
-                    transform: 'rotate(18deg)',
+                      "linear-gradient(90deg, rgba(227,227,233,0.72) 0%, rgba(255,247,240,0.8) 52%, rgba(235,241,246,0.62) 100%)",
+                    transform: "rotate(18deg)",
                   }}
                 />
                 <div
                   className="absolute -left-16 bottom-6 h-24 w-80 rounded-[999px] opacity-65 blur-2xl"
                   style={{
                     background:
-                      'linear-gradient(90deg, rgba(250,244,237,0.88) 0%, rgba(220,219,228,0.48) 50%, rgba(255,253,250,0.86) 100%)',
-                    transform: 'rotate(6deg)',
+                      "linear-gradient(90deg, rgba(250,244,237,0.88) 0%, rgba(220,219,228,0.48) 50%, rgba(255,253,250,0.86) 100%)",
+                    transform: "rotate(6deg)",
                   }}
                 />
                 <div
                   className="absolute right-2 bottom-0 h-20 w-48 rounded-[999px] opacity-55 blur-2xl"
                   style={{
                     background:
-                      'linear-gradient(90deg, rgba(226,230,238,0.75) 0%, rgba(255,245,236,0.7) 100%)',
-                    transform: 'rotate(-18deg)',
+                      "linear-gradient(90deg, rgba(226,230,238,0.75) 0%, rgba(255,245,236,0.7) 100%)",
+                    transform: "rotate(-18deg)",
                   }}
                 />
                 <svg
@@ -478,14 +551,12 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
                 </svg>
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_36%,rgba(255,255,255,0.52),transparent_36%)]" />
               </div>
-              
+
               {/* gift card foreground — GiftAnimation + plan/duration label */}
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center">
                 <GiftAnimation />
                 <div className="mt-[6px] text-center">
-                  <div
-                    className="text-[12px] font-semibold leading-[16.8px] text-zinc-800"
-                  >
+                  <div className="text-[12px] font-semibold leading-[16.8px] text-zinc-800">
                     {currentDuration.label} of Clauxen {currentPlan.name}
                   </div>
                 </div>
@@ -493,8 +564,7 @@ export function GiftView({ onClose }: GiftViewProps) { // full-screen gift purch
             </div>
           </div>
 
-          
-          {deliveryMethod === 'email' && (recipientName || giftNote) && (
+          {deliveryMethod === "email" && (recipientName || giftNote) && (
             <div className="w-72 bg-zinc-50/50 border border-zinc-200 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="text-[12px] font-semibold text-zinc-900 mb-1">
                 To: {recipientName}

@@ -49,20 +49,14 @@ export async function pauseSandbox(sandboxId: string) {
   );
 }
 
-export async function connectSandbox(
-  sandboxId: string,
-  timeoutMs?: number,
-) {
+export async function connectSandbox(sandboxId: string, timeoutMs?: number) {
   return apiFetch<SandboxInfo>(`/api/v1/sandbox/${sandboxId}/connect`, {
     method: "POST",
     body: JSON.stringify({ timeoutMs }),
   });
 }
 
-export async function setSandboxTimeout(
-  sandboxId: string,
-  timeoutMs: number,
-) {
+export async function setSandboxTimeout(sandboxId: string, timeoutMs: number) {
   return apiFetch<{ sandboxId: string; timeoutMs: number }>(
     `/api/v1/sandbox/${sandboxId}/timeout`,
     {

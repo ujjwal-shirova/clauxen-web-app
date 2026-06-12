@@ -7,11 +7,12 @@ import type {
   SandboxSessionContext,
 } from "@/backend/sandbox/types";
 
-type CodeInterpreterSandbox = Awaited<ReturnType<typeof loadSandboxClass>> extends {
-  create: (...args: never[]) => infer R;
-}
-  ? Awaited<R>
-  : never;
+type CodeInterpreterSandbox =
+  Awaited<ReturnType<typeof loadSandboxClass>> extends {
+    create: (...args: never[]) => infer R;
+  }
+    ? Awaited<R>
+    : never;
 
 type SandboxModule = typeof import("novita-sandbox/code-interpreter");
 
@@ -26,7 +27,8 @@ function ensureNovitaKey() {
 
 async function loadSandboxClass() {
   ensureNovitaKey();
-  const mod = (await import("novita-sandbox/code-interpreter")) as SandboxModule;
+  const mod =
+    (await import("novita-sandbox/code-interpreter")) as SandboxModule;
   return mod.Sandbox;
 }
 
@@ -109,10 +111,7 @@ export async function createSandbox(opts: SandboxCreateOptions = {}) {
   return { sandbox, info: serializeInfo(info) };
 }
 
-export async function connectSandbox(
-  sandboxId: string,
-  timeoutMs?: number,
-) {
+export async function connectSandbox(sandboxId: string, timeoutMs?: number) {
   const Sandbox = await loadSandboxClass();
   const sandbox = await Sandbox.connect(sandboxId, {
     timeoutMs: timeoutMs ?? DEFAULT_TIMEOUT_MS,
@@ -188,10 +187,7 @@ export async function getSandboxMetrics(sandboxId: string) {
   return Sandbox.getMetrics(sandboxId);
 }
 
-export async function setSandboxTimeout(
-  sandboxId: string,
-  timeoutMs: number,
-) {
+export async function setSandboxTimeout(sandboxId: string, timeoutMs: number) {
   const Sandbox = await loadSandboxClass();
   await Sandbox.setTimeout(sandboxId, timeoutMs);
   return { sandboxId, timeoutMs };

@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CreditCard } from "lucide-react";
-import { getBillingSubscription, listInvoices } from "@/frontend/lib/api/billing";
+import {
+  getBillingSubscription,
+  listInvoices,
+} from "@/frontend/lib/api/billing";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import {
   SettingsFieldBlock,
@@ -26,7 +29,10 @@ type InvoiceRow = {
   created_at: string;
 };
 
-function formatPlanName(planId: string | null | undefined, plans: { id: string; display_name: string }[]) {
+function formatPlanName(
+  planId: string | null | undefined,
+  plans: { id: string; display_name: string }[],
+) {
   if (!planId) return "Clauxen Free";
   const match = plans.find((p) => p.id === planId);
   if (match) return match.display_name;
@@ -65,7 +71,8 @@ export function BillingSettings({
   const [tokensRemaining, setTokensRemaining] = useState<number | null>(null);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
 
-  const billingName = userDisplayName?.trim() || userEmail?.split("@")[0] || "—";
+  const billingName =
+    userDisplayName?.trim() || userEmail?.split("@")[0] || "—";
   const billingAddress = "Add your billing address in account settings.";
 
   useEffect(() => {
@@ -135,11 +142,18 @@ export function BillingSettings({
             </p>
           </div>
           {showRenew ? (
-            <SettingsPillButton onClick={onUpgradeClick} className="min-w-[140px]">
-              {planName.toLowerCase().includes("free") ? "Upgrade plan" : "Renew plan"}
+            <SettingsPillButton
+              onClick={onUpgradeClick}
+              className="min-w-[140px]"
+            >
+              {planName.toLowerCase().includes("free")
+                ? "Upgrade plan"
+                : "Renew plan"}
             </SettingsPillButton>
           ) : (
-            <SettingsPillButton onClick={onUpgradeClick}>Manage plan</SettingsPillButton>
+            <SettingsPillButton onClick={onUpgradeClick}>
+              Manage plan
+            </SettingsPillButton>
           )}
         </div>
       </section>
@@ -181,7 +195,9 @@ export function BillingSettings({
       </section>
 
       <section className="border-b border-zinc-200 pb-6">
-        <SettingsSectionHeading action={<SettingsPillButton>Edit</SettingsPillButton>}>
+        <SettingsSectionHeading
+          action={<SettingsPillButton>Edit</SettingsPillButton>}
+        >
           Billing information
         </SettingsSectionHeading>
         <div className="mt-2">
@@ -191,7 +207,9 @@ export function BillingSettings({
       </section>
 
       <section>
-        <SettingsSectionHeading action={<SettingsPillButton>Add new</SettingsPillButton>}>
+        <SettingsSectionHeading
+          action={<SettingsPillButton>Add new</SettingsPillButton>}
+        >
           Payment methods
         </SettingsSectionHeading>
         <ul className="mt-2">

@@ -12,28 +12,22 @@ interface VoiceCallProps {
 
 function VoiceOrb() {
   return (
-    <div className="relative w-64 h-64 flex items-center justify-center"> {/* 256×256 orb container — centered in main area */}
-      
+    <div className="relative w-64 h-64 flex items-center justify-center">
+      {" "}
+      {/* 256×256 orb container — centered in main area */}
       <div className="absolute inset-0 blur-[48px] saturate-[1.5] opacity-30 z-0 bg-gradient-to-br from-[#DD8164] to-[#C8728F] rounded-full animate-pulse" />
-      
-      
       <div className="relative w-full h-full">
-        
-        <div 
+        <div
           className="absolute inset-0 bg-gradient-to-tr from-[#DD8164]/40 to-[#C8728F]/40 blur-sm animate-liquid-orb opacity-60"
-          style={{ transform: 'rotate(45deg)' }}
+          style={{ transform: "rotate(45deg)" }}
         />
-        
-        
-        <div 
+
+        <div
           className="absolute inset-4 bg-gradient-to-bl from-[#DD8164]/50 to-[#FAF9F5]/80 blur-xs animate-liquid-orb-slow"
-          style={{ transform: 'rotate(-30deg)' }}
+          style={{ transform: "rotate(-30deg)" }}
         />
-        
-        
-        <div 
-          className="absolute inset-8 bg-gradient-to-br from-[#FAF9F5]/90 via-[#C8728F]/30 to-[#FAF9F5]/90 border border-white/20 shadow-inner animate-liquid-orb"
-        />
+
+        <div className="absolute inset-8 bg-gradient-to-br from-[#FAF9F5]/90 via-[#C8728F]/30 to-[#FAF9F5]/90 border border-white/20 shadow-inner animate-liquid-orb" />
       </div>
     </div>
   );
@@ -59,12 +53,10 @@ export function VoiceCall({ isOpen, onClose }: VoiceCallProps) {
   if (!isOpen || !mounted || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-zinc-50 font-sans animate-in fade-in duration-500"> 
+    <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-zinc-50 font-sans animate-in fade-in duration-500">
       {/* Header — fixed top bar, backdrop-blur, back + control buttons */}
       <header className="fixed top-0 left-0 right-0 h-[50px] w-full bg-zinc-50/90 backdrop-blur-md z-[210]">
         <div className="max-w-[1280px] mx-auto h-full px-5 flex items-center justify-between relative">
-          
-          
           <div className="flex items-center">
             <button
               type="button"
@@ -76,7 +68,6 @@ export function VoiceCall({ isOpen, onClose }: VoiceCallProps) {
             </button>
           </div>
 
-          
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -85,7 +76,7 @@ export function VoiceCall({ isOpen, onClose }: VoiceCallProps) {
             >
               <Blocks className="w-[18px] h-[18px] text-zinc-800" />
             </button>
-            <button 
+            <button
               onClick={() => setSettingsOpen(true)}
               className="w-9 h-9 flex flex-col items-center justify-center rounded-[10px] border border-zinc-200 bg-white/50 hover:bg-zinc-100 transition-all duration-75"
               aria-label="Settings"
@@ -99,13 +90,10 @@ export function VoiceCall({ isOpen, onClose }: VoiceCallProps) {
       {/* Main Body — centered VoiceOrb + Start call CTA + integration secondary action */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 relative bg-zinc-50">
         <div className="w-full max-w-[768px] flex flex-col items-center animate-in fade-in zoom-in-95 duration-700">
-          
           <div className="w-full flex flex-col items-center gap-12">
-            
             <div className="relative flex items-center justify-center">
               <VoiceOrb />
 
-              
               <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                 <button
                   type="button"
@@ -114,7 +102,9 @@ export function VoiceCall({ isOpen, onClose }: VoiceCallProps) {
                   <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#0F0F10] text-white ml-[6px] transition-all duration-300 group-hover:scale-105">
                     <AudioWaveform className="w-4 h-4" />
                   </span>
-                  <span className="text-[14px] font-medium text-[#0F0F10] flex-1 text-center pr-3">Start a call</span>
+                  <span className="text-[14px] font-medium text-[#0F0F10] flex-1 text-center pr-3">
+                    Start a call
+                  </span>
                 </button>
               </div>
             </div>
@@ -124,7 +114,9 @@ export function VoiceCall({ isOpen, onClose }: VoiceCallProps) {
               <div className="w-6 h-6 flex items-center justify-center">
                 <Blocks className="w-4 h-4 opacity-70 group-hover:opacity-100" />
               </div>
-              <span className="text-[14px] font-medium">Add your first integration</span>
+              <span className="text-[14px] font-medium">
+                Add your first integration
+              </span>
             </button>
           </div>
         </div>
@@ -141,8 +133,10 @@ export function VoiceCall({ isOpen, onClose }: VoiceCallProps) {
         </div>
       </main>
 
-      
-      <VoiceSettingsSidebar open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <VoiceSettingsSidebar
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+      />
     </div>,
     document.body,
   );

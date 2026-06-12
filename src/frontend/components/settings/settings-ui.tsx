@@ -1,7 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown, ChevronRight, Info, MoreHorizontal, Play, UserPlus } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Info,
+  MoreHorizontal,
+  Play,
+  UserPlus,
+} from "lucide-react";
 
 import { cn } from "@/frontend/lib/utils";
 import { Switch } from "@/frontend/components/ui/switch";
@@ -12,7 +20,11 @@ import {
   DropdownMenuTrigger,
 } from "@/frontend/components/ui/dropdown-menu";
 
-export function SettingsPanelTitle({ children }: { children: React.ReactNode }) {
+export function SettingsPanelTitle({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <h2 className="border-b border-zinc-200 pb-3 text-[18px] font-medium leading-7 text-zinc-900">
       {children}
@@ -31,7 +43,9 @@ export function SettingsPanelHeaderWithHelp({
 }) {
   return (
     <div className="grid grid-cols-1 items-start gap-2 border-b border-zinc-200 pb-3 sm:grid-cols-[1fr_auto] sm:gap-4">
-      <h2 className="text-[18px] font-medium leading-7 text-zinc-900">{title}</h2>
+      <h2 className="text-[18px] font-medium leading-7 text-zinc-900">
+        {title}
+      </h2>
       <a
         href={helpHref}
         className="mt-0.5 inline-flex items-center gap-1 text-zinc-400 transition-colors hover:text-zinc-900"
@@ -62,7 +76,9 @@ export function SettingsValueRow({
       )}
     >
       <span className="text-[14px] font-[430] text-zinc-900">{label}</span>
-      <span className="max-w-[65%] truncate text-right text-[14px] text-zinc-600">{value}</span>
+      <span className="max-w-[65%] truncate text-right text-[14px] text-zinc-600">
+        {value}
+      </span>
     </div>
   );
 }
@@ -100,7 +116,9 @@ export function SettingsSectionHeading({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-zinc-200 pb-3 pt-1">
-      <h3 className="text-[18px] font-medium leading-7 text-zinc-900">{children}</h3>
+      <h3 className="text-[18px] font-medium leading-7 text-zinc-900">
+        {children}
+      </h3>
       {action}
     </div>
   );
@@ -192,19 +210,23 @@ export function SettingsOptionPicker({
   "aria-label"?: string;
 }) {
   const items = normalizeSettingsOptions(options);
-  const selected =
-    items.find((item) => item.value === value) ?? items[0] ?? { value, label: value };
+  const selected = items.find((item) => item.value === value) ??
+    items[0] ?? { value, label: value };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label={ariaLabel ?? `Selected: ${selected.label ?? selected.value}`}
+          aria-label={
+            ariaLabel ?? `Selected: ${selected.label ?? selected.value}`
+          }
           className={cn(settingsOptionTriggerClass, className)}
         >
           {leading ?? selected.leading}
-          <span className="max-w-[10rem] truncate">{selected.label ?? selected.value}</span>
+          <span className="max-w-[10rem] truncate">
+            {selected.label ?? selected.value}
+          </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
         </button>
       </DropdownMenuTrigger>
@@ -224,7 +246,10 @@ export function SettingsOptionPicker({
               {item.leading}
               <span className="flex-1">{item.label ?? item.value}</span>
               {isSelected ? (
-                <Check className="h-4 w-4 shrink-0 text-[#1b67b2]" aria-hidden />
+                <Check
+                  className="h-4 w-4 shrink-0 text-[#1b67b2]"
+                  aria-hidden
+                />
               ) : (
                 <span className="h-4 w-4 shrink-0" aria-hidden />
               )}
@@ -306,7 +331,11 @@ export function SettingsToggleRow({
   borderless?: boolean;
 }) {
   return (
-    <SettingsRow label={label} description={description} borderless={borderless}>
+    <SettingsRow
+      label={label}
+      description={description}
+      borderless={borderless}
+    >
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </SettingsRow>
   );
@@ -480,7 +509,10 @@ export function SettingsManageRow({
       )}
     >
       <span className="text-[14px] font-[430] text-zinc-900">{label}</span>
-      <SettingsPillButton onClick={onManage} className="h-9 min-h-9 px-4 text-[14px]">
+      <SettingsPillButton
+        onClick={onManage}
+        className="h-9 min-h-9 px-4 text-[14px]"
+      >
         Manage
       </SettingsPillButton>
     </div>
@@ -547,12 +579,18 @@ export function SettingsFieldBlock({
   return (
     <div className="border-b border-zinc-200 py-3 last:border-b-0">
       <p className="text-[14px] text-zinc-900">{label}</p>
-      <p className="mt-1 whitespace-pre-line text-[14px] text-zinc-400">{value || "—"}</p>
+      <p className="mt-1 whitespace-pre-line text-[14px] text-zinc-400">
+        {value || "—"}
+      </p>
     </div>
   );
 }
 
-export function SettingsIconMenuButton({ "aria-label": ariaLabel }: { "aria-label": string }) {
+export function SettingsIconMenuButton({
+  "aria-label": ariaLabel,
+}: {
+  "aria-label": string;
+}) {
   return (
     <button
       type="button"

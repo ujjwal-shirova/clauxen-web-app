@@ -216,7 +216,7 @@ export function LibraryView() {
     } else if (action === "upload") {
       const name = window.prompt(
         "Simulate upload — enter filename",
-        "uploaded-file.pdf"
+        "uploaded-file.pdf",
       );
       if (!name?.trim()) return;
       const isImg = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(name);
@@ -230,7 +230,10 @@ export function LibraryView() {
         sizeBytes: 262144,
       };
       setItems((p) => [newItem, ...p]);
-      toast({ title: "Uploaded", description: "File added to library (demo)." });
+      toast({
+        title: "Uploaded",
+        description: "File added to library (demo).",
+      });
     } else if (action === "folder") {
       const name = window.prompt("Folder name", "New folder");
       if (!name?.trim()) return;
@@ -259,7 +262,7 @@ export function LibraryView() {
     const newName = window.prompt("Rename item", item.name);
     if (!newName || newName === item.name) return;
     setItems((prev) =>
-      prev.map((i) => (i.id === item.id ? { ...i, name: newName.trim() } : i))
+      prev.map((i) => (i.id === item.id ? { ...i, name: newName.trim() } : i)),
     );
   };
 
@@ -274,13 +277,13 @@ export function LibraryView() {
     <div className="flex flex-col flex-1 w-full bg-white font-sans h-full overflow-hidden animate-in fade-in duration-300">
       {/* Top header: title + search + New */}
       <div className="w-full border-b border-zinc-100">
-        <div className="max-w-[800px] mx-auto w-full px-4 sm:px-6 pt-8 pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-3">
-            <h1 className="text-[26px] sm:text-[28px] leading-[34px] font-serif font-medium text-zinc-800 tracking-[-0.2px] flex-1">
+        <div className="mobile-page-inset mx-auto w-full max-w-[800px] pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-4 sm:pt-6 lg:pt-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-3">
+            <h1 className="flex-1 font-serif text-[24px] font-medium leading-[1.25] tracking-[-0.2px] text-zinc-800 sm:text-[28px] sm:leading-[34px]">
               Library
             </h1>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-3">
               {/* Search */}
               <div className="relative flex-1 sm:w-[240px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
@@ -338,8 +341,8 @@ export function LibraryView() {
 
       {/* Sticky filter bar */}
       <div className="sticky top-0 z-30 bg-white border-b border-zinc-100">
-        <div className="max-w-[800px] mx-auto w-full px-4 sm:px-6">
-          <div className="flex items-center justify-between min-h-[52px] py-1.5 gap-3 flex-wrap">
+        <div className="mobile-page-inset mx-auto w-full max-w-[800px] sm:px-6">
+          <div className="flex min-h-[48px] flex-wrap items-center justify-between gap-2 py-1.5 sm:min-h-[52px] sm:gap-3">
             {/* Tabs */}
             <div className="flex items-center gap-1">
               {(
@@ -362,7 +365,7 @@ export function LibraryView() {
                       "h-8 px-4 rounded-full text-[13.5px] font-medium transition-all active:scale-[0.985]",
                       isActive
                         ? "bg-zinc-100 text-zinc-900 shadow-sm border border-zinc-200"
-                        : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50"
+                        : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50",
                     )}
                   >
                     {t.label}
@@ -375,9 +378,7 @@ export function LibraryView() {
               {/* Selection summary / bulk actions */}
               {selected.size > 0 && (
                 <div className="flex items-center gap-2 text-[12.5px] text-zinc-500 pr-1">
-                  <span>
-                    {selected.size} selected
-                  </span>
+                  <span>{selected.size} selected</span>
                   <button
                     onClick={deleteSelected}
                     className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-red-600 hover:bg-red-50 active:bg-red-100 transition"
@@ -416,10 +417,16 @@ export function LibraryView() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44 rounded-xl">
-                  <DropdownMenuItem disabled className="text-[12.5px] opacity-60">
+                  <DropdownMenuItem
+                    disabled
+                    className="text-[12.5px] opacity-60"
+                  >
                     Date range (soon)
                   </DropdownMenuItem>
-                  <DropdownMenuItem disabled className="text-[12.5px] opacity-60">
+                  <DropdownMenuItem
+                    disabled
+                    className="text-[12.5px] opacity-60"
+                  >
                     Size filter (soon)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -430,8 +437,8 @@ export function LibraryView() {
       </div>
 
       {/* List area */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
-        <div className="max-w-[800px] mx-auto w-full px-4 sm:px-6 pb-20 pt-1">
+      <div className="app-scrollbar flex-1 overflow-y-auto">
+        <div className="mobile-page-inset mx-auto w-full max-w-[800px] pb-20 pt-1 sm:px-6">
           {/* Column headers */}
           <div
             className="grid items-center text-[12.5px] text-zinc-500 select-none border-b border-zinc-100"
@@ -515,10 +522,11 @@ export function LibraryView() {
                     }}
                     className={cn(
                       "group grid items-center gap-2 py-[13px] text-[14px] text-zinc-700 cursor-pointer hover:bg-zinc-50 rounded-md -mx-1 px-1 transition-colors",
-                      isSelected && "bg-zinc-100"
+                      isSelected && "bg-zinc-100",
                     )}
                     style={{
-                      gridTemplateColumns: "28px minmax(0, 1fr) 148px 78px 52px",
+                      gridTemplateColumns:
+                        "28px minmax(0, 1fr) 148px 78px 52px",
                     }}
                   >
                     {/* Checkbox */}
@@ -569,7 +577,10 @@ export function LibraryView() {
                             <MoreHorizontal className="h-4 w-4" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40 rounded-xl">
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-40 rounded-xl"
+                        >
                           <DropdownMenuItem
                             onClick={() => openItem(item)}
                             className="flex items-center gap-2 text-[13px]"

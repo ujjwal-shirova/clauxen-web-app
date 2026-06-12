@@ -69,7 +69,8 @@ export function GeneralSettings({
   setVoiceIsolation,
   setDictationEnabled,
 }: GeneralSettingsProps) {
-  const selectedAccent = accentColors.find((c) => c.name === accentColor) ?? accentColors[0];
+  const selectedAccent =
+    accentColors.find((c) => c.name === accentColor) ?? accentColors[0];
 
   return (
     <div className="flex animate-in fade-in flex-col gap-6 duration-300 text-zinc-900">
@@ -159,16 +160,22 @@ export function GeneralSettings({
       </div>
 
       <section className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
-        <h3 className="text-[14px] font-semibold text-zinc-700">Display preferences</h3>
+        <h3 className="text-[14px] font-semibold text-zinc-700">
+          Display preferences
+        </h3>
         <p className="text-[12px] leading-4 text-zinc-400">
-          Additional Clauxen display options not shown in the compact General list.
+          Additional Clauxen display options not shown in the compact General
+          list.
         </p>
 
         <div className="flex flex-col gap-4">
           <p className="text-[14px] font-[430] text-zinc-700">Color mode</p>
           <div className="flex gap-4">
             {["Light", "Auto", "Dark"].map((mode) => (
-              <div key={mode} className="flex flex-1 flex-col items-center gap-2">
+              <div
+                key={mode}
+                className="flex flex-1 flex-col items-center gap-2"
+              >
                 <button
                   type="button"
                   onClick={() => setColorMode(mode)}
@@ -199,13 +206,17 @@ export function GeneralSettings({
           <p className="text-[14px] font-[430] text-zinc-700">Chat font</p>
           <div className="flex gap-4">
             {fontThemes.map((theme) => (
-              <div key={theme.name} className="flex flex-1 flex-col items-center gap-2">
+              <div
+                key={theme.name}
+                className="flex flex-1 flex-col items-center gap-2"
+              >
                 <button
                   type="button"
                   onClick={() => setChatFont(theme.name)}
                   className={cn(
                     "flex aspect-[4/3] w-full items-center justify-center rounded-xl border border-zinc-200 bg-white shadow-sm transition-all hover:scale-[1.02]",
-                    chatFont === theme.name && "border-[#1b67b2] ring-1 ring-[#1b67b2]",
+                    chatFont === theme.name &&
+                      "border-[#1b67b2] ring-1 ring-[#1b67b2]",
                   )}
                 >
                   <span

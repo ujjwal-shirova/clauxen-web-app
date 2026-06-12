@@ -33,8 +33,8 @@ export function DataControlsSettings() {
           label="Location"
           description={
             <>
-              Allow Clauxen to use your device&apos;s precise location when providing
-              information.{" "}
+              Allow Clauxen to use your device&apos;s precise location when
+              providing information.{" "}
               <a href="#" className="underline decoration-[#8f8f8f]/60">
                 Learn more
               </a>
@@ -61,17 +61,23 @@ export function DataControlsSettings() {
       <SettingsManageRow label="Archived chats" />
 
       <div className="flex min-h-[60px] items-center justify-between gap-4 border-b border-[#0d0d0d]/5 py-3">
-        <span className="text-[14px] font-[430] text-zinc-900">Archive all chats</span>
+        <span className="text-[14px] font-[430] text-zinc-900">
+          Archive all chats
+        </span>
         <SettingsPillButton>Archive all</SettingsPillButton>
       </div>
 
       <div className="flex min-h-[60px] items-center justify-between gap-4 border-b border-[#0d0d0d]/5 py-3">
-        <span className="text-[14px] font-[430] text-zinc-900">Delete all chats</span>
+        <span className="text-[14px] font-[430] text-zinc-900">
+          Delete all chats
+        </span>
         <SettingsPillButton variant="danger">Delete all</SettingsPillButton>
       </div>
 
       <div className="flex min-h-[60px] items-center justify-between gap-4 border-b border-[#0d0d0d]/5 py-3">
-        <span className="text-[14px] font-[430] text-zinc-900">Export data</span>
+        <span className="text-[14px] font-[430] text-zinc-900">
+          Export data
+        </span>
         <SettingsPillButton>Export</SettingsPillButton>
       </div>
 

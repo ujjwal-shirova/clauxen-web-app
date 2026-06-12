@@ -47,11 +47,7 @@ export function ProjectCardSkeleton({
   );
 }
 
-export function ProjectCardSkeletonGrid({
-  count = 6,
-}: {
-  count?: number;
-}) {
+export function ProjectCardSkeletonGrid({ count = 6 }: { count?: number }) {
   return (
     <ul className="grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
       {Array.from({ length: count }, (_, i) => (

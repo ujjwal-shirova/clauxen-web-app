@@ -27,8 +27,7 @@
       background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
       border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
       color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-      box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-      transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .app-btn:disabled,
@@ -36,10 +35,6 @@
     opacity: 0.5;
     cursor: not-allowed;
     pointer-events: none;
-  }
-
-  .app-btn:active:not(:disabled) {
-    transform: scale(0.98);
   }
 
   /* ── Primary (dark solid) — hover must NOT wash out white label ── */

@@ -32,7 +32,11 @@ export function mapPgError(error: unknown): AppError {
     return conflict("Resource already exists.");
   }
   if (pg.code === "23503") {
-    return new AppError("Referenced resource not found.", 400, "invalid_reference");
+    return new AppError(
+      "Referenced resource not found.",
+      400,
+      "invalid_reference",
+    );
   }
   return new AppError(pg.message || "Database error.", 500, "database_error");
 }

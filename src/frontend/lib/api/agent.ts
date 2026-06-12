@@ -175,7 +175,9 @@ export async function streamAgentChat(
             path: String(data.path ?? ""),
             content: String(data.content ?? ""),
             language: data.language ? String(data.language) : undefined,
-            description: data.description ? String(data.description) : undefined,
+            description: data.description
+              ? String(data.description)
+              : undefined,
           });
           break;
         case "file_updated":

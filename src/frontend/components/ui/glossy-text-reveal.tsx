@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
+import { motion } from "framer-motion";
 
 interface GlossyTextRevealProps {
   text: string;
@@ -19,8 +19,8 @@ export function GlossyTextReveal({ text, className }: GlossyTextRevealProps) {
         return (
           <motion.span
             key={`word-${index}`} // React list key — index-based unique id
-            initial={{ opacity: 0, y: 4, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} // animate state: fully visible, sharp, original position
+            initial={{ opacity: 0, y: 4, filter: "blur(10px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} // animate state: fully visible, sharp, original position
             transition={{
               duration: 0.34,
               ease: [0.2, 0.65, 0.2, 1], // custom cubic-bezier easing curve

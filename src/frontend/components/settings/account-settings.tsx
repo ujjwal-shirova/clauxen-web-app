@@ -7,7 +7,7 @@ import {
   SettingsSectionHeading,
   SettingsValueRow,
 } from "@/frontend/components/settings/settings-ui";
-import type { Workspace, WorkspaceMember } from '@/frontend/lib/api/workspaces';
+import type { Workspace, WorkspaceMember } from "@/frontend/lib/api/workspaces";
 
 interface AccountSettingsProps {
   copied?: boolean;
@@ -61,11 +61,17 @@ export function AccountSettings({
           )}
           {!workspaceLoading && workspace && (
             <div className="mt-2 flex flex-col gap-3">
-              <SettingsValueRow label="Workspace name" value={workspace.name} borderless />
+              <SettingsValueRow
+                label="Workspace name"
+                value={workspace.name}
+                borderless
+              />
               <div className="flex min-h-[52px] items-center justify-between gap-4 py-2">
                 <span className="text-[14px] font-[430]">Workspace ID</span>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[13px] text-zinc-600">{workspace.id}</span>
+                  <span className="font-mono text-[13px] text-zinc-600">
+                    {workspace.id}
+                  </span>
                   {onCopyOrgId && userId && (
                     <button
                       type="button"
@@ -88,7 +94,9 @@ export function AccountSettings({
                       <span className="truncate">
                         {member.display_name || member.email || member.user_id}
                       </span>
-                      <span className="shrink-0 capitalize text-zinc-400">{member.role}</span>
+                      <span className="shrink-0 capitalize text-zinc-400">
+                        {member.role}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -96,7 +104,9 @@ export function AccountSettings({
             </div>
           )}
           {!workspaceLoading && !workspace && (
-            <p className="mt-2 text-[14px] text-zinc-400">No workspace linked to this account.</p>
+            <p className="mt-2 text-[14px] text-zinc-400">
+              No workspace linked to this account.
+            </p>
           )}
         </section>
       )}

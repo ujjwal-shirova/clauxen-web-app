@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Code2,
   EllipsisVertical,
@@ -30,8 +30,76 @@ function titleFromSelection(path: string | null) {
     .replaceAll("-", " ");
 }
 
-function SkillDetailPanel({ selectedPath }: { selectedPath: string | null }) {
-  const [enabled, setEnabled] = useState(true);
+function SkillDetailHeaderActions({
+  title,
+  enabled,
+  onEnabledChange,
+}: {
+  title: string;
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label={enabled ? "Disable skill" : "Enable skill"}
+        onClick={() => onEnabledChange(!enabled)}
+        className={cn(
+          "flex h-[22px] w-10 shrink-0 rounded-full p-[2px] transition-colors duration-200",
+          enabled ? "bg-[#2a78d6]" : "bg-[#d1d0cc]",
+        )}
+      >
+        <span
+          className={cn(
+            "h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform duration-200",
+            enabled && "translate-x-[18px]",
+          )}
+        />
+      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={`More options for ${title}`}
+            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-zinc-100 data-[state=open]:bg-black/5"
+          >
+            <EllipsisVertical className="h-5 w-5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          sideOffset={6}
+          className="z-[60] min-w-[132px] rounded-xl border border-zinc-200 bg-white p-1.5 text-zinc-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] backdrop-blur-2xl"
+        >
+          <DropdownMenuItem className="flex min-h-8 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[14px] font-[430] leading-[19.6px] focus:bg-black/5">
+            <MessageCircle className="h-5 w-5" />
+            <span>Try in chat</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="mx-2 my-1.5 h-px bg-zinc-900/15" />
+          <DropdownMenuItem className="flex min-h-8 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[14px] font-[430] leading-[19.6px] text-[#8d2525] focus:bg-[#8d2525]/5 focus:text-[#8d2525]">
+            <Trash2 className="h-5 w-5" />
+            <span>Uninstall</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+}
+
+function SkillDetailPanel({
+  selectedPath,
+  hideHeader = false,
+  enabled,
+  onEnabledChange,
+}: {
+  selectedPath: string | null;
+  hideHeader?: boolean;
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+}) {
   const [mode, setMode] = useState<"preview" | "code">("preview");
   const title = titleFromSelection(selectedPath);
   const heading = title.replace(/\b\w/g, (character) =>
@@ -40,60 +108,33 @@ function SkillDetailPanel({ selectedPath }: { selectedPath: string | null }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-zinc-50">
-      <section className="mx-auto flex h-full min-h-0 w-full max-w-[940px] flex-col px-5 pb-5 pt-2 text-zinc-900 sm:px-8">
-        <header className="flex min-h-12 shrink-0 items-start justify-between border-b border-zinc-200 pb-2 pt-3">
-          <h2 className="min-w-0 truncate text-[18px] font-semibold leading-6">
-            {title}
-          </h2>
-          <div className="ml-4 flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={enabled}
-              aria-label={enabled ? "Disable skill" : "Enable skill"}
-              onClick={() => setEnabled((value) => !value)}
-              className={cn(
-                "flex h-[22px] w-10 shrink-0 rounded-full p-[2px] transition-colors duration-200",
-                enabled ? "bg-[#2a78d6]" : "bg-[#d1d0cc]",
-              )}
-            >
-              <span
-                className={cn(
-                  "h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform duration-200",
-                  enabled && "translate-x-[18px]",
-                )}
+      <section
+        className={cn(
+          "mx-auto flex h-full min-h-0 w-full max-w-[940px] flex-col px-5 pb-5 text-zinc-900 sm:px-8",
+          hideHeader ? "pt-0" : "pt-2",
+        )}
+      >
+        {!hideHeader ? (
+          <header className="flex min-h-12 shrink-0 items-start justify-between border-b border-zinc-200 pb-2 pt-3">
+            <h2 className="min-w-0 truncate text-[18px] font-semibold leading-6">
+              {title}
+            </h2>
+            <div className="ml-4 flex shrink-0 items-center gap-2">
+              <SkillDetailHeaderActions
+                title={title}
+                enabled={enabled}
+                onEnabledChange={onEnabledChange}
               />
-            </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={`More options for ${title}`}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-zinc-100 data-[state=open]:bg-black/5"
-                >
-                  <EllipsisVertical className="h-5 w-5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                sideOffset={6}
-                className="z-[60] min-w-[132px] rounded-xl border border-zinc-200 bg-white p-1.5 text-zinc-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] backdrop-blur-2xl"
-              >
-                <DropdownMenuItem className="flex min-h-8 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[14px] font-[430] leading-[19.6px] focus:bg-black/5">
-                  <MessageCircle className="h-5 w-5" />
-                  <span>Try in chat</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="mx-2 my-1.5 h-px bg-zinc-900/15" />
-                <DropdownMenuItem className="flex min-h-8 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[14px] font-[430] leading-[19.6px] text-[#8d2525] focus:bg-[#8d2525]/5 focus:text-[#8d2525]">
-                  <Trash2 className="h-5 w-5" />
-                  <span>Uninstall</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
+            </div>
+          </header>
+        ) : null}
 
-        <dl className="flex shrink-0 flex-col gap-3.5 py-4 text-[13px] sm:flex-row sm:flex-wrap sm:gap-x-12">
+        <dl
+          className={cn(
+            "flex shrink-0 flex-col gap-3.5 text-[13px] sm:flex-row sm:flex-wrap sm:gap-x-12",
+            hideHeader ? "pt-3 pb-4" : "py-4",
+          )}
+        >
           <div>
             <dt className="mb-1 text-[#7c7b77]">Added by</dt>
             <dd className="text-[14px] text-zinc-900">Shirova</dd>
@@ -117,8 +158,20 @@ function SkillDetailPanel({ selectedPath }: { selectedPath: string | null }) {
           </div>
         </dl>
 
-        <div className="flex min-h-0 flex-1 flex-col border-t border-zinc-200 pt-4">
-          <article className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col pt-4",
+            hideHeader
+              ? "min-h-[min(480px,62vh)] border-t-0"
+              : "border-t border-zinc-200",
+          )}
+        >
+          <article
+            className={cn(
+              "relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-zinc-200 bg-white",
+              hideHeader && "min-h-[min(440px,58vh)]",
+            )}
+          >
             <div className="absolute right-4 top-4 z-10 flex rounded-lg bg-[#f1f0ee] p-1">
               <button
                 type="button"
@@ -184,12 +237,17 @@ function SkillDetailPanel({ selectedPath }: { selectedPath: string | null }) {
   );
 }
 
-export function SkillsView() {
+interface SkillsViewProps {
+  onMobileDetailChange?: (inDetail: boolean) => void;
+}
+
+export function SkillsView({ onMobileDetailChange }: SkillsViewProps) {
   const isMobile = useIsMobile();
   const [selectedSkill, setSelectedSkill] = useState<string | null>(
     "skill-creator",
   );
   const [mobilePane, setMobilePane] = useState<"list" | "detail">("list");
+  const [skillEnabled, setSkillEnabled] = useState(true);
 
   const handleSelectSkill = useCallback(
     (path: string) => {
@@ -205,6 +263,10 @@ export function SkillsView() {
   );
   const showList = !isMobile || mobilePane === "list";
   const showDetail = !isMobile || mobilePane === "detail";
+
+  useEffect(() => {
+    onMobileDetailChange?.(isMobile && mobilePane === "detail");
+  }, [isMobile, mobilePane, onMobileDetailChange]);
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
@@ -233,9 +295,21 @@ export function SkillsView() {
           <CustomizeMobileHeader
             title={detailTitle}
             onBack={() => setMobilePane("list")}
+            trailing={
+              <SkillDetailHeaderActions
+                title={detailTitle}
+                enabled={skillEnabled}
+                onEnabledChange={setSkillEnabled}
+              />
+            }
           />
         )}
-        <SkillDetailPanel selectedPath={selectedSkill} />
+        <SkillDetailPanel
+          selectedPath={selectedSkill}
+          hideHeader={isMobile && showDetail}
+          enabled={skillEnabled}
+          onEnabledChange={setSkillEnabled}
+        />
       </main>
     </div>
   );

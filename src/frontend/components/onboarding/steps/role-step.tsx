@@ -4,10 +4,7 @@ import { useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { OnboardingState } from "../onboarding-types";
 import { OnboardingShell } from "../onboarding-shell";
-import {
-  OnboardingGhostButton,
-  OnboardingHeading,
-} from "../onboarding-ui";
+import { OnboardingGhostButton, OnboardingHeading } from "../onboarding-ui";
 import { RoleSelectionDropdown } from "../role-selection-dropdown";
 import { cn } from "@/frontend/lib/utils";
 
@@ -47,7 +44,9 @@ export function RoleStep({
             <button
               ref={triggerRef}
               type="button"
-              onClick={() => (dropdownOpen ? setDropdownOpen(false) : openDropdown())}
+              onClick={() =>
+                dropdownOpen ? setDropdownOpen(false) : openDropdown()
+              }
               className={cn(
                 "flex h-16 w-full items-center rounded-2xl border border-zinc-200 bg-white px-6 text-left text-lg transition-colors",
                 "hover:border-[#1f1f1e]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2977d6]/30",

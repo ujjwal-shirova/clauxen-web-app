@@ -1,0 +1,12 @@
+[
+  {
+    "table": "public.workspace_domains",
+    "column_type_map": [
+      {
+        "column": "domain",
+        "source_type": "citext",
+        "crdb_type": "STRING"
+      }
+    ]
+  }
+]

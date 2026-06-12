@@ -1,17 +1,20 @@
 "use client";
 
+import type React from "react";
 import { ArrowLeft } from "lucide-react"; // Lucide ArrowLeft — back affordance icon
 import { cn } from "@/frontend/lib/utils";
 
 interface CustomizeMobileHeaderProps {
   title: string;
   onBack: () => void;
+  trailing?: React.ReactNode;
   className?: string;
 }
 
 export function CustomizeMobileHeader({
   title,
   onBack,
+  trailing,
   className,
 }: CustomizeMobileHeaderProps) {
   return (
@@ -29,9 +32,12 @@ export function CustomizeMobileHeader({
       >
         <ArrowLeft className="h-5 w-5" />
       </button>
-      <h2 className="min-w-0 truncate text-[15px] font-semibold text-zinc-900">
-        {title} 
+      <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-zinc-900">
+        {title}
       </h2>
+      {trailing ? (
+        <div className="flex shrink-0 items-center gap-2">{trailing}</div>
+      ) : null}
     </div>
   );
 }

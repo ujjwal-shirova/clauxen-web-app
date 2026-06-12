@@ -39,7 +39,8 @@ export function DeleteChatDialog({
 
           <div className="flex-1 overflow-auto px-4 pb-4 pt-1 text-[16px] leading-6 text-zinc-900">
             <p>
-              This will delete <strong className="font-bold">{displayTitle}</strong>.
+              This will delete{" "}
+              <strong className="font-bold">{displayTitle}</strong>.
             </p>
             <p className="mt-2 text-[14px] leading-5 text-[#8f8f8f]">
               Visit{" "}

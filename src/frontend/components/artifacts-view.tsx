@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from "react";
@@ -88,7 +87,9 @@ const inspirations = [
 
 export function ArtifactsView() {
   const auth = useAuth();
-  const { artifacts, loading, createArtifact } = useArtifacts(auth.isAuthenticated);
+  const { artifacts, loading, createArtifact } = useArtifacts(
+    auth.isAuthenticated,
+  );
   const [activeTab, setActiveTab] = React.useState<"inspiration" | "yours">( // tab state — inspiration gallery vs owned artifacts
     "inspiration",
   );
@@ -96,8 +97,7 @@ export function ArtifactsView() {
   const [creating, setCreating] = React.useState(false); // mutation in-flight — New button disable + spinner
 
   const filteredInspirations = inspirations.filter(
-    (item) =>
-      activeCategory === "All" || item.category === activeCategory,
+    (item) => activeCategory === "All" || item.category === activeCategory,
   );
 
   const handleNewArtifact = async () => {
@@ -117,18 +117,26 @@ export function ArtifactsView() {
     await createArtifact(title, "template");
   };
 
-  return ( // full-page layout — sticky header + scrollable main grid
-    <div className="flex flex-col flex-1 w-full bg-zinc-50 animate-in fade-in duration-500 font-sans h-full"> {/* root flex column — warm background + page fade-in */}
-      <div className="sticky top-0 z-20 bg-zinc-50"> 
-        <header className="flex items-center justify-center h-16 sm:h-20 w-full shrink-0 px-3 sm:px-5 max-w-[780px] mx-auto"> {/* top bar — responsive height */}
-          <div className="flex items-center justify-between w-full px-2 sm:px-6"> 
+  return (
+    // full-page layout — sticky header + scrollable main grid
+    <div className="flex flex-col flex-1 w-full bg-zinc-50 animate-in fade-in duration-500 font-sans h-full">
+      {" "}
+      {/* root flex column — warm background + page fade-in */}
+      <div className="sticky top-0 z-20 bg-zinc-50">
+        <header className="flex items-center justify-center h-16 sm:h-20 w-full shrink-0 px-3 sm:px-5 max-w-[780px] mx-auto">
+          {" "}
+          {/* top bar — responsive height */}
+          <div className="flex items-center justify-between w-full px-2 sm:px-6">
             <h1 className="text-[21px] sm:text-[22px] font-serif font-medium text-zinc-800">
               Artifacts
             </h1>
             <Button
               onClick={() => void handleNewArtifact()} // async handler — void floating promise lint suppress
               disabled={creating || !auth.isAuthenticated}
-              className={cn(appBtn.primarySm, "gap-1.5 px-3 sm:px-3.5 text-[13px]")}
+              className={cn(
+                appBtn.primarySm,
+                "gap-1.5 px-3 sm:px-3.5 text-[13px]",
+              )}
             >
               {creating ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -140,8 +148,12 @@ export function ArtifactsView() {
           </div>
         </header>
 
-        <div className="max-w-[780px] mx-auto px-4 sm:px-10 mb-4 sm:mb-5"> {/* tab switcher container */}
-          <div className="flex gap-1 border-b border-zinc-200 w-full"> {/* underline-style tab bar */}
+        <div className="max-w-[780px] mx-auto px-4 sm:px-10 mb-4 sm:mb-5">
+          {" "}
+          {/* tab switcher container */}
+          <div className="flex gap-1 border-b border-zinc-200 w-full">
+            {" "}
+            {/* underline-style tab bar */}
             <button
               onClick={() => setActiveTab("inspiration")} // Inspiration gallery tab activate
               className={cn(
@@ -174,7 +186,7 @@ export function ArtifactsView() {
         </div>
 
         {activeTab === "inspiration" && (
-          <div className="max-w-[780px] mx-auto px-4 sm:px-10 overflow-x-auto scrollbar-hide pb-3"> 
+          <div className="app-scrollbar mx-auto max-w-[780px] overflow-x-auto px-4 pb-3 sm:px-10">
             <div className="flex gap-2">
               {categories.map((cat) => (
                 <button
@@ -194,10 +206,11 @@ export function ArtifactsView() {
           </div>
         )}
       </div>
-
-      <main className="flex-1 w-full max-w-[780px] mx-auto px-4 sm:px-10 pb-16 overflow-y-auto scrollbar-hide"> 
+      <main className="app-scrollbar mx-auto w-full max-w-[780px] flex-1 overflow-y-auto px-4 pb-16 sm:px-10">
         {activeTab === "inspiration" ? ( // Inspiration tab — template card grid
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mt-3"> {/* responsive 1/2/3 column grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mt-3">
+            {" "}
+            {/* responsive 1/2/3 column grid */}
             {filteredInspirations.map((item) => (
               <button
                 key={item.title}
@@ -205,7 +218,9 @@ export function ArtifactsView() {
                 onClick={() => void createArtifact(item.title, "template")}
                 className="flex flex-col gap-2.5 group cursor-pointer text-left"
               >
-                <div className="aspect-[260/164] bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all"> {/* fixed aspect preview frame */}
+                <div className="aspect-[260/164] bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                  {" "}
+                  {/* fixed aspect preview frame */}
                   <img
                     src={item.image} // external SVG/PNG preview URL
                     alt={item.title}
@@ -228,7 +243,8 @@ export function ArtifactsView() {
           <p className="text-center text-[14px] text-zinc-500 py-16">
             No artifacts yet. Create one to get started.
           </p>
-        ) : ( // populated user artifacts grid
+        ) : (
+          // populated user artifacts grid
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mt-3">
             {artifacts.map((artifact) => (
               <article
@@ -239,7 +255,8 @@ export function ArtifactsView() {
                   {artifact.title}
                 </h3>
                 <p className="text-[12px] text-zinc-500 capitalize">
-                  {artifact.kind} · {artifact.status} {/* kind (template/custom) + lifecycle status */}
+                  {artifact.kind} · {artifact.status}{" "}
+                  {/* kind (template/custom) + lifecycle status */}
                 </p>
               </article>
             ))}

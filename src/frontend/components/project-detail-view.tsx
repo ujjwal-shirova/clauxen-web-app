@@ -29,6 +29,8 @@ type ProjectDetailViewProps = {
   isGenerating?: boolean;
   thinkingEnabled?: boolean;
   onThinkingEnabledChange?: (enabled: boolean) => void;
+  webSearchEnabled?: boolean;
+  onWebSearchEnabledChange?: (enabled: boolean) => void;
 };
 
 /** Small icon button matching Claude project page (28×28, subtle hover). */
@@ -67,6 +69,8 @@ export function ProjectDetailView({
   isGenerating = false,
   thinkingEnabled = false,
   onThinkingEnabledChange,
+  webSearchEnabled = false,
+  onWebSearchEnabledChange,
 }: ProjectDetailViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
@@ -206,8 +210,8 @@ export function ProjectDetailView({
 
       {/* Sticky top bar — back link */}
       <header className="sticky top-0 z-20 shrink-0 bg-zinc-50">
-        <div className="relative mx-auto w-full max-w-[1280px] px-8 pt-6">
-          <div className="flex items-center pb-4">
+        <div className="mobile-page-inset relative mx-auto w-full max-w-[1280px] pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-4 lg:px-8 lg:pt-6">
+          <div className="flex items-center pb-3 sm:pb-4">
             <button
               type="button"
               onClick={onBack}
@@ -221,14 +225,14 @@ export function ProjectDetailView({
       </header>
 
       {/* 12-column layout: ~7 cols main + ~5 cols sidebar */}
-      <main className="mx-auto w-full max-w-[1280px] flex-1 overflow-y-auto px-8 pb-12 pt-2">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-0">
+      <main className="mobile-page-inset mx-auto w-full max-w-[1280px] flex-1 overflow-y-auto pb-12 pt-1 sm:pt-2 lg:px-8">
+        <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-12 lg:gap-0">
           {/* Left — project title, prompt, empty chats */}
           <div className="flex flex-col gap-5 lg:col-span-7">
             {/* Title row */}
             <div>
               <div className="mb-3 flex items-start gap-3">
-                <h1 className="min-w-0 flex-1 font-serif text-[24px] font-medium leading-[31.2px] text-zinc-700">
+                <h1 className="min-w-0 flex-1 font-serif text-[21px] font-medium leading-[1.3] text-zinc-700 sm:text-[24px] sm:leading-[31.2px]">
                   {project.name}
                 </h1>
                 <div className="ml-auto flex shrink-0 items-center gap-1 pt-0.5">
@@ -263,13 +267,15 @@ export function ProjectDetailView({
                 isGenerating={isGenerating}
                 thinkingEnabled={thinkingEnabled}
                 onThinkingEnabledChange={onThinkingEnabledChange}
+                webSearchEnabled={webSearchEnabled}
+                onWebSearchEnabledChange={onWebSearchEnabledChange}
                 showModelSelector={true}
                 focusKey={`project-${project.id}`}
               />
             </div>
 
             {/* Empty chats placeholder */}
-            <div className="rounded-xl border border-zinc-200 px-8 py-8 text-center">
+            <div className="rounded-xl border border-zinc-200 px-4 py-6 text-center sm:px-6 sm:py-8 lg:px-8">
               <p className="text-balance text-[14px] font-[430] leading-[19.6px] text-zinc-500">
                 Start a chat to keep conversations organized and re-use project
                 knowledge.
@@ -340,9 +346,7 @@ export function ProjectDetailView({
         open={githubDialogOpen}
         onOpenChange={setGithubDialogOpen}
         projectId={project.id}
-        onAddFiles={(added) =>
-          handleFilesAdded(added, "Sync started")
-        }
+        onAddFiles={(added) => handleFilesAdded(added, "Sync started")}
       />
     </div>
   );

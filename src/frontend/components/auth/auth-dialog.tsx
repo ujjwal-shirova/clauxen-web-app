@@ -1,8 +1,8 @@
-
 "use client";
 
 import React, { useState } from "react";
-import { // shadcn/ui Dialog primitives — accessible modal overlay, focus trap, backdrop
+import {
+  // shadcn/ui Dialog primitives — accessible modal overlay, focus trap, backdrop
   Dialog,
   DialogContent,
   DialogHeader,
@@ -45,8 +45,13 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     try {
       if (mode === "login") {
         await login(email, password); // useAuth login — backend session cookie set
-      } else { // new user path — register account create
-        await register({ email, password, displayName: displayName || undefined });
+      } else {
+        // new user path — register account create
+        await register({
+          email,
+          password,
+          displayName: displayName || undefined,
+        });
       }
       onOpenChange(false);
     } catch (err) {
@@ -56,15 +61,24 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     }
   };
 
-  return ( // JSX tree — controlled Dialog + credential form
-    <Dialog open={open} onOpenChange={onOpenChange}> {/* root Dialog — open prop parent-controlled */}
-      <DialogContent className="sm:max-w-md bg-white border-zinc-200"> {/* warm off-white panel — subtle border, sm breakpoint max-width */}
-        <DialogHeader> {/* title section wrapper */}
-          <DialogTitle className="font-serif text-zinc-800"> 
+  return (
+    // JSX tree — controlled Dialog + credential form
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {" "}
+      {/* root Dialog — open prop parent-controlled */}
+      <DialogContent className="sm:max-w-md bg-white border-zinc-200">
+        {" "}
+        {/* warm off-white panel — subtle border, sm breakpoint max-width */}
+        <DialogHeader>
+          {" "}
+          {/* title section wrapper */}
+          <DialogTitle className="font-serif text-zinc-800">
             {mode === "login" ? "Sign in to Clauxen" : "Create your account"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3"> {/* vertical form — onSubmit handleSubmit bind */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {" "}
+          {/* vertical form — onSubmit handleSubmit bind */}
           {mode === "register" && ( // register mode only — display name text input conditional render
             <input
               type="text"
@@ -90,7 +104,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             onChange={(e) => setPassword(e.target.value)} // password field — HTML5 required validation
             className="h-10 rounded-lg border border-zinc-200 px-3 text-sm"
           />
-          {error && <p className="text-sm text-red-600">{error}</p>} 
+          {error && <p className="text-sm text-red-600">{error}</p>}
           {oryEnabled && mode === "login" && (
             <Button
               type="button"
@@ -102,8 +116,17 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               Sign in with Ory
             </Button>
           )}
-          <Button type="submit" disabled={submitting} className={cn(appBtn.primary, "w-full")}>
-            {submitting ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"} {/* loading vs mode-specific label */}
+          <Button
+            type="submit"
+            disabled={submitting}
+            className={cn(appBtn.primary, "w-full")}
+          >
+            {submitting
+              ? "Please wait…"
+              : mode === "login"
+                ? "Sign in"
+                : "Create account"}{" "}
+            {/* loading vs mode-specific label */}
           </Button>
           <button
             type="button"

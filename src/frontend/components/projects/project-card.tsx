@@ -111,7 +111,9 @@ export function ProjectCard({
         <div
           className={cn(
             "absolute right-3 top-3 z-10 transition-opacity duration-150",
-            menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+            menuOpen
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
           )}
         >
           <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>

@@ -8,9 +8,7 @@ export const dynamic = "force-dynamic";
 export const PATCH = withApiRouteParams<{ sandboxId: string }>(
   async ({ request, params }) => {
     const body = (await request.json()) as { timeoutMs: number };
-    return jsonData(
-      await setSandboxTimeout(params.sandboxId, body.timeoutMs),
-    );
+    return jsonData(await setSandboxTimeout(params.sandboxId, body.timeoutMs));
   },
   { requireChatAuth: true },
 );

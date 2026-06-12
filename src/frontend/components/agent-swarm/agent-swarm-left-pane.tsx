@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import type { ReactNode } from 'react';
-import { ChatViewPane } from '../chat-view-pane';
+import type { ReactNode } from "react";
+import { ChatViewPane } from "../chat-view-pane";
 
 interface AgentSwarmLeftPaneProps {
   hasConversation: boolean;

@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import { cn } from '@/frontend/lib/utils';
-import { useEffect, useMemo, useRef } from 'react';
-import { MarkdownRenderer } from './markdown-renderer';
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/frontend/lib/utils";
+import { useEffect, useMemo, useRef } from "react";
+import { MarkdownRenderer } from "./markdown-renderer";
 
 interface ThinkingBlockProps {
   className?: string;
@@ -16,8 +16,8 @@ interface ThinkingBlockProps {
 
 export function ThinkingBlock({
   className,
-  label = 'Thinking',
-  content = '',
+  label = "Thinking",
+  content = "",
   isStreaming = false,
   thinkingDurationSeconds,
 }: ThinkingBlockProps) {
@@ -62,7 +62,12 @@ export function ThinkingBlock({
     : `Thought for ${thinkingDurationSeconds ?? 0}s`;
 
   return (
-    <div className={cn('w-full animate-in fade-in slide-in-from-top-1 duration-300', className)}>
+    <div
+      className={cn(
+        "w-full animate-in fade-in slide-in-from-top-1 duration-300",
+        className,
+      )}
+    >
       <div className="px-2 py-2">
         <div className="grid gap-y-2">
           <div className="min-w-0">
@@ -72,11 +77,18 @@ export function ThinkingBlock({
               className="flex w-full items-center gap-2 rounded-[10px] py-0.5 text-left text-[14px] leading-5 text-zinc-500 transition-all duration-200 hover:text-zinc-800"
               aria-expanded={isVisible}
             >
-              <span className={cn('truncate font-medium', isStreaming && 'shimmer-text')}>{displayLabel}</span>
+              <span
+                className={cn(
+                  "truncate font-medium",
+                  isStreaming && "shimmer-text",
+                )}
+              >
+                {displayLabel}
+              </span>
               <ChevronDown
                 className={cn(
-                  'icon-md shrink-0 icon-muted transition-transform duration-200',
-                  isVisible && 'rotate-180'
+                  "icon-md shrink-0 icon-muted transition-transform duration-200",
+                  isVisible && "rotate-180",
                 )}
               />
             </button>
@@ -84,34 +96,34 @@ export function ThinkingBlock({
 
           {isVisible && (
             <div className="overflow-hidden pt-0.5">
-            <div className="grid gap-3 rounded-[12px] border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-[14px] font-[430] leading-[1.4] text-zinc-700">
-              <div
-                ref={scrollRef}
-                className={cn(
-                  'scrollbar-hide overflow-y-auto pr-1 text-[14px] leading-[1.55] text-zinc-700',
-                  isExpanded ? 'max-h-[20.5rem]' : 'max-h-[10.85rem]'
-                )}
-              >
-                <div className="thinking-markdown">
-                  <MarkdownRenderer
-                    content={content}
-                    isStreaming={isStreaming}
-                    showCursor={false}
-                    lightweightStream={isStreaming}
-                  />
-                </div>
-              </div>
-              {lineCount > 4 && (
-                <button
-                  type="button"
-                  onClick={() => setIsExpanded((value) => !value)}
-                  className="w-fit text-[12px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
+              <div className="grid gap-3 rounded-[12px] border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-[14px] font-[430] leading-[1.4] text-zinc-700">
+                <div
+                  ref={scrollRef}
+                  className={cn(
+                    "app-scrollbar overflow-y-auto pr-1 text-[14px] leading-[1.55] text-zinc-700",
+                    isExpanded ? "max-h-[20.5rem]" : "max-h-[10.85rem]",
+                  )}
                 >
-                  {isExpanded ? 'Show less' : 'Show more'}
-                </button>
-              )}
+                  <div className="thinking-markdown">
+                    <MarkdownRenderer
+                      content={content}
+                      isStreaming={isStreaming}
+                      showCursor={false}
+                      lightweightStream={isStreaming}
+                    />
+                  </div>
+                </div>
+                {lineCount > 4 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsExpanded((value) => !value)}
+                    className="w-fit text-[12px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
+                  >
+                    {isExpanded ? "Show less" : "Show more"}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
           )}
         </div>
       </div>

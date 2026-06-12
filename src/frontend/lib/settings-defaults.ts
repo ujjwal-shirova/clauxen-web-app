@@ -1,0 +1,45 @@
+import type { AppSettings } from "@/frontend/lib/api/settings";
+
+/** Mirrors API defaults in `src/app/api/v1/settings/route.ts`. */
+export const DEFAULT_APP_SETTINGS: AppSettings = {
+  general: {
+    colorMode: "auto",
+    chatFont: "Default",
+    appearancePreset: "System",
+    contrastMode: "System",
+    accentColor: "Blue",
+    language: "Auto-detect",
+    spokenLanguage: "Auto-detect",
+    voice: "Ember",
+    voiceIsolation: false,
+    dictationEnabled: true,
+    toolMode: "auto",
+  },
+  personalization: {
+    baseStyleTone: "Default",
+    characteristicWarm: "Less",
+    characteristicEnthusiastic: "Default",
+    characteristicHeadersLists: "Less",
+    characteristicEmoji: "Less",
+    fastAnswers: true,
+    customInstructions: "",
+    nickname: "",
+    occupation: "",
+    moreAboutYou: "",
+    referenceSavedMemories: true,
+    referenceChatHistory: true,
+    referenceRecordHistory: true,
+  },
+  notifications: {
+    desktopAlerts: true,
+    soundEffects: false,
+    codexChannel: "Push",
+    responseChannel: "Push",
+    groupChatChannel: "Push",
+    tasksChannel: "Push, Email",
+    projectsChannel: "Email",
+    recommendationsChannel: "Push, Email",
+    usageChannel: "Push, Email",
+  },
+  claw: { deployments: [] },
+};

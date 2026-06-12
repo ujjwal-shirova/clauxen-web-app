@@ -34,7 +34,11 @@ export function StorageSettings() {
       <SettingsPanelTitle>Storage</SettingsPanelTitle>
 
       <section className="border-b border-zinc-200 pb-8">
-        <SettingsProgressBar value={USED_BYTES} max={TOTAL_BYTES} label={usedLabel} />
+        <SettingsProgressBar
+          value={USED_BYTES}
+          max={TOTAL_BYTES}
+          label={usedLabel}
+        />
       </section>
 
       <section>
@@ -44,16 +48,26 @@ export function StorageSettings() {
         </p>
         <ul>
           {STORAGE_CATEGORIES.map((item, index) => (
-            <li key={item.id} className={index > 0 ? "border-t border-zinc-100" : ""}>
+            <li
+              key={item.id}
+              className={index > 0 ? "border-t border-zinc-100" : ""}
+            >
               <button
                 type="button"
                 className="flex w-full items-start justify-between gap-3 py-3 text-left transition-colors hover:bg-zinc-100/60"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-[14px] text-zinc-900">{item.title}</p>
-                  <p className="mt-1 truncate text-[12px] text-zinc-400">{item.detail}</p>
+                  <p className="truncate text-[14px] text-zinc-900">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 truncate text-[12px] text-zinc-400">
+                    {item.detail}
+                  </p>
                 </div>
-                <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-zinc-400" aria-hidden />
+                <ChevronRight
+                  className="mt-0.5 h-5 w-5 shrink-0 text-zinc-400"
+                  aria-hidden
+                />
               </button>
             </li>
           ))}

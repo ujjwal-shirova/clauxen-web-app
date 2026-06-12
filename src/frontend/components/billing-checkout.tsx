@@ -1,415 +1,1043 @@
+"use client";
 
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import { cn } from '@/frontend/lib/utils';
-import { appBtn } from '@/frontend/lib/app-buttons';
-import { Info } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { cn } from "@/frontend/lib/utils";
+import { Info, Minus, Plus } from "lucide-react";
 import {
   createBillingOrder,
-  getBillingPlans, // GET plans list — server-side canonical price_paise values fetch
-  verifyBillingPayment, // POST verify — Razorpay signature validate + subscription activate
-  type BillingPlan, // TypeScript type — API plan object shape (id, price_paise_monthly/yearly)
-} from '@/frontend/lib/api/billing';
-import { openRazorpayCheckout } from '@/frontend/lib/razorpay-checkout';
-import { useAuth } from '@/frontend/hooks/use-auth';
+  createCheckoutSession,
+  createUpiBillingPayment,
+  pollUpiBillingPayment,
+  verifyBillingPayment,
+} from "@/frontend/lib/api/billing";
+import { CheckoutErrorBanner } from "@/frontend/components/checkout-error-banner";
+import { CheckoutForm } from "@/frontend/components/checkout-form";
+import type { CheckoutCardFieldState } from "@/frontend/components/checkout-payment-panel";
+import { CheckoutUpiQrModal } from "@/frontend/components/checkout-upi-qr-modal";
+import { canUseApplePay } from "@/frontend/lib/apple-pay";
+import { openRazorpayCheckout } from "@/frontend/lib/razorpay-checkout";
+import { useCheckoutCurrency } from "@/frontend/hooks/use-checkout-currency";
+import { useAuth } from "@/frontend/hooks/use-auth";
+import type { CheckoutPaymentTab } from "@/lib/checkout-payment-tab";
+import {
+  BUSINESS_WORKSPACE_SEAT_MONTHLY_INR,
+  MAX_TIER_OPTIONS,
+  SEAT_ASSIGNABLE_PLANS,
+  YEARLY_DISCOUNT_PERCENT,
+  computeBundleSeatSubtotalInr,
+  computeSeatMixLineInr,
+  computeSeatMixSubtotalInr,
+  createDefaultSeatCounts,
+  getCheckoutPlanDetails,
+  getOrganizationPlan,
+  getOrganizationSeatDisplayPrice,
+  getTotalSeatCount,
+  resolveApiPlanId,
+  type BillingCycle,
+  type MaxTier,
+  type SeatAssignablePlanId,
+  type SeatCounts,
+} from "@/lib/plans-catalog";
+import { computeCheckoutTaxInr, type CheckoutBillingDetails } from "@/lib/checkout-tax";
+import { isValidIndianGstin, normalizeGstin } from "@/lib/gstin";
 
-export type MaxTier = '5x' | '20x';
+export type { MaxTier };
 
 interface BillingCheckoutProps {
   onBack: () => void;
   onPaymentSuccess?: () => void;
   planId: string | null;
-  initialBillingCycle?: 'monthly' | 'yearly';
+  initialBillingCycle?: BillingCycle;
   initialMaxTier?: MaxTier;
 }
 
-const YEARLY_DISCOUNT = 0.17;
+const SEAT_ASSIGNABLE_IDS = Object.keys(
+  SEAT_ASSIGNABLE_PLANS,
+) as SeatAssignablePlanId[];
 
-const PLAN_DETAILS: Record<string, { name: string, monthly: number, yearly: number }> = {
-  go: { name: "Go plan", monthly: 99, yearly: Math.round(99 * 12 * (1 - YEARLY_DISCOUNT)) },
-  pro: { name: "Pro plan", monthly: 2499, yearly: Math.round(2499 * 12 * (1 - YEARLY_DISCOUNT)) }, // Pro tier — default checkout plan
-  max: { name: "Max plan", monthly: 9999, yearly: Math.round(9999 * 12 * (1 - YEARLY_DISCOUNT)) },
-  'business-workspace': { name: "Business workspace", monthly: 1800, yearly: Math.round(1800 * 12 * (1 - YEARLY_DISCOUNT)) }, // Business workspace per-seat pricing
-  'business-code': { name: "Business Clauxen Code", monthly: 0, yearly: 0 },
-  enterprise: { name: "Enterprise", monthly: 0, yearly: 0 },
-};
-
-// Max plan sub-options — UI cards + monthly rupee amounts
-const MAX_TIER_DETAILS: Record<MaxTier, { label: string; monthly: number; badge?: string }> = {
-  '5x': { label: '5x more usage than Pro', monthly: 9999 },
-  '20x': { label: '20x more usage than Pro', monthly: 19999, badge: 'Save 50%' },
-};
-
-function getRenewalDate(billingCycle: 'monthly' | 'yearly') {
+function getRenewalDate(billingCycle: BillingCycle) {
   const today = new Date();
   const renewalDate = new Date(today);
 
-  if (billingCycle === 'monthly') {
-    renewalDate.setMonth(renewalDate.getMonth() + 1); // calendar month increment — JS rollover handle
+  if (billingCycle === "monthly") {
+    renewalDate.setMonth(renewalDate.getMonth() + 1);
   } else {
-    renewalDate.setFullYear(renewalDate.getFullYear() + 1); // calendar year increment
+    renewalDate.setFullYear(renewalDate.getFullYear() + 1);
   }
 
-  return renewalDate.toLocaleDateString('en-IN', { // India date string — user-facing renewal notice
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'Asia/Kolkata',
+  return renewalDate.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
   });
+}
+
+const PAYMENT_FAILED_MESSAGE =
+  "Payment was not completed. Please try again.";
+
+function SeatStepper({
+  count,
+  canDecrement,
+  canIncrement,
+  onDecrement,
+  onIncrement,
+}: {
+  count: number;
+  canDecrement: boolean;
+  canIncrement: boolean;
+  onDecrement: () => void;
+  onIncrement: () => void;
+}) {
+  return (
+    <div className="flex h-8 items-center rounded-lg border border-black/10 bg-white">
+      <button
+        type="button"
+        disabled={!canDecrement}
+        onClick={onDecrement}
+        aria-label="Decrease seats"
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-l-lg transition-colors",
+          canDecrement
+            ? "text-zinc-700 hover:bg-zinc-50"
+            : "cursor-not-allowed text-zinc-300",
+        )}
+      >
+        <Minus className="h-3.5 w-3.5" />
+      </button>
+      <span
+        className={cn(
+          "min-w-[52px] px-1 text-center text-[12px] font-medium",
+          count === 0 ? "text-zinc-400" : "text-zinc-900",
+        )}
+      >
+        {count === 0 ? "None" : count}
+      </span>
+      <button
+        type="button"
+        disabled={!canIncrement}
+        onClick={onIncrement}
+        aria-label="Increase seats"
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-r-lg transition-colors",
+          canIncrement
+            ? "text-zinc-700 hover:bg-zinc-50"
+            : "cursor-not-allowed text-zinc-300",
+        )}
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
 }
 
 export function BillingCheckout({
   onBack,
   onPaymentSuccess,
   planId,
-  initialBillingCycle = 'monthly',
-  initialMaxTier = '5x',
+  initialBillingCycle = "monthly",
+  initialMaxTier = "5x",
 }: BillingCheckoutProps) {
-  const auth = useAuth(); // auth context — displayName/email Razorpay prefill
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(initialBillingCycle); // UI state — monthly vs yearly toggle
-  const [maxTier, setMaxTier] = useState<MaxTier>(initialMaxTier); // UI state — Max plan 5x vs 20x
-  const [useDifferentName, setUseDifferentName] = useState(false);
-  const [agreed, setAgreed] = useState(false); // terms checkbox — Subscribe button enable gate
-  const [apiPlans, setApiPlans] = useState<BillingPlan[]>([]); // server plans — canonical paise prices
+  const auth = useAuth();
+  const { currency, formatInr, isUsd } = useCheckoutCurrency();
+  const [billingCycle, setBillingCycle] =
+    useState<BillingCycle>(initialBillingCycle);
+  const [maxTier, setMaxTier] = useState<MaxTier>(initialMaxTier);
+  const [purchasingAsBusiness, setPurchasingAsBusiness] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [payError, setPayError] = useState<string | null>(null); // error message — order/create/verify failures
+  const [payError, setPayError] = useState<string | null>(null);
+  const [gstin, setGstin] = useState("");
+  const [billToName, setBillToName] = useState("");
+  const [gstinError, setGstinError] = useState<string | null>(null);
+  const [paymentTab, setPaymentTab] = useState<CheckoutPaymentTab>("saved");
+  const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(
+    null,
+  );
+  const [upiModalOpen, setUpiModalOpen] = useState(false);
+  const [upiQrImageUrl, setUpiQrImageUrl] = useState<string | null>(null);
+  const [upiPoll, setUpiPoll] = useState<{
+    qrId: string;
+    billingOrderId: string;
+  } | null>(null);
+  const [cardFieldsComplete, setCardFieldsComplete] = useState(false);
+  const [applePayAvailable, setApplePayAvailable] = useState(false);
 
-  const activePlanId = planId || 'pro'; // resolved plan slug — null guard pro default
-  const details = PLAN_DETAILS[activePlanId] || PLAN_DETAILS.pro; // display metadata — name + fallback rupees
-  const isMaxPlan = activePlanId === 'max';
-  const isUsageCodePlan = activePlanId === 'business-code'; // metered Clauxen Code flow
-  const isEnterprisePlan = activePlanId === 'enterprise'; // custom enterprise quote flow
+  useEffect(() => {
+    setApplePayAvailable(canUseApplePay());
+  }, []);
+
+  const handleCardFieldsChange = useCallback((state: CheckoutCardFieldState) => {
+    setCardFieldsComplete(state.isComplete);
+  }, []);
+
+  const activePlanId = planId || "plus";
+  const orgPlan = getOrganizationPlan(activePlanId);
+  const details = getCheckoutPlanDetails(activePlanId, maxTier);
+  const isMaxPlan = activePlanId === "max";
+  const isTeamPlan = activePlanId === "team";
+  const isBusinessWorkspace = activePlanId === "business-workspace";
+  const isUsageCodePlan = activePlanId === "business-code";
+  const isEnterprisePlan = activePlanId === "enterprise";
   const isVariableCheckoutPlan = isUsageCodePlan || isEnterprisePlan;
-  const maxDetails = MAX_TIER_DETAILS[maxTier];
+  const maxDetails = MAX_TIER_OPTIONS[maxTier];
+
+  const [seatCounts, setSeatCounts] = useState<SeatCounts>(() =>
+    createDefaultSeatCounts(orgPlan?.minSeats ?? 4),
+  );
+  const [bundleSeatCount, setBundleSeatCount] = useState(
+    orgPlan?.minSeats ?? 4,
+  );
 
   useEffect(() => {
     setBillingCycle(initialBillingCycle);
-  }, [initialBillingCycle, activePlanId]); // Re-run when cycle prop or plan changes
+  }, [initialBillingCycle, activePlanId]);
 
   useEffect(() => {
-    if (activePlanId === 'max') {
+    if (activePlanId === "max") {
       setMaxTier(initialMaxTier);
     }
-  }, [activePlanId, initialMaxTier]); // Dependencies — plan switch + tier prop
+  }, [activePlanId, initialMaxTier]);
 
   useEffect(() => {
-    void getBillingPlans()
-      .then((res) => setApiPlans(res.plans ?? []))
-      .catch(() => setApiPlans([])); // failure — empty; PLAN_DETAILS fallback
-  }, []);
+    const plan = getOrganizationPlan(activePlanId);
+    if (plan?.pricingModel === "per-seat") {
+      setSeatCounts(createDefaultSeatCounts(plan.minSeats));
+    }
+    if (plan?.pricingModel === "bundle-seat") {
+      setBundleSeatCount(plan.minSeats);
+    }
+  }, [activePlanId]);
 
-  const apiPlan = apiPlans.find((p) => p.id === (isMaxPlan ? (maxTier === '20x' ? 'max20x' : 'max5x') : activePlanId)); // Match API plan row — max5x/max20x mapping for Max
-  const apiMonthlyPaise = apiPlan?.price_paise_monthly; // Server monthly price in paise (₹1 = 100 paise)
-  const apiYearlyPaise = apiPlan?.price_paise_yearly; // Server yearly lump-sum price in paise
+  const billingDetails: CheckoutBillingDetails = useMemo(
+    () => ({
+      fullName:
+        auth.user?.displayName?.trim() ||
+        auth.user?.email?.split("@")[0]?.trim() ||
+        "Customer",
+      countryCode: "IN",
+      addressLine: "India",
+      gstin:
+        purchasingAsBusiness && gstin.trim()
+          ? normalizeGstin(gstin)
+          : undefined,
+      billToName:
+        purchasingAsBusiness && billToName.trim()
+          ? billToName.trim()
+          : undefined,
+    }),
+    [auth.user?.displayName, auth.user?.email, gstin, purchasingAsBusiness, billToName],
+  );
 
-  const currentPrice = isMaxPlan
-    ? maxDetails.monthly // Max always monthly list price from tier
-    : isVariableCheckoutPlan
-      ? 0 // Variable plans — no fixed rupee amount at checkout
-      : billingCycle === 'monthly'
-        ? details.monthly // Standard monthly rupee price
-        : details.yearly; // Standard yearly rupee price (already discounted)
-  const cycleLabel = isMaxPlan ? '/month' : billingCycle === 'monthly' ? '/month' : '/year';
-  
-  const subtotal = currentPrice;
-  const tax = isVariableCheckoutPlan ? 0 : Math.round(subtotal * 0.18);
+  const minimalBillingDetails = useMemo(
+    () => ({
+      purchasingAsBusiness,
+      ...(purchasingAsBusiness && gstin.trim()
+        ? { gstin: normalizeGstin(gstin) }
+        : {}),
+      ...(purchasingAsBusiness && billToName.trim()
+        ? { billToName: billToName.trim() }
+        : {}),
+    }),
+    [purchasingAsBusiness, gstin, billToName],
+  );
+
+  const totalSeats = getTotalSeatCount(seatCounts);
+  const minSeats = orgPlan?.minSeats ?? 4;
+  const maxSeats = orgPlan?.maxSeats ?? 150;
+  const seatsValid =
+    !isTeamPlan || (totalSeats >= minSeats && totalSeats <= maxSeats);
+  const bundleSeatsValid =
+    !isBusinessWorkspace ||
+    (bundleSeatCount >= minSeats &&
+      bundleSeatCount <= (orgPlan?.maxSeats ?? 500));
+
+  const effectiveBillingCycle: BillingCycle =
+    isMaxPlan || isVariableCheckoutPlan ? "monthly" : billingCycle;
+
+  useEffect(() => {
+    if (isUsd && paymentTab === "upi") {
+      setPaymentTab("card");
+    }
+  }, [isUsd, paymentTab]);
+
+  useEffect(() => {
+    if (isVariableCheckoutPlan) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const session = await createCheckoutSession({
+          planId: resolveApiPlanId(activePlanId, maxTier),
+          planName: isMaxPlan ? maxDetails.checkoutName : details.name,
+          billingCycle: isMaxPlan ? "monthly" : effectiveBillingCycle,
+          currency,
+          maxTier: isMaxPlan ? maxTier : undefined,
+          ...(isTeamPlan ? { seatBreakdown: seatCounts } : {}),
+          ...(isBusinessWorkspace
+            ? { organizationSeatCount: bundleSeatCount }
+            : {}),
+        });
+        if (cancelled) return;
+        setCheckoutSessionId(session.sessionId);
+        if (typeof window !== "undefined") {
+          window.history.replaceState(null, "", session.checkoutPath);
+        }
+      } catch {
+        if (!cancelled) {
+          setPayError("Could not start checkout session. Please try again.");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activePlanId,
+    maxTier,
+    effectiveBillingCycle,
+    isMaxPlan,
+    isTeamPlan,
+    isBusinessWorkspace,
+    isVariableCheckoutPlan,
+    seatCounts,
+    bundleSeatCount,
+    details.name,
+    maxDetails.checkoutName,
+    currency,
+  ]);
+
+  useEffect(() => {
+    if (!upiPoll || !upiModalOpen) return;
+
+    const interval = window.setInterval(() => {
+      void (async () => {
+        try {
+          const result = await pollUpiBillingPayment(upiPoll);
+          if (result.status === "paid") {
+            window.clearInterval(interval);
+            setUpiModalOpen(false);
+            setUpiPoll(null);
+            setPaying(false);
+            onPaymentSuccess?.();
+          }
+        } catch {
+          window.clearInterval(interval);
+          setUpiModalOpen(false);
+          setUpiPoll(null);
+          setPaying(false);
+          setPayError(PAYMENT_FAILED_MESSAGE);
+        }
+      })();
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+  }, [upiPoll, upiModalOpen, onPaymentSuccess]);
+
+  const subtotal = useMemo(() => {
+    if (isMaxPlan) return maxDetails.monthlyPriceInr;
+    if (isVariableCheckoutPlan) return 0;
+    if (isTeamPlan && orgPlan) {
+      return computeSeatMixSubtotalInr(
+        seatCounts,
+        effectiveBillingCycle,
+        orgPlan.yearlySupported,
+      );
+    }
+    if (isBusinessWorkspace && orgPlan?.bundleSeatMonthlyInr != null) {
+      return computeBundleSeatSubtotalInr(
+        bundleSeatCount,
+        orgPlan.bundleSeatMonthlyInr,
+        effectiveBillingCycle,
+        orgPlan.yearlySupported,
+      );
+    }
+    return effectiveBillingCycle === "monthly"
+      ? details.monthly
+      : details.yearly;
+  }, [
+    isMaxPlan,
+    isVariableCheckoutPlan,
+    isTeamPlan,
+    isBusinessWorkspace,
+    orgPlan,
+    seatCounts,
+    bundleSeatCount,
+    effectiveBillingCycle,
+    maxDetails.monthlyPriceInr,
+    details.monthly,
+    details.yearly,
+  ]);
+
+  const taxResult = useMemo(() => {
+    if (isVariableCheckoutPlan || isUsd) {
+      return {
+        taxInr: 0,
+        taxPaise: 0,
+        taxLabel: null as string | null,
+        showTaxRow: false,
+        isGstExempt: false,
+        taxNote: null as string | null,
+      };
+    }
+    return computeCheckoutTaxInr(subtotal, billingDetails);
+  }, [isVariableCheckoutPlan, isUsd, subtotal, billingDetails]);
+
+  const tax = taxResult.taxInr;
   const total = subtotal + tax;
-  const renewalDate = getRenewalDate(isMaxPlan ? 'monthly' : billingCycle);
+  const renewalDate = getRenewalDate(isMaxPlan ? "monthly" : effectiveBillingCycle);
 
-  const formatPrice = (val: number) => `₹${val.toLocaleString('en-IN')}`; // INR format helper — en-IN locale grouping
+  const billingFormValid =
+    (!purchasingAsBusiness ||
+      !gstin.trim() ||
+      isValidIndianGstin(normalizeGstin(gstin))) &&
+    Boolean(checkoutSessionId);
 
-  const subtotalPaise = // Amount sent to createBillingOrder — prefer API paise, else rupees×100
-    apiMonthlyPaise != null
-      ? billingCycle === 'yearly' && apiYearlyPaise
-        ? apiYearlyPaise // Yearly — server yearly paise lump sum
-        : apiMonthlyPaise * (isMaxPlan ? 1 : billingCycle === 'yearly' ? 12 : 1) // Monthly or 12× monthly for yearly fallback
-      : Math.round(subtotal * 100); // Fallback — rupees to paise conversion
+  const paymentFieldsValid =
+    paymentTab === "upi" ||
+    paymentTab === "saved" ||
+    (paymentTab === "card" && cardFieldsComplete);
 
-  const handleSubscribe = async () => {
-    if (!agreed || isVariableCheckoutPlan || paying) return;
+  const cycleLabel = isMaxPlan
+    ? "/month"
+    : effectiveBillingCycle === "monthly"
+      ? "/month"
+      : "/year";
+
+  const handleSeatChange = (
+    seatId: SeatAssignablePlanId,
+    delta: 1 | -1,
+  ) => {
+    setSeatCounts((prev) => {
+      const next = { ...prev, [seatId]: Math.max(0, prev[seatId] + delta) };
+      return next;
+    });
+  };
+
+  const handleSubscribe = async (
+    paymentTabOverride?: CheckoutPaymentTab,
+    options?: { walletExpress?: boolean },
+  ) => {
+    const tab = paymentTabOverride ?? paymentTab;
+    const fieldsValid =
+      options?.walletExpress ||
+      tab === "upi" ||
+      tab === "saved" ||
+      (tab === "card" && cardFieldsComplete);
+
+    if (
+      !agreed ||
+      isVariableCheckoutPlan ||
+      paying ||
+      !seatsValid ||
+      !bundleSeatsValid ||
+      !billingFormValid ||
+      !fieldsValid ||
+      !checkoutSessionId
+    ) {
+      return;
+    }
     setPayError(null);
-    setPaying(true); // button disable + loading label
+    setPaying(true);
+
     try {
-      const checkout = await createBillingOrder({ // Backend Razorpay order create
-        planId: isMaxPlan ? (maxTier === '20x' ? 'max20x' : 'max5x') : activePlanId, // Resolved API plan id
-        planName: details.name, // Human-readable plan name for records
-        billingCycle: isMaxPlan ? 'monthly' : billingCycle, // Max always monthly billing cycle
-        amountPaise: subtotalPaise, // Charge amount in paise
-        maxTier: isMaxPlan ? maxTier : undefined, // Optional metadata for Max tier
+      if (tab === "upi") {
+        const checkout = await createUpiBillingPayment({
+          checkoutSessionId,
+          billingDetails: minimalBillingDetails,
+          ...(isTeamPlan ? { seatBreakdown: seatCounts } : {}),
+          ...(isBusinessWorkspace
+            ? { organizationSeatCount: bundleSeatCount }
+            : {}),
+        });
+        setUpiQrImageUrl(checkout.upi.imageUrl);
+        setUpiPoll({
+          qrId: checkout.upi.qrId,
+          billingOrderId: checkout.order.id,
+        });
+        setUpiModalOpen(true);
+        return;
+      }
+
+      const checkout = await createBillingOrder({
+        planId: resolveApiPlanId(activePlanId, maxTier),
+        planName: isMaxPlan ? maxDetails.checkoutName : details.name,
+        billingCycle: isMaxPlan ? "monthly" : effectiveBillingCycle,
+        billingDetails: minimalBillingDetails,
+        checkoutSessionId,
+        currency,
+        maxTier: isMaxPlan ? maxTier : undefined,
+        ...(isTeamPlan ? { seatBreakdown: seatCounts } : {}),
+        ...(isBusinessWorkspace
+          ? { organizationSeatCount: bundleSeatCount }
+          : {}),
       });
-      const keyId = checkout.razorpay.keyId; // Razorpay public key — checkout.js init
-      if (!keyId) throw new Error('Razorpay is not configured for checkout.'); // misconfiguration guard — key missing
+      const keyId = checkout.razorpay.keyId;
+      if (!keyId) throw new Error("Razorpay is not configured for checkout.");
 
       await openRazorpayCheckout({
-        keyId, // Razorpay key_id
-        orderId: checkout.razorpay.orderId, // Server-created order id
-        amount: checkout.razorpay.amount, // Amount in paise (must match order)
-        currency: checkout.razorpay.currency, // Typically INR
-        name: 'Clauxen', // Merchant display name in modal
-        description: details.name, // Payment description line
-        prefill: { // Optional customer prefill — faster checkout
-          name: auth.user?.displayName ?? undefined, // Logged-in display name
-          email: auth.user?.email ?? undefined, // Logged-in email
+        keyId,
+        orderId: checkout.razorpay.orderId,
+        amount: checkout.razorpay.amount,
+        currency: checkout.razorpay.currency,
+        name: "Clauxen",
+        description: details.name,
+        paymentMethod: "card",
+        ...(options?.walletExpress ? { expressCheckout: "apple_pay" as const } : {}),
+        prefill: {
+          name: billingDetails.billToName ?? billingDetails.fullName,
+          email: auth.user?.email ?? undefined,
         },
-        onSuccess: async (payment) => { // Razorpay success — server-side signature verify
-          await verifyBillingPayment({ // POST verify — subscription activate
+        onSuccess: async (payment) => {
+          await verifyBillingPayment({
             razorpayOrderId: payment.razorpay_order_id,
             razorpayPaymentId: payment.razorpay_payment_id,
             razorpaySignature: payment.razorpay_signature,
           });
-          onPaymentSuccess?.(); // parent notify — subscription UI refresh
+          onPaymentSuccess?.();
+        },
+        onDismiss: () => {
+          setPayError(PAYMENT_FAILED_MESSAGE);
         },
       });
     } catch (error) {
-      setPayError(error instanceof Error ? error.message : 'Payment failed.'); // user-visible error string
+      setPayError(
+        error instanceof Error ? error.message : PAYMENT_FAILED_MESSAGE,
+      );
     } finally {
-      setPaying(false);
+      if (tab !== "upi") {
+        setPaying(false);
+      }
     }
   };
 
-  const orderLinePriceLabel = isUsageCodePlan
-    ? 'Usage pricing'
-    : isEnterprisePlan
-      ? 'Custom quote'
-      : formatPrice(subtotal); // fixed plans — formatted INR subtotal
+  const handleUpiModalClose = () => {
+    setUpiModalOpen(false);
+    setUpiPoll(null);
+    setPaying(false);
+    setPayError(PAYMENT_FAILED_MESSAGE);
+  };
+
+  const billingCycleToggle = !isMaxPlan && !isVariableCheckoutPlan && (
+    <div className="grid grid-cols-2 gap-2 sm:gap-4">
+      <button
+        type="button"
+        onClick={() => setBillingCycle("monthly")}
+        className={cn(
+          "flex flex-col items-start rounded-[8px] border px-4 py-4 text-left transition-all",
+          effectiveBillingCycle === "monthly"
+            ? "border-[#2C84DB] bg-[#D3E5F8]"
+            : "border-zinc-200 bg-white hover:border-black/30",
+        )}
+      >
+        <div className="mb-3 flex w-full items-center justify-between">
+          <div
+            className={cn(
+              "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
+              effectiveBillingCycle === "monthly"
+                ? "border-[#2C84DB]"
+                : "border-black/15",
+            )}
+          >
+            {effectiveBillingCycle === "monthly" && (
+              <div className="h-2.5 w-2.5 rounded-full bg-[#2C84DB]" />
+            )}
+          </div>
+        </div>
+        <span className="max-w-[75%] text-left font-medium">Monthly</span>
+        <span className="mt-1 text-left text-[14px] leading-5 text-zinc-800">
+          {isTeamPlan || isBusinessWorkspace
+            ? "Billed monthly per seat"
+            : `${formatInr(details.monthly)}/month`}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setBillingCycle("yearly")}
+        disabled={orgPlan ? !orgPlan.yearlySupported : false}
+        className={cn(
+          "flex flex-col items-start rounded-[8px] border px-4 py-4 text-left transition-all",
+          effectiveBillingCycle === "yearly"
+            ? "border-[#2C84DB] bg-[#D3E5F8]"
+            : "border-zinc-200 bg-white hover:border-black/30",
+          orgPlan && !orgPlan.yearlySupported && "cursor-not-allowed opacity-50",
+        )}
+      >
+        <div className="mb-3 flex w-full items-center justify-between">
+          <div
+            className={cn(
+              "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
+              effectiveBillingCycle === "yearly"
+                ? "border-[#2C84DB]"
+                : "border-black/15",
+            )}
+          >
+            {effectiveBillingCycle === "yearly" && (
+              <div className="h-2.5 w-2.5 rounded-full bg-[#2C84DB]" />
+            )}
+          </div>
+          {(orgPlan?.yearlySupported ?? details.yearly > 0) && (
+            <div className="rounded-lg bg-[#1B67B2]/10 px-2 py-1 text-[12px] font-medium leading-4 text-[#1B67B2]">
+              Save {YEARLY_DISCOUNT_PERCENT}%
+            </div>
+          )}
+        </div>
+        <span className="max-w-[75%] text-left font-medium">Yearly</span>
+        <span className="mt-1 text-left text-[14px] leading-5 text-zinc-800">
+          {isTeamPlan || isBusinessWorkspace
+            ? `Save ${YEARLY_DISCOUNT_PERCENT}% billed annually`
+            : `${formatInr(details.yearly)}/year`}
+        </span>
+      </button>
+    </div>
+  );
+
+  const maxTierToggle = isMaxPlan && (
+    <div className="grid grid-cols-2 gap-2 sm:gap-4">
+      {(
+        Object.entries(MAX_TIER_OPTIONS) as Array<
+          [MaxTier, (typeof MAX_TIER_OPTIONS)[MaxTier]]
+        >
+      ).map(([tier, tierDetails]) => (
+        <button
+          key={tier}
+          type="button"
+          onClick={() => setMaxTier(tier)}
+          className={cn(
+            "flex flex-col items-start rounded-[8px] border px-4 py-4 text-left transition-all",
+            maxTier === tier
+              ? "border-[#2C84DB] bg-[#D3E5F8]"
+              : "border-zinc-200 bg-white hover:border-black/30",
+          )}
+        >
+          <div className="mb-3 flex w-full items-center justify-between">
+            <div
+              className={cn(
+                "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
+                maxTier === tier ? "border-[#2C84DB]" : "border-black/15",
+              )}
+            >
+              {maxTier === tier && (
+                <div className="h-2.5 w-2.5 rounded-full bg-[#2C84DB]" />
+              )}
+            </div>
+            {tierDetails.badge && (
+              <div className="rounded-lg bg-[#1B67B2]/10 px-2 py-1 text-[12px] font-medium leading-4 text-[#1B67B2]">
+                {tierDetails.badge}
+              </div>
+            )}
+          </div>
+          <span className="max-w-[75%] text-left font-medium">
+            {tierDetails.usageLabel}
+          </span>
+          <span className="mt-1 text-left text-[14px] leading-5 text-zinc-800">
+            {formatInr(tierDetails.monthlyPriceInr)}/month
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const teamSeatConfigurator = isTeamPlan && orgPlan && (
+    <div className="rounded-lg bg-black/[0.04] p-3">
+      <p className="mb-1 text-[11px] font-medium leading-4 text-zinc-500">
+        {orgPlan.userRangeLabel}
+      </p>
+      <p className="mb-3 text-[11px] font-medium leading-4 text-zinc-600">
+        Min {minSeats} seats · configure each seat separately
+      </p>
+      <div className="flex flex-col">
+        {SEAT_ASSIGNABLE_IDS.map((seatId, index) => {
+          const seat = SEAT_ASSIGNABLE_PLANS[seatId];
+          const count = seatCounts[seatId];
+          const display = getOrganizationSeatDisplayPrice(
+            seat.monthlyPriceInr,
+            effectiveBillingCycle,
+            orgPlan.yearlySupported,
+          );
+          const canDecrement = count > 0 && totalSeats > minSeats;
+          const canIncrement = totalSeats < maxSeats;
+
+          return (
+            <div key={seatId}>
+              {index > 0 && <div className="my-2.5 border-t border-black/10" />}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <span className="text-[12px] font-medium leading-4 text-zinc-900">
+                    {seat.label}
+                  </span>
+                  <div className="mt-1 flex flex-wrap items-baseline gap-1">
+                    {display.strikethrough != null && (
+                      <span className="text-[11px] text-zinc-500 line-through">
+                        ₹{display.strikethrough.toLocaleString("en-IN")}
+                      </span>
+                    )}
+                    <span className="text-[13px] font-semibold leading-4 text-zinc-900">
+                      ₹{display.amount.toLocaleString("en-IN")}
+                      <span className="text-[11px] font-medium text-zinc-500">
+                        /mo
+                      </span>
+                    </span>
+                  </div>
+                  <p className="mt-0.5 max-w-[200px] text-[10px] leading-[14px] text-zinc-500">
+                    {seat.usageNote}
+                  </p>
+                </div>
+                <SeatStepper
+                  count={count}
+                  canDecrement={canDecrement}
+                  canIncrement={canIncrement}
+                  onDecrement={() => handleSeatChange(seatId, -1)}
+                  onIncrement={() => handleSeatChange(seatId, 1)}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {!seatsValid && (
+        <p className="mt-3 text-[11px] text-red-600">
+          Select at least {minSeats} seats across tiers (max {maxSeats}).
+        </p>
+      )}
+    </div>
+  );
+
+  const businessSeatConfigurator = isBusinessWorkspace && orgPlan && (
+    <div className="rounded-lg bg-black/[0.04] p-3">
+      <p className="mb-1 text-[11px] font-medium leading-4 text-zinc-500">
+        {orgPlan.userRangeLabel}
+      </p>
+      <p className="mb-3 text-[11px] font-medium leading-4 text-zinc-600">
+        Min {minSeats} seats · per seat
+      </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <span className="text-[12px] font-medium leading-4 text-zinc-900">
+            Business seat
+          </span>
+          <div className="mt-1 flex flex-wrap items-baseline gap-1">
+            {orgPlan.bundleSeatMonthlyStrikethroughInr != null && (
+              <span className="text-[11px] text-zinc-500 line-through">
+                ₹
+                {orgPlan.bundleSeatMonthlyStrikethroughInr.toLocaleString(
+                  "en-IN",
+                )}
+              </span>
+            )}
+            {(() => {
+              const display = getOrganizationSeatDisplayPrice(
+                orgPlan.bundleSeatMonthlyInr ?? BUSINESS_WORKSPACE_SEAT_MONTHLY_INR,
+                effectiveBillingCycle,
+                orgPlan.yearlySupported,
+              );
+              return (
+                <span className="text-[13px] font-semibold leading-4 text-zinc-900">
+                  ₹{display.amount.toLocaleString("en-IN")}
+                  <span className="text-[11px] font-medium text-zinc-500">
+                    /mo
+                  </span>
+                </span>
+              );
+            })()}
+          </div>
+          <p className="mt-0.5 max-w-[200px] text-[10px] leading-[14px] text-zinc-500">
+            Clauxen & Collabry bundle for every seat
+          </p>
+        </div>
+        <SeatStepper
+          count={bundleSeatCount}
+          canDecrement={bundleSeatCount > minSeats}
+          canIncrement={bundleSeatCount < (orgPlan.maxSeats ?? 500)}
+          onDecrement={() => setBundleSeatCount((n) => Math.max(minSeats, n - 1))}
+          onIncrement={() =>
+            setBundleSeatCount((n) =>
+              Math.min(orgPlan.maxSeats ?? 500, n + 1),
+            )
+          }
+        />
+      </div>
+    </div>
+  );
+
+  const variablePlanNotice = isVariableCheckoutPlan && (
+    <div className="rounded-[8px] border border-zinc-200 bg-white px-4 py-4 text-[14px] leading-relaxed text-zinc-800">
+      {isUsageCodePlan ? (
+        <p>
+          <strong>Usage pricing:</strong> Clauxen Code usage is metered and
+          invoiced on actual use. There is no fixed seat charge at checkout; our
+          team confirms rates when your workspace is activated.
+        </p>
+      ) : (
+        <p>
+          <strong>Enterprise:</strong> Pricing and contract terms are prepared
+          for your organization. Submit your details below—no card charge until
+          a quote is accepted.
+        </p>
+      )}
+    </div>
+  );
+
+  const cycleDetailLabel = isMaxPlan
+    ? maxDetails.label
+    : isVariableCheckoutPlan
+      ? "Details confirmed at activation"
+      : isTeamPlan
+        ? `${totalSeats} seats · ${effectiveBillingCycle === "monthly" ? "Monthly" : "Annually"}`
+        : isBusinessWorkspace
+          ? `${bundleSeatCount} seats · ${effectiveBillingCycle === "monthly" ? "Monthly" : "Annually"}`
+          : effectiveBillingCycle === "monthly"
+            ? "Monthly"
+            : "Annually";
+
+  const orderLineItems = useMemo(() => {
+    if (isTeamPlan && orgPlan) {
+      return SEAT_ASSIGNABLE_IDS.filter((id) => seatCounts[id] > 0).map(
+        (id) => ({
+          key: id,
+          label: `${SEAT_ASSIGNABLE_PLANS[id].label} × ${seatCounts[id]}`,
+          sublabel:
+            effectiveBillingCycle === "yearly" && orgPlan.yearlySupported
+              ? "Annually"
+              : "Monthly",
+          amount: computeSeatMixLineInr(
+            id,
+            seatCounts[id],
+            effectiveBillingCycle,
+            orgPlan.yearlySupported,
+          ),
+        }),
+      );
+    }
+    if (isBusinessWorkspace && orgPlan?.bundleSeatMonthlyInr != null) {
+      return [
+        {
+          key: "business-seat",
+          label: `Business seat × ${bundleSeatCount}`,
+          sublabel:
+            effectiveBillingCycle === "yearly" && orgPlan.yearlySupported
+              ? "Annually"
+              : "Monthly",
+          amount: computeBundleSeatSubtotalInr(
+            bundleSeatCount,
+            orgPlan.bundleSeatMonthlyInr,
+            effectiveBillingCycle,
+            orgPlan.yearlySupported,
+          ),
+        },
+      ];
+    }
+    return [
+      {
+        key: "plan",
+        label: details.name,
+        sublabel: cycleDetailLabel,
+        amount: subtotal,
+      },
+    ];
+  }, [
+    isTeamPlan,
+    isBusinessWorkspace,
+    orgPlan,
+    seatCounts,
+    bundleSeatCount,
+    effectiveBillingCycle,
+    details.name,
+    cycleDetailLabel,
+    subtotal,
+  ]);
 
   return (
-    <div className="w-full h-full bg-zinc-50 font-sans text-zinc-800 overflow-y-auto animate-in fade-in duration-500"> {/* root scroll — warm background + fade-in */}
-      <header className="flex items-center justify-center py-8 relative w-full shrink-0"> {/* top bar — back button position */}
-        <div className="absolute left-4 top-10"> {/* back button — top-left absolute */}
-          <button 
+    <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-50 font-sans text-zinc-800 animate-in fade-in duration-500">
+      <header className="relative flex w-full shrink-0 items-center justify-center px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))] sm:py-6">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 sm:left-6">
+          <button
+            type="button"
             onClick={onBack}
-            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-zinc-100 text-zinc-800 transition-all"
-            aria-label="Back" // screen reader label
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-800 transition-all hover:bg-zinc-100"
+            aria-label="Back"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"> 
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              fill="currentColor"
+              viewBox="0 0 256 256"
+            >
               <path d="M228,128a12,12,0,0,1-12,12H69l51.52,51.51a12,12,0,0,1-17,17l-72-72a12,12,0,0,1,0-17l72-72a12,12,0,0,1,17,17L69,116H216A12,12,0,0,1,228,128Z" />
             </svg>
           </button>
         </div>
       </header>
 
-      <main className="max-w-[512px] mx-auto w-full px-4 flex flex-col pb-24 pt-8"> {/* centered column — max 512px */}
-        <h1 className="text-[24px] font-medium mb-6">{details.name}</h1> {/* plan title heading */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <main className="mx-auto flex w-full max-w-[1080px] flex-col items-start gap-6 px-4 pb-24 pt-1 sm:px-6 sm:pt-2 lg:flex-row lg:gap-8">
+          {/* Left column — sticky plan summary */}
+          <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[420px]">
+            <h1 className="mb-4 text-[21px] font-medium sm:mb-6 sm:text-[24px]">
+              {details.name}
+            </h1>
 
-        <div className="grid gap-4 mb-4"> {/* main stack — cycle/tier + summary + form */}
-          {isMaxPlan ? ( // Max plan — 5x vs 20x tier cards
-            <div className="grid grid-cols-2 gap-4 bg-zinc-50">
-              {(Object.entries(MAX_TIER_DETAILS) as Array<[MaxTier, typeof MAX_TIER_DETAILS[MaxTier]]>).map(([tier, tierDetails]) => ( // Max tiers iterate
-                <button
-                  key={tier} // React list key — tier id
-                  onClick={() => setMaxTier(tier)}
-                  className={cn(
-                    "flex flex-col items-start rounded-[8px] border px-4 py-4 text-left transition-all",
-                    maxTier === tier
-                      ? "border-[#2C84DB] bg-[#D3E5F8]" // selected — blue border + tint
-                      : "border-zinc-200 bg-transparent hover:border-black/30" // unselected — subtle border
-                  )}
-                >
-                  <div className="mb-3 flex w-full items-center justify-between"> {/* radio + optional badge row */}
-                    <div className={cn(
-                      "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
-                      maxTier === tier ? "border-[#2C84DB]" : "border-black/15" // custom radio outer ring
-                    )}>
-                      {maxTier === tier && <div className="h-2.5 w-2.5 rounded-full bg-[#2C84DB]" />} 
+            <div className="flex flex-col gap-4">
+              {maxTierToggle}
+              {billingCycleToggle}
+              {teamSeatConfigurator}
+              {businessSeatConfigurator}
+              {variablePlanNotice}
+
+              <div className="flex flex-col gap-4 rounded-xl border border-black/10 bg-white p-5 text-[14px]">
+                <div className="font-semibold">Order details</div>
+
+                {orderLineItems.map((item) => (
+                  <div
+                    key={item.key}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{item.label}</span>
+                      <span className="text-zinc-500">{item.sublabel}</span>
                     </div>
-                    {tierDetails.badge && (
-                      <div className="rounded-lg bg-[#1B67B2]/10 px-2 py-1 text-[12px] font-medium leading-4 text-[#1B67B2]">
-                        {tierDetails.badge}
-                      </div>
-                    )}
+                    <span className="font-semibold">
+                      {isVariableCheckoutPlan
+                        ? isUsageCodePlan
+                          ? "Usage pricing"
+                          : "Custom quote"
+                        : formatInr(item.amount)}
+                    </span>
                   </div>
-                  <span className="max-w-[75%] text-left font-medium">{tierDetails.label}</span> {/* tier marketing label */}
-                  <span className="mt-1 text-left text-[14px] leading-5 text-zinc-800">
-                    {formatPrice(tierDetails.monthly)}/month + tax {/* monthly price line */}
+                ))}
+
+                <div className="h-px w-full bg-black/10" />
+
+                <div className="flex items-center justify-between font-medium">
+                  <span>Subtotal</span>
+                  <span>
+                    {isVariableCheckoutPlan
+                      ? isUsageCodePlan
+                        ? "Usage pricing"
+                        : "Custom quote"
+                      : formatInr(subtotal)}
                   </span>
-                </button>
-              ))}
-            </div>
-          ) : isVariableCheckoutPlan ? (
-            <div className="rounded-[8px] border border-zinc-200 bg-white px-4 py-4 text-[14px] leading-relaxed text-zinc-800">
-              {isUsageCodePlan ? (
-                <p>
-                  <strong>Usage pricing:</strong> Clauxen Code usage is metered and invoiced on actual use. There is no fixed seat charge at checkout; our team confirms rates when your workspace is activated.
-                </p>
-              ) : (
-                <p>
-                  <strong>Enterprise:</strong> Pricing and contract terms are prepared for your organization. Submit your details below—no card charge until a quote is accepted.
-                </p>
-              )}
-            </div>
-          ) : ( // standard plans — monthly vs yearly toggle cards
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => setBillingCycle('monthly')} // monthly billing select
-                className={cn(
-                  "flex flex-col items-start rounded-[8px] border px-4 py-4 text-left transition-all",
-                  billingCycle === 'monthly'
-                    ? "border-[#2C84DB] bg-[#D3E5F8]"
-                    : "border-zinc-200 bg-transparent hover:border-black/30"
-                )}
-              >
-                <div className="mb-3 flex w-full items-center justify-between">
-                  <div className={cn(
-                    "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
-                    billingCycle === 'monthly' ? "border-[#2C84DB]" : "border-black/15"
-                  )}>
-                    {billingCycle === 'monthly' && <div className="h-2.5 w-2.5 rounded-full bg-[#2C84DB]" />}
-                  </div>
                 </div>
-                <span className="max-w-[75%] text-left font-medium">Monthly</span>
-                <span className="mt-1 text-left text-[14px] leading-5 text-zinc-800">
-                  {formatPrice(details.monthly)}/month + tax
-                </span>
-              </button>
-
-              <button 
-                onClick={() => setBillingCycle('yearly')} // yearly billing — 17% savings badge
-                className={cn(
-                  "flex flex-col items-start rounded-[8px] border px-4 py-4 text-left transition-all",
-                  billingCycle === 'yearly'
-                    ? "border-[#2C84DB] bg-[#D3E5F8]"
-                    : "border-zinc-200 bg-transparent hover:border-black/30"
+                {taxResult.showTaxRow && (
+                  <div className="flex items-center justify-between font-medium">
+                    <span>{taxResult.taxLabel ?? "Tax"}</span>
+                    <span>
+                      {taxResult.isGstExempt ? formatInr(0) : formatInr(tax)}
+                    </span>
+                  </div>
                 )}
-              >
-                <div className="mb-3 flex w-full items-center justify-between">
-                  <div className={cn(
-                    "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
-                    billingCycle === 'yearly' ? "border-[#2C84DB]" : "border-black/15"
-                  )}>
-                    {billingCycle === 'yearly' && <div className="h-2.5 w-2.5 rounded-full bg-[#2C84DB]" />}
-                  </div>
-                  <div className="rounded-lg bg-[#1B67B2]/10 px-2 py-1 text-[12px] font-medium leading-4 text-[#1B67B2]">
-                    Save 17%
-                  </div>
+                {taxResult.taxNote && (
+                  <p className="text-[12px] leading-relaxed text-zinc-500">
+                    {taxResult.taxNote}
+                  </p>
+                )}
+                <div className="h-px w-full bg-black/10" />
+                <div className="flex items-center justify-between font-bold">
+                  <span>Total due today</span>
+                  <span>
+                    {isVariableCheckoutPlan
+                      ? formatInr(0)
+                      : formatInr(total)}
+                  </span>
                 </div>
-                <span className="max-w-[75%] text-left font-medium">Yearly</span>
-                <span className="mt-1 text-left text-[14px] leading-5 text-zinc-800">
-                  {formatPrice(details.yearly)}/year + tax
-                </span>
-              </button>
-            </div>
-          )}
-
-          <div className="bg-zinc-50 border border-black/10 rounded-xl p-5 flex flex-col gap-4 text-[14px]"> {/* order summary card */}
-            <div className="font-semibold">Order details</div>
-            <div className="flex justify-between items-center"> {/* line item — plan name + price */}
-              <div className="flex flex-col">
-                <span className="font-medium">{details.name}</span>
-                <span className="text-zinc-500">
-                  {isMaxPlan
-                    ? maxDetails.label
-                    : isVariableCheckoutPlan
-                      ? 'Details confirmed at activation'
-                      : billingCycle === 'monthly'
-                        ? 'Monthly'
-                        : 'Annually'}
-                </span>
               </div>
-              <span className="font-semibold">{isVariableCheckoutPlan ? orderLinePriceLabel : formatPrice(subtotal)}</span>
+
+              <div className="flex gap-4 rounded-xl border border-black/10 bg-white p-5">
+                <Info className="icon-md mt-0.5 shrink-0 icon-muted" />
+                <p className="text-[14px] leading-relaxed">
+                  {isVariableCheckoutPlan ? (
+                    <>
+                      No automatic renewal charge applies until a fixed price or
+                      usage schedule is agreed. Use the form on the right so we
+                      can follow up on next steps.
+                    </>
+                  ) : (
+                    <>
+                      Your subscription will auto renew on {renewalDate}. You
+                      will be charged{" "}
+                      <span className="font-semibold">
+                        {formatInr(total)} today
+                        {taxResult.showTaxRow && !taxResult.isGstExempt
+                          ? " including applicable tax"
+                          : ""}{" "}
+                        and {formatInr(subtotal)}
+                        {cycleLabel} on renewal
+                        {taxResult.showTaxRow && !taxResult.isGstExempt
+                          ? " plus tax where applicable"
+                          : ""}
+                      </span>
+                      .
+                    </>
+                  )}
+                </p>
+              </div>
             </div>
-            <div className="h-px bg-black/10 w-full" /> {/* divider */}
-            <div className="flex justify-between items-center font-medium"><span>Subtotal</span><span>{isVariableCheckoutPlan ? orderLinePriceLabel : formatPrice(subtotal)}</span></div>
-            <div className="flex justify-between items-center font-medium"><span>Tax</span><span>{formatPrice(tax)}</span></div>
-            <div className="h-px bg-black/10 w-full" />
-            <div className="flex justify-between items-center font-bold"><span>Total due today</span><span>{isVariableCheckoutPlan ? formatPrice(0) : formatPrice(total)}</span></div>
+          </aside>
+
+          {/* Right column — checkout form */}
+          <div className="min-w-0 flex-1 pb-8">
+            {payError && <CheckoutErrorBanner message={payError} />}
+            <CheckoutForm
+              paymentTab={paymentTab}
+              onPaymentTabChange={setPaymentTab}
+              savedMethod={null}
+              purchasingAsBusiness={purchasingAsBusiness}
+              onPurchasingAsBusinessChange={setPurchasingAsBusiness}
+              gstin={gstin}
+              onGstinChange={(value) => {
+                setGstin(value);
+                setGstinError(null);
+              }}
+              gstinError={gstinError}
+              onGstinBlur={() => {
+                const normalized = normalizeGstin(gstin);
+                if (normalized && !isValidIndianGstin(normalized)) {
+                  setGstinError("Enter a valid 15-character GSTIN.");
+                } else {
+                  setGstinError(null);
+                }
+              }}
+              billToName={billToName}
+              onBillToNameChange={setBillToName}
+              agreed={agreed}
+              onAgreedChange={setAgreed}
+              paying={paying}
+              payDisabled={
+                !agreed ||
+                isVariableCheckoutPlan ||
+                paying ||
+                !seatsValid ||
+                !bundleSeatsValid ||
+                !billingFormValid ||
+                !paymentFieldsValid
+              }
+              payLabel={`Pay ${formatInr(total)}`}
+              variablePlanNotice={
+                isVariableCheckoutPlan
+                  ? "Card charges are disabled for this plan until pricing is confirmed."
+                  : null
+              }
+              onPay={() => void handleSubscribe()}
+              onCardFieldsChange={handleCardFieldsChange}
+              showExpressCheckout={applePayAvailable}
+              hideUpi={isUsd}
+              onExpressCheckout={() => {
+                void handleSubscribe("card", { walletExpress: true });
+              }}
+            />
           </div>
 
-          <div className="border border-black/10 rounded-xl p-5 flex gap-4 bg-white"> {/* renewal / variable-plan info notice */}
-            <Info className="icon-md shrink-0 mt-0.5 icon-muted" />
-            <p className="text-[14px] leading-relaxed">
-              {isVariableCheckoutPlan ? (
-                <>
-                  No automatic renewal charge applies until a fixed price or usage schedule is agreed. Use the form below so we can follow up on next steps.
-                </>
-              ) : (
-                <>
-                  Your subscription will auto renew on {renewalDate}. You will be charged <span className="font-semibold">{formatPrice(total)} today and {formatPrice(total)}{cycleLabel} including tax on renewal</span>.
-                </>
-              )}
-            </p>
-          </div>
-
-          <form className="bg-zinc-50 border border-black/10 rounded-[20px] p-6 flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}> {/* payment form — native submit block; Razorpay actual charge */}
-            <div className="font-semibold text-[18px]">Payment method</div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[14px] font-medium text-zinc-800">Full name</label>
-              <input type="text" defaultValue="Revlon" className="h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all" /> 
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[14px] font-medium text-zinc-800">Country or region</label>
-              <select className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all appearance-none"><option value="IN">India</option></select> 
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[14px] font-medium text-zinc-800">Address</label>
-              <input type="text" className="h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[14px] font-medium text-zinc-800">Card number</label>
-              <input type="text" placeholder="1234 1234 1234 1234" className="w-full h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all" /> 
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5"><label className="text-[14px] font-medium text-zinc-800">Expiration date</label><input type="text" placeholder="MM / YY" className="h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all" /></div>
-              <div className="flex flex-col gap-1.5"><label className="text-[14px] font-medium text-zinc-800">Security code</label><input type="text" placeholder="CVC" className="h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all" /></div>
-            </div>
-
-            <div className="pt-2">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input type="checkbox" checked={useDifferentName} onChange={(e) => setUseDifferentName(e.target.checked)} className="w-4 h-4 rounded border-black/30 accent-black" /> {/* alternate invoice name field toggle */}
-                <span className="text-[14px] text-zinc-800">Use a different name on invoices</span>
-              </label>
-            </div>
-            {useDifferentName && ( // conditional "Bill to" field — animated reveal
-              <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                <label className="text-[14px] font-medium text-zinc-800">Bill to</label>
-                <input type="text" placeholder="Company or individual name" className="h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all" />
-              </div>
-            )}
-
-            <div className="flex flex-col gap-3 pt-4 border-t border-black/5"> {/* optional GSTIN — B2B India tax ID */}
-              <div>
-                <div className="text-[14px] font-medium text-zinc-800">Business tax ID (Optional)</div>
-                <div className="text-[12px] text-zinc-500 mt-0.5">If you provide a tax ID, the "Full name" above should be your business's name.</div>
-              </div>
-              <div className="flex items-center gap-3">
-                <label className="text-[14px] text-zinc-800 whitespace-nowrap">Indian GST number</label>
-                <input type="text" placeholder="12ABCDE3456FGZH" className="flex-1 h-11 px-3 bg-white rounded-lg border border-black/15 text-[14px] focus:outline-none focus:ring-2 focus:ring-black/10 transition-all" />
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-black/5"> {/* terms agreement + Subscribe CTA */}
-              <label className="flex items-start gap-3 cursor-pointer group select-none">
-                <div className="mt-0.5 shrink-0"><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="w-4 h-4 rounded border-black/30" /></div> {/* required consent checkbox */}
-                <span className="text-[12px] leading-relaxed text-zinc-500">
-                  You agree that Clauxen will charge your card in the amount above now and on a recurring {isMaxPlan ? 'monthly' : billingCycle === 'monthly' ? 'monthly' : 'annual'} basis until you cancel.
-                </span>
-              </label>
-              <button
-                type="button"
-                disabled={!agreed || isVariableCheckoutPlan || paying}
-                onClick={() => void handleSubscribe()}
-                className={cn(
-                  "mt-6",
-                  agreed && !isVariableCheckoutPlan && !paying
-                    ? appBtn.primaryLg
-                    : "app-btn app-btn-lg w-full h-11 rounded-xl font-medium bg-zinc-300 text-white cursor-not-allowed",
-                )}
-              >
-                {paying ? 'Opening checkout…' : 'Subscribe'} {/* loading vs default label */}
-              </button>
-              {payError && ( // inline payment error
-                <p className="mt-2 text-center text-[12px] text-red-600">{payError}</p>
-              )}
-              {isVariableCheckoutPlan && (
-                <p className="mt-3 text-center text-[12px] text-zinc-500">
-                  Card charges are disabled for this plan until pricing is confirmed.
-                </p>
-              )}
-            </div>
-          </form>
-        </div>
-      </main>
+          <CheckoutUpiQrModal
+            open={upiModalOpen}
+            imageUrl={upiQrImageUrl}
+            amountLabel={formatInr(total)}
+            onClose={handleUpiModalClose}
+          />
+        </main>
+      </div>
     </div>
   );
 }

@@ -1,19 +1,18 @@
-'use client';
+"use client";
 
-import { ExternalLink } from 'lucide-react';
-import { Button } from '@/frontend/components/ui/button';
-import { Switch } from '@/frontend/components/ui/switch';
+import { ExternalLink } from "lucide-react";
+import { Button } from "@/frontend/components/ui/button";
+import { Switch } from "@/frontend/components/ui/switch";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/frontend/components/ui/accordion'; // Accordion primitives — FAQ-style expandable privacy sections
+} from "@/frontend/components/ui/accordion"; // Accordion primitives — FAQ-style expandable privacy sections
 
 export function PrivacySettings() {
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-300">
-      
       <section className="flex flex-col gap-6 pb-8 border-b border-zinc-200 text-zinc-700">
         <div className="flex items-start gap-4">
           {/* icon container — data privacy SVG thumbnail */}
@@ -32,27 +31,35 @@ export function PrivacySettings() {
             </p>
           </div>
         </div>
-        
+
         <p className="text-[14px] leading-relaxed">
-          Learn how your information is protected when using Clauxen products, and visit our{" "}
-          <a href="#" className="underline decoration-zinc-300 hover:text-zinc-900">
+          Learn how your information is protected when using Clauxen products,
+          and visit our{" "}
+          <a
+            href="#"
+            className="underline decoration-zinc-300 hover:text-zinc-900"
+          >
             Privacy Center
           </a>{" "}
           and{" "}
-          <a href="#" className="underline decoration-zinc-300 hover:text-zinc-900">
+          <a
+            href="#"
+            className="underline decoration-zinc-300 hover:text-zinc-900"
+          >
             Privacy Policy
           </a>{" "}
           for more details.
         </p>
-        
+
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="protect" className="border-none">
             <AccordionTrigger className="py-2 text-[14px] font-[430] hover:no-underline">
               How we protect your data
             </AccordionTrigger>
             <AccordionContent className="pb-4 text-[14px] leading-relaxed text-zinc-500">
-              We use industry-standard encryption and security protocols to ensure your
-              conversations and personal information remain secure at all times.
+              We use industry-standard encryption and security protocols to
+              ensure your conversations and personal information remain secure
+              at all times.
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="use" className="border-none">
@@ -60,18 +67,16 @@ export function PrivacySettings() {
               How we use your data
             </AccordionTrigger>
             <AccordionContent className="pb-4 text-[14px] leading-relaxed text-zinc-500">
-              Your data is primarily used to provide and improve our services. We do not sell
-              your personal information to third parties.
+              Your data is primarily used to provide and improve our services.
+              We do not sell your personal information to third parties.
             </AccordionContent>
           </AccordionItem>
         </Accordion>
       </section>
 
-      
       <section className="flex flex-col gap-6 text-zinc-700">
         <h2 className="text-[16px] font-semibold">Privacy settings</h2>
 
-        
         <div className="flex items-center justify-between gap-8">
           <p className="text-[14px] font-[430]">Export data</p>
           <Button
@@ -82,7 +87,6 @@ export function PrivacySettings() {
           </Button>
         </div>
 
-        
         <div className="flex items-center justify-between gap-8">
           <p className="text-[14px] font-[430]">Shared chats</p>
           <Button
@@ -109,9 +113,12 @@ export function PrivacySettings() {
           <div className="flex flex-col gap-1.5">
             <p className="text-[14px] font-[430]">Location metadata</p>
             <p className="text-[14px] leading-snug text-zinc-500">
-              Allow Clauxen to use coarse location metadata (city/region) to improve product
-              experiences.{" "}
-              <a href="#" className="underline decoration-zinc-400/40 hover:text-zinc-800">
+              Allow Clauxen to use coarse location metadata (city/region) to
+              improve product experiences.{" "}
+              <a
+                href="#"
+                className="underline decoration-zinc-400/40 hover:text-zinc-800"
+              >
                 Learn more
               </a>
               .
@@ -125,9 +132,12 @@ export function PrivacySettings() {
           <div className="flex flex-col gap-1.5">
             <p className="text-[14px] font-[430]">Help improve Clauxen</p>
             <p className="text-[14px] leading-snug text-zinc-500">
-              Allow the use of your chats and coding sessions to train and improve Shirova AI
-              models.{" "}
-              <a href="#" className="underline decoration-zinc-400/40 hover:text-zinc-800">
+              Allow the use of your chats and coding sessions to train and
+              improve Shirova AI models.{" "}
+              <a
+                href="#"
+                className="underline decoration-zinc-400/40 hover:text-zinc-800"
+              >
                 Learn more
               </a>
               .

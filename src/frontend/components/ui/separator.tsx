@@ -1,9 +1,9 @@
-"use client" // client — Radix Separator orientation attributes
+"use client"; // client — Radix Separator orientation attributes
 
-import * as React from "react"
-import * as SeparatorPrimitive from "@radix-ui/react-separator" // accessible divider primitive
+import * as React from "react";
+import * as SeparatorPrimitive from "@radix-ui/react-separator"; // accessible divider primitive
 
-import { cn } from "@/frontend/lib/utils"
+import { cn } from "@/frontend/lib/utils";
 
 // Separator — visual divider line (horizontal or vertical)
 const Separator = React.forwardRef<
@@ -12,7 +12,7 @@ const Separator = React.forwardRef<
 >(
   (
     { className, orientation = "horizontal", decorative = true, ...props }, // decorative=true → purely visual, not focusable landmark
-    ref
+    ref,
   ) => (
     <SeparatorPrimitive.Root
       ref={ref}
@@ -21,12 +21,12 @@ const Separator = React.forwardRef<
       className={cn(
         "shrink-0 bg-border", // base border color line
         orientation === "horizontal" ? "h-[1px] w-full" : "h-full w-[1px]", // dimension by orientation
-        className
+        className,
       )}
       {...props}
     />
-  )
-)
-Separator.displayName = SeparatorPrimitive.Root.displayName
+  ),
+);
+Separator.displayName = SeparatorPrimitive.Root.displayName;
 
-export { Separator }
+export { Separator };

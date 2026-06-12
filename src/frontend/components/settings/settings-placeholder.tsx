@@ -12,7 +12,9 @@ export function SettingsPlaceholder({
   return (
     <div className="flex animate-in fade-in flex-col gap-3 duration-300 text-zinc-800">
       <h2 className="text-[16px] font-semibold">{title}</h2>
-      <p className="max-w-md text-[14px] leading-relaxed text-zinc-500">{description}</p>
+      <p className="max-w-md text-[14px] leading-relaxed text-zinc-500">
+        {description}
+      </p>
     </div>
   );
 }

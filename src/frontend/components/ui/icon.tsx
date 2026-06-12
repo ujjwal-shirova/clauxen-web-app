@@ -1,4 +1,3 @@
-
 import { cn } from "@/frontend/lib/utils";
 import type { LucideIcon, LucideProps } from "lucide-react";
 
@@ -34,14 +33,17 @@ export function Icon({
   className,
   ...props
 }: IconProps) {
-  const {
-    dangerouslySetInnerHTML: _dangerouslySetInnerHTML,
-    ...safeProps
-  } = props;
+  const { dangerouslySetInnerHTML: _dangerouslySetInnerHTML, ...safeProps } =
+    props;
 
   return (
     <LucideIcon
-      className={cn("lucide", sizeClasses[size], variantClasses[variant], className)}
+      className={cn(
+        "lucide",
+        sizeClasses[size],
+        variantClasses[variant],
+        className,
+      )}
       {...safeProps}
     />
   );

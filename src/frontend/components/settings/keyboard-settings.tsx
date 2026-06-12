@@ -44,20 +44,27 @@ function ShortcutRow({
         onCheckedChange={onToggleEnabled}
         aria-label={`${label}, ${enabled ? "on" : "off"}`}
       />
-      <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.16px]">{label}</span>
+      <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.16px]">
+        {label}
+      </span>
       <button
         type="button"
         onClick={onEditKeys}
         className="flex h-9 min-w-[54px] shrink-0 items-center justify-center rounded-full px-3 text-[13px] text-zinc-600 transition-colors hover:bg-white/60"
         aria-label={`Change shortcut for ${label}`}
       >
-        <span className="whitespace-pre font-normal">{formatShortcutKeys(keys)}</span>
+        <span className="whitespace-pre font-normal">
+          {formatShortcutKeys(keys)}
+        </span>
       </button>
     </li>
   );
 }
 
-function rowPosition(index: number, total: number): ShortcutRowProps["position"] {
+function rowPosition(
+  index: number,
+  total: number,
+): ShortcutRowProps["position"] {
   if (total === 1) return "only";
   if (index === 0) return "first";
   if (index === total - 1) return "last";
@@ -94,7 +101,8 @@ export function KeyboardSettings() {
 
       <div className="-mx-4 mt-2 flex flex-col">
         <p className="mb-6 px-6 text-[14px] leading-relaxed tracking-[0.14px] text-zinc-600">
-          To change a shortcut, select the key combination, and then type the new keys.
+          To change a shortcut, select the key combination, and then type the
+          new keys.
         </p>
 
         <section className="mb-8">
@@ -122,7 +130,9 @@ export function KeyboardSettings() {
             disabled={!hasChanges}
             className={cn(
               "ml-auto block rounded-full px-4 py-2.5 text-sm font-medium text-white transition-opacity",
-              hasChanges ? "no-hover-overlay bg-zinc-900 hover:bg-zinc-800" : "cursor-not-allowed bg-zinc-900 opacity-50",
+              hasChanges
+                ? "no-hover-overlay bg-zinc-900 hover:bg-zinc-800"
+                : "cursor-not-allowed bg-zinc-900 opacity-50",
             )}
             onClick={resetToDefaults}
           >

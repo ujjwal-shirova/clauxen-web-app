@@ -2,17 +2,14 @@
 
 import React, { useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { Streamdown, type Components } from "streamdown";
-import { createMathPlugin } from "@streamdown/math";
-import "streamdown/styles.css";
 import { OrbCursor } from "@/frontend/components/ui/orb-cursor";
 import {
   markdownComponents,
   normalizeLatexDelimiters,
   sharedReactMarkdownProps,
 } from "@/frontend/components/markdown-shared";
-
-const streamingMath = createMathPlugin({ singleDollarTextMath: true });
+import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
+import { StreamingAnimatedMarkdown } from "./streaming-markdown";
 
 export const MarkdownOrchestrator = ({
   text,
@@ -24,7 +21,7 @@ export const MarkdownOrchestrator = ({
   const normalizedText = normalizeLatexDelimiters(text);
 
   return (
-    <div className="markdown-content relative min-w-0 max-w-full overflow-hidden">
+    <div className="markdown-content relative min-w-0 max-w-full">
       <ReactMarkdown {...sharedReactMarkdownProps}>
         {normalizedText}
       </ReactMarkdown>
@@ -39,20 +36,43 @@ export const MarkdownMessage = ({
   streamKey,
   showCursor = true,
   lightweightStream = false,
+  detailLevel = "full",
 }: {
   content: string;
   onTypingComplete?: () => void;
   isStreaming?: boolean;
   streamKey?: string;
   showCursor?: boolean;
-  /** Plain pre-wrap during stream (no markdown/blur) — used for thinking panel. */
+  /** Plain pre-wrap during stream (no markdown) — used for thinking panel. */
   lightweightStream?: boolean;
+  /** LOD: plain/placeholder strips heavy syntax highlighting off-screen. */
+  detailLevel?: MessageDetailLevel;
 }) => {
   useEffect(() => {
     if (!isStreaming && onTypingComplete) {
       onTypingComplete();
     }
   }, [isStreaming, onTypingComplete]);
+
+  if (detailLevel === "placeholder") {
+    return (
+      <div
+        className="min-h-[48px] truncate text-[14px] leading-[1.55] text-zinc-500"
+        aria-hidden
+      >
+        {content.slice(0, 120)}
+        {content.length > 120 ? "…" : ""}
+      </div>
+    );
+  }
+
+  if (detailLevel === "plain" && !isStreaming) {
+    return (
+      <div className="whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-zinc-800">
+        {content}
+      </div>
+    );
+  }
 
   if (isStreaming && lightweightStream) {
     return (
@@ -68,15 +88,7 @@ export const MarkdownMessage = ({
         className="markdown-content relative min-w-0 max-w-full"
         data-stream-key={streamKey ?? content}
       >
-        <Streamdown
-          animated={{ animation: "blurIn", sep: "word" }}
-          isAnimating
-          mode="streaming"
-          plugins={{ math: streamingMath }}
-          components={markdownComponents as unknown as Components}
-        >
-          {normalizeLatexDelimiters(content)}
-        </Streamdown>
+        <StreamingAnimatedMarkdown content={content} streamKey={streamKey} />
         {showCursor ? <OrbCursor /> : null}
       </div>
     );
@@ -91,12 +103,14 @@ export const MarkdownRenderer = ({
   streamKey,
   showCursor = true,
   lightweightStream = false,
+  detailLevel = "full",
 }: {
   content: string;
   isStreaming?: boolean;
   streamKey?: string;
   showCursor?: boolean;
   lightweightStream?: boolean;
+  detailLevel?: MessageDetailLevel;
 }) => (
   <MarkdownMessage
     content={content}
@@ -104,5 +118,6 @@ export const MarkdownRenderer = ({
     streamKey={streamKey}
     showCursor={showCursor}
     lightweightStream={lightweightStream}
+    detailLevel={detailLevel}
   />
 );

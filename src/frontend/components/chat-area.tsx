@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { PromptInput } from "./prompt-input";
+import { IsolatedChatInput } from "./isolated-chat-input";
 import type { Message } from "@/frontend/lib/types";
 import { ConversationThread } from "./conversation-thread";
 import { ShareDialog } from "./share-dialog";
@@ -36,10 +36,17 @@ interface ChatAreaProps {
   activeChatId: string | null;
   activeChatTitle?: string;
   isActiveChatTitleStreaming?: boolean;
+  isActiveChatPinned?: boolean;
+  onRenameChat?: (chatId: string, newTitle: string) => void;
+  onPinChat?: (chatId: string, pinned: boolean) => void;
   onDeleteChat?: (chatId: string) => void;
   onOpenSettings?: () => void;
   thinkingEnabled: boolean;
   onThinkingEnabledChange: (enabled: boolean) => void;
+  webSearchEnabled: boolean;
+  onWebSearchEnabledChange: (enabled: boolean) => void;
+  onOpenMobileNav?: () => void;
+  showMobileMenu?: boolean;
 }
 
 const ARTIFACTS_PANEL_WIDTH = 360;
@@ -56,38 +63,48 @@ export function ChatArea({
   activeChatId,
   activeChatTitle,
   isActiveChatTitleStreaming,
+  isActiveChatPinned,
+  onRenameChat,
+  onPinChat,
   onDeleteChat,
   onOpenSettings,
   thinkingEnabled,
   onThinkingEnabledChange,
+  webSearchEnabled,
+  onWebSearchEnabledChange,
+  onOpenMobileNav,
+  showMobileMenu = false,
 }: ChatAreaProps) {
   const isMobile = useIsMobile();
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
-  const [isImageExploreMode, setIsImageExploreMode] = useState(false);
   const [isArtifactsPanelOpen, setIsArtifactsPanelOpen] = useState(false);
   const [showScrollToBottomButton, setShowScrollToBottomButton] =
     useState(false);
+  const [, startTransition] = React.useTransition();
   const deferredMessages = React.useDeferredValue(messages);
   const displayMessages = isGenerating ? messages : deferredMessages;
   const scrollRafRef = React.useRef<number | null>(null);
   const scrollViewportRef = React.useRef<HTMLDivElement | null>(null);
   const isAutoScrollEnabledRef = React.useRef(true);
+  const [isFastScrolling, setIsFastScrolling] = React.useState(false);
+  const lastScrollTopRef = React.useRef(0);
+  const lastScrollTimeRef = React.useRef(0);
+  const fastScrollTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const isConversationStarted = messages.length > 0;
 
   React.useEffect(() => {
     setHasPromptDraft(false);
-    setIsImageExploreMode(false);
   }, [activeChatId]);
 
   React.useEffect(() => {
     if (!isConversationStarted) {
       isAutoScrollEnabledRef.current = true;
-    } else {
-      setIsImageExploreMode(false);
     }
   }, [isConversationStarted]);
 
@@ -132,6 +149,22 @@ export function ChatArea({
     scrollViewportRef.current = viewport;
 
     const updateButtonVisibility = () => {
+      const now = performance.now();
+      const deltaY = Math.abs(viewport.scrollTop - lastScrollTopRef.current);
+      const deltaT = now - lastScrollTimeRef.current;
+      if (deltaT > 0 && deltaY / deltaT > 2.5) {
+        setIsFastScrolling(true);
+        if (fastScrollTimeoutRef.current) {
+          clearTimeout(fastScrollTimeoutRef.current);
+        }
+        fastScrollTimeoutRef.current = setTimeout(
+          () => setIsFastScrolling(false),
+          150,
+        );
+      }
+      lastScrollTopRef.current = viewport.scrollTop;
+      lastScrollTimeRef.current = now;
+
       const distanceToBottom =
         viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
 
@@ -148,7 +181,13 @@ export function ChatArea({
     viewport.addEventListener("scroll", updateButtonVisibility, {
       passive: true,
     });
-    return () => viewport.removeEventListener("scroll", updateButtonVisibility);
+    return () => {
+      viewport.removeEventListener("scroll", updateButtonVisibility);
+      if (fastScrollTimeoutRef.current) {
+        clearTimeout(fastScrollTimeoutRef.current);
+        fastScrollTimeoutRef.current = null;
+      }
+    };
   }, [isConversationStarted, displayMessages.length]);
 
   const scrollToBottom = React.useCallback(() => {
@@ -181,9 +220,11 @@ export function ChatArea({
   const handleSwitchBranch = React.useCallback(
     (messageId: string, direction: "prev" | "next") => {
       if (!activeChatId) return;
-      switchMessageBranch(activeChatId, messageId, direction);
+      startTransition(() => {
+        switchMessageBranch(activeChatId, messageId, direction);
+      });
     },
-    [activeChatId, switchMessageBranch],
+    [activeChatId, switchMessageBranch, startTransition],
   );
 
   const handleSendMessageAndScroll = React.useCallback(
@@ -209,8 +250,16 @@ export function ChatArea({
     onDeleteChat?.(activeChatId);
   }, [activeChatId, onDeleteChat]);
 
+  const handlePromptDraftChange = React.useCallback((value: string) => {
+    const has = value.trim().length > 0;
+    startTransition(() => {
+      setHasPromptDraft(has);
+      if (has) setActiveChip(null);
+    });
+  }, [startTransition]);
+
   const promptInput = (
-    <PromptInput
+    <IsolatedChatInput
       key="prompt-input"
       onSendMessage={handleSendMessageAndScroll}
       onStopGeneration={onStopGeneration}
@@ -218,17 +267,13 @@ export function ChatArea({
       showScrollToBottomButton={showScrollToBottomButton}
       isConversationStarted={isConversationStarted}
       isGenerating={isGenerating}
-      onPromptChange={(value) => {
-        const has = value.trim().length > 0;
-        setHasPromptDraft(has);
-        if (has) setActiveChip(null);
-      }}
-      onImageModeChange={setIsImageExploreMode}
-      imageModeEnabled={!isConversationStarted ? isImageExploreMode : undefined}
+      onPromptChange={handlePromptDraftChange}
       focusKey={activeChatId ?? "new"}
       onUpgradeClick={onUpgradeClick}
       thinkingEnabled={thinkingEnabled}
       onThinkingEnabledChange={onThinkingEnabledChange}
+      webSearchEnabled={webSearchEnabled}
+      onWebSearchEnabledChange={onWebSearchEnabledChange}
       showModelSelector={isConversationStarted}
     />
   );
@@ -251,6 +296,8 @@ export function ChatArea({
               onOpenSettings={onOpenSettings}
               thinkingEnabled={thinkingEnabled}
               onThinkingEnabledChange={onThinkingEnabledChange}
+              onOpenMobileNav={onOpenMobileNav}
+              showMobileMenu={showMobileMenu}
               className="relative z-20 shrink-0"
             />
           ) : null}
@@ -259,8 +306,6 @@ export function ChatArea({
             hasConversation={isConversationStarted}
             isGenerating={isGenerating}
             hasPromptDraft={hasPromptDraft}
-            isImageExploreMode={isImageExploreMode}
-            onCreateImage={() => setIsImageExploreMode(true)}
             activeChip={activeChip}
             onActiveChipChange={setActiveChip}
             onSendMessage={handleSendMessageAndScroll}
@@ -271,6 +316,8 @@ export function ChatArea({
                 onSaveEditedMessage={handleSaveEditedMessage}
                 onRetryAssistant={handleRetryAssistant}
                 onSwitchBranch={handleSwitchBranch}
+                scrollAreaRef={scrollAreaRef}
+                isFastScrolling={isFastScrolling}
               />
             }
             promptInput={promptInput}
@@ -293,8 +340,23 @@ export function ChatArea({
               isArtifactsPanelOpen={isArtifactsPanelOpen}
               chatTitle={activeChatTitle}
               isTitleStreaming={isActiveChatTitleStreaming}
+              isChatPinned={isActiveChatPinned}
+              onRenameChat={(title) => {
+                if (!activeChatId) return;
+                onRenameChat?.(activeChatId, title);
+              }}
+              onPinChat={() => {
+                if (!activeChatId) return;
+                onPinChat?.(activeChatId, true);
+              }}
+              onUnpinChat={() => {
+                if (!activeChatId) return;
+                onPinChat?.(activeChatId, false);
+              }}
               onDeleteChat={handleDeleteActiveChat}
               onOpenSettings={onOpenSettings}
+              onOpenMobileNav={onOpenMobileNav}
+              showMobileMenu={showMobileMenu}
               className="z-20"
             />
           ) : null}

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "targetDatabase": "clauxen_main",
+  "generatedAt": "2026-05-20T18:07:33.040Z",
+  "files": [
+    "001_pragmas.sql",
+    "002_bootstrap_shim.sql",
+    "010_core_backend.sql",
+    "011_parallel_research.sql",
+    "020_platform_schema.sql",
+    "021_platform_primitives.sql",
+    "030_billing_gifts.sql",
+    "031_realtime_experiences.sql",
+    "032_operational_workers.sql",
+    "040_security_hardening.sql",
+    "041_rls_policy_cleanup.sql",
+    "042_billing_function_lint.sql",
+    "043_fk_indexes.sql",
+    "050_low_compute_maintenance.sql",
+    "060_identity_oauth.sql",
+    "061_extension_schema.sql",
+    "062_oauth_fk_indexes.sql",
+    "063_graphql_lockdown.sql",
+    "064_remove_pgtap.sql",
+    "065_safe_app_access.sql",
+    "066_index_cleanup.sql",
+    "067_studio_visibility.sql",
+    "068_dashboard_visibility.sql",
+    "070_model_governance.sql",
+    "080_shirova_gateway.sql",
+    "090_blocked_emails.sql"
+  ]
+}

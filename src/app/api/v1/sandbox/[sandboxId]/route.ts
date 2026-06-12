@@ -1,9 +1,6 @@
 import { withApiRouteParams } from "@/backend/http/route-params";
 import { jsonData } from "@/backend/http/api-response";
-import {
-  getSandboxInfo,
-  killSandbox,
-} from "@/backend/sandbox/sandbox-manager";
+import { getSandboxInfo, killSandbox } from "@/backend/sandbox/sandbox-manager";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

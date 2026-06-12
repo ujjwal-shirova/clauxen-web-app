@@ -1,5 +1,5 @@
-import type {NextConfig} from 'next';
-import os from 'node:os';
+import type { NextConfig } from "next";
+import os from "node:os";
 
 function getLocalNetworkHosts(): string[] {
   const hosts = new Set<string>();
@@ -7,8 +7,7 @@ function getLocalNetworkHosts(): string[] {
   for (const entries of Object.values(os.networkInterfaces())) {
     if (!entries) continue;
     for (const entry of entries) {
-      const isIPv4 =
-        entry.family === 'IPv4' || String(entry.family) === '4';
+      const isIPv4 = entry.family === "IPv4" || String(entry.family) === "4";
       if (isIPv4 && !entry.internal) {
         hosts.add(entry.address);
       }
@@ -20,7 +19,7 @@ function getLocalNetworkHosts(): string[] {
 
 function getAllowedDevOrigins(): string[] {
   const fromEnv =
-    process.env.ALLOWED_DEV_ORIGINS?.split(',')
+    process.env.ALLOWED_DEV_ORIGINS?.split(",")
       .map((origin) => origin.trim())
       .filter(Boolean) ?? [];
 
@@ -29,27 +28,35 @@ function getAllowedDevOrigins(): string[] {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: getAllowedDevOrigins(),
-  serverExternalPackages: ["novita-sandbox"],
+  serverExternalPackages: [
+    "novita-sandbox",
+    "pg",
+    "razorpay",
+    "@ory/hydra-client",
+    "@ory/kratos-client",
+  ],
+  /** Next.js 16 defaults to Turbopack; empty config silences webpack-migration warning. */
+  turbopack: {},
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "placehold.co",
+        port: "",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "picsum.photos",
+        port: "",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: 'raw.githubusercontent.com',
-        port: '',
-        pathname: '/**',
-      }
+        protocol: "https",
+        hostname: "raw.githubusercontent.com",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
 };

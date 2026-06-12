@@ -28,14 +28,19 @@ export function isUsableChatTitle(title: string): boolean {
   return true;
 }
 
-export function isNearCopyOfUserMessage(title: string, userContent: string): boolean {
+export function isNearCopyOfUserMessage(
+  title: string,
+  userContent: string,
+): boolean {
   const user = stripTitleSourceText(userContent).toLowerCase();
   const candidate = stripTitleSourceText(title).toLowerCase();
   if (!user || !candidate) return false;
   if (candidate === user) return true;
   if (user.length < 12) return false;
-  if (user.startsWith(candidate) && candidate.length >= user.length * 0.55) return true;
-  if (candidate.startsWith(user.slice(0, Math.min(user.length, 48)))) return true;
+  if (user.startsWith(candidate) && candidate.length >= user.length * 0.55)
+    return true;
+  if (candidate.startsWith(user.slice(0, Math.min(user.length, 48))))
+    return true;
   return false;
 }
 
@@ -59,7 +64,10 @@ export function deriveTitleFromExchange(
       .slice(0, 6);
     if (words.length >= 2) {
       const candidate = words.join(" ");
-      if (isUsableChatTitle(candidate) && !isNearCopyOfUserMessage(candidate, user)) {
+      if (
+        isUsableChatTitle(candidate) &&
+        !isNearCopyOfUserMessage(candidate, user)
+      ) {
         return candidate.length > 60 ? `${candidate.slice(0, 57)}…` : candidate;
       }
     }
@@ -81,7 +89,10 @@ export function deriveTitleFromExchange(
 
 export function buildTitlePromptPayload(exchange: TitleExchange): string {
   const user = stripTitleSourceText(exchange.userContent).slice(0, 600);
-  const assistant = stripTitleSourceText(exchange.assistantContent).slice(0, 600);
+  const assistant = stripTitleSourceText(exchange.assistantContent).slice(
+    0,
+    600,
+  );
   return [
     "Create a short sidebar title (3-6 words) for this chat.",
     "Focus on the topic, not the full question. Do not copy the user message verbatim.",
@@ -91,8 +102,14 @@ export function buildTitlePromptPayload(exchange: TitleExchange): string {
   ].join("\n");
 }
 
-export function normalizeChatTitle(raw: string, exchange: TitleExchange): string {
-  const fallback = deriveTitleFromExchange(exchange.userContent, exchange.assistantContent);
+export function normalizeChatTitle(
+  raw: string,
+  exchange: TitleExchange,
+): string {
+  const fallback = deriveTitleFromExchange(
+    exchange.userContent,
+    exchange.assistantContent,
+  );
   const visibleText = stripTitleSourceText(raw);
   const firstLine = visibleText.split(/\r?\n/)[0] ?? "";
   const trimmed = firstLine
@@ -115,7 +132,11 @@ export function normalizeChatTitle(raw: string, exchange: TitleExchange): string
 
   if (looksLikeReasoning) {
     const quoted = trimmed.match(/"([^"]{1,60})"/)?.[1]?.trim();
-    if (quoted && isUsableChatTitle(quoted) && !isNearCopyOfUserMessage(quoted, exchange.userContent)) {
+    if (
+      quoted &&
+      isUsableChatTitle(quoted) &&
+      !isNearCopyOfUserMessage(quoted, exchange.userContent)
+    ) {
       return quoted.slice(0, 80);
     }
     return fallback;
@@ -125,7 +146,10 @@ export function normalizeChatTitle(raw: string, exchange: TitleExchange): string
   const short = words.length <= 8 ? trimmed : words.slice(0, 6).join(" ");
   const title = short.slice(0, 80);
 
-  if (!isUsableChatTitle(title) || isNearCopyOfUserMessage(title, exchange.userContent)) {
+  if (
+    !isUsableChatTitle(title) ||
+    isNearCopyOfUserMessage(title, exchange.userContent)
+  ) {
     return fallback;
   }
 

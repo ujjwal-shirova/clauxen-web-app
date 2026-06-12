@@ -7,7 +7,9 @@ export const dynamic = "force-dynamic";
 
 export const GET = withApiRouteParams<{ sandboxId: string }>(
   async ({ request, params }) => {
-    const port = Number(new URL(request.url).searchParams.get("port") ?? "3000");
+    const port = Number(
+      new URL(request.url).searchParams.get("port") ?? "3000",
+    );
     return jsonData(await getSandboxPublicHost(params.sandboxId, port));
   },
   { requireChatAuth: true },

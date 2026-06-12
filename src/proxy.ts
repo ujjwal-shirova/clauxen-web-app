@@ -1,8 +1,20 @@
-import type { NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { env } from "@/backend/config/env";
+import { updateOrySession } from "@/utils/ory/middleware";
 import { updateSession } from "@/utils/supabase/middleware";
+import { getSupabasePublicConfig } from "@/utils/supabase/env";
 
 export async function proxy(request: NextRequest) {
-  return updateSession(request);
+  if (env.oryKratosPublicUrl) {
+    return updateOrySession(request);
+  }
+
+  const supabase = getSupabasePublicConfig();
+  if (supabase.url && supabase.publishableKey) {
+    return updateSession(request);
+  }
+
+  return NextResponse.next({ request });
 }
 
 export const config = {

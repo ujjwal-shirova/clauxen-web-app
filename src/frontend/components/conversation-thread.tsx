@@ -1,14 +1,21 @@
 "use client";
 
 import React from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Check } from "lucide-react";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ThinkingBlock } from "./thinking-block";
+import { AgentMessageContent } from "./agent/agent-message-content";
 import { OrbCursor } from "./ui/orb-cursor";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { messageAnchorId } from "./chat-message-navigator";
 import type { Message } from "@/frontend/lib/types";
+import { UserMessageExpandDialog } from "./user-message-expand-dialog";
 import { cn } from "@/frontend/lib/utils";
+import { useMessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
+import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
+
+const USER_MESSAGE_PREVIEW_LINES = 2;
 
 interface ConversationThreadProps {
   messages: Message[];
@@ -19,6 +26,28 @@ interface ConversationThreadProps {
   onRetryAssistant: (messageId: string) => void;
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
   className?: string;
+  scrollAreaRef?: React.RefObject<HTMLDivElement | null>;
+  /** When true, off-screen rows render lightweight placeholders (fast scroll). */
+  isFastScrolling?: boolean;
+}
+
+type ConversationTurnGroup = {
+  userMessage: Message | null;
+  assistantMessages: Message[];
+};
+
+function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
+  const groups: ConversationTurnGroup[] = [];
+  messages.forEach((msg) => {
+    if (msg.role === "user") {
+      groups.push({ userMessage: msg, assistantMessages: [] });
+    } else if (groups.length === 0) {
+      groups.push({ userMessage: null, assistantMessages: [msg] });
+    } else {
+      groups[groups.length - 1].assistantMessages.push(msg);
+    }
+  });
+  return groups;
 }
 
 const RetryIcon = () => (
@@ -107,6 +136,8 @@ interface MessageRowProps {
   onCopy: (id: string, text: string) => void;
   onRetryAssistant: (messageId: string) => void;
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
+  isFastScrolling?: boolean;
+  forcedDetailLevel?: MessageDetailLevel;
 }
 
 const MessageRow = React.memo(
@@ -122,61 +153,78 @@ const MessageRow = React.memo(
     onCopy,
     onRetryAssistant,
     onSwitchBranch,
+    isFastScrolling = false,
+    forcedDetailLevel,
   }: MessageRowProps) {
     const branchVersions = message.branchVersions?.length ?? 1;
     const activeBranchIndex = message.activeBranchIndex ?? branchVersions - 1;
+    const [expandOpen, setExpandOpen] = React.useState(false);
+    const { ref: visibilityRef, detailLevel } = useMessageDetailLevel(
+      message.role === "assistant",
+      !!message.isStreaming,
+    );
+    const renderDetailLevel: MessageDetailLevel =
+      forcedDetailLevel ??
+      (isFastScrolling ? "placeholder" : detailLevel);
+
+    if (isFastScrolling && message.role === "assistant" && !message.isStreaming) {
+      return (
+        <div
+          className="min-h-[72px] w-full rounded-lg bg-zinc-50/80"
+          style={{ containIntrinsicSize: "72px" }}
+          aria-hidden
+        />
+      );
+    }
 
     return (
       <div
+        ref={visibilityRef}
         className={cn(
-          "flex flex-col animate-in fade-in duration-500 group",
-          message.role === "user" ? "items-end" : "items-start w-full",
+          "group flex w-full flex-col animate-in fade-in duration-500",
+          message.role === "user" ? "items-stretch" : "items-start",
         )}
         style={{ contentVisibility: "auto", containIntrinsicSize: "240px" }}
       >
         {message.role === "user" ? (
-          editingMessageId === message.id ? (
-            <div className="bg-zinc-100 rounded-[12px] p-[10px] flex flex-col gap-2 w-full max-w-[690px] animate-in fade-in duration-300">
-              <textarea
-                className="w-full bg-white border border-zinc-200 rounded-[9.6px] p-3 text-[15px] resize-none outline-none focus:ring-2 focus:ring-[#1b67b2]/20 font-sans min-h-[100px]"
-                value={editValue ?? ""}
-                onChange={(e) => onEditValueChange(e.target.value)}
-                autoFocus
-              />
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex max-w-full items-start gap-2 text-[11px] leading-relaxed text-zinc-600 sm:max-w-[70%] sm:text-[12px]">
-                  <InfoIcon />
-                  <span>
-                    Editing this message will create a new conversation branch.
-                  </span>
-                </div>
-                <div className="flex shrink-0 gap-2 self-end sm:self-auto">
-                  <button
-                    onClick={onCancelEdit}
-                    className="h-9 px-4 border border-zinc-300 rounded-lg text-[14px] font-medium hover:bg-zinc-100 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => onSaveEdit(message.id)}
-                    className="h-9 px-4 bg-black text-white rounded-lg text-[14px] font-medium hover:bg-zinc-800 no-hover-overlay transition-colors"
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
             <div
               id={messageAnchorId(message.id)}
-              className="flex scroll-mt-20 flex-col items-end gap-1 w-full font-sans"
+              className="user-message-card flex w-full scroll-mt-20 flex-col font-sans"
             >
-              <div className="px-3.5 py-2 rounded-[12px] max-w-[92%] sm:max-w-[85%] bg-zinc-100 text-zinc-800 shadow-sm relative transition-all">
-                <p className="whitespace-pre-wrap text-[14px] leading-relaxed">
+              <button
+                type="button"
+                onClick={() => setExpandOpen(true)}
+                className="user-message-card__body w-full cursor-pointer rounded-[18px] px-3.5 py-3 text-left transition-colors hover:bg-zinc-200/60 sm:rounded-[20px] sm:px-5 sm:py-4"
+                aria-label="Expand user message"
+              >
+                <p
+                  className="overflow-hidden whitespace-pre-wrap text-[14px] font-[430] leading-[1.6] text-zinc-900 sm:text-[15px] sm:leading-[1.65]"
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                >
                   {message.content}
                 </p>
-              </div>
-              <div className="flex h-8 items-center gap-0 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100">
+              </button>
+              <UserMessageExpandDialog
+                open={expandOpen}
+                onOpenChange={setExpandOpen}
+                message={message}
+                isEditing={editingMessageId === message.id}
+                editValue={
+                  editingMessageId === message.id ? (editValue ?? "") : ""
+                }
+                copiedId={copiedId}
+                onStartEdit={onStartEdit}
+                onEditValueChange={onEditValueChange}
+                onCancelEdit={onCancelEdit}
+                onSaveEdit={onSaveEdit}
+                onCopy={onCopy}
+                onSwitchBranch={onSwitchBranch}
+              />
+              <div className="user-message-actions mt-1 flex h-8 items-center justify-end gap-0">
                 <HintTooltip content="Retry">
                   <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 text-zinc-500 transition-all">
                     <RetryIcon />
@@ -184,7 +232,10 @@ const MessageRow = React.memo(
                 </HintTooltip>
                 <HintTooltip content="Edit">
                   <button
-                    onClick={() => onStartEdit(message)}
+                    onClick={() => {
+                      onStartEdit(message);
+                      setExpandOpen(true);
+                    }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 text-zinc-500 transition-all"
                   >
                     <EditPenIcon />
@@ -245,7 +296,6 @@ const MessageRow = React.memo(
                 ) : null}
               </div>
             </div>
-          )
         ) : (
           <div
             className={cn(
@@ -253,28 +303,43 @@ const MessageRow = React.memo(
               message.isStreaming && "[contain:layout_style]",
             )}
           >
-            {(message.hasThinking ||
-              (message.thinkingContent?.trim().length ?? 0) > 0) && (
-              <ThinkingBlock
-                content={message.thinkingContent}
-                isStreaming={!!message.isThinkingStreaming}
-                thinkingDurationSeconds={message.thinkingDurationSeconds}
-                className="mb-4"
+            {message.agentMode ||
+            (message.agentSegments && message.agentSegments.length > 0) ? (
+              <AgentMessageContent
+                message={message}
+                detailLevel={renderDetailLevel}
               />
-            )}
-            {message.isStreaming && message.content.trim().length === 0 && (
-              <div className="flex items-center py-1">
-                <OrbCursor />
-              </div>
-            )}
-            {message.content.trim().length > 0 ? (
+            ) : (
               <>
-                <MarkdownRenderer
-                  content={message.content}
-                  isStreaming={!!message.isStreaming}
-                  streamKey={message.id}
-                />
-                {!message.isStreaming && (
+                {(message.hasThinking ||
+                  (message.thinkingContent?.trim().length ?? 0) > 0) && (
+                  <ThinkingBlock
+                    content={message.thinkingContent}
+                    isStreaming={!!message.isThinkingStreaming}
+                    thinkingDurationSeconds={message.thinkingDurationSeconds}
+                    className="mb-4"
+                  />
+                )}
+                {message.isStreaming && message.content.trim().length === 0 && (
+                  <div className="flex items-center py-1">
+                    <OrbCursor />
+                  </div>
+                )}
+                {message.content.trim().length > 0 ? (
+                  <MarkdownRenderer
+                    content={message.content}
+                    isStreaming={!!message.isStreaming}
+                    streamKey={message.id}
+                    detailLevel={renderDetailLevel}
+                  />
+                ) : null}
+              </>
+            )}
+            {(message.agentMode ||
+              (message.agentSegments && message.agentSegments.length > 0) ||
+              message.content.trim().length > 0) &&
+            !message.isStreaming ? (
+              <>
                   <div className="mt-3 flex items-center justify-start gap-1 font-sans text-zinc-500 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
                     <HintTooltip content="Copy">
                       <button
@@ -344,7 +409,6 @@ const MessageRow = React.memo(
                       </div>
                     ) : null}
                   </div>
-                )}
               </>
             ) : null}
           </div>
@@ -364,8 +428,220 @@ const MessageRow = React.memo(
       pm.isStreaming === nm.isStreaming &&
       pm.isThinkingStreaming === nm.isThinkingStreaming &&
       pm.thinkingDurationSeconds === nm.thinkingDurationSeconds &&
+      pm.agentMode === nm.agentMode &&
+      pm.agentFrameComplete === nm.agentFrameComplete &&
+      (pm.agentSegments?.length ?? 0) === (nm.agentSegments?.length ?? 0) &&
+      pm.agentSegments?.[pm.agentSegments.length - 1]?.id ===
+        nm.agentSegments?.[nm.agentSegments.length - 1]?.id &&
+      (pm.agentSegments?.[pm.agentSegments.length - 1]?.kind === "tool"
+        ? (pm.agentSegments[pm.agentSegments.length - 1] as { status?: string })
+            .status ===
+          (nm.agentSegments?.[nm.agentSegments.length - 1] as { status?: string })
+            ?.status
+        : true) &&
       pm.activeBranchIndex === nm.activeBranchIndex &&
       pm.branchVersions === nm.branchVersions &&
+      prev.editingMessageId === next.editingMessageId &&
+      prev.editValue === next.editValue &&
+      prev.copiedId === next.copiedId
+    );
+  },
+);
+
+interface ConversationTurnProps {
+  userMessage: Message | null;
+  assistantMessages: Message[];
+  editingMessageId: string | null;
+  editValue?: string;
+  copiedId: string | null;
+  onEditValueChange: (value: string) => void;
+  onStartEdit: (message: Message) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: (messageId: string) => void;
+  onCopy: (id: string, text: string) => void;
+  onRetryAssistant: (messageId: string) => void;
+  onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
+  isFastScrolling?: boolean;
+}
+
+const ConversationTurn = React.memo(
+  function ConversationTurn({
+    userMessage,
+    assistantMessages,
+    editingMessageId,
+    editValue,
+    copiedId,
+    onEditValueChange,
+    onStartEdit,
+    onCancelEdit,
+    onSaveEdit,
+    onCopy,
+    onRetryAssistant,
+    onSwitchBranch,
+    isFastScrolling = false,
+  }: ConversationTurnProps) {
+    const userMsgRef = React.useRef<HTMLDivElement>(null);
+    const stickySentinelRef = React.useRef<HTMLDivElement>(null);
+    const [userMsgHeight, setUserMsgHeight] = React.useState(0);
+    const [isUserMsgStuck, setIsUserMsgStuck] = React.useState(false);
+
+    React.useEffect(() => {
+      const sentinel = stickySentinelRef.current;
+      if (!sentinel || !userMessage) {
+        setIsUserMsgStuck(false);
+        return;
+      }
+
+      const scrollRoot = sentinel.closest(
+        "[data-radix-scroll-area-viewport]",
+      ) as HTMLElement | null;
+
+      const updateStuck = () => {
+        const userEl = userMsgRef.current;
+        if (!sentinel || !userEl) return;
+
+        const stickyTop = parseFloat(getComputedStyle(userEl).top) || 44;
+        const sentinelBottom = sentinel.getBoundingClientRect().bottom;
+        const userTop = userEl.getBoundingClientRect().top;
+        const isPinned = Math.abs(userTop - stickyTop) < 2;
+
+        setIsUserMsgStuck(isPinned && sentinelBottom < stickyTop);
+      };
+
+      updateStuck();
+      scrollRoot?.addEventListener("scroll", updateStuck, { passive: true });
+      window.addEventListener("resize", updateStuck);
+
+      const resizeObserver = new ResizeObserver(updateStuck);
+      resizeObserver.observe(sentinel);
+      if (scrollRoot) resizeObserver.observe(scrollRoot);
+
+      return () => {
+        scrollRoot?.removeEventListener("scroll", updateStuck);
+        window.removeEventListener("resize", updateStuck);
+        resizeObserver.disconnect();
+      };
+    }, [userMessage]);
+
+    React.useEffect(() => {
+      const el = userMsgRef.current;
+      if (!el) {
+        setUserMsgHeight(0);
+        return;
+      }
+
+      setUserMsgHeight(el.offsetHeight);
+
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const height =
+            entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+          setUserMsgHeight(height);
+        }
+      });
+
+      observer.observe(el);
+      return () => {
+        observer.disconnect();
+      };
+    }, [userMessage]);
+
+    return (
+      <div
+        className="relative flex w-full flex-col gap-6 sm:gap-8"
+        style={
+          {
+            "--user-msg-height": `${userMsgHeight}px`,
+          } as React.CSSProperties
+        }
+      >
+        {userMessage && (
+          <>
+            <div
+              ref={stickySentinelRef}
+              className="sticky-user-msg-sentinel"
+              aria-hidden
+            />
+            <div
+              ref={userMsgRef}
+              className={cn(
+                "sticky-user-msg",
+                isUserMsgStuck && "sticky-user-msg--stuck",
+              )}
+            >
+              <MessageRow
+                message={userMessage}
+                editingMessageId={editingMessageId}
+                editValue={editValue}
+                copiedId={copiedId}
+                onEditValueChange={onEditValueChange}
+                onStartEdit={onStartEdit}
+                onCancelEdit={onCancelEdit}
+                onSaveEdit={onSaveEdit}
+                onCopy={onCopy}
+                onRetryAssistant={onRetryAssistant}
+                onSwitchBranch={onSwitchBranch}
+                isFastScrolling={isFastScrolling}
+              />
+            </div>
+          </>
+        )}
+        {assistantMessages.map((msg) => (
+          <MessageRow
+            key={msg.id}
+            message={msg}
+            editingMessageId={editingMessageId}
+            editValue={editingMessageId === msg.id ? editValue : undefined}
+            copiedId={copiedId}
+            onEditValueChange={onEditValueChange}
+            onStartEdit={onStartEdit}
+            onCancelEdit={onCancelEdit}
+            onSaveEdit={onSaveEdit}
+            onCopy={onCopy}
+            onRetryAssistant={onRetryAssistant}
+            onSwitchBranch={onSwitchBranch}
+            isFastScrolling={isFastScrolling}
+          />
+        ))}
+      </div>
+    );
+  },
+  (prev, next) => {
+    const pu = prev.userMessage;
+    const nu = next.userMessage;
+    if (
+      (pu === null) !== (nu === null) ||
+      (pu &&
+        nu &&
+        (pu.id !== nu.id ||
+          pu.content !== nu.content ||
+          pu.activeBranchIndex !== nu.activeBranchIndex ||
+          pu.branchVersions !== nu.branchVersions))
+    ) {
+      return false;
+    }
+
+    if (prev.assistantMessages.length !== next.assistantMessages.length) {
+      return false;
+    }
+
+    for (let i = 0; i < prev.assistantMessages.length; i++) {
+      const pa = prev.assistantMessages[i];
+      const na = next.assistantMessages[i];
+      if (
+        pa.id !== na.id ||
+        pa.content !== na.content ||
+        pa.thinkingContent !== na.thinkingContent ||
+        pa.isStreaming !== na.isStreaming ||
+        pa.isThinkingStreaming !== na.isThinkingStreaming ||
+        pa.activeBranchIndex !== na.activeBranchIndex ||
+        pa.branchVersions !== na.branchVersions
+      ) {
+        return false;
+      }
+    }
+
+    return (
       prev.editingMessageId === next.editingMessageId &&
       prev.editValue === next.editValue &&
       prev.copiedId === next.copiedId
@@ -379,6 +655,8 @@ export function ConversationThread({
   onRetryAssistant,
   onSwitchBranch,
   className,
+  scrollAreaRef,
+  isFastScrolling = false,
 }: ConversationThreadProps) {
   const [editingMessageId, setEditingMessageId] = React.useState<string | null>(
     null,
@@ -413,29 +691,110 @@ export function ConversationThread({
     [editValue, onSaveEditedMessage],
   );
 
+  const groups = React.useMemo(
+    () => groupMessagesIntoTurns(messages),
+    [messages],
+  );
+
+  const listRef = React.useRef<HTMLDivElement>(null);
+
+  const getScrollElement = React.useCallback(() => {
+    if (scrollAreaRef?.current) {
+      return (
+        scrollAreaRef.current.querySelector<HTMLElement>(
+          "[data-radix-scroll-area-viewport]",
+        ) ?? scrollAreaRef.current
+      );
+    }
+    return listRef.current;
+  }, [scrollAreaRef]);
+
+  const virtualizer = useVirtualizer({
+    count: groups.length,
+    getScrollElement,
+    estimateSize: () => 280,
+    getItemKey: (index) =>
+      groups[index]?.userMessage?.id ?? `turn-${index}`,
+    overscan: 4,
+    anchorTo: "end",
+    followOnAppend: true,
+    scrollEndThreshold: 80,
+    useFlushSync: false,
+  });
+
+  const turnProps = {
+    editingMessageId,
+    copiedId,
+    onEditValueChange: setEditValue,
+    onStartEdit: handleStartEdit,
+    onCancelEdit: handleCancelEdit,
+    onSaveEdit: handleSaveEdit,
+    onCopy: handleCopy,
+    onRetryAssistant,
+    onSwitchBranch,
+    isFastScrolling,
+  };
+
+  if (groups.length <= 12) {
+    return (
+      <div
+        className={cn(
+          "flex w-full min-w-0 max-w-full flex-col gap-6 px-0 pt-8 pb-6 sm:gap-9 sm:px-0 sm:pt-16 sm:pb-10",
+          className,
+        )}
+        data-virtual-scroll
+      >
+        {groups.map((group, index) => (
+          <ConversationTurn
+            key={group.userMessage?.id || `turn-${index}`}
+            userMessage={group.userMessage}
+            assistantMessages={group.assistantMessages}
+            editValue={
+              editingMessageId === group.userMessage?.id ? editValue : undefined
+            }
+            {...turnProps}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  const virtualItems = virtualizer.getVirtualItems();
+
   return (
     <div
+      ref={listRef}
+      data-virtual-scroll
       className={cn(
-        "flex w-full min-w-0 max-w-full flex-col gap-8 pt-12 pb-8 sm:gap-9 sm:pt-16 sm:pb-10",
+        "relative w-full min-w-0 max-w-full px-0 pt-8 pb-6 sm:px-0 sm:pt-16 sm:pb-10",
         className,
       )}
+      style={{ height: `${virtualizer.getTotalSize()}px` }}
     >
-      {messages.map((message) => (
-        <MessageRow
-          key={message.id}
-          message={message}
-          editingMessageId={editingMessageId}
-          editValue={editingMessageId === message.id ? editValue : undefined}
-          copiedId={copiedId}
-          onEditValueChange={setEditValue}
-          onStartEdit={handleStartEdit}
-          onCancelEdit={handleCancelEdit}
-          onSaveEdit={handleSaveEdit}
-          onCopy={handleCopy}
-          onRetryAssistant={onRetryAssistant}
-          onSwitchBranch={onSwitchBranch}
-        />
-      ))}
+      {virtualItems.map((virtualRow) => {
+        const group = groups[virtualRow.index];
+        if (!group) return null;
+        return (
+          <div
+            key={virtualRow.key}
+            data-index={virtualRow.index}
+            ref={virtualizer.measureElement}
+            className="absolute top-0 left-0 w-full pb-8 sm:pb-9"
+            style={{ transform: `translateY(${virtualRow.start}px)` }}
+          >
+            <ConversationTurn
+              userMessage={group.userMessage}
+              assistantMessages={group.assistantMessages}
+              editValue={
+                editingMessageId === group.userMessage?.id
+                  ? editValue
+                  : undefined
+              }
+              {...turnProps}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

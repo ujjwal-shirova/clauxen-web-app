@@ -22,8 +22,15 @@ export async function updateSession(request: NextRequest) {
           request,
         });
 
+        const isProduction = process.env.NODE_ENV === "production";
         cookiesToSet.forEach(({ name, value, options }) => {
-          supabaseResponse.cookies.set(name, value, options);
+          supabaseResponse.cookies.set(name, value, {
+            ...options,
+            httpOnly: options?.httpOnly ?? true,
+            sameSite: options?.sameSite ?? "lax",
+            secure: isProduction ? true : options?.secure,
+            path: options?.path ?? "/",
+          });
         });
 
         Object.entries(headers).forEach(([key, value]) => {

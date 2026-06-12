@@ -81,7 +81,10 @@ export function AddTextContentDialog({
           </button>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-6 pb-6 pt-3">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-4 px-6 pb-6 pt-3"
+        >
           <div>
             <label
               htmlFor="text-content-title"

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import { getBillingPlans, type BillingPlan } from "@/frontend/lib/api/billing";
-import type { OnboardingPlanId, OnboardingState } from "../onboarding-types";
+import type { OnboardingState } from "../onboarding-types";
 import { OnboardingShell } from "../onboarding-shell";
 import {
   OnboardingGhostButton,
@@ -12,69 +12,13 @@ import {
   OnboardingPrimaryButton,
 } from "../onboarding-ui";
 import { ClauxenWordmark } from "../clauxen-wordmark";
-
-type PlanCard = {
-  id: OnboardingPlanId;
-  name: string;
-  subtitle: string;
-  priceDisplay: string;
-  priceSuffix?: string;
-  features: string[];
-  highlight?: string;
-  cta: string;
-};
-
-const STATIC_PLANS: PlanCard[] = [
-  {
-    id: "free",
-    name: "Free",
-    subtitle: "Meet Clauxen",
-    priceDisplay: "₹0",
-    features: [
-      "Chat on web, iOS, Android, and desktop",
-      "Generate code and visualize data",
-      "Write, edit, and create content",
-      "Analyze text and images",
-      "Built-in web search",
-      "Connectors for Slack and Google Workspace",
-      "Extended thinking for complex work",
-    ],
-    cta: "Get started with Free",
-  },
-  {
-    id: "go",
-    name: "Go",
-    subtitle: "Keep chatting with expanded access",
-    priceDisplay: "₹99",
-    priceSuffix: "/ month",
-    highlight: "Everything in Free, plus:",
-    features: [
-      "Core models tuned for everyday tasks",
-      "More messages and uploads",
-      "More image creation",
-      "Longer memory",
-      "Expanded voice mode",
-    ],
-    cta: "Get Go plan",
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    subtitle: "Research, code, and organize",
-    priceDisplay: "₹2,499",
-    priceSuffix: "/ month",
-    highlight: "Everything in Go, plus:",
-    features: [
-      "Advanced models",
-      "Even more messages and uploads",
-      "Clauxen Code & Collabry access",
-      "Expanded deep research",
-      "Projects and custom assistants",
-      "Priority support",
-    ],
-    cta: "Get Pro plan",
-  },
-];
+import {
+  BILLING_CYCLE_PLAN_IDS,
+  YEARLY_DISCOUNT_PERCENT,
+  formatInrFromPaise,
+  getOnboardingPlanCards,
+  type OnboardingPlanId,
+} from "@/lib/plans-catalog";
 
 type PlanSelectionStepProps = {
   state: OnboardingState;
@@ -82,10 +26,6 @@ type PlanSelectionStepProps = {
   onContinue: () => void;
   onSelectFree: () => void;
 };
-
-function formatInr(paise: number) {
-  return `₹${Math.round(paise / 100).toLocaleString("en-IN")}`;
-}
 
 export function PlanSelectionStep({
   state,
@@ -104,7 +44,7 @@ export function PlanSelectionStep({
       .catch(() => setApiPlans([]));
   }, []);
 
-  const plans: PlanCard[] = STATIC_PLANS.map((plan) => {
+  const plans = getOnboardingPlanCards().map((plan) => {
     const api = apiPlans.find((p) => p.id === plan.id);
     if (!api) return plan;
     const paise =
@@ -113,13 +53,11 @@ export function PlanSelectionStep({
         : api.price_paise_yearly;
     return {
       ...plan,
-      priceDisplay: formatInr(paise),
+      priceDisplay: formatInrFromPaise(paise),
       priceSuffix:
         billingCycle === "monthly" ? "/ month" : "/ year · billed annually",
     };
   });
-
-  const visiblePlans = plans.filter((p) => p.id !== "max");
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-zinc-50 text-zinc-900">
@@ -131,7 +69,7 @@ export function PlanSelectionStep({
         <OnboardingHeading title="Plans that grow with you" />
 
         <div className="mt-6 flex w-full flex-col items-stretch justify-center gap-5 px-1 md:flex-row md:px-1">
-          {visiblePlans.map((plan) => {
+          {plans.map((plan) => {
             const selected = state.selectedPlanId === plan.id;
             return (
               <article
@@ -140,11 +78,13 @@ export function PlanSelectionStep({
                   "flex max-w-[384px] flex-1 cursor-pointer flex-col rounded-2xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-md",
                   selected && "ring-2 ring-zinc-900/10",
                 )}
-                onClick={() => onChange({ selectedPlanId: plan.id })}
+                onClick={() =>
+                  onChange({ selectedPlanId: plan.id as OnboardingPlanId })
+                }
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    onChange({ selectedPlanId: plan.id });
+                    onChange({ selectedPlanId: plan.id as OnboardingPlanId });
                   }
                 }}
                 role="button"
@@ -158,7 +98,7 @@ export function PlanSelectionStep({
                     >
                       {plan.name.charAt(0)}
                     </div>
-                    {(plan.id === "go" || plan.id === "pro") && (
+                    {BILLING_CYCLE_PLAN_IDS.has(plan.id) && (
                       <div className="flex rounded-full bg-zinc-100 p-0.5 text-xs font-medium">
                         <button
                           type="button"
@@ -182,12 +122,13 @@ export function PlanSelectionStep({
                           }}
                           className={cn(
                             "rounded-full px-2.5 py-1 transition-colors",
-                            billingCycle === "yearly" &&
-                              "bg-zinc-50 shadow-sm",
+                            billingCycle === "yearly" && "bg-zinc-50 shadow-sm",
                           )}
                         >
                           Yearly{" "}
-                          <span className="text-[#2977d6]">· Save 17%</span>
+                          <span className="text-[#2977d6]">
+                            · Save {YEARLY_DISCOUNT_PERCENT}%
+                          </span>
                         </button>
                       </div>
                     )}
@@ -217,7 +158,9 @@ export function PlanSelectionStep({
                       if (plan.id === "free") {
                         onSelectFree();
                       } else {
-                        onChange({ selectedPlanId: plan.id });
+                        onChange({
+                          selectedPlanId: plan.id as OnboardingPlanId,
+                        });
                         onContinue();
                       }
                     }}

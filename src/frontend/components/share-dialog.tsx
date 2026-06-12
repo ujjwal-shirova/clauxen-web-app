@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { X, Lock, Globe, Check } from 'lucide-react';
+import React, { useState } from "react";
+import { X, Lock, Globe, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/frontend/components/ui/dialog";
-import { cn } from '@/frontend/lib/utils';
+import { cn } from "@/frontend/lib/utils";
 
 interface ShareDialogProps {
   isOpen: boolean;
@@ -19,7 +19,8 @@ interface ShareDialogProps {
 
 export function ShareDialog({ isOpen, onClose }: ShareDialogProps) {
   const [copied, setCopied] = useState(false);
-  const shareUrl = "https://claude.ai/share/b2fd1bc3-00dc-429f-878f-48da8239f970";
+  const shareUrl =
+    "https://claude.ai/share/b2fd1bc3-00dc-429f-878f-48da8239f970";
 
   const handleCopy = () => {
     try {
@@ -35,9 +36,7 @@ export function ShareDialog({ isOpen, onClose }: ShareDialogProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        className="w-[calc(100vw-24px)] sm:w-[calc(100vw-32px)] max-w-[560px] max-h-[calc(100vh-24px)] sm:max-h-[calc(100vh-32px)] overflow-hidden p-0 bg-zinc-50 border-zinc-200 rounded-[18px] shadow-[0_24px_60px_rgba(0,0,0,0.18)] font-sans border-[0.666667px] gap-0 duration-200 ease-out [&>button]:hidden"
-      >
+      <DialogContent className="w-[calc(100vw-24px)] sm:w-[calc(100vw-32px)] max-w-[560px] max-h-[calc(100vh-24px)] sm:max-h-[calc(100vh-32px)] overflow-hidden p-0 bg-zinc-50 border-zinc-200 rounded-[18px] shadow-[0_24px_60px_rgba(0,0,0,0.18)] font-sans border-[0.666667px] gap-0 duration-200 ease-out [&>button]:hidden">
         <div className="flex max-h-[calc(100vh-72px)] flex-col overflow-y-auto sm:max-h-[calc(100vh-96px)]">
           <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between space-y-0 border-b border-zinc-200 bg-zinc-50/95 px-6 py-5 text-left backdrop-blur-sm sm:px-8">
             <DialogTitle className="text-[20px] font-semibold text-zinc-900 leading-[28px]">
@@ -57,7 +56,9 @@ export function ShareDialog({ isOpen, onClose }: ShareDialogProps) {
 
           <div className="flex flex-col gap-4 px-6 pb-6 pt-5 sm:px-8 sm:pb-8 sm:pt-6">
             <div className="pb-2">
-              <span className="text-[14px] text-zinc-800 font-[430]">Future messages aren’t included</span>
+              <span className="text-[14px] text-zinc-800 font-[430]">
+                Future messages aren’t included
+              </span>
             </div>
 
             <div className="flex flex-col border-[0.666667px] border-zinc-200 rounded-xl overflow-hidden bg-white">
@@ -67,8 +68,12 @@ export function ShareDialog({ isOpen, onClose }: ShareDialogProps) {
                   <Lock className="w-5 h-5 text-zinc-800" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-[14px] font-medium text-zinc-900 leading-tight">Keep private</p>
-                  <p className="text-[14px] text-zinc-500 mt-0.5 leading-tight">Only you have access</p>
+                  <p className="text-[14px] font-medium text-zinc-900 leading-tight">
+                    Keep private
+                  </p>
+                  <p className="text-[14px] text-zinc-500 mt-0.5 leading-tight">
+                    Only you have access
+                  </p>
                 </div>
               </button>
 
@@ -78,8 +83,12 @@ export function ShareDialog({ isOpen, onClose }: ShareDialogProps) {
                   <Globe className="w-5 h-5 text-zinc-800" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-[14px] font-medium text-zinc-900 leading-tight">Create public link</p>
-                  <p className="text-[14px] text-zinc-500 mt-0.5 leading-tight">Anyone with the link can view</p>
+                  <p className="text-[14px] font-medium text-zinc-900 leading-tight">
+                    Create public link
+                  </p>
+                  <p className="text-[14px] text-zinc-500 mt-0.5 leading-tight">
+                    Anyone with the link can view
+                  </p>
                 </div>
                 <div className="w-5 h-5 bg-[#2C84DB] rounded-full flex items-center justify-center shrink-0">
                   <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />
@@ -95,7 +104,14 @@ export function ShareDialog({ isOpen, onClose }: ShareDialogProps) {
                 </span>
                 <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#F5F4ED] to-transparent pointer-events-none" />
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256" className="text-zinc-500">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 256 256"
+                    className="text-zinc-500"
+                  >
                     <path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z" />
                   </svg>
                 </div>

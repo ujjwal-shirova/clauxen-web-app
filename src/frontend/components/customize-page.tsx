@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { cn } from "@/frontend/lib/utils";
 import { ArrowLeft, BookOpen, Boxes, ChevronRight } from "lucide-react"; // Lucide icons — back, Skills, Connectors, chevron affordance
 import { SkillsView } from "./customize/skills/view"; // SkillsView — skills master-detail subtree mount
@@ -24,6 +24,11 @@ export function CustomizePage({
   const [activeTab, setActiveTab] = useState<"skills" | "connectors" | null>(
     initialTab,
   ); // null = landing; skills/connectors = child view
+  const [mobileInDetail, setMobileInDetail] = useState(false);
+
+  useEffect(() => {
+    setMobileInDetail(false);
+  }, [activeTab]);
 
   const ToolboxIcon = () => (
     // inline SVG illustration — landing hero toolbox graphic
@@ -96,8 +101,13 @@ export function CustomizePage({
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="sticky top-0 z-10 shrink-0 border-b border-zinc-200 bg-zinc-50 md:hidden">
-          <div className="flex items-center gap-2 px-3 py-3">
+        <div
+          className={cn(
+            "sticky top-0 z-10 shrink-0 border-b border-zinc-200 bg-zinc-50 pt-[env(safe-area-inset-top)] md:hidden",
+            mobileInDetail && "hidden",
+          )}
+        >
+          <div className="flex items-center gap-2 px-3 py-2.5 sm:py-3">
             <button
               type="button"
               onClick={onClose}
@@ -187,9 +197,15 @@ export function CustomizePage({
               </div>
             </div>
           ) : activeTab === "skills" ? (
-            <SkillsView key="skills" />
+            <SkillsView
+              key="skills"
+              onMobileDetailChange={setMobileInDetail}
+            />
           ) : (
-            <ConnectorsView key="connectors" /> // connectors list/detail — OAuth connect flow
+            <ConnectorsView
+              key="connectors"
+              onMobileDetailChange={setMobileInDetail}
+            />
           )}
         </div>
       </div>

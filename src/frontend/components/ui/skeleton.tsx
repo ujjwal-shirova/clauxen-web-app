@@ -33,7 +33,8 @@ const skeletonVariants = cva(
 );
 
 export interface SkeletonProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends
+    React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof skeletonVariants> {}
 
 const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(

@@ -90,11 +90,7 @@ export function OnboardingFlow() {
   switch (step) {
     case "create-account":
       return (
-        <CreateAccountStep
-          state={state}
-          onChange={patch}
-          onContinue={goNext}
-        />
+        <CreateAccountStep state={state} onChange={patch} onContinue={goNext} />
       );
     case "plan-selection":
       return (
@@ -106,25 +102,13 @@ export function OnboardingFlow() {
         />
       );
     case "desktop":
-      return (
-        <DesktopStep onContinue={goNext} onSkip={goNext} />
-      );
+      return <DesktopStep onContinue={goNext} onSkip={goNext} />;
     case "before-chat":
       return (
-        <BeforeChatStep
-          state={state}
-          onChange={patch}
-          onContinue={goNext}
-        />
+        <BeforeChatStep state={state} onChange={patch} onContinue={goNext} />
       );
     case "name":
-      return (
-        <NameStep
-          state={state}
-          onChange={patch}
-          onContinue={goNext}
-        />
-      );
+      return <NameStep state={state} onChange={patch} onContinue={goNext} />;
     case "role":
       return (
         <RoleStep

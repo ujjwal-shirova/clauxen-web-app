@@ -59,7 +59,9 @@ export function SettingsPage({
   }, [initialTab]);
   const [copied, setCopied] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
-  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>(
+    [],
+  );
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
 
   const general = settings?.general;
@@ -101,7 +103,10 @@ export function SettingsPage({
     !personalization ||
     !notifications;
 
-  const showSettingsSkeleton = useMinimumLoadingTime(isSettingsDataLoading, 400);
+  const showSettingsSkeleton = useMinimumLoadingTime(
+    isSettingsDataLoading,
+    400,
+  );
 
   const renderActiveTab = () => {
     if (!general || !personalization || !notifications) return null;
@@ -145,10 +150,16 @@ export function SettingsPage({
             desktopAlerts={notifications.desktopAlerts}
             soundEffects={notifications.soundEffects}
             setCodexChannel={(v) => updateNotifications({ codexChannel: v })}
-            setResponseChannel={(v) => updateNotifications({ responseChannel: v })}
-            setGroupChatChannel={(v) => updateNotifications({ groupChatChannel: v })}
+            setResponseChannel={(v) =>
+              updateNotifications({ responseChannel: v })
+            }
+            setGroupChatChannel={(v) =>
+              updateNotifications({ groupChatChannel: v })
+            }
             setTasksChannel={(v) => updateNotifications({ tasksChannel: v })}
-            setProjectsChannel={(v) => updateNotifications({ projectsChannel: v })}
+            setProjectsChannel={(v) =>
+              updateNotifications({ projectsChannel: v })
+            }
             setRecommendationsChannel={(v) =>
               updateNotifications({ recommendationsChannel: v })
             }
@@ -220,8 +231,8 @@ export function SettingsPage({
       label="Loading settings"
       className="h-full w-full flex-1"
     >
-      <div className="mx-auto flex h-full w-full max-w-[1160px] flex-1 flex-col overflow-y-auto bg-white px-5 pt-5 pb-28 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:px-8 sm:pt-8 md:px-10">
-        <div className="mb-5 flex items-center justify-between text-zinc-700 sm:mb-8">
+      <div className="mobile-page-inset mx-auto flex h-full w-full max-w-[1160px] flex-1 flex-col overflow-y-auto bg-white pb-28 pt-[max(0.75rem,env(safe-area-inset-top))] animate-in fade-in slide-in-from-bottom-2 duration-300 sm:pt-5 md:px-10 md:pt-8 lg:px-8">
+        <div className="mb-4 flex items-center justify-between text-zinc-700 sm:mb-6 md:mb-8">
           <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
@@ -245,8 +256,11 @@ export function SettingsPage({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr] md:gap-12">
-          <SettingsNavSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-[220px_1fr] md:gap-12">
+          <SettingsNavSidebar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
 
           <div className="flex min-w-0 w-full max-w-none flex-col gap-8 md:max-w-[640px]">
             {renderActiveTab()}

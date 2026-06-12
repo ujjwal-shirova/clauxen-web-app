@@ -1,28 +1,30 @@
+"use client";
 
-'use client';
-
-import React from 'react';
-import { ArrowLeft, Smartphone, Laptop, ChevronRight } from 'lucide-react';
-import { Button } from '@/frontend/components/ui/button';
-import { cn } from '@/frontend/lib/utils';
-import { appBtn } from '@/frontend/lib/app-buttons';
+import React from "react";
+import { ArrowLeft, Smartphone, Laptop, ChevronRight } from "lucide-react";
+import { Button } from "@/frontend/components/ui/button";
+import { cn } from "@/frontend/lib/utils";
+import { appBtn } from "@/frontend/lib/app-buttons";
 
 interface AppsExtensionsViewProps {
   onClose: () => void; // back button / overlay dismiss callback
   onUpgradeClick: () => void; // paid plan upgrade flow trigger — billing view
 }
 
-export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsViewProps) {
+export function AppsExtensionsView({
+  onClose,
+  onUpgradeClick,
+}: AppsExtensionsViewProps) {
   return (
     // root overlay — fixed fullscreen, high z-index, fade-in animation, warm background
-    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-zinc-50 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[100] flex min-h-0 flex-col overflow-hidden bg-zinc-50 pt-[env(safe-area-inset-top)] animate-in fade-in duration-300">
       {/* header — centered layout with absolute-positioned back button */}
-      <header className="relative z-20 flex w-full items-center justify-center bg-zinc-50/80 px-4 py-4 backdrop-blur-md sm:py-5">
+      <header className="relative z-20 flex w-full shrink-0 items-center justify-center bg-zinc-50/80 px-4 py-3.5 backdrop-blur-md sm:py-5">
         {/* back button — absolute left; onClose parent callback */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute left-4 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-all hover:bg-zinc-100 sm:left-6"
+          className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-all hover:bg-zinc-100 sm:left-6"
           aria-label="Back"
         >
           {/* ArrowLeft icon — navigation affordance */}
@@ -31,11 +33,11 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
       </header>
 
       {/* scrollable main content — bottom padding for safe scroll area */}
-      <div className="flex-1 overflow-y-auto px-4 pb-24 sm:px-6">
+      <div className="mobile-page-inset flex-1 overflow-y-auto pb-24 sm:px-6">
         {/* centered column — max-width 896px, responsive top padding */}
-        <div className="mx-auto flex w-full max-w-[896px] flex-col items-center pt-4 sm:pt-8">
+        <div className="mx-auto flex w-full max-w-[896px] flex-col items-center pt-3 sm:pt-8">
           {/* page heading — serif font, responsive size, centered tagline */}
-          <h2 className="mb-8 max-w-[20ch] text-center font-serif text-[24px] font-medium leading-tight text-zinc-800 sm:mb-10 sm:max-w-none sm:text-[28px]">
+          <h2 className="mb-6 max-w-[18ch] text-center font-serif text-[22px] font-medium leading-tight text-zinc-800 sm:mb-10 sm:max-w-none sm:text-[28px]">
             Do more with Clauxen, everywhere you work
           </h2>
 
@@ -49,14 +51,20 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
                 <div className="flex flex-col justify-between p-5 sm:p-7">
                   <div>
                     {/* Cowork product name */}
-                    <h3 className="text-lg font-semibold text-zinc-800 mb-2">Cowork</h3>
+                    <h3 className="text-lg font-semibold text-zinc-800 mb-2">
+                      Cowork
+                    </h3>
                     {/* product description — Pro/Max plans, desktop-only emphasis */}
                     <p className="text-[14px] text-zinc-500 leading-relaxed mb-6">
-                      Clauxen works in your files and browser tabs to help you get things done.
-                      <br /><br />
+                      Clauxen works in your files and browser tabs to help you
+                      get things done.
+                      <br />
+                      <br />
                       Available for Pro and Max plans.
                       <br />
-                      <span className="font-semibold text-zinc-800">Only on desktop.</span>
+                      <span className="font-semibold text-zinc-800">
+                        Only on desktop.
+                      </span>
                     </p>
                   </div>
                   {/* Upgrade button — onUpgradeClick billing flow */}
@@ -69,39 +77,49 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
                 </div>
                 {/* right column — decorative browser/window mockup preview */}
                 <div className="relative min-h-[240px] bg-gradient-to-br from-[#F0EEE6] to-[#FAF9F5]">
-                   {/* dot grid background pattern — radial-gradient CSS inline style */}
-                   <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle, rgba(20, 20, 19, 0.15) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-                   {/* centered mock window container */}
-                   <div className="absolute inset-0 flex items-center justify-center p-8">
-                      {/* faux browser window — aspect-video, shadow, rounded corners */}
-                      <div className="relative w-full aspect-video bg-white rounded-xl shadow-xl border border-black/5 overflow-hidden">
-                         {/* macOS-style traffic light window controls */}
-                         <div className="h-6 bg-[#E5E7EB] flex items-center px-3 gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-[#FF5F57]" />
-                            <div className="w-2 h-2 rounded-full bg-[#FEBC2E]" />
-                            <div className="w-2 h-2 rounded-full bg-[#28C840]" />
-                         </div>
-                         {/* skeleton content lines — placeholder UI mock */}
-                         <div className="p-4 space-y-2">
-                            <div className="h-2 w-3/4 bg-gray-100 rounded" />
-                            <div className="h-2 w-1/2 bg-gray-100 rounded" />
-                            {/* Clauxen avatar chip + text bar skeleton */}
-                            <div className="pt-4 flex items-center gap-2">
-                               <div className="w-6 h-6 rounded bg-zinc-900 flex items-center justify-center text-[10px] text-white">C</div>
-                               <div className="h-2 w-1/3 bg-gray-200 rounded" />
-                            </div>
-                         </div>
+                  {/* dot grid background pattern — radial-gradient CSS inline style */}
+                  <div
+                    className="absolute inset-0 opacity-40"
+                    style={{
+                      backgroundImage:
+                        "radial-gradient(circle, rgba(20, 20, 19, 0.15) 1px, transparent 1px)",
+                      backgroundSize: "24px 24px",
+                    }}
+                  />
+                  {/* centered mock window container */}
+                  <div className="absolute inset-0 flex items-center justify-center p-8">
+                    {/* faux browser window — aspect-video, shadow, rounded corners */}
+                    <div className="relative w-full aspect-video bg-white rounded-xl shadow-xl border border-black/5 overflow-hidden">
+                      {/* macOS-style traffic light window controls */}
+                      <div className="h-6 bg-[#E5E7EB] flex items-center px-3 gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-[#FF5F57]" />
+                        <div className="w-2 h-2 rounded-full bg-[#FEBC2E]" />
+                        <div className="w-2 h-2 rounded-full bg-[#28C840]" />
                       </div>
-                   </div>
+                      {/* skeleton content lines — placeholder UI mock */}
+                      <div className="p-4 space-y-2">
+                        <div className="h-2 w-3/4 bg-gray-100 rounded" />
+                        <div className="h-2 w-1/2 bg-gray-100 rounded" />
+                        {/* Clauxen avatar chip + text bar skeleton */}
+                        <div className="pt-4 flex items-center gap-2">
+                          <div className="w-6 h-6 rounded bg-zinc-900 flex items-center justify-center text-[10px] text-white">
+                            C
+                          </div>
+                          <div className="h-2 w-1/3 bg-gray-200 rounded" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            
             <div className="bg-white border border-zinc-200 rounded-[32px] p-2.5 shadow-sm hover:shadow-md transition-all">
               <div className="bg-zinc-50 rounded-[24px] border border-zinc-200 p-7 flex flex-col h-full">
                 {/* Mobile section title */}
-                <h3 className="text-lg font-semibold text-zinc-800 mb-2">Mobile</h3>
+                <h3 className="text-lg font-semibold text-zinc-800 mb-2">
+                  Mobile
+                </h3>
                 {/* Mobile value proposition copy */}
                 <p className="text-[14px] text-zinc-500 leading-relaxed mb-6">
                   Tap into your health data, notes, and reminders.
@@ -146,7 +164,9 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
             <div className="bg-white border border-zinc-200 rounded-[32px] p-2.5 shadow-sm hover:shadow-md transition-all">
               <div className="bg-zinc-50 rounded-[24px] border border-zinc-200 p-7 flex flex-col h-full">
                 {/* Clauxen Code product title */}
-                <h3 className="text-lg font-semibold text-zinc-800 mb-2">Clauxen Code</h3>
+                <h3 className="text-lg font-semibold text-zinc-800 mb-2">
+                  Clauxen Code
+                </h3>
                 {/* developer workflow description */}
                 <p className="text-[14px] text-zinc-500 leading-relaxed mb-6">
                   Build, debug, and ship from your terminal or IDE.
@@ -161,7 +181,11 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
                 {/* integration list — each row onUpgradeClick placeholder navigation */}
                 <div className="space-y-1">
                   {/* Terminal integration row — hover chevron reveal */}
-                  <button type="button" onClick={onUpgradeClick} className="w-full flex items-center justify-between py-3 border-b border-black/5 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group">
+                  <button
+                    type="button"
+                    onClick={onUpgradeClick}
+                    className="w-full flex items-center justify-between py-3 border-b border-black/5 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
+                  >
                     <div className="flex items-center gap-3">
                       <Laptop className="w-5 h-5 text-zinc-500" />
                       <span className="text-[14px]">Terminal</span>
@@ -169,7 +193,11 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
                     <ChevronRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   {/* VS Code integration row — brand color square icon */}
-                  <button type="button" onClick={onUpgradeClick} className="w-full flex items-center justify-between py-3 border-b border-black/5 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group">
+                  <button
+                    type="button"
+                    onClick={onUpgradeClick}
+                    className="w-full flex items-center justify-between py-3 border-b border-black/5 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-5 h-5 flex items-center justify-center">
                         <div className="w-4 h-4 bg-[#007ACC] rounded-sm" />
@@ -179,7 +207,11 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
                     <ChevronRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   {/* JetBrains integration row — pink brand accent */}
-                  <button type="button" onClick={onUpgradeClick} className="w-full flex items-center justify-between py-3 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group">
+                  <button
+                    type="button"
+                    onClick={onUpgradeClick}
+                    className="w-full flex items-center justify-between py-3 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-5 h-5 flex items-center justify-center">
                         <div className="w-4 h-4 bg-[#FE2857] rounded-sm" />
@@ -196,10 +228,13 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
             <div className="bg-white border border-zinc-200 rounded-[32px] p-2.5 shadow-sm hover:shadow-md transition-all">
               <div className="bg-gradient-to-br from-[#F0FDF4]/50 to-[#FAF9F5] rounded-[24px] border border-zinc-200 p-7 flex flex-col h-full">
                 {/* Microsoft Office section title */}
-                <h3 className="text-lg font-semibold text-zinc-800 mb-2">Microsoft Office</h3>
+                <h3 className="text-lg font-semibold text-zinc-800 mb-2">
+                  Microsoft Office
+                </h3>
                 {/* Office copilot-style value proposition */}
                 <p className="text-[14px] text-zinc-500 leading-relaxed mb-6">
-                  Analyze data and build presentations with Clauxen alongside you.
+                  Analyze data and build presentations with Clauxen alongside
+                  you.
                 </p>
                 {/* outline Upgrade CTA */}
                 <Button
@@ -211,7 +246,11 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
                 {/* Office app integration rows */}
                 <div className="space-y-1">
                   {/* Excel row — green brand square */}
-                  <button type="button" onClick={onUpgradeClick} className="w-full flex items-center justify-between py-3 border-b border-black/5 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group">
+                  <button
+                    type="button"
+                    onClick={onUpgradeClick}
+                    className="w-full flex items-center justify-between py-3 border-b border-black/5 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-5 h-5 flex items-center justify-center">
                         <div className="w-4 h-4 bg-[#1D6F42] rounded-sm" />
@@ -221,7 +260,11 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
                     <ChevronRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   {/* PowerPoint row — red brand square */}
-                  <button type="button" onClick={onUpgradeClick} className="w-full flex items-center justify-between py-3 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group">
+                  <button
+                    type="button"
+                    onClick={onUpgradeClick}
+                    className="w-full flex items-center justify-between py-3 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-5 h-5 flex items-center justify-center">
                         <div className="w-4 h-4 bg-[#B7472A] rounded-sm" />
@@ -238,10 +281,13 @@ export function AppsExtensionsView({ onClose, onUpgradeClick }: AppsExtensionsVi
             <div className="bg-white border border-zinc-200 rounded-[32px] p-2.5 shadow-sm hover:shadow-md transition-all">
               <div className="bg-gradient-to-br from-[#FEF2F2]/50 to-[#FAF9F5] rounded-[24px] border border-zinc-200 p-7 flex flex-col h-full">
                 {/* Chrome extension title */}
-                <h3 className="text-lg font-semibold text-zinc-800 mb-2">Chrome</h3>
+                <h3 className="text-lg font-semibold text-zinc-800 mb-2">
+                  Chrome
+                </h3>
                 {/* browser automation description — Cowork synergy mention */}
                 <p className="text-[14px] text-zinc-500 leading-relaxed mb-6">
-                  Clauxen navigates, clicks buttons, and fills forms in your browser. Works in Cowork.
+                  Clauxen navigates, clicks buttons, and fills forms in your
+                  browser. Works in Cowork.
                 </p>
                 {/* Upgrade CTA — mt-auto bottom-aligns button in flex column */}
                 <Button

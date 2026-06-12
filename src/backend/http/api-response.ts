@@ -14,7 +14,12 @@ export function jsonError(error: AppError | Error, status?: number) {
   }
 
   return NextResponse.json(
-    { error: { message: error.message || "Internal server error.", code: "internal_error" } },
+    {
+      error: {
+        message: error.message || "Internal server error.",
+        code: "internal_error",
+      },
+    },
     { status: status ?? 500 },
   );
 }

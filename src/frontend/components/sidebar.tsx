@@ -1,10 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Settings,
   ArrowUpCircle,
-  ArrowUpRight,
   Gift,
   HelpCircle,
   LogOut,
@@ -13,23 +12,23 @@ import {
   Languages,
   Sparkles,
   Library,
-  Microscope,
-  Star,
   Pencil,
-  FolderPlus,
   Trash2,
-  MoreHorizontal,
   X,
-  Image,
+  PinOff,
+  Share,
+  UserPlus,
+  Folder,
+  Pin,
+  Archive,
+  ChevronRight,
+  Plus,
 } from "lucide-react";
 import {
   SidebarToggleIcon,
   SidebarOpenIcon,
   NewChatIcon,
   NavProjectsIcon,
-  NavArtifactsIcon,
-  NavCodeIcon,
-  CreateWithClaudeIcon,
 } from "./icons";
 import { Button } from "@/frontend/components/ui/button";
 import { cn } from "@/frontend/lib/utils";
@@ -46,16 +45,31 @@ import {
   DropdownMenuPortal,
 } from "@/frontend/components/ui/dropdown-menu";
 import { OrbCursor } from "./ui/orb-cursor";
+import { SidebarBasicsChecklist } from "./sidebar-basics-checklist";
+import { RenameChatDialog } from "./rename-chat-dialog";
+import { SidebarChatGroupMenu } from "./sidebar-chat-group-menu";
+import {
+  groupChats,
+  hasProjectAssignments,
+  type ChatGroupBy,
+} from "@/frontend/lib/chat-grouping";
 import type { RecentChat } from "@/frontend/lib/types";
+
+const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
 
 const DownloadButton = ({
   size = "md",
   className,
+  onClick,
+  decorative = false,
 }: {
   size?: "sm" | "md" | "lg";
   className?: string;
-}) => (
-  <div className={cn("relative group cursor-pointer", className)}>
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  decorative?: boolean;
+}) => {
+  const content = (
+    <>
     <div
       className={cn(
         "flex items-center justify-center bg-white border border-zinc-200 rounded-md shadow-sm transition-all hover:bg-zinc-50",
@@ -75,18 +89,9 @@ const DownloadButton = ({
         aria-hidden="true"
         style={{ fill: "rgb(20, 20, 19)" }}
       >
-        <path
-          className="group-hover:translate-y-[1px] transition-transform"
-          d="M10 3C10.2761 3 10.5 3.22386 10.5 3.5V12.1855L13.626 8.66797C13.8094 8.46166 14.1256 8.44275 14.332 8.62598C14.5383 8.80936 14.5573 9.12563 14.374 9.33203L10.374 13.832L10.2949 13.9033C10.21 13.9654 10.107 14 10 14C9.85718 14 9.72086 13.9388 9.62598 13.832L5.62598 9.33203L5.56738 9.25C5.45079 9.04872 5.48735 8.78653 5.66797 8.62598C5.84854 8.46567 6.1127 8.46039 6.29883 8.59961L6.37402 8.66797L9.5 12.1855V3.5C9.5 3.22386 9.72386 3 10 3Z"
-        />
-        <path
-          className="group-hover:translate-x-[0.5px] transition-transform"
-          d="M3.5 13C3.22386 13 3 13.2239 3 13.5V15.5C3 16.3284 3.67157 17 4.5 17H10V16H4.5C4.22386 16 4 15.7761 4 15.5V13.5C4 13.2239 3.77614 13 3.5 13Z"
-        />
-        <path
-          className="group-hover:-translate-x-[0.5px] transition-transform"
-          d="M16.5 13C16.7761 13 17 13.2239 17 13.5V15.5C17 16.3284 16.3284 17 15.5 17H10V16H15.5C15.7761 16 16 15.7761 16 15.5V13.5C16 13.2239 16.2239 13 16.5 13Z"
-        />
+        <path d="M10 3C10.2761 3 10.5 3.22386 10.5 3.5V12.1855L13.626 8.66797C13.8094 8.46166 14.1256 8.44275 14.332 8.62598C14.5383 8.80936 14.5573 9.12563 14.374 9.33203L10.374 13.832L10.2949 13.9033C10.21 13.9654 10.107 14 10 14C9.85718 14 9.72086 13.9388 9.62598 13.832L5.62598 9.33203L5.56738 9.25C5.45079 9.04872 5.48735 8.78653 5.66797 8.62598C5.84854 8.46567 6.1127 8.46039 6.29883 8.59961L6.37402 8.66797L9.5 12.1855V3.5C9.5 3.22386 9.72386 3 10 3Z" />
+        <path d="M3.5 13C3.22386 13 3 13.2239 3 13.5V15.5C3 16.3284 3.67157 17 4.5 17H10V16H4.5C4.22386 16 4 15.7761 4 15.5V13.5C4 13.2239 3.77614 13 3.5 13Z" />
+        <path d="M16.5 13C16.7761 13 17 13.2239 17 13.5V15.5C17 16.3284 16.3284 17 15.5 17H10V16H15.5C15.7761 16 16 15.7761 16 15.5V13.5C16 13.2239 16.2239 13 16.5 13Z" />
       </svg>
     </div>
     <span
@@ -98,8 +103,31 @@ const DownloadButton = ({
       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2c84db] opacity-75"></span>
       <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2c84db]"></span>
     </span>
-  </div>
-);
+    </>
+  );
+
+  if (decorative) {
+    return (
+      <span
+        aria-hidden
+        className={cn("relative group inline-flex", className)}
+      >
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label="Apps and extensions"
+      onClick={onClick}
+      className={cn("relative group cursor-pointer", className)}
+    >
+      {content}
+    </button>
+  );
+};
 
 const CustomizeIcon = () => (
   <svg
@@ -163,18 +191,15 @@ interface SidebarProps {
   onAppsExtensionsClick: () => void;
   onHistoryClick: () => void;
   onLibraryClick: () => void;
-  onImagesClick: () => void;
   onGiftClick: () => void;
   onProjectsClick: () => void;
-  onArtifactsClick: () => void;
-  onDeepResearchClick: () => void;
-  onClawClick: () => void;
   activeView?: string;
   recentChats: RecentChat[];
   activeChatId: string | null;
   onSelectChat: (chatId: string) => void;
   onDeleteChat?: (chatId: string) => void;
   onRenameChat?: (chatId: string, newName: string) => void;
+  onPinChat?: (chatId: string, pinned: boolean) => void;
   userDisplayName?: string;
   userEmail?: string;
   onLogoutClick?: () => void;
@@ -195,31 +220,198 @@ export function Sidebar({
   onAppsExtensionsClick,
   onHistoryClick,
   onLibraryClick,
-  onImagesClick,
   onGiftClick,
   onProjectsClick,
-  onArtifactsClick,
-  onDeepResearchClick,
-  onClawClick,
   activeView,
   recentChats,
   activeChatId,
   onSelectChat,
   onDeleteChat,
   onRenameChat,
+  onPinChat,
   userDisplayName = "Guest",
   userEmail = "",
   onLogoutClick,
   showAccountMenu = true,
 }: SidebarProps) {
   const isCustomizeActive = activeView === "customize";
+  const [chatGroupBy, setChatGroupBy] = useState<ChatGroupBy>("none");
+  const [showBasicsChecklist, setShowBasicsChecklist] = useState(false);
+  const [renameChatId, setRenameChatId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = localStorage.getItem(CHAT_GROUP_STORAGE_KEY);
+      if (stored === "none" || stored === "date" || stored === "project") {
+        setChatGroupBy(stored);
+      }
+      const basicsRaw = localStorage.getItem("clauxen_sidebar_basics_v1");
+      const basicsState = basicsRaw
+        ? (JSON.parse(basicsRaw) as { dismissed?: boolean })
+        : { dismissed: false };
+      setShowBasicsChecklist(
+        !basicsState.dismissed && recentChats.length < 4,
+      );
+    } catch {
+      setShowBasicsChecklist(recentChats.length < 4);
+    }
+  }, [recentChats.length]);
+
+  const projectGroupingEnabled = hasProjectAssignments(recentChats);
+  const pinnedChats = useMemo(
+    () => recentChats.filter((chat) => chat.pinned),
+    [recentChats],
+  );
+  const unpinnedChats = useMemo(
+    () => recentChats.filter((chat) => !chat.pinned),
+    [recentChats],
+  );
+  const groupedChats = useMemo(
+    () => groupChats(unpinnedChats, chatGroupBy),
+    [unpinnedChats, chatGroupBy],
+  );
+  const renameChat = useMemo(
+    () => recentChats.find((chat) => chat.id === renameChatId) ?? null,
+    [recentChats, renameChatId],
+  );
+
+  const handleChatGroupChange = (next: ChatGroupBy) => {
+    setChatGroupBy(next);
+    try {
+      localStorage.setItem(CHAT_GROUP_STORAGE_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const runNavAction = (action: () => void) => {
     action();
     if (isMobileLayout) onNavigate?.();
   };
 
+  const chatMenuItemClass =
+    "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100 focus:bg-zinc-100";
+
+  const renderChatRow = (chat: RecentChat) => (
+    <div
+      key={chat.id}
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelectChat(chat.id);
+        runNavAction(onHistoryClick);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelectChat(chat.id);
+          runNavAction(onHistoryClick);
+        }
+      }}
+      className={cn(
+        "group/chat flex h-8 w-full cursor-pointer items-center rounded-lg px-2.5 text-left text-[12.5px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
+        activeChatId === chat.id && "bg-black/[0.06]",
+      )}
+    >
+      <div className="flex h-full min-w-0 flex-1 items-center text-left">
+        <span className="truncate">{chat.name || "New Chat"}</span>
+        {chat.isTitleStreaming && <OrbCursor />}
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            onClick={(e) => e.stopPropagation()}
+            className="ml-2 flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
+          >
+            <MoreVertical className="icon-md icon-muted" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          side="right"
+          sideOffset={6}
+          className="z-50 min-w-[220px] rounded-xl border border-black/[0.08] bg-white p-1.5 text-zinc-800 shadow-[0_8px_28px_rgba(26,23,18,0.12)]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DropdownMenuItem className={chatMenuItemClass}>
+            <Share className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+            Share
+          </DropdownMenuItem>
+          <DropdownMenuItem className={chatMenuItemClass}>
+            <UserPlus className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+            Start a group chat
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className={chatMenuItemClass}
+            onClick={(e) => {
+              e.stopPropagation();
+              setRenameChatId(chat.id);
+            }}
+          >
+            <Pencil className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+            Rename
+          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className={cn(chatMenuItemClass, "data-[state=open]:bg-zinc-100")}>
+              <Folder className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+              <span className="flex-1 text-left">Move to project</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-zinc-400" />
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent className="z-50 min-w-[200px] rounded-xl border border-black/[0.08] bg-white p-1.5 shadow-[0_8px_28px_rgba(26,23,18,0.12)]">
+                <DropdownMenuItem
+                  className={chatMenuItemClass}
+                  onClick={() => runNavAction(onProjectsClick)}
+                >
+                  <Plus className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+                  Start a new project
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
+          <DropdownMenuSeparator className="my-1 bg-zinc-900/10" />
+          <DropdownMenuItem
+            className={chatMenuItemClass}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (chat.pinned) {
+                onPinChat?.(chat.id, false);
+              } else {
+                onPinChat?.(chat.id, true);
+              }
+            }}
+          >
+            {chat.pinned ? (
+              <PinOff className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+            ) : (
+              <Pin className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+            )}
+            {chat.pinned ? "Unpin chat" : "Pin chat"}
+          </DropdownMenuItem>
+          <DropdownMenuItem className={chatMenuItemClass}>
+            <Archive className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+            Archive
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-[#8a2424] transition-colors hover:bg-[#8a2424]/10 focus:bg-[#8a2424]/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.confirm("Delete this chat?"))
+                onDeleteChat?.(chat.id);
+            }}
+          >
+            <Trash2 className="h-[18px] w-[18px] shrink-0 text-[#8a2424]" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
   return (
+    <>
     <nav
       id={id}
       data-skip-global-prompt-focus
@@ -269,10 +461,14 @@ export function Sidebar({
             if (!isCustomizeActive) setIsCollapsed(!isCollapsed);
           }}
           disabled={isCustomizeActive}
-          aria-label={isMobileLayout && !isCollapsed ? "Close menu" : "Toggle sidebar"}
+          aria-label={
+            isMobileLayout && !isCollapsed ? "Close menu" : "Toggle sidebar"
+          }
           className={cn(
             "rounded-lg p-1.5 text-zinc-500 transition-all duration-300 hover:bg-zinc-100",
-            isCollapsed && !isMobileLayout ? "absolute left-1/2 -translate-x-1/2" : "",
+            isCollapsed && !isMobileLayout
+              ? "absolute left-1/2 -translate-x-1/2"
+              : "",
             isCustomizeActive && "cursor-not-allowed opacity-30",
           )}
         >
@@ -286,7 +482,7 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="sidebar-scrollable scrollbar-hide min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+      <div className="sidebar-scrollable app-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div
           className={cn(
             "sticky top-0 z-10 bg-[var(--app-shell-bg)] px-2 pb-2 pt-1",
@@ -368,13 +564,14 @@ export function Sidebar({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              runNavAction(onAppsExtensionsClick);
+              runNavAction(onProjectsClick);
             }}
             className={cn(
-              "group flex h-8 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] text-zinc-800 transition-all duration-100 hover:bg-zinc-100",
+              "mb-0 flex h-8 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
               isCollapsed
                 ? "mx-auto h-8 w-8 justify-center"
                 : "justify-start px-3",
+              activeView === "projects" && "bg-black/[0.06]",
             )}
           >
             <div
@@ -384,20 +581,12 @@ export function Sidebar({
               )}
             >
               <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                <NavCodeIcon className="h-[18px] w-[18px] text-zinc-900" />
+                <NavProjectsIcon />
               </div>
-              {!isCollapsed && (
-                <>
-                  <span className="truncate">Clauxen Code</span>
-                  <span className="ml-auto flex translate-y-[3px] items-center justify-center text-zinc-500 opacity-0 transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100">
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </span>
-                </>
-              )}
+              {!isCollapsed && <span className="truncate">Projects</span>}
             </div>
           </button>
 
-          {/* Promoted direct nav items (visible, not buried in More) */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -424,195 +613,41 @@ export function Sidebar({
             </div>
           </button>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              runNavAction(onImagesClick);
-            }}
-            className={cn(
-              "mb-0 flex h-8 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
-              isCollapsed
-                ? "mx-auto h-8 w-8 justify-center"
-                : "justify-start px-3",
-              activeView === "images" && "bg-black/[0.06]",
-            )}
-          >
-            <div
-              className={cn(
-                "flex items-center gap-2.5",
-                !isCollapsed && "w-full",
-              )}
-            >
-              <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                <Image className="h-[18px] w-[18px]" />
-              </div>
-              {!isCollapsed && <span className="truncate">Images</span>}
-            </div>
-          </button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                onClick={(e) => e.stopPropagation()}
-                className={cn(
-                  "flex h-8 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] text-zinc-800 outline-none transition-all duration-75 hover:bg-zinc-100 data-[state=open]:bg-black/[0.06]",
-                  isCollapsed
-                    ? "mx-auto h-8 w-8 justify-center"
-                    : "justify-start px-3",
-                )}
-              >
-                <div
-                  className={cn(
-                    "flex items-center gap-2.5",
-                    !isCollapsed && "w-full",
-                  )}
-                >
-                  <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                    <MoreHorizontal className="h-[18px] w-[18px] text-zinc-800" />
-                  </div>
-                  {!isCollapsed && <span className="truncate">More</span>}
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side={isCollapsed ? "right" : "bottom"}
-              align="start"
-              sideOffset={isCollapsed ? 6 : 4}
-              className="z-50 w-[min(calc(100vw-2rem),240px)] rounded-lg border border-black/[0.08] bg-[var(--app-shell-bg)] p-1 shadow-[0_8px_28px_rgba(26,23,18,0.12)]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <DropdownMenuItem
-                onClick={() => runNavAction(onProjectsClick)}
-                className={cn(
-                  "flex h-8 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-[13px] font-[430] text-zinc-800 focus:bg-black/5",
-                  activeView === "projects" && "bg-black/[0.06]",
-                )}
-              >
-                <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                  <NavProjectsIcon />
-                </div>
-                <span className="truncate">Projects</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => runNavAction(onArtifactsClick)}
-                className={cn(
-                  "flex h-8 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-[13px] font-[430] text-zinc-800 focus:bg-black/5",
-                  activeView === "artifacts" && "bg-black/[0.06]",
-                )}
-              >
-                <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                  <NavArtifactsIcon />
-                </div>
-                <span className="truncate">Artifacts</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => runNavAction(onDeepResearchClick)}
-                className={cn(
-                  "flex h-8 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-[13px] font-[430] text-zinc-800 focus:bg-black/5",
-                  activeView === "deep-research" && "bg-black/[0.06]",
-                )}
-              >
-                <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                  <Microscope className="h-[18px] w-[18px]" />
-                </div>
-                <span className="truncate">Deep Research</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => runNavAction(onClawClick)}
-                className={cn(
-                  "flex h-8 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-[13px] font-[430] text-zinc-800 focus:bg-black/5",
-                  activeView === "claw" && "bg-black/[0.06]",
-                )}
-              >
-                <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                  <CreateWithClaudeIcon />
-                </div>
-                <span className="truncate">Clauxen Claw</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {!isCollapsed && recentChats.length > 0 && (
-            <div className="mt-4 mb-4 px-1">
+          {!isCollapsed && pinnedChats.length > 0 ? (
+            <div className="mt-4 mb-2 px-1">
               <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/80">
-                Chats
+                Pinned Chats
               </p>
               <div className="mt-1 space-y-0.5">
-                {recentChats.map((chat) => (
-                  <div
-                    key={chat.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectChat(chat.id);
-                      runNavAction(onHistoryClick);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onSelectChat(chat.id);
-                        runNavAction(onHistoryClick);
-                      }
-                    }}
-                    className={cn(
-                      "group/chat flex h-8 w-full cursor-pointer items-center rounded-lg px-2.5 text-left text-[12.5px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
-                      activeChatId === chat.id && "bg-black/[0.06]",
-                    )}
-                  >
-                    <div className="flex h-full min-w-0 flex-1 items-center text-left">
-                      <span className="truncate">
-                        {chat.name || "New Chat"}
-                      </span>
-                      {chat.isTitleStreaming && <OrbCursor />}
+                {pinnedChats.map((chat) => renderChatRow(chat))}
+              </div>
+            </div>
+          ) : null}
+
+          {!isCollapsed && (
+            <div className="relative mb-4 px-1">
+              <div className="flex items-center justify-between px-2 py-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/80">
+                  Recents
+                </p>
+                <SidebarChatGroupMenu
+                  value={chatGroupBy}
+                  onChange={handleChatGroupChange}
+                  projectGroupingEnabled={projectGroupingEnabled}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              <div className="mt-1 space-y-2">
+                {groupedChats.map((group) => (
+                  <div key={group.label || "all"}>
+                    {group.label ? (
+                      <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
+                        {group.label}
+                      </p>
+                    ) : null}
+                    <div className="space-y-0.5">
+                      {group.chats.map((chat) => renderChatRow(chat))}
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          onClick={(e) => e.stopPropagation()}
-                          className="ml-2 flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
-                        >
-                          <MoreVertical className="icon-md icon-muted" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        side="right"
-                        className="min-w-[160px] rounded-xl border border-zinc-300 bg-white/95 p-1.5 text-zinc-800 shadow-[0_2px_8px_rgba(0,0,0,0.08)] backdrop-blur-xl"
-                      >
-                        <DropdownMenuItem className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] transition-colors hover:bg-zinc-100 focus:bg-black/5">
-                          <Star className="icon-md mr-2" />
-                          Star
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] transition-colors hover:bg-zinc-100 focus:bg-black/5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const next = window.prompt("Rename chat", chat.name || "New Chat");
-                            if (next?.trim()) onRenameChat?.(chat.id, next.trim());
-                          }}
-                        >
-                          <Pencil className="icon-md mr-2" />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] transition-colors hover:bg-zinc-100 focus:bg-black/5">
-                          <FolderPlus className="icon-md mr-2" />
-                          Add to project
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator className="my-1 bg-zinc-900/15" />
-                        <DropdownMenuItem
-                          className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] text-[#8a2424] transition-colors hover:bg-[#8a2424]/10 focus:bg-[#8a2424]/10"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm("Delete this chat?")) onDeleteChat?.(chat.id);
-                          }}
-                        >
-                          <Trash2 className="icon-md mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                   </div>
                 ))}
               </div>
@@ -621,159 +656,222 @@ export function Sidebar({
         </div>
       </div>
 
-      {showAccountMenu && <div
-        className={cn(
-          "mt-auto shrink-0 flex flex-col",
-          isCollapsed
-            ? "items-center gap-2 px-0 pb-2 pt-1"
-            : "items-stretch gap-1 p-2",
-        )}
-      >
-        {isCollapsed && (
-          <div className="flex h-8 w-8 items-center justify-center">
-            <DownloadButton size="md" />
-          </div>
-        )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              onClick={(e) => e.stopPropagation()}
-              className={cn(
-                "menu-trigger-active flex items-center outline-none transition-[gap] duration-300 ease-out",
-                isCollapsed
-                  ? "h-8 w-8 shrink-0 items-center justify-center gap-0 rounded-full p-0 hover:bg-zinc-100 data-[state=open]:bg-black/5"
-                  : "w-full justify-start gap-3 rounded-lg p-2",
-              )}
-            >
-              <ProfileAvatarIcon
-                className={isCollapsed ? "h-8 w-8" : undefined}
-              />
-              <div
-                className={cn(
-                  "flex-1 text-left min-w-0 flex flex-col transition-opacity duration-200",
-                  isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100",
-                )}
-              >
-                <p className="text-[14px] font-medium text-zinc-800 truncate">
-                  {userDisplayName}
-                </p>
-                <p className="text-[12px] text-zinc-500 leading-tight">
-                  Free plan
-                </p>
-              </div>
-              {!isCollapsed && (
-                <div className="flex shrink-0 items-center gap-2">
-                  <DownloadButton size="md" />
-                  <ProfileMenuChevron className="opacity-80" />
-                </div>
-              )}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side="top"
-            align={isCollapsed ? "center" : "end"}
-            sideOffset={6}
-            collisionPadding={12}
-            className="z-[60] w-[272px] rounded-xl border border-zinc-300 bg-white/80 p-1.5 font-sans shadow-lg backdrop-blur-3xl"
+      {showAccountMenu && (
+        <div
+          className={cn(
+            "mt-auto shrink-0 flex flex-col bg-[var(--app-shell-bg)]",
+            isCollapsed
+              ? "items-center gap-2 px-0 pb-2 pt-1"
+              : "items-stretch gap-1 p-2",
+          )}
+        >
+          {!isCollapsed && showBasicsChecklist ? (
+            <SidebarBasicsChecklist
+              onDismiss={() => setShowBasicsChecklist(false)}
+              steps={[
+                {
+                  id: "import-history",
+                  title: "Bring history from another AI",
+                  description: "So you're not starting from scratch",
+                  onSelect: () => runNavAction(onSettingsClick),
+                },
+                {
+                  id: "connect-tools",
+                  title: "Connect your everyday tools",
+                  description:
+                    "Clauxen gives better answers when it understands what matters to you",
+                  onSelect: () => runNavAction(onCustomizeClick),
+                },
+                {
+                  id: "desktop-app",
+                  title: "Get the desktop app",
+                  description:
+                    "Hand off tasks, code with Clauxen, and do more from your desktop",
+                  onSelect: () => runNavAction(onAppsExtensionsClick),
+                },
+              ]}
+            />
+          ) : null}
+          {isCollapsed && (
+            <DownloadButton
+              size="md"
+              onClick={(e) => {
+                e.stopPropagation();
+                runNavAction(onAppsExtensionsClick);
+              }}
+            />
+          )}
+          <div
+            className={cn(
+              "flex items-center",
+              isCollapsed ? "justify-center" : "gap-1",
+            )}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
-            <DropdownMenuLabel className="px-2 py-1 text-[12px] font-[430] text-zinc-500 truncate">
-              {userEmail || "Not signed in"}
-            </DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => runNavAction(onSettingsClick)}
-              className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
+            <DropdownMenu modal={!isMobileLayout}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className={cn(
+                    "menu-trigger-active flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-black/5",
+                    isCollapsed
+                      ? "h-8 w-8 shrink-0 items-center justify-center gap-0 rounded-full p-0"
+                      : "min-w-0 flex-1 justify-start gap-3 rounded-lg p-2",
+                  )}
+                >
+                  <ProfileAvatarIcon
+                    className={isCollapsed ? "h-8 w-8" : undefined}
+                  />
+                  <div
+                    className={cn(
+                      "flex-1 text-left min-w-0 flex flex-col transition-opacity duration-200",
+                      isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100",
+                    )}
+                  >
+                    <p className="text-[14px] font-medium text-zinc-800 truncate">
+                      {userDisplayName}
+                    </p>
+                    <p className="text-[12px] text-zinc-500 leading-tight">
+                      Free plan
+                    </p>
+                  </div>
+                  {!isCollapsed && (
+                    <ProfileMenuChevron className="shrink-0 opacity-80" />
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+            <DropdownMenuContent
+              side="top"
+              align={isCollapsed ? "center" : "end"}
+              sideOffset={6}
+              collisionPadding={12}
+              onCloseAutoFocus={(e) => e.preventDefault()}
+              className="z-[60] w-[min(272px,calc(100vw-2rem))] rounded-xl border border-zinc-300 bg-white/80 p-1.5 font-sans shadow-lg backdrop-blur-3xl"
             >
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-zinc-800" />
-                <span>Settings</span>
-              </div>
-              <span className="text-[12px] text-zinc-500">⇧⌘,</span>
-            </DropdownMenuItem>
-            {onPersonalizationClick && (
+              <DropdownMenuLabel className="px-2 py-1 text-[12px] font-[430] text-zinc-500 truncate">
+                {userEmail || "Not signed in"}
+              </DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => {
-                  if (onPersonalizationClick) runNavAction(onPersonalizationClick);
-                }}
+                onClick={() => runNavAction(onSettingsClick)}
+                className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-zinc-800" />
+                  <span>Settings</span>
+                </div>
+                <span className="text-[12px] text-zinc-500">⇧⌘,</span>
+              </DropdownMenuItem>
+              {onPersonalizationClick && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (onPersonalizationClick)
+                      runNavAction(onPersonalizationClick);
+                  }}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
+                >
+                  <Sparkles className="w-5 h-5 text-zinc-800" />
+                  <span>Personalization</span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 rounded-lg data-[state=open]:bg-black/5 cursor-pointer">
+                  <Languages className="w-5 h-5 text-zinc-800" />
+                  <span>Language</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
+                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                      English
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                      Hindi
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                      Tamil
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+              <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                <HelpCircle className="w-5 h-5 text-zinc-800" />
+                <span>Get help</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => runNavAction(onUpgradeClick)}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
               >
-                <Sparkles className="w-5 h-5 text-zinc-800" />
-                <span>Personalization</span>
+                <ArrowUpCircle className="w-5 h-5 text-zinc-800" />
+                <span>Upgrade plan</span>
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => runNavAction(onAppsExtensionsClick)}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
+              >
+                <DownloadButton size="sm" decorative />
+                <span className="ml-2">Apps and extensions</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => runNavAction(onGiftClick)}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
+              >
+                <Gift className="w-5 h-5 text-zinc-800" />
+                <span>Gift Clauxen</span>
+              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 rounded-lg data-[state=open]:bg-black/5 cursor-pointer">
+                  <HelpCircle className="w-5 h-5 text-zinc-800" />
+                  <span>Learn more</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
+                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                      Release notes
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                      Documentation
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                      Community
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator className="my-1.5 bg-zinc-900/10" />
+              <DropdownMenuItem
+                onClick={() => onLogoutClick?.()}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer text-destructive"
+              >
+                <LogOut className="w-5 h-5" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+            </DropdownMenu>
+            {!isCollapsed && (
+              <DownloadButton
+                size="md"
+                className="shrink-0 rounded-lg p-0.5 transition-colors hover:bg-zinc-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  runNavAction(onAppsExtensionsClick);
+                }}
+              />
             )}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 rounded-lg data-[state=open]:bg-black/5 cursor-pointer">
-                <Languages className="w-5 h-5 text-zinc-800" />
-                <span>Language</span>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
-                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
-                    English
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
-                    Hindi
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
-                    Tamil
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-            <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
-              <HelpCircle className="w-5 h-5 text-zinc-800" />
-              <span>Get help</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => runNavAction(onUpgradeClick)}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
-            >
-              <ArrowUpCircle className="w-5 h-5 text-zinc-800" />
-              <span>Upgrade plan</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => runNavAction(onAppsExtensionsClick)}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
-            >
-              <DownloadButton size="sm" />
-              <span className="ml-2">Apps and extensions</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => runNavAction(onGiftClick)}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
-            >
-              <Gift className="w-5 h-5 text-zinc-800" />
-              <span>Gift Clauxen</span>
-            </DropdownMenuItem>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 rounded-lg data-[state=open]:bg-black/5 cursor-pointer">
-                <HelpCircle className="w-5 h-5 text-zinc-800" />
-                <span>Learn more</span>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
-                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
-                    Release notes
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
-                    Documentation
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
-                    Community
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator className="my-1.5 bg-zinc-900/10" />
-            <DropdownMenuItem
-              onClick={() => onLogoutClick?.()}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer text-destructive"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Log out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>}
+          </div>
+        </div>
+      )}
     </nav>
+    <RenameChatDialog
+      open={renameChatId != null}
+      onOpenChange={(open) => {
+        if (!open) setRenameChatId(null);
+      }}
+      chatTitle={renameChat?.name ?? "New Chat"}
+      onConfirm={(title) => {
+        if (renameChatId) onRenameChat?.(renameChatId, title);
+      }}
+    />
+    </>
   );
 }

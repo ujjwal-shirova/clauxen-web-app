@@ -5,9 +5,9 @@ Early winners are likely to be products that combine **great UX**, **local langu
 
 ## Key signals to watch
 
-- Usage retention after day 7 and day 30  
-- Query success rate for regional language prompts  
-- Time-to-first-useful-answer on mobile networks  
+- Usage retention after day 7 and day 30
+- Query success rate for regional language prompts
+- Time-to-first-useful-answer on mobile networks
 - Conversion from free users to paid productivity workflows
 
 ## Practical recommendation

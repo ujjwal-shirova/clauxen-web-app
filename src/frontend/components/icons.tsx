@@ -1,30 +1,80 @@
-'use client';
+"use client";
 
 import type { SVGProps } from "react";
 import { cn } from "@/frontend/lib/utils";
 
 export function ClaudeStar(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="32" height="32" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M96 40L99.5 42L99.5 43.5L98.5 47L56 57L52.004 47.0708L96 40Z" fill="currentColor" />
-      <path d="M80.1032 10.5903L84.9968 11.6171L86.2958 13.2179L87.5346 17.054L87.0213 19.5007L58.5 58.5L49 49L75.3008 14.4873L80.1032 10.5903Z" fill="currentColor" />
-      <path d="M55.5002 4.5L58.5005 2.5L61.0002 3.5L63.5002 7L56.6511 48.162L52.0005 45L50.0005 39.5L53.5003 8.5L55.5002 4.5Z" fill="currentColor" />
-      <path d="M23.4253 5.1588L26.5075 1.2217L28.5175 0.7632L32.5063 1.3458L34.4748 2.8868L48.8202 34.6902L54.0089 49.8008L47.9378 53.176L24.8009 11.1886L23.4253 5.1588Z" fill="currentColor" />
-      <path d="M8.499 27.0019L7.4999 23.0001L10.5003 19.5001L14.0003 20.0001L15.0003 20.0001L36 35.5L42.5 40.5L51.5 47.5L46.5 56L42.0002 52.5L39.0001 49.5L10 29.0001L8.499 27.0019Z" fill="currentColor" />
-      <path d="M2.5003 53L0.237 50.5L0.2373 48.2759L2.5003 47.5L28 49L53 51L52.1885 55.9782L4.5 53.5L2.5003 53Z" fill="currentColor" />
-      <path d="M17.5002 79.0264L12.5005 79.0264L10.5124 76.7369L10.5124 74L19.0005 68L53.5082 46.0337L57.0005 52L17.5002 79.0264Z" fill="currentColor" />
-      <path d="M27.0004 93L25.0003 93.5L22.0003 92L22.5004 89.5L52.0003 50.5L56.0004 56L34.0003 85L27.0004 93Z" fill="currentColor" />
-      <path d="M51.9998 98L50.5002 100L47.5002 101L45.0001 99L43.5 96L51.0003 55.5L55.5001 56L51.9998 98Z" fill="currentColor" />
-      <path d="M77.5007 87L77.5007 91L77.0006 92.5L75.0004 93.5L71.5006 93.0339L47.4669 57.2642L56.9998 50L64.9994 64.5L65.7507 69.75L77.5007 87Z" fill="currentColor" />
-      <path d="M89.0008 81L89.5008 83.5L88.0008 85.5L86.5007 85L78.0007 79L65.0007 67.5L55.0007 60.5L58 51L63 54L66.0007 59.5L89.0008 81Z" fill="currentColor" />
-      <path d="M82.5003 55.5L95.0003 56.5L98.0003 58.5L100 61.5L100 63.6587L94.5003 66L66.5005 59L55.0003 58.5L58 48L66.0005 54L82.5003 55.5Z" fill="currentColor" />
+    <svg
+      width="32"
+      height="32"
+      viewBox="0 0 100 101"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M96 40L99.5 42L99.5 43.5L98.5 47L56 57L52.004 47.0708L96 40Z"
+        fill="currentColor"
+      />
+      <path
+        d="M80.1032 10.5903L84.9968 11.6171L86.2958 13.2179L87.5346 17.054L87.0213 19.5007L58.5 58.5L49 49L75.3008 14.4873L80.1032 10.5903Z"
+        fill="currentColor"
+      />
+      <path
+        d="M55.5002 4.5L58.5005 2.5L61.0002 3.5L63.5002 7L56.6511 48.162L52.0005 45L50.0005 39.5L53.5003 8.5L55.5002 4.5Z"
+        fill="currentColor"
+      />
+      <path
+        d="M23.4253 5.1588L26.5075 1.2217L28.5175 0.7632L32.5063 1.3458L34.4748 2.8868L48.8202 34.6902L54.0089 49.8008L47.9378 53.176L24.8009 11.1886L23.4253 5.1588Z"
+        fill="currentColor"
+      />
+      <path
+        d="M8.499 27.0019L7.4999 23.0001L10.5003 19.5001L14.0003 20.0001L15.0003 20.0001L36 35.5L42.5 40.5L51.5 47.5L46.5 56L42.0002 52.5L39.0001 49.5L10 29.0001L8.499 27.0019Z"
+        fill="currentColor"
+      />
+      <path
+        d="M2.5003 53L0.237 50.5L0.2373 48.2759L2.5003 47.5L28 49L53 51L52.1885 55.9782L4.5 53.5L2.5003 53Z"
+        fill="currentColor"
+      />
+      <path
+        d="M17.5002 79.0264L12.5005 79.0264L10.5124 76.7369L10.5124 74L19.0005 68L53.5082 46.0337L57.0005 52L17.5002 79.0264Z"
+        fill="currentColor"
+      />
+      <path
+        d="M27.0004 93L25.0003 93.5L22.0003 92L22.5004 89.5L52.0003 50.5L56.0004 56L34.0003 85L27.0004 93Z"
+        fill="currentColor"
+      />
+      <path
+        d="M51.9998 98L50.5002 100L47.5002 101L45.0001 99L43.5 96L51.0003 55.5L55.5001 56L51.9998 98Z"
+        fill="currentColor"
+      />
+      <path
+        d="M77.5007 87L77.5007 91L77.0006 92.5L75.0004 93.5L71.5006 93.0339L47.4669 57.2642L56.9998 50L64.9994 64.5L65.7507 69.75L77.5007 87Z"
+        fill="currentColor"
+      />
+      <path
+        d="M89.0008 81L89.5008 83.5L88.0008 85.5L86.5007 85L78.0007 79L65.0007 67.5L55.0007 60.5L58 51L63 54L66.0007 59.5L89.0008 81Z"
+        fill="currentColor"
+      />
+      <path
+        d="M82.5003 55.5L95.0003 56.5L98.0003 58.5L100 61.5L100 63.6587L94.5003 66L66.5005 59L55.0003 58.5L58 48L66.0005 54L82.5003 55.5Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
 
 export function GhostIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path d="M10 2C14.326 2.00018 17.9998 5.67403 18 10V17.3123C17.9997 17.5427 17.8411 17.8079 17.6172 17.8623C17.3932 17.9165 17.1614 17.7456 17.0557 17.5408C16.7805 17.007 16.3658 16.5937 16.062 16.2878C15.7793 16.0034 15.4503 15.8338 14.9771 15.8337C14.2092 15.8339 13.4371 16.3862 12.9487 17.53C12.8701 17.7138 12.6887 17.8621 12.4888 17.8623C12.2888 17.8623 12.1076 17.7138 12.0288 17.53C11.5404 16.386 10.7674 15.8339 9.99951 15.8337C9.23161 15.8339 8.45959 16.386 7.97119 17.53C7.89253 17.7138 7.71118 17.8621 7.51123 17.8623C7.31122 17.8623 7.13006 17.7138 7.05127 17.53C6.56296 16.3862 5.78982 15.834 5.02197 15.8337C4.54861 15.8338 4.21974 16.0032 3.93701 16.2878C3.63309 16.5937 3.21952 17.0715 2.94434 17.6055C2.83865 17.8103 2.60589 17.9165 2.38184 17.8623C2.15801 17.8079 2.00033 17.6073 2 17.377V10C2.00018 5.67403 5.67403 2.00018 10 2ZM10 3C6.22631 3.00018 3.00018 6.22631 3 10V15.8633C3.0205 15.8414 3.20696 15.6049 3.22803 15.5837C3.67524 15.1336 4.251 14.8338 5.02197 14.8337C6.03838 14.8341 6.90232 16.2937 7.51025 16.2937C8.11828 15.4018 8.9824 14.8338 9.99951 14.8337C11.0163 14.8338 11.8798 15.4022 12.4878 16.2937C13.0959 15.4018 13.9601 14.8339 14.9771 14.8337C15.7481 14.8338 16.3247 15.1336 16.772 15.5837C16.772 15.5837 16.9796 15.812 17 15.8337V10C16.9998 6.22631 13.7737 3.00018 10 3Z" />
     </svg>
   );
@@ -32,7 +82,14 @@ export function GhostIcon(props: SVGProps<SVGSVGElement>) {
 
 export function NavChatsIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path d="M8.99962 2C12.3133 2 14.9996 4.68629 14.9996 8C14.9996 11.3137 12.3133 14 8.99962 14H2.49962C2.30105 13.9998 2.12113 13.8821 2.04161 13.7002C1.96224 13.5181 1.99835 13.3058 2.1334 13.1602L3.93516 11.2178C3.34317 10.2878 2.99962 9.18343 2.99962 8C2.99962 4.68643 5.68609 2.00022 8.99962 2ZM8.99962 3C6.23838 3.00022 3.99961 5.23871 3.99961 8C3.99961 9.11212 4.36265 10.1386 4.97618 10.9688C5.11884 11.1621 5.1035 11.4293 4.94004 11.6055L3.64512 13H8.99962C11.761 13 13.9996 10.7614 13.9996 8C13.9996 5.23858 11.761 3 8.99962 3Z" />
       <path d="M16.5445 9.72754C16.4182 9.53266 16.1678 9.44648 15.943 9.53418C15.7183 9.62215 15.5932 9.85502 15.6324 10.084L15.7369 10.3955C15.9073 10.8986 16.0006 11.438 16.0006 12C16.0006 13.1123 15.6376 14.1386 15.024 14.9687C14.8811 15.1621 14.8956 15.4302 15.0592 15.6064L16.3531 17H11.0006C9.54519 17 8.23527 16.3782 7.32091 15.3848L7.07091 15.1103C6.88996 14.9645 6.62535 14.9606 6.43907 15.1143C6.25267 15.2682 6.20668 15.529 6.31603 15.7344L6.58458 16.0625C7.68048 17.253 9.25377 18 11.0006 18H17.5006C17.6991 17.9998 17.8791 17.8822 17.9586 17.7002C18.038 17.5181 18.0018 17.3058 17.8668 17.1602L16.0631 15.2178C16.6554 14.2876 17.0006 13.1837 17.0006 12C17.0006 11.3271 16.8891 10.6792 16.6842 10.0742L16.5445 9.72754Z" />
     </svg>
@@ -41,7 +98,14 @@ export function NavChatsIcon(props: SVGProps<SVGSVGElement>) {
 
 export function NavProjectsIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path d="M15.8198 7C16.6885 7.00025 17.3624 7.73158 17.3178 8.57617L17.2993 8.74707L16.1332 15.7471C16.0126 16.4699 15.3865 16.9996 14.6538 17H5.34711C4.6142 16.9998 3.98833 16.47 3.86762 15.7471L2.7016 8.74707C2.54922 7.83277 3.25418 7 4.18109 7H15.8198ZM4.18109 8C3.87216 8 3.63722 8.27731 3.68793 8.58203L4.85394 15.582C4.89413 15.8229 5.10291 15.9998 5.34711 16H14.6538C14.898 15.9996 15.1068 15.8228 15.1469 15.582L16.3129 8.58203L16.3188 8.46973C16.3036 8.21259 16.0899 8.00023 15.8198 8H4.18109Z" />
       <path d="M16.0004 5.5C16.0004 5.224 15.7764 5.00024 15.5004 5H4.50043C4.22428 5 4.00043 5.22386 4.00043 5.5C4.00043 5.77614 4.22428 6 4.50043 6H15.5004C15.7764 5.99976 16.0004 5.776 16.0004 5.5Z" />
       <path d="M14.5004 3.5C14.5004 3.224 14.2764 3.00024 14.0004 3H6.00043C5.72428 3 5.50043 3.22386 5.50043 3.5C5.50043 3.77614 5.72428 4 6.00043 4H14.0004C14.2764 3.99976 14.5004 3.776 14.5004 3.5Z" />
@@ -51,8 +115,19 @@ export function NavProjectsIcon(props: SVGProps<SVGSVGElement>) {
 
 export function NavArtifactsIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path fillRule="evenodd" clipRule="evenodd" d="M6.35352 3.1464L9.35352 6.14642C9.43935 6.25103 9.5 6.36003 9.5 6.50091C9.4998 6.6332 9.44704 6.75988 9.35352 6.85346L6.35352 9.85347C6.14584 10.0609 5.85611 10.0243 5.64648 9.85347L2.64648 6.85346C2.55296 6.75988 2.5002 6.6332 2.5 6.50091C2.5 6.36841 2.55285 6.24017 2.64648 6.14642L5.64648 3.1464C5.8552 2.97421 6.14635 2.93936 6.35352 3.1464ZM6 8.79194L3.70703 6.49994L6 4.20696L8.29297 6.49994L6 8.79194Z" />
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M6.35352 3.1464L9.35352 6.14642C9.43935 6.25103 9.5 6.36003 9.5 6.50091C9.4998 6.6332 9.44704 6.75988 9.35352 6.85346L6.35352 9.85347C6.14584 10.0609 5.85611 10.0243 5.64648 9.85347L2.64648 6.85346C2.55296 6.75988 2.5002 6.6332 2.5 6.50091C2.5 6.36841 2.55285 6.24017 2.64648 6.14642L5.64648 3.1464C5.8552 2.97421 6.14635 2.93936 6.35352 3.1464ZM6 8.79194L3.70703 6.49994L6 4.20696L8.29297 6.49994L6 8.79194Z"
+      />
       <path d="M16.8984 3.7509C16.9875 3.90632 16.986 4.09826 16.8955 4.25286L15.5791 6.49994L16.8955 8.74702C16.986 8.90159 16.9874 9.09354 16.8984 9.24898C16.8093 9.40436 16.643 9.49996 16.4638 9.49996H11.5C11.3198 9.49996 11.1532 9.4028 11.0644 9.24605C10.976 9.08949 10.9789 8.89736 11.0713 8.74312L12.417 6.49994L11.0713 4.25676C10.9789 4.1025 10.976 3.91037 11.0644 3.75383C11.1532 3.59717 11.3199 3.49992 11.5 3.49992H16.4638C16.6429 3.51309 16.8055 3.58909 16.8984 3.7509ZM13.4287 6.2431C13.5152 6.4107 13.5166 6.58638 13.4287 6.75678L12.3828 8.49995H15.5918L14.5683 6.75287C14.477 6.59683 14.477 6.40303 14.5683 6.24701L15.5918 4.49993H12.3828L13.4287 6.2431Z" />
       <path d="M14 11C15.6568 11 16.9999 12.3432 17 14C17 15.6568 15.6569 17 14 17C12.3431 17 11 15.6568 11 14C11.0001 12.3432 12.3432 11 14 11ZM12 14C12.0001 12.8955 12.8955 12 14 12C15.1045 12 15.9999 12.8955 16 14C16 15.1045 15.1046 16 14 16C12.8954 16 12 15.1045 12 14Z" />
     </svg>
@@ -61,7 +136,14 @@ export function NavArtifactsIcon(props: SVGProps<SVGSVGElement>) {
 
 export function NavCodeIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path d="M11.6318 4.01757C11.898 4.09032 12.055 4.36555 11.9824 4.63183L8.98242 15.6318C8.90966 15.8981 8.63449 16.0551 8.36816 15.9824C8.10193 15.9097 7.94495 15.6345 8.01758 15.3682L11.0176 4.36816C11.0904 4.102 11.3656 3.94497 11.6318 4.01757Z" />
       <path d="M13.124 6.17089C13.3059 5.96325 13.6213 5.9423 13.8291 6.12402L17.8291 9.62402L17.9014 9.70215C17.9647 9.78754 18 9.89182 18 10C18 10.1441 17.9375 10.281 17.8291 10.376L13.8291 13.876L13.7471 13.9346C13.5449 14.0498 13.2833 14.011 13.124 13.8291C12.9649 13.6472 12.9606 13.3824 13.1016 13.1973L13.1709 13.124L16.7412 10L13.1709 6.87597C12.9632 6.69411 12.9422 6.37866 13.124 6.17089Z" />
       <path d="M6.25293 6.06542C6.45509 5.95025 6.71675 5.98908 6.87598 6.17089C7.03513 6.35279 7.03933 6.6176 6.89844 6.80273L6.8291 6.87597L3.25879 10L6.8291 13.124C7.03682 13.3059 7.05771 13.6213 6.87598 13.8291C6.69413 14.0369 6.37869 14.0578 6.1709 13.876L2.1709 10.376L2.09863 10.2979C2.03528 10.2124 2 10.1082 2 10C2.00005 9.85591 2.06247 9.71893 2.1709 9.62402L6.1709 6.12402L6.25293 6.06542Z" />
@@ -71,7 +153,14 @@ export function NavCodeIcon(props: SVGProps<SVGSVGElement>) {
 
 export function SidebarToggleIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path d="M16.5 4C17.3284 4 18 4.67157 18 5.5V14.5C18 15.3284 17.3284 16 16.5 16H3.5C2.67157 16 2 15.3284 2 14.5V5.5C2 4.67157 2.67157 4 3.5 4H16.5ZM7 15H16.5C16.7761 15 17 14.7761 17 14.5V5.5C17 5.22386 16.7761 5 16.5 5H7V15ZM3.5 5C3.22386 5 3 5.22386 3 5.5V14.5C3 14.7761 3.22386 15 3.5 15H6V5H3.5Z" />
     </svg>
   );
@@ -79,7 +168,14 @@ export function SidebarToggleIcon(props: SVGProps<SVGSVGElement>) {
 
 export function SidebarOpenIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path d="M16.5 3C16.7761 3 17 3.22386 17 3.5V16.5L16.9902 16.6006C16.9437 16.8286 16.7417 17 16.5 17C16.2583 17 16.0563 16.8286 16.0098 16.6006L16 16.5V3.5C16 3.22386 16.2239 3 16.5 3ZM8.12793 5.16504C8.28958 4.98547 8.5524 4.95058 8.75293 5.06836L8.83496 5.12793L13.835 9.62793C13.9403 9.72275 14 9.85828 14 10C14 10.1063 13.9667 10.2093 13.9053 10.2939L13.835 10.3721L8.83496 14.8721C8.62972 15.0568 8.31267 15.0402 8.12793 14.835C7.94322 14.6297 7.95984 14.3127 8.16504 14.1279L12.1963 10.5H3.5C3.22386 10.5 3 10.2761 3 10C3 9.72386 3.22386 9.5 3.5 9.5H12.1963L8.16504 5.87207L8.09766 5.79688C7.95931 5.60979 7.96622 5.34471 8.12793 5.16504Z" />
     </svg>
   );
@@ -87,7 +183,14 @@ export function SidebarOpenIcon(props: SVGProps<SVGSVGElement>) {
 
 export function NewChatIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <path d="M10 3C10.4142 3 10.75 3.33579 10.75 3.75V9.25H16.25C16.6642 9.25 17 9.58579 17 10C17 10.3882 16.7051 10.7075 16.3271 10.7461L16.25 10.75H10.75V16.25C10.75 16.6642 10.4142 17 10 17C9.58579 17 9.25 16.6642 9.25 16.25V10.75H3.75C3.33579 10.75 3 10.4142 3 10C3 9.58579 3.33579 9.25 3.75 9.25H9.25V3.75C9.25 3.33579 9.58579 3 10 3Z" />
     </svg>
   );
@@ -111,7 +214,17 @@ export function PlusIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
 
 export function PromptAddFilesIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="17 8 12 3 7 8" />
       <line x1="12" y1="3" x2="12" y2="15" />
@@ -121,7 +234,17 @@ export function PromptAddFilesIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptScreenshotIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -130,7 +253,17 @@ export function PromptScreenshotIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptProjectIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
     </svg>
   );
@@ -138,7 +271,17 @@ export function PromptProjectIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptWebSearchIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <circle cx="12" cy="12" r="10" />
       <line x1="2" y1="12" x2="22" y2="12" />
       <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -148,7 +291,17 @@ export function PromptWebSearchIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptStyleIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M12 19l7-7 3 3-7 7-3-3z" />
       <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
       <path d="M2 2l7.586 7.586" />
@@ -159,7 +312,17 @@ export function PromptStyleIcon(props: SVGProps<SVGSVGElement>) {
 
 export function PromptConnectorsIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
     </svg>
   );
@@ -167,7 +330,17 @@ export function PromptConnectorsIcon(props: SVGProps<SVGSVGElement>) {
 
 export function CheckIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <polyline points="20 6 9 17 4 12" />
     </svg>
   );
@@ -175,7 +348,15 @@ export function CheckIcon(props: SVGProps<SVGSVGElement>) {
 
 export function CreateWithClaudeIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
       <path d="M10 2.5a7.5 7.5 0 0 1 0 15H3a.5.5 0 0 1-.354-.854l1.71-1.71A7.5 7.5 0 0 1 10 2.5m0 1a6.5 6.5 0 0 0-4.597 11.097l.063.076a.5.5 0 0 1-.063.63L4.207 16.5H10a6.5 6.5 0 1 0 0-13m3.29 5.804a.5.5 0 0 1 .92.392c-.36.84-1.046 1.554-1.96 1.554-.613 0-1.122-.321-1.5-.785-.378.464-.887.785-1.5.785s-1.122-.321-1.5-.785c-.378.464-.887.785-1.5.785a.5.5 0 0 1 0-1c.338 0 .754-.28 1.04-.946l.034-.067a.5.5 0 0 1 .886.067l.112.231c.276.5.632.715.928.715.338 0 .755-.28 1.04-.946l.034-.067a.5.5 0 0 1 .886.067l.112.231c.276.5.632.715.928.715.338 0 .755-.28 1.04-.946" />
     </svg>
   );
@@ -183,7 +364,15 @@ export function CreateWithClaudeIcon(props: SVGProps<SVGSVGElement>) {
 
 export function WriteSkillInstructionsIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
       <path d="M10 1.5c1.11 0 2.076.604 2.595 1.5H14.5A1.5 1.5 0 0 1 16 4.5v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 4 16.5v-12A1.5 1.5 0 0 1 5.5 3h1.905A3 3 0 0 1 10 1.5M5.5 4a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-12a.5.5 0 0 0-.5-.5h-1.542q.041.245.042.5v1a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-1q0-.255.042-.5zm7.04 9.304a.5.5 0 0 1 .92.392c-.295.69-.871 1.304-1.66 1.304-.487 0-.892-.234-1.2-.574-.309.34-.713.574-1.2.574-.486 0-.892-.233-1.2-.574-.31.34-.714.574-1.2.574a.5.5 0 0 1 0-1c.212 0 .52-.18.74-.696l.034-.067a.5.5 0 0 1 .886.067c.221.516.528.696.74.696.213 0 .52-.18.74-.696l.035-.067a.5.5 0 0 1 .885.067c.22.516.527.696.74.696s.519-.18.74-.696m0-4a.5.5 0 0 1 .92.392c-.295.69-.871 1.304-1.66 1.304-.487 0-.892-.234-1.2-.574-.309.34-.713.574-1.2.574-.486 0-.892-.233-1.2-.574-.31.34-.714.574-1.2.574a.5.5 0 0 1 0-1c.212 0 .52-.18.74-.696l.034-.067a.5.5 0 0 1 .886.067c.221.516.528.696.74.696.213 0 .52-.18.74-.696l.035-.067a.5.5 0 0 1 .885.067c.22.516.527.696.74.696s.519-.18.74-.696M10 2.5a2 2 0 0 0-2 2V5h4v-.5a2 2 0 0 0-2-2" />
     </svg>
   );
@@ -191,7 +380,15 @@ export function WriteSkillInstructionsIcon(props: SVGProps<SVGSVGElement>) {
 
 export function UploadSkillIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
       <path d="M16.5 13a.5.5 0 0 1 .5.5v2a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15.5v-2a.5.5 0 0 1 1 0v2a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 1 .5-.5M10 3a.5.5 0 0 1 .374.168l4 4.5.059.082a.5.5 0 0 1-.732.65l-.075-.068L10.5 4.814V13.5a.5.5 0 0 1-1 0V4.814L6.374 8.332a.5.5 0 0 1-.748-.664l4-4.5.08-.071A.5.5 0 0 1 10 3" />
     </svg>
   );

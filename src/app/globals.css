@@ -38,15 +38,24 @@
     --app-shell-bg: #f4f4f5;
     --app-panel-bg: #ffffff;
     /* Prompt composer */
-    --prompt-radius: 16px;
-    --prompt-radius-lg: 20px;
-    --prompt-shadow: 0 1px 2px rgba(24, 24, 27, 0.04), 0 8px 24px -6px rgba(24, 24, 27, 0.06);
-    --prompt-shadow-focus: 0 1px 2px rgba(24, 24, 27, 0.04), 0 12px 32px -8px rgba(24, 24, 27, 0.1);
+    --prompt-radius: 18px;
+    --prompt-radius-lg: 26px;
+    --prompt-shadow:
+      0 0 0 1px rgba(24, 24, 27, 0.045), 0 1px 2px rgba(24, 24, 27, 0.02),
+      0 6px 20px -10px rgba(24, 24, 27, 0.06);
+    --prompt-shadow-focus:
+      0 0 0 1px rgba(24, 24, 27, 0.09), 0 2px 4px rgba(24, 24, 27, 0.03),
+      0 12px 32px -12px rgba(24, 24, 27, 0.1);
     /* Skeleton shimmer tokens */
     --skeleton-base: #f4f4f5;
     --skeleton-highlight: rgba(255, 255, 255, 0.6);
     --skeleton-duration: 1.25s;
     --skeleton-delay: 0ms;
+
+    /* Sticky element layout variables */
+    --header-height-mobile: 80px;
+    --header-height-desktop: 96px;
+    --sticky-spacing: 8px;
   }
 }
 
@@ -67,41 +76,41 @@
     letter-spacing: -0.011em;
   }
 
-  /* Universal high-end micro-interaction transitions */
+  /* Neutral control transitions — color/background only (no press scale or shift) */
   button,
   a,
   [role="button"],
   .menu-trigger-active,
   .sidebar-scrollable button,
   .sidebar-scrollable [role="button"] {
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  }
-
-  /* Soft modern click state scaling */
-  button:active:not(.no-press-scale),
-  a:active:not(.no-press-scale),
-  [role="button"]:active:not(.no-press-scale) {
-    transform: scale(0.975);
+    transition:
+      background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+      color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   /*
    * Universal hover feedback — ghost/neutral buttons only.
    * Solid dark or filled buttons must use explicit hover:bg-* (never opacity hovers).
    */
-  button:not(:disabled):not(.no-hover-overlay):not(.app-btn):not(.app-btn-primary):not(.app-btn-secondary):not(.app-btn-ghost):not(.btn-solid-dark):not([class*="bg-black"]):not([class*="bg-zinc-9"]):not([class*="bg-zinc-8"]):not([class*="bg-primary"]):not([class*="bg-[#0b0b0b]"]):not([class*="text-white"]):hover,
-  a[role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(.app-btn):not([class*="bg-black"]):not([class*="text-white"]):hover,
-  [role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(.app-btn):not([class*="bg-black"]):not([class*="text-white"]):hover,
+  button:not(:disabled):not(.no-hover-overlay):not(.app-btn):not(
+      .app-btn-primary
+    ):not(.app-btn-secondary):not(.app-btn-ghost):not(.btn-solid-dark):not(
+      [class*="bg-black"]
+    ):not([class*="bg-zinc-9"]):not([class*="bg-zinc-8"]):not(
+      [class*="bg-primary"]
+    ):not([class*="bg-[#0b0b0b]"]):not([class*="text-white"]):hover,
+  a[role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(
+      .app-btn
+    ):not([class*="bg-black"]):not([class*="text-white"]):hover,
+  [role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(
+      .app-btn
+    ):not(.context-usage-trigger):not([class*="bg-black"]):not([class*="text-white"]):hover,
   input[type="button"]:not(:disabled):not(.no-hover-overlay):hover,
   input[type="submit"]:not(:disabled):not(.no-hover-overlay):hover {
     box-shadow: inset 0 0 0 9999px rgba(24, 24, 27, 0.05);
-  }
-
-  button:not(:disabled):not(.no-hover-overlay):not(.app-btn):not([class*="bg-black"]):not([class*="bg-zinc-9"]):not([class*="text-white"]):active,
-  a[role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(.app-btn):not([class*="text-white"]):active,
-  [role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(.app-btn):not([class*="text-white"]):active,
-  input[type="button"]:not(:disabled):not(.no-hover-overlay):active,
-  input[type="submit"]:not(:disabled):not(.no-hover-overlay):active {
-    box-shadow: inset 0 0 0 9999px rgba(24, 24, 27, 0.08);
   }
 
   /* Dark solid buttons — subtle lighten on hover, never wash out */
@@ -116,15 +125,6 @@
     box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.08) !important;
   }
 
-  button[class*="bg-black"]:not(:disabled):not(.no-hover-overlay):active,
-  button[class*="bg-zinc-9"]:not(:disabled):not(.no-hover-overlay):active,
-  button[class*="bg-[#0b0b0b]"]:not(:disabled):not(.no-hover-overlay):active,
-  button.bg-primary:not(:disabled):not(.no-hover-overlay):active,
-  button[class*="bg-primary"]:not(:disabled):not(.no-hover-overlay):active,
-  .btn-solid-dark:not(:disabled):not(.no-hover-overlay):active,
-  .app-btn-primary:not(:disabled):active {
-    box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.12) !important;
-  }
 }
 
 .font-serif {
@@ -223,7 +223,6 @@ nav.sidebar-hover-area {
 .sidebar-scrollable button:hover,
 .sidebar-scrollable [role="button"]:hover {
   background-color: rgba(24, 24, 27, 0.04) !important;
-  transform: translateX(1px);
 }
 
 /* Glassmorphism menu & popup overlays */
@@ -249,12 +248,10 @@ nav.sidebar-hover-area {
   transition: background-color 0.15s ease !important;
 }
 
-/* Premium prompt composer — frosted white with soft vertex blur */
-[data-prompt-root] > div > div {
-  background-color: rgba(255, 255, 255, 0.94) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid rgba(24, 24, 27, 0.1) !important;
+/* Premium prompt composer — white surface with soft depth */
+[data-prompt-root] [data-prompt-shell] {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(24, 24, 27, 0.055) !important;
   box-shadow: var(--prompt-shadow) !important;
   border-radius: var(--prompt-radius-lg) !important;
   transition:
@@ -262,20 +259,30 @@ nav.sidebar-hover-area {
     box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-[data-prompt-root] > div > div:focus-within {
-  border-color: rgba(24, 24, 27, 0.16) !important;
+[data-prompt-root] [data-prompt-shell]:focus-within {
+  border-color: rgba(24, 24, 27, 0.1) !important;
   box-shadow: var(--prompt-shadow-focus) !important;
 }
 
-/* User chat message styling - tactile stone-colored felt bubble */
-.user-message-bubble,
-div.rounded-\[12px\].max-w-\[92\%\] {
+/* Legacy selector kept for any older markup */
+[data-prompt-root] > div > div:not([data-prompt-shell]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]) {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(24, 24, 27, 0.055) !important;
+  box-shadow: var(--prompt-shadow) !important;
+  border-radius: var(--prompt-radius-lg) !important;
+}
+
+[data-prompt-root] > div > div:not([data-prompt-shell]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):focus-within {
+  border-color: rgba(24, 24, 27, 0.1) !important;
+  box-shadow: var(--prompt-shadow-focus) !important;
+}
+
+/* User message — full-width Claude-style card */
+.user-message-card__body {
   background-color: #f4f4f5 !important;
-  border: 1px solid rgba(24, 24, 27, 0.06) !important;
-  box-shadow: 0 2px 10px -2px rgba(24, 24, 27, 0.02) !important;
+  border: 1px solid rgba(24, 24, 27, 0.08) !important;
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.02) !important;
   color: #18181b !important;
-  font-weight: 430 !important;
-  padding: 10px 16px !important;
 }
 
 /* Muted secondary feedback and retry action buttons styling */
@@ -293,8 +300,8 @@ div.rounded-\[12px\].max-w-\[92\%\] {
   transform: translateY(-0.5px);
 }
 
-/* Hide visible scrollbars; wheel / touch / keyboard scrolling still works */
 @layer utilities {
+  /* Opt-out: hide scrollbar while keeping scroll */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -309,6 +316,54 @@ div.rounded-\[12px\].max-w-\[92\%\] {
   .scrollbar-hide::-webkit-scrollbar-thumb {
     background: transparent;
   }
+
+  /* App scrollbar — thin visible rail on scrollable regions */
+  .app-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(24, 24, 27, 0.22) transparent;
+  }
+
+  .app-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .app-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .app-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(24, 24, 27, 0.18);
+    border-radius: 9999px;
+  }
+
+  .app-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(24, 24, 27, 0.32);
+  }
+}
+
+[data-chat-active],
+[data-chat-streaming] {
+  --header-height: 44px;
+}
+
+.sticky-user-msg {
+  position: sticky;
+  top: var(--header-height, 44px);
+  z-index: 1;
+  width: 100%;
+}
+
+.sticky-user-msg--stuck {
+  z-index: 25;
+  isolation: isolate;
+}
+
+.sticky-user-msg-sentinel {
+  height: 1px;
+  width: 100%;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .sidebar-scrollable,
@@ -317,8 +372,8 @@ div.rounded-\[12px\].max-w-\[92\%\] {
 .overflow-y-auto,
 .overflow-x-auto,
 .overflow-auto {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(24, 24, 27, 0.22) transparent;
 }
 
 .sidebar-scrollable::-webkit-scrollbar,
@@ -327,8 +382,16 @@ div.rounded-\[12px\].max-w-\[92\%\] {
 .overflow-y-auto::-webkit-scrollbar,
 .overflow-x-auto::-webkit-scrollbar,
 .overflow-auto::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  width: 6px;
+  height: 6px;
+}
+
+.sidebar-scrollable::-webkit-scrollbar-track,
+.code-scrollbars::-webkit-scrollbar-track,
+[data-radix-scroll-area-viewport]::-webkit-scrollbar-track,
+.overflow-y-auto::-webkit-scrollbar-track,
+.overflow-x-auto::-webkit-scrollbar-track,
+.overflow-auto::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -338,7 +401,17 @@ div.rounded-\[12px\].max-w-\[92\%\] {
 .overflow-y-auto::-webkit-scrollbar-thumb,
 .overflow-x-auto::-webkit-scrollbar-thumb,
 .overflow-auto::-webkit-scrollbar-thumb {
-  background: transparent;
+  background: rgba(24, 24, 27, 0.18);
+  border-radius: 9999px;
+}
+
+.sidebar-scrollable::-webkit-scrollbar-thumb:hover,
+.code-scrollbars::-webkit-scrollbar-thumb:hover,
+[data-radix-scroll-area-viewport]::-webkit-scrollbar-thumb:hover,
+.overflow-y-auto::-webkit-scrollbar-thumb:hover,
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(24, 24, 27, 0.32);
 }
 
 .prose p,
@@ -354,7 +427,48 @@ div.rounded-\[12px\].max-w-\[92\%\] {
   max-width: 100%;
 }
 
+/* FlowToken fade tokens — keep animated spans inline with prose layout */
+.markdown-content span[style*="animation"] {
+  display: inline;
+  white-space: pre-wrap;
+}
+
+.markdown-content .sh-code-line:last-child .sh-line-content {
+  /* streaming caret space on final code line */
+  min-width: 0.5ch;
+}
+
+.markdown-content table code {
+  font-size: 12.5px;
+}
+
+/* User message actions — hidden until hover/focus near the message card */
+.user-message-actions {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.group:hover .user-message-actions,
+.group:focus-within .user-message-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 @media (max-width: 640px) {
+  .markdown-content {
+    font-size: 14px;
+  }
+
+  .markdown-content p {
+    line-height: 1.75 !important;
+  }
+
+  .assistant-message {
+    font-size: 14px;
+    line-height: 1.75;
+  }
+
   .markdown-code-scroll,
   .markdown-table-scroll {
     -webkit-overflow-scrolling: touch;
@@ -523,6 +637,7 @@ div.rounded-\[12px\].max-w-\[92\%\] {
   }
 }
 
+[data-prompt-root][data-streaming="true"] [data-prompt-shell],
 [data-prompt-root][data-streaming="true"] > div > div {
   backdrop-filter: none !important;
 }
@@ -542,15 +657,24 @@ button[data-app-button],
 button[data-speed-toggle],
 .app-action-button,
 .dropdown-menu-trigger {
-  transition: background-color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
-              color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.16s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition:
+    background-color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.16s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Hover state — ghost/toolbar buttons only (never override solid primary CTAs) */
-button:not(.no-hover):not(.no-hover-overlay):not(:disabled):not(.app-btn):not(.app-btn-primary):not(.app-btn-secondary):not(.app-btn-ghost):not(.btn-solid-dark):not(.btn-primary-solid):not([class*="text-white"]):hover,
-[role="button"]:not(.no-hover):not(.no-hover-overlay):not([aria-disabled="true"]):not(.app-btn):not([class*="text-white"]):hover,
-button[data-app-button]:not([class*="text-white"]):not([class*="bg-zinc-9"]):not([class*="bg-black"]):hover,
+button:not(.no-hover):not(.no-hover-overlay):not(:disabled):not(.app-btn):not(
+    .app-btn-primary
+  ):not(.app-btn-secondary):not(.app-btn-ghost):not(.btn-solid-dark):not(
+    .btn-primary-solid
+  ):not([class*="text-white"]):hover,
+[role="button"]:not(.no-hover):not(.no-hover-overlay):not(
+    [aria-disabled="true"]
+  ):not(.app-btn):not(.context-usage-trigger):not([class*="text-white"]):hover,
+button[data-app-button]:not([class*="text-white"]):not(
+    [class*="bg-zinc-9"]
+  ):not([class*="bg-black"]):hover,
 [data-prompt-input] button:not([class*="text-white"]):hover,
 .prompt-input button:not([class*="text-white"]):hover,
 button[data-speed-toggle]:hover,
@@ -567,7 +691,8 @@ button[data-speed-toggle][data-active="true"],
 .prompt-input button[aria-expanded="true"],
 button[aria-current="page"],
 .app-action-button[aria-current="true"],
-button[data-state="open"] {
+button[data-state="open"]:not(.context-usage-trigger),
+[role="button"][data-state="open"]:not(.context-usage-trigger) {
   background-color: rgba(24, 24, 27, 0.08) !important;
 }
 
@@ -587,4 +712,63 @@ button[data-speed-toggle][data-state="open"] {
 }
 .image-send-button:active {
   background-color: #1d4ed8 !important;
+}
+
+[data-context-footer] {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+[data-context-footer] > p,
+[data-context-indicator],
+[data-context-indicator] * {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.context-usage-trigger,
+.context-usage-trigger:hover,
+.context-usage-trigger:active,
+.context-usage-trigger:focus,
+.context-usage-trigger:focus-visible,
+.context-usage-trigger[data-state="open"],
+[role="button"].context-usage-trigger,
+[role="button"].context-usage-trigger:hover,
+[role="button"].context-usage-trigger:active,
+[role="button"].context-usage-trigger[data-state="open"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+  font-weight: 400 !important;
+  color: rgb(113 113 122) !important;
+}
+
+/* ── Mobile layout utilities (drawer nav / < lg) ── */
+@media (max-width: 1023px) {
+  .mobile-page-inset {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  /* Keep chat thread + prompt symmetric inside the panel shell */
+  .mobile-chat-shell {
+    padding-left: max(0.625rem, env(safe-area-inset-left));
+    padding-right: max(0.625rem, env(safe-area-inset-right));
+  }
+}
+
+/* Mobile drawer — main content stays put; only overlay shifts */
+@media (max-width: 1023px) {
+  #app-primary-nav {
+    will-change: transform;
+  }
 }

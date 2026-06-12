@@ -1,20 +1,32 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Button } from '@/frontend/components/ui/button'; // Button UI component — Back/Pay now actions
-import { cn } from '@/frontend/lib/utils';
-import { appBtn } from '@/frontend/lib/app-buttons';
-import { ApiError } from '@/frontend/lib/api/client'; // ApiError — server-sanitized messages only in UI
-import { verifyGiftPayment } from '@/frontend/lib/api/gifts'; // verifyGiftPayment API — Razorpay payment signature server-side verify
-import { openRazorpayCheckout } from '@/frontend/lib/razorpay-checkout'; // openRazorpayCheckout helper — Razorpay modal checkout launch
-import { useAuth } from '@/frontend/hooks/use-auth'; // useAuth hook — logged-in user name/email checkout prefill
+import React, { useState } from "react";
+import { Button } from "@/frontend/components/ui/button"; // Button UI component — Back/Pay now actions
+import { cn } from "@/frontend/lib/utils";
+import { appBtn } from "@/frontend/lib/app-buttons";
+import { ApiError } from "@/frontend/lib/api/client"; // ApiError — server-sanitized messages only in UI
+import { verifyGiftPayment } from "@/frontend/lib/api/gifts"; // verifyGiftPayment API — Razorpay payment signature server-side verify
+import { openRazorpayCheckout } from "@/frontend/lib/razorpay-checkout"; // openRazorpayCheckout helper — Razorpay modal checkout launch
+import {
+  formatCheckoutAmountFromPaise,
+  type CheckoutCurrency,
+} from "@/lib/checkout-currency";
+import { useAuth } from "@/frontend/hooks/use-auth"; // useAuth hook — logged-in user name/email checkout prefill
 
-interface GiftPaymentProps { // GiftPaymentProps interface — gift checkout step parent props
+interface GiftPaymentProps {
+  // GiftPaymentProps interface — gift checkout step parent props
   onBack: () => void;
   currentDurationLabel: string; // currentDurationLabel — selected plan duration display (e.g. "1 month")
   giftCode: string;
-  razorpay: { orderId: string; amount: number; currency: string; keyId?: string };
+  razorpay: {
+    orderId: string;
+    amount: number;
+    currency: string;
+    keyId?: string;
+  };
   pricing: { subtotalPaise: number; taxPaise: number; amountPaise: number };
+  displayCurrency: CheckoutCurrency;
+  usdInrRate: number;
   onPaid: () => void;
 }
 
@@ -24,6 +36,8 @@ export function GiftPayment({
   giftCode,
   razorpay, // razorpay prop destructure — Razorpay order config
   pricing, // pricing prop destructure — price breakdown amounts
+  displayCurrency,
+  usdInrRate,
   onPaid, // onPaid prop destructure — payment success completion handler
 }: GiftPaymentProps) {
   const auth = useAuth(); // auth state — current user displayName/email Razorpay prefill
@@ -31,11 +45,11 @@ export function GiftPayment({
   const [payError, setPayError] = useState<string | null>(null); // payError state — payment failure message display
 
   const formatPaise = (paise: number) =>
-    `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    formatCheckoutAmountFromPaise(paise, displayCurrency, usdInrRate);
 
   const handlePay = async () => {
     if (!razorpay.keyId) {
-      setPayError('Razorpay is not configured.');
+      setPayError("Razorpay is not configured.");
       return;
     }
     setPayError(null);
@@ -46,7 +60,7 @@ export function GiftPayment({
         orderId: razorpay.orderId, // server-side created order ID
         amount: razorpay.amount,
         currency: razorpay.currency, // currency code (INR)
-        name: 'Clauxen Gift', // checkout modal merchant display name
+        name: "Clauxen Gift", // checkout modal merchant display name
         description: `Gift subscription · ${currentDurationLabel}`,
         prefill: {
           name: auth.user?.displayName ?? undefined, // user display name optional prefill
@@ -61,68 +75,92 @@ export function GiftPayment({
           onPaid();
         },
       });
-    } catch (error) { // catch block — checkout cancel, network failure, verification error
-      setPayError(error instanceof ApiError ? error.message : 'Payment failed.');
+    } catch (error) {
+      // catch block — checkout cancel, network failure, verification error
+      setPayError(
+        error instanceof ApiError ? error.message : "Payment failed.",
+      );
     } finally {
       setPaying(false); // paying false — button re-enable, loading state reset
     }
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-right-4 duration-500"> {/* root container — step transition animation */}
+    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+      {" "}
+      {/* root container — step transition animation */}
       <h1 className="text-[28px] font-serif font-medium text-zinc-800 mb-6">
         Review and pay
-      </h1> {/* page heading — checkout review step title */}
-
-      <div className="p-4 rounded-xl border border-black/15 mb-4 bg-zinc-50"> {/* pricing card — subtotal/tax/total breakdown */}
+      </h1>{" "}
+      {/* page heading — checkout review step title */}
+      <div className="p-4 rounded-xl border border-black/15 mb-4 bg-zinc-50">
+        {" "}
+        {/* pricing card — subtotal/tax/total breakdown */}
         <div className="flex justify-between text-[14px] mb-2">
           <span>Subtotal</span>
-          <span className="font-medium">{formatPaise(pricing.subtotalPaise)}</span>
-        </div> {/* subtotal row — pre-tax amount */}
-        <div className="flex justify-between text-[14px] mb-2">
-          <span>Tax (18% GST)</span>
-          <span className="font-medium">{formatPaise(pricing.taxPaise)}</span>
-        </div> {/* tax row — 18% GST amount */}
+          <span className="font-medium">
+            {formatPaise(pricing.subtotalPaise)}
+          </span>
+        </div>{" "}
+        {/* subtotal row — pre-tax amount */}
+        {pricing.taxPaise > 0 && (
+          <div className="flex justify-between text-[14px] mb-2">
+            <span>Tax (18% GST)</span>
+            <span className="font-medium">{formatPaise(pricing.taxPaise)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-[14px] font-semibold pt-2 border-t border-black/10">
           <span>Total due today</span>
           <span>{formatPaise(pricing.amountPaise)}</span>
-        </div> 
+        </div>
       </div>
-
-      <div className="p-4 rounded-xl border border-black/15 mb-6 bg-white"> {/* gift code card — redeem code display */}
-        <p className="text-[12px] text-zinc-500 mb-1">Gift code (save after payment)</p> 
-        <code className="text-[14px] font-semibold text-zinc-800">{giftCode}</code> {/* giftCode monospace — copy-friendly redeem code */}
+      <div className="p-4 rounded-xl border border-black/15 mb-6 bg-white">
+        {" "}
+        {/* gift code card — redeem code display */}
+        <p className="text-[12px] text-zinc-500 mb-1">
+          Gift code (save after payment)
+        </p>
+        <code className="text-[14px] font-semibold text-zinc-800">
+          {giftCode}
+        </code>{" "}
+        {/* giftCode monospace — copy-friendly redeem code */}
       </div>
-
-      <div className="space-y-4 mb-8 text-[12px] text-zinc-500 leading-relaxed"> {/* legal/disclaimer section — subscription terms */}
+      <div className="space-y-4 mb-8 text-[12px] text-zinc-500 leading-relaxed">
+        {" "}
+        {/* legal/disclaimer section — subscription terms */}
         <p>
-          Your gift subscription ends after {currentDurationLabel} and will not auto-renew.
-          Unredeemed gifts expire one year after purchase.
-        </p> {/* expiry disclaimer — non-renewing gift, 1 year unredeemed expiry */}
+          Your gift subscription ends after {currentDurationLabel} and will not
+          auto-renew. Unredeemed gifts expire one year after purchase.
+        </p>{" "}
+        {/* expiry disclaimer — non-renewing gift, 1 year unredeemed expiry */}
         <p>
-          By clicking Pay now, you authorize Clauxen to charge your payment method for the
-          amount shown.
-        </p> {/* payment authorization disclaimer — charge consent */}
+          By clicking Pay now, you authorize Clauxen to charge your payment
+          method for the amount shown.
+        </p>{" "}
+        {/* payment authorization disclaimer — charge consent */}
       </div>
-
-      <div className="flex justify-end gap-3 pt-4 border-t border-black/5"> 
+      <div className="flex justify-end gap-3 pt-4 border-t border-black/5">
         <Button
           variant="outline"
           onClick={onBack} // Back button — previous gift configuration step
           className={cn(appBtn.secondary, "h-10 rounded-xl px-8")}
         >
           Back
-        </Button> {/* outline Back button — non-destructive navigation */}
+        </Button>{" "}
+        {/* outline Back button — non-destructive navigation */}
         <Button
           type="button"
           disabled={paying} // disabled while paying — duplicate checkout prevent
           onClick={() => void handlePay()} // Pay now click — async handlePay invoke (void unhandled promise)
           className={cn(appBtn.primaryLgAuto, "px-8")}
         >
-          {paying ? 'Opening checkout…' : 'Pay now'} {/* dynamic label — loading vs ready state */}
-        </Button> {/* primary Pay button — Razorpay checkout trigger */}
+          {paying ? "Opening checkout…" : "Pay now"}{" "}
+          {/* dynamic label — loading vs ready state */}
+        </Button>{" "}
+        {/* primary Pay button — Razorpay checkout trigger */}
       </div>
-      {payError && <p className="mt-3 text-[12px] text-red-600">{payError}</p>} {/* conditional error — payment failure message red text */}
+      {payError && <p className="mt-3 text-[12px] text-red-600">{payError}</p>}{" "}
+      {/* conditional error — payment failure message red text */}
     </div>
   );
 }

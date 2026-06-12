@@ -96,7 +96,10 @@ export function RoleSelectionDropdown({
             autoComplete="off"
           />
         </div>
-        <div className="max-h-[260px] overflow-y-auto px-1.5 pb-1.5" role="listbox">
+        <div
+          className="max-h-[260px] overflow-y-auto px-1.5 pb-1.5"
+          role="listbox"
+        >
           {filtered.map((role) => (
             <button
               key={role}

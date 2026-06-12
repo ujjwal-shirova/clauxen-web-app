@@ -1,9 +1,10 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/frontend/lib/utils"
+import { cn } from "@/frontend/lib/utils";
 
-const badgeVariants = cva( // cva — Tailwind variants
+const badgeVariants = cva(
+  // cva — Tailwind variants
   "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
@@ -20,22 +21,22 @@ const badgeVariants = cva( // cva — Tailwind variants
     defaultVariants: {
       variant: "default",
     },
-  }
-)
+  },
+);
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends
+    React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {}
 
-function Badge({ className, variant, ...props }: BadgeProps) { // function — helper
-  const {
-    dangerouslySetInnerHTML: _dangerouslySetInnerHTML,
-    ...safeProps
-  } = props;
+function Badge({ className, variant, ...props }: BadgeProps) {
+  // function — helper
+  const { dangerouslySetInnerHTML: _dangerouslySetInnerHTML, ...safeProps } =
+    props;
 
   return (
     <div className={cn(badgeVariants({ variant }), className)} {...safeProps} />
-  )
+  );
 }
 
-export { Badge, badgeVariants }
+export { Badge, badgeVariants };

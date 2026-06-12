@@ -7,6 +7,17 @@ node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.vercel
+supabase/functions/.env
+
+.vercel/
+.cursor/
+.tools/
+tsconfig.tsbuildinfo
+
+# CockroachDB local credentials (see cockroachdb/.env.example)
+cockroachdb/.env
+cockroachdb/.env.local
 
 coverage/
 
@@ -19,3 +30,8 @@ pnpm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# Novita load-test output (project root)
+output.txt
+.venv-novita-load/
+scripts/novita_load_test_run.log

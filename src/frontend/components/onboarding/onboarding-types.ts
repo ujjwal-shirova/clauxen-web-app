@@ -1,3 +1,7 @@
+import type { OnboardingPlanId } from "@/lib/plans-catalog";
+
+export type { OnboardingPlanId };
+
 export type OnboardingStep =
   | "create-account"
   | "plan-selection"
@@ -5,8 +9,6 @@ export type OnboardingStep =
   | "before-chat"
   | "name"
   | "role";
-
-export type OnboardingPlanId = "free" | "go" | "pro" | "max";
 
 export interface OnboardingState {
   termsAccepted: boolean;

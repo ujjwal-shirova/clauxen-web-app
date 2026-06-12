@@ -53,9 +53,7 @@ function ChatMessageNavigatorInner({
     if (!viewport) return;
 
     const elements = userMessages
-      .map((message) =>
-        document.getElementById(messageAnchorId(message.id)),
-      )
+      .map((message) => document.getElementById(messageAnchorId(message.id)))
       .filter((node): node is HTMLElement => node !== null);
 
     if (elements.length === 0) return;
@@ -144,10 +142,10 @@ function ChatMessageNavigatorInner({
       <div className="pointer-events-auto relative flex items-center">
         {showPreviewPanel ? (
           <div
-            className="absolute right-[calc(100%+8px)] top-1/2 max-h-[376px] min-w-[240px] max-w-[320px] -translate-y-1/2 overflow-hidden rounded-2xl bg-white py-1.5 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)]"
+            className="absolute right-[calc(100%+8px)] top-1/2 z-30 max-h-[376px] min-w-[240px] max-w-[320px] -translate-y-1/2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white py-1.5 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)]"
             onMouseEnter={() => setIsRailHovered(true)}
           >
-            <ul className="flex max-h-[376px] flex-col overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <ul className="app-scrollbar flex max-h-[376px] flex-col overflow-y-auto overscroll-contain">
               {userMessages.map((message) => {
                 const preview = truncatePreview(message.content);
                 const isActive = previewActiveId === message.id;
@@ -175,7 +173,7 @@ function ChatMessageNavigatorInner({
           </div>
         ) : null}
 
-        <div className="flex max-h-[376px] w-full flex-col items-center gap-2 overflow-y-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="app-scrollbar flex max-h-[376px] w-full flex-col items-center gap-2 overflow-y-auto px-1 py-1">
           {userMessages.map((message) => {
             const isActive = activeId === message.id;
             const preview = truncatePreview(message.content);

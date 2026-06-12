@@ -1,32 +1,37 @@
 // VoiceSettingsSidebar — agent voice/settings Sheet panel
-'use client';
+"use client";
 
-import React from 'react';
+import React from "react";
 import {
   Settings,
   Settings2,
   ChevronDown,
   Play,
   ChevronsUpDown,
-  Plus
-} from 'lucide-react';  // scope/component block end
+  Plus,
+} from "lucide-react"; // scope/component block end
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from "@/frontend/components/ui/sheet";  // scope/component block end
+} from "@/frontend/components/ui/sheet"; // scope/component block end
 import { Slider } from "@/frontend/components/ui/slider";
-import { cn } from '@/frontend/lib/utils';
+import { cn } from "@/frontend/lib/utils";
 
 interface VoiceSettingsSidebarProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}  // scope/component block end
+} // scope/component block end
 
-export function VoiceSettingsSidebar({ open, onOpenChange }: VoiceSettingsSidebarProps) {  // public API export
-  return (  // JSX/value return
+export function VoiceSettingsSidebar({
+  open,
+  onOpenChange,
+}: VoiceSettingsSidebarProps) {
+  // public API export
+  return (
+    // JSX/value return
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
@@ -44,7 +49,7 @@ export function VoiceSettingsSidebar({ open, onOpenChange }: VoiceSettingsSideba
             </span>
           </SheetTitle>
           <SheetDescription className="sr-only">
-            Customize your voice agent's behavior, voice, and appearance. 
+            Customize your voice agent's behavior, voice, and appearance.
           </SheetDescription>
         </SheetHeader>
 
@@ -79,7 +84,9 @@ export function VoiceSettingsSidebar({ open, onOpenChange }: VoiceSettingsSideba
                         <Play className="w-2.5 h-2.5 text-white fill-current" />
                       </div>
                     </div>
-                    <span className="text-[14px] font-medium text-zinc-800">Ethan</span>
+                    <span className="text-[14px] font-medium text-zinc-800">
+                      Ethan
+                    </span>
                   </div>
                   <ChevronsUpDown className="w-4 h-4 opacity-50" />
                 </button>
@@ -91,7 +98,8 @@ export function VoiceSettingsSidebar({ open, onOpenChange }: VoiceSettingsSideba
               <div className="p-4 flex flex-col gap-4">
                 <div>
                   <p className="font-medium text-zinc-900 flex items-center gap-1">
-                    Agent Language <Settings2 className="w-[18px] h-[18px] opacity-50" />
+                    Agent Language{" "}
+                    <Settings2 className="w-[18px] h-[18px] opacity-50" />
                   </p>
                   <p className="text-[14px] text-zinc-500 leading-relaxed">
                     Choose the default language the agent will communicate in.
@@ -108,7 +116,9 @@ export function VoiceSettingsSidebar({ open, onOpenChange }: VoiceSettingsSideba
                       alt="US"
                       className="w-5 h-5 rounded-full"
                     />
-                    <span className="text-[14px] font-medium text-zinc-800">English</span>
+                    <span className="text-[14px] font-medium text-zinc-800">
+                      English
+                    </span>
                   </div>
                   <ChevronDown className="w-4 h-4 opacity-50" />
                 </button>
@@ -121,7 +131,14 @@ export function VoiceSettingsSidebar({ open, onOpenChange }: VoiceSettingsSideba
                 <div>
                   <p className="font-medium text-zinc-900">Custom Behavior</p>
                   <p className="text-[14px] text-zinc-500 leading-relaxed">
-                    Customize the assistant's behavior. <a href="#" onClick={(e) => e.preventDefault()} className="underline decoration-current/30 hover:text-zinc-900">Learn more</a> 
+                    Customize the assistant's behavior.{" "}
+                    <a
+                      href="#"
+                      onClick={(e) => e.preventDefault()}
+                      className="underline decoration-current/30 hover:text-zinc-900"
+                    >
+                      Learn more
+                    </a>
                   </p>
                 </div>
 
@@ -138,9 +155,15 @@ export function VoiceSettingsSidebar({ open, onOpenChange }: VoiceSettingsSideba
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-zinc-900">Integrations</p>
-                    <p className="text-[14px] text-zinc-500">Extend the agent's capabilities.</p>  // JSX UI element render
+                    <p className="text-[14px] text-zinc-500">
+                      Extend the agent's capabilities.
+                    </p>{" "}
+                    // JSX UI element render
                   </div>
-                  <button type="button" className="h-9 px-4 bg-white border border-zinc-200 rounded-lg shadow-sm text-[14px] font-medium hover:bg-zinc-100 transition-all">
+                  <button
+                    type="button"
+                    className="h-9 px-4 bg-white border border-zinc-200 rounded-lg shadow-sm text-[14px] font-medium hover:bg-zinc-100 transition-all"
+                  >
                     Add
                   </button>
                 </div>
@@ -151,10 +174,17 @@ export function VoiceSettingsSidebar({ open, onOpenChange }: VoiceSettingsSideba
               <div className="p-4 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-zinc-900">Custom MCP Servers</p>
-                    <p className="text-[14px] text-zinc-500">Provide your own protocol servers.</p>
+                    <p className="font-medium text-zinc-900">
+                      Custom MCP Servers
+                    </p>
+                    <p className="text-[14px] text-zinc-500">
+                      Provide your own protocol servers.
+                    </p>
                   </div>
-                  <button type="button" className="h-9 px-4 bg-white border border-zinc-200 rounded-lg shadow-sm text-[14px] font-medium hover:bg-zinc-100 transition-all">
+                  <button
+                    type="button"
+                    className="h-9 px-4 bg-white border border-zinc-200 rounded-lg shadow-sm text-[14px] font-medium hover:bg-zinc-100 transition-all"
+                  >
                     Add
                   </button>
                 </div>
@@ -178,17 +208,31 @@ export function VoiceSettingsSidebar({ open, onOpenChange }: VoiceSettingsSideba
                     </div>
                     <div className="flex-1 space-y-4">
                       <div className="space-y-1">
-                        <label className="text-[14px] font-medium text-zinc-900">First color</label>
+                        <label className="text-[14px] font-medium text-zinc-900">
+                          First color
+                        </label>
                         <div className="flex items-center gap-3 h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg">
-                          <div className="w-5 h-5 rounded-full border border-black/10" style={{ backgroundColor: '#CADCFC' }} />
-                          <span className="text-[14px] text-zinc-800">#CADCFC</span>
+                          <div
+                            className="w-5 h-5 rounded-full border border-black/10"
+                            style={{ backgroundColor: "#CADCFC" }}
+                          />
+                          <span className="text-[14px] text-zinc-800">
+                            #CADCFC
+                          </span>
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[14px] font-medium text-zinc-900">Second color</label>
+                        <label className="text-[14px] font-medium text-zinc-900">
+                          Second color
+                        </label>
                         <div className="flex items-center gap-3 h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg">
-                          <div className="w-5 h-5 rounded-full border border-black/10" style={{ backgroundColor: '#A0B9D1' }} />
-                          <span className="text-[14px] text-zinc-800">#A0B9D1</span>
+                          <div
+                            className="w-5 h-5 rounded-full border border-black/10"
+                            style={{ backgroundColor: "#A0B9D1" }}
+                          />
+                          <span className="text-[14px] text-zinc-800">
+                            #A0B9D1
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -228,4 +272,4 @@ export function VoiceSettingsSidebar({ open, onOpenChange }: VoiceSettingsSideba
       </SheetContent>
     </Sheet>
   );
-}  // scope/component block end
+} // scope/component block end

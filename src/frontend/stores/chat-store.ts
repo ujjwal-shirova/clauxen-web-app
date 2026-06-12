@@ -1,0 +1,301 @@
+"use client";
+
+import { create } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
+import { useShallow } from "zustand/react/shallow";
+import type { Message, RecentChat } from "@/frontend/lib/types";
+
+/** Stable empty references — never allocate new [] in selectors (prevents infinite loops). */
+const EMPTY_IDS: readonly string[] = [];
+const EMPTY_MESSAGES: readonly Message[] = [];
+
+/** Active RAM window — only this many messages stay in heap per chat. */
+export const ACTIVE_RAM_MESSAGE_WINDOW = 15;
+
+export type ChatStoreState = {
+  messagesById: Record<string, Message>;
+  messageIdsByChatId: Record<string, string[]>;
+  recentChats: RecentChat[];
+  activeChatId: string | null;
+  isGenerating: boolean;
+  streaming: { chatId: string; messageId: string } | null;
+  branchDataset: Record<
+    string,
+    Record<
+      string,
+      { activeIndex: number; totalVersions: number; updatedAt: number }
+    >
+  >;
+};
+
+type ChatStoreActions = {
+  getMessagesForChat: (chatId: string) => Message[];
+  setChatMessages: (chatId: string, messages: Message[]) => void;
+  upsertMessage: (chatId: string, message: Message) => void;
+  patchMessage: (
+    chatId: string,
+    messageId: string,
+    updater: (message: Message) => Message,
+  ) => void;
+  appendMessageField: (
+    chatId: string,
+    messageId: string,
+    field: "content" | "thinkingContent",
+    delta: string,
+  ) => void;
+  removeChat: (chatId: string) => void;
+  setRecentChats: (
+    updater: RecentChat[] | ((prev: RecentChat[]) => RecentChat[]),
+  ) => void;
+  setActiveChatId: (chatId: string | null) => void;
+  setIsGenerating: (value: boolean) => void;
+  setStreaming: (value: { chatId: string; messageId: string } | null) => void;
+  setBranchDataset: (
+    updater:
+      | ChatStoreState["branchDataset"]
+      | ((prev: ChatStoreState["branchDataset"]) => ChatStoreState["branchDataset"]),
+  ) => void;
+  evictMessagesExcept: (chatId: string, keepIds: Set<string>) => void;
+  hydrateFromLegacy: (payload: {
+    allChats?: Record<string, Message[]>;
+    recentChats?: RecentChat[];
+    activeChatId?: string | null;
+    branchDataset?: ChatStoreState["branchDataset"];
+  }) => void;
+  exportLegacyAllChats: () => Record<string, Message[]>;
+};
+
+export type ChatStore = ChatStoreState & ChatStoreActions;
+
+function indexMessages(messages: Message[]): {
+  byId: Record<string, Message>;
+  ids: string[];
+} {
+  const byId: Record<string, Message> = {};
+  const ids: string[] = [];
+  for (const message of messages) {
+    byId[message.id] = message;
+    ids.push(message.id);
+  }
+  return { byId, ids };
+}
+
+export const useChatStore = create<ChatStore>()(
+  subscribeWithSelector((set, get) => ({
+    messagesById: {},
+    messageIdsByChatId: {},
+    recentChats: [],
+    activeChatId: null,
+    isGenerating: false,
+    streaming: null,
+    branchDataset: {},
+
+    getMessagesForChat: (chatId) => {
+      const ids = get().messageIdsByChatId[chatId] ?? [];
+      const { messagesById } = get();
+      return ids
+        .map((id) => messagesById[id])
+        .filter((m): m is Message => m !== undefined);
+    },
+
+    setChatMessages: (chatId, messages) => {
+      const { byId, ids } = indexMessages(messages);
+      set((state) => {
+        const nextById = { ...state.messagesById };
+        const prevIds = state.messageIdsByChatId[chatId] ?? [];
+        for (const oldId of prevIds) {
+          if (!byId[oldId]) delete nextById[oldId];
+        }
+        Object.assign(nextById, byId);
+        return {
+          messagesById: nextById,
+          messageIdsByChatId: {
+            ...state.messageIdsByChatId,
+            [chatId]: ids,
+          },
+        };
+      });
+    },
+
+    upsertMessage: (chatId, message) => {
+      set((state) => {
+        const ids = state.messageIdsByChatId[chatId] ?? [];
+        const hasId = ids.includes(message.id);
+        return {
+          messagesById: { ...state.messagesById, [message.id]: message },
+          messageIdsByChatId: {
+            ...state.messageIdsByChatId,
+            [chatId]: hasId ? ids : [...ids, message.id],
+          },
+        };
+      });
+    },
+
+    patchMessage: (chatId, messageId, updater) => {
+      set((state) => {
+        const existing = state.messagesById[messageId];
+        if (!existing) return state;
+        const ids = state.messageIdsByChatId[chatId];
+        if (!ids?.includes(messageId)) return state;
+        return {
+          messagesById: {
+            ...state.messagesById,
+            [messageId]: updater(existing),
+          },
+        };
+      });
+    },
+
+    appendMessageField: (chatId, messageId, field, delta) => {
+      if (!delta) return;
+      set((state) => {
+        const existing = state.messagesById[messageId];
+        if (!existing) return state;
+        const ids = state.messageIdsByChatId[chatId];
+        if (!ids?.includes(messageId)) return state;
+        return {
+          messagesById: {
+            ...state.messagesById,
+            [messageId]: {
+              ...existing,
+              [field]: `${existing[field] ?? ""}${delta}`,
+            },
+          },
+        };
+      });
+    },
+
+    removeChat: (chatId) => {
+      set((state) => {
+        const ids = state.messageIdsByChatId[chatId] ?? [];
+        const nextById = { ...state.messagesById };
+        for (const id of ids) delete nextById[id];
+        const nextChats = { ...state.messageIdsByChatId };
+        delete nextChats[chatId];
+        const nextBranch = { ...state.branchDataset };
+        delete nextBranch[chatId];
+        return {
+          messagesById: nextById,
+          messageIdsByChatId: nextChats,
+          branchDataset: nextBranch,
+        };
+      });
+    },
+
+    setRecentChats: (updater) => {
+      set((state) => ({
+        recentChats:
+          typeof updater === "function" ? updater(state.recentChats) : updater,
+      }));
+    },
+
+    setActiveChatId: (chatId) => set({ activeChatId: chatId }),
+
+    setIsGenerating: (value) => set({ isGenerating: value }),
+
+    setStreaming: (value) => set({ streaming: value }),
+
+    setBranchDataset: (updater) => {
+      set((state) => ({
+        branchDataset:
+          typeof updater === "function"
+            ? updater(state.branchDataset)
+            : updater,
+      }));
+    },
+
+    evictMessagesExcept: (chatId, keepIds) => {
+      set((state) => {
+        const ids = state.messageIdsByChatId[chatId] ?? [];
+        const nextById = { ...state.messagesById };
+        const nextIds: string[] = [];
+        for (const id of ids) {
+          if (keepIds.has(id)) {
+            nextIds.push(id);
+          } else {
+            delete nextById[id];
+          }
+        }
+        return {
+          messagesById: nextById,
+          messageIdsByChatId: {
+            ...state.messageIdsByChatId,
+            [chatId]: nextIds,
+          },
+        };
+      });
+    },
+
+    hydrateFromLegacy: (payload) => {
+      const allChats = payload.allChats ?? {};
+      const nextById: Record<string, Message> = {};
+      const nextIdsByChat: Record<string, string[]> = {};
+      for (const [chatId, messages] of Object.entries(allChats)) {
+        const { byId, ids } = indexMessages(messages);
+        Object.assign(nextById, byId);
+        nextIdsByChat[chatId] = ids;
+      }
+      set({
+        messagesById: nextById,
+        messageIdsByChatId: nextIdsByChat,
+        recentChats: payload.recentChats ?? [],
+        activeChatId: payload.activeChatId ?? null,
+        branchDataset: payload.branchDataset ?? {},
+      });
+    },
+
+    exportLegacyAllChats: () => {
+      const state = get();
+      const result: Record<string, Message[]> = {};
+      for (const [chatId, ids] of Object.entries(state.messageIdsByChatId)) {
+        result[chatId] = ids
+          .map((id) => state.messagesById[id])
+          .filter((m): m is Message => m !== undefined);
+      }
+      return result;
+    },
+  })),
+);
+
+/** Subscribe to ordered message IDs for one chat. */
+export function useChatMessageIds(chatId: string | null): readonly string[] {
+  return useChatStore((state) => {
+    if (!chatId) return EMPTY_IDS;
+    return state.messageIdsByChatId[chatId] ?? EMPTY_IDS;
+  });
+}
+
+export function useChatMessage(messageId: string | null): Message | undefined {
+  return useChatStore((state) =>
+    messageId ? state.messagesById[messageId] : undefined,
+  );
+}
+
+/** Active chat ID — single source of truth for sidebar selection and message feed. */
+export function useActiveChatId(): string | null {
+  return useChatStore((s) => s.activeChatId);
+}
+
+export function setActiveChatId(chatId: string | null): void {
+  useChatStore.getState().setActiveChatId(chatId);
+}
+
+/** Ordered messages for the active chat — shallow-compared to avoid re-render storms. */
+export function useActiveChatMessages(): Message[] {
+  return useChatStore(
+    useShallow((state) => {
+      const chatId = state.activeChatId;
+      if (!chatId) return EMPTY_MESSAGES as Message[];
+
+      const ids = state.messageIdsByChatId[chatId];
+      if (!ids || ids.length === 0) return EMPTY_MESSAGES as Message[];
+
+      const result: Message[] = [];
+      for (const id of ids) {
+        const message = state.messagesById[id];
+        if (message) result.push(message);
+      }
+      return result;
+    }),
+  );
+}

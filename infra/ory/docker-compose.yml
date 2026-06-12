@@ -1,0 +1,61 @@
+services:
+  ory-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ory
+      POSTGRES_PASSWORD: ory
+      POSTGRES_DB: ory
+    ports:
+      - "5433:5432"
+    volumes:
+      - ory_postgres_data:/var/lib/postgresql/data
+
+  kratos-migrate:
+    image: oryd/kratos:v1.3.1
+    environment:
+      DSN: postgres://ory:ory@ory-postgres:5432/ory?sslmode=disable
+    volumes:
+      - ./kratos:/etc/config/kratos
+    command: migrate sql -e --yes -c /etc/config/kratos/kratos.yml
+    depends_on:
+      - ory-postgres
+
+  kratos:
+    image: oryd/kratos:v1.3.1
+    ports:
+      - "4433:4433"
+      - "4434:4434"
+    environment:
+      DSN: postgres://ory:ory@ory-postgres:5432/ory?sslmode=disable
+    volumes:
+      - ./kratos:/etc/config/kratos
+    command: serve -c /etc/config/kratos/kratos.yml --dev --watch-courier
+    depends_on:
+      - kratos-migrate
+
+  hydra-migrate:
+    image: oryd/hydra:v2.2.6
+    environment:
+      DSN: postgres://ory:ory@ory-postgres:5432/ory?sslmode=disable
+    volumes:
+      - ./hydra:/etc/config/hydra
+    command: migrate sql -e --yes -c /etc/config/hydra/hydra.yml
+    depends_on:
+      - ory-postgres
+
+  hydra:
+    image: oryd/hydra:v2.2.6
+    ports:
+      - "4444:4444"
+      - "4445:4445"
+    environment:
+      DSN: postgres://ory:ory@ory-postgres:5432/ory?sslmode=disable
+      SECRETS_SYSTEM: change-me-ory-hydra-system-secret-32chars
+    volumes:
+      - ./hydra:/etc/config/hydra
+    command: serve all -c /etc/config/hydra/hydra.yml --dev
+    depends_on:
+      - hydra-migrate
+
+volumes:
+  ory_postgres_data:

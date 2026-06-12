@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useLayoutEffect } from "react";
-import { Menu } from "lucide-react";
 import { useChat } from "@/frontend/hooks/use-chat";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { useProjects } from "@/frontend/hooks/use-projects";
@@ -15,11 +14,7 @@ import { CustomizePage } from "@/frontend/components/customize-page";
 import { ProjectsView } from "@/frontend/components/projects-view";
 import { ProjectDetailView } from "@/frontend/components/project-detail-view";
 import { CreateProjectDialog } from "@/frontend/components/create-project-dialog";
-import { ArtifactsView } from "@/frontend/components/artifacts-view";
 import { LibraryView } from "@/frontend/components/library-view";
-import { ImagesView } from "@/frontend/components/images-view";
-import { ClauxenClawView } from "@/frontend/components/clauxen-claw-view";
-import { DeepResearchView } from "@/frontend/components/deep-research-view";
 import { cn } from "@/frontend/lib/utils";
 import { useIsMobile } from "@/frontend/hooks/use-mobile";
 import type { SettingsTab } from "@/frontend/components/settings/constants";
@@ -32,10 +27,12 @@ export default function Home() {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [detailProject, setDetailProject] = useState<ApiProject | null>(null);
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
   const chat = useChat({
     apiEnabled: false,
     projectId: activeProjectId,
     thinkingEnabled,
+    webSearchEnabled,
   });
   const projects = useProjects(auth.isAuthenticated);
 
@@ -50,6 +47,7 @@ export default function Home() {
     handleSelectChat,
     handleDeleteChat,
     handleRenameChat,
+    handlePinChat,
     editMessageWithBranch,
     retryAssistantWithBranch,
     switchMessageBranch,
@@ -63,11 +61,7 @@ export default function Home() {
     | "customize"
     | "projects"
     | "project-detail"
-    | "artifacts"
     | "library"
-    | "images"
-    | "claw"
-    | "deep-research"
   >("chat");
   const [showUpgradeView, setShowUpgradeView] = useState(false);
   const [showAppsView, setShowAppsView] = useState(false);
@@ -85,7 +79,7 @@ export default function Home() {
   const activeProject =
     detailProject ??
     (activeProjectId != null
-      ? projects.projects.find((p) => p.id === activeProjectId) ?? null
+      ? (projects.projects.find((p) => p.id === activeProjectId) ?? null)
       : null);
 
   const closeMobileNav = React.useCallback(() => {
@@ -146,11 +140,7 @@ export default function Home() {
       | "customize"
       | "projects"
       | "project-detail"
-      | "artifacts"
-      | "library"
-      | "images"
-      | "claw"
-      | "deep-research",
+      | "library",
     tab?: "skills" | "connectors",
   ) => {
     setCustomizeTab(tab || null);
@@ -179,26 +169,20 @@ export default function Home() {
       activeView === "settings" ||
       activeView === "projects" ||
       activeView === "project-detail" ||
-      activeView === "artifacts" ||
-      activeView === "library" ||
-      activeView === "images" ||
-      activeView === "claw" ||
-      activeView === "deep-research");
+      activeView === "library");
 
   return (
     <div className="relative flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[var(--app-shell-bg)] font-sans text-zinc-800">
       {isMobile ? (
-        <button
-          type="button"
-          aria-label="Close navigation menu"
+        <div
+          role="presentation"
           aria-hidden={isSidebarCollapsed}
-          tabIndex={isSidebarCollapsed ? -1 : 0}
-          onClick={closeMobileNav}
+          onClick={isSidebarCollapsed ? undefined : closeMobileNav}
           className={cn(
-            "fixed inset-0 z-[35] bg-[#1a1712]/30 backdrop-blur-[4px] transition-[opacity,backdrop-filter] duration-300 ease-out lg:hidden",
+            "fixed inset-0 z-[35] bg-[rgba(24,24,27,0.38)] backdrop-blur-[6px] transition-[opacity,backdrop-filter] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none lg:hidden",
             isSidebarCollapsed
-              ? "pointer-events-none opacity-0"
-              : "pointer-events-auto opacity-100",
+              ? "pointer-events-none opacity-0 backdrop-blur-none"
+              : "pointer-events-auto cursor-default opacity-100",
           )}
         />
       ) : null}
@@ -234,16 +218,10 @@ export default function Home() {
           setActiveProjectId(null);
           handleGoToView("projects");
         }}
-        onArtifactsClick={() => handleGoToView("artifacts")}
         onLibraryClick={() => handleGoToView("library")}
         onCustomizeClick={() => handleGoToView("customize")}
-        onImagesClick={() => handleGoToView("images")}
-        onDeepResearchClick={() => handleGoToView("deep-research")}
-        onClawClick={() => handleGoToView("claw")}
         onHistoryClick={() => handleGoToView("chat")}
-        activeView={
-          activeView === "project-detail" ? "projects" : activeView
-        }
+        activeView={activeView === "project-detail" ? "projects" : activeView}
         recentChats={recentChats}
         activeChatId={activeChatId}
         onSelectChat={(chatId) => {
@@ -252,6 +230,7 @@ export default function Home() {
         }}
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}
+        onPinChat={handlePinChat}
         userDisplayName={auth.user?.displayName ?? auth.user?.email ?? "Guest"}
         userEmail={auth.user?.email ?? ""}
         onLogoutClick={() => void auth.logout()}
@@ -259,41 +238,23 @@ export default function Home() {
 
       <main
         className={cn(
-          "relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--app-shell-bg)] transition-[padding] duration-300 ease-in-out",
+          "relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--app-shell-bg)] lg:transition-[padding] lg:duration-300 lg:ease-in-out",
           isMobileFullBleedView
             ? "p-0"
-            : "pt-[max(0.5rem,env(safe-area-inset-top))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pt-2 sm:pr-2 sm:pb-2",
-          isMobile && !isMobileFullBleedView && "pl-[max(0.5rem,env(safe-area-inset-left))]",
+            : "px-[max(0.625rem,env(safe-area-inset-left))] pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.25rem,env(safe-area-inset-bottom))] pr-[max(0.625rem,env(safe-area-inset-right))] sm:px-2 sm:pt-2 sm:pb-2",
           !isMobile &&
             (isSidebarCollapsed
               ? "pl-[44px] sm:pl-[46px]"
               : "pl-[44px] lg:pl-[264px]"),
-          isMobile && !isSidebarCollapsed && "pointer-events-none",
         )}
       >
-        {isMobile && isSidebarCollapsed && !isMobileFullBleedView && (
-          <button
-            type="button"
-            aria-label="Open navigation menu"
-            aria-expanded={false}
-            aria-controls="app-primary-nav"
-            onClick={() => setIsSidebarCollapsed(false)}
-            className="pointer-events-auto absolute left-[max(0.625rem,env(safe-area-inset-left))] top-[max(0.625rem,env(safe-area-inset-top))] z-[45] flex h-11 min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center rounded-xl border border-zinc-200 bg-white/95 text-zinc-700 shadow-sm backdrop-blur-md transition-colors hover:bg-zinc-100 active:scale-[0.98] lg:hidden"
-          >
-            <Menu className="icon-xl" />
-          </button>
-        )}
-
         <div
           className={cn(
             "relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] [transform:translateZ(0)]",
             isMobileFullBleedView
               ? "min-h-[100dvh] rounded-none border-0 shadow-none"
               : "rounded-[16px] border border-zinc-200/80 shadow-[0_1px_3px_rgba(24,24,27,0.04),0_8px_24px_-8px_rgba(24,24,27,0.06)] sm:rounded-[18px]",
-            isMobile &&
-              isSidebarCollapsed &&
-              !isMobileFullBleedView &&
-              "pl-[max(3rem,calc(2.75rem+env(safe-area-inset-left)))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.375rem,env(safe-area-inset-top))]",
+
           )}
         >
           <div
@@ -316,6 +277,9 @@ export default function Home() {
                 activeChatId={activeChatId}
                 activeChatTitle={activeChat?.name ?? "New Chat"}
                 isActiveChatTitleStreaming={!!activeChat?.isTitleStreaming}
+                isActiveChatPinned={!!activeChat?.pinned}
+                onRenameChat={handleRenameChat}
+                onPinChat={handlePinChat}
                 onDeleteChat={handleDeleteChat}
                 onOpenSettings={() => {
                   setSettingsInitialTab("General");
@@ -323,6 +287,10 @@ export default function Home() {
                 }}
                 thinkingEnabled={thinkingEnabled}
                 onThinkingEnabledChange={setThinkingEnabled}
+                webSearchEnabled={webSearchEnabled}
+                onWebSearchEnabledChange={setWebSearchEnabled}
+                onOpenMobileNav={() => setIsSidebarCollapsed(false)}
+                showMobileMenu={isMobile && isSidebarCollapsed}
               />
             )}
             {activeView === "settings" && (
@@ -351,7 +319,9 @@ export default function Home() {
                 loading={projects.loading}
                 onNewProject={() => setCreateProjectOpen(true)}
                 onOpenProject={(projectId) => {
-                  const project = projects.projects.find((p) => p.id === projectId);
+                  const project = projects.projects.find(
+                    (p) => p.id === projectId,
+                  );
                   if (project) openProjectDetail(project);
                 }}
               />
@@ -372,6 +342,8 @@ export default function Home() {
                 isGenerating={isGenerating}
                 thinkingEnabled={thinkingEnabled}
                 onThinkingEnabledChange={setThinkingEnabled}
+                webSearchEnabled={webSearchEnabled}
+                onWebSearchEnabledChange={setWebSearchEnabled}
               />
             )}
             {activeView === "project-detail" && !activeProject && (
@@ -386,20 +358,7 @@ export default function Home() {
                 </button>
               </div>
             )}
-            {activeView === "artifacts" && <ArtifactsView />}
             {activeView === "library" && <LibraryView />}
-            {activeView === "images" && <ImagesView />}
-            {activeView === "claw" && <ClauxenClawView />}
-            {activeView === "deep-research" && (
-              <DeepResearchView
-                onSendMessage={(prompt) => {
-                  handleSendMessage(prompt);
-                  setActiveView("chat");
-                }}
-                onStopGeneration={stopGeneration}
-                isGenerating={isGenerating}
-              />
-            )}
           </div>
         </div>
       </main>

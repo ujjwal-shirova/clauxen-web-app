@@ -1,0 +1,688 @@
+-- =============================================================================
+-- Migration: 20260507183000_billing_gifts_hardening
+-- Purpose: Harden Razorpay billing fulfillment (idempotency, amount/currency
+--          checks, audit trail) and introduce gift-code purchase + redemption.
+-- Prerequisites:
+--   - public.plans, public.billing_orders, public.billing_payments,
+--     public.subscriptions, public.token_transactions, public.profiles,
+--     public.workspaces, public.razorpay_webhook_events, public.set_updated_at()
+--   - credit_user_tokens() from prior billing migrations
+-- Apply-time behavior:
+--   - Extends billing tables; creates gift_codes / gift_redemptions /
+--     subscription_activation_events; seeds plan catalog with gift flags.
+--   - Replaces fulfill_billing_payment() with gift + subscription branches.
+--   - Adds redeem_gift_code() (authenticated) and expire_old_gift_codes()
+--     (service_role cron).
+-- Scope (this migration):
+--   - Gifts: purchasable codes, SHA-256 storage, redemption → subscription + tokens
+--   - Billing hardening: order_kind, idempotency_key, verification fields, audit
+--   - Coupons / referrals: not introduced here (no tables or RPCs in this file)
+-- Security / RLS:
+--   - gift_codes: purchaser and redeemer SELECT only
+--   - gift_redemptions, subscription_activation_events: owner SELECT only
+--   - fulfill_billing_payment / expire_old_gift_codes: service_role EXECUTE
+--   - redeem_gift_code: authenticated EXECUTE (uses auth.uid())
+-- Rollback guidance:
+--   - Drop new tables/functions after reverting dependent app code.
+--   - Cannot easily drop added columns on billing_orders without data migration.
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- Prerequisites: cryptographic helpers for gift code hashing and entropy
+-- -----------------------------------------------------------------------------
+create extension if not exists pgcrypto;
+
+-- -----------------------------------------------------------------------------
+-- Enumerations: order classification and gift lifecycle states
+-- -----------------------------------------------------------------------------
+do $$
+begin
+  create type public.billing_order_kind as enum ('subscription', 'gift');
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.gift_status as enum ('pending_payment', 'purchased', 'redeemed', 'expired', 'cancelled', 'refunded');
+exception when duplicate_object then null;
+end $$;
+
+-- -----------------------------------------------------------------------------
+-- Billing hardening: plan presentation and checkout metadata
+-- -----------------------------------------------------------------------------
+alter table public.plans
+  add column if not exists billing_metadata jsonb not null default '{}'::jsonb,
+  add column if not exists yearly_supported boolean not null default false,
+  add column if not exists giftable boolean not null default true,
+  add column if not exists sort_order integer not null default 100;
+
+-- -----------------------------------------------------------------------------
+-- Billing hardening: order lifecycle, idempotency, and fulfillment audit
+-- -----------------------------------------------------------------------------
+alter table public.billing_orders
+  add column if not exists order_kind text not null default 'subscription',
+  add column if not exists gift_id uuid,
+  add column if not exists idempotency_key text,
+  add column if not exists plan_snapshot jsonb not null default '{}'::jsonb,
+  add column if not exists verified_at timestamptz,
+  add column if not exists activated_at timestamptz,
+  add column if not exists current_period_start timestamptz,
+  add column if not exists current_period_end timestamptz,
+  add column if not exists verification_attempts integer not null default 0,
+  add column if not exists failure_reason text;
+
+-- -----------------------------------------------------------------------------
+-- Billing hardening: provider payment identity and raw webhook payload
+-- -----------------------------------------------------------------------------
+alter table public.billing_payments
+  add column if not exists provider_payment_id text,
+  add column if not exists provider_payload jsonb not null default '{}'::jsonb;
+
+-- Backfill provider_payment_id from legacy id column for existing rows
+update public.billing_payments
+set provider_payment_id = id
+where provider_payment_id is null;
+
+-- -----------------------------------------------------------------------------
+-- Gifts: purchasable gift codes (plaintext never stored; hash + display hints)
+-- -----------------------------------------------------------------------------
+create table if not exists public.gift_codes (
+  id uuid primary key default gen_random_uuid(),
+  code_hash text not null unique,
+  code_prefix text not null,
+  code_last4 text not null,
+  purchaser_user_id uuid not null references auth.users(id) on delete cascade,
+  purchaser_email text,
+  recipient_email text,
+  recipient_name text,
+  sender_name text,
+  sender_email text,
+  delivery_method text not null default 'email' check (delivery_method in ('email', 'link')),
+  message text,
+  theme_color text,
+  plan_id text not null references public.plans(id) on delete restrict,
+  plan_name text not null,
+  months integer not null check (months between 1 and 12),
+  token_grant integer not null check (token_grant > 0),
+  currency text not null default 'INR',
+  subtotal_paise integer not null check (subtotal_paise > 0),
+  tax_paise integer not null default 0 check (tax_paise >= 0),
+  amount_paise integer not null check (amount_paise > 0),
+  status text not null default 'pending_payment' check (status in ('pending_payment', 'purchased', 'redeemed', 'expired', 'cancelled', 'refunded')),
+  billing_order_id text unique references public.billing_orders(razorpay_order_id) on delete set null,
+  purchased_payment_id text,
+  purchased_at timestamptz,
+  expires_at timestamptz not null,
+  redeemed_at timestamptz,
+  redeemed_by_user_id uuid references auth.users(id) on delete set null,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create trigger gift_codes_set_updated_at
+before update on public.gift_codes
+for each row execute function public.set_updated_at();
+
+-- -----------------------------------------------------------------------------
+-- Gifts: one redemption row per gift (enforced by unique on gift_id)
+-- -----------------------------------------------------------------------------
+create table if not exists public.gift_redemptions (
+  id uuid primary key default gen_random_uuid(),
+  gift_id uuid not null references public.gift_codes(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  subscription_id uuid references public.subscriptions(id) on delete set null,
+  token_transaction_id text references public.token_transactions(id) on delete set null,
+  redeemed_at timestamptz not null default now(),
+  metadata jsonb not null default '{}'::jsonb,
+  unique (gift_id),
+  unique (gift_id, user_id)
+);
+
+-- -----------------------------------------------------------------------------
+-- Billing hardening: append-only activation audit (checkout, webhook, gift, admin)
+-- -----------------------------------------------------------------------------
+create table if not exists public.subscription_activation_events (
+  id uuid primary key default gen_random_uuid(),
+  subscription_id uuid references public.subscriptions(id) on delete set null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  workspace_id uuid references public.workspaces(id) on delete set null,
+  plan_id text references public.plans(id) on delete set null,
+  billing_order_id text references public.billing_orders(razorpay_order_id) on delete set null,
+  payment_id text,
+  source text not null check (source in ('checkout', 'webhook', 'gift_redemption', 'admin')),
+  event_type text not null,
+  period_start timestamptz,
+  period_end timestamptz,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+-- -----------------------------------------------------------------------------
+-- Indexes: gift lookup, billing idempotency, subscription status scans
+-- -----------------------------------------------------------------------------
+create index if not exists gift_codes_purchaser_created_idx on public.gift_codes (purchaser_user_id, created_at desc);
+
+create index if not exists gift_codes_status_expires_idx on public.gift_codes (status, expires_at);
+
+create index if not exists gift_codes_recipient_email_idx on public.gift_codes (lower(recipient_email));
+
+create index if not exists billing_orders_user_status_idx on public.billing_orders (user_id, status, created_at desc);
+
+create index if not exists subscriptions_user_status_idx on public.subscriptions (user_id, status, current_period_end desc);
+
+create unique index if not exists billing_orders_idempotency_key_idx
+on public.billing_orders (user_id, idempotency_key)
+where idempotency_key is not null;
+
+-- -----------------------------------------------------------------------------
+-- Row-level security: gifts and activation events (owner-scoped read)
+-- -----------------------------------------------------------------------------
+alter table public.gift_codes enable row level security;
+
+alter table public.gift_redemptions enable row level security;
+
+alter table public.subscription_activation_events enable row level security;
+
+drop policy if exists "gift_codes_purchaser_read" on public.gift_codes;
+
+create policy "gift_codes_purchaser_read" on public.gift_codes
+for select to authenticated
+using (auth.uid() = purchaser_user_id or auth.uid() = redeemed_by_user_id);
+
+drop policy if exists "gift_redemptions_owner_read" on public.gift_redemptions;
+
+create policy "gift_redemptions_owner_read" on public.gift_redemptions
+for select to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "subscription_activation_events_owner_read" on public.subscription_activation_events;
+
+create policy "subscription_activation_events_owner_read" on public.subscription_activation_events
+for select to authenticated
+using (auth.uid() = user_id);
+
+-- -----------------------------------------------------------------------------
+-- Plan catalog: upsert tiers with giftability, yearly pricing, and metadata
+-- (Coupons / referrals: not seeded here; plan rows are list-price checkout only)
+-- -----------------------------------------------------------------------------
+insert into public.plans (
+  id, name, display_name, price_paise_monthly, price_paise_yearly, currency,
+  token_grant, limits, features, yearly_supported, giftable, sort_order, billing_metadata
+)
+values
+  ('free', 'Free', 'Free', 0, 0, 'INR', 5000,
+   '{"monthlyMessages":100,"storageGb":1,"tier":"free"}'::jsonb,
+   '["chat","artifacts","web_search"]'::jsonb, false, false, 10,
+   '{"description":"All core features, free by default","monthlyTokens":5000}'::jsonb),
+  ('go', 'Go plan', 'Go', 29900, 297800, 'INR', 200000,
+   '{"monthlyMessages":1000,"storageGb":5,"tier":"go"}'::jsonb,
+   '["chat","artifacts","web_search","uploads","voice"]'::jsonb, true, true, 20,
+   '{"description":"Higher limits for everyday power users","monthlyTokens":200000,"yearlyDiscount":0.17}'::jsonb),
+  ('pro', 'Pro plan', 'Pro', 249900, 2489000, 'INR', 2000000,
+   '{"monthlyMessages":5000,"storageGb":25,"tier":"pro"}'::jsonb,
+   '["chat","artifacts","research","image_generation","premium_models","priority"]'::jsonb, true, true, 30,
+   '{"description":"Premium models and much higher limits","monthlyTokens":2000000,"yearlyDiscount":0.17}'::jsonb),
+  ('max', 'Max plan', 'Max', 999900, 0, 'INR', 10000000,
+   '{"monthlyMessages":25000,"storageGb":100,"tier":"max","multiplier":"5x"}'::jsonb,
+   '["chat","artifacts","deep_research","premium_models","highest_priority","creative_generation"]'::jsonb, false, true, 39,
+   '{"description":"Highest limits for advanced users","monthlyTokens":10000000,"defaultMultiplier":"5x"}'::jsonb),
+  ('max5x', 'Max 5x', 'Max 5x', 999900, 0, 'INR', 10000000,
+   '{"monthlyMessages":25000,"storageGb":100,"tier":"max","multiplier":"5x"}'::jsonb,
+   '["chat","artifacts","deep_research","premium_models","highest_priority","creative_generation"]'::jsonb, false, true, 40,
+   '{"description":"Max 5x usage compared with Pro","monthlyTokens":10000000}'::jsonb),
+  ('max20x', 'Max 20x', 'Max 20x', 1999900, 0, 'INR', 40000000,
+   '{"monthlyMessages":100000,"storageGb":250,"tier":"max","multiplier":"20x"}'::jsonb,
+   '["chat","artifacts","deep_research","premium_models","highest_priority","creative_generation","batch_work"]'::jsonb, false, true, 50,
+   '{"description":"Max 20x usage for power users","monthlyTokens":40000000}'::jsonb),
+  ('team', 'Team plan', 'Team', 199900, 1991000, 'INR', 10000000,
+   '{"monthlyMessages":25000,"storageGb":100,"tier":"team","seatsIncluded":1}'::jsonb,
+   '["team_workspaces","admin_controls","shared_projects","max5x_per_seat"]'::jsonb, true, false, 60,
+   '{"description":"Shared workspace with Max 5x included","monthlyTokens":10000000,"yearlyDiscount":0.17}'::jsonb),
+  ('enterprise', 'Enterprise', 'Enterprise', 0, 0, 'INR', 0,
+   '{"tier":"enterprise","custom":true}'::jsonb,
+   '["sso","governance","custom_limits","dedicated_support"]'::jsonb, false, false, 70,
+   '{"description":"Security, control, and custom scale","custom":true}'::jsonb)
+on conflict (id) do update set
+  name = excluded.name,
+  display_name = excluded.display_name,
+  price_paise_monthly = excluded.price_paise_monthly,
+  price_paise_yearly = excluded.price_paise_yearly,
+  token_grant = excluded.token_grant,
+  limits = excluded.limits,
+  features = excluded.features,
+  yearly_supported = excluded.yearly_supported,
+  giftable = excluded.giftable,
+  sort_order = excluded.sort_order,
+  billing_metadata = excluded.billing_metadata,
+  is_active = true,
+  updated_at = now();
+
+-- -----------------------------------------------------------------------------
+-- Gifts: deterministic SHA-256 hash for lookup (uppercase, trimmed input)
+-- -----------------------------------------------------------------------------
+create or replace function public.hash_gift_code(p_code text)
+returns text
+language sql
+stable
+as $$
+  select encode(digest(upper(trim(p_code)), 'sha256'), 'hex')
+$$;
+
+comment on function public.hash_gift_code(text) is
+  'Returns hex-encoded SHA-256 of normalized gift code (upper(trim)). Used for redemption lookup; plaintext codes are never persisted.';
+
+-- -----------------------------------------------------------------------------
+-- Gifts: human-readable code generator (CX-XXXXX-XXXXX-XXXX format)
+-- -----------------------------------------------------------------------------
+create or replace function public.generate_gift_code()
+returns text
+language sql
+volatile
+as $$
+  select 'CX-' ||
+    upper(substr(encode(gen_random_bytes(5), 'hex'), 1, 5)) || '-' ||
+    upper(substr(encode(gen_random_bytes(5), 'hex'), 1, 5)) || '-' ||
+    upper(substr(encode(gen_random_bytes(4), 'hex'), 1, 4))
+$$;
+
+comment on function public.generate_gift_code() is
+  'Generates a new display gift code (CX- prefix, three alphanumeric segments). Caller must hash via hash_gift_code() before insert.';
+
+-- -----------------------------------------------------------------------------
+-- Gifts: batch-expire stale pending/purchased codes (service_role / cron)
+-- -----------------------------------------------------------------------------
+create or replace function public.expire_old_gift_codes()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer;
+begin
+  update public.gift_codes gc
+  set status = 'expired', updated_at = now()
+  where gc.status in ('pending_payment', 'purchased')
+    and gc.expires_at <= now();
+
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
+comment on function public.expire_old_gift_codes() is
+  'Marks gift_codes with status pending_payment or purchased as expired when expires_at <= now(). Returns rows updated. Intended for scheduled service_role invocation.';
+
+-- Drop legacy fulfill_billing_payment overload before replacing with extended signature
+drop function if exists public.fulfill_billing_payment(text, text, text, text, text, text, timestamptz, text, text, text);
+
+-- -----------------------------------------------------------------------------
+-- Billing hardening: idempotent payment fulfillment (subscription + gift orders)
+-- Called from checkout confirmation and Razorpay webhooks (service_role only).
+-- -----------------------------------------------------------------------------
+create or replace function public.fulfill_billing_payment(
+  p_order_id text,
+  p_payment_id text,
+  p_payment_status text,
+  p_payment_method text,
+  p_payment_email text,
+  p_payment_contact text,
+  p_payment_created_at timestamptz,
+  p_source text,
+  p_webhook_event_id text default null,
+  p_webhook_event_name text default null,
+  p_payment_amount_paise integer default null,
+  p_payment_currency text default null,
+  p_provider_payload jsonb default '{}'::jsonb
+)
+returns table(status text, order_id text, payment_id text, tokens_added integer, subscription_id uuid, gift_id uuid)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.billing_orders;
+  v_plan public.plans;
+  v_txn_id text;
+  v_workspace_id uuid;
+  v_period_start timestamptz;
+  v_period_end timestamptz;
+  v_subscription_id uuid;
+begin
+  if p_payment_status <> 'captured' then
+    raise exception 'Payment must be captured before fulfillment';
+  end if;
+
+  if p_source not in ('checkout', 'webhook') then
+    raise exception 'Invalid fulfillment source';
+  end if;
+
+  select * into v_order from public.billing_orders where razorpay_order_id = p_order_id for update;
+  if not found then
+    raise exception 'Payment order not found';
+  end if;
+
+  update public.billing_orders
+  set verification_attempts = verification_attempts + 1,
+      verified_at = now(),
+      updated_at = now()
+  where razorpay_order_id = p_order_id;
+
+  if p_payment_amount_paise is not null and p_payment_amount_paise <> v_order.amount_paise then
+    update public.billing_orders
+    set status = 'failed', failure_reason = 'payment_amount_mismatch', updated_at = now()
+    where razorpay_order_id = p_order_id;
+    raise exception 'Payment amount does not match the order';
+  end if;
+
+  if p_payment_currency is not null and upper(p_payment_currency) <> upper(v_order.currency) then
+    update public.billing_orders
+    set status = 'failed', failure_reason = 'payment_currency_mismatch', updated_at = now()
+    where razorpay_order_id = p_order_id;
+    raise exception 'Payment currency does not match the order';
+  end if;
+
+  v_txn_id := 'credit_billing_' || regexp_replace(p_order_id || '_' || p_payment_id, '[^a-zA-Z0-9_-]', '_', 'g');
+
+  -- Idempotent short-circuit: payment, token credit, or order already fulfilled
+  if exists (select 1 from public.billing_payments where id = p_payment_id)
+     or exists (select 1 from public.token_transactions where id = v_txn_id)
+     or v_order.status = 'fulfilled' then
+    if p_webhook_event_id is not null then
+      insert into public.razorpay_webhook_events (id, event_id, event, status, order_id, payment_id)
+      values (p_webhook_event_id, p_webhook_event_id, coalesce(p_webhook_event_name, 'payment.captured'), 'duplicate', p_order_id, p_payment_id)
+      on conflict (id) do nothing;
+    end if;
+
+    select id into v_subscription_id
+    from public.subscriptions
+    where metadata ->> 'billingOrderId' = p_order_id
+    order by created_at desc
+    limit 1;
+
+    return query select 'already_fulfilled'::text, p_order_id, p_payment_id, v_order.tokens, v_subscription_id, v_order.gift_id;
+    return;
+  end if;
+
+  select * into v_plan from public.plans where id = v_order.plan_id and is_active = true;
+  if not found then
+    raise exception 'Plan is not active';
+  end if;
+
+  if v_order.order_kind = 'gift' then
+    -- Gift purchase path: activate code, extend expiry, link payment (no subscription yet)
+    if v_order.gift_id is null then
+      raise exception 'Gift order is missing gift id';
+    end if;
+
+    update public.gift_codes gc
+    set status = 'purchased',
+        billing_order_id = p_order_id,
+        purchased_payment_id = p_payment_id,
+        purchased_at = now(),
+        expires_at = greatest(expires_at, now() + interval '1 year'),
+        updated_at = now()
+    where gc.id = v_order.gift_id
+      and gc.purchaser_user_id = v_order.user_id
+      and gc.status = 'pending_payment';
+  else
+    -- Subscription path: supersede active subs, create new period, sync workspace plan
+    v_period_start := now();
+    v_period_end := case
+      when v_order.billing_cycle = 'yearly' then v_period_start + interval '1 year'
+      else v_period_start + interval '1 month'
+    end;
+
+    select default_workspace_id into v_workspace_id
+    from public.profiles
+    where id = v_order.user_id;
+
+    update public.subscriptions s
+    set status = 'superseded',
+        cancel_at_period_end = false,
+        updated_at = now(),
+        metadata = metadata || jsonb_build_object('supersededByOrderId', p_order_id)
+    where s.user_id = v_order.user_id
+      and coalesce(s.workspace_id, '00000000-0000-0000-0000-000000000000'::uuid) =
+          coalesce(v_order.workspace_id, v_workspace_id, '00000000-0000-0000-0000-000000000000'::uuid)
+      and s.status in ('trialing', 'active', 'past_due');
+
+    insert into public.subscriptions (
+      user_id, workspace_id, plan_id, provider, provider_subscription_id, status,
+      billing_cycle, current_period_start, current_period_end, cancel_at_period_end, metadata
+    )
+    values (
+      v_order.user_id,
+      coalesce(v_order.workspace_id, v_workspace_id),
+      v_order.plan_id,
+      'razorpay',
+      p_payment_id,
+      'active',
+      v_order.billing_cycle,
+      v_period_start,
+      v_period_end,
+      false,
+      jsonb_build_object(
+        'billingOrderId', p_order_id,
+        'paymentId', p_payment_id,
+        'planName', v_order.plan_name,
+        'maxTier', v_order.max_tier,
+        'activatedBy', p_source
+      )
+    )
+    returning id into v_subscription_id;
+
+    update public.workspaces
+    set plan_id = v_order.plan_id, updated_at = now()
+    where id = coalesce(v_order.workspace_id, v_workspace_id);
+  end if;
+
+  perform public.credit_user_tokens(
+    v_order.user_id,
+    v_order.tokens,
+    'billing_' || p_order_id || '_' || p_payment_id,
+    'purchase',
+    jsonb_build_object(
+      'orderId', p_order_id,
+      'paymentId', p_payment_id,
+      'planId', v_order.plan_id,
+      'planName', v_order.plan_name,
+      'orderKind', v_order.order_kind,
+      'source', p_source
+    )
+  );
+
+  insert into public.billing_payments (
+    id, order_id, user_id, amount_paise, currency, status, method, email, contact,
+    source, captured_at, fulfilled_at, provider_payment_id, provider_payload
+  )
+  values (
+    p_payment_id,
+    p_order_id,
+    v_order.user_id,
+    v_order.amount_paise,
+    v_order.currency,
+    p_payment_status,
+    p_payment_method,
+    p_payment_email,
+    p_payment_contact,
+    p_source,
+    p_payment_created_at,
+    now(),
+    p_payment_id,
+    coalesce(p_provider_payload, '{}'::jsonb)
+  );
+
+  update public.billing_orders
+  set status = 'fulfilled',
+      razorpay_payment_id = p_payment_id,
+      razorpay_status = p_payment_status,
+      paid_at = p_payment_created_at,
+      fulfilled_at = now(),
+      activated_at = now(),
+      current_period_start = v_period_start,
+      current_period_end = v_period_end,
+      failure_reason = null,
+      updated_at = now()
+  where razorpay_order_id = p_order_id;
+
+  insert into public.subscription_activation_events (
+    subscription_id, user_id, workspace_id, plan_id, billing_order_id, payment_id,
+    source, event_type, period_start, period_end, metadata
+  )
+  values (
+    v_subscription_id,
+    v_order.user_id,
+    coalesce(v_order.workspace_id, v_workspace_id),
+    v_order.plan_id,
+    p_order_id,
+    p_payment_id,
+    p_source,
+    case when v_order.order_kind = 'gift' then 'gift_purchased' else 'subscription_activated' end,
+    v_period_start,
+    v_period_end,
+    jsonb_build_object('orderKind', v_order.order_kind, 'tokens', v_order.tokens)
+  );
+
+  if p_webhook_event_id is not null then
+    insert into public.razorpay_webhook_events (id, event_id, event, status, order_id, payment_id)
+    values (p_webhook_event_id, p_webhook_event_id, coalesce(p_webhook_event_name, 'payment.captured'), 'processed', p_order_id, p_payment_id)
+    on conflict (id) do nothing;
+  end if;
+
+  return query select 'fulfilled'::text, p_order_id, p_payment_id, v_order.tokens, v_subscription_id, v_order.gift_id;
+end;
+$$;
+
+comment on function public.fulfill_billing_payment(text, text, text, text, text, text, timestamptz, text, text, text, integer, text, jsonb) is
+  'SECURITY DEFINER: Fulfills a captured Razorpay payment for billing_orders. Validates amount/currency, idempotently skips duplicates, branches on order_kind (gift vs subscription), credits tokens, records billing_payments and subscription_activation_events. Returns status, order_id, payment_id, tokens_added, subscription_id, gift_id.';
+
+-- -----------------------------------------------------------------------------
+-- Gifts: redeem purchased code → subscription + tokens (authenticated caller)
+-- -----------------------------------------------------------------------------
+create or replace function public.redeem_gift_code(p_code text)
+returns table(status text, gift_id uuid, subscription_id uuid, tokens_added integer, expires_at timestamptz)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_gift public.gift_codes;
+  v_txn public.token_transactions;
+  v_workspace_id uuid;
+  v_subscription_id uuid;
+  v_period_start timestamptz;
+  v_period_end timestamptz;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  perform public.expire_old_gift_codes();
+
+  select * into v_gift
+  from public.gift_codes
+  where code_hash = public.hash_gift_code(p_code)
+  for update;
+
+  if not found then
+    raise exception 'Gift code was not found';
+  end if;
+
+  if v_gift.status <> 'purchased' then
+    raise exception 'Gift code is not redeemable';
+  end if;
+
+  if v_gift.expires_at <= now() then
+    update public.gift_codes gc set status = 'expired', updated_at = now() where gc.id = v_gift.id;
+    raise exception 'Gift code has expired';
+  end if;
+
+  select default_workspace_id into v_workspace_id from public.profiles where id = auth.uid();
+  v_period_start := now();
+  v_period_end := now() + make_interval(months => v_gift.months);
+
+  update public.subscriptions s
+  set status = 'superseded',
+      updated_at = now(),
+      metadata = metadata || jsonb_build_object('supersededByGiftId', v_gift.id)
+  where s.user_id = auth.uid()
+    and coalesce(s.workspace_id, '00000000-0000-0000-0000-000000000000'::uuid) =
+        coalesce(v_workspace_id, '00000000-0000-0000-0000-000000000000'::uuid)
+    and s.status in ('trialing', 'active', 'past_due');
+
+  insert into public.subscriptions (
+    user_id, workspace_id, plan_id, provider, provider_subscription_id, status,
+    billing_cycle, current_period_start, current_period_end, cancel_at_period_end, metadata
+  )
+  values (
+    auth.uid(),
+    v_workspace_id,
+    v_gift.plan_id,
+    'gift',
+    v_gift.id::text,
+    'active',
+    'gift',
+    v_period_start,
+    v_period_end,
+    true,
+    jsonb_build_object('giftId', v_gift.id, 'giftMonths', v_gift.months, 'giftCodePrefix', v_gift.code_prefix)
+  )
+  returning id into v_subscription_id;
+
+  select * into v_txn from public.credit_user_tokens(
+    auth.uid(),
+    v_gift.token_grant,
+    'gift_' || v_gift.id::text,
+    'purchase',
+    jsonb_build_object('giftId', v_gift.id, 'planId', v_gift.plan_id, 'months', v_gift.months)
+  );
+
+  update public.gift_codes
+  set status = 'redeemed',
+      redeemed_at = now(),
+      redeemed_by_user_id = auth.uid(),
+      updated_at = now()
+  where id = v_gift.id;
+
+  insert into public.gift_redemptions (gift_id, user_id, subscription_id, token_transaction_id)
+  values (v_gift.id, auth.uid(), v_subscription_id, v_txn.id);
+
+  insert into public.subscription_activation_events (
+    subscription_id, user_id, workspace_id, plan_id, billing_order_id, payment_id,
+    source, event_type, period_start, period_end, metadata
+  )
+  values (
+    v_subscription_id, auth.uid(), v_workspace_id, v_gift.plan_id, v_gift.billing_order_id,
+    v_gift.purchased_payment_id, 'gift_redemption', 'gift_redeemed', v_period_start, v_period_end,
+    jsonb_build_object('giftId', v_gift.id, 'months', v_gift.months)
+  );
+
+  return query select 'redeemed'::text, v_gift.id, v_subscription_id, v_gift.token_grant, v_period_end;
+end;
+$$;
+
+comment on function public.redeem_gift_code(text) is
+  'SECURITY DEFINER (authenticated): Redeems a purchased gift code for auth.uid(). Creates gift-billing_cycle subscription, credits token_grant, records gift_redemptions and activation event. Raises if code missing, not purchased, or expired.';
+
+-- -----------------------------------------------------------------------------
+-- Table documentation (pg_catalog; visible in Studio / introspection tools)
+-- -----------------------------------------------------------------------------
+comment on table public.gift_codes is
+  'Purchasable subscription gift codes. Stores SHA-256 hash and display hints only; links to billing_orders on purchase. Lifecycle: pending_payment → purchased → redeemed | expired | cancelled | refunded.';
+
+comment on table public.gift_redemptions is
+  'One row per redeemed gift (unique gift_id). Links redeemer, resulting subscription, and token credit transaction.';
+
+comment on table public.subscription_activation_events is
+  'Append-only audit log for subscription activations from checkout, webhooks, gift redemption, or admin. Owner-readable via RLS.';
+
+-- -----------------------------------------------------------------------------
+-- Grants: service_role fulfillment/cron; authenticated gift redemption
+-- -----------------------------------------------------------------------------
+grant execute on function public.fulfill_billing_payment(text, text, text, text, text, text, timestamptz, text, text, text, integer, text, jsonb) to service_role;
+
+grant execute on function public.redeem_gift_code(text) to authenticated;
+
+grant execute on function public.expire_old_gift_codes() to service_role;

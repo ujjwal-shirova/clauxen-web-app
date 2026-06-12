@@ -63,11 +63,14 @@ export function SetProjectInstructionsDialog({
               >
                 Set project instructions
               </h2>
-              <p className="mt-1 text-[14px] leading-5 text-zinc-600" aria-hidden="true">
+              <p
+                className="mt-1 text-[14px] leading-5 text-zinc-600"
+                aria-hidden="true"
+              >
                 Provide Claude with relevant instructions and information for
                 chats within{" "}
-                <span className="font-medium text-zinc-800">{projectName}</span>.
-                This will work alongside your{" "}
+                <span className="font-medium text-zinc-800">{projectName}</span>
+                . This will work alongside your{" "}
                 <span className="text-[#184f95] underline decoration-[#184f95]/40 underline-offset-[3px]">
                   profile instructions
                 </span>{" "}
@@ -78,7 +81,10 @@ export function SetProjectInstructionsDialog({
               type="button"
               aria-label="Close"
               onClick={() => onOpenChange(false)}
-              className={cn(appBtn.ghostIcon, "mr-[-8px] mt-[-8px] shrink-0 text-zinc-500")}
+              className={cn(
+                appBtn.ghostIcon,
+                "mr-[-8px] mt-[-8px] shrink-0 text-zinc-500",
+              )}
             >
               <X className="h-4 w-4" />
             </button>

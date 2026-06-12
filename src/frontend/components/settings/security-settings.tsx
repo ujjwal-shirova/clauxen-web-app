@@ -35,7 +35,9 @@ export function SecuritySettings({
         className="flex w-full min-h-[60px] items-center justify-between gap-4 border-b border-[#0d0d0d]/5 py-3 text-left transition-colors hover:bg-zinc-50"
       >
         <div>
-          <p className="text-[14px] font-[430] text-zinc-900">Security keys & passkeys</p>
+          <p className="text-[14px] font-[430] text-zinc-900">
+            Security keys & passkeys
+          </p>
           <p className="mt-1 text-[12px] text-[#8f8f8f]">{passkeyAddedLabel}</p>
         </div>
         <span className="flex shrink-0 items-center gap-1 text-[14px] text-[#5d5d5d]">
@@ -68,16 +70,21 @@ export function SecuritySettings({
       <SettingsChevronRow label="Trusted devices" value="1" />
 
       <section className="border-t border-[#0d0d0d]/5 pt-4">
-        <h4 className="mb-3 text-[18px] font-medium leading-7">Advanced security</h4>
+        <h4 className="mb-3 text-[18px] font-medium leading-7">
+          Advanced security
+        </h4>
         <button
           type="button"
           className="flex w-full items-start justify-between gap-4 border-b border-[#0d0d0d]/5 py-3 text-left transition-colors hover:bg-zinc-50"
         >
           <div className="pr-4">
-            <p className="text-[14px] font-[430] text-zinc-900">Advanced account security</p>
+            <p className="text-[14px] font-[430] text-zinc-900">
+              Advanced account security
+            </p>
             <p className="mt-1 text-[12px] leading-4 text-[#8f8f8f] text-pretty">
-              Adds the highest level of account security by requiring stronger sign-in
-              methods and applying stricter protections to help prevent unauthorized access.
+              Adds the highest level of account security by requiring stronger
+              sign-in methods and applying stricter protections to help prevent
+              unauthorized access.
             </p>
           </div>
           <span className="flex shrink-0 items-center gap-1 pt-1 text-[14px] text-[#5d5d5d]">
@@ -97,8 +104,9 @@ export function SecuritySettings({
           <div className="max-w-md">
             <p className="text-[14px] font-[430]">Log out of all devices</p>
             <p className="mt-1 text-[12px] leading-4 text-[#8f8f8f] text-pretty">
-              Log out of all active sessions across all devices, including your current
-              session. It may take up to 30 minutes for other devices to be logged out.
+              Log out of all active sessions across all devices, including your
+              current session. It may take up to 30 minutes for other devices to
+              be logged out.
             </p>
           </div>
           <SettingsPillButton variant="danger" onClick={onLogout}>
@@ -108,10 +116,12 @@ export function SecuritySettings({
       </section>
 
       <section className="border-t border-[#0d0d0d]/10 pt-6">
-        <SettingsSectionHeading>Secure sign in with Clauxen</SettingsSectionHeading>
+        <SettingsSectionHeading>
+          Secure sign in with Clauxen
+        </SettingsSectionHeading>
         <p className="text-[12px] leading-4 text-[#8f8f8f]">
-          Sign in to websites and apps across the internet with the trusted security of
-          Clauxen.{" "}
+          Sign in to websites and apps across the internet with the trusted
+          security of Clauxen.{" "}
           <a href="#" className="underline decoration-[#8f8f8f]/60">
             Learn more
           </a>

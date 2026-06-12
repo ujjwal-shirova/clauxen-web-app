@@ -30,7 +30,9 @@ export function withApiHandler(
 
       return await handler({ request, session });
     } catch (error) {
-      return jsonError(error instanceof AppError ? error : new AppError(String(error), 500));
+      return jsonError(
+        error instanceof AppError ? error : new AppError(String(error), 500),
+      );
     }
   };
 }

@@ -15,8 +15,9 @@ export function ParentalControlsSettings() {
       />
 
       <p className="text-[14px] leading-relaxed text-zinc-900">
-        Parents and teens can link accounts, giving parents tools to adjust certain features,
-        set limits, and add safeguards that work for their family.{" "}
+        Parents and teens can link accounts, giving parents tools to adjust
+        certain features, set limits, and add safeguards that work for their
+        family.{" "}
         <a
           href="https://help.openai.com/articles/12315553-parental-controls-on-chatgpt-faq"
           className="underline decoration-zinc-400/60 underline-offset-2 hover:text-zinc-600"

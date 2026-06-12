@@ -1,75 +1,104 @@
 "use client";
 
 import React from "react";
-import {
-  Bot,
-  Boxes,
-  Brain,
-  CheckCircle2,
-  Code2,
-  Copy,
-  ExternalLink,
-  FileImage,
-  Globe,
-  Loader2,
-  Monitor,
-  Play,
-  Plus,
-  ShieldCheck,
-  Sparkles,
-  Terminal,
-  Video,
-} from "lucide-react";
+import { Code2, Link2, Loader2, MessageCirclePlus } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import { useSettings } from "@/frontend/hooks/use-settings";
 import { useAuth } from "@/frontend/hooks/use-auth";
+import { useToast } from "@/frontend/hooks/use-toast";
 import {
-  createSandboxRecipe,
-  listAgentModels,
-  streamAgentChat,
-  type AgentArtifact,
-  type AgentContentPart,
-  type AgentToolExecution,
-  type NovitaModel,
-  type SandboxRecipe,
-} from "@/frontend/lib/api/agent";
-import {
-  createSandbox as createManagedSandbox,
-  listSandboxes,
-  killSandbox,
-  type SandboxInfo,
-} from "@/frontend/lib/api/sandbox";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/frontend/components/ui/dialog";
+import { Button } from "@/frontend/components/ui/button";
 
-const DEFAULT_MODEL = "moonshotai/kimi-k2.6";
-const DEFAULT_VISION_MODEL = "qwen/qwen2.5-vl-72b-instruct";
-const DEFAULT_REASONING_MODEL = "minimax/minimax-m2";
-const MAX_LOCAL_IMAGE_BYTES = 1_000_000;
+const HERO_VIDEO_SRC =
+  "https://statics.moonshot.cn/kimi-web-seo/assets/claw-hero-D59VliO4.mp4";
 
-const capabilityItems = [
-  {
-    icon: FileImage,
-    label: "Vision input",
-    detail: "Image URL and base64 image parts with detail control.",
-  },
-  {
-    icon: Brain,
-    label: "Interleaved thinking",
-    detail:
-      "Reasoning flags and full assistant messages are preserved server-side.",
-  },
-  {
-    icon: Boxes,
-    label: "Tool execution",
-    detail:
-      "Live sandbox tools: bash, create_file, view, str_replace, web search, code interpreter.",
-  },
-  {
-    icon: Monitor,
-    label: "Auto sandbox",
-    detail:
-      "Novita Agent Sandbox is created automatically on first tool call and reused per session.",
-  },
-];
+function ComputerIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="49"
+      height="48"
+      fill="none"
+      viewBox="0 0 49 48"
+      className={className}
+      aria-hidden
+    >
+      <path
+        d="M5.6543 11.418C5.6543 9.76112 6.99744 8.41797 8.6543 8.41797H40.3448C42.0016 8.41797 43.3448 9.76111 43.3448 11.418V35.2714H5.6543V11.418Z"
+        fill="white"
+        stroke="#A6A6A6"
+      />
+      <path
+        d="M7.18945 12.0605C7.18945 10.8179 8.19681 9.81055 9.43945 9.81055H39.5613C40.804 9.81055 41.8113 10.8179 41.8113 12.0605V34.9134H7.18945V12.0605Z"
+        fill="#F7F7F7"
+      />
+      <path
+        d="M0.5 35.2715H48.5V36.582C48.5 38.2388 47.1569 39.582 45.5 39.582H3.5C1.84315 39.582 0.5 38.2388 0.5 36.582V35.2715Z"
+        fill="white"
+        stroke="#A6A6A6"
+      />
+    </svg>
+  );
+}
+
+function CloudServerIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="48"
+      height="48"
+      fill="none"
+      viewBox="0 0 48 48"
+      className={className}
+      aria-hidden
+    >
+      <path
+        fill="#F7F7F7"
+        stroke="#A6A6A6"
+        d="M32.459 16.647a10.65 10.65 0 0 0-7.802 3.387 5.697 5.697 0 0 0-10 3.733l.003.141a7.12 7.12 0 0 0 1.423 14.099h16.376c5.9 0 10.68-4.781 10.68-10.68 0-5.9-4.78-10.68-10.68-10.68Z"
+      />
+      <path
+        fill="#fff"
+        stroke="#A6A6A6"
+        d="M24.355 9.709a10.65 10.65 0 0 0-7.803 3.387 5.696 5.696 0 0 0-9.997 3.875A7.123 7.123 0 0 0 7.978 31.07h16.377c5.899 0 10.68-4.783 10.68-10.681s-4.782-10.68-10.68-10.68Z"
+      />
+    </svg>
+  );
+}
+
+function AndroidPhoneIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="48"
+      height="48"
+      fill="none"
+      viewBox="0 0 48 48"
+      className={className}
+      aria-hidden
+    >
+      <path
+        fill="#F7F7F7"
+        stroke="#BFBFBF"
+        strokeWidth=".857"
+        d="M1 8.413c0-1.68 0-2.52.327-3.162a3 3 0 0 1 1.311-1.31c.642-.328 1.482-.328 3.162-.328h13.91c1.68 0 2.521 0 3.163.327a3 3 0 0 1 1.31 1.311c.328.642.328 1.482.328 3.162v31.175c0 1.68 0 2.52-.327 3.162a3 3 0 0 1-1.311 1.311c-.642.327-1.482.327-3.162.327H5.8c-1.68 0-2.52 0-3.162-.327a3 3 0 0 1-1.311-1.311C1 42.108 1 41.268 1 39.588z"
+      />
+      <path
+        fill="#fff"
+        d="M3.1 39.481c0-1.122.91-2.032 2.032-2.032H20.38a2.032 2.032 0 0 1 0 4.064H5.132a2.03 2.03 0 0 1-2.031-2.032"
+      />
+    </svg>
+  );
+}
+
+type DeployTarget = "computer" | "cloud" | "android";
 
 function normalizeHttpEndpoint(raw: string): string | null {
   const trimmed = raw.trim();
@@ -77,867 +106,274 @@ function normalizeHttpEndpoint(raw: string): string | null {
   try {
     const url = new URL(trimmed);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    url.username = "";
-    url.password = "";
     return url.toString();
   } catch {
     return null;
   }
 }
 
-function modelFeatures(model: NovitaModel) {
-  return model.features?.join(", ") || "chat";
-}
+export function ClauxenClawView() {
+  const auth = useAuth();
+  const { toast } = useToast();
+  const { saving, createClawDeployment } = useSettings(auth.isAuthenticated);
+  const [creatingTarget, setCreatingTarget] =
+    React.useState<DeployTarget | null>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = React.useState(false);
+  const [linkEndpoint, setLinkEndpoint] = React.useState("");
+  const [linking, setLinking] = React.useState(false);
 
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () =>
-      reject(reader.error ?? new Error("Could not read file."));
-    reader.readAsDataURL(file);
-  });
-}
+  const handleCreateCloud = async () => {
+    if (!auth.isAuthenticated) {
+      toast({
+        title: "Sign in required",
+        description: "Sign in to create a cloud Claw agent.",
+      });
+      return;
+    }
+    setCreatingTarget("cloud");
+    try {
+      await createClawDeployment("Cloud Claw Agent", {
+        kind: "persistent",
+        status: "ready",
+      });
+      toast({
+        title: "Claw agent created",
+        description: "Your cloud agent is ready to configure.",
+      });
+    } catch {
+      toast({
+        title: "Could not create agent",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingTarget(null);
+    }
+  };
 
-function CodeBlock({ code }: { code: string }) {
-  const [copied, setCopied] = React.useState(false);
+  const handleLinkExisting = async () => {
+    const endpoint = normalizeHttpEndpoint(linkEndpoint);
+    if (!endpoint) {
+      toast({
+        title: "Invalid URL",
+        description: "Enter a valid http or https endpoint.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLinking(true);
+    try {
+      await createClawDeployment("Linked Claw Agent", {
+        kind: "linked",
+        endpoint,
+        status: "linked",
+      });
+      setLinkEndpoint("");
+      setLinkDialogOpen(false);
+      toast({
+        title: "Agent linked",
+        description: "Your existing Claw agent is now connected.",
+      });
+    } catch {
+      toast({
+        title: "Could not link agent",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const handleDesktopDownload = () => {
+    toast({
+      title: "Desktop app",
+      description: "The Clauxen desktop app download will be available soon.",
+    });
+  };
+
+  const handleAndroidDownload = () => {
+    toast({
+      title: "Android app",
+      description: "The Android Claw agent app will be available soon.",
+    });
+  };
+
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-[#171716] text-[#f7f5ef]">
-      <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-[12px] text-white/65">
-        <span>python</span>
-        <button
-          type="button"
-          onClick={() => {
-            void navigator.clipboard.writeText(code);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1200);
-          }}
-          className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-white/10"
-        >
-          {copied ? (
-            <CheckCircle2 className="h-3.5 w-3.5" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" />
-          )}
-          <span>{copied ? "Copied" : "Copy"}</span>
-        </button>
+    <div className="flex h-full w-full flex-1 overflow-y-auto bg-white font-sans text-zinc-900">
+      <div className="mobile-page-inset mx-auto w-full max-w-[560px] py-6 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-5 sm:py-10">
+        <div className="mb-6 overflow-hidden rounded-2xl">
+          <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-zinc-100">
+            <video
+              src={HERO_VIDEO_SRC}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="h-full w-full object-cover"
+            />
+          </div>
+        </div>
+
+        <div className="mb-6 flex flex-col gap-4 border-b border-black/[0.13] pb-6">
+          <FeatureRow
+            icon={<Code2 className="h-[18px] w-[18px]" />}
+            title="Deploy OpenClaw in seconds"
+            description="OpenClaw is an AI assistant with personality and memory. Clauxen deploys it to the cloud for you in one click—no complex setup, online 24/7."
+          />
+          <FeatureRow
+            icon={<MessageCirclePlus className="h-[18px] w-[18px]" />}
+            title="Chat freely through Clauxen"
+            description="Configured with ready-to-use skills; runs across multiple messaging apps and gets tasks done proactively."
+          />
+        </div>
+
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-[16px] font-medium leading-5">Where to deploy?</h2>
+            <button
+              type="button"
+              onClick={() => setLinkDialogOpen(true)}
+              className="inline-flex items-center gap-1.5 text-[14px] text-black/45 transition-colors hover:text-black/70"
+            >
+              <Link2 className="h-5 w-5" />
+              <span>Link existing Open Claw</span>
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <DeployCard
+              icon={<ComputerIcon className="h-12 w-[49px] shrink-0" />}
+              title="On My Computer"
+              description="Deploy directly to your machine, manage local files"
+              actionLabel="Download Desktop App"
+              onAction={handleDesktopDownload}
+              variant="secondary"
+            />
+            <DeployCard
+              icon={<CloudServerIcon className="h-12 w-12 shrink-0" />}
+              title="On Cloud Server"
+              description="Isolated data, deploy 24/7 assistant on cloud server"
+              actionLabel="Create"
+              onAction={() => void handleCreateCloud()}
+              variant="primary"
+              loading={creatingTarget === "cloud" || saving}
+            />
+            <DeployCard
+              icon={<AndroidPhoneIcon className="h-12 w-12 shrink-0" />}
+              title="On Android Phone"
+              description="Deploy OpenClaw to your idle Android device"
+              actionLabel="Download"
+              onAction={handleAndroidDownload}
+              variant="secondary"
+            />
+          </div>
+        </section>
       </div>
-      <pre className="max-h-[360px] overflow-auto px-3 py-3 text-[12px] leading-5">
-        <code>{code}</code>
-      </pre>
+
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Link existing Open Claw</DialogTitle>
+            <DialogDescription>
+              Paste the URL of an existing OpenClaw deployment to connect it to
+              Clauxen.
+            </DialogDescription>
+          </DialogHeader>
+          <input
+            value={linkEndpoint}
+            onChange={(event) => setLinkEndpoint(event.target.value)}
+            placeholder="https://your-claw-agent.example.com"
+            className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-[14px] outline-none focus:border-zinc-300"
+          />
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLinkDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleLinkExisting()}
+              disabled={linking || !linkEndpoint.trim()}
+            >
+              {linking ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Linking…
+                </>
+              ) : (
+                "Link agent"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-export function ClauxenClawView() {
-  const auth = useAuth();
-  const { settings, loading, saving, createClawDeployment } = useSettings(
-    auth.isAuthenticated,
-  );
-  const deployments = settings?.claw.deployments ?? [];
-
-  const [model, setModel] = React.useState(DEFAULT_MODEL);
-  const [task, setTask] = React.useState(
-    "Create a hello.py file in the sandbox, run it with bash, and summarize the output.",
-  );
-  const [imageDataUrl, setImageDataUrl] = React.useState("");
-  const [imageUrl, setImageUrl] = React.useState("");
-  const [videoUrl, setVideoUrl] = React.useState("");
-  const [structured, setStructured] = React.useState(false);
-  const [thinking, setThinking] = React.useState(true);
-  const [tools, setTools] = React.useState(true);
-  const [running, setRunning] = React.useState(false);
-  const [agentAnswer, setAgentAnswer] = React.useState("");
-  const [agentReasoning, setAgentReasoning] = React.useState("");
-  const [agentError, setAgentError] = React.useState("");
-  const [models, setModels] = React.useState<NovitaModel[]>([]);
-  const [modelsLoading, setModelsLoading] = React.useState(false);
-  const [recipe, setRecipe] = React.useState<SandboxRecipe | null>(null);
-  const [recipeKind, setRecipeKind] = React.useState<"browser" | "desktop">(
-    "browser",
-  );
-  const [creatingDeployment, setCreatingDeployment] = React.useState(false);
-  const [linkEndpoint, setLinkEndpoint] = React.useState("");
-  const [toolExecutions, setToolExecutions] = React.useState<AgentToolExecution[]>([]);
-  const [artifacts, setArtifacts] = React.useState<AgentArtifact[]>([]);
-  const [activeArtifactId, setActiveArtifactId] = React.useState<string | null>(null);
-  const [sandboxReady, setSandboxReady] = React.useState(false);
-  const [activeSandboxId, setActiveSandboxId] = React.useState<string | null>(
-    null,
-  );
-  const [managedSandboxes, setManagedSandboxes] = React.useState<SandboxInfo[]>(
-    [],
-  );
-  const abortRef = React.useRef<AbortController | null>(null);
-
-  const refreshSandboxes = React.useCallback(async () => {
-    try {
-      const payload = await listSandboxes("running,paused");
-      setManagedSandboxes(payload.sandboxes ?? []);
-    } catch {
-      setManagedSandboxes([]);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    void refreshSandboxes();
-  }, [refreshSandboxes]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    setModelsLoading(true);
-    listAgentModels()
-      .then((payload) => {
-        if (cancelled) return;
-        const rows = Array.isArray(payload.data) ? payload.data : [];
-        setModels(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setModels([]);
-      })
-      .finally(() => {
-        if (!cancelled) setModelsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const suggestedModels = React.useMemo(() => {
-    const relevant = models.filter((item) =>
-      item.features?.some((feature) =>
-        [
-          "vision",
-          "reasoning",
-          "function-calling",
-          "structured-outputs",
-        ].includes(feature),
-      ),
-    );
-    return relevant.slice(0, 14);
-  }, [models]);
-
-  const handleImageFile = async (file?: File | null) => {
-    setAgentError("");
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setAgentError("Choose an image file for base64 vision input.");
-      return;
-    }
-    if (file.size > MAX_LOCAL_IMAGE_BYTES) {
-      setAgentError(
-        "Base64 image input should stay under 1 MB for this request.",
-      );
-      return;
-    }
-    setImageDataUrl(await readFileAsDataUrl(file));
-  };
-
-  const buildContent = (): AgentContentPart[] => {
-    const content: AgentContentPart[] = [{ type: "text", text: task }];
-    const normalizedImageUrl = normalizeHttpEndpoint(imageUrl);
-    const normalizedVideoUrl = normalizeHttpEndpoint(videoUrl);
-    if (imageDataUrl) {
-      content.push({
-        type: "image_url",
-        image_url: { url: imageDataUrl, detail: "auto" },
-      });
-    }
-    if (normalizedImageUrl) {
-      content.push({
-        type: "image_url",
-        image_url: { url: normalizedImageUrl, detail: "high" },
-      });
-    }
-    if (normalizedVideoUrl) {
-      content.push({
-        type: "video_url",
-        video_url: { url: normalizedVideoUrl },
-      });
-    }
-    return content;
-  };
-
-  const handleRunAgent = async () => {
-    setRunning(true);
-    setAgentError("");
-    setAgentAnswer("");
-    setAgentReasoning("");
-    setToolExecutions([]);
-    setArtifacts([]);
-    setActiveArtifactId(null);
-    setSandboxReady(false);
-    abortRef.current?.abort();
-    abortRef.current = new AbortController();
-
-    try {
-      await streamAgentChat(
-        {
-          model,
-          mode: structured ? "structured" : "chat",
-          enableThinking: thinking,
-          enableTools: tools,
-          reasoningSplit: thinking,
-          messages: [{ role: "user", content: buildContent() }],
-        },
-        {
-          onTextDelta: (text) => setAgentAnswer((prev) => prev + text),
-          onReasoningDelta: (text) =>
-            setAgentReasoning((prev) => prev + text),
-          onToolExecuting: ({ tool_call_id, name }) => {
-            setToolExecutions((prev) => [
-              ...prev,
-              {
-                id: tool_call_id,
-                name,
-                status: "running",
-                startedAt: Date.now(),
-              },
-            ]);
-          },
-          onToolResult: ({ tool_call_id }) => {
-            setToolExecutions((prev) =>
-              prev.map((item) =>
-                item.id === tool_call_id
-                  ? { ...item, status: "done", completedAt: Date.now() }
-                  : item,
-              ),
-            );
-          },
-          onFileCreated: ({ path, content, language, description }) => {
-            const artifact: AgentArtifact = {
-              id: crypto.randomUUID(),
-              path,
-              content,
-              language: language ?? "text",
-              description,
-            };
-            setArtifacts((prev) => [...prev, artifact]);
-            setActiveArtifactId(artifact.id);
-          },
-          onFileUpdated: ({ path, content, language }) => {
-            setArtifacts((prev) => {
-              const existing = prev.find((a) => a.path === path);
-              if (existing) {
-                return prev.map((a) =>
-                  a.path === path
-                    ? { ...a, content, language: language ?? a.language }
-                    : a,
-                );
-              }
-              const artifact: AgentArtifact = {
-                id: crypto.randomUUID(),
-                path,
-                content,
-                language: language ?? "text",
-              };
-              setActiveArtifactId(artifact.id);
-              return [...prev, artifact];
-            });
-          },
-          onSandboxReady: (payload) => {
-            setSandboxReady(true);
-            if (payload.sandboxId) setActiveSandboxId(payload.sandboxId);
-            void refreshSandboxes();
-          },
-          onCacheUsage: () => {},
-          onBashOutput: ({ text, kind }) => {
-            setToolExecutions((prev) => {
-              const last = prev[prev.length - 1];
-              if (!last) return prev;
-              return prev.map((item, index) =>
-                index === prev.length - 1
-                  ? {
-                      ...item,
-                      output:
-                        (item.output ?? "") +
-                        `[${kind}] ${text}`,
-                    }
-                  : item,
-              );
-            });
-          },
-          onError: (message) => setAgentError(message),
-        },
-        abortRef.current.signal,
-      );
-    } catch (error) {
-      if ((error as Error).name !== "AbortError") {
-        setAgentError(
-          error instanceof Error ? error.message : "The agent request failed.",
-        );
-      }
-    } finally {
-      setRunning(false);
-    }
-  };
-
-  const handleCreateRecipe = async (kind: "browser" | "desktop") => {
-    setRecipeKind(kind);
-    setRecipe(null);
-    try {
-      const nextRecipe = await createSandboxRecipe({
-        kind,
-        task,
-        model,
-        viewOnly: kind === "desktop",
-      });
-      setRecipe(nextRecipe);
-    } catch (error) {
-      setAgentError(
-        error instanceof Error
-          ? error.message
-          : "Could not create sandbox recipe.",
-      );
-    }
-  };
-
-  const handleCreateDeployment = async (kind: "persistent" | "on-demand") => {
-    setCreatingDeployment(true);
-    try {
-      await createClawDeployment(
-        kind === "persistent"
-          ? "NovitaClaw persistent agent"
-          : "NovitaClaw on-demand agent",
-        {
-          kind,
-          status: "ready",
-          model,
-          idleTimeoutSeconds: kind === "on-demand" ? 600 : undefined,
-        },
-      );
-    } finally {
-      setCreatingDeployment(false);
-    }
-  };
-
-  const handleLinkDeployment = async () => {
-    const endpoint = normalizeHttpEndpoint(linkEndpoint);
-    if (!endpoint) {
-      setAgentError("Enter a valid http or https endpoint.");
-      return;
-    }
-    setCreatingDeployment(true);
-    try {
-      await createClawDeployment("Linked NovitaClaw endpoint", {
-        kind: "linked",
-        endpoint,
-        status: "linked",
-        model,
-      });
-      setLinkEndpoint("");
-    } finally {
-      setCreatingDeployment(false);
-    }
-  };
-
+function FeatureRow({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
   return (
-    <div className="flex h-full w-full flex-1 overflow-y-auto bg-white font-sans text-zinc-800">
-      <div className="mx-auto flex w-full max-w-[1220px] flex-col gap-6 px-4 py-5 sm:px-6 sm:py-7">
-        <header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-[760px]">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[12px] font-medium text-zinc-600">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Novita sandboxed agent plane</span>
-            </div>
-            <h1 className="text-[30px] font-semibold leading-tight tracking-normal sm:text-[40px] text-zinc-900">
-              Clauxen Claw
-            </h1>
-            <p className="mt-2 max-w-[680px] text-[15px] leading-6 text-zinc-500">
-              Deploy, test, and operate a Novita-backed multimodal agent with
-              image input, video URL input, structured output, safe function
-              calls, and Python-only sandbox recipes.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex">
-            <button
-              type="button"
-              onClick={() => void handleCreateDeployment("persistent")}
-              disabled={creatingDeployment || saving}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 text-[14px] font-medium text-white transition-colors hover:bg-zinc-800 no-hover-overlay disabled:opacity-50"
-            >
-              {creatingDeployment ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              <span>Persistent</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleCreateDeployment("on-demand")}
-              disabled={creatingDeployment || saving}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 text-[14px] font-medium transition-colors hover:bg-zinc-50 disabled:opacity-50"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span>On-demand</span>
-            </button>
-          </div>
-        </header>
-
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {capabilityItems.map((item) => (
-            <article
-              key={item.label}
-              className="rounded-lg border border-zinc-200 bg-white px-4 py-3"
-            >
-              <item.icon className="mb-3 h-5 w-5 text-zinc-700" />
-              <h2 className="text-[14px] font-semibold text-zinc-900">{item.label}</h2>
-              <p className="mt-1 text-[12px] leading-5 text-zinc-500">
-                {item.detail}
-              </p>
-            </article>
-          ))}
-        </section>
-
-        <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
-          <section className="space-y-4">
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-[15px] font-semibold text-zinc-900">Agent request</h2>
-                  <p className="mt-1 text-[12px] text-zinc-500">
-                    Sends OpenAI-compatible chat completions through Novita.
-                  </p>
-                </div>
-                <Bot className="h-5 w-5 text-zinc-500" />
-              </div>
-
-              <label className="mb-2 block text-[12px] font-medium text-zinc-600">
-                Model
-              </label>
-              <select
-                value={model}
-                onChange={(event) => setModel(event.target.value)}
-                className="mb-4 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-[13px] outline-none focus:border-zinc-300"
-              >
-                <option value={DEFAULT_MODEL}>{DEFAULT_MODEL}</option>
-                <option value={DEFAULT_REASONING_MODEL}>
-                  {DEFAULT_REASONING_MODEL}
-                </option>
-                <option value={DEFAULT_VISION_MODEL}>
-                  {DEFAULT_VISION_MODEL}
-                </option>
-                {suggestedModels.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.id} — {modelFeatures(item)}
-                  </option>
-                ))}
-              </select>
-              {modelsLoading ? (
-                <p className="-mt-2 mb-4 flex items-center gap-2 text-[12px] text-zinc-500">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Loading Novita model library
-                </p>
-              ) : null}
-
-              <label className="mb-2 block text-[12px] font-medium text-zinc-600">
-                Task
-              </label>
-              <textarea
-                value={task}
-                onChange={(event) => setTask(event.target.value)}
-                className="min-h-[112px] w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[14px] leading-6 outline-none focus:border-zinc-300"
-              />
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-dashed border-zinc-200 bg-white px-3 py-3 text-[13px]">
-                  <span className="inline-flex items-center gap-2 font-medium text-zinc-700">
-                    <FileImage className="h-4 w-4" />
-                    Base64 image
-                  </span>
-                  <span className="text-[12px] leading-5 text-zinc-500">
-                    PNG, JPEG, or WebP under 1 MB.
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    className="sr-only"
-                    onChange={(event) =>
-                      void handleImageFile(event.target.files?.[0])
-                    }
-                  />
-                  {imageDataUrl ? (
-                    <span className="text-[12px] font-medium text-emerald-600">
-                      Image ready
-                    </span>
-                  ) : null}
-                </label>
-                <div className="space-y-3">
-                  <label className="block text-[12px] font-medium text-zinc-600">
-                    Image URL
-                  </label>
-                  <input
-                    value={imageUrl}
-                    onChange={(event) => setImageUrl(event.target.value)}
-                    placeholder="https://example.com/image.png"
-                    className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-[13px] outline-none focus:border-zinc-300"
-                  />
-                  <label className="block text-[12px] font-medium text-zinc-600">
-                    Video URL
-                  </label>
-                  <input
-                    value={videoUrl}
-                    onChange={(event) => setVideoUrl(event.target.value)}
-                    placeholder="https://example.com/video.mp4"
-                    className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-[13px] outline-none focus:border-zinc-300"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {[
-                  ["Thinking", thinking, setThinking, Brain],
-                  ["Tools", tools, setTools, Boxes],
-                  ["Structured", structured, setStructured, Code2],
-                ].map(([label, active, setter, Icon]) => {
-                  const ToggleIcon = Icon as typeof Brain;
-                  return (
-                    <button
-                      key={label as string}
-                      type="button"
-                      onClick={() =>
-                        (
-                          setter as React.Dispatch<
-                            React.SetStateAction<boolean>
-                          >
-                        )(!(active as boolean))
-                      }
-                      className={cn(
-                        "inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-[13px] transition-colors",
-                        active
-                          ? "border-zinc-300 bg-zinc-900 text-white"
-                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50",
-                      )}
-                    >
-                      <ToggleIcon className="h-4 w-4" />
-                      <span>{label as string}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => void handleRunAgent()}
-                disabled={running || !task.trim()}
-                className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 text-[14px] font-medium text-white transition-colors hover:bg-zinc-800 no-hover-overlay disabled:opacity-50"
-              >
-                {running ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="h-4 w-4" />
-                )}
-                <span>{running ? "Streaming…" : "Run agent (stream)"}</span>
-              </button>
-              {running ? (
-                <button
-                  type="button"
-                  onClick={() => abortRef.current?.abort()}
-                  className="ml-2 inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-[14px] font-medium transition-colors hover:bg-zinc-50"
-                >
-                  Stop
-                </button>
-              ) : null}
-              {sandboxReady ? (
-                <span className="ml-3 inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-600">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Sandbox active
-                </span>
-              ) : null}
-            </div>
-
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-[15px] font-semibold text-zinc-900">
-                    Live sandboxes
-                  </h2>
-                  <p className="mt-1 text-[12px] text-zinc-500">
-                    Novita Agent Sandbox lifecycle — auto-resume on tool use.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    void createManagedSandbox({ autoResume: true }).then(
-                      (sandbox) => {
-                        setActiveSandboxId(sandbox.sandboxId);
-                        setSandboxReady(true);
-                        void refreshSandboxes();
-                      },
-                    )
-                  }
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] transition-colors hover:bg-zinc-50"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Create</span>
-                </button>
-              </div>
-              {activeSandboxId ? (
-                <p className="mb-2 font-mono text-[12px] text-emerald-700">
-                  Active: {activeSandboxId}
-                </p>
-              ) : null}
-              <ul className="space-y-2">
-                {managedSandboxes.slice(0, 6).map((sandbox) => (
-                  <li
-                    key={sandbox.sandboxId}
-                    className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-mono text-[12px] text-zinc-800">
-                        {sandbox.sandboxId}
-                      </p>
-                      <p className="text-[11px] text-zinc-500">
-                        {sandbox.state ?? "unknown"}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void killSandbox(sandbox.sandboxId).then(() =>
-                          refreshSandboxes(),
-                        )
-                      }
-                      className="text-[12px] text-red-600 hover:underline"
-                    >
-                      Kill
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <h2 className="text-[15px] font-semibold text-zinc-900">Sandbox recipes</h2>
-                  <p className="mt-1 text-[12px] text-zinc-500">
-                    Generates Python-only code for isolated Novita Agent Sandbox
-                    sessions.
-                  </p>
-                </div>
-                <Terminal className="h-5 w-5 text-zinc-500" />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleCreateRecipe("browser")}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] transition-colors hover:bg-zinc-50"
-                >
-                  <Globe className="h-4 w-4" />
-                  <span>BrowserUse</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleCreateRecipe("desktop")}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] transition-colors hover:bg-zinc-50"
-                >
-                  <Monitor className="h-4 w-4" />
-                  <span>E2B Desktop</span>
-                </button>
-              </div>
-              {recipe ? (
-                <div className="mt-4 space-y-3">
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-[12px] leading-5 text-zinc-600">
-                    <p className="font-medium text-zinc-900">
-                      {recipeKind === "browser" ? "BrowserUse" : "E2B Desktop"}{" "}
-                      setup
-                    </p>
-                    <p className="mt-1">{recipe.install}</p>
-                    <p className="mt-1">
-                      Required env: {Object.keys(recipe.environment).join(", ")}
-                    </p>
-                  </div>
-                  <CodeBlock code={recipe.code} />
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          <aside className="space-y-4">
-            {toolExecutions.length > 0 ? (
-              <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                <h2 className="text-[15px] font-semibold text-zinc-900">Tool runs</h2>
-                <ul className="mt-3 space-y-2">
-                  {toolExecutions.map((exec) => (
-                    <li
-                      key={exec.id}
-                      className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-[12px] text-zinc-700">
-                          {exec.name}
-                        </span>
-                        {exec.status === "running" ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />
-                        ) : (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                        )}
-                      </div>
-                      {exec.output ? (
-                        <pre className="mt-2 max-h-24 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-zinc-500">
-                          {exec.output}
-                        </pre>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {artifacts.length > 0 ? (
-              <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                <h2 className="text-[15px] font-semibold text-zinc-900">Artifacts</h2>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {artifacts.map((artifact) => (
-                    <button
-                      key={artifact.id}
-                      type="button"
-                      onClick={() => setActiveArtifactId(artifact.id)}
-                      className={cn(
-                        "rounded-lg border px-3 py-1.5 text-[12px] transition-colors",
-                        activeArtifactId === artifact.id
-                          ? "border-zinc-900 bg-zinc-900 text-white"
-                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50",
-                      )}
-                    >
-                      {artifact.path.split("/").pop()}
-                    </button>
-                  ))}
-                </div>
-                {activeArtifactId ? (
-                  <div className="mt-3">
-                    <CodeBlock
-                      code={
-                        artifacts.find((a) => a.id === activeArtifactId)
-                          ?.content ?? ""
-                      }
-                    />
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <h2 className="text-[15px] font-semibold text-zinc-900">Agent output</h2>
-              {agentError ? (
-                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] leading-5 text-red-700">
-                  {agentError}
-                </p>
-              ) : null}
-              {agentReasoning ? (
-                <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                  <p className="mb-2 text-[12px] font-semibold text-zinc-600">
-                    Reasoning stream
-                  </p>
-                  <p className="whitespace-pre-wrap text-[12px] leading-5 text-zinc-500">
-                    {agentReasoning}
-                  </p>
-                </div>
-              ) : null}
-              <div className="mt-3 min-h-[180px] rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                {running ? (
-                  <p className="flex items-center gap-2 text-[13px] text-zinc-500">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Running Novita agent request
-                  </p>
-                ) : agentAnswer ? (
-                  <pre className="whitespace-pre-wrap text-[13px] leading-6 text-zinc-800">
-                    {agentAnswer}
-                  </pre>
-                ) : (
-                  <p className="text-[13px] leading-6 text-zinc-500">
-                    Run the agent to test multimodal input, tools, structured
-                    output, and reasoning.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-[15px] font-semibold text-zinc-900">Deployments</h2>
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
-                ) : null}
-              </div>
-              <div className="mb-3 flex gap-2">
-                <input
-                  value={linkEndpoint}
-                  onChange={(event) => setLinkEndpoint(event.target.value)}
-                  placeholder="Link existing NovitaClaw URL"
-                  className="h-9 min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] outline-none focus:border-zinc-300"
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleLinkDeployment()}
-                  disabled={creatingDeployment || !linkEndpoint.trim()}
-                  className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium transition-colors hover:bg-zinc-50 disabled:opacity-50"
-                >
-                  Link
-                </button>
-              </div>
-              {deployments.length > 0 ? (
-                <ul className="space-y-2">
-                  {deployments.map((deployment) => (
-                    <li
-                      key={deployment.id}
-                      className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-3"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-[13px] font-semibold text-zinc-900">
-                            {deployment.name}
-                          </p>
-                          <p className="mt-1 text-[12px] text-zinc-500">
-                            {deployment.kind ?? "persistent"} ·{" "}
-                            {deployment.status}
-                          </p>
-                        </div>
-                        <span className="shrink-0 rounded-full bg-white border border-zinc-200 px-2 py-1 text-[11px] text-zinc-600">
-                          {new Date(deployment.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {deployment.endpoint ? (
-                        <a
-                          href={deployment.endpoint}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-2 inline-flex max-w-full items-center gap-1.5 text-[12px] text-blue-600 hover:underline"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">
-                            {deployment.endpoint}
-                          </span>
-                        </a>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-3 py-6 text-center text-[13px] text-zinc-500">
-                  No Claw deployments yet.
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <h2 className="mb-2 flex items-center gap-2 text-[15px] font-semibold text-zinc-900">
-                <Video className="h-4 w-4" />
-                Video note
-              </h2>
-              <p className="text-[12px] leading-5 text-zinc-500">
-                Novita’s VLM page documents image URL and base64 image parts.
-                This app accepts video URL parts through the agent API for
-                models or future endpoints that support them; local video files
-                are not converted in-browser.
-              </p>
-            </div>
-          </aside>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-1">
+        <div className="flex h-[18px] w-[18px] items-center justify-center">
+          {icon}
         </div>
+        <h3 className="text-[14px] font-medium leading-5">{title}</h3>
       </div>
+      <p className="text-[14px] leading-5 text-black/45">{description}</p>
+    </div>
+  );
+}
+
+function DeployCard({
+  icon,
+  title,
+  description,
+  actionLabel,
+  onAction,
+  variant,
+  loading = false,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  actionLabel: string;
+  onAction: () => void;
+  variant: "primary" | "secondary";
+  loading?: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-3 rounded-xl border border-black/[0.13] p-4 transition-colors hover:bg-black/[0.02]">
+      {icon}
+      <div className="flex flex-col gap-1">
+        <h4 className="text-[14px] font-medium leading-5">{title}</h4>
+        <p className="text-[14px] leading-5 text-black/45">{description}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onAction}
+        disabled={loading}
+        className={cn(
+          "mt-auto flex h-8 w-full items-center justify-center rounded-lg px-3 text-[14px] font-medium transition-colors disabled:opacity-50",
+          variant === "primary"
+            ? "bg-black/90 text-white hover:bg-black"
+            : "bg-black/[0.03] hover:bg-black/[0.06]",
+        )}
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : actionLabel}
+      </button>
     </div>
   );
 }

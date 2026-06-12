@@ -174,13 +174,9 @@ export function ProjectFilesPanel({
                       : "border-[rgba(31,31,30,0.25)] bg-white",
                   )}
                 >
-                  {allSelected ? (
-                    <CheckIcon className="text-white" />
-                  ) : null}
+                  {allSelected ? <CheckIcon className="text-white" /> : null}
                 </span>
-                <span className="sr-only">
-                  Select all ({files.length})
-                </span>
+                <span className="sr-only">Select all ({files.length})</span>
               </label>
               <span className="text-[14px] font-[430] tabular-nums text-zinc-500">
                 <span>{selectedIds.size}</span> selected
@@ -220,9 +216,7 @@ export function ProjectFilesPanel({
             {files.map((file) => {
               const selected = selectedIds.has(file.id);
               const isGithub = file.kind === "github";
-              const badge = isGithub
-                ? "GITHUB"
-                : fileExtensionLabel(file.name);
+              const badge = isGithub ? "GITHUB" : fileExtensionLabel(file.name);
               const subtitle =
                 file.subtitle ??
                 (isGithub ? "main" : file.content ? "text" : undefined);

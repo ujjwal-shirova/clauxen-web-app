@@ -21,9 +21,11 @@
 }
 
 .app-notification-enter {
-  animation: app-notification-slide-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: app-notification-slide-in 0.2s cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
 }
 
 .app-notification-exit {
-  animation: app-notification-slide-out 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: app-notification-slide-out 0.2s cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
 }

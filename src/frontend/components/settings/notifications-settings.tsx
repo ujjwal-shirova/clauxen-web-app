@@ -1,8 +1,6 @@
 "use client";
 
-import {
-  notificationDeliveryOptions,
-} from "@/frontend/components/settings/constants";
+import { notificationDeliveryOptions } from "@/frontend/components/settings/constants";
 import {
   SettingsOptionPicker,
   SettingsPanelTitle,
@@ -146,7 +144,9 @@ export function NotificationsSettings({
       </div>
 
       <section className="flex flex-col gap-2 border-t border-zinc-200 pt-4">
-        <h3 className="text-[14px] font-semibold text-zinc-700">Local alerts</h3>
+        <h3 className="text-[14px] font-semibold text-zinc-700">
+          Local alerts
+        </h3>
         <SettingsToggleRow
           label="Desktop alerts"
           description="Show browser notifications when background chats, builds, and research tasks finish."

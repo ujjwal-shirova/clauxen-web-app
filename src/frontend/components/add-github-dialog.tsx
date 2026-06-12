@@ -64,7 +64,11 @@ export function AddGitHubDialog({
         !path.includes(".") && !path.includes("/") && path === MOCK_REPO;
       const displayName = isRepoRoot ? MOCK_REPO : path;
       const lineHint =
-        path === "README.md" ? "193 lines" : path.endsWith(".md") ? "md" : "main";
+        path === "README.md"
+          ? "193 lines"
+          : path.endsWith(".md")
+            ? "md"
+            : "main";
       return {
         id: `gh-${stamp}-${i}-${path.replace(/\//g, "-")}`,
         name: displayName,
@@ -142,8 +146,7 @@ export function AddGitHubDialog({
                 <input
                   type="checkbox"
                   checked={
-                    MOCK_FILES.length > 0 &&
-                    selected.size === MOCK_FILES.length
+                    MOCK_FILES.length > 0 && selected.size === MOCK_FILES.length
                   }
                   onChange={(e) => {
                     if (e.target.checked) {

@@ -65,7 +65,8 @@ export function ProjectsView({
   const showSkeletons =
     loading || (isSearchPending && debouncedQuery.trim().length > 0);
   const hasSearchQuery = debouncedQuery.trim().length > 0;
-  const isEmptySearch = !showSkeletons && hasSearchQuery && filtered.length === 0;
+  const isEmptySearch =
+    !showSkeletons && hasSearchQuery && filtered.length === 0;
   const isEmptyLibrary =
     !showSkeletons && !hasSearchQuery && !loading && projects.length === 0;
   const showGrid = !showSkeletons && filtered.length > 0;
@@ -82,28 +83,32 @@ export function ProjectsView({
   return (
     <div className="flex h-full w-full flex-1 flex-col overflow-hidden bg-zinc-50 font-sans text-zinc-900">
       <div className="sticky top-0 z-20 bg-zinc-50">
-        <div className="mx-auto w-full max-w-[896px] px-8 pt-6 pb-4">
-          <div className="flex items-end justify-between">
-            <h1 className="text-[24px] font-medium tracking-[-0.3px] text-zinc-700">
+        <div className="mobile-page-inset mx-auto w-full max-w-[896px] pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:pt-4 lg:px-8 lg:pt-6 lg:pb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <h1 className="text-[21px] font-medium tracking-[-0.3px] text-zinc-700 sm:text-[24px]">
               Projects
             </h1>
 
-            <div className="flex items-center gap-3">
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:gap-3">
               <ProjectSortMenu value={sortKey} onChange={setSortKey} />
               <button
                 type="button"
                 onClick={onNewProject}
-                className={cn(appBtn.primary, "gap-1.5 text-[13.5px]")}
+                className={cn(
+                  appBtn.primary,
+                  "h-9 shrink-0 gap-1.5 px-3 text-[13px] sm:h-auto sm:px-4 sm:text-[13.5px]",
+                )}
               >
                 <Plus className="h-4 w-4" />
-                New project
+                <span className="hidden min-[380px]:inline">New project</span>
+                <span className="min-[380px]:hidden">New</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[896px] px-8 pt-5">
+      <div className="mobile-page-inset mx-auto w-full max-w-[896px] pt-3 sm:pt-4 lg:px-8 lg:pt-5">
         <div className="relative">
           <div className="absolute top-1/2 left-3.5 -translate-y-1/2 text-[#898781]">
             <Search className="h-4 w-4" />
@@ -119,7 +124,7 @@ export function ProjectsView({
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[896px] px-8 pt-6 pb-20">
+        <div className="mobile-page-inset mx-auto w-full max-w-[896px] pt-4 pb-20 sm:pt-5 lg:px-8 lg:pt-6">
           {showSkeletons && <ProjectCardSkeletonGrid count={6} />}
 
           {isEmptySearch && (

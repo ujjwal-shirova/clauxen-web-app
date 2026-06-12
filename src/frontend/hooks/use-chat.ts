@@ -1,189 +1,296 @@
+"use client";
 
-'use client';
-
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { createSseParser, type StreamEvent } from '@/frontend/lib/chat-stream';
-import type { Message, MessageBranchVersion, RecentChat } from '@/frontend/lib/types';
+import { useEffect, useState, useCallback, useRef } from "react";
+import type { StreamEvent } from "@/frontend/lib/chat-stream";
+import { applyAgentStreamEvent } from "@/frontend/lib/agent-stream-reducer";
+import type { Message, RecentChat } from "@/frontend/lib/types";
+import { useChatApi } from "@/frontend/hooks/use-chat-api";
+import { useAiStream } from "@/frontend/hooks/use-ai-stream";
+import {
+  getAllChatsNormalized,
+  patchAssistantMessage,
+  setAllChatsNormalized,
+} from "@/frontend/lib/chat-store-bridge";
+import {
+  migrateLegacyLocalStorage,
+  schedulePersistAllChats,
+  loadChatMeta,
+  loadFullChatFromIndexedDB,
+  CHAT_STORAGE_KEY,
+  BRANCH_DATASET_KEY,
+} from "@/frontend/lib/chat-storage";
+import {
+  useActiveChatMessages,
+  useActiveChatId,
+  setActiveChatId,
+  useChatStore,
+} from "@/frontend/stores/chat-store";
+import {
+  ensureBranchVersions,
+  compactMessageBranchData,
+  createChatSnapshot,
+  editMessageWithBranchHelper,
+  retryAssistantWithBranchHelper,
+  switchMessageBranchHelper,
+} from "@/frontend/lib/chat-branch";
+import {
+  deriveTitleFromExchange,
+  normalizeChatTitle,
+  stripTitleSourceText,
+} from "@/lib/chat-title";
+import { shouldUseAgentPath } from "@/lib/chat-routing";
 
 type AllChats = { [key: string]: Message[] };
-const CHAT_STORAGE_KEY = 'clauxen-chat-state-v1';
-const BRANCH_DATASET_KEY = 'clauxen-branch-dataset-v1';
-type BranchDataset = Record<string, Record<string, { activeIndex: number; totalVersions: number; updatedAt: number }>>;
+type BranchDataset = Record<
+  string,
+  Record<
+    string,
+    { activeIndex: number; totalVersions: number; updatedAt: number }
+  >
+>;
 
-const stripMessageForSnapshot = (message: Message): Message => ({
-  id: message.id,
-  role: message.role,
-  content: message.content,
-  thinkingContent: message.thinkingContent,
-  hasThinking: message.hasThinking,
-  thinkingDurationSeconds: message.thinkingDurationSeconds,
-});
-
-const createChatSnapshot = (messages: Message[]): Message[] => messages.map(stripMessageForSnapshot);
-
-const mergeSnapshotWithBranchMeta = (snapshot: Message[], currentMessages: Message[]): Message[] => {
-  const branchMetaMap = new Map(
-    currentMessages.map((msg) => [msg.id, { branchVersions: msg.branchVersions, activeBranchIndex: msg.activeBranchIndex }] as const)
+function compactChatsForStorage(chats: AllChats): AllChats {
+  return Object.fromEntries(
+    Object.entries(chats).map(([chatId, messages]) => [
+      chatId,
+      messages.map(compactMessageBranchData),
+    ]),
   );
+}
 
-  return snapshot.map((msg) => {
-    const meta = branchMetaMap.get(msg.id);
-    if (!meta) return msg;
-    return {
-      ...msg,
-      branchVersions: meta.branchVersions,
-      activeBranchIndex: meta.activeBranchIndex,
-    };
-  });
+export type UseChatOptions = {
+  apiEnabled?: boolean;
+  projectId?: string | null;
+  thinkingEnabled?: boolean;
+  webSearchEnabled?: boolean;
 };
 
-const ensureBranchVersions = (message: Message): MessageBranchVersion[] =>
-  message.branchVersions?.length
-    ? message.branchVersions
-    : [
-        {
-          content: message.content,
-          thinkingContent: message.thinkingContent,
-          hasThinking: message.hasThinking,
-          thinkingDurationSeconds: message.thinkingDurationSeconds,
-        },
-      ];
-
-const hydrateMessageFromActiveBranch = (message: Message, branchIndex: number): Message => {
-  const versions = ensureBranchVersions(message);
-  const safeIndex = Math.max(0, Math.min(branchIndex, versions.length - 1));
-  const active = versions[safeIndex];
-
-  return {
-    ...message,
-    content: active.content,
-    thinkingContent: active.thinkingContent,
-    hasThinking: active.hasThinking,
-    thinkingDurationSeconds: active.thinkingDurationSeconds,
-    activeBranchIndex: safeIndex,
-    branchVersions: versions,
-  };
-};
-
-export function useChat() {
-  const [allChats, setAllChats] = useState<AllChats>({});
+function useLocalChat(
+  options: Pick<UseChatOptions, "thinkingEnabled" | "webSearchEnabled"> = {},
+) {
+  const thinkingEnabled = options.thinkingEnabled ?? false;
+  const webSearchEnabled = options.webSearchEnabled ?? false;
+  const { streamFromResponse } = useAiStream();
   const [branchDataset, setBranchDataset] = useState<BranchDataset>({});
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const activeChatId = useActiveChatId();
   const [isGenerating, setIsGenerating] = useState(false);
+  const setAllChats = setAllChatsNormalized;
   const activeRequestRef = useRef<AbortController | null>(null);
-  const activeGenerationRef = useRef<{ chatId: string; assistantMessageId: string } | null>(null);
+  const activeGenerationRef = useRef<{
+    chatId: string;
+    assistantMessageId: string;
+  } | null>(null);
   const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const allChatsRef = useRef<AllChats>({});
   const recentChatsRef = useRef<RecentChat[]>([]);
   const titleGenerationInProgressRef = useRef<Set<string>>(new Set());
 
-  const messages = activeChatId ? allChats[activeChatId] || [] : [];
-  const activeChat = recentChats.find((chat) => chat.id === activeChatId) ?? null;
+  const messages = useActiveChatMessages();
+  const activeChat =
+    recentChats.find((chat) => chat.id === activeChatId) ?? null;
 
   useEffect(() => {
-    allChatsRef.current = allChats;
-  }, [allChats]);
+    allChatsRef.current = getAllChatsNormalized();
+    return useChatStore.subscribe(() => {
+      allChatsRef.current = getAllChatsNormalized();
+    });
+  }, []);
+
 
   useEffect(() => {
     recentChatsRef.current = recentChats;
   }, [recentChats]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
-    try {
-      const saved = window.localStorage.getItem(CHAT_STORAGE_KEY);
-      if (!saved) return;
+    void (async () => {
+      try {
+        const migrated = await migrateLegacyLocalStorage();
+        if (migrated) {
+          const hydratedChats = Object.fromEntries(
+            Object.entries(migrated.allChats).map(([chatId, chatMessages]) => [
+              chatId,
+              chatMessages.map((message) =>
+                compactMessageBranchData({
+                  ...message,
+                  isStreaming: false,
+                  isThinkingStreaming: false,
+                }),
+              ),
+            ]),
+          );
+          useChatStore.getState().hydrateFromLegacy({
+            allChats: hydratedChats,
+            recentChats: migrated.meta?.recentChats,
+            activeChatId: migrated.meta?.activeChatId,
+            branchDataset: migrated.meta?.branchDataset,
+          });
+          if (migrated.meta?.recentChats) {
+            setRecentChats(
+              migrated.meta.recentChats.map((chat) => ({
+                ...chat,
+                isTitleStreaming: false,
+              })),
+            );
+          }
+          if (migrated.meta?.activeChatId !== undefined) {
+            setActiveChatId(migrated.meta.activeChatId);
+          }
+          if (migrated.meta?.branchDataset) {
+            setBranchDataset(migrated.meta.branchDataset);
+          }
+          return;
+        }
 
-      const parsed = JSON.parse(saved) as {
-        allChats?: AllChats;
-        recentChats?: RecentChat[];
-        activeChatId?: string | null;
-        branchDataset?: BranchDataset;
-      };
+        const meta = await loadChatMeta();
+        if (!meta) {
+          const saved = window.localStorage.getItem(CHAT_STORAGE_KEY);
+          if (!saved) return;
+          const parsed = JSON.parse(saved) as {
+            allChats?: AllChats;
+            recentChats?: RecentChat[];
+            activeChatId?: string | null;
+            branchDataset?: BranchDataset;
+          };
+          if (parsed.allChats) {
+            const hydratedChats = Object.fromEntries(
+              Object.entries(parsed.allChats).map(([chatId, chatMessages]) => [
+                chatId,
+                chatMessages.map((message) =>
+                  compactMessageBranchData({
+                    ...message,
+                    isStreaming: false,
+                    isThinkingStreaming: false,
+                  }),
+                ),
+              ]),
+            );
+            useChatStore.getState().hydrateFromLegacy({
+              allChats: hydratedChats,
+              recentChats: parsed.recentChats,
+              activeChatId: parsed.activeChatId,
+              branchDataset: parsed.branchDataset,
+            });
+          }
+          if (parsed.recentChats) setRecentChats(parsed.recentChats);
+          if (parsed.activeChatId !== undefined)
+            setActiveChatId(parsed.activeChatId);
+          if (parsed.branchDataset) setBranchDataset(parsed.branchDataset);
+          return;
+        }
 
-      if (parsed.allChats) {
-        const hydratedChats = Object.fromEntries(
-          Object.entries(parsed.allChats).map(([chatId, chatMessages]) => [
-            chatId,
-            chatMessages.map((message) => ({ ...message, isStreaming: false, isThinkingStreaming: false })),
-          ])
-        );
-        setAllChats(hydratedChats);
-      }
-      if (parsed.recentChats) {
         setRecentChats(
-          parsed.recentChats.map((chat) => ({
+          meta.recentChats.map((chat) => ({
             ...chat,
             isTitleStreaming: false,
-          }))
+          })),
         );
+        setActiveChatId(meta.activeChatId);
+        setBranchDataset(meta.branchDataset);
+
+        const allChats: AllChats = {};
+        for (const chat of meta.recentChats) {
+          const loaded = await loadFullChatFromIndexedDB(chat.id);
+          if (loaded.length > 0) {
+            allChats[chat.id] = loaded.map((message) =>
+              compactMessageBranchData({
+                ...message,
+                isStreaming: false,
+                isThinkingStreaming: false,
+              }),
+            );
+          }
+        }
+        useChatStore.getState().hydrateFromLegacy({
+          allChats,
+          recentChats: meta.recentChats,
+          activeChatId: meta.activeChatId,
+          branchDataset: meta.branchDataset,
+        });
+      } catch (error) {
+        console.error("Failed to restore chat state:", error);
       }
-      if (parsed.activeChatId !== undefined) setActiveChatId(parsed.activeChatId);
-      if (parsed.branchDataset) setBranchDataset(parsed.branchDataset);
-    } catch (error) {
-      console.error('Failed to restore chat state:', error);
-    }
+    })();
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
-    if (persistTimeoutRef.current) {
-      clearTimeout(persistTimeoutRef.current);
-    }
+    let cancelPersist: (() => void) | null = null;
 
-    persistTimeoutRef.current = setTimeout(() => {
-      window.localStorage.setItem(
-        CHAT_STORAGE_KEY,
-        JSON.stringify({ allChats, recentChats, activeChatId, branchDataset })
+    const schedule = () => {
+      cancelPersist?.();
+      cancelPersist = schedulePersistAllChats(
+        compactChatsForStorage(getAllChatsNormalized()),
+        {
+          recentChats: recentChatsRef.current,
+          activeChatId,
+          branchDataset,
+        },
+        isGenerating ? 900 : 200,
       );
-      window.localStorage.setItem(BRANCH_DATASET_KEY, JSON.stringify(branchDataset));
-    }, isGenerating ? 900 : 200);
+    };
+
+    schedule();
+    const unsub = useChatStore.subscribe(schedule);
 
     return () => {
-      if (persistTimeoutRef.current) {
-        clearTimeout(persistTimeoutRef.current);
-      }
+      unsub();
+      cancelPersist?.();
     };
-  }, [allChats, recentChats, activeChatId, branchDataset, isGenerating]);
+  }, [activeChatId, branchDataset, isGenerating]);
 
-  const finalizeAssistantMessage = useCallback((chatId: string, assistantMessageId: string) => {
-    setAllChats((prev) => {
-      const currentMessages = prev[chatId] || [];
-      return {
-        ...prev,
-        [chatId]: currentMessages.map((message) =>
-          message.id === assistantMessageId ? { ...message, isStreaming: false } : message
-        ),
-      };
-    });
-  }, []);
+  const finalizeAssistantMessage = useCallback(
+    (chatId: string, assistantMessageId: string) => {
+      setAllChats((prev) => {
+        const currentMessages = prev[chatId] || [];
+        return {
+          ...prev,
+          [chatId]: currentMessages.map((message) =>
+            message.id === assistantMessageId
+              ? { ...message, isStreaming: false }
+              : message,
+          ),
+        };
+      });
+    },
+    [],
+  );
 
-  const finalizeThinkingTimer = useCallback((chatId: string, assistantMessageId: string) => {
-    setAllChats((prev) => {
-      const currentMessages = prev[chatId] || [];
-      return {
-        ...prev,
-        [chatId]: currentMessages.map((message) => {
-          if (message.id !== assistantMessageId) {
-            return message;
-          }
+  const finalizeThinkingTimer = useCallback(
+    (chatId: string, assistantMessageId: string) => {
+      setAllChats((prev) => {
+        const currentMessages = prev[chatId] || [];
+        return {
+          ...prev,
+          [chatId]: currentMessages.map((message) => {
+            if (message.id !== assistantMessageId) {
+              return message;
+            }
 
-          if (typeof message.thinkingStartedAtMs !== 'number' || message.thinkingDurationSeconds !== undefined) {
-            return message;
-          }
+            if (
+              typeof message.thinkingStartedAtMs !== "number" ||
+              message.thinkingDurationSeconds !== undefined
+            ) {
+              return message;
+            }
 
-          const durationSeconds = Math.max(1, Math.round((Date.now() - message.thinkingStartedAtMs) / 1000));
-          return {
-            ...message,
-            thinkingDurationSeconds: durationSeconds,
-          };
-        }),
-      };
-    });
-  }, []);
+            const durationSeconds = Math.max(
+              1,
+              Math.round((Date.now() - message.thinkingStartedAtMs) / 1000),
+            );
+            return {
+              ...message,
+              thinkingDurationSeconds: durationSeconds,
+            };
+          }),
+        };
+      });
+    },
+    [],
+  );
 
   const stopGeneration = useCallback(() => {
     const activeRequest = activeRequestRef.current;
@@ -195,94 +302,155 @@ export function useChat() {
 
     activeRequest.abort();
     activeRequestRef.current = null;
-    finalizeAssistantMessage(activeGeneration.chatId, activeGeneration.assistantMessageId);
+    finalizeAssistantMessage(
+      activeGeneration.chatId,
+      activeGeneration.assistantMessageId,
+    );
     activeGenerationRef.current = null;
     setIsGenerating(false);
   }, [finalizeAssistantMessage]);
 
-  const streamChatTitle = useCallback(async (chatId: string, nextTitle: string) => {
-    setRecentChats((prev) =>
-      prev.map((chat) =>
-        chat.id === chatId
-          ? { ...chat, name: '', isTitleStreaming: true }
-          : chat
-      )
-    );
+  const streamChatTitle = useCallback(
+    async (
+      chatId: string,
+      nextTitle: string,
+      exchange: { userContent: string; assistantContent: string },
+    ) => {
+      const title = normalizeChatTitle(nextTitle, exchange);
 
-    for (let index = 1; index <= nextTitle.length; index += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 28));
-      const partial = nextTitle.slice(0, index);
-      setRecentChats((prev) =>
-        prev.map((chat) =>
-          chat.id === chatId
-            ? { ...chat, name: partial, isTitleStreaming: true }
-            : chat
-        )
-      );
-    }
-
-    setRecentChats((prev) =>
-      prev.map((chat) =>
-        chat.id === chatId
-          ? { ...chat, name: nextTitle, isTitleStreaming: false, titleGenerated: true }
-          : chat
-      )
-    );
-  }, []);
-
-  const maybeGenerateChatTitle = useCallback(async (chatId: string) => {
-    if (titleGenerationInProgressRef.current.has(chatId)) {
-      return;
-    }
-
-    const chatMeta = recentChatsRef.current.find((chat) => chat.id === chatId);
-    if (!chatMeta || chatMeta.titleGenerated) {
-      return;
-    }
-
-    const chatMessages = allChatsRef.current[chatId] || [];
-    const firstUserMessage = chatMessages.find((message) => message.role === 'user' && message.content.trim().length > 0);
-    const firstAssistantMessage = chatMessages.find((message) => message.role === 'assistant' && message.content.trim().length > 0);
-
-    if (!firstUserMessage || !firstAssistantMessage) {
-      return;
-    }
-
-    titleGenerationInProgressRef.current.add(chatId);
-
-    try {
-      const response = await fetch('/api/chat/title', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            { role: 'user', content: firstUserMessage.content },
-            { role: 'assistant', content: firstAssistantMessage.content },
-          ],
-        }),
+      setRecentChats((prev) => {
+        const next = prev.map((chat) =>
+          chat.id === chatId ? { ...chat, isTitleStreaming: true } : chat,
+        );
+        recentChatsRef.current = next;
+        return next;
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to generate chat title');
+      for (let index = 1; index <= title.length; index += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 28));
+        const partial = title.slice(0, index);
+        setRecentChats((prev) => {
+          const next = prev.map((chat) =>
+            chat.id === chatId
+              ? { ...chat, name: partial, isTitleStreaming: true }
+              : chat,
+          );
+          recentChatsRef.current = next;
+          return next;
+        });
       }
 
-      const payload = (await response.json()) as { title?: string };
-      const title = payload.title?.trim() || 'New Chat';
-      await streamChatTitle(chatId, title);
-    } catch (error) {
-      console.error('Failed to generate chat title:', error);
-      setRecentChats((prev) =>
-        prev.map((chat) =>
+      setRecentChats((prev) => {
+        const next = prev.map((chat) =>
           chat.id === chatId
-            ? { ...chat, isTitleStreaming: false, titleGenerated: false, name: chat.name || 'New Chat' }
-            : chat
-        )
+            ? {
+                ...chat,
+                name: title,
+                isTitleStreaming: false,
+                titleGenerated: true,
+              }
+            : chat,
+        );
+        recentChatsRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const maybeGenerateChatTitle = useCallback(
+    async (
+      chatId: string,
+      initialExchange?: { userContent: string; assistantContent: string },
+    ) => {
+      if (titleGenerationInProgressRef.current.has(chatId)) {
+        return;
+      }
+
+      const chatMeta = recentChatsRef.current.find(
+        (chat) => chat.id === chatId,
       );
-    } finally {
-      titleGenerationInProgressRef.current.delete(chatId);
-    }
-  }, [streamChatTitle]);
-  
+      if (!chatMeta || chatMeta.titleGenerated) {
+        return;
+      }
+
+      const chatMessages = allChatsRef.current[chatId] || [];
+      const completedAssistants = chatMessages.filter(
+        (message) =>
+          message.role === "assistant" &&
+          !message.isStreaming &&
+          message.content.trim().length > 0,
+      );
+      const firstUserContent =
+        initialExchange?.userContent ??
+        chatMessages.find(
+          (message) =>
+            message.role === "user" && message.content.trim().length > 0,
+        )?.content;
+      const firstAssistantContent =
+        initialExchange?.assistantContent ??
+        (completedAssistants.length === 1
+          ? completedAssistants[0].content
+          : undefined);
+
+      if (!firstUserContent?.trim() || !firstAssistantContent?.trim()) {
+        return;
+      }
+
+      titleGenerationInProgressRef.current.add(chatId);
+      setRecentChats((prev) => {
+        const next = prev.map((chat) =>
+          chat.id === chatId ? { ...chat, titleGenerated: true } : chat,
+        );
+        recentChatsRef.current = next;
+        return next;
+      });
+
+      const userContentForTitle = stripTitleSourceText(firstUserContent);
+      const assistantContentForTitle = stripTitleSourceText(
+        firstAssistantContent,
+      );
+
+      try {
+        const response = await fetch("/api/chat/title", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              { role: "user", content: userContentForTitle },
+              { role: "assistant", content: assistantContentForTitle },
+            ],
+            thinkingEnabled: false,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to generate chat title");
+        }
+
+        const payload = (await response.json()) as { title?: string };
+        const title = payload.title?.trim() || "";
+        await streamChatTitle(chatId, title, {
+          userContent: userContentForTitle,
+          assistantContent: assistantContentForTitle,
+        });
+      } catch (error) {
+        console.error("Failed to generate chat title:", error);
+        const fallback = deriveTitleFromExchange(
+          userContentForTitle,
+          assistantContentForTitle,
+        );
+        await streamChatTitle(chatId, fallback, {
+          userContent: userContentForTitle,
+          assistantContent: assistantContentForTitle,
+        });
+      } finally {
+        titleGenerationInProgressRef.current.delete(chatId);
+      }
+    },
+    [streamChatTitle],
+  );
+
   const startNewChat = useCallback(() => {
     setActiveChatId(null);
   }, []);
@@ -292,11 +460,16 @@ export function useChat() {
       chatId,
       assistantMessageId,
       conversationForApi,
+      titleUserContent,
       onCompleted,
     }: {
       chatId: string;
       assistantMessageId: string;
-      conversationForApi: Array<{ role: 'user' | 'assistant'; content: string }>;
+      conversationForApi: Array<{
+        role: "user" | "assistant";
+        content: string;
+      }>;
+      titleUserContent?: string;
       onCompleted?: () => void;
     }) => {
       const requestController = new AbortController();
@@ -305,211 +478,181 @@ export function useChat() {
         chatId,
         assistantMessageId,
       };
-
       try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
+        const response = await fetch("/api/chat", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify({ messages: conversationForApi }),
+          body: JSON.stringify({
+            messages: conversationForApi,
+            thinkingEnabled,
+            webSearchEnabled,
+          }),
           signal: requestController.signal,
         });
 
         if (!response.ok || !response.body) {
-          throw new Error('Failed to generate response');
+          throw new Error("Failed to generate response");
         }
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let pendingThinkingDelta = '';
-        let pendingAnswerDelta = '';
-        let frameId: number | null = null;
+        let completedAnswer = "";
+        let answerStarted = false;
+        let streamError: string | null = null;
         const THINK_TAG_REGEX = /<\/?think>/gi;
 
-        const applyAssistantPatch = (updater: (message: Message) => Message) => {
-          setAllChats((prev) => {
-            const currentMessages = prev[chatId] || [];
-            return {
-              ...prev,
-              [chatId]: currentMessages.map((message) =>
-                message.id === assistantMessageId ? updater(message) : message
-              ),
-            };
-          });
-        };
-
-        const flushPendingDeltas = () => {
-          if (!pendingThinkingDelta && !pendingAnswerDelta) {
-            return;
-          }
-
-          const thinkingDelta = pendingThinkingDelta;
-          const answerDelta = pendingAnswerDelta;
-          pendingThinkingDelta = '';
-          pendingAnswerDelta = '';
-
-          applyAssistantPatch((message) => {
-            const nextMessage: Message = {
-              ...message,
-              hasThinking: message.hasThinking || thinkingDelta.length > 0,
-              thinkingContent: `${message.thinkingContent ?? ''}${thinkingDelta}`,
-              content: `${message.content}${answerDelta}`,
-              isStreaming: true,
-            };
-
-            if (nextMessage.activeBranchIndex !== undefined) {
-              const versions = ensureBranchVersions(nextMessage);
-              const branchIndex = nextMessage.activeBranchIndex;
-              const nextVersions = [...versions];
-              nextVersions[branchIndex] = {
-                content: nextMessage.content,
-                thinkingContent: nextMessage.thinkingContent,
-                hasThinking: nextMessage.hasThinking,
-                thinkingDurationSeconds: nextMessage.thinkingDurationSeconds,
-              };
-              nextMessage.branchVersions = nextVersions;
-            }
-
-            return nextMessage;
-          });
-        };
-
-        const scheduleDeltaFlush = () => {
-          if (frameId !== null) {
-            return;
-          }
-
-          frameId = window.requestAnimationFrame(() => {
-            frameId = null;
-            flushPendingDeltas();
-          });
+        const applyAssistantPatch = (
+          updater: (message: Message) => Message,
+        ) => {
+          patchAssistantMessage(chatId, assistantMessageId, updater);
         };
 
         const handleEvent = (event: StreamEvent) => {
-          switch (event.type) {
-            case 'start':
-              applyAssistantPatch((message) => ({ ...message, isStreaming: true }));
-              break;
-            case 'thinking_start':
-              applyAssistantPatch((message) => ({
-                ...message,
-                hasThinking: true,
-                isThinkingStreaming: true,
-                thinkingStartedAtMs: message.thinkingStartedAtMs ?? Date.now(),
-                isStreaming: true,
-              }));
-              break;
-            case 'thinking_delta':
-              {
-                const sawCloseThinkTag = /<\/think>/i.test(event.delta);
-                const normalizedThinkingDelta = event.delta.replace(THINK_TAG_REGEX, '');
-                pendingThinkingDelta += normalizedThinkingDelta;
-                if (sawCloseThinkTag) {
-                  finalizeThinkingTimer(chatId, assistantMessageId);
-                  applyAssistantPatch((message) => ({
-                    ...message,
-                    isThinkingStreaming: false,
-                  }));
-                }
-              }
-              scheduleDeltaFlush();
-              break;
-            case 'answer_delta':
+          if (event.type === "thinking_delta") {
+            const sawCloseThinkTag = /<\/think>/i.test(event.delta);
+            const normalizedThinkingDelta = event.delta.replace(
+              THINK_TAG_REGEX,
+              "",
+            );
+            if (normalizedThinkingDelta || event.segmentId) {
+              applyAssistantPatch((message) =>
+                applyAgentStreamEvent(message, {
+                  ...event,
+                  delta: normalizedThinkingDelta,
+                }),
+              );
+            }
+            if (sawCloseThinkTag) {
               finalizeThinkingTimer(chatId, assistantMessageId);
               applyAssistantPatch((message) => ({
                 ...message,
                 isThinkingStreaming: false,
               }));
-              pendingAnswerDelta += event.delta;
-              scheduleDeltaFlush();
-              break;
-            case 'done':
-              if (frameId !== null) {
-                window.cancelAnimationFrame(frameId);
-                frameId = null;
-              }
-              flushPendingDeltas();
-              applyAssistantPatch((message) => ({
-                ...message,
-                isThinkingStreaming: false,
-                isStreaming: false,
-              }));
-              finalizeThinkingTimer(chatId, assistantMessageId);
-              activeRequestRef.current = null;
-              activeGenerationRef.current = null;
-              setIsGenerating(false);
-              void maybeGenerateChatTitle(chatId);
-              onCompleted?.();
-              break;
-            case 'error':
-              if (frameId !== null) {
-                window.cancelAnimationFrame(frameId);
-                frameId = null;
-              }
-              flushPendingDeltas();
-              applyAssistantPatch((message) => ({
-                ...message,
-                content: message.content || event.message,
-                isThinkingStreaming: false,
-                isStreaming: false,
-              }));
-              finalizeThinkingTimer(chatId, assistantMessageId);
-              activeRequestRef.current = null;
-              activeGenerationRef.current = null;
-              setIsGenerating(false);
-              void maybeGenerateChatTitle(chatId);
-              onCompleted?.();
-              break;
+            }
+            return;
           }
+
+          if (event.type === "answer_delta") {
+            if (!answerStarted) {
+              answerStarted = true;
+              finalizeThinkingTimer(chatId, assistantMessageId);
+            }
+            completedAnswer += event.delta;
+          }
+
+          if (event.type === "error") {
+            streamError = event.message;
+          }
+
+          applyAssistantPatch((message) =>
+            applyAgentStreamEvent(message, event),
+          );
         };
 
-        const parseChunk = createSseParser(handleEvent);
+        await streamFromResponse(
+          response,
+          { onEvent: handleEvent },
+          requestController.signal,
+        );
 
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) {
-            finalizeThinkingTimer(chatId, assistantMessageId);
-            activeRequestRef.current = null;
-            activeGenerationRef.current = null;
-            setIsGenerating(false);
-            void maybeGenerateChatTitle(chatId);
-            onCompleted?.();
-            break;
-          }
-
-          const textChunk = decoder.decode(value, { stream: true });
-          parseChunk(textChunk);
+        if (streamError) {
+          applyAssistantPatch((message) => ({
+            ...message,
+            content: message.content || streamError || "Generation failed.",
+            isThinkingStreaming: false,
+            isStreaming: false,
+          }));
+          finalizeThinkingTimer(chatId, assistantMessageId);
+          activeRequestRef.current = null;
+          activeGenerationRef.current = null;
+          setIsGenerating(false);
+          return;
         }
+
+        if (activeRequestRef.current !== requestController) return;
+
+        applyAssistantPatch((message) => {
+          const nextMessage: Message = {
+            ...message,
+            isThinkingStreaming: false,
+            isStreaming: false,
+          };
+          if (nextMessage.activeBranchIndex !== undefined) {
+            const versions = ensureBranchVersions(nextMessage);
+            const branchIndex = nextMessage.activeBranchIndex;
+            const nextVersions = [...versions];
+            nextVersions[branchIndex] = {
+              content: nextMessage.content,
+              thinkingContent: nextMessage.thinkingContent,
+              hasThinking: nextMessage.hasThinking,
+              thinkingDurationSeconds: nextMessage.thinkingDurationSeconds,
+              agentMode: nextMessage.agentMode,
+              agentFrameComplete: nextMessage.agentFrameComplete,
+              agentSegments: nextMessage.agentSegments,
+            };
+            nextMessage.branchVersions = nextVersions;
+          }
+          return nextMessage;
+        });
+        finalizeThinkingTimer(chatId, assistantMessageId);
+        activeRequestRef.current = null;
+        activeGenerationRef.current = null;
+        setIsGenerating(false);
+        if (titleUserContent && completedAnswer.trim()) {
+          void maybeGenerateChatTitle(chatId, {
+            userContent: titleUserContent,
+            assistantContent: completedAnswer,
+          });
+        }
+        window.setTimeout(() => onCompleted?.(), 0);
       } catch (error: any) {
         activeRequestRef.current = null;
         const generationContext = activeGenerationRef.current;
         activeGenerationRef.current = null;
 
-        if (error?.name === 'AbortError') {
+        if (error?.name === "AbortError") {
           if (generationContext) {
-            finalizeThinkingTimer(generationContext.chatId, generationContext.assistantMessageId);
-            finalizeAssistantMessage(generationContext.chatId, generationContext.assistantMessageId);
+            finalizeThinkingTimer(
+              generationContext.chatId,
+              generationContext.assistantMessageId,
+            );
+            finalizeAssistantMessage(
+              generationContext.chatId,
+              generationContext.assistantMessageId,
+            );
           }
           setIsGenerating(false);
           return;
         }
 
-        console.error('Error generating response:', error);
-        const errorMessage = 'Sorry, I encountered an error. Please try again.';
+        console.error("Error generating response:", error);
+        const errorMessage = "Sorry, I encountered an error. Please try again.";
         setAllChats((prev) => {
           const currentMessages = prev[chatId] || [];
           const updatedMessages = currentMessages.map((msg) =>
             msg.id === assistantMessageId
-              ? { ...msg, content: errorMessage, thinkingContent: '', isStreaming: false, hasThinking: false }
-              : msg
+              ? {
+                  ...msg,
+                  content: errorMessage,
+                  thinkingContent: "",
+                  isStreaming: false,
+                  hasThinking: false,
+                }
+              : msg,
           );
           return { ...prev, [chatId]: updatedMessages };
         });
         setIsGenerating(false);
       }
     },
-    [finalizeAssistantMessage, finalizeThinkingTimer, maybeGenerateChatTitle]
+    [
+      finalizeAssistantMessage,
+      finalizeThinkingTimer,
+      maybeGenerateChatTitle,
+      streamFromResponse,
+      thinkingEnabled,
+      webSearchEnabled,
+    ],
   );
 
   const handleSendMessage = async (prompt: string) => {
@@ -523,171 +666,155 @@ export function useChat() {
 
     if (isNewChat) {
       currentChatId = `chat_${Date.now()}`;
-      const newChatEntry: RecentChat = { id: currentChatId, name: 'New Chat', titleGenerated: false, isTitleStreaming: false };
-      
-      setAllChats(prev => ({ ...prev, [currentChatId!]: [] }));
-      setRecentChats(prev => [newChatEntry, ...prev]);
+      const newChatEntry: RecentChat = {
+        id: currentChatId,
+        name: "New Chat",
+        titleGenerated: false,
+        isTitleStreaming: false,
+        updatedAt: Date.now(),
+      };
+
+      setAllChats((prev) => ({ ...prev, [currentChatId!]: [] }));
+      setRecentChats((prev) => {
+        const next = [newChatEntry, ...prev];
+        recentChatsRef.current = next;
+        return next;
+      });
       setActiveChatId(currentChatId);
+    } else if (currentChatId) {
+      const chatId = currentChatId;
+      setRecentChats((prev) => {
+        const current = prev.find((chat) => chat.id === chatId);
+        if (!current) return prev;
+        const next = [
+          { ...current, updatedAt: Date.now() },
+          ...prev.filter((chat) => chat.id !== chatId),
+        ];
+        recentChatsRef.current = next;
+        return next;
+      });
     }
-    
+
     const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user',
+      role: "user",
       content: cleanPrompt,
-      activeBranchIndex: 0,
-      branchVersions: [{ content: cleanPrompt }],
     };
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: '',
-      thinkingContent: '',
-      isStreaming: true,
-      isThinkingStreaming: false,
-      hasThinking: false,
-      activeBranchIndex: 0,
-      branchVersions: [{ content: '', thinkingContent: '', hasThinking: false }],
-    };
-
     const conversationForApi = [...messages, userMessage]
-      .filter((entry) => entry.role === 'user' || entry.content.trim().length > 0)
+      .filter(
+        (entry) => entry.role === "user" || entry.content.trim().length > 0,
+      )
       .map((entry) => ({
         role: entry.role,
         content: entry.content,
       }));
-    
-    setAllChats(prev => ({
+
+    const useAgent = shouldUseAgentPath({
+      webSearchEnabled,
+      thinkingType: thinkingEnabled ? "enabled" : "disabled",
+    });
+
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: "",
+      thinkingContent: "",
+      isStreaming: true,
+      isThinkingStreaming: false,
+      hasThinking: false,
+      agentMode: useAgent,
+      agentFrameComplete: false,
+      agentSegments: useAgent ? [] : undefined,
+    };
+
+    setAllChats((prev) => ({
       ...prev,
-      [currentChatId!]: [...(prev[currentChatId!] || []), userMessage, assistantMessage],
+      [currentChatId!]: [
+        ...(prev[currentChatId!] || []),
+        userMessage,
+        assistantMessage,
+      ],
     }));
 
     await streamAssistantResponse({
       chatId: currentChatId!,
       assistantMessageId: assistantMessage.id,
       conversationForApi,
-      onCompleted: () => {
-        const finalMessages = allChatsRef.current[currentChatId!] || [];
-        const snapshot = createChatSnapshot(finalMessages);
-        setAllChats((prev) => {
-          const chatMessages = prev[currentChatId!] || [];
-          return {
-            ...prev,
-            [currentChatId!]: chatMessages.map((msg) => {
-              if (!msg.branchVersions?.length) return msg;
-              const active = msg.activeBranchIndex ?? msg.branchVersions.length - 1;
-              const versions = [...msg.branchVersions];
-              versions[active] = {
-                ...versions[active],
-                snapshot,
-              };
-              return { ...msg, branchVersions: versions };
-            }),
-          };
-        });
-      },
+      titleUserContent: isNewChat ? cleanPrompt : undefined,
     });
   };
 
-  const switchMessageBranch = useCallback((chatId: string, messageId: string, direction: 'prev' | 'next') => {
-    setAllChats((prev) => {
-      const chatMessages = prev[chatId] || [];
-      const targetMessage = chatMessages.find((msg) => msg.id === messageId);
-      if (!targetMessage) return prev;
-      const versions = ensureBranchVersions(targetMessage);
-      if (versions.length <= 1) return prev;
-      const current = targetMessage.activeBranchIndex ?? versions.length - 1;
-      const next = direction === 'prev' ? current - 1 : current + 1;
-      if (next < 0 || next >= versions.length) return prev;
-      const nextVersion = versions[next];
-      const snapshot = nextVersion.snapshot;
-
-      if (!snapshot || snapshot.length === 0) {
+  const switchMessageBranch = useCallback(
+    (chatId: string, messageId: string, direction: "prev" | "next") => {
+      setAllChats((prev) => {
+        const chatMessages = prev[chatId] || [];
+        const { nextChat } = switchMessageBranchHelper(
+          chatMessages,
+          messageId,
+          direction,
+        );
         return {
           ...prev,
-          [chatId]: chatMessages.map((msg) =>
-            msg.id === messageId ? hydrateMessageFromActiveBranch(msg, next) : msg
-          ),
+          [chatId]: nextChat,
         };
-      }
-
-      const snapshotWithMeta = mergeSnapshotWithBranchMeta(snapshot, chatMessages).map((msg) =>
-        msg.id === messageId ? hydrateMessageFromActiveBranch(msg, next) : msg
-      );
-
-      return {
-        ...prev,
-        [chatId]: snapshotWithMeta,
-      };
-    });
-    setBranchDataset((prev) => {
-      const chatEntry = prev[chatId] || {};
-      const current = chatEntry[messageId];
-      if (!current) return prev;
-      const nextActive = direction === 'prev' ? current.activeIndex - 1 : current.activeIndex + 1;
-      if (nextActive < 0 || nextActive >= current.totalVersions) return prev;
-      return {
-        ...prev,
-        [chatId]: {
-          ...chatEntry,
-          [messageId]: {
-            ...current,
-            activeIndex: nextActive,
-            updatedAt: Date.now(),
+      });
+      setBranchDataset((prev) => {
+        const chatEntry = prev[chatId] || {};
+        const chatMessages = allChatsRef.current[chatId] || [];
+        const target = chatMessages.find((m) => m.id === messageId);
+        if (!target) return prev;
+        const versions = ensureBranchVersions(target);
+        const activeIdx = target.activeBranchIndex ?? versions.length - 1;
+        const nextActive = direction === "prev" ? activeIdx - 1 : activeIdx + 1;
+        if (nextActive < 0 || nextActive >= versions.length) return prev;
+        return {
+          ...prev,
+          [chatId]: {
+            ...chatEntry,
+            [messageId]: {
+              activeIndex: nextActive,
+              totalVersions: versions.length,
+              updatedAt: Date.now(),
+            },
           },
-        },
-      };
-    });
-  }, []);
+        };
+      });
+    },
+    [],
+  );
 
   const editMessageWithBranch = useCallback(
     async (chatId: string, messageId: string, newContent: string) => {
       const trimmed = newContent.trim();
       if (!trimmed || isGenerating) return;
       const existing = allChatsRef.current[chatId] || [];
-      const targetIndex = existing.findIndex((msg) => msg.id === messageId && msg.role === 'user');
-      if (targetIndex === -1) return;
+
+      const assistantMessageId = `${Date.now()}`;
+      let helperResult;
+      try {
+        helperResult = editMessageWithBranchHelper(
+          existing,
+          messageId,
+          trimmed,
+          assistantMessageId,
+        );
+      } catch (err) {
+        console.error(err);
+        return;
+      }
 
       setIsGenerating(true);
 
-      const targetMessage = existing[targetIndex];
-      const targetVersions = ensureBranchVersions(targetMessage);
-      const baseSnapshot = createChatSnapshot(existing);
-      const normalizedTargetVersions = [...targetVersions];
-      const currentTargetIndex = targetMessage.activeBranchIndex ?? normalizedTargetVersions.length - 1;
-      if (!normalizedTargetVersions[currentTargetIndex]?.snapshot) {
-        normalizedTargetVersions[currentTargetIndex] = {
-          ...normalizedTargetVersions[currentTargetIndex],
-          snapshot: baseSnapshot,
-        };
-      }
-      const nextUserVersions = [...normalizedTargetVersions, { content: trimmed }];
-      const updatedUserMessage: Message = {
-        ...targetMessage,
-        content: trimmed,
-        branchVersions: nextUserVersions,
-        activeBranchIndex: nextUserVersions.length - 1,
-      };
-
-      const assistantMessage: Message = {
-        id: `${Date.now()}`,
-        role: 'assistant',
-        content: '',
-        thinkingContent: '',
-        isStreaming: true,
-        isThinkingStreaming: false,
-        hasThinking: false,
-        activeBranchIndex: 0,
-        branchVersions: [{ content: '', thinkingContent: '', hasThinking: false }],
-      };
-
-      const nextChat = [...existing.slice(0, targetIndex), updatedUserMessage, assistantMessage];
+      const { nextChat } = helperResult;
       setAllChats((prev) => ({
         ...prev,
         [chatId]: nextChat,
       }));
 
       const conversationForApi = nextChat
-        .filter((entry) => entry.role === 'user' || entry.content.trim().length > 0)
+        .filter(
+          (entry) => entry.role === "user" || entry.content.trim().length > 0,
+        )
         .map((entry) => ({
           role: entry.role,
           content: entry.content,
@@ -695,7 +822,7 @@ export function useChat() {
 
       await streamAssistantResponse({
         chatId,
-        assistantMessageId: assistantMessage.id,
+        assistantMessageId,
         conversationForApi,
         onCompleted: () => {
           const finalMessages = allChatsRef.current[chatId] || [];
@@ -718,8 +845,12 @@ export function useChat() {
             };
           });
           setBranchDataset((prev) => {
-            const target = allChatsRef.current[chatId]?.find((m) => m.id === messageId);
-            const versionsCount = target ? ensureBranchVersions(target).length : 1;
+            const target = allChatsRef.current[chatId]?.find(
+              (m) => m.id === messageId,
+            );
+            const versionsCount = target
+              ? ensureBranchVersions(target).length
+              : 1;
             return {
               ...prev,
               [chatId]: {
@@ -735,61 +866,38 @@ export function useChat() {
         },
       });
     },
-    [isGenerating, streamAssistantResponse]
+    [isGenerating, streamAssistantResponse],
   );
 
   const retryAssistantWithBranch = useCallback(
     async (chatId: string, assistantMessageId: string) => {
       if (isGenerating) return;
       const existing = allChatsRef.current[chatId] || [];
-      const assistantIndex = existing.findIndex((msg) => msg.id === assistantMessageId && msg.role === 'assistant');
-      if (assistantIndex === -1) return;
+
+      let helperResult;
+      try {
+        helperResult = retryAssistantWithBranchHelper(
+          existing,
+          assistantMessageId,
+        );
+      } catch (err) {
+        console.error(err);
+        return;
+      }
 
       setIsGenerating(true);
 
-      const assistantMessage = existing[assistantIndex];
-      const existingVersions = ensureBranchVersions(assistantMessage);
-      const baseSnapshot = createChatSnapshot(existing);
-      const normalizedAssistantVersions = [...existingVersions];
-      const currentAssistantIndex = assistantMessage.activeBranchIndex ?? normalizedAssistantVersions.length - 1;
-      if (!normalizedAssistantVersions[currentAssistantIndex]?.snapshot) {
-        normalizedAssistantVersions[currentAssistantIndex] = {
-          ...normalizedAssistantVersions[currentAssistantIndex],
-          snapshot: baseSnapshot,
-        };
-      }
-      const nextBranchIndex = normalizedAssistantVersions.length;
-      const nextVersions = [
-        ...normalizedAssistantVersions,
-        {
-          content: '',
-          thinkingContent: '',
-          hasThinking: false,
-        },
-      ];
-
-      const updatedAssistant: Message = {
-        ...assistantMessage,
-        content: '',
-        thinkingContent: '',
-        hasThinking: false,
-        isStreaming: true,
-        isThinkingStreaming: false,
-        thinkingDurationSeconds: undefined,
-        thinkingStartedAtMs: undefined,
-        branchVersions: nextVersions,
-        activeBranchIndex: nextBranchIndex,
-      };
-
-      const nextChat = [...existing.slice(0, assistantIndex), updatedAssistant];
+      const { nextChat } = helperResult;
       setAllChats((prev) => ({
         ...prev,
         [chatId]: nextChat,
       }));
 
       const conversationForApi = nextChat
-        .slice(0, assistantIndex)
-        .filter((entry) => entry.role === 'user' || entry.content.trim().length > 0)
+        .slice(0, -1)
+        .filter(
+          (entry) => entry.role === "user" || entry.content.trim().length > 0,
+        )
         .map((entry) => ({
           role: entry.role,
           content: entry.content,
@@ -820,8 +928,12 @@ export function useChat() {
             };
           });
           setBranchDataset((prev) => {
-            const target = allChatsRef.current[chatId]?.find((m) => m.id === assistantMessageId);
-            const versionsCount = target ? ensureBranchVersions(target).length : 1;
+            const target = allChatsRef.current[chatId]?.find(
+              (m) => m.id === assistantMessageId,
+            );
+            const versionsCount = target
+              ? ensureBranchVersions(target).length
+              : 1;
             return {
               ...prev,
               [chatId]: {
@@ -837,45 +949,86 @@ export function useChat() {
         },
       });
     },
-    [isGenerating, streamAssistantResponse]
+    [isGenerating, streamAssistantResponse],
   );
 
-  const handleSelectChat = useCallback((chatId: string | null) => {
-    if(chatId) {
+  const handleSelectChat = useCallback(
+    (chatId: string | null) => {
+      if (!chatId) {
+        startNewChat();
+        return;
+      }
+
       setActiveChatId(chatId);
-    } else {
-      startNewChat();
-    }
-  }, [startNewChat]);
 
+      const store = useChatStore.getState();
+      const existingIds = store.messageIdsByChatId[chatId];
+      if (existingIds && existingIds.length > 0) return;
 
-  const handleDeleteChat = useCallback((chatId: string) => {
-    setAllChats(prev => {
+      void (async () => {
+        try {
+          const loaded = await loadFullChatFromIndexedDB(chatId);
+          if (loaded.length === 0) return;
+          store.setChatMessages(
+            chatId,
+            loaded.map((message) =>
+              compactMessageBranchData({
+                ...message,
+                isStreaming: false,
+                isThinkingStreaming: false,
+              }),
+            ),
+          );
+        } catch (error) {
+          console.error("Failed to load chat from storage:", error);
+        }
+      })();
+    },
+    [startNewChat],
+  );
+
+  const handleDeleteChat = useCallback(
+    (chatId: string) => {
+      setAllChats((prev) => {
         const newChats = { ...prev };
         delete newChats[chatId];
         return newChats;
-    });
+      });
 
-    const newRecentChats = recentChats.filter(chat => chat.id !== chatId);
-    setRecentChats(newRecentChats);
-    setBranchDataset((prev) => {
-      const next = { ...prev };
-      delete next[chatId];
-      return next;
-    });
+      const newRecentChats = recentChats.filter((chat) => chat.id !== chatId);
+      setRecentChats(newRecentChats);
+      setBranchDataset((prev) => {
+        const next = { ...prev };
+        delete next[chatId];
+        return next;
+      });
 
-    if (activeChatId === chatId) {
+      if (activeChatId === chatId) {
         if (newRecentChats.length > 0) {
-            setActiveChatId(newRecentChats[0].id);
+          setActiveChatId(newRecentChats[0].id);
         } else {
-            startNewChat();
+          startNewChat();
         }
-    }
-  }, [activeChatId, recentChats, startNewChat]);
+      }
+    },
+    [activeChatId, recentChats, startNewChat],
+  );
 
   const handleRenameChat = useCallback((chatId: string, newName: string) => {
-    setRecentChats(prev =>
-        prev.map(chat => (chat.id === chatId ? { ...chat, name: newName, titleGenerated: true } : chat))
+    setRecentChats((prev) =>
+      prev.map((chat) =>
+        chat.id === chatId
+          ? { ...chat, name: newName, titleGenerated: true }
+          : chat,
+      ),
+    );
+  }, []);
+
+  const handlePinChat = useCallback((chatId: string, pinned: boolean) => {
+    setRecentChats((prev) =>
+      prev.map((chat) =>
+        chat.id === chatId ? { ...chat, pinned } : chat,
+      ),
     );
   }, []);
 
@@ -891,8 +1044,48 @@ export function useChat() {
     handleSelectChat,
     handleDeleteChat,
     handleRenameChat,
+    handlePinChat,
     editMessageWithBranch,
     retryAssistantWithBranch,
     switchMessageBranch,
   };
+}
+
+function useChatDisabled() {
+  return {
+    messages: [] as Message[],
+    recentChats: [] as RecentChat[],
+    activeChat: null,
+    activeChatId: null,
+    isGenerating: false,
+    loading: false,
+    handleSendMessage: async () => {},
+    stopGeneration: () => {},
+    startNewChat: () => {},
+    handleSelectChat: () => {},
+    handleDeleteChat: async () => {},
+    handleRenameChat: async () => {},
+    handlePinChat: async () => {},
+    editMessageWithBranch: async () => {},
+    retryAssistantWithBranch: async () => {},
+    switchMessageBranch: () => {},
+    refreshChats: async () => {},
+  };
+}
+
+export function useChat(options: UseChatOptions = {}) {
+  const authRequiredForChat =
+    process.env.NEXT_PUBLIC_AUTH_REQUIRED_FOR_CHAT === "true";
+
+  if (options.apiEnabled) {
+    return useChatApi(
+      options.projectId ?? null,
+      options.thinkingEnabled,
+      options.webSearchEnabled,
+    );
+  }
+  if (authRequiredForChat) {
+    return useChatDisabled();
+  }
+  return useLocalChat(options);
 }

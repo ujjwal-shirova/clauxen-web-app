@@ -23,8 +23,7 @@ export function CreateAccountStep({
   onContinue,
   verifiedEmail = "you@example.com",
 }: CreateAccountStepProps) {
-  const canSubmit =
-    state.termsAccepted && state.privacyAccepted;
+  const canSubmit = state.termsAccepted && state.privacyAccepted;
 
   return (
     <OnboardingShell
@@ -62,7 +61,10 @@ export function CreateAccountStep({
               onCheckedChange={(termsAccepted) => onChange({ termsAccepted })}
             >
               I agree to Clauxen&apos;s{" "}
-              <OnboardingLink href="/legal/terms">Terms of Service</OnboardingLink> and{" "}
+              <OnboardingLink href="/legal/terms">
+                Terms of Service
+              </OnboardingLink>{" "}
+              and{" "}
               <OnboardingLink href="/legal/acceptable-use">
                 Acceptable Use Policy
               </OnboardingLink>{" "}
@@ -77,17 +79,18 @@ export function CreateAccountStep({
             >
               I consent to collection and use of my personal information in
               accordance with the{" "}
-              <OnboardingLink href="/legal/privacy">Privacy Policy</OnboardingLink>.
+              <OnboardingLink href="/legal/privacy">
+                Privacy Policy
+              </OnboardingLink>
+              .
             </OnboardingCheckboxRow>
 
             <OnboardingCheckboxRow
               checked={state.marketingOptIn}
-              onCheckedChange={(marketingOptIn) =>
-                onChange({ marketingOptIn })
-              }
+              onCheckedChange={(marketingOptIn) => onChange({ marketingOptIn })}
             >
-              Subscribe to occasional promotional emails and notifications.
-              You can opt out any time.
+              Subscribe to occasional promotional emails and notifications. You
+              can opt out any time.
             </OnboardingCheckboxRow>
 
             <OnboardingPrimaryButton

@@ -1,3 +1,3 @@
 export interface SettingsPageCategoryProps {
-  onGoToCustomize: (tab: 'skills' | 'connectors') => void;
+  onGoToCustomize: (tab: "skills" | "connectors") => void;
 }

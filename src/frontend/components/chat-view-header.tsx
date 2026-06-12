@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, Star, Pencil, FolderPlus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useIsClient } from "@/frontend/hooks/use-is-client";
+import { ChevronDown } from "lucide-react";
 import { OrbCursor } from "./ui/orb-cursor";
 import { HintTooltip } from "./ui/hint-tooltip";
-import { ChatFrostedEdge } from "./ui/chat-frosted-edge";
 import { DeleteChatDialog } from "./delete-chat-dialog";
+import { RenameChatDialog } from "./rename-chat-dialog";
+import { ChatOptionsMenuContent } from "./chat-options-menu";
 import { cn } from "@/frontend/lib/utils";
 import { isUsableChatTitle } from "@/lib/chat-title";
 import {
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/frontend/components/ui/dropdown-menu";
+import { MobileMenuButton } from "@/frontend/components/mobile-menu-button";
 
 interface ChatViewHeaderProps {
   isConversationStarted: boolean;
@@ -25,10 +25,16 @@ interface ChatViewHeaderProps {
   isArtifactsPanelOpen?: boolean;
   chatTitle?: string;
   isTitleStreaming?: boolean;
+  isChatPinned?: boolean;
+  onRenameChat?: (newTitle: string) => void;
+  onPinChat?: () => void;
+  onUnpinChat?: () => void;
   onDeleteChat?: () => void;
   onOpenSettings?: () => void;
   thinkingEnabled?: boolean;
   onThinkingEnabledChange?: (enabled: boolean) => void;
+  onOpenMobileNav?: () => void;
+  showMobileMenu?: boolean;
   className?: string;
 }
 
@@ -41,79 +47,133 @@ export function ChatViewHeader({
   isArtifactsPanelOpen = false,
   chatTitle = "New Chat",
   isTitleStreaming = false,
+  isChatPinned = false,
+  onRenameChat,
+  onPinChat,
+  onUnpinChat,
   onDeleteChat,
   onOpenSettings,
+  onOpenMobileNav,
+  showMobileMenu = false,
   className,
 }: ChatViewHeaderProps) {
+  const isClient = useIsClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
   const displayTitle =
     chatTitle?.trim() && (!isTitleStreaming || isUsableChatTitle(chatTitle))
       ? chatTitle.trim()
       : "New Chat";
+
+  const commitInlineTitle = useCallback(() => {
+    const next = editTitleValue.trim();
+    setIsEditingTitle(false);
+    if (next && next !== displayTitle) {
+      onRenameChat?.(next);
+    }
+  }, [displayTitle, editTitleValue, onRenameChat]);
+
+  useEffect(() => {
+    if (!isEditingTitle) return;
+    const input = titleInputRef.current;
+    input?.focus();
+    input?.select();
+
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (titleInputRef.current?.contains(target)) return;
+      commitInlineTitle();
+    };
+
+    window.addEventListener("pointerdown", onPointerDown, true);
+    return () => window.removeEventListener("pointerdown", onPointerDown, true);
+  }, [commitInlineTitle, isEditingTitle]);
+
+  const startInlineEdit = () => {
+    setEditTitleValue(displayTitle);
+    setIsEditingTitle(true);
+  };
 
   if (isConversationStarted) {
     return (
       <>
         <header
           className={cn(
-            "pointer-events-none absolute inset-x-0 top-0 flex h-11 items-center bg-transparent font-sans md:right-11",
+            "pointer-events-none absolute inset-x-0 top-0 flex h-11 items-center bg-white font-sans lg:right-11",
             className,
           )}
         >
-          <ChatFrostedEdge placement="top" isStreaming={isGenerating} />
-          <div className="pointer-events-auto relative z-10 flex h-full w-full items-center justify-between pl-3 pr-3 sm:pl-4 sm:pr-4 md:pl-5 md:pr-5">
-            <div className="flex min-w-0 items-center">
-              <DropdownMenu>
-                <div className="flex min-w-0 items-center gap-0">
-                  <button
-                    type="button"
-                    className="flex h-7 min-w-0 max-w-[min(280px,50vw)] items-center rounded-l-lg px-2 text-[13px] font-medium text-zinc-800 transition-all hover:bg-zinc-100"
-                  >
-                    <span className="truncate">{displayTitle}</span>
-                    {isTitleStreaming ? <OrbCursor /> : null}
-                  </button>
-                  <div className="h-7 w-px shrink-0 bg-black/10" />
-                  <DropdownMenuTrigger asChild>
-                    <HintTooltip content="Chat options">
+          <div className="pointer-events-auto relative z-10 flex h-full w-full items-center gap-2 px-2 sm:gap-2.5 sm:px-3 lg:gap-0 lg:px-5">
+            {showMobileMenu && onOpenMobileNav ? (
+              <MobileMenuButton
+                onClick={onOpenMobileNav}
+                aria-controls="app-primary-nav"
+              />
+            ) : null}
+            <div className="flex min-w-0 flex-1 items-center overflow-hidden">
+              {!isClient ? (
+                <div className="inline-flex max-w-full items-center rounded-lg border border-transparent">
+                  <span className="px-1.5 py-1 text-[13px] font-medium text-zinc-800 sm:px-2">
+                    {displayTitle}
+                  </span>
+                </div>
+              ) : (
+                <DropdownMenu>
+                  <div className="inline-flex max-w-full items-stretch overflow-hidden rounded-lg border border-transparent">
+                    {isEditingTitle ? (
+                      <input
+                        ref={titleInputRef}
+                        value={editTitleValue}
+                        onChange={(event) => setEditTitleValue(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            commitInlineTitle();
+                          }
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            setIsEditingTitle(false);
+                          }
+                        }}
+                        className="h-7 w-auto min-w-[4ch] max-w-[min(70vw,420px)] rounded-l-lg border-0 bg-zinc-100 px-1.5 text-[13px] font-medium text-zinc-800 outline-none ring-0 sm:px-2"
+                        style={{ width: `${Math.max(editTitleValue.length, 4)}ch` }}
+                        aria-label="Edit chat title"
+                      />
+                    ) : (
                       <button
                         type="button"
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-r-lg text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/5"
+                        onClick={startInlineEdit}
+                        className="flex h-7 max-w-[min(70vw,420px)] items-center rounded-l-lg px-1.5 text-[13px] font-medium text-zinc-800 transition-all hover:bg-zinc-100 sm:px-2"
                       >
-                        <ChevronDown className="icon-md opacity-70" />
+                        <span className="truncate">{displayTitle}</span>
+                        {isTitleStreaming ? <OrbCursor /> : null}
                       </button>
-                    </HintTooltip>
-                  </DropdownMenuTrigger>
-                </div>
-                <DropdownMenuContent
-                  align="start"
-                  side="bottom"
-                  className="min-w-[170px] rounded-xl border border-zinc-200 bg-white/95 p-1.5 text-zinc-800 shadow-[0_2px_8px_rgba(0,0,0,0.08)] backdrop-blur-xl"
-                >
-                  <DropdownMenuItem className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] transition-colors hover:bg-zinc-100 focus:bg-black/5">
-                    <Star className="icon-md mr-2" />
-                    Star
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] transition-colors hover:bg-zinc-100 focus:bg-black/5">
-                    <Pencil className="icon-md mr-2" />
-                    Rename
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] transition-colors hover:bg-zinc-100 focus:bg-black/5">
-                    <FolderPlus className="icon-md mr-2" />
-                    Add to project
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-1 bg-zinc-100" />
-                  <DropdownMenuItem
-                    className="cursor-pointer rounded-lg px-2 py-1.5 text-[14px] font-[430] text-red-700 transition-colors hover:bg-red-50 focus:bg-red-50"
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="icon-md mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    )}
+                    <div className="h-7 w-px shrink-0 self-center bg-black/10" />
+                    <DropdownMenuTrigger asChild>
+                      <HintTooltip content="Chat options">
+                        <button
+                          type="button"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-r-lg text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/5"
+                        >
+                          <ChevronDown className="icon-md opacity-70" />
+                        </button>
+                      </HintTooltip>
+                    </DropdownMenuTrigger>
+                  </div>
+                  <ChatOptionsMenuContent
+                    isPinned={isChatPinned}
+                    onRename={() => setRenameDialogOpen(true)}
+                    onPin={onPinChat}
+                    onUnpin={onUnpinChat}
+                    onDelete={() => setDeleteDialogOpen(true)}
+                  />
+                </DropdownMenu>
+              )}
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
@@ -156,31 +216,47 @@ export function ChatViewHeader({
           onConfirm={() => onDeleteChat?.()}
           onOpenSettings={onOpenSettings}
         />
+        <RenameChatDialog
+          open={renameDialogOpen}
+          onOpenChange={setRenameDialogOpen}
+          chatTitle={displayTitle}
+          onConfirm={(nextTitle) => onRenameChat?.(nextTitle)}
+        />
       </>
     );
   }
 
+  const upgradeButton = (
+    <button
+      type="button"
+      onClick={onUpgradeClick}
+      className="relative z-10 inline-flex h-9 max-w-full items-center gap-1.5 rounded-full border border-zinc-200 bg-transparent px-3 text-[13px] text-zinc-500 transition-colors hover:bg-black/[0.03] hover:text-zinc-800 sm:h-10 sm:gap-2 sm:px-4 sm:text-[14px]"
+      aria-label="Free plan — upgrade"
+    >
+      <span className="truncate">Free plan</span>
+      <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
+      <span className="shrink-0 underline decoration-zinc-400 underline-offset-[3px]">
+        Upgrade
+      </span>
+    </button>
+  );
+
+  if (showMobileMenu && onOpenMobileNav) {
+    return (
+      <div className="relative sticky top-0 z-20 grid h-11 w-full shrink-0 grid-cols-[auto_1fr_auto] items-center gap-2 bg-white px-2 font-sans sm:h-12 sm:gap-2.5 sm:px-3">
+        <MobileMenuButton
+          onClick={onOpenMobileNav}
+          aria-controls="app-primary-nav"
+        />
+        <div className="flex min-w-0 justify-center">{upgradeButton}</div>
+        <span className="w-8 shrink-0" aria-hidden />
+      </div>
+    );
+  }
+
   return (
-    <div className="relative sticky top-0 z-20 flex h-11 w-full shrink-0 items-center justify-center bg-transparent px-3 font-sans sm:h-12 sm:px-5">
-      <ChatFrostedEdge
-        placement="top"
-        isStreaming={isGenerating}
-        className="h-12 sm:h-14"
-      />
-      <HintTooltip content="Free plan · Upgrade">
-        <button
-          type="button"
-          onClick={onUpgradeClick}
-          className="relative z-10 inline-flex h-10 items-center gap-2 rounded-full border border-zinc-200 bg-transparent px-4 text-[14px] text-zinc-500 transition-colors hover:bg-black/[0.03] hover:text-zinc-800"
-          aria-label="Free plan — upgrade"
-        >
-          <span>Free plan</span>
-          <span className="h-1 w-1 rounded-full bg-zinc-300" />
-          <span className="underline decoration-zinc-400 underline-offset-[3px]">
-            Upgrade
-          </span>
-        </button>
-      </HintTooltip>
+    <div className="relative sticky top-0 z-20 flex h-11 w-full shrink-0 items-center justify-center bg-white px-3 font-sans sm:h-12 sm:px-5">
+      {upgradeButton}
     </div>
   );
 }

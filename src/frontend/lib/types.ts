@@ -1,10 +1,14 @@
+import type { AgentSegment } from "@/frontend/lib/agent-segments";
 
 export type MessageBranchVersion = {
-  content: string;
-  thinkingContent?: string;
-  hasThinking?: boolean;
-  thinkingDurationSeconds?: number;
-  snapshot?: Message[];
+  readonly content: string;
+  readonly thinkingContent?: string;
+  readonly hasThinking?: boolean;
+  readonly thinkingDurationSeconds?: number;
+  readonly agentSegments?: AgentSegment[];
+  readonly agentMode?: boolean;
+  readonly agentFrameComplete?: boolean;
+  readonly snapshot?: readonly Message[];
 };
 
 export type Message = {
@@ -17,15 +21,21 @@ export type Message = {
   hasThinking?: boolean;
   thinkingStartedAtMs?: number;
   thinkingDurationSeconds?: number;
+  agentMode?: boolean;
+  agentFrameComplete?: boolean;
+  agentSegments?: AgentSegment[];
   branchVersions?: MessageBranchVersion[];
   activeBranchIndex?: number;
 };
 
 export type RecentChat = {
-  id: string;
-  name: string;
-  isTitleStreaming?: boolean;
-  titleGenerated?: boolean;
+  readonly id: string;
+  readonly name: string;
+  readonly isTitleStreaming?: boolean;
+  readonly titleGenerated?: boolean;
+  readonly updatedAt?: number;
+  readonly projectId?: string | null;
+  readonly pinned?: boolean;
 };
 
 export type TextSize = "small" | "medium" | "large";

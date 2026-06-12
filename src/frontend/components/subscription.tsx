@@ -1,364 +1,742 @@
 "use client";
 
-import * as React from 'react';
-import { Button } from "@/frontend/components/ui/button";
-import { Check, ArrowLeft, Info } from "lucide-react";
+import * as React from "react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Plus,
+} from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
-import { appBtn } from "@/frontend/lib/app-buttons";
+import type { MaxTier } from "@/frontend/components/billing-checkout";
+import {
+  CHECKOUT_PLAN_IDS,
+  ORGANIZATION_PLANS,
+  PERSONAL_PLANS,
+  YEARLY_DISCOUNT_PERCENT,
+  getOrganizationSeatDisplayPrice,
+  getPlanPriceInr,
+  getYearlyPriceInr,
+  resolvePlanFeatures,
+  type BillingCycle,
+  type OrganizationPlanCard,
+  type PlanCard,
+} from "@/lib/plans-catalog";
 
 interface UpgradePageContentProps {
   onClose: () => void;
-  onSelectPlan: (planId: string, billingCycle: BillingCycle) => void;
+  onSelectPlan: (
+    planId: string,
+    billingCycle: BillingCycle,
+    maxTier?: MaxTier,
+  ) => void;
 }
 
-type BillingCycle = 'monthly' | 'yearly';
+const CARD_SHADOW =
+  "shadow-[0_0_1.072px_rgba(0,0,0,0.4),0_2px_4px_rgba(0,0,0,0.04)]";
 
-// Checkout-eligible plan slugs — client-side guard before billing flow handoff
-const CHECKOUT_PLAN_IDS = new Set(['go', 'pro', 'max', 'team', 'enterprise']);
-
-type Plan = {
-  id: string;
-  name: string;
-  subtitle: string;
-  monthlyPrice?: number;
-  customPriceLabel?: string;
-  description: string;
-  buttonLabel: string;
-  features: string[];
-  isCurrent?: boolean;
-  isHighlight?: boolean;
-  highlight?: string;
-};
-
-const individualPlans: Plan[] = [
-  {
-    id: 'free',
-    name: "Free",
-    subtitle: "All core features, free by default",
-    monthlyPrice: 0,
-    description: "Use the full product with lighter limits",
-    buttonLabel: "Your current plan",
-    isCurrent: true,
-    features: [
-      "Chat, write, code, analyze, and search the web",
-      "Projects, artifacts, voice, and creative tools included",
-      "Create images, videos, music, and canvas with daily limits",
-      "Upload files, take screenshots, and organize work in one place",
-      "India-friendly everyday help for study, job prep, side hustles, and small business work"
-    ]
-  },
-  {
-    id: 'go',
-    name: "Go",
-    subtitle: "Higher limits for everyday power users",
-    monthlyPrice: 299,
-    description: "Everything you already use, with more room to work",
-    buttonLabel: "Get Go plan",
-    highlight: "Everything in Free, plus:",
-    features: [
-      "Extended usage quota across chat, uploads, and creative generation",
-      "2x projects, artifacts, and voice usage for regular daily workflows",
-      "2x image, video, music, and canvas creation quota",
-      "Faster responses and steadier availability during busy hours",
-      "Built for Indian students, creators, consultants, and founders managing work in English plus regional context"
-    ]
-  },
-  {
-    id: 'pro',
-    name: "Pro",
-    subtitle: "Premium models and much higher limits",
-    monthlyPrice: 2499,
-    description: "For professionals who rely on Clauxen every day",
-    buttonLabel: "Get Pro plan",
-    highlight: "Everything in Go and:",
-    features: [
-      "Based on Go with much higher quota across every tool*",
-      "Access to the latest premium models for reasoning, coding, and creation",
-      "Agent multi-tasking, deeper research, and higher upload capacity",
-      "Priority access during peak hours with faster premium inference",
-      "Expanded project, artifact, and automation-style workflow capacity",
-      "Generated music content eligible for commercial use",
-      "Powerful for agencies, researchers, devs, CA teams, and startup operators in India"
-    ]
-  },
-  {
-    id: 'max',
-    name: "Max",
-    subtitle: "Choose Max 5x or Max 20x",
-    monthlyPrice: 9999,
-    customPriceLabel: "+",
-    description: "The highest limits for advanced users and AI-first operators",
-    buttonLabel: "Get Max plan",
-    isHighlight: true,
-    highlight: "Everything in Pro, plus:",
-    features: [
-      "Choose Max 5x or Max 20x usage compared with Pro*",
-      "Highest quota for research, coding, and image, video, music, and canvas creation",
-      "Fastest access to latest premium models and highest priority during peak hours",
-      "Research preview features, advanced agent workflows, and early access experiments",
-      "Generated music content eligible for commercial use",
-      "Best for heavy operators running batch tasks, large searches, long writing, and multi-client work"
-    ]
-  }
-];
-
-const teamPlans: Plan[] = [
-  {
-    id: 'team',
-    name: "Team",
-    subtitle: "Shared workspace with Max 5x included",
-    monthlyPrice: 1999,
-    description: "5-150 users",
-    buttonLabel: "Get Team plan",
-    isHighlight: true,
-    highlight: "Standard seat includes:",
-    features: [
-      "Everything in Max 5x for every seat",
-      "Shared team workspaces, projects, artifacts, and internal knowledge",
-      "Connectors, skills, admin controls, and deployment-ready workflows",
-      "Central billing, seat management, and team-wide usage visibility",
-      "Team workspace data is not used in training by Shirova",
-      "Generated music content eligible for commercial use",
-      "Built for Indian startups, agencies, ops teams, and modern businesses scaling together"
-    ]
-  },
-  {
-    id: 'enterprise',
-    name: "Enterprise",
-    subtitle: "Security, control, and custom scale",
-    customPriceLabel: "Custom",
-    description: "20+ users",
-    buttonLabel: "Contact sales",
-    highlight: "Everything in Team, plus:",
-    features: [
-      "Pooled usage, custom limit structures, and flexible commercial terms",
-      "SSO, advanced access control, governance, and enterprise admin flows",
-      "Audit-ready operations, rollout controls, and managed workspace policies",
-      "Custom onboarding, procurement, invoicing, and dedicated support",
-      "Workspace privacy, compliance, and control at organizational scale",
-      "Ideal for large enterprises, BPOs, IT services, and regulated teams across India"
-    ]
-  }
-];
-
-const YEARLY_DISCOUNT = 0.17;
-
-function getYearlyPrice(monthlyPrice: number) { // function — helper
-  return Math.round(monthlyPrice * 12 * (1 - YEARLY_DISCOUNT));
+function PlanBadge({
+  label,
+  variant,
+}: {
+  label: string;
+  variant: "popular" | "special" | "recommended";
+}) {
+  return (
+    <div
+      className={cn(
+        "absolute right-0 top-[-6px] flex h-6 items-center rounded-full px-2.5 text-[12px] font-medium",
+        (variant === "popular" ||
+          variant === "special" ||
+          variant === "recommended") &&
+          "bg-zinc-900 text-white",
+      )}
+    >
+      {label}
+    </div>
+  );
 }
 
-function getPlanPrice(plan: Plan, billingCycle: BillingCycle) { // function — helper
-  if (typeof plan.monthlyPrice !== 'number') {
-    return null;
+function getPriceDisplay(
+  plan: PlanCard,
+  billingCycle: BillingCycle,
+  maxTier: MaxTier,
+) {
+  if (plan.customPriceLabel === "Custom") {
+    return {
+      main: "Custom",
+      suffix: "",
+      strikethrough: null as number | null,
+      subtext: null as string | null,
+    };
   }
 
-  return billingCycle === 'monthly' ? plan.monthlyPrice : getYearlyPrice(plan.monthlyPrice);
+  if (plan.id === "max") {
+    const price = getPlanPriceInr(plan, "monthly", maxTier) ?? 0;
+    return {
+      main: price.toLocaleString("en-IN"),
+      suffix: "/mo",
+      strikethrough: null,
+      subtext: "No commitment · Cancel anytime",
+    };
+  }
+
+  const monthly = plan.monthlyPriceInr ?? 0;
+  if (monthly === 0) {
+    return { main: "0", suffix: "/mo", strikethrough: null, subtext: null };
+  }
+
+  if (billingCycle === "yearly" && plan.yearlySupported) {
+    const yearlyTotal = getYearlyPriceInr(monthly);
+    const effectiveMonthly = Math.round(yearlyTotal / 12);
+    return {
+      main: effectiveMonthly.toLocaleString("en-IN"),
+      suffix: "/mo",
+      strikethrough: monthly,
+      subtext: "billed annually",
+    };
+  }
+
+  return {
+    main: monthly.toLocaleString("en-IN"),
+    suffix: "/mo",
+    strikethrough: null,
+    subtext: billingCycle === "monthly" ? "billed monthly" : null,
+  };
 }
 
-function formatPlanPrice(plan: Plan, billingCycle: BillingCycle) { // function — helper
-  if (plan.customPriceLabel === 'Custom') {
-    return 'Custom';
-  }
+function PlanCarouselCard({
+  plan,
+  billingCycle,
+  maxTier,
+  onMaxTierChange,
+  onSelect,
+}: {
+  plan: PlanCard;
+  billingCycle: BillingCycle;
+  maxTier: MaxTier;
+  onMaxTierChange?: (tier: MaxTier) => void;
+  onSelect: () => void;
+}) {
+  const features = resolvePlanFeatures(plan, { maxTier });
+  const price = getPriceDisplay(plan, billingCycle, maxTier);
+  const isCurrent = plan.isCurrent;
+  const isMax = plan.id === "max";
 
-  const price = getPlanPrice(plan, billingCycle);
+  return (
+    <div
+      className={cn(
+        "flex w-[240px] shrink-0 flex-col isolate rounded-xl",
+        CARD_SHADOW,
+      )}
+    >
+      <div className="relative z-[2] rounded-t-xl bg-white px-5 pb-5 pt-[26px]">
+        {plan.isPopular && <PlanBadge label="Popular" variant="popular" />}
+        {plan.isSpecialOffer && (
+          <PlanBadge label="Special Offer" variant="special" />
+        )}
 
-  if (price === null) {
-    return '';
-  }
+        <div className="flex flex-col gap-4">
+          <div className="relative flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-[15px] font-medium leading-[15px]">
+                {plan.name}
+              </span>
+              {isMax && (
+                <div className="flex rounded-[10px] bg-black/[0.043] p-0.5">
+                  {(["5x", "20x"] as const).map((tier) => (
+                    <button
+                      key={tier}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMaxTierChange?.(tier);
+                      }}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-[12px] font-medium transition-all",
+                        maxTier === tier
+                          ? "bg-white shadow-sm"
+                          : "text-zinc-500 hover:text-zinc-900",
+                      )}
+                    >
+                      {tier}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-  return price.toLocaleString('en-IN');
+            <p className="text-[13px] text-zinc-600">{plan.subtitle}</p>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5">
+                {price.strikethrough != null && (
+                  <span className="text-[13px] font-medium text-zinc-500 line-through">
+                    ₹{price.strikethrough.toLocaleString("en-IN")}
+                  </span>
+                )}
+                <div className="flex items-baseline gap-0.5">
+                  <p className="text-[24px] font-semibold leading-[27px] tracking-[-0.24px]">
+                    {plan.customPriceLabel === "From" && !isMax ? "From " : ""}
+                    {plan.customPriceLabel !== "Custom" ? "₹" : ""}
+                    {price.main}
+                  </p>
+                  {price.suffix && (
+                    <span className="text-[13px] font-medium text-zinc-500">
+                      {price.suffix}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="h-5">
+                {price.subtext && (
+                  <p className="text-[12px] leading-4 text-zinc-500">
+                    {price.subtext}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {isCurrent ? (
+            <button
+              type="button"
+              disabled
+              className="flex h-9 w-full cursor-default items-center justify-center rounded-[10px] border-2 border-black/10 text-[14px] font-medium text-zinc-300"
+            >
+              <Check className="mr-1.5 h-[18px] w-[18px]" />
+              Current plan
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onSelect}
+              className={cn(
+                "flex h-9 w-full items-center justify-center rounded-[10px] text-[14px] font-medium transition-colors",
+                plan.isPopular
+                  ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                  : "border-2 border-black/10 bg-white text-zinc-900 hover:bg-zinc-50",
+              )}
+            >
+              {plan.buttonLabel}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3.5 rounded-b-xl bg-black/[0.02] px-4 py-4 pb-5">
+        {plan.highlight && (
+          <div className="flex items-start gap-0.5">
+            <Plus className="mt-0.5 h-[18px] w-[18px] shrink-0 text-zinc-500" />
+            <p className="text-[13px] font-medium leading-[19.5px] text-zinc-500">
+              {plan.highlight}
+            </p>
+          </div>
+        )}
+        {features.map((feature) => (
+          <div key={feature} className="flex items-start gap-0.5">
+            <Check
+              className="mt-0.5 h-[18px] w-[18px] shrink-0 text-zinc-900"
+              strokeWidth={1.5}
+            />
+            <p className="text-[13px] leading-[19.5px] text-zinc-900">
+              {feature}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-export default function UpgradePageContent({ onClose, onSelectPlan }: UpgradePageContentProps) {
-  const [activeTab, setActiveTab] = React.useState<'individual' | 'team'>('individual');
-  const [planBillingCycles, setPlanBillingCycles] = React.useState<Record<string, BillingCycle>>({
-    go: 'monthly',
-    pro: 'monthly',
-  });
+function OrganizationPlanCarouselCard({
+  plan,
+  billingCycle,
+  onSelect,
+}: {
+  plan: OrganizationPlanCard;
+  billingCycle: BillingCycle;
+  onSelect: () => void;
+}) {
+  const cycle =
+    plan.yearlySupported && billingCycle === "yearly" ? "yearly" : "monthly";
+  const isPrimaryCta =
+    plan.isRecommended || plan.isSpecialOffer || plan.isHighlight;
 
-  const currentPlans = activeTab === 'individual' ? individualPlans : teamPlans;
-  const getBillingCycleForPlan = (planId: string): BillingCycle => planBillingCycles[planId] ?? 'monthly';
-  const setBillingCycleForPlan = (planId: string, billingCycle: BillingCycle) => {
-    setPlanBillingCycles((current) => ({
-      ...current,
-      [planId]: billingCycle,
-    }));
+  const displayName = plan.nameAccent
+    ? `${plan.name} ${plan.nameAccent}`
+    : plan.name;
+
+  return (
+    <div
+      className={cn(
+        "flex w-[240px] shrink-0 flex-col isolate rounded-xl",
+        CARD_SHADOW,
+      )}
+    >
+      <div className="relative z-[2] rounded-t-xl bg-white px-5 pb-5 pt-[26px]">
+        {plan.isRecommended && (
+          <PlanBadge label="Recommended" variant="recommended" />
+        )}
+        {plan.isSpecialOffer && (
+          <PlanBadge label="Special Offer" variant="special" />
+        )}
+
+        <div className="flex flex-col gap-4">
+          <div className="relative flex flex-col gap-4">
+            <span className="text-[15px] font-medium leading-[15px]">
+              {displayName}
+            </span>
+
+            <p className="text-[13px] text-zinc-600">{plan.subtitle}</p>
+
+            <div className="rounded-lg bg-black/[0.04] p-3">
+              <p className="mb-2.5 text-[11px] font-medium leading-4 text-zinc-500">
+                {plan.userRangeLabel}
+              </p>
+
+              {plan.pricingModel === "per-seat" && plan.seatOptions && (
+                <div className="flex flex-col">
+                  <p className="mb-2.5 text-[11px] font-medium leading-4 text-zinc-600">
+                    Min {plan.minSeats} seats · configure each seat separately
+                  </p>
+                  {plan.seatOptions.map((seat, index) => {
+                    const display = getOrganizationSeatDisplayPrice(
+                      seat.monthlyPriceInr,
+                      cycle,
+                      plan.yearlySupported,
+                    );
+                    return (
+                      <div key={seat.id}>
+                        {index > 0 && (
+                          <div className="my-2.5 border-t border-black/10" />
+                        )}
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-[12px] font-medium leading-4 text-zinc-900">
+                            {seat.label}
+                          </span>
+                          <div className="shrink-0 text-right">
+                            <div className="flex items-baseline justify-end gap-1">
+                              {display.strikethrough != null && (
+                                <span className="text-[11px] text-zinc-500 line-through">
+                                  ₹
+                                  {display.strikethrough.toLocaleString(
+                                    "en-IN",
+                                  )}
+                                </span>
+                              )}
+                              <span className="text-[13px] font-semibold leading-4 text-zinc-900">
+                                ₹{display.amount.toLocaleString("en-IN")}
+                                <span className="text-[11px] font-medium text-zinc-500">
+                                  /mo
+                                </span>
+                              </span>
+                            </div>
+                            {seat.note && (
+                              <p className="mt-0.5 max-w-[118px] text-[10px] leading-[14px] text-zinc-500">
+                                {seat.note}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {plan.pricingModel === "bundle-seat" &&
+                plan.bundleSeatMonthlyInr != null && (
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[11px] font-medium leading-4 text-zinc-600">
+                      Min {plan.minSeats} seats · per seat
+                    </p>
+                    <div className="flex flex-wrap items-baseline gap-1">
+                      {plan.bundleSeatMonthlyStrikethroughInr != null && (
+                        <span className="text-[11px] text-zinc-500 line-through">
+                          ₹
+                          {plan.bundleSeatMonthlyStrikethroughInr.toLocaleString(
+                            "en-IN",
+                          )}
+                        </span>
+                      )}
+                      {(() => {
+                        const display = getOrganizationSeatDisplayPrice(
+                          plan.bundleSeatMonthlyInr,
+                          cycle,
+                          plan.yearlySupported,
+                        );
+                        return (
+                          <>
+                            <span className="text-[18px] font-semibold leading-6 tracking-[-0.18px] text-zinc-900">
+                              ₹{display.amount.toLocaleString("en-IN")}
+                            </span>
+                            <span className="text-[11px] font-medium text-zinc-500">
+                              / seat / mo
+                            </span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                    {cycle === "yearly" && (
+                      <p className="text-[10px] leading-4 text-zinc-500">
+                        Billed annually · {YEARLY_DISCOUNT_PERCENT}% off vs
+                        monthly
+                      </p>
+                    )}
+                  </div>
+                )}
+
+              {plan.pricingModel === "usage" && (
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] font-medium leading-4 text-zinc-600">
+                    Min {plan.minSeats} members
+                  </p>
+                  <p className="text-[18px] font-semibold leading-6 tracking-[-0.18px] text-zinc-900">
+                    {plan.usagePricingLabel}
+                  </p>
+                  {plan.usagePricingSubtext && (
+                    <p className="text-[10px] leading-4 text-zinc-500">
+                      {plan.usagePricingSubtext}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {plan.pricingModel === "seat-plus-usage" && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[11px] font-medium leading-4 text-zinc-600">
+                    Min {plan.minSeats} seats · pooled usage
+                  </p>
+                  <p className="text-[15px] font-semibold leading-5 text-zinc-900">
+                    {plan.usagePricingLabel}
+                  </p>
+                  {plan.usagePricingSubtext && (
+                    <p className="text-[10px] leading-4 text-zinc-500">
+                      {plan.usagePricingSubtext}
+                    </p>
+                  )}
+                  {plan.seatOptions && (
+                    <div className="border-t border-black/10 pt-2">
+                      <p className="mb-1.5 text-[10px] font-medium leading-4 text-zinc-500">
+                        Per-seat personal tier (Plus, Pro, or Max):
+                      </p>
+                      {plan.seatOptions.slice(0, 2).map((seat) => (
+                        <p
+                          key={seat.id}
+                          className="text-[10px] leading-4 text-zinc-600"
+                        >
+                          {seat.label}: ₹
+                          {seat.monthlyPriceInr.toLocaleString("en-IN")}/mo
+                        </p>
+                      ))}
+                      <p className="text-[10px] leading-4 text-zinc-500">
+                        + Max 5x & Max 20x seats available
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="h-0" />
+          </div>
+
+          <button
+            type="button"
+            onClick={onSelect}
+            className={cn(
+              "flex h-9 w-full items-center justify-center rounded-[10px] text-[14px] font-medium transition-colors",
+              isPrimaryCta
+                ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                : "border-2 border-black/10 bg-white text-zinc-900 hover:bg-zinc-50",
+            )}
+          >
+            {plan.buttonLabel}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3.5 rounded-b-xl bg-black/[0.02] px-4 py-4 pb-5">
+        {plan.highlight && (
+          <div className="flex items-start gap-0.5">
+            <Plus className="mt-0.5 h-[18px] w-[18px] shrink-0 text-zinc-500" />
+            <p className="text-[13px] font-medium leading-[19.5px] text-zinc-500">
+              {plan.highlight}
+            </p>
+          </div>
+        )}
+        {plan.features.map((feature) => (
+          <div key={feature} className="flex items-start gap-0.5">
+            <Check
+              className="mt-0.5 h-[18px] w-[18px] shrink-0 text-zinc-900"
+              strokeWidth={1.5}
+            />
+            <p className="text-[13px] leading-[19.5px] text-zinc-900">
+              {feature}
+            </p>
+          </div>
+        ))}
+        {plan.footerNote && (
+          <p className="text-[11px] leading-4 text-zinc-500">
+            {plan.footerNote}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function UpgradePageContent({
+  onClose,
+  onSelectPlan,
+}: UpgradePageContentProps) {
+  const [activeTab, setActiveTab] = React.useState<"individual" | "team">(
+    "individual",
+  );
+  const [billingCycle, setBillingCycle] = React.useState<BillingCycle>("monthly");
+  const [maxTier, setMaxTier] = React.useState<MaxTier>("5x");
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(true);
+
+  const updateScrollButtons = React.useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateScrollButtons();
+    el.addEventListener("scroll", updateScrollButtons, { passive: true });
+    window.addEventListener("resize", updateScrollButtons);
+    return () => {
+      el.removeEventListener("scroll", updateScrollButtons);
+      window.removeEventListener("resize", updateScrollButtons);
+    };
+  }, [activeTab, updateScrollButtons]);
+
+  React.useEffect(() => {
+    scrollRef.current?.scrollTo({ left: 0 });
+    updateScrollButtons();
+  }, [activeTab, updateScrollButtons]);
+
+  const scrollBy = (direction: "left" | "right") => {
+    scrollRef.current?.scrollBy({
+      left: direction === "left" ? -280 : 280,
+      behavior: "smooth",
+    });
   };
 
-  const handlePlanSelection = (planId: string, billingCycle: BillingCycle) => {
-    if (!CHECKOUT_PLAN_IDS.has(planId)) return;
-    if (billingCycle !== 'monthly' && billingCycle !== 'yearly') return;
-    onSelectPlan(planId, billingCycle);
+  const handlePersonalPlanSelection = (
+    plan: PlanCard,
+    cycle: BillingCycle,
+    tier?: MaxTier,
+  ) => {
+    if (plan.isCurrent || !CHECKOUT_PLAN_IDS.has(plan.id)) return;
+    onSelectPlan(plan.id, cycle, tier);
   };
 
-  const handlePlaceholderLinkClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleOrganizationPlanSelection = (plan: OrganizationPlanCard) => {
+    if (!CHECKOUT_PLAN_IDS.has(plan.id)) return;
+    const cycle =
+      plan.yearlySupported && billingCycle === "yearly" ? "yearly" : "monthly";
+    onSelectPlan(plan.id, cycle);
+  };
+
+  const handlePlaceholderLinkClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+  ) => {
     event.preventDefault();
   };
 
   return (
-    <div className="w-full h-full bg-zinc-50 font-sans text-zinc-800 overflow-y-auto">
-      <header className="flex items-center justify-center py-5 relative w-full sticky top-0 bg-zinc-50/80 backdrop-blur-md z-20">
+    <div className="h-full w-full overflow-y-auto bg-white font-sans text-zinc-900">
+      <header className="sticky top-0 z-20 flex items-center justify-center border-b border-black/5 bg-white/90 px-12 py-3.5 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md sm:py-4">
         <button
           onClick={onClose}
-          className="absolute left-4 top-1/2 -translate-y-1/2 p-2 hover:bg-zinc-100 rounded-lg transition-all"
+          className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-colors hover:bg-zinc-100 sm:left-4"
           aria-label="Back"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-[24px] md:text-[30px] font-medium leading-[36px]">Plans that grow with you</h1>
+        <h1 className="max-w-[min(100%,14rem)] truncate text-center text-[17px] font-medium tracking-[-0.1px] sm:max-w-none sm:text-[20px]">
+          Plans that grow with you
+        </h1>
       </header>
 
-      <main className="max-w-[1200px] mx-auto w-full px-2 md:px-2 flex flex-col items-center pb-24">
-        {/* Tab Toggle */}
-        <div className="mt-8 mb-8">
-          <div className="bg-zinc-100 p-0.5 rounded-xl flex relative h-10 w-fit select-none">
-            <button
-              onClick={() => setActiveTab('individual')}
-              className={cn(
-                "px-6 h-9 rounded-[8px] text-[14px] font-medium transition-all relative z-10",
-                activeTab === 'individual' ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-900"
-              )}
-            >
-              Individual
-            </button>
-            <button
-              onClick={() => setActiveTab('team')}
-              className={cn(
-                "px-6 h-9 rounded-[8px] text-[14px] font-medium transition-all relative z-10",
-                activeTab === 'team' ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-900"
-              )}
-            >
-              Team and Enterprise
-            </button>
-          </div>
-        </div>
-
-        {/* Plans Grid */}
-        <div className={cn(
-          "grid gap-5 w-full mt-4 items-stretch",
-          activeTab === 'individual' ? "grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 px-0" : "grid-cols-1 md:grid-cols-2 max-w-[920px]"
-        )}>
-          {currentPlans.map((plan) => {
-            const billingCycle = getBillingCycleForPlan(plan.id);
-
-            return (
-            <div
-              key={plan.id}
-              className={cn(
-                "flex flex-col bg-white border border-zinc-200 rounded-2xl p-6 transition-all duration-300 relative group hover:shadow-lg",
-                plan.isHighlight && "border-[#2C84DB]/40 shadow-[0_4px_24px_rgba(44,132,219,0.1)]"
-              )}
-            >
-              <div className="flex flex-col gap-2 min-h-[180px]">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-2xl font-medium">{plan.name}</h3>
-                  {(plan.id === 'go' || plan.id === 'pro') && (
-                    <div className="ml-3 flex h-9 shrink-0 items-center rounded-full bg-zinc-100 p-0.5">
-                      <button
-                        type="button"
-                        onClick={() => setBillingCycleForPlan(plan.id, 'monthly')}
-                        className={cn(
-                          "h-8 rounded-full px-3 text-[12px] font-medium transition-all",
-                          billingCycle === 'monthly'
-                            ? "bg-white text-black shadow-sm"
-                            : "text-zinc-500 hover:text-zinc-900"
-                        )}
-                      >
-                        Monthly
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBillingCycleForPlan(plan.id, 'yearly')}
-                        className={cn(
-                          "flex h-8 items-center gap-1 rounded-full px-3 text-[12px] font-medium transition-all",
-                          billingCycle === 'yearly'
-                            ? "bg-white text-black shadow-sm"
-                            : "text-zinc-500 hover:text-zinc-900"
-                        )}
-                      >
-                        <span>Yearly</span>
-                        <span className="rounded-full bg-[#1B67B2]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#1B67B2]">
-                          Save 17%
-                        </span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <p className="min-h-[40px] text-[14px] leading-snug text-zinc-500">
-                  {plan.description}
-                </p>
-
-                <div className="mt-4 flex flex-col">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[30px] font-medium">
-                      {plan.customPriceLabel === 'Custom' ? '' : '₹'}{formatPlanPrice(plan, billingCycle)}{plan.customPriceLabel === '+' ? '+' : ''}
-                    </span>
-                    {typeof plan.monthlyPrice === 'number' && plan.monthlyPrice > 0 && (
-                      <span className="text-[14px] text-zinc-500 ml-1">
-                        {plan.id === 'team'
-                          ? billingCycle === 'monthly'
-                            ? '/ per seat / month'
-                            : '/ per seat / year'
-                          : billingCycle === 'monthly'
-                            ? '/ month'
-                            : '/ year'}
-                      </span>
-                    )}
-                  </div>
-                  {typeof plan.monthlyPrice === 'number' && plan.monthlyPrice > 0 && activeTab === 'individual' && (
-                    <p className="text-[11px] text-zinc-500">
-                      {billingCycle === 'monthly' ? 'billed monthly' : 'billed annually'}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-6 mb-8">
-                <Button
-                  disabled={plan.isCurrent}
-                  onClick={() => !plan.isCurrent && onSelectPlan(plan.id, billingCycle)}
-                  className={cn(
-                    plan.isCurrent
-                      ? "w-full h-11 rounded-xl font-medium text-[14px] border bg-transparent text-zinc-400 cursor-default border-zinc-200"
-                      : appBtn.primaryLg,
-                  )}
-                >
-                  {plan.buttonLabel}
-                </Button>
-                {plan.id === 'max' && (
-                  <p className="mt-2 text-center text-[12px] text-zinc-500">
-                    No commitment · Cancel anytime
-                  </p>
+      <main className="mobile-page-inset mx-auto flex w-full max-w-[1152px] flex-col gap-5 py-5 pb-24 sm:gap-6 sm:py-6 lg:px-6">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+            <div className="rounded-[10px] bg-black/[0.043] p-0.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab("individual")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
+                  activeTab === "individual"
+                    ? "bg-white shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-900",
                 )}
-                {plan.id === 'team' && (
-                   <div className="mt-2 flex items-center gap-2 p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-[13px] text-zinc-500">
-                     <Info className="w-4 h-4 shrink-0" />
-                     <span>Work email address required.</span>
-                   </div>
+              >
+                Individual
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("team")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
+                  activeTab === "team"
+                    ? "bg-white shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-900",
                 )}
-              </div>
-
-              <div className="flex-1 flex flex-col pt-6 border-t border-zinc-200">
-                {plan.highlight && (
-                  <p className="text-[14px] font-bold mb-4">{plan.highlight}</p>
-                )}
-                <ul className="space-y-3">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-[14px] leading-tight text-zinc-800/80">
-                      <Check className="w-4 h-4 mt-0.5 shrink-0 text-zinc-500" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              >
+                Team & Enterprise
+              </button>
             </div>
-            );
-          })}
+
+            <div className="rounded-[10px] bg-black/[0.043] p-0.5">
+              <button
+                type="button"
+                onClick={() => setBillingCycle("monthly")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
+                  billingCycle === "monthly"
+                    ? "bg-white shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-900",
+                )}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingCycle("yearly")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
+                  billingCycle === "yearly"
+                    ? "bg-white shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-900",
+                )}
+              >
+                Yearly (save {YEARLY_DISCOUNT_PERCENT}%)
+              </button>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 sm:ml-auto sm:gap-3">
+              <a
+                href="#"
+                onClick={handlePlaceholderLinkClick}
+                className="hidden rounded-lg border-2 border-black/10 px-2.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-zinc-50 sm:inline-flex"
+              >
+                Talk to Sales
+              </a>
+              <button
+                type="button"
+                aria-label="Scroll left"
+                disabled={!canScrollLeft}
+                onClick={() => scrollBy("left")}
+                className={cn(
+                  "flex rounded-full p-1.5 shadow-sm transition-opacity",
+                  canScrollLeft
+                    ? "bg-white hover:bg-zinc-50"
+                    : "cursor-default bg-white opacity-30",
+                  CARD_SHADOW,
+                )}
+              >
+                <ChevronLeft className="h-[18px] w-[18px]" />
+              </button>
+              <button
+                type="button"
+                aria-label="Scroll right"
+                disabled={!canScrollRight}
+                onClick={() => scrollBy("right")}
+                className={cn(
+                  "flex rounded-full p-1.5 shadow-sm transition-opacity",
+                  canScrollRight
+                    ? "bg-white hover:bg-zinc-50"
+                    : "cursor-default bg-white opacity-30",
+                  CARD_SHADOW,
+                )}
+              >
+                <ChevronRight className="h-[18px] w-[18px]" />
+              </button>
+            </div>
+          </div>
+
+          <div className="relative -mx-4 overflow-hidden">
+            <div
+              ref={scrollRef}
+              className="flex items-start gap-5 overflow-x-auto px-7 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              style={{
+                maskImage:
+                  "linear-gradient(90deg, transparent 0%, black 50px, black calc(100% - 50px), transparent 100%)",
+              }}
+            >
+              {activeTab === "individual"
+                ? PERSONAL_PLANS.map((plan) => {
+                    const cycle =
+                      plan.yearlySupported &&
+                      billingCycle === "yearly" &&
+                      plan.id !== "max"
+                        ? "yearly"
+                        : "monthly";
+                    const tier = plan.id === "max" ? maxTier : undefined;
+
+                    return (
+                      <PlanCarouselCard
+                        key={plan.id}
+                        plan={plan}
+                        billingCycle={billingCycle}
+                        maxTier={maxTier}
+                        onMaxTierChange={
+                          plan.id === "max" ? setMaxTier : undefined
+                        }
+                        onSelect={() =>
+                          handlePersonalPlanSelection(plan, cycle, tier)
+                        }
+                      />
+                    );
+                  })
+                : ORGANIZATION_PLANS.map((plan) => (
+                    <OrganizationPlanCarouselCard
+                      key={plan.id}
+                      plan={plan}
+                      billingCycle={billingCycle}
+                      onSelect={() => handleOrganizationPlanSelection(plan)}
+                    />
+                  ))}
+            </div>
+          </div>
+
+          {activeTab === "team" && (
+            <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-zinc-50 p-3 text-[13px] text-zinc-600">
+              <Info className="h-4 w-4 shrink-0" />
+              <span>
+                Work email required. Each seat can be Plus, Pro, Max 5x, or Max
+                20x — Go is not available on organization plans. Minimum seats:
+                Team 2 · Business 4 · Enterprise 10.
+              </span>
+            </div>
+          )}
         </div>
 
-        <div className="mt-12 text-center text-[14px] text-zinc-500 max-w-2xl">
-          <p>*<a href="#" onClick={handlePlaceholderLinkClick} className="underline underline-offset-4 decoration-zinc-400/40 hover:text-zinc-900">Usage limits apply</a>. Prices shown don’t include applicable tax.</p>
-        </div>
+        <p className="text-center text-[13px] text-zinc-500">
+          *
+          <a
+            href="#"
+            onClick={handlePlaceholderLinkClick}
+            className="underline underline-offset-4 decoration-zinc-400/40 hover:text-zinc-900"
+          >
+            Usage limits apply
+          </a>
+          . Prices shown don&apos;t include applicable tax. Plans and pricing
+          are subject to change at Shirova&apos;s discretion.
+        </p>
       </main>
     </div>
   );

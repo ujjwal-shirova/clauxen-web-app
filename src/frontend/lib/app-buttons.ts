@@ -14,7 +14,12 @@ export const appBtn = {
 } as const;
 
 export function appButtonClass(
-  variant: keyof typeof appBtn | "primary" | "secondary" | "ghost" | "ghostIcon",
+  variant:
+    | keyof typeof appBtn
+    | "primary"
+    | "secondary"
+    | "ghost"
+    | "ghostIcon",
   extra?: string,
 ) {
   const key =

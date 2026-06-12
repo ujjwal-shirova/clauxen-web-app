@@ -27,7 +27,8 @@ type ProjectSortMenuProps = {
 };
 
 export function ProjectSortMenu({ value, onChange }: ProjectSortMenuProps) {
-  const current = SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0];
+  const current =
+    SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0];
 
   return (
     <div className="flex items-center gap-2 text-[13px] text-[#8f8f8f]">
@@ -81,10 +82,9 @@ export function ProjectSortMenu({ value, onChange }: ProjectSortMenuProps) {
   );
 }
 
-export function sortProjects<T extends { created_at: string; updated_at: string }>(
-  projects: T[],
-  sortKey: ProjectSortKey,
-): T[] {
+export function sortProjects<
+  T extends { created_at: string; updated_at: string },
+>(projects: T[], sortKey: ProjectSortKey): T[] {
   const copy = [...projects];
   switch (sortKey) {
     case "date_created":

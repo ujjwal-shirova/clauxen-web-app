@@ -1,0 +1,181 @@
+-- =============================================================================
+-- Migration: 20260508101000_supabase_low_compute_maintenance_split
+-- Purpose: Split operational maintenance for low-compute Supabase tiers:
+--   - Lightweight cron every 30m (rate limit purge, gift expiry, usage rollup).
+--   - Heavy ANALYZE + bounded pg_prewarm daily at 03:20 UTC.
+-- Prerequisites:
+--   - private schema and public.expire_old_gift_codes / rollup_model_usage.
+--   - pg_cron optional (schedules skipped if extension absent).
+--   - pg_prewarm optional (prewarm returns 0 if absent).
+-- Apply-time behavior:
+--   - Replaces private.prewarm_clauxen_hot_indexes with size-capped prewarm.
+--   - Creates run_clauxen_operational_maintenance and run_clauxen_analyze_maintenance.
+--   - REVOKE from API roles; GRANT EXECUTE to service_role.
+--   - Schedules pg_cron jobs when pg_cron is installed.
+-- Security / RLS:
+--   - All maintenance functions are SECURITY DEFINER in private schema;
+--     only service_role may execute (invoked by cron as superuser path).
+-- Rollback guidance:
+--   - cron.unschedule job names; DROP FUNCTION private.* maintenance helpers.
+-- =============================================================================
+
+drop function if exists private.prewarm_clauxen_hot_indexes();
+
+-- -----------------------------------------------------------------------------
+-- private.prewarm_clauxen_hot_indexes
+-- SECURITY DEFINER: prewarm only indexes <= p_max_index_bytes (default 32MB).
+-- -----------------------------------------------------------------------------
+create or replace function private.prewarm_clauxen_hot_indexes(p_max_index_bytes bigint default 33554432)
+returns integer
+language plpgsql
+security definer
+set search_path = public, extensions, private, pg_temp
+as $$
+declare
+  v_index_name text;
+  v_regclass regclass;
+  v_count integer := 0;
+  v_indexes text[] := array[
+    'public.chats_user_active_updated_idx',
+    'public.workspace_members_active_user_workspace_idx',
+    'public.workspace_members_active_workspace_user_idx',
+    'public.subscriptions_user_active_period_idx',
+    'public.billing_orders_open_user_created_idx',
+    'public.file_processing_jobs_ready_idx',
+    'public.artifact_jobs_ready_idx',
+    'public.rate_limits_identifier_action_window_idx'
+  ];
+begin
+  if not exists (select 1 from pg_extension where extname = 'pg_prewarm') then
+    return 0;
+  end if;
+
+  foreach v_index_name in array v_indexes loop
+    v_regclass := to_regclass(v_index_name);
+    if v_regclass is not null and pg_relation_size(v_regclass) <= p_max_index_bytes then
+      begin
+        execute format('select extensions.pg_prewarm(%L::regclass)', v_index_name);
+        v_count := v_count + 1;
+      exception when others then
+        null;
+      end;
+    end if;
+  end loop;
+
+  return v_count;
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- private.run_clauxen_operational_maintenance
+-- Frequent: purge stale rate_limits, expire gifts, rollup recent usage.
+-- -----------------------------------------------------------------------------
+create or replace function private.run_clauxen_operational_maintenance()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions, private, pg_temp
+as $$
+declare
+  v_deleted_rate_limits integer := 0;
+begin
+  delete from public.rate_limits
+  where updated_at < now() - interval '2 days';
+  get diagnostics v_deleted_rate_limits = row_count;
+
+  perform public.expire_old_gift_codes();
+  perform public.rollup_model_usage(now() - interval '3 days', now());
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'deleted_rate_limits', v_deleted_rate_limits,
+    'ran_at', now()
+  );
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- private.run_clauxen_analyze_maintenance
+-- Daily: bounded prewarm + ANALYZE on hot public tables.
+-- -----------------------------------------------------------------------------
+create or replace function private.run_clauxen_analyze_maintenance()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions, private, pg_temp
+as $$
+declare
+  v_prewarmed integer := 0;
+begin
+  v_prewarmed := private.prewarm_clauxen_hot_indexes(33554432);
+
+  analyze public.chats;
+  analyze public.chat_messages;
+  analyze public.chat_message_parts;
+  analyze public.document_chunks;
+  analyze public.embeddings;
+  analyze public.model_usage_events;
+  analyze public.token_transactions;
+  analyze public.billing_orders;
+  analyze public.billing_payments;
+  analyze public.subscriptions;
+  analyze public.gift_codes;
+  analyze public.file_processing_jobs;
+  analyze public.artifact_jobs;
+  analyze public.gift_delivery_jobs;
+  analyze public.rate_limits;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'prewarmed_indexes', v_prewarmed,
+    'ran_at', now()
+  );
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- Grants: maintenance RPCs are service_role-only
+-- -----------------------------------------------------------------------------
+revoke all on function private.prewarm_clauxen_hot_indexes(bigint) from public, anon, authenticated;
+
+revoke all on function private.run_clauxen_operational_maintenance() from public, anon, authenticated;
+
+revoke all on function private.run_clauxen_analyze_maintenance() from public, anon, authenticated;
+
+grant execute on function private.prewarm_clauxen_hot_indexes(bigint) to service_role;
+
+grant execute on function private.run_clauxen_operational_maintenance() to service_role;
+
+grant execute on function private.run_clauxen_analyze_maintenance() to service_role;
+
+-- -----------------------------------------------------------------------------
+-- pg_cron schedules (optional)
+-- -----------------------------------------------------------------------------
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    begin
+      perform cron.unschedule('clauxen_operational_maintenance');
+    exception when others then
+      null;
+    end;
+
+    begin
+      perform cron.unschedule('clauxen_analyze_maintenance');
+    exception when others then
+      null;
+    end;
+
+    perform cron.schedule(
+      'clauxen_operational_maintenance',
+      '*/30 * * * *',
+      'select private.run_clauxen_operational_maintenance();'
+    );
+
+    perform cron.schedule(
+      'clauxen_analyze_maintenance',
+      '20 3 * * *',
+      'select private.run_clauxen_analyze_maintenance();'
+    );
+  end if;
+end $$;
