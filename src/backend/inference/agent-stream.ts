@@ -1,10 +1,10 @@
 import { env } from "@/backend/config/env";
 import {
-  buildStructuredOutputTool,
-  convertAgentMessagesToAnthropic,
-  consumeAnthropicMessageStream,
-} from "@/backend/inference/anthropic-adapter";
-import { getAnthropicClient } from "@/backend/inference/anthropic-client";
+  convertAgentMessagesToOpenAi,
+  prependSystemMessage,
+  toOpenAiTools,
+} from "@/backend/inference/openai-agent-adapter";
+import { getOpenAIClient } from "@/backend/inference/openai-client";
 import {
   platformTools,
   type PlatformToolName,
@@ -22,10 +22,8 @@ import type {
   AgentChatRequest,
   AgentMessage,
 } from "@/backend/inference/novita-agent";
-import {
-  splitFinalAnswerContent,
-  streamTextInChunks,
-} from "@/lib/chat-routing";
+import { buildInlineChatTitleSystemInstruction } from "@/lib/chat-title";
+import { buildStructuredOutputTool } from "@/backend/inference/openai-agent-adapter";
 
 export type AgentStreamEvent =
   | { event: "text_delta"; data: { text: string } }
@@ -54,6 +52,16 @@ export type AgentStreamEvent =
 
 const MAX_LOOPS = 10;
 
+type NovitaStreamDelta = {
+  content?: string | null;
+  reasoning_content?: string | null;
+  tool_calls?: Array<{
+    index?: number;
+    id?: string;
+    function?: { name?: string; arguments?: string };
+  }>;
+};
+
 function encodeAgentSse(event: string, data: unknown) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
@@ -68,15 +76,18 @@ function resolveAgentTools(request: AgentChatRequest) {
   return all;
 }
 
-function buildSystemPrompt(_request: AgentChatRequest) {
-  return buildCacheableSystemPrefix("You are Clauxen.");
-}
+const AGENT_SYSTEM_BASE = [
+  "You are Clauxen, a helpful AI assistant.",
+  "You can use tools when they help. Use web_search to find current or factual information you are unsure about, and web_fetch to read a specific URL. Decide yourself when a question needs fresh information versus when you can answer directly — do not search for things you already know. After using tools, answer the user clearly and concisely.",
+].join("\n\n");
 
-type AccumulatedToolUse = {
-  id: string;
-  name: string;
-  inputJson: string;
-};
+function buildSystemPrompt(request: AgentChatRequest) {
+  let prompt = buildCacheableSystemPrefix(AGENT_SYSTEM_BASE);
+  if (request.generateChatTitle) {
+    prompt = `${prompt}\n\n${buildInlineChatTitleSystemInstruction()}`;
+  }
+  return prompt;
+}
 
 function resolveStructuredTools(request: AgentChatRequest) {
   if (request.mode !== "structured") return undefined;
@@ -91,17 +102,70 @@ function resolveStructuredTools(request: AgentChatRequest) {
   ];
 }
 
+type PendingToolCall = {
+  id: string;
+  name: string;
+  arguments: string;
+};
+
+function splitThinkingFromAnswer(
+  delta: string,
+  state: { inThink: boolean },
+): { reasoning: string; answer: string } {
+  const THINK_OPEN = "<" + "think" + ">";
+  const THINK_CLOSE = "<" + "/" + "think" + ">";
+  let remaining = delta;
+  let reasoning = "";
+  let answer = "";
+
+  while (remaining.length > 0) {
+    if (state.inThink) {
+      const closeIdx = remaining.indexOf(THINK_CLOSE);
+      if (closeIdx === -1) {
+        reasoning += remaining;
+        remaining = "";
+      } else {
+        reasoning += remaining.slice(0, closeIdx);
+        remaining = remaining.slice(closeIdx + THINK_CLOSE.length);
+        state.inThink = false;
+      }
+      continue;
+    }
+
+    const openIdx = remaining.indexOf(THINK_OPEN);
+    if (openIdx === -1) {
+      answer += remaining;
+      remaining = "";
+    } else {
+      answer += remaining.slice(0, openIdx);
+      remaining = remaining.slice(openIdx + THINK_OPEN.length);
+      state.inThink = true;
+    }
+  }
+
+  return { reasoning, answer };
+}
+
+export type AgentStreamContext = {
+  userId?: string;
+  conversationId?: string;
+  userCountryCode?: string;
+};
+
 export async function streamNovitaAgentChat(
   request: AgentChatRequest,
   send: ToolEventSender,
   signal?: AbortSignal,
-  context?: { userId?: string; conversationId?: string },
+  context?: AgentStreamContext,
 ) {
-  const client = getAnthropicClient();
+  const client = getOpenAIClient();
   const model = request.model?.trim() || env.defaultModel;
   const platformToolList = resolveAgentTools(request);
   const structuredTools = resolveStructuredTools(request);
   const tools = structuredTools ?? platformToolList;
+  const openAiTools = tools?.length ? toOpenAiTools(tools) : undefined;
+  const thinkingEnabled = Boolean(request.enableThinking);
+  const thinkState = { inThink: false };
 
   const conversation: AgentMessage[] = [
     { role: "system", content: buildSystemPrompt(request) },
@@ -110,223 +174,199 @@ export async function streamNovitaAgentChat(
 
   let loopCount = 0;
   let finalUsage: unknown = null;
+  let accumulatedContent = "";
 
   while (loopCount < MAX_LOOPS) {
+    if (signal?.aborted) break;
     loopCount += 1;
 
-    const { system, messages } = convertAgentMessagesToAnthropic(conversation);
-    const stream = client.messages.stream(
+    const { system, messages } = convertAgentMessagesToOpenAi(conversation);
+    const stream = await client.chat.completions.create(
       {
         model,
         max_tokens: 8192,
-        temperature: 0.7,
-        system,
-        messages,
-        tools: tools?.length ? tools : undefined,
+        temperature: thinkingEnabled ? 1 : 0.6,
+        messages: prependSystemMessage(system, messages),
+        stream: true,
+        tools: openAiTools,
         tool_choice:
           structuredTools?.length === 1
-            ? { type: "tool", name: "clauxen_agent_result" }
-            : tools?.length
-              ? { type: "auto" }
+            ? { type: "function", function: { name: "clauxen_agent_result" } }
+            : openAiTools?.length
+              ? "auto"
               : undefined,
-        thinking: request.enableThinking
-          ? { type: "enabled", budget_tokens: 8192 }
-          : undefined,
-        stream: true,
       },
       { signal },
     );
 
-    let accumulatedContent = "";
-    let accumulatedReasoning = "";
-    let pendingInterleaved = "";
-    let streamedInterleavedChars = 0;
-    const accumulatedToolUses: AccumulatedToolUse[] = [];
-    let finishReason: string | null = null;
+    const pendingByIndex = new Map<number, PendingToolCall>();
+    let assistantContent = "";
+    let reasoningContent = "";
 
-    const flushInterleaved = (text: string) => {
-      if (!text) return;
-      send("reasoning_delta", { text });
-      streamedInterleavedChars += text.length;
-    };
+    for await (const chunk of stream) {
+      if (signal?.aborted) break;
+      if (chunk.usage) {
+        finalUsage = chunk.usage;
+        send("cache_usage", extractPromptCacheStats(chunk.usage));
+      }
 
-    await consumeAnthropicMessageStream(
-      stream,
-      {
-        onUsage: (usage) => {
-          finalUsage = usage;
-          send("cache_usage", extractPromptCacheStats(usage));
-        },
-        onTextDelta: (delta) => {
-          accumulatedContent += delta;
-          const hasToolCallsInTurn = accumulatedToolUses.length > 0;
-          if (hasToolCallsInTurn) {
-            flushInterleaved(delta);
-          } else {
-            pendingInterleaved += delta;
+      const delta = chunk.choices[0]?.delta as NovitaStreamDelta | undefined;
+      if (!delta) continue;
+
+      if (delta.reasoning_content) {
+        reasoningContent += delta.reasoning_content;
+        send("reasoning_delta", { text: delta.reasoning_content });
+      }
+
+      if (delta.content) {
+        assistantContent += delta.content;
+        accumulatedContent += delta.content;
+        if (thinkingEnabled && !delta.reasoning_content) {
+          const split = splitThinkingFromAnswer(delta.content, thinkState);
+          if (split.reasoning) {
+            send("reasoning_delta", { text: split.reasoning });
           }
-        },
-        onThinkingDelta: (delta) => {
-          accumulatedReasoning += delta;
-          send("reasoning_delta", { text: delta });
-        },
-        onToolUseStart: (tool) => {
-          if (pendingInterleaved.trim()) {
-            flushInterleaved(pendingInterleaved);
-            pendingInterleaved = "";
+          if (split.answer) {
+            send("text_delta", { text: split.answer });
           }
-          accumulatedToolUses.push({
-            id: tool.id,
-            name: tool.name,
-            inputJson: "",
-          });
+        } else {
+          send("text_delta", { text: delta.content });
+        }
+      }
+
+      if (delta.tool_calls) {
+        for (const toolDelta of delta.tool_calls) {
+          const index = toolDelta.index ?? 0;
+          const current = pendingByIndex.get(index) ?? {
+            id: toolDelta.id ?? "",
+            name: toolDelta.function?.name ?? "",
+            arguments: "",
+          };
+          if (toolDelta.id) current.id = toolDelta.id;
+          if (toolDelta.function?.name) current.name = toolDelta.function.name;
+          if (toolDelta.function?.arguments) {
+            current.arguments += toolDelta.function.arguments;
+          }
+          pendingByIndex.set(index, current);
           send("tool_call_streaming", {
-            tool_calls: [{ id: tool.id, name: tool.name }],
+            tool_calls: [
+              {
+                id: current.id,
+                name: current.name,
+                input: current.arguments,
+              },
+            ],
           });
-        },
-        onToolInputDelta: (partial) => {
-          const slot = accumulatedToolUses[accumulatedToolUses.length - 1];
-          if (slot) {
-            slot.inputJson += partial;
-          }
-        },
-        onStopReason: (reason) => {
-          finishReason = reason;
-        },
-      },
-      signal,
-    );
+        }
+      }
+    }
 
-    const toolUsesArray = accumulatedToolUses;
+    const toolCalls = [...pendingByIndex.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([, call]) => call)
+      .filter((call) => call.id && call.name);
+
+    if (toolCalls.length === 0) {
+      send("done", {
+        finish_reason: "stop",
+        usage: finalUsage,
+        cache: extractPromptCacheStats(finalUsage),
+      });
+      return {
+        content: accumulatedContent,
+        reasoning: "",
+        usage: finalUsage,
+        model,
+      };
+    }
 
     conversation.push({
       role: "assistant",
-      content: accumulatedContent || null,
-      thinking: accumulatedReasoning || undefined,
-      tool_uses:
-        toolUsesArray.length > 0
-          ? toolUsesArray.map((toolUse) => {
-              let input: Record<string, unknown> = {};
-              try {
-                input = JSON.parse(toolUse.inputJson || "{}") as Record<
-                  string,
-                  unknown
-                >;
-              } catch {
-                input = {};
-              }
-              return {
-                id: toolUse.id,
-                name: toolUse.name,
-                input,
-              };
-            })
-          : undefined,
+      content: assistantContent || null,
+      ...(reasoningContent ? { reasoning_content: reasoningContent } : {}),
+      tool_uses: toolCalls.map((call) => {
+        let input: Record<string, unknown> = {};
+        try {
+          input = JSON.parse(call.arguments || "{}") as Record<string, unknown>;
+        } catch {
+          input = {};
+        }
+        return { id: call.id, name: call.name, input };
+      }),
     });
 
-    if (finishReason === "tool_use" && toolUsesArray.length > 0) {
-      if (pendingInterleaved.trim()) {
-        flushInterleaved(pendingInterleaved);
-        pendingInterleaved = "";
+    send("tool_calls_start", {
+      tool_calls: toolCalls.map((call) => ({
+        id: call.id,
+        name: call.name,
+        input: call.arguments,
+      })),
+    });
+
+    for (const call of toolCalls) {
+      if (signal?.aborted) break;
+      let parsedArgs: Record<string, unknown> = {};
+      try {
+        parsedArgs = JSON.parse(call.arguments || "{}") as Record<
+          string,
+          unknown
+        >;
+      } catch {
+        parsedArgs = {};
       }
 
-      send("tool_calls_start", {
-        tool_calls: toolUsesArray.map((toolUse) => ({
-          id: toolUse.id,
-          name: toolUse.name,
-          input: toolUse.inputJson,
-        })),
+      send("tool_executing", {
+        tool_call_id: call.id,
+        name: call.name,
+        args: parsedArgs,
+        description:
+          typeof parsedArgs.description === "string"
+            ? parsedArgs.description
+            : undefined,
       });
 
-      for (const toolUse of toolUsesArray) {
-        let parsedArgs: Record<string, unknown> = {};
-        try {
-          parsedArgs = JSON.parse(toolUse.inputJson || "{}") as Record<
-            string,
-            unknown
-          >;
-        } catch {
-          parsedArgs = {};
-        }
-
-        send("tool_executing", {
-          tool_call_id: toolUse.id,
-          name: toolUse.name,
-          args: parsedArgs,
-          description:
-            typeof parsedArgs.description === "string"
-              ? parsedArgs.description
-              : undefined,
+      try {
+        const result = await executePlatformTool(
+          call.name as PlatformToolName,
+          call.arguments,
+          send,
+          { ...context, toolCallId: call.id },
+        );
+        send("tool_result", {
+          tool_call_id: call.id,
+          name: call.name,
+          result,
         });
-
-        try {
-          const result = await executePlatformTool(
-            toolUse.name as PlatformToolName,
-            toolUse.inputJson,
-            send,
-            context,
-          );
-          send("tool_result", {
-            tool_call_id: toolUse.id,
-            name: toolUse.name,
-            result,
-          });
-          conversation.push({
-            role: "tool",
-            tool_use_id: toolUse.id,
-            content: result,
-          });
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "Tool execution failed";
-          send("tool_result", {
-            tool_call_id: toolUse.id,
-            name: toolUse.name,
-            result: JSON.stringify({ error: message }),
-          });
-          conversation.push({
-            role: "tool",
-            tool_use_id: toolUse.id,
-            content: JSON.stringify({ error: message }),
-          });
-        }
+        conversation.push({
+          role: "tool",
+          tool_use_id: call.id,
+          content: result,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Tool execution failed";
+        send("tool_result", {
+          tool_call_id: call.id,
+          name: call.name,
+          result: JSON.stringify({ error: message }),
+        });
+        conversation.push({
+          role: "tool",
+          tool_use_id: call.id,
+          content: JSON.stringify({ error: message }),
+        });
       }
-      continue;
     }
-
-    const finalTurnText = accumulatedContent.slice(streamedInterleavedChars);
-    const { preamble, answer } = splitFinalAnswerContent(finalTurnText);
-    if (preamble) {
-      flushInterleaved(preamble);
-    }
-
-    send("frame_complete", {});
-    streamTextInChunks(answer, (chunk) => {
-      send("text_delta", { text: chunk });
-    });
-
-    send("done", {
-      finish_reason: finishReason ?? "end_turn",
-      usage: finalUsage,
-      cache: extractPromptCacheStats(finalUsage),
-    });
-    return {
-      content: accumulatedContent,
-      reasoning: accumulatedReasoning,
-      usage: finalUsage,
-      model,
-    };
   }
 
-  send("frame_complete", {});
   send("done", { finish_reason: "max_loops", usage: finalUsage });
-  return { content: "", reasoning: "", usage: finalUsage, model };
+  return { content: accumulatedContent, reasoning: "", usage: finalUsage, model };
 }
 
 export function createAgentSseStream(
   request: AgentChatRequest,
   signal?: AbortSignal,
-  context?: { userId?: string; conversationId?: string },
+  context?: AgentStreamContext,
 ) {
   const encoder = new TextEncoder();
   return new ReadableStream<Uint8Array>({

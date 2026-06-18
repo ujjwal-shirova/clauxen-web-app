@@ -85,9 +85,9 @@ export function ProjectCard({
           type="button"
           onClick={onOpen}
           className={cn(
-            "flex h-full min-h-[140px] w-full flex-col gap-4 rounded-xl border border-[rgba(11,11,11,0.1)] bg-zinc-50 p-4 text-left shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)]",
-            "outline-none transition-shadow hover:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.12),0_1px_3px_rgba(0,0,0,0.04)]",
-            "focus-visible:ring-2 focus-visible:ring-[#256bc1]/40",
+            "flex h-full min-h-[148px] w-full flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 text-left",
+            "outline-none transition-all duration-150 hover:border-zinc-300 hover:shadow-[0_2px_8px_rgba(24,24,27,0.06)]",
+            "focus-visible:ring-2 focus-visible:ring-zinc-400/40",
           )}
         >
           <div className="flex items-center overflow-hidden pr-10">
@@ -102,7 +102,7 @@ export function ProjectCard({
           ) : (
             <div className="flex-1" />
           )}
-          <div className="mt-auto text-[13px] leading-4 text-[#898781]">
+          <div className="mt-auto text-[12px] leading-4 text-zinc-500">
             <span>Updated </span>
             <time dateTime={project.updated_at}>{updatedLabel}</time>
           </div>
@@ -122,7 +122,7 @@ export function ProjectCard({
                 type="button"
                 aria-label={`More options for ${project.name}`}
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-900 transition-colors hover:bg-[rgba(11,11,11,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#256bc1]/40"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/40"
               >
                 <MoreHorizontal className="h-5 w-5" strokeWidth={1.5} />
               </button>

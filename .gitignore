@@ -10,16 +10,19 @@ node_modules/
 .env.vercel
 supabase/functions/.env
 
+# Legacy — do not recreate
+.env.example
+cockroachdb/.env.local
+
 .vercel/
 .cursor/
 .tools/
 tsconfig.tsbuildinfo
 
-# CockroachDB local credentials (see cockroachdb/.env.example)
-cockroachdb/.env
-cockroachdb/.env.local
-
 coverage/
+
+storage/uploads/
+.autonomous-agent-files/
 
 *.log
 npm-debug.log*

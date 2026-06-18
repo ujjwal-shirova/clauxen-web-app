@@ -89,11 +89,9 @@ export function ProjectFilesPanel({
   };
 
   return (
-    <section className="flex flex-col gap-2 px-[22px] py-4">
-      <div className="flex h-6 items-center justify-between gap-4">
-        <h2 className="text-[14px] font-medium leading-[19.6px] text-zinc-700">
-          Files
-        </h2>
+    <section className="flex flex-col gap-2 px-5 py-4">
+      <div className="flex h-7 items-center justify-between gap-4">
+        <h2 className="text-[14px] font-medium text-zinc-800">Files</h2>
         <ProjectFilesMenu
           onUploadFromDevice={onUploadFromDevice}
           onAddTextContent={onAddTextContent}
@@ -120,10 +118,10 @@ export function ProjectFilesPanel({
           aria-valuemin={0}
           aria-valuemax={PROJECT_CAPACITY_MAX}
           aria-label="Project knowledge capacity"
-          className="relative rounded-full border-[0.5px] border-[rgba(31,31,30,0.15)] bg-zinc-100 p-px"
+          className="relative rounded-full border border-zinc-200 bg-zinc-100 p-px"
         >
           <div
-            className="h-1.5 rounded-full bg-[#256bc1] transition-[width] duration-150 ease-out"
+            className="h-1.5 rounded-full bg-zinc-800 transition-[width] duration-150 ease-out"
             style={{
               width: `${Math.max(capacityUsed, files.length > 0 ? 2 : 0)}%`,
             }}
@@ -144,13 +142,13 @@ export function ProjectFilesPanel({
       </div>
 
       {files.length === 0 ? (
-        <div className="flex h-[160px] flex-col items-center justify-center gap-3 rounded-2xl bg-zinc-100 px-4 text-center">
+        <div className="flex h-[160px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 text-center">
           <FileStack
-            className="h-10 w-10 text-[#c8c6bc]"
+            className="h-9 w-9 text-zinc-300"
             strokeWidth={1.15}
             aria-hidden
           />
-          <p className="max-w-[232px] text-[12px] font-[430] leading-[16.8px] text-zinc-500">
+          <p className="max-w-[232px] text-[12px] leading-relaxed text-zinc-500">
             Add PDFs, documents, or other text to reference in this project.
           </p>
         </div>

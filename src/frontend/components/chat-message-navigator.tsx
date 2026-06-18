@@ -5,6 +5,7 @@ import type { Message } from "@/frontend/lib/types";
 import { cn } from "@/frontend/lib/utils";
 
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
+const HOVER_HIDE_DELAY_MS = 180;
 
 export function messageAnchorId(messageId: string) {
   return `${MESSAGE_ANCHOR_PREFIX}${messageId}`;
@@ -34,6 +35,31 @@ function ChatMessageNavigatorInner({
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [isRailHovered, setIsRailHovered] = React.useState(false);
   const [hoveredId, setHoveredId] = React.useState<string | null>(null);
+  const hideTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const clearHideTimeout = React.useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const openRail = React.useCallback(() => {
+    clearHideTimeout();
+    setIsRailHovered(true);
+  }, [clearHideTimeout]);
+
+  const scheduleCloseRail = React.useCallback(() => {
+    clearHideTimeout();
+    hideTimeoutRef.current = setTimeout(() => {
+      setIsRailHovered(false);
+      setHoveredId(null);
+    }, HOVER_HIDE_DELAY_MS);
+  }, [clearHideTimeout]);
+
+  React.useEffect(() => () => clearHideTimeout(), [clearHideTimeout]);
 
   const getViewport = React.useCallback(() => {
     const root = scrollAreaRef.current;
@@ -130,20 +156,19 @@ function ChatMessageNavigatorInner({
   return (
     <div
       className={cn(
-        "pointer-events-none relative flex h-full w-full items-center justify-center",
+        "relative flex h-full w-full items-center justify-center",
         className,
       )}
-      onMouseEnter={() => setIsRailHovered(true)}
-      onMouseLeave={() => {
-        setIsRailHovered(false);
-        setHoveredId(null);
-      }}
     >
-      <div className="pointer-events-auto relative flex items-center">
+      <div
+        className="relative flex items-center"
+        onMouseEnter={openRail}
+        onMouseLeave={scheduleCloseRail}
+      >
         {showPreviewPanel ? (
           <div
-            className="absolute right-[calc(100%+8px)] top-1/2 z-30 max-h-[376px] min-w-[240px] max-w-[320px] -translate-y-1/2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white py-1.5 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)]"
-            onMouseEnter={() => setIsRailHovered(true)}
+            className="absolute right-full top-1/2 z-30 max-h-[376px] min-w-[240px] max-w-[320px] -translate-y-1/2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white py-1.5 pr-1 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)]"
+            onMouseEnter={openRail}
           >
             <ul className="app-scrollbar flex max-h-[376px] flex-col overflow-y-auto overscroll-contain">
               {userMessages.map((message) => {
@@ -156,7 +181,6 @@ function ChatMessageNavigatorInner({
                       type="button"
                       onClick={() => scrollToMessage(message.id)}
                       onMouseEnter={() => setHoveredId(message.id)}
-                      onMouseLeave={() => setHoveredId(null)}
                       className={cn(
                         "mx-1.5 flex min-h-9 w-[calc(100%-12px)] max-w-[calc(100%-12px)] items-center rounded-[10px] px-2.5 py-1.5 text-left text-[14px] leading-5 text-zinc-900 transition-colors",
                         isActive ? "bg-black/[0.06]" : "hover:bg-black/[0.04]",
@@ -173,7 +197,7 @@ function ChatMessageNavigatorInner({
           </div>
         ) : null}
 
-        <div className="app-scrollbar flex max-h-[376px] w-full flex-col items-center gap-2 overflow-y-auto px-1 py-1">
+        <div className="app-scrollbar flex max-h-[376px] w-full flex-col items-center gap-2 overflow-y-auto px-1 py-1 pl-2">
           {userMessages.map((message) => {
             const isActive = activeId === message.id;
             const preview = truncatePreview(message.content);
@@ -186,7 +210,6 @@ function ChatMessageNavigatorInner({
                 aria-current={isActive ? "true" : undefined}
                 onClick={() => scrollToMessage(message.id)}
                 onMouseEnter={() => setHoveredId(message.id)}
-                onMouseLeave={() => setHoveredId(null)}
                 className={cn(
                   "h-0.5 w-[18px] shrink-0 rounded-full transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)]",
                   isActive

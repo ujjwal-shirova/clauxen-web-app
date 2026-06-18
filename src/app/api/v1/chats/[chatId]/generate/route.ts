@@ -6,6 +6,8 @@ import {
   sanitizeMessages,
 } from "@/backend/inference/novita";
 import { AppError } from "@/backend/db/errors";
+import { resolveRequestCountryCode } from "@/lib/request-geo";
+import { UI_MESSAGE_STREAM_HEADERS } from "ai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +21,8 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       thinkingEnabled?: boolean;
       thinkingType?: string;
       webSearchEnabled?: boolean;
+      generateChatTitle?: boolean;
+      chatModel?: string;
     };
     const messages = sanitizeMessages(body.messages);
     if (!messages.length) {
@@ -32,6 +36,9 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       signal: request.signal,
       thinkingType: resolveThinkingType(body),
       webSearchEnabled: body.webSearchEnabled === true,
+      userCountryCode: resolveRequestCountryCode(request.headers),
+      generateChatTitle: body.generateChatTitle,
+      chatModel: body.chatModel,
     });
 
     const wrapped = new ReadableStream<Uint8Array>({
@@ -53,9 +60,9 @@ export const POST = withApiRouteParams<{ chatId: string }>(
 
     return new Response(wrapped, {
       headers: {
-        "Content-Type": "text/event-stream; charset=utf-8",
+        ...UI_MESSAGE_STREAM_HEADERS,
         "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
       },
     });
   },

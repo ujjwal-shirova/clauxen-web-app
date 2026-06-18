@@ -4,30 +4,32 @@ import { query, queryOne } from "@/backend/db/pool";
 export type ProjectRow = {
   id: string;
   user_id: string;
-  workspace_id: string | null; // optional team workspace link
+  workspace_id: string | null;
   name: string;
   description: string | null;
-  color: string | null; // UI accent
+  system_prompt: string | null;
+  color: string | null;
   icon: string | null;
-  status: string; // active | deleted
+  status: string;
   created_at: string;
   updated_at: string;
 };
 
 export async function listProjects(userId: string) {
   return query<ProjectRow>(
-    `select id, user_id, workspace_id, name, description, color, icon, status, created_at, updated_at
+    `select id, user_id, workspace_id, name, description, system_prompt,
+            color, icon, status, created_at, updated_at
      from public.projects
      where user_id = $1 and status = 'active'
      order by updated_at desc`,
     [userId],
-  ); // $1 owner id — cross-user leak impossible
+  );
 }
 
-// single project by id — owner match required
 export async function getProject(projectId: string, userId: string) {
   return queryOne<ProjectRow>(
-    `select id, user_id, workspace_id, name, description, color, icon, status, created_at, updated_at
+    `select id, user_id, workspace_id, name, description, system_prompt,
+            color, icon, status, created_at, updated_at
      from public.projects where id = $1 and user_id = $2 and status = 'active'`,
     [projectId, userId],
   );
@@ -55,7 +57,7 @@ export async function createProject(input: {
               )
             )
         )
-     returning id, user_id, workspace_id, name, description, color, icon, status, created_at, updated_at`,
+     returning id, user_id, workspace_id, name, description, system_prompt, color, icon, status, created_at, updated_at`,
     [
       input.userId,
       input.workspaceId ?? null, // personal project — workspace_id NULL
@@ -69,24 +71,26 @@ export async function createProject(input: {
 export async function updateProject(
   projectId: string,
   userId: string,
-  patch: { name?: string; description?: string; color?: string },
+  patch: { name?: string; description?: string; color?: string; system_prompt?: string | null },
 ) {
   return queryOne<ProjectRow>(
     `update public.projects set
        name = coalesce($3, name),
        description = coalesce($4, description),
        color = coalesce($5, color),
+       system_prompt = coalesce($6, system_prompt),
        updated_at = now()
      where id = $1 and user_id = $2 and status = 'active'
-     returning id, user_id, workspace_id, name, description, color, icon, status, created_at, updated_at`,
+     returning id, user_id, workspace_id, name, description, system_prompt, color, icon, status, created_at, updated_at`,
     [
       projectId,
       userId,
       patch.name ?? null,
       patch.description ?? null,
       patch.color ?? null,
+      patch.system_prompt ?? null,
     ],
-  ); // wrong owner or deleted → zero rows → null
+  );
 }
 
 export async function deleteProject(projectId: string, userId: string) {

@@ -12,17 +12,7 @@ import {
   Languages,
   Sparkles,
   Library,
-  Pencil,
-  Trash2,
   X,
-  PinOff,
-  Share,
-  UserPlus,
-  Folder,
-  Pin,
-  Archive,
-  ChevronRight,
-  Plus,
 } from "lucide-react";
 import {
   SidebarToggleIcon,
@@ -47,6 +37,8 @@ import {
 import { OrbCursor } from "./ui/orb-cursor";
 import { SidebarBasicsChecklist } from "./sidebar-basics-checklist";
 import { RenameChatDialog } from "./rename-chat-dialog";
+import { DeleteChatDialog } from "./delete-chat-dialog";
+import { ChatRowMenuContent } from "./chat-row-menu-content";
 import { SidebarChatGroupMenu } from "./sidebar-chat-group-menu";
 import {
   groupChats,
@@ -238,6 +230,7 @@ export function Sidebar({
   const [chatGroupBy, setChatGroupBy] = useState<ChatGroupBy>("none");
   const [showBasicsChecklist, setShowBasicsChecklist] = useState(false);
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
+  const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -250,13 +243,11 @@ export function Sidebar({
       const basicsState = basicsRaw
         ? (JSON.parse(basicsRaw) as { dismissed?: boolean })
         : { dismissed: false };
-      setShowBasicsChecklist(
-        !basicsState.dismissed && recentChats.length < 4,
-      );
+      setShowBasicsChecklist(!basicsState.dismissed);
     } catch {
-      setShowBasicsChecklist(recentChats.length < 4);
+      setShowBasicsChecklist(true);
     }
-  }, [recentChats.length]);
+  }, []);
 
   const projectGroupingEnabled = hasProjectAssignments(recentChats);
   const pinnedChats = useMemo(
@@ -275,6 +266,10 @@ export function Sidebar({
     () => recentChats.find((chat) => chat.id === renameChatId) ?? null,
     [recentChats, renameChatId],
   );
+  const deleteChat = useMemo(
+    () => recentChats.find((chat) => chat.id === deleteChatId) ?? null,
+    [recentChats, deleteChatId],
+  );
 
   const handleChatGroupChange = (next: ChatGroupBy) => {
     setChatGroupBy(next);
@@ -289,9 +284,6 @@ export function Sidebar({
     action();
     if (isMobileLayout) onNavigate?.();
   };
-
-  const chatMenuItemClass =
-    "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100 focus:bg-zinc-100";
 
   const renderChatRow = (chat: RecentChat) => (
     <div
@@ -311,7 +303,7 @@ export function Sidebar({
         }
       }}
       className={cn(
-        "group/chat flex h-8 w-full cursor-pointer items-center rounded-lg px-2.5 text-left text-[12.5px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
+        "group/chat glass-sidebar-agent-menu-btn flex h-7 w-full cursor-pointer items-center rounded-md px-2 text-left text-[12.5px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
         activeChatId === chat.id && "bg-black/[0.06]",
       )}
     >
@@ -319,93 +311,26 @@ export function Sidebar({
         <span className="truncate">{chat.name || "New Chat"}</span>
         {chat.isTitleStreaming && <OrbCursor />}
       </div>
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <button
             onClick={(e) => e.stopPropagation()}
-            className="ml-2 flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
+            className="ml-1 flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
           >
             <MoreVertical className="icon-md icon-muted" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent
+        <ChatRowMenuContent
           align="end"
           side="right"
-          sideOffset={6}
-          className="z-50 min-w-[220px] rounded-xl border border-black/[0.08] bg-white p-1.5 text-zinc-800 shadow-[0_8px_28px_rgba(26,23,18,0.12)]"
+          isPinned={!!chat.pinned}
+          onRename={() => setRenameChatId(chat.id)}
+          onMoveToProject={() => runNavAction(onProjectsClick)}
+          onPin={() => onPinChat?.(chat.id, true)}
+          onUnpin={() => onPinChat?.(chat.id, false)}
+          onDelete={() => setDeleteChatId(chat.id)}
           onClick={(e) => e.stopPropagation()}
-        >
-          <DropdownMenuItem className={chatMenuItemClass}>
-            <Share className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
-            Share
-          </DropdownMenuItem>
-          <DropdownMenuItem className={chatMenuItemClass}>
-            <UserPlus className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
-            Start a group chat
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className={chatMenuItemClass}
-            onClick={(e) => {
-              e.stopPropagation();
-              setRenameChatId(chat.id);
-            }}
-          >
-            <Pencil className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
-            Rename
-          </DropdownMenuItem>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className={cn(chatMenuItemClass, "data-[state=open]:bg-zinc-100")}>
-              <Folder className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
-              <span className="flex-1 text-left">Move to project</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-zinc-400" />
-            </DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuSubContent className="z-50 min-w-[200px] rounded-xl border border-black/[0.08] bg-white p-1.5 shadow-[0_8px_28px_rgba(26,23,18,0.12)]">
-                <DropdownMenuItem
-                  className={chatMenuItemClass}
-                  onClick={() => runNavAction(onProjectsClick)}
-                >
-                  <Plus className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
-                  Start a new project
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuPortal>
-          </DropdownMenuSub>
-          <DropdownMenuSeparator className="my-1 bg-zinc-900/10" />
-          <DropdownMenuItem
-            className={chatMenuItemClass}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (chat.pinned) {
-                onPinChat?.(chat.id, false);
-              } else {
-                onPinChat?.(chat.id, true);
-              }
-            }}
-          >
-            {chat.pinned ? (
-              <PinOff className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
-            ) : (
-              <Pin className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
-            )}
-            {chat.pinned ? "Unpin chat" : "Pin chat"}
-          </DropdownMenuItem>
-          <DropdownMenuItem className={chatMenuItemClass}>
-            <Archive className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
-            Archive
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-[#8a2424] transition-colors hover:bg-[#8a2424]/10 focus:bg-[#8a2424]/10"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (window.confirm("Delete this chat?"))
-                onDeleteChat?.(chat.id);
-            }}
-          >
-            <Trash2 className="h-[18px] w-[18px] shrink-0 text-[#8a2424]" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
+        />
       </DropdownMenu>
     </div>
   );
@@ -422,34 +347,34 @@ export function Sidebar({
         setIsCollapsed(false)
       }
       className={cn(
-        "sidebar-hover-area fixed left-0 top-0 z-30 flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)]",
+        "sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)]",
         isMobileLayout &&
-          "will-change-transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+          "fixed left-0 top-0 z-30 will-change-transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
         !isMobileLayout &&
-          "transition-[transform,width,box-shadow] duration-300 ease-in-out",
+          "relative z-20 shrink-0 transition-[width] duration-300 ease-in-out",
         isMobileLayout &&
           isCollapsed &&
-          "pointer-events-none w-[min(88vw,280px)] -translate-x-full shadow-none",
+          "pointer-events-none w-[min(88vw,240px)] -translate-x-full shadow-none",
         isMobileLayout &&
           !isCollapsed &&
-          "z-40 w-[min(88vw,280px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[env(safe-area-inset-bottom)]",
+          "z-40 w-[min(88vw,240px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[env(safe-area-inset-bottom)]",
         !isMobileLayout &&
           isCollapsed &&
-          "w-[44px] translate-x-0 cursor-pointer opacity-100 sm:w-[46px]",
+          "w-[48px] cursor-pointer",
         !isMobileLayout &&
           !isCollapsed &&
-          "w-[min(84vw,260px)] translate-x-0 opacity-100 lg:w-[264px]",
+          "w-[min(84vw,210px)] lg:w-[210px]",
       )}
     >
-      <div className="h-[52px] px-1.5 flex items-center justify-between relative shrink-0">
+      <div className="ui-sidebar-top-bar relative flex h-10 shrink-0 items-center justify-between px-1.5">
         <div
           className={cn(
-            "flex items-center pl-2 transition-opacity duration-300",
+            "flex items-center pl-1.5 transition-opacity duration-300",
             isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100",
           )}
         >
-          <div className="flex items-center pl-2">
-            <span className="font-serif text-[18px] font-medium text-zinc-800">
+          <div className="flex items-center pl-1.5">
+            <span className="font-sans text-[13px] font-medium tracking-[-0.01em] text-zinc-800">
               Clauxen
             </span>
           </div>
@@ -465,7 +390,7 @@ export function Sidebar({
             isMobileLayout && !isCollapsed ? "Close menu" : "Toggle sidebar"
           }
           className={cn(
-            "rounded-lg p-1.5 text-zinc-500 transition-all duration-300 hover:bg-zinc-100",
+            "ui-icon-button rounded-md p-1.5 text-zinc-500 transition-all duration-200 hover:bg-zinc-100",
             isCollapsed && !isMobileLayout
               ? "absolute left-1/2 -translate-x-1/2"
               : "",
@@ -482,31 +407,31 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="sidebar-scrollable app-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+      <div className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div
           className={cn(
-            "sticky top-0 z-10 bg-[var(--app-shell-bg)] px-2 pb-2 pt-1",
+            "sticky top-0 z-10 bg-[var(--app-shell-bg)] px-1.5 pb-1.5 pt-1",
             isCollapsed && "px-0",
           )}
         >
-          <div className={cn("py-1", isCollapsed ? "px-0" : "px-2")}>
+          <div className={cn("py-0.5", isCollapsed ? "px-0" : "px-1")}>
             {isCollapsed ? (
               <button
                 onClick={(e) => e.stopPropagation()}
-                className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
+                className="mx-auto flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition-all hover:bg-zinc-100"
               >
                 <Search className="h-[18px] w-[18px] opacity-70" />
               </button>
             ) : (
               <button
                 onClick={(e) => e.stopPropagation()}
-                className="group flex h-9 w-full items-center justify-between gap-2.5 rounded-full border border-black/[0.04] bg-[#f0f0f0]/50 px-3 text-[13px] text-zinc-800 transition-all hover:bg-zinc-100"
+                className="group flex h-8 w-full items-center justify-between gap-2 rounded-md border border-transparent bg-transparent px-2 text-[12.5px] text-zinc-700 transition-all hover:bg-zinc-100"
               >
                 <div className="flex items-center gap-2.5">
-                  <Search className="h-4 w-4 opacity-60" />
+                  <Search className="h-3.5 w-3.5 opacity-60" />
                   <span className="font-[430] opacity-60">Search</span>
                 </div>
-                <span className="pr-1 text-[11px] font-medium text-black/30">
+                <span className="pr-0.5 text-[10.5px] font-medium text-black/30">
                   Ctrl+K
                 </span>
               </button>
@@ -520,12 +445,12 @@ export function Sidebar({
               handleNewChat();
             }}
             className={cn(
-              "group mb-0 h-8 w-full justify-start gap-2.5 px-3 text-[13px] font-[430] text-zinc-800 transition-all hover:bg-zinc-100",
+              "ui-sidebar-menu-button group mb-0 h-8 w-full justify-start gap-2 px-2 text-[12.5px] font-[430] text-zinc-800 transition-all hover:bg-zinc-100",
               isCollapsed &&
                 "mx-auto flex h-8 w-8 shrink-0 justify-center rounded-lg px-0",
             )}
           >
-            <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-zinc-500/15">
+            <div className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-zinc-500/15">
               <NewChatIcon className="h-3 w-3 text-zinc-800" />
             </div>
             {!isCollapsed && (
@@ -534,23 +459,23 @@ export function Sidebar({
           </Button>
         </div>
 
-        <div className="space-y-0.5 px-2">
+        <div className="space-y-0.5 px-1.5">
           <button
             onClick={(e) => {
               e.stopPropagation();
               runNavAction(onLibraryClick);
             }}
             className={cn(
-              "mb-0 flex h-8 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
+              "ui-sidebar-menu-button mb-0 flex h-8 w-full items-center rounded-md text-[12.5px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
               isCollapsed
                 ? "mx-auto h-8 w-8 justify-center"
-                : "justify-start px-3",
+                : "justify-start px-2",
               activeView === "library" && "bg-black/[0.06]",
             )}
           >
             <div
               className={cn(
-                "flex items-center gap-2.5",
+                "flex items-center gap-2",
                 !isCollapsed && "w-full",
               )}
             >
@@ -567,16 +492,16 @@ export function Sidebar({
               runNavAction(onProjectsClick);
             }}
             className={cn(
-              "mb-0 flex h-8 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
+              "ui-sidebar-menu-button mb-0 flex h-8 w-full items-center rounded-md text-[12.5px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
               isCollapsed
                 ? "mx-auto h-8 w-8 justify-center"
-                : "justify-start px-3",
+                : "justify-start px-2",
               activeView === "projects" && "bg-black/[0.06]",
             )}
           >
             <div
               className={cn(
-                "flex items-center gap-2.5",
+                "flex items-center gap-2",
                 !isCollapsed && "w-full",
               )}
             >
@@ -593,16 +518,16 @@ export function Sidebar({
               runNavAction(onCustomizeClick);
             }}
             className={cn(
-              "mb-0 flex h-8 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
+              "ui-sidebar-menu-button mb-0 flex h-8 w-full items-center rounded-md text-[12.5px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
               isCollapsed
                 ? "mx-auto h-8 w-8 justify-center"
-                : "justify-start px-3",
+                : "justify-start px-2",
               activeView === "customize" && "bg-black/[0.06]",
             )}
           >
             <div
               className={cn(
-                "flex items-center gap-2.5",
+                "flex items-center gap-2",
                 !isCollapsed && "w-full",
               )}
             >
@@ -614,8 +539,8 @@ export function Sidebar({
           </button>
 
           {!isCollapsed && pinnedChats.length > 0 ? (
-            <div className="mt-4 mb-2 px-1">
-              <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/80">
+            <div className="mt-3 mb-1.5 px-0.5">
+              <p className="px-2 py-1 text-[11px] font-medium tracking-[-0.002em] text-zinc-500/90">
                 Pinned Chats
               </p>
               <div className="mt-1 space-y-0.5">
@@ -625,9 +550,9 @@ export function Sidebar({
           ) : null}
 
           {!isCollapsed && (
-            <div className="relative mb-4 px-1">
+            <div className="relative mb-3 px-0.5">
               <div className="flex items-center justify-between px-2 py-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/80">
+                <p className="text-[11px] font-medium tracking-[-0.002em] text-zinc-500/90">
                   Recents
                 </p>
                 <SidebarChatGroupMenu
@@ -662,7 +587,7 @@ export function Sidebar({
             "mt-auto shrink-0 flex flex-col bg-[var(--app-shell-bg)]",
             isCollapsed
               ? "items-center gap-2 px-0 pb-2 pt-1"
-              : "items-stretch gap-1 p-2",
+              : "items-stretch gap-1 p-1.5",
           )}
         >
           {!isCollapsed && showBasicsChecklist ? (
@@ -672,21 +597,16 @@ export function Sidebar({
                 {
                   id: "import-history",
                   title: "Bring history from another AI",
-                  description: "So you're not starting from scratch",
                   onSelect: () => runNavAction(onSettingsClick),
                 },
                 {
                   id: "connect-tools",
                   title: "Connect your everyday tools",
-                  description:
-                    "Clauxen gives better answers when it understands what matters to you",
                   onSelect: () => runNavAction(onCustomizeClick),
                 },
                 {
                   id: "desktop-app",
                   title: "Get the desktop app",
-                  description:
-                    "Hand off tasks, code with Clauxen, and do more from your desktop",
                   onSelect: () => runNavAction(onAppsExtensionsClick),
                 },
               ]}
@@ -715,10 +635,10 @@ export function Sidebar({
                   onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
                   className={cn(
-                    "menu-trigger-active flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-black/5",
+                    "menu-trigger-active glass-sidebar-footer-account-trigger flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-black/5",
                     isCollapsed
                       ? "h-8 w-8 shrink-0 items-center justify-center gap-0 rounded-full p-0"
-                      : "min-w-0 flex-1 justify-start gap-3 rounded-lg p-2",
+                      : "min-w-0 flex-1 justify-start gap-2 rounded-md p-1.5",
                   )}
                 >
                   <ProfileAvatarIcon
@@ -730,10 +650,10 @@ export function Sidebar({
                       isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100",
                     )}
                   >
-                    <p className="text-[14px] font-medium text-zinc-800 truncate">
+                    <p className="truncate text-[12.5px] font-medium leading-4 text-zinc-800">
                       {userDisplayName}
                     </p>
-                    <p className="text-[12px] text-zinc-500 leading-tight">
+                    <p className="text-[11px] leading-3.5 text-zinc-500">
                       Free plan
                     </p>
                   </div>
@@ -748,7 +668,7 @@ export function Sidebar({
               sideOffset={6}
               collisionPadding={12}
               onCloseAutoFocus={(e) => e.preventDefault()}
-              className="z-[60] w-[min(272px,calc(100vw-2rem))] rounded-xl border border-zinc-300 bg-white/80 p-1.5 font-sans shadow-lg backdrop-blur-3xl"
+              className="z-[60] w-[min(252px,calc(100vw-2rem))] rounded-xl border border-zinc-300 bg-white/85 p-1.5 font-sans shadow-lg backdrop-blur-3xl"
             >
               <DropdownMenuLabel className="px-2 py-1 text-[12px] font-[430] text-zinc-500 truncate">
                 {userEmail || "Not signed in"}
@@ -851,7 +771,7 @@ export function Sidebar({
             {!isCollapsed && (
               <DownloadButton
                 size="md"
-                className="shrink-0 rounded-lg p-0.5 transition-colors hover:bg-zinc-100"
+                className="shrink-0 rounded-md p-0.5 transition-colors hover:bg-zinc-100"
                 onClick={(e) => {
                   e.stopPropagation();
                   runNavAction(onAppsExtensionsClick);
@@ -871,6 +791,17 @@ export function Sidebar({
       onConfirm={(title) => {
         if (renameChatId) onRenameChat?.(renameChatId, title);
       }}
+    />
+    <DeleteChatDialog
+      open={deleteChatId != null}
+      onOpenChange={(open) => {
+        if (!open) setDeleteChatId(null);
+      }}
+      chatTitle={deleteChat?.name ?? "New Chat"}
+      onConfirm={() => {
+        if (deleteChatId) onDeleteChat?.(deleteChatId);
+      }}
+      onOpenSettings={onSettingsClick}
     />
     </>
   );

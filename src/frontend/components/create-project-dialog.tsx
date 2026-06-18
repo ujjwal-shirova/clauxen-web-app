@@ -50,7 +50,7 @@ export function CreateProjectDialog({
       <DialogContent
         className={cn(
           "gap-0 border-zinc-200 bg-white p-0 font-sans text-zinc-900",
-          "max-w-[520px] rounded-xl shadow-[0_4px_8px_rgba(11,11,11,0.08),0_12px_28px_-2px_rgba(11,11,11,0.08)]",
+          "max-w-[520px] rounded-2xl shadow-xl",
           "[&>button]:hidden",
         )}
       >

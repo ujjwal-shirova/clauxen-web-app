@@ -19,7 +19,7 @@ export function browserUseRecipe(task: string, model?: string) {
     `            task=${JSON.stringify(task)},`,
     "            llm=ChatAnthropic(",
     "                api_key=os.environ['LLM_API_KEY'],",
-    "                base_url=os.getenv('LLM_BASE_URL', 'https://api.novita.ai/anthropic'),",
+    "base_url=os.getenv('LLM_BASE_URL', 'https://api.novita.ai/openai'),",
     `                model=os.getenv('LLM_MODEL', ${JSON.stringify(model || env.defaultModel)}),`,
     "                temperature=0.6,",
     "            ),",

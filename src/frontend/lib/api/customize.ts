@@ -40,6 +40,20 @@ export type ApiSkill = {
   created_at: string;
 };
 
+export type ApiFileSkill = {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string;
+  storage_bucket: string;
+  storage_prefix: string;
+  source_format: string;
+  primary_object_key: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ApiConnector = {
   connectorId: string;
   status: string;
@@ -47,7 +61,24 @@ export type ApiConnector = {
 };
 
 export async function listSkills() {
-  return apiFetch<{ skills: ApiSkill[] }>("/api/v1/customize/skills");
+  return apiFetch<{ skills: ApiSkill[]; fileSkills: ApiFileSkill[] }>(
+    "/api/v1/customize/skills",
+  );
+}
+
+export async function uploadSkillFile(input: {
+  file: File;
+  name?: string;
+  description?: string;
+}) {
+  const formData = new FormData();
+  formData.set("file", input.file);
+  if (input.name) formData.set("name", input.name);
+  if (input.description) formData.set("description", input.description);
+  return apiFetch<{ skill: ApiFileSkill }>("/api/v1/customize/skills/upload", {
+    method: "POST",
+    body: formData,
+  });
 }
 
 export async function saveSkill(input: {

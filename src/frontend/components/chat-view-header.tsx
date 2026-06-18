@@ -7,9 +7,10 @@ import { OrbCursor } from "./ui/orb-cursor";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
-import { ChatOptionsMenuContent } from "./chat-options-menu";
+import { StreamingChatTitle } from "./streaming-chat-title";
+import { ChatRowMenuContent } from "./chat-row-menu-content";
 import { cn } from "@/frontend/lib/utils";
-import { isUsableChatTitle } from "@/lib/chat-title";
+import { resolveDisplayChatTitle } from "@/lib/chat-title";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -31,11 +32,16 @@ interface ChatViewHeaderProps {
   onUnpinChat?: () => void;
   onDeleteChat?: () => void;
   onOpenSettings?: () => void;
+  onMoveToProject?: () => void;
   thinkingEnabled?: boolean;
   onThinkingEnabledChange?: (enabled: boolean) => void;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
   className?: string;
+  projectBreadcrumb?: {
+    label: string;
+    onClick?: () => void;
+  };
 }
 
 export function ChatViewHeader({
@@ -53,9 +59,11 @@ export function ChatViewHeader({
   onUnpinChat,
   onDeleteChat,
   onOpenSettings,
+  onMoveToProject,
   onOpenMobileNav,
   showMobileMenu = false,
   className,
+  projectBreadcrumb,
 }: ChatViewHeaderProps) {
   const isClient = useIsClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -64,10 +72,7 @@ export function ChatViewHeader({
   const [editTitleValue, setEditTitleValue] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  const displayTitle =
-    chatTitle?.trim() && (!isTitleStreaming || isUsableChatTitle(chatTitle))
-      ? chatTitle.trim()
-      : "New Chat";
+  const displayTitle = resolveDisplayChatTitle(chatTitle, isTitleStreaming);
 
   const commitInlineTitle = useCallback(() => {
     const next = editTitleValue.trim();
@@ -103,11 +108,11 @@ export function ChatViewHeader({
       <>
         <header
           className={cn(
-            "pointer-events-none absolute inset-x-0 top-0 flex h-11 items-center bg-white font-sans lg:right-11",
+            "content-pane-top-bar pointer-events-none absolute inset-x-0 top-0 flex h-[35px] items-center bg-white font-sans",
             className,
           )}
         >
-          <div className="pointer-events-auto relative z-10 flex h-full w-full items-center gap-2 px-2 sm:gap-2.5 sm:px-3 lg:gap-0 lg:px-5">
+          <div className="pointer-events-auto flex h-full w-full min-w-0 items-center gap-2 px-3 sm:gap-2.5 sm:px-4">
             {showMobileMenu && onOpenMobileNav ? (
               <MobileMenuButton
                 onClick={onOpenMobileNav}
@@ -115,6 +120,18 @@ export function ChatViewHeader({
               />
             ) : null}
             <div className="flex min-w-0 flex-1 items-center overflow-hidden">
+              {projectBreadcrumb ? (
+                <div className="mr-1 flex min-w-0 items-center gap-1 text-[13px] font-medium text-zinc-500">
+                  <button
+                    type="button"
+                    onClick={projectBreadcrumb.onClick}
+                    className="max-w-[min(28vw,180px)] truncate transition-colors hover:text-zinc-800"
+                  >
+                    {projectBreadcrumb.label}
+                  </button>
+                  <span className="shrink-0 text-zinc-400">/</span>
+                </div>
+              ) : null}
               {!isClient ? (
                 <div className="inline-flex max-w-full items-center rounded-lg border border-transparent">
                   <span className="px-1.5 py-1 text-[13px] font-medium text-zinc-800 sm:px-2">
@@ -122,7 +139,7 @@ export function ChatViewHeader({
                   </span>
                 </div>
               ) : (
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   <div className="inline-flex max-w-full items-stretch overflow-hidden rounded-lg border border-transparent">
                     {isEditingTitle ? (
                       <input
@@ -147,27 +164,34 @@ export function ChatViewHeader({
                       <button
                         type="button"
                         onClick={startInlineEdit}
-                        className="flex h-7 max-w-[min(70vw,420px)] items-center rounded-l-lg px-1.5 text-[13px] font-medium text-zinc-800 transition-all hover:bg-zinc-100 sm:px-2"
+                        className="flex h-7 max-w-[min(70vw,420px)] items-center gap-1 rounded-l-lg px-1.5 text-[13px] font-medium text-zinc-800 transition-all hover:bg-zinc-100 sm:px-2"
                       >
-                        <span className="truncate">{displayTitle}</span>
+                        <StreamingChatTitle
+                          title={displayTitle}
+                          isStreaming={isTitleStreaming}
+                        />
                         {isTitleStreaming ? <OrbCursor /> : null}
                       </button>
                     )}
                     <div className="h-7 w-px shrink-0 self-center bg-black/10" />
                     <DropdownMenuTrigger asChild>
-                      <HintTooltip content="Chat options">
-                        <button
-                          type="button"
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-r-lg text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/5"
-                        >
-                          <ChevronDown className="icon-md opacity-70" />
-                        </button>
-                      </HintTooltip>
+                      <button
+                        type="button"
+                        aria-label="Chat options"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-r-lg text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/5"
+                      >
+                        <ChevronDown className="icon-md opacity-70" />
+                      </button>
                     </DropdownMenuTrigger>
                   </div>
-                  <ChatOptionsMenuContent
+                  <ChatRowMenuContent
+                    align="start"
+                    side="bottom"
+                    className="z-[100]"
                     isPinned={isChatPinned}
+                    onShare={onShareClick}
                     onRename={() => setRenameDialogOpen(true)}
+                    onMoveToProject={onMoveToProject}
                     onPin={onPinChat}
                     onUnpin={onUnpinChat}
                     onDelete={() => setDeleteDialogOpen(true)}
@@ -176,14 +200,14 @@ export function ChatViewHeader({
               )}
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="content-pane-top-bar__trailing-wrap flex shrink-0 items-center gap-1">
               <HintTooltip content="Artifacts">
                 <button
                   type="button"
                   onClick={onToggleArtifactsPanel}
                   aria-label="Toggle artifacts panel"
                   aria-pressed={isArtifactsPanelOpen}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/[0.06]"
+                  className="ui-icon-button inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/[0.06]"
                 >
                   <svg
                     width="20"
@@ -200,7 +224,7 @@ export function ChatViewHeader({
                 <button
                   type="button"
                   onClick={onShareClick}
-                  className="hidden h-8 min-w-[58px] items-center justify-center rounded-md border border-zinc-300 bg-transparent px-2.5 text-[12px] font-medium text-zinc-800 transition-all hover:bg-zinc-100 min-[420px]:flex"
+                  className="ui-button hidden h-7 min-w-[52px] items-center justify-center rounded-md border border-zinc-300 bg-transparent px-2 text-[12px] font-medium text-zinc-800 transition-all hover:bg-zinc-100 min-[420px]:flex"
                 >
                   Share
                 </button>
@@ -212,7 +236,7 @@ export function ChatViewHeader({
         <DeleteChatDialog
           open={deleteDialogOpen}
           onOpenChange={setDeleteDialogOpen}
-          chatTitle={chatTitle}
+          chatTitle={displayTitle}
           onConfirm={() => onDeleteChat?.()}
           onOpenSettings={onOpenSettings}
         />
@@ -243,7 +267,7 @@ export function ChatViewHeader({
 
   if (showMobileMenu && onOpenMobileNav) {
     return (
-      <div className="relative sticky top-0 z-20 grid h-11 w-full shrink-0 grid-cols-[auto_1fr_auto] items-center gap-2 bg-white px-2 font-sans sm:h-12 sm:gap-2.5 sm:px-3">
+      <div className="content-pane-top-bar relative sticky top-0 z-20 grid h-[35px] w-full shrink-0 grid-cols-[auto_1fr_auto] items-center gap-2 bg-white px-2 font-sans sm:gap-2.5 sm:px-3">
         <MobileMenuButton
           onClick={onOpenMobileNav}
           aria-controls="app-primary-nav"
@@ -255,7 +279,7 @@ export function ChatViewHeader({
   }
 
   return (
-    <div className="relative sticky top-0 z-20 flex h-11 w-full shrink-0 items-center justify-center bg-white px-3 font-sans sm:h-12 sm:px-5">
+    <div className="content-pane-top-bar relative sticky top-0 z-20 flex h-[35px] w-full shrink-0 items-center justify-center bg-white px-3 font-sans sm:px-5">
       {upgradeButton}
     </div>
   );

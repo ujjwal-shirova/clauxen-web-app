@@ -34,6 +34,9 @@ export type AgentToolSegment = {
   stderr?: string;
   searchQuery?: string;
   searchResults?: WebSearchResult[];
+  filePath?: string;
+  fileContent?: string;
+  fileLanguage?: string;
   startedAtMs?: number;
   completedAtMs?: number;
 };
@@ -64,4 +67,47 @@ export function domainFromUrl(url: string): string {
   } catch {
     return url;
   }
+}
+
+/** Detect in-place segment streaming updates (memo-safe). */
+export function agentSegmentsVisuallyEqual(
+  left?: AgentSegment[],
+  right?: AgentSegment[],
+): boolean {
+  if ((left?.length ?? 0) !== (right?.length ?? 0)) return false;
+  if (!left || !right) return true;
+
+  for (let index = 0; index < left.length; index += 1) {
+    const a = left[index];
+    const b = right[index];
+    if (a.id !== b.id || a.kind !== b.kind) return false;
+
+    if (a.kind === "thinking" && b.kind === "thinking") {
+      if (a.content !== b.content || a.isStreaming !== b.isStreaming) {
+        return false;
+      }
+      continue;
+    }
+
+    if (a.kind === "tool" && b.kind === "tool") {
+      if (
+        a.status !== b.status ||
+        a.searchQuery !== b.searchQuery ||
+        a.stdout !== b.stdout ||
+        a.stderr !== b.stderr ||
+        (a.searchResults?.length ?? 0) !== (b.searchResults?.length ?? 0)
+      ) {
+        return false;
+      }
+      const aResults = a.searchResults ?? [];
+      const bResults = b.searchResults ?? [];
+      for (let resultIndex = 0; resultIndex < aResults.length; resultIndex += 1) {
+        if (aResults[resultIndex]?.url !== bResults[resultIndex]?.url) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
 }

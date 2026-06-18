@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
+import { uploadSkillFile } from "@/frontend/lib/api/customize";
 import { cn } from "@/frontend/lib/utils";
 import {
   Dialog, // Dialog root — Radix/shadcn modal wrapper, open/onOpenChange controlled
@@ -12,7 +13,8 @@ import {
 
 interface UploadSkillDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void; // onOpenChange callback — parent state sync (close on overlay click)
+  onOpenChange: (open: boolean) => void;
+  onUploaded?: () => void;
 }
 
 const SKILL_UPLOAD_MAX_BYTES = 25 * 1024 * 1024; // client-side cap — oversized archives rejected before any future upload API
@@ -26,14 +28,19 @@ function skillUploadExtension(fileName: string): string {
 export function UploadSkillDialog({
   open,
   onOpenChange,
+  onUploaded,
 }: UploadSkillDialogProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null); // fileInputRef — hidden <input type="file"> programmatic click trigger
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
     if (!file) return;
@@ -42,6 +49,21 @@ export function UploadSkillDialog({
       !SKILL_UPLOAD_EXTENSIONS.has(extension) ||
       file.size > SKILL_UPLOAD_MAX_BYTES
     ) {
+      setError("Invalid file type or file exceeds 25 MB.");
+      input.value = "";
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    try {
+      await uploadSkillFile({ file });
+      onUploaded?.();
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
       input.value = "";
     }
   };
@@ -93,8 +115,9 @@ export function UploadSkillDialog({
           <div className="flex flex-col gap-6 mt-3">
             <div className="flex flex-col gap-3">
               <button
-                onClick={handleUploadClick} // click — hidden file input activate
-                className="flex flex-col items-center justify-center h-[120px] w-full bg-white border border-dashed border-zinc-200 rounded-lg hover:border-zinc-2000 transition-all group"
+                onClick={handleUploadClick}
+                disabled={uploading}
+                className="flex flex-col items-center justify-center h-[120px] w-full bg-white border border-dashed border-zinc-200 rounded-lg hover:border-zinc-2000 transition-all group disabled:opacity-60"
               >
                 <div className="w-8 h-8 flex items-center justify-center text-zinc-500 mb-2">
                   <svg
@@ -115,10 +138,13 @@ export function UploadSkillDialog({
                   {/* upload folder+plus icon */}
                 </div>
                 <span className="text-[14px] font-medium text-zinc-500">
-                  Drag and drop or click to upload
-                </span>{" "}
-                {/* CTA label — user action hint */}
+                  {uploading ? "Uploading…" : "Drag and drop or click to upload"}
+                </span>
               </button>
+
+              {error ? (
+                <p className="text-[12px] text-red-600">{error}</p>
+              ) : null}
 
               <input
                 type="file" // native file picker input

@@ -1,0 +1,95 @@
+# Vercel deployment — environment variables
+
+Set these in **Vercel → Project → Settings → Environment Variables** for Production, Preview, and Development.
+
+## Model routing (Homer / Helios / Virgil)
+
+Defined in `src/lib/model-catalog.ts`. Each model has its own base URL and upstream slug:
+
+| Model | Provider | Base URL env | Model env |
+|---|---|---|---|
+| Homer | Anthropic | `NOVITA_ANTHROPIC_BASE_URL` | `SHIROVA_HOMER_MODEL` |
+| Helios | OpenAI-compatible | `NOVITA_OPENAI_BASE_URL` | `SHIROVA_HELIOS_MODEL` |
+| Virgil | OpenAI-compatible | `NOVITA_OPENAI_BASE_URL` | `SHIROVA_VIRGIL_MODEL` |
+
+Set `NOVITA_AI_KEY` on Vercel for all three paths.
+
+## Required (core app)
+
+| Variable | Description |
+|---|---|
+| `COCKROACH_DATABASE_URL` | CockroachDB connection string (`clauxen_main`) |
+| `JWT_SECRET` | Strong random secret for project auth JWT |
+| `NOVITA_AI_KEY` | Inference API key |
+| `NEXT_PUBLIC_APP_URL` | `https://your-domain.vercel.app` or custom domain |
+
+## Required (file storage on Vercel)
+
+Vercel serverless has **no persistent disk**. R2 is mandatory in production (`VERCEL=1` is set automatically).
+
+| Variable | Description |
+|---|---|
+| `R2_ACCOUNT_ID` | Cloudflare account ID |
+| `R2_ACCESS_KEY_ID` | R2 S3 API token access key |
+| `R2_SECRET_ACCESS_KEY` | R2 S3 API token secret |
+| `R2_S3_ENDPOINT` | Full S3 endpoint from R2 dashboard |
+| `R2_IMAGES_BUCKET` | `clauxen-images` |
+| `R2_DOCUMENTS_BUCKET` | `clauxen-documents` |
+| `R2_ARTIFACTS_BUCKET` | `clauxen-artifacts` |
+| `R2_SKILLS_BUCKET` | `clauxen-skills` |
+| `R2_CHAT_ARCHIVES_BUCKET` | `clauxen-chat-archives` |
+
+Optional:
+
+| Variable | Description |
+|---|---|
+| `R2_API_TOKEN` | Cloudflare API token (CI/admin only) |
+| `R2_PUBLIC_BASE_URL` | Custom domain for public object URLs |
+| `STORAGE_REQUIRE_R2` | Set `true` to force R2 even outside Vercel |
+
+## Sync from local `.env.local`
+
+```bash
+vercel link
+vercel env pull .env.vercel   # optional: inspect what Vercel has
+```
+
+Add or update vars in the Vercel dashboard from your local `.env.local`. There is no `.env.example` — `.env.local` is the only local file.
+
+To add a single var from CLI:
+
+```bash
+vercel env add R2_S3_ENDPOINT production
+```
+
+## Buckets (Cloudflare R2)
+
+| Bucket | Purpose |
+|---|---|
+| `clauxen-images` | Avatars, chat images, thumbnails |
+| `clauxen-documents` | Project uploads, user library (RAG source files) |
+| `clauxen-artifacts` | Generated files from chats |
+| `clauxen-skills` | Uploaded skill packages (`.zip`, `.skill`, `.md`) |
+| `clauxen-chat-archives` | Structured chat JSON exports |
+
+Metadata for all objects is stored in CockroachDB (`project_files`, `user_files`, `artifacts`, `user_skills`, `storage.objects`).
+
+## Upload limits on Vercel
+
+Serverless function request bodies are limited (~4.5 MB on Hobby). Skill and document uploads above that limit need a future presigned-URL flow. Current cap in app: **25 MB** (works locally; keep files smaller on Vercel Hobby).
+
+## Database schema
+
+After setting `COCKROACH_DATABASE_URL`:
+
+```bash
+npm run crdb:apply-app
+```
+
+## Deploy
+
+```bash
+vercel --prod
+```
+
+Ensure `buildCommand` is `npm run build` (see `vercel.json`).

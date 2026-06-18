@@ -13,21 +13,25 @@ export async function updateOrySession(request: NextRequest) {
     return response;
   }
 
-  const kratosResponse = await fetch(
-    `${env.oryKratosPublicUrl.replace(/\/$/, "")}/sessions/whoami`,
-    {
-      headers: { cookie: cookieHeader, Accept: "application/json" },
-      cache: "no-store",
-    },
-  );
+  try {
+    const kratosResponse = await fetch(
+      `${env.oryKratosPublicUrl.replace(/\/$/, "")}/sessions/whoami`,
+      {
+        headers: { cookie: cookieHeader, Accept: "application/json" },
+        cache: "no-store",
+      },
+    );
 
-  const setCookies =
-    typeof kratosResponse.headers.getSetCookie === "function"
-      ? kratosResponse.headers.getSetCookie()
-      : [];
+    const setCookies =
+      typeof kratosResponse.headers.getSetCookie === "function"
+        ? kratosResponse.headers.getSetCookie()
+        : [];
 
-  for (const cookie of setCookies) {
-    response.headers.append("Set-Cookie", cookie);
+    for (const cookie of setCookies) {
+      response.headers.append("Set-Cookie", cookie);
+    }
+  } catch {
+    /* Ory not reachable — continue without session refresh */
   }
 
   return response;

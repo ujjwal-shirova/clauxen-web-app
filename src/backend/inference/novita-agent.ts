@@ -1,15 +1,17 @@
 import { env, requireNovitaApiKey } from "@/backend/config/env";
 import {
-  buildAssistantAgentMessage,
+  buildAssistantAgentMessageFromOpenAi,
   buildStructuredOutputTool,
-  convertAgentMessagesToAnthropic,
-  extractAnthropicToolUses,
+  convertAgentMessagesToOpenAi,
+  extractOpenAiToolUses,
+  prependSystemMessage,
+  toOpenAiTools,
   type AgentToolUse,
-} from "@/backend/inference/anthropic-adapter";
+} from "@/backend/inference/openai-agent-adapter";
 import {
-  getAnthropicClient,
   AVAILABLE_MODELS,
-} from "@/backend/inference/anthropic-client";
+  getOpenAIClient,
+} from "@/backend/inference/openai-client";
 import { extractUpstreamError } from "@/backend/inference/novita";
 import {
   platformTools,
@@ -50,6 +52,9 @@ export type AgentMessage = {
   tool_call_id?: string;
   tool_uses?: AgentToolUse[];
   thinking?: string | null;
+  /** Novita / DeepSeek interleaved thinking (chat/completions). */
+  reasoning_content?: string | null;
+  reasoning_details?: unknown;
 };
 
 /** @deprecated Use PlatformToolName */
@@ -66,6 +71,7 @@ export type AgentChatRequest = {
   reasoningSplit?: boolean;
   responseSchema?: Record<string, unknown>;
   conversationId?: string;
+  generateChatTitle?: boolean;
 };
 
 const MAX_MESSAGES = 32;
@@ -212,36 +218,35 @@ function resolveStructuredTools(request: AgentChatRequest) {
   ];
 }
 
-async function createAnthropicMessage(
+async function createOpenAiMessage(
   conversation: AgentMessage[],
   request: AgentChatRequest,
   signal?: AbortSignal,
 ) {
-  const client = getAnthropicClient();
+  const client = getOpenAIClient();
   const model = request.model?.trim() || env.defaultModel;
   const platformToolList =
     request.enableTools === false ? undefined : platformTools();
   const structuredTools = resolveStructuredTools(request);
   const tools = structuredTools ?? platformToolList;
-  const { system, messages } = convertAgentMessagesToAnthropic(conversation);
+  const { system, messages } = convertAgentMessagesToOpenAi(conversation);
+  const thinkingEnabled = Boolean(request.enableThinking);
+  const openAiTools = tools?.length ? toOpenAiTools(tools) : undefined;
 
-  return client.messages.create(
+  return client.chat.completions.create(
     {
       model,
       max_tokens: 8192,
-      temperature: 0.6,
-      system,
-      messages,
-      tools: tools?.length ? tools : undefined,
+      temperature: thinkingEnabled ? 1 : 0.6,
+      messages: prependSystemMessage(system, messages),
+      tools: openAiTools,
       tool_choice:
         structuredTools?.length === 1
-          ? { type: "tool", name: "clauxen_agent_result" }
-          : tools?.length
-            ? { type: "auto" }
+          ? { type: "function", function: { name: "clauxen_agent_result" } }
+          : openAiTools?.length
+            ? "auto"
             : undefined,
-      thinking: request.enableThinking
-        ? { type: "enabled", budget_tokens: 8192 }
-        : undefined,
+      stream: false,
     },
     { signal },
   );
@@ -267,11 +272,13 @@ export async function runNovitaAgentChat(
   ];
   const model = request.model?.trim() || env.defaultModel;
 
-  let response = await createAnthropicMessage(conversation, request, signal);
+  let response = await createOpenAiMessage(conversation, request, signal);
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-    const assistantMessage = buildAssistantAgentMessage(response.content);
-    const toolUses = extractAnthropicToolUses(response.content);
+    const choice = response.choices[0]?.message;
+    if (!choice) break;
+    const assistantMessage = buildAssistantAgentMessageFromOpenAi(choice);
+    const toolUses = extractOpenAiToolUses(choice.tool_calls);
     if (toolUses.length === 0) break;
 
     conversation.push(assistantMessage);
@@ -288,10 +295,13 @@ export async function runNovitaAgentChat(
       });
     }
 
-    response = await createAnthropicMessage(conversation, request, signal);
+    response = await createOpenAiMessage(conversation, request, signal);
   }
 
-  const finalMessage = buildAssistantAgentMessage(response.content);
+  const finalChoice = response.choices[0]?.message;
+  const finalMessage = finalChoice
+    ? buildAssistantAgentMessageFromOpenAi(finalChoice)
+    : { role: "assistant" as const, content: null };
   return {
     message: finalMessage,
     usage: response.usage ?? null,
@@ -303,7 +313,6 @@ function novitaHeaders(apiKey: string) {
   return {
     Authorization: `Bearer ${apiKey}`,
     "Content-Type": "application/json",
-    "anthropic-version": "2023-06-01",
   };
 }
 

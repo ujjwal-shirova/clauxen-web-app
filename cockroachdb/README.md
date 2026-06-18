@@ -1,5 +1,39 @@
 # CockroachDB (Clauxen)
 
+## Unified application schema (recommended)
+
+The app uses a **focused schema** in `cockroachdb/schema/clauxen_app.sql` (~40 tables):
+auth, settings, projects, chats, RAG, billing, workspaces, and R2-backed file metadata.
+
+**Apply (drops and recreates `clauxen_main`):**
+
+```bash
+# Requires COCKROACH_DATABASE_URL in root `.env.local`
+npm run crdb:apply-app
+```
+
+**Local dev (no Cloud RU):**
+
+```bash
+docker compose up -d cockroach
+export COCKROACH_DATABASE_URL='postgresql://root@127.0.0.1:26257/clauxen_main?sslmode=disable'
+npm run crdb:apply-app
+```
+
+**Object storage:** files go to Cloudflare R2 buckets:
+
+| Env var | Default bucket | Use |
+|---|---|---|
+| `R2_IMAGES_BUCKET` | `clauxen-images` | Images |
+| `R2_DOCUMENTS_BUCKET` | `clauxen-documents` | Project/library docs (RAG) |
+| `R2_ARTIFACTS_BUCKET` | `clauxen-artifacts` | Chat-generated files |
+| `R2_SKILLS_BUCKET` | `clauxen-skills` | Connector skill packages |
+| `R2_CHAT_ARCHIVES_BUCKET` | `clauxen-chat-archives` | Chat JSON archives |
+
+Set `R2_S3_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` in root `.env.local`. On Vercel, R2 is required (no local disk). See `docs/vercel-deployment.md`.
+
+---
+
 Project-local notes and **non-committed** env for the CockroachDB Cloud cluster.
 
 ## Connection string vs `ccloud` CLI
@@ -7,19 +41,17 @@ Project-local notes and **non-committed** env for the CockroachDB Cloud cluster.
 - **Connection string** (`COCKROACH_DATABASE_URL`): enough for application drivers, `psql`, and `cockroach sql` against the cluster. You do **not** need the `ccloud` CLI just to run SQL or migrations.
 - **`ccloud` CLI**: optional; used for **org/project/cluster** administration (create clusters, manage users, etc.). Use it if you want that workflow; it is not a substitute for a SQL URL.
 
-## Local env file
+## Local env
 
-1. Copy `.env.example` → `.env.local` in this directory.
-2. Set `COCKROACH_DATABASE_URL` to your cluster URL from the CockroachDB Cloud console.
+All secrets live in **one file**: root `.env.local` (gitignored).
 
-`cockroachdb/.env.local` is gitignored. Do not move secrets into `src/` or commit them.
+Set `COCKROACH_DATABASE_URL` there. Next.js and `npm run crdb:*` scripts read this file automatically.
+
+Do not create `.env`, `.env.example`, or `cockroachdb/.env.local`.
 
 ## Next.js / app wiring
 
-Next.js only auto-loads env files from the **repository root** (e.g. root `.env.local`). To use this URL in the app, either:
-
-- duplicate `COCKROACH_DATABASE_URL` into the root `.env.local`, or
-- `source cockroachdb/.env.local` in your shell before commands that read the env.
+Next.js loads env from the repository root `.env.local` only.
 
 ## `sslmode=verify-full`
 

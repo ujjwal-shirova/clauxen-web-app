@@ -49,7 +49,7 @@ export function ProjectCardSkeleton({
 
 export function ProjectCardSkeletonGrid({ count = 6 }: { count?: number }) {
   return (
-    <ul className="grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
+    <ul className="grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
       {Array.from({ length: count }, (_, i) => (
         <li key={i} className="min-w-0">
           <ProjectCardSkeleton

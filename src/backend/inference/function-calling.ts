@@ -1,17 +1,20 @@
-import type Anthropic from "@anthropic-ai/sdk";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import {
   buildStructuredOutputTool,
-  convertAgentMessagesToAnthropic,
-  extractAnthropicText,
-} from "@/backend/inference/anthropic-adapter";
+  convertAgentMessagesToOpenAi,
+  isFunctionToolCall,
+  prependSystemMessage,
+  toOpenAiTools,
+} from "@/backend/inference/openai-agent-adapter";
 import {
-  getAnthropicClient,
   DEFAULT_MODEL,
-} from "@/backend/inference/anthropic-client";
+  getOpenAIClient,
+} from "@/backend/inference/openai-client";
 import { extractPromptCacheStats } from "@/backend/inference/prompt-cache";
+import type { PlatformTool } from "@/backend/inference/platform-tools";
 
-export type AnthropicMessageParam = Anthropic.MessageParam;
-export type AnthropicTool = Anthropic.Messages.Tool;
+export type OpenAiMessageParam = ChatCompletionMessageParam;
+export type OpenAiTool = PlatformTool;
 
 export type FunctionCallingStep = {
   type: "assistant" | "tool" | "final";
@@ -22,69 +25,77 @@ export type FunctionCallingStep = {
 
 export async function runFunctionCallingLoop(opts: {
   model?: string;
-  messages: AnthropicMessageParam[];
-  tools: AnthropicTool[];
+  messages: OpenAiMessageParam[];
+  tools: OpenAiTool[];
   executeTool: (name: string, args: Record<string, unknown>) => Promise<string>;
   maxRounds?: number;
   signal?: AbortSignal;
   onStep?: (step: FunctionCallingStep) => void;
 }) {
-  const client = getAnthropicClient();
+  const client = getOpenAIClient();
   const model = opts.model ?? DEFAULT_MODEL;
   const conversation = [...opts.messages];
   const steps: FunctionCallingStep[] = [];
   const maxRounds = opts.maxRounds ?? 8;
+  const openAiTools = toOpenAiTools(opts.tools);
 
   for (let round = 0; round < maxRounds; round += 1) {
-    const response = await client.messages.create(
+    const response = await client.chat.completions.create(
       {
         model,
         max_tokens: 8192,
         messages: conversation,
-        tools: opts.tools,
-        tool_choice: { type: "auto" },
+        tools: openAiTools,
+        tool_choice: "auto",
       },
       { signal: opts.signal },
     );
 
-    const usage = extractPromptCacheStats(response.usage);
-    const text = extractAnthropicText(response.content);
-    const toolUses = response.content.filter(
-      (block) => block.type === "tool_use",
-    );
+    const choice = response.choices[0]?.message;
+    if (!choice) break;
 
-    const assistantMessage: AnthropicMessageParam = {
+    const usage = extractPromptCacheStats(response.usage);
+    const text = choice.content ?? "";
+    const toolCalls = choice.tool_calls ?? [];
+
+    const assistantMessage: OpenAiMessageParam = {
       role: "assistant",
-      content: response.content,
+      content: text || null,
+      ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
     };
     conversation.push(assistantMessage);
     steps.push({ type: "assistant", message: assistantMessage });
 
-    if (response.stop_reason === "tool_use" && toolUses.length > 0) {
-      const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
-
-      for (const toolUse of toolUses) {
-        const args = toolUse.input as Record<string, unknown>;
-        const result = await opts.executeTool(toolUse.name, args);
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
+    if (toolCalls.length > 0) {
+      for (const toolCall of toolCalls.filter(isFunctionToolCall)) {
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(toolCall.function.arguments || "{}") as Record<
+            string,
+            unknown
+          >;
+        } catch {
+          args = {};
+        }
+        const result = await opts.executeTool(toolCall.function.name, args);
+        const toolMessage: OpenAiMessageParam = {
+          role: "tool",
+          tool_call_id: toolCall.id,
           content: result,
-        });
+        };
+        conversation.push(toolMessage);
         steps.push({
           type: "tool",
-          toolName: toolUse.name,
+          toolName: toolCall.function.name,
           toolResult: result,
-          message: toolResults[toolResults.length - 1],
+          message: toolMessage,
         });
         opts.onStep?.({
           type: "tool",
-          toolName: toolUse.name,
+          toolName: toolCall.function.name,
           toolResult: result,
         });
       }
-
-      conversation.push({ role: "user", content: toolResults });
       continue;
     }
 
@@ -101,31 +112,31 @@ export async function runFunctionCallingLoop(opts: {
     };
   }
 
-  throw new Error("Function calling exceeded maximum rounds.");
+  throw new Error("Function calling loop exceeded max rounds.");
 }
 
-/** Final answer turn omits tools. */
-export async function runFunctionCallingFinalAnswer(opts: {
+export async function runStructuredFunctionCall(opts: {
   model?: string;
-  messages: AnthropicMessageParam[];
+  schemaName: string;
+  schema: Record<string, unknown>;
+  prompt: string;
+  systemPrompt?: string;
   signal?: AbortSignal;
 }) {
-  const client = getAnthropicClient();
-  const response = await client.messages.create(
-    {
-      model: opts.model ?? DEFAULT_MODEL,
-      max_tokens: 8192,
-      messages: opts.messages,
-    },
-    { signal: opts.signal },
+  const tool = buildStructuredOutputTool(opts.schemaName, opts.schema);
+  const messages = prependSystemMessage(
+    opts.systemPrompt,
+    [{ role: "user", content: opts.prompt }],
   );
-  return {
-    message: {
-      role: "assistant" as const,
-      content: extractAnthropicText(response.content),
-    },
-    usage: extractPromptCacheStats(response.usage),
-  };
+
+  return runFunctionCallingLoop({
+    model: opts.model ?? DEFAULT_MODEL,
+    messages,
+    tools: [tool],
+    executeTool: async () => "",
+    maxRounds: 1,
+    signal: opts.signal,
+  });
 }
 
-export { convertAgentMessagesToAnthropic, buildStructuredOutputTool };
+export { convertAgentMessagesToOpenAi };

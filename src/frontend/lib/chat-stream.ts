@@ -35,7 +35,18 @@ export type StreamEvent =
       result: string;
     }
   | { type: "step_done"; label?: string }
-  | { type: "agent_frame_complete" }
+  | {
+      type: "artifact_upsert";
+      artifactId: string;
+      path: string;
+      content: string;
+      language?: string;
+      description?: string;
+    }
+  | { type: "agent_frame_start"; frameId: string }
+  | { type: "agent_frame_complete"; frameId?: string }
+  | { type: "answer_clear" }
+  | { type: "chat_title"; title: string }
   | { type: "done" }
   | { type: "error"; message: string };
 
@@ -58,6 +69,12 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
     result?: unknown;
     data?: unknown;
     label?: unknown;
+    artifactId?: unknown;
+    path?: unknown;
+    content?: unknown;
+    language?: unknown;
+    title?: unknown;
+    frameId?: unknown;
   };
 
   switch (event.type) {
@@ -68,6 +85,7 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
           typeof event.agentMode === "boolean" ? event.agentMode : undefined,
       };
     case "thinking_start":
+    case "answer_clear":
     case "done":
       return { type: event.type };
     case "thinking_delta":
@@ -154,8 +172,37 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
         type: "step_done",
         label: typeof event.label === "string" ? event.label : undefined,
       };
+    case "artifact_upsert":
+      return typeof event.artifactId === "string" &&
+        typeof event.path === "string" &&
+        typeof event.content === "string"
+        ? {
+            type: "artifact_upsert",
+            artifactId: event.artifactId,
+            path: event.path,
+            content: event.content,
+            language:
+              typeof event.language === "string" ? event.language : undefined,
+            description:
+              typeof event.description === "string"
+                ? event.description
+                : undefined,
+          }
+        : null;
     case "agent_frame_complete":
-      return { type: "agent_frame_complete" };
+      return {
+        type: "agent_frame_complete",
+        frameId:
+          typeof event.frameId === "string" ? event.frameId : undefined,
+      };
+    case "agent_frame_start":
+      return typeof event.frameId === "string"
+        ? { type: "agent_frame_start", frameId: event.frameId }
+        : null;
+    case "chat_title":
+      return typeof event.title === "string"
+        ? { type: "chat_title", title: event.title }
+        : null;
     case "error":
       return typeof event.message === "string"
         ? { type: "error", message: event.message }

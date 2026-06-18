@@ -16,7 +16,7 @@ export type ProjectSortKey = "recent_activity" | "last_edited" | "date_created";
 
 const SORT_OPTIONS: { value: ProjectSortKey; label: string; short: string }[] =
   [
-    { value: "recent_activity", label: "Recent activity", short: "Activity" },
+    { value: "recent_activity", label: "Last updated", short: "Last updated" },
     { value: "last_edited", label: "Last edited", short: "Last edited" },
     { value: "date_created", label: "Date created", short: "Date created" },
   ];
@@ -31,7 +31,7 @@ export function ProjectSortMenu({ value, onChange }: ProjectSortMenuProps) {
     SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0];
 
   return (
-    <div className="flex items-center gap-2 text-[13px] text-[#8f8f8f]">
+    <div className="flex items-center gap-2 text-[13px] text-zinc-500">
       <span>Sort by</span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -66,7 +66,7 @@ export function ProjectSortMenu({ value, onChange }: ProjectSortMenuProps) {
                 <span className="min-w-0 flex-1 truncate">{option.label}</span>
                 {value === option.value ? (
                   <Check
-                    className="ml-4 h-5 w-5 shrink-0 text-[#2a78d6]"
+                    className="ml-4 h-5 w-5 shrink-0 text-zinc-900"
                     strokeWidth={2}
                     aria-hidden
                   />

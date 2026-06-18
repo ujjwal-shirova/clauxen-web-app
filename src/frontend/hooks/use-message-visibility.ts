@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 
 export type MessageDetailLevel = "full" | "plain" | "placeholder";
 
@@ -9,52 +9,18 @@ export type MessageDetailLevel = "full" | "plain" | "placeholder";
  * Uses IntersectionObserver with rootMargin buffer zones.
  */
 export function useMessageDetailLevel(
-  enabled: boolean,
-  isStreaming: boolean,
+  _enabled: boolean,
+  _isStreaming: boolean,
 ): {
   ref: React.RefObject<HTMLDivElement | null>;
   detailLevel: MessageDetailLevel;
 } {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [detailLevel, setDetailLevel] =
-    useState<MessageDetailLevel>("placeholder");
 
-  useEffect(() => {
-    if (!enabled || isStreaming) {
-      setDetailLevel("full");
-      return;
-    }
-
-    const el = ref.current;
-    if (!el) return;
-
-    const scrollRoot = el.closest(
-      "[data-radix-scroll-area-viewport], [data-virtual-scroll]",
-    ) as HTMLElement | null;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry) return;
-
-        if (entry.isIntersecting && entry.intersectionRatio > 0.15) {
-          setDetailLevel("full");
-        } else if (entry.isIntersecting) {
-          setDetailLevel("plain");
-        } else {
-          setDetailLevel("placeholder");
-        }
-      },
-      {
-        root: scrollRoot,
-        rootMargin: "200px 0px 200px 0px",
-        threshold: [0, 0.15, 0.5],
-      },
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [enabled, isStreaming]);
-
-  return { ref, detailLevel: isStreaming ? "full" : detailLevel };
+  // Level-of-detail used to swap full markdown for plain text when a message
+  // scrolled off-screen. That changed element heights and, without scroll
+  // anchoring, caused the viewport to jump when scrolling up past long answers.
+  // Rendering at full detail always keeps scroll position stable; very long
+  // conversations are handled by virtualization in ConversationThread instead.
+  return { ref, detailLevel: "full" };
 }

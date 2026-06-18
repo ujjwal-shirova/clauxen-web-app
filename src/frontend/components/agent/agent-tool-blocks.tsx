@@ -10,6 +10,7 @@ import {
 } from "@/frontend/lib/agent-segments";
 import { AgentTimelineStep } from "./agent-timeline";
 import { AgentFaviconStack } from "./agent-favicon-stack";
+import { AgentFileBlock } from "./agent-file-block";
 
 function SearchResultFavicon({ url }: { url: string }) {
   const [failed, setFailed] = useState(false);
@@ -75,7 +76,9 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
           onClick={() => setExpanded((value) => !value)}
           className="flex w-full items-center gap-2 text-left"
         >
-          <span className="truncate">{query}</span>
+          <span className={cn("truncate", isRunning && "shimmer-text")}>
+            {query}
+          </span>
           <ChevronDown
             className={cn(
               "icon-md shrink-0 text-zinc-400 transition-transform duration-200",
@@ -105,7 +108,7 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
             </div>
           </div>
         ) : isRunning ? (
-          <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-[13px] text-zinc-500">
+          <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-[13px] text-zinc-500 shimmer-text">
             Searching the web…
           </div>
         ) : null
@@ -152,7 +155,9 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
     <AgentTimelineStep
       icon="bash"
       isActive={isRunning}
-      title={description}
+      title={
+        <span className={cn(isRunning && "shimmer-text")}>{description}</span>
+      }
     >
       <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
         <div className="border-b border-zinc-100 px-3 py-2">
@@ -195,7 +200,7 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
     <AgentTimelineStep
       icon="tool"
       isActive={isRunning}
-      title={label}
+      title={<span className={cn(isRunning && "shimmer-text")}>{label}</span>}
       trailing={
         isRunning ? (
           <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
@@ -216,6 +221,13 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
 export function AgentToolBlock({ tool }: { tool: AgentToolSegment }) {
   if (tool.name === "web_search" || tool.name === "web_fetch") {
     return <AgentWebSearchBlock tool={tool} />;
+  }
+  if (
+    tool.name === "create_file" ||
+    tool.name === "str_replace" ||
+    tool.name === "present_files"
+  ) {
+    return <AgentFileBlock tool={tool} />;
   }
   if (tool.name === "bash_tool" || tool.name === "run_code_interpreter") {
     return <AgentBashToolBlock tool={tool} />;

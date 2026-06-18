@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDown,
   ArrowUp,
-  AudioLines,
   Check,
   LayoutPanelTop,
   LoaderCircle,
@@ -20,10 +19,11 @@ import {
   captureDisplayScreenshot,
   ScreenshotCaptureError,
 } from "@/frontend/lib/capture-display-screenshot";
-import { VoiceCall } from "./voice-call";
 import { PromptAddMenu, type PromptComposeAction } from "./prompt-add-menu";
+import { PromptModelSelector } from "./prompt-model-selector";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { useIsClient } from "@/frontend/hooks/use-is-client";
+import type { ChatModelId } from "@/lib/chat-models";
 
 interface PromptInputProps {
   onSendMessage: (prompt: string) => void;
@@ -43,6 +43,8 @@ interface PromptInputProps {
   onWebSearchEnabledChange?: (enabled: boolean) => void;
   /** Hide model selector in the toolbar (e.g. when shown in the welcome header). */
   showModelSelector?: boolean;
+  chatModel?: ChatModelId;
+  onChatModelChange?: (model: ChatModelId) => void;
 }
 
 const COMPOSE_ACTION_META: Record<
@@ -73,7 +75,13 @@ type PromptAttachment = {
 };
 
 const addMenuTriggerClass =
-  "menu-trigger-active mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10 data-[state=open]:bg-zinc-50 data-[state=open]:text-zinc-700";
+  "menu-trigger-active flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
+
+const WAVE_DOT_COUNT = 36;
+/** Fallback single-line height when measurement is not ready yet. */
+const COLLAPSED_TEXTAREA_HEIGHT_PX = 20;
+const MAX_PROMPT_LINES = 7;
+const PROMPT_NOTIFY_DEBOUNCE_MS = 120;
 
 export function PromptInput({
   onSendMessage,
@@ -84,19 +92,20 @@ export function PromptInput({
   isGenerating,
   onPromptChange,
   focusKey,
+  onUpgradeClick,
   thinkingEnabled = false,
   onThinkingEnabledChange,
   webSearchEnabled = false,
   onWebSearchEnabledChange,
   showModelSelector = true,
+  chatModel = "helios",
+  onChatModelChange,
 }: PromptInputProps) {
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
-  const [draftSnapshot, setDraftSnapshot] = useState("");
   const draftNotifyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const [voiceCallOpen, setVoiceCallOpen] = useState(false);
   const [isDictating, setIsDictating] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [selectedQuickActions, setSelectedQuickActions] = useState<
@@ -108,9 +117,14 @@ export function PromptInput({
   const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [waveLevels, setWaveLevels] = useState<number[]>(() =>
+    Array.from({ length: WAVE_DOT_COUNT }, () => 0.12),
+  );
+  const [isMultiline, setIsMultiline] = useState(false);
+  const singleLineHeightRef = useRef(COLLAPSED_TEXTAREA_HEIGHT_PX);
+  const promptShellRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const waveformRef = useRef<HTMLCanvasElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -128,16 +142,17 @@ export function PromptInput({
   const readDraft = useCallback(() => textareaRef.current?.value ?? "", []);
 
   const scheduleDraftNotify = useCallback(() => {
+    const value = readDraft();
+    const has = value.trim().length > 0;
+    setHasDraft(has);
+
     if (draftNotifyTimeoutRef.current) {
       clearTimeout(draftNotifyTimeoutRef.current);
     }
     draftNotifyTimeoutRef.current = setTimeout(() => {
-      const value = readDraft();
-      const has = value.trim().length > 0;
-      setHasDraft(has);
-      setDraftSnapshot(value);
-      onPromptChange?.(value);
-    }, 250);
+      onPromptChange?.(readDraft());
+      draftNotifyTimeoutRef.current = null;
+    }, PROMPT_NOTIFY_DEBOUNCE_MS);
   }, [onPromptChange, readDraft]);
 
   const syncDraftImmediate = useCallback(
@@ -145,7 +160,10 @@ export function PromptInput({
       if (textareaRef.current) textareaRef.current.value = value;
       const has = value.trim().length > 0;
       setHasDraft(has);
-      setDraftSnapshot(value);
+      if (draftNotifyTimeoutRef.current) {
+        clearTimeout(draftNotifyTimeoutRef.current);
+        draftNotifyTimeoutRef.current = null;
+      }
       onPromptChange?.(value);
     },
     [onPromptChange],
@@ -157,29 +175,87 @@ export function PromptInput({
     }
   }, [isConversationStarted]);
 
+  const getSingleLineHeight = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return singleLineHeightRef.current;
+
+    const style = getComputedStyle(textarea);
+    const lineHeight = parseFloat(style.lineHeight);
+    const paddingTop = parseFloat(style.paddingTop) || 0;
+    const paddingBottom = parseFloat(style.paddingBottom) || 0;
+    const borderTop = parseFloat(style.borderTopWidth) || 0;
+    const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+    const measured = Math.ceil(
+      (Number.isFinite(lineHeight) ? lineHeight : 20) +
+        paddingTop +
+        paddingBottom +
+        borderTop +
+        borderBottom,
+    );
+    singleLineHeightRef.current = Math.max(
+      COLLAPSED_TEXTAREA_HEIGHT_PX,
+      measured,
+    );
+    return singleLineHeightRef.current;
+  }, []);
+
   const getTextareaMaxHeight = useCallback(() => {
-    if (showComposeControls) return 200;
-    if (isConversationStarted) return 200;
-    return 140;
-  }, [isConversationStarted, showComposeControls]);
+    return getSingleLineHeight() * MAX_PROMPT_LINES;
+  }, [getSingleLineHeight]);
 
   const resizeTextarea = useCallback(() => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
+    if (!textarea || showDictationSurface) return;
+
+    const singleLineHeight = getSingleLineHeight();
     const maxHeight = getTextareaMaxHeight();
-    textarea.style.height = "auto";
-    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
-    textarea.style.height = `${newHeight}px`;
-    textarea.style.overflowY =
-      textarea.scrollHeight > maxHeight ? "auto" : "hidden";
-  }, [getTextareaMaxHeight]);
+    const draft = readDraft();
+    const hasExplicitNewline = draft.includes("\n");
+
+    textarea.style.height = "0px";
+    const scrollHeight = textarea.scrollHeight;
+    const needsExpandedLayout =
+      hasExplicitNewline ||
+      scrollHeight > singleLineHeight + 2 ||
+      (draft.length > 0 && textarea.scrollWidth > textarea.clientWidth + 1);
+
+    setIsMultiline((prev) =>
+      prev === needsExpandedLayout ? prev : needsExpandedLayout,
+    );
+
+    const nextHeight = Math.min(
+      Math.max(scrollHeight, singleLineHeight),
+      maxHeight,
+    );
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [getTextareaMaxHeight, getSingleLineHeight, readDraft, showDictationSurface]);
 
   useEffect(() => {
     resizeTextarea();
-  }, [draftSnapshot, isConversationStarted, showDictationSurface, showComposeControls, resizeTextarea]);
+  }, [
+    isConversationStarted,
+    showDictationSurface,
+    showComposeControls,
+    resizeTextarea,
+  ]);
+
+  useEffect(() => {
+    const shell = promptShellRef.current;
+    if (!shell) return;
+
+    const observer = new ResizeObserver(() => {
+      getSingleLineHeight();
+      resizeTextarea();
+    });
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, [getSingleLineHeight, resizeTextarea]);
 
   useEffect(() => {
     syncDraftImmediate("");
+    setIsMultiline(false);
+    singleLineHeightRef.current = COLLAPSED_TEXTAREA_HEIGHT_PX;
     const textarea = textareaRef.current;
     if (!textarea) return;
     const t = window.setTimeout(() => {
@@ -260,9 +336,11 @@ export function PromptInput({
     if ((value || attachments.length > 0) && !isGenerating) {
       onSendMessage(value);
       syncDraftImmediate("");
+      setIsMultiline(false);
       setAttachments([]);
       setAttachmentError(null);
       requestAnimationFrame(() => {
+        resizeTextarea();
         dismissComposerFocus();
       });
     }
@@ -416,44 +494,29 @@ export function PromptInput({
   }, [releaseRecordingResources]);
 
   useEffect(() => {
-    if (!isDictating) return;
-    const canvas = waveformRef.current;
-    const analyser = analyserRef.current;
-    if (!canvas || !analyser) return;
-    const context = canvas.getContext("2d");
-    if (!context) return;
+    if (!isDictating) {
+      setWaveLevels(Array.from({ length: WAVE_DOT_COUNT }, () => 0.12));
+      return;
+    }
 
     let frameId = 0;
-    const data = new Uint8Array(analyser.fftSize);
-
-    const renderWaveform = () => {
-      const ratio = window.devicePixelRatio || 1;
-      const width = canvas.clientWidth;
-      const height = canvas.clientHeight;
-      if (canvas.width !== width * ratio || canvas.height !== height * ratio) {
-        canvas.width = width * ratio;
-        canvas.height = height * ratio;
-      }
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      context.clearRect(0, 0, width, height);
-      analyser.getByteTimeDomainData(data);
-      context.strokeStyle = "#a1a1aa";
-      context.lineWidth = 1.5;
-      context.beginPath();
-      data.forEach((point, index) => {
-        const x = (index / (data.length - 1)) * width;
-        const y = (point / 128) * (height / 2);
-        if (index === 0) {
-          context.moveTo(x, y);
-        } else {
-          context.lineTo(x, y);
+    const tick = () => {
+      const analyser = analyserRef.current;
+      if (analyser) {
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+        let sum = 0;
+        const bins = Math.min(24, data.length);
+        for (let index = 0; index < bins; index += 1) {
+          sum += data[index] ?? 0;
         }
-      });
-      context.stroke();
-      frameId = window.requestAnimationFrame(renderWaveform);
+        const level = Math.min(1, (sum / (bins * 255)) * 3.2);
+        setWaveLevels((prev) => [...prev.slice(1), Math.max(0.12, level)]);
+      }
+      frameId = window.requestAnimationFrame(tick);
     };
 
-    renderWaveform();
+    frameId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frameId);
   }, [isDictating]);
 
@@ -479,7 +542,6 @@ export function PromptInput({
       !navigator.mediaDevices?.getUserMedia ||
       typeof MediaRecorder === "undefined"
     ) {
-      setVoiceCallOpen(true);
       return;
     }
 
@@ -551,20 +613,16 @@ export function PromptInput({
     } catch {
       setIsDictating(false);
       releaseRecordingResources();
-      setVoiceCallOpen(true);
     }
   }, [cancelDictation, isDictating, releaseRecordingResources]);
 
   const micButtonClass =
-    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10";
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
 
   const promptShellClass = cn(
     "w-full max-w-full transition-[min-height,box-shadow,border-color,background-color] duration-200 ease-out",
-    isConversationStarted
-      ? "sm:max-w-[min(768px,calc(100vw-2.5rem))]"
-      : "sm:max-w-[min(720px,calc(100vw-2.5rem))]",
     showComposeControls &&
-      "min-h-[108px] border-zinc-200/80 bg-white/92 shadow-[0_8px_24px_-10px_rgba(24,24,27,0.12)] backdrop-blur-md",
+      "min-h-[92px] border-zinc-200/80 bg-white/92 shadow-[0_8px_24px_-10px_rgba(24,24,27,0.12)] backdrop-blur-md",
   );
 
   const renderMicButton = () => (
@@ -572,9 +630,8 @@ export function PromptInput({
       <button
         type="button"
         onClick={startDictation}
-        disabled={isGenerating}
         aria-pressed={isDictating}
-        className={cn(micButtonClass, isGenerating && "opacity-40")}
+        className={micButtonClass}
         data-app-button
       >
         <Mic className="icon-lg shrink-0 opacity-80 sm:icon-xl" />
@@ -582,7 +639,20 @@ export function PromptInput({
     </HintTooltip>
   );
 
-  const renderTrailingActions = (voiceModeBlue = false) => {
+  const renderDisabledSendButton = () => (
+    <HintTooltip content="Send">
+      <button
+        type="button"
+        disabled
+        aria-label="Send"
+        className="no-hover-overlay flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full bg-zinc-900 text-white opacity-40"
+      >
+        <ArrowUp className="icon-lg" />
+      </button>
+    </HintTooltip>
+  );
+
+  const renderTrailingActions = () => {
     if (showDictationSurface) {
       return (
         <>
@@ -593,11 +663,11 @@ export function PromptInput({
               disabled={isTranscribing}
               aria-label="Cancel dictation"
               className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100",
+                "flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100",
                 isTranscribing && "cursor-not-allowed opacity-40",
               )}
             >
-              <X className="icon-xl" />
+              <X className="icon-lg" />
             </button>
           </HintTooltip>
           <HintTooltip content="Submit dictation">
@@ -607,14 +677,16 @@ export function PromptInput({
               disabled={isTranscribing}
               aria-label="Submit dictation"
               className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100",
-                isTranscribing && "cursor-not-allowed opacity-40",
+                "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
+                isTranscribing
+                  ? "cursor-wait bg-zinc-900 text-white"
+                  : "text-zinc-600 hover:bg-zinc-100",
               )}
             >
               {isTranscribing ? (
-                <LoaderCircle className="icon-xl animate-spin" />
+                <LoaderCircle className="icon-md animate-spin" />
               ) : (
-                <Check className="icon-xl" />
+                <Check className="icon-lg" />
               )}
             </button>
           </HintTooltip>
@@ -630,7 +702,7 @@ export function PromptInput({
             <button
               type="button"
               onClick={onStopGeneration}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-white transition-all duration-200 hover:bg-zinc-900 data-app-button"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-white transition-all duration-200 hover:bg-zinc-900 data-app-button"
               data-app-button
             >
               <Square className="icon-md fill-current" />
@@ -641,27 +713,14 @@ export function PromptInput({
             <button
               type="button"
               onClick={handleSubmit}
-              className="no-hover-overlay flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-white transition-all duration-200 hover:bg-zinc-800 data-app-button"
+              className="no-hover-overlay flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white transition-all duration-200 hover:bg-zinc-800 data-app-button"
               data-app-button
             >
-              <ArrowUp className="icon-xl" />
+              <ArrowUp className="icon-lg" />
             </button>
           </HintTooltip>
         ) : (
-          <HintTooltip content="Voice Mode.">
-            <button
-              type="button"
-              onClick={() => setVoiceCallOpen(true)}
-              className={cn(
-                "no-hover-overlay flex h-9 w-9 items-center justify-center rounded-full text-white transition-all duration-200",
-                voiceModeBlue
-                  ? "bg-[#2c84db] hover:bg-[#2574c4]"
-                  : "bg-zinc-900 hover:bg-zinc-800",
-              )}
-            >
-              <AudioLines className="icon-lg shrink-0 sm:icon-xl" />
-            </button>
-          </HintTooltip>
+          renderDisabledSendButton()
         )}
       </>
     );
@@ -698,67 +757,135 @@ export function PromptInput({
     />
   );
 
-  const renderTextarea = (placeholder: string, className?: string) => (
-    <AnimatePresence initial={false} mode="wait">
-      {showDictationSurface ? (
-        <motion.div
-          key="dictation-waveform"
-          initial={{ opacity: 0, y: 3 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -3 }}
-          transition={{ duration: 0.18 }}
-          className="flex h-10 min-w-0 items-center overflow-hidden"
-        >
-          {isTranscribing ? (
-            <div className="flex w-full items-center gap-2 text-[14px] text-zinc-500">
-              <LoaderCircle className="icon-md animate-spin" />
-              <span>Transcribing...</span>
-            </div>
-          ) : (
-            <canvas
-              ref={waveformRef}
-              height={80}
-              width={1456}
-              aria-label="Voice recording waveform"
-              className="h-10 w-full align-middle"
-            />
-          )}
-        </motion.div>
-      ) : (
-        <motion.textarea
-          key="prompt-field"
-          ref={textareaRef}
-          placeholder={placeholder}
-          defaultValue=""
-          onInput={handleInput}
-          onKeyDown={handleKeyDown}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.16 }}
-          className={cn(
-            "block w-full resize-none border-0 bg-transparent text-[15px] font-[430] leading-[22px] text-zinc-800 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-0 focus:outline-none focus:ring-0 sm:text-[15px] sm:leading-[23px]",
-            showComposeControls
-              ? "min-h-[52px] px-1 py-2"
-              : "min-h-[24px] py-2",
-            className,
-          )}
-          rows={1}
-        />
-      )}
-    </AnimatePresence>
+  const renderModelSelector = () =>
+    showModelSelector ? (
+      <PromptModelSelector
+        compact
+        selectedModel={chatModel}
+        onSelectedModelChange={(model) => onChatModelChange?.(model)}
+        onUpgradeClick={onUpgradeClick}
+        thinkingEnabled={thinkingEnabled}
+        onThinkingEnabledChange={(enabled) =>
+          onThinkingEnabledChange?.(enabled)
+        }
+      />
+    ) : null;
+
+  const renderPromptToolbar = (centerSlot?: ReactNode) => (
+    <div className="flex items-center gap-1 px-1.5 py-1.5 sm:gap-1.5 sm:px-2 sm:py-1.5">
+      {renderAddMenuButton()}
+      {centerSlot}
+      <div className="min-w-0 flex-1" />
+      {renderModelSelector()}
+      <div className="flex shrink-0 items-center gap-1">
+        {renderTrailingActions()}
+      </div>
+    </div>
   );
+
+
+  const renderPromptBody = (
+    placeholder: string,
+    centerSlot?: ReactNode,
+    forceExpanded = false,
+  ) => {
+    const expanded =
+      forceExpanded || isMultiline || showDictationSurface || showComposeControls;
+
+    return (
+      <div
+        className={cn(
+          "flex w-full",
+          expanded
+            ? "flex-col"
+            : "items-center gap-1 px-1.5 py-1 sm:gap-1.5 sm:px-2 sm:py-1",
+        )}
+      >
+        {!expanded && renderAddMenuButton()}
+        <div
+          className={cn(
+            "min-w-0 flex-1",
+            expanded && "w-full px-2 pt-1.5 pb-0 sm:px-2.5",
+          )}
+        >
+          {renderTextareaField(placeholder)}
+        </div>
+        {!expanded && (
+          <>
+            {centerSlot}
+            {renderModelSelector()}
+            <div className="flex shrink-0 items-center gap-1">
+              {renderTrailingActions()}
+            </div>
+          </>
+        )}
+        {expanded && renderPromptToolbar(centerSlot)}
+      </div>
+    );
+  };
+
+  const renderTextareaField = (placeholder: string, className?: string) =>
+    showDictationSurface ? (
+      <div className="flex h-9 min-w-0 items-center overflow-hidden">
+        {isTranscribing ? (
+          <div className="flex w-full items-center gap-2 text-[13px] text-zinc-500">
+            <LoaderCircle className="icon-md animate-spin" />
+            <span>Transcribing...</span>
+          </div>
+        ) : (
+          <div
+            className="flex h-9 w-full items-center justify-end gap-[3px] overflow-hidden px-0.5"
+            aria-label="Voice recording waveform"
+          >
+            {waveLevels.map((level, index) => (
+              <span
+                key={index}
+                className="w-[3px] shrink-0 rounded-full bg-zinc-400/90 transition-[height] duration-75 ease-out"
+                style={{ height: `${6 + level * 22}px` }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    ) : (
+      <textarea
+        ref={textareaRef}
+        placeholder={placeholder}
+        defaultValue=""
+        onInput={handleInput}
+        onKeyDown={handleKeyDown}
+        className={cn(
+          "block w-full resize-none border-0 bg-transparent text-[14px] font-[430] leading-[20px] text-zinc-800 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-0 focus:outline-none focus:ring-0 sm:text-[14px] sm:leading-[21px]",
+          showComposeControls
+            ? "min-h-[44px] px-1 py-1.5"
+            : isMultiline
+              ? "min-h-[20px] px-0 py-1"
+              : "min-h-[20px] px-0 py-0.5",
+          className,
+        )}
+        rows={1}
+      />
+    );
 
   if (!isClient) {
     return (
       <div
-        className="flex w-full flex-col items-center"
+        className={cn(
+          "flex w-full flex-col",
+          isConversationStarted ? "items-stretch" : "items-center",
+        )}
         data-prompt-root
         suppressHydrationWarning
       >
-        <div className="relative flex w-full justify-center" data-prompt-wrapper>
+        <div
+          className={cn(
+            "relative flex w-full",
+            !isConversationStarted && "justify-center",
+          )}
+          data-prompt-wrapper
+        >
           <div className={promptShellClass} data-prompt-shell>
-            <div className="flex items-end gap-1 px-2 py-1.5 sm:gap-1.5 sm:px-2.5 sm:py-2">
+            <div className="flex items-center gap-1 px-1.5 py-1 sm:gap-1.5 sm:px-2 sm:py-1">
               <button
                 type="button"
                 aria-label="Add content"
@@ -777,7 +904,7 @@ export function PromptInput({
                   aria-hidden
                   placeholder="Ask anything"
                   rows={1}
-                  className="block min-h-[24px] w-full resize-none border-0 bg-transparent py-2 text-[15px] font-[430] leading-[22px] text-zinc-800 shadow-none outline-none placeholder:text-zinc-400"
+                  className="block min-h-[20px] w-full resize-none border-0 bg-transparent py-0.5 text-[14px] font-[430] leading-[20px] text-zinc-800 shadow-none outline-none placeholder:text-zinc-400"
                 />
               </div>
               <button
@@ -798,11 +925,20 @@ export function PromptInput({
   return (
     <>
       <div
-        className="flex w-full flex-col items-center"
+        className={cn(
+          "flex w-full flex-col",
+          isConversationStarted ? "items-stretch" : "items-center",
+        )}
         data-prompt-root
         data-streaming={isGenerating || undefined}
       >
-        <div className="relative flex w-full justify-center" data-prompt-wrapper>
+        <div
+          className={cn(
+            "relative flex w-full",
+            !isConversationStarted && "justify-center",
+          )}
+          data-prompt-wrapper
+        >
           {showScrollToBottomButton && onScrollToBottom && (
             <HintTooltip content="Scroll to latest">
               <button
@@ -817,6 +953,7 @@ export function PromptInput({
 
           <div
             className={promptShellClass}
+            ref={promptShellRef}
             data-prompt-shell
             data-compose-mode={showComposeControls || undefined}
           >
@@ -827,14 +964,14 @@ export function PromptInput({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center gap-1.5 overflow-hidden px-4 pt-2.5 pb-0"
+                  className="flex items-center gap-1.5 overflow-hidden px-3 pt-2 pb-0"
                 >
                   {selectedQuickActions.map((action) => (
                       <button
                         key={action}
                         type="button"
                         onClick={() => handleQuickActionRemove(action)}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-transparent px-2.5 text-[13px] text-zinc-600 transition-colors hover:bg-zinc-50"
+                        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-zinc-200 bg-transparent px-2.5 text-[12px] text-zinc-600 transition-colors hover:bg-zinc-50"
                       >
                         <span>{quickActionLabelMap[action]}</span>
                         <X className="icon-sm" />
@@ -851,7 +988,7 @@ export function PromptInput({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="flex flex-wrap gap-1.5 overflow-hidden px-2.5 pt-2 sm:px-3"
+                  className="flex flex-wrap gap-1.5 overflow-hidden px-2 pt-2 sm:px-2.5"
                 >
                   {attachments.map((attachment) => (
                     <div
@@ -893,43 +1030,27 @@ export function PromptInput({
             />
 
             {showComposeControls && composeMeta ? (
-              <div className="flex flex-col">
-                <div className="min-w-0 px-3 pt-3 pb-1 sm:px-4">
-                  {renderTextarea(composeMeta.placeholder)}
-                </div>
-                <div className="flex items-center gap-1 px-2 py-1.5 sm:gap-1.5 sm:px-2.5 sm:py-2">
-                  {renderAddMenuButton()}
-                  <button
-                    type="button"
-                    aria-label={`Close ${composeMeta.label} mode`}
-                    onMouseEnter={() => setComposeChipHovered(true)}
-                    onMouseLeave={() => setComposeChipHovered(false)}
-                    onClick={handleComposeActionRemove}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#2c84db]/15 bg-[#e9f3ff] px-2.5 text-[13px] font-medium text-[#2c84db] transition-colors hover:bg-[#ddebff]"
-                  >
-                    {composeChipHovered ? (
-                      <X className="icon-lg" />
-                    ) : (
-                      <composeMeta.icon className="icon-lg" />
-                    )}
-                    <span>{composeMeta.label}</span>
-                  </button>
-                  <div className="min-w-0 flex-1" />
-                  <div className="mb-0.5 flex shrink-0 items-center gap-1">
-                    {renderTrailingActions(true)}
-                  </div>
-                </div>
-              </div>
+              renderPromptBody(
+                composeMeta.placeholder,
+                <button
+                  type="button"
+                  aria-label={`Close ${composeMeta.label} mode`}
+                  onMouseEnter={() => setComposeChipHovered(true)}
+                  onMouseLeave={() => setComposeChipHovered(false)}
+                  onClick={handleComposeActionRemove}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[#2c84db]/15 bg-[#e9f3ff] px-2.5 text-[12px] font-medium text-[#2c84db] transition-colors hover:bg-[#ddebff]"
+                >
+                  {composeChipHovered ? (
+                    <X className="icon-lg" />
+                  ) : (
+                    <composeMeta.icon className="icon-lg" />
+                  )}
+                  <span>{composeMeta.label}</span>
+                </button>,
+                true,
+              )
             ) : (
-              <div className="flex items-end gap-1 px-2 py-1.5 sm:gap-1.5 sm:px-2.5 sm:py-2">
-                {renderAddMenuButton()}
-                <div className="min-w-0 flex-1">
-                  {renderTextarea("Ask anything")}
-                </div>
-                <div className="mb-0.5 flex shrink-0 items-center gap-1">
-                  {renderTrailingActions()}
-                </div>
-              </div>
+              renderPromptBody("Ask anything")
             )}
           </div>
         </div>
@@ -937,19 +1058,15 @@ export function PromptInput({
       {isConversationStarted ? (
         <div
           data-context-footer
-          className={cn(
-            "mt-2 w-full max-w-full sm:max-w-[min(768px,calc(100vw-2.5rem))]",
-          )}
+          className="agent-panel-followup-status-area mt-1.5 w-full"
         >
-          <p className="px-1 text-center text-[11px] leading-4 text-zinc-400 sm:text-xs">
-            Clauxen can make mistakes. Check important info.
-          </p>
+          <div className="glass-chat-status-bar">
+            <p className="glass-chat-status-bar__center">
+              Clauxen can make mistakes. Check important info.
+            </p>
+          </div>
         </div>
       ) : null}
-      <VoiceCall
-        isOpen={voiceCallOpen}
-        onClose={() => setVoiceCallOpen(false)}
-      />
     </>
   );
 }

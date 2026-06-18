@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { Check } from "lucide-react";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ThinkingBlock } from "./thinking-block";
@@ -10,10 +9,13 @@ import { OrbCursor } from "./ui/orb-cursor";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { messageAnchorId } from "./chat-message-navigator";
 import type { Message } from "@/frontend/lib/types";
+import { agentSegmentsVisuallyEqual } from "@/frontend/lib/agent-segments";
+import { agentFramesVisuallyEqual } from "@/frontend/lib/agent-frames";
 import { UserMessageExpandDialog } from "./user-message-expand-dialog";
 import { cn } from "@/frontend/lib/utils";
 import { useMessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
+import { useMessageEnterAnimation } from "@/frontend/hooks/use-message-enter-animation";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 
@@ -23,11 +25,14 @@ interface ConversationThreadProps {
     messageId: string,
     newContent: string,
   ) => Promise<void> | void;
+  onRetryUserMessage: (messageId: string) => void;
   onRetryAssistant: (messageId: string) => void;
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
   className?: string;
   scrollAreaRef?: React.RefObject<HTMLDivElement | null>;
-  /** When true, off-screen rows render lightweight placeholders (fast scroll). */
+  /** Resets sticky state when switching chats. */
+  conversationKey?: string | null;
+  /** Skip heavy sticky work while the user is flick-scrolling. */
   isFastScrolling?: boolean;
 }
 
@@ -134,9 +139,9 @@ interface MessageRowProps {
   onCancelEdit: () => void;
   onSaveEdit: (messageId: string) => void;
   onCopy: (id: string, text: string) => void;
+  onRetryUserMessage: (messageId: string) => void;
   onRetryAssistant: (messageId: string) => void;
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
-  isFastScrolling?: boolean;
   forcedDetailLevel?: MessageDetailLevel;
 }
 
@@ -151,9 +156,9 @@ const MessageRow = React.memo(
     onCancelEdit,
     onSaveEdit,
     onCopy,
+    onRetryUserMessage,
     onRetryAssistant,
     onSwitchBranch,
-    isFastScrolling = false,
     forcedDetailLevel,
   }: MessageRowProps) {
     const branchVersions = message.branchVersions?.length ?? 1;
@@ -164,41 +169,38 @@ const MessageRow = React.memo(
       !!message.isStreaming,
     );
     const renderDetailLevel: MessageDetailLevel =
-      forcedDetailLevel ??
-      (isFastScrolling ? "placeholder" : detailLevel);
-
-    if (isFastScrolling && message.role === "assistant" && !message.isStreaming) {
-      return (
-        <div
-          className="min-h-[72px] w-full rounded-lg bg-zinc-50/80"
-          style={{ containIntrinsicSize: "72px" }}
-          aria-hidden
-        />
-      );
-    }
+      forcedDetailLevel ?? detailLevel;
+    const { shouldAnimate, markEntered } = useMessageEnterAnimation(
+      message.id,
+      true,
+    );
 
     return (
       <div
         ref={visibilityRef}
         className={cn(
-          "group flex w-full flex-col animate-in fade-in duration-500",
+          "group flex w-full max-w-full flex-col",
+          shouldAnimate && "animate-in fade-in duration-500",
           message.role === "user" ? "items-stretch" : "items-start",
         )}
-        style={{ contentVisibility: "auto", containIntrinsicSize: "240px" }}
+        onAnimationEnd={(event) => {
+          if (event.currentTarget !== event.target) return;
+          markEntered();
+        }}
       >
         {message.role === "user" ? (
             <div
               id={messageAnchorId(message.id)}
-              className="user-message-card flex w-full scroll-mt-20 flex-col font-sans"
+              className="user-message-card relative flex w-full scroll-mt-20 flex-col font-sans"
             >
               <button
                 type="button"
                 onClick={() => setExpandOpen(true)}
-                className="user-message-card__body w-full cursor-pointer rounded-[18px] px-3.5 py-3 text-left transition-colors hover:bg-zinc-200/60 sm:rounded-[20px] sm:px-5 sm:py-4"
+                className="user-message-card__body no-hover-overlay w-full cursor-pointer rounded-[15px] px-3 py-2.5 text-left transition-colors sm:rounded-[17px] sm:px-4 sm:py-3"
                 aria-label="Expand user message"
               >
                 <p
-                  className="overflow-hidden whitespace-pre-wrap text-[14px] font-[430] leading-[1.6] text-zinc-900 sm:text-[15px] sm:leading-[1.65]"
+                  className="overflow-hidden whitespace-pre-wrap text-[13.5px] font-[430] leading-[1.55] text-zinc-900 sm:text-[14px] sm:leading-[1.58]"
                   style={{
                     display: "-webkit-box",
                     WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
@@ -222,11 +224,16 @@ const MessageRow = React.memo(
                 onCancelEdit={onCancelEdit}
                 onSaveEdit={onSaveEdit}
                 onCopy={onCopy}
+                onRetryUserMessage={onRetryUserMessage}
                 onSwitchBranch={onSwitchBranch}
               />
-              <div className="user-message-actions mt-1 flex h-8 items-center justify-end gap-0">
+              <div className="user-message-actions absolute inset-x-0 top-full z-10 mt-0.5 flex h-7 items-center justify-end gap-0">
                 <HintTooltip content="Retry">
-                  <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 text-zinc-500 transition-all">
+                  <button
+                    type="button"
+                    onClick={() => onRetryUserMessage(message.id)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
+                  >
                     <RetryIcon />
                   </button>
                 </HintTooltip>
@@ -236,7 +243,7 @@ const MessageRow = React.memo(
                       onStartEdit(message);
                       setExpandOpen(true);
                     }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 text-zinc-500 transition-all"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
                   >
                     <EditPenIcon />
                   </button>
@@ -244,7 +251,7 @@ const MessageRow = React.memo(
                 <HintTooltip content="Copy">
                   <button
                     onClick={() => onCopy(message.id, message.content)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 text-zinc-500 transition-all"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
                   >
                     {copiedId === message.id ? (
                       <Check className="w-4 h-4 text-green-600" />
@@ -299,11 +306,11 @@ const MessageRow = React.memo(
         ) : (
           <div
             className={cn(
-              "assistant-message group w-full min-w-0 max-w-full overflow-hidden text-gray-800 leading-relaxed",
-              message.isStreaming && "[contain:layout_style]",
+              "assistant-message group w-full min-w-0 max-w-full text-gray-800 leading-[1.68]",
             )}
           >
             {message.agentMode ||
+            (message.agentFrames && message.agentFrames.length > 0) ||
             (message.agentSegments && message.agentSegments.length > 0) ? (
               <AgentMessageContent
                 message={message}
@@ -336,11 +343,12 @@ const MessageRow = React.memo(
               </>
             )}
             {(message.agentMode ||
+              (message.agentFrames && message.agentFrames.length > 0) ||
               (message.agentSegments && message.agentSegments.length > 0) ||
               message.content.trim().length > 0) &&
             !message.isStreaming ? (
               <>
-                  <div className="mt-3 flex items-center justify-start gap-1 font-sans text-zinc-500 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
+                  <div className="mt-2 flex items-center justify-start gap-0.5 font-sans text-zinc-500 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
                     <HintTooltip content="Copy">
                       <button
                         onClick={() => onCopy(message.id, message.content)}
@@ -430,20 +438,14 @@ const MessageRow = React.memo(
       pm.thinkingDurationSeconds === nm.thinkingDurationSeconds &&
       pm.agentMode === nm.agentMode &&
       pm.agentFrameComplete === nm.agentFrameComplete &&
-      (pm.agentSegments?.length ?? 0) === (nm.agentSegments?.length ?? 0) &&
-      pm.agentSegments?.[pm.agentSegments.length - 1]?.id ===
-        nm.agentSegments?.[nm.agentSegments.length - 1]?.id &&
-      (pm.agentSegments?.[pm.agentSegments.length - 1]?.kind === "tool"
-        ? (pm.agentSegments[pm.agentSegments.length - 1] as { status?: string })
-            .status ===
-          (nm.agentSegments?.[nm.agentSegments.length - 1] as { status?: string })
-            ?.status
-        : true) &&
+      agentSegmentsVisuallyEqual(pm.agentSegments, nm.agentSegments) &&
+      agentFramesVisuallyEqual(pm.agentFrames, nm.agentFrames) &&
       pm.activeBranchIndex === nm.activeBranchIndex &&
       pm.branchVersions === nm.branchVersions &&
       prev.editingMessageId === next.editingMessageId &&
       prev.editValue === next.editValue &&
-      prev.copiedId === next.copiedId
+      prev.copiedId === next.copiedId &&
+      prev.forcedDetailLevel === next.forcedDetailLevel
     );
   },
 );
@@ -459,9 +461,10 @@ interface ConversationTurnProps {
   onCancelEdit: () => void;
   onSaveEdit: (messageId: string) => void;
   onCopy: (id: string, text: string) => void;
+  onRetryUserMessage: (messageId: string) => void;
   onRetryAssistant: (messageId: string) => void;
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
-  isFastScrolling?: boolean;
+  turnIndex: number;
 }
 
 const ConversationTurn = React.memo(
@@ -476,98 +479,58 @@ const ConversationTurn = React.memo(
     onCancelEdit,
     onSaveEdit,
     onCopy,
+    onRetryUserMessage,
     onRetryAssistant,
     onSwitchBranch,
-    isFastScrolling = false,
+    turnIndex,
   }: ConversationTurnProps) {
-    const userMsgRef = React.useRef<HTMLDivElement>(null);
-    const stickySentinelRef = React.useRef<HTMLDivElement>(null);
-    const [userMsgHeight, setUserMsgHeight] = React.useState(0);
-    const [isUserMsgStuck, setIsUserMsgStuck] = React.useState(false);
+    const turnRootRef = React.useRef<HTMLDivElement>(null);
+    const userMsgHostRef = React.useRef<HTMLDivElement>(null);
 
-    React.useEffect(() => {
-      const sentinel = stickySentinelRef.current;
-      if (!sentinel || !userMessage) {
-        setIsUserMsgStuck(false);
-        return;
-      }
+    // Measure user message height for code-header sticky offset (layout effect
+    // so --turn-user-msg-height is ready before first paint / sticky sync).
+    React.useLayoutEffect(() => {
+      const turnEl = turnRootRef.current;
+      const hostEl = userMsgHostRef.current;
+      if (!turnEl || !hostEl || !userMessage) return;
 
-      const scrollRoot = sentinel.closest(
-        "[data-radix-scroll-area-viewport]",
-      ) as HTMLElement | null;
-
-      const updateStuck = () => {
-        const userEl = userMsgRef.current;
-        if (!sentinel || !userEl) return;
-
-        const stickyTop = parseFloat(getComputedStyle(userEl).top) || 44;
-        const sentinelBottom = sentinel.getBoundingClientRect().bottom;
-        const userTop = userEl.getBoundingClientRect().top;
-        const isPinned = Math.abs(userTop - stickyTop) < 2;
-
-        setIsUserMsgStuck(isPinned && sentinelBottom < stickyTop);
-      };
-
-      updateStuck();
-      scrollRoot?.addEventListener("scroll", updateStuck, { passive: true });
-      window.addEventListener("resize", updateStuck);
-
-      const resizeObserver = new ResizeObserver(updateStuck);
-      resizeObserver.observe(sentinel);
-      if (scrollRoot) resizeObserver.observe(scrollRoot);
-
-      return () => {
-        scrollRoot?.removeEventListener("scroll", updateStuck);
-        window.removeEventListener("resize", updateStuck);
-        resizeObserver.disconnect();
-      };
-    }, [userMessage]);
-
-    React.useEffect(() => {
-      const el = userMsgRef.current;
-      if (!el) {
-        setUserMsgHeight(0);
-        return;
-      }
-
-      setUserMsgHeight(el.offsetHeight);
-
-      const observer = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const height =
-            entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
-          setUserMsgHeight(height);
+      const updateVar = () => {
+        const h = hostEl.offsetHeight || 0;
+        const next = `${h}px`;
+        if (turnEl.style.getPropertyValue("--turn-user-msg-height") !== next) {
+          turnEl.style.setProperty("--turn-user-msg-height", next);
+          turnEl.dispatchEvent(
+            new CustomEvent("clauxen-turn-metrics", { bubbles: true }),
+          );
         }
-      });
+      };
 
-      observer.observe(el);
+      updateVar();
+
+      const ro = new ResizeObserver(updateVar);
+      ro.observe(hostEl);
+
       return () => {
-        observer.disconnect();
+        ro.disconnect();
+        turnEl.style.removeProperty("--turn-user-msg-height");
       };
     }, [userMessage]);
 
     return (
       <div
-        className="relative flex w-full flex-col gap-6 sm:gap-8"
-        style={
-          {
-            "--user-msg-height": `${userMsgHeight}px`,
-          } as React.CSSProperties
-        }
+        ref={turnRootRef}
+        data-conversation-turn
+        data-turn-index={turnIndex}
+        className="relative flex w-full flex-col gap-0.5"
+        style={{ "--turn-index": turnIndex } as React.CSSProperties}
       >
         {userMessage && (
           <>
+            <div className="sticky-user-msg-sentinel" aria-hidden />
             <div
-              ref={stickySentinelRef}
-              className="sticky-user-msg-sentinel"
-              aria-hidden
-            />
-            <div
-              ref={userMsgRef}
-              className={cn(
-                "sticky-user-msg",
-                isUserMsgStuck && "sticky-user-msg--stuck",
-              )}
+              ref={userMsgHostRef}
+              data-sticky-user-msg
+              className="sticky-user-msg-host sticky-user-msg w-full max-w-full"
             >
               <MessageRow
                 message={userMessage}
@@ -579,9 +542,9 @@ const ConversationTurn = React.memo(
                 onCancelEdit={onCancelEdit}
                 onSaveEdit={onSaveEdit}
                 onCopy={onCopy}
+                onRetryUserMessage={onRetryUserMessage}
                 onRetryAssistant={onRetryAssistant}
                 onSwitchBranch={onSwitchBranch}
-                isFastScrolling={isFastScrolling}
               />
             </div>
           </>
@@ -598,9 +561,9 @@ const ConversationTurn = React.memo(
             onCancelEdit={onCancelEdit}
             onSaveEdit={onSaveEdit}
             onCopy={onCopy}
+            onRetryUserMessage={onRetryUserMessage}
             onRetryAssistant={onRetryAssistant}
             onSwitchBranch={onSwitchBranch}
-            isFastScrolling={isFastScrolling}
           />
         ))}
       </div>
@@ -634,6 +597,11 @@ const ConversationTurn = React.memo(
         pa.thinkingContent !== na.thinkingContent ||
         pa.isStreaming !== na.isStreaming ||
         pa.isThinkingStreaming !== na.isThinkingStreaming ||
+        pa.thinkingDurationSeconds !== na.thinkingDurationSeconds ||
+        pa.agentMode !== na.agentMode ||
+        pa.agentFrameComplete !== na.agentFrameComplete ||
+        !agentSegmentsVisuallyEqual(pa.agentSegments, na.agentSegments) ||
+        !agentFramesVisuallyEqual(pa.agentFrames, na.agentFrames) ||
         pa.activeBranchIndex !== na.activeBranchIndex ||
         pa.branchVersions !== na.branchVersions
       ) {
@@ -644,19 +612,166 @@ const ConversationTurn = React.memo(
     return (
       prev.editingMessageId === next.editingMessageId &&
       prev.editValue === next.editValue &&
-      prev.copiedId === next.copiedId
+      prev.copiedId === next.copiedId &&
+      prev.turnIndex === next.turnIndex
     );
   },
 );
 
+function readHeaderHeightPx() {
+  return (
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--header-height",
+      ),
+    ) || 35
+  );
+}
+
+let stickyActiveTurnCache = -1;
+
+export function resetStickyTurnCache() {
+  stickyActiveTurnCache = -1;
+}
+
+function resolveActiveStickyTurnIndex(
+  viewport: HTMLElement,
+  turnCount: number,
+): number {
+  if (turnCount <= 0) return 0;
+
+  const stickyY = viewport.getBoundingClientRect().top + readHeaderHeightPx();
+  const turns = viewport.querySelectorAll<HTMLElement>(
+    "[data-conversation-turn]",
+  );
+
+  let next = Math.max(0, turnCount - 1);
+  let foundSpanning = false;
+
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const el = turns[i];
+    const index = Number(el.dataset.turnIndex);
+    if (Number.isNaN(index)) continue;
+
+    const rect = el.getBoundingClientRect();
+    if (rect.top <= stickyY + 1 && rect.bottom > stickyY + 1) {
+      next = index;
+      foundSpanning = true;
+      break;
+    }
+  }
+
+  if (!foundSpanning) {
+    for (let i = 0; i < turns.length; i++) {
+      const el = turns[i];
+      const index = Number(el.dataset.turnIndex);
+      if (Number.isNaN(index)) continue;
+
+      if (el.getBoundingClientRect().bottom > stickyY + 1) {
+        next = index;
+        break;
+      }
+    }
+  }
+
+  if (next === stickyActiveTurnCache) {
+    return next;
+  }
+
+  if (stickyActiveTurnCache >= 0 && stickyActiveTurnCache < turnCount) {
+    const cachedTurn = viewport.querySelector<HTMLElement>(
+      `[data-conversation-turn][data-turn-index="${stickyActiveTurnCache}"]`,
+    );
+    if (cachedTurn) {
+      const rect = cachedTurn.getBoundingClientRect();
+      // Hysteresis: keep the current active turn until the sticky line clearly
+      // exits its bounds — prevents rapid flip-flopping at turn boundaries.
+      if (rect.top <= stickyY + 12 && rect.bottom > stickyY - 12) {
+        return stickyActiveTurnCache;
+      }
+    }
+  }
+
+  stickyActiveTurnCache = next;
+  return next;
+}
+
+/** Imperative sticky sync — never triggers React re-renders during scroll. */
+function syncStickyUserMessages(viewport: HTMLElement, turnCount: number) {
+  const activeIndex = resolveActiveStickyTurnIndex(viewport, turnCount);
+  const stickyLineY = viewport.getBoundingClientRect().top + readHeaderHeightPx();
+
+  viewport
+    .querySelectorAll<HTMLElement>("[data-conversation-turn]")
+    .forEach((turn) => {
+      const index = Number(turn.dataset.turnIndex);
+      if (Number.isNaN(index)) return;
+
+      const nextAttr = index === activeIndex ? "true" : "false";
+      if (turn.dataset.stickyActive !== nextAttr) {
+        turn.dataset.stickyActive = nextAttr;
+      }
+    });
+
+  viewport.querySelectorAll<HTMLElement>("[data-sticky-user-msg]").forEach((el) => {
+    const turn = el.closest<HTMLElement>("[data-conversation-turn]");
+    const index = Number(turn?.dataset.turnIndex);
+    if (Number.isNaN(index)) return;
+
+    const isActive = index === activeIndex;
+
+    if (!isActive) {
+      if (el.classList.contains("sticky-user-msg--stuck")) {
+        el.classList.remove("sticky-user-msg--stuck");
+      }
+      return;
+    }
+
+    const sentinel = turn?.querySelector<HTMLElement>(".sticky-user-msg-sentinel");
+    if (!sentinel) {
+      if (el.classList.contains("sticky-user-msg--stuck")) {
+        el.classList.remove("sticky-user-msg--stuck");
+      }
+      return;
+    }
+
+    const sentinelBottom = sentinel.getBoundingClientRect().bottom;
+    const userTop = el.getBoundingClientRect().top;
+    const isPinned = Math.abs(userTop - stickyLineY) < 2;
+    const shouldStuck = isPinned && sentinelBottom < stickyLineY;
+
+    if (el.classList.contains("sticky-user-msg--stuck") !== shouldStuck) {
+      el.classList.toggle("sticky-user-msg--stuck", shouldStuck);
+    }
+  });
+
+  syncCodeBlockHeaderPins(viewport, activeIndex);
+}
+
+/** Enable code-header sticky for every block in the active turn (turn-level only). */
+function syncCodeBlockHeaderPins(viewport: HTMLElement, activeIndex: number) {
+  viewport
+    .querySelectorAll<HTMLElement>(".composer-message-codeblock")
+    .forEach((block) => {
+      const turn = block.closest<HTMLElement>("[data-conversation-turn]");
+      const turnIndex = Number(turn?.dataset.turnIndex);
+      const nextPin = turnIndex === activeIndex ? "true" : "false";
+      if (block.dataset.codeHeaderPin !== nextPin) {
+        block.dataset.codeHeaderPin = nextPin;
+      }
+    });
+}
+
 export function ConversationThread({
   messages,
   onSaveEditedMessage,
+  onRetryUserMessage,
   onRetryAssistant,
   onSwitchBranch,
   className,
   scrollAreaRef,
-  isFastScrolling = false,
+  conversationKey,
+  isFastScrolling: isFastScrollingProp = false,
 }: ConversationThreadProps) {
   const [editingMessageId, setEditingMessageId] = React.useState<string | null>(
     null,
@@ -696,7 +811,22 @@ export function ConversationThread({
     [messages],
   );
 
+  const stickyStreamKey = React.useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.role === "assistant" && message.isStreaming) {
+        return `${message.id}:${message.content.length}:${message.thinkingContent?.length ?? 0}`;
+      }
+    }
+    return "idle";
+  }, [messages]);
+
   const listRef = React.useRef<HTMLDivElement>(null);
+  const turnCountRef = React.useRef(groups.length);
+  turnCountRef.current = groups.length;
+  const stickySyncRef = React.useRef<(() => void) | null>(null);
+  const isFastScrollingRef = React.useRef(isFastScrollingProp);
+  isFastScrollingRef.current = isFastScrollingProp;
 
   const getScrollElement = React.useCallback(() => {
     if (scrollAreaRef?.current) {
@@ -709,18 +839,89 @@ export function ConversationThread({
     return listRef.current;
   }, [scrollAreaRef]);
 
-  const virtualizer = useVirtualizer({
-    count: groups.length,
-    getScrollElement,
-    estimateSize: () => 280,
-    getItemKey: (index) =>
-      groups[index]?.userMessage?.id ?? `turn-${index}`,
-    overscan: 4,
-    anchorTo: "end",
-    followOnAppend: true,
-    scrollEndThreshold: 80,
-    useFlushSync: false,
-  });
+  React.useLayoutEffect(() => {
+    resetStickyTurnCache();
+
+    const viewport = getScrollElement();
+    if (!viewport || groups.length === 0) return;
+
+    let syncRaf = 0;
+    let disposed = false;
+    let lastSyncAt = 0;
+    let scrollEndTimer = 0;
+
+    const runSync = () => {
+      if (disposed) return;
+      syncStickyUserMessages(viewport, turnCountRef.current);
+    };
+    stickySyncRef.current = runSync;
+
+    const scheduleSync = (force = false) => {
+      if (!force && isFastScrollingRef.current) return;
+      if (syncRaf !== 0) return;
+      syncRaf = requestAnimationFrame(() => {
+        syncRaf = 0;
+        if (!force && isFastScrollingRef.current) return;
+        const now = performance.now();
+        if (!force && now - lastSyncAt < 48) {
+          scheduleSync();
+          return;
+        }
+        lastSyncAt = now;
+        runSync();
+      });
+    };
+
+    const onTurnMetrics = () => scheduleSync(true);
+
+    const onViewportScroll = () => {
+      scheduleSync(false);
+      window.clearTimeout(scrollEndTimer);
+      scrollEndTimer = window.setTimeout(() => {
+        runSync();
+      }, 130);
+    };
+
+    runSync();
+    requestAnimationFrame(() => {
+      runSync();
+      requestAnimationFrame(runSync);
+    });
+    const settleTimer = window.setTimeout(runSync, 0);
+    const lateTimer = window.setTimeout(runSync, 150);
+
+    viewport.addEventListener("scroll", onViewportScroll, { passive: true });
+    viewport.addEventListener("clauxen-turn-metrics", onTurnMetrics);
+    window.addEventListener("resize", runSync);
+
+    const content = (viewport.firstElementChild as HTMLElement | null) ?? viewport;
+    const resizeObserver = new ResizeObserver(() => scheduleSync(true));
+    resizeObserver.observe(content);
+
+    viewport.querySelectorAll<HTMLElement>("[data-sticky-user-msg]").forEach((host) => {
+      resizeObserver.observe(host);
+    });
+
+    return () => {
+      disposed = true;
+      stickySyncRef.current = null;
+      if (syncRaf !== 0) {
+        cancelAnimationFrame(syncRaf);
+      }
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(lateTimer);
+      window.clearTimeout(scrollEndTimer);
+      viewport.removeEventListener("scroll", onViewportScroll);
+      viewport.removeEventListener("clauxen-turn-metrics", onTurnMetrics);
+      window.removeEventListener("resize", runSync);
+      resizeObserver.disconnect();
+    };
+  }, [getScrollElement, groups.length, conversationKey]);
+
+  React.useEffect(() => {
+    if (isFastScrollingProp) return;
+    stickySyncRef.current?.();
+  }, [stickyStreamKey, isFastScrollingProp]);
 
   const turnProps = {
     editingMessageId,
@@ -730,71 +931,37 @@ export function ConversationThread({
     onCancelEdit: handleCancelEdit,
     onSaveEdit: handleSaveEdit,
     onCopy: handleCopy,
+    onRetryUserMessage,
     onRetryAssistant,
     onSwitchBranch,
-    isFastScrolling,
   };
-
-  if (groups.length <= 12) {
-    return (
-      <div
-        className={cn(
-          "flex w-full min-w-0 max-w-full flex-col gap-6 px-0 pt-8 pb-6 sm:gap-9 sm:px-0 sm:pt-16 sm:pb-10",
-          className,
-        )}
-        data-virtual-scroll
-      >
-        {groups.map((group, index) => (
-          <ConversationTurn
-            key={group.userMessage?.id || `turn-${index}`}
-            userMessage={group.userMessage}
-            assistantMessages={group.assistantMessages}
-            editValue={
-              editingMessageId === group.userMessage?.id ? editValue : undefined
-            }
-            {...turnProps}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  const virtualItems = virtualizer.getVirtualItems();
 
   return (
     <div
       ref={listRef}
-      data-virtual-scroll
       className={cn(
-        "relative w-full min-w-0 max-w-full px-0 pt-8 pb-6 sm:px-0 sm:pt-16 sm:pb-10",
+        "flex w-full min-w-0 max-w-full flex-col gap-4 px-0 pt-5 pb-5 sm:gap-6 sm:px-0 sm:pt-10 sm:pb-8",
         className,
       )}
-      style={{ height: `${virtualizer.getTotalSize()}px` }}
+      data-virtual-scroll
+      data-fast-scrolling={isFastScrollingProp || undefined}
     >
-      {virtualItems.map((virtualRow) => {
-        const group = groups[virtualRow.index];
-        if (!group) return null;
-        return (
-          <div
-            key={virtualRow.key}
-            data-index={virtualRow.index}
-            ref={virtualizer.measureElement}
-            className="absolute top-0 left-0 w-full pb-8 sm:pb-9"
-            style={{ transform: `translateY(${virtualRow.start}px)` }}
-          >
-            <ConversationTurn
-              userMessage={group.userMessage}
-              assistantMessages={group.assistantMessages}
-              editValue={
-                editingMessageId === group.userMessage?.id
-                  ? editValue
-                  : undefined
-              }
-              {...turnProps}
-            />
-          </div>
-        );
-      })}
+      {groups.map((group, index) => (
+        <ConversationTurn
+          key={group.userMessage?.id || `turn-${index}`}
+          turnIndex={index}
+          userMessage={group.userMessage}
+          assistantMessages={group.assistantMessages}
+          editValue={
+            editingMessageId === group.userMessage?.id ? editValue : undefined
+          }
+          {...turnProps}
+        />
+      ))}
+      <div
+        className="chat-thread-scroll-anchor h-px w-full shrink-0"
+        aria-hidden
+      />
     </div>
   );
 }

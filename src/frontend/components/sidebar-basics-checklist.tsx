@@ -9,7 +9,7 @@ const STORAGE_KEY = "clauxen_sidebar_basics_v1";
 type BasicsStep = {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   onSelect: () => void;
 };
 
@@ -87,11 +87,11 @@ export function SidebarBasicsChecklist({
   };
 
   return (
-    <div className={cn("shrink-0 px-2 pb-1", className)}>
-      <div className="group/basics rounded-xl border border-[rgba(31,31,30,0.15)] bg-white/95 p-1.5 shadow-[0_1px_2px_rgba(11,11,11,0.06),0_2px_8px_rgba(11,11,11,0.08)] backdrop-blur-sm">
+    <div className={cn("shrink-0 px-1.5 pb-1", className)}>
+      <div className="group/basics rounded-lg border border-[rgba(31,31,30,0.12)] bg-white/90 p-1.5 shadow-[0_1px_2px_rgba(11,11,11,0.045)] backdrop-blur-sm">
         <div className="relative flex max-h-[264px] flex-col">
           <div className="flex items-center gap-2 px-2 pt-2">
-            <h2 className="flex-1 truncate text-[12px] font-[430] leading-[16.8px] text-zinc-900">
+            <h2 className="flex-1 truncate text-[11.5px] font-[430] leading-4 text-zinc-900">
               Try the basics
             </h2>
             <div className="relative flex h-7 min-w-[2.25rem] shrink-0 items-center justify-end">
@@ -121,7 +121,7 @@ export function SidebarBasicsChecklist({
             </div>
           </div>
 
-          <ul className="app-scrollbar flex max-h-[168px] flex-col gap-0.5 overflow-y-auto px-1 pb-2 pt-1 [mask-image:linear-gradient(rgba(0,0,0,0)_0px,rgb(0,0,0)_12px,rgb(0,0,0)_calc(100%-12px),rgba(0,0,0,0))]">
+          <ul className="app-scrollbar flex max-h-[150px] flex-col gap-0.5 overflow-y-auto px-1 pb-2 pt-1 [mask-image:linear-gradient(rgba(0,0,0,0)_0px,rgb(0,0,0)_12px,rgb(0,0,0)_calc(100%-12px),rgba(0,0,0,0))]">
             {steps.map((step) => {
               const done = state.completed.includes(step.id);
               return (
@@ -132,7 +132,7 @@ export function SidebarBasicsChecklist({
                       markComplete(step.id);
                       step.onSelect();
                     }}
-                    className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-zinc-100"
+                    className="flex w-full items-start gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-zinc-100"
                   >
                     <span
                       className={cn(
@@ -147,12 +147,14 @@ export function SidebarBasicsChecklist({
                       ) : null}
                     </span>
                     <span className="min-w-0">
-                      <p className="text-[13px] leading-[18.2px] text-zinc-900">
+                      <p className="text-[12.5px] leading-[17px] text-zinc-900">
                         {step.title}
                       </p>
-                      <p className="text-[12px] leading-4 text-[#7b7974]">
-                        {step.description}
-                      </p>
+                      {step.description ? (
+                        <p className="text-[12px] leading-4 text-[#7b7974]">
+                          {step.description}
+                        </p>
+                      ) : null}
                     </span>
                   </button>
                 </li>

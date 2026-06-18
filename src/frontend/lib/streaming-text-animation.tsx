@@ -6,11 +6,33 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-// FlowToken internals — public package only exports AnimatedMarkdown; we reuse its tokenizer.
-import SplitText from "flowtoken/dist/components/SplitText";
-import { animations } from "flowtoken/dist/utils/animations";
+import { StreamingTokenReveal } from "@/frontend/lib/streaming-token-reveal";
+
+/** Maps flowtoken animation names to CSS @keyframes identifiers. */
+const animations: Record<string, string> = {
+  fadeIn: "fadeIn",
+  blurIn: "blurIn",
+  typewriter: "typewriter",
+  slideInFromLeft: "slideInFromLeft",
+  fadeAndScale: "fadeAndScale",
+  colorTransition: "colorTransition",
+  rotateIn: "rotateIn",
+  bounceIn: "bounceIn",
+  elastic: "elastic",
+  highlight: "highlight",
+  blurAndSharpen: "blurAndSharpen",
+  dropIn: "dropIn",
+  slideUp: "slideUp",
+  wave: "wave",
+};
+
+export {
+  computeStreamTokenDurationMs,
+  resetStreamTokenSessions,
+} from "@/frontend/lib/streaming-token-reveal";
 
 export type StreamAnimationConfig = {
+  streamKey?: string;
   animation?: string;
   animationDuration?: string;
   animationTimingFunction?: string;
@@ -30,29 +52,19 @@ export function resolveStreamAnimation(animationName = "fadeIn") {
 }
 
 export function useStreamingAnimateText({
+  streamKey,
   animation: animationName = "fadeIn",
   animationDuration = "0.45s",
   animationTimingFunction = "ease-out",
-  sep = "diff",
 }: StreamAnimationConfig = {}) {
   const animation = resolveStreamAnimation(animationName);
+  const resolvedStreamKey = streamKey ?? "stream";
 
-  const blockAnimationStyle = useMemo(
+  const streamFade: StreamFadeConfig = useMemo(
     () => ({
-      animation: `${animation} ${animationDuration} ${animationTimingFunction}`,
-      animationIterationCount: 1 as const,
-    }),
-    [animation, animationDuration, animationTimingFunction],
-  );
-
-  const tokenAnimationStyle = useMemo(
-    () => ({
-      animationName: animation,
+      animation,
       animationDuration,
       animationTimingFunction,
-      animationIterationCount: 1 as const,
-      whiteSpace: "pre-wrap" as const,
-      display: "inline-block" as const,
     }),
     [animation, animationDuration, animationTimingFunction],
   );
@@ -64,14 +76,12 @@ export function useStreamingAnimateText({
       return items.map((item, index) => {
         if (typeof item === "string") {
           return (
-            <SplitText
+            <StreamingTokenReveal
               key={`stream-text-${index}`}
-              input={item}
-              sep={sep}
-              animation={animation}
-              animationDuration={animationDuration}
-              animationTimingFunction={animationTimingFunction}
-              animationIterationCount={1}
+              sessionKey={`${resolvedStreamKey}::${index}`}
+              text={item}
+              animationName={animation}
+              timingFunction={animationTimingFunction}
             />
           );
         }
@@ -93,7 +103,7 @@ export function useStreamingAnimateText({
           }
 
           return (
-            <span key={`stream-el-${index}`} style={tokenAnimationStyle}>
+            <span key={`stream-el-${index}`} className="stream-token-enter">
               {item}
             </span>
           );
@@ -102,28 +112,12 @@ export function useStreamingAnimateText({
         return item;
       });
     },
-    [
-      animation,
-      animationDuration,
-      animationTimingFunction,
-      sep,
-      tokenAnimationStyle,
-    ],
-  );
-
-  const streamFade: StreamFadeConfig = useMemo(
-    () => ({
-      animation,
-      animationDuration,
-      animationTimingFunction,
-    }),
-    [animation, animationDuration, animationTimingFunction],
+    [animation, animationTimingFunction, resolvedStreamKey],
   );
 
   return {
     animateText,
     animation,
-    blockAnimationStyle,
     streamFade,
   };
 }

@@ -1,17 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { UI_MESSAGE_STREAM_HEADERS } from "ai";
 import { env } from "@/backend/config/env";
 import { getSessionFromRequest } from "@/backend/auth/session";
 import {
   legacyStreamFromMessages,
   sanitizeMessages,
 } from "@/backend/services/chat.service";
+import { generateOpenAiTitle } from "@/backend/inference/openai-stream";
 import {
-  generateAnthropicTitle,
   resolveThinkingType,
   type IncomingMessage,
   type ThinkingType,
 } from "@/backend/inference/novita";
+import { resolveGenerateChatTitle } from "@/lib/chat-title";
 import { logInferenceTelemetry } from "@/backend/telemetry/inference-log";
+import { resolveRequestCountryCode } from "@/lib/request-geo";
 
 async function requireChatSession(request: Request) {
   const session = await getSessionFromRequest(request as NextRequest);
@@ -39,10 +42,16 @@ export async function handleChatPost(request: Request) {
       thinkingEnabled?: boolean;
       thinkingType?: string;
       webSearchEnabled?: boolean;
+      generateChatTitle?: boolean;
+      chatModel?: string;
     };
     messages = sanitizeMessages(body?.messages);
     const thinkingType: ThinkingType = resolveThinkingType(body);
     const webSearchEnabled = body?.webSearchEnabled === true;
+    const generateChatTitle = resolveGenerateChatTitle(
+      messages,
+      body?.generateChatTitle,
+    );
 
     if (messages.length === 0) {
       return NextResponse.json(
@@ -54,13 +63,15 @@ export async function handleChatPost(request: Request) {
     const stream = await legacyStreamFromMessages(messages, request.signal, {
       thinkingType,
       webSearchEnabled,
+      userCountryCode: resolveRequestCountryCode(request.headers),
+      generateChatTitle,
+      chatModel: body?.chatModel,
     });
 
     return new Response(stream, {
       headers: {
-        "Content-Type": "text/event-stream; charset=utf-8",
+        ...UI_MESSAGE_STREAM_HEADERS,
         "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
         "X-Accel-Buffering": "no",
       },
     });
@@ -92,17 +103,16 @@ export async function handleChatTitlePost(request: Request) {
     const body = await request.json();
     messages = sanitizeMessages(body?.messages).slice(0, 2);
 
-    if (messages.length < 2) {
+    if (messages.length < 1) {
       return NextResponse.json(
         {
-          error:
-            "First user and assistant messages are required to generate a title.",
+          error: "At least one user message is required to generate a title.",
         },
         { status: 400 },
       );
     }
 
-    const title = await generateAnthropicTitle(messages);
+    const title = await generateOpenAiTitle(messages, request.signal);
     await logInferenceTelemetry({
       userId: auth.session?.id ?? null,
       mode: "title",

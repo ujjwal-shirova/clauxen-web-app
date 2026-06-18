@@ -76,3 +76,13 @@ export async function upsertInstructionProfile(input: {
     [input.userId, title, instructions],
   );
 }
+
+export async function archiveInstructionProfile(userId: string, id: string) {
+  return queryOne<{ id: string }>(
+    `update public.instruction_profiles
+     set status = 'archived', updated_at = now()
+     where id = $1 and user_id = $2 and status = 'active'
+     returning id`,
+    [id, userId],
+  );
+}

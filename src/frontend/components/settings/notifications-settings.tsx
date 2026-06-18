@@ -5,6 +5,7 @@ import {
   SettingsOptionPicker,
   SettingsPanelTitle,
   SettingsRow,
+  SettingsSection,
   SettingsToggleRow,
 } from "@/frontend/components/settings/settings-ui";
 
@@ -50,10 +51,10 @@ export function NotificationsSettings({
   setSoundEffects,
 }: NotificationsSettingsProps) {
   return (
-    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
       <SettingsPanelTitle>Notifications</SettingsPanelTitle>
 
-      <div className="flex flex-col">
+      <SettingsSection title="Notifications">
         <SettingsRow
           label="Codex"
           description="Get notified about Codex tasks."
@@ -141,12 +142,9 @@ export function NotificationsSettings({
             onValueChange={setUsageChannel}
           />
         </SettingsRow>
-      </div>
+      </SettingsSection>
 
-      <section className="flex flex-col gap-2 border-t border-zinc-200 pt-4">
-        <h3 className="text-[14px] font-semibold text-zinc-700">
-          Local alerts
-        </h3>
+      <SettingsSection title="Local alerts">
         <SettingsToggleRow
           label="Desktop alerts"
           description="Show browser notifications when background chats, builds, and research tasks finish."
@@ -160,7 +158,7 @@ export function NotificationsSettings({
           onCheckedChange={setSoundEffects}
           borderless
         />
-      </section>
+      </SettingsSection>
     </div>
   );
 }

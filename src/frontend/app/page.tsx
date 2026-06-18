@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useLayoutEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useChat } from "@/frontend/hooks/use-chat";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { useProjects } from "@/frontend/hooks/use-projects";
 import { Sidebar } from "@/frontend/components/sidebar";
 import { ChatArea } from "@/frontend/components/chat-area";
 import { UpgradeView } from "@/frontend/components/upgrade-view";
-import { SettingsPage } from "@/frontend/components/settings-page";
+import { SettingsModal } from "@/frontend/components/settings-page";
 import { AppsExtensionsView } from "@/frontend/components/apps-extensions-view";
 import { GiftView } from "@/frontend/components/gift-view";
 import { CustomizePage } from "@/frontend/components/customize-page";
@@ -16,29 +17,43 @@ import { ProjectDetailView } from "@/frontend/components/project-detail-view";
 import { CreateProjectDialog } from "@/frontend/components/create-project-dialog";
 import { LibraryView } from "@/frontend/components/library-view";
 import { cn } from "@/frontend/lib/utils";
-import { useIsMobile } from "@/frontend/hooks/use-mobile";
+import { useSidebarState } from "@/frontend/hooks/use-sidebar-state";
+import {
+  appAgentPanelClassName,
+  appMainShellClassName,
+  appShellRootClassName,
+} from "@/frontend/lib/app-shell-layout";
 import type { SettingsTab } from "@/frontend/components/settings/constants";
 import type { ApiProject } from "@/frontend/lib/api/projects";
 import { useToast } from "@/frontend/hooks/use-toast";
+import {
+  DEFAULT_CHAT_MODEL_ID,
+  type ChatModelId,
+} from "@/lib/chat-models";
 
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const auth = useAuth();
   const { toast } = useToast();
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [detailProject, setDetailProject] = useState<ApiProject | null>(null);
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
   const chat = useChat({
     apiEnabled: false,
     projectId: activeProjectId,
     thinkingEnabled,
     webSearchEnabled,
+    chatModel,
   });
   const projects = useProjects(auth.isAuthenticated);
 
   const {
     messages,
     recentChats,
+    startedRecentChats,
     activeChat,
     isGenerating,
     handleSendMessage,
@@ -49,20 +64,18 @@ export default function Home() {
     handleRenameChat,
     handlePinChat,
     editMessageWithBranch,
+    redoUserMessageWithBranch,
     retryAssistantWithBranch,
     switchMessageBranch,
     activeChatId,
   } = chat;
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const { isMobile, isSidebarCollapsed, setIsSidebarCollapsed } =
+    useSidebarState();
   const [activeView, setActiveView] = useState<
-    | "chat"
-    | "settings"
-    | "customize"
-    | "projects"
-    | "project-detail"
-    | "library"
+    "chat" | "customize" | "projects" | "project-detail" | "library"
   >("chat");
+  const [showSettings, setShowSettings] = useState(false);
   const [showUpgradeView, setShowUpgradeView] = useState(false);
   const [showAppsView, setShowAppsView] = useState(false);
   const [showGiftView, setShowGiftView] = useState(false);
@@ -74,7 +87,9 @@ export default function Home() {
   const [chatRenderKey, setChatRenderKey] = useState(0);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const isMobile = useIsMobile();
+  const viewBeforeCustomizeRef = React.useRef<
+    "chat" | "projects" | "project-detail" | "library"
+  >("chat");
 
   const activeProject =
     detailProject ??
@@ -82,25 +97,16 @@ export default function Home() {
       ? (projects.projects.find((p) => p.id === activeProjectId) ?? null)
       : null);
 
+  const projectChatsForDetail = useMemo(() => {
+    if (!activeProjectId) return [];
+    return startedRecentChats.filter(
+      (chat) => chat.projectId === activeProjectId,
+    );
+  }, [activeProjectId, startedRecentChats]);
+
   const closeMobileNav = React.useCallback(() => {
     if (isMobile) setIsSidebarCollapsed(true);
   }, [isMobile]);
-
-  useEffect(() => {
-    if (activeView === "customize") {
-      setIsSidebarCollapsed(true);
-    }
-  }, [activeView]);
-
-  useLayoutEffect(() => {
-    const mql = window.matchMedia("(max-width: 1023px)");
-    const syncSidebarToViewport = () => {
-      setIsSidebarCollapsed(mql.matches);
-    };
-    syncSidebarToViewport();
-    mql.addEventListener("change", syncSidebarToViewport);
-    return () => mql.removeEventListener("change", syncSidebarToViewport);
-  }, []);
 
   useEffect(() => {
     if (!isMobile || isSidebarCollapsed) return;
@@ -113,6 +119,22 @@ export default function Home() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [isMobile, isSidebarCollapsed]);
+
+  useEffect(() => {
+    const projectId = searchParams.get("project");
+    const prompt = searchParams.get("prompt");
+    if (!projectId && !prompt) return;
+
+    if (projectId) {
+      setActiveProjectId(projectId);
+    }
+    if (prompt) {
+      const decoded = decodeURIComponent(prompt);
+      handleSendMessage(decoded);
+      setActiveView("chat");
+    }
+    router.replace("/", { scroll: false });
+  }, [searchParams, router, handleSendMessage]);
 
   useEffect(() => {
     if (!isMobile || isSidebarCollapsed) {
@@ -134,24 +156,32 @@ export default function Home() {
   };
 
   const handleGoToView = (
-    view:
-      | "chat"
-      | "settings"
-      | "customize"
-      | "projects"
-      | "project-detail"
-      | "library",
+    view: "chat" | "customize" | "projects" | "project-detail" | "library",
     tab?: "skills" | "connectors",
   ) => {
+    if (view === "customize" && activeView !== "customize") {
+      viewBeforeCustomizeRef.current = activeView;
+    }
+
     setCustomizeTab(tab || null);
     setActiveView(view);
 
-    if (view === "customize" || isMobile) {
+    if (isMobile) {
       setIsSidebarCollapsed(true);
-    } else {
-      setIsSidebarCollapsed(false);
+    } else if (view === "customize") {
+      setIsSidebarCollapsed(true);
     }
   };
+
+  const handleCloseCustomize = React.useCallback(() => {
+    const previousView = viewBeforeCustomizeRef.current;
+    setCustomizeTab(null);
+    setActiveView(previousView);
+
+    if (isMobile) {
+      setIsSidebarCollapsed(true);
+    }
+  }, [isMobile, setIsSidebarCollapsed]);
 
   const openProjectDetail = React.useCallback(
     (project: ApiProject) => {
@@ -166,13 +196,21 @@ export default function Home() {
   const isMobileFullBleedView =
     isMobile &&
     (activeView === "customize" ||
-      activeView === "settings" ||
       activeView === "projects" ||
       activeView === "project-detail" ||
       activeView === "library");
 
+  const openSettings = React.useCallback(
+    (tab: SettingsTab = "General") => {
+      setSettingsInitialTab(tab);
+      setShowSettings(true);
+      closeMobileNav();
+    },
+    [closeMobileNav],
+  );
+
   return (
-    <div className="relative flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[var(--app-shell-bg)] font-sans text-zinc-800">
+    <div className={appShellRootClassName(isMobile)}>
       {isMobile ? (
         <div
           role="presentation"
@@ -198,14 +236,8 @@ export default function Home() {
           setShowUpgradeView(true);
           closeMobileNav();
         }}
-        onSettingsClick={() => {
-          setSettingsInitialTab("General");
-          handleGoToView("settings");
-        }}
-        onPersonalizationClick={() => {
-          setSettingsInitialTab("Personalization");
-          handleGoToView("settings");
-        }}
+        onSettingsClick={() => openSettings("General")}
+        onPersonalizationClick={() => openSettings("Personalization")}
         onAppsExtensionsClick={() => {
           setShowAppsView(true);
           closeMobileNav();
@@ -216,13 +248,14 @@ export default function Home() {
         }}
         onProjectsClick={() => {
           setActiveProjectId(null);
-          handleGoToView("projects");
+          router.push("/projects");
+          closeMobileNav();
         }}
         onLibraryClick={() => handleGoToView("library")}
         onCustomizeClick={() => handleGoToView("customize")}
         onHistoryClick={() => handleGoToView("chat")}
         activeView={activeView === "project-detail" ? "projects" : activeView}
-        recentChats={recentChats}
+        recentChats={startedRecentChats}
         activeChatId={activeChatId}
         onSelectChat={(chatId) => {
           handleSelectChat(chatId);
@@ -237,30 +270,26 @@ export default function Home() {
       />
 
       <main
-        className={cn(
-          "relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--app-shell-bg)] lg:transition-[padding] lg:duration-300 lg:ease-in-out",
-          isMobileFullBleedView
-            ? "p-0"
-            : "px-[max(0.625rem,env(safe-area-inset-left))] pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.25rem,env(safe-area-inset-bottom))] pr-[max(0.625rem,env(safe-area-inset-right))] sm:px-2 sm:pt-2 sm:pb-2",
-          !isMobile &&
-            (isSidebarCollapsed
-              ? "pl-[44px] sm:pl-[46px]"
-              : "pl-[44px] lg:pl-[264px]"),
-        )}
+        data-sidebar-collapsed={
+          !isMobile && isSidebarCollapsed ? "true" : undefined
+        }
+        className={appMainShellClassName({
+          isMobile,
+          fullBleed: isMobileFullBleedView,
+        })}
       >
         <div
-          className={cn(
-            "relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] [transform:translateZ(0)]",
-            isMobileFullBleedView
-              ? "min-h-[100dvh] rounded-none border-0 shadow-none"
-              : "rounded-[16px] border border-zinc-200/80 shadow-[0_1px_3px_rgba(24,24,27,0.04),0_8px_24px_-8px_rgba(24,24,27,0.06)] sm:rounded-[18px]",
-
-          )}
+          data-component="agent-panel"
+          data-layout="panel"
+          className={appAgentPanelClassName({
+            isMobile,
+            fullBleed: isMobileFullBleedView,
+          })}
         >
           <div
             className={cn(
-              "flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden",
-              isMobileFullBleedView ? "items-stretch" : "items-center",
+              "flex min-h-0 h-full w-full max-w-full flex-1 flex-col overflow-hidden",
+              "items-stretch",
             )}
           >
             {activeView === "chat" && (
@@ -272,6 +301,7 @@ export default function Home() {
                 isGenerating={isGenerating}
                 onUpgradeClick={() => setShowUpgradeView(true)}
                 editMessageWithBranch={editMessageWithBranch}
+                redoUserMessageWithBranch={redoUserMessageWithBranch}
                 retryAssistantWithBranch={retryAssistantWithBranch}
                 switchMessageBranch={switchMessageBranch}
                 activeChatId={activeChatId}
@@ -281,35 +311,21 @@ export default function Home() {
                 onRenameChat={handleRenameChat}
                 onPinChat={handlePinChat}
                 onDeleteChat={handleDeleteChat}
-                onOpenSettings={() => {
-                  setSettingsInitialTab("General");
-                  handleGoToView("settings");
-                }}
+                onOpenSettings={() => openSettings("General")}
+                onMoveToProject={() => handleGoToView("projects")}
                 thinkingEnabled={thinkingEnabled}
                 onThinkingEnabledChange={setThinkingEnabled}
                 webSearchEnabled={webSearchEnabled}
                 onWebSearchEnabledChange={setWebSearchEnabled}
+                chatModel={chatModel}
+                onChatModelChange={setChatModel}
                 onOpenMobileNav={() => setIsSidebarCollapsed(false)}
                 showMobileMenu={isMobile && isSidebarCollapsed}
               />
             )}
-            {activeView === "settings" && (
-              <SettingsPage
-                key={settingsInitialTab}
-                initialTab={settingsInitialTab}
-                onClose={() => setActiveView("chat")}
-                onGoToCustomize={(tab) => handleGoToView("customize", tab)}
-                onUpgradeClick={() => {
-                  setActiveView("chat");
-                  setShowUpgradeView(true);
-                }}
-                user={auth.user}
-                onLogout={() => void auth.logout()}
-              />
-            )}
             {activeView === "customize" && (
               <CustomizePage
-                onClose={() => setActiveView("settings")}
+                onClose={handleCloseCustomize}
                 initialTab={customizeTab}
               />
             )}
@@ -324,6 +340,7 @@ export default function Home() {
                   );
                   if (project) openProjectDetail(project);
                 }}
+                onOpenMobileNav={() => setIsSidebarCollapsed(false)}
               />
             )}
             {activeView === "project-detail" && activeProject && (
@@ -334,8 +351,9 @@ export default function Home() {
                   setActiveProjectId(null);
                   handleGoToView("projects");
                 }}
-                onSendMessage={(prompt) => {
-                  handleSendMessage(prompt);
+                onSendMessage={async (prompt) => {
+                  startNewChat();
+                  await handleSendMessage(prompt);
                   setActiveView("chat");
                 }}
                 onStopGeneration={stopGeneration}
@@ -344,6 +362,18 @@ export default function Home() {
                 onThinkingEnabledChange={setThinkingEnabled}
                 webSearchEnabled={webSearchEnabled}
                 onWebSearchEnabledChange={setWebSearchEnabled}
+                chatModel={chatModel}
+                onChatModelChange={setChatModel}
+                projectChats={projectChatsForDetail}
+                activeChatId={activeChatId}
+                onOpenChat={(chatId) => {
+                  handleSelectChat(chatId);
+                  setActiveView("chat");
+                }}
+                onRenameChat={handleRenameChat}
+                onDeleteChat={handleDeleteChat}
+                onPinChat={handlePinChat}
+                onOpenMobileNav={() => setIsSidebarCollapsed(false)}
               />
             )}
             {activeView === "project-detail" && !activeProject && (
@@ -410,6 +440,23 @@ export default function Home() {
       )}
 
       {showGiftView && <GiftView onClose={() => setShowGiftView(false)} />}
+
+      <SettingsModal
+        key={settingsInitialTab}
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        initialTab={settingsInitialTab}
+        onGoToCustomize={(tab) => {
+          setShowSettings(false);
+          handleGoToView("customize", tab);
+        }}
+        onUpgradeClick={() => {
+          setShowSettings(false);
+          setShowUpgradeView(true);
+        }}
+        user={auth.user}
+        onLogout={() => void auth.logout()}
+      />
     </div>
   );
 }

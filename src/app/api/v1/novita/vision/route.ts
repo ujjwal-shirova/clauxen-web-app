@@ -1,9 +1,9 @@
 import { withApiHandler } from "@/backend/http/api-handler";
 import { jsonData } from "@/backend/http/api-response";
 import {
-  getAnthropicClient,
   DEFAULT_MODEL,
-} from "@/backend/inference/anthropic-client";
+  getOpenAIClient,
+} from "@/backend/inference/openai-client";
 import { buildVisionContentParts } from "@/backend/inference/vision";
 import { extractPromptCacheStats } from "@/backend/inference/prompt-cache";
 
@@ -25,20 +25,16 @@ export const POST = withApiHandler(
       stream?: boolean;
     };
 
-    const client = getAnthropicClient();
+    const client = getOpenAIClient();
     const content = buildVisionContentParts(body.images ?? [], body.prompt);
 
-    const response = await client.messages.create({
+    const response = await client.chat.completions.create({
       model: body.model ?? "qwen/qwen2.5-vl-72b-instruct",
       messages: [{ role: "user", content }],
       max_tokens: 4096,
     });
 
-    const text =
-      response.content
-        .filter((block) => block.type === "text")
-        .map((block) => block.text)
-        .join("") ?? "";
+    const text = response.choices[0]?.message?.content ?? "";
 
     return jsonData({
       content: text,

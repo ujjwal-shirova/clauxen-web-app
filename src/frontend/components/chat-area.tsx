@@ -9,8 +9,11 @@ import { ShareDialog } from "./share-dialog";
 import { ChatViewHeader } from "./chat-view-header";
 import { ChatViewPane } from "./chat-view-pane";
 import { ChatArtifactsPanel } from "./chat-artifacts-panel";
+import { collectChatArtifacts } from "@/frontend/lib/chat-artifacts";
 import { ChatMessageNavigator } from "./chat-message-navigator";
 import { useIsMobile } from "@/frontend/hooks/use-mobile";
+import { useChatScroll } from "@/frontend/hooks/use-chat-scroll";
+import { useChatScrollActivity } from "@/frontend/hooks/use-chat-scroll-activity";
 import { cn } from "@/frontend/lib/utils";
 
 interface ChatAreaProps {
@@ -23,6 +26,10 @@ interface ChatAreaProps {
     chatId: string,
     messageId: string,
     newContent: string,
+  ) => Promise<void>;
+  redoUserMessageWithBranch: (
+    chatId: string,
+    messageId: string,
   ) => Promise<void>;
   retryAssistantWithBranch: (
     chatId: string,
@@ -41,12 +48,19 @@ interface ChatAreaProps {
   onPinChat?: (chatId: string, pinned: boolean) => void;
   onDeleteChat?: (chatId: string) => void;
   onOpenSettings?: () => void;
+  onMoveToProject?: () => void;
   thinkingEnabled: boolean;
   onThinkingEnabledChange: (enabled: boolean) => void;
   webSearchEnabled: boolean;
   onWebSearchEnabledChange: (enabled: boolean) => void;
+  chatModel: import("@/lib/chat-models").ChatModelId;
+  onChatModelChange: (model: import("@/lib/chat-models").ChatModelId) => void;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
+  projectBreadcrumb?: {
+    label: string;
+    onClick?: () => void;
+  };
 }
 
 const ARTIFACTS_PANEL_WIDTH = 360;
@@ -58,6 +72,7 @@ export function ChatArea({
   isGenerating,
   onUpgradeClick,
   editMessageWithBranch,
+  redoUserMessageWithBranch,
   retryAssistantWithBranch,
   switchMessageBranch,
   activeChatId,
@@ -68,12 +83,16 @@ export function ChatArea({
   onPinChat,
   onDeleteChat,
   onOpenSettings,
+  onMoveToProject,
   thinkingEnabled,
   onThinkingEnabledChange,
   webSearchEnabled,
   onWebSearchEnabledChange,
+  chatModel,
+  onChatModelChange,
   onOpenMobileNav,
   showMobileMenu = false,
+  projectBreadcrumb,
 }: ChatAreaProps) {
   const isMobile = useIsMobile();
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
@@ -81,125 +100,60 @@ export function ChatArea({
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
   const [isArtifactsPanelOpen, setIsArtifactsPanelOpen] = useState(false);
-  const [showScrollToBottomButton, setShowScrollToBottomButton] =
-    useState(false);
   const [, startTransition] = React.useTransition();
-  const deferredMessages = React.useDeferredValue(messages);
-  const displayMessages = isGenerating ? messages : deferredMessages;
-  const scrollRafRef = React.useRef<number | null>(null);
-  const scrollViewportRef = React.useRef<HTMLDivElement | null>(null);
-  const isAutoScrollEnabledRef = React.useRef(true);
-  const [isFastScrolling, setIsFastScrolling] = React.useState(false);
-  const lastScrollTopRef = React.useRef(0);
-  const lastScrollTimeRef = React.useRef(0);
-  const fastScrollTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const displayMessages = messages;
 
   const isConversationStarted = messages.length > 0;
+  const showChatOptionsHeader = isConversationStarted || Boolean(activeChatId);
+
+  const { scrollToBottom, pinToBottom, showScrollToBottom, followContentGrowth } =
+    useChatScroll({
+      scrollAreaRef,
+      enabled: isConversationStarted,
+    });
+  const { isFastScrolling } = useChatScrollActivity(
+    scrollAreaRef,
+    isConversationStarted,
+  );
+  const chatArtifacts = React.useMemo(
+    () => collectChatArtifacts(messages),
+    [messages],
+  );
+  const artifactCountRef = React.useRef(chatArtifacts.length);
+
+  React.useEffect(() => {
+    if (chatArtifacts.length > artifactCountRef.current) {
+      setIsArtifactsPanelOpen(true);
+    }
+    artifactCountRef.current = chatArtifacts.length;
+  }, [chatArtifacts.length]);
 
   React.useEffect(() => {
     setHasPromptDraft(false);
   }, [activeChatId]);
 
   React.useEffect(() => {
-    if (!isConversationStarted) {
-      isAutoScrollEnabledRef.current = true;
-    }
-  }, [isConversationStarted]);
-
-  React.useEffect(() => {
-    if (!isConversationStarted || !scrollAreaRef.current) return;
-    const scrollableViewport =
-      scrollAreaRef.current.querySelector<HTMLDivElement>(
-        "div[data-radix-scroll-area-viewport]",
-      );
-    if (!scrollableViewport) return;
-    scrollViewportRef.current = scrollableViewport;
-
-    if (!isAutoScrollEnabledRef.current) {
-      return;
-    }
-
-    if (scrollRafRef.current !== null) {
-      cancelAnimationFrame(scrollRafRef.current);
-    }
-
-    scrollRafRef.current = requestAnimationFrame(() => {
-      scrollableViewport.scrollTop = scrollableViewport.scrollHeight;
+    if (!isConversationStarted) return;
+    const frame = requestAnimationFrame(() => {
+      pinToBottom();
     });
+    return () => cancelAnimationFrame(frame);
+  }, [activeChatId, isConversationStarted, pinToBottom]);
 
-    return () => {
-      if (scrollRafRef.current !== null) {
-        cancelAnimationFrame(scrollRafRef.current);
-      }
-    };
-  }, [displayMessages, isConversationStarted]);
-
-  React.useEffect(() => {
-    if (!isConversationStarted || !scrollAreaRef.current) {
-      setShowScrollToBottomButton(false);
-      return;
-    }
-
-    const viewport = scrollAreaRef.current.querySelector<HTMLDivElement>(
-      "div[data-radix-scroll-area-viewport]",
+  const streamFollowKey = React.useMemo(() => {
+    const last = messages[messages.length - 1];
+    if (!last?.isStreaming) return 0;
+    return (
+      last.content.length +
+      (last.thinkingContent?.length ?? 0) +
+      (last.agentSegments?.length ?? 0)
     );
-    if (!viewport) return;
-    scrollViewportRef.current = viewport;
+  }, [messages]);
 
-    const updateButtonVisibility = () => {
-      const now = performance.now();
-      const deltaY = Math.abs(viewport.scrollTop - lastScrollTopRef.current);
-      const deltaT = now - lastScrollTimeRef.current;
-      if (deltaT > 0 && deltaY / deltaT > 2.5) {
-        setIsFastScrolling(true);
-        if (fastScrollTimeoutRef.current) {
-          clearTimeout(fastScrollTimeoutRef.current);
-        }
-        fastScrollTimeoutRef.current = setTimeout(
-          () => setIsFastScrolling(false),
-          150,
-        );
-      }
-      lastScrollTopRef.current = viewport.scrollTop;
-      lastScrollTimeRef.current = now;
-
-      const distanceToBottom =
-        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-
-      if (distanceToBottom > 120) {
-        isAutoScrollEnabledRef.current = false;
-      } else if (distanceToBottom <= 15) {
-        isAutoScrollEnabledRef.current = true;
-      }
-
-      setShowScrollToBottomButton(distanceToBottom > 15);
-    };
-
-    updateButtonVisibility();
-    viewport.addEventListener("scroll", updateButtonVisibility, {
-      passive: true,
-    });
-    return () => {
-      viewport.removeEventListener("scroll", updateButtonVisibility);
-      if (fastScrollTimeoutRef.current) {
-        clearTimeout(fastScrollTimeoutRef.current);
-        fastScrollTimeoutRef.current = null;
-      }
-    };
-  }, [isConversationStarted, displayMessages.length]);
-
-  const scrollToBottom = React.useCallback(() => {
-    const viewport = scrollViewportRef.current;
-    if (!viewport) return;
-
-    isAutoScrollEnabledRef.current = true;
-    viewport.scrollTo({
-      top: viewport.scrollHeight,
-      behavior: "smooth",
-    });
-  }, []);
+  React.useLayoutEffect(() => {
+    if (!isGenerating) return;
+    followContentGrowth();
+  }, [isGenerating, streamFollowKey, followContentGrowth]);
 
   const handleSaveEditedMessage = React.useCallback(
     async (messageId: string, newContent: string) => {
@@ -207,6 +161,14 @@ export function ChatArea({
       await editMessageWithBranch(activeChatId, messageId, newContent);
     },
     [activeChatId, editMessageWithBranch],
+  );
+
+  const handleRetryUserMessage = React.useCallback(
+    async (messageId: string) => {
+      if (!activeChatId || isGenerating) return;
+      await redoUserMessageWithBranch(activeChatId, messageId);
+    },
+    [activeChatId, isGenerating, redoUserMessageWithBranch],
   );
 
   const handleRetryAssistant = React.useCallback(
@@ -229,16 +191,11 @@ export function ChatArea({
 
   const handleSendMessageAndScroll = React.useCallback(
     (prompt: string) => {
-      isAutoScrollEnabledRef.current = true;
-      setShowScrollToBottomButton(false);
       onSendMessage(prompt);
-      requestAnimationFrame(() => {
-        const viewport = scrollViewportRef.current;
-        if (!viewport) return;
-        viewport.scrollTop = viewport.scrollHeight;
-      });
+      pinToBottom();
+      requestAnimationFrame(() => pinToBottom());
     },
-    [onSendMessage],
+    [onSendMessage, pinToBottom],
   );
 
   const toggleArtifactsPanel = React.useCallback(() => {
@@ -264,7 +221,7 @@ export function ChatArea({
       onSendMessage={handleSendMessageAndScroll}
       onStopGeneration={onStopGeneration}
       onScrollToBottom={scrollToBottom}
-      showScrollToBottomButton={showScrollToBottomButton}
+      showScrollToBottomButton={showScrollToBottom}
       isConversationStarted={isConversationStarted}
       isGenerating={isGenerating}
       onPromptChange={handlePromptDraftChange}
@@ -274,14 +231,15 @@ export function ChatArea({
       onThinkingEnabledChange={onThinkingEnabledChange}
       webSearchEnabled={webSearchEnabled}
       onWebSearchEnabledChange={onWebSearchEnabledChange}
-      showModelSelector={isConversationStarted}
+      chatModel={chatModel}
+      onChatModelChange={onChatModelChange}
     />
   );
 
   return (
-    <div className="relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-white">
+    <div className="glass-agent-drop-target relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[inherit] bg-white">
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0 pb-2 sm:px-5 sm:pb-2 md:px-6">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0 pb-1.5 sm:pb-1.5">
           {!isConversationStarted ? (
             <ChatViewHeader
               isConversationStarted={false}
@@ -313,11 +271,13 @@ export function ChatArea({
             conversation={
               <ConversationThread
                 messages={displayMessages}
+                conversationKey={activeChatId}
+                isFastScrolling={isFastScrolling}
                 onSaveEditedMessage={handleSaveEditedMessage}
+                onRetryUserMessage={handleRetryUserMessage}
                 onRetryAssistant={handleRetryAssistant}
                 onSwitchBranch={handleSwitchBranch}
                 scrollAreaRef={scrollAreaRef}
-                isFastScrolling={isFastScrolling}
               />
             }
             promptInput={promptInput}
@@ -330,7 +290,7 @@ export function ChatArea({
               ) : null
             }
           />
-          {isConversationStarted ? (
+          {showChatOptionsHeader ? (
             <ChatViewHeader
               isConversationStarted
               isGenerating={isGenerating}
@@ -355,8 +315,10 @@ export function ChatArea({
               }}
               onDeleteChat={handleDeleteActiveChat}
               onOpenSettings={onOpenSettings}
+              onMoveToProject={onMoveToProject}
               onOpenMobileNav={onOpenMobileNav}
               showMobileMenu={showMobileMenu}
+              projectBreadcrumb={projectBreadcrumb}
               className="z-20"
             />
           ) : null}
@@ -402,6 +364,7 @@ export function ChatArea({
               >
                 <div className="h-full w-[min(100vw,360px)] shrink-0 lg:w-[360px]">
                   <ChatArtifactsPanel
+                    messages={messages}
                     onClose={() => setIsArtifactsPanelOpen(false)}
                   />
                 </div>

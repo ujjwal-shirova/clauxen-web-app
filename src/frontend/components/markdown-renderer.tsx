@@ -9,7 +9,7 @@ import {
   sharedReactMarkdownProps,
 } from "@/frontend/components/markdown-shared";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
-import { StreamingAnimatedMarkdown } from "./streaming-markdown";
+import { FastStreamingText } from "./fast-streaming-text";
 
 export const MarkdownOrchestrator = ({
   text,
@@ -56,12 +56,9 @@ export const MarkdownMessage = ({
 
   if (detailLevel === "placeholder") {
     return (
-      <div
-        className="min-h-[48px] truncate text-[14px] leading-[1.55] text-zinc-500"
-        aria-hidden
-      >
-        {content.slice(0, 120)}
-        {content.length > 120 ? "…" : ""}
+      <div className="min-h-[48px] whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-zinc-600">
+        {content.slice(0, 280)}
+        {content.length > 280 ? "…" : ""}
       </div>
     );
   }
@@ -88,7 +85,7 @@ export const MarkdownMessage = ({
         className="markdown-content relative min-w-0 max-w-full"
         data-stream-key={streamKey ?? content}
       >
-        <StreamingAnimatedMarkdown content={content} streamKey={streamKey} />
+        <FastStreamingText content={content} />
         {showCursor ? <OrbCursor /> : null}
       </div>
     );

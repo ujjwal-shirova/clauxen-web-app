@@ -1,14 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
+import {
+  resolveFrameHeaderLabel,
+  shouldShimmerFrameHeader,
+} from "@/frontend/lib/agent-frame-label";
 import type {
   AgentSegment,
   AgentThinkingSegment,
   AgentToolSegment,
 } from "@/frontend/lib/agent-segments";
-import { AgentTimeline, AgentTimelineDone } from "./agent-timeline";
+import { AgentTimeline } from "./agent-timeline";
 import { AgentThinkingStep } from "./agent-thinking-step";
 import { AgentToolBlock } from "./agent-tool-blocks";
 
@@ -31,14 +35,20 @@ function workSegments(segments: AgentSegment[]) {
 export function AgentWorkFrame({
   segments,
   isStreaming,
-  frameComplete,
+  leadingContent,
 }: {
   segments: AgentSegment[];
   isStreaming: boolean;
-  frameComplete: boolean;
+  leadingContent?: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
   const items = workSegments(segments);
+
+  useEffect(() => {
+    if (isStreaming) {
+      setExpanded(true);
+    }
+  }, [isStreaming]);
 
   const hasActiveWork = items.some(
     (segment) =>
@@ -46,28 +56,11 @@ export function AgentWorkFrame({
       (segment.kind === "tool" && segment.status === "running"),
   );
 
-  const lastCompletedSearchQuery = useMemo(() => {
-    const tools = items.filter(isToolSegment);
-    for (let index = tools.length - 1; index >= 0; index -= 1) {
-      const tool = tools[index];
-      if (
-        (tool.name === "web_search" || tool.name === "web_fetch") &&
-        tool.status !== "running"
-      ) {
-        return (
-          tool.searchQuery ??
-          (typeof tool.args?.query === "string" ? tool.args.query : undefined)
-        );
-      }
-    }
-    return undefined;
-  }, [items]);
-
-  const frameLabel = hasActiveWork
-    ? "Working"
-    : lastCompletedSearchQuery
-      ? `"${lastCompletedSearchQuery}"`
-      : "Working";
+  const frameLabel = resolveFrameHeaderLabel({
+    segments: items,
+    hasActiveWork,
+  });
+  const showShimmer = shouldShimmerFrameHeader(frameLabel);
 
   if (items.length === 0) {
     return null;
@@ -81,10 +74,13 @@ export function AgentWorkFrame({
         className="mb-2 flex w-full items-center gap-2 text-left"
         aria-expanded={expanded}
       >
+        {leadingContent ? (
+          <span className="flex shrink-0 items-center">{leadingContent}</span>
+        ) : null}
         <span
           className={cn(
             "truncate text-[14px] font-medium leading-5 text-zinc-700",
-            hasActiveWork && "shimmer-text",
+            showShimmer && "shimmer-text",
           )}
         >
           {frameLabel}
@@ -108,7 +104,6 @@ export function AgentWorkFrame({
             }
             return null;
           })}
-          {frameComplete ? <AgentTimelineDone label="Done" /> : null}
         </AgentTimeline>
       ) : null}
     </div>

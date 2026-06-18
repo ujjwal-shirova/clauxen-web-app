@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import type { StreamEvent } from "@/frontend/lib/chat-stream";
 import { applyAgentStreamEvent } from "@/frontend/lib/agent-stream-reducer";
 import type { Message, RecentChat } from "@/frontend/lib/types";
@@ -26,19 +26,35 @@ import {
   useChatStore,
 } from "@/frontend/stores/chat-store";
 import {
-  ensureBranchVersions,
+  attachSnapshotToBranchVersion,
   compactMessageBranchData,
-  createChatSnapshot,
   editMessageWithBranchHelper,
+  ensureBranchVersions,
+  redoUserMessageWithBranchHelper,
   retryAssistantWithBranchHelper,
   switchMessageBranchHelper,
 } from "@/frontend/lib/chat-branch";
+import { buildChatConversation } from "@/frontend/lib/branch-conversation";
 import {
+  appendChatTitleAnswerDelta,
+  createChatTitleAnswerAccumulator,
+  CHAT_TITLE_STREAM_CHAR_MS,
+  CHAT_TITLE_STREAM_CHUNK,
   deriveTitleFromExchange,
+  extractChatTitleFromText,
+  finalizeChatTitleStrippedAnswer,
   normalizeChatTitle,
   stripTitleSourceText,
 } from "@/lib/chat-title";
-import { shouldUseAgentPath } from "@/lib/chat-routing";
+import {
+  patchAnswerDelta,
+  shouldFastPatchAnswerDelta,
+} from "@/frontend/lib/agent-stream-fast-path";
+import { agentAnswerDuplicatesInterim } from "@/frontend/lib/agent-frames";
+import { filterStartedRecentChats } from "@/frontend/lib/started-recent-chats";
+import type { ChatModelId } from "@/lib/chat-models";
+import { DEFAULT_CHAT_MODEL_ID } from "@/lib/chat-models";
+import { useShallow } from "zustand/react/shallow";
 
 type AllChats = { [key: string]: Message[] };
 type BranchDataset = Record<
@@ -63,13 +79,19 @@ export type UseChatOptions = {
   projectId?: string | null;
   thinkingEnabled?: boolean;
   webSearchEnabled?: boolean;
+  chatModel?: ChatModelId;
 };
 
 function useLocalChat(
-  options: Pick<UseChatOptions, "thinkingEnabled" | "webSearchEnabled"> = {},
+  options: Pick<
+    UseChatOptions,
+    "thinkingEnabled" | "webSearchEnabled" | "chatModel" | "projectId"
+  > = {},
 ) {
   const thinkingEnabled = options.thinkingEnabled ?? false;
   const webSearchEnabled = options.webSearchEnabled ?? false;
+  const chatModel = options.chatModel ?? DEFAULT_CHAT_MODEL_ID;
+  const projectId = options.projectId ?? null;
   const { streamFromResponse } = useAiStream();
   const [branchDataset, setBranchDataset] = useState<BranchDataset>({});
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
@@ -87,8 +109,15 @@ function useLocalChat(
   const titleGenerationInProgressRef = useRef<Set<string>>(new Set());
 
   const messages = useActiveChatMessages();
+  const messageIdsByChatId = useChatStore(
+    useShallow((state) => state.messageIdsByChatId),
+  );
   const activeChat =
     recentChats.find((chat) => chat.id === activeChatId) ?? null;
+  const startedRecentChats = useMemo(
+    () => filterStartedRecentChats(recentChats, messageIdsByChatId),
+    [recentChats, messageIdsByChatId],
+  );
 
   useEffect(() => {
     allChatsRef.current = getAllChatsNormalized();
@@ -121,23 +150,29 @@ function useLocalChat(
               ),
             ]),
           );
+          const startedMeta = filterStartedRecentChats(
+            migrated.meta?.recentChats ?? [],
+            hydratedChats,
+          );
+          const restoredActiveId =
+            migrated.meta?.activeChatId &&
+            startedMeta.some((chat) => chat.id === migrated.meta?.activeChatId)
+              ? migrated.meta.activeChatId
+              : (startedMeta[0]?.id ?? null);
+
           useChatStore.getState().hydrateFromLegacy({
             allChats: hydratedChats,
-            recentChats: migrated.meta?.recentChats,
-            activeChatId: migrated.meta?.activeChatId,
+            recentChats: startedMeta,
+            activeChatId: restoredActiveId,
             branchDataset: migrated.meta?.branchDataset,
           });
-          if (migrated.meta?.recentChats) {
-            setRecentChats(
-              migrated.meta.recentChats.map((chat) => ({
-                ...chat,
-                isTitleStreaming: false,
-              })),
-            );
-          }
-          if (migrated.meta?.activeChatId !== undefined) {
-            setActiveChatId(migrated.meta.activeChatId);
-          }
+          setRecentChats(
+            startedMeta.map((chat) => ({
+              ...chat,
+              isTitleStreaming: false,
+            })),
+          );
+          setActiveChatId(restoredActiveId);
           if (migrated.meta?.branchDataset) {
             setBranchDataset(migrated.meta.branchDataset);
           }
@@ -147,7 +182,10 @@ function useLocalChat(
         const meta = await loadChatMeta();
         if (!meta) {
           const saved = window.localStorage.getItem(CHAT_STORAGE_KEY);
-          if (!saved) return;
+          if (!saved) {
+            setActiveChatId(null);
+            return;
+          }
           const parsed = JSON.parse(saved) as {
             allChats?: AllChats;
             recentChats?: RecentChat[];
@@ -167,28 +205,35 @@ function useLocalChat(
                 ),
               ]),
             );
+            const startedMeta = filterStartedRecentChats(
+              parsed.recentChats ?? [],
+              hydratedChats,
+            );
+            const restoredActiveId =
+              parsed.activeChatId &&
+              startedMeta.some((chat) => chat.id === parsed.activeChatId)
+                ? parsed.activeChatId
+                : (startedMeta[0]?.id ?? null);
+
             useChatStore.getState().hydrateFromLegacy({
               allChats: hydratedChats,
-              recentChats: parsed.recentChats,
-              activeChatId: parsed.activeChatId,
+              recentChats: startedMeta,
+              activeChatId: restoredActiveId,
               branchDataset: parsed.branchDataset,
             });
+            setRecentChats(startedMeta);
+            setActiveChatId(restoredActiveId);
+          } else if (parsed.recentChats) {
+            const startedMeta = filterStartedRecentChats(
+              parsed.recentChats,
+              parsed.allChats ?? {},
+            );
+            setRecentChats(startedMeta);
+            setActiveChatId(startedMeta[0]?.id ?? null);
           }
-          if (parsed.recentChats) setRecentChats(parsed.recentChats);
-          if (parsed.activeChatId !== undefined)
-            setActiveChatId(parsed.activeChatId);
           if (parsed.branchDataset) setBranchDataset(parsed.branchDataset);
           return;
         }
-
-        setRecentChats(
-          meta.recentChats.map((chat) => ({
-            ...chat,
-            isTitleStreaming: false,
-          })),
-        );
-        setActiveChatId(meta.activeChatId);
-        setBranchDataset(meta.branchDataset);
 
         const allChats: AllChats = {};
         for (const chat of meta.recentChats) {
@@ -203,12 +248,33 @@ function useLocalChat(
             );
           }
         }
+
+        const startedMeta = filterStartedRecentChats(meta.recentChats, allChats);
+        const restoredActiveId =
+          meta.activeChatId &&
+          startedMeta.some((chat) => chat.id === meta.activeChatId)
+            ? meta.activeChatId
+            : (startedMeta[0]?.id ?? null);
+
+        setRecentChats(
+          startedMeta.map((chat) => ({
+            ...chat,
+            isTitleStreaming: false,
+          })),
+        );
+        setActiveChatId(restoredActiveId);
+        setBranchDataset(meta.branchDataset);
+
         useChatStore.getState().hydrateFromLegacy({
           allChats,
-          recentChats: meta.recentChats,
-          activeChatId: meta.activeChatId,
+          recentChats: startedMeta,
+          activeChatId: restoredActiveId,
           branchDataset: meta.branchDataset,
         });
+
+        if (startedMeta.length === 0) {
+          setActiveChatId(null);
+        }
       } catch (error) {
         console.error("Failed to restore chat state:", error);
       }
@@ -326,8 +392,14 @@ function useLocalChat(
         return next;
       });
 
-      for (let index = 1; index <= title.length; index += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 28));
+      for (
+        let index = CHAT_TITLE_STREAM_CHUNK;
+        index <= title.length;
+        index += CHAT_TITLE_STREAM_CHUNK
+      ) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, CHAT_TITLE_STREAM_CHAR_MS),
+        );
         const partial = title.slice(0, index);
         setRecentChats((prev) => {
           const next = prev.map((chat) =>
@@ -393,33 +465,33 @@ function useLocalChat(
           ? completedAssistants[0].content
           : undefined);
 
-      if (!firstUserContent?.trim() || !firstAssistantContent?.trim()) {
+      if (!firstUserContent?.trim()) {
+        return;
+      }
+
+      if (!firstAssistantContent?.trim()) {
         return;
       }
 
       titleGenerationInProgressRef.current.add(chatId);
-      setRecentChats((prev) => {
-        const next = prev.map((chat) =>
-          chat.id === chatId ? { ...chat, titleGenerated: true } : chat,
-        );
-        recentChatsRef.current = next;
-        return next;
-      });
 
       const userContentForTitle = stripTitleSourceText(firstUserContent);
       const assistantContentForTitle = stripTitleSourceText(
-        firstAssistantContent,
+        firstAssistantContent ?? "",
       );
+      const titleMessages = [
+        { role: "user", content: userContentForTitle },
+        ...(assistantContentForTitle
+          ? [{ role: "assistant", content: assistantContentForTitle }]
+          : []),
+      ];
 
       try {
         const response = await fetch("/api/chat/title", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            messages: [
-              { role: "user", content: userContentForTitle },
-              { role: "assistant", content: assistantContentForTitle },
-            ],
+            messages: titleMessages,
             thinkingEnabled: false,
           }),
         });
@@ -453,6 +525,11 @@ function useLocalChat(
 
   const startNewChat = useCallback(() => {
     setActiveChatId(null);
+    setRecentChats((prev) => {
+      const next = filterStartedRecentChats(prev, allChatsRef.current);
+      recentChatsRef.current = next;
+      return next;
+    });
   }, []);
 
   const streamAssistantResponse = useCallback(
@@ -488,6 +565,10 @@ function useLocalChat(
             messages: conversationForApi,
             thinkingEnabled,
             webSearchEnabled,
+            chatModel,
+            // Generate the sidebar title after the answer stream so the first
+            // Anthropic tokens are visible immediately instead of hidden title tags.
+            generateChatTitle: false,
           }),
           signal: requestController.signal,
         });
@@ -500,6 +581,13 @@ function useLocalChat(
         let answerStarted = false;
         let streamError: string | null = null;
         const THINK_TAG_REGEX = /<\/?think>/gi;
+        const answerAccumulator = titleUserContent
+          ? createChatTitleAnswerAccumulator()
+          : null;
+
+        const maybeApplyInlineTitle = (_rawTitle: string) => {
+          // Sidebar titles are generated after the first assistant response completes.
+        };
 
         const applyAssistantPatch = (
           updater: (message: Message) => Message,
@@ -508,6 +596,11 @@ function useLocalChat(
         };
 
         const handleEvent = (event: StreamEvent) => {
+          if (event.type === "chat_title") {
+            maybeApplyInlineTitle(event.title);
+            return;
+          }
+
           if (event.type === "thinking_delta") {
             const sawCloseThinkTag = /<\/think>/i.test(event.delta);
             const normalizedThinkingDelta = event.delta.replace(
@@ -537,7 +630,36 @@ function useLocalChat(
               answerStarted = true;
               finalizeThinkingTimer(chatId, assistantMessageId);
             }
-            completedAnswer += event.delta;
+
+            let visibleDelta = event.delta;
+            if (answerAccumulator) {
+              visibleDelta = appendChatTitleAnswerDelta(
+                answerAccumulator,
+                event.delta,
+              );
+              const extractedTitle = extractChatTitleFromText(
+                answerAccumulator.raw,
+              );
+              if (extractedTitle) {
+                maybeApplyInlineTitle(extractedTitle);
+              }
+              completedAnswer = answerAccumulator.visible;
+            } else {
+              completedAnswer += event.delta;
+            }
+
+            if (!visibleDelta) return;
+
+            applyAssistantPatch((message) => {
+              if (shouldFastPatchAnswerDelta(message)) {
+                return patchAnswerDelta(message, visibleDelta);
+              }
+              return applyAgentStreamEvent(message, {
+                ...event,
+                delta: visibleDelta,
+              });
+            });
+            return;
           }
 
           if (event.type === "error") {
@@ -554,6 +676,30 @@ function useLocalChat(
           { onEvent: handleEvent },
           requestController.signal,
         );
+
+        if (answerAccumulator && answerAccumulator.raw.trim()) {
+          const finalized = finalizeChatTitleStrippedAnswer(
+            answerAccumulator.raw,
+          );
+          if (finalized !== answerAccumulator.visible) {
+            const trailingDelta = finalized.slice(answerAccumulator.visible.length);
+            if (trailingDelta) {
+              completedAnswer = finalized;
+              applyAssistantPatch((message) =>
+                applyAgentStreamEvent(message, {
+                  type: "answer_delta",
+                  delta: trailingDelta,
+                }),
+              );
+            }
+          }
+          answerAccumulator.visible = finalized;
+          completedAnswer = finalized;
+          const extractedTitle = extractChatTitleFromText(answerAccumulator.raw);
+          if (extractedTitle) {
+            maybeApplyInlineTitle(extractedTitle);
+          }
+        }
 
         if (streamError) {
           applyAssistantPatch((message) => ({
@@ -572,8 +718,18 @@ function useLocalChat(
         if (activeRequestRef.current !== requestController) return;
 
         applyAssistantPatch((message) => {
+          const finalizedContent = answerAccumulator
+            ? finalizeChatTitleStrippedAnswer(answerAccumulator.raw)
+            : finalizeChatTitleStrippedAnswer(message.content);
+          const nextContent = agentAnswerDuplicatesInterim({
+            ...message,
+            content: finalizedContent,
+          })
+            ? message.content
+            : finalizedContent;
           const nextMessage: Message = {
             ...message,
+            content: nextContent,
             isThinkingStreaming: false,
             isStreaming: false,
           };
@@ -589,6 +745,7 @@ function useLocalChat(
               agentMode: nextMessage.agentMode,
               agentFrameComplete: nextMessage.agentFrameComplete,
               agentSegments: nextMessage.agentSegments,
+              agentFrames: nextMessage.agentFrames,
             };
             nextMessage.branchVersions = nextVersions;
           }
@@ -652,19 +809,22 @@ function useLocalChat(
       streamFromResponse,
       thinkingEnabled,
       webSearchEnabled,
+      chatModel,
     ],
   );
 
-  const handleSendMessage = async (prompt: string) => {
+  const handleSendMessage = async (prompt: string): Promise<string | null> => {
     const cleanPrompt = prompt?.trim();
-    if (!cleanPrompt || isGenerating) return;
+    if (!cleanPrompt || isGenerating) return null;
 
     setIsGenerating(true);
 
     let currentChatId = activeChatId;
-    const isNewChat = !currentChatId;
+    const isNewChat =
+      !currentChatId ||
+      (allChatsRef.current[currentChatId]?.length ?? 0) === 0;
 
-    if (isNewChat) {
+    if (!currentChatId) {
       currentChatId = `chat_${Date.now()}`;
       const newChatEntry: RecentChat = {
         id: currentChatId,
@@ -672,6 +832,7 @@ function useLocalChat(
         titleGenerated: false,
         isTitleStreaming: false,
         updatedAt: Date.now(),
+        projectId: projectId ?? undefined,
       };
 
       setAllChats((prev) => ({ ...prev, [currentChatId!]: [] }));
@@ -681,11 +842,23 @@ function useLocalChat(
         return next;
       });
       setActiveChatId(currentChatId);
-    } else if (currentChatId) {
+    } else {
       const chatId = currentChatId;
       setRecentChats((prev) => {
         const current = prev.find((chat) => chat.id === chatId);
-        if (!current) return prev;
+        if (!current) {
+          const newChatEntry: RecentChat = {
+            id: chatId,
+            name: "New Chat",
+            titleGenerated: false,
+            isTitleStreaming: false,
+            updatedAt: Date.now(),
+            projectId: projectId ?? undefined,
+          };
+          const next = [newChatEntry, ...prev];
+          recentChatsRef.current = next;
+          return next;
+        }
         const next = [
           { ...current, updatedAt: Date.now() },
           ...prev.filter((chat) => chat.id !== chatId),
@@ -700,19 +873,7 @@ function useLocalChat(
       role: "user",
       content: cleanPrompt,
     };
-    const conversationForApi = [...messages, userMessage]
-      .filter(
-        (entry) => entry.role === "user" || entry.content.trim().length > 0,
-      )
-      .map((entry) => ({
-        role: entry.role,
-        content: entry.content,
-      }));
-
-    const useAgent = shouldUseAgentPath({
-      webSearchEnabled,
-      thinkingType: thinkingEnabled ? "enabled" : "disabled",
-    });
+    const conversationForApi = buildChatConversation([...messages, userMessage]);
 
     const assistantMessage: Message = {
       id: (Date.now() + 1).toString(),
@@ -722,9 +883,8 @@ function useLocalChat(
       isStreaming: true,
       isThinkingStreaming: false,
       hasThinking: false,
-      agentMode: useAgent,
+      agentMode: false,
       agentFrameComplete: false,
-      agentSegments: useAgent ? [] : undefined,
     };
 
     setAllChats((prev) => ({
@@ -736,49 +896,38 @@ function useLocalChat(
       ],
     }));
 
+
     await streamAssistantResponse({
       chatId: currentChatId!,
       assistantMessageId: assistantMessage.id,
       conversationForApi,
       titleUserContent: isNewChat ? cleanPrompt : undefined,
     });
+
+    return currentChatId;
   };
 
   const switchMessageBranch = useCallback(
     (chatId: string, messageId: string, direction: "prev" | "next") => {
-      setAllChats((prev) => {
-        const chatMessages = prev[chatId] || [];
-        const { nextChat } = switchMessageBranchHelper(
-          chatMessages,
-          messageId,
-          direction,
-        );
-        return {
-          ...prev,
-          [chatId]: nextChat,
-        };
-      });
-      setBranchDataset((prev) => {
-        const chatEntry = prev[chatId] || {};
-        const chatMessages = allChatsRef.current[chatId] || [];
-        const target = chatMessages.find((m) => m.id === messageId);
-        if (!target) return prev;
-        const versions = ensureBranchVersions(target);
-        const activeIdx = target.activeBranchIndex ?? versions.length - 1;
-        const nextActive = direction === "prev" ? activeIdx - 1 : activeIdx + 1;
-        if (nextActive < 0 || nextActive >= versions.length) return prev;
-        return {
-          ...prev,
-          [chatId]: {
-            ...chatEntry,
-            [messageId]: {
-              activeIndex: nextActive,
-              totalVersions: versions.length,
-              updatedAt: Date.now(),
-            },
+      const chatMessages = allChatsRef.current[chatId] || [];
+      const { nextChat, nextActiveIndex, totalVersions } =
+        switchMessageBranchHelper(chatMessages, messageId, direction);
+
+      setAllChats((prev) => ({
+        ...prev,
+        [chatId]: nextChat,
+      }));
+      setBranchDataset((branchPrev) => ({
+        ...branchPrev,
+        [chatId]: {
+          ...(branchPrev[chatId] || {}),
+          [messageId]: {
+            activeIndex: nextActiveIndex,
+            totalVersions,
+            updatedAt: Date.now(),
           },
-        };
-      });
+        },
+      }));
     },
     [],
   );
@@ -811,14 +960,9 @@ function useLocalChat(
         [chatId]: nextChat,
       }));
 
-      const conversationForApi = nextChat
-        .filter(
-          (entry) => entry.role === "user" || entry.content.trim().length > 0,
-        )
-        .map((entry) => ({
-          role: entry.role,
-          content: entry.content,
-        }));
+      const conversationForApi = buildChatConversation(
+        nextChat.slice(0, -1),
+      );
 
       await streamAssistantResponse({
         chatId,
@@ -826,24 +970,74 @@ function useLocalChat(
         conversationForApi,
         onCompleted: () => {
           const finalMessages = allChatsRef.current[chatId] || [];
-          const snapshot = createChatSnapshot(finalMessages);
-          setAllChats((prev) => {
-            const chatMessages = prev[chatId] || [];
+          setAllChats((prev) => ({
+            ...prev,
+            [chatId]: attachSnapshotToBranchVersion(finalMessages, messageId),
+          }));
+          setBranchDataset((prev) => {
+            const target = allChatsRef.current[chatId]?.find(
+              (m) => m.id === messageId,
+            );
+            const versionsCount = target
+              ? ensureBranchVersions(target).length
+              : 1;
             return {
               ...prev,
-              [chatId]: chatMessages.map((msg) => {
-                if (msg.id !== messageId) return msg;
-                const versions = ensureBranchVersions(msg);
-                const active = msg.activeBranchIndex ?? versions.length - 1;
-                const nextVersions = [...versions];
-                nextVersions[active] = {
-                  ...nextVersions[active],
-                  snapshot,
-                };
-                return { ...msg, branchVersions: nextVersions };
-              }),
+              [chatId]: {
+                ...(prev[chatId] || {}),
+                [messageId]: {
+                  activeIndex: Math.max(0, versionsCount - 1),
+                  totalVersions: versionsCount,
+                  updatedAt: Date.now(),
+                },
+              },
             };
           });
+        },
+      });
+    },
+    [isGenerating, streamAssistantResponse],
+  );
+
+  const redoUserMessageWithBranch = useCallback(
+    async (chatId: string, messageId: string) => {
+      if (isGenerating) return;
+      const existing = allChatsRef.current[chatId] || [];
+      const assistantMessageId = `${Date.now()}`;
+      let helperResult;
+      try {
+        helperResult = redoUserMessageWithBranchHelper(
+          existing,
+          messageId,
+          assistantMessageId,
+        );
+      } catch (err) {
+        console.error(err);
+        return;
+      }
+
+      setIsGenerating(true);
+
+      const { nextChat } = helperResult;
+      setAllChats((prev) => ({
+        ...prev,
+        [chatId]: nextChat,
+      }));
+
+      const conversationForApi = buildChatConversation(
+        nextChat.slice(0, -1),
+      );
+
+      await streamAssistantResponse({
+        chatId,
+        assistantMessageId,
+        conversationForApi,
+        onCompleted: () => {
+          const finalMessages = allChatsRef.current[chatId] || [];
+          setAllChats((prev) => ({
+            ...prev,
+            [chatId]: attachSnapshotToBranchVersion(finalMessages, messageId),
+          }));
           setBranchDataset((prev) => {
             const target = allChatsRef.current[chatId]?.find(
               (m) => m.id === messageId,
@@ -893,15 +1087,9 @@ function useLocalChat(
         [chatId]: nextChat,
       }));
 
-      const conversationForApi = nextChat
-        .slice(0, -1)
-        .filter(
-          (entry) => entry.role === "user" || entry.content.trim().length > 0,
-        )
-        .map((entry) => ({
-          role: entry.role,
-          content: entry.content,
-        }));
+      const conversationForApi = buildChatConversation(
+        nextChat.slice(0, -1),
+      );
 
       await streamAssistantResponse({
         chatId,
@@ -909,24 +1097,13 @@ function useLocalChat(
         conversationForApi,
         onCompleted: () => {
           const finalMessages = allChatsRef.current[chatId] || [];
-          const snapshot = createChatSnapshot(finalMessages);
-          setAllChats((prev) => {
-            const chatMessages = prev[chatId] || [];
-            return {
-              ...prev,
-              [chatId]: chatMessages.map((msg) => {
-                if (msg.id !== assistantMessageId) return msg;
-                const versions = ensureBranchVersions(msg);
-                const active = msg.activeBranchIndex ?? versions.length - 1;
-                const nextVersionList = [...versions];
-                nextVersionList[active] = {
-                  ...nextVersionList[active],
-                  snapshot,
-                };
-                return { ...msg, branchVersions: nextVersionList };
-              }),
-            };
-          });
+          setAllChats((prev) => ({
+            ...prev,
+            [chatId]: attachSnapshotToBranchVersion(
+              finalMessages,
+              assistantMessageId,
+            ),
+          }));
           setBranchDataset((prev) => {
             const target = allChatsRef.current[chatId]?.find(
               (m) => m.id === assistantMessageId,
@@ -1004,14 +1181,14 @@ function useLocalChat(
       });
 
       if (activeChatId === chatId) {
-        if (newRecentChats.length > 0) {
-          setActiveChatId(newRecentChats[0].id);
-        } else {
-          startNewChat();
-        }
+        const started = filterStartedRecentChats(
+          newRecentChats,
+          allChatsRef.current,
+        );
+        setActiveChatId(started[0]?.id ?? null);
       }
     },
-    [activeChatId, recentChats, startNewChat],
+    [activeChatId, recentChats],
   );
 
   const handleRenameChat = useCallback((chatId: string, newName: string) => {
@@ -1035,6 +1212,7 @@ function useLocalChat(
   return {
     messages,
     recentChats,
+    startedRecentChats,
     activeChat,
     isGenerating,
     activeChatId,
@@ -1046,6 +1224,7 @@ function useLocalChat(
     handleRenameChat,
     handlePinChat,
     editMessageWithBranch,
+    redoUserMessageWithBranch,
     retryAssistantWithBranch,
     switchMessageBranch,
   };
@@ -1055,6 +1234,7 @@ function useChatDisabled() {
   return {
     messages: [] as Message[],
     recentChats: [] as RecentChat[],
+    startedRecentChats: [] as RecentChat[],
     activeChat: null,
     activeChatId: null,
     isGenerating: false,
@@ -1067,6 +1247,7 @@ function useChatDisabled() {
     handleRenameChat: async () => {},
     handlePinChat: async () => {},
     editMessageWithBranch: async () => {},
+    redoUserMessageWithBranch: async () => {},
     retryAssistantWithBranch: async () => {},
     switchMessageBranch: () => {},
     refreshChats: async () => {},
@@ -1082,6 +1263,7 @@ export function useChat(options: UseChatOptions = {}) {
       options.projectId ?? null,
       options.thinkingEnabled,
       options.webSearchEnabled,
+      options.chatModel,
     );
   }
   if (authRequiredForChat) {

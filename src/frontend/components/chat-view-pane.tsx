@@ -10,7 +10,7 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ScrollArea } from "@/frontend/components/ui/scroll-area";
 import { cn } from "@/frontend/lib/utils";
 import { ChatFrostedEdge } from "./ui/chat-frosted-edge";
@@ -69,6 +69,34 @@ export function ChatViewPane({
   className,
 }: ChatViewPaneProps) {
   const [greeting, setGreeting] = useState<string | null>(null);
+  const [inputHeight, setInputHeight] = useState(120);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
+  const inputHeightRafRef = useRef(0);
+
+  useEffect(() => {
+    const el = inputContainerRef.current;
+    if (!el || !hasConversation) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height =
+          entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+        const rounded = Math.ceil(height);
+        cancelAnimationFrame(inputHeightRafRef.current);
+        inputHeightRafRef.current = requestAnimationFrame(() => {
+          setInputHeight((prev) =>
+            Math.abs(prev - rounded) < 16 ? prev : rounded,
+          );
+        });
+      }
+    });
+
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(inputHeightRafRef.current);
+    };
+  }, [hasConversation]);
 
   useEffect(() => {
     const updateGreeting = () => setGreeting(getTimeOfDayGreeting());
@@ -81,7 +109,10 @@ export function ChatViewPane({
 
   return (
     <section
-      className={cn("relative flex min-h-0 flex-1 flex-col", className)}
+      className={cn(
+        "agent-panel-conversation-shell relative flex min-h-0 flex-1 flex-col",
+        className,
+      )}
       data-chat-active={hasConversation || undefined}
       data-chat-streaming={isGenerating || undefined}
     >
@@ -92,20 +123,22 @@ export function ChatViewPane({
           railEnd={hasConversation ? messageNavigator : undefined}
         >
           <div
-            className={cn(
-              "flex min-h-full w-full flex-col items-center",
-              hasConversation && "pb-36 sm:pb-44",
-            )}
+            className="flex min-h-full w-full flex-col items-center"
+            style={
+              hasConversation
+                ? { paddingBottom: `${inputHeight + 10}px` }
+                : undefined
+            }
           >
             {hasConversation ? (
-              <div className="mx-auto w-full min-w-0 max-w-[768px] max-lg:px-[3px] lg:px-5 xl:px-6">
+              <div className="chat-column w-full min-w-0">
                 {conversation}
               </div>
             ) : (
-              <div className="relative flex min-h-[calc(100dvh-10.5rem)] w-full flex-1 flex-col items-center justify-center px-0 py-8 font-sans sm:min-h-[calc(100dvh-9rem)] sm:px-8 sm:py-14 md:px-10">
-                <div className="flex w-full max-w-full flex-col items-center justify-center gap-4 sm:max-w-[min(720px,calc(100vw-3rem))] sm:gap-7">
+              <div className="relative flex min-h-[calc(100dvh-10.5rem)] w-full flex-1 flex-col items-center justify-center py-6 sm:min-h-[calc(100dvh-9rem)] sm:py-10">
+                <div className="chat-column flex w-full min-w-0 flex-col items-center gap-3 sm:gap-5">
                   <h2
-                    className="select-none text-center font-handwriting text-[26px] leading-[34px] tracking-tight text-zinc-800 sm:text-[42px] sm:leading-[54px]"
+                    className="select-none text-center font-handwriting text-[24px] leading-[32px] tracking-tight text-zinc-800 sm:text-[38px] sm:leading-[48px]"
                     suppressHydrationWarning
                   >
                     {greeting ? `${greeting}, Ujjwal` : "\u00a0"}
@@ -113,7 +146,7 @@ export function ChatViewPane({
 
                   <div className="w-full">{promptInput}</div>
 
-                  <div className="flex min-h-[120px] w-full max-w-[640px] flex-col items-center justify-start">
+                  <div className="flex min-h-[96px] w-full max-w-[620px] flex-col items-center justify-start">
                     <AnimatePresence mode="wait" initial={false}>
                       {!hasPromptDraft && activeChip ? (
                         <motion.div
@@ -140,16 +173,16 @@ export function ChatViewPane({
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
                           transition={{ duration: 0.2 }}
-                          className="mt-1 flex w-full flex-wrap justify-center gap-1.5 sm:mt-1.5 sm:gap-2"
+                          className="mt-1 flex w-full flex-wrap justify-center gap-1.5 sm:mt-1.5 sm:gap-1.5"
                         >
                           {allChips.map((chip) => (
                             <button
                               key={chip.label}
                               type="button"
                               onClick={() => onActiveChipChange(chip.label)}
-                              className="flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-transparent px-3 text-[13px] leading-5 text-zinc-600 transition-all duration-150 hover:bg-zinc-50 hover:text-zinc-900 sm:h-10 sm:gap-2 sm:px-4 sm:text-[14px] sm:leading-[21px]"
+                              className="flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-transparent px-3 text-[12.5px] leading-5 text-zinc-600 transition-all duration-150 hover:bg-zinc-50 hover:text-zinc-900 sm:h-8 sm:gap-1.5 sm:px-3.5 sm:text-[13px] sm:leading-[20px]"
                             >
-                              <chip.icon className="h-4 w-4 shrink-0 text-zinc-500 sm:h-5 sm:w-5" />
+                              <chip.icon className="h-4 w-4 shrink-0 text-zinc-500" />
                               <span>{chip.label}</span>
                             </button>
                           ))}
@@ -167,11 +200,34 @@ export function ChatViewPane({
       {hasConversation ? (
         <>
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30">
-            <ChatFrostedEdge placement="bottom" isStreaming={isGenerating} />
+            <div className="chat-composer-row">
+              <div className="chat-composer-row__main relative">
+                <ChatFrostedEdge
+                  placement="bottom"
+                  isStreaming={isGenerating}
+                  style={{ height: `${inputHeight + 18}px` }}
+                />
+              </div>
+              <div
+                className="chat-message-navigator-rail hidden md:block"
+                aria-hidden
+              />
+            </div>
           </div>
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center px-[3px] pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 sm:pb-6 sm:pt-3">
-            <div className="pointer-events-auto w-full min-w-0 max-w-full sm:max-w-[min(768px,calc(100vw-3rem))]">
-              {promptInput}
+          <div
+            ref={inputContainerRef}
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-2 sm:pb-4 sm:pt-2.5"
+          >
+            <div className="chat-composer-row">
+              <div className="chat-composer-row__main">
+                <div className="chat-column pointer-events-auto">
+                  {promptInput}
+                </div>
+              </div>
+              <div
+                className="chat-message-navigator-rail hidden md:block"
+                aria-hidden
+              />
             </div>
           </div>
         </>

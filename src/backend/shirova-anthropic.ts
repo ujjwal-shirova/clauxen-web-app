@@ -47,12 +47,11 @@ export async function handleShirovaMessagesPost(request: Request) {
 
     const body = await request.json();
     const apiKey = requireNovitaApiKey();
-    const upstream = await fetch(env.novitaMessagesUrl, {
+    const upstream = await fetch(`${env.novitaOpenAiBaseUrl.replace(/\/+$/, "")}/v1/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
         ...body,

@@ -3,7 +3,7 @@
 ## Prerequisites
 
 1. CockroachDB Cloud cluster with `clauxen_main` schema (`npm run crdb:schema-fast` or `npm run crdb:apply-native`).
-2. Root `.env.local` with keys from `.env.example` (you fill values).
+2. Root `.env.local` — single local env file (see `docs/vercel-deployment.md` for keys).
 3. Optional: Ory stack for production-grade auth.
 
 ## Local development order
@@ -30,6 +30,7 @@ npm run dev
 | `AUTH_DEV_BYPASS`        | `true` enables email login via `/api/v1/auth/login` |
 | `AUTH_REQUIRED_FOR_CHAT` | Require session for chat APIs                       |
 | `NOVITA_API_KEY`         | Inference provider                                  |
+| `SHIROVA_THINKING_MODEL` | Interleaved-thinking agent model (default `deepseek/deepseek-v4-pro`) |
 | `RAZORPAY_*`             | Billing checkout + webhooks                         |
 | `ORY_KRATOS_PUBLIC_URL`  | Kratos whoami (when using Ory)                      |
 
@@ -53,3 +54,4 @@ Legacy routes `/api/chat` and `/api/chat/title` remain for unauthenticated/local
 - **CockroachDB** — chats, messages, billing, projects, profiles
 - **Ory Kratos + Hydra** — identity/OIDC (Postgres in Docker for Ory persistence)
 - **Dev auth** — session cookie `clauxen_session` + `auth.users` shim sync
+- **Thinking / autonomous agent** — `POST /api/v1/chats/:id/generate` with `thinkingType: enabled` routes to `deepseek/deepseek-v4-pro` (override via `SHIROVA_THINKING_MODEL`) on Novita `/v1/chat/completions`, preserving `reasoning_content` + `tool_calls` between tool rounds

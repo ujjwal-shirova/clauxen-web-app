@@ -20,16 +20,35 @@ import {
   DropdownMenuTrigger,
 } from "@/frontend/components/ui/dropdown-menu";
 
+export function SettingsSection({
+  title,
+  children,
+  className,
+}: {
+  title?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("mb-8 last:mb-0 sm:mb-10", className)}>
+      {title ? (
+        <div className="mb-4">
+          <h3 className="text-[15px] font-semibold leading-5 text-zinc-900">
+            {title}
+          </h3>
+        </div>
+      ) : null}
+      {children}
+    </section>
+  );
+}
+
 export function SettingsPanelTitle({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <h2 className="border-b border-zinc-200 pb-3 text-[18px] font-medium leading-7 text-zinc-900">
-      {children}
-    </h2>
-  );
+  return <h2 className="sr-only">{children}</h2>;
 }
 
 export function SettingsPanelHeaderWithHelp({
@@ -42,8 +61,8 @@ export function SettingsPanelHeaderWithHelp({
   helpLabel?: string;
 }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-2 border-b border-zinc-200 pb-3 sm:grid-cols-[1fr_auto] sm:gap-4">
-      <h2 className="text-[18px] font-medium leading-7 text-zinc-900">
+    <div className="mb-4 grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
+      <h2 className="text-[15px] font-semibold leading-5 text-zinc-900">
         {title}
       </h2>
       <a
@@ -71,12 +90,12 @@ export function SettingsValueRow({
   return (
     <div
       className={cn(
-        "flex min-h-[60px] items-center justify-between gap-4 py-3",
-        !borderless && "border-b border-zinc-100",
+        "flex flex-col items-stretch gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-7",
+        !borderless && "border-b border-[rgba(11,11,11,0.05)]",
       )}
     >
       <span className="text-[14px] font-[430] text-zinc-900">{label}</span>
-      <span className="max-w-[65%] truncate text-right text-[14px] text-zinc-600">
+      <span className="text-[14px] text-zinc-600 sm:max-w-[65%] sm:truncate sm:text-right">
         {value}
       </span>
     </div>
@@ -115,8 +134,8 @@ export function SettingsSectionHeading({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-zinc-200 pb-3 pt-1">
-      <h3 className="text-[18px] font-medium leading-7 text-zinc-900">
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <h3 className="text-[15px] font-semibold leading-5 text-zinc-900">
         {children}
       </h3>
       {action}
@@ -140,20 +159,23 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        "grid min-h-[60px] grid-cols-1 items-center gap-x-4 gap-y-1 py-3 sm:grid-cols-[1fr_auto]",
-        !borderless && "border-b border-zinc-100",
+        "flex flex-col items-stretch gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-7",
+        !borderless && "border-b border-[rgba(11,11,11,0.05)]",
         className,
       )}
+      role="group"
     >
-      <div className="min-w-0">
-        <div className="text-[14px] font-[430] text-zinc-900">{label}</div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[14px] leading-5 text-zinc-900">{label}</div>
         {description ? (
-          <div className="mt-1 text-[12px] leading-4 text-zinc-400 text-pretty">
+          <div className="mt-1 text-[14px] leading-5 text-zinc-500 text-pretty">
             {description}
           </div>
         ) : null}
       </div>
-      <div className="justify-self-start sm:justify-self-end">{children}</div>
+      <div className="w-full min-w-0 sm:w-auto sm:shrink-0 [&_button]:max-w-full sm:[&_button]:max-w-none">
+        {children}
+      </div>
     </div>
   );
 }
@@ -179,7 +201,7 @@ const settingsOptionMenuContentClass =
   "z-[120] min-w-[11rem] rounded-xl border border-zinc-200 bg-white p-1.5 text-zinc-900 shadow-[0_8px_24px_rgba(24,24,27,0.08)]";
 
 const settingsOptionTriggerClass = cn(
-  "no-hover-overlay inline-flex h-9 min-h-9 shrink-0 items-center gap-2 rounded-lg border border-transparent bg-white px-3 text-[14px] text-zinc-900 transition-colors hover:bg-zinc-100 data-[state=open]:border-zinc-200 data-[state=open]:bg-zinc-100",
+  "no-hover-overlay inline-flex h-9 min-h-9 w-full shrink-0 items-center justify-between gap-1.5 rounded-lg bg-white/80 px-2.5 text-[14px] leading-5 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] transition-[box-shadow,background-color] duration-75 hover:bg-white sm:h-8 sm:min-h-8 sm:w-auto sm:justify-start sm:px-2 data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]",
   settingsFocusReset,
 );
 
@@ -224,7 +246,7 @@ export function SettingsOptionPicker({
           className={cn(settingsOptionTriggerClass, className)}
         >
           {leading ?? selected.leading}
-          <span className="max-w-[10rem] truncate">
+          <span className="max-w-full truncate text-left sm:max-w-[10rem]">
             {selected.label ?? selected.value}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
@@ -362,7 +384,7 @@ export function SettingsTextarea({
       rows={rows}
       maxLength={maxLength}
       className={cn(
-        "w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[14px] leading-5 text-zinc-900 transition-colors placeholder:text-zinc-400 hover:border-zinc-300 focus:border-zinc-400",
+        "w-full resize-none rounded-lg bg-white/80 px-3 py-2 text-[14px] leading-5 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] transition-[box-shadow,background-color] duration-75 placeholder:text-zinc-400 focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]",
         settingsFocusReset,
       )}
     />
@@ -381,12 +403,12 @@ export function SettingsVoiceControl({
   onPlay?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-0">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-0">
       <button
         type="button"
         onClick={onPlay}
         className={cn(
-          "no-hover-overlay inline-flex h-9 items-center gap-1.5 rounded-l-lg border border-r-0 border-zinc-200 bg-white px-3 text-[14px] text-zinc-900 transition-colors hover:bg-zinc-100",
+          "no-hover-overlay inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-[14px] text-zinc-900 transition-colors hover:bg-zinc-100 sm:w-auto sm:rounded-l-lg sm:rounded-r-none sm:border-r-0",
           settingsFocusReset,
         )}
       >
@@ -398,7 +420,7 @@ export function SettingsVoiceControl({
         options={voices}
         onValueChange={onVoiceChange}
         aria-label={`Voice, ${voice}`}
-        className="h-9 min-h-9 rounded-l-none rounded-r-lg border border-zinc-200"
+        className="h-9 min-h-9 rounded-lg border border-zinc-200 sm:rounded-l-none sm:rounded-r-lg"
         align="end"
       />
     </div>
@@ -478,9 +500,9 @@ export function SettingsChevronRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "no-hover-overlay flex w-full min-h-[60px] items-center justify-between gap-4 py-3 text-left transition-colors hover:bg-zinc-100/60",
+        "no-hover-overlay flex w-full items-center justify-between gap-7 py-3 text-left transition-colors hover:bg-[rgba(11,11,11,0.03)]",
         settingsFocusReset,
-        !borderless && "border-b border-zinc-100",
+        !borderless && "border-b border-[rgba(11,11,11,0.05)]",
       )}
     >
       <span className="text-[14px] font-[430] text-zinc-900">{label}</span>
@@ -504,8 +526,8 @@ export function SettingsManageRow({
   return (
     <div
       className={cn(
-        "flex min-h-[60px] items-center justify-between gap-4 py-3",
-        !borderless && "border-b border-zinc-100",
+        "flex flex-col items-stretch gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-7",
+        !borderless && "border-b border-[rgba(11,11,11,0.05)]",
       )}
     >
       <span className="text-[14px] font-[430] text-zinc-900">{label}</span>

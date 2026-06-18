@@ -1,0 +1,50 @@
+services:
+  cockroach:
+    image: cockroachdb/cockroach:v25.4.10
+    command: start-single-node --insecure
+    restart: unless-stopped
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    volumes:
+      - clauxen_crdb:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health?ready=1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: clauxen
+      POSTGRES_PASSWORD: clauxen
+      POSTGRES_DB: clauxen_projects
+    volumes:
+      - clauxen_projects_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clauxen -d clauxen_projects"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - clauxen_projects_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  clauxen_crdb:
+  clauxen_projects_pg:
+  clauxen_projects_redis:

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { SettingsTab } from "@/frontend/components/settings/constants";
 import { GeneralSettings } from "@/frontend/components/settings/general-settings";
@@ -19,15 +20,22 @@ import { SettingsNavSidebar } from "@/frontend/components/settings/settings-nav-
 import { SettingsPlaceholder } from "@/frontend/components/settings/settings-placeholder";
 import { SettingsPageSkeleton } from "@/frontend/components/settings/settings-page-skeleton";
 import { ShimmerSkeleton } from "@/frontend/components/ui/shimmer-skeleton";
+import {
+  Dialog,
+  DialogOverlay,
+  DialogPortal,
+} from "@/frontend/components/ui/dialog";
 import { useMinimumLoadingTime } from "@/frontend/hooks/use-minimum-loading";
 import { useSettings } from "@/frontend/hooks/use-settings";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import * as workspacesApi from "@/frontend/lib/api/workspaces";
 import type { Workspace, WorkspaceMember } from "@/frontend/lib/api/workspaces";
+import { cn } from "@/frontend/lib/utils";
 
 import type { SessionUser } from "@/frontend/lib/api/auth";
 
-interface SettingsPageProps {
+interface SettingsModalProps {
+  open: boolean;
   onClose: () => void;
   onGoToCustomize: (tab: "skills" | "connectors") => void;
   onUpgradeClick?: () => void;
@@ -36,14 +44,15 @@ interface SettingsPageProps {
   initialTab?: SettingsTab;
 }
 
-export function SettingsPage({
+export function SettingsModal({
+  open,
   onClose,
   onGoToCustomize,
   onUpgradeClick,
   user,
   onLogout,
   initialTab = "General",
-}: SettingsPageProps) {
+}: SettingsModalProps) {
   const auth = useAuth();
   const {
     settings,
@@ -55,8 +64,11 @@ export function SettingsPage({
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
 
   useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+    if (open) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, open]);
+
   const [copied, setCopied] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>(
@@ -69,11 +81,14 @@ export function SettingsPage({
   const notifications = settings?.notifications;
 
   useEffect(() => {
-    if (!user?.id) {
-      setWorkspace(null);
-      setWorkspaceMembers([]);
+    if (!open || !user?.id) {
+      if (!user?.id) {
+        setWorkspace(null);
+        setWorkspaceMembers([]);
+      }
       return;
     }
+
     setWorkspaceLoading(true);
     void workspacesApi
       .getWorkspaceMembers()
@@ -86,7 +101,7 @@ export function SettingsPage({
         setWorkspaceMembers([]);
       })
       .finally(() => setWorkspaceLoading(false));
-  }, [user?.id]);
+  }, [open, user?.id]);
 
   const handleCopyOrgId = () => {
     const id = user?.id ?? "";
@@ -225,48 +240,86 @@ export function SettingsPage({
   };
 
   return (
-    <ShimmerSkeleton
-      loading={showSettingsSkeleton}
-      fallback={<SettingsPageSkeleton />}
-      label="Loading settings"
-      className="h-full w-full flex-1"
-    >
-      <div className="mobile-page-inset mx-auto flex h-full w-full max-w-[1160px] flex-1 flex-col overflow-y-auto bg-white pb-28 pt-[max(0.75rem,env(safe-area-inset-top))] animate-in fade-in slide-in-from-bottom-2 duration-300 sm:pt-5 md:px-10 md:pt-8 lg:px-8">
-        <div className="mb-4 flex items-center justify-between text-zinc-700 sm:mb-6 md:mb-8">
-          <div className="flex min-w-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-zinc-100 md:hidden"
-              aria-label="Back to chat"
-            >
-              <X className="h-5 w-5 text-zinc-500" />
-            </button>
-            <h1 className="truncate font-serif text-[21px] font-medium sm:text-[22px]">
-              Settings
-            </h1>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="hidden rounded-lg p-2 transition-colors hover:bg-zinc-100 md:inline-flex"
-            aria-label="Close settings"
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <DialogPortal>
+        <DialogOverlay className="z-[100] bg-[rgba(244,244,245,0.84)] backdrop-blur-none max-md:bg-[rgba(244,244,245,0.92)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Content
+          aria-describedby={undefined}
+          className={cn(
+            "fixed z-[101] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none",
+            "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",
+            "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-bottom-4 data-[state=open]:slide-in-from-bottom-4 duration-200",
+            "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)] md:pt-0 md:pb-0",
+            "md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=closed]:zoom-out-[0.98] md:data-[state=open]:zoom-in-[0.98]",
+          )}
+        >
+          <DialogPrimitive.Title className="sr-only">
+            Settings
+          </DialogPrimitive.Title>
+
+          <ShimmerSkeleton
+            loading={showSettingsSkeleton}
+            fallback={<SettingsPageSkeleton />}
+            label="Loading settings"
+            className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch"
           >
-            <X className="h-5 w-5 text-zinc-500" />
-          </button>
-        </div>
+            <div className="shrink-0 border-b border-[rgba(11,11,11,0.1)] bg-[var(--app-shell-bg)] px-4 py-3 md:hidden">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[12px] leading-[14px] text-zinc-500">
+                    Settings
+                  </p>
+                  <h2 className="truncate text-[15px] font-semibold leading-5 text-zinc-900">
+                    {activeTab}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)]"
+                  aria-label="Close settings"
+                >
+                  <X className="h-5 w-5" strokeWidth={1.75} />
+                </button>
+              </div>
+              <SettingsNavSidebar
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                variant="mobile-toolbar"
+              />
+            </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-[220px_1fr] md:gap-12">
-          <SettingsNavSidebar
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
+            <aside className="hidden min-h-0 shrink-0 bg-[var(--app-shell-bg)] md:flex md:w-[192px] md:flex-col md:border-r md:border-[rgba(11,11,11,0.1)] md:p-3">
+              <SettingsNavSidebar
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              />
+            </aside>
 
-          <div className="flex min-w-0 w-full max-w-none flex-col gap-8 md:max-w-[640px]">
-            {renderActiveTab()}
-          </div>
-        </div>
-      </div>
-    </ShimmerSkeleton>
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--app-panel-bg)]">
+              <button
+                type="button"
+                onClick={onClose}
+                className="absolute right-3 top-3 z-10 hidden h-8 w-8 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)] md:inline-flex"
+                aria-label="Close settings"
+              >
+                <X className="h-5 w-5" strokeWidth={1.75} />
+              </button>
+
+              <div
+                id="settings-modal-title"
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12"
+              >
+                {renderActiveTab()}
+              </div>
+            </div>
+          </ShimmerSkeleton>
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    </Dialog>
   );
 }
+
+/** @deprecated Use SettingsModal */
+export const SettingsPage = SettingsModal;

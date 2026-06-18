@@ -1,13 +1,11 @@
 export type ChatRoutingThinkingType = "enabled" | "disabled";
 
-/** Agent timeline path when web search and/or thinking tools are enabled. */
+/** Full autonomous agent loop (tool schemas as steering) when extended thinking is on. */
 export function shouldUseAgentPath(input: {
   webSearchEnabled?: boolean;
   thinkingType?: ChatRoutingThinkingType;
 }): boolean {
-  return (
-    input.thinkingType === "enabled" || input.webSearchEnabled === true
-  );
+  return input.thinkingType === "enabled";
 }
 
 /** Split status prose from the final article in the last assistant turn. */

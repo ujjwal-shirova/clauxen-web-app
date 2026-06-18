@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import { createSseParser, type StreamEvent } from "@/frontend/lib/chat-stream";
+import type { StreamEvent } from "@/frontend/lib/chat-stream";
+import { consumeClauxenStreamResponse } from "@/frontend/lib/ui-message-stream";
 
 export type StreamDeltaHandler = {
   onStart?: () => void;
@@ -45,7 +46,7 @@ function dispatchStreamEvent(
 }
 
 /**
- * Parse chat SSE on the main thread so tokens are not lost when a stream ends.
+ * Parse Vercel AI SDK UI message streams (hybrid) or legacy Clauxen SSE events.
  */
 export function useAiStream() {
   const streamFromResponse = useCallback(
@@ -54,36 +55,20 @@ export function useAiStream() {
       handlers: StreamDeltaHandler,
       signal?: AbortSignal,
     ): Promise<void> => {
-      if (!response.ok || !response.body) {
-        throw new Error("Failed to generate response");
-      }
-
       let streamComplete = false;
-      const parseChunk = createSseParser((event) => {
-        if (dispatchStreamEvent(event, handlers)) {
-          streamComplete = true;
-        }
-      });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+      await consumeClauxenStreamResponse(
+        response,
+        (event) => {
+          if (dispatchStreamEvent(event, handlers)) {
+            streamComplete = true;
+          }
+        },
+        signal,
+      );
 
-      try {
-        while (true) {
-          if (signal?.aborted) {
-            await reader.cancel();
-            break;
-          }
-          const { value, done } = await reader.read();
-          if (done) break;
-          parseChunk(decoder.decode(value, { stream: true }));
-          if (streamComplete) {
-            await reader.cancel();
-            break;
-          }
-        }
-      } finally {
-        reader.releaseLock();
+      if (!streamComplete) {
+        handlers.onDone?.();
       }
     },
     [],

@@ -1,5 +1,3 @@
-import type Anthropic from "@anthropic-ai/sdk";
-
 export type VisionDetail = "high" | "low" | "auto";
 
 export type VisionImageInput = {
@@ -21,14 +19,16 @@ function isHttpUrl(value: string) {
   }
 }
 
-type VisionContentBlock = Anthropic.Messages.ContentBlockParam;
+type VisionContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string; detail?: VisionDetail } };
 
 export function buildVisionContentParts(
   images: VisionImageInput[],
   text: string,
-): VisionContentBlock[] {
+): VisionContentPart[] {
   const limited = images.slice(0, MAX_IMAGES_PER_MESSAGE);
-  const parts: VisionContentBlock[] = limited.map((image) => {
+  const parts: VisionContentPart[] = limited.map((image) => {
     const url = image.base64
       ? `data:${image.mimeType ?? "image/jpeg"};base64,${image.base64}`
       : (image.url ?? "");
@@ -40,26 +40,12 @@ export function buildVisionContentParts(
       throw new Error("Invalid vision image input.");
     }
 
-    if (image.base64) {
-      const match = url.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
-      if (!match) throw new Error("Invalid vision image input.");
-      return {
-        type: "image" as const,
-        source: {
-          type: "base64" as const,
-          media_type: match[1] as
-            | "image/jpeg"
-            | "image/png"
-            | "image/gif"
-            | "image/webp",
-          data: match[2],
-        },
-      };
-    }
-
     return {
-      type: "image" as const,
-      source: { type: "url" as const, url },
+      type: "image_url" as const,
+      image_url: {
+        url,
+        detail: image.detail ?? "auto",
+      },
     };
   });
 

@@ -1,6 +1,17 @@
-import type { AnthropicTool } from "@/backend/inference/anthropic-adapter";
+export type PlatformToolInputSchema = {
+  type: "object";
+  properties: Record<string, unknown>;
+  required?: string[];
+  [key: string]: unknown;
+};
 
-/** Anthropic tool schemas for Clauxen Agent (OpenClaw-style). */
+export type PlatformTool = {
+  name: string;
+  description: string;
+  input_schema: PlatformToolInputSchema;
+};
+
+/** OpenAI-compatible tool schemas for Clauxen Agent (OpenClaw-style). */
 export type PlatformToolName =
   | "bash_tool"
   | "create_file"
@@ -20,12 +31,12 @@ export type PlatformToolName =
 function tool(
   name: PlatformToolName,
   description: string,
-  input_schema: AnthropicTool["input_schema"],
-): AnthropicTool {
+  input_schema: PlatformToolInputSchema,
+): PlatformTool {
   return { name, description, input_schema };
 }
 
-export function platformTools(): AnthropicTool[] {
+export function platformTools(): PlatformTool[] {
   return [
     tool(
       "bash_tool",

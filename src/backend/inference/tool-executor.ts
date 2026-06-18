@@ -22,6 +22,19 @@ import {
 
 export type ToolEventSender = (event: string, data: unknown) => void;
 
+const MAX_ARTIFACT_CHARS = 512_000;
+const MAX_BASH_COMMAND_CHARS = 8_000;
+
+const BLOCKED_BASH_PATTERNS = [
+  /\brm\s+-rf\s+\/\b/i,
+  /\bmkfs\b/i,
+  /\bdd\s+if=/i,
+  /\b:\(\)\s*\{\s*:\|:\s*&\s*\}\s*;/,
+  /\bchmod\s+-R\s+777\s+\//i,
+  /\bcurl\b[^\n|]*\|\s*(ba)?sh\b/i,
+  /\bwget\b[^\n|]*\|\s*(ba)?sh\b/i,
+];
+
 function parseArgs(raw?: string): Record<string, unknown> {
   if (!raw) return {};
   try {
@@ -40,11 +53,36 @@ async function resolveSandboxId(context?: {
   return info.sandboxId;
 }
 
+function assertSafeBashCommand(command: string) {
+  const trimmed = command.trim();
+  if (!trimmed) {
+    throw new Error("Bash command is required.");
+  }
+  if (trimmed.length > MAX_BASH_COMMAND_CHARS) {
+    throw new Error("Bash command exceeds maximum length.");
+  }
+  for (const pattern of BLOCKED_BASH_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      throw new Error("This bash command is blocked for safety.");
+    }
+  }
+}
+
+function clipArtifactContent(content: string) {
+  if (content.length <= MAX_ARTIFACT_CHARS) return content;
+  return `${content.slice(0, MAX_ARTIFACT_CHARS)}\n\n[truncated]`;
+}
+
 export async function executePlatformTool(
   name: PlatformToolName | string,
   rawArgs: string | undefined,
   send: ToolEventSender,
-  context?: { userId?: string; conversationId?: string },
+  context?: {
+    userId?: string;
+    conversationId?: string;
+    userCountryCode?: string;
+    toolCallId?: string;
+  },
 ): Promise<string> {
   const args = parseArgs(rawArgs);
 
@@ -69,7 +107,7 @@ export async function executePlatformTool(
           E2B_DOMAIN: "sandbox.novita.ai",
           NOVITA_API_KEY: "required",
           LLM_API_KEY: "required",
-          LLM_BASE_URL: "https://api.novita.ai/anthropic",
+          LLM_BASE_URL: "https://api.novita.ai/openai",
         },
         code: browserUseRecipe(
           String(args.task ?? "Open example.com"),
@@ -96,7 +134,7 @@ export async function executePlatformTool(
       await writeSandboxFile(sandboxId, path, content);
       send("file_created", {
         path,
-        content,
+        content: clipArtifactContent(content),
         description,
         language: inferLanguage(path),
       });
@@ -107,6 +145,7 @@ export async function executePlatformTool(
     case "bash_tool": {
       const command = String(args.command ?? "");
       const description = String(args.description ?? "");
+      assertSafeBashCommand(command);
       const sandboxId = await resolveSandboxId(context);
       send("sandbox_ready", { auto_created: true, sandboxId });
       const result = await runSandboxCommand(sandboxId, {
@@ -150,7 +189,7 @@ export async function executePlatformTool(
       await writeSandboxFile(sandboxId, path, updated);
       send("file_updated", {
         path,
-        content: updated,
+        content: clipArtifactContent(updated),
         language: inferLanguage(path),
       });
       return `Replaced content in ${path}`;
@@ -165,7 +204,7 @@ export async function executePlatformTool(
         const content = await readSandboxFile(sandboxId, path);
         send("file_created", {
           path,
-          content,
+          content: clipArtifactContent(content),
           language: inferLanguage(path),
           description: "Presented file",
         });
@@ -185,8 +224,17 @@ export async function executePlatformTool(
         });
       }
       try {
-        const results = await searchWebWithExa(query);
-        send("web_search_results", { query, results });
+        const searchPayload = {
+          query,
+          tool_call_id: context?.toolCallId,
+        };
+        const results = await searchWebWithExa(query, {
+          userLocation: context?.userCountryCode,
+          onPartialResults: (partial) => {
+            send("web_search_results", { ...searchPayload, results: partial });
+          },
+        });
+        send("web_search_results", { ...searchPayload, results });
         return JSON.stringify(results);
       } catch (error) {
         const message =

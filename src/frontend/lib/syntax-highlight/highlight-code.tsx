@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useMemo, useRef } from "react";
-import type { StreamFadeConfig } from "@/frontend/lib/streaming-text-animation";
+import {
+  computeStreamTokenDurationMs,
+  type StreamFadeConfig,
+} from "@/frontend/lib/streaming-text-animation";
 import { tokenizeLines } from "./tokenize";
 import { tokenColor } from "./theme";
 import { normalizeLanguage } from "./languages";
@@ -27,6 +30,7 @@ function renderToken(
     charOffset: number;
     newContentStart: number;
     streamFade?: StreamFadeConfig;
+    chunkDurationMs?: number;
   },
 ) {
   const kind = token.kind as SyntaxTokenKind;
@@ -38,16 +42,16 @@ function renderToken(
   return (
     <span
       key={key}
+      className={shouldAnimate ? "stream-token-enter" : undefined}
       style={{
         color: tokenColor(kind),
         ...(shouldAnimate
           ? {
               animationName: options!.streamFade!.animation,
-              animationDuration: options!.streamFade!.animationDuration,
+              animationDuration: `${options!.chunkDurationMs ?? 160}ms`,
               animationTimingFunction:
                 options!.streamFade!.animationTimingFunction,
               animationIterationCount: 1,
-              display: "inline-block",
             }
           : {}),
       }}
@@ -72,6 +76,9 @@ export function HighlightCode({
   );
 
   const prevCodeRef = useRef("");
+  const lastChunkAtRef = useRef(0);
+  const chunkDurationMsRef = useRef(48);
+
   const newContentStart = useMemo(() => {
     if (!streamFade) {
       prevCodeRef.current = sanitizedCode;
@@ -81,16 +88,35 @@ export function HighlightCode({
     const previous = prevCodeRef.current;
     if (!previous || sanitizedCode.length < previous.length) {
       prevCodeRef.current = sanitizedCode;
+      lastChunkAtRef.current = performance.now();
+      chunkDurationMsRef.current = computeStreamTokenDurationMs(
+        0,
+        sanitizedCode.length,
+      );
       return 0;
     }
 
     if (sanitizedCode.startsWith(previous)) {
       const start = previous.length;
+      const deltaLength = sanitizedCode.length - previous.length;
+      const now = performance.now();
+      const elapsed =
+        lastChunkAtRef.current > 0 ? now - lastChunkAtRef.current : 0;
+      chunkDurationMsRef.current = computeStreamTokenDurationMs(
+        elapsed,
+        deltaLength,
+      );
+      lastChunkAtRef.current = now;
       prevCodeRef.current = sanitizedCode;
       return start;
     }
 
     prevCodeRef.current = sanitizedCode;
+    lastChunkAtRef.current = performance.now();
+    chunkDurationMsRef.current = computeStreamTokenDurationMs(
+      0,
+      sanitizedCode.length,
+    );
     return 0;
   }, [sanitizedCode, streamFade]);
 
@@ -101,11 +127,11 @@ export function HighlightCode({
       className={className}
       style={{
         margin: 0,
-        padding: "1rem 1rem 1rem 0.75rem",
+        padding: "0.75rem 0.875rem 0.75rem 0.625rem",
         background: "transparent",
         fontFamily: CODE_FONT,
-        fontSize: "13px",
-        lineHeight: "1.65",
+        fontSize: "12.5px",
+        lineHeight: "1.55",
         color: tokenColor("plain"),
         tabSize: 2,
         whiteSpace: "pre",
@@ -132,7 +158,7 @@ export function HighlightCode({
               style={{
                 display: "flex",
                 alignItems: "flex-start",
-                minHeight: "1.65em",
+                minHeight: "1.55em",
               }}
             >
               {showLineNumbers ? (
@@ -142,7 +168,7 @@ export function HighlightCode({
                   style={{
                     flex: "0 0 auto",
                     width: `${lineNumberWidth + 2}ch`,
-                    paddingRight: "1.25rem",
+                    paddingRight: "1rem",
                     textAlign: "right",
                     color: tokenColor("lineNumber"),
                     userSelect: "none",
@@ -162,6 +188,7 @@ export function HighlightCode({
                               charOffset: lineCharOffset,
                               newContentStart,
                               streamFade,
+                              chunkDurationMs: chunkDurationMsRef.current,
                             }
                           : undefined,
                       );

@@ -1,4 +1,6 @@
 import type { AgentSegment } from "@/frontend/lib/agent-segments";
+import type { AgentFrame } from "@/frontend/lib/agent-frames";
+import type { ChatArtifact } from "@/frontend/lib/chat-artifacts";
 
 export type MessageBranchVersion = {
   readonly content: string;
@@ -6,8 +8,10 @@ export type MessageBranchVersion = {
   readonly hasThinking?: boolean;
   readonly thinkingDurationSeconds?: number;
   readonly agentSegments?: AgentSegment[];
+  readonly agentFrames?: AgentFrame[];
   readonly agentMode?: boolean;
   readonly agentFrameComplete?: boolean;
+  readonly agentArtifacts?: ChatArtifact[];
   readonly snapshot?: readonly Message[];
 };
 
@@ -24,6 +28,9 @@ export type Message = {
   agentMode?: boolean;
   agentFrameComplete?: boolean;
   agentSegments?: AgentSegment[];
+  agentFrames?: AgentFrame[];
+  activeAgentFrameIndex?: number;
+  agentArtifacts?: ChatArtifact[];
   branchVersions?: MessageBranchVersion[];
   activeBranchIndex?: number;
 };

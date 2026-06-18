@@ -12,6 +12,8 @@ import {
   SettingsOptionPicker,
   SettingsPanelTitle,
   SettingsRow,
+  SettingsSection,
+  SettingsSectionHeading,
   SettingsToggleRow,
   SettingsVoiceControl,
 } from "./settings-ui";
@@ -73,10 +75,10 @@ export function GeneralSettings({
     accentColors.find((c) => c.name === accentColor) ?? accentColors[0];
 
   return (
-    <div className="flex animate-in fade-in flex-col gap-6 duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
       <SettingsPanelTitle>General</SettingsPanelTitle>
 
-      <div className="flex flex-col">
+      <SettingsSection title="Preferences">
         <SettingsRow label="Appearance">
           <SettingsOptionPicker
             value={appearancePreset}
@@ -124,13 +126,24 @@ export function GeneralSettings({
           />
         </SettingsRow>
 
+        <SettingsRow label="Chat font">
+          <SettingsOptionPicker
+            value={chatFont}
+            options={fontThemes.map((theme) => theme.name)}
+            onValueChange={setChatFont}
+          />
+        </SettingsRow>
+
         <SettingsToggleRow
-          label={<span className="font-medium">Enable Dictation</span>}
+          label="Enable Dictation"
           description="Use dictation in the chat composer."
           checked={dictationEnabled}
           onCheckedChange={setDictationEnabled}
+          borderless
         />
+      </SettingsSection>
 
+      <SettingsSection title="Voice">
         <SettingsRow
           label="Spoken language"
           description="For best results, select the language you mainly speak. If it's not listed, it may still be supported via auto-detection."
@@ -151,38 +164,35 @@ export function GeneralSettings({
         </SettingsRow>
 
         <SettingsToggleRow
-          label={<span className="font-medium">Separate Voice</span>}
+          label="Separate Voice"
           description="Keep Clauxen Voice in a separate full screen, without real time transcripts and visuals."
           checked={voiceIsolation}
           onCheckedChange={setVoiceIsolation}
           borderless
         />
-      </div>
+      </SettingsSection>
 
-      <section className="flex flex-col gap-4 border-t border-zinc-200 pt-6">
-        <h3 className="text-[14px] font-semibold text-zinc-700">
-          Display preferences
-        </h3>
-        <p className="text-[12px] leading-4 text-zinc-400">
-          Additional Clauxen display options not shown in the compact General
-          list.
+      <SettingsSection>
+        <SettingsSectionHeading>Display preferences</SettingsSectionHeading>
+        <p className="mb-4 text-[14px] leading-5 text-zinc-500">
+          Additional Clauxen display options.
         </p>
 
         <div className="flex flex-col gap-4">
-          <p className="text-[14px] font-[430] text-zinc-700">Color mode</p>
-          <div className="flex gap-4">
+          <p className="text-[14px] text-zinc-900">Color mode</p>
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
             {["Light", "Auto", "Dark"].map((mode) => (
               <div
                 key={mode}
-                className="flex flex-1 flex-col items-center gap-2"
+                className="flex min-w-0 flex-col items-center gap-2"
               >
                 <button
                   type="button"
                   onClick={() => setColorMode(mode)}
                   className={cn(
-                    "aspect-[4/3] w-full overflow-hidden rounded-xl border border-zinc-200 shadow-sm transition-all hover:scale-[1.02]",
+                    "aspect-[4/3] w-full overflow-hidden rounded-lg border border-[rgba(11,11,11,0.1)] shadow-sm transition-all hover:scale-[1.02]",
                     colorMode.toLowerCase() === mode.toLowerCase() &&
-                      "border-[#1b67b2] ring-1 ring-[#1b67b2]",
+                      "border-zinc-800 ring-1 ring-zinc-800",
                   )}
                 >
                   <div
@@ -191,32 +201,32 @@ export function GeneralSettings({
                       mode === "Light"
                         ? "bg-white"
                         : mode === "Dark"
-                          ? "bg-gray-900"
-                          : "bg-gradient-to-br from-white to-gray-900",
+                          ? "bg-zinc-900"
+                          : "bg-gradient-to-br from-white to-zinc-900",
                     )}
                   />
                 </button>
-                <span className="text-[14px] text-zinc-700">{mode}</span>
+                <span className="text-[14px] text-zinc-600">{mode}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <p className="text-[14px] font-[430] text-zinc-700">Chat font</p>
-          <div className="flex gap-4">
+        <div className="mt-6 flex flex-col gap-4">
+          <p className="text-[14px] text-zinc-900">Chat font preview</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {fontThemes.map((theme) => (
               <div
                 key={theme.name}
-                className="flex flex-1 flex-col items-center gap-2"
+                className="flex min-w-0 flex-col items-center gap-2"
               >
                 <button
                   type="button"
                   onClick={() => setChatFont(theme.name)}
                   className={cn(
-                    "flex aspect-[4/3] w-full items-center justify-center rounded-xl border border-zinc-200 bg-white shadow-sm transition-all hover:scale-[1.02]",
+                    "flex aspect-[4/3] w-full items-center justify-center rounded-lg border border-[rgba(11,11,11,0.1)] bg-white shadow-sm transition-all hover:scale-[1.02]",
                     chatFont === theme.name &&
-                      "border-[#1b67b2] ring-1 ring-[#1b67b2]",
+                      "border-zinc-800 ring-1 ring-zinc-800",
                   )}
                 >
                   <span
@@ -229,14 +239,14 @@ export function GeneralSettings({
                     Aa
                   </span>
                 </button>
-                <span className="text-center text-[14px] leading-tight text-zinc-700">
+                <span className="text-center text-[14px] leading-tight text-zinc-600">
                   {theme.name}
                 </span>
               </div>
             ))}
           </div>
         </div>
-      </section>
+      </SettingsSection>
     </div>
   );
 }

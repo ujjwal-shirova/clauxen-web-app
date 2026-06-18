@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
-import "flowtoken/dist/styles.css";
+import "flowtoken/dist/components/animations.css";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
 import {
   normalizeLatexDelimiters,
@@ -13,6 +13,7 @@ import {
   useStreamingAnimateText,
   type StreamFadeConfig,
 } from "@/frontend/lib/streaming-text-animation";
+import { resetStreamTokenSessions } from "@/frontend/lib/streaming-token-reveal";
 import {
   StyledH1,
   StyledH2,
@@ -42,10 +43,7 @@ interface StreamingMarkdownProps {
 
 type AnimateTextFn = ReturnType<typeof useStreamingAnimateText>["animateText"];
 
-function createStreamingBlockCode(
-  streamFade: StreamFadeConfig,
-  blockAnimationStyle: React.CSSProperties,
-) {
+function createStreamingBlockCode(streamFade: StreamFadeConfig) {
   return function StreamingBlockCode({
     className,
     children,
@@ -67,36 +65,29 @@ function createStreamingBlockCode(
     };
 
     return (
-      <div style={blockAnimationStyle}>
-        <CodeBlockFrame
+      <CodeBlockFrame
+        language={resolvedLanguage}
+        onCopy={handleCopy}
+        isCopied={isCopied}
+      >
+        <HighlightCode
+          code={codeContent}
           language={resolvedLanguage}
-          onCopy={handleCopy}
-          isCopied={isCopied}
-        >
-          <HighlightCode
-            code={codeContent}
-            language={resolvedLanguage}
-            streamFade={streamFade}
-          />
-        </CodeBlockFrame>
-      </div>
+          streamFade={streamFade}
+        />
+      </CodeBlockFrame>
     );
   };
 }
 
 function createStreamingMarkdownComponents({
   animateText,
-  blockAnimationStyle,
   streamFade,
 }: {
   animateText: AnimateTextFn;
-  blockAnimationStyle: React.CSSProperties;
   streamFade: StreamFadeConfig;
 }): Components {
-  const StreamingBlockCode = createStreamingBlockCode(
-    streamFade,
-    blockAnimationStyle,
-  );
+  const StreamingBlockCode = createStreamingBlockCode(streamFade);
 
   return {
     text: ({ children }) => <>{animateText(children)}</>,
@@ -141,8 +132,8 @@ function createStreamingMarkdownComponents({
     blockquote: ({ children }) => (
       <StyledBlockquote>{animateText(children)}</StyledBlockquote>
     ),
-    ul: ({ children }) => <div className="my-3 space-y-1">{children}</div>,
-    ol: ({ children }) => <div className="my-3 space-y-1">{children}</div>,
+    ul: ({ children }) => <div className="my-2.5 space-y-0.5">{children}</div>,
+    ol: ({ children }) => <div className="my-2.5 space-y-0.5">{children}</div>,
     li: ({ children, ...props }) => {
       const { ordered, index } = props as {
         ordered?: boolean;
@@ -159,9 +150,7 @@ function createStreamingMarkdownComponents({
       );
     },
     table: ({ children }) => (
-      <div style={blockAnimationStyle}>
-        <StyledTableContainer>{children}</StyledTableContainer>
-      </div>
+      <StyledTableContainer>{children}</StyledTableContainer>
     ),
     thead: ({ children }) => <StyledTableHeader>{children}</StyledTableHeader>,
     th: ({ children }) => (
@@ -174,11 +163,7 @@ function createStreamingMarkdownComponents({
     td: ({ children }) => (
       <StyledTableCell>{animateText(children)}</StyledTableCell>
     ),
-    hr: () => (
-      <div style={blockAnimationStyle}>
-        <StyledHorizontalRule />
-      </div>
-    ),
+    hr: () => <StyledHorizontalRule />,
     details: ({ children }) => (
       <StyledDetails>{children}</StyledDetails>
     ),
@@ -193,26 +178,31 @@ export const StreamingAnimatedMarkdown: React.FC<StreamingMarkdownProps> = ({
   streamKey,
 }) => {
   const normalizedContent = normalizeLatexDelimiters(content);
-  const { animateText, blockAnimationStyle, streamFade } = useStreamingAnimateText({
-    animation: "fadeIn",
-    animationDuration: "0.45s",
-    animationTimingFunction: "ease-out",
-    sep: "diff",
+  const resolvedStreamKey = streamKey ?? "assistant-stream";
+  const { animateText, streamFade } = useStreamingAnimateText({
+    streamKey: resolvedStreamKey,
+    animation: "clauxen-token-fade",
+    animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
   });
+
+  useEffect(() => {
+    return () => {
+      resetStreamTokenSessions(resolvedStreamKey);
+    };
+  }, [resolvedStreamKey]);
 
   const components = useMemo(
     () =>
       createStreamingMarkdownComponents({
         animateText,
-        blockAnimationStyle,
         streamFade,
       }),
-    [animateText, blockAnimationStyle, streamFade],
+    [animateText, streamFade],
   );
 
   return (
     <ReactMarkdown
-      key={streamKey ?? "assistant-stream"}
+      key={resolvedStreamKey}
       {...sharedReactMarkdownProps}
       components={components}
     >

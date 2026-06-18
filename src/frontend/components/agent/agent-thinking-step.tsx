@@ -1,11 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import type { AgentThinkingSegment } from "@/frontend/lib/agent-segments";
 import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
 import { AgentTimelineStep } from "./agent-timeline";
+
+function thinkingTitle(segment: AgentThinkingSegment): string {
+  if (segment.isStreaming) return "Thinking";
+  const durationSeconds =
+    segment.durationSeconds ??
+    (segment.startedAtMs
+      ? Math.max(1, Math.round((Date.now() - segment.startedAtMs) / 1000))
+      : 1);
+  return `Thought for ${durationSeconds}s`;
+}
 
 export function AgentThinkingStep({
   segment,
@@ -13,30 +23,11 @@ export function AgentThinkingStep({
   segment: AgentThinkingSegment;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const lineCount = useMemo(
-    () =>
-      segment.content
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean).length,
-    [segment.content],
-  );
+  const label = thinkingTitle(segment);
 
   if (!segment.content.trim() && !segment.isStreaming) {
     return null;
   }
-
-  const summary =
-    segment.content
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .find(Boolean)
-      ?.slice(0, 120) ??
-    (segment.isStreaming ? "Thinking" : "Thought");
-
-  const label = segment.isStreaming
-    ? "Thinking"
-    : `Thought for ${segment.durationSeconds ?? 0}s`;
 
   return (
     <AgentTimelineStep
@@ -54,7 +45,7 @@ export function AgentThinkingStep({
               segment.isStreaming && "shimmer-text",
             )}
           >
-            {segment.isStreaming ? label : summary}
+            {label}
           </span>
           <ChevronDown
             className={cn(
@@ -75,9 +66,6 @@ export function AgentThinkingStep({
               lightweightStream={segment.isStreaming}
             />
           </div>
-          {!segment.isStreaming && lineCount > 4 ? (
-            <div className="mt-2 text-[12px] text-zinc-400">{label}</div>
-          ) : null}
         </div>
       ) : null}
     </AgentTimelineStep>

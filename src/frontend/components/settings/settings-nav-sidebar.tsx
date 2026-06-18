@@ -1,24 +1,104 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronDown, Search } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
   settingsNav,
+  settingsNavByName,
   type SettingsTab,
 } from "@/frontend/components/settings/constants";
 
 interface SettingsNavSidebarProps {
   activeTab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
+  variant?: "sidebar" | "mobile-toolbar";
+}
+
+function NavButton({
+  tab,
+  isActive,
+  onSelect,
+}: {
+  tab: SettingsTab;
+  isActive: boolean;
+  onSelect: () => void;
+}) {
+  const item = settingsNavByName[tab];
+  const Icon = item.icon;
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-current={isActive ? "page" : undefined}
+        className={cn(
+          "flex h-8 w-full items-center gap-3 rounded-lg px-2 text-left text-[14px] leading-5 transition-colors duration-150",
+          isActive
+            ? "bg-[rgba(11,11,11,0.08)] font-medium text-zinc-900"
+            : "font-normal text-zinc-600 hover:bg-[rgba(11,11,11,0.04)] hover:text-zinc-900",
+        )}
+      >
+        <Icon
+          className={cn(
+            "h-5 w-5 shrink-0 stroke-[1.75]",
+            isActive ? "text-zinc-700" : "text-zinc-500",
+          )}
+          aria-hidden
+        />
+        <span className="truncate">{item.name}</span>
+      </button>
+    </li>
+  );
+}
+
+function SettingsSearchInput({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative", className)}>
+      <Search
+        className="pointer-events-none absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400"
+        aria-hidden
+      />
+      <input
+        type="search"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Search"
+        aria-label="Search settings"
+        className="h-9 w-full rounded-lg bg-white/80 py-0 pl-9 pr-2 text-[14px] leading-5 text-zinc-900 placeholder:text-zinc-400 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition-[box-shadow,background-color] duration-75 focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
+      />
+    </div>
+  );
 }
 
 export function SettingsNavSidebar({
   activeTab,
   onTabChange,
+  variant = "sidebar",
 }: SettingsNavSidebarProps) {
-  return (
-    <>
-      <div className="md:hidden">
+  const [query, setQuery] = useState("");
+
+  const filteredTabs = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return settingsNav.map((item) => item.name);
+    return settingsNav
+      .filter((item) => item.name.toLowerCase().includes(normalized))
+      .map((item) => item.name);
+  }, [query]);
+
+  if (variant === "mobile-toolbar") {
+    return (
+      <div className="flex flex-col gap-2">
+        <SettingsSearchInput value={query} onChange={setQuery} />
         <label htmlFor="settings-tab-select" className="sr-only">
           Settings section
         </label>
@@ -27,52 +107,43 @@ export function SettingsNavSidebar({
             id="settings-tab-select"
             value={activeTab}
             onChange={(event) => onTabChange(event.target.value as SettingsTab)}
-            className="h-11 w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3.5 pr-10 text-[14px] font-[430] text-zinc-700 shadow-sm outline-none ring-0 transition-colors hover:border-zinc-300 focus:border-zinc-400 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+            className="h-9 w-full appearance-none rounded-lg bg-white/80 px-3 pr-10 text-[14px] text-zinc-800 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition-colors focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
           >
-            {settingsNav.map((item) => (
-              <option key={item.name} value={item.name}>
-                {item.name}
-              </option>
-            ))}
+            {(filteredTabs.length > 0 ? filteredTabs : settingsNav.map((i) => i.name)).map(
+              (tab) => (
+                <option key={tab} value={tab}>
+                  {tab}
+                </option>
+              ),
+            )}
           </select>
           <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
         </div>
       </div>
+    );
+  }
 
-      <aside className="hidden self-start md:sticky md:top-4 md:block md:w-[220px]">
-        <nav
-          className="flex flex-col gap-0.5 pr-2"
-          aria-label="Settings categories"
-        >
-          {settingsNav.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.name;
+  return (
+    <nav
+      className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden"
+      aria-label="Settings"
+    >
+      <SettingsSearchInput value={query} onChange={setQuery} />
 
-            return (
-              <button
-                key={item.name}
-                type="button"
-                onClick={() => onTabChange(item.name)}
-                className={cn(
-                  "interactive-nav-item flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[14px] font-[430] leading-none transition-colors",
-                  isActive
-                    ? "bg-zinc-100 text-zinc-900"
-                    : "text-zinc-700 hover:bg-zinc-50",
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "h-[18px] w-[18px] shrink-0 stroke-[1.75]",
-                    isActive ? "text-zinc-900" : "text-zinc-700",
-                  )}
-                  aria-hidden
-                />
-                <span className="truncate">{item.name}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </aside>
-    </>
+      <p className="px-2 pt-3 text-[12px] leading-[14px] text-zinc-500">
+        Settings
+      </p>
+
+      <ul className="flex min-h-0 flex-1 flex-col gap-px overflow-y-auto pb-1">
+        {filteredTabs.map((tab) => (
+          <NavButton
+            key={tab}
+            tab={tab}
+            isActive={activeTab === tab}
+            onSelect={() => onTabChange(tab)}
+          />
+        ))}
+      </ul>
+    </nav>
   );
 }

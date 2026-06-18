@@ -33,6 +33,43 @@ export const settingsNav = [
 
 export type SettingsTab = (typeof settingsNav)[number]["name"];
 
+export const settingsNavByName = Object.fromEntries(
+  settingsNav.map((item) => [item.name, item]),
+) as Record<SettingsTab, (typeof settingsNav)[number]>;
+
+export const settingsNavGroups: ReadonlyArray<{
+  label: string;
+  items: readonly SettingsTab[];
+}> = [
+  {
+    label: "Preferences",
+    items: [
+      "General",
+      "Notifications",
+      "Personalization",
+      "Apps",
+      "Schedules",
+    ],
+  },
+  {
+    label: "Plan & data",
+    items: ["Billing", "Data controls", "Storage"],
+  },
+  {
+    label: "Privacy & account",
+    items: [
+      "Security",
+      "Parental controls",
+      "Trusted contact",
+      "Account",
+    ],
+  },
+  {
+    label: "Shortcuts",
+    items: ["Keyboard"],
+  },
+];
+
 export const fontThemes = [
   { name: "Default", serif: true },
   { name: "Sans", serif: false },

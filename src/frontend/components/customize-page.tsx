@@ -64,8 +64,8 @@ export function CustomizePage({
   );
 
   return (
-    <div className="relative flex h-full w-full animate-in flex-col overflow-hidden bg-zinc-50 font-sans md:flex-row md:border-l md:border-zinc-200">
-      <aside className="hidden w-[240px] shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 md:flex md:h-full">
+    <div className="relative flex h-full min-h-0 w-full animate-in flex-col overflow-hidden bg-white font-sans md:flex-row">
+      <aside className="hidden w-[240px] shrink-0 flex-col border-r border-zinc-100 bg-white md:flex md:h-full">
         <div className="flex items-center gap-2 p-4 pb-3">
           <button
             type="button"
@@ -103,11 +103,11 @@ export function CustomizePage({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div
           className={cn(
-            "sticky top-0 z-10 shrink-0 border-b border-zinc-200 bg-zinc-50 pt-[env(safe-area-inset-top)] md:hidden",
+            "sticky top-0 z-10 shrink-0 border-b border-zinc-100 bg-white pt-[env(safe-area-inset-top)] md:hidden",
             mobileInDetail && "hidden",
           )}
         >
-          <div className="flex items-center gap-2 px-3 py-2.5 sm:py-3">
+          <div className="flex items-center gap-2 px-4 py-3">
             <button
               type="button"
               onClick={onClose}
@@ -121,7 +121,7 @@ export function CustomizePage({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 px-3 pb-3">
+          <div className="grid grid-cols-2 gap-2 px-4 pb-4">
             {TAB_OPTIONS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -143,7 +143,7 @@ export function CustomizePage({
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
           {activeTab === null ? (
-            <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto p-4 sm:p-8">
+            <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10 sm:px-8 sm:py-16">
               <div className="flex w-full max-w-[530px] flex-col items-center gap-6 sm:gap-10">
                 <div className="flex flex-col items-center gap-3 text-center sm:gap-4">
                   <ToolboxIcon />

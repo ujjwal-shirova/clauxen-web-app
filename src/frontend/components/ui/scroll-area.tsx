@@ -30,14 +30,14 @@ const ScrollArea = React.forwardRef<
     >
       <ScrollAreaPrimitive.Viewport
         className={cn(
-          "app-scrollbar relative z-0 size-full min-h-0 rounded-[inherit] [&>div]:!block",
+          "app-scrollbar chat-scroll-viewport relative z-0 size-full min-h-0 rounded-[inherit] [overflow-anchor:none] [&>div]:!block",
           hasRailEnd && "min-w-0 flex-1",
         )}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
       {hasRailEnd ? (
-        <div className="relative z-30 hidden w-11 shrink-0 md:block">
+        <div className="chat-message-navigator-rail relative z-30 hidden md:block">
           {railEnd}
         </div>
       ) : null}

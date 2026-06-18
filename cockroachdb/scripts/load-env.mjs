@@ -20,9 +20,7 @@ export function loadEnvFile(path, { override = false } = {}) {
 }
 
 export function loadCrdbEnv(repoRoot) {
-  loadEnvFile(`${repoRoot}/cockroachdb/.env.local`);
-  loadEnvFile(`${repoRoot}/.env.local`, { override: true });
-  loadEnvFile(`${repoRoot}/.env.vercel.local`);
+  loadEnvFile(`${repoRoot}/.env.local`);
 }
 
 export function pgClientOpts(url) {

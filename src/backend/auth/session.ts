@@ -16,12 +16,13 @@ async function getKratosSession(
   const cookieHeader = request.headers.get("cookie");
   if (!cookieHeader || !env.oryKratosPublicUrl) return null;
 
-  const response = await fetch(`${env.oryKratosPublicUrl}/sessions/whoami`, {
-    headers: { cookie: cookieHeader },
-    cache: "no-store",
-  });
+  try {
+    const response = await fetch(`${env.oryKratosPublicUrl}/sessions/whoami`, {
+      headers: { cookie: cookieHeader },
+      cache: "no-store",
+    });
 
-  if (!response.ok) return null;
+    if (!response.ok) return null;
 
   const body = (await response.json()) as {
     identity?: {
@@ -44,6 +45,9 @@ async function getKratosSession(
     displayName,
     avatarUrl: null,
   };
+  } catch {
+    return null;
+  }
 }
 
 async function profileForUserId(userId: string): Promise<SessionUser | null> {

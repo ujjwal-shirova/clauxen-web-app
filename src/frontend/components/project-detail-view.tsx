@@ -5,6 +5,7 @@ import { ArrowLeft, MoreVertical, Plus, Star } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import { appBtn } from "@/frontend/lib/app-buttons";
 import type { ApiProject } from "@/frontend/lib/api/projects";
+import type { RecentChat } from "@/frontend/lib/types";
 import { PromptInput } from "@/frontend/components/prompt-input";
 import { SetProjectInstructionsDialog } from "@/frontend/components/set-project-instructions-dialog";
 import { ProjectFilesPanel } from "@/frontend/components/project-files-panel";
@@ -20,20 +21,34 @@ import {
   wouldExceedCapacity,
   type ProjectFileMeta,
 } from "@/frontend/lib/project-storage";
+import { ProjectDetailViewMobile } from "@/frontend/components/projects/project-detail-view-mobile";
+import { ProjectChatListRow } from "@/frontend/components/projects/project-chat-list-row";
+import { DeleteChatDialog } from "@/frontend/components/delete-chat-dialog";
+import { RenameChatDialog } from "@/frontend/components/rename-chat-dialog";
+import { useIsMobile } from "@/frontend/hooks/use-mobile";
 
 type ProjectDetailViewProps = {
   project: ApiProject;
   onBack: () => void;
-  onSendMessage: (prompt: string) => void;
+  onSendMessage: (prompt: string) => void | Promise<void>;
   onStopGeneration: () => void;
   isGenerating?: boolean;
   thinkingEnabled?: boolean;
   onThinkingEnabledChange?: (enabled: boolean) => void;
   webSearchEnabled?: boolean;
   onWebSearchEnabledChange?: (enabled: boolean) => void;
+  chatModel?: import("@/lib/chat-models").ChatModelId;
+  onChatModelChange?: (model: import("@/lib/chat-models").ChatModelId) => void;
+  projectChats?: RecentChat[];
+  onOpenChat?: (chatId: string) => void;
+  onOpenMobileNav?: () => void;
+  onRenameChat?: (chatId: string, newName: string) => void | Promise<void>;
+  onDeleteChat?: (chatId: string) => void | Promise<void>;
+  onPinChat?: (chatId: string, pinned: boolean) => void | Promise<void>;
+  activeChatId?: string | null;
 };
 
-/** Small icon button matching Claude project page (28×28, subtle hover). */
+/** Small icon button for project toolbar actions. */
 function ProjectIconButton({
   label,
   onClick,
@@ -71,7 +86,19 @@ export function ProjectDetailView({
   onThinkingEnabledChange,
   webSearchEnabled = false,
   onWebSearchEnabledChange,
+  chatModel = "helios",
+  onChatModelChange,
+  projectChats = [],
+  onOpenChat,
+  onOpenMobileNav,
+  onRenameChat,
+  onDeleteChat,
+  onPinChat,
+  activeChatId = null,
 }: ProjectDetailViewProps) {
+  const isMobile = useIsMobile();
+  const [renameChatId, setRenameChatId] = useState<string | null>(null);
+  const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [textDialogOpen, setTextDialogOpen] = useState(false);
@@ -198,7 +225,36 @@ export function ProjectDetailView({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-zinc-50 font-sans text-zinc-900">
+    <>
+      {isMobile ? (
+        <ProjectDetailViewMobile
+          project={project}
+          onBack={onBack}
+          onSendMessage={onSendMessage}
+          onStopGeneration={onStopGeneration}
+          isGenerating={isGenerating}
+          thinkingEnabled={thinkingEnabled}
+          onThinkingEnabledChange={onThinkingEnabledChange}
+          webSearchEnabled={webSearchEnabled}
+          onWebSearchEnabledChange={onWebSearchEnabledChange}
+          chatModel={chatModel}
+          onChatModelChange={onChatModelChange}
+          projectChats={projectChats}
+          onOpenChat={onOpenChat}
+          onOpenMobileNav={onOpenMobileNav}
+          onRenameChat={onRenameChat}
+          onDeleteChat={onDeleteChat}
+          onPinChat={onPinChat}
+          activeChatId={activeChatId}
+        />
+      ) : null}
+
+      <div
+        className={cn(
+          "flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white font-sans text-zinc-900",
+          isMobile && "hidden",
+        )}
+      >
       <input
         ref={fileInputRef}
         type="file"
@@ -208,123 +264,125 @@ export function ProjectDetailView({
         aria-hidden
       />
 
-      {/* Sticky top bar — back link */}
-      <header className="sticky top-0 z-20 shrink-0 bg-zinc-50">
-        <div className="mobile-page-inset relative mx-auto w-full max-w-[1280px] pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-4 lg:px-8 lg:pt-6">
-          <div className="flex items-center pb-3 sm:pb-4">
+      <main className="mx-auto flex w-full max-w-[720px] flex-1 flex-col overflow-y-auto px-6 pb-16 pt-8 lg:px-8">
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-6 inline-flex items-center gap-1.5 self-start rounded-lg px-2 py-1.5 -ml-2 text-[14px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+        >
+          <ArrowLeft className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+          All projects
+        </button>
+
+        <div className="mb-6 flex items-start gap-4">
+          <h1 className="min-w-0 flex-1 font-serif text-[32px] font-normal leading-[1.2] tracking-[-0.02em] text-zinc-900">
+            {project.name}
+          </h1>
+          <div className="flex shrink-0 items-center gap-1 pt-1">
+            <ProjectIconButton label={`More options for ${project.name}`}>
+              <MoreVertical className="h-5 w-5" strokeWidth={1.5} />
+            </ProjectIconButton>
+            <ProjectIconButton
+              label={starred ? "Unstar project" : "Star project"}
+              onClick={() => setStarred((s) => !s)}
+              className={starred ? "text-amber-600" : undefined}
+            >
+              <Star
+                className={cn("h-5 w-5", starred && "fill-current")}
+                strokeWidth={1.5}
+              />
+            </ProjectIconButton>
             <button
               type="button"
-              onClick={onBack}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 -ml-2 text-[14px] font-[430] leading-[19.6px] text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+              className="ml-1 inline-flex h-8 items-center rounded-lg border border-zinc-200 bg-white px-3.5 text-[13px] font-medium text-zinc-800 transition-colors hover:bg-zinc-50"
             >
-              <ArrowLeft className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-              All projects
+              Share
             </button>
           </div>
         </div>
-      </header>
 
-      {/* 12-column layout: ~7 cols main + ~5 cols sidebar */}
-      <main className="mobile-page-inset mx-auto w-full max-w-[1280px] flex-1 overflow-y-auto pb-12 pt-1 sm:pt-2 lg:px-8">
-        <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-12 lg:gap-0">
-          {/* Left — project title, prompt, empty chats */}
-          <div className="flex flex-col gap-5 lg:col-span-7">
-            {/* Title row */}
-            <div>
-              <div className="mb-3 flex items-start gap-3">
-                <h1 className="min-w-0 flex-1 font-serif text-[21px] font-medium leading-[1.3] text-zinc-700 sm:text-[24px] sm:leading-[31.2px]">
-                  {project.name}
-                </h1>
-                <div className="ml-auto flex shrink-0 items-center gap-1 pt-0.5">
-                  <ProjectIconButton label={`More options for ${project.name}`}>
-                    <MoreVertical className="h-5 w-5" strokeWidth={1.5} />
-                  </ProjectIconButton>
-                  <ProjectIconButton
-                    label={starred ? "Unstar project" : "Star project"}
-                    onClick={() => setStarred((s) => !s)}
-                    className={starred ? "text-amber-600" : undefined}
-                  >
-                    <Star
-                      className={cn("h-5 w-5", starred && "fill-current")}
-                      strokeWidth={1.5}
-                    />
-                  </ProjectIconButton>
-                </div>
-              </div>
-              {project.description ? (
-                <p className="text-[14px] font-[430] leading-[19.6px] text-zinc-700">
-                  {project.description}
-                </p>
-              ) : null}
-            </div>
+        {project.description ? (
+          <p className="mb-6 max-w-[52ch] text-[14px] leading-relaxed text-zinc-600">
+            {project.description}
+          </p>
+        ) : null}
 
-            {/* Shared new-chat prompt */}
-            <div className="w-full">
-              <PromptInput
-                onSendMessage={onSendMessage}
-                onStopGeneration={onStopGeneration}
-                isConversationStarted={false}
-                isGenerating={isGenerating}
-                thinkingEnabled={thinkingEnabled}
-                onThinkingEnabledChange={onThinkingEnabledChange}
-                webSearchEnabled={webSearchEnabled}
-                onWebSearchEnabledChange={onWebSearchEnabledChange}
-                showModelSelector={true}
-                focusKey={`project-${project.id}`}
-              />
-            </div>
-
-            {/* Empty chats placeholder */}
-            <div className="rounded-xl border border-zinc-200 px-4 py-6 text-center sm:px-6 sm:py-8 lg:px-8">
-              <p className="text-balance text-[14px] font-[430] leading-[19.6px] text-zinc-500">
-                Start a chat to keep conversations organized and re-use project
-                knowledge.
-              </p>
-            </div>
-          </div>
-
-          {/* Right — instructions & files */}
-          <div className="lg:col-span-5 lg:pl-12 lg:pr-4">
-            <div className="overflow-hidden rounded-2xl border border-zinc-200">
-              {/* Instructions */}
-              <section className="px-[22px] pb-4 pt-4">
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex h-6 items-center justify-between gap-4">
-                    <h2 className="text-[14px] font-medium leading-[19.6px] text-zinc-700">
-                      Instructions
-                    </h2>
-                    <ProjectIconButton
-                      label="Edit instructions"
-                      onClick={() => setInstructionsOpen(true)}
-                      className="-mr-2"
-                    >
-                      <Plus className="h-5 w-5" strokeWidth={1.75} />
-                    </ProjectIconButton>
-                  </div>
-                  {instructions ? (
-                    <p className="line-clamp-3 text-[12px] font-[430] leading-[16.8px] text-zinc-500">
-                      {instructions}
-                    </p>
-                  ) : (
-                    <p className="text-[12px] font-[430] leading-[16.8px] text-zinc-500 opacity-60">
-                      Add instructions to tailor Claude&apos;s responses
-                    </p>
-                  )}
-                </div>
-              </section>
-
-              <div className="h-px w-full bg-[#1f1f1e]/15" aria-hidden />
-
-              <ProjectFilesPanel
-                files={files}
-                onUploadFromDevice={handleUploadFromDevice}
-                onAddTextContent={() => setTextDialogOpen(true)}
-                onGitHub={() => setGithubDialogOpen(true)}
-                onFilesChange={persistFiles}
-              />
-            </div>
-          </div>
+        <div className="mb-8 w-full">
+          <PromptInput
+            onSendMessage={onSendMessage}
+            onStopGeneration={onStopGeneration}
+            isConversationStarted={false}
+            isGenerating={isGenerating}
+            thinkingEnabled={thinkingEnabled}
+            onThinkingEnabledChange={onThinkingEnabledChange}
+            webSearchEnabled={webSearchEnabled}
+            onWebSearchEnabledChange={onWebSearchEnabledChange}
+            chatModel={chatModel}
+            onChatModelChange={onChatModelChange}
+            showModelSelector={true}
+            focusKey={`project-${project.id}`}
+          />
         </div>
+
+        {projectChats.length > 0 ? (
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+            {projectChats.map((chat) => (
+              <ProjectChatListRow
+                key={chat.id}
+                chat={chat}
+                active={activeChatId === chat.id}
+                onOpen={() => onOpenChat?.(chat.id)}
+                onRename={() => setRenameChatId(chat.id)}
+                onPin={() => void onPinChat?.(chat.id, true)}
+                onUnpin={() => void onPinChat?.(chat.id, false)}
+                onDelete={() => setDeleteChatId(chat.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 px-6 py-10 text-center">
+            <p className="text-[14px] leading-relaxed text-zinc-500">
+              Start a chat above to keep conversations organized and reuse
+              project knowledge.
+            </p>
+          </div>
+        )}
+
+        <section className="mt-10 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
+          <div className="px-5 pb-4 pt-5">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex h-7 items-center justify-between gap-4">
+                <h2 className="text-[14px] font-medium text-zinc-800">
+                  Instructions
+                </h2>
+                <ProjectIconButton
+                  label="Edit instructions"
+                  onClick={() => setInstructionsOpen(true)}
+                  className="-mr-1"
+                >
+                  <Plus className="h-5 w-5" strokeWidth={1.75} />
+                </ProjectIconButton>
+              </div>
+              {instructions ? (
+                <p className="line-clamp-4 text-[13px] leading-relaxed text-zinc-600">
+                  {instructions}
+                </p>
+              ) : (
+                <p className="text-[13px] leading-relaxed text-zinc-400">
+                  Add instructions to tailor responses for this project.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="h-px w-full bg-zinc-100" aria-hidden />
+          <ProjectFilesPanel
+            files={files}
+            onUploadFromDevice={handleUploadFromDevice}
+            onAddTextContent={() => setTextDialogOpen(true)}
+            onGitHub={() => setGithubDialogOpen(true)}
+            onFilesChange={persistFiles}
+          />
+        </section>
       </main>
 
       <SetProjectInstructionsDialog
@@ -348,6 +406,35 @@ export function ProjectDetailView({
         projectId={project.id}
         onAddFiles={(added) => handleFilesAdded(added, "Sync started")}
       />
-    </div>
+
+      <RenameChatDialog
+        open={renameChatId != null}
+        onOpenChange={(open) => {
+          if (!open) setRenameChatId(null);
+        }}
+        chatTitle={
+          projectChats.find((c) => c.id === renameChatId)?.name ?? "New Chat"
+        }
+        onConfirm={(title) => {
+          if (renameChatId) void onRenameChat?.(renameChatId, title);
+          setRenameChatId(null);
+        }}
+      />
+
+      <DeleteChatDialog
+        open={deleteChatId != null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteChatId(null);
+        }}
+        chatTitle={
+          projectChats.find((c) => c.id === deleteChatId)?.name ?? "New Chat"
+        }
+        onConfirm={() => {
+          if (deleteChatId) void onDeleteChat?.(deleteChatId);
+          setDeleteChatId(null);
+        }}
+      />
+      </div>
+    </>
   );
 }

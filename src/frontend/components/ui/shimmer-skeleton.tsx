@@ -41,5 +41,5 @@ export function ShimmerSkeleton({
     );
   }
 
-  return <>{children}</>;
+  return <div className={cn(className)}>{children}</div>;
 }

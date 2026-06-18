@@ -49,9 +49,9 @@ export function RenameChatDialog({
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <header className="flex min-h-[52px] items-center justify-between px-4 pb-2.5 pt-2.5">
-            <h2 className="text-[18px] font-medium leading-7 text-zinc-900">
+            <DialogPrimitive.Title className="text-[18px] font-medium leading-7 text-zinc-900">
               Rename chat
-            </h2>
+            </DialogPrimitive.Title>
           </header>
 
           <div className="flex-1 overflow-auto px-4 pb-4 pt-1">

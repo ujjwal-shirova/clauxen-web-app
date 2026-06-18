@@ -100,10 +100,10 @@ export const markdownComponents = {
     <StyledBlockquote>{children}</StyledBlockquote>
   ),
   ul: ({ children }: { children?: React.ReactNode }) => (
-    <div className="my-3 space-y-1">{children}</div>
+    <div className="my-2.5 space-y-0.5">{children}</div>
   ),
   ol: ({ children }: { children?: React.ReactNode }) => (
-    <div className="my-3 space-y-1">{children}</div>
+    <div className="my-2.5 space-y-0.5">{children}</div>
   ),
   li: ({
     children,

@@ -227,9 +227,25 @@ export function PromptAddMenu({
         side="top"
         align="start"
         sideOffset={8}
-        className="z-[60] w-[200px] rounded-[10px] border border-zinc-200/90 bg-white p-1 font-sans text-zinc-900 shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+        onCloseAutoFocus={(event) => event.preventDefault()}
+        className="ui-menu z-[60] w-[200px] rounded-[10px] border border-zinc-200/90 bg-white p-1 font-sans text-zinc-900 shadow-[0_8px_24px_rgba(0,0,0,0.10)]"
       >
-        <div role="menu" aria-orientation="vertical" className="outline-none">
+        <div
+          role="menu"
+          aria-label="Add agents, context, tools"
+          aria-orientation="vertical"
+          className="ui-menu__layout outline-none"
+        >
+          <div className="ui-menu__search-row p-1">
+            <div className="ui-input-group rounded-md bg-zinc-100/70 px-2">
+              <input
+                aria-label="Search menu items"
+                placeholder="Add agents, context, tools..."
+                className="ui-input-group__input h-7 w-full bg-transparent text-[12.5px] text-zinc-800 outline-none placeholder:text-zinc-400"
+                onKeyDown={(event) => event.stopPropagation()}
+              />
+            </div>
+          </div>
           {primaryItems({ onAddFiles, onTakeScreenshot }).map((item) => (
             <PromptAddMenuItem
               key={item.label}

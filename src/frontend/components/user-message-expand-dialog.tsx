@@ -71,6 +71,7 @@ type UserMessageExpandDialogProps = {
   onCancelEdit: () => void;
   onSaveEdit: (messageId: string) => void | Promise<void>;
   onCopy: (id: string, text: string) => void;
+  onRetryUserMessage: (messageId: string) => void;
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
 };
 
@@ -86,6 +87,7 @@ export function UserMessageExpandDialog({
   onCancelEdit,
   onSaveEdit,
   onCopy,
+  onRetryUserMessage,
   onSwitchBranch,
 }: UserMessageExpandDialogProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -189,6 +191,10 @@ export function UserMessageExpandDialog({
               <HintTooltip content="Retry">
                 <button
                   type="button"
+                  onClick={() => {
+                    onRetryUserMessage(message.id);
+                    onOpenChange(false);
+                  }}
                   className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
                 >
                   <RetryIcon />

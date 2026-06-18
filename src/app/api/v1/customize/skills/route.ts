@@ -1,8 +1,10 @@
-import { withApiHandler } from "@/backend/http/api-handler"; // session + centralized error wrapper
-import { jsonData } from "@/backend/http/api-response"; // { data } success JSON envelope
-import { requireSession } from "@/backend/auth/require-session"; // null session → 401 throw
-import { AppError, notFound } from "@/backend/db/errors"; // validation 400, missing skill 404
-import * as customizeRepo from "@/backend/repositories/customize.repository"; // instruction profiles CRUD — parameterized SQL
+import { withApiHandler } from "@/backend/http/api-handler";
+import { jsonData } from "@/backend/http/api-response";
+import { requireSession } from "@/backend/auth/require-session";
+import { AppError, notFound } from "@/backend/db/errors";
+import * as customizeRepo from "@/backend/repositories/customize.repository";
+import * as userSkillsRepo from "@/backend/repositories/user-skills.repository";
+import { deleteObject } from "@/backend/storage/object-store";
 
 const SKILL_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -15,10 +17,16 @@ export const dynamic = "force-dynamic";
 export const GET = withApiHandler(
   async ({ session }) => {
     const user = requireSession(session);
-    const skills = await customizeRepo.listInstructionProfiles(user.id); // DB: user_id filter, title + instructions rows
-    return jsonData({ skills });
+    const [textSkills, fileSkills] = await Promise.all([
+      customizeRepo.listInstructionProfiles(user.id),
+      userSkillsRepo.listUserSkills(user.id),
+    ]);
+    return jsonData({
+      skills: textSkills,
+      fileSkills,
+    });
   },
-  { requireAuth: true }, // anonymous caller → 401 before handler body
+  { requireAuth: true },
 );
 
 export const POST = withApiHandler(
@@ -68,6 +76,46 @@ export const POST = withApiHandler(
     });
     if (!skill) throw notFound("Skill not found.");
     return jsonData({ skill }, 201);
+  },
+  { requireAuth: true },
+);
+
+export const DELETE = withApiHandler(
+  async ({ session, request }) => {
+    const user = requireSession(session);
+    const { searchParams } = new URL(request.url);
+    const skillId = searchParams.get("id");
+    const kind = searchParams.get("kind") ?? "file";
+
+    if (!skillId || !SKILL_ID_RE.test(skillId)) {
+      throw new AppError("Invalid skill id.", 400);
+    }
+
+    if (kind === "text") {
+      const removed = await customizeRepo.archiveInstructionProfile(
+        user.id,
+        skillId,
+      );
+      if (!removed) throw notFound("Skill not found.");
+      return jsonData({ ok: true });
+    }
+
+    const removed = await userSkillsRepo.softDeleteUserSkill(user.id, skillId);
+    if (!removed) throw notFound("Skill not found.");
+
+    if (removed.primary_object_key) {
+      try {
+        await deleteObject(
+          "skills",
+          removed.primary_object_key,
+          removed.storage_bucket,
+        );
+      } catch {
+        /* best effort */
+      }
+    }
+
+    return jsonData({ ok: true });
   },
   { requireAuth: true },
 );

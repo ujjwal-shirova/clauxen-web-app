@@ -1,13 +1,18 @@
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import {
   buildStructuredOutputTool,
-  extractAnthropicText,
-} from "@/backend/inference/anthropic-adapter";
+  convertAgentMessagesToOpenAi,
+  isFunctionToolCall,
+  prependSystemMessage,
+  toOpenAiTools,
+} from "@/backend/inference/openai-agent-adapter";
 import {
-  getAnthropicClient,
   DEFAULT_MODEL,
-} from "@/backend/inference/anthropic-client";
+  getOpenAIClient,
+} from "@/backend/inference/openai-client";
 import { extractPromptCacheStats } from "@/backend/inference/prompt-cache";
 import { env } from "@/backend/config/env";
+import type { PlatformTool } from "@/backend/inference/platform-tools";
 
 export const defaultStructuredSchema = () =>
   ({
@@ -65,25 +70,33 @@ export async function structuredAgentCompletion(opts: {
   temperature?: number;
   maxTokens?: number;
 }) {
-  const client = getAnthropicClient();
+  const client = getOpenAIClient();
   const tool = buildStructuredOutputTool(opts.schemaName, opts.schema);
-  const response = await client.messages.create(
+  const messages: ChatCompletionMessageParam[] = [
+    ...(opts.systemPrompt
+      ? [{ role: "system" as const, content: opts.systemPrompt }]
+      : []),
+    { role: "user", content: opts.prompt },
+  ];
+
+  const response = await client.chat.completions.create(
     {
       model: opts.model ?? env.defaultModel,
       max_tokens: opts.maxTokens ?? 1024,
       temperature: opts.temperature ?? 0.3,
-      system: opts.systemPrompt,
-      messages: [{ role: "user", content: opts.prompt }],
-      tools: [tool],
-      tool_choice: { type: "tool", name: opts.schemaName },
+      messages,
+      tools: toOpenAiTools([tool]),
+      tool_choice: {
+        type: "function",
+        function: { name: opts.schemaName },
+      },
     },
     { signal: opts.signal },
   );
 
-  const toolUse = response.content.find((block) => block.type === "tool_use");
-  const content = toolUse
-    ? JSON.stringify(toolUse.input)
-    : extractAnthropicText(response.content);
+  const choice = response.choices[0]?.message;
+  const toolCall = choice?.tool_calls?.find(isFunctionToolCall);
+  const content = toolCall?.function?.arguments ?? choice?.content ?? "";
   if (!content) throw new Error("Empty structured response");
 
   let parsed: unknown;
@@ -114,3 +127,5 @@ export async function structuredExpenseExtraction(prompt: string) {
     maxTokens: 1024,
   });
 }
+
+export { buildStructuredOutputTool, convertAgentMessagesToOpenAi, toOpenAiTools };

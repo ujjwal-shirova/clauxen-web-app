@@ -113,12 +113,14 @@ function PlanCarouselCard({
   maxTier,
   onMaxTierChange,
   onSelect,
+  ctaLabel,
 }: {
   plan: PlanCard;
   billingCycle: BillingCycle;
   maxTier: MaxTier;
   onMaxTierChange?: (tier: MaxTier) => void;
   onSelect: () => void;
+  ctaLabel?: string;
 }) {
   const features = resolvePlanFeatures(plan, { maxTier });
   const price = getPriceDisplay(plan, billingCycle, maxTier);
@@ -220,7 +222,7 @@ function PlanCarouselCard({
                   : "border-2 border-black/10 bg-white text-zinc-900 hover:bg-zinc-50",
               )}
             >
-              {plan.buttonLabel}
+              {ctaLabel ?? plan.buttonLabel}
             </button>
           )}
         </div>
@@ -255,10 +257,12 @@ function OrganizationPlanCarouselCard({
   plan,
   billingCycle,
   onSelect,
+  ctaLabel,
 }: {
   plan: OrganizationPlanCard;
   billingCycle: BillingCycle;
   onSelect: () => void;
+  ctaLabel?: string;
 }) {
   const cycle =
     plan.yearlySupported && billingCycle === "yearly" ? "yearly" : "monthly";
@@ -454,7 +458,7 @@ function OrganizationPlanCarouselCard({
                 : "border-2 border-black/10 bg-white text-zinc-900 hover:bg-zinc-50",
             )}
           >
-            {plan.buttonLabel}
+            {ctaLabel ?? plan.buttonLabel}
           </button>
         </div>
       </div>
@@ -489,10 +493,32 @@ function OrganizationPlanCarouselCard({
   );
 }
 
-export default function UpgradePageContent({
-  onClose,
-  onSelectPlan,
-}: UpgradePageContentProps) {
+export type PlansCarouselSectionProps = {
+  /** `tabs` switches individual vs team; `all` shows every plan in one row */
+  layout?: "tabs" | "all";
+  ctaLabel?: string;
+  onPersonalPlanSelect?: (
+    plan: PlanCard,
+    cycle: BillingCycle,
+    tier?: MaxTier,
+  ) => void;
+  onOrganizationPlanSelect?: (
+    plan: OrganizationPlanCard,
+    cycle: BillingCycle,
+  ) => void;
+  /** When set, every plan CTA invokes this instead of the select handlers */
+  onCtaClick?: () => void;
+  className?: string;
+};
+
+export function PlansCarouselSection({
+  layout = "tabs",
+  ctaLabel,
+  onPersonalPlanSelect,
+  onOrganizationPlanSelect,
+  onCtaClick,
+  className,
+}: PlansCarouselSectionProps) {
   const [activeTab, setActiveTab] = React.useState<"individual" | "team">(
     "individual",
   );
@@ -519,12 +545,12 @@ export default function UpgradePageContent({
       el.removeEventListener("scroll", updateScrollButtons);
       window.removeEventListener("resize", updateScrollButtons);
     };
-  }, [activeTab, updateScrollButtons]);
+  }, [activeTab, layout, updateScrollButtons]);
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ left: 0 });
     updateScrollButtons();
-  }, [activeTab, updateScrollButtons]);
+  }, [activeTab, layout, updateScrollButtons]);
 
   const scrollBy = (direction: "left" | "right") => {
     scrollRef.current?.scrollBy({
@@ -533,6 +559,184 @@ export default function UpgradePageContent({
     });
   };
 
+  const handlePersonalSelect = (plan: PlanCard) => {
+    if (onCtaClick) {
+      onCtaClick();
+      return;
+    }
+    const cycle =
+      plan.yearlySupported && billingCycle === "yearly" && plan.id !== "max"
+        ? "yearly"
+        : "monthly";
+    const tier = plan.id === "max" ? maxTier : undefined;
+    onPersonalPlanSelect?.(plan, cycle, tier);
+  };
+
+  const handleOrganizationSelect = (plan: OrganizationPlanCard) => {
+    if (onCtaClick) {
+      onCtaClick();
+      return;
+    }
+    const cycle =
+      plan.yearlySupported && billingCycle === "yearly" ? "yearly" : "monthly";
+    onOrganizationPlanSelect?.(plan, cycle);
+  };
+
+  const showIndividual =
+    layout === "all" || activeTab === "individual";
+  const showOrganization =
+    layout === "all" || activeTab === "team";
+
+  return (
+    <div className={cn("flex flex-col gap-3 sm:gap-4", className)}>
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        {layout === "tabs" ? (
+          <div className="rounded-[10px] bg-black/[0.043] p-0.5">
+            <button
+              type="button"
+              onClick={() => setActiveTab("individual")}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
+                activeTab === "individual"
+                  ? "bg-white shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-900",
+              )}
+            >
+              Individual
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("team")}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
+                activeTab === "team"
+                  ? "bg-white shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-900",
+              )}
+            >
+              Team & Enterprise
+            </button>
+          </div>
+        ) : null}
+
+        <div className="rounded-[10px] bg-black/[0.043] p-0.5">
+          <button
+            type="button"
+            onClick={() => setBillingCycle("monthly")}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
+              billingCycle === "monthly"
+                ? "bg-white shadow-sm"
+                : "text-zinc-500 hover:text-zinc-900",
+            )}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setBillingCycle("yearly")}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
+              billingCycle === "yearly"
+                ? "bg-white shadow-sm"
+                : "text-zinc-500 hover:text-zinc-900",
+            )}
+          >
+            Yearly (save {YEARLY_DISCOUNT_PERCENT}%)
+          </button>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 sm:ml-auto sm:gap-3">
+          <button
+            type="button"
+            aria-label="Scroll left"
+            disabled={!canScrollLeft}
+            onClick={() => scrollBy("left")}
+            className={cn(
+              "flex rounded-full p-1.5 shadow-sm transition-opacity",
+              canScrollLeft
+                ? "bg-white hover:bg-zinc-50"
+                : "cursor-default bg-white opacity-30",
+              CARD_SHADOW,
+            )}
+          >
+            <ChevronLeft className="h-[18px] w-[18px]" />
+          </button>
+          <button
+            type="button"
+            aria-label="Scroll right"
+            disabled={!canScrollRight}
+            onClick={() => scrollBy("right")}
+            className={cn(
+              "flex rounded-full p-1.5 shadow-sm transition-opacity",
+              canScrollRight
+                ? "bg-white hover:bg-zinc-50"
+                : "cursor-default bg-white opacity-30",
+              CARD_SHADOW,
+            )}
+          >
+            <ChevronRight className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+      </div>
+
+      <div className="relative -mx-4 overflow-hidden">
+        <div
+          ref={scrollRef}
+          className="flex items-start gap-5 overflow-x-auto px-7 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          style={{
+            maskImage:
+              "linear-gradient(90deg, transparent 0%, black 50px, black calc(100% - 50px), transparent 100%)",
+          }}
+        >
+          {showIndividual
+            ? PERSONAL_PLANS.map((plan) => (
+                <PlanCarouselCard
+                  key={plan.id}
+                  plan={plan}
+                  billingCycle={billingCycle}
+                  maxTier={maxTier}
+                  onMaxTierChange={
+                    plan.id === "max" ? setMaxTier : undefined
+                  }
+                  onSelect={() => handlePersonalSelect(plan)}
+                  ctaLabel={ctaLabel}
+                />
+              ))
+            : null}
+
+          {showOrganization
+            ? ORGANIZATION_PLANS.map((plan) => (
+                <OrganizationPlanCarouselCard
+                  key={plan.id}
+                  plan={plan}
+                  billingCycle={billingCycle}
+                  onSelect={() => handleOrganizationSelect(plan)}
+                  ctaLabel={ctaLabel}
+                />
+              ))
+            : null}
+        </div>
+      </div>
+
+      {layout === "tabs" && activeTab === "team" ? (
+        <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-zinc-50 p-3 text-[13px] text-zinc-600">
+          <Info className="h-4 w-4 shrink-0" />
+          <span>
+            Work email required. Each seat can be Plus, Pro, Max 5x, or Max 20x
+            — Go is not available on organization plans. Minimum seats: Team 2 ·
+            Business 4 · Enterprise 10.
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export default function UpgradePageContent({
+  onClose,
+  onSelectPlan,
+}: UpgradePageContentProps) {
   const handlePersonalPlanSelection = (
     plan: PlanCard,
     cycle: BillingCycle,
@@ -542,10 +746,11 @@ export default function UpgradePageContent({
     onSelectPlan(plan.id, cycle, tier);
   };
 
-  const handleOrganizationPlanSelection = (plan: OrganizationPlanCard) => {
+  const handleOrganizationPlanSelection = (
+    plan: OrganizationPlanCard,
+    cycle: BillingCycle,
+  ) => {
     if (!CHECKOUT_PLAN_IDS.has(plan.id)) return;
-    const cycle =
-      plan.yearlySupported && billingCycle === "yearly" ? "yearly" : "monthly";
     onSelectPlan(plan.id, cycle);
   };
 
@@ -571,159 +776,11 @@ export default function UpgradePageContent({
       </header>
 
       <main className="mobile-page-inset mx-auto flex w-full max-w-[1152px] flex-col gap-5 py-5 pb-24 sm:gap-6 sm:py-6 lg:px-6">
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-            <div className="rounded-[10px] bg-black/[0.043] p-0.5">
-              <button
-                type="button"
-                onClick={() => setActiveTab("individual")}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-                  activeTab === "individual"
-                    ? "bg-white shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-900",
-                )}
-              >
-                Individual
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("team")}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-                  activeTab === "team"
-                    ? "bg-white shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-900",
-                )}
-              >
-                Team & Enterprise
-              </button>
-            </div>
-
-            <div className="rounded-[10px] bg-black/[0.043] p-0.5">
-              <button
-                type="button"
-                onClick={() => setBillingCycle("monthly")}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-                  billingCycle === "monthly"
-                    ? "bg-white shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-900",
-                )}
-              >
-                Monthly
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillingCycle("yearly")}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-                  billingCycle === "yearly"
-                    ? "bg-white shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-900",
-                )}
-              >
-                Yearly (save {YEARLY_DISCOUNT_PERCENT}%)
-              </button>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 sm:ml-auto sm:gap-3">
-              <a
-                href="#"
-                onClick={handlePlaceholderLinkClick}
-                className="hidden rounded-lg border-2 border-black/10 px-2.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-zinc-50 sm:inline-flex"
-              >
-                Talk to Sales
-              </a>
-              <button
-                type="button"
-                aria-label="Scroll left"
-                disabled={!canScrollLeft}
-                onClick={() => scrollBy("left")}
-                className={cn(
-                  "flex rounded-full p-1.5 shadow-sm transition-opacity",
-                  canScrollLeft
-                    ? "bg-white hover:bg-zinc-50"
-                    : "cursor-default bg-white opacity-30",
-                  CARD_SHADOW,
-                )}
-              >
-                <ChevronLeft className="h-[18px] w-[18px]" />
-              </button>
-              <button
-                type="button"
-                aria-label="Scroll right"
-                disabled={!canScrollRight}
-                onClick={() => scrollBy("right")}
-                className={cn(
-                  "flex rounded-full p-1.5 shadow-sm transition-opacity",
-                  canScrollRight
-                    ? "bg-white hover:bg-zinc-50"
-                    : "cursor-default bg-white opacity-30",
-                  CARD_SHADOW,
-                )}
-              >
-                <ChevronRight className="h-[18px] w-[18px]" />
-              </button>
-            </div>
-          </div>
-
-          <div className="relative -mx-4 overflow-hidden">
-            <div
-              ref={scrollRef}
-              className="flex items-start gap-5 overflow-x-auto px-7 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              style={{
-                maskImage:
-                  "linear-gradient(90deg, transparent 0%, black 50px, black calc(100% - 50px), transparent 100%)",
-              }}
-            >
-              {activeTab === "individual"
-                ? PERSONAL_PLANS.map((plan) => {
-                    const cycle =
-                      plan.yearlySupported &&
-                      billingCycle === "yearly" &&
-                      plan.id !== "max"
-                        ? "yearly"
-                        : "monthly";
-                    const tier = plan.id === "max" ? maxTier : undefined;
-
-                    return (
-                      <PlanCarouselCard
-                        key={plan.id}
-                        plan={plan}
-                        billingCycle={billingCycle}
-                        maxTier={maxTier}
-                        onMaxTierChange={
-                          plan.id === "max" ? setMaxTier : undefined
-                        }
-                        onSelect={() =>
-                          handlePersonalPlanSelection(plan, cycle, tier)
-                        }
-                      />
-                    );
-                  })
-                : ORGANIZATION_PLANS.map((plan) => (
-                    <OrganizationPlanCarouselCard
-                      key={plan.id}
-                      plan={plan}
-                      billingCycle={billingCycle}
-                      onSelect={() => handleOrganizationPlanSelection(plan)}
-                    />
-                  ))}
-            </div>
-          </div>
-
-          {activeTab === "team" && (
-            <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-zinc-50 p-3 text-[13px] text-zinc-600">
-              <Info className="h-4 w-4 shrink-0" />
-              <span>
-                Work email required. Each seat can be Plus, Pro, Max 5x, or Max
-                20x — Go is not available on organization plans. Minimum seats:
-                Team 2 · Business 4 · Enterprise 10.
-              </span>
-            </div>
-          )}
-        </div>
+        <PlansCarouselSection
+          layout="tabs"
+          onPersonalPlanSelect={handlePersonalPlanSelection}
+          onOrganizationPlanSelect={handleOrganizationPlanSelection}
+        />
 
         <p className="text-center text-[13px] text-zinc-500">
           *
@@ -741,3 +798,5 @@ export default function UpgradePageContent({
     </div>
   );
 }
+
+export { PlanCarouselCard, OrganizationPlanCarouselCard };

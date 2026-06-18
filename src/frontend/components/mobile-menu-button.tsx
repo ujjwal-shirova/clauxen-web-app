@@ -7,18 +7,20 @@ interface MobileMenuButtonProps {
   onClick: () => void;
   className?: string;
   "aria-controls"?: string;
+  "aria-expanded"?: boolean;
 }
 
 export function MobileMenuButton({
   onClick,
   className,
   "aria-controls": ariaControls,
+  "aria-expanded": ariaExpanded,
 }: MobileMenuButtonProps) {
   return (
     <button
       type="button"
       aria-label="Open navigation menu"
-      aria-expanded={false}
+      aria-expanded={ariaExpanded ?? false}
       aria-controls={ariaControls}
       onClick={onClick}
       className={cn(

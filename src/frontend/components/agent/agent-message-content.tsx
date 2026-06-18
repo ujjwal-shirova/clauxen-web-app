@@ -5,7 +5,11 @@ import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
 import { ThinkingBlock } from "@/frontend/components/thinking-block";
 import { OrbCursor } from "@/frontend/components/ui/orb-cursor";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
-import { AgentWorkFrame } from "./agent-work-frame";
+import {
+  resolveAgentFrames,
+  resolveOrchestrationBlocks,
+} from "@/frontend/lib/agent-frames";
+import { AgentOrchestrationView } from "./agent-orchestration";
 
 export function AgentMessageContent({
   message,
@@ -14,32 +18,20 @@ export function AgentMessageContent({
   message: Message;
   detailLevel: MessageDetailLevel;
 }) {
-  const segments = message.agentSegments ?? [];
-  const frameComplete =
-    message.agentFrameComplete === true || message.isStreaming === false;
-  const hasWorkSegments = segments.some(
-    (segment) => segment.kind === "thinking" || segment.kind === "tool",
-  );
-  const showFrame = hasWorkSegments;
-
-  const hasActiveWork = segments.some(
-    (segment) =>
-      (segment.kind === "thinking" && segment.isStreaming) ||
-      (segment.kind === "tool" && segment.status === "running"),
-  );
+  const frames = resolveAgentFrames(message);
+  const blocks = resolveOrchestrationBlocks(message);
+  const hasAgentUi =
+    message.agentMode === true ||
+    frames.length > 0 ||
+    blocks.length > 0 ||
+    (message.agentSegments?.length ?? 0) > 0;
 
   const showOrb =
     message.isStreaming === true &&
-    !hasActiveWork &&
-    !frameComplete &&
-    message.content.trim().length === 0;
+    message.content.trim().length === 0 &&
+    blocks.length === 0;
 
-  const showFinalOutput =
-    message.content.trim().length > 0 &&
-    frameComplete &&
-    (message.agentFrameComplete === true || message.isStreaming === false);
-
-  if (!message.agentMode && segments.length === 0) {
+  if (!hasAgentUi) {
     return (
       <>
         {(message.hasThinking ||
@@ -70,28 +62,7 @@ export function AgentMessageContent({
 
   return (
     <div className="w-full min-w-0">
-      {showFrame ? (
-        <AgentWorkFrame
-          segments={segments}
-          isStreaming={!!message.isStreaming}
-          frameComplete={frameComplete}
-        />
-      ) : null}
-
-      {showOrb ? (
-        <div className="flex items-center py-1">
-          <OrbCursor />
-        </div>
-      ) : null}
-
-      {showFinalOutput ? (
-        <MarkdownRenderer
-          content={message.content}
-          isStreaming={!!message.isStreaming && frameComplete}
-          streamKey={message.id}
-          detailLevel={detailLevel}
-        />
-      ) : null}
+      <AgentOrchestrationView message={message} detailLevel={detailLevel} />
     </div>
   );
 }
