@@ -13,6 +13,7 @@ import {
   Sparkles,
   Library,
   X,
+  LayoutGrid,
 } from "lucide-react";
 import {
   SidebarToggleIcon,
@@ -48,78 +49,6 @@ import {
 import type { RecentChat } from "@/frontend/lib/types";
 
 const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
-
-const DownloadButton = ({
-  size = "md",
-  className,
-  onClick,
-  decorative = false,
-}: {
-  size?: "sm" | "md" | "lg";
-  className?: string;
-  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  decorative?: boolean;
-}) => {
-  const content = (
-    <>
-    <div
-      className={cn(
-        "flex items-center justify-center bg-white border border-zinc-200 rounded-md shadow-sm transition-all hover:bg-zinc-50",
-        size === "sm"
-          ? "w-6 h-6"
-          : size === "lg"
-            ? "w-[34px] h-[34px]"
-            : "w-8 h-8",
-      )}
-    >
-      <svg
-        width={size === "sm" ? "16" : "20"}
-        height={size === "sm" ? "16" : "20"}
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-        style={{ fill: "rgb(20, 20, 19)" }}
-      >
-        <path d="M10 3C10.2761 3 10.5 3.22386 10.5 3.5V12.1855L13.626 8.66797C13.8094 8.46166 14.1256 8.44275 14.332 8.62598C14.5383 8.80936 14.5573 9.12563 14.374 9.33203L10.374 13.832L10.2949 13.9033C10.21 13.9654 10.107 14 10 14C9.85718 14 9.72086 13.9388 9.62598 13.832L5.62598 9.33203L5.56738 9.25C5.45079 9.04872 5.48735 8.78653 5.66797 8.62598C5.84854 8.46567 6.1127 8.46039 6.29883 8.59961L6.37402 8.66797L9.5 12.1855V3.5C9.5 3.22386 9.72386 3 10 3Z" />
-        <path d="M3.5 13C3.22386 13 3 13.2239 3 13.5V15.5C3 16.3284 3.67157 17 4.5 17H10V16H4.5C4.22386 16 4 15.7761 4 15.5V13.5C4 13.2239 3.77614 13 3.5 13Z" />
-        <path d="M16.5 13C16.7761 13 17 13.2239 17 13.5V15.5C17 16.3284 16.3284 17 15.5 17H10V16H15.5C15.7761 16 16 15.7761 16 15.5V13.5C16 13.2239 16.2239 13 16.5 13Z" />
-      </svg>
-    </div>
-    <span
-      className={cn(
-        "absolute pointer-events-none flex h-2 w-2 z-20",
-        size === "sm" ? "-top-0.5 -right-0.5" : "-top-1 -right-1",
-      )}
-    >
-      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2c84db] opacity-75"></span>
-      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2c84db]"></span>
-    </span>
-    </>
-  );
-
-  if (decorative) {
-    return (
-      <span
-        aria-hidden
-        className={cn("relative group inline-flex", className)}
-      >
-        {content}
-      </span>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      aria-label="Apps and extensions"
-      onClick={onClick}
-      className={cn("relative group cursor-pointer", className)}
-    >
-      {content}
-    </button>
-  );
-};
 
 const CustomizeIcon = () => (
   <svg
@@ -612,15 +541,6 @@ export function Sidebar({
               ]}
             />
           ) : null}
-          {isCollapsed && (
-            <DownloadButton
-              size="md"
-              onClick={(e) => {
-                e.stopPropagation();
-                runNavAction(onAppsExtensionsClick);
-              }}
-            />
-          )}
           <div
             className={cn(
               "flex items-center",
@@ -729,8 +649,8 @@ export function Sidebar({
                 onClick={() => runNavAction(onAppsExtensionsClick)}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
               >
-                <DownloadButton size="sm" decorative />
-                <span className="ml-2">Apps and extensions</span>
+                <LayoutGrid className="w-5 h-5 text-zinc-800" />
+                <span>Apps and extensions</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => runNavAction(onGiftClick)}
@@ -768,16 +688,6 @@ export function Sidebar({
               </DropdownMenuItem>
             </DropdownMenuContent>
             </DropdownMenu>
-            {!isCollapsed && (
-              <DownloadButton
-                size="md"
-                className="shrink-0 rounded-md p-0.5 transition-colors hover:bg-zinc-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  runNavAction(onAppsExtensionsClick);
-                }}
-              />
-            )}
           </div>
         </div>
       )}

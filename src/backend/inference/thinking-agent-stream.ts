@@ -20,10 +20,19 @@ import {
   type AssistantTurn,
   type ReasoningToolCall,
 } from "@/backend/inference/reasoning-message-history";
+import {
+  buildCacheableSystemPrefix,
+  orderMessagesForPromptCache,
+} from "@/backend/inference/prompt-cache";
+import { buildThinkingAgentSystemPrompt } from "@/backend/inference/agent-system-prompt";
 import { inferLanguage } from "@/backend/inference/platform-tools";
 
 const MAX_THINKING_ROUNDS = 25;
 const DEFAULT_MAX_TOKENS = 8192;
+
+// System prompt behaviour is centralised in agent-system-prompt.ts.
+// For the thinking-agent path, buildThinkingAgentSystemPrompt() returns null
+// (no system message) by design — see that file for the rationale.
 
 type NovitaStreamDelta = {
   content?: string | null;
@@ -78,8 +87,7 @@ function wireThinkingToolEvents(
       bridge.onArtifact({
         path: String(data.path ?? ""),
         content: String(data.content ?? ""),
-        language:
-          typeof data.language === "string" ? data.language : undefined,
+        language: typeof data.language === "string" ? data.language : undefined,
         description:
           typeof data.description === "string" ? data.description : undefined,
       });
@@ -108,6 +116,12 @@ function collectToolCalls(
 
 function formatToolOutput(output: unknown): string {
   return typeof output === "string" ? output : JSON.stringify(output ?? {});
+}
+
+function formatToolError(error: unknown): string {
+  return JSON.stringify({
+    error: error instanceof Error ? error.message : String(error),
+  });
 }
 
 /**
@@ -157,12 +171,103 @@ export function streamThinkingAgentChat(
     const client = getOpenAIClient(options.baseUrl);
     const model = options.model?.trim() || "";
 
-    let conversation: ChatCompletionMessageParam[] =
+    // Strip and order messages for best prompt-cache hit rate.
+    let baseConversation: ChatCompletionMessageParam[] =
       incomingMessagesToOpenAi(messages);
+
+    // For the thinking-agent path, buildThinkingAgentSystemPrompt() returns null —
+    // we deliberately send NO system message so the model's own reasoning (native
+    // thinking tokens) and the tool descriptions drive behaviour entirely.
+    // This gives the fastest first-token and the most natural autonomous flow.
+    const thinkingSystemContent = buildThinkingAgentSystemPrompt();
+
+    const incomingSystemMessages = baseConversation.filter(
+      (m): m is Extract<ChatCompletionMessageParam, { role: "system" }> =>
+        m.role === "system",
+    );
+    const conversationMessages = baseConversation.filter(
+      (m) => m.role !== "system",
+    );
+
+    let conversation: ChatCompletionMessageParam[];
+    if (thinkingSystemContent !== null) {
+      // A system prompt was requested (e.g. in a future variant) — prepend it,
+      // merging any incoming system messages for clean cache ordering.
+      const mergedContent = [
+        buildCacheableSystemPrefix(thinkingSystemContent),
+        ...incomingSystemMessages.map((m) => String(m.content)),
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      const systemMsg: ChatCompletionMessageParam = {
+        role: "system",
+        content: mergedContent,
+      };
+      conversation = orderMessagesForPromptCache(
+        [systemMsg],
+        conversationMessages as any,
+      );
+    } else {
+      // No system message — pass only the conversation turns.
+      conversation = incomingSystemMessages.length
+        ? orderMessagesForPromptCache(
+            incomingSystemMessages,
+            conversationMessages as any,
+          )
+        : conversationMessages;
+    }
+
+    // Only attach the full (potentially large) autonomous tool definitions when the model
+    // actually needs to choose/call tools. This avoids bloating every Novita request and
+    // helps keep prompt cache prefixes stable (tool schemas won't vary the request shape unnecessarily).
+    let shouldSendTools = true;
+
+    let workFrameOpen = false;
+    let frameCounter = 0;
+    let reasoningOpen = false;
+
+    const nextFrameId = () => {
+      frameCounter += 1;
+      return `frame-${frameCounter}`;
+    };
+
+    const ensureWorkFrame = () => {
+      if (workFrameOpen) return;
+      bridge.onFrameStart(nextFrameId());
+      workFrameOpen = true;
+    };
+
+    const closeReasoning = () => {
+      if (!reasoningOpen) return;
+      bridge.onReasoningEnd();
+      reasoningOpen = false;
+    };
+
+    const closeWorkFrame = () => {
+      if (!workFrameOpen) return;
+      bridge.onFrameComplete();
+      workFrameOpen = false;
+    };
+
+    // Autonomy phase tracking:
+    // - hasPerformedToolWork: at least one tool was used in this agent turn.
+    // - inFinalAnswerPhase: once a round completes with 0 tool calls, all its (and future) content is the final answer.
+    // This prevents creating extra "work frames" for the final user-facing output and avoids capturing final text as interim.
+    let hasPerformedToolWork = false;
+    let inFinalAnswerPhase = false;
 
     try {
       for (let round = 0; round < MAX_THINKING_ROUNDS; round += 1) {
         if (signal?.aborted) break;
+
+        const lastForTools = conversation[conversation.length - 1];
+        // Send large tool catalog only for rounds where model is expected to decide on tool use.
+        // After tool results (role=tool) or initial user, include. Once model has answered without tools we break anyway.
+        const attachTools =
+          shouldSendTools &&
+          (!lastForTools ||
+            lastForTools.role === "user" ||
+            lastForTools.role === "tool");
 
         const stream = await client.chat.completions.create(
           {
@@ -170,8 +275,7 @@ export function streamThinkingAgentChat(
             messages: conversation,
             max_tokens: DEFAULT_MAX_TOKENS,
             temperature: 1,
-            tools: openAiTools,
-            tool_choice: "auto",
+            ...(attachTools ? { tools: openAiTools, tool_choice: "auto" } : {}),
             ...NOVITA_STREAM_OPTIONS,
           },
           { signal },
@@ -191,15 +295,28 @@ export function streamThinkingAgentChat(
 
           if (delta.reasoning_content) {
             reasoningContent += delta.reasoning_content;
+            ensureWorkFrame();
+            reasoningOpen = true;
             bridge.onReasoningDelta(delta.reasoning_content);
           }
 
           if (delta.content) {
+            closeReasoning();
+            // For autonomy: only open a work frame for "progress narrative" if we are still in the tool-using exploration phase.
+            // Once we enter final answer phase (or for very first content before any tools), stream straight to the visible answer.
+            // This lets the model emit natural sentences like "let me search..." and later "I have the results, here is the summary..."
+            // without polluting the final answer area or creating an extra trailing work frame.
+            if (!inFinalAnswerPhase && hasPerformedToolWork) {
+              ensureWorkFrame();
+            }
             assistantContent += delta.content;
             bridge.onAnswerDelta(delta.content);
           }
 
           if (delta.tool_calls) {
+            closeReasoning();
+            hasPerformedToolWork = true;
+            ensureWorkFrame();
             for (const toolDelta of delta.tool_calls) {
               const index = toolDelta.index ?? 0;
               const current = pendingByIndex.get(index) ?? {
@@ -238,8 +355,14 @@ export function streamThinkingAgentChat(
           }
         }
 
+        closeReasoning();
+
         const toolCalls = collectToolCalls(pendingByIndex);
         if (toolCalls.length === 0) {
+          inFinalAnswerPhase = true;
+          // Close any open work frame from the exploration phase.
+          // The content accumulated in this round (if any) is the model's final answer.
+          closeWorkFrame();
           break;
         }
 
@@ -275,51 +398,59 @@ export function streamThinkingAgentChat(
             args,
           });
 
-          const outcome = await executeAutonomousTool(
-            call.function.name,
-            args,
-            {
-              conversationId: toolContext.conversationId ?? "chat",
-              userId: toolContext.userId,
-              userCountryCode: toolContext.userCountryCode,
-              toolCallId: call.id,
-              onToolProgress: (data) => {
-                send("tool_progress", {
-                  tool_call_id: call.id,
-                  ...data,
-                });
+          let resultText: string;
+          try {
+            const outcome = await executeAutonomousTool(
+              call.function.name,
+              args,
+              {
+                conversationId: toolContext.conversationId ?? "chat",
+                userId: toolContext.userId,
+                userCountryCode: toolContext.userCountryCode,
+                toolCallId: call.id,
+                onToolProgress: (data) => {
+                  send("tool_progress", {
+                    tool_call_id: call.id,
+                    ...data,
+                  });
+                },
               },
-            },
-          );
+            );
 
-          if (call.function.name === "web_search") {
-            send("web_search_results", {
-              tool_call_id: call.id,
-              ...(typeof outcome.output === "object" && outcome.output
-                ? (outcome.output as Record<string, unknown>)
-                : {}),
-            });
-          }
-
-          if (call.function.name === "file_write") {
-            const payload = outcome.output as {
-              path?: string;
-              content?: string;
-            };
-            if (payload?.path && payload.content != null) {
-              send("file_created", {
-                path: payload.path,
-                content: payload.content,
-                language: inferLanguage(payload.path),
+            if (call.function.name === "web_search") {
+              send("web_search_results", {
+                tool_call_id: call.id,
+                ...(typeof outcome.output === "object" && outcome.output
+                  ? (outcome.output as Record<string, unknown>)
+                  : {}),
               });
             }
+
+            if (call.function.name === "file_write") {
+              const payload = outcome.output as {
+                path?: string;
+                content?: string;
+              };
+              if (payload?.path && payload.content != null) {
+                send("file_created", {
+                  path: payload.path,
+                  content: payload.content,
+                  language: inferLanguage(payload.path),
+                });
+              }
+            }
+
+            if (outcome.pauseForUser && outcome.clarificationQuestion) {
+              send("clarification", {
+                question: outcome.clarificationQuestion,
+              });
+            }
+
+            resultText = formatToolOutput(outcome.output);
+          } catch (error) {
+            resultText = formatToolError(error);
           }
 
-          if (outcome.pauseForUser && outcome.clarificationQuestion) {
-            send("clarification", { question: outcome.clarificationQuestion });
-          }
-
-          const resultText = formatToolOutput(outcome.output);
           bridge.onToolResult({
             tool_call_id: call.id,
             name: call.function.name,
@@ -333,8 +464,13 @@ export function streamThinkingAgentChat(
         }
 
         conversation = appendToolResults(conversation, toolResults);
+        // Finished this work round. Close the frame; next round may produce more progress text or the final answer.
+        closeWorkFrame();
       }
 
+      // Ensure everything is closed and the final answer (if any) has been streamed via answer deltas.
+      closeReasoning();
+      closeWorkFrame();
       bridge.finalize();
     } catch (error) {
       if (signal?.aborted) {

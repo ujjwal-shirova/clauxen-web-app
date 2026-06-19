@@ -1,3 +1,5 @@
+import { MODEL_CONFIG } from "../../lib/model-config";
+
 function optional(name, fallback = "") {
   return process.env[name]?.trim() || fallback;
 }
@@ -16,13 +18,13 @@ export const env = {
   novitaApiKey: optional("NOVITA_AI_KEY") || optional("NOVITA_API_KEY"), // Novita inference API key
   novitaAnthropicBaseUrl: optional(
     "NOVITA_ANTHROPIC_BASE_URL",
-    "https://api.novita.ai/anthropic",
+    MODEL_CONFIG.endpoints.novitaAnthropicBaseUrl,
   ),
   novitaMessagesUrl: optional(
     "SHIROVA_NOVITA_MESSAGES_URL",
-    "https://api.novita.ai/anthropic/v1/messages",
+    MODEL_CONFIG.endpoints.novitaMessagesUrl,
   ),
-  defaultModel: optional("SHIROVA_DEFAULT_MODEL", "moonshotai/kimi-k2.6"), // default LLM model id
+  defaultModel: optional("SHIROVA_DEFAULT_MODEL", MODEL_CONFIG.models.homer.defaultSlug), // default LLM model id
   /** Kimi thinking: enabled | disabled -> Anthropic extended thinking. */
   thinkingType:
     optional("SHIROVA_THINKING_TYPE", "disabled") === "enabled"

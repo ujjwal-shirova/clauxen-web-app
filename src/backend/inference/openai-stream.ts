@@ -10,8 +10,8 @@ import type { IncomingMessage, ThinkingType } from "@/backend/inference/novita";
 import {
   ChatTitleStreamFilter,
   flushChatTitleFilterTail,
-  buildInlineChatTitleSystemInstruction,
 } from "@/lib/chat-title";
+import { buildChatSystemPrompt } from "@/backend/inference/agent-system-prompt";
 
 const DEFAULT_CHAT_MAX_TOKENS = 8192;
 
@@ -19,15 +19,13 @@ function toOpenAiMessages(
   messages: IncomingMessage[],
   options?: { generateChatTitle?: boolean },
 ): ChatCompletionMessageParam[] {
-  const systemParts: string[] = [
-    "You are Clauxen, a helpful AI assistant. Answer clearly and concisely.",
-  ];
-  if (options?.generateChatTitle) {
-    systemParts.push(buildInlineChatTitleSystemInstruction());
-  }
-
   const out: ChatCompletionMessageParam[] = [
-    { role: "system", content: systemParts.join("\n\n") },
+    {
+      role: "system",
+      content: buildChatSystemPrompt({
+        generateChatTitle: options?.generateChatTitle,
+      }),
+    },
   ];
 
   for (const message of messages) {
@@ -120,6 +118,9 @@ export async function generateOpenAiTitle(
   signal?: AbortSignal,
 ): Promise<string> {
   const client = getOpenAIClient();
+  const { buildTitleGenerationSystemPrompt } = await import(
+    "@/backend/inference/agent-system-prompt"
+  );
   const userContent =
     messages.find((m) => m.role === "user")?.content?.trim() ?? "";
   const assistantContent =
@@ -134,10 +135,7 @@ export async function generateOpenAiTitle(
       messages: [
         {
           role: "system",
-          content: [
-            "You write short conversation titles for a chat sidebar.",
-            "Output ONLY the title (3-6 words). No quotes or labels.",
-          ].join("\n"),
+          content: buildTitleGenerationSystemPrompt(),
         },
         {
           role: "user",

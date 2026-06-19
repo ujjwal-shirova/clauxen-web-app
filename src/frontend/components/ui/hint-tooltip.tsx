@@ -13,12 +13,16 @@ interface HintTooltipProps {
   content: React.ReactNode;
   children: React.ReactNode;
   side?: React.ComponentProps<typeof TooltipContent>["side"];
+  align?: React.ComponentProps<typeof TooltipContent>["align"];
+  sideOffset?: number;
 }
 
 export function HintTooltip({
   content,
   children,
   side = "top",
+  align = "center",
+  sideOffset = 5,
 }: HintTooltipProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -50,7 +54,8 @@ export function HintTooltip({
         <TooltipTrigger asChild>{trigger}</TooltipTrigger>
         <TooltipContent
           side={side}
-          sideOffset={6}
+          align={align}
+          sideOffset={sideOffset}
           className="z-[70] rounded-lg border-0 bg-white px-2.5 py-1.5 text-[12px] font-medium leading-4 text-zinc-800 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)]"
         >
           {content}

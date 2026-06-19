@@ -89,7 +89,27 @@ npm run crdb:apply-app
 ## Deploy
 
 ```bash
+vercel link
 vercel --prod
 ```
+
+### Vercel project settings (recommended)
+
+| Setting | Value |
+|---|---|
+| Framework Preset | Next.js |
+| Node.js Version | **24.x** (matches `package.json` `engines`) |
+| Install Command | `npm ci` (set in `vercel.json`) |
+| Build Command | `npm run build` (`next build`; Prisma is pre-generated locally — see note below) |
+| Fluid Compute | **Enabled** (default on new projects — full Node.js for API routes) |
+
+### Repo config files
+
+| File | Purpose |
+|---|---|
+| `vercel.json` | Install/build commands, security headers, streaming route `maxDuration` |
+| `.vercelignore` | Excludes `.tools/`, Cockroach migration tooling, vendored Python agents |
+| `.npmrc` | `engine-strict=true`, audit level |
+| `next.config.ts` | `optimizePackageImports`, R2 image domains, security headers |
 
 Ensure `buildCommand` is `npm run build` (see `vercel.json`).

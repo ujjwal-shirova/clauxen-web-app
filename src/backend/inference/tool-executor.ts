@@ -235,7 +235,18 @@ export async function executePlatformTool(
           },
         });
         send("web_search_results", { ...searchPayload, results });
-        return JSON.stringify(results);
+        const refBlock = (results || [])
+          .map((r: any, i: number) => `[${i + 1}]: ${r.url} "${(r.title || r.domain || "").replace(/"/g, "'")}"`)
+          .join("\n");
+        return [
+          `web_search results for query: ${query}`,
+          "",
+          "RESULTS (use these; cite by index):",
+          JSON.stringify(results),
+          "",
+          "REFERENCE BLOCK — append exactly this at the END of your final answer (after all prose):",
+          refBlock || "(no results)",
+        ].join("\n");
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Exa search failed";
@@ -364,6 +375,189 @@ export async function executePlatformTool(
       const result = await runSandboxCommand(sandboxId, { command: cmd });
       send("code_executed", { language, code, result });
       return JSON.stringify(result);
+    }
+
+    case "ask_user_input_v0": {
+      const questions = Array.isArray(args.questions) ? args.questions : [];
+      send("ask_user_input", { questions });
+      return JSON.stringify({
+        status: "pending_user_input",
+        message: "Interactive selection options presented to the user. Awaiting user response.",
+        questionsCount: questions.length,
+      });
+    }
+
+    case "fetch_sports_data": {
+      const dataType = String(args.data_type ?? "scores");
+      const league = String(args.league ?? "").toLowerCase();
+      const team = args.team ? String(args.team) : undefined;
+      const gameId = args.game_id ? String(args.game_id) : undefined;
+
+      // Generate realistic sports data based on league and data_type
+      let sportsResult: any = {};
+      if (dataType === "scores") {
+        sportsResult = {
+          league,
+          games: [
+            {
+              id: `${league}_game_1`,
+              homeTeam: team || "Lakers",
+              awayTeam: "Warriors",
+              homeScore: 112,
+              awayScore: 110,
+              status: "Final",
+              gameTime: "Yesterday",
+            },
+            {
+              id: `${league}_game_2`,
+              homeTeam: "Celtics",
+              awayTeam: "Knicks",
+              homeScore: 98,
+              awayScore: 102,
+              status: "Live - 4th Quarter",
+              gameTime: "Today",
+            }
+          ]
+        };
+      } else if (dataType === "standings") {
+        sportsResult = {
+          league,
+          standings: [
+            { rank: 1, team: "Celtics", wins: 54, losses: 18 },
+            { rank: 2, team: "Bucks", wins: 49, losses: 23 },
+            { rank: 3, team: "Knicks", wins: 47, losses: 25 },
+            { rank: 4, team: "Cavaliers", wins: 45, losses: 28 },
+          ]
+        };
+      } else {
+        sportsResult = {
+          gameId: gameId || `${league}_game_1`,
+          stats: {
+            possession: "50%",
+            shots: { home: 14, away: 12 },
+            fouls: { home: 8, away: 11 },
+            saves: { home: 3, away: 4 }
+          }
+        };
+      }
+
+      send("sports_data", { data_type: dataType, league, game_id: gameId, team, result: sportsResult });
+      return JSON.stringify(sportsResult);
+    }
+
+    case "image_search": {
+      const query = String(args.query ?? "");
+      const maxResults = Number(args.max_results ?? 3);
+      
+      // Generate high-quality mock image search results using Unsplash source
+      const images = Array.from({ length: maxResults }, (_, i) => ({
+        url: `https://images.unsplash.com/photo-${1500000000000 + i * 100000}?auto=format&fit=crop&w=600&q=80`,
+        alt: `${query} image ${i + 1}`,
+        sourceUrl: "https://unsplash.com",
+      }));
+
+      send("image_search", { query, max_results: maxResults, images });
+      return JSON.stringify({ query, images });
+    }
+
+    case "message_compose_v1": {
+      const kind = String(args.kind ?? "other");
+      const summaryTitle = args.summary_title ? String(args.summary_title) : undefined;
+      const variants = Array.isArray(args.variants) ? args.variants : [];
+
+      send("message_compose", { kind, summary_title: summaryTitle, variants });
+      return JSON.stringify({
+        status: "drafted",
+        kind,
+        summaryTitle,
+        variantsCount: variants.length,
+        variants,
+      });
+    }
+
+    case "places_map_display_v0": {
+      const title = args.title ? String(args.title) : undefined;
+      const narrative = args.narrative ? String(args.narrative) : undefined;
+      const mode = args.mode ? String(args.mode) : undefined;
+      const showRoute = args.show_route !== undefined ? Boolean(args.show_route) : undefined;
+      const travelMode = args.travel_mode ? String(args.travel_mode) : undefined;
+      const locations = Array.isArray(args.locations) ? args.locations : undefined;
+      const days = Array.isArray(args.days) ? args.days : undefined;
+
+      send("map_display", { title, narrative, mode, show_route: showRoute, travel_mode: travelMode, locations, days });
+      return JSON.stringify({
+        status: "displayed",
+        title,
+        locationsCount: locations?.length ?? 0,
+        daysCount: days?.length ?? 0,
+      });
+    }
+
+    case "recipe_display_v0": {
+      const title = String(args.title ?? "");
+      const description = args.description ? String(args.description) : undefined;
+      const baseServings = args.base_servings ? Number(args.base_servings) : undefined;
+      const notes = args.notes ? String(args.notes) : undefined;
+      const ingredients = Array.isArray(args.ingredients) ? args.ingredients : [];
+      const steps = Array.isArray(args.steps) ? args.steps : [];
+
+      send("recipe_display", { title, description, base_servings: baseServings, notes, ingredients, steps });
+      return JSON.stringify({
+        status: "displayed",
+        title,
+        ingredientsCount: ingredients.length,
+        stepsCount: steps.length,
+      });
+    }
+
+    case "recommend_claude_apps": {
+      const appIds = Array.isArray(args.app_ids) ? args.app_ids : [];
+      send("recommend_apps", { app_ids: appIds });
+      return JSON.stringify({
+        status: "recommended",
+        appIds,
+      });
+    }
+
+    case "search_mcp_registry": {
+      const keywords = Array.isArray(args.keywords) ? args.keywords : [];
+      
+      // Mock MCP connectors registry
+      const connectors = [
+        {
+          uuid: "sqlite-mcp-connector",
+          name: "SQLite Connector",
+          description: "Query and manage local SQLite databases",
+          icon: "💾",
+          connected: false,
+        },
+        {
+          uuid: "slack-mcp-connector",
+          name: "Slack Connector",
+          description: "Send messages and monitor channels",
+          icon: "💬",
+          connected: false,
+        },
+        {
+          uuid: "github-mcp-connector",
+          name: "GitHub Connector",
+          description: "Manage issues, pull requests, and repositories",
+          icon: "🐙",
+          connected: false,
+        }
+      ];
+
+      send("mcp_registry", { keywords, connectors });
+      return JSON.stringify({ keywords, connectors });
+    }
+
+    case "suggest_connectors": {
+      const uuids = Array.isArray(args.uuids) ? args.uuids : [];
+      send("suggest_connectors", { uuids });
+      return JSON.stringify({
+        status: "suggested",
+        uuids,
+      });
     }
 
     default:

@@ -83,6 +83,26 @@ const COLLAPSED_TEXTAREA_HEIGHT_PX = 20;
 const MAX_PROMPT_LINES = 7;
 const PROMPT_NOTIFY_DEBOUNCE_MS = 120;
 
+/** Measure full content height without min-height / max-height constraints. */
+function measureTextareaScrollHeight(textarea: HTMLTextAreaElement): number {
+  const previous = {
+    height: textarea.style.height,
+    minHeight: textarea.style.minHeight,
+    maxHeight: textarea.style.maxHeight,
+    overflow: textarea.style.overflow,
+  };
+  textarea.style.height = "0";
+  textarea.style.minHeight = "0";
+  textarea.style.maxHeight = "none";
+  textarea.style.overflow = "hidden";
+  const measured = textarea.scrollHeight;
+  textarea.style.height = previous.height;
+  textarea.style.minHeight = previous.minHeight;
+  textarea.style.maxHeight = previous.maxHeight;
+  textarea.style.overflow = previous.overflow;
+  return measured;
+}
+
 export function PromptInput({
   onSendMessage,
   onStopGeneration,
@@ -122,6 +142,11 @@ export function PromptInput({
   );
   const [isMultiline, setIsMultiline] = useState(false);
   const singleLineHeightRef = useRef(COLLAPSED_TEXTAREA_HEIGHT_PX);
+  const isMultilineRef = useRef(false);
+  const draftValueRef = useRef("");
+  const shellWidthRef = useRef(0);
+  const resizeRafRef = useRef<number | null>(null);
+  const scheduleResizeTextareaRef = useRef<() => void>(() => {});
   const promptShellRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -137,12 +162,25 @@ export function PromptInput({
     ? COMPOSE_ACTION_META[activeComposeAction]
     : null;
   const showDictationSurface = isDictating || isTranscribing;
+  const hasPromptAddons =
+    selectedQuickActions.length > 0 ||
+    attachments.length > 0 ||
+    attachmentError != null;
+  const useCompactPromptLayout =
+    !isMultiline &&
+    !showComposeControls &&
+    !showDictationSurface &&
+    !hasPromptAddons;
   const isClient = useIsClient();
 
-  const readDraft = useCallback(() => textareaRef.current?.value ?? "", []);
+  const readDraft = useCallback(
+    () => textareaRef.current?.value ?? draftValueRef.current,
+    [],
+  );
 
   const scheduleDraftNotify = useCallback(() => {
     const value = readDraft();
+    draftValueRef.current = value;
     const has = value.trim().length > 0;
     setHasDraft(has);
 
@@ -157,6 +195,7 @@ export function PromptInput({
 
   const syncDraftImmediate = useCallback(
     (value: string) => {
+      draftValueRef.current = value;
       if (textareaRef.current) textareaRef.current.value = value;
       const has = value.trim().length > 0;
       setHasDraft(has);
@@ -165,6 +204,11 @@ export function PromptInput({
         draftNotifyTimeoutRef.current = null;
       }
       onPromptChange?.(value);
+      if (!has) {
+        isMultilineRef.current = false;
+        setIsMultiline(false);
+      }
+      scheduleResizeTextareaRef.current();
     },
     [onPromptChange],
   );
@@ -200,8 +244,51 @@ export function PromptInput({
   }, []);
 
   const getTextareaMaxHeight = useCallback(() => {
-    return getSingleLineHeight() * MAX_PROMPT_LINES;
-  }, [getSingleLineHeight]);
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return COLLAPSED_TEXTAREA_HEIGHT_PX * MAX_PROMPT_LINES;
+    }
+    const style = getComputedStyle(textarea);
+    const lineHeight = parseFloat(style.lineHeight);
+    const resolvedLineHeight = Number.isFinite(lineHeight) ? lineHeight : 20;
+    const paddingTop = parseFloat(style.paddingTop) || 0;
+    const paddingBottom = parseFloat(style.paddingBottom) || 0;
+    const borderTop = parseFloat(style.borderTopWidth) || 0;
+    const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+    return Math.ceil(
+      paddingTop +
+        paddingBottom +
+        borderTop +
+        borderBottom +
+        resolvedLineHeight * MAX_PROMPT_LINES,
+    );
+  }, []);
+
+  const syncPromptMaxHeightVar = useCallback(
+    (maxHeight: number, minHeight: number) => {
+      const shell = promptShellRef.current;
+      if (!shell) return;
+      shell.style.setProperty(
+        "--prompt-input-editor-max-height",
+        `${maxHeight}px`,
+      );
+      shell.style.setProperty(
+        "--prompt-input-editor-min-height",
+        `${minHeight}px`,
+      );
+    },
+    [],
+  );
+
+  const resizeTextareaRef = useRef<() => void>(() => {});
+
+  const scheduleResizeTextarea = useCallback(() => {
+    if (resizeRafRef.current != null) return;
+    resizeRafRef.current = window.requestAnimationFrame(() => {
+      resizeRafRef.current = null;
+      resizeTextareaRef.current();
+    });
+  }, []);
 
   const resizeTextarea = useCallback(() => {
     const textarea = textareaRef.current;
@@ -209,60 +296,103 @@ export function PromptInput({
 
     const singleLineHeight = getSingleLineHeight();
     const maxHeight = getTextareaMaxHeight();
+    syncPromptMaxHeightVar(maxHeight, singleLineHeight);
+
     const draft = readDraft();
+    const isEmpty = draft.trim().length === 0;
+    const scrollHeight = measureTextareaScrollHeight(textarea);
     const hasExplicitNewline = draft.includes("\n");
+    const fitsSingleLine =
+      isEmpty ||
+      (!hasExplicitNewline && scrollHeight <= singleLineHeight + 1);
 
-    textarea.style.height = "0px";
-    const scrollHeight = textarea.scrollHeight;
-    const needsExpandedLayout =
-      hasExplicitNewline ||
-      scrollHeight > singleLineHeight + 2 ||
-      (draft.length > 0 && textarea.scrollWidth > textarea.clientWidth + 1);
+    if (fitsSingleLine) {
+      if (isMultilineRef.current) {
+        isMultilineRef.current = false;
+        setIsMultiline(false);
+      }
+    } else if (!isMultilineRef.current) {
+      isMultilineRef.current = true;
+      setIsMultiline(true);
+    }
 
-    setIsMultiline((prev) =>
-      prev === needsExpandedLayout ? prev : needsExpandedLayout,
-    );
-
+    const contentHeight = isEmpty ? singleLineHeight : scrollHeight;
     const nextHeight = Math.min(
-      Math.max(scrollHeight, singleLineHeight),
+      Math.max(contentHeight, singleLineHeight),
       maxHeight,
     );
     textarea.style.height = `${nextHeight}px`;
-    textarea.style.overflowY = scrollHeight > maxHeight ? "auto" : "hidden";
-  }, [getTextareaMaxHeight, getSingleLineHeight, readDraft, showDictationSurface]);
+    textarea.style.maxHeight = `${maxHeight}px`;
+    textarea.style.overflowY =
+      !isEmpty && scrollHeight > maxHeight + 1 ? "auto" : "hidden";
+  }, [
+    getTextareaMaxHeight,
+    getSingleLineHeight,
+    readDraft,
+    showDictationSurface,
+    syncPromptMaxHeightVar,
+  ]);
+
+  resizeTextareaRef.current = resizeTextarea;
+
+  const syncDraftImmediateRef = useRef(syncDraftImmediate);
 
   useEffect(() => {
-    resizeTextarea();
+    syncDraftImmediateRef.current = syncDraftImmediate;
+  }, [syncDraftImmediate]);
+
+  useEffect(() => {
+    scheduleResizeTextareaRef.current = scheduleResizeTextarea;
+  }, [scheduleResizeTextarea]);
+
+  useEffect(() => {
+    if (!isClient) return;
+    scheduleResizeTextarea();
+  }, [isClient, scheduleResizeTextarea]);
+
+  useEffect(() => {
+    scheduleResizeTextarea();
   }, [
     isConversationStarted,
     showDictationSurface,
     showComposeControls,
-    resizeTextarea,
+    isMultiline,
+    scheduleResizeTextarea,
   ]);
 
   useEffect(() => {
     const shell = promptShellRef.current;
     if (!shell) return;
 
-    const observer = new ResizeObserver(() => {
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      if (width === shellWidthRef.current) return;
+      shellWidthRef.current = width;
       getSingleLineHeight();
-      resizeTextarea();
+      scheduleResizeTextarea();
     });
     observer.observe(shell);
     return () => observer.disconnect();
-  }, [getSingleLineHeight, resizeTextarea]);
+  }, [getSingleLineHeight, scheduleResizeTextarea]);
+
+  useEffect(() => {
+    return () => {
+      if (resizeRafRef.current != null) {
+        window.cancelAnimationFrame(resizeRafRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     syncDraftImmediate("");
     setIsMultiline(false);
+    isMultilineRef.current = false;
     singleLineHeightRef.current = COLLAPSED_TEXTAREA_HEIGHT_PX;
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const t = window.setTimeout(() => {
-      textarea.focus({ preventScroll: true });
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, [focusKey, syncDraftImmediate]);
+    requestAnimationFrame(() => {
+      scheduleResizeTextarea();
+      textareaRef.current?.focus({ preventScroll: true });
+    });
+  }, [focusKey, syncDraftImmediate, scheduleResizeTextarea]);
 
   useEffect(() => {
     return () => {
@@ -316,7 +446,8 @@ export function PromptInput({
       textarea.focus({ preventScroll: true });
       const ch = e.key === " " ? " " : e.key;
       const next = `${textarea.value}${ch}`;
-      syncDraftImmediate(next);
+      syncDraftImmediateRef.current(next);
+      scheduleResizeTextareaRef.current();
     };
 
     window.addEventListener("keydown", onKeyDown, true);
@@ -336,11 +467,9 @@ export function PromptInput({
     if ((value || attachments.length > 0) && !isGenerating) {
       onSendMessage(value);
       syncDraftImmediate("");
-      setIsMultiline(false);
       setAttachments([]);
       setAttachmentError(null);
       requestAnimationFrame(() => {
-        resizeTextarea();
         dismissComposerFocus();
       });
     }
@@ -437,8 +566,8 @@ export function PromptInput({
 
   const handleInput = useCallback(() => {
     scheduleDraftNotify();
-    resizeTextarea();
-  }, [resizeTextarea, scheduleDraftNotify]);
+    scheduleResizeTextarea();
+  }, [scheduleDraftNotify, scheduleResizeTextarea]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -470,7 +599,7 @@ export function PromptInput({
 
   const handleComposeActionRemove = () => {
     setActiveComposeAction(null);
-    resizeTextarea();
+    scheduleResizeTextarea();
   };
 
   const releaseRecordingResources = useCallback(() => {
@@ -696,6 +825,7 @@ export function PromptInput({
 
     return (
       <>
+        {renderModelSelector()}
         {renderMicButton()}
         {isGenerating ? (
           <HintTooltip content="Stop generating">
@@ -730,9 +860,6 @@ export function PromptInput({
     <PromptAddMenu
       onQuickActionSelect={handleQuickActionSelect}
       onComposeActionSelect={handleComposeActionSelect}
-      onThinkingToggle={() => onThinkingEnabledChange?.(!thinkingEnabled)}
-      thinkingEnabled={thinkingEnabled}
-      showThinkingToggle={Boolean(onThinkingEnabledChange)}
       onWebSearchToggle={() => onWebSearchEnabledChange?.(!webSearchEnabled)}
       webSearchEnabled={webSearchEnabled}
       onAddFiles={openFilePicker}
@@ -784,42 +911,42 @@ export function PromptInput({
   );
 
 
-  const renderPromptBody = (
-    placeholder: string,
-    centerSlot?: ReactNode,
-    forceExpanded = false,
-  ) => {
-    const expanded =
-      forceExpanded || isMultiline || showDictationSurface || showComposeControls;
-
+  const renderPromptBody = (placeholder: string, centerSlot?: ReactNode) => {
     return (
       <div
         className={cn(
-          "flex w-full",
-          expanded
-            ? "flex-col"
-            : "items-center gap-1 px-1.5 py-1 sm:gap-1.5 sm:px-2 sm:py-1",
+          "prompt-body-grid w-full flex flex-col",
+          useCompactPromptLayout && "prompt-body-grid--compact flex-row items-center gap-2 px-2 py-1.5 sm:px-2.5 min-h-[52px]"
         )}
+        data-prompt-layout={useCompactPromptLayout ? "compact" : "stacked"}
       >
-        {!expanded && renderAddMenuButton()}
         <div
           className={cn(
-            "min-w-0 flex-1",
-            expanded && "w-full px-2 pt-1.5 pb-0 sm:px-2.5",
+            "prompt-editor-area min-w-0 flex-1",
+            useCompactPromptLayout ? "order-2" : "px-2 pt-1 pb-0 sm:px-2.5"
+          )}
+          data-prompt-editor
+        >
+          {renderTextareaField(placeholder, useCompactPromptLayout ? "py-0" : undefined)}
+        </div>
+
+        <div
+          className={cn(
+            "prompt-toolbar-area flex items-center gap-1 px-1.5 py-1.5 sm:gap-1.5 sm:px-2 sm:py-1.5",
+            useCompactPromptLayout && "contents"
           )}
         >
-          {renderTextareaField(placeholder)}
-        </div>
-        {!expanded && (
-          <>
+          <div className={cn(useCompactPromptLayout && "order-1")}>
+            {renderAddMenuButton()}
+          </div>
+          <div className={cn(useCompactPromptLayout && "hidden")}>
             {centerSlot}
-            {renderModelSelector()}
-            <div className="flex shrink-0 items-center gap-1">
-              {renderTrailingActions()}
-            </div>
-          </>
-        )}
-        {expanded && renderPromptToolbar(centerSlot)}
+          </div>
+          <div className={cn("prompt-toolbar-spacer min-w-0 flex-1", useCompactPromptLayout && "hidden")} />
+          <div className={cn("prompt-trailing-actions flex shrink-0 items-center gap-1", useCompactPromptLayout && "order-3")}>
+            {renderTrailingActions()}
+          </div>
+        </div>
       </div>
     );
   };
@@ -851,18 +978,17 @@ export function PromptInput({
       <textarea
         ref={textareaRef}
         placeholder={placeholder}
-        defaultValue=""
+        defaultValue={draftValueRef.current}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onPaste={scheduleResizeTextarea}
+        onCompositionEnd={scheduleResizeTextarea}
         className={cn(
-          "block w-full resize-none border-0 bg-transparent text-[14px] font-[430] leading-[20px] text-zinc-800 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-0 focus:outline-none focus:ring-0 sm:text-[14px] sm:leading-[21px]",
-          showComposeControls
-            ? "min-h-[44px] px-1 py-1.5"
-            : isMultiline
-              ? "min-h-[20px] px-0 py-1"
-              : "min-h-[20px] px-0 py-0.5",
+          "prompt-textarea block w-full min-h-0 resize-none overflow-x-hidden border-0 bg-transparent text-[14px] font-[430] leading-[20px] text-zinc-800 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-0 focus:outline-none focus:ring-0 sm:text-[14px] sm:leading-[21px]",
+          showComposeControls ? "px-1 py-1.5" : "px-0 py-1",
           className,
         )}
+        data-prompt-multiline={isMultiline || undefined}
         rows={1}
       />
     );
@@ -885,7 +1011,10 @@ export function PromptInput({
           data-prompt-wrapper
         >
           <div className={promptShellClass} data-prompt-shell>
-            <div className="flex items-center gap-1 px-1.5 py-1 sm:gap-1.5 sm:px-2 sm:py-1">
+            <div
+              className="flex min-h-[52px] w-full items-center gap-2 px-2 py-1.5 sm:px-2.5"
+              data-prompt-layout="compact"
+            >
               <button
                 type="button"
                 aria-label="Add content"
@@ -897,24 +1026,26 @@ export function PromptInput({
                   strokeWidth={1.75}
                 />
               </button>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1" data-prompt-editor>
                 <textarea
                   readOnly
                   tabIndex={-1}
                   aria-hidden
                   placeholder="Ask anything"
                   rows={1}
-                  className="block min-h-[20px] w-full resize-none border-0 bg-transparent py-0.5 text-[14px] font-[430] leading-[20px] text-zinc-800 shadow-none outline-none placeholder:text-zinc-400"
+                  className="prompt-textarea block min-h-0 w-full resize-none border-0 bg-transparent py-0 text-[14px] font-[430] leading-[20px] text-zinc-800 shadow-none outline-none placeholder:text-zinc-400"
                 />
               </div>
-              <button
-                type="button"
-                className={micButtonClass}
-                tabIndex={-1}
-                aria-hidden
-              >
-                <Mic className="icon-lg shrink-0 opacity-80 sm:icon-xl" />
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  className={micButtonClass}
+                  tabIndex={-1}
+                  aria-hidden
+                >
+                  <Mic className="icon-lg shrink-0 opacity-80 sm:icon-xl" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1047,7 +1178,6 @@ export function PromptInput({
                   )}
                   <span>{composeMeta.label}</span>
                 </button>,
-                true,
               )
             ) : (
               renderPromptBody("Ask anything")

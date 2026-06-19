@@ -12,6 +12,7 @@ import {
   activeFrameIndex,
   createAgentFrame,
   frameHasWorkSegments,
+  frameHasToolSegments,
   hasActiveFrameWork,
   resolveAgentFrames,
   uniqueAgentFrameId,
@@ -175,9 +176,16 @@ function enrichToolFromResult(
         typeof tool.args?.query === "string" ? tool.args.query : undefined;
       if (query) next.searchQuery = query;
     } else if (parsed && typeof parsed === "object") {
-      const record = parsed as { error?: string; query?: string };
+      const record = parsed as {
+        error?: string;
+        query?: string;
+        results?: unknown;
+      };
       if (record.error) next.status = "error";
       if (record.query) next.searchQuery = record.query;
+      if (Array.isArray(record.results)) {
+        next.searchResults = record.results as WebSearchResult[];
+      }
     }
   }
 
@@ -279,10 +287,20 @@ export function applyAgentStreamEvent(
         const lastIdx = frames.length - 1;
         const last = frames[lastIdx];
         if (!last.complete) {
+          const captureInterim =
+            Boolean(interim) && frameHasToolSegments(last.segments);
           frames[lastIdx] = finalizeFrame({
             ...last,
-            interimOutput: interim || last.interimOutput,
+            interimOutput: captureInterim
+              ? interim
+              : last.interimOutput,
           });
+          if (captureInterim) {
+            state = {
+              ...state,
+              message: { ...state.message, content: "" },
+            };
+          }
         } else if (interim) {
           frames = attachInterimToLastFrame(frames, state.message.content);
         }
@@ -439,15 +457,6 @@ export function applyAgentStreamEvent(
       });
 
     case "answer_delta": {
-      if (
-        state.message.agentMode &&
-        hasActiveAgentWork(state)
-      ) {
-        const activeFrame = state.frames[state.frameIdx];
-        if (activeFrame && !activeFrame.complete) {
-          return message;
-        }
-      }
       content += event.delta;
       isThinkingStreaming = false;
       return syncFrameState(state, {
@@ -607,24 +616,24 @@ export function applyAgentStreamEvent(
       const frame = frames[idx];
       if (frame) {
         const interim = state.message.content?.trim();
-        const hasWork = frameHasWorkSegments(frame.segments);
+        const hasTools = frameHasToolSegments(frame.segments);
+        const captureInterim = Boolean(interim) && hasTools;
         const frameId = event.frameId
           ? uniqueAgentFrameId(frames, event.frameId, idx)
           : frame.id;
         frames[idx] = finalizeFrame({
           ...frame,
           id: frameId,
-          interimOutput:
-            hasWork && interim
-              ? interim
-              : frame.interimOutput,
+          interimOutput: captureInterim
+            ? interim
+            : frame.interimOutput,
         });
         state = {
           ...state,
           frames,
           message: {
             ...state.message,
-            content: hasWork && interim ? "" : state.message.content,
+            content: captureInterim ? "" : state.message.content,
           },
         };
       }

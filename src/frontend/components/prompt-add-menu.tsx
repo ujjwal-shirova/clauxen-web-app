@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  Brain,
   Briefcase,
   Camera,
   ChevronRight,
@@ -154,12 +153,9 @@ interface PromptAddMenuProps {
   onComposeActionSelect?: (action: PromptComposeAction) => void;
   onAddFiles?: () => void;
   onTakeScreenshot?: () => void;
-  onThinkingToggle?: () => void;
-  thinkingEnabled?: boolean;
   onWebSearchToggle?: () => void;
   webSearchEnabled?: boolean;
   showComposeActions?: boolean;
-  showThinkingToggle?: boolean;
 }
 
 export function PromptAddMenu({
@@ -168,12 +164,9 @@ export function PromptAddMenu({
   onComposeActionSelect,
   onAddFiles,
   onTakeScreenshot,
-  onThinkingToggle,
-  thinkingEnabled = false,
   onWebSearchToggle,
   webSearchEnabled = false,
   showComposeActions = true,
-  showThinkingToggle = true,
 }: PromptAddMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
@@ -254,35 +247,17 @@ export function PromptAddMenu({
             />
           ))}
 
-          {showComposeActions || showThinkingToggle ? (
+          {showComposeActions ? (
             <>
               <PromptAddMenuSeparator />
-              {showComposeActions ? (
-                <>
-                  <PromptAddMenuItem
-                    item={{ label: "Deep research", icon: Telescope }}
-                    onClick={() => selectComposeAction("deep-research")}
-                  />
-                  <PromptAddMenuItem
-                    item={{ label: "Canvas", icon: LayoutPanelTop }}
-                    onClick={() => selectComposeAction("canvas")}
-                  />
-                </>
-              ) : null}
-              {showThinkingToggle ? (
-                <PromptAddMenuItem
-                  item={{
-                    label: "Thinking",
-                    icon: Brain,
-                    trailing: "check",
-                    active: thinkingEnabled,
-                  }}
-                  onClick={() => {
-                    closeMenu();
-                    onThinkingToggle?.();
-                  }}
-                />
-              ) : null}
+              <PromptAddMenuItem
+                item={{ label: "Deep research", icon: Telescope }}
+                onClick={() => selectComposeAction("deep-research")}
+              />
+              <PromptAddMenuItem
+                item={{ label: "Canvas", icon: LayoutPanelTop }}
+                onClick={() => selectComposeAction("canvas")}
+              />
             </>
           ) : null}
 

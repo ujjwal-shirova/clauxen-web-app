@@ -39,7 +39,10 @@ export function appAgentPanelClassName(options: {
   }
 
   if (isMobile) {
-    return "agent-panel relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] min-h-[100dvh] rounded-none border-0 shadow-none [transform:translateZ(0)]";
+    return cn(
+      "agent-panel relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] min-h-[100dvh] [transform:translateZ(0)]",
+      "rounded-[14px] border border-zinc-200/80 shadow-[0_1px_3px_rgba(24,24,27,0.04),0_8px_24px_-8px_rgba(24,24,27,0.06)]",
+    );
   }
 
   return cn(

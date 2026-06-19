@@ -1,0 +1,19 @@
+# Local / migration tooling — not needed at runtime on Vercel
+.tools/
+cockroachdb/.venv/
+cockroachdb/**/*.py
+cockroachdb/molt/
+cockroachdb/supabase-export/
+
+# Vendored Python agent SDK — Next.js app does not import these at build time
+src/agents/
+
+# Local storage fallbacks and dev artifacts
+storage/
+.autonomous-agent-files/
+coverage/
+*.log
+
+# Docs and editor noise (optional; reduces upload size)
+docs/
+.agent-transcripts/

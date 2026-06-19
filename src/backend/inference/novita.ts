@@ -9,6 +9,7 @@ import {
   normalizeChatTitle,
   type TitleExchange,
 } from "@/lib/chat-title";
+import { stripMessageContentForModelApi } from "@/lib/model-context";
 
 export type ChatRole = "user" | "assistant" | "system";
 export type IncomingMessage = { role: ChatRole; content: string };
@@ -88,7 +89,10 @@ export function sanitizeMessages(input: unknown): IncomingMessage[] {
         ["user", "assistant", "system"].includes(candidate.role)
       );
     })
-    .map((message) => ({ role: message.role, content: message.content }));
+    .map((message) => ({
+      role: message.role,
+      content: stripMessageContentForModelApi(message.content),
+    }));
 }
 
 export function extractUpstreamError(body: unknown, fallback: string) {

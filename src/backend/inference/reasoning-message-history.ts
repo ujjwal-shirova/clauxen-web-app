@@ -1,4 +1,5 @@
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { stripMessageContentForModelApi } from "@/lib/model-context";
 
 export type ReasoningToolCall = {
   id: string;
@@ -60,6 +61,6 @@ export function incomingMessagesToOpenAi(
     .filter((m) => m.content.trim().length > 0)
     .map((m) => ({
       role: m.role as "user" | "assistant" | "system",
-      content: m.content,
+      content: stripMessageContentForModelApi(m.content),
     }));
 }

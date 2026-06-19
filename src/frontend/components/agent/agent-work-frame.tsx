@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
@@ -12,7 +12,7 @@ import type {
   AgentThinkingSegment,
   AgentToolSegment,
 } from "@/frontend/lib/agent-segments";
-import { AgentTimeline } from "./agent-timeline";
+import { AgentTimeline, AgentTimelineDone } from "./agent-timeline";
 import { AgentThinkingStep } from "./agent-thinking-step";
 import { AgentToolBlock } from "./agent-tool-blocks";
 
@@ -35,20 +35,29 @@ function workSegments(segments: AgentSegment[]) {
 export function AgentWorkFrame({
   segments,
   isStreaming,
-  leadingContent,
+  frameComplete,
+  liveNarrative,
 }: {
   segments: AgentSegment[];
   isStreaming: boolean;
-  leadingContent?: ReactNode;
+  frameComplete: boolean;
+  /** Short natural language progress emitted by the model for this phase (e.g. "searching web...", "got results, checking further"). */
+  liveNarrative?: string;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+  const userToggledRef = useRef(false);
   const items = workSegments(segments);
 
   useEffect(() => {
     if (isStreaming) {
+      userToggledRef.current = false;
       setExpanded(true);
+      return;
     }
-  }, [isStreaming]);
+    if (frameComplete && !userToggledRef.current) {
+      setExpanded(false);
+    }
+  }, [isStreaming, frameComplete]);
 
   const hasActiveWork = items.some(
     (segment) =>
@@ -61,51 +70,82 @@ export function AgentWorkFrame({
     hasActiveWork,
   });
   const showShimmer = shouldShimmerFrameHeader(frameLabel);
+  const showCollapsedHeader = frameComplete && !expanded && !isStreaming;
 
   if (items.length === 0) {
     return null;
   }
 
+  const toggleExpanded = () => {
+    userToggledRef.current = true;
+    setExpanded((value) => !value);
+  };
+
   return (
     <div className="mb-4 w-full min-w-0">
       <button
         type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className="mb-2 flex w-full items-center gap-2 text-left"
+        onClick={toggleExpanded}
+        className="mb-2 flex w-full max-w-full items-center text-left"
         aria-expanded={expanded}
       >
-        {leadingContent ? (
-          <span className="flex shrink-0 items-center">{leadingContent}</span>
-        ) : null}
-        <span
-          className={cn(
-            "truncate text-[14px] font-medium leading-5 text-zinc-700",
-            showShimmer && "shimmer-text",
-          )}
-        >
-          {frameLabel}
+        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+          <span
+            className={cn(
+              "truncate text-[14px] font-medium leading-5",
+              showCollapsedHeader
+                ? "text-zinc-400"
+                : showShimmer
+                  ? "shimmer-text text-zinc-700"
+                  : "text-zinc-700",
+            )}
+          >
+            {frameLabel}
+          </span>
+          <ChevronDown
+            className={cn(
+              "icon-md shrink-0 text-zinc-400 transition-transform duration-200",
+              expanded ? "rotate-180" : "-rotate-90",
+            )}
+            aria-hidden
+          />
         </span>
-        <ChevronDown
-          className={cn(
-            "icon-md shrink-0 text-zinc-400 transition-transform duration-200",
-            expanded && "rotate-180",
-          )}
-        />
       </button>
 
-      {expanded ? (
-        <AgentTimeline>
-          {items.map((segment) => {
-            if (isThinkingSegment(segment)) {
-              return <AgentThinkingStep key={segment.id} segment={segment} />;
-            }
-            if (isToolSegment(segment)) {
-              return <AgentToolBlock key={segment.id} tool={segment} />;
-            }
-            return null;
-          })}
-        </AgentTimeline>
-      ) : null}
+      {/* Smooth auto-collapse with transition.
+          Uses grid-rows trick for height animation without JS measurement.
+          Works for the vertical timeline of thinking + multiple tool executions. */}
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-200 ease-out",
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+        aria-hidden={!expanded}
+      >
+        <div className="overflow-hidden">
+          <AgentTimeline>
+            {items.map((segment) => {
+              if (isThinkingSegment(segment)) {
+                return <AgentThinkingStep key={segment.id} segment={segment} />;
+              }
+              if (isToolSegment(segment)) {
+                return <AgentToolBlock key={segment.id} tool={segment} />;
+              }
+              return null;
+            })}
+            {frameComplete ? <AgentTimelineDone /> : null}
+
+            {/* Live model-generated delta / progress narrative (Cursor-style text-delta driven).
+                Rendered as a soft card above the timeline to match the autonomous agent "spoken thoughts"
+                style shown in the reference screenshot. */}
+            {isStreaming && !frameComplete && liveNarrative?.trim() ? (
+              <div className="mt-2 rounded-2xl border border-zinc-200/70 bg-[#f8f7f4] px-4 py-3 text-[13.5px] leading-relaxed text-zinc-700 shadow-sm">
+                {liveNarrative.trim()}
+              </div>
+            ) : null}
+          </AgentTimeline>
+        </div>
+      </div>
     </div>
   );
 }

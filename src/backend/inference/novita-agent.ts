@@ -262,12 +262,11 @@ export async function runNovitaAgentChat(
     throw new Error("At least one valid message is required.");
   }
 
+  const { buildAgentSystemPrompt } = await import(
+    "@/backend/inference/agent-system-prompt"
+  );
   const conversation: AgentMessage[] = [
-    {
-      role: "system",
-      content:
-        "You are Clauxen Agent on Novita AI. Use sandbox tools for coding and research tools for current data. Never provide abuse or evasion guidance.",
-    },
+    { role: "system", content: buildAgentSystemPrompt() },
     ...messages,
   ];
   const model = request.model?.trim() || env.defaultModel;

@@ -18,6 +18,12 @@ function mapToolEventsToBridge(send: ToolEventSender) {
   return send;
 }
 
+function toolErrorOutput(error: unknown) {
+  return JSON.stringify({
+    error: error instanceof Error ? error.message : String(error),
+  });
+}
+
 function platformTool(
   name: PlatformToolName,
   description: string,
@@ -29,12 +35,14 @@ function platformTool(
     description,
     inputSchema,
     execute: async (input, { toolCallId }) => {
-      return executePlatformTool(
-        name,
-        JSON.stringify(input),
-        send,
-        { ...context, toolCallId },
-      );
+      try {
+        return await executePlatformTool(name, JSON.stringify(input), send, {
+          ...context,
+          toolCallId,
+        });
+      } catch (error) {
+        return toolErrorOutput(error);
+      }
     },
   });
 }
@@ -108,32 +116,36 @@ export function buildThinkingAiSdkTools(
       description: definition.description ?? name,
       inputSchema,
       execute: async (input, { toolCallId }) => {
-        const outcome = await executeAutonomousTool(
-          name,
-          input as Record<string, unknown>,
-          {
-            conversationId: context.conversationId ?? "chat",
-            userId: context.userId,
-            userCountryCode: context.userCountryCode,
-            toolCallId,
-            onToolProgress: (data) => {
-              bridge("tool_progress", {
-                tool_call_id: toolCallId,
-                ...data,
-              });
+        try {
+          const outcome = await executeAutonomousTool(
+            name,
+            input as Record<string, unknown>,
+            {
+              conversationId: context.conversationId ?? "chat",
+              userId: context.userId,
+              userCountryCode: context.userCountryCode,
+              toolCallId,
+              onToolProgress: (data) => {
+                bridge("tool_progress", {
+                  tool_call_id: toolCallId,
+                  ...data,
+                });
+              },
             },
-          },
-        );
+          );
 
-        if (outcome.pauseForUser) {
-          bridge("clarification", {
-            question: outcome.clarificationQuestion,
-          });
+          if (outcome.pauseForUser) {
+            bridge("clarification", {
+              question: outcome.clarificationQuestion,
+            });
+          }
+
+          return typeof outcome.output === "string"
+            ? outcome.output
+            : JSON.stringify(outcome.output ?? {});
+        } catch (error) {
+          return toolErrorOutput(error);
         }
-
-        return typeof outcome.output === "string"
-          ? outcome.output
-          : JSON.stringify(outcome.output ?? {});
       },
     });
   }

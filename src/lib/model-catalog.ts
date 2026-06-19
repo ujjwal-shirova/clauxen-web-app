@@ -1,9 +1,11 @@
+import { MODEL_CONFIG, type ConfiguredModelId } from "./model-config";
+
 /**
  * Product model catalog — single source of truth for Homer, Helios, Virgil.
  * Each entry has its own upstream base URL and model slug (overridable via env).
  */
 
-export type ChatModelId = "homer" | "helios" | "virgil";
+export type ChatModelId = ConfiguredModelId;
 
 export type InferenceProviderKind = "openai";
 
@@ -28,44 +30,46 @@ export type ModelCatalogEntry = {
 export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   {
     id: "homer",
-    label: "Homer 4.7",
-    shortLabel: "Homer",
-    description: "Most capable for ambitious work",
+    label: MODEL_CONFIG.metadata.homer.label,
+    shortLabel: MODEL_CONFIG.metadata.homer.shortLabel,
+    description: MODEL_CONFIG.metadata.homer.description,
     provider: "openai",
-    defaultModelSlug: "moonshotai/kimi-k2.6",
-    modelEnvKey: "SHIROVA_HOMER_MODEL",
+    defaultModelSlug: MODEL_CONFIG.models.homer.defaultSlug,
+    modelEnvKey: MODEL_CONFIG.models.homer.envKey,
     baseUrlEnvKey: "NOVITA_OPENAI_BASE_URL",
-    defaultBaseUrl: "https://api.novita.ai/openai",
-    available: true,
-    requiresUpgrade: true,
+    defaultBaseUrl: MODEL_CONFIG.endpoints.novitaOpenAiBaseUrl,
+    available: MODEL_CONFIG.metadata.homer.available,
+    requiresUpgrade: MODEL_CONFIG.metadata.homer.requiresUpgrade,
   },
   {
     id: "helios",
-    label: "Helios 4.6",
-    shortLabel: "Helios",
-    description: "Responsive everyday work",
+    label: MODEL_CONFIG.metadata.helios.label,
+    shortLabel: MODEL_CONFIG.metadata.helios.shortLabel,
+    description: MODEL_CONFIG.metadata.helios.description,
     provider: "openai",
-    defaultModelSlug: "nex-agi/nex-n2-pro",
-    modelEnvKey: "SHIROVA_HELIOS_MODEL",
+    defaultModelSlug: MODEL_CONFIG.models.helios.defaultSlug,
+    modelEnvKey: MODEL_CONFIG.models.helios.envKey,
     baseUrlEnvKey: "NOVITA_OPENAI_BASE_URL",
-    defaultBaseUrl: "https://api.novita.ai/openai",
-    available: true,
+    defaultBaseUrl: MODEL_CONFIG.endpoints.novitaOpenAiBaseUrl,
+    available: MODEL_CONFIG.metadata.helios.available,
+    requiresUpgrade: MODEL_CONFIG.metadata.helios.requiresUpgrade,
   },
   {
     id: "virgil",
-    label: "Virgil 4.5",
-    shortLabel: "Virgil",
-    description: "Fastest, most efficient",
+    label: MODEL_CONFIG.metadata.virgil.label,
+    shortLabel: MODEL_CONFIG.metadata.virgil.shortLabel,
+    description: MODEL_CONFIG.metadata.virgil.description,
     provider: "openai",
-    defaultModelSlug: "deepseek/deepseek_v3",
-    modelEnvKey: "SHIROVA_VIRGIL_MODEL",
+    defaultModelSlug: MODEL_CONFIG.models.virgil.defaultSlug,
+    modelEnvKey: MODEL_CONFIG.models.virgil.envKey,
     baseUrlEnvKey: "NOVITA_OPENAI_BASE_URL",
-    defaultBaseUrl: "https://api.novita.ai/openai",
-    available: false,
+    defaultBaseUrl: MODEL_CONFIG.endpoints.novitaOpenAiBaseUrl,
+    available: MODEL_CONFIG.metadata.virgil.available,
+    requiresUpgrade: MODEL_CONFIG.metadata.virgil.requiresUpgrade,
   },
 ] as const;
 
-export const DEFAULT_CHAT_MODEL_ID: ChatModelId = "helios";
+export const DEFAULT_CHAT_MODEL_ID: ChatModelId = MODEL_CONFIG.defaultModelId;
 
 export type ModelRuntimeConfig = {
   id: ChatModelId;
@@ -179,8 +183,8 @@ export function resolveOpenAiModelId(
     novitaOpenAiBaseUrl: "",
     homerModel: models.homerModel,
     heliosModel: models.heliosModel,
-    virgilModel: "deepseek/deepseek_v3",
-    thinkingModel: "deepseek/deepseek-v4-pro",
+    virgilModel: MODEL_CONFIG.models.virgil.defaultSlug,
+    thinkingModel: MODEL_CONFIG.models.thinking.defaultSlug,
   }).modelSlug;
 }
 
@@ -188,16 +192,21 @@ export function modelCatalogEnvFromProcess(): ModelCatalogEnv {
   return {
     novitaAnthropicBaseUrl:
       readEnvOverride("NOVITA_ANTHROPIC_BASE_URL") ??
-      "https://api.novita.ai/anthropic",
+      MODEL_CONFIG.endpoints.novitaAnthropicBaseUrl,
     novitaOpenAiBaseUrl:
-      readEnvOverride("NOVITA_OPENAI_BASE_URL") ?? "https://api.novita.ai/openai",
+      readEnvOverride("NOVITA_OPENAI_BASE_URL") ??
+      MODEL_CONFIG.endpoints.novitaOpenAiBaseUrl,
     homerModel:
-      readEnvOverride("SHIROVA_HOMER_MODEL") ?? "moonshotai/kimi-k2.6",
+      readEnvOverride(MODEL_CONFIG.models.homer.envKey) ??
+      MODEL_CONFIG.models.homer.defaultSlug,
     heliosModel:
-      readEnvOverride("SHIROVA_HELIOS_MODEL") ?? "nex-agi/nex-n2-pro",
+      readEnvOverride(MODEL_CONFIG.models.helios.envKey) ??
+      MODEL_CONFIG.models.helios.defaultSlug,
     virgilModel:
-      readEnvOverride("SHIROVA_VIRGIL_MODEL") ?? "deepseek/deepseek_v3",
+      readEnvOverride(MODEL_CONFIG.models.virgil.envKey) ??
+      MODEL_CONFIG.models.virgil.defaultSlug,
     thinkingModel:
-      readEnvOverride("SHIROVA_THINKING_MODEL") ?? "deepseek/deepseek-v4-pro",
+      readEnvOverride(MODEL_CONFIG.models.thinking.envKey) ??
+      MODEL_CONFIG.models.thinking.defaultSlug,
   };
 }

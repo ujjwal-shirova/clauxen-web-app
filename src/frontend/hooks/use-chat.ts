@@ -47,8 +47,8 @@ import {
   stripTitleSourceText,
 } from "@/lib/chat-title";
 import {
-  patchAnswerDelta,
-  shouldFastPatchAnswerDelta,
+  canFastAppendAnswer,
+  patchToolOutputDelta,
 } from "@/frontend/lib/agent-stream-fast-path";
 import { agentAnswerDuplicatesInterim } from "@/frontend/lib/agent-frames";
 import { filterStartedRecentChats } from "@/frontend/lib/started-recent-chats";
@@ -650,15 +650,23 @@ function useLocalChat(
 
             if (!visibleDelta) return;
 
-            applyAssistantPatch((message) => {
-              if (shouldFastPatchAnswerDelta(message)) {
-                return patchAnswerDelta(message, visibleDelta);
-              }
-              return applyAgentStreamEvent(message, {
-                ...event,
-                delta: visibleDelta,
-              });
-            });
+            // Fastest path for normal chat: direct append, no updater, no reducer.
+            const msg = useChatStore.getState().messagesById[assistantMessageId];
+
+            if (canFastAppendAnswer(msg)) {
+              useChatStore
+                .getState()
+                .appendMessageField(chatId, assistantMessageId, "content", visibleDelta);
+            } else {
+              applyAssistantPatch((message) =>
+                applyAgentStreamEvent(message, { ...event, delta: visibleDelta }),
+              );
+            }
+            return;
+          }
+
+          if (event.type === "tool_output_delta") {
+            applyAssistantPatch((message) => patchToolOutputDelta(message, event));
             return;
           }
 
@@ -868,15 +876,17 @@ function useLocalChat(
       });
     }
 
+    const now = Date.now();
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: now.toString(),
       role: "user",
       content: cleanPrompt,
+      createdAt: now,
     };
     const conversationForApi = buildChatConversation([...messages, userMessage]);
 
     const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
+      id: (now + 1).toString(),
       role: "assistant",
       content: "",
       thinkingContent: "",
@@ -885,6 +895,7 @@ function useLocalChat(
       hasThinking: false,
       agentMode: false,
       agentFrameComplete: false,
+      createdAt: now + 1,
     };
 
     setAllChats((prev) => ({

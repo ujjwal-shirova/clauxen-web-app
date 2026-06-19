@@ -36,7 +36,7 @@ function distanceFromBottom(viewport: HTMLElement) {
 export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) {
   const viewportRef = useRef<HTMLElement | null>(null);
   const pinnedRef = useRef(true);
-  const rafRef = useRef<number | null>(null);
+  const followRafRef = useRef<number | null>(null);
   const scrollRafRef = useRef<number | null>(null);
   const showScrollToBottomRef = useRef(false);
   const lastScrollHeightRef = useRef(0);
@@ -64,24 +64,31 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     return performance.now() < userInputUntilRef.current;
   }, []);
 
-  const applyBottomDelta = useCallback(
+  /** Snap to bottom when pinned — avoids delta-scroll jumps during markdown reflow. */
+  const stickToBottomWhenPinned = useCallback(
     (viewport: HTMLElement) => {
-      const nextHeight = viewport.scrollHeight;
-      const prevHeight = lastScrollHeightRef.current;
-      const delta = nextHeight - prevHeight;
-      lastScrollHeightRef.current = nextHeight;
-
       if (!pinnedRef.current || isUserInputActive()) return;
 
-      const distance = distanceFromBottom(viewport);
+      const maxTop = maxScrollTop(viewport);
+      const distance = maxTop - viewport.scrollTop;
       if (distance > FOLLOW_THRESHOLD) return;
 
-      if (delta > 0) {
-        viewport.scrollTop += delta;
+      if (distance !== 0) {
+        viewport.scrollTop = maxTop;
       }
+      lastScrollHeightRef.current = viewport.scrollHeight;
     },
     [isUserInputActive],
   );
+
+  const scheduleStickToBottom = useCallback(() => {
+    if (followRafRef.current !== null) return;
+    followRafRef.current = requestAnimationFrame(() => {
+      followRafRef.current = null;
+      const viewport = resolveViewport();
+      if (viewport) stickToBottomWhenPinned(viewport);
+    });
+  }, [resolveViewport, stickToBottomWhenPinned]);
 
   const jumpToBottom = useCallback(
     (behavior: ScrollBehavior = "auto") => {
@@ -115,17 +122,18 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     jumpToBottom("auto");
   }, [jumpToBottom]);
 
-  /** Follow content growth during streaming when the user is pinned near bottom. */
+  /** Snap to bottom while pinned during streaming / content growth. */
   const followContentGrowth = useCallback(() => {
     const viewport = resolveViewport();
-    if (!viewport || !pinnedRef.current || isUserInputActive()) return;
+    if (!viewport) return;
+    if (!pinnedRef.current || isUserInputActive()) return;
 
-    const distance = distanceFromBottom(viewport);
-    if (distance > FOLLOW_THRESHOLD) return;
-
-    viewport.scrollTop = maxScrollTop(viewport);
+    const maxTop = maxScrollTop(viewport);
+    if (viewport.scrollTop !== maxTop) {
+      viewport.scrollTop = maxTop;
+    }
     lastScrollHeightRef.current = viewport.scrollHeight;
-  }, [isUserInputActive, resolveViewport]);
+  }, [resolveViewport, isUserInputActive]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -136,14 +144,6 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
       (viewport.firstElementChild as HTMLElement | null) ?? viewport;
 
     lastScrollHeightRef.current = viewport.scrollHeight;
-
-    const scheduleFollow = () => {
-      if (rafRef.current !== null) return;
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-        applyBottomDelta(viewport);
-      });
-    };
 
     const handleScroll = () => {
       if (scrollRafRef.current !== null) return;
@@ -156,9 +156,9 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
         pinnedRef.current = isPinned;
         lastScrollHeightRef.current = viewport.scrollHeight;
 
-        if (wasPinned && !isPinned && rafRef.current !== null) {
-          cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
+        if (wasPinned && !isPinned && followRafRef.current !== null) {
+          cancelAnimationFrame(followRafRef.current);
+          followRafRef.current = null;
         }
 
         const shouldShow = distance > SHOW_BUTTON_THRESHOLD;
@@ -169,7 +169,18 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
       });
     };
 
-    const resizeObserver = new ResizeObserver(scheduleFollow);
+    const resizeObserver = new ResizeObserver(() => {
+      const viewport = resolveViewport();
+      if (!viewport) return;
+
+      const nextScrollHeight = viewport.scrollHeight;
+      const prevScrollHeight = lastScrollHeightRef.current;
+      lastScrollHeightRef.current = nextScrollHeight;
+
+      if (pinnedRef.current && nextScrollHeight !== prevScrollHeight) {
+        scheduleStickToBottom();
+      }
+    });
     resizeObserver.observe(content);
 
     viewport.addEventListener("scroll", handleScroll, { passive: true });
@@ -185,16 +196,16 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
       viewport.removeEventListener("wheel", markUserInput);
       viewport.removeEventListener("touchstart", markUserInput);
       viewport.removeEventListener("touchmove", markUserInput);
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
+      if (followRafRef.current !== null) {
+        cancelAnimationFrame(followRafRef.current);
+        followRafRef.current = null;
       }
       if (scrollRafRef.current !== null) {
         cancelAnimationFrame(scrollRafRef.current);
         scrollRafRef.current = null;
       }
     };
-  }, [enabled, resolveViewport, applyBottomDelta, markUserInput]);
+  }, [enabled, resolveViewport, scheduleStickToBottom, markUserInput]);
 
   return { scrollToBottom, pinToBottom, showScrollToBottom, followContentGrowth };
 }

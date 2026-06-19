@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "NODE_OPTIONS='--disable-warning=DEP0205' next dev -p 9002",
     "build": "next build",
+    "vercel-build": "prisma generate && next build",
     "start": "NODE_OPTIONS='--disable-warning=DEP0205' next start",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
@@ -105,7 +106,7 @@
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "exa-js": "^2.13.0",
-    "flowtoken": "^1.0.12",
+    "flowtoken": "1.0.40",
     "framer-motion": "^12.38.0",
     "geist": "^1.7.0",
     "hibp": "^15.2.1",
@@ -139,6 +140,7 @@
     "react-markdown": "^10.1.0",
     "react-markdown-typer": "^1.0.5",
     "react-resizable-panels": "^4.10.0",
+    "react-syntax-highlighter": "^15.6.6",
     "recharts": "^3.8.1",
     "rehype-katex": "^7.0.1",
     "rehype-raw": "^7.0.0",
@@ -168,6 +170,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "@types/ws": "^8.18.1",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.7",
@@ -183,6 +186,7 @@
   "overrides": {
     "axios": "^1.8.4",
     "postcss": "^8.5.12",
-    "ws": "^8.18.1"
+    "ws": "^8.18.1",
+    "prismjs": "^1.30.0"
   }
 }

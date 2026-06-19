@@ -33,13 +33,10 @@ export function resolveInferenceRoute(
     modelCatalogEnvFromProcess(),
   );
 
-  const useAgent =
-    input.agentMode === true ||
-    input.webSearchEnabled === true ||
-    input.thinkingType === "enabled" ||
-    input.toolCalling === true;
-
   const thinkingEnabled = input.thinkingType === "enabled";
+  const webEnabled = input.webSearchEnabled === true;
+  const toolCallingEnabled =
+    input.agentMode === true || input.toolCalling === true;
   const catalogEnv = modelCatalogEnvFromProcess();
   const modelSlug = thinkingEnabled
     ? catalogEnv.thinkingModel
@@ -49,14 +46,18 @@ export function resolveInferenceRoute(
     provider: runtime.provider,
     modelSlug,
     baseUrl: runtime.baseUrl,
-    reason: useAgent
-      ? thinkingEnabled
-        ? `thinking agent via ${modelSlug} @ ${runtime.baseUrl}`
-        : `${runtime.id} agent path via ${runtime.provider} @ ${runtime.baseUrl}`
-      : `${runtime.id} chat path via ${runtime.provider} @ ${runtime.baseUrl}`,
+    reason: thinkingEnabled
+      ? `thinking agent via ${modelSlug} @ ${runtime.baseUrl}`
+      : webEnabled
+        ? `${runtime.id} web-capable chat via ${runtime.provider} @ ${runtime.baseUrl}`
+        : toolCallingEnabled
+          ? `${runtime.id} tool-capable chat via ${runtime.provider} @ ${runtime.baseUrl}`
+          : `${runtime.id} chat path via ${runtime.provider} @ ${runtime.baseUrl}`,
   };
 }
 
-export function parseChatModelIdFromRequest(value?: string | null): ChatModelId {
+export function parseChatModelIdFromRequest(
+  value?: string | null,
+): ChatModelId {
   return parseChatModelId(value);
 }

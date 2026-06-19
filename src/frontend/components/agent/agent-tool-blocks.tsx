@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, LoaderCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { LoaderCircle, Check, Copy, ExternalLink, ArrowUp, Plus, Calendar, MapPin, Star, Sparkles, CloudSun, Compass, ShieldAlert, Award, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
   domainFromUrl,
@@ -58,7 +58,6 @@ function SearchResultRow({ result }: { result: WebSearchResult }) {
 }
 
 export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
-  const [expanded, setExpanded] = useState(tool.status === "running");
   const query =
     tool.searchQuery ??
     (typeof tool.args?.query === "string" ? tool.args.query : "Web search");
@@ -71,21 +70,9 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
       icon="search"
       isActive={isRunning}
       title={
-        <button
-          type="button"
-          onClick={() => setExpanded((value) => !value)}
-          className="flex w-full items-center gap-2 text-left"
-        >
-          <span className={cn("truncate", isRunning && "shimmer-text")}>
-            {query}
-          </span>
-          <ChevronDown
-            className={cn(
-              "icon-md shrink-0 text-zinc-400 transition-transform duration-200",
-              expanded && "rotate-180",
-            )}
-          />
-        </button>
+        <span className={cn("truncate", isRunning && "shimmer-text")}>
+          {query}
+        </span>
       }
       trailing={
         isRunning ? (
@@ -98,20 +85,18 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
         ) : undefined
       }
     >
-      {expanded ? (
-        results.length > 0 ? (
-          <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
-            <div className="divide-y divide-zinc-100 px-1 py-1">
-              {results.slice(0, 10).map((result) => (
-                <SearchResultRow key={result.url} result={result} />
-              ))}
-            </div>
+      {results.length > 0 ? (
+        <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
+          <div className="divide-y divide-zinc-100 px-1 py-1">
+            {results.slice(0, 10).map((result) => (
+              <SearchResultRow key={result.url} result={result} />
+            ))}
           </div>
-        ) : isRunning ? (
-          <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-[13px] text-zinc-500 shimmer-text">
-            Searching the web…
-          </div>
-        ) : null
+        </div>
+      ) : isRunning ? (
+        <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-[13px] text-zinc-500 shimmer-text">
+          Searching the web…
+        </div>
       ) : null}
     </AgentTimelineStep>
   );
@@ -218,6 +203,397 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
   );
 }
 
+// ─── Interactive Tool Components ───────────────────────────────────────────
+
+export function AskUserInputBlock({ tool }: { tool: AgentToolSegment }) {
+  const questions = (tool.args?.questions as any[]) ?? [];
+  const [answers, setAnswers] = useState<Record<number, string | string[]>>({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSelect = (qIdx: number, option: string, isMulti = false) => {
+    if (submitted) return;
+    if (isMulti) {
+      const current = (answers[qIdx] as string[]) ?? [];
+      const next = current.includes(option)
+        ? current.filter((o) => o !== option)
+        : [...current, option];
+      setAnswers({ ...answers, [qIdx]: next });
+    } else {
+      setAnswers({ ...answers, [qIdx]: option });
+    }
+  };
+
+  const handleSubmit = () => {
+    setSubmitted(true);
+    const answerText = Object.entries(answers)
+      .map(([i, a]) => `Question ${+i + 1}: ${Array.isArray(a) ? a.join(", ") : a}`)
+      .join("\n");
+
+    // Populate prompt input
+    const textarea = document.querySelector("textarea.prompt-textarea") as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.value = answerText;
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.focus();
+    }
+  };
+
+  return (
+    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title="User Preferences">
+      <div className="flex flex-col gap-3 max-w-md">
+        {questions.map((q, qIdx) => {
+          const isMulti = q.type === "multi_select";
+          const currentAnswer = answers[qIdx];
+          return (
+            <div key={qIdx} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+              <p className="text-[14px] font-semibold text-zinc-800 mb-3">{q.question}</p>
+              <div className="flex flex-wrap gap-2">
+                {q.options.map((opt: string) => {
+                  const isSelected = isMulti
+                    ? (currentAnswer as string[] ?? []).includes(opt)
+                    : currentAnswer === opt;
+                  return (
+                    <button
+                      key={opt}
+                      disabled={submitted}
+                      onClick={() => handleSelect(qIdx, opt, isMulti)}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 text-[12px] font-medium border transition-all",
+                        isSelected
+                          ? "bg-zinc-900 border-zinc-900 text-white"
+                          : "bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                      )}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {!submitted && (
+          <button
+            onClick={handleSubmit}
+            disabled={Object.keys(answers).length < questions.length}
+            className="self-start rounded-lg bg-zinc-900 text-white text-[13px] font-semibold px-4 py-2 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Submit Preferences
+          </button>
+        )}
+      </div>
+    </AgentTimelineStep>
+  );
+}
+
+export function SportsDataBlock({ tool }: { tool: AgentToolSegment }) {
+  const result = tool.result ? JSON.parse(tool.result) : null;
+  const isRunning = tool.status === "running";
+
+  return (
+    <AgentTimelineStep icon="tool" isActive={isRunning} title="Sports Scores & Stats">
+      {isRunning ? (
+        <div className="text-[13px] text-zinc-500">Fetching live sports data...</div>
+      ) : result ? (
+        <div className="flex flex-col gap-3 max-w-md">
+          {result.games?.map((game: any) => (
+            <div key={game.id} className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
+              <div className="bg-zinc-50 px-3 py-1.5 flex justify-between items-center border-b border-zinc-100">
+                <span className="text-[11px] font-bold text-zinc-500 tracking-wider uppercase">{result.league}</span>
+                <span className="text-[11px] font-semibold text-zinc-600">{game.status}</span>
+              </div>
+              <div className="p-4 flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[14px] font-medium text-zinc-800">{game.awayTeam}</span>
+                  <span className="text-[18px] font-bold text-zinc-900">{game.awayScore}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[14px] font-medium text-zinc-800">{game.homeTeam}</span>
+                  <span className="text-[18px] font-bold text-zinc-900">{game.homeScore}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+          {result.standings && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+              <h4 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider mb-3">Standings</h4>
+              <div className="flex flex-col gap-2">
+                {result.standings.map((team: any) => (
+                  <div key={team.team} className="flex justify-between text-[13px] text-zinc-700">
+                    <span>{team.rank}. {team.team}</span>
+                    <span className="font-semibold">{team.wins}W - {team.losses}L</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
+    </AgentTimelineStep>
+  );
+}
+
+export function ImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
+  const result = tool.result ? JSON.parse(tool.result) : null;
+  const isRunning = tool.status === "running";
+
+  return (
+    <AgentTimelineStep icon="tool" isActive={isRunning} title={`Image Search: ${tool.args?.query}`}>
+      {isRunning ? (
+        <div className="text-[13px] text-zinc-500">Searching for images...</div>
+      ) : result?.images ? (
+        <div className="grid grid-cols-3 gap-2 max-w-md">
+          {result.images.map((img: any, i: number) => (
+            <div key={i} className="aspect-square rounded-lg overflow-hidden border border-zinc-200 bg-zinc-50">
+              <img src={img.url} alt={img.alt} className="w-full h-full object-cover" />
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </AgentTimelineStep>
+  );
+}
+
+export function MessageComposeBlock({ tool }: { tool: AgentToolSegment }) {
+  const variants = (tool.args?.variants as any[]) ?? [];
+  const [selected, setSelected] = useState(0);
+  const [copied, setCopied] = useState(false);
+
+  const current = variants[selected];
+
+  const handleCopy = async () => {
+    if (!current) return;
+    const text = tool.args?.kind === "email" && current.subject
+      ? `Subject: ${current.subject}\n\n${current.body}`
+      : current.body;
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title="Message Drafter">
+      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
+        {tool.args?.summary_title && (
+          <div className="bg-zinc-50 px-4 py-2 border-b border-zinc-100 text-[13px] font-semibold text-zinc-700">
+            {String(tool.args.summary_title)}
+          </div>
+        )}
+        {variants.length > 1 && (
+          <div className="flex border-b border-zinc-100 overflow-x-auto">
+            {variants.map((v, i) => (
+              <button
+                key={i}
+                onClick={() => setSelected(i)}
+                className={cn(
+                  "flex-1 px-4 py-2 text-[12px] font-medium border-b-2 transition-all whitespace-nowrap",
+                  selected === i
+                    ? "border-zinc-900 text-zinc-900 font-semibold"
+                    : "border-transparent text-zinc-500 hover:text-zinc-700"
+                )}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {current && (
+          <div className="p-4">
+            {tool.args?.kind === "email" && current.subject && (
+              <div className="mb-3">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Subject</span>
+                <p className="text-[13px] font-semibold text-zinc-800">{current.subject}</p>
+              </div>
+            )}
+            <div className="rounded-lg bg-zinc-50 p-3 font-mono text-[12px] text-zinc-800 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+              {current.body}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={handleCopy}
+                className="rounded-lg border border-zinc-200 bg-white text-zinc-700 text-[12px] font-semibold px-3 py-1.5 hover:bg-zinc-50 flex items-center gap-1.5"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </AgentTimelineStep>
+  );
+}
+
+export function MapDisplayBlock({ tool }: { tool: AgentToolSegment }) {
+  const locations = (tool.args?.locations as any[]) ?? [];
+  const [selected, setSelected] = useState<number | null>(null);
+  const narrative = tool.args?.narrative ? String(tool.args.narrative) : undefined;
+
+  return (
+    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title={String(tool.args?.title ?? "Interactive Map")}>
+      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
+        {narrative && (
+          <div className="p-4 border-b border-zinc-100 text-[13px] text-zinc-600 leading-relaxed">
+            {narrative}
+          </div>
+        )}
+        <div className="bg-zinc-50 h-32 flex items-center justify-center text-[12px] text-zinc-400 border-b border-zinc-100">
+          Interactive Map Display ({locations.length} points)
+        </div>
+        <div className="divide-y divide-zinc-100 max-h-48 overflow-y-auto">
+          {locations.map((loc, i) => (
+            <div
+              key={i}
+              onClick={() => setSelected(selected === i ? null : i)}
+              className={cn(
+                "p-3 cursor-pointer transition-colors flex flex-col gap-1",
+                selected === i ? "bg-zinc-50" : "hover:bg-zinc-50/50"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <span className="h-5 w-5 rounded-full bg-zinc-900 text-white text-[10px] font-bold flex items-center justify-center">
+                  {i + 1}
+                </span>
+                <span className="text-[13px] font-semibold text-zinc-800">{loc.name}</span>
+              </div>
+              {selected === i && loc.notes && (
+                <p className="pl-7 text-[12px] text-zinc-500 italic leading-relaxed">{loc.notes}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </AgentTimelineStep>
+  );
+}
+
+export function RecipeDisplayBlock({ tool }: { tool: AgentToolSegment }) {
+  const ingredients = (tool.args?.ingredients as any[]) ?? [];
+  const steps = (tool.args?.steps as any[]) ?? [];
+  const [servings, setServings] = useState(Number(tool.args?.base_servings ?? 4));
+  const baseServings = Number(tool.args?.base_servings ?? 4);
+  const multiplier = servings / baseServings;
+  const description = tool.args?.description ? String(tool.args.description) : undefined;
+
+  return (
+    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title={String(tool.args?.title ?? "Recipe")}>
+      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
+        {description && (
+          <div className="p-4 border-b border-zinc-100 text-[13px] text-zinc-600">
+            {description}
+          </div>
+        )}
+        <div className="bg-zinc-50 px-4 py-3 border-b border-zinc-100 flex items-center justify-between">
+          <span className="text-[12px] font-semibold text-zinc-700">Servings</span>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setServings(Math.max(1, servings - 1))}
+              className="h-6 w-6 rounded-full border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 flex items-center justify-center font-bold text-[14px]"
+            >
+              -
+            </button>
+            <span className="text-[14px] font-bold text-zinc-800 min-w-[20px] text-center">{servings}</span>
+            <button
+              onClick={() => setServings(servings + 1)}
+              className="h-6 w-6 rounded-full border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 flex items-center justify-center font-bold text-[14px]"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div className="p-4 flex flex-col gap-4">
+          <div>
+            <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ingredients</h4>
+            <ul className="flex flex-col gap-1.5">
+              {ingredients.map((ing) => (
+                <li key={ing.id} className="flex justify-between text-[13px] text-zinc-700">
+                  <span>{ing.name}</span>
+                  <span className="font-semibold text-zinc-900">
+                    {((ing.amount * multiplier) || 0).toFixed(1).replace(/\.0$/, "")} {ing.unit || ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Steps</h4>
+            <ol className="flex flex-col gap-3">
+              {steps.map((step, idx) => (
+                <li key={step.id} className="flex gap-2.5">
+                  <span className="h-5 w-5 rounded-full bg-zinc-100 text-zinc-600 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    {idx + 1}
+                  </span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[13px] font-semibold text-zinc-800">{step.title}</span>
+                    <span className="text-[12px] text-zinc-600 leading-relaxed">{step.content}</span>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </div>
+    </AgentTimelineStep>
+  );
+}
+
+export function RecommendClaudeAppsBlock({ tool }: { tool: AgentToolSegment }) {
+  const appIds = (tool.args?.app_ids as string[]) ?? [];
+  
+  const appNames: Record<string, string> = {
+    desktop: "Claude Desktop",
+    ios: "Claude iOS App",
+    android: "Claude Android App",
+    claude_code_terminal: "Claude Code CLI",
+    claude_code_vscode: "VS Code Extension",
+    claude_code_jetbrains: "JetBrains Extension",
+    claude_code_slack: "Slack Integration",
+    excel: "Excel Add-in",
+    powerpoint: "PowerPoint Add-in",
+    chrome: "Chrome Extension",
+  };
+
+  return (
+    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title="Recommended Apps">
+      <div className="flex flex-col gap-2 max-w-md">
+        {appIds.map((id) => (
+          <div key={id} className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm flex justify-between items-center">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[13px] font-semibold text-zinc-800">{appNames[id] || id}</span>
+              <span className="text-[11px] text-zinc-400">Official ecosystem integration</span>
+            </div>
+            <button className="rounded-lg border border-zinc-200 text-zinc-700 text-[12px] font-semibold px-3 py-1.5 hover:bg-zinc-50">
+              Get App
+            </button>
+          </div>
+        ))}
+      </div>
+    </AgentTimelineStep>
+  );
+}
+
+export function SuggestConnectorsBlock({ tool }: { tool: AgentToolSegment }) {
+  const uuids = (tool.args?.uuids as string[]) ?? [];
+
+  return (
+    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title="Connect to Services">
+      <div className="flex flex-col gap-2 max-w-md">
+        {uuids.map((uuid) => (
+          <div key={uuid} className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm flex justify-between items-center">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[13px] font-semibold text-zinc-800">{uuid.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+              <span className="text-[11px] text-zinc-400">MCP Connector</span>
+            </div>
+            <button className="rounded-lg bg-zinc-900 text-white text-[12px] font-semibold px-3 py-1.5 hover:bg-zinc-800">
+              Connect
+            </button>
+          </div>
+        ))}
+      </div>
+    </AgentTimelineStep>
+  );
+}
+
 export function AgentToolBlock({ tool }: { tool: AgentToolSegment }) {
   if (tool.name === "web_search" || tool.name === "web_fetch") {
     return <AgentWebSearchBlock tool={tool} />;
@@ -231,6 +607,30 @@ export function AgentToolBlock({ tool }: { tool: AgentToolSegment }) {
   }
   if (tool.name === "bash_tool" || tool.name === "run_code_interpreter") {
     return <AgentBashToolBlock tool={tool} />;
+  }
+  if (tool.name === "ask_user_input_v0") {
+    return <AskUserInputBlock tool={tool} />;
+  }
+  if (tool.name === "fetch_sports_data") {
+    return <SportsDataBlock tool={tool} />;
+  }
+  if (tool.name === "image_search") {
+    return <ImageSearchBlock tool={tool} />;
+  }
+  if (tool.name === "message_compose_v1") {
+    return <MessageComposeBlock tool={tool} />;
+  }
+  if (tool.name === "places_map_display_v0") {
+    return <MapDisplayBlock tool={tool} />;
+  }
+  if (tool.name === "recipe_display_v0") {
+    return <RecipeDisplayBlock tool={tool} />;
+  }
+  if (tool.name === "recommend_claude_apps") {
+    return <RecommendClaudeAppsBlock tool={tool} />;
+  }
+  if (tool.name === "suggest_connectors") {
+    return <SuggestConnectorsBlock tool={tool} />;
   }
   return <AgentGenericToolBlock tool={tool} />;
 }

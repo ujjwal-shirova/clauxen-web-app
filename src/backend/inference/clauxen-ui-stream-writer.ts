@@ -27,7 +27,9 @@ export class ClauxenUiStreamWriter {
   private readonly toolNames = new Map<string, string>();
   private readonly toolInputJson = new Map<string, string>();
 
-  constructor(private readonly writer: UIMessageStreamWriter<ClauxenUIMessage>) {}
+  constructor(
+    private readonly writer: UIMessageStreamWriter<ClauxenUIMessage>,
+  ) {}
 
   private nextSegmentId() {
     this.segmentCounter += 1;
@@ -78,6 +80,10 @@ export class ClauxenUiStreamWriter {
     });
   }
 
+  onReasoningEnd() {
+    this.closeReasoning();
+  }
+
   onAnswerDelta(text: string) {
     if (!text) return;
     const id = this.ensureTextId();
@@ -121,13 +127,13 @@ export class ClauxenUiStreamWriter {
     this.closeText();
 
     const priorInput = this.toolInputJson.get(tool.id) ?? "";
-    const nextInput =
-      typeof tool.input === "string" ? tool.input : priorInput;
+    const alreadyStarted = this.toolNames.has(tool.id);
+    const nextInput = typeof tool.input === "string" ? tool.input : priorInput;
     this.toolInputJson.set(tool.id, nextInput);
     this.toolNames.set(tool.id, tool.name);
     this.activeToolId = tool.id;
 
-    if (!priorInput) {
+    if (!alreadyStarted) {
       this.writer.write({
         type: "tool-input-start",
         toolCallId: tool.id,

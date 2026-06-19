@@ -6,6 +6,7 @@ export type ExaSearchHit = {
   url: string;
   snippet: string;
   publishedDate?: string;
+  favicon?: string;
   highlights?: string[];
 };
 
@@ -16,12 +17,19 @@ export type ExaSearchOptions = {
   onStreamContent?: (delta: string) => void;
   /** Fires as citation hits arrive during streaming. */
   onPartialResults?: (results: ExaSearchHit[]) => void;
+  /** Number of results to request (1-100). */
+  numResults?: number;
+  /** JSON schema for structured synthesis (output.content). */
+  outputSchema?: Record<string, unknown>;
+  /** Additional system instructions for quality, safety, and behavior. */
+  systemPrompt?: string;
 };
 
 type ExaResultRow = {
   title?: string | null;
   url?: string;
   publishedDate?: string | null;
+  favicon?: string | null;
   highlights?: string[] | null;
   text?: string;
 };
@@ -33,8 +41,15 @@ type ExaCitationRow = {
   text?: string;
 };
 
-const SEARCH_TYPE = "fast" as const;
-const NUM_RESULTS = 10;
+const SEARCH_TYPE = "auto" as const;
+const NUM_RESULTS = 12;
+
+const SEARCH_SYSTEM_PROMPT = [
+  "You are a high-quality, safety-aware web research system.",
+  "Prefer primary sources, official sources, reputable journalism, and recently published pages when the query is current.",
+  "Avoid duplicate URLs, low-quality SEO pages, and unsupported claims.",
+  "Return transparent source metadata and relevant excerpts; do not fabricate citations.",
+].join(" ");
 
 function getExaClient(): Exa | null {
   const apiKey = env.exaApiKey;
@@ -42,16 +57,26 @@ function getExaClient(): Exa | null {
   return new Exa(apiKey);
 }
 
-function buildSearchRequestOptions(userLocation?: string) {
-  return {
+function buildSearchRequestOptions(options?: {
+  userLocation?: string;
+  numResults?: number;
+  outputSchema?: Record<string, unknown>;
+  systemPrompt?: string;
+}) {
+  const num = Math.max(1, Math.min(100, options?.numResults ?? NUM_RESULTS));
+  const sys = options?.systemPrompt || SEARCH_SYSTEM_PROMPT;
+  const base: any = {
     type: SEARCH_TYPE,
-    numResults: NUM_RESULTS,
+    numResults: num,
     moderation: true,
-    ...(userLocation ? { userLocation } : {}),
+    systemPrompt: sys,
     contents: {
       highlights: true as const,
     },
   };
+  if (options?.userLocation) base.userLocation = options.userLocation;
+  if (options?.outputSchema) base.outputSchema = options.outputSchema;
+  return base;
 }
 
 function mapExaResult(result: ExaResultRow): ExaSearchHit {
@@ -66,6 +91,7 @@ function mapExaResult(result: ExaResultRow): ExaSearchHit {
     url: result.url ?? "",
     snippet: snippet.trim(),
     publishedDate: result.publishedDate ?? undefined,
+    favicon: result.favicon ?? undefined,
     highlights,
   };
 }
@@ -98,7 +124,7 @@ function mapCitation(citation: ExaCitationRow): ExaSearchHit {
 
 /**
  * Semantic web search via Exa `/search`:
- * - `type: "fast"` for low-latency agent turns
+ * - `type: "auto"` for balanced source quality and latency
  * - `streamSearch` (stream: true) for live citation/SSE updates
  * - non-stream fallback when streaming yields no citations
  * - `userLocation` for localized result ranking
@@ -112,7 +138,12 @@ export async function searchWebWithExa(
     throw new Error("EXA_API_KEY is not configured");
   }
 
-  const requestOptions = buildSearchRequestOptions(options?.userLocation);
+  const requestOptions = buildSearchRequestOptions({
+    userLocation: options?.userLocation,
+    numResults: options?.numResults,
+    outputSchema: options?.outputSchema,
+    systemPrompt: options?.systemPrompt,
+  });
   const hitsByUrl = new Map<string, ExaSearchHit>();
 
   try {

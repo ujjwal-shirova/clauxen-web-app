@@ -22,7 +22,7 @@ import type {
   AgentChatRequest,
   AgentMessage,
 } from "@/backend/inference/novita-agent";
-import { buildInlineChatTitleSystemInstruction } from "@/lib/chat-title";
+import { buildAgentSystemPrompt } from "@/backend/inference/agent-system-prompt";
 import { buildStructuredOutputTool } from "@/backend/inference/openai-agent-adapter";
 
 export type AgentStreamEvent =
@@ -76,17 +76,10 @@ function resolveAgentTools(request: AgentChatRequest) {
   return all;
 }
 
-const AGENT_SYSTEM_BASE = [
-  "You are Clauxen, a helpful AI assistant.",
-  "You can use tools when they help. Use web_search to find current or factual information you are unsure about, and web_fetch to read a specific URL. Decide yourself when a question needs fresh information versus when you can answer directly — do not search for things you already know. After using tools, answer the user clearly and concisely.",
-].join("\n\n");
-
 function buildSystemPrompt(request: AgentChatRequest) {
-  let prompt = buildCacheableSystemPrefix(AGENT_SYSTEM_BASE);
-  if (request.generateChatTitle) {
-    prompt = `${prompt}\n\n${buildInlineChatTitleSystemInstruction()}`;
-  }
-  return prompt;
+  return buildCacheableSystemPrefix(
+    buildAgentSystemPrompt({ generateChatTitle: request.generateChatTitle }),
+  );
 }
 
 function resolveStructuredTools(request: AgentChatRequest) {

@@ -2,6 +2,8 @@ export type WebSearchResult = {
   title: string;
   url: string;
   snippet: string;
+  publishedDate?: string;
+  favicon?: string;
   highlights?: string[];
 };
 

@@ -1,4 +1,5 @@
 import type { Message } from "@/frontend/lib/types";
+import { stripMessageContentForModelApi } from "@/lib/model-context";
 
 /** Stateless chat API turn — rebuilt from the active branch on each request. */
 export type ChatConversationTurn = {
@@ -25,7 +26,7 @@ function toConversationTurns(messages: readonly Message[]): ChatConversationTurn
     )
     .map((message) => ({
       role: message.role as "user" | "assistant",
-      content: message.content.trim(),
+      content: stripMessageContentForModelApi(message.content.trim()),
     }));
 }
 

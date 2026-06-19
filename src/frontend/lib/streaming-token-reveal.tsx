@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 
-const MIN_DURATION_MS = 12;
-const MAX_DURATION_MS = 56;
-const MS_PER_CHAR = 2;
+const MIN_DURATION_MS = 6;
+const MAX_DURATION_MS = 36;
+const MS_PER_CHAR = 1.2;
 
 export type StreamToken = {
   id: number;
@@ -55,7 +55,7 @@ export function computeStreamTokenDurationMs(
     elapsedSinceLastChunk > 0
       ? Math.min(
           MAX_DURATION_MS,
-          Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.72),
+          Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.55),
         )
       : MIN_DURATION_MS;
   const sizeBased = Math.min(
@@ -109,7 +109,7 @@ function appendDelta(
     parts.length > 1
       ? Math.max(MIN_DURATION_MS, Math.round(chunkDurationMs / parts.length))
       : chunkDurationMs;
-  const staggerMs = Math.min(4, Math.round(perPartDuration * 0.08));
+  const staggerMs = Math.min(2, Math.round(perPartDuration * 0.05));
 
   for (let index = 0; index < parts.length; index += 1) {
     const part = parts[index];

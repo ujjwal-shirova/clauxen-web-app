@@ -1,7 +1,16 @@
 "use client";
 
 import React from "react";
-import { Check } from "lucide-react";
+import { createPortal } from "react-dom";
+import {
+  Check,
+  GitBranch,
+  MoreHorizontal,
+  Search,
+  Share2,
+  Sparkles,
+  Volume2,
+} from "lucide-react";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ThinkingBlock } from "./thinking-block";
 import { AgentMessageContent } from "./agent/agent-message-content";
@@ -16,6 +25,8 @@ import { cn } from "@/frontend/lib/utils";
 import { useMessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import { useMessageEnterAnimation } from "@/frontend/hooks/use-message-enter-animation";
+import { collectMessageSources } from "@/frontend/lib/chat-sources";
+import { useIsMobile } from "@/frontend/hooks/use-mobile";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 
@@ -28,6 +39,7 @@ interface ConversationThreadProps {
   onRetryUserMessage: (messageId: string) => void;
   onRetryAssistant: (messageId: string) => void;
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
+  onOpenSources?: (messageId?: string) => void;
   className?: string;
   scrollAreaRef?: React.RefObject<HTMLDivElement | null>;
   /** Resets sticky state when switching chats. */
@@ -142,7 +154,10 @@ interface MessageRowProps {
   onRetryUserMessage: (messageId: string) => void;
   onRetryAssistant: (messageId: string) => void;
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
+  onOpenSources?: (messageId?: string) => void;
   forcedDetailLevel?: MessageDetailLevel;
+  moreMenuId?: string | null;
+  onToggleMoreMenu?: (id: string, anchor?: DOMRect) => void;
 }
 
 const MessageRow = React.memo(
@@ -159,7 +174,10 @@ const MessageRow = React.memo(
     onRetryUserMessage,
     onRetryAssistant,
     onSwitchBranch,
+    onOpenSources,
     forcedDetailLevel,
+    moreMenuId,
+    onToggleMoreMenu,
   }: MessageRowProps) {
     const branchVersions = message.branchVersions?.length ?? 1;
     const activeBranchIndex = message.activeBranchIndex ?? branchVersions - 1;
@@ -173,6 +191,10 @@ const MessageRow = React.memo(
     const { shouldAnimate, markEntered } = useMessageEnterAnimation(
       message.id,
       true,
+    );
+    const messageSources = React.useMemo(
+      () => (message.role === "assistant" ? collectMessageSources(message) : []),
+      [message],
     );
 
     return (
@@ -228,7 +250,7 @@ const MessageRow = React.memo(
                 onSwitchBranch={onSwitchBranch}
               />
               <div className="user-message-actions absolute inset-x-0 top-full z-10 mt-0.5 flex h-7 items-center justify-end gap-0">
-                <HintTooltip content="Retry">
+                <HintTooltip content="Retry" side="bottom">
                   <button
                     type="button"
                     onClick={() => onRetryUserMessage(message.id)}
@@ -237,7 +259,7 @@ const MessageRow = React.memo(
                     <RetryIcon />
                   </button>
                 </HintTooltip>
-                <HintTooltip content="Edit">
+                <HintTooltip content="Edit" side="bottom">
                   <button
                     onClick={() => {
                       onStartEdit(message);
@@ -248,7 +270,7 @@ const MessageRow = React.memo(
                     <EditPenIcon />
                   </button>
                 </HintTooltip>
-                <HintTooltip content="Copy">
+                <HintTooltip content="Copy" side="bottom">
                   <button
                     onClick={() => onCopy(message.id, message.content)}
                     className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
@@ -262,7 +284,7 @@ const MessageRow = React.memo(
                 </HintTooltip>
                 {branchVersions > 1 ? (
                   <div className="ml-1 flex items-center gap-1 text-zinc-500">
-                    <HintTooltip content="Previous version">
+                    <HintTooltip content="Previous version" side="bottom">
                       <button
                         onClick={() => onSwitchBranch(message.id, "prev")}
                         disabled={activeBranchIndex <= 0}
@@ -282,7 +304,7 @@ const MessageRow = React.memo(
                     <span className="min-w-[34px] text-center text-[12px] font-[430]">
                       {activeBranchIndex + 1} / {branchVersions}
                     </span>
-                    <HintTooltip content="Next version">
+                    <HintTooltip content="Next version" side="bottom">
                       <button
                         onClick={() => onSwitchBranch(message.id, "next")}
                         disabled={activeBranchIndex >= branchVersions - 1}
@@ -312,10 +334,16 @@ const MessageRow = React.memo(
             {message.agentMode ||
             (message.agentFrames && message.agentFrames.length > 0) ||
             (message.agentSegments && message.agentSegments.length > 0) ? (
-              <AgentMessageContent
-                message={message}
-                detailLevel={renderDetailLevel}
-              />
+              <div
+                data-message-id={message.id}
+                data-assistant-content="true"
+                className="min-w-0 w-full"
+              >
+                <AgentMessageContent
+                  message={message}
+                  detailLevel={renderDetailLevel}
+                />
+              </div>
             ) : (
               <>
                 {(message.hasThinking ||
@@ -328,17 +356,24 @@ const MessageRow = React.memo(
                   />
                 )}
                 {message.isStreaming && message.content.trim().length === 0 && (
-                  <div className="flex items-center py-1">
+                  <div className="flex items-center gap-1 py-1.5">
                     <OrbCursor />
                   </div>
                 )}
                 {message.content.trim().length > 0 ? (
-                  <MarkdownRenderer
-                    content={message.content}
-                    isStreaming={!!message.isStreaming}
-                    streamKey={message.id}
-                    detailLevel={renderDetailLevel}
-                  />
+                  <div
+                    data-message-id={message.id}
+                    data-assistant-content="true"
+                    className="min-w-0"
+                  >
+                    <MarkdownRenderer
+                      content={message.content}
+                      isStreaming={!!message.isStreaming}
+                      streamKey={message.id}
+                      detailLevel={renderDetailLevel}
+                      {...({ sources: messageSources } as any)}
+                    />
+                  </div>
                 ) : null}
               </>
             )}
@@ -348,74 +383,157 @@ const MessageRow = React.memo(
               message.content.trim().length > 0) &&
             !message.isStreaming ? (
               <>
-                  <div className="mt-2 flex items-center justify-start gap-0.5 font-sans text-zinc-500 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
-                    <HintTooltip content="Copy">
-                      <button
-                        onClick={() => onCopy(message.id, message.content)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 transition-all"
-                      >
-                        <CustomCopyIcon />
-                      </button>
-                    </HintTooltip>
-                    <HintTooltip content="Positive feedback">
-                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 transition-all">
-                        <ThumbsUpIcon />
-                      </button>
-                    </HintTooltip>
-                    <HintTooltip content="Negative feedback">
-                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 transition-all">
-                        <ThumbsDownIcon />
-                      </button>
-                    </HintTooltip>
-                    <HintTooltip content="Retry">
-                      <button
-                        onClick={() => onRetryAssistant(message.id)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 transition-all"
-                      >
-                        <RetryIcon />
-                      </button>
-                    </HintTooltip>
-                    {branchVersions > 1 ? (
-                      <div className="ml-1 flex items-center gap-1 text-zinc-500">
-                        <HintTooltip content="Previous version">
+                  <div className="relative mt-2 flex flex-wrap items-center gap-0.5 font-sans text-zinc-500 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
+                      <HintTooltip content="Copy" side="bottom" align="start">
+                        <button
+                          type="button"
+                          aria-label="Copy message"
+                          onClick={() => onCopy(message.id, message.content)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-zinc-100"
+                        >
+                          {copiedId === message.id ? (
+                            <Check className="h-4 w-4 text-emerald-600" />
+                          ) : (
+                            <CustomCopyIcon />
+                          )}
+                        </button>
+                      </HintTooltip>
+                      <HintTooltip content="Positive feedback" side="bottom">
+                        <button
+                          type="button"
+                          aria-label="Positive feedback"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-zinc-100"
+                        >
+                          <ThumbsUpIcon />
+                        </button>
+                      </HintTooltip>
+                      <HintTooltip content="Negative feedback" side="bottom">
+                        <button
+                          type="button"
+                          aria-label="Negative feedback"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-zinc-100"
+                        >
+                          <ThumbsDownIcon />
+                        </button>
+                      </HintTooltip>
+                      <HintTooltip content="Retry" side="bottom">
+                        <button
+                          type="button"
+                          aria-label="Retry"
+                          onClick={() => onRetryAssistant(message.id)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-zinc-100"
+                        >
+                          <RetryIcon />
+                        </button>
+                      </HintTooltip>
+                      <HintTooltip content="Share" side="bottom">
+                        <button
+                          type="button"
+                          aria-label="Share message"
+                          onClick={async () => {
+                            const text = message.content.trim();
+                            if (!text) return;
+                            if (typeof navigator.share === "function") {
+                              try {
+                                await navigator.share({ text });
+                                return;
+                              } catch {
+                                // fall through to clipboard
+                              }
+                            }
+                            await navigator.clipboard.writeText(text);
+                          }}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-zinc-100"
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </button>
+                      </HintTooltip>
+                      <div className="relative" data-more-trigger>
+                        <HintTooltip content="More" side="bottom">
                           <button
-                            onClick={() => onSwitchBranch(message.id, "prev")}
-                            disabled={activeBranchIndex <= 0}
-                            className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                            type="button"
+                            aria-label="More actions"
+                            aria-expanded={moreMenuId === message.id}
+                            onClick={(event) => {
+                              const rect = event.currentTarget.getBoundingClientRect();
+                              onToggleMoreMenu?.(message.id, rect);
+                            }}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
                           >
-                            <svg
-                              width="20"
-                              height="20"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                              aria-hidden="true"
-                            >
-                              <path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" />
-                            </svg>
-                          </button>
-                        </HintTooltip>
-                        <span className="min-w-[34px] text-center text-[12px] font-[430]">
-                          {activeBranchIndex + 1} / {branchVersions}
-                        </span>
-                        <HintTooltip content="Next version">
-                          <button
-                            onClick={() => onSwitchBranch(message.id, "next")}
-                            disabled={activeBranchIndex >= branchVersions - 1}
-                            className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
-                          >
-                            <svg
-                              width="20"
-                              height="20"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                              aria-hidden="true"
-                            >
-                              <path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" />
-                            </svg>
+                            <MoreHorizontal className="h-4 w-4" />
                           </button>
                         </HintTooltip>
                       </div>
-                    ) : null}
+                      {messageSources.length > 0 ? (
+                        <HintTooltip content="Sources" side="bottom">
+                          <button
+                            type="button"
+                            onClick={() => onOpenSources?.(message.id)}
+                            className="inline-flex h-7 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2 text-[12px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50"
+                          >
+                            <span className="flex -space-x-1">
+                              {messageSources.slice(0, 3).map((source) => (
+                                <img
+                                  key={source.id}
+                                  src={
+                                    source.favicon ||
+                                    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(source.domain)}&sz=32`
+                                  }
+                                  alt=""
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="h-4 w-4 rounded-full border border-white bg-white"
+                                />
+                              ))}
+                            </span>
+                            <Search className="h-3.5 w-3.5" />
+                            <span>Sources</span>
+                          </button>
+                        </HintTooltip>
+                      ) : null}
+                      {branchVersions > 1 ? (
+                        <div className="ml-0.5 flex items-center gap-1 text-zinc-500">
+                          <HintTooltip content="Previous version" side="bottom">
+                            <button
+                              type="button"
+                              onClick={() => onSwitchBranch(message.id, "prev")}
+                              disabled={activeBranchIndex <= 0}
+                              className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                            >
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                aria-hidden="true"
+                              >
+                                <path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" />
+                              </svg>
+                            </button>
+                          </HintTooltip>
+                          <span className="min-w-[34px] text-center text-[12px] font-[430]">
+                            {activeBranchIndex + 1} / {branchVersions}
+                          </span>
+                          <HintTooltip content="Next version" side="bottom">
+                            <button
+                              type="button"
+                              onClick={() => onSwitchBranch(message.id, "next")}
+                              disabled={activeBranchIndex >= branchVersions - 1}
+                              className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                            >
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                aria-hidden="true"
+                              >
+                                <path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" />
+                              </svg>
+                            </button>
+                          </HintTooltip>
+                        </div>
+                      ) : null}
                   </div>
               </>
             ) : null}
@@ -445,7 +563,8 @@ const MessageRow = React.memo(
       prev.editingMessageId === next.editingMessageId &&
       prev.editValue === next.editValue &&
       prev.copiedId === next.copiedId &&
-      prev.forcedDetailLevel === next.forcedDetailLevel
+      prev.forcedDetailLevel === next.forcedDetailLevel &&
+      prev.moreMenuId === next.moreMenuId
     );
   },
 );
@@ -464,6 +583,9 @@ interface ConversationTurnProps {
   onRetryUserMessage: (messageId: string) => void;
   onRetryAssistant: (messageId: string) => void;
   onSwitchBranch: (messageId: string, direction: "prev" | "next") => void;
+  onOpenSources?: (messageId?: string) => void;
+  moreMenuId?: string | null;
+  onToggleMoreMenu?: (id: string, anchor?: DOMRect) => void;
   turnIndex: number;
 }
 
@@ -482,6 +604,9 @@ const ConversationTurn = React.memo(
     onRetryUserMessage,
     onRetryAssistant,
     onSwitchBranch,
+    onOpenSources,
+    moreMenuId,
+    onToggleMoreMenu,
     turnIndex,
   }: ConversationTurnProps) {
     const turnRootRef = React.useRef<HTMLDivElement>(null);
@@ -521,7 +646,10 @@ const ConversationTurn = React.memo(
         ref={turnRootRef}
         data-conversation-turn
         data-turn-index={turnIndex}
-        className="relative flex w-full flex-col gap-0.5"
+        data-turn-streaming={
+          assistantMessages.some((message) => message.isStreaming) || undefined
+        }
+        className="relative flex w-full flex-col gap-3 sm:gap-4"
         style={{ "--turn-index": turnIndex } as React.CSSProperties}
       >
         {userMessage && (
@@ -545,6 +673,9 @@ const ConversationTurn = React.memo(
                 onRetryUserMessage={onRetryUserMessage}
                 onRetryAssistant={onRetryAssistant}
                 onSwitchBranch={onSwitchBranch}
+                onOpenSources={onOpenSources}
+                moreMenuId={moreMenuId}
+                onToggleMoreMenu={onToggleMoreMenu}
               />
             </div>
           </>
@@ -564,6 +695,9 @@ const ConversationTurn = React.memo(
             onRetryUserMessage={onRetryUserMessage}
             onRetryAssistant={onRetryAssistant}
             onSwitchBranch={onSwitchBranch}
+            onOpenSources={onOpenSources}
+            moreMenuId={moreMenuId}
+            onToggleMoreMenu={onToggleMoreMenu}
           />
         ))}
       </div>
@@ -613,6 +747,8 @@ const ConversationTurn = React.memo(
       prev.editingMessageId === next.editingMessageId &&
       prev.editValue === next.editValue &&
       prev.copiedId === next.copiedId &&
+      prev.onOpenSources === next.onOpenSources &&
+      prev.moreMenuId === next.moreMenuId &&
       prev.turnIndex === next.turnIndex
     );
   },
@@ -768,6 +904,7 @@ export function ConversationThread({
   onRetryUserMessage,
   onRetryAssistant,
   onSwitchBranch,
+  onOpenSources,
   className,
   scrollAreaRef,
   conversationKey,
@@ -778,12 +915,165 @@ export function ConversationThread({
   );
   const [editValue, setEditValue] = React.useState("");
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
+  const [moreMenuId, setMoreMenuId] = React.useState<string | null>(null);
+  const [moreMenuAnchor, setMoreMenuAnchor] = React.useState<{
+    top: number;
+    left: number;
+    placement: "above" | "below";
+  } | null>(null);
+  const [selectionMenu, setSelectionMenu] = React.useState<null | { x: number; y: number; text: string; messageId: string }>(null);
+  const isMobile = useIsMobile();
 
-  const handleCopy = React.useCallback((id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopy = React.useCallback(async (id: string, text: string) => {
+    const markdown = text.trim();
+    if (!markdown) return;
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopiedId(id);
+      window.setTimeout(() => setCopiedId(null), 1800);
+    } catch {
+      // ignore clipboard failures
+    }
   }, []);
+
+  const toggleMoreMenu = React.useCallback((id: string, anchor?: DOMRect) => {
+    setMoreMenuId((current) => {
+      if (current === id) {
+        setMoreMenuAnchor(null);
+        return null;
+      }
+      if (anchor) {
+        const menuHeight = 148;
+        const gap = 8;
+        const spaceAbove = anchor.top;
+        const placement =
+          spaceAbove >= menuHeight + gap + 12 ? "above" : "below";
+        setMoreMenuAnchor({
+          left: Math.max(12, Math.min(anchor.left, window.innerWidth - 232)),
+          top:
+            placement === "above"
+              ? anchor.top - gap
+              : anchor.bottom + gap,
+          placement,
+        });
+      } else {
+        setMoreMenuAnchor(null);
+      }
+      return id;
+    });
+  }, []);
+
+  const closeMoreMenu = React.useCallback(() => {
+    setMoreMenuId(null);
+    setMoreMenuAnchor(null);
+  }, []);
+
+  const moreMenuMessage = React.useMemo(
+    () => messages.find((message) => message.id === moreMenuId) ?? null,
+    [messages, moreMenuId],
+  );
+
+  React.useEffect(() => {
+    if (!moreMenuId) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-more-menu]") && !target.closest("[data-more-trigger]")) {
+        closeMoreMenu();
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMoreMenu();
+    };
+    const onScroll = () => closeMoreMenu();
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onScroll);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [moreMenuId, closeMoreMenu]);
+
+  // Desktop-only text selection floating menu for assistant answers.
+  // Shows a small container near the highlight (like the reference) with "Ask ChatGPT" / "Start writing".
+  // Ignores selections that are only whitespace or newlines.
+  React.useEffect(() => {
+    if (isMobile) return; // only desktop / larger screens
+
+    let raf = 0;
+    const onSelect = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+          setSelectionMenu(null);
+          return;
+        }
+        const text = sel.toString().replace(/\u00a0/g, " ");
+        if (!text.trim()) {
+          setSelectionMenu(null);
+          return;
+        }
+
+        // Find if selection is inside an assistant message content area
+        const range = sel.getRangeAt(0);
+        let node: Node | null = range.commonAncestorContainer;
+        let messageId: string | null = null;
+        while (node && node !== document.body) {
+          const el = node instanceof Element ? node : node.parentElement;
+          if (el) {
+            const mid = el.getAttribute("data-message-id");
+            const isAssistantArea = el.getAttribute("data-assistant-content") === "true" || !!el.closest?.("[data-assistant-content='true']");
+            if (mid && isAssistantArea) {
+              messageId = mid;
+              break;
+            }
+          }
+          node = node.parentNode;
+        }
+        if (!messageId) {
+          setSelectionMenu(null);
+          return;
+        }
+
+        // Get rect for positioning the bar near the selection (viewport coords for fixed positioning)
+        const rect = range.getBoundingClientRect();
+        if (!rect || (rect.width === 0 && rect.height === 0)) {
+          setSelectionMenu(null);
+          return;
+        }
+
+        // Position above the selection, clamped inside the viewport.
+        const barApproxWidth = 248;
+        const x = Math.max(
+          12,
+          Math.min(
+            rect.left + rect.width / 2 - barApproxWidth / 2,
+            window.innerWidth - barApproxWidth - 12,
+          ),
+        );
+        const y = Math.max(12, rect.top - 44);
+
+        setSelectionMenu({ x, y, text: text.trim(), messageId });
+      });
+    };
+
+    const onHide = () => setSelectionMenu(null);
+
+    document.addEventListener("selectionchange", onSelect);
+    document.addEventListener("scroll", onHide, true);
+    window.addEventListener("resize", onHide);
+
+    return () => {
+      document.removeEventListener("selectionchange", onSelect);
+      document.removeEventListener("scroll", onHide, true);
+      window.removeEventListener("resize", onHide);
+      cancelAnimationFrame(raf);
+    };
+  }, [isMobile]);
 
   const handleStartEdit = React.useCallback((message: Message) => {
     setEditingMessageId(message.id);
@@ -934,6 +1224,9 @@ export function ConversationThread({
     onRetryUserMessage,
     onRetryAssistant,
     onSwitchBranch,
+    onOpenSources,
+    moreMenuId,
+    onToggleMoreMenu: toggleMoreMenu,
   };
 
   return (
@@ -962,6 +1255,103 @@ export function ConversationThread({
         className="chat-thread-scroll-anchor h-px w-full shrink-0"
         aria-hidden
       />
+
+      {/* Desktop-only floating selection action bar (appears near highlighted text in assistant answers) */}
+      {selectionMenu &&
+        !isMobile &&
+        createPortal(
+          <div
+            className="fixed z-[95] flex items-center overflow-hidden rounded-full border border-zinc-200 bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.28)]"
+            style={{ left: `${selectionMenu.x}px`, top: `${selectionMenu.y}px` }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium text-zinc-900 transition hover:bg-zinc-50"
+              onClick={() => {
+                navigator.clipboard.writeText(selectionMenu.text).catch(() => {});
+                setSelectionMenu(null);
+                window.getSelection()?.removeAllRanges();
+              }}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Ask Clauxen
+            </button>
+            <span className="h-5 w-px bg-zinc-200" aria-hidden />
+            <button
+              type="button"
+              className="px-3 py-1.5 text-[12.5px] font-medium text-zinc-700 transition hover:bg-zinc-50"
+              onClick={() => {
+                navigator.clipboard.writeText(selectionMenu.text).catch(() => {});
+                setSelectionMenu(null);
+                window.getSelection()?.removeAllRanges();
+              }}
+            >
+              Start writing
+            </button>
+          </div>,
+          document.body,
+        )}
+
+      {moreMenuId &&
+        moreMenuAnchor &&
+        moreMenuMessage &&
+        createPortal(
+          <div
+            data-more-menu
+            className="fixed z-[95] w-[220px] rounded-[14px] border border-zinc-200 bg-white p-1 text-[13px] shadow-[0_10px_30px_-15px_rgba(24,24,27,0.25)]"
+            style={{
+              left: `${moreMenuAnchor.left}px`,
+              top: `${moreMenuAnchor.top}px`,
+              transform:
+                moreMenuAnchor.placement === "above"
+                  ? "translateY(-100%)"
+                  : undefined,
+            }}
+          >
+            <div className="px-3 py-1.5 text-[11px] text-zinc-500">
+              {moreMenuMessage.createdAt
+                ? new Date(moreMenuMessage.createdAt).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })
+                : "Just now"}
+            </div>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-zinc-700 hover:bg-zinc-100"
+              onClick={() => {
+                closeMoreMenu();
+                const branchText = `Continuing from: ${moreMenuMessage.content.slice(0, 120)}${moreMenuMessage.content.length > 120 ? "…" : ""}`;
+                navigator.clipboard.writeText(branchText).catch(() => {});
+              }}
+            >
+              <GitBranch className="h-3.5 w-3.5" />
+              <span>Branch in new chat</span>
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-zinc-700 hover:bg-zinc-100"
+              onClick={() => {
+                closeMoreMenu();
+                try {
+                  const utter = new SpeechSynthesisUtterance(
+                    moreMenuMessage.content.replace(/\s+/g, " ").slice(0, 1200),
+                  );
+                  window.speechSynthesis?.speak(utter);
+                } catch {
+                  // ignore TTS failures
+                }
+              }}
+            >
+              <Volume2 className="h-3.5 w-3.5" />
+              <span>Read aloud</span>
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -65,6 +65,9 @@ export async function executeAutonomousTool(
             title: h.title,
             url: h.url,
             snippet: h.snippet,
+            publishedDate: h.publishedDate,
+            favicon: h.favicon,
+            highlights: h.highlights,
           })),
         });
       },
@@ -76,7 +79,11 @@ export async function executeAutonomousTool(
           title: h.title,
           url: h.url,
           snippet: h.snippet,
+          publishedDate: h.publishedDate,
+          favicon: h.favicon,
+          highlights: h.highlights,
         })),
+        searchType: "auto",
       },
     };
   }

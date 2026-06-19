@@ -33,6 +33,8 @@ export type Message = {
   agentArtifacts?: ChatArtifact[];
   branchVersions?: MessageBranchVersion[];
   activeBranchIndex?: number;
+  /** Optional creation timestamp (ms since epoch) for UI like message menus. */
+  createdAt?: number;
 };
 
 export type RecentChat = {

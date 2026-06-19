@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import type { StreamEvent } from "@/frontend/lib/chat-stream";
 import { applyAgentStreamEvent } from "@/frontend/lib/agent-stream-reducer";
 import {
-  patchAnswerDelta,
-  shouldFastPatchAnswerDelta,
+  canFastAppendAnswer,
+  patchToolOutputDelta,
 } from "@/frontend/lib/agent-stream-fast-path";
 import { agentAnswerDuplicatesInterim } from "@/frontend/lib/agent-frames";
 import type { Message, RecentChat } from "@/frontend/lib/types";
@@ -442,15 +442,25 @@ export function useChatApi(
 
           if (!visibleDelta) return;
 
-          patchAssistantMessage(chatId, assistantId, (message) => {
-            if (shouldFastPatchAnswerDelta(message)) {
-              return patchAnswerDelta(message, visibleDelta);
-            }
-            return applyAgentStreamEvent(message, {
-              ...event,
-              delta: visibleDelta,
-            });
-          });
+          const msg = useChatStore.getState().messagesById[assistantId];
+          if (canFastAppendAnswer(msg)) {
+            useChatStore
+              .getState()
+              .appendMessageField(chatId, assistantId, "content", visibleDelta);
+          } else {
+            patchAssistantMessage(chatId, assistantId, (message) =>
+              applyAgentStreamEvent(message, {
+                ...event,
+                delta: visibleDelta,
+              }),
+            );
+          }
+          return;
+        }
+        if (event.type === "tool_output_delta") {
+          patchAssistantMessage(chatId, assistantId, (message) =>
+            patchToolOutputDelta(message, event),
+          );
           return;
         }
         if (event.type === "error") {

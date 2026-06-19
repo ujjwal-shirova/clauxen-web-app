@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "flowtoken/dist/styles.css";
+@import "streamdown/styles.css";
 @import "../frontend/styles/app-buttons.css";
 @import "../frontend/styles/app-notifications.css";
 @source "../../node_modules/streamdown/dist/*.js";
@@ -177,6 +179,28 @@
   display: inline;
   white-space: pre-wrap;
   animation-fill-mode: both;
+}
+
+/* Ultra-snappy per-token pop for live streaming.
+   Short durations (4-28ms) make the animation track the model's actual tokens/sec. */
+@keyframes clx-stream-pop {
+  from {
+    opacity: 0.35;
+    transform: translateY(0.5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.clx-stream-pop {
+  display: inline;
+  white-space: pre-wrap;
+  animation-name: clx-stream-pop;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+  will-change: opacity, transform;
 }
 
 /* Lucide icon system — crisp, professional scale */
@@ -452,6 +476,30 @@ button.user-message-card__body:not(:disabled):hover {
 }
 
 /* Thread viewport + bottom composer share this row so the prompt lines up with messages */
+.chat-scroll-content {
+  overflow-anchor: none;
+}
+
+.agent-panel-conversation-shell[data-chat-active] {
+  --chat-composer-reserve: 84px;
+}
+
+@media (min-width: 640px) {
+  .agent-panel-conversation-shell[data-chat-active] {
+    --chat-composer-reserve: 96px;
+  }
+}
+
+[data-composer-dock] .chat-column {
+  padding-inline: 0.625rem;
+}
+
+@media (min-width: 640px) {
+  [data-composer-dock] .chat-column {
+    padding-inline: 1rem;
+  }
+}
+
 .chat-composer-row {
   display: flex;
   width: 100%;
@@ -567,8 +615,31 @@ button.user-message-card__body:not(:disabled):hover {
 
 .ui-prompt-input__container,
 [data-prompt-root] [data-prompt-shell] {
-  --prompt-input-editor-min-height: 36px;
-  --prompt-input-editor-max-height: 200px;
+  --prompt-input-editor-min-height: 28px;
+  --prompt-input-editor-max-height: 155px;
+}
+
+[data-prompt-root] [data-prompt-shell] {
+  transition:
+    min-height 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+[data-prompt-root] [data-prompt-shell] textarea,
+[data-prompt-root] [data-prompt-shell] textarea.prompt-textarea {
+  resize: none;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  max-height: var(--prompt-input-editor-max-height, 155px);
+  overflow-anchor: none;
+  box-sizing: border-box;
+  height: var(--prompt-input-editor-min-height, 28px);
+  transition: height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-prompt-root] [data-prompt-shell] [data-prompt-editor] {
+  transition: min-height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ui-prompt-input-toolbar {
@@ -583,6 +654,20 @@ button.user-message-card__body:not(:disabled):hover {
   max-width: 100%;
   background-color: #ffffff;
   overflow-anchor: none;
+  padding-bottom: 0.125rem;
+}
+
+[data-conversation-turn][data-turn-streaming="true"] .sticky-user-msg-host {
+  position: relative;
+  top: auto;
+  z-index: 1;
+  box-shadow: none;
+}
+
+[data-conversation-turn] .assistant-message {
+  position: relative;
+  z-index: 0;
+  padding-top: 0.125rem;
 }
 
 [data-conversation-turn] {
@@ -595,8 +680,22 @@ button.user-message-card__body:not(:disabled):hover {
   pointer-events: none;
 }
 
-[data-radix-scroll-area-viewport].app-scrollbar {
+[data-radix-scroll-area-viewport].app-scrollbar,
+.chat-scroll-viewport {
   overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-radix-scroll-area-viewport].app-scrollbar,
+  .chat-scroll-viewport {
+    scroll-behavior: auto;
+  }
+}
+
+[data-conversation-turn][data-turn-streaming="true"] {
+  content-visibility: visible;
+  contain-intrinsic-size: auto;
 }
 
 .sticky-user-msg--stuck {
@@ -738,6 +837,23 @@ button.user-message-card__body:not(:disabled):hover {
   line-height: 1.58 !important;
   letter-spacing: -0.002em;
   color: #27272a;
+}
+
+/* Shrink-wrap text blocks so text selection highlights only the text, not full line width. */
+[data-assistant-content] .markdown-content > p,
+[data-assistant-content] .markdown-content > h1,
+[data-assistant-content] .markdown-content > h2,
+[data-assistant-content] .markdown-content > h3,
+[data-assistant-content] .markdown-content > h4,
+[data-assistant-content] .markdown-content > blockquote,
+[data-assistant-content] .markdown-content li {
+  width: fit-content;
+  max-width: 100%;
+}
+
+[data-assistant-content] .markdown-content ::selection {
+  background-color: rgba(59, 130, 246, 0.22);
+  color: inherit;
 }
 
 .markdown-content,

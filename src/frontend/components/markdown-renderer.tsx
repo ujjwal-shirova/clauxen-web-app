@@ -9,25 +9,63 @@ import {
   sharedReactMarkdownProps,
 } from "@/frontend/components/markdown-shared";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
-import { FastStreamingText } from "./fast-streaming-text";
+import { FlowTokenMarkdown } from "./flowtoken-markdown";
+import { SourceChip } from "@/frontend/components/chat-sources";
+import { normalizeUrl, stripReferenceDefinitions, type ChatSource } from "@/frontend/lib/chat-sources";
 
 export const MarkdownOrchestrator = ({
   text,
+  sources = [],
 }: {
   text: string;
+  sources?: ChatSource[];
   isTyping?: boolean;
   showCursor?: boolean;
 }) => {
   const normalizedText = normalizeLatexDelimiters(text);
+  const displayText = sources.length > 0 ? stripReferenceDefinitions(normalizedText) : normalizedText;
+
+  // If we have sources, override the link renderer to turn citation links into inline chips
+  const effectiveComponents =
+    sources.length > 0
+      ? {
+          ...markdownComponents,
+          a: createCitationLink(sources),
+        }
+      : markdownComponents;
 
   return (
     <div className="markdown-content relative min-w-0 max-w-full">
-      <ReactMarkdown {...sharedReactMarkdownProps}>
-        {normalizedText}
+      <ReactMarkdown {...sharedReactMarkdownProps} components={effectiveComponents}>
+        {displayText}
       </ReactMarkdown>
     </div>
   );
 };
+
+function createCitationLink(sources: ChatSource[]) {
+  // Map normalized url -> {source, index}
+  const byUrl = new Map<string, { source: ChatSource; index: number }>();
+  sources.forEach((s, i) => {
+    byUrl.set(normalizeUrl(s.url), { source: s, index: i });
+  });
+
+  return function CitationLink({ href, children, ...rest }: any) {
+    if (href) {
+      const hit = byUrl.get(normalizeUrl(href));
+      if (hit) {
+        // Replace the citation link entirely with a compact source chip at this location in the text
+        return <SourceChip source={hit.source} index={hit.index} compact />;
+      }
+    }
+    // Fallback to normal link
+    return (
+      <a href={href} {...rest}>
+        {children}
+      </a>
+    );
+  };
+}
 
 export const MarkdownMessage = ({
   content,
@@ -37,6 +75,7 @@ export const MarkdownMessage = ({
   showCursor = true,
   lightweightStream = false,
   detailLevel = "full",
+  sources = [],
 }: {
   content: string;
   onTypingComplete?: () => void;
@@ -47,6 +86,8 @@ export const MarkdownMessage = ({
   lightweightStream?: boolean;
   /** LOD: plain/placeholder strips heavy syntax highlighting off-screen. */
   detailLevel?: MessageDetailLevel;
+  /** Sources for this message (web search). Used to render inline citation chips and clean refs. */
+  sources?: ChatSource[];
 }) => {
   useEffect(() => {
     if (!isStreaming && onTypingComplete) {
@@ -80,18 +121,37 @@ export const MarkdownMessage = ({
   }
 
   if (isStreaming) {
+    // Use FlowToken's AnimatedMarkdown for the fade-in typing animation during streaming.
+    // - animation="fadeIn" only while streaming (null afterwards to avoid re-animating / high memory)
+    // - sep="diff" ensures only the newly appended tokens receive the animation (optimal for LLM streams)
+    // - This follows the recommended pattern for real-time streaming text from LLMs using FlowToken.
     return (
       <div
         className="markdown-content relative min-w-0 max-w-full"
         data-stream-key={streamKey ?? content}
+        data-streaming
       >
-        <FastStreamingText content={content} />
+        <FlowTokenMarkdown
+          content={content}
+          isStreaming
+          streamKey={streamKey}
+        />
         {showCursor ? <OrbCursor /> : null}
       </div>
     );
   }
 
-  return <MarkdownOrchestrator text={content} />;
+  return <MarkdownOrchestrator text={content} sources={sources} />;
+};
+
+export type MarkdownRendererProps = {
+  content: string;
+  isStreaming?: boolean;
+  streamKey?: string;
+  showCursor?: boolean;
+  lightweightStream?: boolean;
+  detailLevel?: MessageDetailLevel;
+  sources?: ChatSource[];
 };
 
 export const MarkdownRenderer = ({
@@ -101,14 +161,8 @@ export const MarkdownRenderer = ({
   showCursor = true,
   lightweightStream = false,
   detailLevel = "full",
-}: {
-  content: string;
-  isStreaming?: boolean;
-  streamKey?: string;
-  showCursor?: boolean;
-  lightweightStream?: boolean;
-  detailLevel?: MessageDetailLevel;
-}) => (
+  sources = [],
+}: MarkdownRendererProps) => (
   <MarkdownMessage
     content={content}
     isStreaming={isStreaming}
@@ -116,5 +170,6 @@ export const MarkdownRenderer = ({
     showCursor={showCursor}
     lightweightStream={lightweightStream}
     detailLevel={detailLevel}
+    sources={sources}
   />
 );

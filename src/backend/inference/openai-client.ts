@@ -3,9 +3,14 @@ import { env, requireNovitaApiKey } from "@/backend/config/env";
 
 const clients = new Map<string, OpenAI>();
 
+function normalizeOpenAiCompatBaseUrl(baseUrl?: string) {
+  const normalized = (baseUrl ?? env.novitaOpenAiBaseUrl).replace(/\/+$/, "");
+  return normalized.endsWith("/v1") ? normalized : `${normalized}/v1`;
+}
+
 /** OpenAI SDK client for a Novita-compatible base URL (cached per URL). */
 export function getOpenAIClient(baseUrl?: string) {
-  const normalized = (baseUrl ?? env.novitaOpenAiBaseUrl).replace(/\/+$/, "");
+  const normalized = normalizeOpenAiCompatBaseUrl(baseUrl);
   const existing = clients.get(normalized);
   if (existing) return existing;
 

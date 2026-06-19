@@ -1,3 +1,5 @@
+import { MODEL_CONFIG } from "../../lib/model-config";
+
 function optional(name: string, fallback = ""): string {
   return process.env[name]?.trim() || fallback;
 }
@@ -21,29 +23,29 @@ export const env = {
   cockroachDatabaseUrl: optional("COCKROACH_DATABASE_URL"),
   novitaApiKey: optional("NOVITA_AI_KEY") || optional("NOVITA_API_KEY"),
   novitaAnthropicBaseUrl: normalizeBaseUrl(
-    optional("NOVITA_ANTHROPIC_BASE_URL", "https://api.novita.ai/anthropic"),
+    optional("NOVITA_ANTHROPIC_BASE_URL", MODEL_CONFIG.endpoints.novitaAnthropicBaseUrl),
   ),
   novitaOpenAiBaseUrl: normalizeBaseUrl(
-    optional("NOVITA_OPENAI_BASE_URL", "https://api.novita.ai/openai"),
+    optional("NOVITA_OPENAI_BASE_URL", MODEL_CONFIG.endpoints.novitaOpenAiBaseUrl),
   ),
   /** Homer — premium Anthropic path (Kimi K2.6). */
-  homerModel: optional("SHIROVA_HOMER_MODEL", "moonshotai/kimi-k2.6"),
+  homerModel: optional(MODEL_CONFIG.models.homer.envKey, MODEL_CONFIG.models.homer.defaultSlug),
   /** Helios — OpenAI-compatible path on Novita. */
-  heliosModel: optional("SHIROVA_HELIOS_MODEL", "nex-agi/nex-n2-pro"),
-  virgilModel: optional("SHIROVA_VIRGIL_MODEL", "deepseek/deepseek_v3"),
+  heliosModel: optional(MODEL_CONFIG.models.helios.envKey, MODEL_CONFIG.models.helios.defaultSlug),
+  virgilModel: optional(MODEL_CONFIG.models.virgil.envKey, MODEL_CONFIG.models.virgil.defaultSlug),
   /** Interleaved-thinking agent model on Novita chat/completions. */
   thinkingModel: optional(
-    "SHIROVA_THINKING_MODEL",
-    "deepseek/deepseek-v4-pro",
+    MODEL_CONFIG.models.thinking.envKey,
+    MODEL_CONFIG.models.thinking.defaultSlug,
   ),
   /** Model for OpenAI-compatible fast chat path (Helios default). */
   openAiFastModel: optional(
-    "SHIROVA_OPENAI_FAST_MODEL",
-    optional("SHIROVA_HELIOS_MODEL", "nex-agi/nex-n2-pro"),
+    MODEL_CONFIG.models.fast.envKey,
+    optional(MODEL_CONFIG.models.helios.envKey, MODEL_CONFIG.models.helios.defaultSlug),
   ),
   novitaMessagesUrl: optional(
     "SHIROVA_NOVITA_MESSAGES_URL",
-    "https://api.novita.ai/anthropic/v1/messages",
+    MODEL_CONFIG.endpoints.novitaMessagesUrl,
   ),
   novitaModelsUrl: optional("NOVITA_MODELS_URL", ""),
   defaultSandboxTimeoutMs: Number(
@@ -51,7 +53,7 @@ export const env = {
   ),
   defaultModel: optional(
     "SHIROVA_DEFAULT_MODEL",
-    optional("SHIROVA_HOMER_MODEL", "moonshotai/kimi-k2.6"),
+    optional(MODEL_CONFIG.models.homer.envKey, MODEL_CONFIG.models.homer.defaultSlug),
   ),
   exaApiKey: optional("EXA_API_KEY"),
   /** Kimi thinking: enabled | disabled -> Anthropic extended thinking. */

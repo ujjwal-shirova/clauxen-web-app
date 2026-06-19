@@ -119,6 +119,8 @@ export type OrchestrationBlock =
       kind: "timeline";
       frame: AgentFrame;
       isActive: boolean;
+      /** Current accumulating model narrative (progress text) to show live inside the open frame. */
+      liveNarrative?: string;
     }
   | {
       kind: "markdown";
@@ -133,14 +135,25 @@ function frameHasWorkSegments(segments: AgentSegment[]): boolean {
   );
 }
 
-export { frameHasWorkSegments };
+function frameHasToolSegments(segments: AgentSegment[]): boolean {
+  return segments.some((segment) => segment.kind === "tool");
+}
 
-/** True when trailing content duplicates text already shown on a frame. */
+export { frameHasWorkSegments, frameHasToolSegments };
+
+/** True when trailing content is an *exact* copy of a captured interim progress note.
+ * We only suppress promotion of final answer in that narrow case so the real final output is not lost. */
 export function agentAnswerDuplicatesInterim(message: Message): boolean {
   const trailing = message.content.trim();
   if (!trailing) return false;
+  // Only exact full match counts as "this is just the old progress note".
+  // Partial overlaps or the model naturally reusing a phrase should still show as final.
   return resolveAgentFrames(message).some(
-    (frame) => frame.interimOutput?.trim() === trailing,
+    (frame) =>
+      frame.interimOutput &&
+      frame.interimOutput.trim() === trailing &&
+      // If the frame is complete and we have a longer or different final, don't suppress.
+      trailing.length > 0,
   );
 }
 
@@ -158,7 +171,19 @@ export function resolveOrchestrationBlocks(
       streaming && index === frames.length - 1 && !frame.complete;
 
     if (frameHasWorkSegments(frame.segments)) {
-      blocks.push({ kind: "timeline", frame, isActive });
+      const block: Extract<OrchestrationBlock, { kind: "timeline" }> = {
+        kind: "timeline",
+        frame,
+        isActive,
+      };
+      // For the currently active (last, not complete) work frame, expose the latest model content
+      // as live narrative so the autonomous "delta outputs" ("let me search...", "good results...") appear
+      // inside the vertical frame while it is still open.
+      if (isActive && streaming) {
+        const current = message.content?.trim();
+        if (current) block.liveNarrative = current;
+      }
+      blocks.push(block);
     }
 
     if (frame.interimOutput?.trim()) {
@@ -179,16 +204,18 @@ export function resolveOrchestrationBlocks(
       activeIdx >= 0 &&
       hasActiveFrameWork(frames, activeIdx);
 
-    if (!suppressForLiveWork) {
-      const allFramesDone =
-        frames.length === 0 ||
-        frames.every((frame) => frame.complete) ||
-        message.agentFrameComplete === true;
+    // Once all frames are complete (or explicitly marked), never suppress the final answer.
+    const allFramesDone =
+      frames.length === 0 ||
+      frames.every((frame) => frame.complete) ||
+      message.agentFrameComplete === true;
+
+    if (!suppressForLiveWork || allFramesDone) {
       blocks.push({
         kind: "markdown",
         blockId: `${message.id}-answer`,
         content: message.content,
-        isStreaming: streaming && (allFramesDone || frames.length === 0),
+        isStreaming: streaming && !allFramesDone && frames.length > 0,
       });
     }
   }

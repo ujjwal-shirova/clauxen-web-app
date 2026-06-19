@@ -5,6 +5,7 @@ import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility
 import { resolveOrchestrationBlocks } from "@/frontend/lib/agent-frames";
 import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
 import { OrbCursor } from "@/frontend/components/ui/orb-cursor";
+import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { AgentWorkFrame } from "./agent-work-frame";
 
 export function AgentOrchestrationView({
@@ -15,6 +16,7 @@ export function AgentOrchestrationView({
   detailLevel: MessageDetailLevel;
 }) {
   const blocks = resolveOrchestrationBlocks(message);
+  const sources = collectMessageSources(message);
   const streaming = message.isStreaming === true;
   const hasVisibleOutput = blocks.some(
     (block) =>
@@ -34,7 +36,11 @@ export function AgentOrchestrationView({
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-3">
+    <div
+      className="flex w-full min-w-0 flex-col gap-3"
+      data-message-id={message.id}
+      data-assistant-content="true"
+    >
       {showOrb ? (
         <div className="flex items-center py-1">
           <OrbCursor />
@@ -48,18 +54,29 @@ export function AgentOrchestrationView({
               key={block.frame.id}
               segments={block.frame.segments}
               isStreaming={block.isActive}
+              frameComplete={block.frame.complete}
+              liveNarrative={block.liveNarrative}
             />
           );
         }
 
         return (
-          <MarkdownRenderer
+          <div
             key={block.blockId}
-            content={block.content}
-            isStreaming={block.isStreaming}
-            streamKey={block.blockId}
-            detailLevel={detailLevel}
-          />
+            className={
+              block.blockId.endsWith("-interim")
+                ? "text-[15px] font-semibold leading-relaxed text-zinc-900"
+                : undefined
+            }
+          >
+            <MarkdownRenderer
+              content={block.content}
+              isStreaming={block.isStreaming}
+              streamKey={block.blockId}
+              detailLevel={detailLevel}
+              {...({ sources } as any)}
+            />
+          </div>
         );
       })}
     </div>

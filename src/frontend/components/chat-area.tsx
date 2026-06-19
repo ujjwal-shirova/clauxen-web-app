@@ -9,7 +9,9 @@ import { ShareDialog } from "./share-dialog";
 import { ChatViewHeader } from "./chat-view-header";
 import { ChatViewPane } from "./chat-view-pane";
 import { ChatArtifactsPanel } from "./chat-artifacts-panel";
+import { ChatSourcesPanel } from "./chat-sources";
 import { collectChatArtifacts } from "@/frontend/lib/chat-artifacts";
+import { collectChatSources, collectMessageSources } from "@/frontend/lib/chat-sources";
 import { ChatMessageNavigator } from "./chat-message-navigator";
 import { useIsMobile } from "@/frontend/hooks/use-mobile";
 import { useChatScroll } from "@/frontend/hooks/use-chat-scroll";
@@ -100,6 +102,8 @@ export function ChatArea({
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
   const [isArtifactsPanelOpen, setIsArtifactsPanelOpen] = useState(false);
+  const [isSourcesPanelOpen, setIsSourcesPanelOpen] = useState(false);
+  const [sourcesMessageId, setSourcesMessageId] = useState<string | null>(null);
   const [, startTransition] = React.useTransition();
   const displayMessages = messages;
 
@@ -119,7 +123,9 @@ export function ChatArea({
     () => collectChatArtifacts(messages),
     [messages],
   );
+  const chatSources = React.useMemo(() => collectChatSources(messages), [messages]);
   const artifactCountRef = React.useRef(chatArtifacts.length);
+  const sourceCountRef = React.useRef(chatSources.length);
 
   React.useEffect(() => {
     if (chatArtifacts.length > artifactCountRef.current) {
@@ -127,6 +133,28 @@ export function ChatArea({
     }
     artifactCountRef.current = chatArtifacts.length;
   }, [chatArtifacts.length]);
+
+  React.useEffect(() => {
+    if (chatSources.length > sourceCountRef.current) {
+      setIsSourcesPanelOpen(true);
+      // When new sources arrive (new web search results for an answer),
+      // auto-scope the sources sidebar to the *most recent* assistant message
+      // that actually produced sources. This ensures the panel shows only the
+      // "corresponding" assistant output's sources instead of mixing previous ones.
+      const latestWithSources = [...messages]
+        .reverse()
+        .find(
+          (m) =>
+            m.role === "assistant" && collectMessageSources(m).length > 0,
+        );
+      if (latestWithSources) {
+        setSourcesMessageId(latestWithSources.id);
+      } else {
+        setSourcesMessageId(null);
+      }
+    }
+    sourceCountRef.current = chatSources.length;
+  }, [chatSources.length, messages]);
 
   React.useEffect(() => {
     setHasPromptDraft(false);
@@ -154,6 +182,19 @@ export function ChatArea({
     if (!isGenerating) return;
     followContentGrowth();
   }, [isGenerating, streamFollowKey, followContentGrowth]);
+
+  React.useEffect(() => {
+    if (!isGenerating) return;
+
+    let rafId = 0;
+    const tick = () => {
+      followContentGrowth();
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(rafId);
+  }, [isGenerating, followContentGrowth]);
 
   const handleSaveEditedMessage = React.useCallback(
     async (messageId: string, newContent: string) => {
@@ -200,6 +241,22 @@ export function ChatArea({
 
   const toggleArtifactsPanel = React.useCallback(() => {
     setIsArtifactsPanelOpen((open) => !open);
+    setIsSourcesPanelOpen(false);
+  }, []);
+
+  const toggleSourcesPanel = React.useCallback(() => {
+    setIsSourcesPanelOpen((open) => !open);
+    setIsArtifactsPanelOpen(false);
+    if (!isSourcesPanelOpen) {
+      // opening global → show all sources in chat
+      setSourcesMessageId(null);
+    }
+  }, [isSourcesPanelOpen]);
+
+  const openSourcesPanel = React.useCallback((messageId?: string) => {
+    setSourcesMessageId(messageId ?? null);
+    setIsSourcesPanelOpen(true);
+    setIsArtifactsPanelOpen(false);
   }, []);
 
   const handleDeleteActiveChat = React.useCallback(() => {
@@ -248,6 +305,9 @@ export function ChatArea({
               onShareClick={() => setIsShareDialogOpen(true)}
               onToggleArtifactsPanel={toggleArtifactsPanel}
               isArtifactsPanelOpen={isArtifactsPanelOpen}
+              onToggleSourcesPanel={toggleSourcesPanel}
+              isSourcesPanelOpen={isSourcesPanelOpen}
+              sourcesCount={chatSources.length}
               chatTitle={activeChatTitle}
               isTitleStreaming={isActiveChatTitleStreaming}
               onDeleteChat={handleDeleteActiveChat}
@@ -277,6 +337,7 @@ export function ChatArea({
                 onRetryUserMessage={handleRetryUserMessage}
                 onRetryAssistant={handleRetryAssistant}
                 onSwitchBranch={handleSwitchBranch}
+                onOpenSources={openSourcesPanel}
                 scrollAreaRef={scrollAreaRef}
               />
             }
@@ -298,6 +359,9 @@ export function ChatArea({
               onShareClick={() => setIsShareDialogOpen(true)}
               onToggleArtifactsPanel={toggleArtifactsPanel}
               isArtifactsPanelOpen={isArtifactsPanelOpen}
+              onToggleSourcesPanel={toggleSourcesPanel}
+              isSourcesPanelOpen={isSourcesPanelOpen}
+              sourcesCount={chatSources.length}
               chatTitle={activeChatTitle}
               isTitleStreaming={isActiveChatTitleStreaming}
               isChatPinned={isActiveChatPinned}
@@ -325,20 +389,24 @@ export function ChatArea({
         </div>
 
         <AnimatePresence initial={false}>
-          {isArtifactsPanelOpen ? (
+          {isArtifactsPanelOpen || isSourcesPanelOpen ? (
             <>
               <motion.div
-                key="artifacts-backdrop"
+                key="right-panel-backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
                 className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px] lg:hidden"
                 aria-hidden
-                onClick={() => setIsArtifactsPanelOpen(false)}
+                onClick={() => {
+                  setIsArtifactsPanelOpen(false);
+                  setIsSourcesPanelOpen(false);
+                  setSourcesMessageId(null);
+                }}
               />
               <motion.div
-                key="artifacts-panel"
+                key={isSourcesPanelOpen ? "sources-panel" : "artifacts-panel"}
                 initial={
                   isMobile
                     ? { x: "100%", opacity: 0 }
@@ -363,10 +431,21 @@ export function ChatArea({
                 )}
               >
                 <div className="h-full w-[min(100vw,360px)] shrink-0 lg:w-[360px]">
-                  <ChatArtifactsPanel
-                    messages={messages}
-                    onClose={() => setIsArtifactsPanelOpen(false)}
-                  />
+                  {isSourcesPanelOpen ? (
+                    <ChatSourcesPanel
+                      messages={messages}
+                      messageId={sourcesMessageId}
+                      onClose={() => {
+                        setIsSourcesPanelOpen(false);
+                        setSourcesMessageId(null);
+                      }}
+                    />
+                  ) : (
+                    <ChatArtifactsPanel
+                      messages={messages}
+                      onClose={() => setIsArtifactsPanelOpen(false)}
+                    />
+                  )}
                 </div>
               </motion.div>
             </>

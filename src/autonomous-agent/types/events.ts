@@ -10,15 +10,21 @@ export type NormalizedEvent =
   | TextMessageStartEvent
   | TextMessageContentEvent
   | TextMessageEndEvent
+  | TextDeltaEvent
   | ReasoningStartEvent
   | ReasoningMessageContentEvent
   | ReasoningEndEvent
+  | ThinkingDeltaEvent
   | ToolCallStartEvent
   | ToolCallArgsEvent
   | ToolCallEndEvent
+  | PartialToolCallEvent
   | ToolCallResultEvent
   | ToolCallProgressEvent
+  | StepStartedEvent
+  | StepCompletedEvent
   | StepDoneEvent
+  | TurnEndedEvent
   | ClarificationRequestedEvent
   | SnapshotEvent;
 
@@ -124,6 +130,57 @@ export type StepDoneEvent = {
   type: "StepDone";
   label?: string;
   toolCallId?: string;
+  timestamp: number;
+};
+
+export type StepStartedEvent = {
+  type: "StepStarted";
+  stepId: number;
+  label?: string;
+  timestamp: number;
+};
+
+export type StepCompletedEvent = {
+  type: "StepCompleted";
+  stepId: number;
+  label?: string;
+  durationMs?: number;
+  timestamp: number;
+};
+
+export type TurnEndedEvent = {
+  type: "TurnEnded";
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+  };
+  timestamp: number;
+};
+
+/** Fine-grained text token for live streaming narrative (Cursor text-delta style). */
+export type TextDeltaEvent = {
+  type: "TextDelta";
+  messageId: string;
+  delta: string;
+  timestamp: number;
+};
+
+/** Fine-grained thinking token (Cursor thinking-delta style). */
+export type ThinkingDeltaEvent = {
+  type: "ThinkingDelta";
+  messageId: string;
+  delta: string;
+  timestamp: number;
+};
+
+/** Partial tool call args streaming in (Cursor partial-tool-call style). */
+export type PartialToolCallEvent = {
+  type: "PartialToolCall";
+  toolCallId: string;
+  delta: string;
+  preview: Record<string, unknown>;
   timestamp: number;
 };
 

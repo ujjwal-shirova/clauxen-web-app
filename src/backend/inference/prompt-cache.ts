@@ -48,7 +48,8 @@ export function buildCacheableSystemPrefix(content: string) {
 /** Put static context first, dynamic user turns last (prefix caching). */
 export function orderMessagesForPromptCache<T extends { role: string }>(
   systemMessages: T[],
-  conversationMessages: T[],
+  conversationMessages: Array<{ role: string } & Record<string, unknown>>,
 ) {
-  return [...systemMessages, ...conversationMessages];
+  // Concat preserving caller's element type for system prefix, then the rest.
+  return [...systemMessages, ...conversationMessages] as T[];
 }

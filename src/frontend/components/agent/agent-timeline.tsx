@@ -91,6 +91,10 @@ export function AgentTimelineStep({
 
 export function AgentTimelineDone({ label = "Done" }: { label?: string }) {
   return (
-    <AgentTimelineStep icon="done" title={label} className="pb-1" />
+    <AgentTimelineStep
+      icon="done"
+      title={<span className="font-medium text-zinc-600">{label}</span>}
+      className="pb-1"
+    />
   );
 }

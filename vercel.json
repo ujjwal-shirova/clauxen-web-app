@@ -3,7 +3,67 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm ci",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "on"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    }
+  ],
   "functions": {
+    "src/app/api/**/route.ts": {
+      "memory": 1024
+    },
+    "src/app/api/v1/chats/**/generate/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/chat/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/v1/agent/**/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/autonomous-agent/**/stream/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/v1/sandbox/**/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/v1/novita/**/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/shirova/**/route.ts": {
+      "maxDuration": 300
+    },
     "src/app/api/projects/**/files/route.ts": {
       "maxDuration": 60
     },

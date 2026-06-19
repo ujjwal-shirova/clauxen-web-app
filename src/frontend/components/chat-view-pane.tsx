@@ -10,7 +10,7 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { ScrollArea } from "@/frontend/components/ui/scroll-area";
 import { cn } from "@/frontend/lib/utils";
 import { ChatFrostedEdge } from "./ui/chat-frosted-edge";
@@ -55,6 +55,33 @@ function getTimeOfDayGreeting() {
   return "Good evening";
 }
 
+/** Baseline reserve — actual value tracks measured composer height. */
+const MIN_CHAT_COMPOSER_RESERVE_PX = 84;
+const MIN_CHAT_COMPOSER_RESERVE_PX_DESKTOP = 96;
+const CHAT_COMPOSER_RESERVE_BUFFER_PX = 6;
+const CHAT_FROSTED_EDGE_EXTRA_PX = 16;
+/** When within this distance of the bottom, composer padding growth follows scroll. */
+const COMPOSER_SCROLL_FOLLOW_THRESHOLD_PX = 96;
+
+function maxScrollTop(viewport: HTMLElement) {
+  return Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+}
+
+function getMinComposerReservePx() {
+  if (typeof window === "undefined") return MIN_CHAT_COMPOSER_RESERVE_PX_DESKTOP;
+  return window.matchMedia("(min-width: 640px)").matches
+    ? MIN_CHAT_COMPOSER_RESERVE_PX_DESKTOP
+    : MIN_CHAT_COMPOSER_RESERVE_PX;
+}
+
+function resolveScrollViewport(
+  scrollAreaRef?: React.RefObject<HTMLDivElement | null>,
+) {
+  const root = scrollAreaRef?.current;
+  if (!root) return null;
+  return root.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]");
+}
+
 export function ChatViewPane({
   hasConversation,
   isGenerating = false,
@@ -69,34 +96,13 @@ export function ChatViewPane({
   className,
 }: ChatViewPaneProps) {
   const [greeting, setGreeting] = useState<string | null>(null);
-  const [inputHeight, setInputHeight] = useState(120);
-  const inputContainerRef = useRef<HTMLDivElement>(null);
-  const inputHeightRafRef = useRef(0);
-
-  useEffect(() => {
-    const el = inputContainerRef.current;
-    if (!el || !hasConversation) return;
-
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const height =
-          entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
-        const rounded = Math.ceil(height);
-        cancelAnimationFrame(inputHeightRafRef.current);
-        inputHeightRafRef.current = requestAnimationFrame(() => {
-          setInputHeight((prev) =>
-            Math.abs(prev - rounded) < 16 ? prev : rounded,
-          );
-        });
-      }
-    });
-
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(inputHeightRafRef.current);
-    };
-  }, [hasConversation]);
+  const [composerReservePx, setComposerReservePx] = useState(() =>
+    getMinComposerReservePx(),
+  );
+  const scrollContentRef = useRef<HTMLDivElement>(null);
+  const composerMeasureRef = useRef<HTMLDivElement>(null);
+  const composerReserveRef = useRef(getMinComposerReservePx());
+  const composerMeasureRafRef = useRef(0);
 
   useEffect(() => {
     const updateGreeting = () => setGreeting(getTimeOfDayGreeting());
@@ -107,6 +113,71 @@ export function ChatViewPane({
     return () => window.clearInterval(intervalId);
   }, []);
 
+  useEffect(() => {
+    if (hasConversation) return;
+    const minReserve = getMinComposerReservePx();
+    composerReserveRef.current = minReserve;
+    setComposerReservePx(minReserve);
+  }, [hasConversation]);
+
+  useEffect(() => {
+    if (!hasConversation) return;
+
+    const minReserve = getMinComposerReservePx();
+    composerReserveRef.current = minReserve;
+    setComposerReservePx(minReserve);
+
+    const composer = composerMeasureRef.current;
+    if (!composer) return;
+
+    const applyComposerReserve = (composerHeight: number) => {
+      const minReserve = getMinComposerReservePx();
+      const nextReserve = Math.max(
+        minReserve,
+        Math.ceil(composerHeight) + CHAT_COMPOSER_RESERVE_BUFFER_PX,
+      );
+      const prevReserve = composerReserveRef.current;
+      const delta = nextReserve - prevReserve;
+
+      if (delta === 0) return;
+
+      composerReserveRef.current = nextReserve;
+      setComposerReservePx(nextReserve);
+
+      const viewport = resolveScrollViewport(scrollAreaRef);
+      if (viewport && delta !== 0) {
+        const distanceFromBottom =
+          maxScrollTop(viewport) - viewport.scrollTop;
+        if (distanceFromBottom <= COMPOSER_SCROLL_FOLLOW_THRESHOLD_PX) {
+          viewport.scrollTop = Math.max(0, viewport.scrollTop + delta);
+        }
+      }
+    };
+
+    const measureComposer = () => {
+      cancelAnimationFrame(composerMeasureRafRef.current);
+      composerMeasureRafRef.current = requestAnimationFrame(() => {
+        const height =
+          composer.getBoundingClientRect().height ||
+          composer.offsetHeight ||
+          MIN_CHAT_COMPOSER_RESERVE_PX;
+        applyComposerReserve(height);
+      });
+    };
+
+    measureComposer();
+
+    const observer = new ResizeObserver(() => {
+      measureComposer();
+    });
+    observer.observe(composer);
+
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(composerMeasureRafRef.current);
+    };
+  }, [hasConversation, scrollAreaRef]);
+
   return (
     <section
       className={cn(
@@ -115,6 +186,13 @@ export function ChatViewPane({
       )}
       data-chat-active={hasConversation || undefined}
       data-chat-streaming={isGenerating || undefined}
+      style={
+        hasConversation
+          ? ({
+              "--chat-composer-reserve": `${composerReservePx}px`,
+            } as CSSProperties)
+          : undefined
+      }
     >
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <ScrollArea
@@ -123,10 +201,17 @@ export function ChatViewPane({
           railEnd={hasConversation ? messageNavigator : undefined}
         >
           <div
-            className="flex min-h-full w-full flex-col items-center"
+            ref={scrollContentRef}
+            className={cn(
+              "chat-scroll-content flex w-full flex-col items-center",
+              !hasConversation && "min-h-full",
+            )}
             style={
               hasConversation
-                ? { paddingBottom: `${inputHeight + 10}px` }
+                ? {
+                    paddingBottom:
+                      "var(--chat-composer-reserve, 84px)",
+                  }
                 : undefined
             }
           >
@@ -205,7 +290,9 @@ export function ChatViewPane({
                 <ChatFrostedEdge
                   placement="bottom"
                   isStreaming={isGenerating}
-                  style={{ height: `${inputHeight + 18}px` }}
+                  style={{
+                    height: `calc(var(--chat-composer-reserve, ${MIN_CHAT_COMPOSER_RESERVE_PX}px) + ${CHAT_FROSTED_EDGE_EXTRA_PX}px)`,
+                  }}
                 />
               </div>
               <div
@@ -215,8 +302,9 @@ export function ChatViewPane({
             </div>
           </div>
           <div
-            ref={inputContainerRef}
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-2 sm:pb-4 sm:pt-2.5"
+            ref={composerMeasureRef}
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pt-2.5 sm:pb-4"
+            data-composer-dock
           >
             <div className="chat-composer-row">
               <div className="chat-composer-row__main">

@@ -10,6 +10,7 @@ import {
   resolveOrchestrationBlocks,
 } from "@/frontend/lib/agent-frames";
 import { AgentOrchestrationView } from "./agent-orchestration";
+import { collectMessageSources } from "@/frontend/lib/chat-sources";
 
 export function AgentMessageContent({
   message,
@@ -49,12 +50,15 @@ export function AgentMessageContent({
           </div>
         ) : null}
         {message.content.trim().length > 0 ? (
-          <MarkdownRenderer
-            content={message.content}
-            isStreaming={!!message.isStreaming}
-            streamKey={message.id}
-            detailLevel={detailLevel}
-          />
+          <div data-message-id={message.id} data-assistant-content="true" className="min-w-0">
+            <MarkdownRenderer
+              content={message.content}
+              isStreaming={!!message.isStreaming}
+              streamKey={message.id}
+              detailLevel={detailLevel}
+              {...({ sources: collectMessageSources(message) } as any)}
+            />
+          </div>
         ) : null}
       </>
     );
