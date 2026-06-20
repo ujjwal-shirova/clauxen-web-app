@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIsClient } from "@/frontend/hooks/use-is-client";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { OrbCursor } from "./ui/orb-cursor";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { DeleteChatDialog } from "./delete-chat-dialog";
@@ -24,9 +24,6 @@ interface ChatViewHeaderProps {
   onShareClick?: () => void;
   onToggleArtifactsPanel?: () => void;
   isArtifactsPanelOpen?: boolean;
-  onToggleSourcesPanel?: () => void;
-  isSourcesPanelOpen?: boolean;
-  sourcesCount?: number;
   chatTitle?: string;
   isTitleStreaming?: boolean;
   isChatPinned?: boolean;
@@ -54,9 +51,6 @@ export function ChatViewHeader({
   onShareClick,
   onToggleArtifactsPanel,
   isArtifactsPanelOpen = false,
-  onToggleSourcesPanel,
-  isSourcesPanelOpen = false,
-  sourcesCount = 0,
   chatTitle = "New Chat",
   isTitleStreaming = false,
   isChatPinned = false,
@@ -207,21 +201,6 @@ export function ChatViewHeader({
             </div>
 
             <div className="content-pane-top-bar__trailing-wrap flex shrink-0 items-center gap-1">
-              {sourcesCount > 0 ? (
-                <HintTooltip content="Sources">
-                  <button
-                    type="button"
-                    onClick={onToggleSourcesPanel}
-                    aria-label="Toggle sources panel"
-                    aria-pressed={isSourcesPanelOpen}
-                    className="ui-icon-button inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/[0.06]"
-                  >
-                    <Search className="h-3.5 w-3.5" />
-                    <span>Sources</span>
-                    <span className="text-zinc-400">{sourcesCount}</span>
-                  </button>
-                </HintTooltip>
-              ) : null}
               <HintTooltip content="Artifacts">
                 <button
                   type="button"

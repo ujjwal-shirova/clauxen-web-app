@@ -5,7 +5,7 @@ import { Plus, Search } from "lucide-react";
 import type { ApiProject } from "@/frontend/lib/api/projects";
 import { ProjectListRow } from "@/frontend/components/projects/project-list-row";
 import { ProjectsMobileHeader } from "@/frontend/components/projects/projects-mobile-header";
-import { useProjectsShell } from "@/frontend/components/projects/projects-shell-context";
+import { useAppLayout } from "@/frontend/components/app-layout-context";
 import {
   ProjectSortMenu,
   sortProjects,
@@ -47,7 +47,7 @@ export function ProjectsViewMobile({
   onOpenProject,
   onOpenMobileNav,
 }: ProjectsViewMobileProps) {
-  const shell = useProjectsShell();
+  const shell = useAppLayout();
   const openNav = onOpenMobileNav ?? shell.openMobileNav;
   const isNavOpen = onOpenMobileNav ? false : !shell.isSidebarCollapsed;
   const [query, setQuery] = useState("");

@@ -65,6 +65,12 @@ type BranchDataset = Record<
   >
 >;
 
+/** Shared across useLocalChat instances so streaming survives route changes. */
+const sharedGeneration = {
+  request: null as AbortController | null,
+  context: null as { chatId: string; assistantMessageId: string } | null,
+};
+
 function compactChatsForStorage(chats: AllChats): AllChats {
   return Object.fromEntries(
     Object.entries(chats).map(([chatId, messages]) => [
@@ -94,15 +100,19 @@ function useLocalChat(
   const projectId = options.projectId ?? null;
   const { streamFromResponse } = useAiStream();
   const [branchDataset, setBranchDataset] = useState<BranchDataset>({});
-  const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
+  const recentChats = useChatStore(useShallow((state) => state.recentChats));
+  const setRecentChats = useCallback(
+    (updater: RecentChat[] | ((prev: RecentChat[]) => RecentChat[])) => {
+      useChatStore.getState().setRecentChats(updater);
+    },
+    [],
+  );
   const activeChatId = useActiveChatId();
-  const [isGenerating, setIsGenerating] = useState(false);
+  const isGenerating = useChatStore((state) => state.isGenerating);
+  const setIsGenerating = useCallback((value: boolean) => {
+    useChatStore.getState().setIsGenerating(value);
+  }, []);
   const setAllChats = setAllChatsNormalized;
-  const activeRequestRef = useRef<AbortController | null>(null);
-  const activeGenerationRef = useRef<{
-    chatId: string;
-    assistantMessageId: string;
-  } | null>(null);
   const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const allChatsRef = useRef<AllChats>({});
   const recentChatsRef = useRef<RecentChat[]>([]);
@@ -166,12 +176,6 @@ function useLocalChat(
             activeChatId: restoredActiveId,
             branchDataset: migrated.meta?.branchDataset,
           });
-          setRecentChats(
-            startedMeta.map((chat) => ({
-              ...chat,
-              isTitleStreaming: false,
-            })),
-          );
           setActiveChatId(restoredActiveId);
           if (migrated.meta?.branchDataset) {
             setBranchDataset(migrated.meta.branchDataset);
@@ -221,14 +225,13 @@ function useLocalChat(
               activeChatId: restoredActiveId,
               branchDataset: parsed.branchDataset,
             });
-            setRecentChats(startedMeta);
             setActiveChatId(restoredActiveId);
           } else if (parsed.recentChats) {
             const startedMeta = filterStartedRecentChats(
               parsed.recentChats,
               parsed.allChats ?? {},
             );
-            setRecentChats(startedMeta);
+            useChatStore.getState().setRecentChats(startedMeta);
             setActiveChatId(startedMeta[0]?.id ?? null);
           }
           if (parsed.branchDataset) setBranchDataset(parsed.branchDataset);
@@ -256,18 +259,15 @@ function useLocalChat(
             ? meta.activeChatId
             : (startedMeta[0]?.id ?? null);
 
-        setRecentChats(
-          startedMeta.map((chat) => ({
-            ...chat,
-            isTitleStreaming: false,
-          })),
-        );
         setActiveChatId(restoredActiveId);
         setBranchDataset(meta.branchDataset);
 
         useChatStore.getState().hydrateFromLegacy({
           allChats,
-          recentChats: startedMeta,
+          recentChats: startedMeta.map((chat) => ({
+            ...chat,
+            isTitleStreaming: false,
+          })),
           activeChatId: restoredActiveId,
           branchDataset: meta.branchDataset,
         });
@@ -359,22 +359,22 @@ function useLocalChat(
   );
 
   const stopGeneration = useCallback(() => {
-    const activeRequest = activeRequestRef.current;
-    const activeGeneration = activeGenerationRef.current;
+    const activeRequest = sharedGeneration.request;
+    const generation = sharedGeneration.context;
 
-    if (!activeRequest || !activeGeneration) {
+    if (!activeRequest || !generation) {
       return;
     }
 
     activeRequest.abort();
-    activeRequestRef.current = null;
+    sharedGeneration.request = null;
     finalizeAssistantMessage(
-      activeGeneration.chatId,
-      activeGeneration.assistantMessageId,
+      generation.chatId,
+      generation.assistantMessageId,
     );
-    activeGenerationRef.current = null;
+    sharedGeneration.context = null;
     setIsGenerating(false);
-  }, [finalizeAssistantMessage]);
+  }, [finalizeAssistantMessage, setIsGenerating]);
 
   const streamChatTitle = useCallback(
     async (
@@ -550,8 +550,8 @@ function useLocalChat(
       onCompleted?: () => void;
     }) => {
       const requestController = new AbortController();
-      activeRequestRef.current = requestController;
-      activeGenerationRef.current = {
+      sharedGeneration.request = requestController;
+      sharedGeneration.context = {
         chatId,
         assistantMessageId,
       };
@@ -717,13 +717,13 @@ function useLocalChat(
             isStreaming: false,
           }));
           finalizeThinkingTimer(chatId, assistantMessageId);
-          activeRequestRef.current = null;
-          activeGenerationRef.current = null;
+          sharedGeneration.request = null;
+          sharedGeneration.context = null;
           setIsGenerating(false);
           return;
         }
 
-        if (activeRequestRef.current !== requestController) return;
+        if (sharedGeneration.request !== requestController) return;
 
         applyAssistantPatch((message) => {
           const finalizedContent = answerAccumulator
@@ -760,8 +760,8 @@ function useLocalChat(
           return nextMessage;
         });
         finalizeThinkingTimer(chatId, assistantMessageId);
-        activeRequestRef.current = null;
-        activeGenerationRef.current = null;
+        sharedGeneration.request = null;
+        sharedGeneration.context = null;
         setIsGenerating(false);
         if (titleUserContent && completedAnswer.trim()) {
           void maybeGenerateChatTitle(chatId, {
@@ -771,9 +771,9 @@ function useLocalChat(
         }
         window.setTimeout(() => onCompleted?.(), 0);
       } catch (error: any) {
-        activeRequestRef.current = null;
-        const generationContext = activeGenerationRef.current;
-        activeGenerationRef.current = null;
+        sharedGeneration.request = null;
+        const generationContext = sharedGeneration.context;
+        sharedGeneration.context = null;
 
         if (error?.name === "AbortError") {
           if (generationContext) {
@@ -908,7 +908,7 @@ function useLocalChat(
     }));
 
 
-    await streamAssistantResponse({
+    void streamAssistantResponse({
       chatId: currentChatId!,
       assistantMessageId: assistantMessage.id,
       conversationForApi,

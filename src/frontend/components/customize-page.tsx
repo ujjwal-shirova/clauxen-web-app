@@ -2,9 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { cn } from "@/frontend/lib/utils";
-import { ArrowLeft, BookOpen, Boxes, ChevronRight } from "lucide-react"; // Lucide icons — back, Skills, Connectors, chevron affordance
-import { SkillsView } from "./customize/skills/view"; // SkillsView — skills master-detail subtree mount
-import { ConnectorsView } from "./customize/connectors/view"; // ConnectorsView — third-party connectors list/detail
+import { ArrowLeft, BookOpen, Boxes, ChevronRight } from "lucide-react";
+import { SkillsView } from "./customize/skills/view";
+import { ConnectorsView } from "./customize/connectors/view";
+import { useAppLayout } from "@/frontend/components/app-layout-context";
+import { MobileMenuButton } from "@/frontend/components/mobile-menu-button";
 
 interface CustomizePageProps {
   onClose: () => void;
@@ -21,6 +23,7 @@ export function CustomizePage({
   onClose,
   initialTab = null,
 }: CustomizePageProps) {
+  const { openMobileNav, isSidebarCollapsed } = useAppLayout();
   const [activeTab, setActiveTab] = useState<"skills" | "connectors" | null>(
     initialTab,
   ); // null = landing; skills/connectors = child view
@@ -64,7 +67,7 @@ export function CustomizePage({
   );
 
   return (
-    <div className="relative flex h-full min-h-0 w-full animate-in flex-col overflow-hidden bg-white font-sans md:flex-row">
+    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-white font-sans md:flex-row">
       <aside className="hidden w-[240px] shrink-0 flex-col border-r border-zinc-100 bg-white md:flex md:h-full">
         <div className="flex items-center gap-2 p-4 pb-3">
           <button
@@ -108,6 +111,11 @@ export function CustomizePage({
           )}
         >
           <div className="flex items-center gap-2 px-4 py-3">
+            <MobileMenuButton
+              onClick={openMobileNav}
+              aria-controls="app-primary-nav"
+              aria-expanded={!isSidebarCollapsed}
+            />
             <button
               type="button"
               onClick={onClose}
@@ -116,7 +124,7 @@ export function CustomizePage({
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <span className="text-[16px] font-semibold text-zinc-900">
+            <span className="min-w-0 flex-1 truncate text-[16px] font-semibold text-zinc-900">
               Customize
             </span>
           </div>

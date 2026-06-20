@@ -22,6 +22,9 @@ import {
   DropdownMenuTrigger,
 } from "@/frontend/components/ui/dropdown-menu";
 import { useToast } from "@/frontend/hooks/use-toast";
+import { useIsMobile } from "@/frontend/hooks/use-mobile";
+import { useAppLayout } from "@/frontend/components/app-layout-context";
+import { ProjectsMobileHeader } from "@/frontend/components/projects/projects-mobile-header";
 
 interface LibraryItem {
   id: string;
@@ -104,6 +107,8 @@ type SortKey = "name" | "modified" | "size";
 
 export function LibraryView() {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const { openMobileNav, isSidebarCollapsed } = useAppLayout();
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("all");
   const [sortKey, setSortKey] = useState<SortKey>("modified");
@@ -273,13 +278,61 @@ export function LibraryView() {
     });
   };
 
+  const newMenuButton = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          className="h-8 w-8 rounded-lg bg-zinc-900 p-0 hover:bg-zinc-800 no-hover-overlay text-white shadow-sm active:scale-95 sm:h-9 sm:w-auto sm:rounded-full sm:px-4 sm:gap-1.5"
+          aria-haspopup="menu"
+          aria-label="New library item"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline text-[14px] font-medium">New</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-48 rounded-xl border border-black/10 bg-white p-1 shadow-xl"
+      >
+        <DropdownMenuItem
+          onClick={() => handleNewAction("upload")}
+          className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] cursor-pointer"
+        >
+          <Download className="h-4 w-4" /> Upload files
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => handleNewAction("paste")}
+          className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] cursor-pointer"
+        >
+          <FileText className="h-4 w-4" /> Paste text
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="my-1 bg-black/5" />
+        <DropdownMenuItem
+          onClick={() => handleNewAction("folder")}
+          className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] cursor-pointer"
+        >
+          <FolderOpen className="h-4 w-4" /> New folder
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
-    <div className="flex flex-col flex-1 w-full bg-white font-sans h-full overflow-hidden animate-in fade-in duration-300">
+    <div className="flex h-full w-full flex-1 flex-col overflow-hidden bg-white font-sans">
+      {isMobile ? (
+        <ProjectsMobileHeader
+          title="Library"
+          onOpenMobileNav={openMobileNav}
+          isNavOpen={!isSidebarCollapsed}
+          trailing={newMenuButton}
+        />
+      ) : null}
+
       {/* Top header: title + search + New */}
       <div className="w-full border-b border-zinc-100">
-        <div className="mobile-page-inset mx-auto w-full max-w-[800px] pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-4 sm:pt-6 lg:pt-8">
+        <div className="mobile-page-inset mx-auto w-full max-w-[800px] px-3 pb-3 pt-2 sm:px-6 sm:pb-4 sm:pt-6 lg:pt-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-3">
-            <h1 className="flex-1 font-serif text-[24px] font-medium leading-[1.25] tracking-[-0.2px] text-zinc-800 sm:text-[28px] sm:leading-[34px]">
+            <h1 className="hidden flex-1 font-serif text-[24px] font-medium leading-[1.25] tracking-[-0.2px] text-zinc-800 sm:block sm:text-[28px] sm:leading-[34px]">
               Library
             </h1>
 
@@ -298,42 +351,7 @@ export function LibraryView() {
                 />
               </div>
 
-              {/* New button with menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    className="h-9 px-4 rounded-full bg-zinc-900 hover:bg-zinc-800 no-hover-overlay text-white text-[14px] font-medium flex items-center gap-1.5 shadow-sm active:scale-[0.985] transition"
-                    aria-haspopup="menu"
-                  >
-                    <span>New</span>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-48 rounded-xl border border-black/10 bg-white p-1 shadow-xl"
-                >
-                  <DropdownMenuItem
-                    onClick={() => handleNewAction("upload")}
-                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] cursor-pointer"
-                  >
-                    <Download className="h-4 w-4" /> Upload files
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleNewAction("paste")}
-                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] cursor-pointer"
-                  >
-                    <FileText className="h-4 w-4" /> Paste text
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-1 bg-black/5" />
-                  <DropdownMenuItem
-                    onClick={() => handleNewAction("folder")}
-                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] cursor-pointer"
-                  >
-                    <FolderOpen className="h-4 w-4" /> New folder
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {!isMobile ? newMenuButton : null}
             </div>
           </div>
         </div>

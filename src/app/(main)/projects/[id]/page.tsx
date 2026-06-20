@@ -1,11 +1,11 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ProjectDetailView } from "@/frontend/components/project-detail-view";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { useProjects } from "@/frontend/hooks/use-projects";
 import { useProjectChat } from "@/frontend/hooks/use-project-chat";
-import { ProjectDetailView } from "@/frontend/components/project-detail-view";
 import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,
@@ -13,20 +13,33 @@ import {
 import * as projectsApi from "@/frontend/lib/api/projects";
 import type { ApiProject } from "@/frontend/lib/api/projects";
 
-type PageProps = {
-  params: Promise<{ id: string }>;
-};
+export default function ProjectDetailRoutePage() {
+  return (
+    <Suspense fallback={null}>
+      <ProjectDetailRouteContent />
+    </Suspense>
+  );
+}
 
-export default function ProjectDetailPage({ params }: PageProps) {
-  const { id } = use(params);
+function ProjectDetailRouteContent() {
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? "";
   const router = useRouter();
   const auth = useAuth();
   const projectsHook = useProjects(auth.isAuthenticated);
+
   const [project, setProject] = useState<ApiProject | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
   const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
+
+  const chat = useProjectChat(id, {
+    thinkingEnabled,
+    webSearchEnabled,
+    chatModel,
+  });
 
   const {
     projectChats,
@@ -38,11 +51,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
     handleRenameChat,
     handleDeleteChat,
     handlePinChat,
-  } = useProjectChat(id, {
-    thinkingEnabled,
-    webSearchEnabled,
-    chatModel,
-  });
+  } = chat;
 
   useEffect(() => {
     let cancelled = false;
@@ -97,31 +106,29 @@ export default function ProjectDetailPage({ params }: PageProps) {
 
   return (
     <ProjectDetailView
-      project={project}
-      onBack={() => router.push("/projects")}
-      onSendMessage={async (prompt) => {
-        startNewChat();
-        const chatId = await handleSendMessage(prompt);
-        if (chatId) {
-          router.push(`/projects/${id}/conversations/${chatId}`);
-        }
-      }}
-      onStopGeneration={stopGeneration}
-      isGenerating={isGenerating}
-      thinkingEnabled={thinkingEnabled}
-      onThinkingEnabledChange={setThinkingEnabled}
-      webSearchEnabled={webSearchEnabled}
-      onWebSearchEnabledChange={setWebSearchEnabled}
-      chatModel={chatModel}
-      onChatModelChange={setChatModel}
-      projectChats={projectChats}
-      activeChatId={activeChatId}
-      onOpenChat={(chatId) =>
-        router.push(`/projects/${id}/conversations/${chatId}`)
-      }
-      onRenameChat={handleRenameChat}
-      onDeleteChat={handleDeleteChat}
-      onPinChat={handlePinChat}
-    />
+        project={project}
+        onBack={() => router.push("/projects")}
+        onSendMessage={async (prompt) => {
+          startNewChat();
+          const chatId = await handleSendMessage(prompt);
+          if (chatId) {
+            router.push(`/projects/${id}/conversations/${chatId}`);
+          }
+        }}
+        onStopGeneration={stopGeneration}
+        isGenerating={isGenerating}
+        thinkingEnabled={thinkingEnabled}
+        onThinkingEnabledChange={setThinkingEnabled}
+        webSearchEnabled={webSearchEnabled}
+        onWebSearchEnabledChange={setWebSearchEnabled}
+        chatModel={chatModel}
+        onChatModelChange={setChatModel}
+        projectChats={projectChats}
+        activeChatId={activeChatId}
+        onOpenChat={(chatId) => router.push(`/projects/${id}/conversations/${chatId}`)}
+        onRenameChat={handleRenameChat}
+        onDeleteChat={handleDeleteChat}
+        onPinChat={handlePinChat}
+      />
   );
 }

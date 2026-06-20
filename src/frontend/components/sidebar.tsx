@@ -103,6 +103,8 @@ interface SidebarProps {
   setIsCollapsed: (collapsed: boolean) => void;
   /** When true, the nav is a full off-canvas drawer (no slim rail). */
   isMobileLayout: boolean;
+  /** When false, width transitions are suppressed to avoid hydration flicker. */
+  sidebarReady?: boolean;
   /** Called after mobile drawer navigation actions (close overlay). */
   onNavigate?: () => void;
   onUpgradeClick: () => void;
@@ -117,7 +119,7 @@ interface SidebarProps {
   activeView?: string;
   recentChats: RecentChat[];
   activeChatId: string | null;
-  onSelectChat: (chatId: string) => void;
+  onSelectChat: (chat: RecentChat) => void;
   onDeleteChat?: (chatId: string) => void;
   onRenameChat?: (chatId: string, newName: string) => void;
   onPinChat?: (chatId: string, pinned: boolean) => void;
@@ -133,6 +135,7 @@ export function Sidebar({
   isCollapsed,
   setIsCollapsed,
   isMobileLayout,
+  sidebarReady = true,
   onNavigate,
   onUpgradeClick,
   onSettingsClick,
@@ -221,14 +224,12 @@ export function Sidebar({
       tabIndex={0}
       onClick={(e) => {
         e.stopPropagation();
-        onSelectChat(chat.id);
-        runNavAction(onHistoryClick);
+        onSelectChat(chat);
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onSelectChat(chat.id);
-          runNavAction(onHistoryClick);
+          onSelectChat(chat);
         }
       }}
       className={cn(
@@ -280,7 +281,11 @@ export function Sidebar({
         isMobileLayout &&
           "fixed left-0 top-0 z-30 will-change-transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
         !isMobileLayout &&
-          "relative z-20 shrink-0 transition-[width] duration-300 ease-in-out",
+          "relative z-20 shrink-0",
+        !isMobileLayout &&
+          sidebarReady &&
+          "transition-[width] duration-300 ease-in-out",
+        !isMobileLayout && !sidebarReady && "transition-none",
         isMobileLayout &&
           isCollapsed &&
           "pointer-events-none w-[min(88vw,240px)] -translate-x-full shadow-none",
@@ -373,6 +378,7 @@ export function Sidebar({
               e.stopPropagation();
               handleNewChat();
             }}
+            aria-label="New chat"
             className={cn(
               "ui-sidebar-menu-button group mb-0 h-8 w-full justify-start gap-2 px-2 text-[12.5px] font-[430] text-zinc-800 transition-all hover:bg-zinc-100",
               isCollapsed &&

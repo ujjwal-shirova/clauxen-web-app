@@ -10,6 +10,7 @@ type ProjectsMobileHeaderProps = {
   onOpenMobileNav?: () => void;
   showMenu?: boolean;
   isNavOpen?: boolean;
+  navControlsId?: string;
   leading?: ReactNode;
   trailing?: ReactNode;
   className?: string;
@@ -22,6 +23,7 @@ export function ProjectsMobileHeader({
   onOpenMobileNav,
   showMenu = true,
   isNavOpen = false,
+  navControlsId = "app-primary-nav",
   leading,
   trailing,
   className,
@@ -41,7 +43,7 @@ export function ProjectsMobileHeader({
             (showMenu && onOpenMobileNav ? (
               <MobileMenuButton
                 onClick={onOpenMobileNav}
-                aria-controls="projects-primary-nav"
+                aria-controls={navControlsId}
                 aria-expanded={isNavOpen}
               />
             ) : (

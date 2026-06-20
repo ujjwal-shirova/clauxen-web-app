@@ -17,7 +17,7 @@ import { DeleteChatDialog } from "@/frontend/components/delete-chat-dialog";
 import { RenameChatDialog } from "@/frontend/components/rename-chat-dialog";
 import { ProjectsMobileHeader } from "@/frontend/components/projects/projects-mobile-header";
 import { ProjectsMobileSegmented } from "@/frontend/components/projects/projects-mobile-segmented";
-import { useProjectsShell } from "@/frontend/components/projects/projects-shell-context";
+import { useAppLayout } from "@/frontend/components/app-layout-context";
 import { SetProjectInstructionsDialog } from "@/frontend/components/set-project-instructions-dialog";
 import { ProjectFilesPanel } from "@/frontend/components/project-files-panel";
 import { AddTextContentDialog } from "@/frontend/components/add-text-content-dialog";
@@ -76,7 +76,7 @@ export function ProjectDetailViewMobile({
   onPinChat,
   activeChatId = null,
 }: ProjectDetailViewMobileProps) {
-  const shell = useProjectsShell();
+  const shell = useAppLayout();
   const openNav = onOpenMobileNav ?? shell.openMobileNav;
   const isNavOpen = onOpenMobileNav ? false : !shell.isSidebarCollapsed;
   const [renameChatId, setRenameChatId] = useState<string | null>(null);

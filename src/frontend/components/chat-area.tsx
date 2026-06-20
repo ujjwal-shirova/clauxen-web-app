@@ -20,7 +20,7 @@ import { cn } from "@/frontend/lib/utils";
 
 interface ChatAreaProps {
   messages: Message[];
-  onSendMessage: (prompt: string) => void;
+  onSendMessage: (prompt: string) => void | Promise<void>;
   onStopGeneration: () => void;
   isGenerating: boolean;
   onUpgradeClick: () => void;
@@ -128,30 +128,19 @@ export function ChatArea({
   const sourceCountRef = React.useRef(chatSources.length);
 
   React.useEffect(() => {
-    if (chatArtifacts.length > artifactCountRef.current) {
-      setIsArtifactsPanelOpen(true);
-    }
+    // Do not auto-open the artifacts sidebar when new artifacts arrive.
+    // Keep the ref updated so we don't re-trigger logic on the same count.
     artifactCountRef.current = chatArtifacts.length;
   }, [chatArtifacts.length]);
 
   React.useEffect(() => {
     if (chatSources.length > sourceCountRef.current) {
-      setIsSourcesPanelOpen(true);
-      // When new sources arrive (new web search results for an answer),
-      // auto-scope the sources sidebar to the *most recent* assistant message
-      // that actually produced sources. This ensures the panel shows only the
-      // "corresponding" assistant output's sources instead of mixing previous ones.
-      const latestWithSources = [...messages]
-        .reverse()
-        .find(
-          (m) =>
-            m.role === "assistant" && collectMessageSources(m).length > 0,
-        );
-      if (latestWithSources) {
-        setSourcesMessageId(latestWithSources.id);
-      } else {
-        setSourcesMessageId(null);
-      }
+      // Do not auto-open the sources sidebar when search results arrive.
+      // The panel should only become visible when the user explicitly clicks
+      // a per-message "Sources" button. We still track the count ref so we
+      // don't re-trigger on the same sources.
+      // (We intentionally no longer auto-scope here either; manual open
+      // handlers set the desired messageId scope.)
     }
     sourceCountRef.current = chatSources.length;
   }, [chatSources.length, messages]);
@@ -244,15 +233,6 @@ export function ChatArea({
     setIsSourcesPanelOpen(false);
   }, []);
 
-  const toggleSourcesPanel = React.useCallback(() => {
-    setIsSourcesPanelOpen((open) => !open);
-    setIsArtifactsPanelOpen(false);
-    if (!isSourcesPanelOpen) {
-      // opening global → show all sources in chat
-      setSourcesMessageId(null);
-    }
-  }, [isSourcesPanelOpen]);
-
   const openSourcesPanel = React.useCallback((messageId?: string) => {
     setSourcesMessageId(messageId ?? null);
     setIsSourcesPanelOpen(true);
@@ -305,9 +285,6 @@ export function ChatArea({
               onShareClick={() => setIsShareDialogOpen(true)}
               onToggleArtifactsPanel={toggleArtifactsPanel}
               isArtifactsPanelOpen={isArtifactsPanelOpen}
-              onToggleSourcesPanel={toggleSourcesPanel}
-              isSourcesPanelOpen={isSourcesPanelOpen}
-              sourcesCount={chatSources.length}
               chatTitle={activeChatTitle}
               isTitleStreaming={isActiveChatTitleStreaming}
               onDeleteChat={handleDeleteActiveChat}
@@ -359,9 +336,6 @@ export function ChatArea({
               onShareClick={() => setIsShareDialogOpen(true)}
               onToggleArtifactsPanel={toggleArtifactsPanel}
               isArtifactsPanelOpen={isArtifactsPanelOpen}
-              onToggleSourcesPanel={toggleSourcesPanel}
-              isSourcesPanelOpen={isSourcesPanelOpen}
-              sourcesCount={chatSources.length}
               chatTitle={activeChatTitle}
               isTitleStreaming={isActiveChatTitleStreaming}
               isChatPinned={isActiveChatPinned}

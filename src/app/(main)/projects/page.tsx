@@ -1,24 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useProjects } from "@/frontend/hooks/use-projects";
-import { useAuth } from "@/frontend/hooks/use-auth";
 import { ProjectsView } from "@/frontend/components/projects-view";
 import { CreateProjectDialog } from "@/frontend/components/create-project-dialog";
+import { useProjects } from "@/frontend/hooks/use-projects";
+import { useAuth } from "@/frontend/hooks/use-auth";
 import { useToast } from "@/frontend/hooks/use-toast";
-import type { ApiProject } from "@/frontend/lib/api/projects";
 
-export default function ProjectsPage() {
+export default function ProjectsListRoutePage() {
+  return (
+    <Suspense fallback={null}>
+      <ProjectsListContent />
+    </Suspense>
+  );
+}
+
+function ProjectsListContent() {
   const router = useRouter();
   const auth = useAuth();
   const { toast } = useToast();
   const projects = useProjects(auth.isAuthenticated);
+
   const [createOpen, setCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  const openProject = (project: ApiProject) => {
-    router.push(`/projects/${project.id}`);
+  const openProject = (projectId: string) => {
+    router.push(`/projects/${projectId}`);
   };
 
   const handleCreate = async ({
@@ -26,7 +34,7 @@ export default function ProjectsPage() {
     description,
   }: {
     name: string;
-    description: string;
+    description?: string;
   }) => {
     setIsCreating(true);
     try {
@@ -36,7 +44,7 @@ export default function ProjectsPage() {
       });
       if (project) {
         setCreateOpen(false);
-        openProject(project);
+        openProject(project.id);
       } else {
         toast({
           title: "Could not create project",
@@ -61,10 +69,7 @@ export default function ProjectsPage() {
         projects={projects.projects}
         loading={projects.loading}
         onNewProject={() => setCreateOpen(true)}
-        onOpenProject={(projectId) => {
-          const project = projects.projects.find((p) => p.id === projectId);
-          if (project) openProject(project);
-        }}
+        onOpenProject={openProject}
       />
 
       <CreateProjectDialog
