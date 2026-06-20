@@ -42,7 +42,7 @@ function SearchResultRow({ result }: { result: WebSearchResult }) {
       href={result.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-start gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-50"
+      className="flex items-start gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-50 animate-in fade-in slide-in-from-bottom-1 duration-200"
     >
       <SearchResultFavicon url={result.url} />
       <div className="min-w-0 flex-1">
@@ -86,7 +86,14 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
       }
     >
       {results.length > 0 ? (
-        <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
+        <div
+          key={isRunning ? "search-live" : "search-done"}
+          className={cn(
+            "overflow-hidden rounded-[12px] border border-zinc-200 bg-white",
+            "transition-all duration-200 ease-out",
+            !isRunning && "animate-in fade-in slide-in-from-bottom-1 duration-200",
+          )}
+        >
           <div className="divide-y divide-zinc-100 px-1 py-1">
             {results.slice(0, 10).map((result) => (
               <SearchResultRow key={result.url} result={result} />
@@ -626,7 +633,7 @@ export function AgentToolBlock({ tool }: { tool: AgentToolSegment }) {
   if (tool.name === "recipe_display_v0") {
     return <RecipeDisplayBlock tool={tool} />;
   }
-  if (tool.name === "recommend_claude_apps") {
+  if (tool.name === "recommend_clauxen_apps" || tool.name === "recommend_claude_apps") {
     return <RecommendClaudeAppsBlock tool={tool} />;
   }
   if (tool.name === "suggest_connectors") {

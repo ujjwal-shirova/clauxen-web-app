@@ -42,7 +42,7 @@ type ExaCitationRow = {
 };
 
 const SEARCH_TYPE = "auto" as const;
-const NUM_RESULTS = 12;
+const NUM_RESULTS = 10;
 
 const SEARCH_SYSTEM_PROMPT = [
   "You are a high-quality, safety-aware web research system.",

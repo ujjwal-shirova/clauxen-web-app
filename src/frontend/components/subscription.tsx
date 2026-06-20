@@ -31,6 +31,7 @@ interface UpgradePageContentProps {
     planId: string,
     billingCycle: BillingCycle,
     maxTier?: MaxTier,
+    planDisplayName?: string,
   ) => void;
 }
 
@@ -501,10 +502,12 @@ export type PlansCarouselSectionProps = {
     plan: PlanCard,
     cycle: BillingCycle,
     tier?: MaxTier,
+    displayName?: string,
   ) => void;
   onOrganizationPlanSelect?: (
     plan: OrganizationPlanCard,
     cycle: BillingCycle,
+    displayName?: string,
   ) => void;
   /** When set, every plan CTA invokes this instead of the select handlers */
   onCtaClick?: () => void;
@@ -569,7 +572,7 @@ export function PlansCarouselSection({
         ? "yearly"
         : "monthly";
     const tier = plan.id === "max" ? maxTier : undefined;
-    onPersonalPlanSelect?.(plan, cycle, tier);
+    onPersonalPlanSelect?.(plan, cycle, tier, plan.name);
   };
 
   const handleOrganizationSelect = (plan: OrganizationPlanCard) => {
@@ -579,7 +582,7 @@ export function PlansCarouselSection({
     }
     const cycle =
       plan.yearlySupported && billingCycle === "yearly" ? "yearly" : "monthly";
-    onOrganizationPlanSelect?.(plan, cycle);
+    onOrganizationPlanSelect?.(plan, cycle, plan.name);
   };
 
   const showIndividual =
@@ -743,7 +746,7 @@ export default function UpgradePageContent({
     tier?: MaxTier,
   ) => {
     if (plan.isCurrent || !CHECKOUT_PLAN_IDS.has(plan.id)) return;
-    onSelectPlan(plan.id, cycle, tier);
+    onSelectPlan(plan.id, cycle, tier, plan.name);
   };
 
   const handleOrganizationPlanSelection = (
@@ -751,7 +754,7 @@ export default function UpgradePageContent({
     cycle: BillingCycle,
   ) => {
     if (!CHECKOUT_PLAN_IDS.has(plan.id)) return;
-    onSelectPlan(plan.id, cycle);
+    onSelectPlan(plan.id, cycle, undefined, plan.name);
   };
 
   const handlePlaceholderLinkClick = (

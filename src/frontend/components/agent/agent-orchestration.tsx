@@ -64,7 +64,8 @@ export function AgentOrchestrationView({
           <div
             key={block.blockId}
             className={
-              block.blockId.endsWith("-interim")
+              block.blockId.endsWith("-interim") ||
+              block.blockId.endsWith("-intro")
                 ? "text-[15px] font-semibold leading-relaxed text-zinc-900"
                 : undefined
             }

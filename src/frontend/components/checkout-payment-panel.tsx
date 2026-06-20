@@ -9,6 +9,7 @@ import {
   CARD_BRAND_ICONS,
   detectCardBrand,
   getCardBrandStack,
+  type CardBrandId,
 } from "@/lib/checkout-payment-icons";
 import {
   cardNumberDigits,
@@ -112,46 +113,64 @@ export function CheckoutPaymentPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative">
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="cc-number"
-          placeholder="1234 1234 1234 1234"
-          value={cardNumber}
-          onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-          className={checkoutUi.fieldWithIcons}
-        />
-        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-          <CheckoutCardBrandStack brands={brandStack} />
+      <div>
+        <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
+          Card number
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="cc-exp"
-          placeholder="MM / YY"
-          value={cardExpiry}
-          onChange={(e) => setCardExpiry(formatCardExpiry(e.target.value))}
-          className={checkoutUi.field}
-        />
         <div className="relative">
           <input
             type="text"
             inputMode="numeric"
-            autoComplete="cc-csc"
-            placeholder="CVC"
-            value={cardCvc}
-            onChange={(e) =>
-              setCardCvc(formatCardCvc(e.target.value, isAmex ? 4 : 3))
-            }
-            className={checkoutUi.fieldWithTrailingIcon}
+            autoComplete="cc-number"
+            placeholder="1234 1234 1234 1234"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+            className={checkoutUi.fieldWithIcons}
           />
-          <CreditCard
-            className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
-            strokeWidth={1.5}
+          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
+            <CheckoutCardBrandStack
+              brands={brandStack}
+              detected={detectedBrand}
+            />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
+            Expiry date
+          </div>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="cc-exp"
+            placeholder="MM / YY"
+            value={cardExpiry}
+            onChange={(e) => setCardExpiry(formatCardExpiry(e.target.value))}
+            className={checkoutUi.field}
           />
+        </div>
+        <div>
+          <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
+            CVC
+          </div>
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="cc-csc"
+              placeholder="CVC"
+              value={cardCvc}
+              onChange={(e) =>
+                setCardCvc(formatCardCvc(e.target.value, isAmex ? 4 : 3))
+              }
+              className={checkoutUi.fieldWithTrailingIcon}
+            />
+            <CreditCard
+              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+              strokeWidth={1.5}
+            />
+          </div>
         </div>
       </div>
     </div>

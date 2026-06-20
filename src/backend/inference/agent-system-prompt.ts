@@ -1,22 +1,18 @@
 /**
  * Central system-prompt registry for all inference paths.
  *
- * Philosophy:
- * ─────────────────────────────────────────────────────────
- * Strong language models (DeepSeek-R3, Kimi-K2, etc.) with interleaved
- * reasoning (thinking tokens) are best directed through:
- *   1.  Well-designed TOOL DESCRIPTIONS  (when / why / what each does)
- *   2.  A very short, stable identity anchor
- *   3.  Nothing else in the system prompt
+ * For the primary assistant models (Homor/Helios/Virgil) we now load the
+ * complete authored .md system prompts (homor.md, helios.md, virgil.md).
+ * These contain the full tool specs, <sntml:...> tag guidance, search_first
+ * rules, tone, refusal policy, product info, formatting constraints, etc.
  *
- * Verbose system prompts that repeat tool behaviour, list rules, or describe
- * every possible scenario actively HURT performance:
- *   • They push the real conversation prefix off the prompt cache
- *   • They increase time-to-first-token on reasoning models
- *   • They override the model's own (better) judgment
+ * Latency is preserved via Novita's automatic prefix/input cache:
+ * - Static MD content placed first (as system[0]).
+ * - Auto-caches once prompt >= ~1024 tokens (our MDs are much larger).
+ * - Subsequent requests with identical prefix hit cache read path → lower
+ *   latency and cost. The cache is transparent; no special params required.
  *
- * All per-file constants ("CLAUXEN_SYSTEM", "AGENT_SYSTEM_BASE", …) have been
- * replaced with calls to the functions below.
+ * For narrow paths (pure title gen) we keep tiny dedicated prompts.
  */
 
 import { buildInlineChatTitleSystemInstruction } from "@/lib/chat-title";

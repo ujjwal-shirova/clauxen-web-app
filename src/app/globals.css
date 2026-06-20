@@ -617,6 +617,7 @@ button.user-message-card__body:not(:disabled):hover {
 [data-prompt-root] [data-prompt-shell] {
   --prompt-input-editor-min-height: 28px;
   --prompt-input-editor-max-height: 155px;
+  --prompt-input-editor-height: var(--prompt-input-editor-min-height);
 }
 
 [data-prompt-root] [data-prompt-shell] {
@@ -631,15 +632,25 @@ button.user-message-card__body:not(:disabled):hover {
   resize: none;
   overflow-x: hidden;
   overflow-y: hidden;
+  min-height: var(--prompt-input-editor-min-height, 28px);
   max-height: var(--prompt-input-editor-max-height, 155px);
+  height: var(--prompt-input-editor-height, var(--prompt-input-editor-min-height, 28px));
   overflow-anchor: none;
   box-sizing: border-box;
-  height: var(--prompt-input-editor-min-height, 28px);
   transition: height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-prompt-root] [data-prompt-shell] [data-prompt-editor] {
   transition: min-height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-prompt-root] [data-prompt-shell] [data-prompt-layout="stacked"] [data-prompt-editor] {
+  flex: none;
+  align-self: stretch;
+}
+
+[data-prompt-root] [data-prompt-shell] [data-prompt-layout="stacked"].prompt-body-grid {
+  min-height: 0;
 }
 
 .ui-prompt-input-toolbar {
@@ -1100,6 +1111,44 @@ button.user-message-card__body:not(:disabled):hover {
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+/* Checkout preparing — slow, smooth title shimmer */
+@keyframes checkout-preparing-shimmer {
+  0% {
+    background-position: 120% 50%;
+  }
+  100% {
+    background-position: -20% 50%;
+  }
+}
+
+.checkout-preparing-title {
+  background: linear-gradient(
+    105deg,
+    #3d3d3a 0%,
+    #3d3d3a 38%,
+    #7a7a76 46%,
+    #f4f4f2 50%,
+    #7a7a76 54%,
+    #3d3d3a 62%,
+    #3d3d3a 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: checkout-preparing-shimmer 6.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkout-preparing-title {
+    animation: none;
+    color: rgb(61, 61, 58);
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
   }
 }
 

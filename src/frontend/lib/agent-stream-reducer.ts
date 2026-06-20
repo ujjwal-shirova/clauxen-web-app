@@ -306,7 +306,11 @@ export function applyAgentStreamEvent(
         }
       }
       const frameId = uniqueAgentFrameId(frames, event.frameId);
+      const introNarrative = state.message.content?.trim();
       const newFrame = createAgentFrame(frameId);
+      if (introNarrative) {
+        newFrame.introNarrative = introNarrative;
+      }
       frames.push(newFrame);
       state = {
         ...state,
@@ -469,16 +473,6 @@ export function applyAgentStreamEvent(
 
     case "tool_start": {
       agentMode = true;
-      const activeSegments =
-        state.frames[state.frameIdx]?.segments ??
-        state.message.agentSegments ??
-        [];
-      const hadPriorWork = activeSegments.some(
-        (segment) => segment.kind === "thinking" || segment.kind === "tool",
-      );
-      if (!hadPriorWork && state.message.content.trim()) {
-        content = "";
-      }
       state = withSegments(state, (segments) => {
         const existingTool = segments.find(
           (segment): segment is AgentToolSegment =>
@@ -608,6 +602,16 @@ export function applyAgentStreamEvent(
         }),
       );
       return syncFrameState(state, { isStreaming: true });
+
+    case "agent_interim": {
+      const frames = attachInterimToLastFrame(state.frames, event.text);
+      state = { ...state, frames };
+      return syncFrameState(state, {
+        content: "",
+        agentMode: true,
+        isStreaming: true,
+      });
+    }
 
     case "agent_frame_complete": {
       state = ensureOpenFrame(state);

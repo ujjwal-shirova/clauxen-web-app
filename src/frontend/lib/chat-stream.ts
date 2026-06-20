@@ -45,6 +45,7 @@ export type StreamEvent =
     }
   | { type: "agent_frame_start"; frameId: string }
   | { type: "agent_frame_complete"; frameId?: string }
+  | { type: "agent_interim"; text: string }
   | { type: "answer_clear" }
   | { type: "chat_title"; title: string }
   | { type: "done" }
@@ -75,6 +76,7 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
     language?: unknown;
     title?: unknown;
     frameId?: unknown;
+    text?: unknown;
   };
 
   switch (event.type) {
@@ -198,6 +200,10 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
     case "agent_frame_start":
       return typeof event.frameId === "string"
         ? { type: "agent_frame_start", frameId: event.frameId }
+        : null;
+    case "agent_interim":
+      return typeof event.text === "string"
+        ? { type: "agent_interim", text: event.text }
         : null;
     case "chat_title":
       return typeof event.title === "string"

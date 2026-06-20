@@ -206,6 +206,10 @@ export function uiMessageChunkToStreamEvents(
       }
       return [];
     }
+    case "data-agent-interim": {
+      const data = chunk.data as ClauxenUIDataParts["agent-interim"];
+      return [{ type: "agent_interim", text: data.text }];
+    }
     case "data-chat-title": {
       const data = chunk.data as ClauxenUIDataParts["chat-title"];
       return [{ type: "chat_title", title: data.title }];

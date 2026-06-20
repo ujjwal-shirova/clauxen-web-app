@@ -22,8 +22,8 @@ import type {
   AgentChatRequest,
   AgentMessage,
 } from "@/backend/inference/novita-agent";
-import { buildAgentSystemPrompt } from "@/backend/inference/agent-system-prompt";
 import { buildStructuredOutputTool } from "@/backend/inference/openai-agent-adapter";
+import { buildModelSystemPrompt } from "@/backend/inference/model-prompts";
 
 export type AgentStreamEvent =
   | { event: "text_delta"; data: { text: string } }
@@ -77,9 +77,25 @@ function resolveAgentTools(request: AgentChatRequest) {
 }
 
 function buildSystemPrompt(request: AgentChatRequest) {
-  return buildCacheableSystemPrefix(
-    buildAgentSystemPrompt({ generateChatTitle: request.generateChatTitle }),
-  );
+  // Use the entire model-specific .md system prompt (homor.md / helios.md / virgil.md)
+  // as the stable prefix. This gives the model the full described behavior, tools,
+  // SNMT tags guidance, policies, search_first rules, formatting, etc.
+  // Novita prompt cache (auto for prefixes >= ~1024 tokens) keeps latency low on hits:
+  // the static MD is identical across turns -> cache read for the prefix.
+  const logicalModel =
+    (request as any).chatModel ||
+    (typeof request.model === "string" ? request.model : undefined) ||
+    "helios";
+
+  const titleInstr = request.generateChatTitle
+    ? "When the conversation has a clear topic, output a short title (3-6 words) for the sidebar."
+    : "";
+
+  const full = buildModelSystemPrompt({
+    model: logicalModel,
+    append: titleInstr,
+  });
+  return buildCacheableSystemPrefix(full);
 }
 
 function resolveStructuredTools(request: AgentChatRequest) {

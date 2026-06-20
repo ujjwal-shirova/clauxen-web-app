@@ -11,7 +11,7 @@ import {
   ChatTitleStreamFilter,
   flushChatTitleFilterTail,
 } from "@/lib/chat-title";
-import { buildChatSystemPrompt } from "@/backend/inference/agent-system-prompt";
+import { buildModelSystemPrompt } from "@/backend/inference/model-prompts";
 
 const DEFAULT_CHAT_MAX_TOKENS = 8192;
 
@@ -22,8 +22,11 @@ function toOpenAiMessages(
   const out: ChatCompletionMessageParam[] = [
     {
       role: "system",
-      content: buildChatSystemPrompt({
-        generateChatTitle: options?.generateChatTitle,
+      content: buildModelSystemPrompt({
+        model: (options as any)?.chatModel || (options as any)?.model,
+        append: options?.generateChatTitle
+          ? "Optionally emit a very short sidebar title (3-6 words) at the end if topic is clear."
+          : undefined,
       }),
     },
   ];
@@ -52,6 +55,7 @@ export function streamOpenAiChat(
     thinkingType?: ThinkingType;
     generateChatTitle?: boolean;
     model?: string;
+    chatModel?: "homer" | "helios" | "virgil";
     baseUrl?: string;
   },
 ): ReadableStream<Uint8Array> {

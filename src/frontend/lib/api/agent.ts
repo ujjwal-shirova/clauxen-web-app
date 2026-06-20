@@ -14,7 +14,8 @@ export type AgentChatMessage = {
 };
 
 export type AgentChatPayload = {
-  model?: string;
+  model?: string; // upstream slug
+  chatModel?: "homer" | "helios" | "virgil"; // logical id -> selects full .md system prompt
   mode?: "chat" | "structured";
   enableThinking?: boolean;
   enableTools?: boolean;

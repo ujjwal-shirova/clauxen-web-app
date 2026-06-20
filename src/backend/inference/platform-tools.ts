@@ -33,9 +33,17 @@ export type PlatformToolName =
   | "message_compose_v1"
   | "places_map_display_v0"
   | "recipe_display_v0"
-  | "recommend_claude_apps"
+  | "recommend_clauxen_apps"
   | "search_mcp_registry"
-  | "suggest_connectors";
+  | "suggest_connectors"
+  // Additional tools described in the full model system prompts (homor/helios/virgil .md)
+  | "conversation_search"
+  | "end_conversation"
+  | "tool_search"
+  | "recent_chats"
+  | "memory_user_edits"
+  | "visualize:read_me"
+  | "visualize:show_widget";
 
 function tool(
   name: PlatformToolName,
@@ -508,8 +516,8 @@ export function platformTools(): PlatformTool[] {
       },
     ),
     tool(
-      "recommend_claude_apps",
-      "Recommend 1-3 apps or extensions to help the user better understand the Claude ecosystem. Show this when a user is working on something that might be better suited for an app other than Claude chat—ex: coding (Claude Code), knowledge work (Cowork), or working on sheets or slides (Excel/Powerpoint), etc.",
+      "recommend_clauxen_apps",
+      "Recommend 1-3 Clauxen apps or extensions (Code, Cowork, browser, Excel, PowerPoint, Design, etc.) when they would be a better fit than plain chat.",
       {
         type: "object",
         properties: {
@@ -549,6 +557,64 @@ export function platformTools(): PlatformTool[] {
           uuids: { type: "array", items: { type: "string" } },
         },
         required: ["uuids"],
+      },
+    ),
+
+    // Tools described in the model system prompts (loaded from .md). Register so model can invoke via standard tool calling.
+    tool(
+      "conversation_search",
+      "Search the user's past conversations for relevant context, facts, or preferences. Use proactively for personalization or references to prior discussions.",
+      {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Keywords or short query describing what to recall" },
+          max_results: { type: "integer", description: "Max past items to return" },
+        },
+        required: ["query"],
+      },
+    ),
+    tool(
+      "recent_chats",
+      "List or peek at the user's most recent chats for context.",
+      {
+        type: "object",
+        properties: {
+          max_results: { type: "integer" },
+        },
+      },
+    ),
+    tool(
+      "end_conversation",
+      "End the current conversation (last resort for abusive cases after warnings).",
+      {
+        type: "object",
+        properties: {
+          reason: { type: "string" },
+        },
+        required: [],
+      },
+    ),
+    tool(
+      "tool_search",
+      "Discover additional tools/capabilities (including third-party via MCP). Call before claiming a feature is unavailable.",
+      {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "What capability or integration to look for" },
+        },
+        required: ["query"],
+      },
+    ),
+    tool(
+      "memory_user_edits",
+      "Record or update persistent user memory/preferences from the conversation.",
+      {
+        type: "object",
+        properties: {
+          key: { type: "string" },
+          value: { type: "string" },
+        },
+        required: ["key", "value"],
       },
     ),
   ];

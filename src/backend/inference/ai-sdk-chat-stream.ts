@@ -22,14 +22,23 @@ import {
   ChatTitleStreamFilter,
   flushChatTitleFilterTail,
 } from "@/lib/chat-title";
-import {
-  buildCacheableSystemPrefix,
-  orderMessagesForPromptCache,
-} from "@/backend/inference/prompt-cache";
-import { buildAgentSystemPrompt } from "@/backend/inference/agent-system-prompt";
+import { buildCacheableSystemPrefix } from "@/backend/inference/prompt-cache";
+import { buildModelSystemPrompt } from "@/backend/inference/model-prompts";
 
 const MAX_AGENT_STEPS = 8;
 const DEFAULT_MAX_TOKENS = 8192;
+
+const WEB_AGENT_NARRATION_APPEND = `<web_agent_ui_narration>
+When answering with web_search, use three visible phases:
+
+1. **Before web_search** — Output one short natural sentence (under 20 words) acknowledging the request and that you are searching the web. Example: "Got it — let me search the web for the latest on that." Finish this sentence before calling web_search.
+
+2. **After results return** — Before the detailed cited answer, output one short transition sentence (under 20 words). Example: "Good — I found solid sources. Writing this up now."
+
+3. **Final answer** — Then write the full response with inline ([Title][N]) citations and trailing [N]: url reference lines.
+
+Never skip phases 1 or 2. Keep phase 2 separate from phase 3 — finish the transition sentence before starting the cited answer.
+</web_agent_ui_narration>`;
 
 // System prompt is now managed centrally in agent-system-prompt.ts
 
@@ -125,6 +134,7 @@ export type AiSdkChatStreamOptions = {
   userCountryCode?: string;
   generateChatTitle?: boolean;
   model?: string;
+  chatModel?: "homer" | "helios" | "virgil";
   baseUrl?: string;
 };
 
@@ -184,8 +194,22 @@ export function streamAiSdkChat(
         ? buildAgentPrepareStep(mode, toolNames)
         : undefined;
 
+    // Full model .md system prompt (helios/homor focus) as stable prefix for Novita cache.
+    // Keeps detailed tool guidance, policies, search-first, formatting etc. while cache avoids latency hit.
+    const logicalForPrompt =
+      (options as any).chatModel || options.model || "helios";
     const rawSystem = buildCacheableSystemPrefix(
-      buildAgentSystemPrompt({ generateChatTitle: options.generateChatTitle }),
+      buildModelSystemPrompt({
+        model: logicalForPrompt,
+        append: [
+          options.generateChatTitle
+            ? "You can suggest a concise 3-6 word chat title when the topic is clear."
+            : "",
+          mode === "web" ? WEB_AGENT_NARRATION_APPEND : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      }),
     );
     const systemParts = [rawSystem];
 
@@ -196,6 +220,9 @@ export function streamAiSdkChat(
       let agentWorkStarted = false;
       let workFrameOpen = false;
       let frameCounter = 0;
+      let currentStepHadToolWork = false;
+      let previousStepHadToolWork = false;
+      let stepTextAccum = "";
 
       const ensureWorkFrame = () => {
         if (workFrameOpen) return;
@@ -210,12 +237,10 @@ export function streamAiSdkChat(
         workFrameOpen = false;
       };
 
-      // Order for prefix cache (system prefix first via separate system, conversation after).
-      // Stripping already happened in toCoreMessages.
-      const orderedCoreMessages = orderMessagesForPromptCache(
-        [],
-        toCoreMessages(messages),
-      );
+      // The full static model system (from .md) is provided via the `system` option below.
+      // AI SDK will place it first in the constructed prompt sent to Novita.
+      // Prefix cache will match on that leading identical content.
+      const orderedCoreMessages = toCoreMessages(messages);
 
       const result = streamText({
         model: novitaChatModel(modelSlug, options.baseUrl),
@@ -233,16 +258,21 @@ export function streamAiSdkChat(
       for await (const part of result.fullStream) {
         if (part.type === "text-delta") {
           const visible = titleFilter ? titleFilter.push(part.text) : part.text;
-          if (visible) bridge.onAnswerDelta(visible);
+          if (visible) {
+            stepTextAccum += visible;
+            bridge.onAnswerDelta(visible);
+          }
           continue;
         }
         if (part.type === "reasoning-start") {
           agentWorkStarted = true;
+          currentStepHadToolWork = true;
           ensureWorkFrame();
           continue;
         }
         if (part.type === "reasoning-delta") {
           agentWorkStarted = true;
+          currentStepHadToolWork = true;
           ensureWorkFrame();
           bridge.onReasoningDelta(part.text);
           continue;
@@ -253,6 +283,7 @@ export function streamAiSdkChat(
         }
         if (part.type === "tool-input-start") {
           agentWorkStarted = true;
+          currentStepHadToolWork = true;
           ensureWorkFrame();
           bridge.onReasoningEnd();
           toolNames.set(part.id, part.toolName);
@@ -267,6 +298,7 @@ export function streamAiSdkChat(
         }
         if (part.type === "tool-call") {
           agentWorkStarted = true;
+          currentStepHadToolWork = true;
           ensureWorkFrame();
           bridge.onReasoningEnd();
           toolNames.set(part.toolCallId, part.toolName);
@@ -283,6 +315,7 @@ export function streamAiSdkChat(
         }
         if (part.type === "tool-input-delta") {
           agentWorkStarted = true;
+          currentStepHadToolWork = true;
           ensureWorkFrame();
           bridge.onReasoningEnd();
           const name = toolNames.get(part.id) ?? "tool";
@@ -296,6 +329,7 @@ export function streamAiSdkChat(
         }
         if (part.type === "tool-result") {
           agentWorkStarted = true;
+          currentStepHadToolWork = true;
           ensureWorkFrame();
           toolInputJson.delete(part.toolCallId);
           toolNames.delete(part.toolCallId);
@@ -308,6 +342,7 @@ export function streamAiSdkChat(
         }
         if (part.type === "tool-error") {
           agentWorkStarted = true;
+          currentStepHadToolWork = true;
           ensureWorkFrame();
           toolInputJson.delete(part.toolCallId);
           toolNames.delete(part.toolCallId);
@@ -319,10 +354,21 @@ export function streamAiSdkChat(
           continue;
         }
         if (part.type === "finish-step") {
-          if (agentWorkStarted) {
+          const stepHadToolWork = currentStepHadToolWork;
+          if (stepHadToolWork) {
             bridge.onStepDone();
             closeWorkFrame();
+          } else if (
+            previousStepHadToolWork &&
+            stepTextAccum.trim()
+          ) {
+            bridge.onInterimCapture(stepTextAccum.trim());
+            bridge.onAnswerClear();
           }
+          previousStepHadToolWork = stepHadToolWork;
+          currentStepHadToolWork = false;
+          agentWorkStarted = false;
+          stepTextAccum = "";
           continue;
         }
         if (part.type === "error") {

@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ExternalLink, Search, X } from "lucide-react";
 import { ScrollArea } from "@/frontend/components/ui/scroll-area";
 import { collectChatSources, collectMessageSources, type ChatSource } from "@/frontend/lib/chat-sources";
@@ -34,7 +35,13 @@ export function SourcePreviewCard({ source }: { source: ChatSource }) {
     source.highlights?.find((highlight) => highlight.trim()) ?? source.snippet;
 
   return (
-    <div className="w-[min(320px,calc(100vw-32px))] rounded-[14px] border border-zinc-200 bg-white p-3 text-left shadow-[0_10px_30px_-15px_rgba(24,24,27,0.25)]">
+    <div
+      className={cn(
+        "w-full rounded-[14px] border border-zinc-200 bg-white p-3 text-left",
+        // Stronger presence so the card is clearly on top and not overlapped by nearby text or UI.
+        "shadow-[0_14px_36px_-12px_rgba(24,24,27,0.22),0_3px_8px_-2px_rgba(24,24,27,0.12)] ring-1 ring-black/[0.04]",
+      )}
+    >
       <div className="mb-2 flex items-center gap-2">
         <SourceFavicon source={source} className="h-5 w-5" />
         <div className="min-w-0 flex-1">
@@ -64,6 +71,16 @@ export function SourcePreviewCard({ source }: { source: ChatSource }) {
   );
 }
 
+const SOURCE_PREVIEW_CARD_WIDTH = 320;
+const SOURCE_PREVIEW_VIEWPORT_PADDING = 16;
+const SOURCE_PREVIEW_CHIP_GAP = 8;
+
+function clampPreviewLeft(anchorCenterX: number, cardWidth: number) {
+  const maxLeft = window.innerWidth - cardWidth - SOURCE_PREVIEW_VIEWPORT_PADDING;
+  const centered = anchorCenterX - cardWidth / 2;
+  return Math.max(SOURCE_PREVIEW_VIEWPORT_PADDING, Math.min(centered, maxLeft));
+}
+
 export function SourceChip({
   source,
   index,
@@ -73,32 +90,121 @@ export function SourceChip({
   index?: number;
   compact?: boolean;
 }) {
+  const anchorRef = useRef<HTMLAnchorElement>(null);
+  const hideTimeoutRef = useRef<number | null>(null);
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ left: 0, top: 0 });
+  const [cardWidth, setCardWidth] = useState(SOURCE_PREVIEW_CARD_WIDTH);
+
   const sizeClasses = compact
     ? "h-6 max-w-[160px] gap-1 rounded-full px-1.5 text-[11px]"
     : "h-7 max-w-[200px] gap-1.5 rounded-full px-2 text-[12px]";
 
+  const updatePosition = useCallback(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const width = Math.min(
+      SOURCE_PREVIEW_CARD_WIDTH,
+      window.innerWidth - SOURCE_PREVIEW_VIEWPORT_PADDING * 2,
+    );
+    setCardWidth(width);
+    setCoords({
+      left: clampPreviewLeft(rect.left + rect.width / 2, width),
+      top: rect.top - SOURCE_PREVIEW_CHIP_GAP,
+    });
+  }, []);
+
+  const cancelHide = useCallback(() => {
+    if (hideTimeoutRef.current != null) {
+      window.clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const showPreview = useCallback(() => {
+    cancelHide();
+    updatePosition();
+    setOpen(true);
+  }, [cancelHide, updatePosition]);
+
+  const scheduleHide = useCallback(() => {
+    cancelHide();
+    hideTimeoutRef.current = window.setTimeout(() => {
+      setOpen(false);
+      hideTimeoutRef.current = null;
+    }, 120);
+  }, [cancelHide]);
+
+  useEffect(() => {
+    if (!open) return;
+    const sync = () => updatePosition();
+    window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync, true);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", sync, true);
+    };
+  }, [open, updatePosition]);
+
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current != null) {
+        window.clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
-    <a
-      href={source.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={cn(
-        "group/source relative inline-flex items-center border border-zinc-200 bg-white font-medium text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50",
-        sizeClasses,
-      )}
-    >
-      <SourceFavicon
-        source={source}
-        className={compact ? "h-4 w-4" : "h-[15px] w-[15px]"}
-      />
-      <span className="truncate leading-none">{source.domain}</span>
-      {index != null ? (
-        <span className="text-[10px] text-zinc-400">{index + 1}</span>
-      ) : null}
-      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 hidden group-hover/source:block group-focus-visible/source:block">
-        <SourcePreviewCard source={source} />
-      </span>
-    </a>
+    <>
+      <a
+        ref={anchorRef}
+        href={source.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onMouseEnter={showPreview}
+        onMouseLeave={scheduleHide}
+        onFocus={showPreview}
+        onBlur={scheduleHide}
+        className={cn(
+          "relative inline-flex items-center border border-zinc-200 bg-white font-medium text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50",
+          sizeClasses,
+        )}
+      >
+        <SourceFavicon
+          source={source}
+          className={compact ? "h-4 w-4" : "h-[15px] w-[15px]"}
+        />
+        <span className="truncate leading-none">{source.domain}</span>
+        {index != null ? (
+          <span className="text-[10px] text-zinc-400">{index + 1}</span>
+        ) : null}
+      </a>
+
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className={cn(
+                "fixed z-[180] pointer-events-auto",
+                "animate-in fade-in zoom-in-95 duration-150",
+              )}
+              style={{
+                left: coords.left,
+                top: coords.top,
+                width: cardWidth,
+                transform: "translateY(-100%)",
+              }}
+              onMouseEnter={showPreview}
+              onMouseLeave={scheduleHide}
+            >
+              <SourcePreviewCard source={source} />
+              {/* Invisible bridge down to the chip so hover is not lost in the gap. */}
+              <span className="block h-3 w-full" aria-hidden />
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 

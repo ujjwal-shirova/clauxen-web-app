@@ -11,7 +11,12 @@ import {
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import { FlowTokenMarkdown } from "./flowtoken-markdown";
 import { SourceChip } from "@/frontend/components/chat-sources";
-import { normalizeUrl, stripReferenceDefinitions, type ChatSource } from "@/frontend/lib/chat-sources";
+import {
+  convertCitationReferencesToLinks,
+  normalizeUrl,
+  stripReferenceDefinitions,
+  type ChatSource,
+} from "@/frontend/lib/chat-sources";
 
 export const MarkdownOrchestrator = ({
   text,
@@ -23,7 +28,13 @@ export const MarkdownOrchestrator = ({
   showCursor?: boolean;
 }) => {
   const normalizedText = normalizeLatexDelimiters(text);
-  const displayText = sources.length > 0 ? stripReferenceDefinitions(normalizedText) : normalizedText;
+  let displayText = normalizedText;
+  if (sources.length > 0) {
+    // Convert model citation syntax ([Title][N] or [N]) into direct links
+    // so that our link renderer can replace them with inline SourceChips.
+    displayText = convertCitationReferencesToLinks(displayText, sources);
+    displayText = stripReferenceDefinitions(displayText);
+  }
 
   // If we have sources, override the link renderer to turn citation links into inline chips
   const effectiveComponents =
@@ -54,8 +65,9 @@ function createCitationLink(sources: ChatSource[]) {
     if (href) {
       const hit = byUrl.get(normalizeUrl(href));
       if (hit) {
-        // Replace the citation link entirely with a compact source chip at this location in the text
-        return <SourceChip source={hit.source} index={hit.index} compact />;
+        // Replace the citation link entirely with a compact source chip at this location in the text.
+        // Do not pass index so the pill shows only the domain (matching desired attribution style).
+        return <SourceChip source={hit.source} compact />;
       }
     }
     // Fallback to normal link
@@ -125,6 +137,13 @@ export const MarkdownMessage = ({
     // - animation="fadeIn" only while streaming (null afterwards to avoid re-animating / high memory)
     // - sep="diff" ensures only the newly appended tokens receive the animation (optimal for LLM streams)
     // - This follows the recommended pattern for real-time streaming text from LLMs using FlowToken.
+    //
+    // We strip reference defs (and convert citations for future) for cleaner display while streaming;
+    // the final non-stream render will produce the rich inline chips.
+    const streamDisplay = sources.length > 0
+      ? stripReferenceDefinitions(convertCitationReferencesToLinks(content, sources))
+      : content;
+
     return (
       <div
         className="markdown-content relative min-w-0 max-w-full"
@@ -132,7 +151,7 @@ export const MarkdownMessage = ({
         data-streaming
       >
         <FlowTokenMarkdown
-          content={content}
+          content={streamDisplay}
           isStreaming
           streamKey={streamKey}
         />

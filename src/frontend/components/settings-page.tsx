@@ -42,6 +42,7 @@ interface SettingsModalProps {
   user?: SessionUser | null;
   onLogout?: () => void;
   initialTab?: SettingsTab;
+  onTabChange?: (tab: SettingsTab) => void;
 }
 
 export function SettingsModal({
@@ -52,6 +53,7 @@ export function SettingsModal({
   user,
   onLogout,
   initialTab = "General",
+  onTabChange,
 }: SettingsModalProps) {
   const auth = useAuth();
   const {
@@ -62,6 +64,13 @@ export function SettingsModal({
     updateNotifications,
   } = useSettings(auth.isAuthenticated);
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+
+  const handleTabChange = (tab: SettingsTab) => {
+    setActiveTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -285,7 +294,7 @@ export function SettingsModal({
               </div>
               <SettingsNavSidebar
                 activeTab={activeTab}
-                onTabChange={setActiveTab}
+                onTabChange={handleTabChange}
                 variant="mobile-toolbar"
               />
             </div>
@@ -293,7 +302,7 @@ export function SettingsModal({
             <aside className="hidden min-h-0 shrink-0 bg-[var(--app-shell-bg)] md:flex md:w-[192px] md:flex-col md:border-r md:border-[rgba(11,11,11,0.1)] md:p-3">
               <SettingsNavSidebar
                 activeTab={activeTab}
-                onTabChange={setActiveTab}
+                onTabChange={handleTabChange}
               />
             </aside>
 

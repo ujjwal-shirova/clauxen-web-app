@@ -62,7 +62,8 @@ export type AgentToolName = PlatformToolName;
 
 export type AgentChatRequest = {
   messages?: AgentMessage[];
-  model?: string;
+  model?: string; // upstream slug or logical id
+  chatModel?: "homer" | "helios" | "virgil"; // logical model for prompt + behavior selection
   mode?: "chat" | "structured";
   enableThinking?: boolean;
   enableTools?: boolean;
@@ -262,11 +263,12 @@ export async function runNovitaAgentChat(
     throw new Error("At least one valid message is required.");
   }
 
-  const { buildAgentSystemPrompt } = await import(
-    "@/backend/inference/agent-system-prompt"
+  const { buildModelSystemPrompt } = await import(
+    "@/backend/inference/model-prompts"
   );
+  const logical = request.chatModel || request.model || "helios";
   const conversation: AgentMessage[] = [
-    { role: "system", content: buildAgentSystemPrompt() },
+    { role: "system", content: buildModelSystemPrompt({ model: logical }) },
     ...messages,
   ];
   const model = request.model?.trim() || env.defaultModel;

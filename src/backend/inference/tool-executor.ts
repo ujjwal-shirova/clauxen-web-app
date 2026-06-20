@@ -230,6 +230,7 @@ export async function executePlatformTool(
         };
         const results = await searchWebWithExa(query, {
           userLocation: context?.userCountryCode,
+          numResults: 10,
           onPartialResults: (partial) => {
             send("web_search_results", { ...searchPayload, results: partial });
           },
@@ -510,7 +511,7 @@ export async function executePlatformTool(
       });
     }
 
-    case "recommend_claude_apps": {
+    case "recommend_clauxen_apps": {
       const appIds = Array.isArray(args.app_ids) ? args.app_ids : [];
       send("recommend_apps", { app_ids: appIds });
       return JSON.stringify({
@@ -558,6 +559,41 @@ export async function executePlatformTool(
         status: "suggested",
         uuids,
       });
+    }
+
+    // --- Stubs for additional tools described in the full model .md prompts ---
+    // Ensures the assistant can call exactly the names listed (e.g. in helios/homor tool sections)
+    // without runtime errors. Full implementations can be filled later.
+    case "conversation_search":
+    case "recent_chats": {
+      const q = typeof args.query === "string" ? args.query : "";
+      send("tool_data", { kind: "conversation_search", query: q });
+      return JSON.stringify({
+        results: [],
+        note: "Conversation history search is available in the UI; returning empty from tool for now.",
+      });
+    }
+
+    case "end_conversation": {
+      send("tool_data", { action: "end_conversation" });
+      return JSON.stringify({ ended: true, note: "Conversation end acknowledged by backend." });
+    }
+
+    case "tool_search": {
+      const q = String(args.query ?? args.keywords ?? "");
+      send("tool_data", { kind: "tool_search", query: q });
+      return JSON.stringify({ matches: [], note: "Dynamic tool registry search stub." });
+    }
+
+    case "memory_user_edits": {
+      return JSON.stringify({ status: "recorded", note: "User memory edit request noted." });
+    }
+
+    case "visualize:read_me":
+    case "visualize:show_widget": {
+      const kind = name;
+      send("tool_data", { kind, args });
+      return JSON.stringify({ visualized: true, kind });
     }
 
     default:

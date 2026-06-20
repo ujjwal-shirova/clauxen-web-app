@@ -18,7 +18,7 @@ export const CARD_BRAND_ICONS: Record<CardBrandId, { label: string; src: string 
   {
     visa: {
       label: "Visa",
-      src: "https://i.pinimg.com/736x/3b/38/ef/3b38ef8f2bf7505815dbbe732d838ddc.jpg",
+      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 20'%3E%3Crect width='32' height='20' rx='2' fill='%231A1F71'/%3E%3Ctext x='16' y='14' font-size='9' font-family='Arial Black, sans-serif' fill='white' text-anchor='middle'%3EVISA%3C/text%3E%3C/svg%3E",
     },
     mastercard: {
       label: "Mastercard",
@@ -46,7 +46,7 @@ export const DEFAULT_CARD_BRAND_STACK: CardBrandId[] = [
   "visa",
   "mastercard",
   "amex",
-  "discover",
+  "rupay",
 ];
 
 export function detectCardBrand(digits: string): CardBrandId | null {

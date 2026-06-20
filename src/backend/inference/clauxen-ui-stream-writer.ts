@@ -108,6 +108,16 @@ export class ClauxenUiStreamWriter {
     });
   }
 
+  onInterimCapture(text: string) {
+    if (!text.trim()) return;
+    this.closeReasoning();
+    this.closeText();
+    this.writer.write({
+      type: "data-agent-interim",
+      data: { text: text.trim() },
+    });
+  }
+
   onFrameStart(frameId: string) {
     this.closeReasoning();
     this.closeText();

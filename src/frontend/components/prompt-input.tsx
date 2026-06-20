@@ -264,8 +264,8 @@ export function PromptInput({
     );
   }, []);
 
-  const syncPromptMaxHeightVar = useCallback(
-    (maxHeight: number, minHeight: number) => {
+  const syncPromptEditorMetrics = useCallback(
+    (maxHeight: number, minHeight: number, contentHeight: number) => {
       const shell = promptShellRef.current;
       if (!shell) return;
       shell.style.setProperty(
@@ -276,6 +276,10 @@ export function PromptInput({
         "--prompt-input-editor-min-height",
         `${minHeight}px`,
       );
+      shell.style.setProperty(
+        "--prompt-input-editor-height",
+        `${contentHeight}px`,
+      );
     },
     [],
   );
@@ -283,7 +287,9 @@ export function PromptInput({
   const resizeTextareaRef = useRef<() => void>(() => {});
 
   const scheduleResizeTextarea = useCallback(() => {
-    if (resizeRafRef.current != null) return;
+    if (resizeRafRef.current != null) {
+      window.cancelAnimationFrame(resizeRafRef.current);
+    }
     resizeRafRef.current = window.requestAnimationFrame(() => {
       resizeRafRef.current = null;
       resizeTextareaRef.current();
@@ -296,7 +302,6 @@ export function PromptInput({
 
     const singleLineHeight = getSingleLineHeight();
     const maxHeight = getTextareaMaxHeight();
-    syncPromptMaxHeightVar(maxHeight, singleLineHeight);
 
     const draft = readDraft();
     const isEmpty = draft.trim().length === 0;
@@ -321,19 +326,37 @@ export function PromptInput({
       Math.max(contentHeight, singleLineHeight),
       maxHeight,
     );
+    syncPromptEditorMetrics(maxHeight, singleLineHeight, nextHeight);
     textarea.style.height = `${nextHeight}px`;
     textarea.style.maxHeight = `${maxHeight}px`;
     textarea.style.overflowY =
       !isEmpty && scrollHeight > maxHeight + 1 ? "auto" : "hidden";
+
+    const editor = textarea.closest<HTMLElement>("[data-prompt-editor]");
+    if (editor) {
+      editor.style.minHeight = `${nextHeight}px`;
+    }
   }, [
     getTextareaMaxHeight,
     getSingleLineHeight,
     readDraft,
     showDictationSurface,
-    syncPromptMaxHeightVar,
+    syncPromptEditorMetrics,
   ]);
 
-  resizeTextareaRef.current = resizeTextarea;
+  useEffect(() => {
+    resizeTextareaRef.current = resizeTextarea;
+  }, [resizeTextarea]);
+
+  const assignTextareaRef = useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      textareaRef.current = node;
+      if (node) {
+        scheduleResizeTextarea();
+      }
+    },
+    [scheduleResizeTextarea],
+  );
 
   const syncDraftImmediateRef = useRef(syncDraftImmediate);
 
@@ -922,8 +945,8 @@ export function PromptInput({
       >
         <div
           className={cn(
-            "prompt-editor-area min-w-0 flex-1",
-            useCompactPromptLayout ? "order-2" : "px-2 pt-1 pb-0 sm:px-2.5"
+            "prompt-editor-area min-w-0",
+            useCompactPromptLayout ? "order-2 flex-1" : "w-full px-2 pt-1 pb-0 sm:px-2.5",
           )}
           data-prompt-editor
         >
@@ -976,7 +999,7 @@ export function PromptInput({
       </div>
     ) : (
       <textarea
-        ref={textareaRef}
+        ref={assignTextareaRef}
         placeholder={placeholder}
         defaultValue={draftValueRef.current}
         onInput={handleInput}

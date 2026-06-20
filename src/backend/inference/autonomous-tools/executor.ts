@@ -57,6 +57,7 @@ export async function executeAutonomousTool(
     const query = String(args.query ?? "");
     const hits = await searchWebWithExa(query, {
       userLocation: ctx.userCountryCode,
+      numResults: 10,
       onPartialResults: (partial) => {
         ctx.onToolProgress?.({
           query,

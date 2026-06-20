@@ -8,6 +8,8 @@ export type AgentFrame = {
   complete: boolean;
   startedAtMs: number;
   completedAtMs?: number;
+  /** Short acknowledgement emitted before tools in this frame (e.g. "Got it — searching the web"). */
+  introNarrative?: string;
   /** Model text emitted after this frame closed and before the next frame opened. */
   interimOutput?: string;
 };
@@ -150,10 +152,15 @@ export function agentAnswerDuplicatesInterim(message: Message): boolean {
   // Partial overlaps or the model naturally reusing a phrase should still show as final.
   return resolveAgentFrames(message).some(
     (frame) =>
-      frame.interimOutput &&
-      frame.interimOutput.trim() === trailing &&
-      // If the frame is complete and we have a longer or different final, don't suppress.
-      trailing.length > 0,
+      (frame.interimOutput &&
+        frame.interimOutput.trim() === trailing) ||
+      (frame.introNarrative && frame.introNarrative.trim() === trailing),
+  );
+}
+
+function looksLikeCitedAnswer(text: string): boolean {
+  return (
+    /\(\[[^\]]+\]\[\d+\]\)/.test(text) || /^\[\d+\]:\s*https?:/m.test(text)
   );
 }
 
@@ -164,11 +171,38 @@ export function resolveOrchestrationBlocks(
   const frames = resolveAgentFrames(message);
   const streaming = message.isStreaming === true;
   const blocks: OrchestrationBlock[] = [];
+  const trailing = message.content.trim();
+  const preFrameIntro =
+    streaming &&
+    message.agentMode === true &&
+    frames.length === 0 &&
+    Boolean(trailing);
+  const hadSearchFrame = frames.some((frame) =>
+    frame.segments.some(
+      (segment) => segment.kind === "tool" && segment.name === "web_search",
+    ),
+  );
+  const postSearchLiveTransition =
+    streaming &&
+    hadSearchFrame &&
+    frames.every((frame) => frame.complete) &&
+    Boolean(trailing) &&
+    !looksLikeCitedAnswer(trailing) &&
+    !frames.some((frame) => frame.interimOutput?.trim() === trailing);
 
   for (let index = 0; index < frames.length; index += 1) {
     const frame = frames[index];
     const isActive =
       streaming && index === frames.length - 1 && !frame.complete;
+
+    if (frame.introNarrative?.trim()) {
+      blocks.push({
+        kind: "markdown",
+        blockId: `${frame.id}-intro`,
+        content: frame.introNarrative,
+        isStreaming: false,
+      });
+    }
 
     if (frameHasWorkSegments(frame.segments)) {
       const block: Extract<OrchestrationBlock, { kind: "timeline" }> = {
@@ -196,8 +230,8 @@ export function resolveOrchestrationBlocks(
     }
   }
 
-  const trailing = message.content.trim();
-  if (trailing && !agentAnswerDuplicatesInterim(message)) {
+  const trailingContent = message.content.trim();
+  if (trailingContent && !agentAnswerDuplicatesInterim(message)) {
     const activeIdx = frames.findIndex((frame) => !frame.complete);
     const suppressForLiveWork =
       streaming &&
@@ -210,12 +244,23 @@ export function resolveOrchestrationBlocks(
       frames.every((frame) => frame.complete) ||
       message.agentFrameComplete === true;
 
-    if (!suppressForLiveWork || allFramesDone) {
+    if (preFrameIntro) {
       blocks.push({
         kind: "markdown",
-        blockId: `${message.id}-answer`,
+        blockId: `${message.id}-intro`,
         content: message.content,
-        isStreaming: streaming && !allFramesDone && frames.length > 0,
+        isStreaming: true,
+      });
+    } else if (!suppressForLiveWork || allFramesDone) {
+      const isTransition = postSearchLiveTransition;
+      blocks.push({
+        kind: "markdown",
+        blockId: isTransition
+          ? `${message.id}-interim`
+          : `${message.id}-answer`,
+        content: message.content,
+        isStreaming:
+          isTransition || (streaming && !allFramesDone && frames.length > 0),
       });
     }
   }
@@ -234,6 +279,7 @@ export function agentFramesVisuallyEqual(
     return (
       frame.id === other.id &&
       frame.complete === other.complete &&
+      frame.introNarrative === other.introNarrative &&
       frame.interimOutput === other.interimOutput &&
       agentSegmentsVisuallyEqual(frame.segments, other.segments)
     );

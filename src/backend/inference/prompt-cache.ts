@@ -40,16 +40,28 @@ export function extractPromptCacheStats(usage: unknown) {
   };
 }
 
-/** Stable system prompt prefix for prompt-cache friendly requests. */
+/** Stable system prompt prefix for prompt-cache friendly requests.
+ * Novita auto-caches prompt prefixes (typically after they exceed ~1024 tokens).
+ * Keep the returned value byte-identical across requests for the same "static head".
+ */
 export function buildCacheableSystemPrefix(content: string) {
   return content.trim();
 }
 
-/** Put static context first, dynamic user turns last (prefix caching). */
+/** Put static context first, dynamic user turns last (prefix caching).
+ * For full model .md system prompts (large, >1024 tokens) this ensures the
+ * expensive prefix is computed once and served from cache on repeat turns.
+ */
 export function orderMessagesForPromptCache<T extends { role: string }>(
   systemMessages: T[],
   conversationMessages: Array<{ role: string } & Record<string, unknown>>,
 ) {
   // Concat preserving caller's element type for system prefix, then the rest.
   return [...systemMessages, ...conversationMessages] as T[];
+}
+
+/** Returns true if content length suggests it will benefit from Novita prefix cache. */
+export function willLikelyUsePromptCache(text: string): boolean {
+  // Rough token estimate; actual server threshold ~1024 tokens.
+  return text.trim().length > 3000; // our MD prompts are >> this
 }

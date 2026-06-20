@@ -55,7 +55,11 @@ export function buildWebAiSdkTools(
   return {
     web_search: platformTool(
       "web_search",
-      "Search the live web for current information. Use when facts may have changed after training or for unfamiliar entities.",
+      [
+        "Search the live web for current information.",
+        "SEQUENCING: First output one short sentence that you are about to search (e.g. 'Got it — let me search the web for that.'), then call this tool.",
+        "After results return, output one short transition sentence before writing the cited final answer (e.g. 'Good — I found solid sources. Writing this up now.').",
+      ].join(" "),
       z.object({
         query: z.string().describe("Short specific search query."),
       }),

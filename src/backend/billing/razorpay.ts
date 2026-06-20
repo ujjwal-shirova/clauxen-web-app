@@ -146,6 +146,9 @@ export async function fetchRazorpayOrder(orderId: string) {
 }
 
 // Razorpay webhook payload authenticity verify — HMAC-SHA256(rawBody, webhookSecret) === signature header
+//
+// Docs: https://razorpay.com/docs/webhooks/  (and integration best practices)
+// Always use timingSafeEqual and reject early on mismatch to avoid timing attacks.
 export function verifyWebhookSignature(
   rawBody: string,
   signature: string | null,
@@ -239,6 +242,11 @@ export async function fetchRazorpayQrPayments(qrId: string) {
 }
 
 // client-side checkout success signature verify — orderId|paymentId HMAC with key secret
+//
+// Razorpay requirement (from https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/ ):
+//   generated_signature = hmac_sha256(order_id + "|" + razorpay_payment_id, secret)
+// You MUST verify on YOUR server using YOUR secret before any fulfillment.
+// If it does not match, treat as fraud / tampering.
 export function verifyPaymentSignature(input: {
   orderId: string;
   paymentId: string;

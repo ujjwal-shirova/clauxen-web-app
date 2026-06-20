@@ -18,7 +18,10 @@ import { canUseApplePay } from "@/frontend/lib/apple-pay";
 import { openRazorpayCheckout } from "@/frontend/lib/razorpay-checkout";
 import { useCheckoutCurrency } from "@/frontend/hooks/use-checkout-currency";
 import { useAuth } from "@/frontend/hooks/use-auth";
-import type { CheckoutPaymentTab } from "@/lib/checkout-payment-tab";
+import type {
+  CheckoutPaymentTab,
+  SavedPaymentMethod,
+} from "@/lib/checkout-payment-tab";
 import {
   BUSINESS_WORKSPACE_SEAT_MONTHLY_INR,
   MAX_TIER_OPTIONS,
@@ -45,10 +48,12 @@ export type { MaxTier };
 
 interface BillingCheckoutProps {
   onBack: () => void;
-  onPaymentSuccess?: () => void;
+  onPaymentSuccess?: (details?: { razorpayPaymentId?: string; razorpayOrderId?: string }) => void;
   planId: string | null;
   initialBillingCycle?: BillingCycle;
   initialMaxTier?: MaxTier;
+  /** If provided, use this session id instead of immediately creating a new one. */
+  initialCheckoutSessionId?: string | null;
 }
 
 const SEAT_ASSIGNABLE_IDS = Object.keys(
@@ -137,6 +142,7 @@ export function BillingCheckout({
   planId,
   initialBillingCycle = "monthly",
   initialMaxTier = "5x",
+  initialCheckoutSessionId,
 }: BillingCheckoutProps) {
   const auth = useAuth();
   const { currency, formatInr, isUsd } = useCheckoutCurrency();
@@ -150,9 +156,11 @@ export function BillingCheckout({
   const [gstin, setGstin] = useState("");
   const [billToName, setBillToName] = useState("");
   const [gstinError, setGstinError] = useState<string | null>(null);
-  const [paymentTab, setPaymentTab] = useState<CheckoutPaymentTab>("saved");
+  const savedMethod: SavedPaymentMethod | null = null;
+  const hasSavedPaymentMethod = savedMethod != null;
+  const [paymentTab, setPaymentTab] = useState<CheckoutPaymentTab>("card");
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(
-    null,
+    initialCheckoutSessionId ?? null,
   );
   const [upiModalOpen, setUpiModalOpen] = useState(false);
   const [upiQrImageUrl, setUpiQrImageUrl] = useState<string | null>(null);
@@ -163,9 +171,19 @@ export function BillingCheckout({
   const [cardFieldsComplete, setCardFieldsComplete] = useState(false);
   const [applePayAvailable, setApplePayAvailable] = useState(false);
 
+  // When a checkout session id is provided via prop (e.g. direct /checkout link),
+  // skip the *first* auto-create so we reuse the incoming session.
+  const skipInitialSessionCreate = React.useRef(!!initialCheckoutSessionId);
+
   useEffect(() => {
     setApplePayAvailable(canUseApplePay());
   }, []);
+
+  useEffect(() => {
+    if (!hasSavedPaymentMethod && paymentTab === "saved") {
+      setPaymentTab("card");
+    }
+  }, [hasSavedPaymentMethod, paymentTab]);
 
   const handleCardFieldsChange = useCallback((state: CheckoutCardFieldState) => {
     setCardFieldsComplete(state.isComplete);
@@ -264,6 +282,16 @@ export function BillingCheckout({
   useEffect(() => {
     if (isVariableCheckoutPlan) return;
 
+    if (skipInitialSessionCreate.current) {
+      skipInitialSessionCreate.current = false;
+      return;
+    }
+
+    // IMPORTANT SECURITY NOTE (Razorpay docs):
+    // https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/
+    // "Always verify the payment signature server-side" — we create the Checkout Session
+    // (which mints a short-lived signed token) on the server, then the server later creates
+    // the Razorpay Order with the *exact* computed amount. Client never dictates price.
     let cancelled = false;
     void (async () => {
       try {
@@ -285,7 +313,9 @@ export function BillingCheckout({
         }
       } catch {
         if (!cancelled) {
-          setPayError("Could not start checkout session. Please try again.");
+          // Soft message — the preparing screen in UpgradeView already handles the main path.
+          // For direct /checkout links or edge cases we give a gentle retryable state.
+          setPayError("We had trouble creating your secure checkout session. Please try again in a moment.");
         }
       }
     })();
@@ -396,7 +426,7 @@ export function BillingCheckout({
 
   const paymentFieldsValid =
     paymentTab === "upi" ||
-    paymentTab === "saved" ||
+    (paymentTab === "saved" && hasSavedPaymentMethod) ||
     (paymentTab === "card" && cardFieldsComplete);
 
   const cycleLabel = isMaxPlan
@@ -423,7 +453,7 @@ export function BillingCheckout({
     const fieldsValid =
       options?.walletExpress ||
       tab === "upi" ||
-      tab === "saved" ||
+      (tab === "saved" && hasSavedPaymentMethod) ||
       (tab === "card" && cardFieldsComplete);
 
     if (
@@ -495,7 +525,11 @@ export function BillingCheckout({
             razorpayPaymentId: payment.razorpay_payment_id,
             razorpaySignature: payment.razorpay_signature,
           });
-          onPaymentSuccess?.();
+          // Pass rich context so parent can render a beautiful auto-generated invoice immediately.
+          onPaymentSuccess?.({
+            razorpayPaymentId: payment.razorpay_payment_id,
+            razorpayOrderId: payment.razorpay_order_id,
+          });
         },
         onDismiss: () => {
           setPayError(PAYMENT_FAILED_MESSAGE);
@@ -983,7 +1017,7 @@ export function BillingCheckout({
             <CheckoutForm
               paymentTab={paymentTab}
               onPaymentTabChange={setPaymentTab}
-              savedMethod={null}
+              savedMethod={savedMethod}
               purchasingAsBusiness={purchasingAsBusiness}
               onPurchasingAsBusinessChange={setPurchasingAsBusiness}
               gstin={gstin}

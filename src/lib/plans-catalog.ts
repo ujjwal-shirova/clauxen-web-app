@@ -642,6 +642,37 @@ export function resolvePlanFeatures(
   return typeof plan.features === "function" ? plan.features(ctx) : plan.features;
 }
 
+/** Rotating copy for checkout preparing — only real plan capabilities, no payment fluff. */
+export function getCheckoutPreparingFeatures(
+  planId: string,
+  maxTier: MaxTier = "5x",
+): string[] {
+  const personal = PERSONAL_PLANS.find((p) => p.id === planId);
+  if (personal) {
+    return resolvePlanFeatures(personal, { maxTier }).filter(
+      (line) =>
+        !line.startsWith("Everything in") && !line.startsWith("All Business"),
+    );
+  }
+
+  const org = getOrganizationPlan(planId as OrganizationPlanId);
+  if (org) {
+    return org.features.filter(
+      (line) =>
+        !line.startsWith("Everything in") && !line.startsWith("All Business"),
+    );
+  }
+
+  if (planId === "max5x") {
+    return maxFeatures("5x");
+  }
+  if (planId === "max20x") {
+    return maxFeatures("20x");
+  }
+
+  return ["Unlocking everything included in your plan"];
+}
+
 export function getPlanPriceInr(
   plan: PlanCard,
   billingCycle: BillingCycle,

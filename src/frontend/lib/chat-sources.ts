@@ -79,3 +79,67 @@ export function collectChatSources(messages: Message[]): ChatSource[] {
 export function collectMessageSources(message: Message): ChatSource[] {
   return collectChatSources([message]);
 }
+
+/**
+ * Convert citation markers in the LLM output text into direct markdown links.
+ * This allows the renderer to turn model citations like ([Title][3]) or [3]
+ * into inline SourceChip components (by matching on the target URL).
+ *
+ * Supported patterns (1-based index into the provided sources array):
+ *   - [Title][N]
+ *   - ([Title][N])
+ *   - bare [N]
+ */
+export function convertCitationReferencesToLinks(
+  text: string,
+  sources: ChatSource[],
+): string {
+  if (!sources.length) return text;
+
+  const byIndex = new Map<number, ChatSource>();
+  sources.forEach((s, i) => byIndex.set(i + 1, s));
+
+  let result = text;
+
+  // Handle parenthesized citation form used by the model: ([Title][N])
+  // Strip the surrounding () so the chip appears directly after the sentence text.
+  result = result.replace(
+    /\(\s*\[([^\]]+?)\]\[(\d+)\]\s*\)/g,
+    (match, title: string, nStr: string) => {
+      const n = parseInt(nStr, 10);
+      const src = byIndex.get(n);
+      if (src) {
+        return `[${title}](${src.url})`;
+      }
+      return match;
+    },
+  );
+
+  // [TitleOrDomain][N]  -->  [TitleOrDomain](https://url)
+  result = result.replace(
+    /\[([^\]\[]+?)\]\[(\d+)\]/g,
+    (match, title: string, nStr: string) => {
+      const n = parseInt(nStr, 10);
+      const src = byIndex.get(n);
+      if (src) {
+        return `[${title}](${src.url})`;
+      }
+      return match;
+    },
+  );
+
+  // Bare numeric citation [N] --> direct link (chip replaces the link content)
+  result = result.replace(
+    /(^|[^[\]])\[(\d+)\](?!\(|\[)/g,
+    (match, prefix: string, nStr: string) => {
+      const n = parseInt(nStr, 10);
+      const src = byIndex.get(n);
+      if (src) {
+        return `${prefix}[](${src.url})`;
+      }
+      return match;
+    },
+  );
+
+  return result;
+}

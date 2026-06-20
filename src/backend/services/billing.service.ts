@@ -411,6 +411,24 @@ export async function cancelSubscription(userId: string) {
   return { subscription };
 }
 
+/**
+ * Server-side verification of Razorpay Standard Checkout success.
+ *
+ * Per official Razorpay documentation (mandatory step):
+ * https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/
+ *   "Always verify the payment signature server-side"
+ *   "A failed signature check indicates a potentially fraudulent or tampered payment.
+ *    Reject the order entirely — do not fulfil it"
+ *
+ * We also cross-check:
+ *  - Signature using our secret (HMAC order|pay)
+ *  - Payment belongs to our order
+ *  - Amount + currency match what we created in the Order
+ *  - Payment is actually captured
+ *
+ * Webhook path does similar verification.
+ * See also webhook signature verification in razorpay.ts.
+ */
 export async function verifyCheckoutPayment(input: {
   razorpayOrderId: string;
   razorpayPaymentId: string;

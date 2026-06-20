@@ -43,12 +43,14 @@ export async function createChatSourceStream(
       thinkingType,
       generateChatTitle: false,
       model: route.modelSlug,
+      chatModel,
       baseUrl: route.baseUrl,
     });
   }
 
   return streamAiSdkChat(trimmedMessages, options.signal, {
     model: route.modelSlug,
+    chatModel,
     baseUrl: route.baseUrl,
     thinkingType,
     userId: options.userId,

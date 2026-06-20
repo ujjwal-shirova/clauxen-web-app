@@ -13,7 +13,7 @@ export const checkoutUi = {
   section: "flex flex-col gap-4",
 
   field: cn(fieldBase, fieldFocus),
-  fieldWithIcons: cn(fieldBase, fieldFocus, "pr-[9.5rem]"),
+  fieldWithIcons: cn(fieldBase, fieldFocus, "pr-28"),
   fieldWithTrailingIcon: cn(fieldBase, fieldFocus, "pr-10"),
 
   sectionTitle: "px-2 text-lg font-medium text-[#121212]",

@@ -21,6 +21,7 @@ export async function runWebSearch(
 }> {
   const hits = await searchWebWithExa(query, {
     userLocation: options.userLocation,
+    numResults: 10,
     onPartialResults: (partial) => {
       options.onPartialResults?.(
         partial.slice(0, 8).map((h) => ({

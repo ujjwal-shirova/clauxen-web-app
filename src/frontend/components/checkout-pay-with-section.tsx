@@ -33,6 +33,9 @@ export function CheckoutPayWithSection({
   onExpressCheckout?: () => void;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
 }) {
+  const showSaved = Boolean(savedMethod);
+  const tabCount = (showSaved ? 1 : 0) + (hideUpi ? 0 : 1) + 1;
+
   return (
     <div className={checkoutUi.section}>
       <h3 className={checkoutUi.sectionTitle}>Pay with</h3>
@@ -54,17 +57,21 @@ export function CheckoutPayWithSection({
       <div
         className={cn(
           "grid gap-2",
-          hideUpi ? "grid-cols-2" : "grid-cols-3",
+          tabCount === 1 && "grid-cols-1",
+          tabCount === 2 && "grid-cols-2",
+          tabCount === 3 && "grid-cols-3",
         )}
       >
-        <button
-          type="button"
-          onClick={() => onPaymentTabChange("saved")}
-          className={checkoutTabClass(paymentTab === "saved")}
-        >
-          <Wallet className="h-4 w-4" strokeWidth={1.75} />
-          <span>Saved</span>
-        </button>
+        {showSaved && (
+          <button
+            type="button"
+            onClick={() => onPaymentTabChange("saved")}
+            className={checkoutTabClass(paymentTab === "saved")}
+          >
+            <Wallet className="h-4 w-4" strokeWidth={1.75} />
+            <span>Saved</span>
+          </button>
+        )}
 
         {!hideUpi && (
           <button

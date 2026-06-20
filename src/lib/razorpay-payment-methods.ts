@@ -147,6 +147,51 @@ export function buildRazorpayConfigForMethod(
   }
 }
 
+/**
+ * Broad checkout supporting all standard methods (Cards, UPI, Netbanking, Wallets).
+ * Explicitly no EMI or Pay Later instruments.
+ */
+export function buildRazorpayConfigForAllStandardMethods(): Record<string, unknown> {
+  return {
+    display: {
+      blocks: {
+        card: {
+          name: "Card",
+          instruments: [
+            {
+              method: "card",
+              networks: ["Visa", "MasterCard", "RuPay", "American Express"],
+            },
+          ],
+        },
+        upi: {
+          name: "UPI",
+          instruments: [
+            upiInstrument(["google_pay", "phonepe", "paytm", "bhim"]),
+          ],
+        },
+        netbanking: {
+          name: "Netbanking",
+          instruments: [{ method: "netbanking" }],
+        },
+        wallets: {
+          name: "Wallets",
+          instruments: [
+            {
+              method: "wallet",
+              wallets: ["paytm", "phonepe", "amazonpay", "mobikwik", "freecharge"],
+            },
+          ],
+        },
+      },
+      sequence: ["block.card", "block.upi", "block.netbanking", "block.wallets"],
+      preferences: {
+        show_default_blocks: false,
+      },
+    },
+  };
+}
+
 export function getAvailablePaymentMethods(countryCode: string) {
   const isIndia = countryCode.trim().toUpperCase() === "IN";
   return CHECKOUT_PAYMENT_METHODS.filter(

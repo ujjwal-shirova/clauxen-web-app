@@ -1,4 +1,5 @@
 import {
+  buildRazorpayConfigForAllStandardMethods,
   buildRazorpayConfigForExpressCheckout,
   buildRazorpayConfigForMethod,
   type CheckoutPaymentMethodId,
@@ -106,6 +107,10 @@ export async function openRazorpayCheckout(input: RazorpayCheckoutInput) {
   const prefill = input.prefill ?? {};
   const isApplePayExpress = input.expressCheckout === "apple_pay";
 
+  // For card (or default) we open the full standard methods so customers can choose
+  // Card, UPI (intent), Netbanking or Wallets. EMI and Pay Later are not included.
+  const useFullMethods = isApplePayExpress || paymentMethod === "card" || !input.paymentMethod;
+
   const checkoutOptions: Record<string, unknown> = {
     key: input.keyId,
     amount: input.amount,
@@ -116,7 +121,9 @@ export async function openRazorpayCheckout(input: RazorpayCheckoutInput) {
     prefill,
     config: isApplePayExpress
       ? buildRazorpayConfigForExpressCheckout()
-      : buildRazorpayConfigForMethod(paymentMethod),
+      : useFullMethods
+        ? buildRazorpayConfigForAllStandardMethods()
+        : buildRazorpayConfigForMethod(paymentMethod),
     theme: { color: "#141413" },
   };
 

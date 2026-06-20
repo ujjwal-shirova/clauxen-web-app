@@ -4,6 +4,7 @@ import type { UIMessage } from "ai";
 export type ClauxenUIDataParts = {
   "agent-mode": { enabled: boolean };
   "agent-frame": { complete: boolean; frameId?: string };
+  "agent-interim": { text: string };
   artifact: {
     artifactId: string;
     path: string;
