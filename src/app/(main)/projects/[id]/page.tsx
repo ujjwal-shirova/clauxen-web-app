@@ -10,6 +10,10 @@ import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,
 } from "@/lib/chat-models";
+import {
+  DEFAULT_HOMER_REASONING_EFFORT,
+  type HomerReasoningEffort,
+} from "@/lib/model-effort";
 import * as projectsApi from "@/frontend/lib/api/projects";
 import type { ApiProject } from "@/frontend/lib/api/projects";
 
@@ -31,13 +35,12 @@ function ProjectDetailRouteContent() {
   const [project, setProject] = useState<ApiProject | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [thinkingEnabled, setThinkingEnabled] = useState(false);
-  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  const [homerReasoningEffort, setHomerReasoningEffort] =
+    useState<HomerReasoningEffort>(DEFAULT_HOMER_REASONING_EFFORT);
   const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
 
   const chat = useProjectChat(id, {
-    thinkingEnabled,
-    webSearchEnabled,
+    homerReasoningEffort,
     chatModel,
   });
 
@@ -110,22 +113,26 @@ function ProjectDetailRouteContent() {
         onBack={() => router.push("/projects")}
         onSendMessage={async (prompt) => {
           startNewChat();
-          const chatId = await handleSendMessage(prompt);
+          const chatId = await handleSendMessage(prompt, { forceNewChat: true });
           if (chatId) {
             router.push(`/projects/${id}/conversations/${chatId}`);
           }
         }}
         onStopGeneration={stopGeneration}
         isGenerating={isGenerating}
-        thinkingEnabled={thinkingEnabled}
-        onThinkingEnabledChange={setThinkingEnabled}
-        webSearchEnabled={webSearchEnabled}
-        onWebSearchEnabledChange={setWebSearchEnabled}
+        homerReasoningEffort={homerReasoningEffort}
+        onHomerReasoningEffortChange={setHomerReasoningEffort}
         chatModel={chatModel}
         onChatModelChange={setChatModel}
         projectChats={projectChats}
         activeChatId={activeChatId}
         onOpenChat={(chatId) => router.push(`/projects/${id}/conversations/${chatId}`)}
+        onNewChat={startNewChat}
+        onSaveInstructions={async (text) => {
+          if (auth.isAuthenticated && !id.startsWith("local-")) {
+            await projectsHook.updateProject(id, { system_prompt: text });
+          }
+        }}
         onRenameChat={handleRenameChat}
         onDeleteChat={handleDeleteChat}
         onPinChat={handlePinChat}

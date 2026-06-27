@@ -27,7 +27,6 @@ import {
   CheckIcon,
   PromptConnectorsIcon,
   PromptProjectIcon,
-  PromptWebSearchIcon,
   WriteSkillInstructionsIcon,
 } from "./icons";
 
@@ -62,22 +61,6 @@ const primaryItems = (
     label: "Recent files",
     icon: FileText,
     trailing: "chevron",
-  },
-];
-
-const centerItems = (
-  webSearchEnabled: boolean,
-): PromptMenuItem[] => [
-  {
-    label: "Add to project",
-    icon: PromptProjectIcon,
-    trailing: "chevron",
-  },
-  {
-    label: "Web search",
-    icon: PromptWebSearchIcon,
-    trailing: "check",
-    active: webSearchEnabled,
   },
 ];
 
@@ -153,8 +136,6 @@ interface PromptAddMenuProps {
   onComposeActionSelect?: (action: PromptComposeAction) => void;
   onAddFiles?: () => void;
   onTakeScreenshot?: () => void;
-  onWebSearchToggle?: () => void;
-  webSearchEnabled?: boolean;
   showComposeActions?: boolean;
 }
 
@@ -164,8 +145,6 @@ export function PromptAddMenu({
   onComposeActionSelect,
   onAddFiles,
   onTakeScreenshot,
-  onWebSearchToggle,
-  webSearchEnabled = false,
   showComposeActions = true,
 }: PromptAddMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -263,68 +242,40 @@ export function PromptAddMenu({
 
           <PromptAddMenuSeparator />
 
-          {centerItems(webSearchEnabled).map((item) => {
-            if (item.label === "Web search") {
-              return (
-                <PromptAddMenuItem
-                  key={item.label}
-                  item={item}
-                  onClick={() => {
-                    closeMenu();
-                    onWebSearchToggle?.();
-                  }}
-                />
-              );
-            }
+          <div
+            className="relative"
+            onMouseEnter={() => setIsProjectOpen(true)}
+            onMouseLeave={() => setIsProjectOpen(false)}
+          >
+            <button
+              type="button"
+              aria-expanded={isProjectOpen}
+              onClick={() => setIsProjectOpen((open) => !open)}
+              className={cn(
+                "group flex min-h-7 w-full items-center justify-between rounded-md px-2 py-1 text-left text-[13px] leading-5 text-zinc-800 transition-colors hover:bg-zinc-100",
+                isProjectOpen && "bg-zinc-100",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <PromptProjectIcon className="h-4 w-4 text-zinc-700" />
+                <span className="truncate font-normal">Add to project</span>
+              </div>
+              <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />
+            </button>
 
-            if (item.label !== "Add to project") {
-              return (
-                <PromptAddMenuItem
-                  key={item.label}
-                  item={item}
-                  onClick={() => handleItemSelect(item)}
-                />
-              );
-            }
-
-            return (
-              <div
-                key={item.label}
-                className="relative"
-                onMouseEnter={() => setIsProjectOpen(true)}
-                onMouseLeave={() => setIsProjectOpen(false)}
-              >
+            {isProjectOpen ? (
+              <div className="absolute bottom-0 left-[calc(100%-2px)] z-[70] w-[188px] rounded-[10px] border border-zinc-200/90 bg-white p-1 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
                 <button
                   type="button"
-                  aria-expanded={isProjectOpen}
-                  onClick={() => setIsProjectOpen((open) => !open)}
-                  className={cn(
-                    "group flex min-h-7 w-full items-center justify-between rounded-md px-2 py-1 text-left text-[13px] leading-5 text-zinc-800 transition-colors hover:bg-zinc-100",
-                    isProjectOpen && "bg-zinc-100",
-                  )}
+                  onClick={closeMenu}
+                  className="flex min-h-7 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[13px] text-zinc-800 hover:bg-zinc-100"
                 >
-                  <div className="flex items-center gap-2">
-                    <PromptProjectIcon className="h-4 w-4 text-zinc-700" />
-                    <span className="truncate font-normal">Add to project</span>
-                  </div>
-                  <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />
+                  <Plus className="h-4 w-4" strokeWidth={1.75} />
+                  <span>Start a new project</span>
                 </button>
-
-                {isProjectOpen ? (
-                  <div className="absolute bottom-0 left-[calc(100%-2px)] z-[70] w-[188px] rounded-[10px] border border-zinc-200/90 bg-white p-1 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
-                    <button
-                      type="button"
-                      onClick={closeMenu}
-                      className="flex min-h-7 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[13px] text-zinc-800 hover:bg-zinc-100"
-                    >
-                      <Plus className="h-4 w-4" strokeWidth={1.75} />
-                      <span>Start a new project</span>
-                    </button>
-                  </div>
-                ) : null}
               </div>
-            );
-          })}
+            ) : null}
+          </div>
 
           <PromptAddMenuSeparator />
 

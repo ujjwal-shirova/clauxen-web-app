@@ -46,6 +46,8 @@ import {
   normalizeChatTitle,
   stripTitleSourceText,
 } from "@/lib/chat-title";
+import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
+import { generateChatId } from "@/lib/chat-id";
 import {
   canFastAppendAnswer,
   patchToolOutputDelta,
@@ -54,6 +56,10 @@ import { agentAnswerDuplicatesInterim } from "@/frontend/lib/agent-frames";
 import { filterStartedRecentChats } from "@/frontend/lib/started-recent-chats";
 import type { ChatModelId } from "@/lib/chat-models";
 import { DEFAULT_CHAT_MODEL_ID } from "@/lib/chat-models";
+import {
+  DEFAULT_HOMER_REASONING_EFFORT,
+  type HomerReasoningEffort,
+} from "@/lib/model-effort";
 import { useShallow } from "zustand/react/shallow";
 
 type AllChats = { [key: string]: Message[] };
@@ -83,19 +89,18 @@ function compactChatsForStorage(chats: AllChats): AllChats {
 export type UseChatOptions = {
   apiEnabled?: boolean;
   projectId?: string | null;
-  thinkingEnabled?: boolean;
-  webSearchEnabled?: boolean;
+  homerReasoningEffort?: HomerReasoningEffort;
   chatModel?: ChatModelId;
 };
 
 function useLocalChat(
   options: Pick<
     UseChatOptions,
-    "thinkingEnabled" | "webSearchEnabled" | "chatModel" | "projectId"
+    "homerReasoningEffort" | "chatModel" | "projectId"
   > = {},
 ) {
-  const thinkingEnabled = options.thinkingEnabled ?? false;
-  const webSearchEnabled = options.webSearchEnabled ?? false;
+  const homerReasoningEffort =
+    options.homerReasoningEffort ?? DEFAULT_HOMER_REASONING_EFFORT;
   const chatModel = options.chatModel ?? DEFAULT_CHAT_MODEL_ID;
   const projectId = options.projectId ?? null;
   const { streamFromResponse } = useAiStream();
@@ -492,7 +497,6 @@ function useLocalChat(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: titleMessages,
-            thinkingEnabled: false,
           }),
         });
 
@@ -563,11 +567,11 @@ function useLocalChat(
           },
           body: JSON.stringify({
             messages: conversationForApi,
-            thinkingEnabled,
-            webSearchEnabled,
+            homerReasoningEffort,
             chatModel,
+            conversationId: chatId,
             // Generate the sidebar title after the answer stream so the first
-            // Anthropic tokens are visible immediately instead of hidden title tags.
+            // tokens are visible immediately instead of hidden title tags.
             generateChatTitle: false,
           }),
           signal: requestController.signal,
@@ -602,6 +606,21 @@ function useLocalChat(
           }
 
           if (event.type === "thinking_delta") {
+            if (!event.segmentId && event.delta) {
+              useChatStore.getState().patchMessage(
+                chatId,
+                assistantMessageId,
+                (message) => ({
+                  ...message,
+                  thinkingContent: `${message.thinkingContent ?? ""}${event.delta}`,
+                  hasThinking: true,
+                  isThinkingStreaming: true,
+                  isStreaming: true,
+                }),
+              );
+              return;
+            }
+
             const sawCloseThinkTag = /<\/think>/i.test(event.delta);
             const normalizedThinkingDelta = event.delta.replace(
               THINK_TAG_REGEX,
@@ -631,11 +650,11 @@ function useLocalChat(
               finalizeThinkingTimer(chatId, assistantMessageId);
             }
 
-            let visibleDelta = event.delta;
+            let visibleDelta = sanitizeAssistantStreamDelta(event.delta);
             if (answerAccumulator) {
               visibleDelta = appendChatTitleAnswerDelta(
                 answerAccumulator,
-                event.delta,
+                visibleDelta,
               );
               const extractedTitle = extractChatTitleFromText(
                 answerAccumulator.raw,
@@ -670,8 +689,40 @@ function useLocalChat(
             return;
           }
 
+          if (event.type === "start") {
+            applyAssistantPatch((message) => ({
+              ...message,
+              agentMode: event.agentMode === true ? true : message.agentMode,
+              ...(event.agentMode === true
+                ? {
+                    agentSegments: [],
+                    agentFrames: [],
+                    activeAgentFrameIndex: undefined,
+                    agentArtifacts: [],
+                  }
+                : {}),
+              agentFrameComplete: false,
+              isStreaming: true,
+            }));
+            return;
+          }
+
+          if (event.type === "done") {
+            applyAssistantPatch((message) => ({
+              ...message,
+              isStreaming: false,
+              isThinkingStreaming: false,
+              agentFrameComplete: true,
+            }));
+            return;
+          }
+
           if (event.type === "error") {
             streamError = event.message;
+            applyAssistantPatch((message) =>
+              applyAgentStreamEvent(message, event),
+            );
+            return;
           }
 
           applyAssistantPatch((message) =>
@@ -815,25 +866,34 @@ function useLocalChat(
       finalizeThinkingTimer,
       maybeGenerateChatTitle,
       streamFromResponse,
-      thinkingEnabled,
-      webSearchEnabled,
+      homerReasoningEffort,
       chatModel,
     ],
   );
 
-  const handleSendMessage = async (prompt: string): Promise<string | null> => {
+  const handleSendMessage = async (
+    prompt: string,
+    options?: { forceNewChat?: boolean },
+  ): Promise<string | null> => {
     const cleanPrompt = prompt?.trim();
     if (!cleanPrompt || isGenerating) return null;
 
     setIsGenerating(true);
 
     let currentChatId = activeChatId;
+    const existingMessages = currentChatId
+      ? allChatsRef.current[currentChatId] ?? []
+      : [];
+    const forceNew =
+      (options?.forceNewChat ?? false) &&
+      currentChatId != null &&
+      existingMessages.length > 0;
     const isNewChat =
-      !currentChatId ||
-      (allChatsRef.current[currentChatId]?.length ?? 0) === 0;
+      !currentChatId || existingMessages.length === 0 || forceNew;
 
-    if (!currentChatId) {
-      currentChatId = `chat_${Date.now()}`;
+    if (!currentChatId || forceNew) {
+      const existingIds = Object.keys(allChatsRef.current);
+      currentChatId = generateChatId(existingIds);
       const newChatEntry: RecentChat = {
         id: currentChatId,
         name: "New Chat",
@@ -1272,9 +1332,8 @@ export function useChat(options: UseChatOptions = {}) {
   if (options.apiEnabled) {
     return useChatApi(
       options.projectId ?? null,
-      options.thinkingEnabled,
-      options.webSearchEnabled,
       options.chatModel,
+      options.homerReasoningEffort,
     );
   }
   if (authRequiredForChat) {

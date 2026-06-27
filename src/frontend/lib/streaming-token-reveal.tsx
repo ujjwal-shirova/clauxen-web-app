@@ -1,131 +1,103 @@
 "use client";
 
-import { useMemo } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
-const MIN_DURATION_MS = 6;
-const MAX_DURATION_MS = 36;
-const MS_PER_CHAR = 1.2;
+/** Fast streams: short enough to track token cadence; slow streams: longer, smoother settle. */
+const MIN_DURATION_MS = 32;
+const MAX_DURATION_MS = 160;
+const FAST_GAP_MS = 28;
+const MAX_TOKENS = 500;
 
 export type StreamToken = {
   id: number;
   text: string;
   durationMs: number;
-  delayMs: number;
 };
 
-type StreamNodeState = {
-  tokens: StreamToken[];
+type RevealSession = {
+  sessionKey: string;
   assembled: string;
-  lastChunkAt: number;
+  tokens: StreamToken[];
   nextId: number;
+  lastChunkAt: number;
 };
 
-const nodeSessions = new Map<string, StreamNodeState>();
-
-function getNodeState(sessionKey: string): StreamNodeState {
-  let state = nodeSessions.get(sessionKey);
-  if (!state) {
-    state = {
-      tokens: [],
-      assembled: "",
-      lastChunkAt: 0,
-      nextId: 0,
-    };
-    nodeSessions.set(sessionKey, state);
-  }
-  return state;
+export function resetStreamTokenSessions(_streamKey: string) {
+  // Tokens are held in component state; nothing global to clear.
 }
 
-/** Drop cached token state when a message stream ends or the key changes. */
-export function resetStreamTokenSessions(streamKey: string) {
-  const prefix = `${streamKey}::`;
-  for (const key of nodeSessions.keys()) {
-    if (key.startsWith(prefix)) {
-      nodeSessions.delete(key);
-    }
-  }
-}
-
-/** Fade length scales with how fast the model is streaming and how large each delta is. */
+/**
+ * Duration scales with inter-chunk gap so animation speed tracks the model's token rate.
+ * Kept short enough that fast streams feel live, long enough that the ink-fade is visible.
+ */
 export function computeStreamTokenDurationMs(
   elapsedSinceLastChunk: number,
   chunkLength: number,
 ): number {
-  const rateBased =
-    elapsedSinceLastChunk > 0
-      ? Math.min(
-          MAX_DURATION_MS,
-          Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.55),
-        )
-      : MIN_DURATION_MS;
-  const sizeBased = Math.min(
-    MAX_DURATION_MS,
-    Math.max(MIN_DURATION_MS, chunkLength * MS_PER_CHAR),
+  let duration: number;
+
+  if (elapsedSinceLastChunk <= 0) {
+    duration = 56;
+  } else if (elapsedSinceLastChunk < FAST_GAP_MS) {
+    // High throughput — quick settle but keep a perceptible ink fade.
+    duration = Math.max(
+      MIN_DURATION_MS,
+      Math.min(72, 30 + elapsedSinceLastChunk * 1.25),
+    );
+  } else {
+    duration = Math.min(
+      MAX_DURATION_MS,
+      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.44),
+    );
+  }
+
+  // Small boost for larger chunks so the fade has time to read, but capped
+  // so it never masks fast token cadence.
+  const sizeBoost = Math.min(22, Math.sqrt(chunkLength) * 3.2);
+  return Math.round(
+    Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, duration + sizeBoost)),
   );
-  return Math.round((rateBased + sizeBased) / 2);
 }
 
-function splitRevealParts(delta: string): string[] {
-  if (!delta) return [];
-  const parts = delta.match(/\S+|\s+/g);
-  return parts?.length ? parts : [delta];
-}
-
-function appendDelta(
-  state: StreamNodeState,
-  text: string,
-): { tokens: StreamToken[]; freshIds: Set<number> } {
-  const assembled = state.tokens.map((token) => token.text).join("");
-
+function appendChunk(session: RevealSession, text: string) {
   if (!text) {
-    state.tokens = [];
-    state.assembled = "";
-    state.nextId = 0;
-    state.lastChunkAt = 0;
-    return { tokens: [], freshIds: new Set() };
+    session.assembled = "";
+    session.tokens = [];
+    session.nextId = 0;
+    session.lastChunkAt = 0;
+    return;
   }
 
-  if (text.length < assembled.length || !text.startsWith(assembled)) {
-    state.tokens = [];
-    state.assembled = "";
-    state.nextId = 0;
-    state.lastChunkAt = 0;
+  if (
+    text.length < session.assembled.length ||
+    !text.startsWith(session.assembled)
+  ) {
+    session.assembled = "";
+    session.tokens = [];
+    session.nextId = 0;
+    session.lastChunkAt = 0;
   }
 
-  const currentAssembled = state.tokens.map((token) => token.text).join("");
-  const delta = text.slice(currentAssembled.length);
-  if (!delta) {
-    return { tokens: state.tokens, freshIds: new Set() };
-  }
+  const delta = text.slice(session.assembled.length);
+  if (!delta) return;
 
   const now = performance.now();
-  const elapsed = state.lastChunkAt > 0 ? now - state.lastChunkAt : 0;
-  state.lastChunkAt = now;
+  const elapsed = session.lastChunkAt > 0 ? now - session.lastChunkAt : 0;
+  session.lastChunkAt = now;
 
-  const chunkDurationMs = computeStreamTokenDurationMs(elapsed, delta.length);
-  const parts = splitRevealParts(delta);
-  const freshIds = new Set<number>();
-  const perPartDuration =
-    parts.length > 1
-      ? Math.max(MIN_DURATION_MS, Math.round(chunkDurationMs / parts.length))
-      : chunkDurationMs;
-  const staggerMs = Math.min(2, Math.round(perPartDuration * 0.05));
+  session.tokens.push({
+    id: session.nextId,
+    text: delta,
+    durationMs: computeStreamTokenDurationMs(elapsed, delta.length),
+  });
+  session.nextId += 1;
 
-  for (let index = 0; index < parts.length; index += 1) {
-    const part = parts[index];
-    const token: StreamToken = {
-      id: state.nextId,
-      text: part,
-      durationMs: perPartDuration,
-      delayMs: index * staggerMs,
-    };
-    state.nextId += 1;
-    state.tokens.push(token);
-    freshIds.add(token.id);
+  if (session.tokens.length > MAX_TOKENS) {
+    const overflow = session.tokens.length - MAX_TOKENS;
+    session.tokens = session.tokens.slice(overflow);
   }
 
-  state.assembled = text;
-  return { tokens: state.tokens, freshIds };
+  session.assembled = text;
 }
 
 export function StreamingTokenReveal({
@@ -139,25 +111,56 @@ export function StreamingTokenReveal({
   animationName?: string;
   timingFunction?: string;
 }) {
-  const { tokens, freshIds } = useMemo(() => {
-    const state = getNodeState(sessionKey);
-    return appendDelta(state, text);
-  }, [sessionKey, text]);
+  const sessionRef = useRef<RevealSession | null>(null);
+  const [tokens, setTokens] = useState<StreamToken[]>([]);
+
+  if (sessionRef.current === null) {
+    sessionRef.current = {
+      sessionKey,
+      assembled: "",
+      tokens: [],
+      nextId: 0,
+      lastChunkAt: 0,
+    };
+  }
+
+  useLayoutEffect(() => {
+    const session = sessionRef.current!;
+    if (session.sessionKey !== sessionKey) {
+      session.sessionKey = sessionKey;
+      session.assembled = "";
+      session.tokens = [];
+      session.nextId = 0;
+      session.lastChunkAt = 0;
+      setTokens([]);
+      return;
+    }
+
+    appendChunk(session, text);
+    setTokens(session.tokens.length > 0 ? session.tokens.slice() : []);
+  }, [text, sessionKey]);
+
+  if (!text) return null;
+
+  if (tokens.length === 0) {
+    return (
+      <span className="stream-token-enter stream-token-pending">{text}</span>
+    );
+  }
 
   return (
     <>
-      {tokens.map((token) => {
-        const isFresh = freshIds.has(token.id);
+      {tokens.map((token, index) => {
+        const isActive = index === tokens.length - 1;
         return (
           <span
             key={token.id}
-            className={isFresh ? "stream-token-enter" : undefined}
+            className={isActive ? "stream-token-enter" : "stream-token-stable"}
             style={
-              isFresh
+              isActive
                 ? {
                     animationName,
                     animationDuration: `${token.durationMs}ms`,
-                    animationDelay: `${token.delayMs}ms`,
                     animationTimingFunction: timingFunction,
                     animationIterationCount: 1,
                   }

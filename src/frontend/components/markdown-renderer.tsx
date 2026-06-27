@@ -3,14 +3,15 @@
 import React, { useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { OrbCursor } from "@/frontend/components/ui/orb-cursor";
+import { FlowTokenMarkdown } from "@/frontend/components/flowtoken-markdown";
+import { StreamingTextFade } from "@/frontend/lib/streaming-text-fade";
 import {
   markdownComponents,
   normalizeLatexDelimiters,
   sharedReactMarkdownProps,
 } from "@/frontend/components/markdown-shared";
+import { SourceChip, SourcesInlineStrip } from "@/frontend/components/chat-sources";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
-import { FlowTokenMarkdown } from "./flowtoken-markdown";
-import { SourceChip } from "@/frontend/components/chat-sources";
 import {
   convertCitationReferencesToLinks,
   normalizeUrl,
@@ -50,6 +51,7 @@ export const MarkdownOrchestrator = ({
       <ReactMarkdown {...sharedReactMarkdownProps} components={effectiveComponents}>
         {displayText}
       </ReactMarkdown>
+      {sources.length > 0 ? <SourcesInlineStrip sources={sources} compact /> : null}
     </div>
   );
 };
@@ -61,7 +63,14 @@ function createCitationLink(sources: ChatSource[]) {
     byUrl.set(normalizeUrl(s.url), { source: s, index: i });
   });
 
-  return function CitationLink({ href, children, ...rest }: any) {
+  return function CitationLink({
+    href,
+    children,
+    ...rest
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+    href?: string;
+    children?: React.ReactNode;
+  }) {
     if (href) {
       const hit = byUrl.get(normalizeUrl(href));
       if (hit) {
@@ -126,30 +135,23 @@ export const MarkdownMessage = ({
 
   if (isStreaming && lightweightStream) {
     return (
-      <div className="whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-zinc-800">
-        {content}
+      <div className="relative min-w-0 max-w-full" data-streaming>
+        <StreamingTextFade content={content} streamKey={streamKey} />
+        {showCursor ? <OrbCursor /> : null}
       </div>
     );
   }
 
   if (isStreaming) {
-    // Use FlowToken's AnimatedMarkdown for the fade-in typing animation during streaming.
-    // - animation="fadeIn" only while streaming (null afterwards to avoid re-animating / high memory)
-    // - sep="diff" ensures only the newly appended tokens receive the animation (optimal for LLM streams)
-    // - This follows the recommended pattern for real-time streaming text from LLMs using FlowToken.
-    //
-    // We strip reference defs (and convert citations for future) for cleaner display while streaming;
-    // the final non-stream render will produce the rich inline chips.
-    const streamDisplay = sources.length > 0
-      ? stripReferenceDefinitions(convertCitationReferencesToLinks(content, sources))
-      : content;
+    const streamDisplay =
+      sources.length > 0
+        ? stripReferenceDefinitions(
+            convertCitationReferencesToLinks(content, sources),
+          )
+        : content;
 
     return (
-      <div
-        className="markdown-content relative min-w-0 max-w-full"
-        data-stream-key={streamKey ?? content}
-        data-streaming
-      >
+      <div className="relative min-w-0 max-w-full" data-streaming>
         <FlowTokenMarkdown
           content={streamDisplay}
           isStreaming

@@ -266,7 +266,7 @@ export async function runNovitaAgentChat(
   const { buildModelSystemPrompt } = await import(
     "@/backend/inference/model-prompts"
   );
-  const logical = request.chatModel || request.model || "helios";
+  const logical = request.chatModel || request.model || "virgil";
   const conversation: AgentMessage[] = [
     { role: "system", content: buildModelSystemPrompt({ model: logical }) },
     ...messages,

@@ -1,13 +1,11 @@
 import { withApiRouteParams } from "@/backend/http/route-params";
 import { requireSession } from "@/backend/auth/require-session";
 import * as chatService from "@/backend/services/chat.service";
-import {
-  resolveThinkingType,
-  sanitizeMessages,
-} from "@/backend/inference/novita";
+import { sanitizeMessages } from "@/backend/inference/novita";
 import { AppError } from "@/backend/db/errors";
 import { resolveRequestCountryCode } from "@/lib/request-geo";
-import { UI_MESSAGE_STREAM_HEADERS } from "ai";
+import { parseHomerReasoningEffort } from "@/lib/model-effort";
+import { CLAUXEN_STREAM_HEADERS } from "@/backend/inference/clauxen-sse-stream";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,11 +16,9 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     const user = requireSession(session);
     const body = (await request.json()) as {
       messages?: unknown;
-      thinkingEnabled?: boolean;
-      thinkingType?: string;
-      webSearchEnabled?: boolean;
       generateChatTitle?: boolean;
       chatModel?: string;
+      homerReasoningEffort?: string;
     };
     const messages = sanitizeMessages(body.messages);
     if (!messages.length) {
@@ -34,11 +30,10 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       userId: user.id,
       messages,
       signal: request.signal,
-      thinkingType: resolveThinkingType(body),
-      webSearchEnabled: body.webSearchEnabled === true,
       userCountryCode: resolveRequestCountryCode(request.headers),
       generateChatTitle: body.generateChatTitle,
       chatModel: body.chatModel,
+      homerReasoningEffort: parseHomerReasoningEffort(body.homerReasoningEffort),
     });
 
     const wrapped = new ReadableStream<Uint8Array>({
@@ -60,9 +55,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
 
     return new Response(wrapped, {
       headers: {
-        ...UI_MESSAGE_STREAM_HEADERS,
-        "Cache-Control": "no-cache, no-transform",
-        "X-Accel-Buffering": "no",
+        ...CLAUXEN_STREAM_HEADERS,
       },
     });
   },

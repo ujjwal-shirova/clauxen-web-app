@@ -5,12 +5,15 @@ import { useAuth } from "@/frontend/hooks/use-auth";
 import { useChat } from "@/frontend/hooks/use-chat";
 import type { ChatModelId } from "@/lib/chat-models";
 import { DEFAULT_CHAT_MODEL_ID } from "@/lib/chat-models";
+import {
+  DEFAULT_HOMER_REASONING_EFFORT,
+  type HomerReasoningEffort,
+} from "@/lib/model-effort";
 
 export function useProjectChat(
   projectId: string,
   options?: {
-    thinkingEnabled?: boolean;
-    webSearchEnabled?: boolean;
+    homerReasoningEffort?: HomerReasoningEffort;
     chatModel?: ChatModelId;
   },
 ) {
@@ -18,8 +21,8 @@ export function useProjectChat(
   const chat = useChat({
     apiEnabled: auth.isAuthenticated,
     projectId,
-    thinkingEnabled: options?.thinkingEnabled ?? false,
-    webSearchEnabled: options?.webSearchEnabled ?? true,
+    homerReasoningEffort:
+      options?.homerReasoningEffort ?? DEFAULT_HOMER_REASONING_EFFORT,
     chatModel: options?.chatModel ?? DEFAULT_CHAT_MODEL_ID,
   });
 

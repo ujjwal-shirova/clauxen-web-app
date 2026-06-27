@@ -1,4 +1,3 @@
-import type { UIMessageStreamWriter } from "ai";
 import type {
   ClauxenToolStreamOutput,
   ClauxenUIMessage,
@@ -16,8 +15,19 @@ function parsePartialToolArgs(input: unknown): Record<string, unknown> {
 }
 
 /**
- * Maps Clauxen agent events to Vercel AI SDK UI message chunks while keeping
- * Anthropic SDK inference on the server unchanged.
+ * Minimal writer interface — replaces Vercel AI SDK's UIMessageStreamWriter.
+ * Accepts arbitrary chunk objects and serializes them as SSE.
+ */
+export interface ClauxenStreamWriterSink {
+  enqueue: (chunk: Record<string, unknown>) => void;
+  close: () => void;
+  error: (err: unknown) => void;
+}
+
+/**
+ * Maps Clauxen agent events to UI message chunks and writes them as SSE.
+ * This replaces the Vercel AI SDK's UIMessageStreamWriter with our own
+ * lightweight implementation.
  */
 export class ClauxenUiStreamWriter {
   private segmentCounter = 0;
@@ -28,7 +38,7 @@ export class ClauxenUiStreamWriter {
   private readonly toolInputJson = new Map<string, string>();
 
   constructor(
-    private readonly writer: UIMessageStreamWriter<ClauxenUIMessage>,
+    private readonly sink: ClauxenStreamWriterSink,
   ) {}
 
   private nextSegmentId() {
@@ -39,27 +49,27 @@ export class ClauxenUiStreamWriter {
   private ensureTextId() {
     if (!this.textId) {
       this.textId = this.nextSegmentId();
-      this.writer.write({ type: "text-start", id: this.textId });
+      this.sink.enqueue({ type: "text-start", id: this.textId });
     }
     return this.textId;
   }
 
   private closeReasoning() {
     if (!this.reasoningId) return;
-    this.writer.write({ type: "reasoning-end", id: this.reasoningId });
+    this.sink.enqueue({ type: "reasoning-end", id: this.reasoningId });
     this.reasoningId = null;
   }
 
   private closeText() {
     if (!this.textId) return;
-    this.writer.write({ type: "text-end", id: this.textId });
+    this.sink.enqueue({ type: "text-end", id: this.textId });
     this.textId = null;
   }
 
   writeStart(agentMode?: boolean) {
-    this.writer.write({ type: "start" });
+    this.sink.enqueue({ type: "start" });
     if (agentMode) {
-      this.writer.write({
+      this.sink.enqueue({
         type: "data-agent-mode",
         data: { enabled: true },
       });
@@ -71,9 +81,9 @@ export class ClauxenUiStreamWriter {
     this.closeText();
     if (!this.reasoningId) {
       this.reasoningId = this.nextSegmentId();
-      this.writer.write({ type: "reasoning-start", id: this.reasoningId });
+      this.sink.enqueue({ type: "reasoning-start", id: this.reasoningId });
     }
-    this.writer.write({
+    this.sink.enqueue({
       type: "reasoning-delta",
       id: this.reasoningId,
       delta: text,
@@ -87,13 +97,13 @@ export class ClauxenUiStreamWriter {
   onAnswerDelta(text: string) {
     if (!text) return;
     const id = this.ensureTextId();
-    this.writer.write({ type: "text-delta", id, delta: text });
+    this.sink.enqueue({ type: "text-delta", id, delta: text });
   }
 
   onAnswerClear() {
     this.closeText();
     this.textId = null;
-    this.writer.write({
+    this.sink.enqueue({
       type: "data-answer-clear",
       data: {},
     });
@@ -102,7 +112,7 @@ export class ClauxenUiStreamWriter {
   onFrameComplete(frameId?: string) {
     this.closeReasoning();
     this.closeText();
-    this.writer.write({
+    this.sink.enqueue({
       type: "data-agent-frame",
       data: { complete: true, frameId },
     });
@@ -112,7 +122,7 @@ export class ClauxenUiStreamWriter {
     if (!text.trim()) return;
     this.closeReasoning();
     this.closeText();
-    this.writer.write({
+    this.sink.enqueue({
       type: "data-agent-interim",
       data: { text: text.trim() },
     });
@@ -121,7 +131,7 @@ export class ClauxenUiStreamWriter {
   onFrameStart(frameId: string) {
     this.closeReasoning();
     this.closeText();
-    this.writer.write({
+    this.sink.enqueue({
       type: "data-agent-frame",
       data: { complete: false, frameId },
     });
@@ -144,7 +154,7 @@ export class ClauxenUiStreamWriter {
     this.activeToolId = tool.id;
 
     if (!alreadyStarted) {
-      this.writer.write({
+      this.sink.enqueue({
         type: "tool-input-start",
         toolCallId: tool.id,
         toolName: tool.name,
@@ -154,7 +164,7 @@ export class ClauxenUiStreamWriter {
 
     const delta = nextInput.slice(priorInput.length);
     if (delta) {
-      this.writer.write({
+      this.sink.enqueue({
         type: "tool-input-delta",
         toolCallId: tool.id,
         inputTextDelta: delta,
@@ -173,14 +183,14 @@ export class ClauxenUiStreamWriter {
     this.activeToolId = payload.tool_call_id;
     this.toolNames.set(payload.tool_call_id, payload.name);
 
-    this.writer.write({
+    this.sink.enqueue({
       type: "tool-input-start",
       toolCallId: payload.tool_call_id,
       toolName: payload.name,
       dynamic: true,
       title: payload.description,
     });
-    this.writer.write({
+    this.sink.enqueue({
       type: "tool-input-available",
       toolCallId: payload.tool_call_id,
       toolName: payload.name,
@@ -195,7 +205,7 @@ export class ClauxenUiStreamWriter {
     name: string;
     result: string;
   }) {
-    this.writer.write({
+    this.sink.enqueue({
       type: "tool-output-available",
       toolCallId: payload.tool_call_id,
       output: payload.result,
@@ -216,7 +226,7 @@ export class ClauxenUiStreamWriter {
     description?: string;
   }) {
     if (!payload.path) return;
-    this.writer.write({
+    this.sink.enqueue({
       type: "data-artifact",
       id: payload.path,
       data: {
@@ -235,7 +245,7 @@ export class ClauxenUiStreamWriter {
         ? payload.tool_call_id
         : this.activeToolId;
     if (!toolCallId) return;
-    this.writer.write({
+    this.sink.enqueue({
       type: "data-tool-data",
       id: toolCallId,
       data: { toolCallId, data: payload },
@@ -243,7 +253,7 @@ export class ClauxenUiStreamWriter {
   }
 
   onStepDone(label?: string) {
-    this.writer.write({
+    this.sink.enqueue({
       type: "data-step-done",
       data: { label },
     });
@@ -255,7 +265,7 @@ export class ClauxenUiStreamWriter {
       clauxenStream: kind,
       delta: text,
     };
-    this.writer.write({
+    this.sink.enqueue({
       type: "tool-output-available",
       toolCallId: this.activeToolId,
       output,
@@ -266,20 +276,20 @@ export class ClauxenUiStreamWriter {
 
   onChatTitle(title: string) {
     if (!title.trim()) return;
-    this.writer.write({
+    this.sink.enqueue({
       type: "data-chat-title",
       data: { title },
     });
   }
 
   onError(message: string) {
-    this.writer.write({ type: "error", errorText: message });
+    this.sink.enqueue({ type: "error", errorText: message });
   }
 
   finalize() {
     this.closeReasoning();
     this.closeText();
-    this.writer.write({ type: "finish" });
+    this.sink.enqueue({ type: "finish" });
   }
 
   toolNameFor(toolCallId: string) {
@@ -290,3 +300,6 @@ export class ClauxenUiStreamWriter {
     return parsePartialToolArgs(this.toolInputJson.get(toolCallId) ?? "");
   }
 }
+
+// Suppress unused type warning
+export type { ClauxenUIMessage };

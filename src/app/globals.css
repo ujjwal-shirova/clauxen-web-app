@@ -166,12 +166,22 @@
 }
 
 @keyframes clauxen-token-fade {
-  from {
-    opacity: 0.55;
+  0% {
+    opacity: 0.18;
+    filter: blur(1.6px);
+    transform: translateY(0.6px) scale(0.985);
   }
 
-  to {
+  45% {
+    opacity: 0.82;
+    filter: blur(0.25px);
+    transform: translateY(0.15px) scale(0.998);
+  }
+
+  100% {
     opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -179,6 +189,28 @@
   display: inline;
   white-space: pre-wrap;
   animation-fill-mode: both;
+  will-change: opacity, transform, filter;
+  backface-visibility: hidden;
+}
+
+.stream-token-stable {
+  display: inline;
+  white-space: pre-wrap;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stream-token-enter {
+    animation: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
+/* First paint before layout effect runs — soft ink, no pop */
+.stream-token-pending {
+  opacity: 0.55;
 }
 
 /* Ultra-snappy per-token pop for live streaming.
@@ -668,13 +700,6 @@ button.user-message-card__body:not(:disabled):hover {
   padding-bottom: 0.125rem;
 }
 
-[data-conversation-turn][data-turn-streaming="true"] .sticky-user-msg-host {
-  position: relative;
-  top: auto;
-  z-index: 1;
-  box-shadow: none;
-}
-
 [data-conversation-turn] .assistant-message {
   position: relative;
   z-index: 0;
@@ -732,8 +757,8 @@ button.user-message-card__body:not(:disabled):hover {
   .composer-message-codeblock
   .ui-code-block.code-block-header-sticky {
   position: sticky;
-  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px));
-  z-index: 1;
+  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px) + 2px);
+  z-index: 24;
   background: #ffffff;
   overflow-anchor: none;
 }
@@ -941,8 +966,10 @@ button.user-message-card__body:not(:disabled):hover {
 }
 
 /* Streaming token reveal — keep animated spans inline with prose layout */
-.markdown-content .stream-token-enter {
-  display: inline-block;
+.markdown-content .stream-token-enter,
+.markdown-content .stream-token-stable,
+.markdown-content .stream-token-pending {
+  display: inline;
   white-space: pre-wrap;
 }
 

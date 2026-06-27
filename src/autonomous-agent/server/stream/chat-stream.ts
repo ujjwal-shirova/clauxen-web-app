@@ -1,8 +1,5 @@
 import type { IncomingMessage } from "@/backend/inference/novita";
-import {
-  createClauxenUiMessageStream,
-  encodeUiMessageStreamToBytes,
-} from "@/backend/inference/clauxen-ui-stream";
+import { createClauxenUiMessageStream } from "@/backend/inference/clauxen-ui-stream";
 import { resolveAutonomousAgentModel } from "@/autonomous-agent/server/config";
 import { createClauxenEventSink } from "@/autonomous-agent/server/stream/clauxen-bridge";
 import {
@@ -33,7 +30,7 @@ export function streamAutonomousAgentChat(
   const routed = resolveAutonomousAgentModel(options.chatModel);
   const chatMessages = incomingToChatMessages(messages);
 
-  const uiStream = createClauxenUiMessageStream(async (bridge) => {
+  return createClauxenUiMessageStream(async (bridge) => {
     bridge.writeStart(false);
     const sink = createClauxenEventSink(bridge, signal);
     try {
@@ -58,6 +55,4 @@ export function streamAutonomousAgentChat(
       bridge.finalize();
     }
   });
-
-  return encodeUiMessageStreamToBytes(uiStream);
 }

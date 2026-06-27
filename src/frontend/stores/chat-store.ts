@@ -159,6 +159,8 @@ export const useChatStore = create<ChatStore>()(
             [messageId]: {
               ...existing,
               [field]: `${existing[field] ?? ""}${delta}`,
+              isStreaming: true,
+              ...(field === "content" ? { isThinkingStreaming: false } : {}),
             },
           },
         };

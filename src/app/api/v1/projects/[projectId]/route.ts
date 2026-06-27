@@ -10,6 +10,7 @@ const PROJECT_ID_RE =
 const MAX_PROJECT_NAME_LENGTH = 200;
 const MAX_PROJECT_DESCRIPTION_LENGTH = 2000;
 const MAX_PROJECT_COLOR_LENGTH = 32;
+const MAX_PROJECT_SYSTEM_PROMPT_LENGTH = 8000;
 
 function assertValidProjectId(projectId: string) {
   if (!PROJECT_ID_RE.test(projectId)) {
@@ -21,12 +22,18 @@ function parseProjectPatch(body: unknown): {
   name?: string;
   description?: string;
   color?: string;
+  system_prompt?: string;
 } {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     throw new AppError("Invalid JSON body.", 400);
   }
   const raw = body as Record<string, unknown>;
-  const patch: { name?: string; description?: string; color?: string } = {};
+  const patch: {
+    name?: string;
+    description?: string;
+    color?: string;
+    system_prompt?: string;
+  } = {};
   if ("name" in raw) {
     if (typeof raw.name !== "string")
       throw new AppError("Invalid project name.", 400);
@@ -56,7 +63,22 @@ function parseProjectPatch(body: unknown): {
     }
     patch.color = color;
   }
-  if (!("name" in patch) && !("description" in patch) && !("color" in patch)) {
+  if ("system_prompt" in raw) {
+    if (typeof raw.system_prompt !== "string") {
+      throw new AppError("Invalid project instructions.", 400);
+    }
+    if (raw.system_prompt.length > MAX_PROJECT_SYSTEM_PROMPT_LENGTH) {
+      throw new AppError("Project instructions are too long.", 400);
+    }
+    // Empty string clears instructions; the repo coalesces null → keep existing.
+    patch.system_prompt = raw.system_prompt;
+  }
+  if (
+    !("name" in patch) &&
+    !("description" in patch) &&
+    !("color" in patch) &&
+    !("system_prompt" in patch)
+  ) {
     throw new AppError("No valid fields to update.", 400);
   }
   return patch;

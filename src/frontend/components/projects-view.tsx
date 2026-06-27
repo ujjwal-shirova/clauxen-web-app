@@ -20,6 +20,8 @@ interface ProjectsViewProps {
   loading?: boolean;
   onNewProject: () => void;
   onOpenProject?: (projectId: string) => void;
+  onEditProject?: (project: ApiProject) => void;
+  onDeleteProject?: (project: ApiProject) => void;
   onOpenMobileNav?: () => void;
 }
 
@@ -30,6 +32,8 @@ export function ProjectsView({
   loading,
   onNewProject,
   onOpenProject,
+  onEditProject,
+  onDeleteProject,
   onOpenMobileNav,
 }: ProjectsViewProps) {
   const isMobile = useIsMobile();
@@ -195,6 +199,8 @@ export function ProjectsView({
                   starred={starredIds.has(project.id)}
                   onOpen={() => onOpenProject?.(project.id)}
                   onToggleStar={() => toggleStar(project.id)}
+                  onEditDetails={() => onEditProject?.(project)}
+                  onDelete={() => onDeleteProject?.(project)}
                 />
               ))}
             </ul>

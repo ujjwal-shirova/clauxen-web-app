@@ -1,41 +1,72 @@
-import {
-  createUIMessageStream,
-  JsonToSseTransformStream,
-  type UIMessageChunk,
-  type UIMessageStreamWriter,
-} from "ai";
 import { ClauxenUiStreamWriter } from "@/backend/inference/clauxen-ui-stream-writer";
 import type { ClauxenUIMessage } from "@/lib/clauxen-ui-message";
 
 const MAX_SSE_BUFFER_BYTES = 512 * 1024;
 
+/**
+ * Create a Clauxen UI message stream using our own SSE stream (no AI SDK).
+ * Returns a ReadableStream<Uint8Array> of SSE bytes.
+ */
 export function createClauxenUiMessageStream(
   execute: (bridge: ClauxenUiStreamWriter) => Promise<void> | void,
-) {
-  return createUIMessageStream<ClauxenUIMessage>({
-    execute: ({ writer }) => {
-      const bridge = new ClauxenUiStreamWriter(
-        writer as UIMessageStreamWriter<ClauxenUIMessage>,
-      );
-      return execute(bridge);
-    },
-  });
-}
-
-/** Encode AI SDK UI message chunks as SSE bytes — passthrough, no buffering. */
-export function encodeUiMessageStreamToBytes(
-  stream: ReadableStream<UIMessageChunk>,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
-  return stream
-    .pipeThrough(new JsonToSseTransformStream())
-    .pipeThrough(
-      new TransformStream<string, Uint8Array>({
-        transform(chunk, controller) {
-          controller.enqueue(encoder.encode(chunk));
+  let writerResolve: ((writer: ClauxenUiStreamWriter) => void) | null = null;
+  const writerPromise = new Promise<ClauxenUiStreamWriter>((resolve) => {
+    writerResolve = resolve;
+  });
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const bridge = new ClauxenUiStreamWriter({
+        enqueue: (chunk: Record<string, unknown>) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
         },
-      }),
-    );
+        close: () => {
+          try {
+            controller.close();
+          } catch {
+            // already closed
+          }
+        },
+        error: (err: unknown) => {
+          try {
+            controller.error(err);
+          } catch {
+            // already errored
+          }
+        },
+      });
+      writerResolve?.(bridge);
+      try {
+        await execute(bridge);
+      } catch (err) {
+        try {
+          controller.error(err);
+        } catch {
+          // already errored
+        }
+      }
+    },
+  });
+
+  // Suppress unused warning — writerPromise is available if callers need it
+  void writerPromise;
+  return stream;
+}
+
+/** Encode a UI message chunk as SSE bytes — passthrough, no buffering. */
+export function encodeUiMessageStreamToBytes(
+  stream: ReadableStream<string>,
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  return stream.pipeThrough(
+    new TransformStream<string, Uint8Array>({
+      transform(chunk, controller) {
+        controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
+      },
+    }),
+  );
 }
 
 /** Tap answer/thinking/title from a UI message SSE byte stream for DB persistence. */
@@ -115,6 +146,24 @@ export function tapUiMessageSseStream(
               if (parsed.type === "data-chat-title") {
                 const title = (parsed as { data?: { title?: string } }).data
                   ?.title;
+                if (typeof title === "string") {
+                  callbacks.onChatTitle?.(title);
+                }
+              }
+              if (parsed.type === "answer_delta") {
+                const delta = (parsed as { delta?: unknown }).delta;
+                if (typeof delta === "string") {
+                  callbacks.onAnswerDelta?.(delta);
+                }
+              }
+              if (parsed.type === "thinking_delta") {
+                const delta = (parsed as { delta?: unknown }).delta;
+                if (typeof delta === "string") {
+                  callbacks.onThinkingDelta?.(delta);
+                }
+              }
+              if (parsed.type === "chat_title") {
+                const title = (parsed as { title?: unknown }).title;
                 if (typeof title === "string") {
                   callbacks.onChatTitle?.(title);
                 }

@@ -1,7 +1,8 @@
 import OpenAI from "openai";
 import { env, requireNovitaApiKey } from "@/backend/config/env";
+import { MODEL_CONFIG } from "@/lib/model-config";
 
-const DEFAULT_MODEL = "nex-agi/nex-n2-pro";
+const DEFAULT_MODEL = MODEL_CONFIG.models.helios.defaultSlug;
 
 let openAiClient: OpenAI | null = null;
 

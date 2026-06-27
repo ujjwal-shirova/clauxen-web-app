@@ -11,6 +11,7 @@ import { cn } from "@/frontend/lib/utils";
 import { appBtn } from "@/frontend/lib/app-buttons";
 import type { ApiProject } from "@/frontend/lib/api/projects";
 import type { RecentChat } from "@/frontend/lib/types";
+import { DEFAULT_CHAT_MODEL_ID } from "@/lib/chat-models";
 import { PromptInput } from "@/frontend/components/prompt-input";
 import { ProjectChatListRow } from "@/frontend/components/projects/project-chat-list-row";
 import { DeleteChatDialog } from "@/frontend/components/delete-chat-dialog";
@@ -39,14 +40,16 @@ type ProjectDetailViewMobileProps = {
   onSendMessage: (prompt: string) => void | Promise<void>;
   onStopGeneration: () => void;
   isGenerating?: boolean;
-  thinkingEnabled?: boolean;
-  onThinkingEnabledChange?: (enabled: boolean) => void;
-  webSearchEnabled?: boolean;
-  onWebSearchEnabledChange?: (enabled: boolean) => void;
+  homerReasoningEffort?: import("@/lib/model-effort").HomerReasoningEffort;
+  onHomerReasoningEffortChange?: (
+    effort: import("@/lib/model-effort").HomerReasoningEffort,
+  ) => void;
   chatModel?: import("@/lib/chat-models").ChatModelId;
   onChatModelChange?: (model: import("@/lib/chat-models").ChatModelId) => void;
   projectChats?: RecentChat[];
   onOpenChat?: (chatId: string) => void;
+  onNewChat?: () => void;
+  onSaveInstructions?: (text: string) => void | Promise<void>;
   onOpenMobileNav?: () => void;
   onRenameChat?: (chatId: string, newName: string) => void | Promise<void>;
   onDeleteChat?: (chatId: string) => void | Promise<void>;
@@ -62,14 +65,14 @@ export function ProjectDetailViewMobile({
   onSendMessage,
   onStopGeneration,
   isGenerating = false,
-  thinkingEnabled = false,
-  onThinkingEnabledChange,
-  webSearchEnabled = false,
-  onWebSearchEnabledChange,
-  chatModel = "helios",
+  homerReasoningEffort = "high",
+  onHomerReasoningEffortChange,
+  chatModel = DEFAULT_CHAT_MODEL_ID,
   onChatModelChange,
   projectChats = [],
   onOpenChat,
+  onNewChat,
+  onSaveInstructions,
   onOpenMobileNav,
   onRenameChat,
   onDeleteChat,
@@ -86,8 +89,8 @@ export function ProjectDetailViewMobile({
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [textDialogOpen, setTextDialogOpen] = useState(false);
   const [githubDialogOpen, setGithubDialogOpen] = useState(false);
-  const [instructions, setInstructions] = useState(() =>
-    getProjectInstructions(project.id),
+  const [instructions, setInstructions] = useState(
+    () => project.system_prompt ?? getProjectInstructions(project.id),
   );
   const [files, setFiles] = useState<ProjectFileMeta[]>(() =>
     getProjectFiles(project.id),
@@ -107,8 +110,9 @@ export function ProjectDetailViewMobile({
     (text: string) => {
       setProjectInstructions(project.id, text);
       setInstructions(text);
+      void onSaveInstructions?.(text);
     },
-    [project.id],
+    [project.id, onSaveInstructions],
   );
 
   const handleUploadFromDevice = useCallback(() => {
@@ -290,22 +294,29 @@ export function ProjectDetailViewMobile({
                     onStopGeneration={onStopGeneration}
                     isConversationStarted={false}
                     isGenerating={isGenerating}
-                    thinkingEnabled={thinkingEnabled}
-                    onThinkingEnabledChange={onThinkingEnabledChange}
-                    webSearchEnabled={webSearchEnabled}
-                    onWebSearchEnabledChange={onWebSearchEnabledChange}
+                    homerReasoningEffort={homerReasoningEffort}
+                    onHomerReasoningEffortChange={onHomerReasoningEffortChange}
                     chatModel={chatModel}
                     onChatModelChange={onChatModelChange}
-                    showModelSelector={true}
                     focusKey={`project-mobile-${project.id}`}
                   />
                 </div>
               </section>
 
               <section>
-                <h2 className="mb-2 px-0.5 text-[12px] font-medium uppercase tracking-wide text-zinc-500">
-                  Conversations
-                </h2>
+                <div className="mb-2 flex items-center justify-between gap-2 px-0.5">
+                  <h2 className="text-[12px] font-medium uppercase tracking-wide text-zinc-500">
+                    Conversations
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => onNewChat?.()}
+                    className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[12px] font-medium text-zinc-700 active:bg-zinc-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    New chat
+                  </button>
+                </div>
                 {projectChats.length > 0 ? (
                   <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
                     {projectChats.map((chat) => (

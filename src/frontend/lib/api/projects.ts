@@ -4,6 +4,7 @@ export type ApiProject = {
   id: string;
   name: string;
   description: string | null;
+  system_prompt?: string | null;
   color: string | null;
   created_at: string;
   updated_at: string;
@@ -21,7 +22,12 @@ export async function getProject(projectId: string) {
 
 export async function updateProject(
   projectId: string,
-  input: { name?: string; description?: string; color?: string },
+  input: {
+    name?: string;
+    description?: string;
+    color?: string;
+    system_prompt?: string;
+  },
 ) {
   return apiFetch<{ project: ApiProject }>(
     `/api/v1/projects/${encodeURIComponent(projectId)}`,

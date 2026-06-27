@@ -12,11 +12,8 @@ export const GET = withApiHandler(
     const user = requireSession(session);
     const projectId =
       new URL(request.url).searchParams.get("projectId") ?? undefined;
-    const chats = await chatService.listRecentChats(user.id);
-    const filtered = projectId
-      ? chats.filter((c) => c.projectId === projectId)
-      : chats;
-    return jsonData({ chats: filtered });
+    const chats = await chatService.listRecentChats(user.id, projectId);
+    return jsonData({ chats });
   },
   { requireAuth: true, requireChatAuth: true },
 );

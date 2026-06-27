@@ -102,10 +102,21 @@ function attachInterimToLastFrame(
   const next = [...frames];
   const lastIdx = next.length - 1;
   const last = next[lastIdx];
-  const prior = last.interimOutput?.trim();
+  const prior = last.interimOutput ?? "";
+
+  // If the new content is a superset of the prior (streaming accumulation),
+  // replace in place rather than appending with a separator. This keeps the
+  // live narrative clean as post-tool text deltas arrive.
+  const isAccumulation =
+    prior.length > 0 && content.startsWith(prior.trim());
+
   next[lastIdx] = {
     ...last,
-    interimOutput: prior ? `${prior}\n\n${content}` : content,
+    interimOutput: isAccumulation
+      ? content
+      : prior.trim()
+        ? `${prior.trim()}\n\n${content}`
+        : content,
   };
   return next;
 }
@@ -272,56 +283,31 @@ export function applyAgentStreamEvent(
           ...state,
           frames,
           frameIdx: existingIndex,
-          message: { ...state.message, content: "" },
         };
         return syncFrameState(state, {
           agentMode: true,
           agentFrameComplete: false,
-          content: "",
           isStreaming: true,
         });
       }
 
-      const interim = state.message.content?.trim();
       if (frames.length > 0) {
         const lastIdx = frames.length - 1;
         const last = frames[lastIdx];
         if (!last.complete) {
-          const captureInterim =
-            Boolean(interim) && frameHasToolSegments(last.segments);
-          frames[lastIdx] = finalizeFrame({
-            ...last,
-            interimOutput: captureInterim
-              ? interim
-              : last.interimOutput,
-          });
-          if (captureInterim) {
-            state = {
-              ...state,
-              message: { ...state.message, content: "" },
-            };
-          }
-        } else if (interim) {
-          frames = attachInterimToLastFrame(frames, state.message.content);
+          frames[lastIdx] = finalizeFrame(last);
         }
       }
       const frameId = uniqueAgentFrameId(frames, event.frameId);
-      const introNarrative = state.message.content?.trim();
-      const newFrame = createAgentFrame(frameId);
-      if (introNarrative) {
-        newFrame.introNarrative = introNarrative;
-      }
-      frames.push(newFrame);
+      frames.push(createAgentFrame(frameId));
       state = {
         ...state,
         frames,
         frameIdx: frames.length - 1,
-        message: { ...state.message, content: "" },
       };
       return syncFrameState(state, {
         agentMode: true,
         agentFrameComplete: false,
-        content: "",
         isStreaming: true,
       });
     }
@@ -390,6 +376,23 @@ export function applyAgentStreamEvent(
           isStreaming: true,
         });
       }
+      if (state.frames.length > 0) {
+        state = withSegments(state, (segments) => {
+          const frame = state.frames[state.frameIdx];
+          const segmentId = `${frame?.id ?? "frame"}-thinking`;
+          const existing = segments.find(
+            (segment): segment is Extract<AgentSegment, { kind: "thinking" }> =>
+              segment.id === segmentId && segment.kind === "thinking",
+          );
+          return upsertSegment(segments, {
+            kind: "thinking",
+            id: segmentId,
+            content: `${existing?.content ?? ""}${event.delta}`,
+            isStreaming: true,
+            startedAtMs: existing?.startedAtMs ?? Date.now(),
+          });
+        });
+      }
       return syncFrameState(state, {
         thinkingContent,
         hasThinking,
@@ -429,6 +432,23 @@ export function applyAgentStreamEvent(
             isThinkingStreaming: false,
             thinkingDurationSeconds: durationSeconds,
           });
+        }
+        if (state.frames.length > 0) {
+          state = withSegments(state, (segments) =>
+            segments.map((segment) => {
+              if (segment.kind !== "thinking" || !segment.isStreaming) {
+                return segment;
+              }
+              const durationSeconds = segment.startedAtMs
+                ? Math.max(
+                    1,
+                    Math.round((Date.now() - segment.startedAtMs) / 1000),
+                  )
+                : segment.durationSeconds;
+              return { ...segment, isStreaming: false, durationSeconds };
+            }),
+          );
+          return syncFrameState(state, { isThinkingStreaming: false });
         }
         return syncFrameState(state, { isThinkingStreaming: false });
       }
@@ -607,7 +627,6 @@ export function applyAgentStreamEvent(
       const frames = attachInterimToLastFrame(state.frames, event.text);
       state = { ...state, frames };
       return syncFrameState(state, {
-        content: "",
         agentMode: true,
         isStreaming: true,
       });
@@ -619,26 +638,16 @@ export function applyAgentStreamEvent(
       const idx = state.frameIdx;
       const frame = frames[idx];
       if (frame) {
-        const interim = state.message.content?.trim();
-        const hasTools = frameHasToolSegments(frame.segments);
-        const captureInterim = Boolean(interim) && hasTools;
         const frameId = event.frameId
           ? uniqueAgentFrameId(frames, event.frameId, idx)
           : frame.id;
         frames[idx] = finalizeFrame({
           ...frame,
           id: frameId,
-          interimOutput: captureInterim
-            ? interim
-            : frame.interimOutput,
         });
         state = {
           ...state,
           frames,
-          message: {
-            ...state.message,
-            content: captureInterim ? "" : state.message.content,
-          },
         };
       }
       return syncFrameState(state, {

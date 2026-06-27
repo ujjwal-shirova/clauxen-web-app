@@ -100,7 +100,11 @@ export function useProjects(apiEnabled: boolean) {
   const updateProject = useCallback(
     async (
       projectId: string,
-      patch: { name?: string; description?: string },
+      patch: {
+        name?: string;
+        description?: string;
+        system_prompt?: string;
+      },
     ) => {
       if (apiEnabled && !projectId.startsWith("local-")) {
         try {
@@ -134,5 +138,32 @@ export function useProjects(apiEnabled: boolean) {
     [apiEnabled],
   );
 
-  return { projects, loading, refresh, createProject, updateProject };
+  const deleteProject = useCallback(
+    async (projectId: string) => {
+      if (apiEnabled && !projectId.startsWith("local-")) {
+        try {
+          await projectsApi.deleteProject(projectId);
+        } catch {
+          return false;
+        }
+        setProjects((prev) => prev.filter((p) => p.id !== projectId));
+        return true;
+      }
+
+      const next = loadLocalProjects().filter((p) => p.id !== projectId);
+      saveLocalProjects(next);
+      setProjects(next);
+      return true;
+    },
+    [apiEnabled],
+  );
+
+  return {
+    projects,
+    loading,
+    refresh,
+    createProject,
+    updateProject,
+    deleteProject,
+  };
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import type { StreamEvent } from "@/frontend/lib/chat-stream";
 import { applyAgentStreamEvent } from "@/frontend/lib/agent-stream-reducer";
+import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
 import {
   canFastAppendAnswer,
   patchToolOutputDelta,
@@ -44,6 +45,10 @@ import {
   stripTitleSourceText,
 } from "@/lib/chat-title";
 import { DEFAULT_CHAT_MODEL_ID, type ChatModelId } from "@/lib/chat-models";
+import {
+  DEFAULT_HOMER_REASONING_EFFORT,
+  type HomerReasoningEffort,
+} from "@/lib/model-effort";
 import { filterStartedRecentChats } from "@/frontend/lib/started-recent-chats";
 import { useShallow } from "zustand/react/shallow";
 
@@ -71,23 +76,29 @@ function buildConversation(messages: Message[]) {
   return buildChatConversation(messages);
 }
 
+// Module-level shared generation state so an in-flight stream survives route
+// changes (e.g. project home -> conversation view). The stream patches the
+// global chat store; the active controller/context live here so the next
+// mounted useChatApi instance can still stop or finalize the generation.
+const sharedApiGeneration = {
+  request: null as AbortController | null,
+  context: null as { chatId: string; assistantMessageId: string } | null,
+};
+
 export function useChatApi(
   projectIdFilter: string | null,
-  thinkingEnabled = false,
-  webSearchEnabled = false,
   chatModel: ChatModelId = DEFAULT_CHAT_MODEL_ID,
+  homerReasoningEffort: HomerReasoningEffort = DEFAULT_HOMER_REASONING_EFFORT,
 ) {
   const { streamFromResponse } = useAiStream();
   const setAllChats = setAllChatsNormalized;
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const activeChatId = useActiveChatId();
-  const [isGenerating, setIsGenerating] = useState(false);
+  const isGenerating = useChatStore((state) => state.isGenerating);
+  const setIsGenerating = useCallback((value: boolean) => {
+    useChatStore.getState().setIsGenerating(value);
+  }, []);
   const [loading, setLoading] = useState(false);
-  const activeRequestRef = useRef<AbortController | null>(null);
-  const activeGenerationRef = useRef<{
-    chatId: string;
-    assistantMessageId: string;
-  } | null>(null);
   const allChatsRef = useRef<Record<string, Message[]>>({});
   const recentChatsRef = useRef<RecentChat[]>([]);
   const branchPersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -198,10 +209,10 @@ export function useChatApi(
   }, []);
 
   const stopGeneration = useCallback(() => {
-    activeRequestRef.current?.abort();
-    activeRequestRef.current = null;
+    sharedApiGeneration.request?.abort();
+    sharedApiGeneration.request = null;
 
-    const activeGen = activeGenerationRef.current;
+    const activeGen = sharedApiGeneration.context;
     if (activeGen) {
       setAllChats((prev) => {
         const currentMessages = prev[activeGen.chatId] || [];
@@ -214,7 +225,7 @@ export function useChatApi(
           ),
         };
       });
-      activeGenerationRef.current = null;
+      sharedApiGeneration.context = null;
     }
 
     setIsGenerating(false);
@@ -341,10 +352,10 @@ export function useChatApi(
       overrideAssistantId?: string,
     ) => {
       const controller = new AbortController();
-      activeRequestRef.current = controller;
+      sharedApiGeneration.request = controller;
 
       const assistantId = overrideAssistantId ?? randomUUID();
-      activeGenerationRef.current = {
+      sharedApiGeneration.context = {
         chatId,
         assistantMessageId: assistantId,
       };
@@ -388,141 +399,179 @@ export function useChatApi(
         };
       });
 
-      const response = await fetch(`/api/v1/chats/${chatId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          messages: conversation,
-          thinkingEnabled,
-          webSearchEnabled,
-          chatModel,
-          // Keep title generation off the hot response path; it runs after the
-          // answer completes so first-token rendering is not blocked.
-          generateChatTitle: false,
-        }),
-        signal: controller.signal,
-      });
-
-      if (!response.ok || !response.body) {
-        throw new Error("Generation failed.");
-      }
-
-      let completedAnswer = "";
-      const answerAccumulator = titleUserContent
-        ? createChatTitleAnswerAccumulator()
-        : null;
-
-      const applyInlineChatTitle = async (_rawTitle: string) => {
-        // Sidebar titles are generated after the first assistant response completes.
-      };
-
-      const handleStreamEvent = (event: StreamEvent) => {
-        if (event.type === "chat_title") {
-          void applyInlineChatTitle(event.title);
-          return;
-        }
-        if (event.type === "answer_delta") {
-          let visibleDelta = event.delta;
-          if (answerAccumulator) {
-            visibleDelta = appendChatTitleAnswerDelta(
-              answerAccumulator,
-              event.delta,
-            );
-            const extractedTitle = extractChatTitleFromText(
-              answerAccumulator.raw,
-            );
-            if (extractedTitle) {
-              void applyInlineChatTitle(extractedTitle);
-            }
-            completedAnswer = answerAccumulator.visible;
-          } else {
-            completedAnswer += event.delta;
-          }
-
-          if (!visibleDelta) return;
-
-          const msg = useChatStore.getState().messagesById[assistantId];
-          if (canFastAppendAnswer(msg)) {
-            useChatStore
-              .getState()
-              .appendMessageField(chatId, assistantId, "content", visibleDelta);
-          } else {
-            patchAssistantMessage(chatId, assistantId, (message) =>
-              applyAgentStreamEvent(message, {
-                ...event,
-                delta: visibleDelta,
-              }),
-            );
-          }
-          return;
-        }
-        if (event.type === "tool_output_delta") {
-          patchAssistantMessage(chatId, assistantId, (message) =>
-            patchToolOutputDelta(message, event),
-          );
-          return;
-        }
-        if (event.type === "error") {
-          throw new Error(event.message);
-        }
-        patchAssistantMessage(chatId, assistantId, (message) =>
-          applyAgentStreamEvent(message, event),
-        );
-      };
-
-      await streamFromResponse(
-        response,
-        { onEvent: handleStreamEvent },
-        controller.signal,
-      );
-
-      if (answerAccumulator && answerAccumulator.raw.trim()) {
-        const finalized = finalizeChatTitleStrippedAnswer(answerAccumulator.raw);
-        answerAccumulator.visible = finalized;
-        completedAnswer = finalized;
-        const extractedTitle = extractChatTitleFromText(answerAccumulator.raw);
-        if (extractedTitle) {
-          void applyInlineChatTitle(extractedTitle);
-        }
-        patchAssistantMessage(chatId, assistantId, (message) => ({
-          ...message,
-          content: finalized,
-        }));
-      }
-
-      if (activeRequestRef.current !== controller) return;
-
-      setAllChats((prev) => ({
-        ...prev,
-        [chatId]: (prev[chatId] ?? []).map((m) =>
-          m.id === assistantId
-            ? {
-                ...m,
-                content: (() => {
-                  const finalized = answerAccumulator
-                    ? finalizeChatTitleStrippedAnswer(answerAccumulator.raw)
-                    : finalizeChatTitleStrippedAnswer(m.content);
-                  return agentAnswerDuplicatesInterim({
-                    ...m,
-                    content: finalized,
-                  })
-                    ? m.content
-                    : finalized;
-                })(),
-                isStreaming: false,
-              }
-            : m,
-        ),
-      }));
-
-      activeGenerationRef.current = null;
-      scheduleBranchPersist(chatId);
-      if (titleUserContent && completedAnswer.trim()) {
-        void maybeGenerateChatTitle(chatId, {
-          userContent: titleUserContent,
-          assistantContent: completedAnswer,
+      try {
+        const response = await fetch(`/api/v1/chats/${chatId}/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            messages: conversation,
+            homerReasoningEffort,
+            chatModel,
+            // Keep title generation off the hot response path; it runs after the
+            // answer completes so first-token rendering is not blocked.
+            generateChatTitle: false,
+          }),
+          signal: controller.signal,
         });
+
+        if (!response.ok || !response.body) {
+          throw new Error("Generation failed.");
+        }
+
+        let completedAnswer = "";
+        const answerAccumulator = titleUserContent
+          ? createChatTitleAnswerAccumulator()
+          : null;
+
+        const applyInlineChatTitle = async (_rawTitle: string) => {
+          // Sidebar titles are generated after the first assistant response completes.
+        };
+
+        const handleStreamEvent = (event: StreamEvent) => {
+          if (event.type === "chat_title") {
+            void applyInlineChatTitle(event.title);
+            return;
+          }
+          if (event.type === "answer_delta") {
+            let visibleDelta = sanitizeAssistantStreamDelta(event.delta);
+            if (answerAccumulator) {
+              visibleDelta = appendChatTitleAnswerDelta(
+                answerAccumulator,
+                visibleDelta,
+              );
+              const extractedTitle = extractChatTitleFromText(
+                answerAccumulator.raw,
+              );
+              if (extractedTitle) {
+                void applyInlineChatTitle(extractedTitle);
+              }
+              completedAnswer = answerAccumulator.visible;
+            } else {
+              completedAnswer += visibleDelta;
+            }
+
+            if (!visibleDelta) return;
+
+            const msg = useChatStore.getState().messagesById[assistantId];
+            if (canFastAppendAnswer(msg)) {
+              useChatStore
+                .getState()
+                .appendMessageField(chatId, assistantId, "content", visibleDelta);
+            } else {
+              patchAssistantMessage(chatId, assistantId, (message) =>
+                applyAgentStreamEvent(message, {
+                  ...event,
+                  delta: visibleDelta,
+                }),
+              );
+            }
+            return;
+          }
+          if (event.type === "tool_output_delta") {
+            patchAssistantMessage(chatId, assistantId, (message) =>
+              patchToolOutputDelta(message, event),
+            );
+            return;
+          }
+          if (event.type === "error") {
+            throw new Error(event.message);
+          }
+          patchAssistantMessage(chatId, assistantId, (message) =>
+            applyAgentStreamEvent(message, event),
+          );
+        };
+
+        await streamFromResponse(
+          response,
+          { onEvent: handleStreamEvent },
+          controller.signal,
+        );
+
+        if (answerAccumulator && answerAccumulator.raw.trim()) {
+          const finalized = finalizeChatTitleStrippedAnswer(
+            answerAccumulator.raw,
+          );
+          answerAccumulator.visible = finalized;
+          completedAnswer = finalized;
+          const extractedTitle = extractChatTitleFromText(
+            answerAccumulator.raw,
+          );
+          if (extractedTitle) {
+            void applyInlineChatTitle(extractedTitle);
+          }
+          patchAssistantMessage(chatId, assistantId, (message) => ({
+            ...message,
+            content: finalized,
+          }));
+        }
+
+        if (sharedApiGeneration.request !== controller) return;
+
+        setAllChats((prev) => ({
+          ...prev,
+          [chatId]: (prev[chatId] ?? []).map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  content: (() => {
+                    const finalized = answerAccumulator
+                      ? finalizeChatTitleStrippedAnswer(answerAccumulator.raw)
+                      : finalizeChatTitleStrippedAnswer(m.content);
+                    return agentAnswerDuplicatesInterim({
+                      ...m,
+                      content: finalized,
+                    })
+                      ? m.content
+                      : finalized;
+                  })(),
+                  isStreaming: false,
+                }
+              : m,
+          ),
+        }));
+
+        scheduleBranchPersist(chatId);
+        if (titleUserContent && completedAnswer.trim()) {
+          void maybeGenerateChatTitle(chatId, {
+            userContent: titleUserContent,
+            assistantContent: completedAnswer,
+          });
+        }
+      } catch (error) {
+        // Aborts come from stopGeneration, which already finalized the
+        // assistant message and cleared generation state.
+        const isAbort =
+          error instanceof Error && error.name === "AbortError";
+        if (sharedApiGeneration.request === controller && !isAbort) {
+          setAllChats((prev) => ({
+            ...prev,
+            [chatId]: (prev[chatId] ?? []).map((m) =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    isStreaming: false,
+                    content:
+                      m.content ||
+                      (error instanceof Error
+                        ? `Generation failed: ${error.message}`
+                        : "Generation failed."),
+                  }
+                : m,
+            ),
+          }));
+        }
+        if (!isAbort) {
+          console.error("Chat generation failed:", error);
+        }
+      } finally {
+        // Only clear state if this generation is still the active one — a
+        // newer generation (rare, guarded by isGenerating) owns the state now.
+        if (sharedApiGeneration.request === controller) {
+          sharedApiGeneration.request = null;
+          sharedApiGeneration.context = null;
+          setIsGenerating(false);
+        }
       }
     },
     [
@@ -530,8 +579,7 @@ export function useChatApi(
       scheduleBranchPersist,
       streamChatTitle,
       streamFromResponse,
-      thinkingEnabled,
-      webSearchEnabled,
+      homerReasoningEffort,
       chatModel,
     ],
   );
@@ -581,16 +629,16 @@ export function useChatApi(
       }));
 
       setIsGenerating(true);
-      try {
-        await streamAssistantResponse(
-          chatId!,
-          conversation,
-          isNewChat ? prompt.trim() : undefined,
-        );
-      } finally {
-        setIsGenerating(false);
-        activeRequestRef.current = null;
-      }
+      // Fire-and-forget: the stream patches the global chat store, so the
+      // caller (e.g. the project home) can navigate to the conversation route
+      // immediately and watch the generation continue there — same handoff as
+      // the local chat path. streamAssistantResponse owns isGenerating/state
+      // cleanup via its finally.
+      void streamAssistantResponse(
+        chatId!,
+        conversation,
+        isNewChat ? prompt.trim() : undefined,
+      );
 
       return chatId;
     },
@@ -635,12 +683,18 @@ export function useChatApi(
     [],
   );
 
-  const handlePinChat = useCallback((chatId: string, pinned: boolean) => {
+  const handlePinChat = useCallback(async (chatId: string, pinned: boolean) => {
+    const prevChats = recentChatsRef.current;
     setRecentChats((prev) =>
-      prev.map((chat) =>
-        chat.id === chatId ? { ...chat, pinned } : chat,
-      ),
+      prev.map((chat) => (chat.id === chatId ? { ...chat, pinned } : chat)),
     );
+    try {
+      await chatsApi.updateChat(chatId, { starred: pinned });
+    } catch (error) {
+      console.error("Failed to persist chat pin:", error);
+      // Revert the optimistic update on failure.
+      setRecentChats(prevChats);
+    }
   }, []);
 
   const editMessageWithBranch = useCallback(
@@ -687,8 +741,6 @@ export function useChatApi(
           ...prev,
           [chatId]: attachSnapshotToBranchVersion(finalMessages, messageId),
         }));
-        setIsGenerating(false);
-        activeRequestRef.current = null;
         scheduleBranchPersist(chatId);
       }
     },
@@ -736,8 +788,6 @@ export function useChatApi(
           ...prev,
           [chatId]: attachSnapshotToBranchVersion(finalMessages, messageId),
         }));
-        setIsGenerating(false);
-        activeRequestRef.current = null;
         scheduleBranchPersist(chatId);
       }
     },
@@ -786,8 +836,6 @@ export function useChatApi(
             assistantMessageId,
           ),
         }));
-        setIsGenerating(false);
-        activeRequestRef.current = null;
         scheduleBranchPersist(chatId);
       }
     },

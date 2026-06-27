@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChatView } from "@/frontend/components/chat-view";
-import { useProjectChat } from "@/frontend/hooks/use-project-chat";
 import { useProjects } from "@/frontend/hooks/use-projects";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import * as projectsApi from "@/frontend/lib/api/projects";
@@ -12,23 +11,11 @@ import type { ApiProject } from "@/frontend/lib/api/projects";
 function ProjectConversationContent() {
   const params = useParams<{ id: string; convId: string }>();
   const projectId = params?.id ?? "";
-  const convId = params?.convId ?? "";
   const router = useRouter();
   const auth = useAuth();
   const projectsHook = useProjects(auth.isAuthenticated);
 
   const [project, setProject] = useState<ApiProject | null>(null);
-
-  const { handleSelectChat, activeChatId } = useProjectChat(projectId, {
-    thinkingEnabled: false,
-    webSearchEnabled: true,
-  });
-
-  useEffect(() => {
-    if (convId && activeChatId !== convId) {
-      void handleSelectChat(convId);
-    }
-  }, [convId, activeChatId, handleSelectChat]);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,8 +54,15 @@ function ProjectConversationContent() {
     );
   }
 
+  // Authenticated project conversations run through the server chat API
+  // (same path that created the chat from the project home) so messages
+  // persist and stream via /api/v1/chats/[chatId]/generate.
   return (
-    <ChatView projectId={projectId} projectBreadcrumb={breadcrumb} />
+    <ChatView
+      projectId={projectId}
+      apiEnabled={auth.isAuthenticated}
+      projectBreadcrumb={breadcrumb}
+    />
   );
 }
 

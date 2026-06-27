@@ -51,10 +51,10 @@ interface ChatAreaProps {
   onDeleteChat?: (chatId: string) => void;
   onOpenSettings?: () => void;
   onMoveToProject?: () => void;
-  thinkingEnabled: boolean;
-  onThinkingEnabledChange: (enabled: boolean) => void;
-  webSearchEnabled: boolean;
-  onWebSearchEnabledChange: (enabled: boolean) => void;
+  homerReasoningEffort: import("@/lib/model-effort").HomerReasoningEffort;
+  onHomerReasoningEffortChange: (
+    effort: import("@/lib/model-effort").HomerReasoningEffort,
+  ) => void;
   chatModel: import("@/lib/chat-models").ChatModelId;
   onChatModelChange: (model: import("@/lib/chat-models").ChatModelId) => void;
   onOpenMobileNav?: () => void;
@@ -86,10 +86,8 @@ export function ChatArea({
   onDeleteChat,
   onOpenSettings,
   onMoveToProject,
-  thinkingEnabled,
-  onThinkingEnabledChange,
-  webSearchEnabled,
-  onWebSearchEnabledChange,
+  homerReasoningEffort,
+  onHomerReasoningEffortChange,
   chatModel,
   onChatModelChange,
   onOpenMobileNav,
@@ -264,10 +262,8 @@ export function ChatArea({
       onPromptChange={handlePromptDraftChange}
       focusKey={activeChatId ?? "new"}
       onUpgradeClick={onUpgradeClick}
-      thinkingEnabled={thinkingEnabled}
-      onThinkingEnabledChange={onThinkingEnabledChange}
-      webSearchEnabled={webSearchEnabled}
-      onWebSearchEnabledChange={onWebSearchEnabledChange}
+      homerReasoningEffort={homerReasoningEffort}
+      onHomerReasoningEffortChange={onHomerReasoningEffortChange}
       chatModel={chatModel}
       onChatModelChange={onChatModelChange}
     />
@@ -289,8 +285,6 @@ export function ChatArea({
               isTitleStreaming={isActiveChatTitleStreaming}
               onDeleteChat={handleDeleteActiveChat}
               onOpenSettings={onOpenSettings}
-              thinkingEnabled={thinkingEnabled}
-              onThinkingEnabledChange={onThinkingEnabledChange}
               onOpenMobileNav={onOpenMobileNav}
               showMobileMenu={showMobileMenu}
               className="relative z-20 shrink-0"

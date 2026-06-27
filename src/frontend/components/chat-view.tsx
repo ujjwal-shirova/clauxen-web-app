@@ -10,9 +10,14 @@ import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,
 } from "@/lib/chat-models";
+import {
+  DEFAULT_HOMER_REASONING_EFFORT,
+  type HomerReasoningEffort,
+} from "@/lib/model-effort";
 
 interface ChatViewProps {
   projectId?: string | null;
+  apiEnabled?: boolean;
   projectBreadcrumb?: {
     label: string;
     onClick: () => void;
@@ -27,21 +32,20 @@ function getRouteChatId(pathname: string): string | null {
   );
 }
 
-export function ChatView({ projectId = null, projectBreadcrumb }: ChatViewProps) {
+export function ChatView({ projectId = null, apiEnabled = false, projectBreadcrumb }: ChatViewProps) {
   const router = useRouter();
   const pathname = usePathname();
   const overlays = useAppOverlays();
   const { isMobile, isSidebarCollapsed, openMobileNav } = useAppLayout();
 
-  const [thinkingEnabled, setThinkingEnabled] = useState(false);
-  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  const [homerReasoningEffort, setHomerReasoningEffort] =
+    useState<HomerReasoningEffort>(DEFAULT_HOMER_REASONING_EFFORT);
   const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
 
   const chat = useChat({
-    apiEnabled: false,
+    apiEnabled,
     projectId,
-    thinkingEnabled,
-    webSearchEnabled,
+    homerReasoningEffort,
     chatModel,
   });
 
@@ -78,7 +82,9 @@ export function ChatView({ projectId = null, projectBreadcrumb }: ChatViewProps)
 
   const handleSendMessageAndRoute = useCallback(
     async (prompt: string) => {
-      const chatId = await handleSendMessage(prompt);
+      const chatId = await handleSendMessage(prompt, {
+        forceNewChat: isNewChatHome,
+      });
       if (!chatId) return;
 
       if (projectId) {
@@ -95,9 +101,13 @@ export function ChatView({ projectId = null, projectBreadcrumb }: ChatViewProps)
     [handleSendMessage, isNewChatHome, projectId, router],
   );
 
-  const displayMessages = isNewChatHome ? [] : messages;
-  const displayActiveChatId = isNewChatHome ? null : activeChatId;
-  const displayActiveChat = isNewChatHome ? null : activeChat;
+  // On home, show messages once a chat has actually been created (avoids empty
+  // flash between send and route change). Once the URL switches to /c/{id},
+  // isNewChatHome is false and this falls through to the normal messages.
+  const hasStartedChat = isNewChatHome && messages.length > 0;
+  const displayMessages = isNewChatHome && !hasStartedChat ? [] : messages;
+  const displayActiveChatId = isNewChatHome && !hasStartedChat ? null : activeChatId;
+  const displayActiveChat = isNewChatHome && !hasStartedChat ? null : activeChat;
 
   return (
     <ChatArea
@@ -119,10 +129,8 @@ export function ChatView({ projectId = null, projectBreadcrumb }: ChatViewProps)
       onDeleteChat={handleDeleteChat}
       onOpenSettings={() => overlays.openSettings("General")}
       onMoveToProject={() => router.push("/projects")}
-      thinkingEnabled={thinkingEnabled}
-      onThinkingEnabledChange={setThinkingEnabled}
-      webSearchEnabled={webSearchEnabled}
-      onWebSearchEnabledChange={setWebSearchEnabled}
+      homerReasoningEffort={homerReasoningEffort}
+      onHomerReasoningEffortChange={setHomerReasoningEffort}
       chatModel={chatModel}
       onChatModelChange={setChatModel}
       onOpenMobileNav={openMobileNav}

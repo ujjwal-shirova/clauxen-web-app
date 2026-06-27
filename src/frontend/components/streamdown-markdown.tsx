@@ -4,52 +4,42 @@ import { useMemo, type ReactNode } from "react";
 import type { Components } from "react-markdown";
 import { Streamdown } from "streamdown";
 import { createMathPlugin } from "@streamdown/math";
-import SplitText from "flowtoken/dist/components/SplitText";
-import { animations } from "flowtoken/dist/utils/animations";
 import {
   markdownComponents,
   normalizeLatexDelimiters,
 } from "@/frontend/components/markdown-shared";
+import { StreamingRevealText } from "@/frontend/lib/streaming-reveal-text";
 
 const streamdownMath = createMathPlugin({
   singleDollarTextMath: true,
 });
 
-const FLOWTOKEN_ANIMATION = animations.fadeIn;
-
 type StreamdownFlowTokenMarkdownProps = {
   content: string;
   isStreaming?: boolean;
+  streamKey?: string;
 };
 
-function FlowTokenSplitText({ text }: { text: string }) {
-  return (
-    <SplitText
-      input={text}
-      sep="diff"
-      animation={FLOWTOKEN_ANIMATION}
-      animationDuration="0.32s"
-      animationTimingFunction="cubic-bezier(0.22, 1, 0.36, 1)"
-      animationIterationCount={1}
-    />
-  );
-}
-
-function streamingText(children: ReactNode, isStreaming: boolean): ReactNode {
+function streamingText(
+  children: ReactNode,
+  isStreaming: boolean,
+  streamKey: string,
+): ReactNode {
   if (!isStreaming) return children;
   if (typeof children === "string" && children.length > 0) {
-    return <FlowTokenSplitText text={children} />;
+    return <StreamingRevealText text={children} streamKey={streamKey} />;
   }
   return children;
 }
 
 /**
- * Streamdown + LaTeX with flowtoken SplitText on text nodes.
- * Used only when streaming content includes math delimiters.
+ * Streamdown + LaTeX with rate-adaptive token reveal on new text during streaming.
+ * `parseIncompleteMarkdown` keeps headings, lists, and code fences stable mid-stream.
  */
 export function StreamdownFlowTokenMarkdown({
   content,
   isStreaming = false,
+  streamKey = "stream",
 }: StreamdownFlowTokenMarkdownProps) {
   const normalized = useMemo(
     () => normalizeLatexDelimiters(content),
@@ -57,7 +47,8 @@ export function StreamdownFlowTokenMarkdown({
   );
 
   const components = useMemo(() => {
-    const fade = (children: ReactNode) => streamingText(children, isStreaming);
+    const fade = (children: ReactNode) =>
+      streamingText(children, isStreaming, streamKey);
 
     return {
       ...markdownComponents,
@@ -117,13 +108,13 @@ export function StreamdownFlowTokenMarkdown({
         return <Th>{fade(children)}</Th>;
       },
     } satisfies Components;
-  }, [isStreaming]);
+  }, [isStreaming, streamKey]);
 
   return (
     <Streamdown
       mode="streaming"
       isAnimating={isStreaming}
-      animated
+      animated={false}
       parseIncompleteMarkdown
       className="markdown-content min-w-0 max-w-full text-[14px] leading-[1.55] text-zinc-800"
       plugins={{ math: streamdownMath }}

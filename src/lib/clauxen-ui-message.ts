@@ -1,5 +1,3 @@
-import type { UIMessage } from "ai";
-
 /** Custom data parts streamed alongside reasoning, tools, and answer text. */
 export type ClauxenUIDataParts = {
   "agent-mode": { enabled: boolean };
@@ -21,7 +19,15 @@ export type ClauxenUIDataParts = {
   "step-done": { label?: string };
 };
 
-export type ClauxenUIMessage = UIMessage<unknown, ClauxenUIDataParts>;
+/**
+ * Minimal replacement for Vercel AI SDK's UIMessage type.
+ * Only used for type-level operations — no runtime dependency.
+ */
+export type ClauxenUIMessage = {
+  id: string;
+  role: "user" | "assistant" | "system";
+  parts: Array<Record<string, unknown>>;
+};
 
 /** Preliminary tool stream chunk (bash stdout/stderr). */
 export type ClauxenToolStreamOutput = {

@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { env, requireNovitaApiKey } from "@/backend/config/env";
+import { novitaFetch } from "@/backend/inference/novita-fetch";
 
 const clients = new Map<string, OpenAI>();
 
@@ -18,6 +19,8 @@ export function getOpenAIClient(baseUrl?: string) {
   const client = new OpenAI({
     apiKey,
     baseURL: normalized,
+    fetch: novitaFetch,
+    maxRetries: 0,
   });
   clients.set(normalized, client);
   return client;
@@ -26,6 +29,19 @@ export function getOpenAIClient(baseUrl?: string) {
 export const DEFAULT_MODEL = "moonshotai/kimi-k2.6";
 
 export const AVAILABLE_MODELS = [
+  {
+    id: "zai-org/glm-5.2",
+    name: "GLM-5.2",
+    provider: "ZAI Org",
+    context: 128000,
+    features: [
+      "function-calling",
+      "structured-outputs",
+      "vision",
+      "streaming",
+      "prompt-cache",
+    ],
+  },
   {
     id: "moonshotai/kimi-k2.6",
     name: "Kimi K2.6",
@@ -38,25 +54,6 @@ export const AVAILABLE_MODELS = [
       "streaming",
       "prompt-cache",
     ],
-  },
-  {
-    id: "deepseek/deepseek_v3",
-    name: "DeepSeek V3",
-    provider: "DeepSeek",
-    context: 64000,
-    features: [
-      "function-calling",
-      "structured-outputs",
-      "streaming",
-      "prompt-cache",
-    ],
-  },
-  {
-    id: "nex-agi/nex-n2-pro",
-    name: "Nex N2 Pro",
-    provider: "Nex AGI",
-    context: 128000,
-    features: ["function-calling", "streaming"],
   },
 ] as const satisfies ReadonlyArray<{
   id: string;

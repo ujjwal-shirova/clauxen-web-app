@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 function getLocalNetworkHosts(): string[] {
   const hosts = new Set<string>();
@@ -98,6 +102,7 @@ const nextConfig: NextConfig = {
     "novita-sandbox",
     "pg",
     "razorpay",
+    "undici",
     "@ory/hydra-client",
     "@ory/kratos-client",
     "@node-rs/argon2",
@@ -115,7 +120,9 @@ const nextConfig: NextConfig = {
       "@tanstack/react-virtual",
     ],
   },
-  turbopack: {},
+  turbopack: {
+    root: projectRoot,
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: r2ImagePatterns(),

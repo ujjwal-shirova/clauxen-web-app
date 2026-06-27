@@ -143,6 +143,13 @@ function frameHasToolSegments(segments: AgentSegment[]): boolean {
 
 export { frameHasWorkSegments, frameHasToolSegments };
 
+/** Agent orchestration UI — reasoning and tools in the same collapsible work frame. */
+export function shouldUseAgentMessageLayout(message: Message): boolean {
+  return resolveAgentFrames(message).some((frame) =>
+    frameHasWorkSegments(frame.segments),
+  );
+}
+
 /** True when trailing content is an *exact* copy of a captured interim progress note.
  * We only suppress promotion of final answer in that narrow case so the real final output is not lost. */
 export function agentAnswerDuplicatesInterim(message: Message): boolean {
@@ -158,12 +165,6 @@ export function agentAnswerDuplicatesInterim(message: Message): boolean {
   );
 }
 
-function looksLikeCitedAnswer(text: string): boolean {
-  return (
-    /\(\[[^\]]+\]\[\d+\]\)/.test(text) || /^\[\d+\]:\s*https?:/m.test(text)
-  );
-}
-
 /** Flat render sequence driven by stream events — no fixed step layout. */
 export function resolveOrchestrationBlocks(
   message: Message,
@@ -171,98 +172,41 @@ export function resolveOrchestrationBlocks(
   const frames = resolveAgentFrames(message);
   const streaming = message.isStreaming === true;
   const blocks: OrchestrationBlock[] = [];
-  const trailing = message.content.trim();
-  const preFrameIntro =
-    streaming &&
-    message.agentMode === true &&
-    frames.length === 0 &&
-    Boolean(trailing);
-  const hadSearchFrame = frames.some((frame) =>
-    frame.segments.some(
-      (segment) => segment.kind === "tool" && segment.name === "web_search",
-    ),
-  );
-  const postSearchLiveTransition =
-    streaming &&
-    hadSearchFrame &&
-    frames.every((frame) => frame.complete) &&
-    Boolean(trailing) &&
-    !looksLikeCitedAnswer(trailing) &&
-    !frames.some((frame) => frame.interimOutput?.trim() === trailing);
+
+  const allFramesDone =
+    frames.length === 0 ||
+    frames.every((frame) => frame.complete) ||
+    message.agentFrameComplete === true;
+
+  let lastInterimNarrative: string | undefined;
 
   for (let index = 0; index < frames.length; index += 1) {
     const frame = frames[index];
     const isActive =
       streaming && index === frames.length - 1 && !frame.complete;
 
-    if (frame.introNarrative?.trim()) {
-      blocks.push({
-        kind: "markdown",
-        blockId: `${frame.id}-intro`,
-        content: frame.introNarrative,
-        isStreaming: false,
-      });
+    if (frame.interimOutput?.trim()) {
+      lastInterimNarrative = frame.interimOutput.trim();
     }
 
     if (frameHasWorkSegments(frame.segments)) {
-      const block: Extract<OrchestrationBlock, { kind: "timeline" }> = {
+      blocks.push({
         kind: "timeline",
         frame,
         isActive,
-      };
-      // For the currently active (last, not complete) work frame, expose the latest model content
-      // as live narrative so the autonomous "delta outputs" ("let me search...", "good results...") appear
-      // inside the vertical frame while it is still open.
-      if (isActive && streaming) {
-        const current = message.content?.trim();
-        if (current) block.liveNarrative = current;
-      }
-      blocks.push(block);
-    }
-
-    if (frame.interimOutput?.trim()) {
-      blocks.push({
-        kind: "markdown",
-        blockId: `${frame.id}-interim`,
-        content: frame.interimOutput,
-        isStreaming: false,
+        liveNarrative: isActive ? lastInterimNarrative : undefined,
       });
     }
   }
 
   const trailingContent = message.content.trim();
   if (trailingContent && !agentAnswerDuplicatesInterim(message)) {
-    const activeIdx = frames.findIndex((frame) => !frame.complete);
-    const suppressForLiveWork =
-      streaming &&
-      activeIdx >= 0 &&
-      hasActiveFrameWork(frames, activeIdx);
-
-    // Once all frames are complete (or explicitly marked), never suppress the final answer.
-    const allFramesDone =
-      frames.length === 0 ||
-      frames.every((frame) => frame.complete) ||
-      message.agentFrameComplete === true;
-
-    if (preFrameIntro) {
-      blocks.push({
-        kind: "markdown",
-        blockId: `${message.id}-intro`,
-        content: message.content,
-        isStreaming: true,
-      });
-    } else if (!suppressForLiveWork || allFramesDone) {
-      const isTransition = postSearchLiveTransition;
-      blocks.push({
-        kind: "markdown",
-        blockId: isTransition
-          ? `${message.id}-interim`
-          : `${message.id}-answer`,
-        content: message.content,
-        isStreaming:
-          isTransition || (streaming && !allFramesDone && frames.length > 0),
-      });
-    }
+    blocks.push({
+      kind: "markdown",
+      blockId: `${message.id}-answer`,
+      content: message.content,
+      isStreaming: streaming && allFramesDone,
+    });
   }
 
   return blocks;

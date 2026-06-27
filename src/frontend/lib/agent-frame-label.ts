@@ -43,6 +43,56 @@ function toolStepLabel(tool: AgentToolSegment): string {
   );
 }
 
+function cleanLabelText(value: string): string {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/^["'“”‘’]+|["'“”‘’]+$/g, "")
+    .trim();
+}
+
+function sentenceCase(value: string): string {
+  const cleaned = cleanLabelText(value);
+  if (!cleaned) return cleaned;
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+function firstWebSearchTool(segments: AgentSegment[]): AgentToolSegment | undefined {
+  return segments.find(
+    (segment): segment is AgentToolSegment =>
+      segment.kind === "tool" &&
+      (segment.name === "web_search" || segment.name === "web_fetch"),
+  );
+}
+
+function frameSummaryLabel(segments: AgentSegment[]): string | undefined {
+  const search = firstWebSearchTool(segments);
+  if (search) {
+    const raw =
+      search.searchQuery ??
+      (typeof search.args?.query === "string" ? search.args.query : "");
+    const query = cleanLabelText(raw);
+    if (query) {
+      return `Deliberated search strategy for ${query}`;
+    }
+    return "Deliberated search strategy";
+  }
+
+  const thinking = segments.find(
+    (segment): segment is AgentThinkingSegment => segment.kind === "thinking",
+  );
+  if (thinking?.content.trim()) {
+    const firstLine = thinking.content
+      .split(/\r?\n/)
+      .map((line) => cleanLabelText(line))
+      .find(Boolean);
+    if (firstLine) {
+      return sentenceCase(firstLine).slice(0, 96);
+    }
+  }
+
+  return undefined;
+}
+
 function workSegments(segments: AgentSegment[]) {
   return segments.filter(
     (segment) => segment.kind === "thinking" || segment.kind === "tool",
@@ -116,7 +166,11 @@ export function resolveFrameHeaderLabel(input: {
   if (input.hasActiveWork) {
     return resolveActiveStepLabel(input.segments) ?? PLANNING_NEXT_MOVES_LABEL;
   }
-  return resolveLastStepLabel(input.segments) ?? PLANNING_NEXT_MOVES_LABEL;
+  return (
+    frameSummaryLabel(input.segments) ??
+    resolveLastStepLabel(input.segments) ??
+    PLANNING_NEXT_MOVES_LABEL
+  );
 }
 
 export function shouldShimmerFrameHeader(label: string): boolean {

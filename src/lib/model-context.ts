@@ -1,4 +1,5 @@
 import { finalizeChatTitleStrippedAnswer } from "@/lib/chat-title";
+import { stripAssistantStreamArtifacts } from "@/lib/assistant-output-sanitize";
 
 /**
  * Strip UI-only / agent artifacts from text before sending to the model.
@@ -20,7 +21,9 @@ export function stripMessageContentForModelApi(content: string): string {
     .replace(/<tool-call[\s\S]*?<\/tool-call>/gi, "")
     .replace(/\[tool:[^\]]+\]/gi, "");
 
-  return finalizeChatTitleStrippedAnswer(cleaned).trim();
+  return stripAssistantStreamArtifacts(
+    finalizeChatTitleStrippedAnswer(cleaned),
+  ).trim();
 }
 
 export type ModelConversationTurn = {

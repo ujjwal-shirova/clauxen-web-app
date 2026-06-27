@@ -1,5 +1,7 @@
 import { handleChatPost } from "@/backend/chat";
 
+/** POST /api/chat — auth + body parsing in backend/chat; streaming in ./stream.ts */
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;

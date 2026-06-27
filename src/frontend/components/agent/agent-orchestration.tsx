@@ -41,12 +41,6 @@ export function AgentOrchestrationView({
       data-message-id={message.id}
       data-assistant-content="true"
     >
-      {showOrb ? (
-        <div className="flex items-center py-1">
-          <OrbCursor />
-        </div>
-      ) : null}
-
       {blocks.map((block) => {
         if (block.kind === "timeline") {
           return (
@@ -80,6 +74,12 @@ export function AgentOrchestrationView({
           </div>
         );
       })}
+
+      {showOrb ? (
+        <div className="flex items-center py-1">
+          <OrbCursor />
+        </div>
+      ) : null}
     </div>
   );
 }

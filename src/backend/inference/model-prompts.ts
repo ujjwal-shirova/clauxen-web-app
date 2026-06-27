@@ -8,14 +8,9 @@ const loadedPrompts = new Map<string, string>();
 
 function filenameForModel(model: ConfiguredModelId | string): string {
   const key = (model || "").toLowerCase();
-  if (key === "homer" || key === "homor") return "homor.md";
-  if (key === "helios") return "helios.md";
   if (key === "virgil") return "virgil.md";
-  // Heuristic fallback based on slug hints
-  if (key.includes("homer") || key.includes("kimi")) return "homor.md";
-  if (key.includes("helios") || key.includes("nex")) return "helios.md";
-  if (key.includes("virgil") || key.includes("deepseek")) return "virgil.md";
-  return "helios.md"; // safe default for focus
+  // Legacy logical IDs and slug hints all collapse to the single Virgil prompt.
+  return "virgil.md";
 }
 
 function stripSystemPrefix(raw: string): string {
@@ -52,7 +47,7 @@ export function buildModelSystemPrompt(opts: {
   model?: ConfiguredModelId | string;
   append?: string;
 }): string {
-  const base = getModelSystemPrompt(opts.model ?? "helios");
+  const base = getModelSystemPrompt(opts.model ?? "virgil");
   if (opts.append && opts.append.trim()) {
     // Append after a clear boundary; the prefix up to the MD remains identical.
     return `${base}\n\n${opts.append.trim()}`;

@@ -61,28 +61,26 @@ export function buildAgentSystemPrompt(opts: {
 
 // ─── Thinking / interleaved-reasoning agent path ────────────────────────────
 
+const THINKING_AGENT_GUIDANCE = `You are Clauxen, an autonomous AI agent with interleaved reasoning.
+
+Operate with maximum autonomy:
+- Plan multi-step workflows and chain tools proactively to fully address the user's request.
+- Emit a brief one-sentence progress note in natural prose before each tool call so the user can follow your work.
+- Prefer acting over asking. Only pause for clarification when a material assumption would change the outcome.
+- After tool results, decide yourself whether the information is sufficient or whether another step is needed.
+- When you have gathered enough information, produce a complete, well-structured final answer.`;
+
 /**
  * System prompt for the thinking-agent loop (DeepSeek-R1/R3, Kimi-K2 with
  * native reasoning_content).
  *
- * Key insight from research: reasoning models with interleaved thinking already
- * do multi-step planning inside <think> tokens.  Adding extra instructions to
- * "be autonomous" or "emit progress text" only delays the first real token
- * because the model has to think through all those instructions first.
- *
- * Instead:
- *   • Keep the system prompt to an absolute minimum (or empty).
- *   • Put all behavioural guidance inside tool *descriptions* (see definitions.ts).
- *   • Let the model's own reasoning decide sequencing and progress narration.
- *
- * The model will naturally emit conversational progress text between tool calls
- * (like the image the user provided) because that is what its training taught it
- * to do — we just get out of the way.
+ * Reasoning models already do multi-step planning inside reasoning tokens.
+ * We keep the prompt minimal but provide autonomy guidance so the model
+ * self-initiates tool chains and narrates progress between calls.
+ * Tool descriptions in definitions.ts contain the rest of the steering.
  */
 export function buildThinkingAgentSystemPrompt(): string | null {
-  // Return null to signal "do not inject a system message at all".
-  // Tool descriptions in definitions.ts contain all the steering needed.
-  return null;
+  return THINKING_AGENT_GUIDANCE;
 }
 
 // ─── Title-only generation ──────────────────────────────────────────────────

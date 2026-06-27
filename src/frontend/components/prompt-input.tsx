@@ -20,10 +20,10 @@ import {
   ScreenshotCaptureError,
 } from "@/frontend/lib/capture-display-screenshot";
 import { PromptAddMenu, type PromptComposeAction } from "./prompt-add-menu";
-import { PromptModelSelector } from "./prompt-model-selector";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { useIsClient } from "@/frontend/hooks/use-is-client";
 import type { ChatModelId } from "@/lib/chat-models";
+import type { HomerReasoningEffort } from "@/lib/model-effort";
 
 interface PromptInputProps {
   onSendMessage: (prompt: string) => void;
@@ -37,10 +37,8 @@ interface PromptInputProps {
   /** When this value changes (e.g. new chat), the textarea is focused again. */
   focusKey?: string;
   onUpgradeClick?: () => void;
-  thinkingEnabled?: boolean;
-  onThinkingEnabledChange?: (enabled: boolean) => void;
-  webSearchEnabled?: boolean;
-  onWebSearchEnabledChange?: (enabled: boolean) => void;
+  homerReasoningEffort?: HomerReasoningEffort;
+  onHomerReasoningEffortChange?: (effort: HomerReasoningEffort) => void;
   /** Hide model selector in the toolbar (e.g. when shown in the welcome header). */
   showModelSelector?: boolean;
   chatModel?: ChatModelId;
@@ -112,14 +110,6 @@ export function PromptInput({
   isGenerating,
   onPromptChange,
   focusKey,
-  onUpgradeClick,
-  thinkingEnabled = false,
-  onThinkingEnabledChange,
-  webSearchEnabled = false,
-  onWebSearchEnabledChange,
-  showModelSelector = true,
-  chatModel = "helios",
-  onChatModelChange,
 }: PromptInputProps) {
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
@@ -883,8 +873,6 @@ export function PromptInput({
     <PromptAddMenu
       onQuickActionSelect={handleQuickActionSelect}
       onComposeActionSelect={handleComposeActionSelect}
-      onWebSearchToggle={() => onWebSearchEnabledChange?.(!webSearchEnabled)}
-      webSearchEnabled={webSearchEnabled}
       onAddFiles={openFilePicker}
       onTakeScreenshot={() => void handleTakeScreenshot()}
       showComposeActions={!isConversationStarted}
@@ -907,19 +895,7 @@ export function PromptInput({
     />
   );
 
-  const renderModelSelector = () =>
-    showModelSelector ? (
-      <PromptModelSelector
-        compact
-        selectedModel={chatModel}
-        onSelectedModelChange={(model) => onChatModelChange?.(model)}
-        onUpgradeClick={onUpgradeClick}
-        thinkingEnabled={thinkingEnabled}
-        onThinkingEnabledChange={(enabled) =>
-          onThinkingEnabledChange?.(enabled)
-        }
-      />
-    ) : null;
+  const renderModelSelector = () => null;
 
   const renderPromptToolbar = (centerSlot?: ReactNode) => (
     <div className="flex items-center gap-1 px-1.5 py-1.5 sm:gap-1.5 sm:px-2 sm:py-1.5">

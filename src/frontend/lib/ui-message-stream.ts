@@ -1,9 +1,25 @@
-import type { UIMessageChunk } from "ai";
 import type {
   ClauxenToolStreamOutput,
   ClauxenUIDataParts,
 } from "@/lib/clauxen-ui-message";
 import type { StreamEvent } from "@/frontend/lib/chat-stream";
+
+/**
+ * Minimal local replacement for the Vercel AI SDK's `UIMessageChunk` type.
+ * Only the chunk variants we actually consume are listed here.
+ */
+type UIMessageChunk =
+  | { type: "start" }
+  | { type: "reasoning-start"; id: string }
+  | { type: "reasoning-delta"; delta: string }
+  | { type: "reasoning-end"; id: string }
+  | { type: "text-delta"; delta: string }
+  | { type: "tool-input-start"; toolCallId: string; toolName: string; title?: string }
+  | { type: "tool-input-delta"; toolCallId: string; inputTextDelta: string }
+  | { type: "tool-input-available"; toolCallId: string; toolName: string; input?: unknown; title?: string }
+  | { type: "tool-output-available"; toolCallId: string; output?: unknown; preliminary?: boolean }
+  | { type: "error"; errorText: string }
+  | { type: "finish" };
 
 type ClauxenDataChunk = {
   [K in keyof ClauxenUIDataParts & string]: {
@@ -60,29 +76,17 @@ export function uiMessageChunkToStreamEvents(
     case "reasoning-start":
       state.reasoningOpen = true;
       state.reasoningSegmentId = chunk.id;
-      return [
-        {
-          type: "segment_start",
-          segmentId: chunk.id,
-          kind: "thinking",
-        },
-      ];
+      return [{ type: "thinking_start" }];
     case "reasoning-delta":
       return [
         {
           type: "thinking_delta",
           delta: chunk.delta,
-          segmentId: chunk.id,
         },
       ];
     case "reasoning-end":
       state.reasoningOpen = false;
       return [
-        {
-          type: "segment_end",
-          segmentId: chunk.id,
-          kind: "thinking",
-        },
         { type: "thinking_end", segmentId: chunk.id },
       ];
     case "text-delta":

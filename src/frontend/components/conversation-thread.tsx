@@ -19,7 +19,7 @@ import { HintTooltip } from "./ui/hint-tooltip";
 import { messageAnchorId } from "./chat-message-navigator";
 import type { Message } from "@/frontend/lib/types";
 import { agentSegmentsVisuallyEqual } from "@/frontend/lib/agent-segments";
-import { agentFramesVisuallyEqual } from "@/frontend/lib/agent-frames";
+import { agentFramesVisuallyEqual, shouldUseAgentMessageLayout } from "@/frontend/lib/agent-frames";
 import { UserMessageExpandDialog } from "./user-message-expand-dialog";
 import { cn } from "@/frontend/lib/utils";
 import { useMessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
@@ -331,9 +331,7 @@ const MessageRow = React.memo(
               "assistant-message group w-full min-w-0 max-w-full text-gray-800 leading-[1.68]",
             )}
           >
-            {message.agentMode ||
-            (message.agentFrames && message.agentFrames.length > 0) ||
-            (message.agentSegments && message.agentSegments.length > 0) ? (
+            {shouldUseAgentMessageLayout(message) ? (
               <div
                 data-message-id={message.id}
                 data-assistant-content="true"
@@ -355,12 +353,12 @@ const MessageRow = React.memo(
                     className="mb-4"
                   />
                 )}
-                {message.isStreaming && message.content.trim().length === 0 && (
+                {message.isStreaming && message.content.length === 0 && (
                   <div className="flex items-center gap-1 py-1.5">
                     <OrbCursor />
                   </div>
                 )}
-                {message.content.trim().length > 0 ? (
+                {message.content.length > 0 ? (
                   <div
                     data-message-id={message.id}
                     data-assistant-content="true"
@@ -377,9 +375,7 @@ const MessageRow = React.memo(
                 ) : null}
               </>
             )}
-            {(message.agentMode ||
-              (message.agentFrames && message.agentFrames.length > 0) ||
-              (message.agentSegments && message.agentSegments.length > 0) ||
+            {(shouldUseAgentMessageLayout(message) ||
               message.content.trim().length > 0) &&
             !message.isStreaming ? (
               <>
@@ -1192,6 +1188,14 @@ export function ConversationThread({
       resizeObserver.observe(host);
     });
 
+    // New code blocks (or assistant content) appearing mid-stream must trigger
+    // a sticky re-sync so the header docks immediately, not only on next scroll.
+    const mutationObserver = new MutationObserver(() => scheduleSync(true));
+    mutationObserver.observe(content, {
+      childList: true,
+      subtree: true,
+    });
+
     return () => {
       disposed = true;
       stickySyncRef.current = null;
@@ -1205,6 +1209,7 @@ export function ConversationThread({
       viewport.removeEventListener("clauxen-turn-metrics", onTurnMetrics);
       window.removeEventListener("resize", runSync);
       resizeObserver.disconnect();
+      mutationObserver.disconnect();
     };
   }, [getScrollElement, groups.length, conversationKey]);
 

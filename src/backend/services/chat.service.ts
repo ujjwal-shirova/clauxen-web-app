@@ -2,14 +2,13 @@ import { AppError, notFound } from "@/backend/db/errors";
 import * as chatsRepo from "@/backend/repositories/chats.repository";
 import * as messagesRepo from "@/backend/repositories/messages.repository";
 import * as branchesRepo from "@/backend/repositories/branches.repository";
-import { createChatSourceStream } from "@/backend/inference/chat-source-stream";
+import { createChatStream } from "@/app/api/chat/stream";
+import type { HomerReasoningEffort } from "@/lib/model-effort";
 import {
   encodeSseEvent,
-  resolveThinkingType,
   sanitizeMessages,
   tapChatSseStream,
   type IncomingMessage,
-  type ThinkingType,
 } from "@/backend/inference/novita";
 import { generateOpenAiTitle } from "@/backend/inference/openai-stream";
 import { env } from "@/backend/config/env";
@@ -25,8 +24,10 @@ import {
   deriveTitleFromExchange,
 } from "@/lib/chat-title";
 
-export async function listRecentChats(userId: string) {
-  const chats = await chatsRepo.listChatsForUser(userId);
+export async function listRecentChats(userId: string, projectId?: string) {
+  const chats = await chatsRepo.listChatsForUser(userId, {
+    projectId: projectId ?? undefined,
+  });
   return chats.map((chat) => ({
     id: chat.id,
     name: chat.title,
@@ -109,11 +110,10 @@ export async function streamChatGeneration(input: {
   userId: string;
   messages: IncomingMessage[];
   signal?: AbortSignal;
-  thinkingType?: ThinkingType;
-  webSearchEnabled?: boolean;
   userCountryCode?: string;
   generateChatTitle?: boolean;
   chatModel?: string;
+  homerReasoningEffort?: HomerReasoningEffort;
 }) {
   const chat = await chatsRepo.getChatForUser(input.chatId, input.userId);
   if (!chat) throw notFound("Chat not found.");
@@ -150,8 +150,6 @@ export async function streamChatGeneration(input: {
 
   const modelForTelemetry = resolveInferenceRoute({
     chatModel: parseChatModelId(input.chatModel),
-    thinkingType: input.thinkingType,
-    webSearchEnabled: input.webSearchEnabled,
   }).modelSlug;
 
   let assistant: Awaited<ReturnType<typeof messagesRepo.createMessage>> | null =
@@ -168,15 +166,14 @@ export async function streamChatGeneration(input: {
       return row;
     });
 
-  const sourceStream = await createChatSourceStream(clientConversation, {
+  const sourceStream = await createChatStream(clientConversation, {
     chatModel: input.chatModel,
-    thinkingType: input.thinkingType,
     userId: input.userId,
     conversationId: input.chatId,
-    webSearchEnabled: input.webSearchEnabled === true,
     userCountryCode: input.userCountryCode,
     generateChatTitle,
     signal: input.signal,
+    homerReasoningEffort: input.homerReasoningEffort,
   });
 
   try {
@@ -318,11 +315,11 @@ export function legacyStreamFromMessages(
   messages: IncomingMessage[],
   signal?: AbortSignal,
   options?: {
-    thinkingType?: ThinkingType;
-    webSearchEnabled?: boolean;
     userCountryCode?: string;
     generateChatTitle?: boolean;
     chatModel?: string;
+    conversationId?: string;
+    homerReasoningEffort?: HomerReasoningEffort;
   },
 ) {
   const generateChatTitle = resolveGenerateChatTitle(
@@ -330,13 +327,13 @@ export function legacyStreamFromMessages(
     options?.generateChatTitle,
   );
 
-  return createChatSourceStream(messages, {
+  return createChatStream(messages, {
     chatModel: options?.chatModel,
-    thinkingType: options?.thinkingType,
-    webSearchEnabled: options?.webSearchEnabled === true,
     userCountryCode: options?.userCountryCode,
     generateChatTitle,
+    conversationId: options?.conversationId,
     signal,
+    homerReasoningEffort: options?.homerReasoningEffort,
   });
 }
 

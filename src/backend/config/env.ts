@@ -1,4 +1,4 @@
-import { MODEL_CONFIG } from "../../lib/model-config";
+import { MODEL_CONFIG, normalizeUpstreamModelSlug } from "../../lib/model-config";
 
 function optional(name: string, fallback = ""): string {
   return process.env[name]?.trim() || fallback;
@@ -28,20 +28,29 @@ export const env = {
   novitaOpenAiBaseUrl: normalizeBaseUrl(
     optional("NOVITA_OPENAI_BASE_URL", MODEL_CONFIG.endpoints.novitaOpenAiBaseUrl),
   ),
-  /** Homer — premium Anthropic path (Kimi K2.6). */
-  homerModel: optional(MODEL_CONFIG.models.homer.envKey, MODEL_CONFIG.models.homer.defaultSlug),
-  /** Helios — OpenAI-compatible path on Novita. */
-  heliosModel: optional(MODEL_CONFIG.models.helios.envKey, MODEL_CONFIG.models.helios.defaultSlug),
-  virgilModel: optional(MODEL_CONFIG.models.virgil.envKey, MODEL_CONFIG.models.virgil.defaultSlug),
+  /** Homer — GLM-5.2 on Novita OpenAI-compatible path. */
+  homerModel: normalizeUpstreamModelSlug(
+    optional(MODEL_CONFIG.models.homer.envKey),
+    MODEL_CONFIG.models.homer.defaultSlug,
+  ),
+  /** Helios — Kimi K2.6 on Novita OpenAI-compatible path. */
+  heliosModel: normalizeUpstreamModelSlug(
+    optional(MODEL_CONFIG.models.helios.envKey),
+    MODEL_CONFIG.models.helios.defaultSlug,
+  ),
+  virgilModel: normalizeUpstreamModelSlug(
+    optional(MODEL_CONFIG.models.virgil.envKey),
+    MODEL_CONFIG.models.virgil.defaultSlug,
+  ),
   /** Interleaved-thinking agent model on Novita chat/completions. */
-  thinkingModel: optional(
-    MODEL_CONFIG.models.thinking.envKey,
+  thinkingModel: normalizeUpstreamModelSlug(
+    optional(MODEL_CONFIG.models.thinking.envKey),
     MODEL_CONFIG.models.thinking.defaultSlug,
   ),
   /** Model for OpenAI-compatible fast chat path (Helios default). */
-  openAiFastModel: optional(
-    MODEL_CONFIG.models.fast.envKey,
-    optional(MODEL_CONFIG.models.helios.envKey, MODEL_CONFIG.models.helios.defaultSlug),
+  openAiFastModel: normalizeUpstreamModelSlug(
+    optional(MODEL_CONFIG.models.fast.envKey),
+    MODEL_CONFIG.models.fast.defaultSlug,
   ),
   novitaMessagesUrl: optional(
     "SHIROVA_NOVITA_MESSAGES_URL",
@@ -51,9 +60,9 @@ export const env = {
   defaultSandboxTimeoutMs: Number(
     optional("NOVITA_SANDBOX_TIMEOUT_MS", "300000"),
   ),
-  defaultModel: optional(
-    "SHIROVA_DEFAULT_MODEL",
-    optional(MODEL_CONFIG.models.homer.envKey, MODEL_CONFIG.models.homer.defaultSlug),
+  defaultModel: normalizeUpstreamModelSlug(
+    optional("SHIROVA_DEFAULT_MODEL"),
+    MODEL_CONFIG.models.helios.defaultSlug,
   ),
   exaApiKey: optional("EXA_API_KEY"),
   /** Kimi thinking: enabled | disabled -> Anthropic extended thinking. */

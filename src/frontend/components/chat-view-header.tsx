@@ -33,8 +33,6 @@ interface ChatViewHeaderProps {
   onDeleteChat?: () => void;
   onOpenSettings?: () => void;
   onMoveToProject?: () => void;
-  thinkingEnabled?: boolean;
-  onThinkingEnabledChange?: (enabled: boolean) => void;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
   className?: string;

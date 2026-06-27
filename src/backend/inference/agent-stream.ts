@@ -77,7 +77,7 @@ function resolveAgentTools(request: AgentChatRequest) {
 }
 
 function buildSystemPrompt(request: AgentChatRequest) {
-  // Use the entire model-specific .md system prompt (homor.md / helios.md / virgil.md)
+  // Use the single Virgil .md system prompt as the stable prefix.
   // as the stable prefix. This gives the model the full described behavior, tools,
   // SNMT tags guidance, policies, search_first rules, formatting, etc.
   // Novita prompt cache (auto for prefixes >= ~1024 tokens) keeps latency low on hits:
@@ -85,7 +85,7 @@ function buildSystemPrompt(request: AgentChatRequest) {
   const logicalModel =
     (request as any).chatModel ||
     (typeof request.model === "string" ? request.model : undefined) ||
-    "helios";
+    "virgil";
 
   const titleInstr = request.generateChatTitle
     ? "When the conversation has a clear topic, output a short title (3-6 words) for the sidebar."
