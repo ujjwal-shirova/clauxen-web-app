@@ -18,7 +18,7 @@ Set `NOVITA_AI_KEY` on Vercel for all three paths.
 
 | Variable | Description |
 |---|---|
-| `COCKROACH_DATABASE_URL` | CockroachDB connection string (`clauxen_main`) |
+| `DATABASE_URL` | Supabase Postgres direct connection string (Session mode / port 5432) |
 | `JWT_SECRET` | Strong random secret for project auth JWT |
 | `NOVITA_AI_KEY` | Inference API key |
 | `NEXT_PUBLIC_APP_URL` | `https://your-domain.vercel.app` or custom domain |
@@ -72,7 +72,7 @@ vercel env add R2_S3_ENDPOINT production
 | `clauxen-skills` | Uploaded skill packages (`.zip`, `.skill`, `.md`) |
 | `clauxen-chat-archives` | Structured chat JSON exports |
 
-Metadata for all objects is stored in CockroachDB (`project_files`, `user_files`, `artifacts`, `user_skills`, `storage.objects`).
+Metadata for all objects is stored in Supabase Postgres (`project_files`, `user_files`, `artifacts`, `user_skills`, `storage.objects`).
 
 ## Upload limits on Vercel
 
@@ -80,10 +80,13 @@ Serverless function request bodies are limited (~4.5 MB on Hobby). Skill and doc
 
 ## Database schema
 
-After setting `COCKROACH_DATABASE_URL`:
+After setting `DATABASE_URL` (Supabase direct connection):
 
 ```bash
-npm run crdb:apply-app
+npx prisma migrate dev
+npx prisma generate
+# or, for the Supabase-managed schema:
+npx supabase db push
 ```
 
 ## Deploy
@@ -108,7 +111,7 @@ vercel --prod
 | File | Purpose |
 |---|---|
 | `vercel.json` | Install/build commands, security headers, streaming route `maxDuration` |
-| `.vercelignore` | Excludes `.tools/`, Cockroach migration tooling, vendored Python agents |
+| `.vercelignore` | Excludes `.tools/`, vendored Python agents |
 | `.npmrc` | `engine-strict=true`, audit level |
 | `next.config.ts` | `optimizePackageImports`, R2 image domains, security headers |
 

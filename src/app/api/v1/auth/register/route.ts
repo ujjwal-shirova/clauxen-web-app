@@ -1,7 +1,7 @@
 import { withApiHandler } from "@/backend/http/api-handler"; // session parse + centralized error wrapper
 import { jsonData } from "@/backend/http/api-response"; // { data } success JSON shape
 import { AppError } from "@/backend/db/errors";
-import { env, isHydraConfigured } from "@/backend/config/env"; // authDevBypass + Hydra URLs
+import { env } from "@/backend/config/env";
 import {
   findUserByEmail,
   logSecurityEvent,
@@ -24,19 +24,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const POST = withApiHandler(async ({ request }) => {
-  if (!env.authDevBypass && !isHydraConfigured()) {
+  if (!env.authDevBypass) {
     throw new AppError(
-      "Authentication is not configured.",
+      "Registration is disabled.",
       503,
       "auth_unavailable",
-    );
-  }
-
-  if (!env.authDevBypass && isHydraConfigured()) {
-    throw new AppError(
-      "Registration is disabled. Use GET /api/v1/auth/login for Ory OIDC.",
-      400,
-      "use_oidc",
     );
   }
 

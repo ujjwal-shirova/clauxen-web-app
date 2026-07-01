@@ -26,7 +26,7 @@ function signingKey(): string {
   const key =
     env.razorpayKeySecret ||
     env.razorpayWebhookSecret ||
-    env.cockroachDatabaseUrl;
+    env.jwtSecret;
   if (!key) {
     throw new AppError(
       "Checkout session signing is not configured.",

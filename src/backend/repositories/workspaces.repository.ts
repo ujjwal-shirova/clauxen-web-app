@@ -1,4 +1,4 @@
-import { query, queryOne } from "@/backend/db/pool"; // CockroachDB pool — SQL injection safe $1 placeholders
+import { query, queryOne } from "@/backend/db/pool"; // Postgres pool — SQL injection safe $1 placeholders
 
 export type WorkspaceRow = {
   id: string;

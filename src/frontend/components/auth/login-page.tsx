@@ -3,10 +3,6 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/frontend/hooks/use-auth";
-import {
-  isOryAuthEnabled,
-  startOryLogin,
-} from "@/frontend/lib/api/auth";
 import { ApiError } from "@/frontend/lib/api/client";
 import { cn } from "@/frontend/lib/utils";
 import { PlansCarouselSection } from "@/frontend/components/subscription";
@@ -88,7 +84,6 @@ export function LoginPage() {
   const redirectTo = getSafeRedirectTo(searchParams.get("redirectTo"));
   const heroRef = useRef<HTMLDivElement>(null);
   const { login, isAuthenticated, loading } = useAuth();
-  const oryEnabled = isOryAuthEnabled();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -107,10 +102,6 @@ export function LoginPage() {
   }, []);
 
   const handleGoogleSignIn = () => {
-    if (oryEnabled) {
-      startOryLogin();
-      return;
-    }
     setError("Google sign-in is not configured.");
   };
 
@@ -120,11 +111,6 @@ export function LoginPage() {
     setSubmitting(true);
 
     try {
-      if (oryEnabled && !showPassword) {
-        startOryLogin();
-        return;
-      }
-
       await login(email, showPassword ? password : "");
       router.replace(redirectTo);
     } catch (err) {

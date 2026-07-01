@@ -5,9 +5,9 @@ import { AppError, mapPgError } from "@/backend/db/errors";
 let pool: Pool | null = null;
 
 export function getPool(): Pool {
-  if (!env.cockroachDatabaseUrl) {
+  if (!env.databaseUrl) {
     throw new AppError(
-      "COCKROACH_DATABASE_URL is not configured.",
+      "DATABASE_URL is not configured.",
       503,
       "database_unavailable",
     );
@@ -18,7 +18,7 @@ export function getPool(): Pool {
       connectionString: requireDatabaseUrl(),
       max: 10,
       idleTimeoutMillis: 30_000,
-      ssl: env.cockroachDatabaseUrl.includes("sslmode=disable")
+      ssl: env.databaseUrl.includes("sslmode=disable")
         ? false
         : { rejectUnauthorized: false },
     });

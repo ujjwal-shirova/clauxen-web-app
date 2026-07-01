@@ -1,22 +1,23 @@
-# Clauxen backend (CockroachDB + Ory)
+# Clauxen backend (Supabase Postgres)
 
 ## Prerequisites
 
-1. CockroachDB Cloud cluster with `clauxen_main` schema (`npm run crdb:schema-fast` or `npm run crdb:apply-native`).
+1. Supabase project with the `supabase/migrations` schema applied (`npx supabase db push` or `npx prisma migrate dev`).
 2. Root `.env.local` — single local env file (see `docs/vercel-deployment.md` for keys).
-3. Optional: Ory stack for production-grade auth.
+3. Auth runs on Supabase GoTrue + the dev cookie session (`AUTH_DEV_BYPASS=true`).
 
 ## Local development order
 
 ```bash
-# 1. Schema (if needed)
-npm run crdb:schema-fast
+# 1. Start local Postgres (pgvector) + Redis
+docker compose up -d
 
-# 2. Seed billing plans
-npm run crdb:seed-plans
+# 2. Apply schema
+npx prisma migrate dev
+npx prisma generate
 
-# 3. Ory (optional — dev auth works without it)
-docker compose -f infra/ory/docker-compose.yml up -d
+# 3. Seed billing plans (via Supabase migration catalog)
+#    plans are seeded by supabase/migrations/*_personal_plans_catalog.sql
 
 # 4. App
 npm run dev
@@ -26,17 +27,16 @@ npm run dev
 
 | Variable                 | Purpose                                             |
 | ------------------------ | --------------------------------------------------- |
-| `COCKROACH_DATABASE_URL` | Product database (`clauxen_main`)                   |
+| `DATABASE_URL`           | Supabase Postgres direct connection (`public` schema) |
 | `AUTH_DEV_BYPASS`        | `true` enables email login via `/api/v1/auth/login` |
 | `AUTH_REQUIRED_FOR_CHAT` | Require session for chat APIs                       |
 | `NOVITA_API_KEY`         | Inference provider                                  |
 | `SHIROVA_THINKING_MODEL` | Interleaved-thinking agent model (default `deepseek/deepseek-v4-pro`) |
 | `RAZORPAY_*`             | Billing checkout + webhooks                         |
-| `ORY_KRATOS_PUBLIC_URL`  | Kratos whoami (when using Ory)                      |
 
 ## API surface
 
-- `GET /api/v1/auth/session` — current user (also re-syncs profile/workspace rows in CRDB)
+- `GET /api/v1/auth/session` — current user (also re-syncs profile/workspace rows)
 - `POST /api/v1/auth/login` | `register` | `logout` — writes `user_security_events` on success
 - `POST /api/v1/chats/:id/messages` — persist user message before generation
 - `GET/POST /api/v1/api-keys` — API keys (`clx_…`); use `Authorization: Bearer clx_…` on any v1 route
@@ -51,7 +51,7 @@ Legacy routes `/api/chat` and `/api/chat/title` remain for unauthenticated/local
 
 ## Architecture
 
-- **CockroachDB** — chats, messages, billing, projects, profiles
-- **Ory Kratos + Hydra** — identity/OIDC (Postgres in Docker for Ory persistence)
-- **Dev auth** — session cookie `clauxen_session` + `auth.users` shim sync
+- **Supabase Postgres** — chats, messages, billing, projects, profiles, RAG (pgvector)
+- **Supabase GoTrue** — identity / auth (email + OAuth); mirrored into `public.profiles`
+- **Dev auth** — session cookie `clauxen_session` for local email/password login
 - **Thinking / autonomous agent** — `POST /api/v1/chats/:id/generate` with `thinkingType: enabled` routes to `deepseek/deepseek-v4-pro` (override via `SHIROVA_THINKING_MODEL`) on Novita `/v1/chat/completions`, preserving `reasoning_content` + `tool_calls` between tool rounds

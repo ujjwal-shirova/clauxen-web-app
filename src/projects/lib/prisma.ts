@@ -1,4 +1,4 @@
-// Prisma is deprecated for runtime — the app uses CockroachDB via src/backend/db/pool.
+// Prisma is deprecated for runtime — the app uses Supabase Postgres via src/backend/db/pool.
 // This module remains for `prisma generate` compatibility during migration cleanup.
 
 import { PrismaClient } from "@prisma/client";

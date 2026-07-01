@@ -20,7 +20,7 @@ export const env = {
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:9002"),
   authRequiredForChat: optional("AUTH_REQUIRED_FOR_CHAT", "false") === "true",
   authDevBypass: optional("AUTH_DEV_BYPASS", "true") === "true",
-  cockroachDatabaseUrl: optional("COCKROACH_DATABASE_URL"),
+  databaseUrl: optional("DATABASE_URL"),
   novitaApiKey: optional("NOVITA_AI_KEY") || optional("NOVITA_API_KEY"),
   novitaAnthropicBaseUrl: normalizeBaseUrl(
     optional("NOVITA_ANTHROPIC_BASE_URL", MODEL_CONFIG.endpoints.novitaAnthropicBaseUrl),
@@ -76,14 +76,6 @@ export const env = {
   publicRazorpayKeyId: optional("NEXT_PUBLIC_RAZORPAY_KEY_ID"),
   applePayDomainAssociation: optional("APPLE_PAY_DOMAIN_ASSOCIATION"),
   checkoutUsdInrRate: optional("CHECKOUT_USD_INR_RATE"),
-  oryKratosPublicUrl: optional("ORY_KRATOS_PUBLIC_URL"),
-  oryKratosAdminUrl: optional("ORY_KRATOS_ADMIN_URL"),
-  oryHydraPublicUrl: optional("ORY_HYDRA_PUBLIC_URL"),
-  oryHydraAdminUrl: optional("ORY_HYDRA_ADMIN_URL"),
-  oryHydraClientId: optional("ORY_HYDRA_CLIENT_ID", "clauxen-web"),
-  oryHydraClientSecret: optional("ORY_HYDRA_CLIENT_SECRET"),
-  oryHydraRedirectUri: optional("ORY_HYDRA_REDIRECT_URI"),
-  oryKratosWebhookSecret: optional("ORY_KRATOS_WEBHOOK_SECRET"),
   sessionCookieName: "clauxen_session",
   jwtSecret: optional("JWT_SECRET", "dev-jwt-secret-change-me"),
 
@@ -127,7 +119,7 @@ export const env = {
 };
 
 export function requireDatabaseUrl(): string {
-  return required("COCKROACH_DATABASE_URL");
+  return required("DATABASE_URL");
 }
 
 export function requireNovitaApiKey(): string {
@@ -139,18 +131,7 @@ export function requireNovitaApiKey(): string {
 }
 
 export function isDatabaseConfigured(): boolean {
-  return Boolean(env.cockroachDatabaseUrl);
-}
-
-export function isOryConfigured(): boolean {
-  return (
-    optional("NEXT_PUBLIC_ORY_AUTH_ENABLED", "false") === "true" &&
-    Boolean(env.oryKratosPublicUrl)
-  );
-}
-
-export function isHydraConfigured(): boolean {
-  return Boolean(env.oryHydraPublicUrl && env.oryHydraClientId);
+  return Boolean(env.databaseUrl);
 }
 
 export function isR2Configured(): boolean {

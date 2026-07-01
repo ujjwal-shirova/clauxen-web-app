@@ -63,15 +63,3 @@ export async function register(input: {
 export async function logout() {
   return apiFetch<{ ok: boolean }>("/api/v1/auth/logout", { method: "POST" });
 }
-
-export function isOryAuthEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_ORY_AUTH_ENABLED === "true";
-}
-
-const ORY_LOGIN_PATH = "/api/v1/auth/login";
-
-export function startOryLogin(): void {
-  if (typeof window === "undefined") return;
-  // Fixed same-origin path only — no user-controlled redirect target (open-redirect safe)
-  window.location.assign(ORY_LOGIN_PATH);
-}

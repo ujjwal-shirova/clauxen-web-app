@@ -103,8 +103,6 @@ const nextConfig: NextConfig = {
     "pg",
     "razorpay",
     "undici",
-    "@ory/hydra-client",
-    "@ory/kratos-client",
     "@node-rs/argon2",
     "bcrypt",
   ],

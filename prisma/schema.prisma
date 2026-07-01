@@ -3,12 +3,12 @@ generator client {
   previewFeatures = ["postgresqlExtensions", "multiSchema"]
 }
 
-// Unified schema — runtime uses src/backend/db/pool (CockroachDB).
-// Apply DDL: npm run crdb:apply-app
+// Unified schema — runtime uses src/backend/db/pool (Supabase Postgres).
+// Apply DDL: npx prisma migrate dev && npx prisma generate
 
 datasource db {
   provider = "postgresql"
-  url      = env("COCKROACH_DATABASE_URL")
+  url      = env("DATABASE_URL")
   schemas  = ["auth", "public"]
 }
 

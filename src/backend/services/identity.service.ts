@@ -1,11 +1,6 @@
 import { randomUUID } from "crypto";
-import { query, queryOne } from "@/backend/db/pool"; // parameterized SQL — CockroachDB pool
+import { query, queryOne } from "@/backend/db/pool"; // parameterized SQL — Postgres pool
 import { AppError } from "@/backend/db/errors"; // invalid identity / missing email errors
-import {
-  displayNameFromTraits,
-  type KratosIdentity,
-} from "@/backend/ory/kratos-client"; // Kratos traits → display name helper
-import type { HydraUserInfo } from "@/backend/ory/hydra-client"; // OIDC userinfo claims type
 
 export async function ensureUserRecord(input: {
   userId: string;
@@ -130,51 +125,6 @@ export async function registerDevUser(input: {
   }
 
   return { userId, email };
-}
-
-export async function syncFromKratosIdentity(identity: KratosIdentity) {
-  const email = identity.traits?.email?.toLowerCase().trim();
-  if (!email) {
-    throw new AppError(
-      "Kratos identity is missing email.",
-      400,
-      "invalid_identity",
-    );
-  }
-
-  return ensureUserRecord({
-    userId: identity.id,
-    email,
-    displayName: displayNameFromTraits(identity.traits),
-  });
-}
-
-export async function syncFromHydraUserInfo(userInfo: HydraUserInfo) {
-  const userId = userInfo.sub;
-  // OIDC sub — primary user id; missing subject invalid
-  if (!userId) {
-    throw new AppError("OIDC subject is missing.", 400, "invalid_subject");
-  }
-
-  const email = userInfo.email?.toLowerCase().trim();
-  if (!email) {
-    throw new AppError(
-      "OIDC userinfo is missing email.",
-      400,
-      "invalid_userinfo",
-    );
-  }
-
-  // display name priority — full name, given+family, else email local-part
-  const displayName =
-    userInfo.name?.trim() ||
-    [userInfo.given_name, userInfo.family_name]
-      .filter(Boolean)
-      .join(" ")
-      .trim() ||
-    email.split("@")[0];
-
-  return ensureUserRecord({ userId, email, displayName });
 }
 
 export async function logSecurityEvent(

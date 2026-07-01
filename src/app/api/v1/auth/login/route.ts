@@ -1,22 +1,16 @@
-import { NextResponse } from "next/server"; // GET redirect response
-import { withApiHandler } from "@/backend/http/api-handler"; // POST handler wrapper
-import { jsonData } from "@/backend/http/api-response"; // POST success JSON
+import { NextResponse } from "next/server";
+import { withApiHandler } from "@/backend/http/api-handler";
+import { jsonData } from "@/backend/http/api-response";
 import { AppError } from "@/backend/db/errors";
-import { env, isHydraConfigured } from "@/backend/config/env"; // authDevBypass + Hydra URLs
+import { env } from "@/backend/config/env";
 import {
   findUserByEmail,
   logSecurityEvent,
   registerDevUser,
   verifyDevPassword,
-} from "@/backend/services/identity.service"; // dev identity + audit log
-import { clientIp, clientUserAgent } from "@/backend/http/request-meta"; // security event metadata
+} from "@/backend/services/identity.service";
+import { clientIp, clientUserAgent } from "@/backend/http/request-meta";
 import { sessionCookieHeader } from "@/backend/auth/session";
-import {
-  buildAuthorizeUrl,
-  createOAuthState,
-  createPkcePair,
-} from "@/backend/ory/hydra-client"; // OIDC authorize URL + PKCE
-import { oauthStateCookieHeader } from "@/backend/ory/oauth-cookies"; // state + verifier cookies
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,85 +43,63 @@ function assertLoginRateLimit(ip: string) {
 }
 
 export async function GET() {
-  if (!isHydraConfigured()) {
-    if (env.authDevBypass) {
-      return NextResponse.json({
-        data: {
-          mode: "dev",
-          message: "Use POST /api/v1/auth/login for dev cookie auth.",
-        },
-      });
-    }
-    return NextResponse.json(
-      {
-        error: {
-          message: "OIDC login is not configured.",
-          code: "auth_unavailable",
-        },
+  if (env.authDevBypass) {
+    return NextResponse.json({
+      data: {
+        mode: "dev",
+        message: "Use POST /api/v1/auth/login for dev cookie auth.",
       },
-      { status: 503 },
-    );
+    });
   }
-
-  const state = createOAuthState(); // random CSRF state string
-  const pkce = createPkcePair(); // S256 challenge + verifier pair
-  const authorizeUrl = buildAuthorizeUrl({
-    state,
-    codeChallenge: pkce.challenge,
-  }); // Hydra /oauth2/auth URL
-
-  const response = NextResponse.redirect(authorizeUrl);
-  for (const cookie of oauthStateCookieHeader(state, pkce.verifier)) {
-    response.headers.append("Set-Cookie", cookie);
-  }
-  return response;
+  return NextResponse.json(
+    {
+      error: {
+        message: "Login is not configured.",
+        code: "auth_unavailable",
+      },
+    },
+    { status: 503 },
+  );
 }
 
 export const POST = withApiHandler(async ({ request }) => {
-  if (!env.authDevBypass && !isHydraConfigured()) {
+  if (!env.authDevBypass) {
     throw new AppError(
-      "Authentication is not configured.",
+      "Dev password auth is disabled.",
       503,
       "auth_unavailable",
-    ); // dev bypass off + no Hydra
-  }
-
-  if (!env.authDevBypass && isHydraConfigured()) {
-    throw new AppError(
-      "Password login is disabled. Use GET /api/v1/auth/login for Ory OIDC.",
-      400,
-      "use_oidc",
     );
   }
 
-  const body = (await request.json()) as { email?: string; password?: string }; // dev login credentials
-  const email = body.email?.trim(); // whitespace trim
+  const body = (await request.json()) as { email?: string; password?: string };
+  const email = body.email?.trim();
   const password = body.password ?? "";
   const ip = clientIp(request);
+  assertLoginRateLimit(ip ?? "unknown");
 
   if (!email) {
-    throw new AppError("Email is required.", 400); // email mandatory
+    throw new AppError("Email is required.", 400);
   }
 
-  let user = await findUserByEmail(email); // existing dev user lookup
+  let user = await findUserByEmail(email);
   let isNewUser = false;
   if (!user) {
-    const created = await registerDevUser({ email, password }); // auto-register dev user
+    const created = await registerDevUser({ email, password });
     user = {
       id: created.userId,
       email: created.email,
       display_name: email.split("@")[0],
-    }; // local shape normalize
+    };
     isNewUser = true;
   } else {
-    const ok = await verifyDevPassword(user.id, password); // bcrypt verify existing user
+    const ok = await verifyDevPassword(user.id, password);
     if (!ok) {
       await logSecurityEvent(user.id, "login_failed", {
         ip,
         userAgent: clientUserAgent(request),
         metadata: { method: "dev_password", reason: "invalid_credentials" },
       });
-      throw new AppError("Invalid credentials.", 401, "invalid_credentials"); // wrong password
+      throw new AppError("Invalid credentials.", 401, "invalid_credentials");
     }
   }
 
@@ -135,9 +107,9 @@ export const POST = withApiHandler(async ({ request }) => {
     user.id,
     isNewUser ? "register_success" : "login_success",
     {
-      ip, // audit — client IP
-      userAgent: clientUserAgent(request), // audit — browser UA
-      metadata: { method: "dev_password" }, // dev flow identifier
+      ip,
+      userAgent: clientUserAgent(request),
+      metadata: { method: "dev_password" },
     },
   );
 
@@ -149,6 +121,6 @@ export const POST = withApiHandler(async ({ request }) => {
     },
   });
 
-  response.headers.set("Set-Cookie", sessionCookieHeader(user.id)); // HttpOnly session cookie set
+  response.headers.set("Set-Cookie", sessionCookieHeader(user.id));
   return response;
 });

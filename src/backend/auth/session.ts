@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { env, isOryConfigured } from "@/backend/config/env";
+import { env } from "@/backend/config/env";
 import { queryOne } from "@/backend/db/pool";
 import { resolveUserIdFromApiKey } from "@/backend/repositories/api-keys.repository";
 
@@ -9,46 +9,6 @@ export type SessionUser = {
   displayName: string | null;
   avatarUrl: string | null;
 };
-
-async function getKratosSession(
-  request: NextRequest,
-): Promise<SessionUser | null> {
-  const cookieHeader = request.headers.get("cookie");
-  if (!cookieHeader || !env.oryKratosPublicUrl) return null;
-
-  try {
-    const response = await fetch(`${env.oryKratosPublicUrl}/sessions/whoami`, {
-      headers: { cookie: cookieHeader },
-      cache: "no-store",
-    });
-
-    if (!response.ok) return null;
-
-  const body = (await response.json()) as {
-    identity?: {
-      id?: string;
-      traits?: { email?: string; name?: { first?: string; last?: string } };
-    };
-  };
-
-  const id = body.identity?.id;
-  if (!id) return null;
-
-  const email = body.identity?.traits?.email ?? null;
-  const first = body.identity?.traits?.name?.first ?? "";
-  const last = body.identity?.traits?.name?.last ?? "";
-  const displayName = `${first} ${last}`.trim() || email;
-
-  return {
-    id,
-    email,
-    displayName,
-    avatarUrl: null,
-  };
-  } catch {
-    return null;
-  }
-}
 
 async function profileForUserId(userId: string): Promise<SessionUser | null> {
   const profile = await queryOne<{
@@ -99,11 +59,6 @@ export async function getSessionFromRequest(
 ): Promise<SessionUser | null> {
   const apiKeySession = await getBearerApiKeySession(request);
   if (apiKeySession) return apiKeySession;
-
-  if (isOryConfigured()) {
-    const orySession = await getKratosSession(request);
-    if (orySession) return orySession;
-  }
 
   return getCookieSession(request);
 }

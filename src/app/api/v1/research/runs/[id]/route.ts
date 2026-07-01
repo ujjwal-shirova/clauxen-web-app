@@ -14,7 +14,7 @@ import { AppError, notFound } from "@/backend/db/errors"; // 400 malformed id; 4
 const RESEARCH_RUN_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const runtime = "nodejs"; // Cockroach/Postgres query — Node runtime
+export const runtime = "nodejs"; // Postgres query — Node runtime
 export const dynamic = "force-dynamic"; // run status/result live update — cache off
 
 export const GET = withApiRouteParams<{ id: string }>(

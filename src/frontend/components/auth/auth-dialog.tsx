@@ -12,7 +12,6 @@ import { Button } from "@/frontend/components/ui/button";
 import { cn } from "@/frontend/lib/utils";
 import { appBtn } from "@/frontend/lib/app-buttons";
 import { useAuth } from "@/frontend/hooks/use-auth";
-import { isOryAuthEnabled, startOryLogin } from "@/frontend/lib/api/auth";
 import { ApiError } from "@/frontend/lib/api/client"; // typed API errors — generic fallback for non-ApiError/5xx paths
 
 function authErrorMessage(err: unknown): string {
@@ -36,7 +35,6 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const oryEnabled = isOryAuthEnabled();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,17 +103,6 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             className="h-10 rounded-lg border border-zinc-200 px-3 text-sm"
           />
           {error && <p className="text-sm text-red-600">{error}</p>}
-          {oryEnabled && mode === "login" && (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={submitting}
-              onClick={() => startOryLogin()} // external OAuth redirect — credential form bypass
-              className="border-zinc-300 text-zinc-700"
-            >
-              Sign in with Ory
-            </Button>
-          )}
           <Button
             type="submit"
             disabled={submitting}
