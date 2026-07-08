@@ -1,8 +1,35 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import React from "react";
-import { LoaderCircle, Check, Copy, ExternalLink, ArrowUp, Plus, Calendar, MapPin, Star, Sparkles, CloudSun, Compass, ShieldAlert, Award, Image as ImageIcon } from "lucide-react";
+import {
+  LoaderCircle,
+  Check,
+  Copy,
+  ExternalLink,
+  ArrowUp,
+  Plus,
+  Calendar,
+  MapPin,
+  Star,
+  Sparkles,
+  Sun,
+  Moon,
+  Cloud,
+  CloudSun,
+  CloudMoon,
+  CloudFog,
+  CloudDrizzle,
+  CloudRain,
+  CloudSnow,
+  CloudLightning,
+  Droplets,
+  Wind,
+  Compass,
+  ShieldAlert,
+  Award,
+  Image as ImageIcon,
+} from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
   domainFromUrl,
@@ -362,23 +389,78 @@ export function SportsDataBlock({ tool }: { tool: AgentToolSegment }) {
   );
 }
 
+type ImageSearchResult = {
+  url: string;
+  thumbnail: string;
+  alt: string;
+  landingUrl: string;
+  creator?: string;
+  license?: string;
+};
+
 export function ImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
-  const result = tool.result ? JSON.parse(tool.result) : null;
   const isRunning = tool.status === "running";
+  const query = typeof tool.args?.query === "string" ? tool.args.query : "";
+
+  const parsed = useMemo(() => {
+    if (!tool.result) return null;
+    try {
+      return JSON.parse(tool.result) as {
+        images?: ImageSearchResult[];
+        error?: string;
+      };
+    } catch {
+      return null;
+    }
+  }, [tool.result]);
+
+  const images = parsed?.images ?? [];
 
   return (
-    <AgentTimelineStep icon="tool" isActive={isRunning} title={`Image Search: ${tool.args?.query}`}>
+    <AgentTimelineStep
+      icon="tool"
+      isActive={isRunning}
+      title={
+        <span className={cn(isRunning && "shimmer-text")}>
+          {query ? `Image search: ${query}` : "Image search"}
+        </span>
+      }
+    >
       {isRunning ? (
-        <div className="text-[13px] text-zinc-500">Searching for images...</div>
-      ) : result?.images ? (
-        <div className="grid grid-cols-3 gap-2 max-w-md">
-          {result.images.map((img: any, i: number) => (
-            <div key={i} className="aspect-square rounded-lg overflow-hidden border border-zinc-200 bg-zinc-50">
-              <img src={img.url} alt={img.alt} className="w-full h-full object-cover" />
-            </div>
+        <div className="flex items-center gap-2 text-[12px] text-zinc-500">
+          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+          Searching…
+        </div>
+      ) : parsed?.error ? (
+        <div className="text-[13px] text-red-600">{parsed.error}</div>
+      ) : images.length === 0 ? (
+        <div className="text-[13px] text-zinc-500">No images found.</div>
+      ) : (
+        <div className="grid max-w-md grid-cols-3 gap-2">
+          {images.map((img, i) => (
+            <a
+              key={`${img.url}-${i}`}
+              href={img.landingUrl || img.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50"
+              title={img.creator ? `By ${img.creator}${img.license ? ` (${img.license})` : ""}` : img.alt}
+            >
+              <img
+                src={img.thumbnail || img.url}
+                alt={img.alt}
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
+              {img.creator ? (
+                <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1.5 py-0.5 text-[9px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  {img.creator}
+                </span>
+              ) : null}
+            </a>
           ))}
         </div>
-      ) : null}
+      )}
     </AgentTimelineStep>
   );
 }
@@ -492,6 +574,278 @@ export function MapDisplayBlock({ tool }: { tool: AgentToolSegment }) {
           ))}
         </div>
       </div>
+    </AgentTimelineStep>
+  );
+}
+
+type WeatherIconKind = typeof Sun;
+
+/** WMO weather interpretation codes -> icon. Mirrors the label mapping the
+ * backend computes in open-meteo.ts (kept separate; icon choice is a
+ * frontend-only concern, no need to share the module across the boundary). */
+function weatherIconFor(code: number, isDay = true): WeatherIconKind {
+  if (code === 0) return isDay ? Sun : Moon;
+  if (code === 1 || code === 2) return isDay ? CloudSun : CloudMoon;
+  if (code === 3) return Cloud;
+  if (code === 45 || code === 48) return CloudFog;
+  if ([51, 53, 55, 56, 57].includes(code)) return CloudDrizzle;
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return CloudRain;
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return CloudSnow;
+  if ([95, 96, 99].includes(code)) return CloudLightning;
+  return Cloud;
+}
+
+function formatHourLabel(iso: string): string {
+  const hour = parseInt(iso.split("T")[1]?.slice(0, 2) ?? "0", 10);
+  const period = hour >= 12 ? "PM" : "AM";
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+  return `${display} ${period}`;
+}
+
+function formatDayLabel(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString(undefined, {
+    weekday: "short",
+  });
+}
+
+type WeatherForecastData = {
+  place: { name: string; admin1?: string; country?: string };
+  units: "metric" | "imperial";
+  current: {
+    temperature: number;
+    feelsLike: number;
+    humidity: number;
+    isDay: boolean;
+    weatherCode: number;
+    condition: string;
+    windSpeed: number;
+  };
+  hourly: Array<{
+    time: string;
+    temperature: number;
+    precipitationProbability: number;
+    weatherCode: number;
+  }>;
+  daily: Array<{
+    date: string;
+    weatherCode: number;
+    condition: string;
+    tempMax: number;
+    tempMin: number;
+    precipitationProbability: number;
+  }>;
+};
+
+export function WeatherBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const locationName =
+    typeof tool.args?.location_name === "string" ? tool.args.location_name : "";
+
+  const parsed = useMemo(() => {
+    if (!tool.result) return null;
+    try {
+      const data = JSON.parse(tool.result) as
+        | WeatherForecastData
+        | { error: string };
+      return data;
+    } catch {
+      return null;
+    }
+  }, [tool.result]);
+
+  if (isRunning || !parsed) {
+    return (
+      <AgentTimelineStep
+        icon="tool"
+        isActive={isRunning}
+        title={
+          <span className={cn(isRunning && "shimmer-text")}>
+            {isRunning
+              ? `Checking the weather${locationName ? ` in ${locationName}` : ""}`
+              : "Weather"}
+          </span>
+        }
+      >
+        {isRunning ? (
+          <div className="flex items-center gap-2 text-[12px] text-zinc-500">
+            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+            Fetching forecast…
+          </div>
+        ) : null}
+      </AgentTimelineStep>
+    );
+  }
+
+  if ("error" in parsed) {
+    return (
+      <AgentTimelineStep icon="tool" title="Weather">
+        <div className="text-[13px] text-red-600">{parsed.error}</div>
+      </AgentTimelineStep>
+    );
+  }
+
+  const { place, current, hourly, daily, units } = parsed;
+  const tempUnit = units === "imperial" ? "°F" : "°C";
+  const windUnit = units === "imperial" ? "mph" : "km/h";
+  const placeLabel = [place.name, place.admin1, place.country]
+    .filter(Boolean)
+    .join(", ");
+  const CurrentIcon = weatherIconFor(current.weatherCode, current.isDay);
+
+  return (
+    <AgentTimelineStep icon="tool" title={placeLabel || locationName || "Weather"}>
+      <div className="w-full max-w-md overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between bg-gradient-to-br from-sky-50 to-white p-4">
+          <div className="flex items-center gap-3">
+            <CurrentIcon className="h-10 w-10 shrink-0 text-sky-600" strokeWidth={1.5} />
+            <div>
+              <div className="text-[32px] font-semibold leading-none text-zinc-900">
+                {Math.round(current.temperature)}
+                {tempUnit}
+              </div>
+              <div className="text-[13px] text-zinc-500">
+                {current.condition} · Feels like {Math.round(current.feelsLike)}
+                {tempUnit}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1 text-[12px] text-zinc-500">
+            <span className="flex items-center gap-1">
+              <Droplets className="h-3.5 w-3.5" /> {Math.round(current.humidity)}%
+            </span>
+            <span className="flex items-center gap-1">
+              <Wind className="h-3.5 w-3.5" /> {Math.round(current.windSpeed)} {windUnit}
+            </span>
+          </div>
+        </div>
+
+        {hourly.length > 0 ? (
+          <div className="flex gap-4 overflow-x-auto border-t border-zinc-100 px-4 py-3">
+            {hourly.slice(0, 12).map((hour) => {
+              const HourIcon = weatherIconFor(hour.weatherCode);
+              return (
+                <div
+                  key={hour.time}
+                  className="flex shrink-0 flex-col items-center gap-1 text-[11px] text-zinc-500"
+                >
+                  <span>{formatHourLabel(hour.time)}</span>
+                  <HourIcon className="h-4 w-4 text-zinc-600" strokeWidth={1.5} />
+                  <span className="font-semibold text-zinc-800">
+                    {Math.round(hour.temperature)}°
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        <div className="divide-y divide-zinc-100 border-t border-zinc-100">
+          {daily.map((day) => {
+            const DayIcon = weatherIconFor(day.weatherCode);
+            return (
+              <div
+                key={day.date}
+                className="flex items-center justify-between gap-2 px-4 py-2 text-[13px]"
+              >
+                <span className="w-10 shrink-0 text-zinc-600">
+                  {formatDayLabel(day.date)}
+                </span>
+                <DayIcon className="h-4 w-4 shrink-0 text-zinc-500" strokeWidth={1.5} />
+                <span className="flex-1 text-right text-[12px] text-zinc-400">
+                  {Math.round(day.precipitationProbability)}%
+                </span>
+                <span className="w-8 shrink-0 text-right font-medium text-zinc-800">
+                  {Math.round(day.tempMax)}°
+                </span>
+                <span className="w-8 shrink-0 text-right text-zinc-400">
+                  {Math.round(day.tempMin)}°
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </AgentTimelineStep>
+  );
+}
+
+type PlaceSearchResult = {
+  name: string;
+  displayName: string;
+  latitude: number;
+  longitude: number;
+  category?: string;
+  type?: string;
+  address?: { road?: string; city?: string; state?: string; country?: string };
+};
+
+function osmLink(lat: number, lon: number): string {
+  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`;
+}
+
+export function PlacesSearchBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const query =
+    typeof tool.args?.query === "string" ? tool.args.query : "";
+
+  const parsed = useMemo(() => {
+    if (!tool.result) return null;
+    try {
+      return JSON.parse(tool.result) as {
+        results?: PlaceSearchResult[];
+        error?: string;
+      };
+    } catch {
+      return null;
+    }
+  }, [tool.result]);
+
+  const results = parsed?.results ?? [];
+
+  return (
+    <AgentTimelineStep
+      icon="search"
+      isActive={isRunning}
+      title={
+        <span className={cn(isRunning && "shimmer-text")}>
+          {query ? `Searching places: ${query}` : "Searching places"}
+        </span>
+      }
+      trailing={!isRunning && results.length > 0 ? `${results.length} results` : undefined}
+    >
+      {isRunning ? (
+        <div className="flex items-center gap-2 text-[12px] text-zinc-500">
+          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+          Searching…
+        </div>
+      ) : parsed?.error ? (
+        <div className="text-[13px] text-red-600">{parsed.error}</div>
+      ) : results.length === 0 ? (
+        <div className="text-[13px] text-zinc-500">No places found.</div>
+      ) : (
+        <div className="flex max-w-md flex-col gap-2">
+          {results.map((place, index) => (
+            <a
+              key={`${place.latitude}-${place.longitude}-${index}`}
+              href={osmLink(place.latitude, place.longitude)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-2.5 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-colors hover:bg-zinc-50"
+            >
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13px] font-semibold text-zinc-800">
+                  {place.name}
+                </div>
+                <div className="truncate text-[12px] text-zinc-500">
+                  {place.displayName}
+                </div>
+              </div>
+              <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-300" />
+            </a>
+          ))}
+        </div>
+      )}
     </AgentTimelineStep>
   );
 }
@@ -639,6 +993,12 @@ export function AgentToolBlock({ tool }: { tool: AgentToolSegment }) {
   }
   if (tool.name === "ask_user_input_v0") {
     return <AskUserInputBlock tool={tool} />;
+  }
+  if (tool.name === "weather_fetch") {
+    return <WeatherBlock tool={tool} />;
+  }
+  if (tool.name === "places_search") {
+    return <PlacesSearchBlock tool={tool} />;
   }
   if (tool.name === "fetch_sports_data") {
     return <SportsDataBlock tool={tool} />;

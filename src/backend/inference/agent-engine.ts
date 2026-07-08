@@ -65,6 +65,18 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
     command: z.string(),
     description: z.string(),
   }),
+  weather_fetch: z.object({
+    location_name: z.string(),
+    units: z.enum(["metric", "imperial"]).optional(),
+  }),
+  places_search: z.object({
+    query: z.string(),
+    max_results: z.number().optional(),
+  }),
+  image_search: z.object({
+    query: z.string(),
+    max_results: z.number().optional(),
+  }),
   file_read: z.object({
     path: z.string(),
   }),

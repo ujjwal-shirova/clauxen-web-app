@@ -71,6 +71,82 @@ export const autonomousAgentTools: FunctionTool[] = [
   },
   {
     type: "function",
+    name: "places_search",
+    description: [
+      "Search for places (businesses, landmarks, addresses) by name or description, from OpenStreetMap's free Nominatim search — no Google Maps, no paid key.",
+      "USE for: finding a specific place's location, 'places near X', restaurant/landmark/address lookups.",
+      "Returns name, resolved address, and coordinates for each match — no ratings/reviews/photos (that's a Google-specific feature this free source doesn't have); rely on web_search instead if the user wants reviews or opinions about a place.",
+    ].join(" "),
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "What to search for, e.g. 'coffee shops in Brooklyn' or 'Eiffel Tower'.",
+        },
+        max_results: {
+          type: "integer",
+          description: "Max results to return (default 5, max 10).",
+        },
+      },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
+    name: "image_search",
+    description: [
+      "Search openly-licensed (Creative Commons / public domain) images by keyword, from Openverse — no Google, no paid key.",
+      "USE when a visual would meaningfully help the answer (e.g. showing what something looks like) and the deliverable isn't purely textual.",
+      "SKIP for pure text/code/technical-support tasks, or when you already have relevant images from another tool.",
+      "Results are illustrative CC-licensed photos, not authoritative/branded/product photography — do not present them as official images of a specific person, product, or brand.",
+    ].join(" "),
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query." },
+        max_results: {
+          type: "integer",
+          description: "Number of images to return (default 3, max 6).",
+        },
+      },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
+    name: "weather_fetch",
+    description: [
+      "Get live current conditions plus an hourly and 7-day forecast for any location worldwide, from Open-Meteo — a free, keyless public weather API that aggregates official national weather models (NOAA GFS, ECMWF, DWD ICON, etc). No Google Maps, no paid key.",
+      "USE for: weather in a specific place, 'should I bring an umbrella/jacket', outdoor-activity planning, 'what's it like in [city]' weather context.",
+      "SKIP for: historical/climate questions, or weather mentioned with no location given.",
+      "Give a location name and the tool geocodes it — ground your answer in the real numbers it returns rather than guessing.",
+    ].join(" "),
+    parameters: {
+      type: "object",
+      properties: {
+        location_name: {
+          type: "string",
+          description: "Place name, e.g. 'San Francisco, CA' or 'Tokyo, Japan'.",
+        },
+        units: {
+          type: "string",
+          enum: ["metric", "imperial"],
+          description:
+            "Temperature/wind units. Use 'imperial' (°F, mph) for US locations or users, 'metric' (°C, km/h) otherwise, unless the user asks for a specific unit.",
+        },
+      },
+      required: ["location_name", "units"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
     name: "bash_tool",
     description: [
       "Run a shell command in an isolated Linux sandbox (Ubuntu). USE for file/directory operations, installing packages, running builds or scripts, git, and anything a terminal command does more naturally than Python.",

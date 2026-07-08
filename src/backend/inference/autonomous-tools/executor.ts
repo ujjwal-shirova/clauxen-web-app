@@ -7,6 +7,13 @@ import {
 import { searchWebWithExa } from "@/backend/search/exa";
 import { fetchUrlContentsWithExa } from "@/backend/search/exa";
 import { assertSafeBashCommand } from "@/backend/inference/bash-safety";
+import {
+  fetchWeatherForecast,
+  geocodeLocation,
+  type WeatherUnits,
+} from "@/backend/weather/open-meteo";
+import { searchPlaces } from "@/backend/search/nominatim";
+import { searchImages } from "@/backend/search/openverse";
 import { listAvailableSkills, readSkill } from "@/backend/inference/autonomous-tools/skill-catalog";
 import {
   readScopedFile,
@@ -136,6 +143,38 @@ export async function executeAutonomousTool(
         snippet: stripped.slice(0, 8000),
       },
     };
+  }
+
+  if (name === "image_search") {
+    const query = String(args.query ?? "").trim();
+    if (!query) throw new Error("query is required");
+    const maxResults = Number(args.max_results ?? 3);
+    const images = await searchImages(query, maxResults);
+    return { output: { query, images } };
+  }
+
+  if (name === "places_search") {
+    const query = String(args.query ?? "").trim();
+    if (!query) throw new Error("query is required");
+    const maxResults = Number(args.max_results ?? 5);
+    const results = await searchPlaces(query, maxResults);
+    return { output: { query, results } };
+  }
+
+  if (name === "weather_fetch") {
+    const locationName = String(args.location_name ?? "").trim();
+    if (!locationName) throw new Error("location_name is required");
+    const units: WeatherUnits = args.units === "imperial" ? "imperial" : "metric";
+
+    const place = await geocodeLocation(locationName);
+    if (!place) {
+      return {
+        output: { error: `Could not find a location matching "${locationName}".` },
+      };
+    }
+
+    const forecast = await fetchWeatherForecast(place, units);
+    return { output: forecast };
   }
 
   if (name === "bash_tool") {
