@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { MarkdownRenderer } from "./markdown-renderer";
 
 interface ThinkingBlockProps {
@@ -21,23 +21,15 @@ export function ThinkingBlock({
   isStreaming = false,
   thinkingDurationSeconds,
 }: ThinkingBlockProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isVisible, setIsVisible] = useState(isStreaming);
   const scrollRef = useRef<HTMLDivElement>(null);
   const previousIsStreamingRef = useRef(isStreaming);
-
-  const lineCount = useMemo(() => {
-    return content
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean).length;
-  }, [content]);
 
   useEffect(() => {
     if (!isVisible) return;
     if (!scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [content, isExpanded, isVisible]);
+  }, [content, isVisible]);
 
   useEffect(() => {
     const wasStreaming = previousIsStreamingRef.current;
@@ -99,10 +91,7 @@ export function ThinkingBlock({
               <div className="grid gap-3 rounded-[12px] border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-[14px] font-[430] leading-[1.4] text-zinc-700">
                 <div
                   ref={scrollRef}
-                  className={cn(
-                    "app-scrollbar overflow-y-auto pr-1 text-[14px] leading-[1.55] text-zinc-700",
-                    isExpanded ? "max-h-[20.5rem]" : "max-h-[10.85rem]",
-                  )}
+                  className="app-scrollbar max-h-[20.5rem] overflow-y-auto pr-1 text-[14px] leading-[1.55] text-zinc-700"
                 >
                   <div className="thinking-markdown">
                     <MarkdownRenderer
@@ -113,15 +102,6 @@ export function ThinkingBlock({
                     />
                   </div>
                 </div>
-                {lineCount > 4 && (
-                  <button
-                    type="button"
-                    onClick={() => setIsExpanded((value) => !value)}
-                    className="w-fit text-[12px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
-                  >
-                    {isExpanded ? "Show less" : "Show more"}
-                  </button>
-                )}
               </div>
             </div>
           )}

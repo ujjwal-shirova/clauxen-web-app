@@ -1,11 +1,13 @@
 "use client";
 
 import React from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import type { Message } from "@/frontend/lib/types";
 import { cn } from "@/frontend/lib/utils";
 
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
 const HOVER_HIDE_DELAY_MS = 180;
+const MAX_NAV_ITEMS = 14;
 
 export function messageAnchorId(messageId: string) {
   return `${MESSAGE_ANCHOR_PREFIX}${messageId}`;
@@ -15,6 +17,29 @@ function truncatePreview(text: string, max = 56) {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (normalized.length <= max) return normalized;
   return `${normalized.slice(0, max - 1)}…`;
+}
+
+function visibleMessageWindow<T>(
+  items: T[],
+  activeIndex: number,
+  maxItems = MAX_NAV_ITEMS,
+) {
+  if (items.length <= maxItems) {
+    return { start: 0, items };
+  }
+
+  const safeActiveIndex =
+    activeIndex >= 0 ? activeIndex : Math.min(items.length - 1, 0);
+  const radius = Math.floor(maxItems / 2);
+  const start = Math.min(
+    Math.max(0, safeActiveIndex - radius),
+    Math.max(0, items.length - maxItems),
+  );
+
+  return {
+    start,
+    items: items.slice(start, start + maxItems),
+  };
 }
 
 type ChatMessageNavigatorProps = {
@@ -152,6 +177,39 @@ function ChatMessageNavigatorInner({
 
   const showPreviewPanel = isRailHovered || hoveredId !== null;
   const previewActiveId = hoveredId ?? activeId;
+  const activeIndex = React.useMemo(() => {
+    const id = activeId;
+    if (!id) return 0;
+    const index = userMessages.findIndex((message) => message.id === id);
+    return index >= 0 ? index : 0;
+  }, [activeId, userMessages]);
+  const visibleWindow = React.useMemo(
+    () => visibleMessageWindow(userMessages, activeIndex),
+    [activeIndex, userMessages],
+  );
+  const visibleMessages = visibleWindow.items;
+  const canPageBackward = visibleWindow.start > 0;
+  const canPageForward =
+    visibleWindow.start + visibleMessages.length < userMessages.length;
+  const canStepBackward = activeIndex > 0;
+  const canStepForward = activeIndex < userMessages.length - 1;
+  const activePosition = Math.min(
+    userMessages.length,
+    Math.max(1, activeIndex + 1),
+  );
+
+  const stepNavigator = React.useCallback(
+    (direction: 1 | -1) => {
+      if (userMessages.length === 0) return;
+      const nextIndex = Math.min(
+        userMessages.length - 1,
+        Math.max(0, activeIndex + direction),
+      );
+      const next = userMessages[nextIndex];
+      if (next) scrollToMessage(next.id);
+    },
+    [activeIndex, scrollToMessage, userMessages],
+  );
 
   return (
     <div
@@ -164,14 +222,43 @@ function ChatMessageNavigatorInner({
         className="relative flex items-center"
         onMouseEnter={openRail}
         onMouseLeave={scheduleCloseRail}
+        onWheel={(event) => {
+          if (userMessages.length <= 1) return;
+          event.preventDefault();
+          stepNavigator(event.deltaY > 0 ? 1 : -1);
+        }}
       >
         {showPreviewPanel ? (
           <div
-            className="absolute right-full top-1/2 z-30 max-h-[376px] min-w-[240px] max-w-[320px] -translate-y-1/2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white py-1.5 pr-1 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)]"
+            data-message-navigator-popup
+            className="absolute right-full top-1/2 z-30 min-w-[240px] max-w-[320px] -translate-y-1/2 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white py-1.5 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)]"
             onMouseEnter={openRail}
+            onWheel={(event) => {
+              event.stopPropagation();
+            }}
           >
-            <ul className="app-scrollbar flex max-h-[376px] flex-col overflow-y-auto overscroll-contain">
-              {userMessages.map((message) => {
+            <div className="flex items-center justify-between px-3 py-1 text-[11px] text-zinc-400">
+              <span>
+                {activePosition} / {userMessages.length}
+              </span>
+              <span>Use arrows or wheel</span>
+            </div>
+            <button
+              type="button"
+              aria-label="Previous message"
+              disabled={!canStepBackward}
+              onClick={() => stepNavigator(-1)}
+              className={cn(
+                "mx-1.5 mb-1 flex h-7 w-[calc(100%-12px)] items-center justify-center rounded-lg text-zinc-400 transition-colors",
+                canStepBackward
+                  ? "hover:bg-zinc-100 hover:text-zinc-700"
+                  : "cursor-default opacity-35",
+              )}
+            >
+              <ChevronUp className="h-4 w-4" strokeWidth={2} />
+            </button>
+            <ul className="app-scrollbar flex max-h-[276px] flex-col overflow-y-auto overscroll-contain">
+              {visibleMessages.map((message) => {
                 const preview = truncatePreview(message.content);
                 const isActive = previewActiveId === message.id;
 
@@ -194,11 +281,25 @@ function ChatMessageNavigatorInner({
                 );
               })}
             </ul>
+            <button
+              type="button"
+              aria-label="Next message"
+              disabled={!canStepForward}
+              onClick={() => stepNavigator(1)}
+              className={cn(
+                "mx-1.5 mt-1 flex h-7 w-[calc(100%-12px)] items-center justify-center rounded-lg text-zinc-400 transition-colors",
+                canStepForward
+                  ? "hover:bg-zinc-100 hover:text-zinc-700"
+                  : "cursor-default opacity-35",
+              )}
+            >
+              <ChevronDown className="h-4 w-4" strokeWidth={2} />
+            </button>
           </div>
         ) : null}
 
-        <div className="app-scrollbar flex max-h-[376px] w-full flex-col items-center gap-2 overflow-y-auto px-1 py-1 pl-2">
-          {userMessages.map((message) => {
+        <div className="flex max-h-[320px] w-full flex-col items-center justify-center gap-1.5 overflow-hidden px-1 py-1 pl-2">
+          {visibleMessages.map((message) => {
             const isActive = activeId === message.id;
             const preview = truncatePreview(message.content);
 

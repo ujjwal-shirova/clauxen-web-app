@@ -1,7 +1,7 @@
 import type { IncomingMessage } from "@/backend/inference/novita";
 import { completeChat, type ChatMessage } from "@/backend/inference/novita-client";
 import { createChatStream } from "@/app/api/chat/stream";
-import { buildTitleGenerationSystemPrompt } from "@/backend/inference/agent-system-prompt";
+import { buildTitleGenerationSystemPrompt } from "@/backend/inference/system-prompt";
 import { modelCatalogEnvFromProcess } from "@/lib/model-catalog";
 import type { ReadableStream } from "stream/web";
 

@@ -124,7 +124,7 @@ export const StyledTableContainer = ({
 }: {
   children: React.ReactNode;
 }) => (
-  <div className="my-4 w-full min-w-0 max-w-full overflow-hidden rounded-[13px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-4">
+  <div className="composer-message-table my-4 w-full min-w-0 max-w-full overflow-hidden rounded-[13px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-4">
     <div className="markdown-table-scroll overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
       <table className="w-full min-w-[min(100%,460px)] border-collapse text-left font-sans text-[13px] text-zinc-800 sm:min-w-[500px]">
         {children}
@@ -137,7 +137,11 @@ export const StyledTableHeader = ({
   children,
 }: {
   children: React.ReactNode;
-}) => <thead className="bg-zinc-100/80">{children}</thead>;
+}) => (
+  <thead className="ui-table-header table-header-sticky sticky top-0 z-10 bg-zinc-100/80">
+    {children}
+  </thead>
+);
 
 export const StyledTableHeadCell = ({
   children,
@@ -205,14 +209,14 @@ export const CodeBlockFrame = ({
 
   return (
     <div className="composer-message-codeblock relative my-2 w-full min-w-0 max-w-full rounded-[13px] border border-zinc-200/85 bg-zinc-50 shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-3">
-      <div className="ui-code-block code-block-header-sticky flex items-center justify-between rounded-t-[12px] border-b border-zinc-200/80 bg-white px-3 py-1.5">
-        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.055em] text-zinc-500">
+      <div className="ui-code-block code-block-header-sticky sticky top-0 z-10 flex min-h-[38px] items-center justify-between rounded-t-[12px] border-b border-zinc-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm sm:px-4">
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
           {safeLanguage}
         </span>
         <button
           type="button"
           onClick={onCopy}
-          className="ui-code-block-copy flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+          className="ui-code-block-copy -mr-0.5 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200"
         >
           {isCopied ? (
             <Check size={12} className="text-emerald-600" />

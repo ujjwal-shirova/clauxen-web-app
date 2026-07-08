@@ -35,8 +35,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
 } from "@/frontend/components/ui/dropdown-menu";
-import { OrbCursor } from "./ui/orb-cursor";
-import { SidebarBasicsChecklist } from "./sidebar-basics-checklist";
+import { TypingDots } from "./ui/typing-dots";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
@@ -160,7 +159,6 @@ export function Sidebar({
 }: SidebarProps) {
   const isCustomizeActive = activeView === "customize";
   const [chatGroupBy, setChatGroupBy] = useState<ChatGroupBy>("none");
-  const [showBasicsChecklist, setShowBasicsChecklist] = useState(false);
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
 
@@ -171,13 +169,8 @@ export function Sidebar({
       if (stored === "none" || stored === "date" || stored === "project") {
         setChatGroupBy(stored);
       }
-      const basicsRaw = localStorage.getItem("clauxen_sidebar_basics_v1");
-      const basicsState = basicsRaw
-        ? (JSON.parse(basicsRaw) as { dismissed?: boolean })
-        : { dismissed: false };
-      setShowBasicsChecklist(!basicsState.dismissed);
     } catch {
-      setShowBasicsChecklist(true);
+      /* ignore */
     }
   }, []);
 
@@ -239,7 +232,7 @@ export function Sidebar({
     >
       <div className="flex h-full min-w-0 flex-1 items-center text-left">
         <span className="truncate">{chat.name || "New Chat"}</span>
-        {chat.isTitleStreaming && <OrbCursor />}
+        {chat.isTitleStreaming && <TypingDots className="ml-1.5" />}
       </div>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
@@ -300,7 +293,7 @@ export function Sidebar({
           "w-[min(84vw,210px)] lg:w-[210px]",
       )}
     >
-      <div className="ui-sidebar-top-bar relative flex h-10 shrink-0 items-center justify-between px-1.5">
+      <div className="ui-sidebar-top-bar relative flex h-10 shrink-0 items-center justify-between pl-1.5 pr-0.5">
         <div
           className={cn(
             "flex items-center pl-1.5 transition-opacity duration-300",
@@ -344,7 +337,7 @@ export function Sidebar({
       <div className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div
           className={cn(
-            "sticky top-0 z-10 bg-[var(--app-shell-bg)] px-1.5 pb-1.5 pt-1",
+            "sticky top-0 z-10 bg-[var(--app-shell-bg)] pl-1.5 pr-0.5 pb-1.5 pt-1",
             isCollapsed && "px-0",
           )}
         >
@@ -394,7 +387,7 @@ export function Sidebar({
           </Button>
         </div>
 
-        <div className="space-y-0.5 px-1.5">
+        <div className="space-y-0.5 pl-1.5 pr-0.5">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -522,31 +515,9 @@ export function Sidebar({
             "mt-auto shrink-0 flex flex-col bg-[var(--app-shell-bg)]",
             isCollapsed
               ? "items-center gap-2 px-0 pb-2 pt-1"
-              : "items-stretch gap-1 p-1.5",
+              : "items-stretch gap-1 py-1.5 pl-1.5 pr-0.5",
           )}
         >
-          {!isCollapsed && showBasicsChecklist ? (
-            <SidebarBasicsChecklist
-              onDismiss={() => setShowBasicsChecklist(false)}
-              steps={[
-                {
-                  id: "import-history",
-                  title: "Bring history from another AI",
-                  onSelect: () => runNavAction(onSettingsClick),
-                },
-                {
-                  id: "connect-tools",
-                  title: "Connect your everyday tools",
-                  onSelect: () => runNavAction(onCustomizeClick),
-                },
-                {
-                  id: "desktop-app",
-                  title: "Get the desktop app",
-                  onSelect: () => runNavAction(onAppsExtensionsClick),
-                },
-              ]}
-            />
-          ) : null}
           <div
             className={cn(
               "flex items-center",

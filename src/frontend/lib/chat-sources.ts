@@ -32,7 +32,7 @@ export function stripReferenceDefinitions(input: string): string {
   let end = lines.length;
   while (end > 0) {
     const trimmed = lines[end - 1].trim();
-    if (/^\[\d+\]:\s*https?:\/\//.test(trimmed) || trimmed === "") {
+    if (/^\[\d+\]:\s*https?:\/\/\S+/i.test(trimmed) || trimmed === "") {
       end -= 1;
     } else {
       break;

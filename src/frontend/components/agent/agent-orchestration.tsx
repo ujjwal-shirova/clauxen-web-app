@@ -3,8 +3,8 @@
 import type { Message } from "@/frontend/lib/types";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import { resolveOrchestrationBlocks } from "@/frontend/lib/agent-frames";
-import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
-import { OrbCursor } from "@/frontend/components/ui/orb-cursor";
+import { AssistantContentRenderer } from "@/frontend/components/assistant-content-renderer";
+import { TypingDots } from "@/frontend/components/ui/typing-dots";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { AgentWorkFrame } from "./agent-work-frame";
 
@@ -30,7 +30,7 @@ export function AgentOrchestrationView({
   if (blocks.length === 0) {
     return showOrb ? (
       <div className="flex items-center py-1">
-        <OrbCursor />
+        <TypingDots />
       </div>
     ) : null;
   }
@@ -49,7 +49,6 @@ export function AgentOrchestrationView({
               segments={block.frame.segments}
               isStreaming={block.isActive}
               frameComplete={block.frame.complete}
-              liveNarrative={block.liveNarrative}
             />
           );
         }
@@ -58,17 +57,20 @@ export function AgentOrchestrationView({
           <div
             key={block.blockId}
             className={
-              block.blockId.endsWith("-interim") ||
-              block.blockId.endsWith("-intro")
+              block.blockId.endsWith("-interim")
                 ? "text-[15px] font-semibold leading-relaxed text-zinc-900"
-                : undefined
+                : block.blockId.endsWith("-intro")
+                  ? "text-[15px] leading-relaxed text-zinc-700"
+                  : undefined
             }
           >
-            <MarkdownRenderer
+            <AssistantContentRenderer
               content={block.content}
+              messageId={message.id}
               isStreaming={block.isStreaming}
               streamKey={block.blockId}
               detailLevel={detailLevel}
+              agentArtifacts={message.agentArtifacts}
               {...({ sources } as any)}
             />
           </div>
@@ -77,7 +79,7 @@ export function AgentOrchestrationView({
 
       {showOrb ? (
         <div className="flex items-center py-1">
-          <OrbCursor />
+          <TypingDots />
         </div>
       ) : null}
     </div>

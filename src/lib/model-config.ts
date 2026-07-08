@@ -38,15 +38,15 @@ export const MODEL_CONFIG = {
       envKey: "SHIROVA_HELIOS_MODEL",
     },
 
-    /** Virgil — single autonomous model (Kimi K2.6) */
+    /** Virgil — single autonomous model (Tencent Hy3) */
     virgil: {
-      defaultSlug: "moonshotai/kimi-k2.6",
+      defaultSlug: "tencent/hy3",
       envKey: "SHIROVA_VIRGIL_MODEL",
     },
 
-    /** Interleaved-thinking agent model (Kimi K2.6) */
+    /** Interleaved-thinking agent model (Tencent Hy3) */
     thinking: {
-      defaultSlug: "moonshotai/kimi-k2.6",
+      defaultSlug: "tencent/hy3",
       envKey: "SHIROVA_THINKING_MODEL",
     },
 
@@ -78,7 +78,7 @@ export const MODEL_CONFIG = {
     virgil: {
       label: "Virgil",
       shortLabel: "Virgil",
-      description: "Autonomous chat and tool orchestration",
+      description: "Autonomous chat and tool orchestration (Hy3)",
       available: true,
       requiresUpgrade: false,
     },

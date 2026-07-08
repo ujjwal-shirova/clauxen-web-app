@@ -178,6 +178,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       isMobile,
       isSidebarCollapsed,
       openMobileNav: () => setIsSidebarCollapsed(false),
+      setSidebarCollapsed: setIsSidebarCollapsed,
     }),
     [isMobile, isSidebarCollapsed, setIsSidebarCollapsed],
   );

@@ -23,7 +23,7 @@ import type {
   AgentMessage,
 } from "@/backend/inference/novita-agent";
 import { buildStructuredOutputTool } from "@/backend/inference/openai-agent-adapter";
-import { buildModelSystemPrompt } from "@/backend/inference/model-prompts";
+import { buildModelSystemPrompt } from "@/backend/inference/system-prompt";
 
 export type AgentStreamEvent =
   | { event: "text_delta"; data: { text: string } }
@@ -77,11 +77,7 @@ function resolveAgentTools(request: AgentChatRequest) {
 }
 
 function buildSystemPrompt(request: AgentChatRequest) {
-  // Use the single Virgil .md system prompt as the stable prefix.
-  // as the stable prefix. This gives the model the full described behavior, tools,
-  // SNMT tags guidance, policies, search_first rules, formatting, etc.
-  // Novita prompt cache (auto for prefixes >= ~1024 tokens) keeps latency low on hits:
-  // the static MD is identical across turns -> cache read for the prefix.
+  // Full Virgil .md system prompt + Clauxen platform UI appendix (create_file tags, etc.).
   const logicalModel =
     (request as any).chatModel ||
     (typeof request.model === "string" ? request.model : undefined) ||
@@ -351,6 +347,20 @@ export async function streamNovitaAgentChat(
           tool_use_id: call.id,
           content: result,
         });
+
+        if (call.name === "ask_user_input_v0") {
+          send("done", {
+            finish_reason: "stop",
+            usage: finalUsage,
+            cache: extractPromptCacheStats(finalUsage),
+          });
+          return {
+            content: accumulatedContent,
+            reasoning: "",
+            usage: finalUsage,
+            model,
+          };
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Tool execution failed";

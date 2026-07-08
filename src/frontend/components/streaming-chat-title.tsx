@@ -1,7 +1,7 @@
 "use client";
 
-import SplitText from "flowtoken/dist/components/SplitText";
-import { animations } from "flowtoken/dist/utils/animations";
+import SplitText from "@flowtoken/components/SplitText";
+import { animations } from "@flowtoken/utils/animations";
 import { cn } from "@/frontend/lib/utils";
 
 type StreamingChatTitleProps = {

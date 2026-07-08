@@ -19,7 +19,7 @@ import {
   ClauxenSseStream,
   CLAUXEN_STREAM_HEADERS,
 } from "@/backend/inference/clauxen-sse-stream";
-import { buildModelSystemPrompt } from "@/backend/inference/model-prompts";
+import { buildModelSystemPrompt } from "@/backend/inference/system-prompt";
 
 async function requireChatSession(request: Request) {
   const session = await getSessionFromRequest(request as NextRequest);

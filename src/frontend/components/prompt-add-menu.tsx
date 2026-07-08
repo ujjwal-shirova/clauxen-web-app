@@ -4,340 +4,237 @@ import {
   useEffect,
   useRef,
   useState,
-  type ComponentType,
-  type ReactNode,
+  type RefObject,
 } from "react";
+import { motion } from "framer-motion";
 import {
-  Briefcase,
-  Camera,
-  ChevronRight,
-  FileText,
-  LayoutPanelTop,
+  Globe,
+  ImageIcon,
   Paperclip,
-  Plus,
   Telescope,
+  type LucideIcon,
 } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/frontend/components/ui/popover";
 import { cn } from "@/frontend/lib/utils";
-import {
-  CheckIcon,
-  PromptConnectorsIcon,
-  PromptProjectIcon,
-  WriteSkillInstructionsIcon,
-} from "./icons";
+import type { PromptInlineMode } from "@/frontend/components/prompt-inline-mode-chip";
 
-type PromptMenuItem = {
+export type PromptComposeAction = "deep-research";
+
+type PromptAddMenuItem = {
+  id: string;
   label: string;
-  icon: ComponentType<{ className?: string }>;
-  trailing?: "chevron" | "shortcut" | "check";
-  shortcut?: string;
-  active?: boolean;
+  description: string;
+  icon: LucideIcon;
+  iconClassName?: string;
   onSelect?: () => void;
 };
 
-const primaryItems = (
-  handlers: {
-    onAddFiles?: () => void;
-    onTakeScreenshot?: () => void;
-  },
-): PromptMenuItem[] => [
-  {
-    label: "Add files or photos",
-    icon: Paperclip,
-    trailing: "shortcut",
-    shortcut: "Ctrl+U",
-    onSelect: handlers.onAddFiles,
-  },
-  {
-    label: "Take a screenshot",
-    icon: Camera,
-    onSelect: handlers.onTakeScreenshot,
-  },
-  {
-    label: "Recent files",
-    icon: FileText,
-    trailing: "chevron",
-  },
-];
+export type PromptAddMenuPanelProps = {
+  open: boolean;
+  placement: "above" | "below";
+  onClose: () => void;
+  panelRef?: RefObject<HTMLDivElement | null>;
+  onComposeActionSelect?: (action: PromptComposeAction) => void;
+  onInlineModeSelect?: (mode: PromptInlineMode) => void;
+  onAddFiles?: () => void;
+  onTakeScreenshot?: () => void;
+  showComposeActions?: boolean;
+  className?: string;
+};
 
-const bottomItems: PromptMenuItem[] = [
-  {
-    label: "Add connectors",
-    icon: PromptConnectorsIcon,
-  },
-  {
-    label: "Skills",
-    icon: WriteSkillInstructionsIcon,
-    trailing: "chevron",
-  },
-];
+function buildMenuItems({
+  onAddFiles,
+  onTakeScreenshot,
+  onComposeActionSelect,
+  onInlineModeSelect,
+  showComposeActions,
+  onClose,
+}: Omit<
+  PromptAddMenuPanelProps,
+  "open" | "placement" | "className" | "panelRef"
+>): PromptAddMenuItem[] {
+  const items: PromptAddMenuItem[] = [
+    {
+      id: "files",
+      label: "Add photos & files",
+      description: "Upload from computer",
+      icon: Paperclip,
+      onSelect: () => {
+        onClose();
+        onAddFiles?.();
+      },
+    },
+    {
+      id: "image",
+      label: "Create image",
+      description: "Visualize anything",
+      icon: ImageIcon,
+      iconClassName: "text-violet-500",
+      onSelect: () => {
+        onClose();
+        onInlineModeSelect?.("create-image");
+      },
+    },
+    {
+      id: "web-search",
+      label: "Web search",
+      description: "Find real-time news and info",
+      icon: Globe,
+      iconClassName: "text-sky-500",
+      onSelect: () => {
+        onClose();
+        onInlineModeSelect?.("web-search");
+      },
+    },
+  ];
 
-function PromptAddMenuItem({
+  if (showComposeActions) {
+    items.push({
+      id: "deep-research",
+      label: "Deep research",
+      description: "Get a detailed report",
+      icon: Telescope,
+      iconClassName: "text-blue-500",
+      onSelect: () => {
+        onClose();
+        onComposeActionSelect?.("deep-research");
+      },
+    });
+  }
+
+  return items;
+}
+
+function PromptAddMenuRow({
   item,
-  onClick,
+  onSelect,
 }: {
-  item: PromptMenuItem;
-  onClick?: () => void;
+  item: PromptAddMenuItem;
+  onSelect: () => void;
 }) {
   const Icon = item.icon;
-  const isActive = Boolean(item.active);
 
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={cn(
-        "group flex min-h-7 w-full items-center justify-between rounded-md px-2 py-1 text-left text-[13px] leading-5 transition-colors hover:bg-zinc-100 focus:outline-none",
-        isActive ? "text-[#2c84db]" : "text-zinc-800",
-      )}
+      onClick={onSelect}
+      className="group flex w-full min-h-[34px] items-center gap-2 rounded-[8px] px-2 py-1 text-left transition-colors hover:bg-zinc-100/90 focus:outline-none focus-visible:bg-zinc-100/90"
     >
-      <div className="flex min-w-0 items-center gap-2">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] border border-zinc-200/80 bg-white">
         <Icon
-          className={cn(
-            "h-4 w-4 shrink-0",
-            isActive ? "text-[#2c84db]" : "text-zinc-700",
-          )}
+          className={cn("h-3.5 w-3.5 text-zinc-700", item.iconClassName)}
+          strokeWidth={1.75}
         />
-        <span className="truncate font-normal">{item.label}</span>
-      </div>
-
-      {item.trailing === "shortcut" && item.shortcut ? (
-        <span className="ml-2 shrink-0 text-[11px] font-medium text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100">
-          {item.shortcut}
+      </span>
+      <span className="min-w-0 flex-1 leading-none">
+        <span className="block truncate text-[13px] font-medium leading-4 text-zinc-900">
+          {item.label}
         </span>
-      ) : null}
-
-      {item.trailing === "chevron" ? (
-        <ChevronRight className="ml-1 h-3.5 w-3.5 shrink-0 text-zinc-400" />
-      ) : null}
-
-      {item.trailing === "check" && isActive ? (
-        <CheckIcon className="ml-1 h-3.5 w-3.5 shrink-0 text-[#2c84db]" />
-      ) : null}
+        <span className="mt-0.5 block truncate text-[11.5px] leading-4 text-zinc-500">
+          {item.description}
+        </span>
+      </span>
     </button>
   );
 }
 
-function PromptAddMenuSeparator() {
-  return <div className="my-1 h-px bg-zinc-200/80" role="separator" />;
-}
-
-export type PromptComposeAction = "deep-research" | "canvas";
-
-interface PromptAddMenuProps {
-  trigger: ReactNode;
-  onQuickActionSelect?: (
-    action: "video" | "music",
-  ) => void;
-  onComposeActionSelect?: (action: PromptComposeAction) => void;
-  onAddFiles?: () => void;
-  onTakeScreenshot?: () => void;
-  showComposeActions?: boolean;
-}
-
-export function PromptAddMenu({
-  trigger,
-  onQuickActionSelect,
+export function PromptAddMenuPanel({
+  open,
+  placement,
+  onClose,
+  panelRef,
   onComposeActionSelect,
+  onInlineModeSelect,
   onAddFiles,
   onTakeScreenshot,
   showComposeActions = true,
-}: PromptAddMenuProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isProjectOpen, setIsProjectOpen] = useState(false);
-  const [isSkillsOpen, setIsSkillsOpen] = useState(false);
-  const actionDelayRef = useRef<number | null>(null);
+  className,
+}: PromptAddMenuPanelProps) {
+  const internalRef = useRef<HTMLDivElement>(null);
+  const resolvedRef = panelRef ?? internalRef;
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const items = buildMenuItems({
+    onClose,
+    onComposeActionSelect,
+    onInlineModeSelect,
+    onAddFiles,
+    onTakeScreenshot,
+    showComposeActions,
+  });
+
+  const filteredItems = searchQuery.trim()
+    ? items.filter(
+        (item) =>
+          item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+          item.description
+            .toLowerCase()
+            .includes(searchQuery.trim().toLowerCase()),
+      )
+    : items;
 
   useEffect(() => {
-    return () => {
-      if (actionDelayRef.current !== null) {
-        window.clearTimeout(actionDelayRef.current);
+    if (!open) {
+      setSearchQuery("");
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
       }
     };
-  }, []);
 
-  const closeMenu = () => {
-    setIsMenuOpen(false);
-    setIsProjectOpen(false);
-    setIsSkillsOpen(false);
-  };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, onClose]);
 
-  const selectComposeAction = (action: PromptComposeAction) => {
-    closeMenu();
-    if (actionDelayRef.current !== null) {
-      window.clearTimeout(actionDelayRef.current);
-    }
-    actionDelayRef.current = window.setTimeout(() => {
-      onComposeActionSelect?.(action);
-      actionDelayRef.current = null;
-    }, 160);
-  };
-
-  const handleItemSelect = (item: PromptMenuItem) => {
-    if (item.trailing === "chevron" && !item.onSelect) return;
-    closeMenu();
-    item.onSelect?.();
-  };
+  if (!open) return null;
 
   return (
-    <Popover
-      open={isMenuOpen}
-      onOpenChange={(open) => {
-        setIsMenuOpen(open);
-        if (!open) {
-          setIsProjectOpen(false);
-          setIsSkillsOpen(false);
-        }
-      }}
+    <motion.div
+      ref={resolvedRef}
+      key={`prompt-add-menu-${placement}`}
+      data-prompt-add-menu
+      data-prompt-add-menu-placement={placement}
+      initial={{ opacity: 0, y: placement === "below" ? -10 : 10, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: placement === "below" ? -8 : 8, scale: 0.985 }}
+      transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+      className={cn(
+        "w-full overflow-hidden rounded-[14px] border border-zinc-200/90 bg-white font-sans shadow-[0_8px_28px_-20px_rgba(24,24,27,0.28)]",
+        className,
+      )}
     >
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent
-        side="top"
-        align="start"
-        sideOffset={8}
-        onCloseAutoFocus={(event) => event.preventDefault()}
-        className="ui-menu z-[60] w-[200px] rounded-[10px] border border-zinc-200/90 bg-white p-1 font-sans text-zinc-900 shadow-[0_8px_24px_rgba(0,0,0,0.10)]"
-      >
-        <div
-          role="menu"
-          aria-label="Add agents, context, tools"
-          aria-orientation="vertical"
-          className="ui-menu__layout outline-none"
-        >
-          <div className="ui-menu__search-row p-1">
-            <div className="ui-input-group rounded-md bg-zinc-100/70 px-2">
-              <input
-                aria-label="Search menu items"
-                placeholder="Add agents, context, tools..."
-                className="ui-input-group__input h-7 w-full bg-transparent text-[12.5px] text-zinc-800 outline-none placeholder:text-zinc-400"
-                onKeyDown={(event) => event.stopPropagation()}
-              />
-            </div>
-          </div>
-          {primaryItems({ onAddFiles, onTakeScreenshot }).map((item) => (
-            <PromptAddMenuItem
-              key={item.label}
-              item={item}
-              onClick={() => handleItemSelect(item)}
-            />
-          ))}
-
-          {showComposeActions ? (
-            <>
-              <PromptAddMenuSeparator />
-              <PromptAddMenuItem
-                item={{ label: "Deep research", icon: Telescope }}
-                onClick={() => selectComposeAction("deep-research")}
-              />
-              <PromptAddMenuItem
-                item={{ label: "Canvas", icon: LayoutPanelTop }}
-                onClick={() => selectComposeAction("canvas")}
-              />
-            </>
-          ) : null}
-
-          <PromptAddMenuSeparator />
-
-          <div
-            className="relative"
-            onMouseEnter={() => setIsProjectOpen(true)}
-            onMouseLeave={() => setIsProjectOpen(false)}
-          >
-            <button
-              type="button"
-              aria-expanded={isProjectOpen}
-              onClick={() => setIsProjectOpen((open) => !open)}
-              className={cn(
-                "group flex min-h-7 w-full items-center justify-between rounded-md px-2 py-1 text-left text-[13px] leading-5 text-zinc-800 transition-colors hover:bg-zinc-100",
-                isProjectOpen && "bg-zinc-100",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <PromptProjectIcon className="h-4 w-4 text-zinc-700" />
-                <span className="truncate font-normal">Add to project</span>
-              </div>
-              <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />
-            </button>
-
-            {isProjectOpen ? (
-              <div className="absolute bottom-0 left-[calc(100%-2px)] z-[70] w-[188px] rounded-[10px] border border-zinc-200/90 bg-white p-1 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
-                <button
-                  type="button"
-                  onClick={closeMenu}
-                  className="flex min-h-7 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[13px] text-zinc-800 hover:bg-zinc-100"
-                >
-                  <Plus className="h-4 w-4" strokeWidth={1.75} />
-                  <span>Start a new project</span>
-                </button>
-              </div>
-            ) : null}
-          </div>
-
-          <PromptAddMenuSeparator />
-
-          {bottomItems.map((item) => {
-            if (item.label !== "Skills") {
-              return (
-                <PromptAddMenuItem
-                  key={item.label}
-                  item={item}
-                  onClick={() => handleItemSelect(item)}
-                />
-              );
-            }
-
-            return (
-              <div
-                key={item.label}
-                className="relative"
-                onMouseEnter={() => setIsSkillsOpen(true)}
-                onMouseLeave={() => setIsSkillsOpen(false)}
-              >
-                <button
-                  type="button"
-                  aria-expanded={isSkillsOpen}
-                  onClick={() => setIsSkillsOpen((open) => !open)}
-                  className={cn(
-                    "group flex min-h-7 w-full items-center justify-between rounded-md px-2 py-1 text-left text-[13px] leading-5 text-zinc-800 transition-colors hover:bg-zinc-100",
-                    isSkillsOpen && "bg-zinc-100",
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <WriteSkillInstructionsIcon className="h-4 w-4 text-zinc-700" />
-                    <span className="truncate font-normal">Skills</span>
-                  </div>
-                  <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />
-                </button>
-
-                {isSkillsOpen ? (
-                  <div className="absolute bottom-0 left-[calc(100%-2px)] z-[70] max-h-[280px] w-[188px] overflow-y-auto rounded-[10px] border border-zinc-200/90 bg-white p-1 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
-                    <button
-                      type="button"
-                      onClick={closeMenu}
-                      className="flex min-h-7 w-full items-center rounded-md px-2 py-1 text-left text-[13px] text-zinc-800 hover:bg-zinc-100"
-                    >
-                      skill-creator
-                    </button>
-                    <PromptAddMenuSeparator />
-                    <button
-                      type="button"
-                      onClick={closeMenu}
-                      className="flex min-h-7 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[13px] text-zinc-800 hover:bg-zinc-100"
-                    >
-                      <Briefcase className="h-4 w-4" strokeWidth={1.75} />
-                      <span>Manage skills</span>
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      </PopoverContent>
-    </Popover>
+      <div className="flex flex-col gap-0.5 p-1">
+        {filteredItems.map((item) => (
+          <PromptAddMenuRow
+            key={item.id}
+            item={item}
+            onSelect={() => item.onSelect?.()}
+          />
+        ))}
+      </div>
+      <div className="border-t border-zinc-100 px-1.5 py-1">
+        <input
+          ref={searchInputRef}
+          type="text"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Type to search plugins, files & skills"
+          aria-label="Search plugins, files, and skills"
+          className="w-full rounded-md border-0 bg-transparent px-1.5 py-1.5 text-[11.5px] leading-4 text-zinc-800 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:bg-zinc-50/90 focus:outline-none focus:ring-0"
+          onKeyDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+        />
+      </div>
+    </motion.div>
   );
 }

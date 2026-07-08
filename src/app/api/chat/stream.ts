@@ -8,7 +8,7 @@
 import { runAutonomousAgent, type AgentStreamOptions } from "@/backend/inference/agent-engine";
 import { ClauxenSseStream } from "@/backend/inference/clauxen-sse-stream";
 import type { IncomingMessage } from "@/backend/inference/novita";
-import { buildModelSystemPrompt } from "@/backend/inference/model-prompts";
+import { buildModelSystemPrompt } from "@/backend/inference/system-prompt";
 import { resolveModelRuntime, parseChatModelId, modelCatalogEnvFromProcess } from "@/lib/model-catalog";
 import {
   parseHomerReasoningEffort,

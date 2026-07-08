@@ -3,6 +3,7 @@ export type StreamEvent =
   | { type: "thinking_start" }
   | { type: "thinking_delta"; delta: string; segmentId?: string }
   | { type: "thinking_end"; segmentId?: string }
+  | { type: "text_delta"; delta: string; segmentId: string }
   | {
       type: "segment_start";
       segmentId: string;
@@ -46,6 +47,8 @@ export type StreamEvent =
   | { type: "agent_frame_start"; frameId: string }
   | { type: "agent_frame_complete"; frameId?: string }
   | { type: "agent_interim"; text: string }
+  | { type: "agent_intro_narrative"; text: string }
+  | { type: "agent_intro_narrative_delta"; delta: string }
   | { type: "answer_clear" }
   | { type: "chat_title"; title: string }
   | { type: "done" }
@@ -101,6 +104,11 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
                 ? event.segmentId
                 : undefined,
           }
+        : null;
+    case "text_delta":
+      return typeof event.delta === "string" &&
+        typeof event.segmentId === "string"
+        ? { type: "text_delta", delta: event.delta, segmentId: event.segmentId }
         : null;
     case "thinking_end":
       return {
@@ -204,6 +212,14 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
     case "agent_interim":
       return typeof event.text === "string"
         ? { type: "agent_interim", text: event.text }
+        : null;
+    case "agent_intro_narrative":
+      return typeof event.text === "string"
+        ? { type: "agent_intro_narrative", text: event.text }
+        : null;
+    case "agent_intro_narrative_delta":
+      return typeof event.delta === "string"
+        ? { type: "agent_intro_narrative_delta", delta: event.delta }
         : null;
     case "chat_title":
       return typeof event.title === "string"

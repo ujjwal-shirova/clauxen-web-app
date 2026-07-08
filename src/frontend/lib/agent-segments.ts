@@ -91,6 +91,13 @@ export function agentSegmentsVisuallyEqual(
       continue;
     }
 
+    if (a.kind === "text" && b.kind === "text") {
+      if (a.content !== b.content || a.isStreaming !== b.isStreaming) {
+        return false;
+      }
+      continue;
+    }
+
     if (a.kind === "tool" && b.kind === "tool") {
       if (
         a.status !== b.status ||

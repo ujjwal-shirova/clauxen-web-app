@@ -24,6 +24,7 @@ export function StreamingTextFade({
         text={content}
         sessionKey={resolvedKey}
         timingFunction={STREAM_REVEAL_EASING}
+        showCursor={true}
       />
     </div>
   );

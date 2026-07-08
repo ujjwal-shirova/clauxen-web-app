@@ -129,19 +129,4 @@ export function buildRagContextBlock(
   return `<project_knowledge>\n${body}\n</project_knowledge>`;
 }
 
-export function assembleSystemPrompt(
-  projectInstructions: string | null | undefined,
-  ragContext: string,
-): string | undefined {
-  const parts: string[] = [];
-  if (projectInstructions?.trim()) parts.push(projectInstructions.trim());
-  if (ragContext.trim()) {
-    if (parts.length) parts.push("");
-    parts.push(ragContext.trim());
-    parts.push("");
-    parts.push(
-      "Always ground your answers in the provided project knowledge. If information is not found in the provided context, say so clearly.",
-    );
-  }
-  return parts.length ? parts.join("\n") : undefined;
-}
+export { assembleSystemPrompt } from "@/backend/inference/system-prompt";

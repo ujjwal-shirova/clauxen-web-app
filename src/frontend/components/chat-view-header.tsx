@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIsClient } from "@/frontend/hooks/use-is-client";
 import { ChevronDown } from "lucide-react";
-import { OrbCursor } from "./ui/orb-cursor";
+import { TypingDots } from "./ui/typing-dots";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { StreamingChatTitle } from "./streaming-chat-title";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
+import { ChatRightRailControls } from "./chat-right-rail-controls";
 import { cn } from "@/frontend/lib/utils";
 import { resolveDisplayChatTitle } from "@/lib/chat-title";
 import {
@@ -40,6 +41,9 @@ interface ChatViewHeaderProps {
     label: string;
     onClick?: () => void;
   };
+  /** Desktop artifacts rail owns Artifacts + Share; hide duplicates in header. */
+  hideTrailingRailControlsOnDesktop?: boolean;
+  suppressArtifactsHover?: boolean;
 }
 
 export function ChatViewHeader({
@@ -62,6 +66,8 @@ export function ChatViewHeader({
   showMobileMenu = false,
   className,
   projectBreadcrumb,
+  hideTrailingRailControlsOnDesktop = false,
+  suppressArtifactsHover = false,
 }: ChatViewHeaderProps) {
   const isClient = useIsClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -168,7 +174,7 @@ export function ChatViewHeader({
                           title={displayTitle}
                           isStreaming={isTitleStreaming}
                         />
-                        {isTitleStreaming ? <OrbCursor /> : null}
+                        {isTitleStreaming ? <TypingDots className="ml-1" /> : null}
                       </button>
                     )}
                     <div className="h-7 w-px shrink-0 self-center bg-black/10" />
@@ -198,35 +204,19 @@ export function ChatViewHeader({
               )}
             </div>
 
-            <div className="content-pane-top-bar__trailing-wrap flex shrink-0 items-center gap-1">
-              <HintTooltip content="Artifacts">
-                <button
-                  type="button"
-                  onClick={onToggleArtifactsPanel}
-                  aria-label="Toggle artifacts panel"
-                  aria-pressed={isArtifactsPanelOpen}
-                  className="ui-icon-button inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/[0.06]"
-                >
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M11.586 2a1.5 1.5 0 0 1 1.06.44l2.914 2.914a1.5 1.5 0 0 1 .44 1.06V16.5a1.5 1.5 0 0 1-1.5 1.5h-9a1.5 1.5 0 0 1-1.492-1.347L4 16.5v-13A1.5 1.5 0 0 1 5.5 2zM5.5 3a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V7h-2.5A1.5 1.5 0 0 1 11 5.5V3zm7.04 10.304a.5.5 0 0 1 .92.392c-.295.69-.871 1.304-1.66 1.304-.487 0-.892-.234-1.2-.574-.309.34-.713.574-1.2.574-.486 0-.892-.233-1.2-.574-.31.34-.714.574-1.2.574a.5.5 0 0 1 0-1c.212 0 .52-.18.74-.696l.034-.067a.5.5 0 0 1 .886.067c.221.516.528.696.74.696.213 0 .52-.18.74-.696l.035-.067a.5.5 0 0 1 .885.067c.22.516.527.696.74.696s.519-.18.74-.696m0-4a.5.5 0 0 1 .92.392c-.295.69-.871 1.304-1.66 1.304-.487 0-.892-.234-1.2-.574-.309.34-.713.574-1.2.574-.486 0-.892-.233-1.2-.574-.31.34-.714.574-1.2.574a.5.5 0 0 1 0-1c.212 0 .52-.18.74-.696l.034-.067a.5.5 0 0 1 .886.067c.221.516.528.696.74.696.213 0 .52-.18.74-.696l.035-.067a.5.5 0 0 1 .885.067c.22.516.527.696.74.696s.519-.18.74-.696M12 5.5a.5.5 0 0 0 .5.5h2.293L12 3.207z" />
-                  </svg>
-                </button>
-              </HintTooltip>
-              <HintTooltip content="Share chat">
-                <button
-                  type="button"
-                  onClick={onShareClick}
-                  className="ui-button hidden h-7 min-w-[52px] items-center justify-center rounded-md border border-zinc-300 bg-transparent px-2 text-[12px] font-medium text-zinc-800 transition-all hover:bg-zinc-100 min-[420px]:flex"
-                >
-                  Share
-                </button>
-              </HintTooltip>
+            <div
+              className={cn(
+                "content-pane-top-bar__trailing-wrap flex shrink-0 items-center gap-1",
+                hideTrailingRailControlsOnDesktop && "lg:hidden",
+              )}
+            >
+              <ChatRightRailControls
+                isArtifactsPanelOpen={isArtifactsPanelOpen}
+                onToggleArtifactsPanel={onToggleArtifactsPanel}
+                onShareClick={onShareClick}
+                shareClassName="hidden min-[420px]:inline-flex"
+                suppressArtifactsHover={suppressArtifactsHover}
+              />
             </div>
           </div>
         </header>

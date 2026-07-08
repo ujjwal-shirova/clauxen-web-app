@@ -11,9 +11,11 @@ const STREAM_REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 export function StreamingRevealText({
   text,
   streamKey = "stream",
+  showCursor = false,
 }: {
   text: string;
   streamKey?: string;
+  showCursor?: boolean;
 }) {
   const segmentId = useId();
 
@@ -21,8 +23,9 @@ export function StreamingRevealText({
     <StreamingTokenReveal
       text={text}
       sessionKey={`${streamKey}${segmentId}`}
-      animationName="clauxen-token-fade"
+      animationName="fadeIn"
       timingFunction={STREAM_REVEAL_EASING}
+      showCursor={showCursor}
     />
   );
 }

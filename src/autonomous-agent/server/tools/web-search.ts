@@ -24,7 +24,7 @@ export async function runWebSearch(
     numResults: 10,
     onPartialResults: (partial) => {
       options.onPartialResults?.(
-        partial.slice(0, 8).map((h) => ({
+        partial.slice(0, 10).map((h) => ({
           title: h.title,
           url: h.url,
           snippet: h.snippet,
@@ -34,7 +34,7 @@ export async function runWebSearch(
   });
   return {
     query,
-    results: hits.slice(0, 8).map((h) => ({
+    results: hits.slice(0, 10).map((h) => ({
       title: h.title,
       url: h.url,
       snippet: h.snippet,

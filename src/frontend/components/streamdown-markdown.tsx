@@ -5,29 +5,48 @@ import type { Components } from "react-markdown";
 import { Streamdown } from "streamdown";
 import { createMathPlugin } from "@streamdown/math";
 import {
+  CodeRenderer,
   markdownComponents,
   normalizeLatexDelimiters,
 } from "@/frontend/components/markdown-shared";
+import { createCitationLink } from "@/frontend/components/chat-sources";
+import type { ChatSource } from "@/frontend/lib/chat-sources";
 import { StreamingRevealText } from "@/frontend/lib/streaming-reveal-text";
+import type { StreamFadeConfig } from "@/frontend/lib/streaming-text-animation";
+import { animations as flowtokenAnimations } from "@flowtoken/utils/animations";
+
+const CODE_STREAM_FADE: StreamFadeConfig = {
+  animation: flowtokenAnimations.fadeIn,
+  animationDuration: "80ms",
+  animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+};
 
 const streamdownMath = createMathPlugin({
-  singleDollarTextMath: true,
+  singleDollarTextMath: false,
 });
 
 type StreamdownFlowTokenMarkdownProps = {
   content: string;
   isStreaming?: boolean;
   streamKey?: string;
+  sources?: ChatSource[];
 };
 
 function streamingText(
   children: ReactNode,
   isStreaming: boolean,
   streamKey: string,
+  showCursor: boolean,
 ): ReactNode {
   if (!isStreaming) return children;
   if (typeof children === "string" && children.length > 0) {
-    return <StreamingRevealText text={children} streamKey={streamKey} />;
+    return (
+      <StreamingRevealText
+        text={children}
+        streamKey={streamKey}
+        showCursor={showCursor}
+      />
+    );
   }
   return children;
 }
@@ -40,6 +59,7 @@ export function StreamdownFlowTokenMarkdown({
   content,
   isStreaming = false,
   streamKey = "stream",
+  sources = [],
 }: StreamdownFlowTokenMarkdownProps) {
   const normalized = useMemo(
     () => normalizeLatexDelimiters(content),
@@ -48,9 +68,9 @@ export function StreamdownFlowTokenMarkdown({
 
   const components = useMemo(() => {
     const fade = (children: ReactNode) =>
-      streamingText(children, isStreaming, streamKey);
+      streamingText(children, isStreaming, streamKey, isStreaming);
 
-    return {
+    const base = {
       ...markdownComponents,
       text: ({ children }: { children?: React.ReactNode }) => (
         <>{fade(children)}</>
@@ -107,8 +127,27 @@ export function StreamdownFlowTokenMarkdown({
         if (!Th) return <th>{fade(children)}</th>;
         return <Th>{fade(children)}</Th>;
       },
+      code: (codeProps: {
+        inline?: boolean;
+        className?: string;
+        children?: React.ReactNode;
+      }) => (
+        <CodeRenderer
+          {...codeProps}
+          streamFade={isStreaming ? CODE_STREAM_FADE : undefined}
+        />
+      ),
     } satisfies Components;
-  }, [isStreaming, streamKey]);
+
+    if (sources.length > 0) {
+      return {
+        ...base,
+        a: createCitationLink(sources),
+      };
+    }
+
+    return base;
+  }, [isStreaming, streamKey, sources]);
 
   return (
     <Streamdown
@@ -126,5 +165,3 @@ export function StreamdownFlowTokenMarkdown({
   );
 }
 
-/** @deprecated Use FlowTokenMarkdown */
-export const StreamdownMarkdown = StreamdownFlowTokenMarkdown;

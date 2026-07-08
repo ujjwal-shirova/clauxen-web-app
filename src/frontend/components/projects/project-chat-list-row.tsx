@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/frontend/lib/utils";
 import type { RecentChat } from "@/frontend/lib/types";
 import { StreamingChatTitle } from "@/frontend/components/streaming-chat-title";
-import { OrbCursor } from "@/frontend/components/ui/orb-cursor";
+import { TypingDots } from "@/frontend/components/ui/typing-dots";
 import { ChatRowMenuContent } from "@/frontend/components/chat-row-menu-content";
 import {
   DropdownMenu,
@@ -58,7 +58,7 @@ export function ProjectChatListRow({
             title={title}
             isStreaming={!!chat.isTitleStreaming}
           />
-          {chat.isTitleStreaming ? <OrbCursor /> : null}
+          {chat.isTitleStreaming ? <TypingDots className="ml-1" /> : null}
         </span>
         <span className="mt-0.5 text-[12px] leading-4 text-zinc-500">
           Last message{" "}

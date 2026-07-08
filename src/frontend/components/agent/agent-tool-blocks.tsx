@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import React from "react";
 import { LoaderCircle, Check, Copy, ExternalLink, ArrowUp, Plus, Calendar, MapPin, Star, Sparkles, CloudSun, Compass, ShieldAlert, Award, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
@@ -11,6 +12,10 @@ import {
 import { AgentTimelineStep } from "./agent-timeline";
 import { AgentFaviconStack } from "./agent-favicon-stack";
 import { AgentFileBlock } from "./agent-file-block";
+import {
+  AskUserInputCard,
+  type AskUserQuestion,
+} from "./ask-user-input-card";
 
 function SearchResultFavicon({ url }: { url: string }) {
   const [failed, setFailed] = useState(false);
@@ -18,7 +23,7 @@ function SearchResultFavicon({ url }: { url: string }) {
 
   if (failed) {
     return (
-      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-100 text-[10px] font-semibold uppercase text-zinc-500">
+      <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 text-[9px] font-semibold uppercase text-zinc-500">
         {domain.slice(0, 1)}
       </div>
     );
@@ -28,7 +33,7 @@ function SearchResultFavicon({ url }: { url: string }) {
     <img
       src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`}
       alt=""
-      className="mt-0.5 h-5 w-5 shrink-0 rounded bg-zinc-100 object-cover"
+      className="h-4 w-4 shrink-0 rounded bg-zinc-100 object-cover"
       onError={() => setFailed(true)}
       loading="lazy"
       decoding="async"
@@ -36,20 +41,27 @@ function SearchResultFavicon({ url }: { url: string }) {
   );
 }
 
-function SearchResultRow({ result }: { result: WebSearchResult }) {
+function SearchResultRow({
+  result,
+  index,
+}: {
+  result: WebSearchResult;
+  index: number;
+}) {
   return (
     <a
       href={result.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-start gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-50 animate-in fade-in slide-in-from-bottom-1 duration-200"
+      className="flex items-center gap-2 rounded-lg border border-zinc-100 bg-white px-2 py-1.5 transition-colors hover:bg-zinc-50 animate-in fade-in slide-in-from-bottom-1 duration-300"
+      style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
     >
       <SearchResultFavicon url={result.url} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px] font-medium text-zinc-900">
+        <div className="truncate text-[12px] font-medium leading-4 text-zinc-900">
           {result.title || result.url}
         </div>
-        <div className="truncate text-[12px] text-zinc-400">
+        <div className="truncate text-[11px] leading-3.5 text-zinc-400">
           {domainFromUrl(result.url)}
         </div>
       </div>
@@ -64,6 +76,49 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   const results = tool.searchResults ?? [];
   const isRunning = tool.status === "running";
   const faviconUrls = results.map((result) => result.url);
+  const [visibleCount, setVisibleCount] = useState(0);
+  const prevLengthRef = useRef(0);
+
+  useEffect(() => {
+    if (results.length === 0) {
+      setVisibleCount(0);
+      prevLengthRef.current = 0;
+      return;
+    }
+
+    if (results.length < prevLengthRef.current) {
+      setVisibleCount(results.length);
+      prevLengthRef.current = results.length;
+      return;
+    }
+
+    if (visibleCount >= results.length) {
+      prevLengthRef.current = results.length;
+      return;
+    }
+
+    const delay = visibleCount === 0 ? 0 : 110;
+    const timer = window.setTimeout(() => {
+      setVisibleCount((count) => Math.min(count + 1, results.length));
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [results.length, visibleCount, results]);
+
+  useEffect(() => {
+    if (!isRunning && results.length > 0) {
+      setVisibleCount(results.length);
+    }
+  }, [isRunning, results.length]);
+
+  const visibleResults = results.slice(0, visibleCount);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const showResultsContainer = isRunning || visibleResults.length > 0;
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [visibleResults.length, isRunning]);
 
   return (
     <AgentTimelineStep
@@ -79,30 +134,31 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
           <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
         ) : results.length > 0 ? (
           <span className="flex items-center gap-1.5">
-            <AgentFaviconStack urls={faviconUrls} />
+            <AgentFaviconStack urls={faviconUrls.slice(0, 10)} />
             <span>{results.length} results</span>
           </span>
         ) : undefined
       }
     >
-      {results.length > 0 ? (
-        <div
-          key={isRunning ? "search-live" : "search-done"}
-          className={cn(
-            "overflow-hidden rounded-[12px] border border-zinc-200 bg-white",
-            "transition-all duration-200 ease-out",
-            !isRunning && "animate-in fade-in slide-in-from-bottom-1 duration-200",
-          )}
-        >
-          <div className="divide-y divide-zinc-100 px-1 py-1">
-            {results.slice(0, 10).map((result) => (
-              <SearchResultRow key={result.url} result={result} />
+      {showResultsContainer ? (
+        <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/70 px-2 py-2">
+          <div
+            ref={scrollRef}
+            className="flex max-h-[18rem] min-h-[3.5rem] flex-col gap-1 overflow-y-auto pr-0.5"
+          >
+            {visibleResults.slice(0, 10).map((result, index) => (
+              <SearchResultRow
+                key={result.url}
+                result={result}
+                index={index}
+              />
             ))}
+            {isRunning && visibleResults.length === 0 ? (
+              <div className="flex items-center px-1 py-2 text-[12px] text-zinc-500 shimmer-text">
+                Searching the web…
+              </div>
+            ) : null}
           </div>
-        </div>
-      ) : isRunning ? (
-        <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-[13px] text-zinc-500 shimmer-text">
-          Searching the web…
         </div>
       ) : null}
     </AgentTimelineStep>
@@ -110,24 +166,45 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
 }
 
 function highlightBash(command: string) {
-  const parts = command.split(/(".*?"|'.*?'|\s+)/);
-  return parts.map((part, index) => {
-    if (/^["']/.test(part)) {
-      return (
-        <span key={index} className="text-emerald-700">
-          {part}
-        </span>
-      );
+  const tokenPattern =
+    /("[^"]*"|'[^']*'|\|\||&&|\|[&|]?|[<>]{1,2}|;|\$\([^)]*\)|`[^`]*`|\$\{[^}]*\}|\$[\w-]+|\b(?:echo|date|uname|cd|ls|cat|npm|node|python|pip|grep|curl|wget|mkdir|rm|cp|mv|chmod|sudo|apt|brew|git|docker|kubectl)\b|\B-\w+\b|\s+)/g;
+
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = tokenPattern.exec(command)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(command.slice(lastIndex, match.index));
     }
-    if (/^(echo|date|uname|cd|ls|cat|npm|node|python|pip)\b/.test(part)) {
-      return (
-        <span key={index} className="text-amber-700">
-          {part}
-        </span>
-      );
+
+    const token = match[0];
+    let className = "text-zinc-800";
+    if (/^["']/.test(token)) {
+      className = "text-emerald-700";
+    } else if (/^(echo|date|uname|cd|ls|cat|npm|node|python|pip|grep|curl|wget|mkdir|rm|cp|mv|chmod|sudo|apt|brew|git|docker|kubectl)$/.test(token)) {
+      className = "text-amber-700";
+    } else if (/^-\w/.test(token)) {
+      className = "text-zinc-600";
+    } else if (/^(\|\||&&|[<>]{1,2})$/.test(token)) {
+      className = "text-zinc-500";
+    } else if (/^\$/.test(token)) {
+      className = "text-sky-700";
     }
-    return <span key={index}>{part}</span>;
-  });
+
+    parts.push(
+      <span key={`${match.index}-${token}`} className={className}>
+        {token}
+      </span>,
+    );
+    lastIndex = match.index + token.length;
+  }
+
+  if (lastIndex < command.length) {
+    parts.push(command.slice(lastIndex));
+  }
+
+  return parts;
 }
 
 export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
@@ -151,18 +228,18 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
         <span className={cn(isRunning && "shimmer-text")}>{description}</span>
       }
     >
-      <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-100 px-3 py-2">
-          <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+      <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.03)]">
+        <div className="border-b border-zinc-100 bg-[#f4f4f5] px-3 py-2.5">
+          <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
             bash
           </div>
-          <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5 text-zinc-800">
+          <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5">
             {highlightBash(command)}
           </pre>
         </div>
         {(output || isRunning) && (
-          <div className="bg-zinc-50 px-3 py-2.5">
-            <div className="mb-1 text-[12px] font-semibold text-zinc-700">
+          <div className="bg-[#f4f4f5] px-3 py-2.5">
+            <div className="mb-1.5 text-[12px] font-semibold text-zinc-700">
               Output
             </div>
             {isRunning && !output ? (
@@ -171,7 +248,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
                 Running…
               </div>
             ) : (
-              <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5 text-zinc-800">
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5 text-zinc-900">
                 {output}
               </pre>
             )}
@@ -213,84 +290,23 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
 // ─── Interactive Tool Components ───────────────────────────────────────────
 
 export function AskUserInputBlock({ tool }: { tool: AgentToolSegment }) {
-  const questions = (tool.args?.questions as any[]) ?? [];
-  const [answers, setAnswers] = useState<Record<number, string | string[]>>({});
-  const [submitted, setSubmitted] = useState(false);
+  const questions = (tool.args?.questions as AskUserQuestion[]) ?? [];
+  const isInteractive =
+    tool.status === "done" &&
+    questions.length > 0 &&
+    !tool.result?.includes('"error"');
 
-  const handleSelect = (qIdx: number, option: string, isMulti = false) => {
-    if (submitted) return;
-    if (isMulti) {
-      const current = (answers[qIdx] as string[]) ?? [];
-      const next = current.includes(option)
-        ? current.filter((o) => o !== option)
-        : [...current, option];
-      setAnswers({ ...answers, [qIdx]: next });
-    } else {
-      setAnswers({ ...answers, [qIdx]: option });
-    }
-  };
+  if (!isInteractive) {
+    return (
+      <AgentTimelineStep
+        icon="tool"
+        isActive={tool.status === "running"}
+        title="Gathering preferences"
+      />
+    );
+  }
 
-  const handleSubmit = () => {
-    setSubmitted(true);
-    const answerText = Object.entries(answers)
-      .map(([i, a]) => `Question ${+i + 1}: ${Array.isArray(a) ? a.join(", ") : a}`)
-      .join("\n");
-
-    // Populate prompt input
-    const textarea = document.querySelector("textarea.prompt-textarea") as HTMLTextAreaElement;
-    if (textarea) {
-      textarea.value = answerText;
-      textarea.dispatchEvent(new Event("input", { bubbles: true }));
-      textarea.focus();
-    }
-  };
-
-  return (
-    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title="User Preferences">
-      <div className="flex flex-col gap-3 max-w-md">
-        {questions.map((q, qIdx) => {
-          const isMulti = q.type === "multi_select";
-          const currentAnswer = answers[qIdx];
-          return (
-            <div key={qIdx} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <p className="text-[14px] font-semibold text-zinc-800 mb-3">{q.question}</p>
-              <div className="flex flex-wrap gap-2">
-                {q.options.map((opt: string) => {
-                  const isSelected = isMulti
-                    ? (currentAnswer as string[] ?? []).includes(opt)
-                    : currentAnswer === opt;
-                  return (
-                    <button
-                      key={opt}
-                      disabled={submitted}
-                      onClick={() => handleSelect(qIdx, opt, isMulti)}
-                      className={cn(
-                        "rounded-full px-3 py-1.5 text-[12px] font-medium border transition-all",
-                        isSelected
-                          ? "bg-zinc-900 border-zinc-900 text-white"
-                          : "bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100"
-                      )}
-                    >
-                      {opt}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-        {!submitted && (
-          <button
-            onClick={handleSubmit}
-            disabled={Object.keys(answers).length < questions.length}
-            className="self-start rounded-lg bg-zinc-900 text-white text-[13px] font-semibold px-4 py-2 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Submit Preferences
-          </button>
-        )}
-      </div>
-    </AgentTimelineStep>
-  );
+  return <AskUserInputCard questions={questions} />;
 }
 
 export function SportsDataBlock({ tool }: { tool: AgentToolSegment }) {
@@ -607,8 +623,8 @@ export function AgentToolBlock({ tool }: { tool: AgentToolSegment }) {
   }
   if (
     tool.name === "create_file" ||
-    tool.name === "str_replace" ||
-    tool.name === "present_files"
+    tool.name === "present_files" ||
+    tool.name === "file_write"
   ) {
     return <AgentFileBlock tool={tool} />;
   }

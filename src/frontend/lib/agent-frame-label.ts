@@ -29,8 +29,8 @@ function toolStepLabel(tool: AgentToolSegment): string {
   }
   if (
     tool.name === "create_file" ||
-    tool.name === "str_replace" ||
-    tool.name === "present_files"
+    tool.name === "present_files" ||
+    tool.name === "file_write"
   ) {
     const path =
       tool.filePath ??
@@ -48,12 +48,6 @@ function cleanLabelText(value: string): string {
     .replace(/\s+/g, " ")
     .replace(/^["'“”‘’]+|["'“”‘’]+$/g, "")
     .trim();
-}
-
-function sentenceCase(value: string): string {
-  const cleaned = cleanLabelText(value);
-  if (!cleaned) return cleaned;
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
 function firstWebSearchTool(segments: AgentSegment[]): AgentToolSegment | undefined {
@@ -77,25 +71,15 @@ function frameSummaryLabel(segments: AgentSegment[]): string | undefined {
     return "Deliberated search strategy";
   }
 
-  const thinking = segments.find(
-    (segment): segment is AgentThinkingSegment => segment.kind === "thinking",
-  );
-  if (thinking?.content.trim()) {
-    const firstLine = thinking.content
-      .split(/\r?\n/)
-      .map((line) => cleanLabelText(line))
-      .find(Boolean);
-    if (firstLine) {
-      return sentenceCase(firstLine).slice(0, 96);
-    }
-  }
-
   return undefined;
 }
 
 function workSegments(segments: AgentSegment[]) {
   return segments.filter(
-    (segment) => segment.kind === "thinking" || segment.kind === "tool",
+    (segment) =>
+      segment.kind === "thinking" ||
+      segment.kind === "tool" ||
+      segment.kind === "text",
   );
 }
 

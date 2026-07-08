@@ -6,7 +6,6 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
-  LayoutPanelTop,
   LoaderCircle,
   Mic,
   Plus,
@@ -19,7 +18,11 @@ import {
   captureDisplayScreenshot,
   ScreenshotCaptureError,
 } from "@/frontend/lib/capture-display-screenshot";
-import { PromptAddMenu, type PromptComposeAction } from "./prompt-add-menu";
+import { PromptAddMenuPanel, type PromptComposeAction } from "./prompt-add-menu";
+import {
+  PromptInlineModeChip,
+  type PromptInlineMode,
+} from "./prompt-inline-mode-chip";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { useIsClient } from "@/frontend/hooks/use-is-client";
 import type { ChatModelId } from "@/lib/chat-models";
@@ -34,6 +37,8 @@ interface PromptInputProps {
   isGenerating: boolean;
   /** Fires on every draft change so parent layouts can react without lifting full state. */
   onPromptChange?: (value: string) => void;
+  /** Fires when the + menu opens or closes (welcome chips hide while open). */
+  onAddMenuOpenChange?: (open: boolean) => void;
   /** When this value changes (e.g. new chat), the textarea is focused again. */
   focusKey?: string;
   onUpgradeClick?: () => void;
@@ -57,11 +62,6 @@ const COMPOSE_ACTION_META: Record<
     label: "Deep research",
     placeholder: "What do you want to research?",
     icon: Telescope,
-  },
-  canvas: {
-    label: "Canvas",
-    placeholder: "Describe what to create on canvas",
-    icon: LayoutPanelTop,
   },
 };
 
@@ -110,9 +110,11 @@ export function PromptInput({
   isGenerating,
   onPromptChange,
   focusKey,
+  onAddMenuOpenChange,
 }: PromptInputProps) {
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const draftNotifyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -123,6 +125,8 @@ export function PromptInput({
   >([]);
   const [activeComposeAction, setActiveComposeAction] =
     useState<PromptComposeAction | null>(null);
+  const [activeInlineMode, setActiveInlineMode] =
+    useState<PromptInlineMode | null>(null);
   const [composeChipHovered, setComposeChipHovered] = useState(false);
   const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
@@ -138,6 +142,8 @@ export function PromptInput({
   const resizeRafRef = useRef<number | null>(null);
   const scheduleResizeTextareaRef = useRef<() => void>(() => {});
   const promptShellRef = useRef<HTMLDivElement>(null);
+  const addMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const addMenuPanelRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -162,6 +168,34 @@ export function PromptInput({
     !showDictationSurface &&
     !hasPromptAddons;
   const isClient = useIsClient();
+
+  const setAddMenuOpen = useCallback(
+    (open: boolean) => {
+      setIsAddMenuOpen(open);
+      onAddMenuOpenChange?.(open);
+    },
+    [onAddMenuOpenChange],
+  );
+
+  useEffect(() => {
+    if (!focusKey) return;
+    setAddMenuOpen(false);
+    setActiveInlineMode(null);
+  }, [focusKey, setAddMenuOpen]);
+
+  useEffect(() => {
+    if (!isAddMenuOpen) return;
+
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (addMenuTriggerRef.current?.contains(target)) return;
+      if (addMenuPanelRef.current?.contains(target)) return;
+      setAddMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [isAddMenuOpen, setAddMenuOpen]);
 
   const readDraft = useCallback(
     () => textareaRef.current?.value ?? draftValueRef.current,
@@ -482,6 +516,7 @@ export function PromptInput({
       syncDraftImmediate("");
       setAttachments([]);
       setAttachmentError(null);
+      setActiveInlineMode(null);
       requestAnimationFrame(() => {
         dismissComposerFocus();
       });
@@ -583,6 +618,20 @@ export function PromptInput({
   }, [scheduleDraftNotify, scheduleResizeTextarea]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && activeInlineMode) {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        const atStart =
+          textarea.selectionStart === 0 && textarea.selectionEnd === 0;
+        const empty = !readDraft().trim();
+        if (atStart && empty) {
+          e.preventDefault();
+          setActiveInlineMode(null);
+          return;
+        }
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (isGenerating) return;
@@ -609,6 +658,15 @@ export function PromptInput({
     if (isConversationStarted) return;
     setActiveComposeAction(action);
   };
+
+  const handleInlineModeSelect = useCallback(
+    (mode: PromptInlineMode) => {
+      setActiveInlineMode(mode);
+      setAddMenuOpen(false);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [setAddMenuOpen],
+  );
 
   const handleComposeActionRemove = () => {
     setActiveComposeAction(null);
@@ -870,29 +928,43 @@ export function PromptInput({
   };
 
   const renderAddMenuButton = () => (
-    <PromptAddMenu
-      onQuickActionSelect={handleQuickActionSelect}
-      onComposeActionSelect={handleComposeActionSelect}
-      onAddFiles={openFilePicker}
-      onTakeScreenshot={() => void handleTakeScreenshot()}
-      showComposeActions={!isConversationStarted}
-      trigger={
-        <button
-          type="button"
-          aria-label="Add content"
-          disabled={isCapturingScreenshot}
-          className={cn(
-            addMenuTriggerClass,
-            isCapturingScreenshot && "opacity-50",
-          )}
-        >
-          <Plus
-            className="icon-lg shrink-0 opacity-80 sm:icon-xl"
-            strokeWidth={1.75}
-          />
-        </button>
-      }
-    />
+    <button
+      ref={addMenuTriggerRef}
+      type="button"
+      aria-label="Add content"
+      aria-expanded={isAddMenuOpen}
+      disabled={isCapturingScreenshot}
+      onClick={() => setAddMenuOpen(!isAddMenuOpen)}
+      className={cn(
+        addMenuTriggerClass,
+        isAddMenuOpen && "border-zinc-300 bg-zinc-100 text-zinc-800",
+        isCapturingScreenshot && "opacity-50",
+      )}
+    >
+      <Plus
+        className="icon-lg shrink-0 opacity-80 sm:icon-xl"
+        strokeWidth={1.75}
+      />
+    </button>
+  );
+
+  const renderAddMenuPanel = (placement: "above" | "below") => (
+    <AnimatePresence initial={false}>
+      {isAddMenuOpen ? (
+        <PromptAddMenuPanel
+          open={isAddMenuOpen}
+          placement={placement}
+          panelRef={addMenuPanelRef}
+          onClose={() => setAddMenuOpen(false)}
+          onComposeActionSelect={handleComposeActionSelect}
+          onInlineModeSelect={handleInlineModeSelect}
+          onAddFiles={openFilePicker}
+          onTakeScreenshot={() => void handleTakeScreenshot()}
+          showComposeActions={!isConversationStarted}
+          className={placement === "below" ? "mt-2" : "mb-2"}
+        />
+      ) : null}
+    </AnimatePresence>
   );
 
   const renderModelSelector = () => null;
@@ -974,22 +1046,27 @@ export function PromptInput({
         )}
       </div>
     ) : (
-      <textarea
-        ref={assignTextareaRef}
-        placeholder={placeholder}
-        defaultValue={draftValueRef.current}
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        onPaste={scheduleResizeTextarea}
-        onCompositionEnd={scheduleResizeTextarea}
-        className={cn(
-          "prompt-textarea block w-full min-h-0 resize-none overflow-x-hidden border-0 bg-transparent text-[14px] font-[430] leading-[20px] text-zinc-800 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-0 focus:outline-none focus:ring-0 sm:text-[14px] sm:leading-[21px]",
-          showComposeControls ? "px-1 py-1.5" : "px-0 py-1",
-          className,
-        )}
-        data-prompt-multiline={isMultiline || undefined}
-        rows={1}
-      />
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-0">
+        {activeInlineMode ? (
+          <PromptInlineModeChip mode={activeInlineMode} />
+        ) : null}
+        <textarea
+          ref={assignTextareaRef}
+          placeholder={placeholder}
+          defaultValue={draftValueRef.current}
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onPaste={scheduleResizeTextarea}
+          onCompositionEnd={scheduleResizeTextarea}
+          className={cn(
+            "prompt-textarea block min-w-[3rem] min-h-0 flex-1 resize-none overflow-x-hidden border-0 bg-transparent text-[14px] font-[430] leading-[20px] text-zinc-800 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-0 focus:outline-none focus:ring-0 sm:text-[14px] sm:leading-[21px]",
+            showComposeControls ? "px-1 py-1.5" : "px-0 py-1",
+            className,
+          )}
+          data-prompt-multiline={isMultiline || undefined}
+          rows={1}
+        />
+      </div>
     );
 
   if (!isClient) {
@@ -1064,7 +1141,7 @@ export function PromptInput({
       >
         <div
           className={cn(
-            "relative flex w-full",
+            "relative flex w-full flex-col",
             !isConversationStarted && "justify-center",
           )}
           data-prompt-wrapper
@@ -1080,6 +1157,8 @@ export function PromptInput({
               </button>
             </HintTooltip>
           )}
+
+          {isConversationStarted ? renderAddMenuPanel("above") : null}
 
           <div
             className={promptShellClass}
@@ -1182,6 +1261,8 @@ export function PromptInput({
               renderPromptBody("Ask anything")
             )}
           </div>
+
+          {!isConversationStarted ? renderAddMenuPanel("below") : null}
         </div>
       </div>
       {isConversationStarted ? (

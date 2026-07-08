@@ -67,8 +67,16 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
     path: z.string(),
     content: z.string(),
   }),
-  ask_user_clarification: z.object({
-    question: z.string(),
+  ask_user_input_v0: z.object({
+    questions: z.array(
+      z.object({
+        question: z.string(),
+        options: z.array(z.string()).min(2).max(4),
+        type: z
+          .enum(["single_select", "multi_select", "rank_priorities"])
+          .optional(),
+      }),
+    ).min(1).max(3),
   }),
 };
 
@@ -197,16 +205,42 @@ export async function runAutonomousAgent(
 
   sse.writeStart(true);
 
+  // Single frame spans the WHOLE autonomous turn — every step's thinking,
+  // narrative notes, and tool calls render inside ONE continuous vertical
+  // timeline (matching the reference agent UI), instead of a new timeline
+  // block opening for every model round-trip.
+  const frameId = "agent-frame-1";
+  let frameOpen = false;
+  let textSegmentCounter = 0;
+  let activeTextSegmentId: string | null = null;
+
+  const openFrame = () => {
+    if (frameOpen) return;
+    sse.writeFrameStart(frameId);
+    frameOpen = true;
+  };
+
+  const closeActiveTextSegment = () => {
+    if (!activeTextSegmentId) return;
+    sse.writeSegmentEnd(activeTextSegmentId, "text");
+    activeTextSegmentId = null;
+  };
+
+  const closeFrame = () => {
+    closeActiveTextSegment();
+    if (!frameOpen) return;
+    sse.writeFrameComplete(frameId);
+    frameOpen = false;
+  };
+
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       if (signal?.aborted) {
+        closeFrame();
         sse.writeError("Generation aborted.");
         return;
       }
 
-      let frameOpen = false;
-      let frameId = `agent-frame-${step + 1}`;
-      let interimBuffer = "";
       let sawToolCall = false;
       const pendingToolCalls: Array<{
         id: string;
@@ -215,22 +249,6 @@ export async function runAutonomousAgent(
       }> = [];
       let fullText = "";
       let fullReasoning = "";
-
-      const openFrame = () => {
-        if (frameOpen) return;
-        sse.writeFrameStart(frameId);
-        frameOpen = true;
-      };
-
-      const closeFrame = () => {
-        if (!frameOpen) return;
-        if (interimBuffer.trim()) {
-          sse.writeInterim(interimBuffer.trim());
-          interimBuffer = "";
-        }
-        sse.writeFrameComplete(frameId);
-        frameOpen = false;
-      };
 
       const novitaBase = buildNovitaRequestOptions(options, {
         temperature: temperature ?? 0.6,
@@ -259,37 +277,40 @@ export async function runAutonomousAgent(
           case "text-delta": {
             const visible = sanitizeAssistantStreamDelta(part.delta);
             if (!visible) break;
-            // Stream live so the user sees real-time typing. If a tool call
-            // arrives later, we retract this text from the answer and capture
-            // it as the frame's interim narrative instead.
+            // Stream live as answer text until a tool call proves it was a
+            // pre-tool whisper — then it moves to introNarrative above the
+            // timeline. Post-tool notes stay as timeline text segments.
             if (!sawToolCall) {
               sse.writeAnswerDelta(visible);
             } else {
-              // Text after tool calls in the same step is interim narrative.
-              // Emit the full accumulated buffer so the frame's live narrative
-              // updates in place (avoids fragmented \n\n appends).
-              interimBuffer += visible;
-              sse.writeInterim(interimBuffer.trim());
+              // Text after a tool call in this step is a narrative note —
+              // stream it into its own persistent timeline segment (stays
+              // visible after the frame collapses, unlike the old ephemeral
+              // interim preview).
+              if (!activeTextSegmentId) {
+                textSegmentCounter += 1;
+                activeTextSegmentId = `${frameId}-text-${textSegmentCounter}`;
+                sse.writeSegmentStart(activeTextSegmentId, "text");
+              }
+              sse.writeTextDelta(activeTextSegmentId, visible);
             }
             fullText += visible;
             break;
           }
 
           case "tool-call-start":
+            openFrame();
             if (!sawToolCall) {
-              // Retract the streamed pre-tool text from the answer buffer —
-              // it was narration, not the final answer. Capture it as the
-              // frame's interim narrative instead. Open the frame FIRST so the
-              // reducer has a frame to attach the interim to.
-              openFrame();
               sawToolCall = true;
               if (fullText.trim()) {
                 sse.writeAnswerClear();
-                sse.writeInterim(fullText.trim());
-                // Seed the interim buffer with the pre-tool narrative so
-                // subsequent post-tool text appends to it seamlessly.
-                interimBuffer = fullText.trim();
+                sse.writeIntroNarrative(fullText.trim());
               }
+            } else {
+              // A new tool call starts — close out any narrative note that
+              // was streaming since the previous tool result so it renders
+              // as its own row above this tool, not merged with it.
+              closeActiveTextSegment();
             }
             sse.writeToolStart(part.toolCallId, part.toolName);
             break;
@@ -312,6 +333,7 @@ export async function runAutonomousAgent(
             break;
 
           case "error":
+            closeFrame();
             sse.writeError(part.error);
             return;
 
@@ -322,25 +344,20 @@ export async function runAutonomousAgent(
         }
       }
 
-      // Close any open frame before processing tools
-      if (frameOpen && sawToolCall) {
-        if (interimBuffer.trim()) {
-          sse.writeInterim(interimBuffer.trim());
-          interimBuffer = "";
-        }
-        sse.writeFrameComplete(frameId);
-        frameOpen = false;
-      } else if (frameOpen) {
-        closeFrame();
-      }
+      // Close out any narrative segment left open at the end of this step —
+      // the next step (if any) starts its own fresh narrative/answer text.
+      // The frame itself stays open across steps; it only closes once the
+      // whole autonomous turn actually finishes (see below and `finally`).
+      closeActiveTextSegment();
 
       // If thinking was streaming and we have text, end thinking
       if (fullReasoning && fullText) {
         sse.writeThinkingEnd();
       }
 
-      // If no tool calls, we're done — the text is the final answer
+      // If no tool calls, we're done — the text is the final answer.
       if (pendingToolCalls.length === 0) {
+        closeFrame();
         break;
       }
 
@@ -359,7 +376,13 @@ export async function runAutonomousAgent(
       }
       conversation.push(assistantMessage);
 
+      // Emit full tool args before execution so interactive UIs can render.
+      for (const tc of pendingToolCalls) {
+        sse.writeToolStart(tc.id, tc.name, safeParseJson(tc.arguments));
+      }
+
       // Execute tool calls in parallel (independent calls run concurrently)
+      let pauseForUser = false;
       const toolResults = await Promise.all(
         pendingToolCalls.map(async (tc) => {
           const healingTool = healingTools.get(tc.name);
@@ -413,6 +436,10 @@ export async function runAutonomousAgent(
               ? result.output
               : JSON.stringify(result.output ?? {});
 
+            if (result.pauseForUser || tc.name === "ask_user_input_v0") {
+              pauseForUser = true;
+            }
+
             sse.writeToolEnd(tc.id, tc.name, resultStr);
 
             return {
@@ -441,6 +468,11 @@ export async function runAutonomousAgent(
             const resultStr = typeof outcome.output === "string"
               ? outcome.output
               : JSON.stringify(outcome.output ?? {});
+
+            if (outcome.pauseForUser || tc.name === "ask_user_input_v0") {
+              pauseForUser = true;
+            }
+
             sse.writeToolEnd(tc.id, tc.name, resultStr);
             return { toolCallId: tc.id, name: tc.name, result: resultStr };
           } catch (error) {
@@ -463,9 +495,18 @@ export async function runAutonomousAgent(
 
       sse.writeStepDone(`Step ${step + 1} complete`);
 
-      // Continue the loop — the model will see tool results and decide next step
+      if (pauseForUser) {
+        closeFrame();
+        break;
+      }
+
+      // Continue the loop — the model will see tool results and decide next step.
+      // The frame stays open; no new timeline block opens for this next step.
     }
   } finally {
+    // Safety net: close a still-open frame/segment if the loop exited via an
+    // unhandled path (e.g. an exception thrown before a normal break/return).
+    closeFrame();
     sse.writeDone();
     sse.finalize();
   }

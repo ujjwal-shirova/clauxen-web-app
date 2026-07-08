@@ -6,6 +6,7 @@ export type AppLayoutContextValue = {
   isMobile: boolean;
   isSidebarCollapsed: boolean;
   openMobileNav: () => void;
+  setSidebarCollapsed?: (collapsed: boolean) => void;
 };
 
 const AppLayoutContext = createContext<AppLayoutContextValue | null>(null);

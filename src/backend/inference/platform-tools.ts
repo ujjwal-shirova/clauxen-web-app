@@ -16,7 +16,6 @@ export type PlatformToolName =
   | "bash_tool"
   | "create_file"
   | "view"
-  | "str_replace"
   | "present_files"
   | "web_search"
   | "web_fetch"
@@ -72,7 +71,7 @@ export function platformTools(): PlatformTool[] {
     ),
     tool(
       "create_file",
-      "Create a new file in the sandbox. Appears as an artifact in the chat UI. Use str_replace for edits.",
+      "Create or overwrite a file in the sandbox. Appears as an artifact in the chat UI. Always pass the full file content — this is the only file-write tool, used for both new files and edits.",
       {
         type: "object",
         properties: {
@@ -110,20 +109,6 @@ export function platformTools(): PlatformTool[] {
       },
     ),
     tool(
-      "str_replace",
-      "Replace a unique string in a sandbox file. old_str must appear exactly once.",
-      {
-        type: "object",
-        properties: {
-          path: { type: "string" },
-          old_str: { type: "string" },
-          new_str: { type: "string" },
-          description: { type: "string" },
-        },
-        required: ["path", "old_str", "new_str", "description"],
-      },
-    ),
-    tool(
       "present_files",
       "Present sandbox files to the user in the artifacts panel.",
       {
@@ -148,11 +133,9 @@ export function platformTools(): PlatformTool[] {
         "  ([Exact Title or Domain][N])",
         "  Example: The government announced a major milestone ([The Times of India][1]).",
         "- N must be the 1-based index of the result in the order they were provided (first result = 1).",
-        "- At the VERY END of your complete response, append ONLY the reference definitions (no extra headings):",
-        "  [1]: https://full-url \"Title or short description\"",
-        "  [2]: https://... \"...\"",
+        "- Do NOT append markdown reference definitions at the end, such as [1]: https://full-url \"Title\".",
         "- Do NOT output any 'Sources' list, pills, or UI elements yourself — the client will turn your [N] citations into nice inline chips for display.",
-        "- The raw text you produce (with inline citations + trailing references) is what the user will copy when they press the copy button, so make it complete and self-contained markdown.",
+        "- The raw text you produce should be complete markdown with inline citations only.",
         "- Use the exact titles and URLs from the tool results. Never invent URLs or titles.",
       ].join(" "),
       {
@@ -265,7 +248,7 @@ export function platformTools(): PlatformTool[] {
     ),
     tool(
       "ask_user_input_v0",
-      "Present tappable options to gather user preferences before providing advice. This tool displays interactive buttons that users can tap to answer, which is much easier than typing on mobile. Always include a brief conversational message before presenting options. Keep it to one question where possible — three is a ceiling — with 2-4 short, mutually exclusive options. After calling this, your turn is done — the user's selection comes as their next message.",
+      "AUTO-USE for preference elicitation: shows a polished card with numbered options + 'Something else' textbox. Use proactively when you need the user's goals, constraints, priorities or style before giving plans/recommendations. Say one short sentence then call. 1-3 questions, 2-4 crisp options each. UI auto-advances on choice and posts a clean summary as the next user message. Your turn ends after the call — wait for answers.",
       {
         type: "object",
         properties: {

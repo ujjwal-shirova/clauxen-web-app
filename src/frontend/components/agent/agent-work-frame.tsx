@@ -9,11 +9,13 @@ import {
 } from "@/frontend/lib/agent-frame-label";
 import type {
   AgentSegment,
+  AgentTextSegment,
   AgentThinkingSegment,
   AgentToolSegment,
 } from "@/frontend/lib/agent-segments";
 import { AgentTimeline, AgentTimelineDone } from "./agent-timeline";
 import { AgentThinkingStep } from "./agent-thinking-step";
+import { AgentNarrativeStep } from "@/frontend/components/agent/agent-narrative-step";
 import { AgentToolBlock } from "./agent-tool-blocks";
 
 function isThinkingSegment(
@@ -26,9 +28,16 @@ function isToolSegment(segment: AgentSegment): segment is AgentToolSegment {
   return segment.kind === "tool";
 }
 
+function isTextSegment(segment: AgentSegment): segment is AgentTextSegment {
+  return segment.kind === "text";
+}
+
 function workSegments(segments: AgentSegment[]) {
   return segments.filter(
-    (segment) => segment.kind === "thinking" || segment.kind === "tool",
+    (segment) =>
+      segment.kind === "thinking" ||
+      segment.kind === "tool" ||
+      segment.kind === "text",
   );
 }
 
@@ -36,19 +45,36 @@ export function AgentWorkFrame({
   segments,
   isStreaming,
   frameComplete,
-  liveNarrative,
 }: {
   segments: AgentSegment[];
   isStreaming: boolean;
   frameComplete: boolean;
-  /** Short natural language progress emitted by the model for this phase (e.g. "searching web...", "got results, checking further"). */
-  liveNarrative?: string;
 }) {
   const [expanded, setExpanded] = useState(true);
   const userToggledRef = useRef(false);
   const items = workSegments(segments);
+  const hasUserInputTool = items.some(
+    (segment) =>
+      segment.kind === "tool" && segment.name === "ask_user_input_v0",
+  );
+  const userInputTools = items.filter(
+    (segment): segment is AgentToolSegment =>
+      isToolSegment(segment) && segment.name === "ask_user_input_v0",
+  );
+  const timelineItems = items.filter(
+    (segment) =>
+      !(
+        isToolSegment(segment) && segment.name === "ask_user_input_v0"
+      ),
+  );
+  const userInputOnly = hasUserInputTool && timelineItems.length === 0;
 
   useEffect(() => {
+    if (hasUserInputTool) {
+      userToggledRef.current = false;
+      setExpanded(true);
+      return;
+    }
     if (isStreaming) {
       userToggledRef.current = false;
       setExpanded(true);
@@ -57,11 +83,12 @@ export function AgentWorkFrame({
     if (frameComplete && !userToggledRef.current) {
       setExpanded(false);
     }
-  }, [isStreaming, frameComplete]);
+  }, [isStreaming, frameComplete, hasUserInputTool]);
 
   const hasActiveWork = items.some(
     (segment) =>
-      (segment.kind === "thinking" && segment.isStreaming) ||
+      ((segment.kind === "thinking" || segment.kind === "text") &&
+        segment.isStreaming) ||
       (segment.kind === "tool" && segment.status === "running"),
   );
 
@@ -70,10 +97,20 @@ export function AgentWorkFrame({
     hasActiveWork,
   });
   const showShimmer = shouldShimmerFrameHeader(frameLabel);
-  const showCollapsedHeader = frameComplete && !expanded && !isStreaming;
+  const showCollapsedHeader = frameComplete && !expanded && !isStreaming && !hasUserInputTool;
 
   if (items.length === 0) {
     return null;
+  }
+
+  if (userInputOnly) {
+    return (
+      <div className="mb-4 w-full min-w-0">
+        {userInputTools.map((segment) => (
+          <AgentToolBlock key={segment.id} tool={segment} />
+        ))}
+      </div>
+    );
   }
 
   const toggleExpanded = () => {
@@ -86,17 +123,17 @@ export function AgentWorkFrame({
       <button
         type="button"
         onClick={toggleExpanded}
-        className="mb-2 flex w-full max-w-full items-center text-left"
+        className="no-hover no-hover-overlay mb-2 inline-flex max-w-full items-center border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0"
         aria-expanded={expanded}
       >
         <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
           <span
             className={cn(
-              "truncate text-[14px] font-medium leading-5",
+              "truncate text-[14px] font-medium leading-5 transition-[font-weight,color] duration-150 hover:font-semibold",
               showCollapsedHeader
-                ? "text-zinc-400"
+                ? "text-zinc-400 hover:text-zinc-500"
                 : showShimmer
-                  ? "shimmer-text text-zinc-700"
+                  ? "shimmer-text text-zinc-700 hover:font-semibold"
                   : "text-zinc-700",
             )}
           >
@@ -123,27 +160,30 @@ export function AgentWorkFrame({
         aria-hidden={!expanded}
       >
         <div className="overflow-hidden">
-          <AgentTimeline>
-            {items.map((segment) => {
-              if (isThinkingSegment(segment)) {
-                return <AgentThinkingStep key={segment.id} segment={segment} />;
-              }
-              if (isToolSegment(segment)) {
-                return <AgentToolBlock key={segment.id} tool={segment} />;
-              }
-              return null;
-            })}
-            {frameComplete ? <AgentTimelineDone /> : null}
-
-            {/* Live model-generated delta / progress narrative (Cursor-style text-delta driven).
-                Rendered as a soft card above the timeline to match the autonomous agent "spoken thoughts"
-                style shown in the reference screenshot. */}
-            {isStreaming && !frameComplete && liveNarrative?.trim() ? (
-              <div className="mt-2 rounded-2xl border border-zinc-200/70 bg-[#f8f7f4] px-4 py-3 text-[13.5px] leading-relaxed text-zinc-700 shadow-sm">
-                {liveNarrative.trim()}
-              </div>
-            ) : null}
-          </AgentTimeline>
+          {userInputTools.map((segment) => (
+            <AgentToolBlock key={segment.id} tool={segment} />
+          ))}
+          {timelineItems.length > 0 ? (
+            <AgentTimeline>
+              {timelineItems.map((segment) => {
+                if (isThinkingSegment(segment)) {
+                  return (
+                    <AgentThinkingStep key={segment.id} segment={segment} />
+                  );
+                }
+                if (isTextSegment(segment)) {
+                  return (
+                    <AgentNarrativeStep key={segment.id} segment={segment} />
+                  );
+                }
+                if (isToolSegment(segment)) {
+                  return <AgentToolBlock key={segment.id} tool={segment} />;
+                }
+                return null;
+              })}
+              {frameComplete && !hasUserInputTool ? <AgentTimelineDone /> : null}
+            </AgentTimeline>
+          ) : null}
         </div>
       </div>
     </div>

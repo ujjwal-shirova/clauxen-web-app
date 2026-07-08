@@ -8,6 +8,7 @@ import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import "katex/dist/katex.min.css";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
+import type { StreamFadeConfig } from "@/frontend/lib/streaming-text-animation";
 import {
   StyledH1,
   StyledH2,
@@ -41,12 +42,14 @@ export const normalizeLatexDelimiters = (input: string) =>
       (_match, expression) => `$${expression}$`,
     );
 
-function CodeRenderer(props: {
+export function CodeRenderer(props: {
   inline?: boolean;
   className?: string;
   children?: React.ReactNode;
+  /** Fade in newly streamed characters/tokens while the message is still streaming. */
+  streamFade?: StreamFadeConfig;
 }) {
-  const { inline, className, children, ...rest } = props;
+  const { inline, className, children, streamFade, ...rest } = props;
   const [isCopied, setIsCopied] = useState(false);
   const match = /language-([\w+#.-]+)/.exec(className || "");
   const language = match ? match[1] : "";
@@ -68,7 +71,11 @@ function CodeRenderer(props: {
         onCopy={handleCopy}
         isCopied={isCopied}
       >
-        <HighlightCode code={content} language={resolvedLanguage} />
+        <HighlightCode
+          code={content}
+          language={resolvedLanguage}
+          streamFade={streamFade}
+        />
       </CodeBlockFrame>
     );
   }
@@ -149,7 +156,7 @@ export const markdownComponents = {
 };
 
 export const sharedReactMarkdownProps: Options = {
-  remarkPlugins: [remarkGfm, remarkMath],
+  remarkPlugins: [remarkGfm, [remarkMath, { singleDollarTextMath: false }]],
   rehypePlugins: [
     rehypeRaw,
     [rehypeKatex, { output: "htmlAndMathml", trust: true }],

@@ -1,0 +1,11 @@
+{
+  "name": "idle",
+  "frameCount": 86,
+  "columns": 10,
+  "rows": 9,
+  "frameSize": 223,
+  "fps": 24,
+  "loop": true,
+  "sheet": "/mascot/idle.png",
+  "source": "generated-concept-art"
+}

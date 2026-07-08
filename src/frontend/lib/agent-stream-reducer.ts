@@ -7,6 +7,10 @@ import type {
 import { parseToolResult } from "@/frontend/lib/agent-segments";
 import type { ChatArtifact } from "@/frontend/lib/chat-artifacts";
 import { fileNameFromPath } from "@/frontend/lib/chat-artifacts";
+import {
+  collectCreateFileArtifacts,
+  mergeChatArtifacts,
+} from "@/frontend/lib/create-file-tags";
 import type { AgentFrame } from "@/frontend/lib/agent-frames";
 import {
   activeFrameIndex,
@@ -92,6 +96,23 @@ function withSegments(
 
 function hasActiveAgentWork(state: FrameReducerState): boolean {
   return hasActiveFrameWork(state.frames, state.frameIdx);
+}
+
+function attachIntroNarrativeToFrame(
+  frames: AgentFrame[],
+  text: string,
+  append = false,
+): AgentFrame[] {
+  if (!text.trim() || frames.length === 0) return frames;
+  const next = [...frames];
+  const lastIdx = next.length - 1;
+  const last = next[lastIdx];
+  const prior = last.introNarrative ?? "";
+  next[lastIdx] = {
+    ...last,
+    introNarrative: append && prior ? `${prior}${text}` : text,
+  };
+  return next;
 }
 
 function attachInterimToLastFrame(
@@ -335,7 +356,16 @@ export function applyAgentStreamEvent(
         });
       }
       if (event.kind === "text") {
-        return message;
+        agentMode = true;
+        state = withSegments(state, (segments) =>
+          upsertSegment(segments, {
+            kind: "text",
+            id: event.segmentId,
+            content: "",
+            isStreaming: true,
+          }),
+        );
+        return syncFrameState(state, { agentMode, isStreaming: true });
       }
       return message;
 
@@ -399,6 +429,23 @@ export function applyAgentStreamEvent(
         isThinkingStreaming: true,
         isStreaming: true,
       });
+    }
+
+    case "text_delta": {
+      agentMode = true;
+      state = withSegments(state, (segments) => {
+        const existing = segments.find(
+          (segment): segment is Extract<AgentSegment, { kind: "text" }> =>
+            segment.id === event.segmentId && segment.kind === "text",
+        );
+        return upsertSegment(segments, {
+          kind: "text",
+          id: event.segmentId,
+          content: `${existing?.content ?? ""}${event.delta}`,
+          isStreaming: true,
+        });
+      });
+      return syncFrameState(state, { agentMode, isStreaming: true });
     }
 
     case "thinking_end":
@@ -483,9 +530,16 @@ export function applyAgentStreamEvent(
     case "answer_delta": {
       content += event.delta;
       isThinkingStreaming = false;
+      if (message.id) {
+        agentArtifacts = mergeChatArtifacts(
+          agentArtifacts,
+          collectCreateFileArtifacts(content, message.id),
+        );
+      }
       return syncFrameState(state, {
         agentMode: agentMode || state.message.agentMode === true,
         content,
+        agentArtifacts,
         isThinkingStreaming,
         isStreaming: true,
       });
@@ -595,8 +649,8 @@ export function applyAgentStreamEvent(
           (segment) =>
             segment.kind === "tool" &&
             (segment.name === "create_file" ||
-              segment.name === "str_replace" ||
-              segment.name === "present_files") &&
+              segment.name === "present_files" ||
+              segment.name === "file_write") &&
             segment.status === "running",
         );
         if (toolIndex < 0) return segments;
@@ -632,6 +686,36 @@ export function applyAgentStreamEvent(
       });
     }
 
+    case "agent_intro_narrative_delta": {
+      agentMode = true;
+      state = ensureOpenFrame(state);
+      const frames = attachIntroNarrativeToFrame(
+        state.frames,
+        event.delta,
+        true,
+      );
+      state = { ...state, frames };
+      return syncFrameState(state, {
+        agentMode,
+        isStreaming: true,
+      });
+    }
+
+    case "agent_intro_narrative": {
+      agentMode = true;
+      state = ensureOpenFrame(state);
+      const frames = attachIntroNarrativeToFrame(
+        state.frames,
+        event.text,
+        false,
+      );
+      state = { ...state, frames };
+      return syncFrameState(state, {
+        agentMode,
+        isStreaming: true,
+      });
+    }
+
     case "agent_frame_complete": {
       state = ensureOpenFrame(state);
       const frames = [...state.frames];
@@ -660,7 +744,14 @@ export function applyAgentStreamEvent(
     case "done": {
       const frames = finalizeAllFrames(state.frames);
       state = { ...state, frames };
+      if (message.id) {
+        agentArtifacts = mergeChatArtifacts(
+          agentArtifacts,
+          collectCreateFileArtifacts(content, message.id),
+        );
+      }
       return syncFrameState(state, {
+        agentArtifacts,
         isStreaming: false,
         isThinkingStreaming: false,
         agentFrameComplete: true,

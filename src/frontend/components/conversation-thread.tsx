@@ -11,10 +11,10 @@ import {
   Sparkles,
   Volume2,
 } from "lucide-react";
-import { MarkdownRenderer } from "./markdown-renderer";
+import { AssistantContentRenderer } from "./assistant-content-renderer";
 import { ThinkingBlock } from "./thinking-block";
 import { AgentMessageContent } from "./agent/agent-message-content";
-import { OrbCursor } from "./ui/orb-cursor";
+import { TypingDots } from "./ui/typing-dots";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { messageAnchorId } from "./chat-message-navigator";
 import type { Message } from "@/frontend/lib/types";
@@ -355,7 +355,7 @@ const MessageRow = React.memo(
                 )}
                 {message.isStreaming && message.content.length === 0 && (
                   <div className="flex items-center gap-1 py-1.5">
-                    <OrbCursor />
+                    <TypingDots />
                   </div>
                 )}
                 {message.content.length > 0 ? (
@@ -364,11 +364,13 @@ const MessageRow = React.memo(
                     data-assistant-content="true"
                     className="min-w-0"
                   >
-                    <MarkdownRenderer
+                    <AssistantContentRenderer
                       content={message.content}
+                      messageId={message.id}
                       isStreaming={!!message.isStreaming}
                       streamKey={message.id}
                       detailLevel={renderDetailLevel}
+                      agentArtifacts={message.agentArtifacts}
                       {...({ sources: messageSources } as any)}
                     />
                   </div>
@@ -880,7 +882,7 @@ function syncStickyUserMessages(viewport: HTMLElement, turnCount: number) {
   syncCodeBlockHeaderPins(viewport, activeIndex);
 }
 
-/** Enable code-header sticky for every block in the active turn (turn-level only). */
+/** Enable code/table header sticky for every block in the active turn (turn-level only). */
 function syncCodeBlockHeaderPins(viewport: HTMLElement, activeIndex: number) {
   viewport
     .querySelectorAll<HTMLElement>(".composer-message-codeblock")
@@ -890,6 +892,17 @@ function syncCodeBlockHeaderPins(viewport: HTMLElement, activeIndex: number) {
       const nextPin = turnIndex === activeIndex ? "true" : "false";
       if (block.dataset.codeHeaderPin !== nextPin) {
         block.dataset.codeHeaderPin = nextPin;
+      }
+    });
+
+  viewport
+    .querySelectorAll<HTMLElement>(".composer-message-table")
+    .forEach((block) => {
+      const turn = block.closest<HTMLElement>("[data-conversation-turn]");
+      const turnIndex = Number(turn?.dataset.turnIndex);
+      const nextPin = turnIndex === activeIndex ? "true" : "false";
+      if (block.dataset.tableHeaderPin !== nextPin) {
+        block.dataset.tableHeaderPin = nextPin;
       }
     });
 }

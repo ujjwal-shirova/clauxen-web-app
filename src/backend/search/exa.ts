@@ -44,12 +44,7 @@ type ExaCitationRow = {
 const SEARCH_TYPE = "auto" as const;
 const NUM_RESULTS = 10;
 
-const SEARCH_SYSTEM_PROMPT = [
-  "You are a high-quality, safety-aware web research system.",
-  "Prefer primary sources, official sources, reputable journalism, and recently published pages when the query is current.",
-  "Avoid duplicate URLs, low-quality SEO pages, and unsupported claims.",
-  "Return transparent source metadata and relevant excerpts; do not fabricate citations.",
-].join(" ");
+import { EXA_SEARCH_SYSTEM_PROMPT } from "@/backend/inference/system-prompt";
 
 function getExaClient(): Exa | null {
   const apiKey = env.exaApiKey;
@@ -64,7 +59,7 @@ function buildSearchRequestOptions(options?: {
   systemPrompt?: string;
 }) {
   const num = Math.max(1, Math.min(100, options?.numResults ?? NUM_RESULTS));
-  const sys = options?.systemPrompt || SEARCH_SYSTEM_PROMPT;
+  const sys = options?.systemPrompt || EXA_SEARCH_SYSTEM_PROMPT;
   const base: any = {
     type: SEARCH_TYPE,
     numResults: num,
@@ -105,7 +100,7 @@ async function emitResultsProgressively(
     onPartialResults(results.slice(0, count));
     if (count < results.length) {
       await new Promise<void>((resolve) => {
-        setTimeout(resolve, 0);
+        setTimeout(resolve, 80);
       });
     }
   }
@@ -156,8 +151,8 @@ export async function searchWebWithExa(
         for (const citation of chunk.citations) {
           if (!citation.url || hitsByUrl.has(citation.url)) continue;
           hitsByUrl.set(citation.url, mapCitation(citation));
+          options?.onPartialResults?.(Array.from(hitsByUrl.values()));
         }
-        options?.onPartialResults?.(Array.from(hitsByUrl.values()));
       }
     }
   } catch {

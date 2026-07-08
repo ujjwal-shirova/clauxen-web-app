@@ -1,30 +1,13 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import TokenizedText from "@flowtoken/components/SplitText";
+import { animations as flowtokenAnimations } from "@flowtoken/utils/animations";
 
 /** Fast streams: short enough to track token cadence; slow streams: longer, smoother settle. */
-const MIN_DURATION_MS = 32;
-const MAX_DURATION_MS = 160;
-const FAST_GAP_MS = 28;
-const MAX_TOKENS = 500;
-
-export type StreamToken = {
-  id: number;
-  text: string;
-  durationMs: number;
-};
-
-type RevealSession = {
-  sessionKey: string;
-  assembled: string;
-  tokens: StreamToken[];
-  nextId: number;
-  lastChunkAt: number;
-};
-
-export function resetStreamTokenSessions(_streamKey: string) {
-  // Tokens are held in component state; nothing global to clear.
-}
+const MIN_DURATION_MS = 24;
+const MAX_DURATION_MS = 140;
+const FAST_GAP_MS = 18;
 
 /**
  * Duration scales with inter-chunk gap so animation speed tracks the model's token rate.
@@ -37,140 +20,92 @@ export function computeStreamTokenDurationMs(
   let duration: number;
 
   if (elapsedSinceLastChunk <= 0) {
-    duration = 56;
+    duration = 32;
   } else if (elapsedSinceLastChunk < FAST_GAP_MS) {
-    // High throughput — quick settle but keep a perceptible ink fade.
+    // High throughput (100+ tok/s) — render immediately with a short ink fade.
     duration = Math.max(
       MIN_DURATION_MS,
-      Math.min(72, 30 + elapsedSinceLastChunk * 1.25),
+      Math.min(42, 18 + elapsedSinceLastChunk * 1.1),
     );
   } else {
     duration = Math.min(
       MAX_DURATION_MS,
-      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.44),
+      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.35),
     );
   }
 
-  // Small boost for larger chunks so the fade has time to read, but capped
-  // so it never masks fast token cadence.
-  const sizeBoost = Math.min(22, Math.sqrt(chunkLength) * 3.2);
+  // Larger chunks get a tiny boost, but never enough to make fast streams feel
+  // delayed behind the network.
+  const sizeBoost = Math.min(12, Math.sqrt(chunkLength) * 1.8);
   return Math.round(
     Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, duration + sizeBoost)),
   );
 }
 
-function appendChunk(session: RevealSession, text: string) {
-  if (!text) {
-    session.assembled = "";
-    session.tokens = [];
-    session.nextId = 0;
-    session.lastChunkAt = 0;
-    return;
-  }
-
-  if (
-    text.length < session.assembled.length ||
-    !text.startsWith(session.assembled)
-  ) {
-    session.assembled = "";
-    session.tokens = [];
-    session.nextId = 0;
-    session.lastChunkAt = 0;
-  }
-
-  const delta = text.slice(session.assembled.length);
-  if (!delta) return;
-
-  const now = performance.now();
-  const elapsed = session.lastChunkAt > 0 ? now - session.lastChunkAt : 0;
-  session.lastChunkAt = now;
-
-  session.tokens.push({
-    id: session.nextId,
-    text: delta,
-    durationMs: computeStreamTokenDurationMs(elapsed, delta.length),
-  });
-  session.nextId += 1;
-
-  if (session.tokens.length > MAX_TOKENS) {
-    const overflow = session.tokens.length - MAX_TOKENS;
-    session.tokens = session.tokens.slice(overflow);
-  }
-
-  session.assembled = text;
-}
-
 export function StreamingTokenReveal({
   text,
   sessionKey,
-  animationName = "clauxen-token-fade",
+  animationName = "fadeIn",
   timingFunction = "cubic-bezier(0.22, 1, 0.36, 1)",
 }: {
   text: string;
   sessionKey: string;
   animationName?: string;
   timingFunction?: string;
+  /** @deprecated cursor rendering was removed app-wide; kept for call-site compat. */
+  showCursor?: boolean;
 }) {
-  const sessionRef = useRef<RevealSession | null>(null);
-  const [tokens, setTokens] = useState<StreamToken[]>([]);
+  const prevTextRef = useRef("");
+  const prevKeyRef = useRef(sessionKey);
+  const lastChunkAtRef = useRef(0);
+  const durationRef = useRef(160);
+  const resetCounterRef = useRef(0);
 
-  if (sessionRef.current === null) {
-    sessionRef.current = {
-      sessionKey,
-      assembled: "",
-      tokens: [],
-      nextId: 0,
-      lastChunkAt: 0,
-    };
+  if (prevKeyRef.current !== sessionKey) {
+    prevKeyRef.current = sessionKey;
+    prevTextRef.current = "";
+    lastChunkAtRef.current = 0;
+    durationRef.current = 160;
+    resetCounterRef.current = 0;
   }
 
-  useLayoutEffect(() => {
-    const session = sessionRef.current!;
-    if (session.sessionKey !== sessionKey) {
-      session.sessionKey = sessionKey;
-      session.assembled = "";
-      session.tokens = [];
-      session.nextId = 0;
-      session.lastChunkAt = 0;
-      setTokens([]);
-      return;
+  if (text !== prevTextRef.current) {
+    const previous = prevTextRef.current;
+    const now = performance.now();
+    const isGrowth = previous.length > 0 && text.startsWith(previous);
+    const deltaLength = isGrowth ? text.length - previous.length : text.length;
+    const elapsed = lastChunkAtRef.current > 0 ? now - lastChunkAtRef.current : 0;
+
+    if (previous && !isGrowth) {
+      // Flowtoken diff mode is append-oriented. Remount on rewrites so its
+      // internal token source cache never treats repeated text as duplicated
+      // stream growth.
+      resetCounterRef.current += 1;
     }
 
-    appendChunk(session, text);
-    setTokens(session.tokens.length > 0 ? session.tokens.slice() : []);
-  }, [text, sessionKey]);
+    durationRef.current = computeStreamTokenDurationMs(
+      isGrowth ? elapsed : 0,
+      Math.max(0, deltaLength),
+    );
+    lastChunkAtRef.current = now;
+    prevTextRef.current = text;
+  }
 
   if (!text) return null;
 
-  if (tokens.length === 0) {
-    return (
-      <span className="stream-token-enter stream-token-pending">{text}</span>
-    );
-  }
+  const resolvedAnimation =
+    flowtokenAnimations[animationName as keyof typeof flowtokenAnimations] ??
+    animationName;
 
   return (
-    <>
-      {tokens.map((token, index) => {
-        const isActive = index === tokens.length - 1;
-        return (
-          <span
-            key={token.id}
-            className={isActive ? "stream-token-enter" : "stream-token-stable"}
-            style={
-              isActive
-                ? {
-                    animationName,
-                    animationDuration: `${token.durationMs}ms`,
-                    animationTimingFunction: timingFunction,
-                    animationIterationCount: 1,
-                  }
-                : undefined
-            }
-          >
-            {token.text}
-          </span>
-        );
-      })}
-    </>
+    <TokenizedText
+      key={`${sessionKey}:${resetCounterRef.current}`}
+      input={text}
+      sep="diff"
+      animation={resolvedAnimation}
+      animationDuration={`${durationRef.current}ms`}
+      animationTimingFunction={timingFunction}
+      animationIterationCount={1}
+    />
   );
 }

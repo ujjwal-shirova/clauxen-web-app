@@ -93,6 +93,33 @@ export class ClauxenSseStream {
     this.write({ type: "agent_interim", text });
   }
 
+  /** Short whisper shown above the collapsible work timeline (pre-tool narration). */
+  writeIntroNarrative(text: string): void {
+    if (!text.trim()) return;
+    this.write({ type: "agent_intro_narrative", text });
+  }
+
+  writeIntroNarrativeDelta(delta: string): void {
+    if (!delta) return;
+    this.write({ type: "agent_intro_narrative_delta", delta });
+  }
+
+  /** Persistent narrative-note segment (the small clock-icon rows between tool
+   * calls in the vertical work timeline) — distinct from the ephemeral
+   * agent_interim preview, these survive after the frame completes. */
+  writeSegmentStart(segmentId: string, kind: "thinking" | "text" | "tool"): void {
+    this.write({ type: "segment_start", segmentId, kind });
+  }
+
+  writeSegmentEnd(segmentId: string, kind: "thinking" | "text" | "tool"): void {
+    this.write({ type: "segment_end", segmentId, kind });
+  }
+
+  writeTextDelta(segmentId: string, delta: string): void {
+    if (!delta) return;
+    this.write({ type: "text_delta", segmentId, delta });
+  }
+
   writeToolStart(
     toolCallId: string,
     name: string,

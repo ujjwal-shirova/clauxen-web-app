@@ -107,7 +107,8 @@ export function hasActiveFrameWork(frames: AgentFrame[], index: number): boolean
   if (!frame || frame.complete) return false;
   return frame.segments.some(
     (segment) =>
-      (segment.kind === "thinking" && segment.isStreaming) ||
+      ((segment.kind === "thinking" || segment.kind === "text") &&
+        segment.isStreaming) ||
       (segment.kind === "tool" && segment.status === "running"),
   );
 }
@@ -133,7 +134,10 @@ export type OrchestrationBlock =
 
 function frameHasWorkSegments(segments: AgentSegment[]): boolean {
   return segments.some(
-    (segment) => segment.kind === "thinking" || segment.kind === "tool",
+    (segment) =>
+      segment.kind === "thinking" ||
+      segment.kind === "tool" ||
+      (segment.kind === "text" && segment.content.trim().length > 0),
   );
 }
 
@@ -184,9 +188,24 @@ export function resolveOrchestrationBlocks(
     const frame = frames[index];
     const isActive =
       streaming && index === frames.length - 1 && !frame.complete;
+    const frameHasTools = frameHasToolSegments(frame.segments);
 
     if (frame.interimOutput?.trim()) {
       lastInterimNarrative = frame.interimOutput.trim();
+    }
+
+    const introNarrative =
+      isActive && !frameHasTools && message.content.trim()
+        ? message.content
+        : frame.introNarrative?.trim();
+
+    if (introNarrative) {
+      blocks.push({
+        kind: "markdown",
+        blockId: `${frame.id}-intro`,
+        content: introNarrative,
+        isStreaming: isActive && !frameHasTools,
+      });
     }
 
     if (frameHasWorkSegments(frame.segments)) {
@@ -200,7 +219,19 @@ export function resolveOrchestrationBlocks(
   }
 
   const trailingContent = message.content.trim();
-  if (trailingContent && !agentAnswerDuplicatesInterim(message)) {
+  const introBlocksContent = blocks
+    .filter((block) => block.kind === "markdown" && block.blockId.endsWith("-intro"))
+    .map((block) => (block.kind === "markdown" ? block.content.trim() : ""))
+    .filter(Boolean);
+  const trailingIsIntroOnly =
+    trailingContent.length > 0 &&
+    introBlocksContent.some((intro) => intro === trailingContent);
+
+  if (
+    trailingContent &&
+    !trailingIsIntroOnly &&
+    !agentAnswerDuplicatesInterim(message)
+  ) {
     blocks.push({
       kind: "markdown",
       blockId: `${message.id}-answer`,

@@ -10,6 +10,13 @@ import {
   writeScopedFile,
 } from "@/backend/inference/autonomous-tools/workspace";
 
+const GENERATED_FOOTER_RE =
+  /(?:\r?\n){0,3}(?:[-*_]\s*)?(?:This\s+(?:document|file|code|artifact)\s+was\s+generated\s+by\s+clauxen\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}\.?|Generated\s+by\s+clauxen\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}\.?)\s*$/i;
+
+function stripGeneratedArtifactFooter(content: string): string {
+  return content.replace(GENERATED_FOOTER_RE, "").replace(/\s+$/g, "");
+}
+
 export type ToolExecutionContext = {
   conversationId: string;
   userId?: string;
@@ -161,17 +168,21 @@ export async function executeAutonomousTool(
 
   if (name === "file_write") {
     const filePath = String(args.path ?? "");
-    const content = String(args.content ?? "");
+    const content = stripGeneratedArtifactFooter(String(args.content ?? ""));
     const output = await writeScopedFile(ctx.conversationId, filePath, content);
     return { output: { ...output, content } };
   }
 
-  if (name === "ask_user_clarification") {
-    const question = String(args.question ?? "");
+  if (name === "ask_user_input_v0") {
+    const questions = Array.isArray(args.questions) ? args.questions : [];
     return {
-      output: { status: "waiting_for_user", question },
+      output: {
+        status: "pending_user_input",
+        message:
+          "Interactive questionnaire presented to the user. Awaiting user response.",
+        questionsCount: questions.length,
+      },
       pauseForUser: true,
-      clarificationQuestion: question,
     };
   }
 

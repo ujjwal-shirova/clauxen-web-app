@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Check, Clock, FileCode, Globe, Terminal } from "lucide-react";
+import { Check, Clock, FilePenLine, Globe, Terminal } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 
 export type AgentTimelineIcon =
@@ -16,7 +16,7 @@ const ICONS: Record<AgentTimelineIcon, typeof Clock> = {
   thinking: Clock,
   search: Globe,
   bash: Terminal,
-  file: FileCode,
+  file: FilePenLine,
   tool: Terminal,
   done: Check,
 };

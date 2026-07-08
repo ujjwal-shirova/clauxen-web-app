@@ -106,7 +106,7 @@ const nextConfig: NextConfig = {
     "@node-rs/argon2",
     "bcrypt",
   ],
-  transpilePackages: ["flowtoken", "streamdown"],
+  transpilePackages: ["streamdown"],
   experimental: {
     optimizePackageImports: [
       "lucide-react",

@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ExternalLink, Search, X } from "lucide-react";
 import { ScrollArea } from "@/frontend/components/ui/scroll-area";
-import { collectChatSources, collectMessageSources, type ChatSource } from "@/frontend/lib/chat-sources";
+import { collectChatSources, collectMessageSources, type ChatSource, normalizeUrl } from "@/frontend/lib/chat-sources";
 import type { Message } from "@/frontend/lib/types";
 import { cn } from "@/frontend/lib/utils";
 
@@ -92,7 +92,9 @@ export function SourceChip({
 }) {
   const anchorRef = useRef<HTMLAnchorElement>(null);
   const hideTimeoutRef = useRef<number | null>(null);
+  const unmountTimeoutRef = useRef<number | null>(null);
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [coords, setCoords] = useState({ left: 0, top: 0 });
   const [cardWidth, setCardWidth] = useState(SOURCE_PREVIEW_CARD_WIDTH);
 
@@ -120,12 +122,17 @@ export function SourceChip({
       window.clearTimeout(hideTimeoutRef.current);
       hideTimeoutRef.current = null;
     }
+    if (unmountTimeoutRef.current != null) {
+      window.clearTimeout(unmountTimeoutRef.current);
+      unmountTimeoutRef.current = null;
+    }
   }, []);
 
   const showPreview = useCallback(() => {
     cancelHide();
     updatePosition();
-    setOpen(true);
+    setMounted(true);
+    requestAnimationFrame(() => setOpen(true));
   }, [cancelHide, updatePosition]);
 
   const scheduleHide = useCallback(() => {
@@ -133,7 +140,11 @@ export function SourceChip({
     hideTimeoutRef.current = window.setTimeout(() => {
       setOpen(false);
       hideTimeoutRef.current = null;
-    }, 120);
+      unmountTimeoutRef.current = window.setTimeout(() => {
+        setMounted(false);
+        unmountTimeoutRef.current = null;
+      }, 180);
+    }, 160);
   }, [cancelHide]);
 
   useEffect(() => {
@@ -152,6 +163,9 @@ export function SourceChip({
       if (hideTimeoutRef.current != null) {
         window.clearTimeout(hideTimeoutRef.current);
       }
+      if (unmountTimeoutRef.current != null) {
+        window.clearTimeout(unmountTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -167,7 +181,7 @@ export function SourceChip({
         onFocus={showPreview}
         onBlur={scheduleHide}
         className={cn(
-          "relative inline-flex items-center border border-zinc-200 bg-white font-medium text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50",
+          "relative mx-0.5 inline-flex align-baseline items-center border border-zinc-200 bg-white font-medium text-zinc-700 shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-md",
           sizeClasses,
         )}
       >
@@ -181,18 +195,19 @@ export function SourceChip({
         ) : null}
       </a>
 
-      {open && typeof document !== "undefined"
+      {mounted && typeof document !== "undefined"
         ? createPortal(
             <div
               className={cn(
-                "fixed z-[180] pointer-events-auto",
-                "animate-in fade-in zoom-in-95 duration-150",
+                "fixed z-[180] pointer-events-auto will-change-[opacity,transform]",
+                "origin-bottom transition-[opacity,transform] duration-200 ease-out",
+                open ? "opacity-100" : "pointer-events-none opacity-0",
               )}
               style={{
                 left: coords.left,
                 top: coords.top,
                 width: cardWidth,
-                transform: "translateY(-100%)",
+                transform: `translateY(-100%) scale(${open ? 1 : 0.98})`,
               }}
               onMouseEnter={showPreview}
               onMouseLeave={scheduleHide}
@@ -313,4 +328,32 @@ export function ChatSourcesPanel({
       </ScrollArea>
     </aside>
   );
+}
+
+export function createCitationLink(sources: ChatSource[]) {
+  const byUrl = new Map<string, { source: ChatSource; index: number }>();
+  sources.forEach((s, i) => {
+    byUrl.set(normalizeUrl(s.url), { source: s, index: i });
+  });
+
+  return function CitationLink({
+    href,
+    children,
+    ...rest
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+    href?: string;
+    children?: React.ReactNode;
+  }) {
+    if (href) {
+      const hit = byUrl.get(normalizeUrl(href));
+      if (hit) {
+        return <SourceChip source={hit.source} compact />;
+      }
+    }
+    return (
+      <a href={href} {...rest}>
+        {children}
+      </a>
+    );
+  };
 }

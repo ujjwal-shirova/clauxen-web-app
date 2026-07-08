@@ -23,6 +23,12 @@ import {
 export type ToolEventSender = (event: string, data: unknown) => void;
 
 const MAX_ARTIFACT_CHARS = 512_000;
+const GENERATED_FOOTER_RE =
+  /(?:\r?\n){0,3}(?:[-*_]\s*)?(?:This\s+(?:document|file|code|artifact)\s+was\s+generated\s+by\s+clauxen\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}\.?|Generated\s+by\s+clauxen\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}\.?)\s*$/i;
+
+function stripGeneratedArtifactFooter(content: string): string {
+  return content.replace(GENERATED_FOOTER_RE, "").replace(/\s+$/g, "");
+}
 const MAX_BASH_COMMAND_CHARS = 8_000;
 
 const BLOCKED_BASH_PATTERNS = [
@@ -128,7 +134,9 @@ export async function executePlatformTool(
 
     case "create_file": {
       const path = String(args.path ?? "");
-      const content = String(args.file_text ?? args.content ?? "");
+      const content = stripGeneratedArtifactFooter(
+        String(args.file_text ?? args.content ?? ""),
+      );
       const description = String(args.description ?? "");
       const sandboxId = await resolveSandboxId(context);
       await writeSandboxFile(sandboxId, path, content);
@@ -172,29 +180,6 @@ export async function executePlatformTool(
       return content;
     }
 
-    case "str_replace": {
-      const path = String(args.path ?? "");
-      const oldStr = String(args.old_str ?? "");
-      const newStr = String(args.new_str ?? "");
-      const sandboxId = await resolveSandboxId(context);
-      const content = await readSandboxFile(sandboxId, path);
-      const count = content.split(oldStr).length - 1;
-      if (count === 0) throw new Error(`old_str not found in ${path}`);
-      if (count > 1) {
-        throw new Error(
-          `old_str appears ${count} times in ${path}; must be unique`,
-        );
-      }
-      const updated = content.replace(oldStr, newStr);
-      await writeSandboxFile(sandboxId, path, updated);
-      send("file_updated", {
-        path,
-        content: clipArtifactContent(updated),
-        language: inferLanguage(path),
-      });
-      return `Replaced content in ${path}`;
-    }
-
     case "present_files": {
       const filepaths = Array.isArray(args.filepaths)
         ? (args.filepaths as string[])
@@ -236,17 +221,13 @@ export async function executePlatformTool(
           },
         });
         send("web_search_results", { ...searchPayload, results });
-        const refBlock = (results || [])
-          .map((r: any, i: number) => `[${i + 1}]: ${r.url} "${(r.title || r.domain || "").replace(/"/g, "'")}"`)
-          .join("\n");
         return [
           `web_search results for query: ${query}`,
           "",
-          "RESULTS (use these; cite by index):",
+          "RESULTS (use these; cite inline by 1-based index as ([Title or Domain][N])):",
           JSON.stringify(results),
           "",
-          "REFERENCE BLOCK — append exactly this at the END of your final answer (after all prose):",
-          refBlock || "(no results)",
+          "Do not append markdown reference-definition lines such as [1]: https://... at the end; the UI already has the source URLs.",
         ].join("\n");
       } catch (error) {
         const message =

@@ -21,6 +21,8 @@ interface ChatViewPaneProps {
   isGenerating?: boolean;
   /** When true, quick action chips stay hidden (reserved space) so the welcome block does not shift. */
   hasPromptDraft: boolean;
+  /** When true, the + menu is open — welcome chips hide with transition. */
+  isAddMenuOpen?: boolean;
   activeChip: string | null;
   onActiveChipChange: (chip: string | null) => void;
   onSendMessage: (prompt: string) => void;
@@ -86,6 +88,7 @@ export function ChatViewPane({
   hasConversation,
   isGenerating = false,
   hasPromptDraft,
+  isAddMenuOpen = false,
   activeChip,
   onActiveChipChange,
   onSendMessage,
@@ -231,9 +234,14 @@ export function ChatViewPane({
 
                   <div className="w-full">{promptInput}</div>
 
-                  <div className="flex min-h-[96px] w-full max-w-[620px] flex-col items-center justify-start">
+                  <div
+                    className={cn(
+                      "flex w-full max-w-[620px] flex-col items-center justify-start transition-[min-height] duration-200 ease-out",
+                      !isAddMenuOpen && "min-h-[96px]",
+                    )}
+                  >
                     <AnimatePresence mode="wait" initial={false}>
-                      {!hasPromptDraft && activeChip ? (
+                      {!hasPromptDraft && !isAddMenuOpen && activeChip ? (
                         <motion.div
                           key={`suggestions-${activeChip}`}
                           initial={{ opacity: 0, y: 10 }}
@@ -251,7 +259,7 @@ export function ChatViewPane({
                             }}
                           />
                         </motion.div>
-                      ) : !hasPromptDraft ? (
+                      ) : !hasPromptDraft && !isAddMenuOpen ? (
                         <motion.div
                           key="chips"
                           initial={{ opacity: 0, y: 10 }}
