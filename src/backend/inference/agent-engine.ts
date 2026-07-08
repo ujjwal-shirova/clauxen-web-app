@@ -34,6 +34,7 @@ import { executeAutonomousTool } from "@/backend/inference/autonomous-tools/exec
 import { buildConversationPayload } from "@/backend/inference/hebbian-memory";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
 import { autonomousAgentTools } from "@/backend/inference/autonomous-tools/definitions";
+import { parse as parsePartialJson, Allow } from "partial-json";
 import { z } from "zod";
 import type { ConfiguredModelId } from "@/lib/model-config";
 import {
@@ -59,6 +60,10 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
   }),
   execute_code: z.object({
     code: z.string(),
+  }),
+  bash_tool: z.object({
+    command: z.string(),
+    description: z.string(),
   }),
   file_read: z.object({
     path: z.string(),
@@ -247,6 +252,11 @@ export async function runAutonomousAgent(
         name: string;
         arguments: string;
       }> = [];
+      // Accumulated raw JSON per tool call, for the live "typing" preview
+      // (e.g. bash_tool's command growing character-by-character in the UI
+      // before the sandbox ever starts) — separate from pendingToolCalls,
+      // which only fills in once a call is fully finished streaming.
+      const toolCallBuffers = new Map<string, { name: string; argsBuffer: string }>();
       let fullText = "";
       let fullReasoning = "";
 
@@ -312,13 +322,45 @@ export async function runAutonomousAgent(
               // as its own row above this tool, not merged with it.
               closeActiveTextSegment();
             }
-            sse.writeToolStart(part.toolCallId, part.toolName);
+            // argsComplete: false from the first moment — otherwise it stays
+            // undefined (== "complete" for tools that never stream partial
+            // args) and the UI would briefly treat an about-to-stream call
+            // as already finalized.
+            sse.writeToolStart(
+              part.toolCallId,
+              part.toolName,
+              undefined,
+              undefined,
+              false,
+            );
+            toolCallBuffers.set(part.toolCallId, {
+              name: part.toolName,
+              argsBuffer: "",
+            });
             break;
 
-          case "tool-call-delta":
-            // We could stream partial args to the UI, but for now we buffer
-            // and emit the full args on tool-call-end.
+          case "tool-call-delta": {
+            // Stream a live preview of the growing arguments (e.g. bash_tool's
+            // command typing into the block) before the call is complete and
+            // before anything actually executes.
+            const entry = toolCallBuffers.get(part.toolCallId) ?? {
+              name: "",
+              argsBuffer: "",
+            };
+            entry.argsBuffer += part.argumentsDelta;
+            toolCallBuffers.set(part.toolCallId, entry);
+            const preview = previewToolArgs(entry.argsBuffer);
+            if (entry.name && Object.keys(preview).length > 0) {
+              sse.writeToolStart(
+                part.toolCallId,
+                entry.name,
+                preview,
+                undefined,
+                false,
+              );
+            }
             break;
+          }
 
           case "tool-call-end":
             pendingToolCalls.push({
@@ -376,9 +418,17 @@ export async function runAutonomousAgent(
       }
       conversation.push(assistantMessage);
 
-      // Emit full tool args before execution so interactive UIs can render.
+      // Emit full tool args before execution so interactive UIs can render,
+      // and flag argsComplete so the UI can switch from "typing" to
+      // "executing" (e.g. bash_tool showing its Output panel).
       for (const tc of pendingToolCalls) {
-        sse.writeToolStart(tc.id, tc.name, safeParseJson(tc.arguments));
+        sse.writeToolStart(
+          tc.id,
+          tc.name,
+          safeParseJson(tc.arguments),
+          undefined,
+          true,
+        );
       }
 
       // Execute tool calls in parallel (independent calls run concurrently)
@@ -400,6 +450,12 @@ export async function runAutonomousAgent(
                     ...data,
                     tool_call_id: tc.id,
                   });
+                } else if (
+                  tc.name === "bash_tool" &&
+                  (data.kind === "stdout" || data.kind === "stderr") &&
+                  typeof data.delta === "string"
+                ) {
+                  sse.writeToolOutputDelta(tc.id, data.kind, data.delta);
                 }
               },
             };
@@ -558,5 +614,19 @@ function safeParseJson(raw: string): Record<string, unknown> {
     return JSON.parse(raw) as Record<string, unknown>;
   } catch {
     return {};
+  }
+}
+
+/** Best-effort parse of a still-streaming tool-call arguments buffer (may be invalid/incomplete JSON). */
+function previewToolArgs(buffer: string): Record<string, unknown> {
+  if (!buffer.trim()) return {};
+  try {
+    return JSON.parse(buffer) as Record<string, unknown>;
+  } catch {
+    try {
+      return parsePartialJson(buffer, Allow.ALL) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
   }
 }

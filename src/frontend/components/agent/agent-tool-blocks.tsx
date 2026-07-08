@@ -16,6 +16,16 @@ import {
   AskUserInputCard,
   type AskUserQuestion,
 } from "./ask-user-input-card";
+import { HighlightCode } from "@/frontend/lib/syntax-highlight";
+import { StreamingTextFade } from "@/frontend/lib/streaming-text-fade";
+import { animations as flowtokenAnimations } from "@flowtoken/utils/animations";
+import type { StreamFadeConfig } from "@/frontend/lib/streaming-text-animation";
+
+const BASH_COMMAND_STREAM_FADE: StreamFadeConfig = {
+  animation: flowtokenAnimations.fadeIn,
+  animationDuration: "80ms",
+  animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+};
 
 function SearchResultFavicon({ url }: { url: string }) {
   const [failed, setFailed] = useState(false);
@@ -165,46 +175,15 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   );
 }
 
-function highlightBash(command: string) {
-  const tokenPattern =
-    /("[^"]*"|'[^']*'|\|\||&&|\|[&|]?|[<>]{1,2}|;|\$\([^)]*\)|`[^`]*`|\$\{[^}]*\}|\$[\w-]+|\b(?:echo|date|uname|cd|ls|cat|npm|node|python|pip|grep|curl|wget|mkdir|rm|cp|mv|chmod|sudo|apt|brew|git|docker|kubectl)\b|\B-\w+\b|\s+)/g;
-
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = tokenPattern.exec(command)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(command.slice(lastIndex, match.index));
-    }
-
-    const token = match[0];
-    let className = "text-zinc-800";
-    if (/^["']/.test(token)) {
-      className = "text-emerald-700";
-    } else if (/^(echo|date|uname|cd|ls|cat|npm|node|python|pip|grep|curl|wget|mkdir|rm|cp|mv|chmod|sudo|apt|brew|git|docker|kubectl)$/.test(token)) {
-      className = "text-amber-700";
-    } else if (/^-\w/.test(token)) {
-      className = "text-zinc-600";
-    } else if (/^(\|\||&&|[<>]{1,2})$/.test(token)) {
-      className = "text-zinc-500";
-    } else if (/^\$/.test(token)) {
-      className = "text-sky-700";
-    }
-
-    parts.push(
-      <span key={`${match.index}-${token}`} className={className}>
-        {token}
-      </span>,
-    );
-    lastIndex = match.index + token.length;
-  }
-
-  if (lastIndex < command.length) {
-    parts.push(command.slice(lastIndex));
-  }
-
-  return parts;
+/** Autoscrolls a growing <pre>/code area to its latest line, same pattern as
+ * AgentThinkingStep / AgentWebSearchBlock's result list. */
+function useAutoScrollToBottom(dep: unknown) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    ref.current.scrollTop = ref.current.scrollHeight;
+  }, [dep]);
+  return ref;
 }
 
 export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
@@ -218,7 +197,18 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
   const stdout = tool.stdout ?? "";
   const stderr = tool.stderr ?? "";
   const isRunning = tool.status === "running";
-  const output = stdout || stderr || (tool.status === "done" ? tool.result : "");
+  // Two sub-phases while status is "running": the model is still typing the
+  // command (argsComplete === false, sandbox not touched yet), or the full
+  // command is finalized and it has actually been sent to the sandbox. Only
+  // the second phase shows the Output panel — matches the reference flow of
+  // "write the command, then run it, then show the result".
+  const isTyping = isRunning && tool.argsComplete === false;
+  const isExecuting = isRunning && !isTyping;
+  const output =
+    stdout || stderr || (tool.status === "done" ? tool.result ?? "" : "");
+
+  const commandScrollRef = useAutoScrollToBottom(command);
+  const outputScrollRef = useAutoScrollToBottom(output);
 
   return (
     <AgentTimelineStep
@@ -233,27 +223,43 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
           <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
             bash
           </div>
-          <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5">
-            {highlightBash(command)}
-          </pre>
+          <div ref={commandScrollRef} className="max-h-40 overflow-auto">
+            <HighlightCode
+              code={command}
+              language="bash"
+              showLineNumbers={false}
+              streamFade={isTyping ? BASH_COMMAND_STREAM_FADE : undefined}
+            />
+          </div>
         </div>
-        {(output || isRunning) && (
+        {isExecuting || tool.status === "done" || tool.status === "error" ? (
           <div className="bg-[#f4f4f5] px-3 py-2.5">
             <div className="mb-1.5 text-[12px] font-semibold text-zinc-700">
               Output
             </div>
-            {isRunning && !output ? (
+            {isExecuting && !output ? (
               <div className="flex items-center gap-2 text-[12px] text-zinc-500">
                 <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
                 Running…
               </div>
             ) : (
-              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5 text-zinc-900">
-                {output}
-              </pre>
+              <div
+                ref={outputScrollRef}
+                className="max-h-56 overflow-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5 text-zinc-900"
+              >
+                {isExecuting ? (
+                  <StreamingTextFade
+                    content={output}
+                    streamKey={tool.toolCallId}
+                    className=""
+                  />
+                ) : (
+                  output
+                )}
+              </div>
             )}
           </div>
-        )}
+        ) : null}
       </div>
     </AgentTimelineStep>
   );

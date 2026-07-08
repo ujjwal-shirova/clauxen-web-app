@@ -21,6 +21,10 @@ export type StreamEvent =
       name: string;
       args?: Record<string, unknown>;
       description?: string;
+      /** false while args are still streaming in (e.g. bash_tool's command
+       * being typed); true/undefined once the call is finalized and about
+       * to execute. Absent entirely for tools that never stream partial args. */
+      argsComplete?: boolean;
     }
   | {
       type: "tool_output_delta";
@@ -80,6 +84,7 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
     title?: unknown;
     frameId?: unknown;
     text?: unknown;
+    argsComplete?: unknown;
   };
 
   switch (event.type) {
@@ -142,6 +147,10 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
             description:
               typeof event.description === "string"
                 ? event.description
+                : undefined,
+            argsComplete:
+              typeof event.argsComplete === "boolean"
+                ? event.argsComplete
                 : undefined,
           }
         : null;

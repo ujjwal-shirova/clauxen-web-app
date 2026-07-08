@@ -71,6 +71,33 @@ export const autonomousAgentTools: FunctionTool[] = [
   },
   {
     type: "function",
+    name: "bash_tool",
+    description: [
+      "Run a shell command in an isolated Linux sandbox (Ubuntu). USE for file/directory operations, installing packages, running builds or scripts, git, and anything a terminal command does more naturally than Python.",
+      "PREFER execute_code instead when the task is really computation, data analysis, or generating a chart/file from Python — bash_tool is for shell-level operations.",
+      "Before calling, say a short one-line description of what the command does — the UI shows this as the block's title while the command streams in.",
+      "The sandbox persists across calls in this conversation, so installed packages and created files remain available for later bash_tool/execute_code calls.",
+    ].join(" "),
+    parameters: {
+      type: "object",
+      properties: {
+        description: {
+          type: "string",
+          description:
+            "One short line describing what this command does (shown as the block title, e.g. 'Installing dependencies').",
+        },
+        command: {
+          type: "string",
+          description: "The bash command to run.",
+        },
+      },
+      required: ["description", "command"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
     name: "execute_code",
     description: [
       "Run Python in an isolated sandbox and observe the output (stdout, stderr, errors).",

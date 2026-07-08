@@ -31,6 +31,9 @@ export type AgentToolSegment = {
   status: "running" | "done" | "error";
   description?: string;
   args?: Record<string, unknown>;
+  /** false while args are still streaming (typing) in; true/undefined once
+   * the call is finalized and execution has started or finished. */
+  argsComplete?: boolean;
   result?: string;
   stdout?: string;
   stderr?: string;
@@ -104,9 +107,20 @@ export function agentSegmentsVisuallyEqual(
         a.searchQuery !== b.searchQuery ||
         a.stdout !== b.stdout ||
         a.stderr !== b.stderr ||
+        a.argsComplete !== b.argsComplete ||
         (a.searchResults?.length ?? 0) !== (b.searchResults?.length ?? 0)
       ) {
         return false;
+      }
+      // args streams in progressively (e.g. bash_tool's command typing in
+      // before execution) — compare by value, not just the fields above.
+      if (a.args !== b.args) {
+        const aKeys = Object.keys(a.args ?? {});
+        const bKeys = Object.keys(b.args ?? {});
+        if (aKeys.length !== bKeys.length) return false;
+        for (const key of aKeys) {
+          if (a.args?.[key] !== b.args?.[key]) return false;
+        }
       }
       const aResults = a.searchResults ?? [];
       const bResults = b.searchResults ?? [];

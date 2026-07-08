@@ -125,8 +125,16 @@ export class ClauxenSseStream {
     name: string,
     args?: Record<string, unknown>,
     description?: string,
+    argsComplete?: boolean,
   ): void {
-    this.write({ type: "tool_start", toolCallId, name, args, description });
+    this.write({
+      type: "tool_start",
+      toolCallId,
+      name,
+      args,
+      description,
+      argsComplete,
+    });
   }
 
   writeToolOutputDelta(

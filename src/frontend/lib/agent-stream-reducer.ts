@@ -565,6 +565,7 @@ export function applyAgentStreamEvent(
           status: "running",
           description: event.description ?? existingTool?.description,
           args: mergedArgs,
+          argsComplete: event.argsComplete ?? existingTool?.argsComplete,
           searchQuery: nextSearchQuery,
           searchResults: existingTool?.searchResults,
           startedAtMs: existingTool?.startedAtMs ?? Date.now(),

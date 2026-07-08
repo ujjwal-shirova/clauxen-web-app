@@ -19,6 +19,7 @@ import {
   browserUseRecipe,
   desktopRecipe,
 } from "@/backend/inference/novita-agent-recipes";
+import { assertSafeBashCommand } from "@/backend/inference/bash-safety";
 
 export type ToolEventSender = (event: string, data: unknown) => void;
 
@@ -29,17 +30,6 @@ const GENERATED_FOOTER_RE =
 function stripGeneratedArtifactFooter(content: string): string {
   return content.replace(GENERATED_FOOTER_RE, "").replace(/\s+$/g, "");
 }
-const MAX_BASH_COMMAND_CHARS = 8_000;
-
-const BLOCKED_BASH_PATTERNS = [
-  /\brm\s+-rf\s+\/\b/i,
-  /\bmkfs\b/i,
-  /\bdd\s+if=/i,
-  /\b:\(\)\s*\{\s*:\|:\s*&\s*\}\s*;/,
-  /\bchmod\s+-R\s+777\s+\//i,
-  /\bcurl\b[^\n|]*\|\s*(ba)?sh\b/i,
-  /\bwget\b[^\n|]*\|\s*(ba)?sh\b/i,
-];
 
 function parseArgs(raw?: string): Record<string, unknown> {
   if (!raw) return {};
@@ -57,21 +47,6 @@ async function resolveSandboxId(context?: {
 }) {
   const { info } = await getOrCreateSandbox(context);
   return info.sandboxId;
-}
-
-function assertSafeBashCommand(command: string) {
-  const trimmed = command.trim();
-  if (!trimmed) {
-    throw new Error("Bash command is required.");
-  }
-  if (trimmed.length > MAX_BASH_COMMAND_CHARS) {
-    throw new Error("Bash command exceeds maximum length.");
-  }
-  for (const pattern of BLOCKED_BASH_PATTERNS) {
-    if (pattern.test(trimmed)) {
-      throw new Error("This bash command is blocked for safety.");
-    }
-  }
 }
 
 function clipArtifactContent(content: string) {

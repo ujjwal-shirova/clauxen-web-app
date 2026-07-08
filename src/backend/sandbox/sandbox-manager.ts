@@ -193,6 +193,47 @@ export async function setSandboxTimeout(sandboxId: string, timeoutMs: number) {
   return { sandboxId, timeoutMs };
 }
 
+/** Extra time granted each keep-alive tick while a command is actively producing output. */
+const KEEP_ALIVE_EXTENSION_MS = 5 * 60 * 1000;
+/** Don't call setTimeout on every stdout chunk — once per window is enough. */
+const KEEP_ALIVE_MIN_INTERVAL_MS = 20_000;
+
+/**
+ * Keep-alive for long-running commands (package installs, builds, etc.):
+ * bumps the sandbox's own idle timeout while it's actively streaming output,
+ * so a slow-but-alive command never gets killed by a fixed session timeout.
+ * ponytail: naive fixed extension window rather than estimating true command
+ * duration up front — the sandbox SDK doesn't expose a way to size that
+ * ahead of time, and refreshing on activity is strictly more robust than a
+ * one-shot guess. Ceiling: still bounded by MAX_SANDBOX_TIMEOUT_MS below.
+ */
+const MAX_SANDBOX_TIMEOUT_MS = 30 * 60 * 1000;
+
+export function createSandboxKeepAlive(sandboxId: string) {
+  let lastExtendAt = 0;
+  let extending = false;
+
+  const ping = () => {
+    const now = Date.now();
+    if (extending || now - lastExtendAt < KEEP_ALIVE_MIN_INTERVAL_MS) return;
+    lastExtendAt = now;
+    extending = true;
+    setSandboxTimeout(
+      sandboxId,
+      Math.min(KEEP_ALIVE_EXTENSION_MS, MAX_SANDBOX_TIMEOUT_MS),
+    )
+      .catch(() => {
+        // Best-effort — a failed keep-alive just means the sandbox may time
+        // out at its previous deadline; the command result is unaffected.
+      })
+      .finally(() => {
+        extending = false;
+      });
+  };
+
+  return { ping };
+}
+
 export async function pauseSandbox(sandboxId: string) {
   const Sandbox = await loadSandboxClass();
   const paused = await Sandbox.betaPause(sandboxId);

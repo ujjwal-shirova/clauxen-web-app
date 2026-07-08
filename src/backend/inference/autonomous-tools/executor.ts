@@ -1,9 +1,12 @@
 import {
+  createSandboxKeepAlive,
   getOrCreateSandbox,
   runSandboxCode,
+  runSandboxCommand,
 } from "@/backend/sandbox/sandbox-manager";
 import { searchWebWithExa } from "@/backend/search/exa";
 import { fetchUrlContentsWithExa } from "@/backend/search/exa";
+import { assertSafeBashCommand } from "@/backend/inference/bash-safety";
 import { listAvailableSkills, readSkill } from "@/backend/inference/autonomous-tools/skill-catalog";
 import {
   readScopedFile,
@@ -131,6 +134,46 @@ export async function executeAutonomousTool(
         url,
         title: url,
         snippet: stripped.slice(0, 8000),
+      },
+    };
+  }
+
+  if (name === "bash_tool") {
+    const command = String(args.command ?? "");
+    assertSafeBashCommand(command);
+    const { info } = await getOrCreateSandbox({
+      conversationId: ctx.conversationId,
+      userId: ctx.userId,
+    });
+    const keepAlive = createSandboxKeepAlive(info.sandboxId);
+
+    const result = await runSandboxCommand(info.sandboxId, {
+      command,
+      onStdout: (text) => {
+        keepAlive.ping();
+        ctx.onToolProgress?.({
+          tool_call_id: ctx.toolCallId,
+          kind: "stdout",
+          delta: text,
+        });
+      },
+      onStderr: (text) => {
+        keepAlive.ping();
+        ctx.onToolProgress?.({
+          tool_call_id: ctx.toolCallId,
+          kind: "stderr",
+          delta: text,
+        });
+      },
+    });
+
+    return {
+      output: {
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        error: result.error,
+        sandboxId: info.sandboxId,
       },
     };
   }
