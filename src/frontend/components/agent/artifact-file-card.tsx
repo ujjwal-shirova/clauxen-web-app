@@ -3,7 +3,7 @@
 import { Download, FileText } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import type { ChatArtifact } from "@/frontend/lib/chat-artifacts";
-import { artifactMetaLabel } from "@/frontend/lib/create-file-tags";
+import { artifactMetaLabel, artifactSupportsPreview } from "@/frontend/lib/create-file-tags";
 import { downloadArtifact } from "@/frontend/lib/chat-artifacts";
 import { useOptionalArtifactViewer } from "@/frontend/contexts/artifact-viewer-context";
 
@@ -37,7 +37,12 @@ export function ArtifactFileCard({
   );
   const isPanel = variant === "panel";
 
-  const openFile = () => viewer?.openArtifact(artifact, "preview");
+  const openFile = () => {
+    const mode = artifactSupportsPreview(artifact.path, artifact.language)
+      ? "preview"
+      : "code";
+    viewer?.openArtifact(artifact, mode);
+  };
 
   if (isPanel) {
     return (

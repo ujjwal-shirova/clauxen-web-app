@@ -8,6 +8,10 @@ import { AppNotificationHost } from "@/frontend/components/app-notifications/app
 export const metadata: Metadata = {
   title: "Clauxen",
   description: "An AI-powered chat application.",
+  icons: {
+    icon: "/assets/icons/clauxen-icon.png",
+    apple: "/assets/icons/clauxen-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

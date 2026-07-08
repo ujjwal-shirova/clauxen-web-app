@@ -15,7 +15,6 @@ import { ArtifactViewerProvider, useArtifactViewer } from "@/frontend/contexts/a
 import { ChatSourcesPanel } from "./chat-sources";
 import { collectChatArtifacts } from "@/frontend/lib/chat-artifacts";
 import { collectChatSources, collectMessageSources } from "@/frontend/lib/chat-sources";
-import { ChatMessageNavigator } from "./chat-message-navigator";
 import { useIsMobile } from "@/frontend/hooks/use-mobile";
 import { useChatScroll } from "@/frontend/hooks/use-chat-scroll";
 import { useChatScrollActivity } from "@/frontend/hooks/use-chat-scroll-activity";
@@ -386,14 +385,6 @@ function ChatAreaLayout({
               />
             }
             promptInput={promptInput}
-            messageNavigator={
-              isConversationStarted ? (
-                <ChatMessageNavigator
-                  messages={displayMessages}
-                  scrollAreaRef={scrollAreaRef}
-                />
-              ) : null
-            }
           />
           {showChatOptionsHeader ? (
             <ChatViewHeader

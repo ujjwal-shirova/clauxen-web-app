@@ -7,6 +7,7 @@ import type { ChatArtifact } from "@/frontend/lib/chat-artifacts";
 import {
   collectCreateFileArtifacts,
   parseAssistantContentSegments,
+  artifactSupportsPreview,
 } from "@/frontend/lib/create-file-tags";
 import { parseTitledTableSegments } from "@/frontend/lib/table-title-tags";
 import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
@@ -138,7 +139,10 @@ export function AssistantContentRenderer({
       const artifactId = `${messageId}:${latestComplete.block.id}`;
       const artifact = completedArtifacts.find((row) => row.id === artifactId);
       if (artifact) {
-        viewer.openArtifact(artifact, "preview");
+        const mode = artifactSupportsPreview(artifact.path, artifact.language)
+          ? "preview"
+          : "code";
+        viewer.openArtifact(artifact, mode);
       }
     }
 

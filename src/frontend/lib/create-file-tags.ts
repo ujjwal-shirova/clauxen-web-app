@@ -107,6 +107,21 @@ export function artifactMetaLabel(path: string, language: string): string {
   return `${documentKindLabel(language)} · ${ext}`;
 }
 
+/** Only markdown artifacts get a rendered preview; everything else opens in the code viewer. */
+export function artifactSupportsPreview(
+  path: string,
+  language?: string,
+): boolean {
+  const ext = path.split(".").pop()?.toLowerCase();
+  const normalized = language?.toLowerCase();
+  return (
+    ext === "md" ||
+    ext === "markdown" ||
+    normalized === "markdown" ||
+    normalized === "md"
+  );
+}
+
 export function stripGeneratedArtifactFooter(content: string): string {
   return content.replace(GENERATED_FOOTER_RE, "").replace(/\s+$/g, "");
 }

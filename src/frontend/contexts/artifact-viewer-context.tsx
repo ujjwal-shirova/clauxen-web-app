@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ChatArtifact } from "@/frontend/lib/chat-artifacts";
+import { artifactSupportsPreview } from "@/frontend/lib/create-file-tags";
 import { useAppLayout } from "@/frontend/components/app-layout-context";
 
 export type ArtifactViewMode = "preview" | "code";
@@ -32,9 +33,15 @@ export function ArtifactViewerProvider({
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   const openArtifact = useCallback(
-    (artifact: ChatArtifact, mode: ArtifactViewMode = "preview") => {
+    (artifact: ChatArtifact, mode?: ArtifactViewMode) => {
+      const supportsPreview = artifactSupportsPreview(
+        artifact.path,
+        artifact.language,
+      );
+      const resolvedMode =
+        mode ?? (supportsPreview ? "preview" : "code");
       setActiveArtifact(artifact);
-      setViewMode(mode);
+      setViewMode(supportsPreview ? resolvedMode : "code");
       setIsViewerOpen(true);
       if (!isMobile) {
         setSidebarCollapsed?.(true);

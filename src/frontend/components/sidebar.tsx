@@ -48,6 +48,7 @@ import {
 import type { RecentChat } from "@/frontend/lib/types";
 
 const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
+const CLAUXEN_LOGO_SRC = "/assets/icons/clauxen-icon.png";
 
 const CustomizeIcon = () => (
   <svg
@@ -300,38 +301,66 @@ export function Sidebar({
             isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100",
           )}
         >
-          <div className="flex items-center pl-1.5">
-            <span className="font-sans text-[13px] font-medium tracking-[-0.01em] text-zinc-800">
-              Clauxen
-            </span>
-          </div>
+          <img
+            src={CLAUXEN_LOGO_SRC}
+            alt="Clauxen"
+            width={24}
+            height={24}
+            className="h-6 w-6 shrink-0 rounded-[6px] object-contain"
+            draggable={false}
+          />
         </div>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!isCustomizeActive) setIsCollapsed(!isCollapsed);
-          }}
-          disabled={isCustomizeActive}
-          aria-label={
-            isMobileLayout && !isCollapsed ? "Close menu" : "Toggle sidebar"
-          }
-          className={cn(
-            "ui-icon-button rounded-md p-1.5 text-zinc-500 transition-all duration-200 hover:bg-zinc-100",
-            isCollapsed && !isMobileLayout
-              ? "absolute left-1/2 -translate-x-1/2"
-              : "",
-            isCustomizeActive && "cursor-not-allowed opacity-30",
-          )}
-        >
-          {isMobileLayout && !isCollapsed ? (
-            <X className="h-[18px] w-[18px]" />
-          ) : isCollapsed ? (
-            <SidebarOpenIcon className="h-[18px] w-[18px]" />
-          ) : (
-            <SidebarToggleIcon className="h-[18px] w-[18px]" />
-          )}
-        </button>
+        {isCollapsed && !isMobileLayout ? (
+          <div className="group/sidebar-logo absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+            <img
+              src={CLAUXEN_LOGO_SRC}
+              alt="Clauxen"
+              width={24}
+              height={24}
+              className="h-6 w-6 shrink-0 rounded-[6px] object-contain transition-opacity duration-200 group-hover/sidebar-logo:opacity-0"
+              draggable={false}
+            />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isCustomizeActive) setIsCollapsed(false);
+              }}
+              disabled={isCustomizeActive}
+              aria-label="Expand sidebar"
+              className={cn(
+                "absolute inset-0 inline-flex items-center justify-center rounded-md p-1.5 text-zinc-500 opacity-0 transition-all duration-200 hover:bg-zinc-100 group-hover/sidebar-logo:opacity-100",
+                isCustomizeActive && "cursor-not-allowed opacity-0",
+              )}
+            >
+              <SidebarOpenIcon className="h-[18px] w-[18px]" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isCustomizeActive) setIsCollapsed(!isCollapsed);
+            }}
+            disabled={isCustomizeActive}
+            aria-label={
+              isMobileLayout && !isCollapsed ? "Close menu" : "Toggle sidebar"
+            }
+            className={cn(
+              "ui-icon-button rounded-md p-1.5 text-zinc-500 transition-all duration-200 hover:bg-zinc-100",
+              isCustomizeActive && "cursor-not-allowed opacity-30",
+            )}
+          >
+            {isMobileLayout && !isCollapsed ? (
+              <X className="h-[18px] w-[18px]" />
+            ) : isCollapsed ? (
+              <SidebarOpenIcon className="h-[18px] w-[18px]" />
+            ) : (
+              <SidebarToggleIcon className="h-[18px] w-[18px]" />
+            )}
+          </button>
+        )}
       </div>
 
       <div className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">

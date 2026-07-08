@@ -29,7 +29,6 @@ interface ChatViewPaneProps {
   promptInput: ReactNode;
   conversation: ReactNode;
   scrollAreaRef?: React.RefObject<HTMLDivElement | null>;
-  messageNavigator?: ReactNode;
   className?: string;
 }
 
@@ -95,7 +94,6 @@ export function ChatViewPane({
   promptInput,
   conversation,
   scrollAreaRef,
-  messageNavigator,
   className,
 }: ChatViewPaneProps) {
   const [greeting, setGreeting] = useState<string | null>(null);
@@ -287,13 +285,6 @@ export function ChatViewPane({
             )}
           </div>
         </ScrollArea>
-        {hasConversation && messageNavigator ? (
-          <div className="chat-message-navigator-rail pointer-events-none absolute inset-y-0 right-0 z-30 hidden md:flex">
-            <div className="pointer-events-auto h-full w-full">
-              {messageNavigator}
-            </div>
-          </div>
-        ) : null}
       </div>
 
       {hasConversation ? (
@@ -309,10 +300,6 @@ export function ChatViewPane({
                   }}
                 />
               </div>
-              <div
-                className="chat-message-navigator-rail hidden md:block"
-                aria-hidden
-              />
             </div>
           </div>
           <div
@@ -326,10 +313,6 @@ export function ChatViewPane({
                   {promptInput}
                 </div>
               </div>
-              <div
-                className="chat-message-navigator-rail hidden md:block"
-                aria-hidden
-              />
             </div>
           </div>
         </>

@@ -9,7 +9,6 @@
 
 @layer base {
   :root {
-    --chat-navigator-rail-width: 2.75rem;
     /* Highly polished modern minimalist palette - pure white and crisp neutral greys */
     --background: 0 0% 100%; /* Pure White */
     --foreground: 240 10% 3.9%; /* Near Black */
@@ -73,6 +72,9 @@
 @layer base {
   html {
     background-color: var(--app-shell-bg);
+    overflow: hidden;
+    height: 100%;
+    overscroll-behavior: none;
   }
 
   * {
@@ -81,6 +83,9 @@
   body {
     background-color: var(--app-shell-bg);
     color: hsl(var(--foreground));
+    overflow: hidden;
+    height: 100%;
+    overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02";
@@ -501,17 +506,6 @@ button.user-message-card__body:not(:disabled):hover {
 .chat-composer-row__main {
   min-width: 0;
   flex: 1 1 auto;
-}
-
-.chat-message-navigator-rail {
-  width: var(--chat-navigator-rail-width);
-  flex-shrink: 0;
-}
-
-@media (max-width: 767px) {
-  .chat-message-navigator-rail {
-    display: none;
-  }
 }
 
 .content-pane-top-bar {

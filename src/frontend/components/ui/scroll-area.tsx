@@ -7,40 +7,27 @@ import { cn } from "@/frontend/lib/utils";
 
 type ScrollAreaProps = React.ComponentPropsWithoutRef<
   typeof ScrollAreaPrimitive.Root
-> & {
-  /** Optional right rail (e.g. message navigator) beside the scroll viewport. */
-  railEnd?: React.ReactNode;
-};
+>;
 
 const ScrollArea = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
   ScrollAreaProps
->(({ className, children, railEnd, ...props }, ref) => {
-  const hasRailEnd = Boolean(railEnd);
-
+>(({ className, children, ...props }, ref) => {
   return (
     <ScrollAreaPrimitive.Root
       ref={ref}
       className={cn(
         "relative min-h-0 overflow-hidden",
-        hasRailEnd ? "flex h-full min-h-0 flex-row" : "h-full",
+        "h-full",
         className,
       )}
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
-        className={cn(
-          "app-scrollbar chat-scroll-viewport relative z-0 size-full min-h-0 rounded-[inherit] scroll-auto [overflow-anchor:none] [&>div]:!block",
-          hasRailEnd && "min-w-0 flex-1",
-        )}
+        className="app-scrollbar chat-scroll-viewport relative z-0 size-full min-h-0 rounded-[inherit] scroll-auto [overflow-anchor:none] [&>div]:!block"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      {hasRailEnd ? (
-        <div className="chat-message-navigator-rail relative z-30 hidden md:block">
-          {railEnd}
-        </div>
-      ) : null}
       <ScrollAreaPrimitive.ScrollAreaScrollbar
         orientation="vertical"
         className="flex h-full w-2 touch-none select-none border-l border-transparent p-0.5 transition-colors"
