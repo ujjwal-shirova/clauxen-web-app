@@ -29,6 +29,10 @@ import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { useIsMobile } from "@/frontend/hooks/use-mobile";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
+/** Mount only the latest few user/assistant pairs by default; older turns load on upward scroll. */
+const INITIAL_RENDERED_TURNS = 3;
+const RENDER_MORE_TURNS = 4;
+const LOAD_OLDER_SCROLL_THRESHOLD_PX = 96;
 
 interface ConversationThreadProps {
   messages: Message[];
@@ -982,7 +986,7 @@ export function ConversationThread({
     [messages, moreMenuId],
   );
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (!moreMenuId) return;
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -1109,6 +1113,32 @@ export function ConversationThread({
     () => groupMessagesIntoTurns(messages),
     [messages],
   );
+  const [visibleTurnCount, setVisibleTurnCount] = React.useState(
+    INITIAL_RENDERED_TURNS,
+  );
+  const latestTurnKey =
+    groups[groups.length - 1]?.userMessage?.id ??
+    groups[groups.length - 1]?.assistantMessages.at(-1)?.id ??
+    "empty";
+
+  React.useEffect(() => {
+    // Switching chats or sending a new user turn should snap the DOM window
+    // back to the recent tail. This keeps the sent message + streaming
+    // assistant mounted immediately instead of leaving the user in an old,
+    // expanded history window.
+    setVisibleTurnCount(INITIAL_RENDERED_TURNS);
+  }, [conversationKey, latestTurnKey]);
+
+  const effectiveVisibleTurnCount = Math.min(groups.length, visibleTurnCount);
+  const firstRenderedTurnIndex = Math.max(
+    0,
+    groups.length - effectiveVisibleTurnCount,
+  );
+  const renderedGroups = React.useMemo(
+    () => groups.slice(firstRenderedTurnIndex),
+    [groups, firstRenderedTurnIndex],
+  );
+  const hasHiddenOlderTurns = firstRenderedTurnIndex > 0;
 
   const stickyStreamKey = React.useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -1126,6 +1156,10 @@ export function ConversationThread({
   const stickySyncRef = React.useRef<(() => void) | null>(null);
   const isFastScrollingRef = React.useRef(isFastScrollingProp);
   isFastScrollingRef.current = isFastScrollingProp;
+  const pendingPrependAdjustmentRef = React.useRef<{
+    scrollHeight: number;
+    scrollTop: number;
+  } | null>(null);
 
   const getScrollElement = React.useCallback(() => {
     if (scrollAreaRef?.current) {
@@ -1137,6 +1171,52 @@ export function ConversationThread({
     }
     return listRef.current;
   }, [scrollAreaRef]);
+
+  React.useEffect(() => {
+    const viewport = getScrollElement();
+    if (!viewport || groups.length <= INITIAL_RENDERED_TURNS) return;
+
+    let raf = 0;
+    const maybeLoadOlder = () => {
+      if (raf !== 0) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (viewport.scrollTop > LOAD_OLDER_SCROLL_THRESHOLD_PX) return;
+        if (firstRenderedTurnIndex <= 0) return;
+
+        pendingPrependAdjustmentRef.current = {
+          scrollHeight: viewport.scrollHeight,
+          scrollTop: viewport.scrollTop,
+        };
+        setVisibleTurnCount((count) =>
+          Math.min(groups.length, count + RENDER_MORE_TURNS),
+        );
+      });
+    };
+
+    viewport.addEventListener("scroll", maybeLoadOlder, { passive: true });
+
+    return () => {
+      viewport.removeEventListener("scroll", maybeLoadOlder);
+      if (raf !== 0) cancelAnimationFrame(raf);
+    };
+  }, [firstRenderedTurnIndex, getScrollElement, groups.length]);
+
+  React.useLayoutEffect(() => {
+    const pending = pendingPrependAdjustmentRef.current;
+    if (!pending) return;
+    const viewport = getScrollElement();
+    pendingPrependAdjustmentRef.current = null;
+    if (!viewport) return;
+
+    // Preserve what the user was reading when older turns are prepended.
+    // Without this, loading history at the top shifts the viewport downward.
+    const delta = viewport.scrollHeight - pending.scrollHeight;
+    if (delta > 0) {
+      viewport.scrollTop = pending.scrollTop + delta;
+    }
+    stickySyncRef.current?.();
+  }, [getScrollElement, firstRenderedTurnIndex]);
 
   React.useLayoutEffect(() => {
     resetStickyTurnCache();
@@ -1228,7 +1308,13 @@ export function ConversationThread({
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };
-  }, [getScrollElement, groups.length, conversationKey]);
+  }, [
+    getScrollElement,
+    groups.length,
+    conversationKey,
+    firstRenderedTurnIndex,
+    effectiveVisibleTurnCount,
+  ]);
 
   React.useEffect(() => {
     if (isFastScrollingProp) return;
@@ -1261,18 +1347,32 @@ export function ConversationThread({
       data-virtual-scroll
       data-fast-scrolling={isFastScrollingProp || undefined}
     >
-      {groups.map((group, index) => (
-        <ConversationTurn
-          key={group.userMessage?.id || `turn-${index}`}
-          turnIndex={index}
-          userMessage={group.userMessage}
-          assistantMessages={group.assistantMessages}
-          editValue={
-            editingMessageId === group.userMessage?.id ? editValue : undefined
-          }
-          {...turnProps}
-        />
-      ))}
+      {hasHiddenOlderTurns ? (
+        <div
+          className="flex justify-center py-1 text-[11px] font-medium text-zinc-400"
+          aria-hidden
+        >
+          Scroll up to load older messages
+        </div>
+      ) : null}
+
+      {renderedGroups.map((group, offset) => {
+        const index = firstRenderedTurnIndex + offset;
+        return (
+          <ConversationTurn
+            key={group.userMessage?.id || `turn-${index}`}
+            turnIndex={index}
+            userMessage={group.userMessage}
+            assistantMessages={group.assistantMessages}
+            editValue={
+              editingMessageId === group.userMessage?.id
+                ? editValue
+                : undefined
+            }
+            {...turnProps}
+          />
+        );
+      })}
       <div
         className="chat-thread-scroll-anchor h-px w-full shrink-0"
         aria-hidden

@@ -41,12 +41,19 @@ function distanceFromBottom(viewport: HTMLElement) {
  * typical 60fps; if this ever needs to be frame-rate independent, drive it
  * off performance.now() deltas instead.
  */
-function easeTowardBottom(viewport: HTMLElement): boolean {
+function easeTowardBottom(
+  viewport: HTMLElement,
+  beforeScroll?: () => void,
+): boolean {
   const distance = distanceFromBottom(viewport);
   if (distance <= FOLLOW_SNAP_EPSILON_PX) {
-    if (distance !== 0) viewport.scrollTop = maxScrollTop(viewport);
+    if (distance !== 0) {
+      beforeScroll?.();
+      viewport.scrollTop = maxScrollTop(viewport);
+    }
     return true;
   }
+  beforeScroll?.();
   viewport.scrollTop += distance * FOLLOW_EASE;
   return false;
 }
@@ -66,6 +73,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
   const showScrollToBottomRef = useRef(false);
   const lastScrollHeightRef = useRef(0);
   const userInputUntilRef = useRef(0);
+  const programmaticScrollUntilRef = useRef(0);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   const resolveViewport = useCallback((): HTMLElement | null => {
@@ -89,16 +97,20 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     return performance.now() < userInputUntilRef.current;
   }, []);
 
+  const markProgrammaticScroll = useCallback(() => {
+    programmaticScrollUntilRef.current = performance.now() + 120;
+  }, []);
+
   /** Ease toward bottom when pinned — avoids delta-scroll jumps during markdown reflow. */
   const stickToBottomWhenPinned = useCallback(
     (viewport: HTMLElement) => {
       if (!pinnedRef.current || isUserInputActive()) return;
       if (distanceFromBottom(viewport) > FOLLOW_THRESHOLD) return;
 
-      easeTowardBottom(viewport);
+      easeTowardBottom(viewport, markProgrammaticScroll);
       lastScrollHeightRef.current = viewport.scrollHeight;
     },
-    [isUserInputActive],
+    [isUserInputActive, markProgrammaticScroll],
   );
 
   /** Keep chasing the bottom across frames until caught up, not just one snap. */
@@ -114,12 +126,12 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
         followRafRef.current = null;
         return;
       }
-      const caughtUp = easeTowardBottom(viewport);
+      const caughtUp = easeTowardBottom(viewport, markProgrammaticScroll);
       lastScrollHeightRef.current = viewport.scrollHeight;
       followRafRef.current = caughtUp ? null : requestAnimationFrame(step);
     };
     followRafRef.current = requestAnimationFrame(step);
-  }, [resolveViewport, isUserInputActive]);
+  }, [resolveViewport, isUserInputActive, markProgrammaticScroll]);
 
   const jumpToBottom = useCallback(
     (behavior: ScrollBehavior = "auto") => {
@@ -128,6 +140,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
       pinnedRef.current = true;
       userInputUntilRef.current = 0;
       const top = maxScrollTop(viewport);
+      markProgrammaticScroll();
       if (behavior === "smooth") {
         viewport.scrollTo({ top, behavior: "smooth" });
       } else {
@@ -137,7 +150,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
       showScrollToBottomRef.current = false;
       setShowScrollToBottom(false);
     },
-    [resolveViewport],
+    [resolveViewport, markProgrammaticScroll],
   );
 
   /** Public: explicit user request to return to bottom (button / send). */
@@ -159,9 +172,9 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     if (!viewport) return;
     if (!pinnedRef.current || isUserInputActive()) return;
 
-    easeTowardBottom(viewport);
+    easeTowardBottom(viewport, markProgrammaticScroll);
     lastScrollHeightRef.current = viewport.scrollHeight;
-  }, [resolveViewport, isUserInputActive]);
+  }, [resolveViewport, isUserInputActive, markProgrammaticScroll]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -179,6 +192,10 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
         scrollRafRef.current = null;
 
         const distance = distanceFromBottom(viewport);
+        if (performance.now() < programmaticScrollUntilRef.current) {
+          lastScrollHeightRef.current = viewport.scrollHeight;
+          return;
+        }
         const wasPinned = pinnedRef.current;
         const isPinned = distance <= REPIN_THRESHOLD;
         pinnedRef.current = isPinned;

@@ -182,6 +182,22 @@ function ChatAreaLayout({
       (last.agentSegments?.length ?? 0)
     );
   }, [messages]);
+  const lastMessageKey =
+    messages[messages.length - 1]
+      ? `${messages[messages.length - 1].id}:${messages[messages.length - 1].role}`
+      : "empty";
+
+  React.useLayoutEffect(() => {
+    const last = messages[messages.length - 1];
+    if (!last) return;
+    // A newly sent user message must remain visible even if the thread just
+    // reset to its small recent-turn window. Streaming assistant updates are
+    // handled by followContentGrowth below.
+    if (last.role !== "user") return;
+    pinToBottom();
+    const raf = requestAnimationFrame(() => pinToBottom());
+    return () => cancelAnimationFrame(raf);
+  }, [lastMessageKey, messages, pinToBottom]);
 
   React.useLayoutEffect(() => {
     if (!isGenerating) return;
