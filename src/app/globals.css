@@ -717,7 +717,7 @@ button.user-message-card__body:not(:disabled):hover {
 .composer-message-codeblock[data-code-header-pin="true"]
   .ui-code-block.code-block-header-sticky {
   position: sticky;
-  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px) + 1px);
+  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px));
   z-index: 24;
   background: #ffffff;
   backdrop-filter: none;
@@ -730,9 +730,10 @@ button.user-message-card__body:not(:disabled):hover {
    horizontal/header misalignment near the bottom of long chat scrolls. */
 .composer-message-table[data-table-header-pin="true"] .ui-table-title-header.table-title-header-sticky {
   position: sticky;
-  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px) + 1px);
+  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px));
   z-index: 25;
   background: #ffffff;
+  backdrop-filter: none;
   overflow-anchor: none;
   box-shadow: 0 1px 0 rgba(24, 24, 27, 0.06);
 }
@@ -744,11 +745,24 @@ button.user-message-card__body:not(:disabled):hover {
   z-index: 10;
 }
 
+/* Same base implementation as code blocks: sticky inside its own table by
+   default, then pinned under the user message once data-table-header-pin=true. */
+.composer-message-table .ui-table-title-header.table-title-header-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
 .composer-message-codeblock {
   overflow-anchor: none;
 }
 
 .composer-message-codeblock .markdown-code-scroll {
+  overflow-anchor: none;
+}
+
+.composer-message-table,
+.composer-message-table .markdown-table-scroll {
   overflow-anchor: none;
 }
 
