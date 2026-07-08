@@ -1,9 +1,9 @@
 # Local / migration tooling — not needed at runtime on Vercel
 .tools/
 
-# Local storage fallbacks and dev artifacts
-storage/
-.autonomous-agent-files/
+# Local storage fallbacks and dev artifacts (root-level only — not src/backend/storage)
+/storage/
+/.autonomous-agent-files/
 coverage/
 *.log
 

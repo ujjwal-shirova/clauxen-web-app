@@ -16,7 +16,6 @@ import { ThinkingBlock } from "./thinking-block";
 import { AgentMessageContent } from "./agent/agent-message-content";
 import { TypingDots } from "./ui/typing-dots";
 import { HintTooltip } from "./ui/hint-tooltip";
-import { messageAnchorId } from "./chat-message-navigator";
 import type { Message } from "@/frontend/lib/types";
 import { agentSegmentsVisuallyEqual } from "@/frontend/lib/agent-segments";
 import { agentFramesVisuallyEqual, shouldUseAgentMessageLayout } from "@/frontend/lib/agent-frames";
@@ -34,6 +33,11 @@ const INITIAL_RENDERED_TURNS = 3;
 const RENDER_MORE_TURNS = 1;
 const LOAD_OLDER_SCROLL_THRESHOLD_PX = 96;
 const LOAD_OLDER_SHIMMER_MS = 180;
+const MESSAGE_ANCHOR_PREFIX = "chat-message-";
+
+function messageAnchorId(messageId: string) {
+  return `${MESSAGE_ANCHOR_PREFIX}${messageId}`;
+}
 
 interface ConversationThreadProps {
   messages: Message[];
