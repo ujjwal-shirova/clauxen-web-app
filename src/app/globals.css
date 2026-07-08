@@ -725,22 +725,9 @@ button.user-message-card__body:not(:disabled):hover {
   box-shadow: 0 1px 0 rgba(24, 24, 27, 0.06);
 }
 
-/* Table header docks under its turn's sticky user message box (same rule as code blocks). */
-.composer-message-table[data-table-header-pin="true"] .ui-table-header.table-header-sticky {
-  position: sticky;
-  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px) + 1px);
-  z-index: 24;
-  background: #f4f4f5;
-  overflow-anchor: none;
-  box-shadow: 0 1px 0 rgba(24, 24, 27, 0.06);
-}
-
-.composer-message-table[data-table-header-pin="true"] .ui-table-header.table-header-sticky th {
-  background: #f4f4f5;
-}
-
-/* Title/download bar (from a <table_title> tag) docks first, above the column
-   header — same trigger attribute as the code block and column header. */
+/* Table toolbar docks under its turn's sticky user message box.
+   The column <thead> stays in normal table flow; making thead sticky caused
+   horizontal/header misalignment near the bottom of long chat scrolls. */
 .composer-message-table[data-table-header-pin="true"] .ui-table-title-header.table-title-header-sticky {
   position: sticky;
   top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px) + 1px);
@@ -748,15 +735,6 @@ button.user-message-card__body:not(:disabled):hover {
   background: #ffffff;
   overflow-anchor: none;
   box-shadow: 0 1px 0 rgba(24, 24, 27, 0.06);
-}
-
-/* When a title bar is present, the column header docks just below it instead
-   of at the same offset (--table-title-header-h matches its min-h-[38px]). */
-.composer-message-table[data-table-header-pin="true"][data-has-table-title="true"] .ui-table-header.table-header-sticky {
-  top: calc(
-    var(--header-height, 35px) + var(--turn-user-msg-height, 0px) + 1px +
-      var(--table-title-header-h, 38px)
-  );
 }
 
 /* Ensure the header itself is sticky within its code block for tall blocks */

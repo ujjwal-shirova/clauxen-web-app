@@ -11,10 +11,10 @@ export const TABLE_EXPORT_FORMATS: {
   format: TableExportFormat;
   label: string;
 }[] = [
-  { format: "markdown", label: "Markdown" },
-  { format: "csv", label: "CSV" },
-  { format: "json", label: "JSON" },
-  { format: "jsonl", label: "JSONL" },
+  { format: "jsonl", label: "Download as JSONL" },
+  { format: "json", label: "Download as JSON" },
+  { format: "markdown", label: "Download as Markdown" },
+  { format: "csv", label: "Download as CSV" },
 ];
 
 export const TABLE_EXPORT_EXTENSION: Record<TableExportFormat, string> = {

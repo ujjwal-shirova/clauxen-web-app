@@ -201,7 +201,6 @@ export function ChatViewPane({
         <ScrollArea
           className="h-full min-h-0 min-w-0 flex-1 overflow-hidden"
           ref={scrollAreaRef}
-          railEnd={hasConversation ? messageNavigator : undefined}
         >
           <div
             ref={scrollContentRef}
@@ -288,6 +287,13 @@ export function ChatViewPane({
             )}
           </div>
         </ScrollArea>
+        {hasConversation && messageNavigator ? (
+          <div className="chat-message-navigator-rail pointer-events-none absolute inset-y-0 right-0 z-30 hidden md:flex">
+            <div className="pointer-events-auto h-full w-full">
+              {messageNavigator}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {hasConversation ? (

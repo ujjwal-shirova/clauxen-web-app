@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useRef } from "react";
+import React, { createContext, useContext, useRef, useState } from "react";
 import { Check, ChevronDown, Copy, Download } from "lucide-react";
 import {
   DropdownMenu,
@@ -158,12 +158,14 @@ export const StyledTableContainer = ({
 }) => {
   const titleCtx = useContext(TableTitleContext);
   const tableRef = useRef<HTMLTableElement>(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const tableTitle = titleCtx?.title || "Table";
 
   const handleDownload = (format: TableExportFormat) => {
     const table = tableRef.current;
     if (!table) return;
     const content = exportTableElement(table, format);
-    const baseName = slugifyForFilename(titleCtx?.title || "table");
+    const baseName = slugifyForFilename(tableTitle);
     downloadTextFile(
       `${baseName}.${TABLE_EXPORT_EXTENSION[format]}`,
       content,
@@ -171,25 +173,45 @@ export const StyledTableContainer = ({
     );
   };
 
+  const handleCopyMarkdown = async () => {
+    const table = tableRef.current;
+    if (!table) return;
+    await navigator.clipboard.writeText(exportTableElement(table, "markdown"));
+    setIsCopied(true);
+    window.setTimeout(() => setIsCopied(false), 1600);
+  };
+
   return (
     <div
       className="composer-message-table my-4 w-full min-w-0 max-w-full overflow-hidden rounded-[13px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-4"
       data-has-table-title={titleCtx ? "true" : undefined}
     >
-      {titleCtx ? (
-        <div className="ui-table-title-header table-title-header-sticky sticky top-0 z-10 flex min-h-[38px] items-center justify-between gap-2 rounded-t-[12px] border-b border-zinc-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm">
-          <span className="min-w-0 truncate text-[13px] font-semibold text-zinc-800">
-            {titleCtx.title}
-          </span>
+      <div className="ui-table-title-header table-title-header-sticky sticky top-0 z-20 flex min-h-[42px] items-center justify-between gap-2 rounded-t-[12px] border-b border-zinc-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm">
+        <span className="min-w-0 truncate text-[13px] font-semibold text-zinc-900">
+          {tableTitle}
+        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            aria-label={isCopied ? "Copied table markdown" : "Copy table markdown"}
+            onClick={handleCopyMarkdown}
+            className="ui-table-copy inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+          >
+            {isCopied ? (
+              <Check size={14} className="text-emerald-600" />
+            ) : (
+              <Copy size={14} />
+            )}
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="ui-table-download flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200"
+                aria-label="Download table"
+                className="ui-table-download inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
               >
-                <Download size={12} />
-                <span>Download</span>
-                <ChevronDown size={12} />
+                <Download size={14} />
+                <ChevronDown size={13} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -204,7 +226,7 @@ export const StyledTableContainer = ({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      ) : null}
+      </div>
       <div className="markdown-table-scroll overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
         <table
           ref={tableRef}
@@ -222,7 +244,7 @@ export const StyledTableHeader = ({
 }: {
   children: React.ReactNode;
 }) => (
-  <thead className="ui-table-header table-header-sticky sticky top-0 z-10 bg-zinc-100/80">
+  <thead className="ui-table-header bg-zinc-100/80">
     {children}
   </thead>
 );
