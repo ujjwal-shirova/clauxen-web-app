@@ -154,12 +154,17 @@ export function AgentWorkFrame({
           Works for the vertical timeline of thinking + multiple tool executions. */}
       <div
         className={cn(
-          "grid transition-[grid-template-rows] duration-200 ease-out",
+          "grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
           expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
         )}
         aria-hidden={!expanded}
       >
-        <div className="overflow-hidden">
+        <div
+          className={cn(
+            "overflow-hidden transition-opacity duration-200",
+            expanded ? "opacity-100 delay-100" : "opacity-0",
+          )}
+        >
           {userInputTools.map((segment) => (
             <AgentToolBlock key={segment.id} tool={segment} />
           ))}

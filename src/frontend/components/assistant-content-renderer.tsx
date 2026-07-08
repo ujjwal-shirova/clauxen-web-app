@@ -8,10 +8,71 @@ import {
   collectCreateFileArtifacts,
   parseAssistantContentSegments,
 } from "@/frontend/lib/create-file-tags";
+import { parseTitledTableSegments } from "@/frontend/lib/table-title-tags";
 import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
+import { TitledMarkdownTable } from "@/frontend/components/titled-markdown-table";
 import { CreateFileStreamBlock } from "@/frontend/components/agent/create-file-stream-block";
 import { ArtifactFileCard } from "@/frontend/components/agent/artifact-file-card";
 import { useOptionalArtifactViewer } from "@/frontend/contexts/artifact-viewer-context";
+
+/** Renders one markdown chunk, splitting out any `<table_title>`-tagged tables. */
+function MarkdownWithTitledTables({
+  content,
+  isStreaming,
+  streamKey,
+  detailLevel,
+  sources,
+}: {
+  content: string;
+  isStreaming: boolean;
+  streamKey: string;
+  detailLevel: MessageDetailLevel;
+  sources: ChatSource[];
+}) {
+  if (!content.includes("<table_title")) {
+    return (
+      <MarkdownRenderer
+        content={content}
+        isStreaming={isStreaming}
+        streamKey={streamKey}
+        detailLevel={detailLevel}
+        {...({ sources } as any)}
+      />
+    );
+  }
+
+  const tableSegments = parseTitledTableSegments(content);
+  return (
+    <>
+      {tableSegments.map((segment, index) => {
+        const isLast = index === tableSegments.length - 1;
+        if (segment.type === "markdown") {
+          if (!segment.content.trim()) return null;
+          return (
+            <MarkdownRenderer
+              key={`${streamKey}-md-${index}`}
+              content={segment.content}
+              isStreaming={isStreaming && isLast}
+              streamKey={`${streamKey}-${index}`}
+              detailLevel={detailLevel}
+              {...({ sources } as any)}
+            />
+          );
+        }
+        return (
+          <TitledMarkdownTable
+            key={`${streamKey}-${segment.id}`}
+            title={segment.title}
+            tableMarkdown={segment.tableMarkdown}
+            isStreaming={isStreaming && isLast}
+            streamKey={`${streamKey}-${index}`}
+            sources={sources}
+          />
+        );
+      })}
+    </>
+  );
+}
 
 export function AssistantContentRenderer({
   content,
@@ -90,12 +151,12 @@ export function AssistantContentRenderer({
 
   if (!hasCreateFileTags) {
     return (
-      <MarkdownRenderer
+      <MarkdownWithTitledTables
         content={content}
         isStreaming={isStreaming}
         streamKey={resolvedKey}
         detailLevel={detailLevel}
-        {...({ sources } as any)}
+        sources={sources}
       />
     );
   }
@@ -106,13 +167,13 @@ export function AssistantContentRenderer({
         if (segment.type === "markdown") {
           if (!segment.content.trim()) return null;
           return (
-            <MarkdownRenderer
+            <MarkdownWithTitledTables
               key={`md-${index}`}
               content={segment.content}
               isStreaming={isStreaming && index === segments.length - 1}
               streamKey={`${resolvedKey}-${index}`}
               detailLevel={detailLevel}
-              {...({ sources } as any)}
+              sources={sources}
             />
           );
         }

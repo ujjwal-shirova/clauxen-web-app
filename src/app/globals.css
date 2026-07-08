@@ -739,6 +739,26 @@ button.user-message-card__body:not(:disabled):hover {
   background: #f4f4f5;
 }
 
+/* Title/download bar (from a <table_title> tag) docks first, above the column
+   header — same trigger attribute as the code block and column header. */
+.composer-message-table[data-table-header-pin="true"] .ui-table-title-header.table-title-header-sticky {
+  position: sticky;
+  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px) + 1px);
+  z-index: 25;
+  background: #ffffff;
+  overflow-anchor: none;
+  box-shadow: 0 1px 0 rgba(24, 24, 27, 0.06);
+}
+
+/* When a title bar is present, the column header docks just below it instead
+   of at the same offset (--table-title-header-h matches its min-h-[38px]). */
+.composer-message-table[data-table-header-pin="true"][data-has-table-title="true"] .ui-table-header.table-header-sticky {
+  top: calc(
+    var(--header-height, 35px) + var(--turn-user-msg-height, 0px) + 1px +
+      var(--table-title-header-h, 38px)
+  );
+}
+
 /* Ensure the header itself is sticky within its code block for tall blocks */
 .composer-message-codeblock .ui-code-block.code-block-header-sticky {
   position: sticky;

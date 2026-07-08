@@ -355,7 +355,12 @@ function ChatAreaLayout({
               <ConversationThread
                 messages={displayMessages}
                 conversationKey={activeChatId}
-                isFastScrolling={isFastScrolling}
+                // The velocity-based fast-scroll heuristic can't tell our own
+                // programmatic auto-follow (streaming + a big block appearing)
+                // from a real user flick. Never let it starve the sticky
+                // code/table header resync while a response is generating —
+                // that's exactly when headers need to dock in real time.
+                isFastScrolling={isFastScrolling && !isGenerating}
                 onSaveEditedMessage={handleSaveEditedMessage}
                 onRetryUserMessage={handleRetryUserMessage}
                 onRetryAssistant={handleRetryAssistant}

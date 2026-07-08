@@ -1,5 +1,19 @@
-import React from "react";
-import { Check, Copy } from "lucide-react";
+import React, { createContext, useContext, useRef } from "react";
+import { Check, ChevronDown, Copy, Download } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/frontend/components/ui/dropdown-menu";
+import { downloadTextFile } from "@/frontend/lib/download-file";
+import {
+  exportTableElement,
+  TABLE_EXPORT_EXTENSION,
+  TABLE_EXPORT_FORMATS,
+  TABLE_EXPORT_MIME,
+  type TableExportFormat,
+} from "@/frontend/lib/table-export";
 
 const bodyTextClass =
   "font-sans text-[14px] leading-[1.58] tracking-[-0.004em] text-zinc-800";
@@ -119,19 +133,89 @@ export const StyledList = ({
   );
 };
 
+/**
+ * Set by TitledMarkdownTable when a `<table_title>` tag preceded this table
+ * in the assistant's raw markdown — lets StyledTableContainer (which owns the
+ * actual <table> element and ref) render the title/download bar without
+ * threading props through react-markdown's component tree.
+ */
+export const TableTitleContext = createContext<{ title: string } | null>(null);
+
+function slugifyForFilename(text: string): string {
+  return (
+    text
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "table"
+  );
+}
+
 export const StyledTableContainer = ({
   children,
 }: {
   children: React.ReactNode;
-}) => (
-  <div className="composer-message-table my-4 w-full min-w-0 max-w-full overflow-hidden rounded-[13px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-4">
-    <div className="markdown-table-scroll overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-      <table className="w-full min-w-[min(100%,460px)] border-collapse text-left font-sans text-[13px] text-zinc-800 sm:min-w-[500px]">
-        {children}
-      </table>
+}) => {
+  const titleCtx = useContext(TableTitleContext);
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  const handleDownload = (format: TableExportFormat) => {
+    const table = tableRef.current;
+    if (!table) return;
+    const content = exportTableElement(table, format);
+    const baseName = slugifyForFilename(titleCtx?.title || "table");
+    downloadTextFile(
+      `${baseName}.${TABLE_EXPORT_EXTENSION[format]}`,
+      content,
+      TABLE_EXPORT_MIME[format],
+    );
+  };
+
+  return (
+    <div
+      className="composer-message-table my-4 w-full min-w-0 max-w-full overflow-hidden rounded-[13px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-4"
+      data-has-table-title={titleCtx ? "true" : undefined}
+    >
+      {titleCtx ? (
+        <div className="ui-table-title-header table-title-header-sticky sticky top-0 z-10 flex min-h-[38px] items-center justify-between gap-2 rounded-t-[12px] border-b border-zinc-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm">
+          <span className="min-w-0 truncate text-[13px] font-semibold text-zinc-800">
+            {titleCtx.title}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="ui-table-download flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200"
+              >
+                <Download size={12} />
+                <span>Download</span>
+                <ChevronDown size={12} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {TABLE_EXPORT_FORMATS.map(({ format, label }) => (
+                <DropdownMenuItem
+                  key={format}
+                  onClick={() => handleDownload(format)}
+                >
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
+      <div className="markdown-table-scroll overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+        <table
+          ref={tableRef}
+          className="w-full min-w-[min(100%,460px)] border-collapse text-left font-sans text-[13px] text-zinc-800 sm:min-w-[500px]"
+        >
+          {children}
+        </table>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const StyledTableHeader = ({
   children,
@@ -197,6 +281,9 @@ interface CodeBlockFrameProps {
   children: React.ReactNode;
   onCopy: () => void;
   isCopied: boolean;
+  /** Absent while the block is still streaming — download only makes sense once complete. */
+  onDownload?: () => void;
+  downloadExtension?: string;
 }
 
 export const CodeBlockFrame = ({
@@ -204,6 +291,8 @@ export const CodeBlockFrame = ({
   children,
   onCopy,
   isCopied,
+  onDownload,
+  downloadExtension,
 }: CodeBlockFrameProps) => {
   const safeLanguage = sanitizeCodeBlockLanguage(language);
 
@@ -213,18 +302,30 @@ export const CodeBlockFrame = ({
         <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
           {safeLanguage}
         </span>
-        <button
-          type="button"
-          onClick={onCopy}
-          className="ui-code-block-copy -mr-0.5 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200"
-        >
-          {isCopied ? (
-            <Check size={12} className="text-emerald-600" />
-          ) : (
-            <Copy size={12} />
-          )}
-          <span>{isCopied ? "Copied" : "Copy"}</span>
-        </button>
+        <div className="-mr-0.5 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onCopy}
+            className="ui-code-block-copy flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200"
+          >
+            {isCopied ? (
+              <Check size={12} className="text-emerald-600" />
+            ) : (
+              <Copy size={12} />
+            )}
+            <span>{isCopied ? "Copied" : "Copy"}</span>
+          </button>
+          {onDownload ? (
+            <button
+              type="button"
+              onClick={onDownload}
+              className="ui-code-block-download flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200"
+            >
+              <Download size={12} />
+              <span>Download as {(downloadExtension || "txt").toUpperCase()}</span>
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="markdown-code-scroll code-scrollbars ui-code-block-content w-full max-w-full overflow-x-auto overscroll-x-contain rounded-b-[13px] bg-zinc-50 [-webkit-overflow-scrolling:touch]">

@@ -105,26 +105,30 @@ export const MarkdownMessage = ({
     );
   }
 
-  if (isStreaming) {
-    const cleanContent = stripReferenceDefinitions(content);
-    const streamDisplay =
-      sources.length > 0
-        ? convertCitationReferencesToLinks(cleanContent, sources)
-        : cleanContent;
+  // Same Streamdown-based tree whether streaming or settled — swapping to the
+  // plain ReactMarkdown pipeline (MarkdownOrchestrator) the instant streaming
+  // ended used to remount the whole subtree, producing a visible flash/hard
+  // cut on every completed message. `isStreaming={false}` just turns off the
+  // token-reveal fade and animation inside the same component.
+  const cleanContent = stripReferenceDefinitions(content);
+  const displayContent =
+    sources.length > 0
+      ? convertCitationReferencesToLinks(cleanContent, sources)
+      : cleanContent;
 
-    return (
-      <div className="relative min-w-0 max-w-full" data-streaming>
-        <FlowTokenMarkdown
-          content={streamDisplay}
-          isStreaming
-          streamKey={streamKey}
-          sources={sources}
-        />
-      </div>
-    );
-  }
-
-  return <MarkdownOrchestrator text={content} sources={sources} />;
+  return (
+    <div
+      className="relative min-w-0 max-w-full"
+      data-streaming={isStreaming || undefined}
+    >
+      <FlowTokenMarkdown
+        content={displayContent}
+        isStreaming={isStreaming}
+        streamKey={streamKey}
+        sources={sources}
+      />
+    </div>
+  );
 };
 
 export type MarkdownRendererProps = {

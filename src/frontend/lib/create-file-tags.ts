@@ -21,7 +21,7 @@ const CREATE_FILE_CLOSE = "</create_file>";
 const GENERATED_FOOTER_RE =
   /(?:\r?\n){0,3}(?:[-*_]\s*)?(?:This\s+(?:document|file|code|artifact)\s+was\s+generated\s+by\s+clauxen\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}\.?|Generated\s+by\s+clauxen\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}\.?)\s*$/i;
 
-function parseTagAttributes(raw: string): Record<string, string> {
+export function parseTagAttributes(raw: string): Record<string, string> {
   const attrs: Record<string, string> = {};
   const pattern = /([\w-]+)\s*=\s*("([^"]*)"|'([^']*)')/g;
   let match: RegExpExecArray | null;
@@ -54,6 +54,43 @@ export function inferLanguageFromPath(path: string): string {
     c: "c",
   };
   return map[ext] ?? (ext || "text");
+}
+
+const LANGUAGE_TO_EXTENSION: Record<string, string> = {
+  markdown: "md",
+  text: "txt",
+  plaintext: "txt",
+  python: "py",
+  javascript: "js",
+  typescript: "ts",
+  jsx: "jsx",
+  tsx: "tsx",
+  json: "json",
+  html: "html",
+  css: "css",
+  scss: "scss",
+  bash: "sh",
+  shell: "sh",
+  zsh: "sh",
+  yaml: "yaml",
+  rust: "rs",
+  go: "go",
+  java: "java",
+  cpp: "cpp",
+  c: "c",
+  ruby: "rb",
+  kotlin: "kt",
+  swift: "swift",
+  sql: "sql",
+  php: "php",
+  csharp: "cs",
+  c_sharp: "cs",
+};
+
+/** Inverse of inferLanguageFromPath — used to name a downloaded code block file. */
+export function extensionForLanguage(language: string): string {
+  const normalized = language.trim().toLowerCase();
+  return LANGUAGE_TO_EXTENSION[normalized] ?? (normalized || "txt");
 }
 
 function documentKindLabel(language: string): string {

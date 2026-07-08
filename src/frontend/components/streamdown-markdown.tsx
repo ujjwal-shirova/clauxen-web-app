@@ -151,10 +151,10 @@ export function StreamdownFlowTokenMarkdown({
 
   return (
     <Streamdown
-      mode="streaming"
+      mode={isStreaming ? "streaming" : "static"}
       isAnimating={isStreaming}
       animated={false}
-      parseIncompleteMarkdown
+      parseIncompleteMarkdown={isStreaming}
       className="markdown-content min-w-0 max-w-full text-[14px] leading-[1.55] text-zinc-800"
       plugins={{ math: streamdownMath }}
       components={components}

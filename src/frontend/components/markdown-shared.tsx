@@ -9,6 +9,8 @@ import rehypeRaw from "rehype-raw";
 import "katex/dist/katex.min.css";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
 import type { StreamFadeConfig } from "@/frontend/lib/streaming-text-animation";
+import { extensionForLanguage } from "@/frontend/lib/create-file-tags";
+import { downloadTextFile } from "@/frontend/lib/download-file";
 import {
   StyledH1,
   StyledH2,
@@ -57,6 +59,7 @@ export function CodeRenderer(props: {
   if (!inline && (language || String(children).includes("\n"))) {
     const content = String(children).replace(/\n$/, "");
     const resolvedLanguage = language || "text";
+    const extension = extensionForLanguage(resolvedLanguage);
 
     const handleCopy = () => {
       navigator.clipboard.writeText(content).then(() => {
@@ -65,11 +68,17 @@ export function CodeRenderer(props: {
       });
     };
 
+    const handleDownload = () => {
+      downloadTextFile(`code.${extension}`, content);
+    };
+
     return (
       <CodeBlockFrame
         language={resolvedLanguage}
         onCopy={handleCopy}
         isCopied={isCopied}
+        onDownload={handleDownload}
+        downloadExtension={extension}
       >
         <HighlightCode
           code={content}

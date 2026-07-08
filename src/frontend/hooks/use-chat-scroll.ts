@@ -17,6 +17,10 @@ const FOLLOW_THRESHOLD = 48;
 const SHOW_BUTTON_THRESHOLD = 220;
 /** Ignore auto-follow briefly after explicit user wheel/touch input. */
 const USER_INPUT_COOLDOWN_MS = 180;
+/** Fraction of the remaining distance closed per animation frame while chasing the bottom. */
+const FOLLOW_EASE = 0.32;
+/** Below this distance we snap exactly to bottom instead of easing forever. */
+const FOLLOW_SNAP_EPSILON_PX = 0.75;
 
 function maxScrollTop(viewport: HTMLElement) {
   return Math.max(0, viewport.scrollHeight - viewport.clientHeight);
@@ -24,6 +28,27 @@ function maxScrollTop(viewport: HTMLElement) {
 
 function distanceFromBottom(viewport: HTMLElement) {
   return maxScrollTop(viewport) - viewport.scrollTop;
+}
+
+/**
+ * Move partway toward the bottom instead of snapping instantly. Content that
+ * grows every frame (fast token bursts, a code block resolving, a tool panel
+ * collapsing) would otherwise re-snap to a new max every frame, which reads
+ * as a jittery "hard cut" rather than a continuous scroll.
+ * Returns true once the viewport has fully caught up.
+ * ponytail: the ease factor is per-frame, not delta-time-based, so a dropped
+ * frame slows the catch-up slightly instead of skipping ahead. Fine at
+ * typical 60fps; if this ever needs to be frame-rate independent, drive it
+ * off performance.now() deltas instead.
+ */
+function easeTowardBottom(viewport: HTMLElement): boolean {
+  const distance = distanceFromBottom(viewport);
+  if (distance <= FOLLOW_SNAP_EPSILON_PX) {
+    if (distance !== 0) viewport.scrollTop = maxScrollTop(viewport);
+    return true;
+  }
+  viewport.scrollTop += distance * FOLLOW_EASE;
+  return false;
 }
 
 /**
@@ -64,31 +89,37 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     return performance.now() < userInputUntilRef.current;
   }, []);
 
-  /** Snap to bottom when pinned — avoids delta-scroll jumps during markdown reflow. */
+  /** Ease toward bottom when pinned — avoids delta-scroll jumps during markdown reflow. */
   const stickToBottomWhenPinned = useCallback(
     (viewport: HTMLElement) => {
       if (!pinnedRef.current || isUserInputActive()) return;
+      if (distanceFromBottom(viewport) > FOLLOW_THRESHOLD) return;
 
-      const maxTop = maxScrollTop(viewport);
-      const distance = maxTop - viewport.scrollTop;
-      if (distance > FOLLOW_THRESHOLD) return;
-
-      if (distance !== 0) {
-        viewport.scrollTop = maxTop;
-      }
+      easeTowardBottom(viewport);
       lastScrollHeightRef.current = viewport.scrollHeight;
     },
     [isUserInputActive],
   );
 
+  /** Keep chasing the bottom across frames until caught up, not just one snap. */
   const scheduleStickToBottom = useCallback(() => {
     if (followRafRef.current !== null) return;
-    followRafRef.current = requestAnimationFrame(() => {
-      followRafRef.current = null;
+    const step = () => {
       const viewport = resolveViewport();
-      if (viewport) stickToBottomWhenPinned(viewport);
-    });
-  }, [resolveViewport, stickToBottomWhenPinned]);
+      if (!viewport || !pinnedRef.current || isUserInputActive()) {
+        followRafRef.current = null;
+        return;
+      }
+      if (distanceFromBottom(viewport) > FOLLOW_THRESHOLD) {
+        followRafRef.current = null;
+        return;
+      }
+      const caughtUp = easeTowardBottom(viewport);
+      lastScrollHeightRef.current = viewport.scrollHeight;
+      followRafRef.current = caughtUp ? null : requestAnimationFrame(step);
+    };
+    followRafRef.current = requestAnimationFrame(step);
+  }, [resolveViewport, isUserInputActive]);
 
   const jumpToBottom = useCallback(
     (behavior: ScrollBehavior = "auto") => {
@@ -122,16 +153,13 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     jumpToBottom("auto");
   }, [jumpToBottom]);
 
-  /** Snap to bottom while pinned during streaming / content growth. */
+  /** Ease toward bottom while pinned during streaming / content growth. */
   const followContentGrowth = useCallback(() => {
     const viewport = resolveViewport();
     if (!viewport) return;
     if (!pinnedRef.current || isUserInputActive()) return;
 
-    const maxTop = maxScrollTop(viewport);
-    if (viewport.scrollTop !== maxTop) {
-      viewport.scrollTop = maxTop;
-    }
+    easeTowardBottom(viewport);
     lastScrollHeightRef.current = viewport.scrollHeight;
   }, [resolveViewport, isUserInputActive]);
 

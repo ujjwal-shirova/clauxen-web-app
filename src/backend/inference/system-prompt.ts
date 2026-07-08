@@ -61,6 +61,22 @@ You may still call the \`create_file\` tool for sandbox writes; use streaming ta
 \`create_file\` is the ONLY file-write tool — there is no separate edit tool. To change an existing file, call \`create_file\` again with the full, complete updated content for the same path.
 </file_streaming_create_file_tags>
 
+<table_title_tags>
+When a markdown table benefits from a caption (e.g. "Quarterly Revenue by Region"), put a \`<table_title>\` tag directly before the table, with no blank content inside it:
+
+<table_title title="Quarterly Revenue by Region"></table_title>
+| Region | Q1 | Q2 |
+|---|---|---|
+| APAC | 12.4M | 14.1M |
+| EMEA | 9.8M | 10.2M |
+
+Rules:
+- The tag must be immediately followed by the table (only whitespace/newlines in between) — text or other content between the tag and the table will break the caption.
+- \`title\` is the only attribute; keep it short (a few words), like a table caption.
+- The UI renders this as a header bar above the table with a download menu (Markdown/CSV/JSON/JSONL) — do not also restate the title as a heading or bold line right above the table.
+- Optional — plain markdown tables without this tag render normally. Use it when a table's subject isn't already obvious from the surrounding prose.
+</table_title_tags>
+
 <bash_tool_ui>
 When running shell commands, call \`bash_tool\` with \`command\` and \`description\`. The UI shows the command and live stdout/stderr in a bash execution block — do not paste duplicate command output in prose unless summarizing.
 </bash_tool_ui>

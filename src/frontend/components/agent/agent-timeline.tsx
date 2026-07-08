@@ -57,7 +57,12 @@ export function AgentTimelineStep({
   const Icon = ICONS[icon];
 
   return (
-    <div className={cn("relative pl-8", className)}>
+    <div
+      className={cn(
+        "relative pl-8 animate-in fade-in slide-in-from-bottom-1 duration-300 ease-out",
+        className,
+      )}
+    >
       <div
         className={cn(
           "absolute left-0 top-0.5 flex h-6 w-6 items-center justify-center rounded-md border bg-white",

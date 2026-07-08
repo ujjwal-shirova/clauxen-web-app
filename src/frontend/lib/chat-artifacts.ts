@@ -1,5 +1,6 @@
 import type { Message } from "@/frontend/lib/types";
 import { collectCreateFileArtifacts } from "@/frontend/lib/create-file-tags";
+import { downloadTextFile } from "@/frontend/lib/download-file";
 
 export type ChatArtifact = {
   id: string;
@@ -23,16 +24,7 @@ export function languageLabel(language?: string): string {
 }
 
 export function downloadArtifact(artifact: ChatArtifact) {
-  const blob = new Blob([artifact.content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = artifact.fileName;
-  anchor.rel = "noopener";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  downloadTextFile(artifact.fileName, artifact.content);
 }
 
 export function collectChatArtifacts(messages: Message[]): ChatArtifact[] {

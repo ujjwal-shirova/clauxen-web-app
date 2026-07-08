@@ -86,7 +86,15 @@ export function ThinkingBlock({
             </button>
           </div>
 
-          {isVisible && (
+          {/* Grid-rows trick animates the collapse/expand instead of hard-unmounting
+              the content (which used to cut instantly with no transition). */}
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows] duration-200 ease-out",
+              isVisible ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            )}
+            aria-hidden={!isVisible}
+          >
             <div className="overflow-hidden pt-0.5">
               <div className="grid gap-3 rounded-[12px] border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-[14px] font-[430] leading-[1.4] text-zinc-700">
                 <div
@@ -104,7 +112,7 @@ export function ThinkingBlock({
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

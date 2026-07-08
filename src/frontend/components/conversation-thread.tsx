@@ -1203,9 +1203,13 @@ export function ConversationThread({
 
     // New code blocks (or assistant content) appearing mid-stream must trigger
     // a sticky re-sync so the header docks immediately, not only on next scroll.
+    // characterData catches token growth that only extends an existing text
+    // node (no new child added) — e.g. a syntax-highlighted span whose token
+    // kind didn't change between renders — which childList alone would miss.
     const mutationObserver = new MutationObserver(() => scheduleSync(true));
     mutationObserver.observe(content, {
       childList: true,
+      characterData: true,
       subtree: true,
     });
 
