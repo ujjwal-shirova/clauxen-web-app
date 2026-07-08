@@ -181,9 +181,17 @@ export const StyledTableContainer = ({
     window.setTimeout(() => setIsCopied(false), 1600);
   };
 
+  // Do NOT add `overflow-hidden` to this outer wrapper. It's an ancestor of
+  // the sticky toolbar below, and `overflow: hidden` makes an element the
+  // sticky positioning/clipping container for its descendants — that broke
+  // the toolbar's stickiness (it stuck relative to this static box instead of
+  // the chat scroll viewport, rendering at the wrong offset once pinned).
+  // Corner-clipping instead happens on the inner scroll wrapper, which is a
+  // sibling of the toolbar, not an ancestor — same structure as
+  // CodeBlockFrame's header/content split.
   return (
     <div
-      className="composer-message-table my-4 w-full min-w-0 max-w-full overflow-hidden rounded-[13px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-4"
+      className="composer-message-table my-4 w-full min-w-0 max-w-full rounded-[13px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-4"
       data-has-table-title={titleCtx ? "true" : undefined}
     >
       <div className="ui-table-title-header table-title-header-sticky sticky top-0 z-20 flex min-h-[42px] items-center justify-between gap-2 rounded-t-[12px] border-b border-zinc-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm">
@@ -227,7 +235,7 @@ export const StyledTableContainer = ({
           </DropdownMenu>
         </div>
       </div>
-      <div className="markdown-table-scroll overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+      <div className="markdown-table-scroll overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-[13px] [-webkit-overflow-scrolling:touch]">
         <table
           ref={tableRef}
           className="w-full min-w-[min(100%,460px)] border-collapse text-left font-sans text-[13px] text-zinc-800 sm:min-w-[500px]"
