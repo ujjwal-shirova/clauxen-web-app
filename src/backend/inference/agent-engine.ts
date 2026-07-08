@@ -77,6 +77,9 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
     query: z.string(),
     max_results: z.number().optional(),
   }),
+  present_files: z.object({
+    paths: z.array(z.string()).min(1),
+  }),
   file_read: z.object({
     path: z.string(),
   }),
@@ -222,11 +225,14 @@ export async function runAutonomousAgent(
 
   sse.writeStart(true);
 
-  // Single frame spans the WHOLE autonomous turn — every step's thinking,
-  // narrative notes, and tool calls render inside ONE continuous vertical
-  // timeline (matching the reference agent UI), instead of a new timeline
-  // block opening for every model round-trip.
-  const frameId = "agent-frame-1";
+  // Each model round-trip that calls tools gets its own collapsible timeline
+  // frame (matches the reference agent UI: e.g. "Searched the web, viewed a
+  // file" collapses, then a second round like "Created a file, read a file"
+  // opens its own block below it) — not one continuous frame for the whole
+  // turn, since the model's tool sequence isn't a fixed loop and each round
+  // deserves its own summary.
+  let frameCounter = 1;
+  let frameId = `agent-frame-${frameCounter}`;
   let frameOpen = false;
   let textSegmentCounter = 0;
   let activeTextSegmentId: string | null = null;
@@ -488,15 +494,15 @@ export async function runAutonomousAgent(
               }
             }
 
-            if (tc.name === "file_write" && result.output && typeof result.output === "object") {
-              const output = result.output as Record<string, unknown>;
-              if (typeof output.path === "string") {
-                sse.writeArtifact(
-                  output.path,
-                  output.path,
-                  String(output.content ?? ""),
-                  undefined,
-                );
+            // file_write is a scratch write — it does not surface to the
+            // user. present_files is the explicit "show this to the user"
+            // step, so the artifact card only appears once that's called.
+            if (tc.name === "present_files" && result.output && typeof result.output === "object") {
+              const output = result.output as {
+                files?: Array<{ path: string; content: string }>;
+              };
+              for (const file of output.files ?? []) {
+                sse.writeArtifact(file.path, file.path, file.content, undefined);
               }
             }
 
@@ -563,13 +569,19 @@ export async function runAutonomousAgent(
 
       sse.writeStepDone(`Step ${step + 1} complete`);
 
+      // This round's frame is done — collapse it now. If the model takes
+      // another round of tool calls, it opens a fresh one below (via the new
+      // frameId), rather than reopening this same collapsed block.
+      closeFrame();
+
       if (pauseForUser) {
-        closeFrame();
         break;
       }
 
-      // Continue the loop — the model will see tool results and decide next step.
-      // The frame stays open; no new timeline block opens for this next step.
+      frameCounter += 1;
+      frameId = `agent-frame-${frameCounter}`;
+      // Continue the loop — the model will see tool results and decide the
+      // next step, which opens its own frame if it calls more tools.
     }
   } finally {
     // Safety net: close a still-open frame/segment if the loop exited via an

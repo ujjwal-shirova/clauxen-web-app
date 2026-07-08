@@ -245,10 +245,11 @@ export const autonomousAgentTools: FunctionTool[] = [
     type: "function",
     name: "file_write",
     description: [
-      "Write a text file to this conversation's workspace so the user can download it.",
-      "USE when the user wants a deliverable artifact (report, code file, CSV, etc.).",
+      "Write a text file to this conversation's workspace.",
+      "This is a scratch write — it does NOT show anything to the user by itself. Call present_files afterward with the path(s) the user should actually see/download; files written but never presented stay internal (e.g. an intermediate draft you read back and revise before presenting the final version).",
+      "USE when producing a deliverable artifact (report, code file, CSV, etc.) or an intermediate file you'll read/process further.",
       "ALWAYS call read_skill first when producing PDFs, PPTXs, charts, or other format-specific output.",
-      "SEQUENCING: read_skill → execute_code (if needed) → file_write.",
+      "SEQUENCING: read_skill → execute_code (if needed) → file_write → present_files (for anything the user should get).",
     ].join(" "),
     parameters: {
       type: "object",
@@ -263,6 +264,29 @@ export const autonomousAgentTools: FunctionTool[] = [
         },
       },
       required: ["path", "content"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
+    name: "present_files",
+    description: [
+      "Surface one or more already-written workspace files to the user as downloadable cards, shown at the end of your response.",
+      "USE right after file_write, for every file the user should actually receive — the file isn't visible/downloadable to the user until you call this.",
+      "Do not call for files that were only scratch/intermediate (e.g. a draft you rewrote before presenting the final version).",
+    ].join(" "),
+    parameters: {
+      type: "object",
+      properties: {
+        paths: {
+          type: "array",
+          items: { type: "string" },
+          minItems: 1,
+          description: "Workspace-relative paths of files to present, previously written via file_write.",
+        },
+      },
+      required: ["paths"],
       additionalProperties: false,
     },
     strict: true,

@@ -255,6 +255,29 @@ export async function executeAutonomousTool(
     return { output: { ...output, content } };
   }
 
+  if (name === "present_files") {
+    const paths = Array.isArray(args.paths) ? (args.paths as unknown[]) : [];
+    const files: Array<{ path: string; content: string }> = [];
+    const errors: string[] = [];
+    for (const rawPath of paths) {
+      const filePath = String(rawPath ?? "").trim();
+      if (!filePath) continue;
+      try {
+        const file = await readScopedFile(ctx.conversationId, filePath);
+        files.push(file);
+      } catch {
+        errors.push(filePath);
+      }
+    }
+    return {
+      output: {
+        presented: files.map((f) => f.path),
+        files,
+        ...(errors.length ? { notFound: errors } : {}),
+      },
+    };
+  }
+
   if (name === "ask_user_input_v0") {
     const questions = Array.isArray(args.questions) ? args.questions : [];
     return {

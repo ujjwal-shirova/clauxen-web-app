@@ -1,17 +1,20 @@
 "use client";
 
+import { FileText } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import type { AgentToolSegment } from "@/frontend/lib/agent-segments";
-import {
-  fileNameFromPath,
-  languageLabel,
-  type ChatArtifact,
-} from "@/frontend/lib/chat-artifacts";
+import { fileNameFromPath } from "@/frontend/lib/chat-artifacts";
 import { inferLanguageFromPath } from "@/frontend/lib/create-file-tags";
 import { AgentTimelineStep } from "./agent-timeline";
 import { CreateFileStreamBlock } from "./create-file-stream-block";
-import { ArtifactFileCard } from "./artifact-file-card";
 
+/**
+ * file_write is a scratch write — it does not show a downloadable card by
+ * itself (that only happens once present_files is called; see
+ * PresentFilesBlock + the artifact cards rendered at the end of the message
+ * in agent-orchestration.tsx). While running/just-finished this just shows a
+ * lightweight "wrote this file" chip, matching the reference agent UI.
+ */
 export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
   const path =
     tool.filePath ??
@@ -35,19 +38,6 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
       ? tool.args.description
       : undefined;
 
-  const artifact: ChatArtifact | null =
-    path && content
-      ? {
-          id: path,
-          path,
-          fileName,
-          content,
-          language,
-          description,
-          createdAtMs: tool.completedAtMs ?? Date.now(),
-        }
-      : null;
-
   return (
     <AgentTimelineStep
       icon="file"
@@ -62,15 +52,6 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
           {description || `Creating ${fileName}`}
         </span>
       }
-      trailing={
-        isRunning ? (
-          <span className="text-[12px] text-zinc-400">Writing…</span>
-        ) : (
-          <span className="text-[12px] text-zinc-400">
-            {languageLabel(language)}
-          </span>
-        )
-      }
     >
       {isRunning ? (
         <CreateFileStreamBlock
@@ -84,13 +65,30 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
           }}
           streamKey={tool.id}
         />
-      ) : artifact ? (
-        <ArtifactFileCard artifact={artifact} />
-      ) : (
-        <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-[13px] text-zinc-500">
-          Creating file…
-        </div>
-      )}
+      ) : fileName ? (
+        <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[12px] font-medium text-zinc-600">
+          <FileText className="h-3.5 w-3.5 text-zinc-400" />
+          {fileName}
+        </span>
+      ) : null}
     </AgentTimelineStep>
+  );
+}
+
+export function PresentFilesBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const count = Array.isArray(tool.args?.paths) ? tool.args.paths.length : 0;
+  const plural = count > 1 ? "s" : "";
+
+  return (
+    <AgentTimelineStep
+      icon="file"
+      isActive={isRunning}
+      title={
+        <span className={cn(isRunning && "shimmer-text")}>
+          {isRunning ? `Presenting file${plural}` : `Presented file${plural}`}
+        </span>
+      }
+    />
   );
 }

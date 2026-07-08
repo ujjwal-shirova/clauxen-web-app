@@ -43,35 +43,54 @@ function toolStepLabel(tool: AgentToolSegment): string {
   );
 }
 
-function cleanLabelText(value: string): string {
-  return value
-    .replace(/\s+/g, " ")
-    .replace(/^["'“”‘’]+|["'“”‘’]+$/g, "")
-    .trim();
-}
+/** Short past-tense action phrase per tool, used to build a frame's
+ * collapsed summary (e.g. "Searched the web, viewed a file"). */
+const TOOL_ACTION_PHRASE: Record<string, string> = {
+  web_search: "Searched the web",
+  web_fetch: "Read a page",
+  file_read: "Viewed a file",
+  view: "Viewed a file",
+  file_write: "Created a file",
+  create_file: "Created a file",
+  present_files: "Presented a file",
+  bash_tool: "Ran a command",
+  run_code_interpreter: "Ran code",
+  execute_code: "Ran code",
+  read_skill: "Checked a skill",
+  weather_fetch: "Checked the weather",
+  places_search: "Searched places",
+  image_search: "Searched images",
+  ask_user_input_v0: "Asked a question",
+};
 
-function firstWebSearchTool(segments: AgentSegment[]): AgentToolSegment | undefined {
-  return segments.find(
-    (segment): segment is AgentToolSegment =>
-      segment.kind === "tool" &&
-      (segment.name === "web_search" || segment.name === "web_fetch"),
+function toolActionPhrase(tool: AgentToolSegment): string {
+  return (
+    TOOL_ACTION_PHRASE[tool.name] ??
+    `Used ${tool.name.replace(/_/g, " ")}`
   );
 }
 
+/** "Searched the web, viewed a file" — one phrase per distinct tool kind
+ * used in this frame, in first-appearance order, lowercased after the first. */
 function frameSummaryLabel(segments: AgentSegment[]): string | undefined {
-  const search = firstWebSearchTool(segments);
-  if (search) {
-    const raw =
-      search.searchQuery ??
-      (typeof search.args?.query === "string" ? search.args.query : "");
-    const query = cleanLabelText(raw);
-    if (query) {
-      return `Deliberated search strategy for ${query}`;
-    }
-    return "Deliberated search strategy";
+  const seen = new Set<string>();
+  const phrases: string[] = [];
+
+  for (const segment of segments) {
+    if (segment.kind !== "tool") continue;
+    if (segment.name === "ask_user_input_v0") continue; // gets its own frame
+    if (seen.has(segment.name)) continue;
+    seen.add(segment.name);
+    phrases.push(toolActionPhrase(segment));
   }
 
-  return undefined;
+  if (phrases.length === 0) return undefined;
+
+  return phrases
+    .map((phrase, index) =>
+      index === 0 ? phrase : phrase.charAt(0).toLowerCase() + phrase.slice(1),
+    )
+    .join(", ");
 }
 
 function workSegments(segments: AgentSegment[]) {

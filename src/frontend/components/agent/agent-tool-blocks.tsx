@@ -38,7 +38,7 @@ import {
 } from "@/frontend/lib/agent-segments";
 import { AgentTimelineStep } from "./agent-timeline";
 import { AgentFaviconStack } from "./agent-favicon-stack";
-import { AgentFileBlock } from "./agent-file-block";
+import { AgentFileBlock, PresentFilesBlock } from "./agent-file-block";
 import {
   AskUserInputCard,
   type AskUserQuestion,
@@ -981,12 +981,11 @@ export function AgentToolBlock({ tool }: { tool: AgentToolSegment }) {
   if (tool.name === "web_search" || tool.name === "web_fetch") {
     return <AgentWebSearchBlock tool={tool} />;
   }
-  if (
-    tool.name === "create_file" ||
-    tool.name === "present_files" ||
-    tool.name === "file_write"
-  ) {
+  if (tool.name === "create_file" || tool.name === "file_write") {
     return <AgentFileBlock tool={tool} />;
+  }
+  if (tool.name === "present_files") {
+    return <PresentFilesBlock tool={tool} />;
   }
   if (tool.name === "bash_tool" || tool.name === "run_code_interpreter") {
     return <AgentBashToolBlock tool={tool} />;

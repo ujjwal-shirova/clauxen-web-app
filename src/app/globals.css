@@ -667,10 +667,15 @@ button.user-message-card__body:not(:disabled):hover {
   padding-top: 0.125rem;
 }
 
+/* ponytail: intentionally NOT content-visibility: auto here. Turns vary
+   wildly in height (a one-line reply vs. a report with tables/code), and its
+   contain-intrinsic-size estimate doesn't match reality — that mismatch is
+   exactly what caused the hard-cut jump when scrolling up into
+   previously-offscreen turns. If very long conversations ever need this
+   render-skip optimization back, it needs a per-turn measured size (e.g. a
+   ResizeObserver writing a CSS var) instead of one fixed guess. */
 [data-conversation-turn] {
   overflow-anchor: none;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 300px;
 }
 
 [data-fast-scrolling] [data-conversation-turn] {
@@ -688,11 +693,6 @@ button.user-message-card__body:not(:disabled):hover {
   .chat-scroll-viewport {
     scroll-behavior: auto;
   }
-}
-
-[data-conversation-turn][data-turn-streaming="true"] {
-  content-visibility: visible;
-  contain-intrinsic-size: auto;
 }
 
 .sticky-user-msg--stuck {

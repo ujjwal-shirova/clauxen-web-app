@@ -7,6 +7,7 @@ import { AssistantContentRenderer } from "@/frontend/components/assistant-conten
 import { TypingDots } from "@/frontend/components/ui/typing-dots";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { AgentWorkFrame } from "./agent-work-frame";
+import { ArtifactFileCard } from "./artifact-file-card";
 
 export function AgentOrchestrationView({
   message,
@@ -80,6 +81,18 @@ export function AgentOrchestrationView({
       {showOrb ? (
         <div className="flex items-center py-1">
           <TypingDots />
+        </div>
+      ) : null}
+
+      {/* present_files cards land here — after every timeline frame and the
+          final answer text, so they stay visible once the frame collapses
+          (matches the reference agent UI: the card sits at the very end of
+          the output, not buried inside a collapsible step). */}
+      {message.agentArtifacts && message.agentArtifacts.length > 0 ? (
+        <div className="flex w-full flex-col gap-2">
+          {message.agentArtifacts.map((artifact) => (
+            <ArtifactFileCard key={artifact.id} artifact={artifact} />
+          ))}
         </div>
       ) : null}
     </div>
