@@ -40,7 +40,6 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 | `src/backend/` | Server-side services, repositories, inference pipeline, billing, sandbox |
 | `src/autonomous-agent/` | Standalone tool-use agent loop (server + client + types) |
 | `src/projects/` | Project RAG pipeline (ingestion, chunking, embeddings, storage) |
-| `src/agents/` | Vendored Python OpenAI Agents SDK — reference/prototyping only, excluded from the deployed app (see `.vercelignore`) |
 | `src/models-system-prompts/` | Persona system prompts (e.g. `virgil.md`) |
 | `src/lib/`, `src/utils/` | Shared utilities (Supabase clients, model config, sanitization) |
 | `lib/flowtoken/` | Vendored animated-markdown-streaming library |

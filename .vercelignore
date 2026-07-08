@@ -1,9 +1,6 @@
 # Local / migration tooling — not needed at runtime on Vercel
 .tools/
 
-# Vendored Python agent SDK — Next.js app does not import these at build time
-src/agents/
-
 # Local storage fallbacks and dev artifacts
 storage/
 .autonomous-agent-files/
