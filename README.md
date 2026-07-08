@@ -1,150 +1,165 @@
-# Claude Projects Clone
+# Clauxen
 
-A production-grade recreation of Anthropic's **Claude Projects** feature — project folders with custom instructions, file uploads, RAG-powered knowledge retrieval, and streaming chat conversations.
+Clauxen is an AI-powered chat platform built on Next.js — multi-model conversations, project-scoped RAG, an autonomous tool-use agent, code sandboxes, billing/subscriptions, and enterprise workspace controls, all in one app.
 
-## Architecture
+## Feature highlights
+
+- **Streaming chat** — SSE-based conversation streaming with per-model routing, interleaved "thinking" traces, and animated markdown rendering (vendored [`flowtoken`](lib/flowtoken)).
+- **Multi-model routing** — internal model personas (**Homer**, **Helios**, **Virgil**) proxied through Novita's Anthropic- and OpenAI-compatible endpoints, plus a Claude-Messages-API-compatible proxy at `/api/shirova/v1/messages`.
+- **Autonomous agent** — a no-system-prompt, tool-steered reasoning loop (`src/autonomous-agent/`) with web search, web fetch, sandboxed code execution, scoped file read/write, skill discovery, and user-clarification pauses. See its own [README](src/autonomous-agent/README.md).
+- **Projects & RAG** — project folders with custom instructions, file uploads, chunking + embeddings, and pgvector-backed retrieval grounding chat responses.
+- **Code sandboxes** — provision, connect to, and run commands/files inside remote sandboxes (`/api/v1/sandbox/*`, Novita sandbox).
+- **Billing & checkout** — Razorpay-based orders, subscriptions, invoices, plans, UPI flow, and gifting, with webhook handling.
+- **Workspaces** — SSO connections, SCIM tokens, member management, and verified domains for team accounts.
+- **Customize** — user-uploaded skills and third-party connectors.
+- **API keys** — `clx_…` bearer tokens for programmatic access to the `/api/v1/*` surface.
+- **Library, artifacts, research runs, onboarding** — supporting surfaces for saved outputs, generated files, longer-running research jobs, and first-run setup.
+
+## Tech stack
 
 | Layer | Stack |
-|-------|-------|
-| Frontend | Next.js App Router, Tailwind CSS v4, shadcn/ui, TanStack Query |
-| API | Next.js Route Handlers (`/api/projects/*`, `/api/auth/*`) |
-| Database | PostgreSQL 16 + pgvector (Prisma ORM) |
-| Queue | BullMQ + Redis (file ingestion worker) |
-| Embeddings | OpenAI `text-embedding-3-small` (1536-dim) |
-| LLM | Anthropic `claude-sonnet-4-6` (streaming SSE) |
-| Auth | JWT (`jsonwebtoken` + `bcrypt`) |
-| Storage | Local disk (`storage/uploads/`) — S3-ready |
+|---|---|
+| Frontend | Next.js (App Router), React 19, Tailwind CSS v4, shadcn/ui, Zustand, TanStack Query |
+| Streaming / Markdown | Server-Sent Events, vendored `flowtoken` for token-level animated markdown |
+| API | Next.js Route Handlers (`/api/v1/*`, legacy `/api/*`) |
+| Database | Supabase Postgres (Prisma ORM + `supabase/migrations`), pgvector-style embeddings |
+| Auth | Supabase GoTrue, with a dev cookie-session bypass (`AUTH_DEV_BYPASS`) |
+| Inference | Novita (Anthropic- and OpenAI-compatible endpoints) — models: Kimi K2.6, GLM-5.2, DeepSeek V4 Pro (thinking) |
+| Storage | Cloudflare R2 (images, documents, artifacts, skills, chat archives), local-disk fallback |
+| Queue | BullMQ + Redis (project file ingestion), inline fallback if Redis is unavailable |
+| Billing | Razorpay (orders, subscriptions, invoices, webhooks) |
+| Search / tools | Exa (web search/fetch), Fal (image), Parallel, Google Places |
+| Sandboxes | Novita sandbox (E2B-compatible) |
 
-## Quick Start
+## Repository structure
 
-### 1. Start infrastructure
+| Path | Purpose |
+|---|---|
+| `src/app/` | Next.js routes — pages and `/api` route handlers |
+| `src/frontend/` | Client components, hooks, and frontend-only lib code |
+| `src/backend/` | Server-side services, repositories, inference pipeline, billing, sandbox |
+| `src/autonomous-agent/` | Standalone tool-use agent loop (server + client + types) |
+| `src/projects/` | Project RAG pipeline (ingestion, chunking, embeddings, storage) |
+| `src/agents/` | Vendored Python OpenAI Agents SDK — reference/prototyping only, excluded from the deployed app (see `.vercelignore`) |
+| `src/models-system-prompts/` | Persona system prompts (e.g. `virgil.md`) |
+| `src/lib/`, `src/utils/` | Shared utilities (Supabase clients, model config, sanitization) |
+| `lib/flowtoken/` | Vendored animated-markdown-streaming library |
+| `prisma/` | Prisma schema and migrations |
+| `supabase/` | Supabase project config and SQL migrations |
+| `scripts/` | Standalone scripts (ingestion worker, seeding) |
+| `docs/` | Deployment and backend architecture notes |
+
+## Getting started
+
+### Prerequisites
+
+- Node.js `24.x` (`.nvmrc` / `engines` in `package.json`), npm `>=10`
+- A Supabase project (Postgres + GoTrue)
+- Redis (optional locally — falls back to inline processing)
+
+### 1. Install dependencies
 
 ```bash
-docker compose up -d
+npm install
 ```
-
-This starts:
-- **PostgreSQL** with pgvector on port `5433`
-- **Redis** on port `6379`
 
 ### 2. Configure environment
 
-Edit **`.env.local`** at the repo root (single env file for local dev). At minimum set:
+Create **`.env.local`** at the repo root — the single local env file (no `.env.example`; see `docs/vercel-deployment.md` for the full variable list and production setup).
+
+Minimum to get chat working:
 
 ```bash
-DATABASE_URL=postgresql://postgres.<project-ref>:<password>@db.<project-ref>.supabase.co:5432/postgres
-JWT_SECRET=your-secret-here
+NEXT_PUBLIC_APP_URL=http://localhost:9002
+AUTH_DEV_BYPASS=true
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+DATABASE_URL=postgresql://...
 NOVITA_AI_KEY=...
-R2_S3_ENDPOINT=...
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
+JWT_SECRET=...
 ```
 
-See `docs/vercel-deployment.md` for the full variable list.
-
-### 3. Apply database schema
+### 3. Apply the database schema
 
 ```bash
 npx prisma migrate dev
 npx prisma generate
+# or, for the Supabase-managed schema:
+npx supabase db push
 ```
 
-### 4. Start the dev server
+### 4. Run the dev server
 
 ```bash
 npm run dev
 ```
 
-Visit [http://localhost:9002/projects](http://localhost:9002/projects)
+Visit [http://localhost:9002](http://localhost:9002).
 
-### 5. Start the ingestion worker (separate terminal)
-
-```bash
-npm run worker
-```
-
-The worker processes uploaded files: text extraction → chunking → embedding → pgvector storage.
-
-> If Redis is unavailable, files are processed inline as a fallback.
-
-## Routes
-
-### Pages
-
-| Route | Description |
-|-------|-------------|
-| `/projects` | Project listing with search, sort, empty state |
-| `/projects/[id]` | Project home — chat input, conversation list, instructions & files sidebar |
-| `/projects/[id]/conversations/[convId]` | Full chat view with streaming responses |
-
-### API
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/auth/register` | Create account |
-| POST | `/api/auth/login` | Sign in, receive JWT |
-| GET/POST | `/api/projects` | List / create projects |
-| GET/PATCH/DELETE | `/api/projects/[id]` | Project CRUD |
-| PATCH | `/api/projects/[id]/instructions` | Save `system_prompt` |
-| GET/POST | `/api/projects/[id]/files` | List / upload files |
-| DELETE | `/api/projects/[id]/files/[fileId]` | Remove file |
-| GET/POST | `/api/projects/[id]/files/[fileId]/status` | Poll status / retry ingestion |
-| GET/POST | `/api/projects/[id]/conversations` | List / create conversations |
-| PATCH/DELETE | `/api/projects/[id]/conversations/[convId]` | Rename, star, move, delete |
-| GET/POST | `/api/projects/[id]/conversations/[convId]/messages` | History / stream new message |
-
-All project API routes require `Authorization: Bearer <token>`.
-
-## RAG Pipeline
-
-### Ingestion (on file upload)
-
-1. File saved to `storage/uploads/{projectId}/`
-2. Job enqueued to BullMQ
-3. Text extracted (pdf-parse, mammoth, papaparse, plain text)
-4. Recursive character splitter: **512 tokens** target, **64 token** overlap
-5. Each chunk embedded via OpenAI `text-embedding-3-small`
-6. Stored in `document_chunks` with HNSW index
-7. `project_files.status` → `ready` (or `failed`)
-
-### Retrieval (on each message)
-
-1. User message embedded with same model
-2. Cosine similarity search: top **8** chunks filtered by `project_id`
-3. Context assembled as `<project_knowledge>...</project_knowledge>`
-4. System prompt = project instructions + RAG context + grounding suffix
-5. Streamed to client via SSE (`text/event-stream`)
-
-## Design System
-
-- Background: `#F5F4EF` (warm off-white)
-- Headings: Playfair Display (serif)
-- Body: Inter / system sans-serif
-- Primary button: `bg-black text-white rounded-lg`
-- Secondary: `border border-gray-300 rounded-lg`
-- Modals: `rounded-2xl shadow-xl` on darkened backdrop
-
-## Development
+### 5. Optional background processes
 
 ```bash
-npm run dev          # Next.js on :9002
-npm run worker       # BullMQ ingestion worker
-npm run prisma:studio # Database GUI
-npm run typecheck    # TypeScript check
+npm run worker                 # BullMQ project-file ingestion worker
+npm run autonomous-agent:ws    # standalone autonomous-agent WebSocket server (:8081)
 ```
 
-## Environment Variables
+## Scripts
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `REDIS_URL` | Yes* | Redis for BullMQ (*inline fallback) |
-| `JWT_SECRET` | Yes | JWT signing secret |
-| `ANTHROPIC_API_KEY` | Yes | Claude API for chat streaming |
-| `OPENAI_API_KEY` | Yes | Embeddings for RAG |
-| `STORAGE_LOCAL_PATH` | No | Local upload directory (default: `./storage/uploads`) |
-| `STORAGE_BUCKET` | No | S3 bucket name (future) |
-| `NEXTAUTH_SECRET` | No | Reserved for future auth integration |
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the Next.js dev server on port `9002` |
+| `npm run build` | Production build |
+| `npm run start` | Start the production server |
+| `npm run lint` / `lint:fix` | ESLint check / autofix |
+| `npm run typecheck` | Next type generation + `tsc --noEmit` |
+| `npm run format` / `format:check` | Prettier write / check |
+| `npm run test` | Run `*.test.ts` files under `src/` via `tsx --test` |
+| `npm run worker` | Start the BullMQ ingestion worker |
+| `npm run autonomous-agent:ws` | Start the autonomous-agent WebSocket server |
+| `npm run prisma:generate` / `prisma:migrate` / `prisma:studio` | Prisma client, migrations, DB GUI |
+| `npm run supabase:db:push` | Push local migrations to Supabase |
+| `npm run supabase:functions:deploy` / `:list` | Manage Supabase Edge Functions |
+
+## API surface
+
+Full endpoint list and architecture in [`docs/backend.md`](docs/backend.md). Highlights:
+
+- `GET /api/v1/auth/session`, `POST /api/v1/auth/{login,register,logout}`
+- `GET/POST /api/v1/chats`, `POST /api/v1/chats/:id/{messages,generate}` (SSE streaming)
+- `GET/POST /api/v1/projects`, `/api/v1/projects/:id`
+- `GET/POST /api/v1/api-keys` — issue `clx_…` keys for `Authorization: Bearer` access
+- `POST /api/shirova/v1/messages` — Anthropic Messages API-compatible proxy
+- `/api/v1/billing/*`, `/api/v1/webhooks/razorpay`
+- `/api/v1/sandbox/*` — sandbox lifecycle and command execution
+- `/api/v1/workspaces/*` — SSO, SCIM, members, domains
+- `/api/v1/customize/{skills,connectors}`, `/api/v1/research/runs`, `/api/v1/artifacts`
+
+Legacy `/api/chat` and `/api/chat/title` remain for the unauthenticated/local fallback path.
+
+## Environment variables
+
+See [`docs/vercel-deployment.md`](docs/vercel-deployment.md) for the complete, up-to-date list (including Cloudflare R2 buckets and Vercel project settings). Core groups:
+
+| Group | Examples |
+|---|---|
+| App | `NEXT_PUBLIC_APP_URL`, `AUTH_DEV_BYPASS`, `AUTH_REQUIRED_FOR_CHAT` |
+| Supabase | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` |
+| Inference | `NOVITA_AI_KEY`, `SHIROVA_HOMER_MODEL`, `SHIROVA_HELIOS_MODEL`, `SHIROVA_VIRGIL_MODEL`, `SHIROVA_THINKING_MODEL` |
+| Search / tools | `EXA_API_KEY`, `FAL_KEY`, `PARALLEL_API_KEY`, `GOOGLE_PLACES_API_KEY` |
+| Billing | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` |
+| Storage | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_S3_ENDPOINT`, `R2_*_BUCKET` |
+| Auth | `JWT_SECRET` |
+| Queue | `REDIS_URL` (optional — inline fallback if unset) |
+
+## Deployment
+
+Deployed on Vercel. `vercel.json` sets install/build commands and streaming route timeouts; `vercel-build` runs `prisma generate` before `next build`. Cloudflare R2 is required in production (Vercel functions have no persistent disk). Full checklist in [`docs/vercel-deployment.md`](docs/vercel-deployment.md).
+
+```bash
+vercel link
+vercel --prod
+```
 
 ## License
 
