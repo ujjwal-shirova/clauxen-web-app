@@ -50,7 +50,7 @@ export function ArtifactFileCard({
         <button
           type="button"
           onClick={openFile}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200/80"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200/80"
         >
           <DocumentStackIcon />
           <div className="min-w-0 flex-1">
@@ -67,7 +67,7 @@ export function ArtifactFileCard({
             downloadArtifact(artifact);
           }}
           aria-label={`Download ${title}`}
-          className="inline-flex h-8 w-8 shrink-0 self-center items-center justify-center rounded-[10px] border border-zinc-200 bg-white text-zinc-800 transition-colors hover:bg-zinc-50"
+          className="inline-flex h-8 w-8 shrink-0 self-center items-center justify-center rounded-[10px] border border-zinc-200 bg-white text-zinc-800"
         >
           <Download className="h-3.5 w-3.5" />
         </button>
@@ -78,7 +78,7 @@ export function ArtifactFileCard({
   return (
     <div
       className={cn(
-        "my-3 flex w-full min-w-0 items-center gap-3 rounded-[12px] border border-zinc-200/80 bg-white px-3 py-2.5 transition-colors hover:border-zinc-300 hover:bg-zinc-50",
+        "my-3 flex w-full min-w-0 items-center gap-3 rounded-[12px] border border-zinc-200/80 bg-white px-3 py-2.5",
         className,
       )}
     >
@@ -102,7 +102,7 @@ export function ArtifactFileCard({
           downloadArtifact(artifact);
         }}
         aria-label={`Download ${title}`}
-        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-[10px] border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50"
+        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-[10px] border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-800"
       >
         <Download className="h-3.5 w-3.5" />
         Download

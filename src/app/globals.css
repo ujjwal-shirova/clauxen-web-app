@@ -1146,6 +1146,17 @@ button.user-message-card__body:not(:disabled):hover {
   animation: shimmer 2.2s infinite linear;
 }
 
+.shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    rgba(244, 244, 245, 0.92) 0%,
+    rgba(228, 228, 231, 0.9) 45%,
+    rgba(244, 244, 245, 0.92) 100%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.25s infinite linear;
+}
+
 @keyframes shimmer {
   0% {
     background-position: 200% 0;

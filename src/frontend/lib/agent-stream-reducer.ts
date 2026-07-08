@@ -456,6 +456,7 @@ export function applyAgentStreamEvent(
       if (isThinkingSegment) {
         isThinkingStreaming = false;
         if (event.segmentId) {
+          let endedDurationSeconds: number | undefined;
           state = withSegments(state, (segments) => {
             const existing = segments.find(
               (segment): segment is Extract<AgentSegment, { kind: "thinking" }> =>
@@ -468,21 +469,23 @@ export function applyAgentStreamEvent(
                   Math.round((Date.now() - existing.startedAtMs) / 1000),
                 )
               : existing.durationSeconds;
+            endedDurationSeconds = durationSeconds;
             return upsertSegment(segments, {
               ...existing,
               isStreaming: false,
               durationSeconds,
             });
           });
-          const durationSeconds = state.message.thinkingDurationSeconds;
           return syncFrameState(state, {
             isThinkingStreaming: false,
-            thinkingDurationSeconds: durationSeconds,
+            thinkingDurationSeconds:
+              endedDurationSeconds ?? state.message.thinkingDurationSeconds,
           });
         }
         if (state.frames.length > 0) {
-          state = withSegments(state, (segments) =>
-            segments.map((segment) => {
+          let longestDurationSeconds = state.message.thinkingDurationSeconds;
+          state = withSegments(state, (segments) => {
+            const next = segments.map((segment) => {
               if (segment.kind !== "thinking" || !segment.isStreaming) {
                 return segment;
               }
@@ -492,12 +495,31 @@ export function applyAgentStreamEvent(
                     Math.round((Date.now() - segment.startedAtMs) / 1000),
                   )
                 : segment.durationSeconds;
+              if (durationSeconds) {
+                longestDurationSeconds = Math.max(
+                  longestDurationSeconds ?? 0,
+                  durationSeconds,
+                );
+              }
               return { ...segment, isStreaming: false, durationSeconds };
-            }),
-          );
-          return syncFrameState(state, { isThinkingStreaming: false });
+            });
+            return next;
+          });
+          return syncFrameState(state, {
+            isThinkingStreaming: false,
+            thinkingDurationSeconds: longestDurationSeconds,
+          });
         }
-        return syncFrameState(state, { isThinkingStreaming: false });
+        const plainDurationSeconds = state.message.thinkingStartedAtMs
+          ? Math.max(
+              1,
+              Math.round((Date.now() - state.message.thinkingStartedAtMs) / 1000),
+            )
+          : state.message.thinkingDurationSeconds;
+        return syncFrameState(state, {
+          isThinkingStreaming: false,
+          thinkingDurationSeconds: plainDurationSeconds,
+        });
       }
       if (
         event.type === "segment_end" &&

@@ -31,8 +31,9 @@ import { useIsMobile } from "@/frontend/hooks/use-mobile";
 const USER_MESSAGE_PREVIEW_LINES = 2;
 /** Mount only the latest few user/assistant pairs by default; older turns load on upward scroll. */
 const INITIAL_RENDERED_TURNS = 3;
-const RENDER_MORE_TURNS = 4;
+const RENDER_MORE_TURNS = 1;
 const LOAD_OLDER_SCROLL_THRESHOLD_PX = 96;
+const LOAD_OLDER_SHIMMER_MS = 180;
 
 interface ConversationThreadProps {
   messages: Message[];
@@ -1116,6 +1117,7 @@ export function ConversationThread({
   const [visibleTurnCount, setVisibleTurnCount] = React.useState(
     INITIAL_RENDERED_TURNS,
   );
+  const [isLoadingOlder, setIsLoadingOlder] = React.useState(false);
   const latestTurnKey =
     groups[groups.length - 1]?.userMessage?.id ??
     groups[groups.length - 1]?.assistantMessages.at(-1)?.id ??
@@ -1127,6 +1129,7 @@ export function ConversationThread({
     // assistant mounted immediately instead of leaving the user in an old,
     // expanded history window.
     setVisibleTurnCount(INITIAL_RENDERED_TURNS);
+    setIsLoadingOlder(false);
   }, [conversationKey, latestTurnKey]);
 
   const effectiveVisibleTurnCount = Math.min(groups.length, visibleTurnCount);
@@ -1160,6 +1163,7 @@ export function ConversationThread({
     scrollHeight: number;
     scrollTop: number;
   } | null>(null);
+  const loadOlderTimerRef = React.useRef<number | null>(null);
 
   const getScrollElement = React.useCallback(() => {
     if (scrollAreaRef?.current) {
@@ -1183,14 +1187,20 @@ export function ConversationThread({
         raf = 0;
         if (viewport.scrollTop > LOAD_OLDER_SCROLL_THRESHOLD_PX) return;
         if (firstRenderedTurnIndex <= 0) return;
+        if (isLoadingOlder || loadOlderTimerRef.current != null) return;
 
-        pendingPrependAdjustmentRef.current = {
-          scrollHeight: viewport.scrollHeight,
-          scrollTop: viewport.scrollTop,
-        };
-        setVisibleTurnCount((count) =>
-          Math.min(groups.length, count + RENDER_MORE_TURNS),
-        );
+        setIsLoadingOlder(true);
+        loadOlderTimerRef.current = window.setTimeout(() => {
+          pendingPrependAdjustmentRef.current = {
+            scrollHeight: viewport.scrollHeight,
+            scrollTop: viewport.scrollTop,
+          };
+          setVisibleTurnCount((count) =>
+            Math.min(groups.length, count + RENDER_MORE_TURNS),
+          );
+          setIsLoadingOlder(false);
+          loadOlderTimerRef.current = null;
+        }, LOAD_OLDER_SHIMMER_MS);
       });
     };
 
@@ -1199,8 +1209,12 @@ export function ConversationThread({
     return () => {
       viewport.removeEventListener("scroll", maybeLoadOlder);
       if (raf !== 0) cancelAnimationFrame(raf);
+      if (loadOlderTimerRef.current != null) {
+        window.clearTimeout(loadOlderTimerRef.current);
+        loadOlderTimerRef.current = null;
+      }
     };
-  }, [firstRenderedTurnIndex, getScrollElement, groups.length]);
+  }, [firstRenderedTurnIndex, getScrollElement, groups.length, isLoadingOlder]);
 
   React.useLayoutEffect(() => {
     const pending = pendingPrependAdjustmentRef.current;
@@ -1349,10 +1363,17 @@ export function ConversationThread({
     >
       {hasHiddenOlderTurns ? (
         <div
-          className="flex justify-center py-1 text-[11px] font-medium text-zinc-400"
+          className="flex flex-col items-center gap-2 py-1 text-[11px] font-medium text-zinc-400"
           aria-hidden
         >
-          Scroll up to load older messages
+          {isLoadingOlder ? (
+            <>
+              <div className="h-3 w-32 rounded-full bg-zinc-100 shimmer-bg" />
+              <div className="h-3 w-20 rounded-full bg-zinc-100 shimmer-bg" />
+            </>
+          ) : (
+            "Scroll up to load older messages"
+          )}
         </div>
       ) : null}
 

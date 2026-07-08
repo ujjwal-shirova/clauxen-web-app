@@ -462,19 +462,29 @@ function ChatAreaLayout({
                     : { width: 0, opacity: 0 }
                 }
                 transition={{
-                  duration: isMobile ? 0.5 : 0.32,
+                  duration: isMobile ? 0.5 : 0.42,
                   ease: [0.32, 0.72, 0, 1],
                 }}
                 className={cn(
                   "fixed inset-y-0 right-0 z-50 flex shrink-0 overflow-hidden border-l border-zinc-200 will-change-[transform,width,opacity] lg:static lg:z-auto",
                 )}
               >
-                <div className="h-full w-full min-w-0 shrink-0 lg:w-full">
+                <motion.div
+                  initial={{ opacity: 0, x: isMobile ? 24 : 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: isMobile ? 24 : 12 }}
+                  transition={{
+                    duration: 0.24,
+                    delay: isMobile ? 0.08 : 0.12,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="h-full w-full min-w-0 shrink-0 lg:w-full"
+                >
                   <ArtifactViewerPanel
                     artifact={activeArtifact}
                     onClose={closeViewer}
                   />
-                </div>
+                </motion.div>
               </motion.div>
             </>
           ) : null}
