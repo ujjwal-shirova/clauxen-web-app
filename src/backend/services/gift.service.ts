@@ -9,6 +9,7 @@ import {
   newReceipt,
 } from "@/backend/billing/razorpay";
 import { getServerUsdInrRate } from "@/backend/billing/checkout-currency-server";
+import { env } from "@/backend/config/env";
 import { AppError } from "@/backend/db/errors";
 import {
   toRazorpayChargeAmount,
@@ -139,8 +140,7 @@ export async function purchaseGift(input: {
       orderId: razorpay.id,
       amount: razorpay.amount,
       currency: razorpay.currency,
-      keyId:
-        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID,
+      keyId: env.publicRazorpayKeyId || env.razorpayKeyId,
     },
     pricing: { subtotalPaise, taxPaise, amountPaise },
   };

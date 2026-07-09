@@ -132,6 +132,8 @@ npx supabase db push
 
 ## Deploy
 
+See **[`docs/vercel-production-setup.md`](vercel-production-setup.md)** for production auth, env sync, and security checklist.
+
 ```bash
 vercel link
 vercel --prod

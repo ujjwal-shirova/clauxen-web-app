@@ -16,11 +16,17 @@ function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+const isVercel = optional("VERCEL", "") === "1";
+const isProduction = process.env.NODE_ENV === "production" || isVercel;
+
 export const env = {
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:9002"),
   authRequiredForChat: optional("AUTH_REQUIRED_FOR_CHAT", "false") === "true",
-  authDevBypass: optional("AUTH_DEV_BYPASS", "true") === "true",
+  // ponytail: on Vercel default to false — production must use Supabase GoTrue
+  authDevBypass:
+    optional("AUTH_DEV_BYPASS", isVercel ? "false" : "true") === "true",
   databaseUrl: optional("DATABASE_URL"),
+  supabaseServiceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
   novitaApiKey: optional("NOVITA_AI_KEY") || optional("NOVITA_API_KEY"),
   novitaAnthropicBaseUrl: normalizeBaseUrl(
     optional("NOVITA_ANTHROPIC_BASE_URL", MODEL_CONFIG.endpoints.novitaAnthropicBaseUrl),
@@ -65,6 +71,10 @@ export const env = {
     MODEL_CONFIG.models.helios.defaultSlug,
   ),
   exaApiKey: optional("EXA_API_KEY"),
+  falKey: optional("FAL_KEY"),
+  parallelApiKey: optional("PARALLEL_API_KEY"),
+  googlePlacesApiKey: optional("GOOGLE_PLACES_API_KEY"),
+  openAiApiKey: optional("OPENAI_API_KEY"),
   /** Kimi thinking: enabled | disabled -> Anthropic extended thinking. */
   thinkingType:
     optional("SHIROVA_THINKING_TYPE", "disabled") === "enabled"
@@ -77,7 +87,13 @@ export const env = {
   applePayDomainAssociation: optional("APPLE_PAY_DOMAIN_ASSOCIATION"),
   checkoutUsdInrRate: optional("CHECKOUT_USD_INR_RATE"),
   sessionCookieName: "clauxen_session",
-  jwtSecret: optional("JWT_SECRET", "dev-jwt-secret-change-me"),
+  jwtSecret: optional(
+    "JWT_SECRET",
+    isProduction ? "" : "dev-jwt-secret-change-me",
+  ),
+
+  isProduction,
+  isVercel,
 
   // Cloudflare account (dashboard → Account ID)
   r2AccountId: optional("R2_ACCOUNT_ID"),

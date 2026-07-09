@@ -28,6 +28,9 @@ export function conflict(message = "Conflict"): AppError {
 
 export function mapPgError(error: unknown): AppError {
   const pg = error as { code?: string; message?: string };
+  const isProduction =
+    process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+
   if (pg.code === "23505") {
     return conflict("Resource already exists.");
   }
@@ -38,5 +41,9 @@ export function mapPgError(error: unknown): AppError {
       "invalid_reference",
     );
   }
-  return new AppError(pg.message || "Database error.", 500, "database_error");
+  return new AppError(
+    isProduction ? "A database error occurred." : pg.message || "Database error.",
+    500,
+    "database_error",
+  );
 }

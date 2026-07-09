@@ -347,8 +347,7 @@ export async function createCheckoutOrder(input: {
       orderId: razorpay.id,
       amount: razorpay.amount,
       currency: razorpay.currency,
-      keyId:
-        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID, // client SDK key
+      keyId: env.publicRazorpayKeyId || env.razorpayKeyId,
     },
   };
 }
