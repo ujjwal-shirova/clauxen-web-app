@@ -4,9 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import * as authApi from "@/frontend/lib/api/auth";
 import type { SessionUser } from "@/frontend/lib/api/auth";
-import { mapSupabaseAuthError } from "@/frontend/components/auth/auth-shared";
-
-type OAuthProvider = "google" | "github" | "facebook" | "twitter";
+import {
+  mapSupabaseAuthError,
+  type OAuthProvider,
+} from "@/frontend/components/auth/auth-shared";
 
 function appOrigin() {
   if (typeof window !== "undefined") return window.location.origin;

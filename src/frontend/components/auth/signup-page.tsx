@@ -10,6 +10,7 @@ import {
   authPageStyles,
   getSafeRedirectTo,
   mapSupabaseAuthError,
+  type OAuthProvider,
 } from "@/frontend/components/auth/auth-shared";
 import { AuthShell } from "@/frontend/components/auth/auth-shell";
 
@@ -44,7 +45,7 @@ export function SignupPage() {
   }, [loading, isAuthenticated, redirectTo, router]);
 
   const handleOAuth = useCallback(
-    async (provider: "google" | "github" | "facebook" | "twitter") => {
+    async (provider: OAuthProvider) => {
       setError(null);
       setSubmitting(true);
       try {

@@ -24,7 +24,108 @@ export function getSafeRedirectTo(value: string | null): string {
   return "/";
 }
 
-type OAuthProvider = "google" | "github" | "facebook" | "twitter";
+export type OAuthProvider =
+  | "google"
+  | "github"
+  | "facebook"
+  | "twitter"
+  | "apple"
+  | "gitlab"
+  | "figma"
+  | "notion"
+  | "azure";
+
+/** Brand marks Bootstrap Icons lacks (Figma / Notion). */
+function FigmaIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <path
+        fill="currentColor"
+        d="M8 24c2.2 0 4-1.8 4-4v-4H8c-2.2 0-4 1.8-4 4s1.8 4 4 4Zm4-12H8c-2.2 0-4 1.8-4 4s1.8 4 4 4h4v-8Zm0-8H8C5.8 4 4 5.8 4 8s1.8 4 4 4h4V4Zm8 4c0-2.2-1.8-4-4-4h-4v8h4c2.2 0 4-1.8 4-4Zm-4 4c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4Z"
+      />
+    </svg>
+  );
+}
+
+function NotionIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <path
+        fill="currentColor"
+        d="M4.5 3.5 19 2l.5 18.5L5.2 22 4.5 3.5Zm3.2 4.1c.3-.1.5-.1 1.1-.1l6.8-.3c.2 0 .3.1.3.3v.7c0 .1-.1.3-.3.3l-1.6.1v8.4c0 .2.1.3.3.3l1.3.1c.2 0 .3.1.3.3v.7c0 .2-.1.3-.3.3l-4.7.2c-.2 0-.3-.1-.3-.3v-.7c0-.2.1-.3.3-.3l1.4-.1c.2 0 .3-.1.3-.3V8.6c0-.2-.1-.3-.3-.3l-1.7.1c-.2 0-.3.1-.4.3l-.2.6c0 .1-.1.2-.3.2H7.8c-.2 0-.3-.1-.3-.3V7.9c0-.2.1-.3.2-.3Z"
+      />
+    </svg>
+  );
+}
+
+const ICON_OAUTH: {
+  provider: Exclude<OAuthProvider, "google" | "github">;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    provider: "facebook",
+    label: "Continue with Facebook",
+    icon: (
+      <i
+        className="bi bi-facebook text-[18px] leading-none text-[#1877F2]"
+        aria-hidden
+      />
+    ),
+  },
+  {
+    provider: "twitter",
+    label: "Continue with X",
+    icon: <i className="bi bi-twitter-x text-[16px] leading-none" aria-hidden />,
+  },
+  {
+    provider: "apple",
+    label: "Continue with Apple",
+    icon: <i className="bi bi-apple text-[18px] leading-none" aria-hidden />,
+  },
+  {
+    provider: "gitlab",
+    label: "Continue with GitLab",
+    icon: (
+      <i
+        className="bi bi-gitlab text-[17px] leading-none text-[#FC6D26]"
+        aria-hidden
+      />
+    ),
+  },
+  {
+    provider: "figma",
+    label: "Continue with Figma",
+    icon: <FigmaIcon className="text-zinc-800" />,
+  },
+  {
+    provider: "notion",
+    label: "Continue with Notion",
+    icon: <NotionIcon className="text-zinc-900" />,
+  },
+  {
+    provider: "azure",
+    label: "Continue with Azure",
+    icon: (
+      <i
+        className="bi bi-microsoft text-[16px] leading-none text-[#00A4EF]"
+        aria-hidden
+      />
+    ),
+  },
+];
 
 export function AuthOAuthButtons({
   onOAuth,
@@ -55,42 +156,36 @@ export function AuthOAuthButtons({
         <i className="bi bi-github text-[16px] leading-none" aria-hidden />
         Continue with GitHub
       </button>
-      <div className="flex items-center gap-2.5">
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onOAuth("facebook")}
-          className={authPageStyles.iconBtn}
-          aria-label="Continue with Facebook"
-        >
-          <i
-            className="bi bi-facebook text-[18px] leading-none text-[#1877F2]"
-            aria-hidden
-          />
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onOAuth("twitter")}
-          className={authPageStyles.iconBtn}
-          aria-label="Continue with X"
-        >
-          <i className="bi bi-twitter-x text-[16px] leading-none" aria-hidden />
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onSso}
-          className={cn(authPageStyles.outlinedBtn, "flex-1")}
-          aria-label="Continue with SSO"
-        >
-          <i
-            className="bi bi-building text-[15px] leading-none text-zinc-600"
-            aria-hidden
-          />
-          Continue with SSO
-        </button>
+
+      {/* Icon providers wrap so the row stays inside the login column */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        {ICON_OAUTH.map(({ provider, label, icon }) => (
+          <button
+            key={provider}
+            type="button"
+            disabled={disabled}
+            onClick={() => onOAuth(provider)}
+            className={authPageStyles.iconBtn}
+            aria-label={label}
+          >
+            {icon}
+          </button>
+        ))}
       </div>
+
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onSso}
+        className={authPageStyles.outlinedBtn}
+        aria-label="Continue with SSO"
+      >
+        <i
+          className="bi bi-building text-[15px] leading-none text-zinc-600"
+          aria-hidden
+        />
+        Continue with SSO
+      </button>
     </div>
   );
 }
