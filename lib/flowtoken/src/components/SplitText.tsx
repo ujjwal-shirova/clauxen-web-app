@@ -112,6 +112,7 @@ const TokenizedText = ({ input, sep, animation, animationDuration, animationTimi
                         animationDuration,
                         animationTimingFunction, 
                         animationIterationCount,
+                        animationFillMode: 'both',
                         whiteSpace: 'pre-wrap',
                         display: 'inline',
                     }}>

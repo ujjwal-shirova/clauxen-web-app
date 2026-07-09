@@ -7,6 +7,11 @@
     }
 }
 
+/* Flowtoken animated token spans — hold pre-animation state so fade-in is visible */
+.flowtoken-markdown [style*="animation-name"] {
+    animation-fill-mode: both;
+}
+
 @keyframes ft-blurIn {
     from {
         opacity: 0;

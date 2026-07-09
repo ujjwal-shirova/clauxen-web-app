@@ -9,8 +9,11 @@ export const metadata: Metadata = {
   title: "Clauxen",
   description: "An AI-powered chat application.",
   icons: {
-    icon: "/assets/icons/clauxen-icon.png",
-    apple: "/assets/icons/clauxen-icon.png",
+    icon: [
+      { url: "/assets/icons/clauxen-favicon.png", type: "image/png" },
+    ],
+    apple: "/assets/icons/clauxen-favicon.png",
+    shortcut: "/assets/icons/clauxen-favicon.png",
   },
 };
 

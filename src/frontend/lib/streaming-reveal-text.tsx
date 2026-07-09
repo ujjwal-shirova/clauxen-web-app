@@ -4,6 +4,7 @@ import { useId } from "react";
 import { StreamingTokenReveal } from "@/frontend/lib/streaming-token-reveal";
 
 const STREAM_REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+const STREAM_REVEAL_ANIMATION = "fadeIn";
 
 /**
  * Per text-node streaming reveal with a stable session id (one per markdown text block).
@@ -23,7 +24,7 @@ export function StreamingRevealText({
     <StreamingTokenReveal
       text={text}
       sessionKey={`${streamKey}${segmentId}`}
-      animationName="fadeIn"
+      animationName={STREAM_REVEAL_ANIMATION}
       timingFunction={STREAM_REVEAL_EASING}
       showCursor={showCursor}
     />

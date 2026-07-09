@@ -48,10 +48,11 @@ function renderToken(
         ...(shouldAnimate
           ? {
               animationName: options!.streamFade!.animation,
-              animationDuration: `${options!.chunkDurationMs ?? 160}ms`,
+              animationDuration: `${options!.chunkDurationMs ?? 280}ms`,
               animationTimingFunction:
                 options!.streamFade!.animationTimingFunction,
               animationIterationCount: 1,
+              animationFillMode: "both" as const,
             }
           : {}),
       }}
@@ -77,7 +78,7 @@ export function HighlightCode({
 
   const prevCodeRef = useRef("");
   const lastChunkAtRef = useRef(0);
-  const chunkDurationMsRef = useRef(48);
+  const chunkDurationMsRef = useRef(280);
 
   const newContentStart = useMemo(() => {
     if (!streamFade) {

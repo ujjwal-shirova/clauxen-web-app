@@ -50,7 +50,7 @@ import type { StreamFadeConfig } from "@/frontend/lib/streaming-text-animation";
 
 const BASH_COMMAND_STREAM_FADE: StreamFadeConfig = {
   animation: flowtokenAnimations.fadeIn,
-  animationDuration: "80ms",
+  animationDuration: "320ms",
   animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
 };
 

@@ -4,10 +4,10 @@ import { useRef } from "react";
 import TokenizedText from "@flowtoken/components/SplitText";
 import { animations as flowtokenAnimations } from "@flowtoken/utils/animations";
 
-/** Fast streams: short enough to track token cadence; slow streams: longer, smoother settle. */
-const MIN_DURATION_MS = 24;
-const MAX_DURATION_MS = 140;
-const FAST_GAP_MS = 18;
+/** Visible ink-fade per FlowToken guidance — long enough to read, short enough to track live tokens. */
+const MIN_DURATION_MS = 180;
+const MAX_DURATION_MS = 520;
+const FAST_GAP_MS = 28;
 
 /**
  * Duration scales with inter-chunk gap so animation speed tracks the model's token rate.
@@ -20,23 +20,20 @@ export function computeStreamTokenDurationMs(
   let duration: number;
 
   if (elapsedSinceLastChunk <= 0) {
-    duration = 32;
+    duration = 280;
   } else if (elapsedSinceLastChunk < FAST_GAP_MS) {
-    // High throughput (100+ tok/s) — render immediately with a short ink fade.
     duration = Math.max(
       MIN_DURATION_MS,
-      Math.min(42, 18 + elapsedSinceLastChunk * 1.1),
+      Math.min(360, 120 + elapsedSinceLastChunk * 4.5),
     );
   } else {
     duration = Math.min(
       MAX_DURATION_MS,
-      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.35),
+      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.55),
     );
   }
 
-  // Larger chunks get a tiny boost, but never enough to make fast streams feel
-  // delayed behind the network.
-  const sizeBoost = Math.min(12, Math.sqrt(chunkLength) * 1.8);
+  const sizeBoost = Math.min(40, Math.sqrt(chunkLength) * 5);
   return Math.round(
     Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, duration + sizeBoost)),
   );

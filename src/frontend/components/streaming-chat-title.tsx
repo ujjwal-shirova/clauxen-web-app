@@ -30,7 +30,7 @@ export function StreamingChatTitle({
           input={title}
           sep="diff"
           animation={animations.fadeIn}
-          animationDuration="0.28s"
+          animationDuration="0.42s"
           animationTimingFunction="cubic-bezier(0.22, 1, 0.36, 1)"
           animationIterationCount={1}
         />

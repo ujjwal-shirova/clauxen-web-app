@@ -12,14 +12,13 @@ import {
 import { createCitationLink } from "@/frontend/components/chat-sources";
 import type { ChatSource } from "@/frontend/lib/chat-sources";
 import { StreamingRevealText } from "@/frontend/lib/streaming-reveal-text";
-import type { StreamFadeConfig } from "@/frontend/lib/streaming-text-animation";
 import { animations as flowtokenAnimations } from "@flowtoken/utils/animations";
 
-const CODE_STREAM_FADE: StreamFadeConfig = {
+const CODE_STREAM_FADE = {
   animation: flowtokenAnimations.fadeIn,
-  animationDuration: "80ms",
+  animationDuration: "320ms",
   animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
-};
+} as const;
 
 const streamdownMath = createMathPlugin({
   singleDollarTextMath: false,
@@ -32,23 +31,47 @@ type StreamdownFlowTokenMarkdownProps = {
   sources?: ChatSource[];
 };
 
+/** Walk react-markdown / streamdown children and apply flowtoken reveal to text runs. */
+function revealStreamingChildren(
+  children: ReactNode,
+  isStreaming: boolean,
+  streamKey: string,
+): ReactNode {
+  if (!isStreaming) return children;
+  if (children == null || typeof children === "boolean") return children;
+
+  if (typeof children === "string") {
+    return children.length > 0 ? (
+      <StreamingRevealText text={children} streamKey={streamKey} />
+    ) : (
+      children
+    );
+  }
+
+  if (typeof children === "number") {
+    const text = String(children);
+    return text.length > 0 ? (
+      <StreamingRevealText text={text} streamKey={streamKey} />
+    ) : (
+      children
+    );
+  }
+
+  if (Array.isArray(children)) {
+    return children.map((child, index) =>
+      revealStreamingChildren(child, isStreaming, `${streamKey}:${index}`),
+    );
+  }
+
+  return children;
+}
+
 function streamingText(
   children: ReactNode,
   isStreaming: boolean,
   streamKey: string,
-  showCursor: boolean,
 ): ReactNode {
-  if (!isStreaming) return children;
-  if (typeof children === "string" && children.length > 0) {
-    return (
-      <StreamingRevealText
-        text={children}
-        streamKey={streamKey}
-        showCursor={showCursor}
-      />
-    );
-  }
-  return children;
+  return revealStreamingChildren(children, isStreaming, streamKey);
 }
 
 /**
@@ -67,8 +90,8 @@ export function StreamdownFlowTokenMarkdown({
   );
 
   const components = useMemo(() => {
-    const fade = (children: ReactNode) =>
-      streamingText(children, isStreaming, streamKey, isStreaming);
+    const fade = (children: ReactNode, key = streamKey) =>
+      streamingText(children, isStreaming, key);
 
     const base = {
       ...markdownComponents,

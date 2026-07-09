@@ -961,6 +961,16 @@ button.user-message-card__body:not(:disabled):hover {
   white-space: pre-wrap;
 }
 
+.markdown-content .stream-token-enter {
+  animation-fill-mode: both;
+}
+
+.flowtoken-markdown [style*="animation-name"],
+.thinking-markdown [style*="animation-name"],
+.markdown-content [style*="animation-name"] {
+  animation-fill-mode: both;
+}
+
 .markdown-content .sh-code-line:last-child .sh-line-content {
   /* streaming caret space on final code line */
   min-width: 0.5ch;

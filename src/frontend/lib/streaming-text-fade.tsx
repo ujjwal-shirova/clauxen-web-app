@@ -23,6 +23,7 @@ export function StreamingTextFade({
       <StreamingTokenReveal
         text={content}
         sessionKey={resolvedKey}
+        animationName="fadeIn"
         timingFunction={STREAM_REVEAL_EASING}
         showCursor={true}
       />
