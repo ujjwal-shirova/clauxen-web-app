@@ -52,7 +52,10 @@ export function createChatStream(
   };
 
   // Always autonomous — tools are always armed; the model decides when to use them.
-  void runAutonomousAgent(sse, agentOptions);
+  void runAutonomousAgent(sse, agentOptions).catch(() => {
+    // Errors are written to the SSE stream inside runAutonomousAgent; swallow
+    // here so client disconnect / abort never surfaces as unhandledRejection.
+  });
 
   return sse.stream;
 }

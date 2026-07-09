@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import type { Components } from "react-markdown";
 import { Streamdown } from "streamdown";
 import { createMathPlugin } from "@streamdown/math";
@@ -16,7 +16,7 @@ import { animations as flowtokenAnimations } from "@flowtoken/utils/animations";
 
 const CODE_STREAM_FADE = {
   animation: flowtokenAnimations.fadeIn,
-  animationDuration: "320ms",
+  animationDuration: "300ms",
   animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
 } as const;
 
@@ -58,9 +58,11 @@ function revealStreamingChildren(
   }
 
   if (Array.isArray(children)) {
-    return children.map((child, index) =>
-      revealStreamingChildren(child, isStreaming, `${streamKey}:${index}`),
-    );
+    return children.map((child, index) => (
+      <Fragment key={`${streamKey}-reveal-${index}`}>
+        {revealStreamingChildren(child, isStreaming, `${streamKey}:${index}`)}
+      </Fragment>
+    ));
   }
 
   return children;

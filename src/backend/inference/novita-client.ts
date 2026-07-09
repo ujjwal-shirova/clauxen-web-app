@@ -126,6 +126,18 @@ function normalizeBaseUrl(baseUrl?: string): string {
   return normalized.endsWith("/v1") ? normalized : `${normalized}/v1`;
 }
 
+function isAbortError(error: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted) return true;
+  if (!error || typeof error !== "object") return false;
+  const name = "name" in error ? String(error.name) : "";
+  const message = "message" in error ? String(error.message) : String(error);
+  return (
+    name === "AbortError" ||
+    name === "ResponseAborted" ||
+    /aborted/i.test(message)
+  );
+}
+
 /**
  * Stream a chat completion from Novita. Yields StreamPart objects as they arrive.
  * This is the lowest-latency path — tokens are forwarded to the caller immediately.
@@ -162,15 +174,28 @@ export async function* streamChatCompletion(
     body.text_verbosity = options.text_verbosity;
   }
 
-  const response = await novitaFetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-    signal: options.signal,
-  });
+  let response: Response;
+  try {
+    response = await novitaFetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: options.signal,
+    });
+  } catch (error) {
+    if (isAbortError(error, options.signal)) {
+      yield { type: "abort" };
+      return;
+    }
+    yield {
+      type: "error",
+      error: error instanceof Error ? error.message : String(error),
+    };
+    return;
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
@@ -201,7 +226,22 @@ export async function* streamChatCompletion(
         break;
       }
 
-      const { done, value } = await reader.read();
+      let readResult: ReadableStreamReadResult<Uint8Array>;
+      try {
+        readResult = await reader.read();
+      } catch (error) {
+        if (isAbortError(error, options.signal)) {
+          yield { type: "abort" };
+          break;
+        }
+        yield {
+          type: "error",
+          error: error instanceof Error ? error.message : String(error),
+        };
+        break;
+      }
+
+      const { done, value } = readResult;
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });

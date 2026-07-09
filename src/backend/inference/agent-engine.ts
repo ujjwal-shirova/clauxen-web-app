@@ -578,11 +578,27 @@ export async function runAutonomousAgent(
         break;
       }
 
+      // Another round of tool calls — open a fresh frame for it.
       frameCounter += 1;
       frameId = `agent-frame-${frameCounter}`;
-      // Continue the loop — the model will see tool results and decide the
-      // next step, which opens its own frame if it calls more tools.
     }
+  } catch (error) {
+    const aborted =
+      signal?.aborted ||
+      (error instanceof Error &&
+        (error.name === "AbortError" ||
+          error.name === "ResponseAborted" ||
+          /aborted/i.test(error.message)));
+
+    closeFrame();
+    if (aborted) {
+      sse.writeError("Generation aborted.");
+      return;
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    sse.writeError(message);
+    return;
   } finally {
     // Safety net: close a still-open frame/segment if the loop exited via an
     // unhandled path (e.g. an exception thrown before a normal break/return).
