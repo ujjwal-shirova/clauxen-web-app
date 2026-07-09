@@ -35,4 +35,6 @@ pnpm-debug.log*
 # Novita load-test output (project root)
 output.txt
 .venv-novita-load/
+.venv-mirror/
+website/
 scripts/novita_load_test_run.log

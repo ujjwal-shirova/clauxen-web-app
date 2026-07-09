@@ -1,0 +1,528 @@
+#!/usr/bin/env python3
+"""
+Mirror https://claude.com into ./website with rendered HTML, assets, and DevTools-style DOM trees.
+
+Discovery order:
+  1. sitemap.xml (primary — robots.txt points here)
+  2. Optional same-origin link crawl from rendered pages
+
+Usage:
+  pip install -r scripts/claude_site_mirror/requirements.txt
+  playwright install chromium
+  python scripts/claude_site_mirror/mirror_claude_site.py --max-pages 25
+  python scripts/claude_site_mirror/mirror_claude_site.py --all --locale en
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import hashlib
+import json
+import re
+import sys
+import time
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any
+from urllib.parse import urljoin, urlparse, urlunparse
+from xml.etree import ElementTree
+
+import httpx
+from bs4 import BeautifulSoup
+from playwright.async_api import Browser, Page, Response, async_playwright
+
+BASE_URL = "https://claude.com"
+SITEMAP_URL = f"{BASE_URL}/sitemap.xml"
+LOCALE_PREFIXES = ("/ja", "/de", "/fr", "/ko", "/it")
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+)
+DEFAULT_OUT = Path(__file__).resolve().parents[2] / "website"
+
+
+@dataclass
+class PageRecord:
+    url: str
+    path: str
+    title: str = ""
+    status: int = 0
+    saved_html: str = ""
+    saved_dom_tree: str = ""
+    saved_resources: str = ""
+    asset_count: int = 0
+    error: str | None = None
+
+
+@dataclass
+class MirrorState:
+    discovered: list[str] = field(default_factory=list)
+    completed: list[PageRecord] = field(default_factory=list)
+    failed: list[PageRecord] = field(default_factory=list)
+    assets_saved: dict[str, str] = field(default_factory=dict)
+
+
+def normalize_url(url: str) -> str:
+    parsed = urlparse(url.strip())
+    if parsed.netloc and parsed.netloc not in ("claude.com", "www.claude.com"):
+        raise ValueError(f"off-domain: {url}")
+    scheme = parsed.scheme or "https"
+    netloc = parsed.netloc or "claude.com"
+    path = parsed.path or "/"
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/")
+    return urlunparse((scheme, netloc, path, "", "", ""))
+
+
+def is_same_origin(url: str) -> bool:
+    try:
+        host = urlparse(url).netloc
+        return host in ("", "claude.com", "www.claude.com")
+    except Exception:
+        return False
+
+
+def locale_of_path(path: str) -> str | None:
+    for loc in LOCALE_PREFIXES:
+        if path == loc or path.startswith(loc + "/"):
+            return loc.lstrip("/")
+    return None
+
+
+def filter_urls(urls: list[str], locale: str) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in urls:
+        try:
+            url = normalize_url(raw)
+        except ValueError:
+            continue
+        path = urlparse(url).path or "/"
+        loc = locale_of_path(path)
+        if locale == "en" and loc is not None:
+            continue
+        if locale != "all" and locale != "en" and loc != locale:
+            continue
+        if url in seen:
+            continue
+        seen.add(url)
+        out.append(url)
+    return sorted(out)
+
+
+def fetch_sitemap_urls(client: httpx.Client) -> list[str]:
+    res = client.get(SITEMAP_URL)
+    res.raise_for_status()
+    root = ElementTree.fromstring(res.text)
+    ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    locs = [el.text.strip() for el in root.findall(".//sm:loc", ns) if el.text]
+    if not locs:
+        locs = [el.text.strip() for el in root.iter() if el.tag.endswith("loc") and el.text]
+    return locs
+
+
+def url_to_page_dir(base_out: Path, url: str) -> Path:
+    path = urlparse(url).path or "/"
+    if path == "/":
+        return base_out / "pages" / "index"
+    clean = path.strip("/")
+    return base_out / "pages" / clean
+
+
+def url_to_asset_path(base_out: Path, asset_url: str) -> Path:
+    parsed = urlparse(asset_url)
+    rel = parsed.path.lstrip("/")
+    if not rel:
+        rel = "asset-root"
+    if parsed.query:
+        digest = hashlib.sha1(parsed.query.encode()).hexdigest()[:10]
+        rel = f"{rel}__q_{digest}"
+    return base_out / "assets" / rel
+
+
+async def extract_dom_tree(page: Page, max_depth: int = 12, max_nodes: int = 4000) -> list[dict[str, Any]]:
+    """DevTools Elements-style tree: tag, attrs, children (no text nodes)."""
+    script = """
+    ([maxDepth, maxNodes]) => {
+      const skip = new Set(['script','style','noscript','svg','path']);
+      let count = 0;
+      function node(el, depth) {
+        if (!el || count >= maxNodes) return null;
+        const tag = el.tagName ? el.tagName.toLowerCase() : null;
+        if (!tag || skip.has(tag)) return null;
+        count += 1;
+        const attrs = {};
+        for (const a of el.attributes || []) {
+          if (a.name === 'class' || a.name === 'id' || a.name.startsWith('data-') || a.name === 'role' || a.name === 'href' || a.name === 'src') {
+            attrs[a.name] = a.value;
+          }
+        }
+        const out = { tag, attrs };
+        if (depth < maxDepth && el.children && el.children.length) {
+          const kids = [];
+          for (const c of el.children) {
+            const child = node(c, depth + 1);
+            if (child) kids.push(child);
+            if (count >= maxNodes) break;
+          }
+          if (kids.length) out.children = kids;
+        }
+        return out;
+      }
+      return node(document.documentElement, 0);
+    }
+    """
+    return await page.evaluate(script, [max_depth, max_nodes])
+
+
+def extract_resources(html: str, page_url: str) -> dict[str, list[str]]:
+    soup = BeautifulSoup(html, "html.parser")
+    resources: dict[str, list[str]] = {
+        "stylesheets": [],
+        "scripts": [],
+        "images": [],
+        "fonts": [],
+        "preconnect": [],
+        "other": [],
+    }
+
+    for link in soup.find_all("link"):
+        href = link.get("href")
+        if not href:
+            continue
+        abs_url = urljoin(page_url, href)
+        rel = (link.get("rel") or [""])[0] if isinstance(link.get("rel"), list) else link.get("rel", "")
+        if rel == "stylesheet" or link.get("as") == "style":
+            resources["stylesheets"].append(abs_url)
+        elif rel == "preconnect":
+            resources["preconnect"].append(abs_url)
+        elif link.get("as") == "font":
+            resources["fonts"].append(abs_url)
+        else:
+            resources["other"].append(abs_url)
+
+    for script in soup.find_all("script"):
+        src = script.get("src")
+        if src:
+            resources["scripts"].append(urljoin(page_url, src))
+
+    for img in soup.find_all("img"):
+        src = img.get("src")
+        if src:
+            resources["images"].append(urljoin(page_url, src))
+
+    for key in resources:
+        deduped = []
+        seen: set[str] = set()
+        for u in resources[key]:
+            if u not in seen:
+                seen.add(u)
+                deduped.append(u)
+        resources[key] = deduped
+    return resources
+
+
+def rewrite_html_for_local(html: str, page_url: str, asset_map: dict[str, str]) -> str:
+    """Point same-origin asset URLs to local ./assets/ paths."""
+    soup = BeautifulSoup(html, "html.parser")
+
+    def rewrite_attr(tag: Any, attr: str) -> None:
+        val = tag.get(attr)
+        if not val or val.startswith(("data:", "mailto:", "javascript:", "#")):
+            return
+        abs_url = urljoin(page_url, val)
+        if abs_url in asset_map:
+            tag[attr] = asset_map[abs_url]
+
+    for tag in soup.find_all(["link", "script", "img", "source", "use"]):
+        for attr in ("href", "src", "xlink:href"):
+            rewrite_attr(tag, attr)
+
+    # Make offline file openable: inject <base> only when missing
+    if not soup.head:
+        head = soup.new_tag("head")
+        if soup.html:
+            soup.html.insert(0, head)
+    if soup.head and not soup.head.find("base"):
+        base = soup.new_tag("base")
+        base["href"] = "./"
+        soup.head.insert(0, base)
+
+    return str(soup)
+
+
+async def download_asset(
+    client: httpx.AsyncClient,
+    url: str,
+    dest: Path,
+    website_root: Path,
+    state: MirrorState,
+) -> Path | None:
+    if url in state.assets_saved:
+        return website_root / "assets" / state.assets_saved[url]
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        res = await client.get(url, follow_redirects=True)
+        if res.status_code >= 400:
+            return None
+        dest.write_bytes(res.content)
+        rel = dest.relative_to(website_root / "assets").as_posix()
+        state.assets_saved[url] = rel
+        return dest
+    except Exception:
+        return None
+
+
+async def mirror_page(
+    browser: Browser,
+    client: httpx.AsyncClient,
+    url: str,
+    out_dir: Path,
+    state: MirrorState,
+    timeout_ms: int,
+) -> PageRecord:
+    record = PageRecord(url=url, path=urlparse(url).path or "/")
+    page_dir = url_to_page_dir(out_dir, url)
+    page_dir.mkdir(parents=True, exist_ok=True)
+
+    context = await browser.new_context(user_agent=USER_AGENT, locale="en-US")
+    page = await context.new_page()
+    pending_assets: dict[str, Path] = {}
+
+    async def on_response(response: Response) -> None:
+        try:
+            rurl = response.url
+            if not is_same_origin(rurl) and not rurl.startswith("https://claude.com"):
+                return
+            ctype = (response.headers.get("content-type") or "").lower()
+            if response.status >= 400:
+                return
+            if not any(
+                t in ctype
+                for t in ("text/css", "javascript", "image/", "font/", "woff", "json")
+            ) and not rurl.endswith((".css", ".js", ".woff2", ".png", ".jpg", ".svg", ".webp")):
+                return
+            dest = url_to_asset_path(out_dir, rurl)
+            pending_assets[rurl] = dest
+        except Exception:
+            pass
+
+    page.on("response", on_response)
+
+    try:
+        response = await page.goto(url, wait_until="load", timeout=timeout_ms)
+        record.status = response.status if response else 0
+        try:
+            await page.wait_for_load_state("networkidle", timeout=15_000)
+        except Exception:
+            pass
+        await page.wait_for_timeout(500)
+        record.title = await page.title()
+        html = await page.content()
+        dom_tree = await extract_dom_tree(page)
+        resources = extract_resources(html, url)
+
+        asset_map: dict[str, str] = {}
+        for asset_url, dest in pending_assets.items():
+            saved = await download_asset(client, asset_url, dest, out_dir, state)
+            if saved:
+                asset_map[asset_url] = Path("..") / "assets" / saved.relative_to(out_dir / "assets")
+                asset_map[asset_url] = asset_map[asset_url].as_posix()
+                record.asset_count += 1
+
+        for group in ("stylesheets", "scripts", "fonts", "images"):
+            for asset_url in resources.get(group, []):
+                if not is_same_origin(asset_url) and not asset_url.startswith(BASE_URL):
+                    continue
+                dest = url_to_asset_path(out_dir, asset_url)
+                saved = await download_asset(client, asset_url, dest, out_dir, state)
+                if saved:
+                    asset_map[asset_url] = (Path("..") / "assets" / saved.relative_to(out_dir / "assets")).as_posix()
+
+        local_html = rewrite_html_for_local(html, url, asset_map)
+
+        html_path = page_dir / "page.html"
+        dom_path = page_dir / "dom-tree.json"
+        res_path = page_dir / "resources.json"
+        meta_path = page_dir / "meta.json"
+
+        html_path.write_text(local_html, encoding="utf-8")
+        dom_path.write_text(json.dumps(dom_tree, indent=2), encoding="utf-8")
+        res_path.write_text(json.dumps(resources, indent=2), encoding="utf-8")
+        meta_path.write_text(
+            json.dumps(
+                {
+                    "url": url,
+                    "title": record.title,
+                    "status": record.status,
+                    "saved_html": str(html_path.relative_to(out_dir)),
+                    "saved_dom_tree": str(dom_path.relative_to(out_dir)),
+                    "saved_resources": str(res_path.relative_to(out_dir)),
+                    "asset_count": record.asset_count,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        record.saved_html = str(html_path.relative_to(out_dir))
+        record.saved_dom_tree = str(dom_path.relative_to(out_dir))
+        record.saved_resources = str(res_path.relative_to(out_dir))
+    except Exception as exc:
+        record.error = str(exc)
+    finally:
+        await context.close()
+
+    return record
+
+
+async def discover_from_page(browser: Browser, seed: str, limit: int) -> list[str]:
+    found: set[str] = {normalize_url(seed)}
+    context = await browser.new_context(user_agent=USER_AGENT)
+    page = await context.new_page()
+    try:
+        await page.goto(seed, wait_until="load", timeout=60_000)
+        hrefs = await page.eval_on_selector_all(
+            "a[href]",
+            "els => els.map(e => e.href)",
+        )
+        for href in hrefs:
+            if not href or not is_same_origin(href):
+                continue
+            try:
+                found.add(normalize_url(href))
+            except ValueError:
+                continue
+            if len(found) >= limit:
+                break
+    finally:
+        await context.close()
+    return sorted(found)
+
+
+async def run_mirror(args: argparse.Namespace) -> int:
+    out_dir: Path = args.output.resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    state = MirrorState()
+
+    headers = {"User-Agent": USER_AGENT}
+    with httpx.Client(headers=headers, timeout=30.0, follow_redirects=True) as sync_client:
+        print(f"Fetching sitemap: {SITEMAP_URL}")
+        urls = fetch_sitemap_urls(sync_client)
+
+    urls = filter_urls(urls, args.locale)
+    state.discovered = urls
+
+    if args.crawl:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            extra = await discover_from_page(browser, BASE_URL, args.crawl_limit)
+            await browser.close()
+        merged = filter_urls(list(dict.fromkeys(urls + extra)), args.locale)
+        state.discovered = merged
+
+    # Homepage first, then cap
+    home = normalize_url(BASE_URL)
+    if home in state.discovered:
+        state.discovered = [home] + [u for u in state.discovered if u != home]
+    if args.max_pages > 0:
+        state.discovered = state.discovered[: args.max_pages]
+
+    print(f"Pages to mirror: {len(state.discovered)} (locale={args.locale})")
+    (out_dir / "discovered-urls.json").write_text(
+        json.dumps(state.discovered, indent=2),
+        encoding="utf-8",
+    )
+
+    sem = asyncio.Semaphore(args.concurrency)
+
+    async with async_playwright() as p, httpx.AsyncClient(
+        headers=headers,
+        timeout=30.0,
+        follow_redirects=True,
+    ) as client:
+        browser = await p.chromium.launch(headless=True)
+
+        async def worker(url: str) -> None:
+            async with sem:
+                rec = await mirror_page(
+                    browser,
+                    client,
+                    url,
+                    out_dir,
+                    state,
+                    args.timeout_ms,
+                )
+                if rec.error:
+                    state.failed.append(rec)
+                    print(f"  FAIL {url} — {rec.error}")
+                else:
+                    state.completed.append(rec)
+                    print(f"  OK   {url} → {rec.saved_html}")
+
+        started = time.time()
+        await asyncio.gather(*(worker(u) for u in state.discovered))
+        await browser.close()
+
+    manifest = {
+        "base_url": BASE_URL,
+        "locale": args.locale,
+        "started_at": started,
+        "duration_sec": round(time.time() - started, 2),
+        "discovered_count": len(state.discovered),
+        "completed_count": len(state.completed),
+        "failed_count": len(state.failed),
+        "assets_count": len(state.assets_saved),
+        "pages": [asdict(r) for r in state.completed],
+        "failed": [asdict(r) for r in state.failed],
+    }
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    # Root index for navigation
+    links = "\n".join(
+        f'<li><a href="{r.saved_html}">{r.title or r.url}</a> <code>{r.url}</code></li>'
+        for r in state.completed
+    )
+    (out_dir / "index.html").write_text(
+        f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>claude.com mirror index</title></head>
+<body>
+<h1>claude.com mirror</h1>
+<p>Completed {len(state.completed)} / {len(state.discovered)} pages. Failed: {len(state.failed)}.</p>
+<ul>{links}</ul>
+</body></html>""",
+        encoding="utf-8",
+    )
+
+    print(
+        f"\nDone. {len(state.completed)} ok, {len(state.failed)} failed, "
+        f"{len(state.assets_saved)} assets → {out_dir}"
+    )
+    return 0 if not state.failed else 1
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Mirror claude.com into ./website")
+    p.add_argument("--output", type=Path, default=DEFAULT_OUT)
+    p.add_argument("--locale", choices=["en", "all", "ja", "de", "fr", "ko", "it"], default="en")
+    p.add_argument("--max-pages", type=int, default=0, help="0 = no limit")
+    p.add_argument("--all", action="store_true", help="Mirror all discovered URLs (no max-pages cap)")
+    p.add_argument("--concurrency", type=int, default=3)
+    p.add_argument("--timeout-ms", type=int, default=90_000)
+    p.add_argument("--crawl", action="store_true", help="Also collect same-origin links from homepage")
+    p.add_argument("--crawl-limit", type=int, default=200)
+    args = p.parse_args(argv)
+    if args.all:
+        args.max_pages = 0
+    elif args.max_pages == 0 and not args.all:
+        args.max_pages = 50  # ponytail: safe default; use --all for full sitemap
+    return args
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv or sys.argv[1:])
+    return asyncio.run(run_mirror(args))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
