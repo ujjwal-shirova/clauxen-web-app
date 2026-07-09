@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { env } from "@/backend/config/env";
 import { queryOne } from "@/backend/db/pool";
 import { resolveUserIdFromApiKey } from "@/backend/repositories/api-keys.repository";
+import { getSupabaseUserIdFromRequest } from "@/backend/auth/supabase-session";
 
 export type SessionUser = {
   id: string;
@@ -54,13 +55,29 @@ async function getCookieSession(
   return profileForUserId(session);
 }
 
+async function getSupabaseSession(
+  request: NextRequest,
+): Promise<SessionUser | null> {
+  const userId = await getSupabaseUserIdFromRequest(request);
+  if (!userId) return null;
+  return profileForUserId(userId);
+}
+
 export async function getSessionFromRequest(
   request: NextRequest,
 ): Promise<SessionUser | null> {
   const apiKeySession = await getBearerApiKeySession(request);
   if (apiKeySession) return apiKeySession;
 
-  return getCookieSession(request);
+  const supabaseSession = await getSupabaseSession(request);
+  if (supabaseSession) return supabaseSession;
+
+  // ponytail: dev cookie bypass — local only when AUTH_DEV_BYPASS=true
+  if (env.authDevBypass) {
+    return getCookieSession(request);
+  }
+
+  return null;
 }
 
 export function sessionCookieHeader(userId: string): string {

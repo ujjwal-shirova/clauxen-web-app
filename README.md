@@ -64,7 +64,7 @@ npm install
 
 ### 2. Configure environment
 
-Create **`.env.local`** at the repo root — the single local env file (no `.env.example`; see `docs/vercel-deployment.md` for the full variable list and production setup).
+Create **`.env.local`** at the repo root from **`.env.example`** (committed template).
 
 Minimum to get chat working:
 
@@ -120,6 +120,18 @@ npm run autonomous-agent:ws    # standalone autonomous-agent WebSocket server (:
 | `npm run supabase:db:push` | Push local migrations to Supabase |
 | `npm run supabase:functions:deploy` / `:list` | Manage Supabase Edge Functions |
 
+## Data flow: where things live
+
+| Store | What | Examples |
+|---|---|---|
+| **Supabase Postgres** | Relational app data, metadata pointers | `profiles`, `chats`, `chat_messages`, `user_files`, `subscriptions` |
+| **Cloudflare R2** | Binary blobs only | Avatars, chat images, project uploads, artifacts, skill packages |
+| **CF Worker (`WORKER_URL`)** | Auth-gated presign/upload/download; Cache API on public reads | Large file uploads bypass Vercel 4.5 MB limit |
+| **Browser localStorage** | Offline chat fallback when `AUTH_REQUIRED_FOR_CHAT=false` | IndexedDB path in `use-chat.ts` |
+| **D1** | Not used | See `docs/backend-audit.md` for rationale |
+
+Flow: user uploads → `POST /api/v1/files/presign` creates `user_files` row → client PUTs to Worker → `POST /api/v1/files/complete` finalizes. Chat attachments link via `chat_message_parts.file_id`.
+
 ## API surface
 
 Full endpoint list and architecture in [`docs/backend.md`](docs/backend.md). Highlights:
@@ -147,7 +159,7 @@ See [`docs/vercel-deployment.md`](docs/vercel-deployment.md) for the complete, u
 | Inference | `NOVITA_AI_KEY`, `SHIROVA_HOMER_MODEL`, `SHIROVA_HELIOS_MODEL`, `SHIROVA_VIRGIL_MODEL`, `SHIROVA_THINKING_MODEL` |
 | Search / tools | `EXA_API_KEY`, `FAL_KEY`, `PARALLEL_API_KEY`, `GOOGLE_PLACES_API_KEY` |
 | Billing | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` |
-| Storage | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_S3_ENDPOINT`, `R2_*_BUCKET` |
+| Storage | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_S3_ENDPOINT`, `R2_*_BUCKET`, `WORKER_URL` |
 | Auth | `JWT_SECRET` |
 | Queue | `REDIS_URL` (optional — inline fallback if unset) |
 

@@ -17,6 +17,7 @@ import { KeyboardSettings } from "@/frontend/components/settings/keyboard-settin
 import { ParentalControlsSettings } from "@/frontend/components/settings/parental-controls-settings";
 import { TrustedContactSettings } from "@/frontend/components/settings/trusted-contact-settings";
 import { SettingsNavSidebar } from "@/frontend/components/settings/settings-nav-sidebar";
+import { EnterpriseSettings } from "@/frontend/components/settings/enterprise-settings";
 import { SettingsPlaceholder } from "@/frontend/components/settings/settings-placeholder";
 import { SettingsPageSkeleton } from "@/frontend/components/settings/settings-page-skeleton";
 import { ShimmerSkeleton } from "@/frontend/components/ui/shimmer-skeleton";
@@ -243,6 +244,8 @@ export function SettingsModal({
             workspaceLoading={workspaceLoading}
           />
         );
+      case "Enterprise":
+        return <EnterpriseSettings />;
       case "Keyboard":
         return <KeyboardSettings />;
     }

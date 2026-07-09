@@ -1,5 +1,7 @@
 import { AppError, notFound } from "@/backend/db/errors";
 import * as chatsRepo from "@/backend/repositories/chats.repository";
+import * as pinnedChatsRepo from "@/backend/repositories/pinned-chats.repository";
+import * as messagePartsRepo from "@/backend/repositories/chat-message-parts.repository";
 import * as messagesRepo from "@/backend/repositories/messages.repository";
 import * as branchesRepo from "@/backend/repositories/branches.repository";
 import { createChatStream } from "@/app/api/chat/stream";
@@ -25,14 +27,20 @@ import {
 } from "@/lib/chat-title";
 
 export async function listRecentChats(userId: string, projectId?: string) {
-  const chats = await chatsRepo.listChatsForUser(userId, {
-    projectId: projectId ?? undefined,
-  });
+  const [chats, pinned] = await Promise.all([
+    chatsRepo.listChatsForUser(userId, {
+      projectId: projectId ?? undefined,
+    }),
+    pinnedChatsRepo.listPinnedChats(userId),
+  ]);
+  const pinnedIds = new Set(pinned.map((p) => p.chat_id));
+
   return chats.map((chat) => ({
     id: chat.id,
     name: chat.title,
     projectId: chat.project_id,
     starred: chat.starred,
+    pinned: pinnedIds.has(chat.id),
     updatedAt: chat.updated_at,
   }));
 }
@@ -64,15 +72,24 @@ export async function appendUserMessage(
   chatId: string,
   userId: string,
   content: string,
+  fileIds?: string[],
 ) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
-  return messagesRepo.createMessage({
+  const message = await messagesRepo.createMessage({
     chatId,
     userId,
     role: "user",
     content,
   });
+  if (message?.id && fileIds?.length) {
+    await messagePartsRepo.attachFilePartsToMessage(
+      message.id,
+      fileIds,
+      userId,
+    );
+  }
+  return message;
 }
 
 async function persistLatestUserMessage(

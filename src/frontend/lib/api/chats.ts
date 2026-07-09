@@ -5,6 +5,7 @@ export type ApiChat = {
   name: string;
   projectId: string | null;
   starred: boolean;
+  pinned?: boolean;
   updatedAt: string;
 };
 
@@ -69,6 +70,26 @@ export async function deleteChat(chatId: string) {
   return apiFetch<{ ok: boolean }>(
     `/api/v1/chats/${encodeURIComponent(chatId)}`,
     { method: "DELETE" },
+  );
+}
+
+export async function pinChat(chatId: string) {
+  return apiFetch<{ pinned: unknown }>(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/pin`,
+    { method: "POST" },
+  );
+}
+
+export async function unpinChat(chatId: string) {
+  return apiFetch<{ ok: boolean }>(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/pin`,
+    { method: "DELETE" },
+  );
+}
+
+export async function searchChats(query: string) {
+  return apiFetch<{ results: Array<{ chatId: string; snippet: string }> }>(
+    `/api/v1/chats/search?q=${encodeURIComponent(query)}`,
   );
 }
 

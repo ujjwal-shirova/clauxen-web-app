@@ -1,0 +1,12 @@
+{
+  "name": "clauxen-r2-gateway",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "wrangler": "^3.99.0"
+  }
+}

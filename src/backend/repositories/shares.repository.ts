@@ -95,3 +95,18 @@ export async function revokeConversationShare(shareId: string, userId: string) {
     [shareId, userId],
   );
 }
+
+export async function getShareByToken(token: string) {
+  const shareTokenHash = hashShareToken(token);
+  return queryOne<
+    ConversationShareRow & { share_token_hash: string; chat_title: string | null }
+  >(
+    `select cs.id, cs.chat_id, cs.user_id, cs.visibility, cs.created_at, cs.revoked_at, cs.metadata,
+            c.title as chat_title
+     from public.conversation_shares cs
+     join public.chats c on c.id = cs.chat_id
+     where cs.share_token_hash = $1 and cs.revoked_at is null
+     limit 1`,
+    [shareTokenHash],
+  );
+}

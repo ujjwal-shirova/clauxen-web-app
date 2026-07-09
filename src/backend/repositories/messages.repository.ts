@@ -43,6 +43,47 @@ export async function createMessage(input: {
   );
 }
 
+export type ChatSearchHit = {
+  message_id: string;
+  chat_id: string;
+  title: string;
+  role: string;
+  content: string;
+  created_at: string;
+  rank: number;
+};
+
+export async function searchMessagesForUser(
+  userId: string,
+  queryText: string,
+  limit = 20,
+) {
+  const safeLimit = Math.min(50, Math.max(1, limit));
+  return query<ChatSearchHit>(
+    `select
+       m.id as message_id,
+       m.chat_id,
+       c.title,
+       m.role,
+       coalesce(m.content, '') as content,
+       m.created_at,
+       ts_rank(
+         coalesce(m.content_search, to_tsvector('simple', coalesce(m.content, ''))),
+         plainto_tsquery('simple', $2)
+       ) as rank
+     from public.chat_messages m
+     join public.chats c on c.id = m.chat_id
+     where c.user_id = $1
+       and c.status != 'deleted'
+       and m.content is not null
+       and coalesce(m.content_search, to_tsvector('simple', coalesce(m.content, '')))
+           @@ plainto_tsquery('simple', $2)
+     order by rank desc, m.created_at desc
+     limit $3`,
+    [userId, queryText, safeLimit],
+  );
+}
+
 export async function updateMessageContent(
   messageId: string,
   chatId: string,

@@ -157,6 +157,7 @@ export function useChatApi(
         name: c.name,
         titleGenerated: c.name.toLowerCase() !== "new chat",
         projectId: c.projectId,
+        pinned: Boolean(c.pinned),
         updatedAt: new Date(c.updatedAt).getTime(),
       }));
       recentChatsRef.current = nextChats;
@@ -708,10 +709,13 @@ export function useChatApi(
       prev.map((chat) => (chat.id === chatId ? { ...chat, pinned } : chat)),
     );
     try {
-      await chatsApi.updateChat(chatId, { starred: pinned });
+      if (pinned) {
+        await chatsApi.pinChat(chatId);
+      } else {
+        await chatsApi.unpinChat(chatId);
+      }
     } catch (error) {
       console.error("Failed to persist chat pin:", error);
-      // Revert the optimistic update on failure.
       setRecentChats(prevChats);
     }
   }, []);

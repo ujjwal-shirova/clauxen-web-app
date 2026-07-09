@@ -47,14 +47,55 @@ Optional:
 | `R2_PUBLIC_BASE_URL` | Custom domain for public object URLs |
 | `STORAGE_REQUIRE_R2` | Set `true` to force R2 even outside Vercel |
 
-## Sync from local `.env.local`
+## Required (Supabase Auth — production)
+
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/publishable key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role (server-only admin tasks) |
+| `AUTH_DEV_BYPASS` | Set `false` in production |
+
+### Supabase redirect URLs (Auth → URL Configuration)
+
+Add to **Authentication → URL Configuration**:
+
+| URL | Purpose |
+|---|---|
+| `{NEXT_PUBLIC_APP_URL}/auth/callback` | OAuth + PKCE code exchange |
+| `{NEXT_PUBLIC_APP_URL}/auth/confirm` | Email / magic link / recovery OTP |
+| `http://localhost:9002/auth/callback` | Local development |
+
+Enable OAuth providers in Supabase Dashboard: Google, GitHub, Facebook, Twitter (X). Instagram skipped v1.
+
+See [`docs/auth-migration.md`](auth-migration.md) for dev-cookie → GoTrue migration notes.
+
+## Required (R2 Worker gateway)
+
+| Variable | Description |
+|---|---|
+| `WORKER_URL` | Deployed `workers/r2-gateway` URL (e.g. `https://clauxen-r2-gateway.workers.dev`) |
+
+Deploy the worker:
+
+```bash
+cd workers/r2-gateway
+npm install
+npx wrangler secret put SUPABASE_URL
+npx wrangler secret put SUPABASE_ANON_KEY
+npm run deploy
+```
+
+Set `WORKER_URL` on Vercel to the deployed worker origin.
+
+## Sync from local `.env.example`
 
 ```bash
 vercel link
 vercel env pull .env.vercel   # optional: inspect what Vercel has
 ```
 
-Add or update vars in the Vercel dashboard from your local `.env.local`. There is no `.env.example` — `.env.local` is the only local file.
+Add or update vars in the Vercel dashboard from `.env.example` / your local `.env.local`. There is a committed `.env.example` template at the repo root.
 
 To add a single var from CLI:
 
@@ -76,7 +117,7 @@ Metadata for all objects is stored in Supabase Postgres (`project_files`, `user_
 
 ## Upload limits on Vercel
 
-Serverless function request bodies are limited (~4.5 MB on Hobby). Skill and document uploads above that limit need a future presigned-URL flow. Current cap in app: **25 MB** (works locally; keep files smaller on Vercel Hobby).
+Serverless function request bodies are limited (~4.5 MB on Hobby). Use the R2 Worker presign flow (`WORKER_URL` + `/api/v1/files/presign`) for larger uploads.
 
 ## Database schema
 

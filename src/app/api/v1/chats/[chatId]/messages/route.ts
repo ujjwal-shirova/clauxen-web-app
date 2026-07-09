@@ -31,11 +31,15 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     const user = requireSession(session); // session user id — message author
     const body = (await request.json().catch(() => ({}))) as {
       content?: unknown;
-    }; // invalid JSON → empty object
+      fileIds?: unknown;
+    };
     if (body.content !== undefined && typeof body.content !== "string") {
       throw new AppError("content must be a string.", 400);
     }
     const content = typeof body.content === "string" ? body.content : "";
+    const fileIds = Array.isArray(body.fileIds)
+      ? body.fileIds.filter((id): id is string => typeof id === "string")
+      : undefined;
     if (content.length > MAX_MESSAGE_CONTENT_CHARS) {
       throw new AppError(
         "Message content is too long.",
@@ -46,7 +50,8 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     const message = await chatService.appendUserMessage(
       params.chatId,
       user.id,
-      content, // validated string — service ownership check + INSERT
+      content,
+      fileIds,
     ); // ownership check + INSERT message row + chat updated_at bump
     return jsonData({ message }, 201); // 201 Created — new message object client optimistic UI sync
   },

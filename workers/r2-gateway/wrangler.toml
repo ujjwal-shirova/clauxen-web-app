@@ -1,0 +1,22 @@
+name = "clauxen-r2-gateway"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[vars]
+# SUPABASE_URL and SUPABASE_ANON_KEY set via wrangler secret
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "clauxen-images"
+
+[[r2_buckets]]
+binding = "DOCUMENTS"
+bucket_name = "clauxen-documents"
+
+[[r2_buckets]]
+binding = "ARTIFACTS"
+bucket_name = "clauxen-artifacts"
+
+[[r2_buckets]]
+binding = "USER_FILES"
+bucket_name = "clauxen-documents"

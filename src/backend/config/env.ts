@@ -93,6 +93,7 @@ export const env = {
   r2S3Endpoint: optional("R2_S3_ENDPOINT"),
   /** Optional public base URL for signed/public object delivery (custom domain or r2.dev). */
   r2PublicBaseUrl: optional("R2_PUBLIC_BASE_URL"),
+  workerUrl: optional("WORKER_URL"),
 
   r2ImagesBucket: optional("R2_IMAGES_BUCKET", "clauxen-images"),
   r2DocumentsBucket: optional(

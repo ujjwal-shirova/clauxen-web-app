@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,
+  Building2,
   Clock,
   CreditCard,
   Database,
@@ -28,6 +29,7 @@ export const settingsNav = [
   { name: "Parental controls", icon: Users },
   { name: "Trusted contact", icon: ShieldCheck },
   { name: "Account", icon: UserCircle },
+  { name: "Enterprise", icon: Building2 },
   { name: "Keyboard", icon: Keyboard },
 ] as const satisfies ReadonlyArray<{ name: string; icon: LucideIcon }>;
 
@@ -62,6 +64,7 @@ export const settingsNavGroups: ReadonlyArray<{
       "Parental controls",
       "Trusted contact",
       "Account",
+      "Enterprise",
     ],
   },
   {
