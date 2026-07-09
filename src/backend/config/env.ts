@@ -1,3 +1,7 @@
+import {
+  resolveDatabaseUrl,
+  resolveSupabaseServiceRoleKey,
+} from "../../lib/vercel-env";
 import { MODEL_CONFIG, normalizeUpstreamModelSlug } from "../../lib/model-config";
 
 function optional(name: string, fallback = ""): string {
@@ -25,8 +29,8 @@ export const env = {
   // ponytail: on Vercel default to false — production must use Supabase GoTrue
   authDevBypass:
     optional("AUTH_DEV_BYPASS", isVercel ? "false" : "true") === "true",
-  databaseUrl: optional("DATABASE_URL"),
-  supabaseServiceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
+  databaseUrl: resolveDatabaseUrl(),
+  supabaseServiceRoleKey: resolveSupabaseServiceRoleKey(),
   novitaApiKey: optional("NOVITA_AI_KEY") || optional("NOVITA_API_KEY"),
   novitaAnthropicBaseUrl: normalizeBaseUrl(
     optional("NOVITA_ANTHROPIC_BASE_URL", MODEL_CONFIG.endpoints.novitaAnthropicBaseUrl),
@@ -136,7 +140,13 @@ export const env = {
 };
 
 export function requireDatabaseUrl(): string {
-  return required("DATABASE_URL");
+  const url = resolveDatabaseUrl();
+  if (!url) {
+    throw new Error(
+      "Database URL is not configured. Set POSTGRES_URL_NON_POOLING or DATABASE_URL.",
+    );
+  }
+  return url;
 }
 
 export function requireNovitaApiKey(): string {

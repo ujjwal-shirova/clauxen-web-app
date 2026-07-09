@@ -1,4 +1,5 @@
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import "@/lib/vercel-env";
 import { env, requireDatabaseUrl } from "@/backend/config/env";
 import { AppError, mapPgError } from "@/backend/db/errors";
 
@@ -7,7 +8,7 @@ let pool: Pool | null = null;
 export function getPool(): Pool {
   if (!env.databaseUrl) {
     throw new AppError(
-      "DATABASE_URL is not configured.",
+      "Database URL is not configured. Set POSTGRES_URL_NON_POOLING or DATABASE_URL.",
       503,
       "database_unavailable",
     );

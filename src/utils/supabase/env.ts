@@ -1,13 +1,14 @@
+import {
+  resolveSupabasePublicKey,
+  resolveSupabaseUrl,
+} from "@/lib/vercel-env";
+
 export function getSupabaseUrl() {
-  return process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
+  return resolveSupabaseUrl();
 }
 
 export function getSupabasePublishableKey() {
-  return (
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
-    ""
-  );
+  return resolveSupabasePublicKey();
 }
 
 export function getSupabasePublicConfig() {

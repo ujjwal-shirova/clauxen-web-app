@@ -15,11 +15,38 @@ const API = "https://api.vercel.com";
 
 const SKIP = new Set(["VERCEL", "VERCEL_ENV", "VERCEL_URL", "VERCEL_REGION", "CI", "NODE_ENV"]);
 
+/** Never sync — Anthropic-only, integration duplicates, or deprecated keys. */
+const SKIP_KEYS = new Set([
+  "NOVITA_ANTHROPIC_BASE_URL",
+  "SHIROVA_NOVITA_MESSAGES_URL",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "SUPABASE_ANON_KEY",
+  "SUPABASE_PUBLISHABLE_KEY",
+  "SUPABASE_URL",
+  "SUPABASE_SECRET_KEY",
+  "SUPABASE_JWT_SECRET",
+  "POSTGRES_DATABASE",
+  "POSTGRES_HOST",
+  "POSTGRES_PASSWORD",
+  "POSTGRES_PRISMA_URL",
+  "POSTGRES_URL",
+  "POSTGRES_URL_NON_POOLING",
+  "POSTGRES_USER",
+  "LLM_BASE_URL",
+  "LLM_MODEL",
+  "R2_USER_FILES_BUCKET",
+  "SHIROVA_INFERENCE_FUNCTION",
+  "STORAGE_LOCAL_PATH",
+]);
+
 const PROD_OVERRIDES = {
   AUTH_DEV_BYPASS: "false",
   AUTH_REQUIRED_FOR_CHAT: "true",
   STORAGE_REQUIRE_R2: "true",
+  NEXT_PUBLIC_APP_URL: "https://clauxen.vercel.app",
 };
+
+const PROD_OVERRIDE_KEYS = new Set(Object.keys(PROD_OVERRIDES));
 
 function loadToken() {
   if (process.env.VERCEL_TOKEN?.trim()) return process.env.VERCEL_TOKEN.trim();
@@ -85,25 +112,31 @@ async function listEnv(token) {
   return data.envs ?? data.env ?? [];
 }
 
-async function upsertEnv(token, key, value, targets) {
+async function deleteKeyRows(token, key) {
   const existing = await listEnv(token);
-  const matches = existing.filter((e) => e.key === key && targets.every((t) => e.target?.includes(t)));
-
-  for (const row of matches) {
+  for (const row of existing.filter((e) => e.key === key)) {
     await api(`/v9/projects/${PROJECT_ID}/env/${row.id}?teamId=${TEAM_ID}`, {
       method: "DELETE",
     }, token).catch(() => {});
   }
+}
 
-  await api(`/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`, {
-    method: "POST",
-    body: {
-      key,
-      value,
-      type: "encrypted",
-      target: targets,
-    },
-  }, token);
+async function upsertEnv(token, key, value, targets) {
+  await deleteKeyRows(token, key);
+  const prodPreview = targets.filter((t) => t !== "development");
+  const dev = targets.filter((t) => t === "development");
+  if (prodPreview.length) {
+    await api(`/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`, {
+      method: "POST",
+      body: { key, value, type: "sensitive", target: prodPreview },
+    }, token);
+  }
+  if (dev.length) {
+    await api(`/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`, {
+      method: "POST",
+      body: { key, value, type: "encrypted", target: dev },
+    }, token);
+  }
 }
 
 async function main() {
@@ -117,31 +150,39 @@ async function main() {
     process.exit(1);
   }
 
-  const vars = parseEnv(ENV_FILE);
-  const targets = ["production", "preview", "development"];
+  const raw = parseEnv(ENV_FILE);
+  const publishable = raw.find((v) => v.key === "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+  const vars = raw.filter(({ key }) => !SKIP_KEYS.has(key));
+  if (publishable && !vars.some((v) => v.key === "NEXT_PUBLIC_SUPABASE_ANON_KEY")) {
+    vars.push({ key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", value: publishable.value });
+  }
+
   let ok = 0;
   let fail = 0;
 
   console.log(`Syncing ${vars.length} vars to Vercel project clauxen…`);
 
   for (const { key, value } of vars) {
-    for (const target of targets) {
-      try {
-        await upsertEnv(token, key, value, [target]);
-        ok++;
-        console.log(`  ✓ ${key} → ${target}`);
-      } catch (err) {
-        fail++;
-        console.error(`  ✗ ${key} → ${target}: ${err.message}`);
-      }
+    if (PROD_OVERRIDE_KEYS.has(key)) continue;
+    try {
+      await upsertEnv(token, key, value, ["production", "preview", "development"]);
+      ok++;
+      console.log(`  ✓ ${key} → production,preview,development`);
+    } catch (err) {
+      fail++;
+      console.error(`  ✗ ${key}: ${err.message}`);
     }
   }
 
   for (const [key, value] of Object.entries(PROD_OVERRIDES)) {
     try {
+      const localVal = vars.find((v) => v.key === key)?.value ?? value;
       await upsertEnv(token, key, value, ["production"]);
-      console.log(`  ✓ ${key}=${value} (production override)`);
+      await upsertEnv(token, key, localVal, ["preview", "development"]);
+      ok += 2;
+      console.log(`  ✓ ${key} (production=${value}, preview/dev from local)`);
     } catch (err) {
+      fail++;
       console.error(`  ✗ override ${key}: ${err.message}`);
     }
   }
