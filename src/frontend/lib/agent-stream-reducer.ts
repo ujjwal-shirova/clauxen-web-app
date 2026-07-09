@@ -427,6 +427,7 @@ export function applyAgentStreamEvent(
         thinkingContent,
         hasThinking,
         isThinkingStreaming: true,
+        thinkingStartedAtMs: state.message.thinkingStartedAtMs ?? Date.now(),
         isStreaming: true,
       });
     }
@@ -773,11 +774,34 @@ export function applyAgentStreamEvent(
           collectCreateFileArtifacts(content, message.id),
         );
       }
+
+      let thinkingDurationSeconds = state.message.thinkingDurationSeconds;
+      if (!thinkingDurationSeconds && state.message.thinkingStartedAtMs) {
+        thinkingDurationSeconds = Math.max(
+          1,
+          Math.round((Date.now() - state.message.thinkingStartedAtMs) / 1000),
+        );
+      }
+      if (!thinkingDurationSeconds) {
+        for (const frame of frames) {
+          for (const segment of frame.segments) {
+            if (segment.kind !== "thinking" || !segment.durationSeconds) {
+              continue;
+            }
+            thinkingDurationSeconds = Math.max(
+              thinkingDurationSeconds ?? 0,
+              segment.durationSeconds,
+            );
+          }
+        }
+      }
+
       return syncFrameState(state, {
         agentArtifacts,
         isStreaming: false,
         isThinkingStreaming: false,
         agentFrameComplete: true,
+        thinkingDurationSeconds,
       });
     }
 

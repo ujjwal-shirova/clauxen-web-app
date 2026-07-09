@@ -172,15 +172,6 @@ function ChatAreaLayout({
     return () => cancelAnimationFrame(frame);
   }, [activeChatId, isConversationStarted, pinToBottom]);
 
-  const streamFollowKey = React.useMemo(() => {
-    const last = messages[messages.length - 1];
-    if (!last?.isStreaming) return 0;
-    return (
-      last.content.length +
-      (last.thinkingContent?.length ?? 0) +
-      (last.agentSegments?.length ?? 0)
-    );
-  }, [messages]);
   const lastMessageKey =
     messages[messages.length - 1]
       ? `${messages[messages.length - 1].id}:${messages[messages.length - 1].role}`
@@ -197,11 +188,6 @@ function ChatAreaLayout({
     const raf = requestAnimationFrame(() => pinToBottom());
     return () => cancelAnimationFrame(raf);
   }, [lastMessageKey, messages, pinToBottom]);
-
-  React.useLayoutEffect(() => {
-    if (!isGenerating) return;
-    followContentGrowth();
-  }, [isGenerating, streamFollowKey, followContentGrowth]);
 
   React.useEffect(() => {
     if (!isGenerating) return;
@@ -376,6 +362,7 @@ function ChatAreaLayout({
                 // code/table header resync while a response is generating —
                 // that's exactly when headers need to dock in real time.
                 isFastScrolling={isFastScrolling && !isGenerating}
+                isGenerating={isGenerating}
                 onSaveEditedMessage={handleSaveEditedMessage}
                 onRetryUserMessage={handleRetryUserMessage}
                 onRetryAssistant={handleRetryAssistant}

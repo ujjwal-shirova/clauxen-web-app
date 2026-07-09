@@ -1,19 +1,24 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/frontend/lib/utils";
 import type { AgentThinkingSegment } from "@/frontend/lib/agent-segments";
 import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
 import { AgentTimelineStep } from "./agent-timeline";
 
+function resolveThinkingDurationSeconds(segment: AgentThinkingSegment): number {
+  if (segment.durationSeconds && segment.durationSeconds > 0) {
+    return segment.durationSeconds;
+  }
+  if (segment.startedAtMs) {
+    return Math.max(1, Math.round((Date.now() - segment.startedAtMs) / 1000));
+  }
+  return 1;
+}
+
 function thinkingTitle(segment: AgentThinkingSegment): string {
   if (segment.isStreaming) return "Thinking";
-  const durationSeconds =
-    segment.durationSeconds ??
-    (segment.startedAtMs
-      ? Math.max(1, Math.round((Date.now() - segment.startedAtMs) / 1000))
-      : 1);
-  return `Thought for ${durationSeconds}s`;
+  return `Thought for ${resolveThinkingDurationSeconds(segment)}s`;
 }
 
 export function AgentThinkingStep({
@@ -22,7 +27,24 @@ export function AgentThinkingStep({
   segment: AgentThinkingSegment;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const label = thinkingTitle(segment);
+  const [label, setLabel] = useState(() => thinkingTitle(segment));
+
+  useEffect(() => {
+    if (!segment.isStreaming) {
+      setLabel(thinkingTitle(segment));
+      return;
+    }
+
+    const tick = () => setLabel(thinkingTitle(segment));
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [
+    segment.isStreaming,
+    segment.durationSeconds,
+    segment.startedAtMs,
+    segment.content,
+  ]);
 
   useEffect(() => {
     if (!segment.isStreaming || !scrollRef.current) return;

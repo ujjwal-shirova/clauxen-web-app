@@ -37,6 +37,7 @@ export function AgentMessageContent({
             content={message.thinkingContent}
             isStreaming={!!message.isThinkingStreaming}
             thinkingDurationSeconds={message.thinkingDurationSeconds}
+            thinkingStartedAtMs={message.thinkingStartedAtMs}
             className="mb-4"
           />
         )}

@@ -96,6 +96,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: getAllowedDevOrigins(),
+  devIndicators: false,
   poweredByHeader: false,
   reactStrictMode: true,
   serverExternalPackages: [

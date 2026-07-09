@@ -88,7 +88,11 @@ export function agentSegmentsVisuallyEqual(
     if (a.id !== b.id || a.kind !== b.kind) return false;
 
     if (a.kind === "thinking" && b.kind === "thinking") {
-      if (a.content !== b.content || a.isStreaming !== b.isStreaming) {
+      if (
+        a.content !== b.content ||
+        a.isStreaming !== b.isStreaming ||
+        a.durationSeconds !== b.durationSeconds
+      ) {
         return false;
       }
       continue;

@@ -9,6 +9,7 @@ import {
   patchToolOutputDelta,
 } from "@/frontend/lib/agent-stream-fast-path";
 import { agentAnswerDuplicatesInterim } from "@/frontend/lib/agent-frames";
+import { createStreamEventBatcher } from "@/frontend/lib/stream-event-batcher";
 import type { Message, RecentChat } from "@/frontend/lib/types";
 import { useAiStream } from "@/frontend/hooks/use-ai-stream";
 import {
@@ -428,7 +429,7 @@ export function useChatApi(
           // Sidebar titles are generated after the first assistant response completes.
         };
 
-        const handleStreamEvent = (event: StreamEvent) => {
+        const handleStreamEventImmediate = (event: StreamEvent) => {
           if (event.type === "chat_title") {
             void applyInlineChatTitle(event.title);
             return;
@@ -482,11 +483,29 @@ export function useChatApi(
           );
         };
 
+        const streamBatcher = createStreamEventBatcher({
+          onFlush: (events) => {
+            for (const event of events) {
+              handleStreamEventImmediate(event);
+            }
+          },
+        });
+
+        const handleStreamEvent = (event: StreamEvent) => {
+          if (event.type === "error" || event.type === "done") {
+            streamBatcher.flush();
+            handleStreamEventImmediate(event);
+            return;
+          }
+          streamBatcher.push(event);
+        };
+
         await streamFromResponse(
           response,
           { onEvent: handleStreamEvent },
           controller.signal,
         );
+        streamBatcher.dispose();
 
         if (answerAccumulator && answerAccumulator.raw.trim()) {
           const finalized = finalizeChatTitleStrippedAnswer(

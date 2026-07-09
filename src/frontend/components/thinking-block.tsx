@@ -12,6 +12,27 @@ interface ThinkingBlockProps {
   content?: string;
   isStreaming?: boolean;
   thinkingDurationSeconds?: number;
+  thinkingStartedAtMs?: number;
+}
+
+function resolveThinkingDurationSeconds(input: {
+  isStreaming: boolean;
+  thinkingDurationSeconds?: number;
+  thinkingStartedAtMs?: number;
+}): number {
+  if (
+    typeof input.thinkingDurationSeconds === "number" &&
+    input.thinkingDurationSeconds > 0
+  ) {
+    return input.thinkingDurationSeconds;
+  }
+  if (typeof input.thinkingStartedAtMs === "number") {
+    return Math.max(
+      1,
+      Math.round((Date.now() - input.thinkingStartedAtMs) / 1000),
+    );
+  }
+  return 1;
 }
 
 export function ThinkingBlock({
@@ -20,8 +41,10 @@ export function ThinkingBlock({
   content = "",
   isStreaming = false,
   thinkingDurationSeconds,
+  thinkingStartedAtMs,
 }: ThinkingBlockProps) {
   const [isVisible, setIsVisible] = useState(isStreaming);
+  const [elapsedSeconds, setElapsedSeconds] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
   const previousIsStreamingRef = useRef(isStreaming);
 
@@ -45,13 +68,40 @@ export function ThinkingBlock({
     }
   }, [isStreaming]);
 
+  useEffect(() => {
+    if (!isStreaming) {
+      setElapsedSeconds(
+        resolveThinkingDurationSeconds({
+          isStreaming: false,
+          thinkingDurationSeconds,
+          thinkingStartedAtMs,
+        }),
+      );
+      return;
+    }
+
+    const tick = () => {
+      setElapsedSeconds(
+        resolveThinkingDurationSeconds({
+          isStreaming: true,
+          thinkingDurationSeconds,
+          thinkingStartedAtMs,
+        }),
+      );
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [isStreaming, thinkingDurationSeconds, thinkingStartedAtMs]);
+
   if (!content.trim()) {
     return null;
   }
 
   const displayLabel = isStreaming
     ? label
-    : `Thought for ${thinkingDurationSeconds ?? 0}s`;
+    : `Thought for ${elapsedSeconds}s`;
 
   return (
     <div

@@ -53,6 +53,7 @@ import {
   patchToolOutputDelta,
 } from "@/frontend/lib/agent-stream-fast-path";
 import { agentAnswerDuplicatesInterim } from "@/frontend/lib/agent-frames";
+import { createStreamEventBatcher } from "@/frontend/lib/stream-event-batcher";
 import { filterStartedRecentChats } from "@/frontend/lib/started-recent-chats";
 import type { ChatModelId } from "@/lib/chat-models";
 import { DEFAULT_CHAT_MODEL_ID } from "@/lib/chat-models";
@@ -84,6 +85,30 @@ function compactChatsForStorage(chats: AllChats): AllChats {
       messages.map(compactMessageBranchData),
     ]),
   );
+}
+
+/** URL is authoritative when deep-linking or right after home → /c/{id} navigation. */
+function readRouteChatIdFromLocation(): string | null {
+  if (typeof window === "undefined") return null;
+  return (
+    window.location.pathname.match(/\/conversations\/([^/]+)/)?.[1] ??
+    window.location.pathname.match(/^\/c\/([^/]+)/)?.[1] ??
+    null
+  );
+}
+
+function preferRouteActiveChatId(restored: string | null): string | null {
+  return readRouteChatIdFromLocation() ?? restored;
+}
+
+/** In-flight chats win over async IndexedDB hydration (avoids wiping a just-sent turn). */
+function mergeWithLiveChats(persisted: AllChats): AllChats {
+  const live = useChatStore.getState().exportLegacyAllChats();
+  const merged = { ...persisted };
+  for (const [chatId, messages] of Object.entries(live)) {
+    if (messages.length > 0) merged[chatId] = messages;
+  }
+  return merged;
 }
 
 export type UseChatOptions = {
@@ -169,14 +194,15 @@ function useLocalChat(
             migrated.meta?.recentChats ?? [],
             hydratedChats,
           );
-          const restoredActiveId =
+          const restoredActiveId = preferRouteActiveChatId(
             migrated.meta?.activeChatId &&
             startedMeta.some((chat) => chat.id === migrated.meta?.activeChatId)
               ? migrated.meta.activeChatId
-              : (startedMeta[0]?.id ?? null);
+              : (startedMeta[0]?.id ?? null),
+          );
 
           useChatStore.getState().hydrateFromLegacy({
-            allChats: hydratedChats,
+            allChats: mergeWithLiveChats(hydratedChats),
             recentChats: startedMeta,
             activeChatId: restoredActiveId,
             branchDataset: migrated.meta?.branchDataset,
@@ -192,7 +218,8 @@ function useLocalChat(
         if (!meta) {
           const saved = window.localStorage.getItem(CHAT_STORAGE_KEY);
           if (!saved) {
-            setActiveChatId(null);
+            const routeChatId = readRouteChatIdFromLocation();
+            if (routeChatId) setActiveChatId(routeChatId);
             return;
           }
           const parsed = JSON.parse(saved) as {
@@ -218,14 +245,15 @@ function useLocalChat(
               parsed.recentChats ?? [],
               hydratedChats,
             );
-            const restoredActiveId =
+            const restoredActiveId = preferRouteActiveChatId(
               parsed.activeChatId &&
               startedMeta.some((chat) => chat.id === parsed.activeChatId)
                 ? parsed.activeChatId
-                : (startedMeta[0]?.id ?? null);
+                : (startedMeta[0]?.id ?? null),
+            );
 
             useChatStore.getState().hydrateFromLegacy({
-              allChats: hydratedChats,
+              allChats: mergeWithLiveChats(hydratedChats),
               recentChats: startedMeta,
               activeChatId: restoredActiveId,
               branchDataset: parsed.branchDataset,
@@ -237,7 +265,9 @@ function useLocalChat(
               parsed.allChats ?? {},
             );
             useChatStore.getState().setRecentChats(startedMeta);
-            setActiveChatId(startedMeta[0]?.id ?? null);
+            setActiveChatId(
+              preferRouteActiveChatId(startedMeta[0]?.id ?? null),
+            );
           }
           if (parsed.branchDataset) setBranchDataset(parsed.branchDataset);
           return;
@@ -258,17 +288,18 @@ function useLocalChat(
         }
 
         const startedMeta = filterStartedRecentChats(meta.recentChats, allChats);
-        const restoredActiveId =
+        const restoredActiveId = preferRouteActiveChatId(
           meta.activeChatId &&
           startedMeta.some((chat) => chat.id === meta.activeChatId)
             ? meta.activeChatId
-            : (startedMeta[0]?.id ?? null);
+            : (startedMeta[0]?.id ?? null),
+        );
 
         setActiveChatId(restoredActiveId);
         setBranchDataset(meta.branchDataset);
 
         useChatStore.getState().hydrateFromLegacy({
-          allChats,
+          allChats: mergeWithLiveChats(allChats),
           recentChats: startedMeta.map((chat) => ({
             ...chat,
             isTitleStreaming: false,
@@ -276,10 +307,6 @@ function useLocalChat(
           activeChatId: restoredActiveId,
           branchDataset: meta.branchDataset,
         });
-
-        if (startedMeta.length === 0) {
-          setActiveChatId(null);
-        }
       } catch (error) {
         console.error("Failed to restore chat state:", error);
       }
@@ -599,7 +626,7 @@ function useLocalChat(
           patchAssistantMessage(chatId, assistantMessageId, updater);
         };
 
-        const handleEvent = (event: StreamEvent) => {
+        const handleEventImmediate = (event: StreamEvent) => {
           if (event.type === "chat_title") {
             maybeApplyInlineTitle(event.title);
             return;
@@ -615,6 +642,7 @@ function useLocalChat(
                   thinkingContent: `${message.thinkingContent ?? ""}${event.delta}`,
                   hasThinking: true,
                   isThinkingStreaming: true,
+                  thinkingStartedAtMs: message.thinkingStartedAtMs ?? Date.now(),
                   isStreaming: true,
                 }),
               );
@@ -669,7 +697,6 @@ function useLocalChat(
 
             if (!visibleDelta) return;
 
-            // Fastest path for normal chat: direct append, no updater, no reducer.
             const msg = useChatStore.getState().messagesById[assistantMessageId];
 
             if (canFastAppendAnswer(msg)) {
@@ -708,12 +735,9 @@ function useLocalChat(
           }
 
           if (event.type === "done") {
-            applyAssistantPatch((message) => ({
-              ...message,
-              isStreaming: false,
-              isThinkingStreaming: false,
-              agentFrameComplete: true,
-            }));
+            applyAssistantPatch((message) =>
+              applyAgentStreamEvent(message, event),
+            );
             return;
           }
 
@@ -730,11 +754,29 @@ function useLocalChat(
           );
         };
 
+        const streamBatcher = createStreamEventBatcher({
+          onFlush: (events) => {
+            for (const event of events) {
+              handleEventImmediate(event);
+            }
+          },
+        });
+
+        const handleEvent = (event: StreamEvent) => {
+          if (event.type === "error" || event.type === "done") {
+            streamBatcher.flush();
+            handleEventImmediate(event);
+            return;
+          }
+          streamBatcher.push(event);
+        };
+
         await streamFromResponse(
           response,
           { onEvent: handleEvent },
           requestController.signal,
         );
+        streamBatcher.dispose();
 
         if (answerAccumulator && answerAccumulator.raw.trim()) {
           const finalized = finalizeChatTitleStrippedAnswer(

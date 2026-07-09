@@ -265,6 +265,7 @@ export async function runAutonomousAgent(
       }
 
       let sawToolCall = false;
+      let thinkingOpen = false;
       const pendingToolCalls: Array<{
         id: string;
         name: string;
@@ -292,12 +293,25 @@ export async function runAutonomousAgent(
 
       let finishReason: string | null = null;
 
+      const ensureThinkingOpen = () => {
+        if (thinkingOpen) return;
+        sse.writeThinkingStart();
+        thinkingOpen = true;
+      };
+
+      const closeThinking = () => {
+        if (!thinkingOpen) return;
+        sse.writeThinkingEnd();
+        thinkingOpen = false;
+      };
+
       for await (const part of stream) {
         switch (part.type) {
           case "reasoning-delta":
             // The model decides whether to think. Stream reasoning whenever the
             // model emits it — no user toggle gates this.
             openFrame();
+            ensureThinkingOpen();
             sse.writeThinkingDelta(part.delta);
             fullReasoning += part.delta;
             break;
@@ -305,6 +319,7 @@ export async function runAutonomousAgent(
           case "text-delta": {
             const visible = sanitizeAssistantStreamDelta(part.delta);
             if (!visible) break;
+            closeThinking();
             // Stream live as answer text until a tool call proves it was a
             // pre-tool whisper — then it moves to introNarrative above the
             // timeline. Post-tool notes stay as timeline text segments.
@@ -328,6 +343,7 @@ export async function runAutonomousAgent(
 
           case "tool-call-start":
             openFrame();
+            closeThinking();
             if (!sawToolCall) {
               sawToolCall = true;
               if (fullText.trim()) {
@@ -410,10 +426,7 @@ export async function runAutonomousAgent(
       // whole autonomous turn actually finishes (see below and `finally`).
       closeActiveTextSegment();
 
-      // If thinking was streaming and we have text, end thinking
-      if (fullReasoning && fullText) {
-        sse.writeThinkingEnd();
-      }
+      closeThinking();
 
       // If no tool calls, we're done — the text is the final answer.
       if (pendingToolCalls.length === 0) {

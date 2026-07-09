@@ -55,6 +55,8 @@ interface ConversationThreadProps {
   conversationKey?: string | null;
   /** Skip heavy sticky work while the user is flick-scrolling. */
   isFastScrolling?: boolean;
+  /** Throttle sticky observers while the model is streaming. */
+  isGenerating?: boolean;
 }
 
 type ConversationTurnGroup = {
@@ -359,6 +361,7 @@ const MessageRow = React.memo(
                     content={message.thinkingContent}
                     isStreaming={!!message.isThinkingStreaming}
                     thinkingDurationSeconds={message.thinkingDurationSeconds}
+                    thinkingStartedAtMs={message.thinkingStartedAtMs}
                     className="mb-4"
                   />
                 )}
@@ -927,6 +930,7 @@ export function ConversationThread({
   scrollAreaRef,
   conversationKey,
   isFastScrolling: isFastScrollingProp = false,
+  isGenerating: isGeneratingProp = false,
 }: ConversationThreadProps) {
   const [editingMessageId, setEditingMessageId] = React.useState<string | null>(
     null,
@@ -1163,6 +1167,8 @@ export function ConversationThread({
   const stickySyncRef = React.useRef<(() => void) | null>(null);
   const isFastScrollingRef = React.useRef(isFastScrollingProp);
   isFastScrollingRef.current = isFastScrollingProp;
+  const isGeneratingRef = React.useRef(isGeneratingProp);
+  isGeneratingRef.current = isGeneratingProp;
   const pendingPrependAdjustmentRef = React.useRef<{
     scrollHeight: number;
     scrollTop: number;
@@ -1260,7 +1266,8 @@ export function ConversationThread({
         syncRaf = 0;
         if (!force && isFastScrollingRef.current) return;
         const now = performance.now();
-        if (!force && now - lastSyncAt < 48) {
+        const minIntervalMs = isGeneratingRef.current ? 140 : 48;
+        if (!force && now - lastSyncAt < minIntervalMs) {
           scheduleSync();
           return;
         }
@@ -1292,22 +1299,17 @@ export function ConversationThread({
     window.addEventListener("resize", runSync);
 
     const content = (viewport.firstElementChild as HTMLElement | null) ?? viewport;
-    const resizeObserver = new ResizeObserver(() => scheduleSync(true));
+    const resizeObserver = new ResizeObserver(() => scheduleSync(false));
     resizeObserver.observe(content);
 
     viewport.querySelectorAll<HTMLElement>("[data-sticky-user-msg]").forEach((host) => {
       resizeObserver.observe(host);
     });
 
-    // New code blocks (or assistant content) appearing mid-stream must trigger
-    // a sticky re-sync so the header docks immediately, not only on next scroll.
-    // characterData catches token growth that only extends an existing text
-    // node (no new child added) — e.g. a syntax-highlighted span whose token
-    // kind didn't change between renders — which childList alone would miss.
-    const mutationObserver = new MutationObserver(() => scheduleSync(true));
+    // characterData on every streamed token forced sticky resyncs at token rate.
+    const mutationObserver = new MutationObserver(() => scheduleSync(false));
     mutationObserver.observe(content, {
       childList: true,
-      characterData: true,
       subtree: true,
     });
 
@@ -1332,12 +1334,13 @@ export function ConversationThread({
     conversationKey,
     firstRenderedTurnIndex,
     effectiveVisibleTurnCount,
+    isGeneratingProp,
   ]);
 
   React.useEffect(() => {
-    if (isFastScrollingProp) return;
+    if (isFastScrollingProp || isGeneratingProp) return;
     stickySyncRef.current?.();
-  }, [stickyStreamKey, isFastScrollingProp]);
+  }, [stickyStreamKey, isFastScrollingProp, isGeneratingProp]);
 
   const turnProps = {
     editingMessageId,
