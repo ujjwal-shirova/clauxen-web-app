@@ -1,26 +1,41 @@
 # Production deployment checklist
 
-## 1. Authenticate Vercel CLI
+## 1. Sync environment variables
 
-```bash
-npx vercel@41.7.0 login
-```
+**Note:** The Cursor Vercel MCP plugin does not expose env-var management tools (only projects, deployments, logs). Use one of:
 
-## 2. Sync environment variables
+### Option A — Vercel Dashboard (recommended)
 
-```bash
-npm run vercel:env:sync
-```
+Project: **clauxen** (`shirova-ai` team) → Settings → Environment Variables
 
-This reads `.env.local` and pushes encrypted vars to **production**, **preview**, and **development**. Production overrides:
+Copy all keys from `.env.local` / `.env.example`. Set production overrides:
 
-| Variable | Value |
+| Variable | Production value |
 |---|---|
 | `AUTH_DEV_BYPASS` | `false` |
 | `AUTH_REQUIRED_FOR_CHAT` | `true` |
 | `STORAGE_REQUIRE_R2` | `true` |
+| `NEXT_PUBLIC_APP_URL` | `https://clauxen.vercel.app` |
 
-## 3. Verify no secrets in browser
+Mark secrets as **Sensitive**: `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NOVITA_AI_KEY`, `EXA_API_KEY`, `FAL_KEY`, `RAZORPAY_KEY_SECRET`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_API_TOKEN`, `JWT_SECRET`.
+
+### Option B — REST API script (needs fresh token)
+
+```bash
+# Create token at https://vercel.com/account/tokens
+export VERCEL_TOKEN=your_token
+node scripts/sync-vercel-env-api.mjs
+```
+
+### Option C — Monitor via Vercel MCP
+
+Use MCP to verify deployments after env is configured:
+
+- `get_project` — latest deployment status
+- `list_deployments` — history
+- `get_deployment_build_logs` — build failures
+
+## 2. Verify no secrets in browser
 
 ```bash
 npm run audit:public-env
