@@ -15,7 +15,7 @@ Copy all keys from `.env.local` / `.env.example`. Set production overrides:
 | `AUTH_DEV_BYPASS` | `false` |
 | `AUTH_REQUIRED_FOR_CHAT` | `true` |
 | `STORAGE_REQUIRE_R2` | `true` |
-| `NEXT_PUBLIC_APP_URL` | `https://clauxen.vercel.app` |
+| `NEXT_PUBLIC_APP_URL` | `https://www.clauxen.com` |
 
 Mark secrets as **Sensitive**: `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NOVITA_AI_KEY`, `EXA_API_KEY`, `FAL_KEY`, `RAZORPAY_KEY_SECRET`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_API_TOKEN`, `JWT_SECRET`.
 

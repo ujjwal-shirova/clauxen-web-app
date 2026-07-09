@@ -59,7 +59,7 @@ const PROD_OVERRIDES = {
   AUTH_DEV_BYPASS: "false",
   AUTH_REQUIRED_FOR_CHAT: "true",
   STORAGE_REQUIRE_R2: "true",
-  NEXT_PUBLIC_APP_URL: "https://clauxen.vercel.app",
+  NEXT_PUBLIC_APP_URL: "https://www.clauxen.com",
 };
 
 const PLACEHOLDER_RE = /YOUR_|change-me-in-production|CHANGEME/i;
