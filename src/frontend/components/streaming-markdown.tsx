@@ -7,9 +7,9 @@ import {
   type ChatSource,
 } from "@/frontend/lib/chat-sources";
 import { normalizeLatexDelimiters } from "@/frontend/components/markdown-shared";
-import { StreamdownFlowTokenMarkdown } from "@/frontend/components/streamdown-markdown";
+import { StreamdownStreamingMarkdown } from "@/frontend/components/streamdown-markdown";
 
-export type FlowTokenMarkdownProps = {
+export type StreamingMarkdownProps = {
   content: string;
   isStreaming?: boolean;
   /** Stable key (e.g. message id) prevents unnecessary remounts during rapid token appends. */
@@ -18,16 +18,15 @@ export type FlowTokenMarkdownProps = {
 };
 
 /**
- * Real-time streaming markdown — Streamdown for incremental-markdown parsing,
- * with flowtoken's token-diffing engine (via StreamdownFlowTokenMarkdown) doing
- * the per-node fade-in reveal on every text run, code block, and table cell.
+ * Real-time streaming markdown — Streamdown for incremental parsing,
+ * custom token fade-in on text runs / code / tables.
  */
-export function FlowTokenMarkdown({
+export function StreamingMarkdown({
   content,
   isStreaming = false,
   streamKey,
   sources = [],
-}: FlowTokenMarkdownProps) {
+}: StreamingMarkdownProps) {
   const normalized = useMemo(() => {
     let text = stripReferenceDefinitions(normalizeLatexDelimiters(content));
     if (sources.length > 0) {
@@ -39,10 +38,10 @@ export function FlowTokenMarkdown({
   return (
     <div
       key={streamKey}
-      className="markdown-content flowtoken-markdown min-w-0 max-w-full text-[14px] leading-[1.55] text-zinc-800"
+      className="markdown-content min-w-0 max-w-full text-[14px] leading-[1.55] text-zinc-800"
       data-streaming={isStreaming || undefined}
     >
-      <StreamdownFlowTokenMarkdown
+      <StreamdownStreamingMarkdown
         content={normalized}
         isStreaming={isStreaming}
         streamKey={streamKey}

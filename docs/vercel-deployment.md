@@ -124,9 +124,6 @@ Serverless function request bodies are limited (~4.5 MB on Hobby). Use the R2 Wo
 After setting `DATABASE_URL` (Supabase direct connection):
 
 ```bash
-npx prisma migrate dev
-npx prisma generate
-# or, for the Supabase-managed schema:
 npx supabase db push
 ```
 
@@ -146,7 +143,7 @@ vercel --prod
 | Framework Preset | Next.js |
 | Node.js Version | **24.x** (matches `package.json` `engines`) |
 | Install Command | `npm ci` (set in `vercel.json`) |
-| Build Command | `npm run build` (`next build`; Prisma is pre-generated locally — see note below) |
+| Build Command | `npm run build` (`next build`) |
 | Fluid Compute | **Enabled** (default on new projects — full Node.js for API routes) |
 
 ### Repo config files

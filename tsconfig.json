@@ -21,8 +21,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@flowtoken/*": ["./lib/flowtoken/src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [
@@ -30,8 +29,6 @@
     "next.config.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "lib/flowtoken/src/**/*.ts",
-    "lib/flowtoken/src/**/*.tsx",
     "tailwind.config.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"

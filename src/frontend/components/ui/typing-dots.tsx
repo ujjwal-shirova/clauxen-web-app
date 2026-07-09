@@ -3,9 +3,8 @@
 import { cn } from "@/frontend/lib/utils";
 
 /**
- * Minimal three-dot "generating" indicator. Replaces the old orb cursor for
- * loading/streaming-title affordances app-wide — the flowtoken fade-in on
- * incoming text already communicates liveness for in-progress content.
+ * Minimal three-dot indicator for title / sidebar streaming labels.
+ * Message streaming uses StreamingOrbCursor instead.
  */
 export function TypingDots({ className }: { className?: string }) {
   return (

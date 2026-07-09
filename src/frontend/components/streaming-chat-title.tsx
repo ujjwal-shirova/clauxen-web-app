@@ -1,7 +1,5 @@
 "use client";
 
-import SplitText from "@flowtoken/components/SplitText";
-import { animations } from "@flowtoken/utils/animations";
 import { cn } from "@/frontend/lib/utils";
 
 type StreamingChatTitleProps = {
@@ -25,18 +23,7 @@ export function StreamingChatTitle({
         className,
       )}
     >
-      {isStreaming ? (
-        <SplitText
-          input={title}
-          sep="diff"
-          animation={animations.fadeIn}
-          animationDuration="0.42s"
-          animationTimingFunction="cubic-bezier(0.22, 1, 0.36, 1)"
-          animationIterationCount={1}
-        />
-      ) : (
-        title
-      )}
+      {title}
     </span>
   );
 }

@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "NODE_OPTIONS='--disable-warning=DEP0205' next dev -p 9002",
     "build": "node scripts/bootstrap-db-env.mjs && next build",
-    "vercel-build": "prisma generate && next build",
+    "vercel-build": "next build",
     "start": "NODE_OPTIONS='--disable-warning=DEP0205' next start",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
@@ -24,12 +24,10 @@
     "strip:annotations": "node .tools/strip-hindi-annotations.mjs",
     "worker": "tsx scripts/worker.ts",
     "autonomous-agent:ws": "tsx src/autonomous-agent/scripts/ws-server.ts",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio",
     "test": "tsx --test src/**/*.test.ts",
     "audit:public-env": "node scripts/audit-public-env.mjs",
-    "vercel:env:sync": "node scripts/sync-vercel-env-api.mjs"
+    "vercel:env:sync": "node scripts/sync-vercel-env-api.mjs",
+    "website:manifest": "python3 scripts/website/generate-pages-manifest.py"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",
@@ -39,7 +37,6 @@
     "@node-rs/argon2": "^2.0.2",
     "@oslojs/crypto": "^1.0.1",
     "@oslojs/encoding": "^1.1.0",
-    "@prisma/client": "^6.19.3",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -109,7 +106,6 @@
     "partial-json": "^0.1.7",
     "pdf-parse": "^2.4.5",
     "pg": "^8.21.0",
-    "prisma": "^6.19.3",
     "razorpay": "^2.9.6",
     "react": "^19.2.7",
     "react-day-picker": "^9.14.0",

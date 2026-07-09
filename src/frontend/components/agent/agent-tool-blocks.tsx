@@ -45,14 +45,6 @@ import {
 } from "./ask-user-input-card";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
 import { StreamingTextFade } from "@/frontend/lib/streaming-text-fade";
-import { animations as flowtokenAnimations } from "@flowtoken/utils/animations";
-import type { StreamFadeConfig } from "@/frontend/lib/streaming-text-animation";
-
-const BASH_COMMAND_STREAM_FADE: StreamFadeConfig = {
-  animation: flowtokenAnimations.fadeIn,
-  animationDuration: "320ms",
-  animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
-};
 
 function SearchResultFavicon({ url }: { url: string }) {
   const [failed, setFailed] = useState(false);
@@ -255,7 +247,6 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
               code={command}
               language="bash"
               showLineNumbers={false}
-              streamFade={isTyping ? BASH_COMMAND_STREAM_FADE : undefined}
             />
           </div>
         </div>

@@ -61,6 +61,21 @@ function firstEnv(...names: string[]): string {
   return "";
 }
 
+/**
+ * Next.js only inlines `NEXT_PUBLIC_*` when accessed as static property reads
+ * (`process.env.NEXT_PUBLIC_FOO`). Dynamic `process.env[name]` is empty in the
+ * browser bundle — that caused "Supabase browser auth is not configured."
+ */
+function firstPublicEnv(
+  ...values: Array<string | undefined>
+): string {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (!isBlankEnvValue(trimmed)) return trimmed!;
+  }
+  return "";
+}
+
 /** Map Vercel Supabase integration vars → app aliases at runtime. */
 export function bootstrapVercelEnvAliases(): void {
   if (isBlankEnvValue(process.env.DATABASE_URL)) {
@@ -106,15 +121,19 @@ export function resolveSupabaseServiceRoleKey(): string {
 }
 
 export function resolveSupabaseUrl(): string {
-  return firstEnv("NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL");
+  // Public keys: static reads for browser; server-only names via firstEnv.
+  return (
+    firstPublicEnv(process.env.NEXT_PUBLIC_SUPABASE_URL) ||
+    firstEnv("SUPABASE_URL")
+  );
 }
 
 export function resolveSupabasePublicKey(): string {
-  return firstEnv(
-    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    "SUPABASE_PUBLISHABLE_KEY",
-    "SUPABASE_ANON_KEY",
+  return (
+    firstPublicEnv(
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    ) || firstEnv("SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY")
   );
 }
 

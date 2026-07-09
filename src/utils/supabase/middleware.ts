@@ -109,10 +109,7 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  if (
-    isAuthenticated &&
-    (pathname === "/login" || pathname === "/signup")
-  ) {
+  if (isAuthenticated && (pathname === "/login" || pathname === "/signup")) {
     const home = request.nextUrl.clone();
     home.pathname = "/";
     home.search = "";

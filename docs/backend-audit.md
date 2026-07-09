@@ -12,7 +12,6 @@ Generated: 2026-07-09. Source: repo migrations, MCP live checks, code grep.
 | Supabase Auth | `@supabase/ssr` (`src/utils/supabase/`) | GoTrue sessions (production target) |
 | Dev auth | `clauxen_session` cookie + `AUTH_DEV_BYPASS` | Local development only |
 | Background jobs | `scripts/worker.ts` (BullMQ + Redis) | Project file ingestion |
-| Prisma | `prisma/schema.prisma` | Legacy generate only — **do not use for new features** |
 
 **Supabase project:** `clauxen-database-main` (`ntplcfsbcyhiqklkbldk`, us-west-1, ACTIVE_HEALTHY)  
 **Vercel project:** `clauxen` (`prj_fvcWCHb6BfJHggIDiUQDXH9sOBjr`, team `shirova-ai`)  
@@ -89,7 +88,6 @@ MCP `list_tables` + 28 local migrations. All tables have RLS enabled.
 | `project_files` | Queried in `project-files.repository.ts`; **not in Supabase migrations** | New migration `20260709100000_schema_drift_fixes.sql` |
 | `user_skills` | Queried in `user-skills.repository.ts`; **not in migrations** | Same migration |
 | `user_files` vs `project_files` | Platform schema has `user_files`; project code uses separate `project_files` | Keep both — different domains (general uploads vs project RAG) |
-| Prisma `conversations`/`messages` | Legacy naming | Ignore; live schema is `chats`/`chat_messages` |
 | Instagram OAuth | Not a built-in Supabase provider | **Skipped v1** — ship Google, GitHub, Facebook, Twitter/X |
 
 ## 6. Auth state (before wiring)

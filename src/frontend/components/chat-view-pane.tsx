@@ -30,6 +30,11 @@ interface ChatViewPaneProps {
   conversation: ReactNode;
   scrollAreaRef?: React.RefObject<HTMLDivElement | null>;
   className?: string;
+  /**
+   * Welcome empty-state mode.
+   * `composer-only` — centered greeting + prompt + chips. Used by login demo.
+   */
+  welcomeVariant?: "default" | "composer-only";
 }
 
 const allChips = [
@@ -95,7 +100,9 @@ export function ChatViewPane({
   conversation,
   scrollAreaRef,
   className,
+  welcomeVariant = "default",
 }: ChatViewPaneProps) {
+  const composerOnlyWelcome = welcomeVariant === "composer-only";
   const [greeting, setGreeting] = useState<string | null>(null);
   const [composerReservePx, setComposerReservePx] = useState(() =>
     getMinComposerReservePx(),
@@ -203,7 +210,7 @@ export function ChatViewPane({
           <div
             ref={scrollContentRef}
             className={cn(
-              "chat-scroll-content flex w-full flex-col items-center",
+              "chat-scroll-content flex w-full flex-1 flex-col items-center",
               !hasConversation && "min-h-full",
             )}
             style={
@@ -220,21 +227,46 @@ export function ChatViewPane({
                 {conversation}
               </div>
             ) : (
-              <div className="relative flex min-h-[calc(100dvh-10.5rem)] w-full flex-1 flex-col items-center justify-center py-6 sm:min-h-[calc(100dvh-9rem)] sm:py-10">
-                <div className="chat-column flex w-full min-w-0 flex-col items-center gap-3 sm:gap-5">
+              <div
+                className={cn(
+                  "relative flex w-full flex-col items-center justify-center",
+                  // Demo welcome: fill the pane and center greeting + composer.
+                  composerOnlyWelcome
+                    ? "absolute inset-0 min-h-0 px-1 py-3"
+                    : "min-h-[calc(100dvh-10.5rem)] flex-1 py-6 sm:min-h-[calc(100dvh-9rem)] sm:py-10",
+                )}
+                data-demo-welcome={composerOnlyWelcome || undefined}
+              >
+                <div
+                  className={cn(
+                    "chat-column flex w-full min-w-0 flex-col items-center",
+                    "gap-3 sm:gap-5",
+                  )}
+                >
                   <h2
-                    className="select-none text-center font-handwriting text-[24px] leading-[32px] tracking-tight text-zinc-800 sm:text-[38px] sm:leading-[48px]"
+                    className={cn(
+                      "select-none text-center font-handwriting tracking-tight text-zinc-800",
+                      composerOnlyWelcome
+                        ? "text-[22px] leading-[30px] sm:text-[32px] sm:leading-[40px]"
+                        : "text-[24px] leading-[32px] sm:text-[38px] sm:leading-[48px]",
+                    )}
                     suppressHydrationWarning
                   >
-                    {greeting ? `${greeting}, Ujjwal` : "\u00a0"}
+                    {composerOnlyWelcome
+                      ? "What can I help with?"
+                      : greeting
+                        ? `${greeting}, Ujjwal`
+                        : "\u00a0"}
                   </h2>
 
                   <div className="w-full">{promptInput}</div>
 
+                  {/* Welcome action chips — same strip as main-app new chat. */}
                   <div
                     className={cn(
                       "flex w-full max-w-[620px] flex-col items-center justify-start transition-[min-height] duration-200 ease-out",
                       !isAddMenuOpen && "min-h-[96px]",
+                      composerOnlyWelcome && "min-h-0",
                     )}
                   >
                     <AnimatePresence mode="wait" initial={false}>
@@ -263,14 +295,21 @@ export function ChatViewPane({
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
                           transition={{ duration: 0.2 }}
-                          className="mt-1 flex w-full flex-wrap justify-center gap-1.5 sm:mt-1.5 sm:gap-1.5"
+                          className={cn(
+                            "mt-1 flex w-full flex-wrap justify-center gap-1.5 sm:mt-1.5 sm:gap-1.5",
+                            composerOnlyWelcome && "gap-1 sm:gap-1",
+                          )}
                         >
                           {allChips.map((chip) => (
                             <button
                               key={chip.label}
                               type="button"
                               onClick={() => onActiveChipChange(chip.label)}
-                              className="flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-transparent px-3 text-[12.5px] leading-5 text-zinc-600 transition-all duration-150 hover:bg-zinc-50 hover:text-zinc-900 sm:h-8 sm:gap-1.5 sm:px-3.5 sm:text-[13px] sm:leading-[20px]"
+                              className={cn(
+                                "flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-transparent px-3 text-[12.5px] leading-5 text-zinc-600 transition-all duration-150 hover:bg-zinc-50 hover:text-zinc-900 sm:h-8 sm:gap-1.5 sm:px-3.5 sm:text-[13px] sm:leading-[20px]",
+                                composerOnlyWelcome &&
+                                  "h-7 px-2.5 text-[11.5px] sm:h-7 sm:px-2.5 sm:text-[12px]",
+                              )}
                             >
                               <chip.icon className="h-4 w-4 shrink-0 text-zinc-500" />
                               <span>{chip.label}</span>

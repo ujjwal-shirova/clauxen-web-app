@@ -2,8 +2,9 @@
 
 import React, { useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { FlowTokenMarkdown } from "@/frontend/components/flowtoken-markdown";
+import { StreamingMarkdown } from "@/frontend/components/streaming-markdown";
 import { StreamingTextFade } from "@/frontend/lib/streaming-text-fade";
+import { StreamingOrbCursor } from "@/frontend/components/ui/streaming-orb-cursor";
 import {
   markdownComponents,
   normalizeLatexDelimiters,
@@ -101,6 +102,9 @@ export const MarkdownMessage = ({
     return (
       <div className="relative min-w-0 max-w-full" data-streaming>
         <StreamingTextFade content={content} streamKey={streamKey} />
+        {showCursor ? (
+          <StreamingOrbCursor className="ml-1 translate-y-[-1px]" />
+        ) : null}
       </div>
     );
   }
@@ -108,8 +112,7 @@ export const MarkdownMessage = ({
   // Same Streamdown-based tree whether streaming or settled — swapping to the
   // plain ReactMarkdown pipeline (MarkdownOrchestrator) the instant streaming
   // ended used to remount the whole subtree, producing a visible flash/hard
-  // cut on every completed message. `isStreaming={false}` just turns off the
-  // token-reveal fade and animation inside the same component.
+  // cut on every completed message.
   const cleanContent = stripReferenceDefinitions(content);
   const displayContent =
     sources.length > 0
@@ -121,12 +124,15 @@ export const MarkdownMessage = ({
       className="relative min-w-0 max-w-full"
       data-streaming={isStreaming || undefined}
     >
-      <FlowTokenMarkdown
+      <StreamingMarkdown
         content={displayContent}
         isStreaming={isStreaming}
         streamKey={streamKey}
         sources={sources}
       />
+      {isStreaming && showCursor ? (
+        <StreamingOrbCursor className="ml-1 mt-1" />
+      ) : null}
     </div>
   );
 };

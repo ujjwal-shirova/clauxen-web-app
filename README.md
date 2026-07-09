@@ -4,7 +4,7 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 
 ## Feature highlights
 
-- **Streaming chat** — SSE-based conversation streaming with per-model routing, interleaved "thinking" traces, and animated markdown rendering (vendored [`flowtoken`](lib/flowtoken)).
+- **Streaming chat** — SSE-based conversation streaming with per-model routing, interleaved "thinking" traces, and custom token fade-in for animated markdown.
 - **Multi-model routing** — internal model personas (**Homer**, **Helios**, **Virgil**) proxied through Novita's Anthropic- and OpenAI-compatible endpoints, plus a Claude-Messages-API-compatible proxy at `/api/shirova/v1/messages`.
 - **Autonomous agent** — a no-system-prompt, tool-steered reasoning loop (`src/autonomous-agent/`) with web search, web fetch, sandboxed code execution, scoped file read/write, skill discovery, and user-clarification pauses. See its own [README](src/autonomous-agent/README.md).
 - **Projects & RAG** — project folders with custom instructions, file uploads, chunking + embeddings, and pgvector-backed retrieval grounding chat responses.
@@ -20,9 +20,9 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 | Layer | Stack |
 |---|---|
 | Frontend | Next.js (App Router), React 19, Tailwind CSS v4, shadcn/ui, Zustand, TanStack Query |
-| Streaming / Markdown | Server-Sent Events, vendored `flowtoken` for token-level animated markdown |
+| Streaming / Markdown | Server-Sent Events, custom token fade-in for animated markdown |
 | API | Next.js Route Handlers (`/api/v1/*`, legacy `/api/*`) |
-| Database | Supabase Postgres (Prisma ORM + `supabase/migrations`), pgvector-style embeddings |
+| Database | Supabase Postgres (`supabase/migrations` + `pg` pool), pgvector-style embeddings |
 | Auth | Supabase GoTrue, with a dev cookie-session bypass (`AUTH_DEV_BYPASS`) |
 | Inference | Novita (Anthropic- and OpenAI-compatible endpoints) — models: Kimi K2.6, GLM-5.2, DeepSeek V4 Pro (thinking) |
 | Storage | Cloudflare R2 (images, documents, artifacts, skills, chat archives), local-disk fallback |
@@ -42,8 +42,6 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 | `src/projects/` | Project RAG pipeline (ingestion, chunking, embeddings, storage) |
 | `src/models-system-prompts/` | Persona system prompts (e.g. `virgil.md`) |
 | `src/lib/`, `src/utils/` | Shared utilities (Supabase clients, model config, sanitization) |
-| `lib/flowtoken/` | Vendored animated-markdown-streaming library |
-| `prisma/` | Prisma schema and migrations |
 | `supabase/` | Supabase project config and SQL migrations |
 | `scripts/` | Standalone scripts (ingestion worker, seeding) |
 | `docs/` | Deployment and backend architecture notes |
@@ -82,9 +80,6 @@ JWT_SECRET=...
 ### 3. Apply the database schema
 
 ```bash
-npx prisma migrate dev
-npx prisma generate
-# or, for the Supabase-managed schema:
 npx supabase db push
 ```
 
@@ -116,7 +111,6 @@ npm run autonomous-agent:ws    # standalone autonomous-agent WebSocket server (:
 | `npm run test` | Run `*.test.ts` files under `src/` via `tsx --test` |
 | `npm run worker` | Start the BullMQ ingestion worker |
 | `npm run autonomous-agent:ws` | Start the autonomous-agent WebSocket server |
-| `npm run prisma:generate` / `prisma:migrate` / `prisma:studio` | Prisma client, migrations, DB GUI |
 | `npm run supabase:db:push` | Push local migrations to Supabase |
 | `npm run supabase:functions:deploy` / `:list` | Manage Supabase Edge Functions |
 
@@ -165,7 +159,7 @@ See [`docs/vercel-deployment.md`](docs/vercel-deployment.md) for the complete, u
 
 ## Deployment
 
-Deployed on Vercel. `vercel.json` sets install/build commands and streaming route timeouts; `vercel-build` runs `prisma generate` before `next build`. Cloudflare R2 is required in production (Vercel functions have no persistent disk). Full checklist in [`docs/vercel-deployment.md`](docs/vercel-deployment.md).
+Deployed on Vercel. `vercel.json` sets install/build commands and streaming route timeouts. Cloudflare R2 is required in production (Vercel functions have no persistent disk). Full checklist in [`docs/vercel-deployment.md`](docs/vercel-deployment.md).
 
 ```bash
 vercel link

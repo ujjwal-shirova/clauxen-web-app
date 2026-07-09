@@ -8,7 +8,6 @@ import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import "katex/dist/katex.min.css";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
-import type { StreamFadeConfig } from "@/frontend/lib/streaming-text-animation";
 import { extensionForLanguage } from "@/frontend/lib/create-file-tags";
 import { downloadTextFile } from "@/frontend/lib/download-file";
 import {
@@ -48,10 +47,10 @@ export function CodeRenderer(props: {
   inline?: boolean;
   className?: string;
   children?: React.ReactNode;
-  /** Fade in newly streamed characters/tokens while the message is still streaming. */
-  streamFade?: StreamFadeConfig;
+  /** @deprecated no-op */
+  streamFade?: unknown;
 }) {
-  const { inline, className, children, streamFade, ...rest } = props;
+  const { inline, className, children, streamFade: _streamFade, ...rest } = props;
   const [isCopied, setIsCopied] = useState(false);
   const match = /language-([\w+#.-]+)/.exec(className || "");
   const language = match ? match[1] : "";
@@ -80,11 +79,7 @@ export function CodeRenderer(props: {
         onDownload={handleDownload}
         downloadExtension={extension}
       >
-        <HighlightCode
-          code={content}
-          language={resolvedLanguage}
-          streamFade={streamFade}
-        />
+        <HighlightCode code={content} language={resolvedLanguage} />
       </CodeBlockFrame>
     );
   }

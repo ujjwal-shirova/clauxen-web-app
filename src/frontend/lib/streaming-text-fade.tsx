@@ -1,32 +1,13 @@
 "use client";
 
-import { StreamingTokenReveal } from "@/frontend/lib/streaming-token-reveal";
-
-const STREAM_TEXT_CLASS =
-  "markdown-content whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-zinc-800";
-
-const STREAM_REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
-
+/** Plain text during lightweight streams — no fade animation. */
 export function StreamingTextFade({
   content,
-  streamKey,
-  className = STREAM_TEXT_CLASS,
+  className = "markdown-content whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-zinc-800",
 }: {
   content: string;
   streamKey?: string;
   className?: string;
 }) {
-  const resolvedKey = streamKey ?? "stream";
-
-  return (
-    <div className={className}>
-      <StreamingTokenReveal
-        text={content}
-        sessionKey={resolvedKey}
-        animationName="fadeIn"
-        timingFunction={STREAM_REVEAL_EASING}
-        showCursor={true}
-      />
-    </div>
-  );
+  return <div className={className}>{content}</div>;
 }

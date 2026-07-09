@@ -914,6 +914,7 @@ export function PromptInput({
             <button
               type="button"
               onClick={handleSubmit}
+              aria-label="Send"
               className="no-hover-overlay flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white transition-all duration-200 hover:bg-zinc-800 data-app-button"
               data-app-button
             >

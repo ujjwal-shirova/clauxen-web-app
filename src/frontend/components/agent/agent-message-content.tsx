@@ -4,7 +4,7 @@ import type { Message } from "@/frontend/lib/types";
 import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
 import { AssistantContentRenderer } from "@/frontend/components/assistant-content-renderer";
 import { ThinkingBlock } from "@/frontend/components/thinking-block";
-import { TypingDots } from "@/frontend/components/ui/typing-dots";
+import { StreamingOrbCursor } from "@/frontend/components/ui/streaming-orb-cursor";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import {
   resolveOrchestrationBlocks,
@@ -43,7 +43,7 @@ export function AgentMessageContent({
         )}
         {showOrb ? (
           <div className="flex items-center py-1">
-            <TypingDots />
+            <StreamingOrbCursor />
           </div>
         ) : null}
         {message.content.length > 0 ? (

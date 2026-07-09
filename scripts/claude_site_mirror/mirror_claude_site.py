@@ -18,7 +18,7 @@ import argparse
 import asyncio
 import hashlib
 import json
-import re
+import subprocess
 import sys
 import time
 from dataclasses import asdict, dataclass, field
@@ -27,7 +27,12 @@ from typing import Any
 from urllib.parse import urljoin, urlparse, urlunparse
 from xml.etree import ElementTree
 
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+
 import httpx
+from aria2_downloader import aria2_available, run_aria2_batch
 from bs4 import BeautifulSoup
 from playwright.async_api import Browser, Page, Response, async_playwright
 
@@ -60,6 +65,7 @@ class MirrorState:
     completed: list[PageRecord] = field(default_factory=list)
     failed: list[PageRecord] = field(default_factory=list)
     assets_saved: dict[str, str] = field(default_factory=dict)
+    asset_jobs: dict[str, Path] = field(default_factory=dict)
 
 
 def normalize_url(url: str) -> str:
@@ -251,31 +257,56 @@ def rewrite_html_for_local(html: str, page_url: str, asset_map: dict[str, str]) 
     return str(soup)
 
 
-async def download_asset(
-    client: httpx.AsyncClient,
-    url: str,
-    dest: Path,
-    website_root: Path,
-    state: MirrorState,
-) -> Path | None:
+def queue_asset(state: MirrorState, url: str, dest: Path, website_root: Path) -> str | None:
+    """Register asset for aria2c batch; returns relative assets/ path."""
     if url in state.assets_saved:
-        return website_root / "assets" / state.assets_saved[url]
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        res = await client.get(url, follow_redirects=True)
-        if res.status_code >= 400:
-            return None
-        dest.write_bytes(res.content)
-        rel = dest.relative_to(website_root / "assets").as_posix()
-        state.assets_saved[url] = rel
-        return dest
-    except Exception:
-        return None
+        return state.assets_saved[url]
+    state.asset_jobs[url] = dest
+    rel = dest.relative_to(website_root / "assets").as_posix()
+    state.assets_saved[url] = rel
+    return rel
+
+
+def is_downloadable_asset(url: str) -> bool:
+    if not url or url.startswith(("data:", "blob:", "javascript:", "mailto:")):
+        return False
+    return is_same_origin(url) or url.startswith(BASE_URL)
+
+
+def build_asset_map(
+    asset_urls: set[str],
+    state: MirrorState,
+    out_dir: Path,
+) -> dict[str, str]:
+    asset_map: dict[str, str] = {}
+    for asset_url in asset_urls:
+        if not is_downloadable_asset(asset_url):
+            continue
+        dest = url_to_asset_path(out_dir, asset_url)
+        rel = queue_asset(state, asset_url, dest, out_dir)
+        if rel:
+            asset_map[asset_url] = (Path("..") / "assets" / rel).as_posix()
+    return asset_map
+
+
+def run_prettier(out_dir: Path, root: Path) -> int:
+    prettier = root / "node_modules" / ".bin" / "prettier"
+    if not prettier.is_file():
+        print("prettier not installed — run: npm install")
+        return 1
+    targets = [
+        str(out_dir / "index.html"),
+        str(out_dir / "pages"),
+        str(out_dir / "manifest.json"),
+        str(out_dir / "discovered-urls.json"),
+    ]
+    cmd = [str(prettier), "--write", "--log-level", "warn", *targets]
+    print("\nPrettier formatting mirrored pages…")
+    return subprocess.run(cmd, cwd=root, check=False).returncode
 
 
 async def mirror_page(
     browser: Browser,
-    client: httpx.AsyncClient,
     url: str,
     out_dir: Path,
     state: MirrorState,
@@ -292,7 +323,7 @@ async def mirror_page(
     async def on_response(response: Response) -> None:
         try:
             rurl = response.url
-            if not is_same_origin(rurl) and not rurl.startswith("https://claude.com"):
+            if not is_downloadable_asset(rurl):
                 return
             ctype = (response.headers.get("content-type") or "").lower()
             if response.status >= 400:
@@ -322,22 +353,11 @@ async def mirror_page(
         dom_tree = await extract_dom_tree(page)
         resources = extract_resources(html, url)
 
-        asset_map: dict[str, str] = {}
-        for asset_url, dest in pending_assets.items():
-            saved = await download_asset(client, asset_url, dest, out_dir, state)
-            if saved:
-                asset_map[asset_url] = Path("..") / "assets" / saved.relative_to(out_dir / "assets")
-                asset_map[asset_url] = asset_map[asset_url].as_posix()
-                record.asset_count += 1
-
+        asset_urls: set[str] = set(pending_assets.keys())
         for group in ("stylesheets", "scripts", "fonts", "images"):
-            for asset_url in resources.get(group, []):
-                if not is_same_origin(asset_url) and not asset_url.startswith(BASE_URL):
-                    continue
-                dest = url_to_asset_path(out_dir, asset_url)
-                saved = await download_asset(client, asset_url, dest, out_dir, state)
-                if saved:
-                    asset_map[asset_url] = (Path("..") / "assets" / saved.relative_to(out_dir / "assets")).as_posix()
+            asset_urls.update(resources.get(group, []))
+        asset_map = build_asset_map(asset_urls, state, out_dir)
+        record.asset_count = len(asset_urls)
 
         local_html = rewrite_html_for_local(html, url, asset_map)
 
@@ -435,19 +455,18 @@ async def run_mirror(args: argparse.Namespace) -> int:
     )
 
     sem = asyncio.Semaphore(args.concurrency)
+    root = Path(__file__).resolve().parents[2]
 
-    async with async_playwright() as p, httpx.AsyncClient(
-        headers=headers,
-        timeout=30.0,
-        follow_redirects=True,
-    ) as client:
+    if not args.skip_aria2 and not aria2_available():
+        print("Warning: aria2c not found — install with: brew install aria2")
+
+    async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
 
         async def worker(url: str) -> None:
             async with sem:
                 rec = await mirror_page(
                     browser,
-                    client,
                     url,
                     out_dir,
                     state,
@@ -464,6 +483,27 @@ async def run_mirror(args: argparse.Namespace) -> int:
         await asyncio.gather(*(worker(u) for u in state.discovered))
         await browser.close()
 
+    # Phase 2: aria2c batch download (max bandwidth)
+    aria_ok = aria_fail = 0
+    if not args.skip_aria2 and state.asset_jobs:
+        try:
+            aria_ok, aria_fail = run_aria2_batch(
+                state.asset_jobs,
+                connections=args.aria2_connections,
+                parallel=args.aria2_parallel,
+                split=args.aria2_splits,
+            )
+            print(f"aria2c done: {aria_ok} ok, {aria_fail} missing/failed")
+        except RuntimeError as exc:
+            print(f"aria2c error: {exc}")
+            if not args.allow_aria2_fail:
+                return 1
+
+    if not args.skip_prettier:
+        fmt_rc = run_prettier(out_dir, root)
+        if fmt_rc != 0:
+            print(f"prettier exited {fmt_rc}")
+
     manifest = {
         "base_url": BASE_URL,
         "locale": args.locale,
@@ -473,6 +513,8 @@ async def run_mirror(args: argparse.Namespace) -> int:
         "completed_count": len(state.completed),
         "failed_count": len(state.failed),
         "assets_count": len(state.assets_saved),
+        "aria2_ok": aria_ok,
+        "aria2_failed": aria_fail,
         "pages": [asdict(r) for r in state.completed],
         "failed": [asdict(r) for r in state.failed],
     }
@@ -496,7 +538,7 @@ async def run_mirror(args: argparse.Namespace) -> int:
 
     print(
         f"\nDone. {len(state.completed)} ok, {len(state.failed)} failed, "
-        f"{len(state.assets_saved)} assets → {out_dir}"
+        f"{len(state.assets_saved)} assets queued, aria2 {aria_ok}/{aria_ok + aria_fail} → {out_dir}"
     )
     return 0 if not state.failed else 1
 
@@ -511,6 +553,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--timeout-ms", type=int, default=90_000)
     p.add_argument("--crawl", action="store_true", help="Also collect same-origin links from homepage")
     p.add_argument("--crawl-limit", type=int, default=200)
+    p.add_argument("--skip-aria2", action="store_true", help="Skip aria2c asset batch (HTML only)")
+    p.add_argument("--skip-prettier", action="store_true", help="Skip prettier formatting pass")
+    p.add_argument("--allow-aria2-fail", action="store_true", help="Continue if aria2c fails")
+    p.add_argument("--aria2-connections", type=int, default=16, help="aria2 -x max conn per server")
+    p.add_argument("--aria2-parallel", type=int, default=32, help="aria2 -j parallel downloads")
+    p.add_argument("--aria2-splits", type=int, default=16, help="aria2 -s splits per file")
     args = p.parse_args(argv)
     if args.all:
         args.max_pages = 0

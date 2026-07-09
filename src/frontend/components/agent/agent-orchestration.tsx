@@ -4,7 +4,7 @@ import type { Message } from "@/frontend/lib/types";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import { resolveOrchestrationBlocks } from "@/frontend/lib/agent-frames";
 import { AssistantContentRenderer } from "@/frontend/components/assistant-content-renderer";
-import { TypingDots } from "@/frontend/components/ui/typing-dots";
+import { StreamingOrbCursor } from "@/frontend/components/ui/streaming-orb-cursor";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { AgentWorkFrame } from "./agent-work-frame";
 import { ArtifactFileCard } from "./artifact-file-card";
@@ -31,7 +31,7 @@ export function AgentOrchestrationView({
   if (blocks.length === 0) {
     return showOrb ? (
       <div className="flex items-center py-1">
-        <TypingDots />
+        <StreamingOrbCursor />
       </div>
     ) : null;
   }
@@ -80,7 +80,7 @@ export function AgentOrchestrationView({
 
       {showOrb ? (
         <div className="flex items-center py-1">
-          <TypingDots />
+          <StreamingOrbCursor />
         </div>
       ) : null}
 

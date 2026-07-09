@@ -14,7 +14,7 @@ import {
 import { AssistantContentRenderer } from "./assistant-content-renderer";
 import { ThinkingBlock } from "./thinking-block";
 import { AgentMessageContent } from "./agent/agent-message-content";
-import { TypingDots } from "./ui/typing-dots";
+import { StreamingOrbCursor } from "./ui/streaming-orb-cursor";
 import { HintTooltip } from "./ui/hint-tooltip";
 import type { Message } from "@/frontend/lib/types";
 import { agentSegmentsVisuallyEqual } from "@/frontend/lib/agent-segments";
@@ -366,8 +366,8 @@ const MessageRow = React.memo(
                   />
                 )}
                 {message.isStreaming && message.content.length === 0 && (
-                  <div className="flex items-center gap-1 py-1.5">
-                    <TypingDots />
+                  <div className="flex items-center py-1.5">
+                    <StreamingOrbCursor />
                   </div>
                 )}
                 {message.content.length > 0 ? (
@@ -764,14 +764,13 @@ const ConversationTurn = React.memo(
   },
 );
 
-function readHeaderHeightPx() {
-  return (
-    parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue(
-        "--header-height",
-      ),
-    ) || 35
-  );
+function readHeaderHeightPx(from?: Element | null) {
+  const scope =
+    from?.closest("[data-chat-active], [data-chat-streaming], .login-demo-stage") ??
+    document.documentElement;
+  const raw = getComputedStyle(scope).getPropertyValue("--header-height");
+  const parsed = parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : 35;
 }
 
 let stickyActiveTurnCache = -1;
@@ -786,7 +785,7 @@ function resolveActiveStickyTurnIndex(
 ): number {
   if (turnCount <= 0) return 0;
 
-  const stickyY = viewport.getBoundingClientRect().top + readHeaderHeightPx();
+  const stickyY = viewport.getBoundingClientRect().top + readHeaderHeightPx(viewport);
   const turns = viewport.querySelectorAll<HTMLElement>(
     "[data-conversation-turn]",
   );
@@ -845,7 +844,8 @@ function resolveActiveStickyTurnIndex(
 /** Imperative sticky sync — never triggers React re-renders during scroll. */
 function syncStickyUserMessages(viewport: HTMLElement, turnCount: number) {
   const activeIndex = resolveActiveStickyTurnIndex(viewport, turnCount);
-  const stickyLineY = viewport.getBoundingClientRect().top + readHeaderHeightPx();
+  const stickyLineY =
+    viewport.getBoundingClientRect().top + readHeaderHeightPx(viewport);
 
   viewport
     .querySelectorAll<HTMLElement>("[data-conversation-turn]")

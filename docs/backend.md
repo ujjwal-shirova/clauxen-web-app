@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-1. Supabase project with the `supabase/migrations` schema applied (`npx supabase db push` or `npx prisma migrate dev`).
+1. Supabase project with the `supabase/migrations` schema applied (`npx supabase db push`).
 2. Root `.env.local` — single local env file (see `docs/vercel-deployment.md` for keys).
 3. Auth runs on Supabase GoTrue + the dev cookie session (`AUTH_DEV_BYPASS=true`).
 
@@ -13,8 +13,7 @@
 docker compose up -d
 
 # 2. Apply schema
-npx prisma migrate dev
-npx prisma generate
+npx supabase db push
 
 # 3. Seed billing plans (via Supabase migration catalog)
 #    plans are seeded by supabase/migrations/*_personal_plans_catalog.sql
