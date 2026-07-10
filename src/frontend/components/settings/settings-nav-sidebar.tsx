@@ -6,6 +6,7 @@ import { cn } from "@/frontend/lib/utils";
 import {
   settingsNav,
   settingsNavByName,
+  settingsNavGroups,
   type SettingsTab,
 } from "@/frontend/components/settings/constants";
 
@@ -87,15 +88,24 @@ export function SettingsNavSidebar({
 }: SettingsNavSidebarProps) {
   const [query, setQuery] = useState("");
 
-  const filteredTabs = useMemo(() => {
+  const filteredByGroup = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return settingsNav.map((item) => item.name);
-    return settingsNav
-      .filter((item) => item.name.toLowerCase().includes(normalized))
-      .map((item) => item.name);
+    return settingsNavGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((name) =>
+          normalized ? name.toLowerCase().includes(normalized) : true,
+        ),
+      }))
+      .filter((group) => group.items.length > 0);
   }, [query]);
 
   if (variant === "mobile-toolbar") {
+    const flatTabs =
+      filteredByGroup.flatMap((g) => g.items).length > 0
+        ? filteredByGroup.flatMap((g) => g.items)
+        : settingsNav.map((i) => i.name);
+
     return (
       <div className="flex flex-col gap-2">
         <SettingsSearchInput value={query} onChange={setQuery} />
@@ -109,13 +119,11 @@ export function SettingsNavSidebar({
             onChange={(event) => onTabChange(event.target.value as SettingsTab)}
             className="h-9 w-full appearance-none rounded-lg bg-white/80 px-3 pr-10 text-[14px] text-zinc-800 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition-colors focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
           >
-            {(filteredTabs.length > 0 ? filteredTabs : settingsNav.map((i) => i.name)).map(
-              (tab) => (
-                <option key={tab} value={tab}>
-                  {tab}
-                </option>
-              ),
-            )}
+            {flatTabs.map((tab) => (
+              <option key={tab} value={tab}>
+                {tab}
+              </option>
+            ))}
           </select>
           <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
         </div>
@@ -125,25 +133,35 @@ export function SettingsNavSidebar({
 
   return (
     <nav
-      className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden"
+      className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden"
       aria-label="Settings"
     >
       <SettingsSearchInput value={query} onChange={setQuery} />
 
-      <p className="px-2 pt-3 text-[12px] leading-[14px] text-zinc-500">
-        Settings
-      </p>
-
-      <ul className="flex min-h-0 flex-1 flex-col gap-px overflow-y-auto pb-1">
-        {filteredTabs.map((tab) => (
-          <NavButton
-            key={tab}
-            tab={tab}
-            isActive={activeTab === tab}
-            onSelect={() => onTabChange(tab)}
-          />
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-1">
+        {filteredByGroup.map((group) => (
+          <div key={group.label} className="flex flex-col gap-px">
+            <p className="px-2 pb-1 pt-2 text-[12px] leading-[14px] text-zinc-500">
+              {group.label}
+            </p>
+            <ul className="flex flex-col gap-px">
+              {group.items.map((tab) => (
+                <NavButton
+                  key={tab}
+                  tab={tab}
+                  isActive={activeTab === tab}
+                  onSelect={() => onTabChange(tab)}
+                />
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
+        {filteredByGroup.length === 0 ? (
+          <p className="px-2 py-4 text-center text-[13px] text-zinc-500">
+            No matching settings
+          </p>
+        ) : null}
+      </div>
     </nav>
   );
 }

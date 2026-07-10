@@ -12,6 +12,8 @@ export type GeneralSettings = {
   voiceIsolation: boolean;
   dictationEnabled: boolean;
   toolMode: string;
+  motion: string;
+  voiceSpeed: string;
 };
 
 export type PersonalizationSettings = {
@@ -33,6 +35,7 @@ export type PersonalizationSettings = {
 export type NotificationSettings = {
   desktopAlerts: boolean;
   soundEffects: boolean;
+  responseCompletions: boolean;
   codexChannel: string;
   responseChannel: string;
   groupChatChannel: string;
@@ -40,6 +43,33 @@ export type NotificationSettings = {
   projectsChannel: string;
   recommendationsChannel: string;
   usageChannel: string;
+};
+
+export type PrivacySettings = {
+  locationMetadata: boolean;
+  helpImproveModels: boolean;
+};
+
+export type CapabilitiesSettings = {
+  generateMemory: boolean;
+  connectorSearch: boolean;
+  switchModelsWhenFlagged: boolean;
+  artifacts: boolean;
+  aiPoweredArtifacts: boolean;
+  inlineVisualizations: boolean;
+  codeExecution: boolean;
+  networkEgress: boolean;
+};
+
+export type TimeAndFocusSettings = {
+  breakReminder: string;
+  breakSnooze: string;
+  quietHours: string;
+  quietDays: boolean[];
+};
+
+export type ReflectSettings = {
+  range: string;
 };
 
 export type ClawDeployment = {
@@ -62,6 +92,10 @@ export type AppSettings = {
   general: GeneralSettings;
   personalization: PersonalizationSettings;
   notifications: NotificationSettings;
+  privacy: PrivacySettings;
+  capabilities: CapabilitiesSettings;
+  timeAndFocus: TimeAndFocusSettings;
+  reflect: ReflectSettings;
   claw: { deployments: ClawDeployment[] };
 };
 
@@ -73,6 +107,10 @@ export async function updateSettings(patch: {
   general?: Partial<GeneralSettings>;
   personalization?: Partial<PersonalizationSettings>;
   notifications?: Partial<NotificationSettings>;
+  privacy?: Partial<PrivacySettings>;
+  capabilities?: Partial<CapabilitiesSettings>;
+  timeAndFocus?: Partial<TimeAndFocusSettings>;
+  reflect?: Partial<ReflectSettings>;
   claw?: Partial<{ deployments: ClawDeployment[] }>;
 }) {
   return apiFetch<AppSettings>("/api/v1/settings", {

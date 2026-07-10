@@ -1,36 +1,30 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Bell,
-  Building2,
-  Clock,
+  Briefcase,
+  Code2,
   CreditCard,
-  Database,
-  HardDrive,
-  History,
-  Keyboard,
-  KeyRound,
+  FileText,
   LayoutGrid,
+  Lightbulb,
+  Moon,
   Settings,
-  ShieldCheck,
+  Shield,
   UserCircle,
-  Users,
+  Wand2,
 } from "lucide-react";
 
 export const settingsNav = [
   { name: "General", icon: Settings },
-  { name: "Notifications", icon: Bell },
-  { name: "Personalization", icon: History },
-  { name: "Apps", icon: LayoutGrid },
-  { name: "Schedules", icon: Clock },
-  { name: "Billing", icon: CreditCard },
-  { name: "Data controls", icon: Database },
-  { name: "Storage", icon: HardDrive },
-  { name: "Security", icon: KeyRound },
-  { name: "Parental controls", icon: Users },
-  { name: "Trusted contact", icon: ShieldCheck },
   { name: "Account", icon: UserCircle },
-  { name: "Enterprise", icon: Building2 },
-  { name: "Keyboard", icon: Keyboard },
+  { name: "Privacy", icon: Shield },
+  { name: "Billing", icon: CreditCard },
+  { name: "Capabilities", icon: Briefcase },
+  { name: "Reflect", icon: Lightbulb },
+  { name: "Time and focus", icon: Moon },
+  { name: "Clauxen Code", icon: Code2 },
+  { name: "Skills", icon: FileText },
+  { name: "Connectors", icon: LayoutGrid },
+  { name: "Plugins", icon: Wand2 },
 ] as const satisfies ReadonlyArray<{ name: string; icon: LucideIcon }>;
 
 export type SettingsTab = (typeof settingsNav)[number]["name"];
@@ -44,34 +38,27 @@ export const settingsNavGroups: ReadonlyArray<{
   items: readonly SettingsTab[];
 }> = [
   {
-    label: "Preferences",
+    label: "Settings",
     items: [
       "General",
-      "Notifications",
-      "Personalization",
-      "Apps",
-      "Schedules",
-    ],
-  },
-  {
-    label: "Plan & data",
-    items: ["Billing", "Data controls", "Storage"],
-  },
-  {
-    label: "Privacy & account",
-    items: [
-      "Security",
-      "Parental controls",
-      "Trusted contact",
       "Account",
-      "Enterprise",
+      "Privacy",
+      "Billing",
+      "Capabilities",
+      "Reflect",
+      "Time and focus",
+      "Clauxen Code",
     ],
   },
   {
-    label: "Shortcuts",
-    items: ["Keyboard"],
+    label: "Customize",
+    items: ["Skills", "Connectors", "Plugins"],
   },
 ];
+
+export function isSettingsTab(value: string): value is SettingsTab {
+  return value in settingsNavByName;
+}
 
 export const fontThemes = [
   { name: "Default", serif: true },
@@ -99,6 +86,8 @@ export const notificationDeliveryOptions = [
 export const appearanceOptions = ["System", "Light", "Dark"] as const;
 
 export const contrastOptions = ["System", "Default", "Increased"] as const;
+
+export const motionOptions = ["System", "Reduced"] as const;
 
 export const baseStyleToneOptions = [
   "Default",

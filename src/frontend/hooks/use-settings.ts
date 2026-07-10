@@ -4,11 +4,41 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as settingsApi from "@/frontend/lib/api/settings";
 import type {
   AppSettings,
+  CapabilitiesSettings,
   GeneralSettings,
   NotificationSettings,
   PersonalizationSettings,
+  PrivacySettings,
+  ReflectSettings,
+  TimeAndFocusSettings,
 } from "@/frontend/lib/api/settings";
 import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
+
+function mergeLocal(
+  prev: AppSettings | null,
+  patch: Parameters<typeof settingsApi.updateSettings>[0],
+): AppSettings {
+  const base = prev ?? DEFAULT_APP_SETTINGS;
+  return {
+    ...base,
+    general: patch.general ? { ...base.general, ...patch.general } : base.general,
+    personalization: patch.personalization
+      ? { ...base.personalization, ...patch.personalization }
+      : base.personalization,
+    notifications: patch.notifications
+      ? { ...base.notifications, ...patch.notifications }
+      : base.notifications,
+    privacy: patch.privacy ? { ...base.privacy, ...patch.privacy } : base.privacy,
+    capabilities: patch.capabilities
+      ? { ...base.capabilities, ...patch.capabilities }
+      : base.capabilities,
+    timeAndFocus: patch.timeAndFocus
+      ? { ...base.timeAndFocus, ...patch.timeAndFocus }
+      : base.timeAndFocus,
+    reflect: patch.reflect ? { ...base.reflect, ...patch.reflect } : base.reflect,
+    claw: patch.claw ? { ...base.claw, ...patch.claw } : base.claw,
+  };
+}
 
 export function useSettings(enabled: boolean) {
   const [settings, setSettings] = useState<AppSettings | null>(() =>
@@ -48,22 +78,7 @@ export function useSettings(enabled: boolean) {
   const persist = useCallback(
     async (patch: Parameters<typeof settingsApi.updateSettings>[0]) => {
       if (!enabled) {
-        setSettings((prev) => {
-          const base = prev ?? DEFAULT_APP_SETTINGS;
-          return {
-            ...base,
-            general: patch.general
-              ? { ...base.general, ...patch.general }
-              : base.general,
-            personalization: patch.personalization
-              ? { ...base.personalization, ...patch.personalization }
-              : base.personalization,
-            notifications: patch.notifications
-              ? { ...base.notifications, ...patch.notifications }
-              : base.notifications,
-            claw: patch.claw ? { ...base.claw, ...patch.claw } : base.claw,
-          };
-        });
+        setSettings((prev) => mergeLocal(prev, patch));
         return;
       }
 
@@ -78,52 +93,54 @@ export function useSettings(enabled: boolean) {
     [enabled],
   );
 
-  const updateGeneral = useCallback(
-    (patch: Partial<GeneralSettings>) => {
-      setSettings((prev) => {
-        const base = prev ?? DEFAULT_APP_SETTINGS;
-        return { ...base, general: { ...base.general, ...patch } };
-      });
+  const schedulePersist = useCallback(
+    (patch: Parameters<typeof settingsApi.updateSettings>[0]) => {
+      setSettings((prev) => mergeLocal(prev, patch));
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
-        void persist({ general: patch });
+        void persist(patch);
       }, 400);
     },
     [persist],
+  );
+
+  const updateGeneral = useCallback(
+    (patch: Partial<GeneralSettings>) => schedulePersist({ general: patch }),
+    [schedulePersist],
   );
 
   const updateNotifications = useCallback(
-    (patch: Partial<NotificationSettings>) => {
-      setSettings((prev) => {
-        const base = prev ?? DEFAULT_APP_SETTINGS;
-        return {
-          ...base,
-          notifications: { ...base.notifications, ...patch },
-        };
-      });
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        void persist({ notifications: patch });
-      }, 400);
-    },
-    [persist],
+    (patch: Partial<NotificationSettings>) =>
+      schedulePersist({ notifications: patch }),
+    [schedulePersist],
   );
 
   const updatePersonalization = useCallback(
-    (patch: Partial<PersonalizationSettings>) => {
-      setSettings((prev) => {
-        const base = prev ?? DEFAULT_APP_SETTINGS;
-        return {
-          ...base,
-          personalization: { ...base.personalization, ...patch },
-        };
-      });
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        void persist({ personalization: patch });
-      }, 400);
-    },
-    [persist],
+    (patch: Partial<PersonalizationSettings>) =>
+      schedulePersist({ personalization: patch }),
+    [schedulePersist],
+  );
+
+  const updatePrivacy = useCallback(
+    (patch: Partial<PrivacySettings>) => schedulePersist({ privacy: patch }),
+    [schedulePersist],
+  );
+
+  const updateCapabilities = useCallback(
+    (patch: Partial<CapabilitiesSettings>) =>
+      schedulePersist({ capabilities: patch }),
+    [schedulePersist],
+  );
+
+  const updateTimeAndFocus = useCallback(
+    (patch: Partial<TimeAndFocusSettings>) =>
+      schedulePersist({ timeAndFocus: patch }),
+    [schedulePersist],
+  );
+
+  const updateReflect = useCallback(
+    (patch: Partial<ReflectSettings>) => schedulePersist({ reflect: patch }),
+    [schedulePersist],
   );
 
   const createClawDeployment = useCallback(
@@ -169,6 +186,10 @@ export function useSettings(enabled: boolean) {
     updateGeneral,
     updatePersonalization,
     updateNotifications,
+    updatePrivacy,
+    updateCapabilities,
+    updateTimeAndFocus,
+    updateReflect,
     createClawDeployment,
     persist,
   };

@@ -129,7 +129,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   );
 
   const onPersonalizationClick = useCallback(() => {
-    overlays.openSettings("Personalization");
+    overlays.openSettings("Capabilities");
     closeMobileNav();
   }, [overlays, closeMobileNav]);
 

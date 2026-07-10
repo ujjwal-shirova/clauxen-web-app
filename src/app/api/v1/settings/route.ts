@@ -1,6 +1,7 @@
 import { withApiHandler } from "@/backend/http/api-handler";
 import { jsonData } from "@/backend/http/api-response";
 import { requireSession } from "@/backend/auth/require-session";
+import { query } from "@/backend/db/pool";
 import * as settingsRepo from "@/backend/repositories/settings.repository";
 
 export const runtime = "nodejs";
@@ -18,6 +19,8 @@ const defaultGeneral = {
   voiceIsolation: false,
   dictationEnabled: true,
   toolMode: "auto",
+  motion: "System",
+  voiceSpeed: "Normal",
 };
 
 const defaultPersonalization = {
@@ -39,6 +42,7 @@ const defaultPersonalization = {
 const defaultNotifications = {
   desktopAlerts: true,
   soundEffects: false,
+  responseCompletions: true,
   codexChannel: "Push",
   responseChannel: "Push",
   groupChatChannel: "Push",
@@ -48,11 +52,75 @@ const defaultNotifications = {
   usageChannel: "Push, Email",
 };
 
+const defaultPrivacy = {
+  locationMetadata: false,
+  helpImproveModels: false,
+};
+
+const defaultCapabilities = {
+  generateMemory: true,
+  connectorSearch: false,
+  switchModelsWhenFlagged: false,
+  artifacts: true,
+  aiPoweredArtifacts: false,
+  inlineVisualizations: false,
+  codeExecution: true,
+  networkEgress: true,
+};
+
+const defaultTimeAndFocus = {
+  breakReminder: "-",
+  breakSnooze: "-",
+  quietHours: "-",
+  quietDays: [false, false, false, false, false, false, false],
+};
+
+const defaultReflect = {
+  range: "Past month",
+};
+
 function mergeSettings<T extends Record<string, unknown>>(
   defaults: T,
   stored?: Record<string, unknown> | null,
 ): T {
   return { ...defaults, ...(stored ?? {}) } as T;
+}
+
+function toClientPayload(
+  stored: Record<string, unknown>,
+  notifStored: Record<string, unknown>,
+) {
+  return {
+    general: mergeSettings(
+      defaultGeneral,
+      stored.general as Record<string, unknown>,
+    ),
+    personalization: mergeSettings(
+      defaultPersonalization,
+      stored.personalization as Record<string, unknown>,
+    ),
+    notifications: mergeSettings(
+      defaultNotifications,
+      notifStored.channels as Record<string, unknown>,
+    ),
+    privacy: mergeSettings(
+      defaultPrivacy,
+      stored.privacy as Record<string, unknown>,
+    ),
+    capabilities: mergeSettings(
+      defaultCapabilities,
+      stored.capabilities as Record<string, unknown>,
+    ),
+    timeAndFocus: mergeSettings(
+      defaultTimeAndFocus,
+      stored.timeAndFocus as Record<string, unknown>,
+    ),
+    reflect: mergeSettings(
+      defaultReflect,
+      stored.reflect as Record<string, unknown>,
+    ),
+    claw: (stored.claw as { deployments?: unknown[] }) ?? { deployments: [] },
+  };
 }
 
 export const GET = withApiHandler(
@@ -69,21 +137,7 @@ export const GET = withApiHandler(
       unknown
     >;
 
-    return jsonData({
-      general: mergeSettings(
-        defaultGeneral,
-        stored.general as Record<string, unknown>,
-      ),
-      personalization: mergeSettings(
-        defaultPersonalization,
-        stored.personalization as Record<string, unknown>,
-      ),
-      notifications: mergeSettings(
-        defaultNotifications,
-        notifStored.channels as Record<string, unknown>,
-      ),
-      claw: (stored.claw as { deployments?: unknown[] }) ?? { deployments: [] },
-    });
+    return jsonData(toClientPayload(stored, notifStored));
   },
   { requireAuth: true },
 );
@@ -95,6 +149,10 @@ export const PATCH = withApiHandler(
       general?: Record<string, unknown>;
       personalization?: Record<string, unknown>;
       notifications?: Record<string, unknown>;
+      privacy?: Record<string, unknown>;
+      capabilities?: Record<string, unknown>;
+      timeAndFocus?: Record<string, unknown>;
+      reflect?: Record<string, unknown>;
       claw?: Record<string, unknown>;
     };
 
@@ -105,23 +163,21 @@ export const PATCH = withApiHandler(
     >;
 
     const nextSettings: Record<string, unknown> = { ...currentSettings };
-    if (body.general) {
-      nextSettings.general = {
-        ...((currentSettings.general as Record<string, unknown>) ?? {}),
-        ...body.general,
-      };
-    }
-    if (body.claw) {
-      nextSettings.claw = {
-        ...((currentSettings.claw as Record<string, unknown>) ?? {}),
-        ...body.claw,
-      };
-    }
-    if (body.personalization) {
-      nextSettings.personalization = {
-        ...((currentSettings.personalization as Record<string, unknown>) ?? {}),
-        ...body.personalization,
-      };
+    for (const key of [
+      "general",
+      "personalization",
+      "privacy",
+      "capabilities",
+      "timeAndFocus",
+      "reflect",
+      "claw",
+    ] as const) {
+      if (body[key]) {
+        nextSettings[key] = {
+          ...((currentSettings[key] as Record<string, unknown>) ?? {}),
+          ...body[key],
+        };
+      }
     }
 
     const theme =
@@ -138,6 +194,20 @@ export const PATCH = withApiHandler(
       theme,
       language: language && language !== "Auto-detect" ? language : undefined,
     });
+
+    // Training opt-in from Privacy also mirrors the dedicated column when present.
+    if (typeof body.privacy?.helpImproveModels === "boolean") {
+      try {
+        await query(
+          `update public.user_settings
+           set data_training_opt_in = $2, updated_at = now()
+           where user_id = $1`,
+          [user.id, body.privacy.helpImproveModels],
+        );
+      } catch {
+        /* column may be unavailable in some envs */
+      }
+    }
 
     if (body.notifications) {
       const notifCurrent = await settingsRepo.getNotificationPreferences(
@@ -173,21 +243,7 @@ export const PATCH = withApiHandler(
       unknown
     >;
 
-    return jsonData({
-      general: mergeSettings(
-        defaultGeneral,
-        stored.general as Record<string, unknown>,
-      ),
-      personalization: mergeSettings(
-        defaultPersonalization,
-        stored.personalization as Record<string, unknown>,
-      ),
-      notifications: mergeSettings(
-        defaultNotifications,
-        notifStored.channels as Record<string, unknown>,
-      ),
-      claw: (stored.claw as { deployments?: unknown[] }) ?? { deployments: [] },
-    });
+    return jsonData(toClientPayload(stored, notifStored));
   },
   { requireAuth: true },
 );

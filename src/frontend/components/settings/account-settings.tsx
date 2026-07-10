@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  SettingsChevronRow,
   SettingsPanelTitle,
   SettingsPillButton,
   SettingsSectionHeading,
@@ -16,10 +15,18 @@ interface AccountSettingsProps {
   userEmail?: string | null;
   userDisplayName?: string | null;
   onLogout?: () => void;
+  onLogoutAllDevices?: () => void;
   onDeleteAccount?: () => void;
   workspace?: Workspace | null;
   workspaceMembers?: WorkspaceMember[];
   workspaceLoading?: boolean;
+  sessions?: Array<{
+    device: string;
+    location: string;
+    created: string;
+    updated?: string;
+    current?: boolean;
+  }>;
 }
 
 export function AccountSettings({
@@ -29,27 +36,142 @@ export function AccountSettings({
   userEmail,
   userDisplayName,
   onLogout,
+  onLogoutAllDevices,
   onDeleteAccount,
   workspace,
   workspaceMembers = [],
   workspaceLoading,
+  sessions = [],
 }: AccountSettingsProps) {
   const displayName =
     userDisplayName?.trim() ||
     (userEmail ? userEmail.split("@")[0]?.replace(/\./g, " ") : null) ||
     "—";
 
+  const orgId = workspace?.id ?? userId ?? "—";
+
   return (
     <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900">
+      <SettingsPanelTitle>Account</SettingsPanelTitle>
+      <h2 className="text-[20px] font-semibold tracking-tight">Account</h2>
+
       <section>
-        <SettingsPanelTitle>Account</SettingsPanelTitle>
         <SettingsValueRow label="Name" value={displayName} />
-        <SettingsChevronRow label="Email" value={userEmail ?? "—"} />
+        <SettingsValueRow label="Email" value={userEmail ?? "—"} />
+
         <div className="flex min-h-[60px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
-          <span className="text-[14px] font-[430]">Delete account</span>
-          <SettingsPillButton variant="danger" onClick={onDeleteAccount}>
-            Delete
+          <span className="text-[14px] font-[430]">Log out of all devices</span>
+          <SettingsPillButton onClick={onLogoutAllDevices ?? onLogout}>
+            Log out
           </SettingsPillButton>
+        </div>
+
+        <div className="flex min-h-[60px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
+          <span className="text-[14px] font-[430]">Delete your account</span>
+          <button
+            type="button"
+            onClick={onDeleteAccount}
+            className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-5 text-[14px] font-medium text-white transition-colors hover:bg-zinc-800"
+          >
+            Delete account
+          </button>
+        </div>
+
+        <div className="mt-4">
+          <p className="mb-2 text-[13px] font-medium text-zinc-500">
+            Organization ID
+          </p>
+          <button
+            type="button"
+            onClick={onCopyOrgId}
+            className="flex w-full items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-left font-mono text-[13px] text-zinc-600 transition-colors hover:bg-zinc-100"
+            title="Copy organization ID"
+          >
+            <span className="truncate">{orgId}</span>
+            <span className="ml-3 shrink-0 text-[12px] text-zinc-400">
+              {copied ? "Copied" : "Copy"}
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <SettingsSectionHeading>Trusted devices</SettingsSectionHeading>
+        <p className="mb-3 text-[13px] text-zinc-500">
+          Devices that can control your local machine through remote sessions.
+        </p>
+        <div className="overflow-hidden rounded-xl border border-zinc-200">
+          <table className="w-full text-left text-[13px]">
+            <thead className="bg-zinc-50 text-zinc-500">
+              <tr>
+                <th className="px-4 py-2.5 font-medium">Device</th>
+                <th className="px-4 py-2.5 font-medium">Added</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td
+                  colSpan={2}
+                  className="px-4 py-8 text-center text-zinc-500"
+                >
+                  No trusted devices.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <SettingsSectionHeading>Active sessions</SettingsSectionHeading>
+        <div className="mt-2 overflow-hidden rounded-xl border border-zinc-200">
+          <table className="w-full text-left text-[13px]">
+            <thead className="bg-zinc-50 text-zinc-500">
+              <tr>
+                <th className="px-4 py-2.5 font-medium">Device</th>
+                <th className="px-4 py-2.5 font-medium">Location</th>
+                <th className="px-4 py-2.5 font-medium">Created</th>
+                <th className="px-4 py-2.5 font-medium">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessions.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-4 py-8 text-center text-zinc-500"
+                  >
+                    No active sessions listed yet.
+                  </td>
+                </tr>
+              ) : (
+                sessions.map((session) => (
+                  <tr
+                    key={`${session.device}-${session.created}`}
+                    className="border-t border-zinc-100"
+                  >
+                    <td className="px-4 py-3 font-medium text-zinc-900">
+                      {session.device}
+                      {session.current ? (
+                        <span className="ml-2 rounded-full bg-[#1b67b2]/10 px-2 py-0.5 text-[11px] font-medium text-[#1b67b2]">
+                          Current
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600">
+                      {session.location}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600">
+                      {session.created}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600">
+                      {session.updated ?? "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -60,66 +182,19 @@ export function AccountSettings({
             <p className="text-[14px] text-zinc-400">Loading workspace…</p>
           )}
           {!workspaceLoading && workspace && (
-            <div className="mt-2 flex flex-col gap-3">
+            <div className="mt-2 flex flex-col gap-1">
               <SettingsValueRow
                 label="Workspace name"
                 value={workspace.name}
                 borderless
               />
-              <div className="flex min-h-[52px] items-center justify-between gap-4 py-2">
-                <span className="text-[14px] font-[430]">Workspace ID</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[13px] text-zinc-600">
-                    {workspace.id}
-                  </span>
-                  {onCopyOrgId && userId && (
-                    <button
-                      type="button"
-                      onClick={onCopyOrgId}
-                      className="rounded-md p-1.5 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-                      aria-label="Copy organization ID"
-                    >
-                      {copied ? "Copied" : "Copy"}
-                    </button>
-                  )}
-                </div>
-              </div>
-              {workspaceMembers.length > 0 && (
-                <ul className="rounded-lg border border-zinc-200 divide-y divide-zinc-100">
-                  {workspaceMembers.map((member) => (
-                    <li
-                      key={member.id}
-                      className="flex items-center justify-between px-3 py-2.5 text-[13px]"
-                    >
-                      <span className="truncate">
-                        {member.display_name || member.email || member.user_id}
-                      </span>
-                      <span className="shrink-0 capitalize text-zinc-400">
-                        {member.role}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <SettingsValueRow
+                label="Members"
+                value={String(workspaceMembers.length)}
+                borderless
+              />
             </div>
           )}
-          {!workspaceLoading && !workspace && (
-            <p className="mt-2 text-[14px] text-zinc-400">
-              No workspace linked to this account.
-            </p>
-          )}
-        </section>
-      )}
-
-      {onLogout && (
-        <section className="border-t border-zinc-200 pt-6">
-          <button
-            type="button"
-            onClick={onLogout}
-            className="text-[14px] text-zinc-600 underline-offset-2 hover:text-zinc-900 hover:underline"
-          >
-            Log out
-          </button>
         </section>
       )}
     </div>

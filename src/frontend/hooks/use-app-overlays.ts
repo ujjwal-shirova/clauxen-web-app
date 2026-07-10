@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { SettingsTab } from "@/frontend/components/settings/constants";
+import {
+  isSettingsTab,
+  type SettingsTab,
+} from "@/frontend/components/settings/constants";
 
 export type Overlay =
   | { type: "pricing" }
@@ -11,6 +14,23 @@ export type Overlay =
   | { type: "settings"; tab: SettingsTab };
 
 export type OverlayType = Overlay["type"];
+
+/** Map removed / renamed settings tabs to the current IA. */
+const LEGACY_SETTINGS_TABS: Record<string, SettingsTab> = {
+  Personalization: "Capabilities",
+  Enterprise: "General",
+  Notifications: "General",
+  "Data controls": "Privacy",
+  Security: "Account",
+  Storage: "Account",
+  Connectors: "Connectors",
+  Apps: "Connectors",
+};
+
+function normalizeSettingsTab(value: string): SettingsTab {
+  if (isSettingsTab(value)) return value;
+  return LEGACY_SETTINGS_TABS[value] ?? "General";
+}
 
 function parseHash(hash: string): Overlay | null {
   if (!hash) return null;
@@ -23,8 +43,8 @@ function parseHash(hash: string): Overlay | null {
 
   if (clean.startsWith("settings")) {
     const parts = clean.split("/");
-    const tab = (parts[1] ? decodeURIComponent(parts[1]) : "General") as SettingsTab;
-    return { type: "settings", tab };
+    const raw = parts[1] ? decodeURIComponent(parts[1]) : "General";
+    return { type: "settings", tab: normalizeSettingsTab(raw) };
   }
 
   return null;

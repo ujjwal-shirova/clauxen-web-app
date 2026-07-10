@@ -1,151 +1,128 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
-import { Button } from "@/frontend/components/ui/button";
-import { Switch } from "@/frontend/components/ui/switch";
+import { ChevronRight } from "lucide-react";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/frontend/components/ui/accordion"; // Accordion primitives — FAQ-style expandable privacy sections
+  SettingsPanelTitle,
+  SettingsPillButton,
+  SettingsSection,
+  SettingsToggleRow,
+} from "@/frontend/components/settings/settings-ui";
 
-export function PrivacySettings() {
+export type PrivacySettingsState = {
+  locationMetadata: boolean;
+  helpImproveModels: boolean;
+};
+
+interface PrivacySettingsProps {
+  privacy: PrivacySettingsState;
+  onChange: (patch: Partial<PrivacySettingsState>) => void;
+  onExportData?: () => void;
+}
+
+export function PrivacySettings({
+  privacy,
+  onChange,
+  onExportData,
+}: PrivacySettingsProps) {
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in duration-300">
-      <section className="flex flex-col gap-6 pb-8 border-b border-zinc-200 text-zinc-700">
-        <div className="flex items-start gap-4">
-          {/* icon container — data privacy SVG thumbnail */}
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100">
-            <img
-              src="https://claude.ai/images/settings/data_privacy.svg"
-              alt="Privacy"
-              className="h-7 w-7"
-              referrerPolicy="no-referrer"
-            />
-          </div>
-          <div className="flex flex-col">
-            <h2 className="text-[16px] font-semibold">Privacy</h2>
-            <p className="text-[14px] font-[430] text-zinc-500">
-              Shirova believes in transparent data practices
-            </p>
-          </div>
-        </div>
+    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
+      <SettingsPanelTitle>Privacy</SettingsPanelTitle>
 
-        <p className="text-[14px] leading-relaxed">
+      <section className="mb-8">
+        <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900">
+          Privacy
+        </h2>
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-zinc-600">
           Learn how your information is protected when using Clauxen products,
           and visit our{" "}
           <a
-            href="#"
-            className="underline decoration-zinc-300 hover:text-zinc-900"
+            href="/legal/privacy"
+            className="text-[#1b67b2] hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             Privacy Center
           </a>{" "}
           and{" "}
           <a
-            href="#"
-            className="underline decoration-zinc-300 hover:text-zinc-900"
+            href="/legal/privacy"
+            className="text-[#1b67b2] hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             Privacy Policy
           </a>{" "}
           for more details.
         </p>
 
-        <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="protect" className="border-none">
-            <AccordionTrigger className="py-2 text-[14px] font-[430] hover:no-underline">
-              How we protect your data
-            </AccordionTrigger>
-            <AccordionContent className="pb-4 text-[14px] leading-relaxed text-zinc-500">
-              We use industry-standard encryption and security protocols to
-              ensure your conversations and personal information remain secure
-              at all times.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="use" className="border-none">
-            <AccordionTrigger className="py-2 text-[14px] font-[430] hover:no-underline">
-              How we use your data
-            </AccordionTrigger>
-            <AccordionContent className="pb-4 text-[14px] leading-relaxed text-zinc-500">
-              Your data is primarily used to provide and improve our services.
-              We do not sell your personal information to third parties.
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        <div className="mt-4 flex flex-col">
+          {[
+            "How we protect your data",
+            "How we use your data",
+          ].map((label) => (
+            <button
+              key={label}
+              type="button"
+              className="flex h-11 items-center justify-between border-b border-zinc-100 text-left text-[14px] text-zinc-800 transition-colors hover:bg-zinc-50"
+            >
+              <span>{label}</span>
+              <ChevronRight className="h-4 w-4 text-zinc-400" aria-hidden />
+            </button>
+          ))}
+        </div>
       </section>
 
-      <section className="flex flex-col gap-6 text-zinc-700">
-        <h2 className="text-[16px] font-semibold">Privacy settings</h2>
-
-        <div className="flex items-center justify-between gap-8">
-          <p className="text-[14px] font-[430]">Export data</p>
-          <Button
-            variant="outline"
-            className="h-9 rounded-lg border-zinc-300 px-4 text-zinc-700 hover:bg-zinc-100"
-          >
-            Export data
-          </Button>
-        </div>
-
-        <div className="flex items-center justify-between gap-8">
-          <p className="text-[14px] font-[430]">Shared chats</p>
-          <Button
-            variant="outline"
-            className="h-9 rounded-lg border-zinc-300 px-4 text-zinc-700 hover:bg-zinc-100"
-          >
-            Manage
-          </Button>
-        </div>
-
-        {/* Memory preferences row — ghost button + ExternalLink icon */}
-        <div className="flex items-center justify-between gap-8">
-          <p className="text-[14px] font-[430]">Memory preferences</p>
-          <Button
-            variant="ghost"
-            className="h-9 gap-1.5 rounded-lg px-3 text-zinc-700 hover:bg-zinc-100"
-          >
-            Manage <ExternalLink className="h-3.5 w-3.5 opacity-60" />
-          </Button>
-        </div>
-
-        {/* Location metadata toggle — coarse city/region metadata opt-in */}
-        <div className="flex items-start justify-between gap-8">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[14px] font-[430]">Location metadata</p>
-            <p className="text-[14px] leading-snug text-zinc-500">
+      <SettingsSection title="Preferences">
+        <SettingsToggleRow
+          label="Location metadata"
+          description={
+            <>
               Allow Clauxen to use coarse location metadata (city/region) to
               improve product experiences.{" "}
-              <a
-                href="#"
-                className="underline decoration-zinc-400/40 hover:text-zinc-800"
-              >
+              <a href="/legal/privacy" className="text-[#1b67b2] hover:underline">
                 Learn more
               </a>
               .
-            </p>
-          </div>
-          <Switch />
-        </div>
-
-        {/* Help improve Clauxen toggle — training opt-in; default checked placeholder */}
-        <div className="flex items-start justify-between gap-8">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[14px] font-[430]">Help improve Clauxen</p>
-            <p className="text-[14px] leading-snug text-zinc-500">
+            </>
+          }
+          checked={privacy.locationMetadata}
+          onCheckedChange={(locationMetadata) => onChange({ locationMetadata })}
+        />
+        <SettingsToggleRow
+          label="Help improve our AI models"
+          description={
+            <>
               Allow the use of your chats and coding sessions to train and
-              improve Shirova AI models.{" "}
-              <a
-                href="#"
-                className="underline decoration-zinc-400/40 hover:text-zinc-800"
-              >
+              improve Clauxen.{" "}
+              <a href="/legal/privacy" className="text-[#1b67b2] hover:underline">
                 Learn more
               </a>
               .
-            </p>
-          </div>
-          <Switch checked />
+            </>
+          }
+          checked={privacy.helpImproveModels}
+          onCheckedChange={(helpImproveModels) =>
+            onChange({ helpImproveModels })
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection title="Your data">
+        <div className="flex min-h-[56px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
+          <span className="text-[14px] font-medium">Export data</span>
+          <SettingsPillButton onClick={onExportData}>
+            Export data
+          </SettingsPillButton>
         </div>
-      </section>
+        <div className="flex min-h-[56px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
+          <span className="text-[14px] font-medium">Shared chats</span>
+          <SettingsPillButton>Manage</SettingsPillButton>
+        </div>
+        <div className="flex min-h-[56px] items-center justify-between gap-4 py-3">
+          <span className="text-[14px] font-medium">Shared artifacts</span>
+          <SettingsPillButton>Manage</SettingsPillButton>
+        </div>
+      </SettingsSection>
     </div>
   );
 }

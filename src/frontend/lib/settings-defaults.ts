@@ -14,6 +14,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     voiceIsolation: false,
     dictationEnabled: true,
     toolMode: "auto",
+    motion: "System",
+    voiceSpeed: "Normal",
   },
   personalization: {
     baseStyleTone: "Default",
@@ -33,6 +35,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   notifications: {
     desktopAlerts: true,
     soundEffects: false,
+    responseCompletions: true,
     codexChannel: "Push",
     responseChannel: "Push",
     groupChatChannel: "Push",
@@ -40,6 +43,29 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     projectsChannel: "Email",
     recommendationsChannel: "Push, Email",
     usageChannel: "Push, Email",
+  },
+  privacy: {
+    locationMetadata: false,
+    helpImproveModels: false,
+  },
+  capabilities: {
+    generateMemory: true,
+    connectorSearch: false,
+    switchModelsWhenFlagged: false,
+    artifacts: true,
+    aiPoweredArtifacts: false,
+    inlineVisualizations: false,
+    codeExecution: true,
+    networkEgress: true,
+  },
+  timeAndFocus: {
+    breakReminder: "-",
+    breakSnooze: "-",
+    quietHours: "-",
+    quietDays: [false, false, false, false, false, false, false],
+  },
+  reflect: {
+    range: "Past month",
   },
   claw: { deployments: [] },
 };

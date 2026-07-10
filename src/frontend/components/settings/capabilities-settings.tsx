@@ -1,251 +1,210 @@
 "use client";
 
-import { Button } from "@/frontend/components/ui/button";
+import { ChevronRight } from "lucide-react";
 import {
-  RadioGroup,
-  RadioGroupItem,
-} from "@/frontend/components/ui/radio-group";
-import { Switch } from "@/frontend/components/ui/switch";
-import { settingsRadioItemClass } from "@/frontend/components/settings/settings-ui";
+  SettingsOptionPicker,
+  SettingsPanelTitle,
+  SettingsPillButton,
+  SettingsSection,
+  SettingsToggleRow,
+} from "@/frontend/components/settings/settings-ui";
 
-const ALLOWED_TOOL_MODES = new Set(["auto", "on-demand", "always"]);
+export type CapabilitiesSettingsState = {
+  generateMemory: boolean;
+  connectorSearch: boolean;
+  switchModelsWhenFlagged: boolean;
+  artifacts: boolean;
+  aiPoweredArtifacts: boolean;
+  inlineVisualizations: boolean;
+  codeExecution: boolean;
+  networkEgress: boolean;
+  toolMode: string;
+};
 
 interface CapabilitiesSettingsProps {
-  toolMode: string;
-  setToolMode: (value: string) => void;
-  onGoToCustomize: (tab: "skills" | "connectors") => void;
+  capabilities: CapabilitiesSettingsState;
+  onChange: (patch: Partial<CapabilitiesSettingsState>) => void;
+  onGoToCustomize?: (tab: "skills" | "connectors") => void;
+}
+
+const TOOL_MODE_LABELS = [
+  "Load tools when needed",
+  "Auto",
+  "Always available",
+] as const;
+
+function toolModeToLabel(mode: string): string {
+  if (mode === "auto") return "Auto";
+  if (mode === "always") return "Always available";
+  return "Load tools when needed";
+}
+
+function labelToToolMode(label: string): string {
+  if (label === "Auto") return "auto";
+  if (label === "Always available") return "always";
+  return "on-demand";
 }
 
 export function CapabilitiesSettings({
-  toolMode,
-  setToolMode,
+  capabilities,
+  onChange,
   onGoToCustomize,
 }: CapabilitiesSettingsProps) {
-  const handleToolModeChange = (value: string) => {
-    if (!ALLOWED_TOOL_MODES.has(value)) return;
-    setToolMode(value);
-  };
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in duration-300">
-      <section className="flex flex-col gap-6 pb-8 border-b border-zinc-200 text-zinc-700">
-        <h2 className="text-[16px] font-semibold">Memory</h2>
+    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
+      <SettingsPanelTitle>Capabilities</SettingsPanelTitle>
 
-        <div className="flex items-start justify-between gap-8">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[14px] font-[430]">
-              Generate memory from chat history
-            </p>
-
-            <p className="text-[14px] leading-snug text-zinc-500">
-              Allow Clauxen to remember relevant context from your chats. Memory
-              includes your entire chat history with Clauxen.{" "}
-              <a
-                href="#"
-                className="underline decoration-zinc-500/40 hover:text-zinc-800"
-              >
+      <SettingsSection title="Memory">
+        <SettingsToggleRow
+          label="Generate memory from chat history"
+          description={
+            <>
+              Allow Clauxen to remember relevant context from your chats.{" "}
+              <a href="/legal/privacy" className="text-[#1b67b2] hover:underline">
                 Learn more
               </a>
               .
-            </p>
+            </>
+          }
+          checked={capabilities.generateMemory}
+          onCheckedChange={(generateMemory) => onChange({ generateMemory })}
+        />
+
+        <button
+          type="button"
+          className="flex min-h-[56px] w-full items-center justify-between gap-4 border-b border-zinc-100 py-3 text-left transition-colors hover:bg-zinc-50"
+        >
+          <div>
+            <p className="text-[14px] font-medium">View and manage memory</p>
+            <p className="mt-0.5 text-[13px] text-zinc-500">Updated recently</p>
           </div>
-          <Switch />
-        </div>
-        <div className="flex items-start justify-between gap-8">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[14px] font-[430]">
+          <ChevronRight className="h-4 w-4 text-zinc-400" aria-hidden />
+        </button>
+
+        <div className="flex min-h-[72px] items-start justify-between gap-4 border-b border-zinc-100 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] font-medium">
               Import memory from other AI providers
             </p>
-
-            <p className="text-[14px] leading-snug text-zinc-500">
-              Bring relevant context and data from another AI provider to
-              Clauxen. We&apos;ll provide a prompt you can use to fetch the
-              memory from your other account.{" "}
-              <a
-                href="#"
-                className="underline decoration-zinc-500/40 hover:text-zinc-800"
-              >
+            <p className="mt-1 text-[13px] leading-snug text-zinc-500">
+              Bring relevant context from another AI provider into Clauxen.{" "}
+              <a href="/legal/privacy" className="text-[#1b67b2] hover:underline">
                 Learn more
               </a>
               .
             </p>
           </div>
-          <Button
-            variant="outline"
-            className="h-9 rounded-lg border-zinc-300 px-4 text-zinc-700 hover:bg-zinc-100"
-          >
+          <SettingsPillButton className="shrink-0">
             Start import
-          </Button>
+          </SettingsPillButton>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section className="flex flex-col gap-6 pb-8 border-b border-zinc-200 text-zinc-700">
-        <h2 className="text-[16px] font-semibold">Tool access</h2>
-
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <p className="text-[14px] font-[430]">Tool access mode</p>
-
-            <p className="text-[14px] leading-snug text-zinc-500">
+      <SettingsSection title="General">
+        <div className="flex min-h-[72px] items-start justify-between gap-4 border-b border-zinc-100 py-3">
+          <div className="min-w-0 flex-1 pr-4">
+            <p className="text-[14px] font-medium">Tool access mode</p>
+            <p className="mt-1 text-[13px] leading-snug text-zinc-500">
               Controls how connector tools are loaded in new conversations.
             </p>
           </div>
-          <RadioGroup
-            value={toolMode}
-            onValueChange={handleToolModeChange}
-            className="mt-2 flex flex-col gap-4"
-          >
-            <div className="flex items-start gap-4 rounded-lg p-2 transition-colors hover:bg-zinc-100">
-              <RadioGroupItem
-                value="auto"
-                id="auto"
-                className={settingsRadioItemClass}
-              />
-              <label
-                htmlFor="auto"
-                className="flex cursor-pointer flex-col gap-0.5"
-              >
-                <span className="text-[14px] font-medium">Auto</span>
-
-                <span className="text-[14px] text-zinc-500">
-                  Clauxen chooses for you.
-                </span>
-              </label>
-            </div>
-            <div className="flex items-start gap-4 rounded-lg p-2 transition-colors hover:bg-zinc-100">
-              <RadioGroupItem
-                value="on-demand"
-                id="on-demand"
-                className={settingsRadioItemClass}
-              />
-              <label
-                htmlFor="on-demand"
-                className="flex cursor-pointer flex-col gap-0.5"
-              >
-                <span className="text-[14px] font-medium">On demand</span>
-
-                <span className="text-[14px] text-zinc-500">
-                  Load when needed. More messages, lower accuracy.
-                </span>
-              </label>
-            </div>
-            <div className="flex items-start gap-4 rounded-lg p-2 transition-colors hover:bg-zinc-100">
-              <RadioGroupItem
-                value="always"
-                id="always"
-                className={settingsRadioItemClass}
-              />
-              <label
-                htmlFor="always"
-                className="flex cursor-pointer flex-col gap-0.5"
-              >
-                <span className="text-[14px] font-medium">
-                  Always available
-                </span>
-
-                <span className="text-[14px] text-zinc-500">
-                  Ready from start. Fewer messages, better accuracy.
-                </span>
-              </label>
-            </div>
-          </RadioGroup>
+          <SettingsOptionPicker
+            value={toolModeToLabel(capabilities.toolMode)}
+            options={TOOL_MODE_LABELS}
+            onValueChange={(label) =>
+              onChange({ toolMode: labelToToolMode(label) })
+            }
+          />
         </div>
-      </section>
 
-      <section className="flex flex-col gap-6 pb-8 border-b border-zinc-200 text-zinc-700">
-        <h2 className="text-[16px] font-semibold">Visuals</h2>
+        <SettingsToggleRow
+          label="Connector search"
+          description="Allow Clauxen to search across connected apps when answering."
+          checked={capabilities.connectorSearch}
+          onCheckedChange={(connectorSearch) => onChange({ connectorSearch })}
+        />
+        <SettingsToggleRow
+          label="Switch models when a message is flagged"
+          description="When safety measures flag a message, automatically switch to a model that can handle it."
+          checked={capabilities.switchModelsWhenFlagged}
+          onCheckedChange={(switchModelsWhenFlagged) =>
+            onChange({ switchModelsWhenFlagged })
+          }
+        />
+      </SettingsSection>
 
-        <div className="flex items-start justify-between gap-8">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[14px] font-[430]">Artifacts</p>
+      <SettingsSection title="Visuals">
+        <SettingsToggleRow
+          label="Artifacts"
+          description="Generate code, documents, and designs in a dedicated window alongside your conversation."
+          checked={capabilities.artifacts}
+          onCheckedChange={(artifacts) => onChange({ artifacts })}
+        />
+        <SettingsToggleRow
+          label="AI-powered artifacts"
+          description="Build apps and interactive documents that use Clauxen inside the artifact."
+          checked={capabilities.aiPoweredArtifacts}
+          onCheckedChange={(aiPoweredArtifacts) =>
+            onChange({ aiPoweredArtifacts })
+          }
+        />
+        <SettingsToggleRow
+          label="Inline visualizations"
+          description="Allow Clauxen to generate interactive visualizations, charts, and diagrams directly in the conversation."
+          checked={capabilities.inlineVisualizations}
+          onCheckedChange={(inlineVisualizations) =>
+            onChange({ inlineVisualizations })
+          }
+        />
+      </SettingsSection>
 
-            <p className="text-[14px] leading-snug text-zinc-500">
-              Ask Clauxen to generate content like code snippets, text
-              documents, or website designs, and Clauxen will create an Artifact
-              that appears in a dedicated window alongside your conversation.
-            </p>
+      <SettingsSection title="Code execution and file creation">
+        <SettingsToggleRow
+          label="Code execution and file creation"
+          description="Clauxen can execute code and create and edit docs, spreadsheets, presentations, PDFs, and data reports. Required for skills."
+          checked={capabilities.codeExecution}
+          onCheckedChange={(codeExecution) => onChange({ codeExecution })}
+        />
+
+        {capabilities.codeExecution ? (
+          <div className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
+            <SettingsToggleRow
+              label="Allow network egress"
+              description={
+                <>
+                  Allow Clauxen to access common package managers to install
+                  packages and libraries.{" "}
+                  <a href="#" className="text-[#1b67b2] hover:underline">
+                    View package manager domains
+                  </a>{" "}
+                  and{" "}
+                  <a href="#" className="text-[#1b67b2] hover:underline">
+                    security risks
+                  </a>
+                  .
+                </>
+              }
+              checked={capabilities.networkEgress}
+              onCheckedChange={(networkEgress) => onChange({ networkEgress })}
+              borderless
+            />
           </div>
-          <Switch checked disabled className="opacity-50" />
-        </div>
-        <div className="flex items-start justify-between gap-8">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[14px] font-[430]">AI-powered artifacts</p>
+        ) : null}
+      </SettingsSection>
 
-            <p className="text-[14px] leading-snug text-zinc-500">
-              Create apps, prototypes, and interactive documents that use
-              Clauxen inside the artifact. Start by saying, &quot;Let&apos;s
-              build an AI app...&quot; to access the power of Shirova API.
-            </p>
-          </div>
-          <Switch />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-6 pb-8 border-b border-zinc-200 text-zinc-700">
-        <h2 className="text-[16px] font-semibold">
-          Code execution and file creation
-        </h2>
-
-        <div className="flex items-start justify-between gap-8">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[14px] font-[430]">
-              Code execution and file creation
-            </p>
-
-            <p className="text-[14px] leading-snug text-zinc-500">
-              Clauxen can execute code and create and edit docs, spreadsheets,
-              presentations, PDFs, and data reports.
-            </p>
-          </div>
-          <Switch checked />
-        </div>
-        <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
-          <div className="flex items-start justify-between gap-8">
-            <div className="flex flex-col gap-1.5">
-              <p className="text-[14px] font-medium">Allow network egress</p>
-
-              <p className="text-[14px] leading-snug text-zinc-500">
-                Allow Clauxen to access common package managers to install
-                packages and libraries for data analysis, visualizations, and
-                file processing.{" "}
-                <a
-                  href="#"
-                  className="underline decoration-zinc-500/40 hover:text-zinc-800"
-                >
-                  View package manager domains
-                </a>
-                . Monitor chats closely as this comes with{" "}
-                <a
-                  href="#"
-                  className="underline decoration-zinc-500/40 hover:text-zinc-800"
-                >
-                  security risks
-                </a>
-                .
-              </p>
-            </div>
-            <Switch />
-          </div>
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-6 text-zinc-700">
-        <h2 className="text-[16px] font-semibold">Skills</h2>
-
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-          <p className="text-[14px] leading-snug">
-            Skills have moved to Customize. Head to the new Customize page to
-            manage your skills and connectors.
-          </p>
-
-          <Button
-            variant="outline"
+      {onGoToCustomize ? (
+        <p className="mt-6 text-[13px] text-zinc-500">
+          Skills have moved to{" "}
+          <button
+            type="button"
             onClick={() => onGoToCustomize("skills")}
-            className="h-8 shrink-0 border-zinc-300 px-3 text-[12px] text-zinc-700 hover:bg-zinc-100"
+            className="text-[#1b67b2] hover:underline"
           >
-            Go to Customize
-          </Button>
-        </div>
-      </section>
+            Customize
+          </button>
+          .
+        </p>
+      ) : null}
     </div>
   );
 }

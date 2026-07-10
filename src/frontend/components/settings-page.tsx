@@ -3,22 +3,24 @@
 import React, { useEffect, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { SettingsTab } from "@/frontend/components/settings/constants";
+import {
+  isSettingsTab,
+  type SettingsTab,
+} from "@/frontend/components/settings/constants";
 import { GeneralSettings } from "@/frontend/components/settings/general-settings";
-import { NotificationsSettings } from "@/frontend/components/settings/notifications-settings";
-import { PersonalizationSettingsPanel } from "@/frontend/components/settings/personalization-settings";
 import { AccountSettings } from "@/frontend/components/settings/account-settings";
+import { PrivacySettings } from "@/frontend/components/settings/privacy-settings";
 import { BillingSettings } from "@/frontend/components/settings/billing-settings";
-import { DataControlsSettings } from "@/frontend/components/settings/data-controls-settings";
-import { SecuritySettings } from "@/frontend/components/settings/security-settings";
-import { StorageSettings } from "@/frontend/components/settings/storage-settings";
-import { ConnectorsSettings } from "@/frontend/components/settings/connectors-settings";
-import { KeyboardSettings } from "@/frontend/components/settings/keyboard-settings";
-import { ParentalControlsSettings } from "@/frontend/components/settings/parental-controls-settings";
-import { TrustedContactSettings } from "@/frontend/components/settings/trusted-contact-settings";
+import { CapabilitiesSettings } from "@/frontend/components/settings/capabilities-settings";
+import { ReflectSettings } from "@/frontend/components/settings/reflect-settings";
+import { TimeAndFocusSettings } from "@/frontend/components/settings/time-and-focus-settings";
+import { ClauxenCodeSettings } from "@/frontend/components/settings/clauxen-code-settings";
+import { SkillsSettings } from "@/frontend/components/settings/skills-settings";
+import {
+  ConnectorsCatalogSettings,
+  PluginsSettings,
+} from "@/frontend/components/settings/plugins-settings";
 import { SettingsNavSidebar } from "@/frontend/components/settings/settings-nav-sidebar";
-import { EnterpriseSettings } from "@/frontend/components/settings/enterprise-settings";
-import { SettingsPlaceholder } from "@/frontend/components/settings/settings-placeholder";
 import { SettingsPageSkeleton } from "@/frontend/components/settings/settings-page-skeleton";
 import { ShimmerSkeleton } from "@/frontend/components/ui/shimmer-skeleton";
 import {
@@ -32,7 +34,6 @@ import { useAuth } from "@/frontend/hooks/use-auth";
 import * as workspacesApi from "@/frontend/lib/api/workspaces";
 import type { Workspace, WorkspaceMember } from "@/frontend/lib/api/workspaces";
 import { cn } from "@/frontend/lib/utils";
-
 import type { SessionUser } from "@/frontend/lib/api/auth";
 
 interface SettingsModalProps {
@@ -61,21 +62,24 @@ export function SettingsModal({
     settings,
     loading: settingsLoading,
     updateGeneral,
-    updatePersonalization,
+    updatePrivacy,
+    updateCapabilities,
+    updateTimeAndFocus,
+    updateReflect,
     updateNotifications,
   } = useSettings(auth.isAuthenticated);
-  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+
+  const safeInitial = isSettingsTab(initialTab) ? initialTab : "General";
+  const [activeTab, setActiveTab] = useState<SettingsTab>(safeInitial);
 
   const handleTabChange = (tab: SettingsTab) => {
     setActiveTab(tab);
-    if (onTabChange) {
-      onTabChange(tab);
-    }
+    onTabChange?.(tab);
   };
 
   useEffect(() => {
     if (open) {
-      setActiveTab(initialTab);
+      setActiveTab(isSettingsTab(initialTab) ? initialTab : "General");
     }
   }, [initialTab, open]);
 
@@ -87,7 +91,10 @@ export function SettingsModal({
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
 
   const general = settings?.general;
-  const personalization = settings?.personalization;
+  const privacy = settings?.privacy;
+  const capabilities = settings?.capabilities;
+  const timeAndFocus = settings?.timeAndFocus;
+  const reflect = settings?.reflect;
   const notifications = settings?.notifications;
 
   useEffect(() => {
@@ -114,7 +121,7 @@ export function SettingsModal({
   }, [open, user?.id]);
 
   const handleCopyOrgId = () => {
-    const id = user?.id ?? "";
+    const id = workspace?.id ?? user?.id ?? "";
     if (!id) return;
     navigator.clipboard.writeText(id);
     setCopied(true);
@@ -125,7 +132,10 @@ export function SettingsModal({
     auth.loading ||
     (auth.isAuthenticated && settingsLoading) ||
     !general ||
-    !personalization ||
+    !privacy ||
+    !capabilities ||
+    !timeAndFocus ||
+    !reflect ||
     !notifications;
 
   const showSettingsSkeleton = useMinimumLoadingTime(
@@ -134,7 +144,16 @@ export function SettingsModal({
   );
 
   const renderActiveTab = () => {
-    if (!general || !personalization || !notifications) return null;
+    if (
+      !general ||
+      !privacy ||
+      !capabilities ||
+      !timeAndFocus ||
+      !reflect ||
+      !notifications
+    ) {
+      return null;
+    }
 
     switch (activeTab) {
       case "General":
@@ -160,76 +179,16 @@ export function SettingsModal({
             setVoice={(v) => updateGeneral({ voice: v })}
             setVoiceIsolation={(v) => updateGeneral({ voiceIsolation: v })}
             setDictationEnabled={(v) => updateGeneral({ dictationEnabled: v })}
-          />
-        );
-      case "Notifications":
-        return (
-          <NotificationsSettings
-            codexChannel={notifications.codexChannel ?? "Push"}
-            responseChannel={notifications.responseChannel}
-            groupChatChannel={notifications.groupChatChannel}
-            tasksChannel={notifications.tasksChannel}
-            projectsChannel={notifications.projectsChannel}
-            recommendationsChannel={notifications.recommendationsChannel}
-            usageChannel={notifications.usageChannel}
-            desktopAlerts={notifications.desktopAlerts}
-            soundEffects={notifications.soundEffects}
-            setCodexChannel={(v) => updateNotifications({ codexChannel: v })}
-            setResponseChannel={(v) =>
-              updateNotifications({ responseChannel: v })
+            motion={general.motion ?? "System"}
+            setMotion={(v) => updateGeneral({ motion: v })}
+            voiceSpeed={general.voiceSpeed ?? "Normal"}
+            setVoiceSpeed={(v) => updateGeneral({ voiceSpeed: v })}
+            responseCompletions={notifications.responseCompletions ?? true}
+            setResponseCompletions={(v) =>
+              updateNotifications({ responseCompletions: v })
             }
-            setGroupChatChannel={(v) =>
-              updateNotifications({ groupChatChannel: v })
-            }
-            setTasksChannel={(v) => updateNotifications({ tasksChannel: v })}
-            setProjectsChannel={(v) =>
-              updateNotifications({ projectsChannel: v })
-            }
-            setRecommendationsChannel={(v) =>
-              updateNotifications({ recommendationsChannel: v })
-            }
-            setUsageChannel={(v) => updateNotifications({ usageChannel: v })}
-            setDesktopAlerts={(v) => updateNotifications({ desktopAlerts: v })}
-            setSoundEffects={(v) => updateNotifications({ soundEffects: v })}
           />
         );
-      case "Personalization":
-        return (
-          <PersonalizationSettingsPanel
-            personalization={personalization}
-            toolMode={general.toolMode}
-            onChange={updatePersonalization}
-            onToolModeChange={(v) => updateGeneral({ toolMode: v })}
-            onGoToCustomize={onGoToCustomize}
-          />
-        );
-      case "Apps":
-        return <ConnectorsSettings onGoToCustomize={onGoToCustomize} />;
-      case "Schedules":
-        return (
-          <SettingsPlaceholder
-            title="Schedules"
-            description="Set when Clauxen can run tasks, send reminders, and respect quiet hours."
-          />
-        );
-      case "Billing":
-        return (
-          <BillingSettings
-            onUpgradeClick={onUpgradeClick}
-            userDisplayName={user?.displayName ?? user?.email}
-            userEmail={user?.email}
-          />
-        );
-      case "Data controls":
-        return <DataControlsSettings />;
-      case "Storage":
-        return <StorageSettings />;
-      case "Security":
-        return <SecuritySettings onLogout={onLogout} />;
-      case "Parental controls":
-        return <ParentalControlsSettings />;
-      case "Trusted contact":
-        return <TrustedContactSettings />;
       case "Account":
         return (
           <AccountSettings
@@ -239,15 +198,77 @@ export function SettingsModal({
             userEmail={user?.email}
             userDisplayName={user?.displayName}
             onLogout={onLogout}
+            onLogoutAllDevices={onLogout}
             workspace={workspace}
             workspaceMembers={workspaceMembers}
             workspaceLoading={workspaceLoading}
           />
         );
-      case "Enterprise":
-        return <EnterpriseSettings />;
-      case "Keyboard":
-        return <KeyboardSettings />;
+      case "Privacy":
+        return (
+          <PrivacySettings privacy={privacy} onChange={updatePrivacy} />
+        );
+      case "Billing":
+        return (
+          <BillingSettings
+            onUpgradeClick={onUpgradeClick}
+            userDisplayName={user?.displayName ?? user?.email}
+            userEmail={user?.email}
+          />
+        );
+      case "Capabilities":
+        return (
+          <CapabilitiesSettings
+            capabilities={{
+              ...capabilities,
+              toolMode: general.toolMode,
+            }}
+            onChange={(patch) => {
+              if (patch.toolMode != null) {
+                updateGeneral({ toolMode: patch.toolMode });
+              }
+              const { toolMode: _toolMode, ...rest } = patch;
+              if (Object.keys(rest).length > 0) {
+                updateCapabilities(rest);
+              }
+            }}
+            onGoToCustomize={onGoToCustomize}
+          />
+        );
+      case "Reflect":
+        return (
+          <ReflectSettings
+            range={reflect.range}
+            onRangeChange={(range) => updateReflect({ range })}
+          />
+        );
+      case "Time and focus":
+        return (
+          <TimeAndFocusSettings
+            timeAndFocus={timeAndFocus}
+            onChange={updateTimeAndFocus}
+          />
+        );
+      case "Clauxen Code":
+        return <ClauxenCodeSettings />;
+      case "Skills":
+        return (
+          <SkillsSettings
+            onBrowse={() => onGoToCustomize("skills")}
+            onAdd={() => onGoToCustomize("skills")}
+          />
+        );
+      case "Connectors":
+        return (
+          <ConnectorsCatalogSettings
+            onGoToCustomize={() => onGoToCustomize("connectors")}
+            onAdd={() => onGoToCustomize("connectors")}
+          />
+        );
+      case "Plugins":
+        return <PluginsSettings />;
+      default:
+        return null;
     }
   };
 
