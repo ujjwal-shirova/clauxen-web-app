@@ -1,0 +1,64 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3] [cursor=pointer]:
+      - generic [ref=e4]:
+        - generic:
+          - img "Clauxen"
+        - generic [ref=e5]:
+          - img "Clauxen" [ref=e6]
+          - button "Expand sidebar" [ref=e7]:
+            - img [ref=e8]
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - button [ref=e13]:
+            - img [ref=e14]
+          - button "New chat" [ref=e17]:
+            - generic [ref=e18]:
+              - img
+        - generic [ref=e19]:
+          - button [ref=e20]:
+            - img [ref=e23]
+          - button [ref=e25]:
+            - img [ref=e28]
+          - button [ref=e32]:
+            - img [ref=e35]
+      - button [ref=e39]:
+        - img [ref=e40]
+    - main [ref=e43]:
+      - generic [ref=e124]:
+        - generic [ref=e125]:
+          - generic [ref=e126]:
+            - generic [ref=e137]:
+              - button "Expand user message" [ref=e138] [cursor=pointer]:
+                - paragraph [ref=e139]: "Say exactly: Browser debug works."
+              - generic:
+                - button:
+                  - img
+                - button:
+                  - img
+                - button:
+                  - img
+            - generic [ref=e148]:
+              - generic [ref=e152]:
+                - textbox "Ask anything" [active] [ref=e155]
+                - generic [ref=e156]:
+                  - button "Add content" [ref=e158]:
+                    - img [ref=e159]
+                  - generic [ref=e160]:
+                    - button [ref=e161]:
+                      - img [ref=e162]
+                    - button [ref=e165]:
+                      - img [ref=e166]
+              - paragraph [ref=e170]: Clauxen can make mistakes. Check important info.
+          - generic [ref=e173]:
+            - button "New Chat" [ref=e174]:
+              - generic [ref=e175]: New Chat
+            - button "Chat options" [ref=e177]:
+              - img [ref=e178]
+        - generic [ref=e181]:
+          - button "Toggle artifacts panel" [ref=e182]:
+            - img [ref=e183]
+          - button "Share" [ref=e187]
+  - alert [ref=e121]
+  - region "Notifications (F8)":
+    - list

@@ -9,9 +9,12 @@ const PUBLIC_PREFIXES = [
   "/signup",
   "/auth/",
   "/share/",
+  "/legal/",
+  "/about",
 ] as const;
 
 function isPublicPath(pathname: string) {
+  if (pathname === "/about") return true;
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return true;
   }
@@ -81,6 +84,15 @@ export async function updateSession(request: NextRequest) {
     ? request.cookies.get(env.sessionCookieName)?.value
     : null;
   const isAuthenticated = Boolean(user?.id || devSession);
+
+  // Unauthenticated apex → public about page (Google OAuth branding needs a
+  // crawlable home page that explains the product + links privacy/terms).
+  if (!isAuthenticated && pathname === "/") {
+    const aboutUrl = request.nextUrl.clone();
+    aboutUrl.pathname = "/about";
+    aboutUrl.search = "";
+    return NextResponse.redirect(aboutUrl);
+  }
 
   if (!isPublicPath(pathname) && !isAuthenticated) {
     const loginUrl = request.nextUrl.clone();
