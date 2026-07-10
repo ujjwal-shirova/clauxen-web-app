@@ -2,6 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { env } from "@/backend/config/env";
 import { queryOne } from "@/backend/db/pool";
+import {
+  DISPOSABLE_EMAIL_MESSAGE,
+  isDisposableEmailSafe,
+} from "@/backend/email-verifier/disposable-email";
 import { getSupabasePublicConfig, requireSupabasePublicConfig } from "./env";
 
 const PUBLIC_PREFIXES = [
@@ -80,6 +84,26 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Hard gate: disposable sessions cannot use the app (DevTools / direct API bypass).
+  if (
+    user?.email &&
+    isDisposableEmailSafe(user.email) &&
+    !pathname.startsWith("/api/") &&
+    pathname !== "/login" &&
+    pathname !== "/signup"
+  ) {
+    await supabase.auth.signOut();
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.search = "";
+    loginUrl.searchParams.set("error", DISPOSABLE_EMAIL_MESSAGE);
+    const redirect = NextResponse.redirect(loginUrl);
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirect.cookies.set(cookie.name, cookie.value);
+    });
+    return redirect;
+  }
+
   const devSession = env.authDevBypass
     ? request.cookies.get(env.sessionCookieName)?.value
     : null;
@@ -115,6 +139,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isAuthenticated && (pathname === "/login" || pathname === "/signup")) {
+    // Don't bounce disposable users back into the app from the login splash.
+    if (user?.email && isDisposableEmailSafe(user.email)) {
+      return supabaseResponse;
+    }
     const home = request.nextUrl.clone();
     home.pathname = "/";
     home.search = "";

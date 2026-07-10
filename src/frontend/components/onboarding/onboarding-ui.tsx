@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import { appBtn } from "@/frontend/lib/app-buttons";
 import type { ButtonHTMLAttributes, InputHTMLAttributes } from "react";
@@ -13,11 +14,11 @@ export function OnboardingHeading({
 }) {
   return (
     <header className="mx-auto max-w-md text-center">
-      <h1 className="font-serif text-[28px] font-medium leading-[1.3] tracking-tight md:text-[38px] md:leading-[1.2]">
+      <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-zinc-900 md:text-[32px]">
         {title}
       </h1>
       {subtitle ? (
-        <p className="mt-2 text-sm font-medium leading-snug text-zinc-700 md:text-base">
+        <p className="mt-2 text-sm leading-snug text-zinc-500 md:text-[15px]">
           {subtitle}
         </p>
       ) : null}
@@ -35,7 +36,7 @@ export function OnboardingCard({
   return (
     <div
       className={cn(
-        "w-full rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_1px_2px_rgba(24,24,27,0.04)] md:p-6",
+        "w-full rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(24,24,27,0.04)] md:p-6",
         className,
       )}
     >
@@ -71,8 +72,8 @@ export function OnboardingGhostButton({
     <button
       type="button"
       className={cn(
-        "inline-flex h-11 w-full items-center justify-center rounded-lg px-5 text-sm font-medium text-zinc-700 transition-colors",
-        "hover:bg-zinc-100",
+        "inline-flex h-11 w-full items-center justify-center rounded-lg px-5 text-sm font-medium text-zinc-600 transition-colors",
+        "hover:bg-zinc-100 hover:text-zinc-900",
         className,
       )}
       {...props}
@@ -103,21 +104,12 @@ export function OnboardingCheckboxRow({
         <span
           className={cn(
             "flex h-4 w-4 items-center justify-center rounded border border-zinc-300 bg-white transition-colors",
-            "peer-focus-visible:ring-2 peer-focus-visible:ring-[#2977d6]/40",
+            "peer-focus-visible:ring-2 peer-focus-visible:ring-zinc-900/20",
             checked && "border-zinc-900 bg-zinc-900",
           )}
         >
           {checked ? (
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 256 256"
-              fill="currentColor"
-              className="text-white"
-              aria-hidden
-            >
-              <path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z" />
-            </svg>
+            <Check className="h-3 w-3 text-white" strokeWidth={3} aria-hidden />
           ) : null}
         </span>
       </span>
@@ -135,8 +127,8 @@ export function OnboardingTextInput({
   return (
     <input
       className={cn(
-        "h-auto w-full rounded-2xl border border-zinc-300 bg-white px-3 py-4 text-center text-sm font-medium text-zinc-900 shadow-[0_4px_20px_rgba(0,0,0,0.04)] outline-none",
-        "placeholder:text-zinc-500 focus-visible:ring-2 focus-visible:ring-[#2977d6]/30",
+        "h-auto w-full rounded-2xl border border-zinc-200 bg-white px-3 py-4 text-center text-sm font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] outline-none",
+        "placeholder:text-zinc-400 focus-visible:ring-2 focus-visible:ring-zinc-900/15",
         className,
       )}
       {...props}

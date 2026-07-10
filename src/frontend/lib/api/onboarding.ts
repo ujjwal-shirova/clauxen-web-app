@@ -1,21 +1,33 @@
 import { apiFetch } from "@/frontend/lib/api/client";
 
-export type OnboardingState = {
+export type OnboardingAnswers = {
+  termsAccepted?: boolean;
+  privacyAccepted?: boolean;
+  marketingOptIn?: boolean;
+  modelImprovementOptIn?: boolean;
+  displayName?: string;
+  role?: string;
+  selectedPlanId?: string;
+  selectedBillingCycle?: string;
+};
+
+export type OnboardingApiState = {
   step: string | null;
   completed: boolean;
   completedAt: string | null;
-  settings?: Record<string, unknown>;
+  answers?: OnboardingAnswers;
 };
 
 export async function getOnboarding() {
-  return apiFetch<{ onboarding: OnboardingState }>("/api/v1/onboarding");
+  return apiFetch<{ onboarding: OnboardingApiState }>("/api/v1/onboarding");
 }
 
 export async function updateOnboarding(patch: {
   step?: string;
   completed?: boolean;
+  answers?: OnboardingAnswers;
 }) {
-  return apiFetch<{ onboarding: OnboardingState }>("/api/v1/onboarding", {
+  return apiFetch<{ onboarding: OnboardingApiState }>("/api/v1/onboarding", {
     method: "PATCH",
     body: JSON.stringify(patch),
   });

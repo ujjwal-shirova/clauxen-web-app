@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import type { OnboardingState } from "../onboarding-types";
 import { OnboardingShell } from "../onboarding-shell";
 import {
@@ -9,6 +10,7 @@ import {
   OnboardingLink,
   OnboardingPrimaryButton,
 } from "../onboarding-ui";
+import { useAuth } from "@/frontend/hooks/use-auth";
 
 type CreateAccountStepProps = {
   state: OnboardingState;
@@ -21,24 +23,41 @@ export function CreateAccountStep({
   state,
   onChange,
   onContinue,
-  verifiedEmail = "you@example.com",
+  verifiedEmail,
 }: CreateAccountStepProps) {
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const email = verifiedEmail ?? user?.email ?? null;
   const canSubmit = state.termsAccepted && state.privacyAccepted;
+
+  const handleDifferentEmail = async () => {
+    try {
+      await logout();
+    } catch {
+      /* still send them to login */
+    }
+    router.replace("/login");
+  };
 
   return (
     <OnboardingShell
       footer={
         <div className="w-full max-w-[450px] text-center text-sm text-zinc-500">
-          <p>
-            Email verified as{" "}
-            <span className="font-medium text-zinc-500">{verifiedEmail}</span>
-          </p>
-          <a
-            href="/api/v1/auth/logout"
+          {email ? (
+            <p>
+              Email verified as{" "}
+              <span className="font-medium text-zinc-700">{email}</span>
+            </p>
+          ) : (
+            <p>Verifying your email…</p>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleDifferentEmail()}
             className="mt-1 inline-block underline decoration-zinc-400/40 underline-offset-[3px] hover:text-zinc-700"
           >
             Use a different email
-          </a>
+          </button>
         </div>
       }
     >
@@ -48,9 +67,9 @@ export function CreateAccountStep({
           subtitle="A few things for you to review"
         />
 
-        <OnboardingCard className="text-center">
+        <OnboardingCard>
           <form
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-3 text-left"
             onSubmit={(e) => {
               e.preventDefault();
               if (canSubmit) onContinue();

@@ -13,6 +13,7 @@ import {
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { ScrollArea } from "@/frontend/components/ui/scroll-area";
 import { cn } from "@/frontend/lib/utils";
+import { useAuth } from "@/frontend/hooks/use-auth";
 import { ChatFrostedEdge } from "./ui/chat-frosted-edge";
 import { PromptSuggestions } from "./prompt-suggestions";
 
@@ -35,6 +36,8 @@ interface ChatViewPaneProps {
    * `composer-only` — centered greeting + prompt + chips. Used by login demo.
    */
   welcomeVariant?: "default" | "composer-only";
+  /** Optional override; defaults to the signed-in profile display name. */
+  userDisplayName?: string | null;
 }
 
 const allChips = [
@@ -59,6 +62,18 @@ function getTimeOfDayGreeting() {
   }
 
   return "Good evening";
+}
+
+/** First name for welcome: prefers display name, else email local-part. */
+function welcomeFirstName(
+  displayName: string | null | undefined,
+  email: string | null | undefined,
+): string | null {
+  const raw = (displayName?.trim() || email?.split("@")[0] || "").trim();
+  if (!raw) return null;
+  // Drop email-looking values down to local-part already handled; take first token.
+  const first = raw.split(/\s+/)[0]?.replace(/[^\p{L}\p{N}'-]/gu, "") ?? "";
+  return first || null;
 }
 
 /** Baseline reserve — actual value tracks measured composer height. */
@@ -101,9 +116,15 @@ export function ChatViewPane({
   scrollAreaRef,
   className,
   welcomeVariant = "default",
+  userDisplayName,
 }: ChatViewPaneProps) {
+  const { user } = useAuth();
   const composerOnlyWelcome = welcomeVariant === "composer-only";
   const [greeting, setGreeting] = useState<string | null>(null);
+  const firstName = welcomeFirstName(
+    userDisplayName ?? user?.displayName,
+    user?.email,
+  );
   const [composerReservePx, setComposerReservePx] = useState(() =>
     getMinComposerReservePx(),
   );
@@ -255,7 +276,9 @@ export function ChatViewPane({
                     {composerOnlyWelcome
                       ? "What can I help with?"
                       : greeting
-                        ? `${greeting}, Ujjwal`
+                        ? firstName
+                          ? `${greeting}, ${firstName}`
+                          : greeting
                         : "\u00a0"}
                   </h2>
 

@@ -396,9 +396,17 @@ export function AuthEmailForm({
       ) : null}
 
       {error ? (
-        <p className="text-left text-sm text-red-600" role="alert">
+        <div
+          role="alert"
+          className={cn(
+            "rounded-[10px] border px-3.5 py-3 text-left text-sm font-medium leading-snug",
+            error.toLowerCase().includes("temporary accounts are not allowed")
+              ? "border-red-300 bg-red-50 text-red-700 shadow-[0_0_0_1px_rgba(220,38,38,0.08)]"
+              : "border-red-200 bg-red-50/80 text-red-600",
+          )}
+        >
           {error}
-        </p>
+        </div>
       ) : null}
       {info ? (
         <p className="text-left text-sm text-emerald-700" role="status">
@@ -478,6 +486,13 @@ export function resolveAuthIdentifier(
 
 export function mapSupabaseAuthError(message: string): string {
   const lower = message.toLowerCase();
+  if (
+    lower.includes("temporary accounts are not allowed") ||
+    lower.includes("disposable") ||
+    lower.includes("temporrary accounts")
+  ) {
+    return "Temporary accounts are not allowed. Use a legitimate email address — disposable or temporary inboxes cannot create or sign in to Clauxen.";
+  }
   if (lower.includes("invalid login credentials")) {
     return "Incorrect email or password.";
   }

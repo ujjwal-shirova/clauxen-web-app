@@ -115,6 +115,7 @@ function PlanCarouselCard({
   onMaxTierChange,
   onSelect,
   ctaLabel,
+  forceSelectable = false,
 }: {
   plan: PlanCard;
   billingCycle: BillingCycle;
@@ -122,10 +123,12 @@ function PlanCarouselCard({
   onMaxTierChange?: (tier: MaxTier) => void;
   onSelect: () => void;
   ctaLabel?: string;
+  /** When true, treat isCurrent plans as selectable (onboarding Free). */
+  forceSelectable?: boolean;
 }) {
   const features = resolvePlanFeatures(plan, { maxTier });
   const price = getPriceDisplay(plan, billingCycle, maxTier);
-  const isCurrent = plan.isCurrent;
+  const isCurrent = plan.isCurrent && !forceSelectable;
   const isMax = plan.id === "max";
 
   return (
@@ -223,7 +226,10 @@ function PlanCarouselCard({
                   : "border-2 border-black/10 bg-white text-zinc-900 hover:bg-zinc-50",
               )}
             >
-              {ctaLabel ?? plan.buttonLabel}
+              {ctaLabel ??
+                (forceSelectable && plan.id === "free"
+                  ? "Continue with Free"
+                  : plan.buttonLabel)}
             </button>
           )}
         </div>
@@ -511,6 +517,8 @@ export type PlansCarouselSectionProps = {
   ) => void;
   /** When set, every plan CTA invokes this instead of the select handlers */
   onCtaClick?: () => void;
+  /** Plan ids that stay selectable even when marked `isCurrent` (e.g. Free in onboarding). */
+  selectableCurrentPlanIds?: string[];
   className?: string;
 };
 
@@ -520,6 +528,7 @@ export function PlansCarouselSection({
   onPersonalPlanSelect,
   onOrganizationPlanSelect,
   onCtaClick,
+  selectableCurrentPlanIds,
   className,
 }: PlansCarouselSectionProps) {
   const [activeTab, setActiveTab] = React.useState<"individual" | "team">(
@@ -704,6 +713,7 @@ export function PlansCarouselSection({
                   }
                   onSelect={() => handlePersonalSelect(plan)}
                   ctaLabel={ctaLabel}
+                  forceSelectable={selectableCurrentPlanIds?.includes(plan.id)}
                 />
               ))
             : null}

@@ -18,15 +18,15 @@ export function useAuth() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
+  const refresh = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoading(true);
     try {
       const session = await authApi.getSession();
       setUser(session);
     } catch {
       setUser(null);
     } finally {
-      setLoading(false);
+      if (!opts?.quiet) setLoading(false);
     }
   }, []);
 
@@ -37,12 +37,59 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
-      void refresh();
+      void refresh({ quiet: true });
     });
     return () => subscription.unsubscribe();
   }, [refresh]);
 
+  // Live profile updates (onboarding name, settings) → sidebar + welcome greeting
+  useEffect(() => {
+    if (!user?.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`profile-self:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            display_name?: string | null;
+            avatar_url?: string | null;
+            email?: string | null;
+          } | null;
+          if (!row || typeof row !== "object") return;
+          setUser((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  displayName:
+                    row.display_name !== undefined
+                      ? row.display_name
+                      : prev.displayName,
+                  avatarUrl:
+                    row.avatar_url !== undefined
+                      ? row.avatar_url
+                      : prev.avatarUrl,
+                  email: row.email !== undefined ? row.email : prev.email,
+                }
+              : prev,
+          );
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   const login = useCallback(async (email: string, password: string) => {
+    await authApi.validateEmail(email);
     const supabase = createClient();
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -68,6 +115,7 @@ export function useAuth() {
       password: string;
       displayName?: string;
     }) => {
+      await authApi.validateEmail(input.email);
       const supabase = createClient();
       const { data, error } = await supabase.auth.signUp({
         email: input.email.trim(),
@@ -114,6 +162,7 @@ export function useAuth() {
 
   const signInWithMagicLink = useCallback(
     async (email: string, redirectTo = "/") => {
+      await authApi.validateEmail(email);
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
@@ -159,6 +208,7 @@ export function useAuth() {
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
+    await authApi.validateEmail(email);
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${appOrigin()}/auth/confirm?type=recovery`,

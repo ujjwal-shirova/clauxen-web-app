@@ -2,6 +2,7 @@ import { withApiHandler } from "@/backend/http/api-handler";
 import { jsonData } from "@/backend/http/api-response";
 import { requireSession } from "@/backend/auth/require-session";
 import * as onboardingService from "@/backend/services/onboarding.service";
+import type { OnboardingAnswers } from "@/backend/services/onboarding.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,10 +22,12 @@ export const PATCH = withApiHandler(
     const body = (await request.json()) as {
       step?: string;
       completed?: boolean;
+      answers?: OnboardingAnswers;
     };
     const onboarding = await onboardingService.updateOnboardingState(user.id, {
       step: body.step,
       completed: body.completed,
+      answers: body.answers,
     });
     return jsonData({ onboarding });
   },

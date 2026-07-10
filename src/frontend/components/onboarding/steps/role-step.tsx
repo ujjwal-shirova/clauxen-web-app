@@ -11,7 +11,7 @@ import { cn } from "@/frontend/lib/utils";
 type RoleStepProps = {
   state: OnboardingState;
   onChange: (patch: Partial<OnboardingState>) => void;
-  onContinue: () => void;
+  onContinue: (role?: string) => void;
   onSkip: () => void;
 };
 
@@ -49,7 +49,7 @@ export function RoleStep({
               }
               className={cn(
                 "flex h-16 w-full items-center rounded-2xl border border-zinc-200 bg-white px-6 text-left text-lg transition-colors",
-                "hover:border-[#1f1f1e]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2977d6]/30",
+                "hover:border-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/15",
               )}
               aria-expanded={dropdownOpen}
               aria-haspopup="listbox"
@@ -74,7 +74,7 @@ export function RoleStep({
           value={state.role}
           onSelect={(role) => {
             onChange({ role });
-            onContinue();
+            onContinue(role);
           }}
         />
 

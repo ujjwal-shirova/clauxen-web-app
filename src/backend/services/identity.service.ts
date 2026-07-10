@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { query, queryOne } from "@/backend/db/pool"; // parameterized SQL — Postgres pool
 import { AppError } from "@/backend/db/errors"; // invalid identity / missing email errors
+import { assertEmailNotDisposable } from "@/backend/email-verifier/disposable-email";
 
 export async function ensureUserRecord(input: {
   userId: string;
@@ -9,9 +10,11 @@ export async function ensureUserRecord(input: {
 }) {
   // email normalize — lowercase + trim; duplicate account matching consistent
   const email = input.email.toLowerCase().trim();
-  // display name fallback — explicit name, else local-part of email, else "User"
-  const displayName =
-    input.displayName?.trim() || email.split("@")[0] || "User";
+  assertEmailNotDisposable(email);
+  // Only treat an explicit name as authoritative — never clobber onboarding
+  // /settings display_name with the email local-part on every session hit.
+  const explicitName = input.displayName?.trim() || null;
+  const insertName = explicitName || email.split("@")[0] || "User";
 
   await query(
     `insert into auth.users (id, email, raw_user_meta_data, created_at, updated_at)
@@ -19,7 +22,7 @@ export async function ensureUserRecord(input: {
      on conflict (id) do update set
        email = excluded.email,
        updated_at = now()`,
-    [input.userId, email, JSON.stringify({ display_name: displayName })],
+    [input.userId, email, JSON.stringify({ display_name: insertName })],
   );
 
   // public.profiles — app-facing profile row; locale/timezone defaults
@@ -28,9 +31,12 @@ export async function ensureUserRecord(input: {
      values ($1, $2, $3, 'en', 'UTC', '{}'::jsonb)
      on conflict (id) do update set
        email = excluded.email,
-       display_name = coalesce(excluded.display_name, public.profiles.display_name),
+       display_name = case
+         when $4::boolean then excluded.display_name
+         else public.profiles.display_name
+       end,
        updated_at = now()`,
-    [input.userId, email, displayName],
+    [input.userId, email, insertName, explicitName != null],
   );
 
   await query(
@@ -65,7 +71,7 @@ export async function ensureUserRecord(input: {
       `insert into public.workspaces (id, name, slug, owner_id)
        values ($1, $2, $3, $4)
        returning id`,
-      [randomUUID(), `${displayName}'s workspace`, null, input.userId],
+      [randomUUID(), `${insertName}'s workspace`, null, input.userId],
     );
   }
 

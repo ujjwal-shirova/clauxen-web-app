@@ -223,7 +223,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}
         onPinChat={handlePinChat}
-        userDisplayName={auth.user?.displayName ?? auth.user?.email ?? "Guest"}
+        userDisplayName={
+          auth.user?.displayName?.trim() ||
+          auth.user?.email?.split("@")[0] ||
+          "Guest"
+        }
         userEmail={auth.user?.email ?? ""}
         onLogoutClick={() => void auth.logout()}
       />

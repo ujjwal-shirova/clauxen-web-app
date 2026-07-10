@@ -140,6 +140,11 @@ const nextConfig: NextConfig = {
       "@tanstack/react-virtual",
     ],
   },
+  outputFileTracingIncludes: {
+    "/api/**/*": ["./src/backend/email-verifier/disposable.txt"],
+    "/auth/**/*": ["./src/backend/email-verifier/disposable.txt"],
+    "/*": ["./src/backend/email-verifier/disposable.txt"],
+  },
   turbopack: {
     root: projectRoot,
   },

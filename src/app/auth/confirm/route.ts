@@ -3,6 +3,10 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { requireSupabasePublicConfig } from "@/utils/supabase/env";
+import {
+  DISPOSABLE_EMAIL_MESSAGE,
+  isDisposableEmailSafe,
+} from "@/backend/email-verifier/disposable-email";
 
 function withSecureCookieDefaults(
   options: import("@supabase/ssr").CookieOptions = {},
@@ -49,6 +53,17 @@ export async function GET(request: NextRequest) {
   if (error) {
     return NextResponse.redirect(
       `${origin}/login?error=${encodeURIComponent(error.message)}`,
+    );
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user?.email && isDisposableEmailSafe(user.email)) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(DISPOSABLE_EMAIL_MESSAGE)}`,
     );
   }
 

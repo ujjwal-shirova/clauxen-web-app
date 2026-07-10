@@ -14,20 +14,20 @@ export interface OnboardingState {
   termsAccepted: boolean;
   privacyAccepted: boolean;
   marketingOptIn: boolean;
-  selectedPlanId: OnboardingPlanId;
+  selectedPlanId: OnboardingPlanId | string;
+  selectedBillingCycle: "monthly" | "yearly";
   displayName: string;
   role: string;
   modelImprovementOptIn: boolean;
   verifiedEmail?: string;
 }
 
-export const ONBOARDING_STORAGE_KEY = "clauxen_onboarding_v1";
-
 export const DEFAULT_ONBOARDING_STATE: OnboardingState = {
   termsAccepted: false,
   privacyAccepted: false,
   marketingOptIn: false,
   selectedPlanId: "free",
+  selectedBillingCycle: "monthly",
   displayName: "",
   role: "",
   modelImprovementOptIn: true,

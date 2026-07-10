@@ -11,6 +11,7 @@ import {
 } from "@/backend/services/identity.service";
 import { clientIp, clientUserAgent } from "@/backend/http/request-meta";
 import { sessionCookieHeader } from "@/backend/auth/session";
+import { assertEmailNotDisposable } from "@/backend/email-verifier/disposable-email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,6 +81,7 @@ export const POST = withApiHandler(async ({ request }) => {
   if (!email) {
     throw new AppError("Email is required.", 400);
   }
+  assertEmailNotDisposable(email);
 
   let user = await findUserByEmail(email);
   let isNewUser = false;

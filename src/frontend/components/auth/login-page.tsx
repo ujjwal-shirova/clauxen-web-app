@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/frontend/hooks/use-auth";
+import { useClearAuthBusyOnReturn } from "@/frontend/hooks/use-clear-auth-busy-on-return";
 import {
   AuthOAuthButtons,
   AuthEmailForm,
@@ -47,6 +48,12 @@ export function LoginPage() {
     urlError ? mapSupabaseAuthError(decodeURIComponent(urlError)) : null,
   );
   const [info, setInfo] = useState<string | null>(null);
+
+  const clearBusy = useCallback(() => {
+    setPendingProvider(null);
+    setFormSubmitting(false);
+  }, []);
+  useClearAuthBusyOnReturn(clearBusy);
 
   useEffect(() => {
     try {

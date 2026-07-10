@@ -20,12 +20,12 @@ export function OnboardingShell({
   return (
     <div
       className={cn(
-        "flex min-h-[100dvh] flex-col bg-zinc-50 text-zinc-900",
+        "flex min-h-[100dvh] flex-col bg-[var(--app-shell-bg,#f9f9f9)] font-sans text-zinc-900",
         className,
       )}
     >
-      <div className="flex shrink-0 justify-center pt-8 md:pt-10" aria-hidden>
-        <ClauxenWordmark className="-translate-x-0.5" />
+      <div className="flex shrink-0 justify-center pt-8 md:pt-10">
+        <ClauxenWordmark />
       </div>
 
       <div

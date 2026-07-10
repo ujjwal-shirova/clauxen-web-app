@@ -9,6 +9,7 @@ import {
 } from "@/backend/services/identity.service"; // user create + audit log
 import { sessionCookieHeader } from "@/backend/auth/session"; // signed session cookie string builder
 import { clientIp, clientUserAgent } from "@/backend/http/request-meta"; // request metadata for security events
+import { assertEmailNotDisposable } from "@/backend/email-verifier/disposable-email";
 
 const MAX_EMAIL_LEN = 254;
 const MAX_PASSWORD_LEN = 128;
@@ -43,6 +44,7 @@ export const POST = withApiHandler(async ({ request }) => {
   if (!isReasonableEmail(email)) {
     throw new AppError("Invalid email address.", 400, "invalid_email");
   }
+  assertEmailNotDisposable(email);
 
   const password = body.password ?? "";
   if (!password) throw new AppError("Password is required.", 400);

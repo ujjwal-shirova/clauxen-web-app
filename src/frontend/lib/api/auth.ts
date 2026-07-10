@@ -63,3 +63,13 @@ export async function register(input: {
 export async function logout() {
   return apiFetch<{ ok: boolean }>("/api/v1/auth/logout", { method: "POST" });
 }
+
+/** Server-enforced disposable/temp email gate (cannot be bypassed via DevTools alone). */
+export async function validateEmail(email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  assertNonEmptyEmail(normalizedEmail);
+  return apiFetch<{ ok: true; code: string }>("/api/v1/auth/validate-email", {
+    method: "POST",
+    body: JSON.stringify({ email: normalizedEmail }),
+  });
+}
