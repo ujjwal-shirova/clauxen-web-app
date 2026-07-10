@@ -8,13 +8,21 @@ import {
   type SettingsTab,
 } from "@/frontend/components/settings/constants";
 import { GeneralSettings } from "@/frontend/components/settings/general-settings";
+import { PersonalizationSettingsPanel } from "@/frontend/components/settings/personalization-settings";
+import { NotificationsSettings } from "@/frontend/components/settings/notifications-settings";
 import { AccountSettings } from "@/frontend/components/settings/account-settings";
+import { SecuritySettings } from "@/frontend/components/settings/security-settings";
 import { PrivacySettings } from "@/frontend/components/settings/privacy-settings";
 import { BillingSettings } from "@/frontend/components/settings/billing-settings";
+import { StorageSettings } from "@/frontend/components/settings/storage-settings";
 import { CapabilitiesSettings } from "@/frontend/components/settings/capabilities-settings";
 import { ReflectSettings } from "@/frontend/components/settings/reflect-settings";
 import { TimeAndFocusSettings } from "@/frontend/components/settings/time-and-focus-settings";
+import { SafetySettings } from "@/frontend/components/settings/safety-settings";
+import { ParentalControlsSettings } from "@/frontend/components/settings/parental-controls-settings";
+import { TrustedContactSettings } from "@/frontend/components/settings/trusted-contact-settings";
 import { ClauxenCodeSettings } from "@/frontend/components/settings/clauxen-code-settings";
+import { KeyboardSettings } from "@/frontend/components/settings/keyboard-settings";
 import { SkillsSettings } from "@/frontend/components/settings/skills-settings";
 import {
   ConnectorsCatalogSettings,
@@ -68,6 +76,7 @@ export function SettingsModal({
     updateReflect,
     updateNotifications,
     updatePersonalization,
+    updateSafety,
   } = useSettings(auth.isAuthenticated);
 
   const safeInitial = isSettingsTab(initialTab) ? initialTab : "General";
@@ -94,6 +103,7 @@ export function SettingsModal({
   const reflect = settings?.reflect;
   const notifications = settings?.notifications;
   const personalization = settings?.personalization;
+  const safety = settings?.safety;
 
   useEffect(() => {
     if (!open || !user?.id) {
@@ -124,7 +134,8 @@ export function SettingsModal({
     !timeAndFocus ||
     !reflect ||
     !notifications ||
-    !personalization;
+    !personalization ||
+    !safety;
 
   const showSettingsSkeleton = useMinimumLoadingTime(
     isSettingsDataLoading,
@@ -139,7 +150,8 @@ export function SettingsModal({
       !timeAndFocus ||
       !reflect ||
       !notifications ||
-      !personalization
+      !personalization ||
+      !safety
     ) {
       return null;
     }
@@ -155,28 +167,55 @@ export function SettingsModal({
             setChatFont={(v) => updateGeneral({ chatFont: v })}
             motion={general.motion ?? "System"}
             setMotion={(v) => updateGeneral({ motion: v })}
+            followUpSuggestions={general.followUpSuggestions ?? true}
+            setFollowUpSuggestions={(v) =>
+              updateGeneral({ followUpSuggestions: v })
+            }
+          />
+        );
+      case "Personalization":
+        return (
+          <PersonalizationSettingsPanel
+            personalization={personalization}
+            onChange={updatePersonalization}
+            onManageMemory={() => handleTabChange("Capabilities")}
+          />
+        );
+      case "Notifications":
+        return (
+          <NotificationsSettings
             responseCompletions={notifications.responseCompletions ?? true}
             setResponseCompletions={(v) =>
               updateNotifications({ responseCompletions: v })
             }
-            fullName={
-              personalization.fullName?.trim() ||
-              user?.displayName?.trim() ||
-              ""
+            codexChannel={notifications.codexChannel}
+            responseChannel={notifications.responseChannel}
+            groupChatChannel={notifications.groupChatChannel}
+            tasksChannel={notifications.tasksChannel}
+            projectsChannel={notifications.projectsChannel}
+            recommendationsChannel={notifications.recommendationsChannel}
+            usageChannel={notifications.usageChannel}
+            desktopAlerts={notifications.desktopAlerts}
+            soundEffects={notifications.soundEffects}
+            setCodexChannel={(v) => updateNotifications({ codexChannel: v })}
+            setResponseChannel={(v) =>
+              updateNotifications({ responseChannel: v })
             }
-            nickname={personalization.nickname}
-            occupation={personalization.occupation}
-            customInstructions={personalization.customInstructions}
-            onProfileChange={(patch) => {
-              const next: Parameters<typeof updatePersonalization>[0] = {};
-              if (patch.fullName != null) next.fullName = patch.fullName;
-              if (patch.nickname != null) next.nickname = patch.nickname;
-              if (patch.occupation != null) next.occupation = patch.occupation;
-              if (patch.customInstructions != null) {
-                next.customInstructions = patch.customInstructions;
-              }
-              if (Object.keys(next).length > 0) updatePersonalization(next);
-            }}
+            setGroupChatChannel={(v) =>
+              updateNotifications({ groupChatChannel: v })
+            }
+            setTasksChannel={(v) => updateNotifications({ tasksChannel: v })}
+            setProjectsChannel={(v) =>
+              updateNotifications({ projectsChannel: v })
+            }
+            setRecommendationsChannel={(v) =>
+              updateNotifications({ recommendationsChannel: v })
+            }
+            setUsageChannel={(v) => updateNotifications({ usageChannel: v })}
+            setDesktopAlerts={(v) =>
+              updateNotifications({ desktopAlerts: v })
+            }
+            setSoundEffects={(v) => updateNotifications({ soundEffects: v })}
           />
         );
       case "Account":
@@ -199,9 +238,21 @@ export function SettingsModal({
             ]}
           />
         );
+      case "Security":
+        return (
+          <SecuritySettings
+            onLogout={onLogout}
+            mfaEnabled={safety.mfaEnabled}
+            onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
+          />
+        );
       case "Privacy":
         return (
-          <PrivacySettings privacy={privacy} onChange={updatePrivacy} />
+          <PrivacySettings
+            privacy={privacy}
+            onChange={updatePrivacy}
+            onGoToPersonalization={() => handleTabChange("Personalization")}
+          />
         );
       case "Billing":
         return (
@@ -211,6 +262,8 @@ export function SettingsModal({
             userEmail={user?.email}
           />
         );
+      case "Storage":
+        return <StorageSettings />;
       case "Capabilities":
         return (
           <CapabilitiesSettings
@@ -244,8 +297,23 @@ export function SettingsModal({
             onChange={updateTimeAndFocus}
           />
         );
+      case "Safety":
+        return (
+          <SafetySettings
+            reduceSensitiveContent={safety.reduceSensitiveContent}
+            onChange={(reduceSensitiveContent) =>
+              updateSafety({ reduceSensitiveContent })
+            }
+          />
+        );
+      case "Parental controls":
+        return <ParentalControlsSettings />;
+      case "Trusted contact":
+        return <TrustedContactSettings />;
       case "Clauxen Code":
         return <ClauxenCodeSettings />;
+      case "Keyboard":
+        return <KeyboardSettings />;
       case "Skills":
         return (
           <SkillsSettings

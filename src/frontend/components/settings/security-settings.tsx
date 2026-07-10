@@ -5,16 +5,28 @@ import {
   SettingsPanelTitle,
   SettingsPillButton,
   SettingsSectionHeading,
+  SettingsToggleRow,
 } from "@/frontend/components/settings/settings-ui";
 import * as settingsApi from "@/frontend/lib/api/settings-extended";
 
 interface SecuritySettingsProps {
   onLogout?: () => void;
+  mfaEnabled?: boolean;
+  onMfaChange?: (enabled: boolean) => void;
 }
 
-export function SecuritySettings({ onLogout }: SecuritySettingsProps) {
+export function SecuritySettings({
+  onLogout,
+  mfaEnabled = false,
+  onMfaChange,
+}: SecuritySettingsProps) {
   const [sessions, setSessions] = useState<
-    Array<{ id: string; eventType: string; ipAddress: string | null; createdAt: string }>
+    Array<{
+      id: string;
+      eventType: string;
+      ipAddress: string | null;
+      createdAt: string;
+    }>
   >([]);
   const [providers, setProviders] = useState<
     Array<{ id: string; provider: string; status: string }>
@@ -33,8 +45,21 @@ export function SecuritySettings({ onLogout }: SecuritySettingsProps) {
   }, []);
 
   return (
-    <div className="flex animate-in fade-in flex-col gap-6 duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900">
       <SettingsPanelTitle>Security</SettingsPanelTitle>
+      <h2 className="text-[20px] font-semibold tracking-tight">
+        Security and login
+      </h2>
+
+      <section>
+        <SettingsToggleRow
+          label="Multi-factor authentication"
+          description="Require a second factor when signing in to your Clauxen account."
+          checked={mfaEnabled}
+          onCheckedChange={(v) => onMfaChange?.(v)}
+          borderless
+        />
+      </section>
 
       <section>
         <SettingsSectionHeading>Recent sign-in activity</SettingsSectionHeading>
@@ -57,10 +82,12 @@ export function SecuritySettings({ onLogout }: SecuritySettingsProps) {
         )}
       </section>
 
-      <section className="border-t border-zinc-100 pt-4">
+      <section>
         <SettingsSectionHeading>Linked providers</SettingsSectionHeading>
         {providers.length === 0 ? (
-          <p className="text-sm text-zinc-500">No third-party connectors linked.</p>
+          <p className="text-sm text-zinc-500">
+            No third-party sign-in providers linked.
+          </p>
         ) : (
           <ul className="divide-y divide-zinc-100">
             {providers.map((p) => (
@@ -76,12 +103,10 @@ export function SecuritySettings({ onLogout }: SecuritySettingsProps) {
         )}
       </section>
 
-      <section className="flex flex-col gap-3 border-t border-zinc-100 pt-6">
-        <div className="flex min-h-[60px] items-center justify-between gap-4 py-2">
-          <span className="text-[14px] font-[430]">Log out of this device</span>
-          <SettingsPillButton onClick={onLogout}>Log out</SettingsPillButton>
-        </div>
-      </section>
+      <div className="flex min-h-[56px] items-center justify-between gap-4 border-t border-zinc-100 pt-6">
+        <span className="text-[14px]">Log out of this device</span>
+        <SettingsPillButton onClick={onLogout}>Log out</SettingsPillButton>
+      </div>
     </div>
   );
 }

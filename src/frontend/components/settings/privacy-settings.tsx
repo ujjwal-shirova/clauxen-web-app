@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ChevronRight, ExternalLink } from "lucide-react";
 import {
   SettingsPanelTitle,
@@ -7,6 +8,7 @@ import {
   SettingsSection,
   SettingsToggleRow,
 } from "@/frontend/components/settings/settings-ui";
+import * as settingsApi from "@/frontend/lib/api/settings-extended";
 
 export type PrivacySettingsState = {
   locationMetadata: boolean;
@@ -16,50 +18,52 @@ export type PrivacySettingsState = {
 interface PrivacySettingsProps {
   privacy: PrivacySettingsState;
   onChange: (patch: Partial<PrivacySettingsState>) => void;
-  onExportData?: () => void;
+  onGoToPersonalization?: () => void;
 }
 
 export function PrivacySettings({
   privacy,
   onChange,
-  onExportData,
+  onGoToPersonalization,
 }: PrivacySettingsProps) {
+  const [exporting, setExporting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleExport = async () => {
+    setExporting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const { job } = await settingsApi.requestDataExport();
+      setMessage(`Export requested (${job.id.slice(0, 8)}…).`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
       <SettingsPanelTitle>Privacy</SettingsPanelTitle>
 
       <section className="mb-8">
-        <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900">
-          Privacy
-        </h2>
+        <h2 className="text-[20px] font-semibold tracking-tight">Privacy</h2>
         <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-zinc-600">
           Learn how your information is protected when using Clauxen products,
           and visit our{" "}
-          <a
-            href="/legal/privacy"
-            className="text-[#1b67b2] hover:underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href="/legal/privacy" className="text-[#1b67b2] hover:underline">
             Privacy Center
           </a>{" "}
           and{" "}
-          <a
-            href="/legal/privacy"
-            className="text-[#1b67b2] hover:underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href="/legal/privacy" className="text-[#1b67b2] hover:underline">
             Privacy Policy
-          </a>{" "}
-          for more details.
+          </a>
+          .
         </p>
-
         <div className="mt-4 flex flex-col">
-          {[
-            "How we protect your data",
-            "How we use your data",
-          ].map((label) => (
+          {["How we protect your data", "How we use your data"].map((label) => (
             <button
               key={label}
               type="button"
@@ -104,14 +108,25 @@ export function PrivacySettings({
           onCheckedChange={(helpImproveModels) =>
             onChange({ helpImproveModels })
           }
+          borderless
         />
       </SettingsSection>
 
       <SettingsSection title="Your data">
         <div className="flex min-h-[56px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
           <span className="text-[14px] font-medium">Export data</span>
-          <SettingsPillButton onClick={onExportData}>
-            Export data
+          <SettingsPillButton onClick={() => void handleExport()}>
+            {exporting ? "Requesting…" : "Export data"}
+          </SettingsPillButton>
+        </div>
+        <div className="flex min-h-[56px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
+          <span className="text-[14px] font-medium">Archive all chats</span>
+          <SettingsPillButton
+            onClick={() =>
+              window.confirm("Archive all chats? You can still export later.")
+            }
+          >
+            Archive all
           </SettingsPillButton>
         </div>
         <div className="flex min-h-[56px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
@@ -124,11 +139,18 @@ export function PrivacySettings({
         </div>
         <div className="flex min-h-[56px] items-center justify-between gap-4 py-3">
           <span className="text-[14px] font-medium">Memory preferences</span>
-          <SettingsPillButton>
+          <SettingsPillButton onClick={onGoToPersonalization}>
             Manage
             <ExternalLink className="ml-1.5 h-3.5 w-3.5" aria-hidden />
           </SettingsPillButton>
         </div>
+        {(message || error) && (
+          <p
+            className={`mt-2 text-[13px] ${error ? "text-rose-600" : "text-zinc-500"}`}
+          >
+            {error ?? message}
+          </p>
+        )}
       </SettingsSection>
     </div>
   );

@@ -10,6 +10,7 @@ import {
 } from "@/frontend/components/settings/settings-ui";
 
 interface NotificationsSettingsProps {
+  responseCompletions: boolean;
   codexChannel: string;
   responseChannel: string;
   groupChatChannel: string;
@@ -19,6 +20,7 @@ interface NotificationsSettingsProps {
   usageChannel: string;
   desktopAlerts: boolean;
   soundEffects: boolean;
+  setResponseCompletions: (value: boolean) => void;
   setCodexChannel: (value: string) => void;
   setResponseChannel: (value: string) => void;
   setGroupChatChannel: (value: string) => void;
@@ -31,6 +33,7 @@ interface NotificationsSettingsProps {
 }
 
 export function NotificationsSettings({
+  responseCompletions,
   codexChannel,
   responseChannel,
   groupChatChannel,
@@ -40,6 +43,7 @@ export function NotificationsSettings({
   usageChannel,
   desktopAlerts,
   soundEffects,
+  setResponseCompletions,
   setCodexChannel,
   setResponseChannel,
   setGroupChatChannel,
@@ -55,6 +59,13 @@ export function NotificationsSettings({
       <SettingsPanelTitle>Notifications</SettingsPanelTitle>
 
       <SettingsSection title="Notifications">
+        <SettingsToggleRow
+          label="Response completions"
+          description="Notify when Clauxen finishes a long-running response, like research or image generation."
+          checked={responseCompletions}
+          onCheckedChange={setResponseCompletions}
+        />
+
         <SettingsRow
           label="Codex"
           description="Get notified about Codex tasks."

@@ -14,9 +14,11 @@ export type GeneralSettings = {
   toolMode: string;
   motion: string;
   voiceSpeed: string;
+  followUpSuggestions: boolean;
 };
 
 export type PersonalizationSettings = {
+  personality: string;
   baseStyleTone: string;
   characteristicWarm: string;
   characteristicEnthusiastic: string;
@@ -73,6 +75,11 @@ export type ReflectSettings = {
   range: string;
 };
 
+export type SafetySettings = {
+  reduceSensitiveContent: boolean;
+  mfaEnabled: boolean;
+};
+
 export type ClawDeployment = {
   id: string;
   name: string;
@@ -97,6 +104,7 @@ export type AppSettings = {
   capabilities: CapabilitiesSettings;
   timeAndFocus: TimeAndFocusSettings;
   reflect: ReflectSettings;
+  safety: SafetySettings;
   claw: { deployments: ClawDeployment[] };
 };
 
@@ -112,6 +120,7 @@ export async function updateSettings(patch: {
   capabilities?: Partial<CapabilitiesSettings>;
   timeAndFocus?: Partial<TimeAndFocusSettings>;
   reflect?: Partial<ReflectSettings>;
+  safety?: Partial<SafetySettings>;
   claw?: Partial<{ deployments: ClawDeployment[] }>;
 }) {
   return apiFetch<AppSettings>("/api/v1/settings", {

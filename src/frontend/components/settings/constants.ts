@@ -1,27 +1,52 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Bell,
   Briefcase,
   Code2,
   CreditCard,
+  Database,
   FileText,
+  HardDrive,
+  Keyboard,
+  KeyRound,
   LayoutGrid,
   Lightbulb,
   Moon,
   Settings,
   Shield,
+  ShieldAlert,
+  Sparkles,
   UserCircle,
+  Users,
   Wand2,
 } from "lucide-react";
 
+/**
+ * Hybrid Claude + ChatGPT settings IA (no Voice).
+ * Conflicts resolved:
+ * - Memory generate → Capabilities; memory reference → Personalization
+ * - Export / delete / archive → Privacy (no separate Data controls)
+ * - Sessions → Account; MFA / sign-in activity → Security
+ * - Apps → Connectors only
+ * - Notifications → own tab (not duplicated in General)
+ */
 export const settingsNav = [
   { name: "General", icon: Settings },
+  { name: "Personalization", icon: Sparkles },
+  { name: "Notifications", icon: Bell },
   { name: "Account", icon: UserCircle },
+  { name: "Security", icon: KeyRound },
   { name: "Privacy", icon: Shield },
   { name: "Billing", icon: CreditCard },
+  { name: "Storage", icon: HardDrive },
   { name: "Capabilities", icon: Briefcase },
   { name: "Reflect", icon: Lightbulb },
   { name: "Time and focus", icon: Moon },
+  { name: "Safety", icon: ShieldAlert },
+  { name: "Parental controls", icon: Users },
+  { name: "Trusted contact", icon: Database },
   { name: "Clauxen Code", icon: Code2 },
+  { name: "Keyboard", icon: Keyboard },
   { name: "Skills", icon: FileText },
   { name: "Connectors", icon: LayoutGrid },
   { name: "Plugins", icon: Wand2 },
@@ -41,14 +66,23 @@ export const settingsNavGroups: ReadonlyArray<{
     label: "Settings",
     items: [
       "General",
+      "Personalization",
+      "Notifications",
       "Account",
+      "Security",
       "Privacy",
       "Billing",
+      "Storage",
       "Capabilities",
       "Reflect",
       "Time and focus",
       "Clauxen Code",
+      "Keyboard",
     ],
+  },
+  {
+    label: "Safety & family",
+    items: ["Safety", "Parental controls", "Trusted contact"],
   },
   {
     label: "Customize",
@@ -74,8 +108,6 @@ export const accentColors = [
   { name: "Rose", value: "#b85f75" },
 ];
 
-export const voiceOptions = ["Ember", "Lumen", "Cedar", "Sol"];
-
 export const notificationDeliveryOptions = [
   "Off",
   "Push",
@@ -100,3 +132,10 @@ export const baseStyleToneOptions = [
 ] as const;
 
 export const characteristicLevelOptions = ["Less", "Default", "More"] as const;
+
+export const personalityOptions = [
+  "Default",
+  "Friendly",
+  "Pragmatic",
+  "None",
+] as const;

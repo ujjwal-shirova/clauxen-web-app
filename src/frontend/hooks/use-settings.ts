@@ -10,6 +10,7 @@ import type {
   PersonalizationSettings,
   PrivacySettings,
   ReflectSettings,
+  SafetySettings,
   TimeAndFocusSettings,
 } from "@/frontend/lib/api/settings";
 import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
@@ -36,6 +37,7 @@ function mergeLocal(
       ? { ...base.timeAndFocus, ...patch.timeAndFocus }
       : base.timeAndFocus,
     reflect: patch.reflect ? { ...base.reflect, ...patch.reflect } : base.reflect,
+    safety: patch.safety ? { ...base.safety, ...patch.safety } : base.safety,
     claw: patch.claw ? { ...base.claw, ...patch.claw } : base.claw,
   };
 }
@@ -143,6 +145,11 @@ export function useSettings(enabled: boolean) {
     [schedulePersist],
   );
 
+  const updateSafety = useCallback(
+    (patch: Partial<SafetySettings>) => schedulePersist({ safety: patch }),
+    [schedulePersist],
+  );
+
   const createClawDeployment = useCallback(
     async (
       name: string,
@@ -190,6 +197,7 @@ export function useSettings(enabled: boolean) {
     updateCapabilities,
     updateTimeAndFocus,
     updateReflect,
+    updateSafety,
     createClawDeployment,
     persist,
   };

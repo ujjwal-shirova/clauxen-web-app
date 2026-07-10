@@ -21,9 +21,11 @@ const defaultGeneral = {
   toolMode: "auto",
   motion: "System",
   voiceSpeed: "Normal",
+  followUpSuggestions: true,
 };
 
 const defaultPersonalization = {
+  personality: "Default",
   baseStyleTone: "Default",
   characteristicWarm: "Less",
   characteristicEnthusiastic: "Default",
@@ -80,6 +82,11 @@ const defaultReflect = {
   range: "Past month",
 };
 
+const defaultSafety = {
+  reduceSensitiveContent: true,
+  mfaEnabled: false,
+};
+
 function mergeSettings<T extends Record<string, unknown>>(
   defaults: T,
   stored?: Record<string, unknown> | null,
@@ -120,6 +127,10 @@ function toClientPayload(
       defaultReflect,
       stored.reflect as Record<string, unknown>,
     ),
+    safety: mergeSettings(
+      defaultSafety,
+      stored.safety as Record<string, unknown>,
+    ),
     claw: (stored.claw as { deployments?: unknown[] }) ?? { deployments: [] },
   };
 }
@@ -154,6 +165,7 @@ export const PATCH = withApiHandler(
       capabilities?: Record<string, unknown>;
       timeAndFocus?: Record<string, unknown>;
       reflect?: Record<string, unknown>;
+      safety?: Record<string, unknown>;
       claw?: Record<string, unknown>;
     };
 
@@ -171,6 +183,7 @@ export const PATCH = withApiHandler(
       "capabilities",
       "timeAndFocus",
       "reflect",
+      "safety",
       "claw",
     ] as const) {
       if (body[key]) {

@@ -1,265 +1,199 @@
 "use client";
 
-import { Button } from "@/frontend/components/ui/button";
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from "@/frontend/components/ui/radio-group";
+import { useEffect, useMemo, useState } from "react";
 import type { PersonalizationSettings } from "@/frontend/lib/api/settings";
-import { baseStyleToneOptions, characteristicLevelOptions } from "./constants";
 import {
-  SettingsCharacteristicSelect,
+  baseStyleToneOptions,
+  personalityOptions,
+} from "@/frontend/components/settings/constants";
+import {
   SettingsOptionPicker,
   SettingsPanelTitle,
   SettingsRow,
-  SettingsSectionHeading,
-  SettingsTextarea,
+  SettingsSection,
   SettingsToggleRow,
-  settingsRadioItemClass,
-} from "./settings-ui";
+} from "@/frontend/components/settings/settings-ui";
+
+const WORK_OPTIONS = [
+  "Select",
+  "Engineering",
+  "Design",
+  "Product",
+  "Research",
+  "Founder",
+  "Student",
+  "Other",
+] as const;
+
+const inputClass =
+  "h-9 w-full max-w-[20rem] rounded-lg border border-zinc-200 bg-white px-3 text-[14px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400";
+
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
+}
 
 interface PersonalizationSettingsProps {
   personalization: PersonalizationSettings;
-  toolMode: string;
   onChange: (patch: Partial<PersonalizationSettings>) => void;
-  onToolModeChange: (value: string) => void;
-  onGoToCustomize: (tab: "skills" | "connectors") => void;
+  onManageMemory?: () => void;
 }
 
 export function PersonalizationSettingsPanel({
   personalization,
-  toolMode,
   onChange,
-  onToolModeChange,
-  onGoToCustomize,
+  onManageMemory,
 }: PersonalizationSettingsProps) {
   const p = personalization;
+  const [nameDraft, setNameDraft] = useState(p.fullName);
+  const [callMeDraft, setCallMeDraft] = useState(p.nickname || p.fullName);
+  const [instructionsDraft, setInstructionsDraft] = useState(
+    p.customInstructions,
+  );
+
+  useEffect(() => setNameDraft(p.fullName), [p.fullName]);
+  useEffect(
+    () => setCallMeDraft(p.nickname || p.fullName),
+    [p.nickname, p.fullName],
+  );
+  useEffect(
+    () => setInstructionsDraft(p.customInstructions),
+    [p.customInstructions],
+  );
+
+  const avatarInitials = useMemo(
+    () => initialsFromName(nameDraft || callMeDraft || "U"),
+    [nameDraft, callMeDraft],
+  );
+
+  const workValue =
+    p.occupation &&
+    WORK_OPTIONS.includes(p.occupation as (typeof WORK_OPTIONS)[number])
+      ? p.occupation
+      : "Select";
 
   return (
-    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
       <SettingsPanelTitle>Personalization</SettingsPanelTitle>
+      <h2 className="mb-6 text-[20px] font-semibold tracking-tight">
+        Personalization
+      </h2>
 
-      <section className="flex flex-col gap-2">
+      <SettingsSection title="Profile">
+        <SettingsRow label="Avatar">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-200 text-[13px] font-semibold text-zinc-700"
+            aria-hidden
+          >
+            {avatarInitials}
+          </div>
+        </SettingsRow>
+        <SettingsRow label="Full name">
+          <input
+            type="text"
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={() => onChange({ fullName: nameDraft.trim() })}
+            className={inputClass}
+            autoComplete="name"
+          />
+        </SettingsRow>
+        <SettingsRow label="What should Clauxen call you?">
+          <input
+            type="text"
+            value={callMeDraft}
+            onChange={(e) => setCallMeDraft(e.target.value)}
+            onBlur={() => onChange({ nickname: callMeDraft.trim() })}
+            className={inputClass}
+          />
+        </SettingsRow>
+        <SettingsRow label="What best describes your work?">
+          <SettingsOptionPicker
+            value={workValue}
+            options={WORK_OPTIONS}
+            onValueChange={(value) =>
+              onChange({ occupation: value === "Select" ? "" : value })
+            }
+          />
+        </SettingsRow>
+        <div className="border-b border-zinc-100 py-3">
+          <p className="text-[14px] text-zinc-900">Custom instructions</p>
+          <p className="mt-1 text-[13px] leading-snug text-zinc-500">
+            Clauxen will keep these in mind across chats within product
+            guidelines.
+          </p>
+          <textarea
+            value={instructionsDraft}
+            onChange={(e) => setInstructionsDraft(e.target.value)}
+            onBlur={() =>
+              onChange({ customInstructions: instructionsDraft.trim() })
+            }
+            rows={4}
+            placeholder="e.g. when learning new concepts, I find analogies particularly helpful"
+            className="mt-3 w-full resize-y rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[14px] leading-5 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-400"
+          />
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title="Style">
+        <SettingsRow
+          label="Personality"
+          description="How Clauxen communicates. This doesn’t change what it can do."
+        >
+          <SettingsOptionPicker
+            value={p.personality || "Default"}
+            options={personalityOptions}
+            onValueChange={(personality) => onChange({ personality })}
+          />
+        </SettingsRow>
         <SettingsRow
           label="Base style and tone"
-          description="Set the style and tone of how Clauxen responds to you. This doesn't impact Clauxen's capabilities."
+          description="Additional tone on top of personality."
+          borderless
         >
           <SettingsOptionPicker
             value={p.baseStyleTone}
             options={baseStyleToneOptions}
             onValueChange={(baseStyleTone) => onChange({ baseStyleTone })}
-            aria-label="Base style and tone"
           />
         </SettingsRow>
+      </SettingsSection>
 
-        <div className="pb-2 pt-1">
-          <p className="text-[14px] font-[430] text-zinc-900">
-            Characteristics
-          </p>
-          <p className="mt-1 text-[12px] leading-4 text-zinc-400">
-            Choose additional customizations on top of your base style and tone.
-          </p>
-        </div>
-
-        <SettingsCharacteristicSelect
-          label="Warm"
-          value={p.characteristicWarm}
-          options={characteristicLevelOptions}
-          onChange={(value) => onChange({ characteristicWarm: value })}
-        />
-        <SettingsCharacteristicSelect
-          label="Enthusiastic"
-          value={p.characteristicEnthusiastic}
-          options={characteristicLevelOptions}
-          onChange={(value) => onChange({ characteristicEnthusiastic: value })}
-        />
-        <SettingsCharacteristicSelect
-          label="Headers & Lists"
-          value={p.characteristicHeadersLists}
-          options={characteristicLevelOptions}
-          onChange={(value) => onChange({ characteristicHeadersLists: value })}
-        />
-        <SettingsCharacteristicSelect
-          label="Emoji"
-          value={p.characteristicEmoji}
-          options={characteristicLevelOptions}
-          onChange={(value) => onChange({ characteristicEmoji: value })}
-        />
-      </section>
-
-      <SettingsToggleRow
-        label="Fast answers"
-        description="Clauxen can sometimes use its general knowledge to give fast, in-depth answers. These aren't personalized and don't use your memory."
-        checked={p.fastAnswers}
-        onCheckedChange={(checked) => onChange({ fastAnswers: checked })}
-        borderless
-      />
-
-      <section className="flex flex-col gap-2 border-t border-[#0d0d0d]/5 pt-4">
-        <p className="text-[14px] font-[430]">Custom instructions</p>
-        <SettingsTextarea
-          value={p.customInstructions}
-          onChange={(value) => onChange({ customInstructions: value })}
-          placeholder="Additional behavior, style, and tone preferences"
-          rows={3}
-        />
-      </section>
-
-      <section className="flex flex-col gap-5 border-t border-[#0d0d0d]/10 pt-6">
-        <SettingsSectionHeading>About you</SettingsSectionHeading>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-[14px] font-[430]">Nickname</label>
-          <SettingsTextarea
-            value={p.nickname}
-            onChange={(value) => onChange({ nickname: value })}
-            placeholder="What should Clauxen call you?"
-            rows={1}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-[14px] font-[430]">Occupation</label>
-          <SettingsTextarea
-            value={p.occupation}
-            onChange={(value) => onChange({ occupation: value })}
-            placeholder="What do you do?"
-            rows={2}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-[14px] font-[430]">More about you</label>
-          <SettingsTextarea
-            value={p.moreAboutYou}
-            onChange={(value) => onChange({ moreAboutYou: value })}
-            placeholder="Interests, values, or preferences to keep in mind"
-            rows={3}
-          />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3 border-t border-[#0d0d0d]/10 pt-6">
-        <SettingsSectionHeading
-          action={
-            <Button
-              type="button"
-              variant="outline"
-              className="h-7 rounded-full border-[#0d0d0d]/15 px-3 text-[12px] font-medium"
-            >
-              Manage
-            </Button>
-          }
-        >
-          Memory
-        </SettingsSectionHeading>
-
+      <SettingsSection title="Memory">
         <SettingsToggleRow
           label="Reference saved memories"
-          description="Let Clauxen save and use memories when responding."
+          description="Let Clauxen use memories it has saved about you. Generating new memories is controlled in Capabilities."
           checked={p.referenceSavedMemories}
-          onCheckedChange={(checked) =>
-            onChange({ referenceSavedMemories: checked })
+          onCheckedChange={(referenceSavedMemories) =>
+            onChange({ referenceSavedMemories })
           }
         />
-
         <SettingsToggleRow
           label="Reference chat history"
-          description="Let Clauxen reference all previous conversations when responding."
+          description="Let Clauxen use recent chat history for better context."
           checked={p.referenceChatHistory}
-          onCheckedChange={(checked) =>
-            onChange({ referenceChatHistory: checked })
+          onCheckedChange={(referenceChatHistory) =>
+            onChange({ referenceChatHistory })
           }
-          borderless
         />
-
-        <p className="pb-2 text-[12px] leading-4 text-zinc-400">
-          Clauxen may use memory to personalize queries to search providers.{" "}
-          <a href="#" className="underline decoration-[#8f8f8f]/60">
-            Learn more
-          </a>
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-3 border-t border-[#0d0d0d]/10 pt-6">
-        <SettingsSectionHeading>Record mode</SettingsSectionHeading>
-
-        <SettingsToggleRow
-          label="Reference record history"
-          description="Let Clauxen reference all previous recording transcripts and notes when responding."
-          checked={p.referenceRecordHistory}
-          onCheckedChange={(checked) =>
-            onChange({ referenceRecordHistory: checked })
-          }
-          borderless
-        />
-      </section>
-
-      <section className="flex flex-col gap-4 border-t border-[#0d0d0d]/10 pt-6">
-        <SettingsSectionHeading>Advanced</SettingsSectionHeading>
-
-        <div className="flex flex-col gap-3 pb-4">
-          <p className="text-[14px] font-semibold text-zinc-800">Tool access</p>
-          <RadioGroup
-            value={toolMode}
-            onValueChange={onToolModeChange}
-            className="gap-3"
-          >
-            {[
-              {
-                value: "auto",
-                label: "Auto",
-                hint: "Let Clauxen decide when to use tools.",
-              },
-              {
-                value: "always",
-                label: "Always",
-                hint: "Prefer tools when available.",
-              },
-              {
-                value: "never",
-                label: "Never",
-                hint: "Disable tool use in chat.",
-              },
-            ].map((option) => (
-              <label
-                key={option.value}
-                className="flex cursor-pointer items-start gap-3 rounded-lg p-2 transition-colors hover:bg-zinc-100"
-              >
-                <RadioGroupItem
-                  value={option.value}
-                  className={settingsRadioItemClass}
-                />
-                <span>
-                  <span className="block text-[14px] font-[430]">
-                    {option.label}
-                  </span>
-                  <span className="block text-[12px] text-zinc-400">
-                    {option.hint}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </RadioGroup>
-        </div>
-
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4">
+        <div className="flex min-h-[56px] items-center justify-between gap-4 py-3">
           <div>
-            <p className="text-[14px] font-[430]">Skills & connectors</p>
-            <p className="mt-1 text-[12px] text-zinc-400">
-              Configure apps and skills from Customize.
+            <p className="text-[14px] font-medium">Manage memories</p>
+            <p className="mt-0.5 text-[13px] text-zinc-500">
+              Review or delete saved memories.
             </p>
           </div>
-          <Button
+          <button
             type="button"
-            variant="outline"
-            className="shrink-0 rounded-lg"
-            onClick={() => onGoToCustomize("connectors")}
+            onClick={onManageMemory}
+            className="inline-flex h-9 items-center rounded-lg border border-zinc-200 bg-white px-4 text-[14px] font-medium hover:bg-zinc-50"
           >
-            Open Customize
-          </Button>
+            Manage
+          </button>
         </div>
-      </section>
+      </SettingsSection>
     </div>
   );
 }

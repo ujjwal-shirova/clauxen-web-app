@@ -16,8 +16,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     toolMode: "auto",
     motion: "System",
     voiceSpeed: "Normal",
+    followUpSuggestions: true,
   },
   personalization: {
+    personality: "Default",
     baseStyleTone: "Default",
     characteristicWarm: "Less",
     characteristicEnthusiastic: "Default",
@@ -67,6 +69,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   },
   reflect: {
     range: "Past month",
+  },
+  safety: {
+    reduceSensitiveContent: true,
+    mfaEnabled: false,
   },
   claw: { deployments: [] },
 };

@@ -17,14 +17,10 @@ export type OverlayType = Overlay["type"];
 
 /** Map removed / renamed settings tabs to the current IA. */
 const LEGACY_SETTINGS_TABS: Record<string, SettingsTab> = {
-  Personalization: "Capabilities",
   Enterprise: "General",
-  Notifications: "General",
   "Data controls": "Privacy",
-  Security: "Account",
-  Storage: "Account",
-  Connectors: "Connectors",
   Apps: "Connectors",
+  Voice: "General",
 };
 
 function normalizeSettingsTab(value: string): SettingsTab {
