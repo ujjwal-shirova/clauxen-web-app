@@ -5,6 +5,20 @@ import { AppError, mapPgError } from "@/backend/db/errors";
 
 let pool: Pool | null = null;
 
+function normalizeDatabaseUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    // Avoid pg sslmode deprecation warnings flooding Vercel runtime logs.
+    if (parsed.searchParams.has("sslmode")) {
+      parsed.searchParams.delete("sslmode");
+    }
+    parsed.searchParams.delete("uselibpqcompat");
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 export function getPool(): Pool {
   if (!env.databaseUrl) {
     throw new AppError(
@@ -15,11 +29,12 @@ export function getPool(): Pool {
   }
 
   if (!pool) {
+    const connectionString = normalizeDatabaseUrl(requireDatabaseUrl());
     pool = new Pool({
-      connectionString: requireDatabaseUrl(),
+      connectionString,
       max: 10,
       idleTimeoutMillis: 30_000,
-      ssl: env.databaseUrl.includes("sslmode=disable")
+      ssl: connectionString.includes("localhost")
         ? false
         : { rejectUnauthorized: false },
     });

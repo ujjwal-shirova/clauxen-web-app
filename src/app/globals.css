@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "streamdown/styles.css";
 @import "../frontend/styles/app-buttons.css";
 @import "../frontend/styles/app-notifications.css";
 @source "../../node_modules/streamdown/dist/*.js";
@@ -143,11 +142,11 @@
 }
 
 .font-serif {
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
 }
 
 .font-sans {
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
   letter-spacing: -0.005em;
 }
 

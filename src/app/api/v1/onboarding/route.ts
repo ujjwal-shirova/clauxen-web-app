@@ -3,9 +3,27 @@ import { jsonData } from "@/backend/http/api-response";
 import { requireSession } from "@/backend/auth/require-session";
 import * as onboardingService from "@/backend/services/onboarding.service";
 import type { OnboardingAnswers } from "@/backend/services/onboarding.service";
+import {
+  ONBOARDING_DONE_COOKIE,
+  onboardingDoneCookieOptions,
+  onboardingDoneCookieValue,
+} from "@/utils/onboarding-cookie";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function withOnboardingCookie(
+  response: ReturnType<typeof jsonData>,
+  userId: string,
+  completed: boolean,
+) {
+  response.cookies.set(
+    ONBOARDING_DONE_COOKIE,
+    onboardingDoneCookieValue(userId, completed),
+    onboardingDoneCookieOptions(),
+  );
+  return response;
+}
 
 export const GET = withApiHandler(
   async ({ session }) => {
@@ -14,7 +32,11 @@ export const GET = withApiHandler(
       user.id,
       user.email,
     );
-    return jsonData({ onboarding });
+    return withOnboardingCookie(
+      jsonData({ onboarding }),
+      user.id,
+      onboarding.completed,
+    );
   },
   { requireAuth: true },
 );
@@ -33,7 +55,11 @@ export const PATCH = withApiHandler(
       answers: body.answers,
       email: user.email,
     });
-    return jsonData({ onboarding });
+    return withOnboardingCookie(
+      jsonData({ onboarding }),
+      user.id,
+      onboarding.completed,
+    );
   },
   { requireAuth: true },
 );

@@ -1,13 +1,9 @@
 "use client";
 
 import React, { useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/frontend/components/sidebar";
-import { UpgradeView } from "@/frontend/components/upgrade-view";
-import { SettingsModal } from "@/frontend/components/settings-page";
-import { AppsExtensionsView } from "@/frontend/components/apps-extensions-view";
-import { GiftView } from "@/frontend/components/gift-view";
-import { CreateProjectDialog } from "@/frontend/components/create-project-dialog";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { useChat } from "@/frontend/hooks/use-chat";
 import { useProjects } from "@/frontend/hooks/use-projects";
@@ -24,6 +20,35 @@ import type { SettingsTab } from "@/frontend/components/settings/constants";
 import type { ApiProject } from "@/frontend/lib/api/projects";
 import type { RecentChat } from "@/frontend/lib/types";
 import { AppLayoutProvider } from "@/frontend/components/app-layout-context";
+
+const UpgradeView = dynamic(
+  () =>
+    import("@/frontend/components/upgrade-view").then((m) => m.UpgradeView),
+  { ssr: false },
+);
+const SettingsModal = dynamic(
+  () =>
+    import("@/frontend/components/settings-page").then((m) => m.SettingsModal),
+  { ssr: false },
+);
+const AppsExtensionsView = dynamic(
+  () =>
+    import("@/frontend/components/apps-extensions-view").then(
+      (m) => m.AppsExtensionsView,
+    ),
+  { ssr: false },
+);
+const GiftView = dynamic(
+  () => import("@/frontend/components/gift-view").then((m) => m.GiftView),
+  { ssr: false },
+);
+const CreateProjectDialog = dynamic(
+  () =>
+    import("@/frontend/components/create-project-dialog").then(
+      (m) => m.CreateProjectDialog,
+    ),
+  { ssr: false },
+);
 
 const MOBILE_FULL_BLEED_PREFIXES = ["/library", "/customize", "/projects"] as const;
 
@@ -261,54 +286,60 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
       {overlays.isOpen.gift && <GiftView onClose={overlays.closeOverlay} />}
 
-      <SettingsModal
-        open={overlays.isOpen.settings}
-        onClose={overlays.closeOverlay}
-        initialTab={(overlays.settingsTab as SettingsTab) || "General"}
-        onTabChange={(tab) => overlays.openSettings(tab)}
-        onGoToCustomize={(tab) => {
-          overlays.closeOverlay();
-          router.push(tab === "connectors" ? "/customize/connectors" : "/customize");
-        }}
-        onUpgradeClick={() => {
-          overlays.closeOverlay();
-          setTimeout(() => overlays.openPricing(), 0);
-        }}
-        user={auth.user}
-        onLogout={() => void auth.logout()}
-      />
+      {overlays.isOpen.settings ? (
+        <SettingsModal
+          open
+          onClose={overlays.closeOverlay}
+          initialTab={(overlays.settingsTab as SettingsTab) || "General"}
+          onTabChange={(tab) => overlays.openSettings(tab)}
+          onGoToCustomize={(tab) => {
+            overlays.closeOverlay();
+            router.push(
+              tab === "connectors" ? "/customize/connectors" : "/customize",
+            );
+          }}
+          onUpgradeClick={() => {
+            overlays.closeOverlay();
+            setTimeout(() => overlays.openPricing(), 0);
+          }}
+          user={auth.user}
+          onLogout={() => void auth.logout()}
+        />
+      ) : null}
 
-      <CreateProjectDialog
-        open={createProjectOpen}
-        onOpenChange={setCreateProjectOpen}
-        isSubmitting={isCreatingProject}
-        onSubmit={async ({ name, description }) => {
-          setIsCreatingProject(true);
-          try {
-            const project = await projects.createProject({
-              name,
-              description: description || undefined,
-            });
-            if (project) {
-              openProjectDetail(project);
-            } else {
+      {createProjectOpen ? (
+        <CreateProjectDialog
+          open={createProjectOpen}
+          onOpenChange={setCreateProjectOpen}
+          isSubmitting={isCreatingProject}
+          onSubmit={async ({ name, description }) => {
+            setIsCreatingProject(true);
+            try {
+              const project = await projects.createProject({
+                name,
+                description: description || undefined,
+              });
+              if (project) {
+                openProjectDetail(project);
+              } else {
+                toast({
+                  title: "Could not create project",
+                  description: "Enter a project name and try again.",
+                  variant: "destructive",
+                });
+              }
+            } catch {
               toast({
                 title: "Could not create project",
-                description: "Enter a project name and try again.",
+                description: "Something went wrong. Please try again.",
                 variant: "destructive",
               });
+            } finally {
+              setIsCreatingProject(false);
             }
-          } catch {
-            toast({
-              title: "Could not create project",
-              description: "Something went wrong. Please try again.",
-              variant: "destructive",
-            });
-          } finally {
-            setIsCreatingProject(false);
-          }
-        }}
-      />
+          }}
+        />
+      ) : null}
     </div>
   );
 }

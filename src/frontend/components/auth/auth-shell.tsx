@@ -1,5 +1,6 @@
 "use client";
 
+import "bootstrap-icons/font/bootstrap-icons.css";
 import { LoginDemoPlayer } from "@/frontend/components/auth/login-demo";
 
 const NAV = [

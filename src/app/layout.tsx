@@ -1,10 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
-import "bootstrap-icons/font/bootstrap-icons.css";
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { ClientToaster } from "@/frontend/components/client-toaster";
+import { ClientSpeedInsights } from "@/frontend/components/client-speed-insights";
 import { AppNotificationsProvider } from "@/frontend/hooks/use-app-notifications";
 import { AppNotificationHost } from "@/frontend/components/app-notifications/app-notification-host";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-playfair",
+  weight: ["400", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Clauxen",
@@ -12,7 +26,11 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/assets/icons/clauxen-favicon.png", type: "image/png", sizes: "180x180" },
+      {
+        url: "/assets/icons/clauxen-favicon.png",
+        type: "image/png",
+        sizes: "180x180",
+      },
     ],
     apple: "/assets/icons/clauxen-favicon.png",
     shortcut: "/favicon.ico",
@@ -31,25 +49,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin=""
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;700&family=Homemade+Apple&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="font-body antialiased" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${inter.variable} ${playfair.variable}`}
+      suppressHydrationWarning
+    >
+      <body
+        className={`${inter.className} antialiased`}
+        suppressHydrationWarning
+      >
         <AppNotificationsProvider>
           {children}
           <ClientToaster />
           <AppNotificationHost />
-          <SpeedInsights />
+          <ClientSpeedInsights />
         </AppNotificationsProvider>
       </body>
     </html>

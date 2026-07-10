@@ -1,12 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
-import { env } from "@/backend/config/env";
 import {
   DISPOSABLE_EMAIL_MESSAGE,
   isDisposableEmailSafe,
 } from "@/backend/email-verifier/disposable-email";
 import { getSupabasePublicConfig, requireSupabasePublicConfig } from "./env";
+import {
+  ONBOARDING_DONE_COOKIE,
+  onboardingDoneCookieOptions,
+  onboardingDoneCookieValue,
+} from "@/utils/onboarding-cookie";
 
 const PUBLIC_PREFIXES = [
   "/login",
@@ -16,6 +20,14 @@ const PUBLIC_PREFIXES = [
   "/legal/",
   "/about",
 ] as const;
+
+const SESSION_COOKIE_NAME = "clauxen_session";
+
+function authDevBypassEnabled() {
+  const isVercel = process.env.VERCEL === "1";
+  const raw = process.env.AUTH_DEV_BYPASS?.trim();
+  return (raw || (isVercel ? "false" : "true")) === "true";
+}
 
 function isPublicPath(pathname: string) {
   if (pathname === "/about") return true;
@@ -34,6 +46,31 @@ function withSessionCookies(
     to.cookies.set(cookie.name, cookie.value);
   });
   return to;
+}
+
+function readOnboardingCache(
+  request: NextRequest,
+  userId: string,
+): boolean | null {
+  const raw = request.cookies.get(ONBOARDING_DONE_COOKIE)?.value;
+  if (!raw) return null;
+  const [id, flag] = raw.split(".");
+  if (id !== userId) return null;
+  if (flag === "1") return true;
+  if (flag === "0") return false;
+  return null;
+}
+
+function writeOnboardingCache(
+  response: NextResponse,
+  userId: string,
+  complete: boolean,
+) {
+  response.cookies.set(
+    ONBOARDING_DONE_COOKIE,
+    onboardingDoneCookieValue(userId, complete),
+    onboardingDoneCookieOptions(),
+  );
 }
 
 /**
@@ -56,6 +93,19 @@ async function isOnboardingComplete(
   } catch {
     return false;
   }
+}
+
+async function resolveOnboardingComplete(
+  request: NextRequest,
+  response: NextResponse,
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<boolean> {
+  const cached = readOnboardingCache(request, userId);
+  if (cached != null) return cached;
+  const complete = await isOnboardingComplete(supabase, userId);
+  writeOnboardingCache(response, userId, complete);
+  return complete;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -121,8 +171,8 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
-  const devSession = env.authDevBypass
-    ? request.cookies.get(env.sessionCookieName)?.value
+  const devSession = authDevBypassEnabled()
+    ? request.cookies.get(SESSION_COOKIE_NAME)?.value
     : null;
   const isAuthenticated = Boolean(user?.id || devSession);
 
@@ -152,22 +202,34 @@ export async function updateSession(request: NextRequest) {
     !pathname.startsWith("/api/")
   ) {
     const complete = userId
-      ? await isOnboardingComplete(supabase, userId)
+      ? await resolveOnboardingComplete(
+          request,
+          supabaseResponse,
+          supabase,
+          userId,
+        )
       : false;
     if (!complete) {
       const onboardingUrl = request.nextUrl.clone();
       onboardingUrl.pathname = "/onboarding";
       onboardingUrl.search = "";
-      return withSessionCookies(
+      const redirect = withSessionCookies(
         supabaseResponse,
         NextResponse.redirect(onboardingUrl),
       );
+      if (userId) writeOnboardingCache(redirect, userId, false);
+      return redirect;
     }
   }
 
   // Completed users who land on /onboarding → home.
   if (isAuthenticated && pathname === "/onboarding" && userId) {
-    const complete = await isOnboardingComplete(supabase, userId);
+    const complete = await resolveOnboardingComplete(
+      request,
+      supabaseResponse,
+      supabase,
+      userId,
+    );
     if (complete) {
       const home = request.nextUrl.clone();
       home.pathname = "/";
@@ -182,7 +244,12 @@ export async function updateSession(request: NextRequest) {
       return supabaseResponse;
     }
     const complete = userId
-      ? await isOnboardingComplete(supabase, userId)
+      ? await resolveOnboardingComplete(
+          request,
+          supabaseResponse,
+          supabase,
+          userId,
+        )
       : false;
     const dest = request.nextUrl.clone();
     dest.pathname = complete ? "/" : "/onboarding";

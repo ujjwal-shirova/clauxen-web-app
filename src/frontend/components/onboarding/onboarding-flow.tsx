@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   DEFAULT_ONBOARDING_STATE,
@@ -8,7 +9,6 @@ import {
   type OnboardingStep,
 } from "./onboarding-types";
 import { CreateAccountStep } from "./steps/create-account-step";
-import { PlanSelectionStep } from "./steps/plan-selection-step";
 import { DesktopStep } from "./steps/desktop-step";
 import { BeforeChatStep } from "./steps/before-chat-step";
 import { NameStep } from "./steps/name-step";
@@ -17,6 +17,15 @@ import { OnboardingSplash } from "./onboarding-splash";
 import * as onboardingApi from "@/frontend/lib/api/onboarding";
 import type { OnboardingAnswers } from "@/frontend/lib/api/onboarding";
 import { ApiError } from "@/frontend/lib/api/client";
+
+const PlanSelectionStep = dynamic(
+  () =>
+    import("./steps/plan-selection-step").then((m) => m.PlanSelectionStep),
+  {
+    ssr: false,
+    loading: () => <OnboardingSplash message="Loading plans…" />,
+  },
+);
 
 const STEP_ORDER: OnboardingStep[] = [
   "create-account",

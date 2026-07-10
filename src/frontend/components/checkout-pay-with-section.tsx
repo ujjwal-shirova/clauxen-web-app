@@ -1,5 +1,6 @@
 "use client";
 
+import "bootstrap-icons/font/bootstrap-icons.css";
 import React from "react";
 import { CreditCard, Wallet } from "lucide-react";
 import { CheckoutOrDivider } from "@/frontend/components/checkout-or-divider";
