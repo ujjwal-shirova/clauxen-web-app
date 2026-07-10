@@ -25,6 +25,7 @@ interface CapabilitiesSettingsProps {
   capabilities: CapabilitiesSettingsState;
   onChange: (patch: Partial<CapabilitiesSettingsState>) => void;
   onGoToCustomize?: (tab: "skills" | "connectors") => void;
+  memoryUpdatedLabel?: string;
 }
 
 const TOOL_MODE_LABELS = [
@@ -32,6 +33,9 @@ const TOOL_MODE_LABELS = [
   "Auto",
   "Always available",
 ] as const;
+
+const linkClass =
+  "text-[#184f95] underline decoration-[rgba(24,79,149,0.4)] underline-offset-[3px] hover:text-[#1b67b2]";
 
 function toolModeToLabel(mode: string): string {
   if (mode === "auto") return "Auto";
@@ -49,6 +53,7 @@ export function CapabilitiesSettings({
   capabilities,
   onChange,
   onGoToCustomize,
+  memoryUpdatedLabel = "Updated 3 hours ago",
 }: CapabilitiesSettingsProps) {
   return (
     <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
@@ -59,8 +64,9 @@ export function CapabilitiesSettings({
           label="Generate memory from chat history"
           description={
             <>
-              Allow Clauxen to remember relevant context from your chats.{" "}
-              <a href="/legal/privacy" className="text-[#1b67b2] hover:underline">
+              Allow Clauxen to remember relevant context from your chats. This
+              setting controls memory for both chats and projects.{" "}
+              <a href="/legal/privacy" className={linkClass}>
                 Learn more
               </a>
               .
@@ -72,39 +78,49 @@ export function CapabilitiesSettings({
 
         <button
           type="button"
-          className="flex min-h-[56px] w-full items-center justify-between gap-4 border-b border-zinc-100 py-3 text-left transition-colors hover:bg-zinc-50"
+          className="mb-1 flex w-full items-center justify-between gap-3 rounded-lg bg-[rgba(11,11,11,0.05)] px-3 py-2 text-left transition-colors hover:bg-[rgba(11,11,11,0.07)]"
         >
-          <div>
-            <p className="text-[14px] font-medium">View and manage memory</p>
-            <p className="mt-0.5 text-[13px] text-zinc-500">Updated recently</p>
-          </div>
-          <ChevronRight className="h-4 w-4 text-zinc-400" aria-hidden />
+          <span className="min-w-0 truncate text-[14px] leading-5">
+            <span className="text-zinc-900">View and manage memory</span>
+            <span className="text-[13px] leading-4 text-zinc-500">
+              {" "}
+              · {memoryUpdatedLabel}
+            </span>
+          </span>
+          <ChevronRight
+            className="h-4 w-4 shrink-0 text-zinc-500"
+            strokeWidth={1.75}
+            aria-hidden
+          />
         </button>
 
-        <div className="flex min-h-[72px] items-start justify-between gap-4 border-b border-zinc-100 py-3">
+        <div className="flex items-center justify-between gap-7 py-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-medium">
+            <p className="text-[14px] leading-5 text-zinc-900">
               Import memory from other AI providers
             </p>
-            <p className="mt-1 text-[13px] leading-snug text-zinc-500">
-              Bring relevant context from another AI provider into Clauxen.{" "}
-              <a href="/legal/privacy" className="text-[#1b67b2] hover:underline">
+            <p className="mt-1 text-[14px] leading-5 text-zinc-500">
+              Bring relevant context and data from another AI provider to
+              Clauxen. We&apos;ll provide a prompt you can use to fetch the
+              memory from your other account.{" "}
+              <a href="/legal/privacy" className={linkClass}>
                 Learn more
               </a>
-              .
             </p>
           </div>
-          <SettingsPillButton className="shrink-0">
+          <SettingsPillButton className="h-8 shrink-0 rounded-lg px-3">
             Start import
           </SettingsPillButton>
         </div>
       </SettingsSection>
 
       <SettingsSection title="General">
-        <div className="flex min-h-[72px] items-start justify-between gap-4 border-b border-zinc-100 py-3">
-          <div className="min-w-0 flex-1 pr-4">
-            <p className="text-[14px] font-medium">Tool access mode</p>
-            <p className="mt-1 text-[13px] leading-snug text-zinc-500">
+        <div className="flex items-center justify-between gap-7 border-b border-[rgba(11,11,11,0.05)] py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] leading-5 text-zinc-900">
+              Tool access mode
+            </p>
+            <p className="mt-1 text-[14px] leading-5 text-zinc-500">
               Controls how connector tools are loaded in new conversations.
             </p>
           </div>
@@ -119,17 +135,19 @@ export function CapabilitiesSettings({
 
         <SettingsToggleRow
           label="Connector search"
-          description="Allow Clauxen to search across connected apps when answering."
+          description="Let Clauxen search the connector directory and surface ones relevant to your conversation."
           checked={capabilities.connectorSearch}
           onCheckedChange={(connectorSearch) => onChange({ connectorSearch })}
         />
+
         <SettingsToggleRow
           label="Switch models when a message is flagged"
-          description="When safety measures flag a message, automatically switch to a model that can handle it."
+          description="When safety measures flag a message, automatically switch to a different model to keep chatting. When off, your chat will pause instead."
           checked={capabilities.switchModelsWhenFlagged}
           onCheckedChange={(switchModelsWhenFlagged) =>
             onChange({ switchModelsWhenFlagged })
           }
+          borderless
         />
       </SettingsSection>
 
@@ -139,6 +157,7 @@ export function CapabilitiesSettings({
           description="Generate code, documents, and designs in a dedicated window alongside your conversation."
           checked={capabilities.artifacts}
           onCheckedChange={(artifacts) => onChange({ artifacts })}
+          disabled
         />
         <SettingsToggleRow
           label="AI-powered artifacts"
@@ -155,6 +174,7 @@ export function CapabilitiesSettings({
           onCheckedChange={(inlineVisualizations) =>
             onChange({ inlineVisualizations })
           }
+          borderless
         />
       </SettingsSection>
 
@@ -163,22 +183,38 @@ export function CapabilitiesSettings({
           label="Code execution and file creation"
           description="Clauxen can execute code and create and edit docs, spreadsheets, presentations, PDFs, and data reports. Required for skills."
           checked={capabilities.codeExecution}
-          onCheckedChange={(codeExecution) => onChange({ codeExecution })}
+          onCheckedChange={(codeExecution) => {
+            onChange({
+              codeExecution,
+              ...(codeExecution ? {} : { networkEgress: false }),
+            });
+          }}
         />
 
         {capabilities.codeExecution ? (
-          <div className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
+          <div className="mt-3 rounded-xl border border-[rgba(11,11,11,0.1)] bg-[rgba(11,11,11,0.05)] p-6">
             <SettingsToggleRow
               label="Allow network egress"
               description={
                 <>
                   Allow Clauxen to access common package managers to install
-                  packages and libraries.{" "}
-                  <a href="#" className="text-[#1b67b2] hover:underline">
+                  packages and libraries for data analysis, visualizations, and
+                  file processing.{" "}
+                  <a
+                    href="/legal/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={linkClass}
+                  >
                     View package manager domains
-                  </a>{" "}
-                  and{" "}
-                  <a href="#" className="text-[#1b67b2] hover:underline">
+                  </a>
+                  . Monitor chats closely as this comes with{" "}
+                  <a
+                    href="/legal/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={linkClass}
+                  >
                     security risks
                   </a>
                   .
@@ -192,19 +228,25 @@ export function CapabilitiesSettings({
         ) : null}
       </SettingsSection>
 
-      {onGoToCustomize ? (
-        <p className="mt-6 text-[13px] text-zinc-500">
+      <SettingsSection title="Skills">
+        <p className="py-3 text-[13px] leading-4 text-zinc-600">
           Skills have moved to{" "}
-          <button
-            type="button"
-            onClick={() => onGoToCustomize("skills")}
-            className="text-[#1b67b2] hover:underline"
-          >
-            Customize
-          </button>
+          {onGoToCustomize ? (
+            <button
+              type="button"
+              onClick={() => onGoToCustomize("skills")}
+              className={linkClass}
+            >
+              Customize
+            </button>
+          ) : (
+            <a href="#settings/Skills" className={linkClass}>
+              Customize
+            </a>
+          )}
           .
         </p>
-      ) : null}
+      </SettingsSection>
     </div>
   );
 }

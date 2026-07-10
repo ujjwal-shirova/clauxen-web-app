@@ -345,12 +345,14 @@ export function SettingsToggleRow({
   checked,
   onCheckedChange,
   borderless,
+  disabled,
 }: {
   label: React.ReactNode;
   description?: React.ReactNode;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   borderless?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <SettingsRow
@@ -358,7 +360,11 @@ export function SettingsToggleRow({
       description={description}
       borderless={borderless}
     >
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        disabled={disabled}
+      />
     </SettingsRow>
   );
 }
