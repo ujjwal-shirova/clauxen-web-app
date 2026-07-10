@@ -5,7 +5,6 @@ import { ApiError, apiFetch } from "@/frontend/lib/api/client";
 
 const API_KEY_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const API_KEY_NAME_MAX = 128;
 
 type ApiKeyRow = {
   id: string;
@@ -19,11 +18,17 @@ export function useApiKeys(enabled: boolean) {
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled) {
+      setKeys([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await apiFetch<{ keys: ApiKeyRow[] }>("/api/v1/api-keys");
-      setKeys(data.keys);
+      setKeys(Array.isArray(data?.keys) ? data.keys : []);
+    } catch {
+      setKeys([]);
     } finally {
       setLoading(false);
     }
@@ -41,6 +46,9 @@ export function useApiKeys(enabled: boolean) {
         method: "POST",
         body: JSON.stringify({ name }),
       });
+      if (!data?.key?.key) {
+        throw new ApiError("Invalid API key response.", 500);
+      }
       await refresh();
       return data.key;
     },

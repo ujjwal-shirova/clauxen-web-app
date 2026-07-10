@@ -1,19 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import {
   isSettingsTab,
   type SettingsTab,
 } from "@/frontend/components/settings/constants";
 import { SettingsNavSidebar } from "@/frontend/components/settings/settings-nav-sidebar";
-import {
-  Dialog,
-  DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-} from "@/frontend/components/ui/dialog";
+import { SettingsTabErrorBoundary } from "@/frontend/components/settings/settings-tab-error-boundary";
 import { useSettings } from "@/frontend/hooks/use-settings";
 import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
 import * as workspacesApi from "@/frontend/lib/api/workspaces";
@@ -92,16 +86,27 @@ export function SettingsModal({
     }
   }, [initialTab, open]);
 
-  // Always render with defaults — never block the shell on API latency.
-  const general = settings?.general ?? DEFAULT_APP_SETTINGS.general;
-  const privacy = settings?.privacy ?? DEFAULT_APP_SETTINGS.privacy;
-  const capabilities = settings?.capabilities ?? DEFAULT_APP_SETTINGS.capabilities;
-  const timeAndFocus = settings?.timeAndFocus ?? DEFAULT_APP_SETTINGS.timeAndFocus;
-  const reflect = settings?.reflect ?? DEFAULT_APP_SETTINGS.reflect;
-  const notifications = settings?.notifications ?? DEFAULT_APP_SETTINGS.notifications;
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  const general = settings.general ?? DEFAULT_APP_SETTINGS.general;
+  const privacy = settings.privacy ?? DEFAULT_APP_SETTINGS.privacy;
+  const capabilities =
+    settings.capabilities ?? DEFAULT_APP_SETTINGS.capabilities;
+  const timeAndFocus =
+    settings.timeAndFocus ?? DEFAULT_APP_SETTINGS.timeAndFocus;
+  const reflect = settings.reflect ?? DEFAULT_APP_SETTINGS.reflect;
+  const notifications =
+    settings.notifications ?? DEFAULT_APP_SETTINGS.notifications;
   const personalization =
-    settings?.personalization ?? DEFAULT_APP_SETTINGS.personalization;
-  const safety = settings?.safety ?? DEFAULT_APP_SETTINGS.safety;
+    settings.personalization ?? DEFAULT_APP_SETTINGS.personalization;
+  const safety = settings.safety ?? DEFAULT_APP_SETTINGS.safety;
 
   useEffect(() => {
     if (!open || !user?.id) {
@@ -111,14 +116,14 @@ export function SettingsModal({
 
     void workspacesApi
       .getWorkspaceMembers()
-      .then(({ workspace: ws }) => setWorkspace(ws))
+      .then(({ workspace: ws }) => setWorkspace(ws ?? null))
       .catch(() => setWorkspace(null));
   }, [open, user?.id]);
 
   const handleCopyOrgId = () => {
     const id = workspace?.id ?? user?.id ?? "";
     if (!id) return;
-    void navigator.clipboard.writeText(id);
+    void navigator.clipboard.writeText(id).catch(() => undefined);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -210,7 +215,7 @@ export function SettingsModal({
         return (
           <SecuritySettings
             onLogout={onLogout}
-            mfaEnabled={safety.mfaEnabled}
+            mfaEnabled={Boolean(safety.mfaEnabled)}
             onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
           />
         );
@@ -237,7 +242,7 @@ export function SettingsModal({
           <CapabilitiesSettings
             capabilities={{
               ...capabilities,
-              toolMode: general.toolMode,
+              toolMode: general.toolMode ?? "auto",
             }}
             onChange={(patch) => {
               if (patch.toolMode != null) {
@@ -268,7 +273,7 @@ export function SettingsModal({
       case "Safety":
         return (
           <SafetySettings
-            reduceSensitiveContent={safety.reduceSensitiveContent}
+            reduceSensitiveContent={Boolean(safety.reduceSensitiveContent)}
             onChange={(reduceSensitiveContent) =>
               updateSafety({ reduceSensitiveContent })
             }
@@ -279,7 +284,9 @@ export function SettingsModal({
       case "Trusted contact":
         return <TrustedContactSettings />;
       case "Clauxen Code":
-        return <ClauxenCodeSettings />;
+        return (
+          <ClauxenCodeSettings isAuthenticated={Boolean(user?.id)} />
+        );
       case "Keyboard":
         return <KeyboardSettings />;
       case "Skills":
@@ -299,89 +306,96 @@ export function SettingsModal({
       case "Plugins":
         return <PluginsSettings />;
       default:
-        return null;
+        return (
+          <p className="text-sm text-zinc-500">
+            Unknown settings section. Pick another category.
+          </p>
+        );
     }
   };
 
   if (!open) return null;
 
   return (
-    <Dialog open onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogPortal>
-        <DialogOverlay className="z-[100] bg-[rgba(244,244,245,0.84)] backdrop-blur-none max-md:bg-[rgba(244,244,245,0.92)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <DialogPrimitive.Content
-          className={cn(
-            "fixed z-[101] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none",
-            "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",
-            "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-bottom-4 data-[state=open]:slide-in-from-bottom-4 duration-200",
-            "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)] md:pt-0 md:pb-0",
-            "md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=closed]:zoom-out-[0.98] md:data-[state=open]:zoom-in-[0.98]",
-          )}
-        >
-          <DialogPrimitive.Title className="sr-only">
-            Settings
-          </DialogPrimitive.Title>
-          <DialogDescription className="sr-only">
-            Manage your Clauxen account and application preferences.
-          </DialogDescription>
+    <div className="fixed inset-0 z-[100]" role="presentation">
+      <button
+        type="button"
+        aria-label="Close settings"
+        className="absolute inset-0 bg-[rgba(244,244,245,0.84)] max-md:bg-[rgba(244,244,245,0.92)]"
+        onClick={onClose}
+      />
 
-          {/* Shell always stays mounted — sidebar never remounts on tab change. */}
-          <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch">
-            <div className="shrink-0 border-b border-[rgba(11,11,11,0.1)] bg-[var(--app-shell-bg)] px-4 py-3 md:hidden">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[12px] leading-[14px] text-zinc-500">
-                    Settings
-                  </p>
-                  <h2 className="truncate text-[15px] font-semibold leading-5 text-zinc-900">
-                    {activeTab}
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)]"
-                  aria-label="Close settings"
-                >
-                  <X className="h-5 w-5" strokeWidth={1.75} />
-                </button>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-modal-title"
+        className={cn(
+          "fixed z-[101] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none",
+          "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",
+          "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+          "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)] md:pt-0 md:pb-0",
+        )}
+      >
+        <h1 id="settings-modal-title" className="sr-only">
+          Settings
+        </h1>
+        <p className="sr-only">
+          Manage your Clauxen account and application preferences.
+        </p>
+
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch">
+          <div className="shrink-0 border-b border-[rgba(11,11,11,0.1)] bg-[var(--app-shell-bg)] px-4 py-3 md:hidden">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[12px] leading-[14px] text-zinc-500">
+                  Settings
+                </p>
+                <h2 className="truncate text-[15px] font-semibold leading-5 text-zinc-900">
+                  {activeTab}
+                </h2>
               </div>
-              <SettingsNavSidebar
-                activeTab={activeTab}
-                onTabChange={handleTabChange}
-                variant="mobile-toolbar"
-              />
-            </div>
-
-            <aside className="hidden min-h-0 shrink-0 bg-[var(--app-shell-bg)] md:flex md:w-[192px] md:flex-col md:border-r md:border-[rgba(11,11,11,0.1)] md:p-3">
-              <SettingsNavSidebar
-                activeTab={activeTab}
-                onTabChange={handleTabChange}
-              />
-            </aside>
-
-            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--app-panel-bg)]">
               <button
                 type="button"
                 onClick={onClose}
-                className="absolute right-3 top-3 z-10 hidden h-8 w-8 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)] md:inline-flex"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)]"
                 aria-label="Close settings"
               >
                 <X className="h-5 w-5" strokeWidth={1.75} />
               </button>
+            </div>
+            <SettingsNavSidebar
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              variant="mobile-toolbar"
+            />
+          </div>
 
-              <div
-                id="settings-modal-title"
-                className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12"
-              >
+          <aside className="hidden min-h-0 shrink-0 bg-[var(--app-shell-bg)] md:flex md:w-[192px] md:flex-col md:border-r md:border-[rgba(11,11,11,0.1)] md:p-3">
+            <SettingsNavSidebar
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+            />
+          </aside>
+
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--app-panel-bg)]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute right-3 top-3 z-10 hidden h-8 w-8 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)] md:inline-flex"
+              aria-label="Close settings"
+            >
+              <X className="h-5 w-5" strokeWidth={1.75} />
+            </button>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12">
+              <SettingsTabErrorBoundary tabLabel={activeTab}>
                 {renderActiveTab()}
-              </div>
+              </SettingsTabErrorBoundary>
             </div>
           </div>
-        </DialogPrimitive.Content>
-      </DialogPortal>
-    </Dialog>
+        </div>
+      </div>
+    </div>
   );
 }
 

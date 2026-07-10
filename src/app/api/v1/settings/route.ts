@@ -141,20 +141,29 @@ async function bootstrapSettingsUser(user: {
   email?: string | null;
   displayName?: string | null;
 }) {
+  // Fast path first — settings reads must not wait on full identity bootstrap.
   try {
-    if (user.email) {
-      await ensureUserRecord({
+    await settingsRepo.ensureSettingsRows(user.id, user.email);
+  } catch (error) {
+    console.error("[settings] ensureSettingsRows failed:", error);
+  }
+
+  // Best-effort identity seed; never fail the settings GET if this is slow.
+  if (!user.email) return;
+  try {
+    await Promise.race([
+      ensureUserRecord({
         userId: user.id,
         email: user.email,
         displayName: user.displayName,
-      });
-      return;
-    }
+      }),
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, 2500);
+      }),
+    ]);
   } catch (error) {
     console.error("[settings] ensureUserRecord failed:", error);
   }
-
-  await settingsRepo.ensureSettingsRows(user.id, user.email);
 }
 
 export const GET = withApiHandler(
@@ -162,16 +171,23 @@ export const GET = withApiHandler(
     const user = requireSession(session);
     await bootstrapSettingsUser(user);
 
-    const [userSettings, notificationPrefs] = await Promise.all([
-      settingsRepo.getUserSettings(user.id),
-      settingsRepo.getNotificationPreferences(user.id),
-    ]);
+    let stored: Record<string, unknown> = {};
+    let notifStored: Record<string, unknown> = {};
 
-    const stored = (userSettings?.settings ?? {}) as Record<string, unknown>;
-    const notifStored = (notificationPrefs?.settings ?? {}) as Record<
-      string,
-      unknown
-    >;
+    try {
+      const [userSettings, notificationPrefs] = await Promise.all([
+        settingsRepo.getUserSettings(user.id),
+        settingsRepo.getNotificationPreferences(user.id),
+      ]);
+      stored = (userSettings?.settings ?? {}) as Record<string, unknown>;
+      notifStored = (notificationPrefs?.settings ?? {}) as Record<
+        string,
+        unknown
+      >;
+    } catch (error) {
+      // Return defaults rather than 500 — UI must stay usable during DB blips.
+      console.error("[settings] read failed, returning defaults:", error);
+    }
 
     return jsonData(toClientPayload(stored, notifStored));
   },

@@ -14,37 +14,35 @@ import type {
   TimeAndFocusSettings,
 } from "@/frontend/lib/api/settings";
 import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
+import { normalizeAppSettings } from "@/frontend/lib/settings-normalize";
 
 function mergeLocal(
-  prev: AppSettings | null,
+  prev: AppSettings,
   patch: Parameters<typeof settingsApi.updateSettings>[0],
 ): AppSettings {
-  const base = prev ?? DEFAULT_APP_SETTINGS;
-  return {
-    ...base,
-    general: patch.general ? { ...base.general, ...patch.general } : base.general,
+  return normalizeAppSettings({
+    ...prev,
+    general: patch.general ? { ...prev.general, ...patch.general } : prev.general,
     personalization: patch.personalization
-      ? { ...base.personalization, ...patch.personalization }
-      : base.personalization,
+      ? { ...prev.personalization, ...patch.personalization }
+      : prev.personalization,
     notifications: patch.notifications
-      ? { ...base.notifications, ...patch.notifications }
-      : base.notifications,
-    privacy: patch.privacy ? { ...base.privacy, ...patch.privacy } : base.privacy,
+      ? { ...prev.notifications, ...patch.notifications }
+      : prev.notifications,
+    privacy: patch.privacy ? { ...prev.privacy, ...patch.privacy } : prev.privacy,
     capabilities: patch.capabilities
-      ? { ...base.capabilities, ...patch.capabilities }
-      : base.capabilities,
+      ? { ...prev.capabilities, ...patch.capabilities }
+      : prev.capabilities,
     timeAndFocus: patch.timeAndFocus
-      ? { ...base.timeAndFocus, ...patch.timeAndFocus }
-      : base.timeAndFocus,
-    reflect: patch.reflect ? { ...base.reflect, ...patch.reflect } : base.reflect,
-    safety: patch.safety ? { ...base.safety, ...patch.safety } : base.safety,
-    claw: patch.claw ? { ...base.claw, ...patch.claw } : base.claw,
-  };
+      ? { ...prev.timeAndFocus, ...patch.timeAndFocus }
+      : prev.timeAndFocus,
+    reflect: patch.reflect ? { ...prev.reflect, ...patch.reflect } : prev.reflect,
+    safety: patch.safety ? { ...prev.safety, ...patch.safety } : prev.safety,
+    claw: patch.claw ? { ...prev.claw, ...patch.claw } : prev.claw,
+  });
 }
 
 export function useSettings(enabled: boolean) {
-  // Always start with defaults so Settings UI can paint immediately.
-  // API response hydrates over the top; failures keep defaults.
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [loading, setLoading] = useState(enabled);
   const [saving, setSaving] = useState(false);
@@ -60,9 +58,10 @@ export function useSettings(enabled: boolean) {
     setLoading(true);
     try {
       const data = await settingsApi.getSettings();
-      setSettings(data);
+      setSettings(normalizeAppSettings(data));
     } catch {
-      setSettings(DEFAULT_APP_SETTINGS);
+      // Keep current defaults — never clear the UI on API/challenge failures.
+      setSettings((prev) => normalizeAppSettings(prev));
     } finally {
       setLoading(false);
     }
@@ -87,9 +86,9 @@ export function useSettings(enabled: boolean) {
       setSaving(true);
       try {
         const data = await settingsApi.updateSettings(patch);
-        setSettings(data);
+        setSettings(normalizeAppSettings(data));
       } catch {
-        // Keep optimistic local merge; server sync can retry on next edit.
+        // Optimistic local state already applied via schedulePersist.
       } finally {
         setSaving(false);
       }
@@ -175,16 +174,15 @@ export function useSettings(enabled: boolean) {
         createdAt: new Date().toISOString(),
         ...options,
       };
-      const current = settings?.claw.deployments ?? [];
+      const current = settings.claw.deployments ?? [];
       const next = [deployment, ...current];
-      setSettings((prev) => {
-        const base = prev ?? DEFAULT_APP_SETTINGS;
-        return { ...base, claw: { deployments: next } };
-      });
+      setSettings((prev) =>
+        normalizeAppSettings({ ...prev, claw: { deployments: next } }),
+      );
       await persist({ claw: { deployments: next } });
       return deployment;
     },
-    [persist, settings?.claw.deployments],
+    [persist, settings.claw.deployments],
   );
 
   return {

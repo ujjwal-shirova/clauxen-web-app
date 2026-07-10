@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import dynamic from "next/dynamic";
 import { SettingsModal } from "@/frontend/components/settings-page";
-import { SettingsErrorBoundary } from "@/frontend/components/settings/settings-error-boundary";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/frontend/components/sidebar";
 import { useAuth } from "@/frontend/hooks/use-auth";
@@ -60,7 +59,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const auth = useAuth();
-  const [settingsMountKey, setSettingsMountKey] = useState(0);
   const { toast } = useToast();
   const {
     isMobile,
@@ -285,30 +283,24 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       {overlays.isOpen.gift && <GiftView onClose={overlays.closeOverlay} />}
 
       {overlays.isOpen.settings ? (
-        <SettingsErrorBoundary
+        <SettingsModal
+          open
           onClose={overlays.closeOverlay}
-          onReload={() => setSettingsMountKey((key) => key + 1)}
-        >
-          <SettingsModal
-            key={settingsMountKey}
-            open
-            onClose={overlays.closeOverlay}
-            initialTab={(overlays.settingsTab as SettingsTab) || "General"}
-            onTabChange={(tab) => overlays.openSettings(tab)}
-            onGoToCustomize={(tab) => {
-              overlays.closeOverlay();
-              router.push(
-                tab === "connectors" ? "/customize/connectors" : "/customize",
-              );
-            }}
-            onUpgradeClick={() => {
-              overlays.closeOverlay();
-              setTimeout(() => overlays.openPricing(), 0);
-            }}
-            user={auth.user}
-            onLogout={() => void auth.logout()}
-          />
-        </SettingsErrorBoundary>
+          initialTab={(overlays.settingsTab as SettingsTab) || "General"}
+          onTabChange={(tab) => overlays.openSettings(tab)}
+          onGoToCustomize={(tab) => {
+            overlays.closeOverlay();
+            router.push(
+              tab === "connectors" ? "/customize/connectors" : "/customize",
+            );
+          }}
+          onUpgradeClick={() => {
+            overlays.closeOverlay();
+            setTimeout(() => overlays.openPricing(), 0);
+          }}
+          user={auth.user}
+          onLogout={() => void auth.logout()}
+        />
       ) : null}
 
       {createProjectOpen ? (

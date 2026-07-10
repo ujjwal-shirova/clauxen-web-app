@@ -11,7 +11,6 @@ import {
   SettingsToggleRow,
 } from "@/frontend/components/settings/settings-ui";
 import { useApiKeys } from "@/frontend/hooks/use-api-keys";
-import { useAuth } from "@/frontend/hooks/use-auth";
 
 const API_KEY_NAME_MAX = 128;
 
@@ -45,11 +44,12 @@ const DEFAULT_CODE_PREFS: CodeLocalPrefs = {
   transcriptWidth: "Narrow",
 };
 
-export function ClauxenCodeSettings() {
-  const auth = useAuth();
-  const { keys, loading, createKey, revokeKey } = useApiKeys(
-    auth.isAuthenticated,
-  );
+export function ClauxenCodeSettings({
+  isAuthenticated = false,
+}: {
+  isAuthenticated?: boolean;
+}) {
+  const { keys, loading, createKey, revokeKey } = useApiKeys(isAuthenticated);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<CodeLocalPrefs>(DEFAULT_CODE_PREFS);
 
@@ -64,18 +64,26 @@ export function ClauxenCodeSettings() {
   };
 
   const handleCreate = async () => {
-    if (!auth.isAuthenticated) return;
+    if (!isAuthenticated) return;
     const name = window.prompt("Token name");
     const safeName = name ? sanitizeApiKeyName(name) : "";
     if (!safeName) return;
-    const key = await createKey(safeName);
-    setCreatedKey(key.key);
+    try {
+      const key = await createKey(safeName);
+      setCreatedKey(key.key);
+    } catch (error) {
+      console.error("[settings] create token failed:", error);
+    }
   };
 
   const handleRevoke = async (keyId: string) => {
-    if (!auth.isAuthenticated) return;
-    await revokeKey(keyId);
-    setCreatedKey(null);
+    if (!isAuthenticated) return;
+    try {
+      await revokeKey(keyId);
+      setCreatedKey(null);
+    } catch (error) {
+      console.error("[settings] revoke token failed:", error);
+    }
   };
 
   return (

@@ -10,6 +10,16 @@ export class ApiError extends Error {
   }
 }
 
+function looksLikeSecurityChallenge(response: Response, bodyText: string) {
+  const contentType = response.headers.get("content-type") ?? "";
+  return (
+    response.status === 429 ||
+    contentType.includes("text/html") ||
+    bodyText.trimStart().startsWith("<!DOCTYPE") ||
+    bodyText.includes("Vercel Security Checkpoint")
+  );
+}
+
 export async function apiFetch<T>(
   path: string,
   init?: RequestInit,
@@ -23,18 +33,41 @@ export async function apiFetch<T>(
     },
   });
 
-  const payload = (await response.json().catch(() => ({}))) as {
+  const bodyText = await response.text();
+
+  if (looksLikeSecurityChallenge(response, bodyText)) {
+    throw new ApiError(
+      "Security check in progress. Please retry in a moment.",
+      response.status === 200 ? 429 : response.status,
+      "security_challenge",
+    );
+  }
+
+  let payload: {
     data?: T;
     error?: { message?: string; code?: string };
-  };
+  } = {};
+  try {
+    payload = bodyText ? (JSON.parse(bodyText) as typeof payload) : {};
+  } catch {
+    throw new ApiError(
+      "Invalid JSON response.",
+      response.status,
+      "invalid_json",
+    );
+  }
 
   if (!response.ok) {
     throw new ApiError(
       payload.error?.message ?? "Request failed.",
       response.status,
-      payload.error?.code,
+      payload.error?.code ?? "api_error",
     );
   }
 
-  return payload.data as T;
+  if (payload.data === undefined) {
+    throw new ApiError("Empty response.", response.status, "empty_response");
+  }
+
+  return payload.data;
 }
