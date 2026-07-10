@@ -58,12 +58,12 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* Demo — wallpaper stage with centered macOS chat window; hidden below lg */}
+        {/* Demo — wallpaper stage with a compact, centered macOS chat window; hidden below lg */}
         <aside
-          className="login-demo-rail relative hidden min-h-0 w-[min(54%,640px)] shrink-0 self-stretch overflow-hidden lg:flex lg:items-center lg:justify-center lg:p-5 xl:p-6"
+          className="login-demo-rail relative hidden min-h-0 w-[min(54%,640px)] shrink-0 self-stretch overflow-hidden lg:flex lg:items-center lg:justify-center lg:p-10 xl:p-12"
           aria-hidden
         >
-          <div className="login-demo-stage-frame relative flex h-[min(92%,820px)] w-[min(94%,560px)] min-h-0 flex-col overflow-hidden rounded-[12px] border border-black/10 bg-white shadow-[0_18px_50px_-20px_rgba(15,23,42,0.45),0_0_0_1px_rgba(255,255,255,0.35)_inset]">
+          <div className="login-demo-stage-frame relative flex h-[min(58%,480px)] w-[min(82%,440px)] min-h-0 flex-col overflow-hidden rounded-[12px] border border-black/10 bg-white shadow-[0_18px_50px_-20px_rgba(15,23,42,0.45),0_0_0_1px_rgba(255,255,255,0.35)_inset]">
             <LoginDemoPlayer />
           </div>
         </aside>

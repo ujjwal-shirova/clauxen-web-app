@@ -111,7 +111,7 @@ export function AuthOAuthButtons({
       </button>
 
       {/* Icon providers wrap so the row stays inside the login column */}
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-wrap items-center justify-center gap-2.5">
         {ICON_OAUTH.map(({ provider, label, icon }) => (
           <button
             key={provider}

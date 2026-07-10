@@ -16,6 +16,7 @@ import {
   findPromptTextarea,
   pointInStage,
 } from "./prompt-dom";
+import { syncDemoStickyPins } from "./demo-sticky";
 import { magnetCursorToSend } from "./send-magnet";
 
 const IDLE_MS = 1100;
@@ -110,6 +111,10 @@ export function LoginDemoPlayer() {
       viewport.scrollHeight - viewport.clientHeight,
     );
     viewport.style.scrollBehavior = prev;
+    // Demo-only: pin after scroll. Trailing rAF beats ConversationThread's
+    // scroll-scheduled sync so main-app sticky logic stays untouched.
+    syncDemoStickyPins(viewport);
+    requestAnimationFrame(() => syncDemoStickyPins(viewport));
   }, [resolveViewport]);
 
   /**
@@ -183,6 +188,58 @@ export function LoginDemoPlayer() {
     if (!last || last.role !== "assistant") return;
     stickDemoToBottom();
   }, [messages, isGenerating, stickDemoToBottom]);
+
+  /**
+   * Demo-only sticky observers — ConversationThread sticky sync can lag / race
+   * the scripted stream; re-assert pins without touching main-app code.
+   */
+  useEffect(() => {
+    const viewport = resolveViewport();
+    if (!viewport) return;
+
+    let raf = 0;
+    const run = () => {
+      syncDemoStickyPins(viewport);
+      // Second pass after ConversationThread's scroll rAF (same isolation rule).
+      requestAnimationFrame(() => syncDemoStickyPins(viewport));
+    };
+    const schedule = () => {
+      if (raf !== 0) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        run();
+      });
+    };
+
+    schedule();
+    viewport.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+
+    const content =
+      (viewport.firstElementChild as HTMLElement | null) ?? viewport;
+    const mo = new MutationObserver(schedule);
+    mo.observe(content, {
+      childList: true,
+      subtree: true,
+      // Re-assert when shared ConversationThread overwrites pin attrs.
+      attributes: true,
+      attributeFilter: [
+        "data-sticky-active",
+        "data-code-header-pin",
+        "data-table-header-pin",
+      ],
+    });
+    const ro = new ResizeObserver(schedule);
+    ro.observe(content);
+
+    return () => {
+      if (raf !== 0) cancelAnimationFrame(raf);
+      viewport.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      mo.disconnect();
+      ro.disconnect();
+    };
+  }, [resolveViewport, isConversationStarted, lastMessageKey]);
 
   useEffect(() => {
     let cancelled = false;

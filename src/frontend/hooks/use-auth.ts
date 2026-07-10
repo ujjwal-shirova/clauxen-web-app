@@ -99,10 +99,13 @@ export function useAuth() {
   const signInWithOAuth = useCallback(
     async (provider: OAuthProvider, redirectTo = "/") => {
       const supabase = createClient();
+      // Azure/Entra must return email; Supabase docs require the email scope.
+      const scopes = provider === "azure" ? "email" : undefined;
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${appOrigin()}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+          ...(scopes ? { scopes } : {}),
         },
       });
       if (error) {

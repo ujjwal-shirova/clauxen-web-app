@@ -626,6 +626,45 @@ button.user-message-card__body:not(:disabled):hover {
   background-color: #ffffff;
 }
 
+/* Demo-only sticky docking — same offsets as main app, scoped so chat CSS stays untouched. */
+.login-demo-stage .sticky-user-msg-host {
+  position: sticky;
+  top: var(--header-height, 0px);
+  z-index: calc(2 + var(--turn-index, 0));
+}
+
+.login-demo-stage .sticky-user-msg--stuck {
+  z-index: 25;
+  isolation: isolate;
+  box-shadow: 0 5px 12px -11px rgba(24, 24, 27, 0.16);
+}
+
+.login-demo-stage
+  .composer-message-codeblock[data-code-header-pin="true"]
+  .ui-code-block.code-block-header-sticky {
+  position: sticky;
+  top: calc(var(--header-height, 0px) + var(--turn-user-msg-height, 0px));
+  z-index: 24;
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(24, 24, 27, 0.06);
+}
+
+.login-demo-stage
+  .composer-message-table[data-table-header-pin="true"]
+  .ui-table-title-header.table-title-header-sticky {
+  position: sticky;
+  top: calc(var(--header-height, 0px) + var(--turn-user-msg-height, 0px));
+  z-index: 25;
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(24, 24, 27, 0.06);
+}
+
+.login-demo-stage .composer-message-codeblock .ui-code-block.code-block-header-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
 [data-chat-active],
 [data-chat-streaming] {
   --header-height: 35px;
