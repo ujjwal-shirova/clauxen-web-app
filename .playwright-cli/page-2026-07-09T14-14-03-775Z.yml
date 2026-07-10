@@ -1,0 +1,5 @@
+- generic [active] [ref=e1]:
+  - status "Loading" [ref=e4]
+  - alert [ref=e5]
+  - region "Notifications (F8)":
+    - list
