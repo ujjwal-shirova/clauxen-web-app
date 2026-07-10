@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ExternalLink } from "lucide-react";
 import {
   SettingsPanelTitle,
   SettingsPillButton,
@@ -118,9 +118,16 @@ export function PrivacySettings({
           <span className="text-[14px] font-medium">Shared chats</span>
           <SettingsPillButton>Manage</SettingsPillButton>
         </div>
-        <div className="flex min-h-[56px] items-center justify-between gap-4 py-3">
+        <div className="flex min-h-[56px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
           <span className="text-[14px] font-medium">Shared artifacts</span>
           <SettingsPillButton>Manage</SettingsPillButton>
+        </div>
+        <div className="flex min-h-[56px] items-center justify-between gap-4 py-3">
+          <span className="text-[14px] font-medium">Memory preferences</span>
+          <SettingsPillButton>
+            Manage
+            <ExternalLink className="ml-1.5 h-3.5 w-3.5" aria-hidden />
+          </SettingsPillButton>
         </div>
       </SettingsSection>
     </div>

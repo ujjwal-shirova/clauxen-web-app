@@ -32,7 +32,7 @@ import { useMinimumLoadingTime } from "@/frontend/hooks/use-minimum-loading";
 import { useSettings } from "@/frontend/hooks/use-settings";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import * as workspacesApi from "@/frontend/lib/api/workspaces";
-import type { Workspace, WorkspaceMember } from "@/frontend/lib/api/workspaces";
+import type { Workspace } from "@/frontend/lib/api/workspaces";
 import { cn } from "@/frontend/lib/utils";
 import type { SessionUser } from "@/frontend/lib/api/auth";
 
@@ -67,6 +67,7 @@ export function SettingsModal({
     updateTimeAndFocus,
     updateReflect,
     updateNotifications,
+    updatePersonalization,
   } = useSettings(auth.isAuthenticated);
 
   const safeInitial = isSettingsTab(initialTab) ? initialTab : "General";
@@ -85,10 +86,6 @@ export function SettingsModal({
 
   const [copied, setCopied] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
-  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>(
-    [],
-  );
-  const [workspaceLoading, setWorkspaceLoading] = useState(false);
 
   const general = settings?.general;
   const privacy = settings?.privacy;
@@ -96,28 +93,18 @@ export function SettingsModal({
   const timeAndFocus = settings?.timeAndFocus;
   const reflect = settings?.reflect;
   const notifications = settings?.notifications;
+  const personalization = settings?.personalization;
 
   useEffect(() => {
     if (!open || !user?.id) {
-      if (!user?.id) {
-        setWorkspace(null);
-        setWorkspaceMembers([]);
-      }
+      if (!user?.id) setWorkspace(null);
       return;
     }
 
-    setWorkspaceLoading(true);
     void workspacesApi
       .getWorkspaceMembers()
-      .then(({ workspace: ws, members }) => {
-        setWorkspace(ws);
-        setWorkspaceMembers(members);
-      })
-      .catch(() => {
-        setWorkspace(null);
-        setWorkspaceMembers([]);
-      })
-      .finally(() => setWorkspaceLoading(false));
+      .then(({ workspace: ws }) => setWorkspace(ws))
+      .catch(() => setWorkspace(null));
   }, [open, user?.id]);
 
   const handleCopyOrgId = () => {
@@ -136,7 +123,8 @@ export function SettingsModal({
     !capabilities ||
     !timeAndFocus ||
     !reflect ||
-    !notifications;
+    !notifications ||
+    !personalization;
 
   const showSettingsSkeleton = useMinimumLoadingTime(
     isSettingsDataLoading,
@@ -150,7 +138,8 @@ export function SettingsModal({
       !capabilities ||
       !timeAndFocus ||
       !reflect ||
-      !notifications
+      !notifications ||
+      !personalization
     ) {
       return null;
     }
@@ -159,34 +148,35 @@ export function SettingsModal({
       case "General":
         return (
           <GeneralSettings
-            colorMode={general.colorMode}
+            appearancePreset={general.appearancePreset}
+            setAppearancePreset={(v) => updateGeneral({ appearancePreset: v })}
             setColorMode={(v) => updateGeneral({ colorMode: v })}
             chatFont={general.chatFont}
             setChatFont={(v) => updateGeneral({ chatFont: v })}
-            appearancePreset={general.appearancePreset}
-            contrastMode={general.contrastMode ?? "System"}
-            accentColor={general.accentColor}
-            language={general.language}
-            spokenLanguage={general.spokenLanguage}
-            voice={general.voice}
-            voiceIsolation={general.voiceIsolation}
-            dictationEnabled={general.dictationEnabled ?? true}
-            setAppearancePreset={(v) => updateGeneral({ appearancePreset: v })}
-            setContrastMode={(v) => updateGeneral({ contrastMode: v })}
-            setAccentColor={(v) => updateGeneral({ accentColor: v })}
-            setLanguage={(v) => updateGeneral({ language: v })}
-            setSpokenLanguage={(v) => updateGeneral({ spokenLanguage: v })}
-            setVoice={(v) => updateGeneral({ voice: v })}
-            setVoiceIsolation={(v) => updateGeneral({ voiceIsolation: v })}
-            setDictationEnabled={(v) => updateGeneral({ dictationEnabled: v })}
             motion={general.motion ?? "System"}
             setMotion={(v) => updateGeneral({ motion: v })}
-            voiceSpeed={general.voiceSpeed ?? "Normal"}
-            setVoiceSpeed={(v) => updateGeneral({ voiceSpeed: v })}
             responseCompletions={notifications.responseCompletions ?? true}
             setResponseCompletions={(v) =>
               updateNotifications({ responseCompletions: v })
             }
+            fullName={
+              personalization.fullName?.trim() ||
+              user?.displayName?.trim() ||
+              ""
+            }
+            nickname={personalization.nickname}
+            occupation={personalization.occupation}
+            customInstructions={personalization.customInstructions}
+            onProfileChange={(patch) => {
+              const next: Parameters<typeof updatePersonalization>[0] = {};
+              if (patch.fullName != null) next.fullName = patch.fullName;
+              if (patch.nickname != null) next.nickname = patch.nickname;
+              if (patch.occupation != null) next.occupation = patch.occupation;
+              if (patch.customInstructions != null) {
+                next.customInstructions = patch.customInstructions;
+              }
+              if (Object.keys(next).length > 0) updatePersonalization(next);
+            }}
           />
         );
       case "Account":
@@ -195,13 +185,18 @@ export function SettingsModal({
             copied={copied}
             onCopyOrgId={handleCopyOrgId}
             userId={user?.id}
-            userEmail={user?.email}
-            userDisplayName={user?.displayName}
             onLogout={onLogout}
             onLogoutAllDevices={onLogout}
             workspace={workspace}
-            workspaceMembers={workspaceMembers}
-            workspaceLoading={workspaceLoading}
+            sessions={[
+              {
+                device: "Chrome",
+                location: "—",
+                created: "—",
+                updated: "—",
+                current: true,
+              },
+            ]}
           />
         );
       case "Privacy":

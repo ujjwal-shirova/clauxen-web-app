@@ -25,6 +25,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     characteristicEmoji: "Less",
     fastAnswers: true,
     customInstructions: "",
+    fullName: "",
     nickname: "",
     occupation: "",
     moreAboutYou: "",

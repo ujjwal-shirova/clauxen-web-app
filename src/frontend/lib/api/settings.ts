@@ -24,6 +24,7 @@ export type PersonalizationSettings = {
   characteristicEmoji: string;
   fastAnswers: boolean;
   customInstructions: string;
+  fullName: string;
   nickname: string;
   occupation: string;
   moreAboutYou: string;

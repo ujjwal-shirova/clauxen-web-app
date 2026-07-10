@@ -31,6 +31,7 @@ const defaultPersonalization = {
   characteristicEmoji: "Less",
   fastAnswers: true,
   customInstructions: "",
+  fullName: "",
   nickname: "",
   occupation: "",
   moreAboutYou: "",
