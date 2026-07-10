@@ -5,7 +5,6 @@ import "./globals.css";
 import { ClientToaster } from "@/frontend/components/client-toaster";
 import { AppNotificationsProvider } from "@/frontend/hooks/use-app-notifications";
 import { AppNotificationHost } from "@/frontend/components/app-notifications/app-notification-host";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Clauxen",
@@ -52,7 +51,6 @@ export default function RootLayout({
           <AppNotificationHost />
           <SpeedInsights />
         </AppNotificationsProvider>
-        <SpeedInsights />
       </body>
     </html>
   );
