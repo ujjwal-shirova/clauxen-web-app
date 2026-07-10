@@ -6,6 +6,7 @@ import { AlertTriangle } from "lucide-react";
 type SettingsErrorBoundaryProps = {
   children: React.ReactNode;
   onClose?: () => void;
+  onReload?: () => void;
 };
 
 type SettingsErrorBoundaryState = {
@@ -28,14 +29,23 @@ export class SettingsErrorBoundary extends React.Component<
 
   private handleReload = () => {
     this.setState({ error: null });
+    this.props.onReload?.();
   };
 
   override render() {
     if (this.state.error) {
+      const detail =
+        process.env.NODE_ENV !== "production"
+          ? this.state.error.message
+          : null;
+
       return (
         <div className="fixed inset-0 z-[101] flex items-center justify-center bg-[rgba(244,244,245,0.92)] p-6">
           <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-2xl border border-zinc-200 bg-white px-6 py-8 text-center shadow-lg">
-            <AlertTriangle className="h-10 w-10 text-zinc-900" strokeWidth={1.5} />
+            <AlertTriangle
+              className="h-10 w-10 text-zinc-900"
+              strokeWidth={1.5}
+            />
             <div>
               <h2 className="text-lg font-semibold text-zinc-900">
                 Settings couldn&apos;t load
@@ -43,6 +53,11 @@ export class SettingsErrorBoundary extends React.Component<
               <p className="mt-2 text-sm text-zinc-500">
                 Reload to try again, or go back.
               </p>
+              {detail ? (
+                <p className="mt-3 break-words text-left text-xs text-zinc-400">
+                  {detail}
+                </p>
+              ) : null}
             </div>
             <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
               <button

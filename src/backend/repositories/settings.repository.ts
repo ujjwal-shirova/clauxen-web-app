@@ -1,4 +1,4 @@
-import { queryOne } from "@/backend/db/pool";
+import { query, queryOne } from "@/backend/db/pool";
 
 export type UserSettingsRow = {
   user_id: string;
@@ -17,6 +17,22 @@ export type NotificationPreferencesRow = {
   security_alerts: boolean;
   settings: Record<string, unknown>;
 };
+
+/** Upsert empty settings rows when identity bootstrap is unavailable. */
+export async function ensureSettingsRows(userId: string, email?: string | null) {
+  await query(
+    `insert into public.user_settings (user_id, email, settings)
+     values ($1, $2, '{}'::jsonb)
+     on conflict (user_id) do nothing`,
+    [userId, email ?? null],
+  );
+  await query(
+    `insert into public.notification_preferences (user_id)
+     values ($1)
+     on conflict (user_id) do nothing`,
+    [userId],
+  );
+}
 
 export async function getUserSettings(userId: string) {
   return queryOne<UserSettingsRow>(

@@ -136,16 +136,32 @@ function toClientPayload(
   };
 }
 
-export const GET = withApiHandler(
-  async ({ session }) => {
-    const user = requireSession(session);
+async function bootstrapSettingsUser(user: {
+  id: string;
+  email?: string | null;
+  displayName?: string | null;
+}) {
+  try {
     if (user.email) {
       await ensureUserRecord({
         userId: user.id,
         email: user.email,
         displayName: user.displayName,
       });
+      return;
     }
+  } catch (error) {
+    console.error("[settings] ensureUserRecord failed:", error);
+  }
+
+  await settingsRepo.ensureSettingsRows(user.id, user.email);
+}
+
+export const GET = withApiHandler(
+  async ({ session }) => {
+    const user = requireSession(session);
+    await bootstrapSettingsUser(user);
+
     const [userSettings, notificationPrefs] = await Promise.all([
       settingsRepo.getUserSettings(user.id),
       settingsRepo.getNotificationPreferences(user.id),
@@ -165,13 +181,7 @@ export const GET = withApiHandler(
 export const PATCH = withApiHandler(
   async ({ session, request }) => {
     const user = requireSession(session);
-    if (user.email) {
-      await ensureUserRecord({
-        userId: user.id,
-        email: user.email,
-        displayName: user.displayName,
-      });
-    }
+    await bootstrapSettingsUser(user);
     const body = (await request.json()) as {
       general?: Record<string, unknown>;
       personalization?: Record<string, unknown>;

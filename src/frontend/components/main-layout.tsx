@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
+import { SettingsModal } from "@/frontend/components/settings-page";
+import { SettingsErrorBoundary } from "@/frontend/components/settings/settings-error-boundary";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/frontend/components/sidebar";
 import { useAuth } from "@/frontend/hooks/use-auth";
@@ -24,21 +26,6 @@ import { AppLayoutProvider } from "@/frontend/components/app-layout-context";
 const UpgradeView = dynamic(
   () =>
     import("@/frontend/components/upgrade-view").then((m) => m.UpgradeView),
-  { ssr: false },
-);
-const SettingsModal = dynamic(
-  () =>
-    import("@/frontend/components/settings-page").then((m) => m.SettingsModal),
-  {
-    ssr: false,
-    loading: () => null,
-  },
-);
-const SettingsErrorBoundary = dynamic(
-  () =>
-    import("@/frontend/components/settings/settings-error-boundary").then(
-      (m) => m.SettingsErrorBoundary,
-    ),
   { ssr: false },
 );
 const AppsExtensionsView = dynamic(
@@ -73,6 +60,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const auth = useAuth();
+  const [settingsMountKey, setSettingsMountKey] = useState(0);
   const { toast } = useToast();
   const {
     isMobile,
@@ -297,8 +285,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       {overlays.isOpen.gift && <GiftView onClose={overlays.closeOverlay} />}
 
       {overlays.isOpen.settings ? (
-        <SettingsErrorBoundary onClose={overlays.closeOverlay}>
+        <SettingsErrorBoundary
+          onClose={overlays.closeOverlay}
+          onReload={() => setSettingsMountKey((key) => key + 1)}
+        >
           <SettingsModal
+            key={settingsMountKey}
             open
             onClose={overlays.closeOverlay}
             initialTab={(overlays.settingsTab as SettingsTab) || "General"}
@@ -314,6 +306,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               setTimeout(() => overlays.openPricing(), 0);
             }}
             user={auth.user}
+            authLoading={auth.loading}
             onLogout={() => void auth.logout()}
           />
         </SettingsErrorBoundary>

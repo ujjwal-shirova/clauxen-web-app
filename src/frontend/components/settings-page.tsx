@@ -1,49 +1,49 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import {
   isSettingsTab,
   type SettingsTab,
 } from "@/frontend/components/settings/constants";
-import { GeneralSettings } from "@/frontend/components/settings/general-settings";
-import { PersonalizationSettingsPanel } from "@/frontend/components/settings/personalization-settings";
-import { NotificationsSettings } from "@/frontend/components/settings/notifications-settings";
-import { AccountSettings } from "@/frontend/components/settings/account-settings";
-import { SecuritySettings } from "@/frontend/components/settings/security-settings";
-import { PrivacySettings } from "@/frontend/components/settings/privacy-settings";
-import { BillingSettings } from "@/frontend/components/settings/billing-settings";
-import { StorageSettings } from "@/frontend/components/settings/storage-settings";
-import { CapabilitiesSettings } from "@/frontend/components/settings/capabilities-settings";
-import { ReflectSettings } from "@/frontend/components/settings/reflect-settings";
-import { TimeAndFocusSettings } from "@/frontend/components/settings/time-and-focus-settings";
-import { SafetySettings } from "@/frontend/components/settings/safety-settings";
-import { ParentalControlsSettings } from "@/frontend/components/settings/parental-controls-settings";
-import { TrustedContactSettings } from "@/frontend/components/settings/trusted-contact-settings";
-import { ClauxenCodeSettings } from "@/frontend/components/settings/clauxen-code-settings";
-import { KeyboardSettings } from "@/frontend/components/settings/keyboard-settings";
-import { SkillsSettings } from "@/frontend/components/settings/skills-settings";
-import {
-  ConnectorsCatalogSettings,
-  PluginsSettings,
-} from "@/frontend/components/settings/plugins-settings";
 import { SettingsNavSidebar } from "@/frontend/components/settings/settings-nav-sidebar";
 import { SettingsPageSkeleton } from "@/frontend/components/settings/settings-page-skeleton";
 import { ShimmerSkeleton } from "@/frontend/components/ui/shimmer-skeleton";
 import {
   Dialog,
+  DialogDescription,
   DialogOverlay,
   DialogPortal,
 } from "@/frontend/components/ui/dialog";
 import { useMinimumLoadingTime } from "@/frontend/hooks/use-minimum-loading";
 import { useSettings } from "@/frontend/hooks/use-settings";
-import { useAuth } from "@/frontend/hooks/use-auth";
 import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
 import * as workspacesApi from "@/frontend/lib/api/workspaces";
 import type { Workspace } from "@/frontend/lib/api/workspaces";
 import { cn } from "@/frontend/lib/utils";
 import type { SessionUser } from "@/frontend/lib/api/auth";
+import {
+  AccountSettingsPanel,
+  BillingSettingsPanel,
+  CapabilitiesSettingsPanel,
+  ClauxenCodeSettingsPanel,
+  ConnectorsCatalogSettingsPanel,
+  GeneralSettingsPanel,
+  KeyboardSettingsPanel,
+  NotificationsSettingsPanel,
+  ParentalControlsSettingsPanel,
+  PersonalizationSettingsPanel,
+  PluginsSettingsPanel,
+  PrivacySettingsPanel,
+  ReflectSettingsPanel,
+  SafetySettingsPanel,
+  SecuritySettingsPanel,
+  SkillsSettingsPanel,
+  StorageSettingsPanel,
+  TimeAndFocusSettingsPanel,
+  TrustedContactSettingsPanel,
+} from "@/frontend/components/settings/settings-tab-panels";
 
 interface SettingsModalProps {
   open: boolean;
@@ -54,6 +54,7 @@ interface SettingsModalProps {
   onLogout?: () => void;
   initialTab?: SettingsTab;
   onTabChange?: (tab: SettingsTab) => void;
+  authLoading?: boolean;
 }
 
 export function SettingsModal({
@@ -65,8 +66,9 @@ export function SettingsModal({
   onLogout,
   initialTab = "General",
   onTabChange,
+  authLoading = false,
 }: SettingsModalProps) {
-  const auth = useAuth();
+  const settingsEnabled = Boolean(user?.id);
   const {
     settings,
     loading: settingsLoading,
@@ -78,7 +80,7 @@ export function SettingsModal({
     updateNotifications,
     updatePersonalization,
     updateSafety,
-  } = useSettings(auth.isAuthenticated);
+  } = useSettings(settingsEnabled);
 
   const safeInitial = isSettingsTab(initialTab) ? initialTab : "General";
   const [activeTab, setActiveTab] = useState<SettingsTab>(safeInitial);
@@ -122,13 +124,13 @@ export function SettingsModal({
   const handleCopyOrgId = () => {
     const id = workspace?.id ?? user?.id ?? "";
     if (!id) return;
-    navigator.clipboard.writeText(id);
+    void navigator.clipboard.writeText(id);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const isSettingsDataLoading =
-    auth.loading || (auth.isAuthenticated && settingsLoading);
+    authLoading || (settingsEnabled && settingsLoading);
 
   const showSettingsSkeleton = useMinimumLoadingTime(
     isSettingsDataLoading,
@@ -139,7 +141,7 @@ export function SettingsModal({
     switch (activeTab) {
       case "General":
         return (
-          <GeneralSettings
+          <GeneralSettingsPanel
             appearancePreset={general.appearancePreset}
             setAppearancePreset={(v) => updateGeneral({ appearancePreset: v })}
             setColorMode={(v) => updateGeneral({ colorMode: v })}
@@ -163,7 +165,7 @@ export function SettingsModal({
         );
       case "Notifications":
         return (
-          <NotificationsSettings
+          <NotificationsSettingsPanel
             responseCompletions={notifications.responseCompletions ?? true}
             setResponseCompletions={(v) =>
               updateNotifications({ responseCompletions: v })
@@ -200,7 +202,7 @@ export function SettingsModal({
         );
       case "Account":
         return (
-          <AccountSettings
+          <AccountSettingsPanel
             copied={copied}
             onCopyOrgId={handleCopyOrgId}
             userId={user?.id}
@@ -220,7 +222,7 @@ export function SettingsModal({
         );
       case "Security":
         return (
-          <SecuritySettings
+          <SecuritySettingsPanel
             onLogout={onLogout}
             mfaEnabled={safety.mfaEnabled}
             onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
@@ -228,7 +230,7 @@ export function SettingsModal({
         );
       case "Privacy":
         return (
-          <PrivacySettings
+          <PrivacySettingsPanel
             privacy={privacy}
             onChange={updatePrivacy}
             onGoToPersonalization={() => handleTabChange("Personalization")}
@@ -236,17 +238,17 @@ export function SettingsModal({
         );
       case "Billing":
         return (
-          <BillingSettings
+          <BillingSettingsPanel
             onUpgradeClick={onUpgradeClick}
             userDisplayName={user?.displayName ?? user?.email}
             userEmail={user?.email}
           />
         );
       case "Storage":
-        return <StorageSettings />;
+        return <StorageSettingsPanel />;
       case "Capabilities":
         return (
-          <CapabilitiesSettings
+          <CapabilitiesSettingsPanel
             capabilities={{
               ...capabilities,
               toolMode: general.toolMode,
@@ -265,21 +267,21 @@ export function SettingsModal({
         );
       case "Reflect":
         return (
-          <ReflectSettings
+          <ReflectSettingsPanel
             range={reflect.range}
             onRangeChange={(range) => updateReflect({ range })}
           />
         );
       case "Time and focus":
         return (
-          <TimeAndFocusSettings
+          <TimeAndFocusSettingsPanel
             timeAndFocus={timeAndFocus}
             onChange={updateTimeAndFocus}
           />
         );
       case "Safety":
         return (
-          <SafetySettings
+          <SafetySettingsPanel
             reduceSensitiveContent={safety.reduceSensitiveContent}
             onChange={(reduceSensitiveContent) =>
               updateSafety({ reduceSensitiveContent })
@@ -287,40 +289,41 @@ export function SettingsModal({
           />
         );
       case "Parental controls":
-        return <ParentalControlsSettings />;
+        return <ParentalControlsSettingsPanel />;
       case "Trusted contact":
-        return <TrustedContactSettings />;
+        return <TrustedContactSettingsPanel />;
       case "Clauxen Code":
-        return <ClauxenCodeSettings />;
+        return <ClauxenCodeSettingsPanel />;
       case "Keyboard":
-        return <KeyboardSettings />;
+        return <KeyboardSettingsPanel />;
       case "Skills":
         return (
-          <SkillsSettings
+          <SkillsSettingsPanel
             onBrowse={() => onGoToCustomize("skills")}
             onAdd={() => onGoToCustomize("skills")}
           />
         );
       case "Connectors":
         return (
-          <ConnectorsCatalogSettings
+          <ConnectorsCatalogSettingsPanel
             onGoToCustomize={() => onGoToCustomize("connectors")}
             onAdd={() => onGoToCustomize("connectors")}
           />
         );
       case "Plugins":
-        return <PluginsSettings />;
+        return <PluginsSettingsPanel />;
       default:
         return null;
     }
   };
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+    <Dialog open onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <DialogPortal>
         <DialogOverlay className="z-[100] bg-[rgba(244,244,245,0.84)] backdrop-blur-none max-md:bg-[rgba(244,244,245,0.92)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
-          aria-describedby={undefined}
           className={cn(
             "fixed z-[101] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none",
             "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",
@@ -333,6 +336,9 @@ export function SettingsModal({
           <DialogPrimitive.Title className="sr-only">
             Settings
           </DialogPrimitive.Title>
+          <DialogDescription className="sr-only">
+            Manage your Clauxen account and application preferences.
+          </DialogDescription>
 
           <ShimmerSkeleton
             loading={showSettingsSkeleton}
@@ -387,7 +393,9 @@ export function SettingsModal({
                 id="settings-modal-title"
                 className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12"
               >
-                {renderActiveTab()}
+                <Suspense fallback={<SettingsPageSkeleton />}>
+                  {renderActiveTab()}
+                </Suspense>
               </div>
             </div>
           </ShimmerSkeleton>
