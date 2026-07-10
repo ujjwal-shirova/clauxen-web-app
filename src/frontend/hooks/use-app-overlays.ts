@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   isSettingsTab,
   type SettingsTab,
@@ -63,12 +63,25 @@ function buildHash(overlay: Overlay | null): string {
   }
 }
 
+function currentPathBase(pathname: string | null): string {
+  return (pathname || "/").split("#")[0] || "/";
+}
+
+/** Hash-only overlay changes must not go through Next router — that can hard-navigate and crash webviews. */
+function replaceLocationHash(pathname: string | null, hash: string) {
+  if (typeof window === "undefined") return;
+  const base = currentPathBase(pathname);
+  const next = hash ? `${base}${hash}` : base;
+  if (`${window.location.pathname}${window.location.search}${window.location.hash}` === next) {
+    return;
+  }
+  window.history.replaceState(window.history.state, "", next);
+}
+
 export function useAppOverlays() {
-  const router = useRouter();
   const pathname = usePathname();
   const [overlay, setOverlay] = useState<Overlay | null>(null);
 
-  // Read current overlay from location (handles direct load + back/forward)
   const syncFromLocation = useCallback(() => {
     if (typeof window === "undefined") return;
     // Never open settings/pricing overlays on auth or onboarding surfaces.
@@ -78,7 +91,7 @@ export function useAppOverlays() {
       pathname === "/signup"
     ) {
       if (window.location.hash) {
-        window.history.replaceState(null, "", pathname);
+        replaceLocationHash(pathname, "");
       }
       setOverlay(null);
       return;
@@ -87,7 +100,6 @@ export function useAppOverlays() {
     setOverlay(current);
   }, [pathname]);
 
-  // Keep in sync with browser navigation
   useEffect(() => {
     syncFromLocation();
 
@@ -102,7 +114,6 @@ export function useAppOverlays() {
     };
   }, [syncFromLocation]);
 
-  // Also re-sync when pathname changes (we may have navigated to a different base path)
   useEffect(() => {
     syncFromLocation();
   }, [pathname, syncFromLocation]);
@@ -111,11 +122,9 @@ export function useAppOverlays() {
 
   const closeOverlay = useCallback(() => {
     if (typeof window === "undefined") return;
-    const base = (pathname || "/").split("#")[0];
-    // Remove hash without adding history entry
-    router.replace(base, { scroll: false });
+    replaceLocationHash(pathname, "");
     setOverlay(null);
-  }, [pathname, router]);
+  }, [pathname]);
 
   const openOverlay = useCallback(
     (next: Overlay) => {
@@ -127,17 +136,12 @@ export function useAppOverlays() {
       ) {
         return;
       }
-      const base = (pathname || "/").split("#")[0];
-      const hash = buildHash(next);
-      const target = `${base}${hash}`;
-      // Use replace so opening/closing overlays doesn't pollute history stack
-      router.replace(target, { scroll: false });
+      replaceLocationHash(pathname, buildHash(next));
       setOverlay(next);
     },
-    [pathname, router],
+    [pathname],
   );
 
-  // Convenience helpers (keeps call sites simple and type-safe)
   const openPricing = useCallback(() => openOverlay({ type: "pricing" }), [openOverlay]);
   const openApps = useCallback(() => openOverlay({ type: "apps" }), [openOverlay]);
   const openGift = useCallback(() => openOverlay({ type: "gift" }), [openOverlay]);
@@ -167,7 +171,6 @@ export function useAppOverlays() {
     openGift,
     openSettings,
     closeOverlay,
-    // Generic open if you need to compute dynamically
     openOverlay,
   };
 }

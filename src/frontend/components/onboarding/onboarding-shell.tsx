@@ -20,7 +20,7 @@ export function OnboardingShell({
   return (
     <div
       className={cn(
-        "flex min-h-[100dvh] flex-col bg-[var(--app-shell-bg,#f9f9f9)] font-sans text-zinc-900",
+        "flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg,#f9f9f9)] font-sans text-zinc-900",
         className,
       )}
     >
@@ -30,7 +30,7 @@ export function OnboardingShell({
 
       <div
         className={cn(
-          "flex flex-1 flex-col items-center justify-center px-4 py-8 md:py-10",
+          "flex min-h-0 flex-1 flex-col items-center overflow-y-auto overscroll-contain px-4 py-8 md:py-10",
           contentClassName,
         )}
       >

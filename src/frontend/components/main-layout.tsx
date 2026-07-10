@@ -29,6 +29,16 @@ const UpgradeView = dynamic(
 const SettingsModal = dynamic(
   () =>
     import("@/frontend/components/settings-page").then((m) => m.SettingsModal),
+  {
+    ssr: false,
+    loading: () => null,
+  },
+);
+const SettingsErrorBoundary = dynamic(
+  () =>
+    import("@/frontend/components/settings/settings-error-boundary").then(
+      (m) => m.SettingsErrorBoundary,
+    ),
   { ssr: false },
 );
 const AppsExtensionsView = dynamic(
@@ -287,24 +297,26 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       {overlays.isOpen.gift && <GiftView onClose={overlays.closeOverlay} />}
 
       {overlays.isOpen.settings ? (
-        <SettingsModal
-          open
-          onClose={overlays.closeOverlay}
-          initialTab={(overlays.settingsTab as SettingsTab) || "General"}
-          onTabChange={(tab) => overlays.openSettings(tab)}
-          onGoToCustomize={(tab) => {
-            overlays.closeOverlay();
-            router.push(
-              tab === "connectors" ? "/customize/connectors" : "/customize",
-            );
-          }}
-          onUpgradeClick={() => {
-            overlays.closeOverlay();
-            setTimeout(() => overlays.openPricing(), 0);
-          }}
-          user={auth.user}
-          onLogout={() => void auth.logout()}
-        />
+        <SettingsErrorBoundary onClose={overlays.closeOverlay}>
+          <SettingsModal
+            open
+            onClose={overlays.closeOverlay}
+            initialTab={(overlays.settingsTab as SettingsTab) || "General"}
+            onTabChange={(tab) => overlays.openSettings(tab)}
+            onGoToCustomize={(tab) => {
+              overlays.closeOverlay();
+              router.push(
+                tab === "connectors" ? "/customize/connectors" : "/customize",
+              );
+            }}
+            onUpgradeClick={() => {
+              overlays.closeOverlay();
+              setTimeout(() => overlays.openPricing(), 0);
+            }}
+            user={auth.user}
+            onLogout={() => void auth.logout()}
+          />
+        </SettingsErrorBoundary>
       ) : null}
 
       {createProjectOpen ? (

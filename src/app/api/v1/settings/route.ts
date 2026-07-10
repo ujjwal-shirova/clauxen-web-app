@@ -3,6 +3,7 @@ import { jsonData } from "@/backend/http/api-response";
 import { requireSession } from "@/backend/auth/require-session";
 import { query } from "@/backend/db/pool";
 import * as settingsRepo from "@/backend/repositories/settings.repository";
+import { ensureUserRecord } from "@/backend/services/identity.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -138,6 +139,13 @@ function toClientPayload(
 export const GET = withApiHandler(
   async ({ session }) => {
     const user = requireSession(session);
+    if (user.email) {
+      await ensureUserRecord({
+        userId: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      });
+    }
     const [userSettings, notificationPrefs] = await Promise.all([
       settingsRepo.getUserSettings(user.id),
       settingsRepo.getNotificationPreferences(user.id),
@@ -157,6 +165,13 @@ export const GET = withApiHandler(
 export const PATCH = withApiHandler(
   async ({ session, request }) => {
     const user = requireSession(session);
+    if (user.email) {
+      await ensureUserRecord({
+        userId: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      });
+    }
     const body = (await request.json()) as {
       general?: Record<string, unknown>;
       personalization?: Record<string, unknown>;

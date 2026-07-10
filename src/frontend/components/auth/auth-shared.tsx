@@ -34,6 +34,15 @@ export function getSafeRedirectTo(value: string | null): string {
   return "/";
 }
 
+/** Preserve overlay hashes (e.g. #settings/General) after auth redirects. */
+export function redirectTargetWithHash(path: string): string {
+  if (typeof window === "undefined") return path;
+  const hash = window.location.hash;
+  if (!hash || hash === "#") return path;
+  if (path.includes("#")) return path;
+  return `${path}${hash}`;
+}
+
 export type OAuthProvider =
   | "google"
   | "github"

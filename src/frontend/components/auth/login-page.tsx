@@ -10,6 +10,7 @@ import {
   AuthLoadingShell,
   getSafeRedirectTo,
   mapSupabaseAuthError,
+  redirectTargetWithHash,
   resolveAuthIdentifier,
   type OAuthProvider,
 } from "@/frontend/components/auth/auth-shared";
@@ -68,7 +69,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      router.replace(redirectTo);
+      router.replace(redirectTargetWithHash(redirectTo));
     }
   }, [loading, isAuthenticated, redirectTo, router]);
 
@@ -97,7 +98,7 @@ export function LoginPage() {
     try {
       if (awaitingPhoneOtp && pendingPhone) {
         await verifyPhoneOtp(pendingPhone, otpCode);
-        router.replace(redirectTo);
+        router.replace(redirectTargetWithHash(redirectTo));
         return;
       }
 
@@ -125,7 +126,7 @@ export function LoginPage() {
       }
 
       await login(id.value, password);
-      router.replace(redirectTo);
+      router.replace(redirectTargetWithHash(redirectTo));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Something went wrong. Try again.",

@@ -39,6 +39,7 @@ import {
 import { useMinimumLoadingTime } from "@/frontend/hooks/use-minimum-loading";
 import { useSettings } from "@/frontend/hooks/use-settings";
 import { useAuth } from "@/frontend/hooks/use-auth";
+import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
 import * as workspacesApi from "@/frontend/lib/api/workspaces";
 import type { Workspace } from "@/frontend/lib/api/workspaces";
 import { cn } from "@/frontend/lib/utils";
@@ -96,14 +97,15 @@ export function SettingsModal({
   const [copied, setCopied] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
 
-  const general = settings?.general;
-  const privacy = settings?.privacy;
-  const capabilities = settings?.capabilities;
-  const timeAndFocus = settings?.timeAndFocus;
-  const reflect = settings?.reflect;
-  const notifications = settings?.notifications;
-  const personalization = settings?.personalization;
-  const safety = settings?.safety;
+  const general = settings?.general ?? DEFAULT_APP_SETTINGS.general;
+  const privacy = settings?.privacy ?? DEFAULT_APP_SETTINGS.privacy;
+  const capabilities = settings?.capabilities ?? DEFAULT_APP_SETTINGS.capabilities;
+  const timeAndFocus = settings?.timeAndFocus ?? DEFAULT_APP_SETTINGS.timeAndFocus;
+  const reflect = settings?.reflect ?? DEFAULT_APP_SETTINGS.reflect;
+  const notifications = settings?.notifications ?? DEFAULT_APP_SETTINGS.notifications;
+  const personalization =
+    settings?.personalization ?? DEFAULT_APP_SETTINGS.personalization;
+  const safety = settings?.safety ?? DEFAULT_APP_SETTINGS.safety;
 
   useEffect(() => {
     if (!open || !user?.id) {
@@ -126,16 +128,7 @@ export function SettingsModal({
   };
 
   const isSettingsDataLoading =
-    auth.loading ||
-    (auth.isAuthenticated && settingsLoading) ||
-    !general ||
-    !privacy ||
-    !capabilities ||
-    !timeAndFocus ||
-    !reflect ||
-    !notifications ||
-    !personalization ||
-    !safety;
+    auth.loading || (auth.isAuthenticated && settingsLoading);
 
   const showSettingsSkeleton = useMinimumLoadingTime(
     isSettingsDataLoading,
@@ -143,19 +136,6 @@ export function SettingsModal({
   );
 
   const renderActiveTab = () => {
-    if (
-      !general ||
-      !privacy ||
-      !capabilities ||
-      !timeAndFocus ||
-      !reflect ||
-      !notifications ||
-      !personalization ||
-      !safety
-    ) {
-      return null;
-    }
-
     switch (activeTab) {
       case "General":
         return (
