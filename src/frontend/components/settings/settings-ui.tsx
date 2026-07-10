@@ -210,8 +210,13 @@ const settingsOptionMenuItemClass = cn(
   settingsFocusReset,
 );
 
-/** Radio circles in settings panels — no blue focus ring. */
-export const settingsRadioItemClass = cn("mt-0.5", settingsFocusReset);
+/** Radio circles in settings panels — Clauxen charcoal, no blue focus ring. */
+export const settingsRadioItemClass = cn(
+  "mt-0.5 border-2 border-zinc-300 text-[#0d0d0d]",
+  "data-[state=checked]:border-[#0d0d0d]",
+  "focus-visible:ring-2 focus-visible:ring-[#0d0d0d]/20",
+  settingsFocusReset,
+);
 
 /** Dropdown picker — opens a list of choices instead of cycling on each click. */
 export function SettingsOptionPicker({

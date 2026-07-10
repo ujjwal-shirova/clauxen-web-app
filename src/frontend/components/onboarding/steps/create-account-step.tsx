@@ -17,6 +17,7 @@ type CreateAccountStepProps = {
   onChange: (patch: Partial<OnboardingState>) => void;
   onContinue: () => void;
   verifiedEmail?: string;
+  busy?: boolean;
 };
 
 export function CreateAccountStep({
@@ -24,11 +25,12 @@ export function CreateAccountStep({
   onChange,
   onContinue,
   verifiedEmail,
+  busy = false,
 }: CreateAccountStepProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const email = verifiedEmail ?? user?.email ?? null;
-  const canSubmit = state.termsAccepted && state.privacyAccepted;
+  const canSubmit = state.termsAccepted && state.privacyAccepted && !busy;
 
   const handleDifferentEmail = async () => {
     try {
@@ -117,7 +119,7 @@ export function CreateAccountStep({
               disabled={!canSubmit}
               className="mt-1"
             >
-              Create account
+              {busy ? "Creating…" : "Create account"}
             </OnboardingPrimaryButton>
           </form>
         </OnboardingCard>

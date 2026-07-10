@@ -1,6 +1,7 @@
 import { AppError, notFound } from "@/backend/db/errors";
 import * as onboardingRepo from "@/backend/repositories/onboarding.repository";
 import * as settingsRepo from "@/backend/repositories/settings.repository";
+import { ensureUserRecord } from "@/backend/services/identity.service";
 
 const DEFAULT_STEP = "create-account";
 
@@ -62,8 +63,15 @@ function toClientState(row: Awaited<ReturnType<typeof onboardingRepo.getOnboardi
   };
 }
 
-export async function getOnboardingState(userId: string) {
-  const row = await onboardingRepo.getOnboarding(userId);
+export async function getOnboardingState(
+  userId: string,
+  email?: string | null,
+) {
+  let row = await onboardingRepo.getOnboarding(userId);
+  if (!row && email) {
+    await ensureUserRecord({ userId, email });
+    row = await onboardingRepo.getOnboarding(userId);
+  }
   return toClientState(row);
 }
 
@@ -73,6 +81,7 @@ export async function updateOnboardingState(
     step?: string;
     completed?: boolean;
     answers?: OnboardingAnswers;
+    email?: string | null;
   },
 ) {
   if (input.step && !ALLOWED_STEPS.has(input.step)) {
@@ -80,7 +89,21 @@ export async function updateOnboardingState(
   }
 
   const answers = input.answers ? sanitizeAnswers(input.answers) : null;
-  const current = await onboardingRepo.getOnboarding(userId);
+  let current = await onboardingRepo.getOnboarding(userId);
+
+  // New sessions can hit PATCH before ensureUserRecord finishes — seed the row.
+  if (!current && input.email) {
+    await ensureUserRecord({
+      userId,
+      email: input.email,
+      displayName:
+        typeof answers?.displayName === "string"
+          ? (answers.displayName as string)
+          : null,
+    });
+    current = await onboardingRepo.getOnboarding(userId);
+  }
+
   if (!current) throw notFound("User settings not found.");
 
   const nextSettings = { ...(current.settings ?? {}) } as Record<

@@ -13,6 +13,7 @@ type RoleStepProps = {
   onChange: (patch: Partial<OnboardingState>) => void;
   onContinue: (role?: string) => void;
   onSkip: () => void;
+  busy?: boolean;
 };
 
 export function RoleStep({
@@ -20,12 +21,14 @@ export function RoleStep({
   onChange,
   onContinue,
   onSkip,
+  busy = false,
 }: RoleStepProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
 
   const openDropdown = () => {
+    if (busy) return;
     const rect = triggerRef.current?.getBoundingClientRect() ?? null;
     setAnchorRect(rect);
     setDropdownOpen(true);
@@ -39,17 +42,19 @@ export function RoleStep({
           subtitle="Pick a role so Clauxen can tailor your experience."
         />
 
-        <fieldset className="w-full min-w-0 border-0 p-0">
+        <fieldset className="w-full min-w-0 border-0 p-0" disabled={busy}>
           <div className="w-full">
             <button
               ref={triggerRef}
               type="button"
+              disabled={busy}
               onClick={() =>
                 dropdownOpen ? setDropdownOpen(false) : openDropdown()
               }
               className={cn(
                 "flex h-16 w-full items-center rounded-2xl border border-zinc-200 bg-white px-6 text-left text-lg transition-colors",
                 "hover:border-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/15",
+                "disabled:cursor-not-allowed disabled:opacity-60",
               )}
               aria-expanded={dropdownOpen}
               aria-haspopup="listbox"
@@ -68,7 +73,7 @@ export function RoleStep({
         </fieldset>
 
         <RoleSelectionDropdown
-          open={dropdownOpen}
+          open={dropdownOpen && !busy}
           onOpenChange={setDropdownOpen}
           anchorRect={anchorRect}
           value={state.role}
@@ -78,8 +83,13 @@ export function RoleStep({
           }}
         />
 
-        <OnboardingGhostButton type="button" onClick={onSkip} className="mt-2">
-          Set up later
+        <OnboardingGhostButton
+          type="button"
+          disabled={busy}
+          onClick={onSkip}
+          className="mt-2"
+        >
+          {busy ? "Finishing…" : "Set up later"}
         </OnboardingGhostButton>
       </div>
     </OnboardingShell>

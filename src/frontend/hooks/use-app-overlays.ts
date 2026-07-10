@@ -30,7 +30,8 @@ function normalizeSettingsTab(value: string): SettingsTab {
 
 function parseHash(hash: string): Overlay | null {
   if (!hash) return null;
-  const clean = hash.replace(/^#/, "");
+  // Browsers can stack fragments after redirects — only honor the first.
+  const clean = hash.replace(/^#/, "").split("#")[0] ?? "";
   if (!clean) return null;
 
   if (clean === "pricing") return { type: "pricing" };
@@ -70,9 +71,21 @@ export function useAppOverlays() {
   // Read current overlay from location (handles direct load + back/forward)
   const syncFromLocation = useCallback(() => {
     if (typeof window === "undefined") return;
+    // Never open settings/pricing overlays on auth or onboarding surfaces.
+    if (
+      pathname === "/onboarding" ||
+      pathname === "/login" ||
+      pathname === "/signup"
+    ) {
+      if (window.location.hash) {
+        window.history.replaceState(null, "", pathname);
+      }
+      setOverlay(null);
+      return;
+    }
     const current = parseHash(window.location.hash);
     setOverlay(current);
-  }, []);
+  }, [pathname]);
 
   // Keep in sync with browser navigation
   useEffect(() => {
@@ -98,7 +111,7 @@ export function useAppOverlays() {
 
   const closeOverlay = useCallback(() => {
     if (typeof window === "undefined") return;
-    const base = pathname || "/";
+    const base = (pathname || "/").split("#")[0];
     // Remove hash without adding history entry
     router.replace(base, { scroll: false });
     setOverlay(null);
@@ -107,7 +120,14 @@ export function useAppOverlays() {
   const openOverlay = useCallback(
     (next: Overlay) => {
       if (typeof window === "undefined") return;
-      const base = pathname || "/";
+      if (
+        pathname === "/onboarding" ||
+        pathname === "/login" ||
+        pathname === "/signup"
+      ) {
+        return;
+      }
+      const base = (pathname || "/").split("#")[0];
       const hash = buildHash(next);
       const target = `${base}${hash}`;
       // Use replace so opening/closing overlays doesn't pollute history stack

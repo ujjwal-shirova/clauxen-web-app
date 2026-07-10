@@ -66,14 +66,17 @@ export function OnboardingPrimaryButton({
 export function OnboardingGhostButton({
   className,
   children,
+  disabled,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       type="button"
+      disabled={disabled}
       className={cn(
         "inline-flex h-11 w-full items-center justify-center rounded-lg px-5 text-sm font-medium text-zinc-600 transition-colors",
         "hover:bg-zinc-100 hover:text-zinc-900",
+        "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-zinc-600",
         className,
       )}
       {...props}
@@ -87,29 +90,38 @@ export function OnboardingCheckboxRow({
   checked,
   onCheckedChange,
   children,
+  disabled,
 }: {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   children: React.ReactNode;
+  disabled?: boolean;
 }) {
   return (
-    <label className="flex cursor-pointer gap-3 text-left text-sm leading-snug text-zinc-700">
-      <span className="relative mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
+    <label
+      className={cn(
+        "flex cursor-pointer gap-3 text-left text-sm leading-snug text-zinc-700",
+        disabled && "cursor-not-allowed opacity-60",
+      )}
+    >
+      <span className="relative mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center">
         <input
           type="checkbox"
           className="peer sr-only"
           checked={checked}
+          disabled={disabled}
           onChange={(e) => onCheckedChange(e.target.checked)}
         />
         <span
           className={cn(
-            "flex h-4 w-4 items-center justify-center rounded border border-zinc-300 bg-white transition-colors",
+            "flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border-2 border-zinc-300 bg-white transition-colors",
             "peer-focus-visible:ring-2 peer-focus-visible:ring-zinc-900/20",
-            checked && "border-zinc-900 bg-zinc-900",
+            checked && "border-[#0d0d0d] bg-[#0d0d0d]",
           )}
+          aria-hidden
         >
           {checked ? (
-            <Check className="h-3 w-3 text-white" strokeWidth={3} aria-hidden />
+            <Check className="h-3 w-3 text-white" strokeWidth={3} />
           ) : null}
         </span>
       </span>

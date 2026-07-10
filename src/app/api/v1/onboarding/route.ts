@@ -10,7 +10,10 @@ export const dynamic = "force-dynamic";
 export const GET = withApiHandler(
   async ({ session }) => {
     const user = requireSession(session);
-    const onboarding = await onboardingService.getOnboardingState(user.id);
+    const onboarding = await onboardingService.getOnboardingState(
+      user.id,
+      user.email,
+    );
     return jsonData({ onboarding });
   },
   { requireAuth: true },
@@ -28,6 +31,7 @@ export const PATCH = withApiHandler(
       step: body.step,
       completed: body.completed,
       answers: body.answers,
+      email: user.email,
     });
     return jsonData({ onboarding });
   },

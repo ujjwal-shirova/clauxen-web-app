@@ -20,6 +20,7 @@ type PlanSelectionStepProps = {
   onChange: (patch: Partial<OnboardingState>) => void;
   onContinue: (answers?: OnboardingAnswers) => void;
   onSelectFree: () => void;
+  busy?: boolean;
 };
 
 type BillingCycle = "monthly" | "yearly";
@@ -30,6 +31,7 @@ export function PlanSelectionStep({
   onChange,
   onContinue,
   onSelectFree,
+  busy = false,
 }: PlanSelectionStepProps) {
   const [view, setView] = useState<ViewState>("plans");
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -190,7 +192,9 @@ export function PlanSelectionStep({
 
         <OnboardingGhostButton
           type="button"
+          disabled={busy}
           onClick={() => {
+            if (busy) return;
             const selectedPlanId = (state.selectedPlanId ||
               "free") as OnboardingPlanId;
             onChange({ selectedPlanId });
@@ -201,7 +205,7 @@ export function PlanSelectionStep({
           }}
           className="max-w-[280px]"
         >
-          Skip for now
+          {busy ? "Saving…" : "Skip for now"}
         </OnboardingGhostButton>
       </div>
     </OnboardingShell>

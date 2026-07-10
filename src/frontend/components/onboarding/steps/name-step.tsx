@@ -12,11 +12,17 @@ type NameStepProps = {
   state: OnboardingState;
   onChange: (patch: Partial<OnboardingState>) => void;
   onContinue: () => void;
+  busy?: boolean;
 };
 
-export function NameStep({ state, onChange, onContinue }: NameStepProps) {
+export function NameStep({
+  state,
+  onChange,
+  onContinue,
+  busy = false,
+}: NameStepProps) {
   const trimmed = state.displayName.trim();
-  const canContinue = trimmed.length > 0;
+  const canContinue = trimmed.length > 0 && !busy;
 
   return (
     <OnboardingShell>
@@ -46,7 +52,7 @@ export function NameStep({ state, onChange, onContinue }: NameStepProps) {
             disabled={!canContinue}
             className="mt-3"
           >
-            Continue
+            {busy ? "Saving…" : "Continue"}
           </OnboardingPrimaryButton>
         </form>
       </div>

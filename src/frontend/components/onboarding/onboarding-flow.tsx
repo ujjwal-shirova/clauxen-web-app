@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   DEFAULT_ONBOARDING_STATE,
@@ -13,8 +13,10 @@ import { DesktopStep } from "./steps/desktop-step";
 import { BeforeChatStep } from "./steps/before-chat-step";
 import { NameStep } from "./steps/name-step";
 import { RoleStep } from "./steps/role-step";
+import { OnboardingSplash } from "./onboarding-splash";
 import * as onboardingApi from "@/frontend/lib/api/onboarding";
 import type { OnboardingAnswers } from "@/frontend/lib/api/onboarding";
+import { ApiError } from "@/frontend/lib/api/client";
 
 const STEP_ORDER: OnboardingStep[] = [
   "create-account",
@@ -89,18 +91,35 @@ function answersForStep(
   }
 }
 
+function clearOnboardingHash() {
+  if (typeof window === "undefined") return;
+  if (!window.location.hash) return;
+  window.history.replaceState(null, "", "/onboarding");
+}
+
+function enterApp() {
+  // Hard navigation so middleware re-reads onboarding_completed_at
+  // and we never soft-loop back onto a stale OnboardingFlow instance.
+  window.location.assign("/");
+}
+
 export function OnboardingFlow() {
   const router = useRouter();
   const [step, setStep] = useState<OnboardingStep>("create-account");
   const [state, setState] = useState<OnboardingState>(DEFAULT_ONBOARDING_STATE);
   const [hydrated, setHydrated] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [splashMessage, setSplashMessage] = useState("Setting things up…");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    clearOnboardingHash();
+
     void onboardingApi
       .getOnboarding()
       .then(({ onboarding }) => {
         if (onboarding.completed) {
-          router.replace("/");
+          enterApp();
           return;
         }
         setStep(stepFromApi(onboarding.step));
@@ -108,11 +127,16 @@ export function OnboardingFlow() {
           ...prev,
           ...answersFromApi(onboarding.answers),
         }));
+        setHydrated(true);
       })
-      .catch(() => {
-        // ponytail: unauthenticated users fall through to create-account step
-      })
-      .finally(() => setHydrated(true));
+      .catch((err) => {
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : "Could not load onboarding. Please refresh.",
+        );
+        setHydrated(true);
+      });
   }, [router]);
 
   const patch = useCallback((partial: Partial<OnboardingState>) => {
@@ -125,13 +149,24 @@ export function OnboardingFlow() {
       completed?: boolean;
       answerOverride?: OnboardingAnswers;
       stateOverride?: Partial<OnboardingState>;
+      splash?: string;
     }) => {
+      if (busy) return;
+
       const mergedState = { ...state, ...opts.stateOverride };
       if (opts.stateOverride) {
         setState(mergedState);
       }
+
+      setBusy(true);
+      setError(null);
+      setSplashMessage(
+        opts.splash ??
+          (opts.completed ? "Finishing setup…" : "Saving your progress…"),
+      );
+
       try {
-        await onboardingApi.updateOnboarding({
+        const { onboarding } = await onboardingApi.updateOnboarding({
           ...(opts.nextStep ? { step: opts.nextStep } : {}),
           ...(opts.completed ? { completed: true } : {}),
           answers: {
@@ -139,22 +174,34 @@ export function OnboardingFlow() {
             ...opts.answerOverride,
           },
         });
-      } catch {
-        /* ignore — UI still advances */
+
+        if (opts.completed || onboarding.completed) {
+          setSplashMessage("Taking you to Clauxen…");
+          enterApp();
+          return;
+        }
+
+        if (opts.nextStep) {
+          setStep(opts.nextStep);
+        }
+        setBusy(false);
+      } catch (err) {
+        setBusy(false);
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : "Something went wrong. Please try again.",
+        );
       }
-      if (opts.completed) {
-        router.replace("/");
-        return;
-      }
-      if (opts.nextStep) setStep(opts.nextStep);
     },
-    [state, step, router],
+    [busy, state, step],
   );
 
   const goNext = useCallback(
     (opts?: {
       answerOverride?: OnboardingAnswers;
       stateOverride?: Partial<OnboardingState>;
+      splash?: string;
     }) => {
       const idx = STEP_ORDER.indexOf(step);
       if (idx < STEP_ORDER.length - 1) {
@@ -162,12 +209,14 @@ export function OnboardingFlow() {
           nextStep: STEP_ORDER[idx + 1],
           answerOverride: opts?.answerOverride,
           stateOverride: opts?.stateOverride,
+          splash: opts?.splash,
         });
       } else {
         void persistAndAdvance({
           completed: true,
           answerOverride: opts?.answerOverride,
           stateOverride: opts?.stateOverride,
+          splash: opts?.splash ?? "Finishing setup…",
         });
       }
     },
@@ -183,39 +232,55 @@ export function OnboardingFlow() {
         completed: true,
         answerOverride: opts?.answerOverride,
         stateOverride: opts?.stateOverride,
+        splash: "Finishing setup…",
       });
     },
     [persistAndAdvance],
   );
 
   if (!hydrated) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--app-shell-bg,#f9f9f9)]">
-        <div className="h-8 w-8 animate-pulse rounded-full bg-zinc-200" />
-      </div>
-    );
+    return <OnboardingSplash message="Loading…" />;
   }
+
+  const errorBanner = error ? (
+    <div
+      className="fixed bottom-6 left-1/2 z-[210] w-[min(420px,calc(100%-2rem))] -translate-x-1/2 rounded-xl border border-rose-200 bg-white px-4 py-3 text-center text-sm text-rose-700 shadow-lg"
+      role="alert"
+    >
+      {error}
+    </div>
+  ) : null;
+
+  const splash = busy ? <OnboardingSplash message={splashMessage} /> : null;
+
+  let body: ReactNode = null;
 
   switch (step) {
     case "create-account":
-      return (
+      body = (
         <CreateAccountStep
           state={state}
           onChange={patch}
-          onContinue={() => goNext()}
+          busy={busy}
+          onContinue={() =>
+            goNext({ splash: "Creating your account…" })
+          }
         />
       );
+      break;
     case "plan-selection":
-      return (
+      body = (
         <PlanSelectionStep
           state={state}
           onChange={patch}
+          busy={busy}
           onContinue={(planAnswers) =>
             goNext({
               answerOverride: planAnswers,
               stateOverride: planAnswers
                 ? {
-                    selectedPlanId: planAnswers.selectedPlanId ?? state.selectedPlanId,
+                    selectedPlanId:
+                      planAnswers.selectedPlanId ?? state.selectedPlanId,
                     selectedBillingCycle:
                       (planAnswers.selectedBillingCycle as
                         | "monthly"
@@ -223,6 +288,7 @@ export function OnboardingFlow() {
                         | undefined) ?? state.selectedBillingCycle,
                   }
                 : undefined,
+              splash: "Saving your plan…",
             })
           }
           onSelectFree={() =>
@@ -235,31 +301,47 @@ export function OnboardingFlow() {
                 selectedPlanId: "free",
                 selectedBillingCycle: "monthly",
               },
+              splash: "Continuing with Free…",
             })
           }
         />
       );
+      break;
     case "desktop":
-      return (
-        <DesktopStep onContinue={() => goNext()} onSkip={() => goNext()} />
+      body = (
+        <DesktopStep
+          busy={busy}
+          onContinue={() => goNext({ splash: "Continuing…" })}
+          onSkip={() => goNext({ splash: "Continuing…" })}
+        />
       );
+      break;
     case "before-chat":
-      return (
+      body = (
         <BeforeChatStep
           state={state}
           onChange={patch}
-          onContinue={() => goNext()}
+          busy={busy}
+          onContinue={() => goNext({ splash: "Saving preferences…" })}
         />
       );
+      break;
     case "name":
-      return (
-        <NameStep state={state} onChange={patch} onContinue={() => goNext()} />
+      body = (
+        <NameStep
+          state={state}
+          onChange={patch}
+          busy={busy}
+          onContinue={() => goNext({ splash: "Saving your name…" })}
+        />
       );
+      break;
     case "role":
-      return (
+      body = (
         <RoleStep
           state={state}
           onChange={patch}
+          busy={busy}
           onContinue={(role) =>
             finishOnboarding({
               answerOverride: { role: role ?? state.role },
@@ -269,7 +351,16 @@ export function OnboardingFlow() {
           onSkip={() => finishOnboarding()}
         />
       );
+      break;
     default:
-      return null;
+      body = null;
   }
+
+  return (
+    <>
+      {body}
+      {splash}
+      {errorBanner}
+    </>
+  );
 }

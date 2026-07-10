@@ -11,6 +11,7 @@ import {
 type DesktopStepProps = {
   onContinue: () => void;
   onSkip: () => void;
+  busy?: boolean;
 };
 
 function FeatureColumn({
@@ -45,7 +46,11 @@ function FeatureColumn({
   );
 }
 
-export function DesktopStep({ onContinue, onSkip }: DesktopStepProps) {
+export function DesktopStep({
+  onContinue,
+  onSkip,
+  busy = false,
+}: DesktopStepProps) {
   return (
     <OnboardingShell contentClassName="!justify-start !py-6 md:!py-8">
       <div className="flex w-full max-w-[900px] flex-col items-center gap-8">
@@ -103,13 +108,21 @@ export function DesktopStep({ onContinue, onSkip }: DesktopStepProps) {
         </ul>
 
         <div className="flex w-full max-w-[450px] flex-col gap-3">
-          <OnboardingPrimaryButton type="button" onClick={onContinue}>
+          <OnboardingPrimaryButton
+            type="button"
+            disabled={busy}
+            onClick={onContinue}
+          >
             <span className="inline-flex items-center gap-2">
               <Download className="h-4 w-4" aria-hidden />
-              Download for macOS
+              {busy ? "Continuing…" : "Download for macOS"}
             </span>
           </OnboardingPrimaryButton>
-          <OnboardingGhostButton type="button" onClick={onSkip}>
+          <OnboardingGhostButton
+            type="button"
+            disabled={busy}
+            onClick={onSkip}
+          >
             Skip
           </OnboardingGhostButton>
         </div>

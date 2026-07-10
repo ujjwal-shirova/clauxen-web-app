@@ -15,6 +15,7 @@ type BeforeChatStepProps = {
   state: OnboardingState;
   onChange: (patch: Partial<OnboardingState>) => void;
   onContinue: () => void;
+  busy?: boolean;
 };
 
 const DISCLAIMERS = [
@@ -36,6 +37,7 @@ export function BeforeChatStep({
   state,
   onChange,
   onContinue,
+  busy = false,
 }: BeforeChatStepProps) {
   return (
     <OnboardingShell contentClassName="!py-8">
@@ -70,6 +72,7 @@ export function BeforeChatStep({
                   onCheckedChange={(modelImprovementOptIn) =>
                     onChange({ modelImprovementOptIn })
                   }
+                  disabled={busy}
                   aria-labelledby="disclaimer-grove-toggle-label"
                 />
               </div>
@@ -88,8 +91,12 @@ export function BeforeChatStep({
           </ul>
         </OnboardingCard>
 
-        <OnboardingPrimaryButton type="button" onClick={onContinue}>
-          Continue
+        <OnboardingPrimaryButton
+          type="button"
+          disabled={busy}
+          onClick={onContinue}
+        >
+          {busy ? "Saving…" : "Continue"}
         </OnboardingPrimaryButton>
       </div>
     </OnboardingShell>
