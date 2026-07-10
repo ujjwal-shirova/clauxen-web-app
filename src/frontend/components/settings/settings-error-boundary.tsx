@@ -13,6 +13,10 @@ type SettingsErrorBoundaryState = {
   error: Error | null;
 };
 
+/**
+ * Catches render failures inside the settings modal.
+ * Prefer fixing the root cause; this is the last-resort recovery UI.
+ */
 export class SettingsErrorBoundary extends React.Component<
   SettingsErrorBoundaryProps,
   SettingsErrorBoundaryState
@@ -23,8 +27,8 @@ export class SettingsErrorBoundary extends React.Component<
     return { error };
   }
 
-  override componentDidCatch(error: Error) {
-    console.error("[settings] render failed:", error);
+  override componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("[settings] render failed:", error, info.componentStack);
   }
 
   private handleReload = () => {
@@ -69,7 +73,10 @@ export class SettingsErrorBoundary extends React.Component<
               </button>
               <button
                 type="button"
-                onClick={() => this.props.onClose?.()}
+                onClick={() => {
+                  this.setState({ error: null });
+                  this.props.onClose?.();
+                }}
                 className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
               >
                 Back

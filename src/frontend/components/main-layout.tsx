@@ -306,7 +306,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               setTimeout(() => overlays.openPricing(), 0);
             }}
             user={auth.user}
-            authLoading={auth.loading}
             onLogout={() => void auth.logout()}
           />
         </SettingsErrorBoundary>

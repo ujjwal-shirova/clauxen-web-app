@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import {
@@ -8,42 +8,39 @@ import {
   type SettingsTab,
 } from "@/frontend/components/settings/constants";
 import { SettingsNavSidebar } from "@/frontend/components/settings/settings-nav-sidebar";
-import { SettingsPageSkeleton } from "@/frontend/components/settings/settings-page-skeleton";
-import { ShimmerSkeleton } from "@/frontend/components/ui/shimmer-skeleton";
 import {
   Dialog,
   DialogDescription,
   DialogOverlay,
   DialogPortal,
 } from "@/frontend/components/ui/dialog";
-import { useMinimumLoadingTime } from "@/frontend/hooks/use-minimum-loading";
 import { useSettings } from "@/frontend/hooks/use-settings";
 import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
 import * as workspacesApi from "@/frontend/lib/api/workspaces";
 import type { Workspace } from "@/frontend/lib/api/workspaces";
 import { cn } from "@/frontend/lib/utils";
 import type { SessionUser } from "@/frontend/lib/api/auth";
+import { GeneralSettings } from "@/frontend/components/settings/general-settings";
+import { PersonalizationSettingsPanel } from "@/frontend/components/settings/personalization-settings";
+import { NotificationsSettings } from "@/frontend/components/settings/notifications-settings";
+import { AccountSettings } from "@/frontend/components/settings/account-settings";
+import { SecuritySettings } from "@/frontend/components/settings/security-settings";
+import { PrivacySettings } from "@/frontend/components/settings/privacy-settings";
+import { BillingSettings } from "@/frontend/components/settings/billing-settings";
+import { StorageSettings } from "@/frontend/components/settings/storage-settings";
+import { CapabilitiesSettings } from "@/frontend/components/settings/capabilities-settings";
+import { ReflectSettings } from "@/frontend/components/settings/reflect-settings";
+import { TimeAndFocusSettings } from "@/frontend/components/settings/time-and-focus-settings";
+import { SafetySettings } from "@/frontend/components/settings/safety-settings";
+import { ParentalControlsSettings } from "@/frontend/components/settings/parental-controls-settings";
+import { TrustedContactSettings } from "@/frontend/components/settings/trusted-contact-settings";
+import { ClauxenCodeSettings } from "@/frontend/components/settings/clauxen-code-settings";
+import { KeyboardSettings } from "@/frontend/components/settings/keyboard-settings";
+import { SkillsSettings } from "@/frontend/components/settings/skills-settings";
 import {
-  AccountSettingsPanel,
-  BillingSettingsPanel,
-  CapabilitiesSettingsPanel,
-  ClauxenCodeSettingsPanel,
-  ConnectorsCatalogSettingsPanel,
-  GeneralSettingsPanel,
-  KeyboardSettingsPanel,
-  NotificationsSettingsPanel,
-  ParentalControlsSettingsPanel,
-  PersonalizationSettingsPanel,
-  PluginsSettingsPanel,
-  PrivacySettingsPanel,
-  ReflectSettingsPanel,
-  SafetySettingsPanel,
-  SecuritySettingsPanel,
-  SkillsSettingsPanel,
-  StorageSettingsPanel,
-  TimeAndFocusSettingsPanel,
-  TrustedContactSettingsPanel,
-} from "@/frontend/components/settings/settings-tab-panels";
+  ConnectorsCatalogSettings,
+  PluginsSettings,
+} from "@/frontend/components/settings/plugins-settings";
 
 interface SettingsModalProps {
   open: boolean;
@@ -54,7 +51,6 @@ interface SettingsModalProps {
   onLogout?: () => void;
   initialTab?: SettingsTab;
   onTabChange?: (tab: SettingsTab) => void;
-  authLoading?: boolean;
 }
 
 export function SettingsModal({
@@ -66,12 +62,10 @@ export function SettingsModal({
   onLogout,
   initialTab = "General",
   onTabChange,
-  authLoading = false,
 }: SettingsModalProps) {
   const settingsEnabled = Boolean(user?.id);
   const {
     settings,
-    loading: settingsLoading,
     updateGeneral,
     updatePrivacy,
     updateCapabilities,
@@ -84,6 +78,8 @@ export function SettingsModal({
 
   const safeInitial = isSettingsTab(initialTab) ? initialTab : "General";
   const [activeTab, setActiveTab] = useState<SettingsTab>(safeInitial);
+  const [copied, setCopied] = useState(false);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
 
   const handleTabChange = (tab: SettingsTab) => {
     setActiveTab(tab);
@@ -96,9 +92,7 @@ export function SettingsModal({
     }
   }, [initialTab, open]);
 
-  const [copied, setCopied] = useState(false);
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
-
+  // Always render with defaults — never block the shell on API latency.
   const general = settings?.general ?? DEFAULT_APP_SETTINGS.general;
   const privacy = settings?.privacy ?? DEFAULT_APP_SETTINGS.privacy;
   const capabilities = settings?.capabilities ?? DEFAULT_APP_SETTINGS.capabilities;
@@ -129,19 +123,11 @@ export function SettingsModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isSettingsDataLoading =
-    authLoading || (settingsEnabled && settingsLoading);
-
-  const showSettingsSkeleton = useMinimumLoadingTime(
-    isSettingsDataLoading,
-    400,
-  );
-
   const renderActiveTab = () => {
     switch (activeTab) {
       case "General":
         return (
-          <GeneralSettingsPanel
+          <GeneralSettings
             appearancePreset={general.appearancePreset}
             setAppearancePreset={(v) => updateGeneral({ appearancePreset: v })}
             setColorMode={(v) => updateGeneral({ colorMode: v })}
@@ -165,7 +151,7 @@ export function SettingsModal({
         );
       case "Notifications":
         return (
-          <NotificationsSettingsPanel
+          <NotificationsSettings
             responseCompletions={notifications.responseCompletions ?? true}
             setResponseCompletions={(v) =>
               updateNotifications({ responseCompletions: v })
@@ -202,7 +188,7 @@ export function SettingsModal({
         );
       case "Account":
         return (
-          <AccountSettingsPanel
+          <AccountSettings
             copied={copied}
             onCopyOrgId={handleCopyOrgId}
             userId={user?.id}
@@ -222,7 +208,7 @@ export function SettingsModal({
         );
       case "Security":
         return (
-          <SecuritySettingsPanel
+          <SecuritySettings
             onLogout={onLogout}
             mfaEnabled={safety.mfaEnabled}
             onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
@@ -230,7 +216,7 @@ export function SettingsModal({
         );
       case "Privacy":
         return (
-          <PrivacySettingsPanel
+          <PrivacySettings
             privacy={privacy}
             onChange={updatePrivacy}
             onGoToPersonalization={() => handleTabChange("Personalization")}
@@ -238,17 +224,17 @@ export function SettingsModal({
         );
       case "Billing":
         return (
-          <BillingSettingsPanel
+          <BillingSettings
             onUpgradeClick={onUpgradeClick}
             userDisplayName={user?.displayName ?? user?.email}
             userEmail={user?.email}
           />
         );
       case "Storage":
-        return <StorageSettingsPanel />;
+        return <StorageSettings />;
       case "Capabilities":
         return (
-          <CapabilitiesSettingsPanel
+          <CapabilitiesSettings
             capabilities={{
               ...capabilities,
               toolMode: general.toolMode,
@@ -267,21 +253,21 @@ export function SettingsModal({
         );
       case "Reflect":
         return (
-          <ReflectSettingsPanel
+          <ReflectSettings
             range={reflect.range}
             onRangeChange={(range) => updateReflect({ range })}
           />
         );
       case "Time and focus":
         return (
-          <TimeAndFocusSettingsPanel
+          <TimeAndFocusSettings
             timeAndFocus={timeAndFocus}
             onChange={updateTimeAndFocus}
           />
         );
       case "Safety":
         return (
-          <SafetySettingsPanel
+          <SafetySettings
             reduceSensitiveContent={safety.reduceSensitiveContent}
             onChange={(reduceSensitiveContent) =>
               updateSafety({ reduceSensitiveContent })
@@ -289,29 +275,29 @@ export function SettingsModal({
           />
         );
       case "Parental controls":
-        return <ParentalControlsSettingsPanel />;
+        return <ParentalControlsSettings />;
       case "Trusted contact":
-        return <TrustedContactSettingsPanel />;
+        return <TrustedContactSettings />;
       case "Clauxen Code":
-        return <ClauxenCodeSettingsPanel />;
+        return <ClauxenCodeSettings />;
       case "Keyboard":
-        return <KeyboardSettingsPanel />;
+        return <KeyboardSettings />;
       case "Skills":
         return (
-          <SkillsSettingsPanel
+          <SkillsSettings
             onBrowse={() => onGoToCustomize("skills")}
             onAdd={() => onGoToCustomize("skills")}
           />
         );
       case "Connectors":
         return (
-          <ConnectorsCatalogSettingsPanel
+          <ConnectorsCatalogSettings
             onGoToCustomize={() => onGoToCustomize("connectors")}
             onAdd={() => onGoToCustomize("connectors")}
           />
         );
       case "Plugins":
-        return <PluginsSettingsPanel />;
+        return <PluginsSettings />;
       default:
         return null;
     }
@@ -340,12 +326,8 @@ export function SettingsModal({
             Manage your Clauxen account and application preferences.
           </DialogDescription>
 
-          <ShimmerSkeleton
-            loading={showSettingsSkeleton}
-            fallback={<SettingsPageSkeleton />}
-            label="Loading settings"
-            className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch"
-          >
+          {/* Shell always stays mounted — sidebar never remounts on tab change. */}
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch">
             <div className="shrink-0 border-b border-[rgba(11,11,11,0.1)] bg-[var(--app-shell-bg)] px-4 py-3 md:hidden">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -393,12 +375,10 @@ export function SettingsModal({
                 id="settings-modal-title"
                 className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12"
               >
-                <Suspense fallback={<SettingsPageSkeleton />}>
-                  {renderActiveTab()}
-                </Suspense>
+                {renderActiveTab()}
               </div>
             </div>
-          </ShimmerSkeleton>
+          </div>
         </DialogPrimitive.Content>
       </DialogPortal>
     </Dialog>

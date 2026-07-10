@@ -43,9 +43,9 @@ function mergeLocal(
 }
 
 export function useSettings(enabled: boolean) {
-  const [settings, setSettings] = useState<AppSettings | null>(() =>
-    enabled ? null : DEFAULT_APP_SETTINGS,
-  );
+  // Always start with defaults so Settings UI can paint immediately.
+  // API response hydrates over the top; failures keep defaults.
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [loading, setLoading] = useState(enabled);
   const [saving, setSaving] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,6 +88,8 @@ export function useSettings(enabled: boolean) {
       try {
         const data = await settingsApi.updateSettings(patch);
         setSettings(data);
+      } catch {
+        // Keep optimistic local merge; server sync can retry on next edit.
       } finally {
         setSaving(false);
       }
