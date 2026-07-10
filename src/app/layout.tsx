@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "./globals.css";
 import { ClientToaster } from "@/frontend/components/client-toaster";
@@ -49,6 +50,7 @@ export default function RootLayout({
           {children}
           <ClientToaster />
           <AppNotificationHost />
+          <SpeedInsights />
         </AppNotificationsProvider>
         <SpeedInsights />
       </body>

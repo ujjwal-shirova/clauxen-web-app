@@ -85,15 +85,8 @@ export async function updateSession(request: NextRequest) {
     : null;
   const isAuthenticated = Boolean(user?.id || devSession);
 
-  // Unauthenticated apex → public about page (Google OAuth branding needs a
-  // crawlable home page that explains the product + links privacy/terms).
-  if (!isAuthenticated && pathname === "/") {
-    const aboutUrl = request.nextUrl.clone();
-    aboutUrl.pathname = "/about";
-    aboutUrl.search = "";
-    return NextResponse.redirect(aboutUrl);
-  }
-
+  // Unauthenticated app routes (including `/`) → login. `/about` stays public
+  // for Google OAuth branding verification.
   if (!isPublicPath(pathname) && !isAuthenticated) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";

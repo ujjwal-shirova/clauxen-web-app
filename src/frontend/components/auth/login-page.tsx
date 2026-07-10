@@ -9,9 +9,11 @@ import {
   AuthLoadingShell,
   getSafeRedirectTo,
   mapSupabaseAuthError,
+  resolveAuthIdentifier,
   type OAuthProvider,
 } from "@/frontend/components/auth/auth-shared";
 import { AuthShell } from "@/frontend/components/auth/auth-shell";
+import { looksLikePhone, PHONE_COUNTRIES } from "@/frontend/lib/phone-countries";
 
 export function LoginPage() {
   const router = useRouter();
@@ -23,6 +25,8 @@ export function LoginPage() {
     login,
     signInWithOAuth,
     signInWithMagicLink,
+    signInWithPhoneOtp,
+    verifyPhoneOtp,
     resetPassword,
     isAuthenticated,
     loading,
@@ -30,12 +34,30 @@ export function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [countryIso, setCountryIso] = useState("IN");
+  const [otpCode, setOtpCode] = useState("");
+  const [awaitingPhoneOtp, setAwaitingPhoneOtp] = useState(false);
+  const [pendingPhone, setPendingPhone] = useState<string | null>(null);
   const [useMagicLink, setUseMagicLink] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [pendingProvider, setPendingProvider] = useState<
+    OAuthProvider | "sso" | null
+  >(null);
   const [error, setError] = useState<string | null>(
     urlError ? mapSupabaseAuthError(decodeURIComponent(urlError)) : null,
   );
   const [info, setInfo] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const region = (navigator.language.split("-")[1] || "").toUpperCase();
+      if (region && PHONE_COUNTRIES.some((c) => c.iso === region)) {
+        setCountryIso(region);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && isAuthenticated) {
@@ -46,14 +68,14 @@ export function LoginPage() {
   const handleOAuth = useCallback(
     async (provider: OAuthProvider) => {
       setError(null);
-      setSubmitting(true);
+      setPendingProvider(provider);
       try {
         await signInWithOAuth(provider, redirectTo);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Sign in failed. Try again.",
         );
-        setSubmitting(false);
+        setPendingProvider(null);
       }
     },
     [redirectTo, signInWithOAuth],
@@ -63,23 +85,45 @@ export function LoginPage() {
     e.preventDefault();
     setError(null);
     setInfo(null);
-    setSubmitting(true);
+    setFormSubmitting(true);
 
     try {
-      if (useMagicLink) {
-        await signInWithMagicLink(email, redirectTo);
-        setInfo("Check your email for a magic link to continue.");
+      if (awaitingPhoneOtp && pendingPhone) {
+        await verifyPhoneOtp(pendingPhone, otpCode);
+        router.replace(redirectTo);
         return;
       }
 
-      await login(email, password);
+      const id = resolveAuthIdentifier(email, countryIso);
+      if (id.kind === "invalid") {
+        setError(id.message);
+        setFormSubmitting(false);
+        return;
+      }
+
+      if (id.kind === "phone") {
+        await signInWithPhoneOtp(id.value);
+        setPendingPhone(id.value);
+        setAwaitingPhoneOtp(true);
+        setInfo("We sent a verification code to your phone.");
+        setFormSubmitting(false);
+        return;
+      }
+
+      if (useMagicLink) {
+        await signInWithMagicLink(id.value, redirectTo);
+        setInfo("Check your email for a magic link to continue.");
+        setFormSubmitting(false);
+        return;
+      }
+
+      await login(id.value, password);
       router.replace(redirectTo);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Something went wrong. Try again.",
       );
-    } finally {
-      setSubmitting(false);
+      setFormSubmitting(false);
     }
   };
 
@@ -88,18 +132,23 @@ export function LoginPage() {
       setError("Enter your email first, then click forgot password.");
       return;
     }
+    const id = resolveAuthIdentifier(email, countryIso);
+    if (id.kind !== "email") {
+      setError("Password reset works with email addresses only.");
+      return;
+    }
     setError(null);
     setInfo(null);
-    setSubmitting(true);
+    setFormSubmitting(true);
     try {
-      await resetPassword(email);
+      await resetPassword(id.value);
       setInfo("Password reset link sent. Check your email.");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Could not send reset email.",
       );
     } finally {
-      setSubmitting(false);
+      setFormSubmitting(false);
     }
   };
 
@@ -108,6 +157,15 @@ export function LoginPage() {
   }
 
   const signupHref = `/signup?redirectTo=${encodeURIComponent(redirectTo)}`;
+  const busy = formSubmitting || pendingProvider != null;
+  const phoneMode = looksLikePhone(email) || awaitingPhoneOtp;
+  const submitLabel = awaitingPhoneOtp
+    ? "Verify code"
+    : phoneMode
+      ? "Continue with phone"
+      : useMagicLink
+        ? "Email me a link"
+        : "Continue with email";
 
   return (
     <AuthShell>
@@ -121,11 +179,16 @@ export function LoginPage() {
             onOAuth={handleOAuth}
             onSso={() => {
               setError(null);
-              setInfo(
-                "Enterprise SSO is available on Team plans — contact sales@clauxen.com.",
-              );
+              setPendingProvider("sso");
+              window.setTimeout(() => {
+                setPendingProvider(null);
+                setInfo(
+                  "Enterprise SSO is available on Team plans — contact sales@clauxen.com.",
+                );
+              }, 450);
             }}
-            disabled={submitting}
+            disabled={busy}
+            pendingProvider={pendingProvider}
           />
         </div>
 
@@ -142,13 +205,25 @@ export function LoginPage() {
           password={password}
           showPassword
           useMagicLink={useMagicLink}
-          onEmailChange={setEmail}
+          onEmailChange={(v) => {
+            setEmail(v);
+            if (awaitingPhoneOtp) {
+              setAwaitingPhoneOtp(false);
+              setPendingPhone(null);
+              setOtpCode("");
+            }
+          }}
           onPasswordChange={setPassword}
           onToggleMagicLink={() => setUseMagicLink((v) => !v)}
+          countryIso={countryIso}
+          onCountryChange={setCountryIso}
+          otpCode={otpCode}
+          onOtpChange={setOtpCode}
+          awaitingPhoneOtp={awaitingPhoneOtp}
           error={error}
           info={info}
-          submitting={submitting}
-          submitLabel={useMagicLink ? "Email me a link" : "Continue with email"}
+          submitting={formSubmitting}
+          submitLabel={submitLabel}
           onSubmit={handleEmailSubmit}
           onForgotPassword={() => void handleForgotPassword()}
         />

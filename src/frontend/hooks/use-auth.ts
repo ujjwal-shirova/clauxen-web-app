@@ -99,13 +99,10 @@ export function useAuth() {
   const signInWithOAuth = useCallback(
     async (provider: OAuthProvider, redirectTo = "/") => {
       const supabase = createClient();
-      // Azure/Entra must return email; Supabase docs require the email scope.
-      const scopes = provider === "azure" ? "email" : undefined;
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${appOrigin()}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
-          ...(scopes ? { scopes } : {}),
         },
       });
       if (error) {
@@ -130,6 +127,36 @@ export function useAuth() {
     },
     [],
   );
+
+  const signInWithPhoneOtp = useCallback(async (phone: string) => {
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: phone.trim(),
+    });
+    if (error) {
+      throw new Error(mapSupabaseAuthError(error.message));
+    }
+  }, []);
+
+  const verifyPhoneOtp = useCallback(async (phone: string, token: string) => {
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone: phone.trim(),
+      token: token.trim(),
+      type: "sms",
+    });
+    if (error) {
+      throw new Error(mapSupabaseAuthError(error.message));
+    }
+    const session = await authApi.getSession();
+    setUser(session);
+    return session ?? {
+      id: data.user?.id ?? "",
+      email: data.user?.email ?? null,
+      displayName: null,
+      avatarUrl: null,
+    };
+  }, []);
 
   const resetPassword = useCallback(async (email: string) => {
     const supabase = createClient();
@@ -159,6 +186,8 @@ export function useAuth() {
     register,
     signInWithOAuth,
     signInWithMagicLink,
+    signInWithPhoneOtp,
+    verifyPhoneOtp,
     resetPassword,
     logout,
     refresh,
