@@ -13,6 +13,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 const PROJECT_ID = "prj_fvcWCHb6BfJHggIDiUQDXH9sOBjr";
+const DEFAULT_TEAM_ID = "team_uO4zWwgLWJfc9GpMMrr5KOwa";
 
 function readLocalToken() {
   try {
@@ -64,6 +65,7 @@ async function vercelFetch(path, { method = "GET", body, token, teamId }) {
 async function main() {
   const { teamId } = parseArgs(process.argv.slice(2));
   const token = process.env.VERCEL_TOKEN ?? readLocalToken();
+  const resolvedTeamId = teamId ?? DEFAULT_TEAM_ID;
 
   if (!token) {
     console.error(
@@ -77,7 +79,7 @@ async function main() {
   const result = await vercelFetch("/v1/security/attack-mode", {
     method: "POST",
     token,
-    teamId,
+    teamId: resolvedTeamId,
     body: {
       projectId: PROJECT_ID,
       attackModeEnabled: false,
