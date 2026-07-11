@@ -1562,6 +1562,25 @@ button[data-speed-toggle],
     box-shadow 0.16s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
+/* Modal washouts must keep opacity — never inherit ghost-button hover washes. */
+[data-settings-washout],
+[data-settings-washout]:hover,
+[data-modal-washout],
+[data-modal-washout]:hover {
+  background-color: rgba(244, 244, 245, 0.84) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+@media (max-width: 767px) {
+  [data-settings-washout],
+  [data-settings-washout]:hover,
+  [data-modal-washout],
+  [data-modal-washout]:hover {
+    background-color: rgba(244, 244, 245, 0.92) !important;
+  }
+}
+
 /* Hover state — ghost/toolbar buttons only (never override solid primary CTAs) */
 button:not(.no-hover):not(.no-hover-overlay):not(.user-message-card__body):not(
     :disabled

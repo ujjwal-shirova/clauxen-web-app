@@ -23,8 +23,15 @@ export function useAuth() {
     try {
       const session = await authApi.getSession();
       setUser(session);
-    } catch {
-      setUser(null);
+    } catch (err) {
+      // Keep the existing session on transient Vercel challenge / network blips.
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? String((err as { code?: string }).code)
+          : "";
+      if (code !== "security_challenge" && code !== "invalid_json") {
+        setUser(null);
+      }
     } finally {
       if (!opts?.quiet) setLoading(false);
     }

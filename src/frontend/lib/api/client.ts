@@ -12,29 +12,18 @@ export class ApiError extends Error {
 
 function looksLikeSecurityChallenge(response: Response, bodyText: string) {
   const contentType = response.headers.get("content-type") ?? "";
+  const trimmed = bodyText.trimStart();
   return (
     response.status === 429 ||
     contentType.includes("text/html") ||
-    bodyText.trimStart().startsWith("<!DOCTYPE") ||
-    bodyText.includes("Vercel Security Checkpoint")
+    trimmed.startsWith("<!DOCTYPE") ||
+    trimmed.startsWith("<html") ||
+    bodyText.includes("Vercel Security Checkpoint") ||
+    bodyText.includes("vercel-challenge")
   );
 }
 
-export async function apiFetch<T>(
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  const bodyText = await response.text();
-
+async function parseApiPayload<T>(response: Response, bodyText: string): Promise<T> {
   if (looksLikeSecurityChallenge(response, bodyText)) {
     throw new ApiError(
       "Security check in progress. Please retry in a moment.",
@@ -70,4 +59,34 @@ export async function apiFetch<T>(
   }
 
   return payload.data;
+}
+
+/**
+ * Browser API fetch. Retries once on Vercel challenge HTML so a transient
+ * checkpoint does not tear down in-app settings/chat (ChatGPT/Claude-style).
+ */
+export async function apiFetch<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const requestInit: RequestInit = {
+    ...init,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(init?.headers ?? {}),
+    },
+  };
+
+  let response = await fetch(path, requestInit);
+  let bodyText = await response.text();
+
+  if (looksLikeSecurityChallenge(response, bodyText)) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    response = await fetch(path, requestInit);
+    bodyText = await response.text();
+  }
+
+  return parseApiPayload<T>(response, bodyText);
 }

@@ -322,10 +322,14 @@ export function SettingsModal({
 
   return (
     <div className="fixed inset-0 z-[100]" role="presentation">
-      <button
-        type="button"
-        aria-label="Close settings"
-        className="absolute inset-0 bg-[rgba(244,244,245,0.84)] max-md:bg-[rgba(244,244,245,0.92)]"
+      {/*
+        Div (not button): global button:hover forces background-color to near-transparent
+        and washed out the settings backdrop on hover outside the dialog.
+      */}
+      <div
+        aria-hidden
+        data-settings-washout
+        className="absolute inset-0 cursor-default bg-[rgba(244,244,245,0.84)] max-md:bg-[rgba(244,244,245,0.92)]"
         onClick={onClose}
       />
 

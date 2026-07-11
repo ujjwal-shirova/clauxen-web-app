@@ -4,6 +4,7 @@ import React, { useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/frontend/components/sidebar";
+import { SettingsErrorBoundary } from "@/frontend/components/settings/settings-error-boundary";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { sidebarDisplayName } from "@/lib/profile-names";
 import { useChat } from "@/frontend/hooks/use-chat";
@@ -293,28 +294,33 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       {overlays.isOpen.gift && <GiftView onClose={overlays.closeOverlay} />}
 
       {overlays.isOpen.settings ? (
-        <SettingsModal
-          open
+        <SettingsErrorBoundary
           onClose={overlays.closeOverlay}
-          initialTab={
-            overlays.settingsTab && isSettingsTab(overlays.settingsTab)
-              ? overlays.settingsTab
-              : "General"
-          }
-          onTabChange={(tab) => overlays.openSettings(tab)}
-          onGoToCustomize={(tab) => {
-            overlays.closeOverlay();
-            router.push(
-              tab === "connectors" ? "/customize/connectors" : "/customize",
-            );
-          }}
-          onUpgradeClick={() => {
-            overlays.closeOverlay();
-            setTimeout(() => overlays.openPricing(), 0);
-          }}
-          user={auth.user}
-          onLogout={() => void auth.logout()}
-        />
+          onReload={overlays.closeOverlay}
+        >
+          <SettingsModal
+            open
+            onClose={overlays.closeOverlay}
+            initialTab={
+              overlays.settingsTab && isSettingsTab(overlays.settingsTab)
+                ? overlays.settingsTab
+                : "General"
+            }
+            onTabChange={(tab) => overlays.openSettings(tab)}
+            onGoToCustomize={(tab) => {
+              overlays.closeOverlay();
+              router.push(
+                tab === "connectors" ? "/customize/connectors" : "/customize",
+              );
+            }}
+            onUpgradeClick={() => {
+              overlays.closeOverlay();
+              setTimeout(() => overlays.openPricing(), 0);
+            }}
+            user={auth.user}
+            onLogout={() => void auth.logout()}
+          />
+        </SettingsErrorBoundary>
       ) : null}
 
       {createProjectOpen ? (
