@@ -3,7 +3,10 @@ import { jsonData } from "@/backend/http/api-response";
 import { requireSession } from "@/backend/auth/require-session";
 import { query } from "@/backend/db/pool";
 import * as settingsRepo from "@/backend/repositories/settings.repository";
+import * as profileRepo from "@/backend/repositories/profile.repository";
+import * as profileService from "@/backend/services/profile.service";
 import { ensureUserRecord } from "@/backend/services/identity.service";
+import { sidebarDisplayName } from "@/lib/profile-names";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -98,16 +101,36 @@ function mergeSettings<T extends Record<string, unknown>>(
 function toClientPayload(
   stored: Record<string, unknown>,
   notifStored: Record<string, unknown>,
+  profile?: Awaited<ReturnType<typeof profileRepo.getProfile>> | null,
 ) {
+  const personalization = mergeSettings(
+    defaultPersonalization,
+    stored.personalization as Record<string, unknown>,
+  );
+
+  if (profile) {
+    if (profile.display_name) personalization.fullName = profile.display_name;
+    if (profile.preferred_name) personalization.nickname = profile.preferred_name;
+  }
+
   return {
     general: mergeSettings(
       defaultGeneral,
       stored.general as Record<string, unknown>,
     ),
-    personalization: mergeSettings(
-      defaultPersonalization,
-      stored.personalization as Record<string, unknown>,
-    ),
+    personalization,
+    profile: profile
+      ? {
+          avatarUrl: profile.avatar_url,
+          fullName: profile.display_name,
+          preferredName: profile.preferred_name,
+          sidebarName: sidebarDisplayName({
+            fullName: profile.display_name,
+            preferredName: profile.preferred_name,
+            email: profile.email,
+          }),
+        }
+      : null,
     notifications: mergeSettings(
       defaultNotifications,
       notifStored.channels as Record<string, unknown>,
@@ -173,23 +196,27 @@ export const GET = withApiHandler(
 
     let stored: Record<string, unknown> = {};
     let notifStored: Record<string, unknown> = {};
+    let profile: Awaited<ReturnType<typeof profileRepo.getProfile>> | null =
+      null;
 
     try {
-      const [userSettings, notificationPrefs] = await Promise.all([
+      const [userSettings, notificationPrefs, profileRow] = await Promise.all([
         settingsRepo.getUserSettings(user.id),
         settingsRepo.getNotificationPreferences(user.id),
+        profileRepo.getProfile(user.id),
       ]);
       stored = (userSettings?.settings ?? {}) as Record<string, unknown>;
       notifStored = (notificationPrefs?.settings ?? {}) as Record<
         string,
         unknown
       >;
+      profile = profileRow;
     } catch (error) {
       // Return defaults rather than 500 — UI must stay usable during DB blips.
       console.error("[settings] read failed, returning defaults:", error);
     }
 
-    return jsonData(toClientPayload(stored, notifStored));
+    return jsonData(toClientPayload(stored, notifStored, profile));
   },
   { requireAuth: true },
 );
@@ -287,9 +314,34 @@ export const PATCH = withApiHandler(
       });
     }
 
-    const [userSettings, notificationPrefs] = await Promise.all([
+    const personalizationPatch = body.personalization;
+    if (personalizationPatch) {
+      const hasProfileField =
+        typeof personalizationPatch.fullName === "string" ||
+        typeof personalizationPatch.nickname === "string" ||
+        typeof personalizationPatch.occupation === "string";
+      if (hasProfileField) {
+        await profileService.updateUserProfile(user.id, {
+          fullName:
+            typeof personalizationPatch.fullName === "string"
+              ? personalizationPatch.fullName
+              : undefined,
+          preferredName:
+            typeof personalizationPatch.nickname === "string"
+              ? personalizationPatch.nickname
+              : undefined,
+          occupation:
+            typeof personalizationPatch.occupation === "string"
+              ? personalizationPatch.occupation
+              : undefined,
+        });
+      }
+    }
+
+    const [userSettings, notificationPrefs, profile] = await Promise.all([
       settingsRepo.getUserSettings(user.id),
       settingsRepo.getNotificationPreferences(user.id),
+      profileRepo.getProfile(user.id),
     ]);
 
     const stored = (userSettings?.settings ?? {}) as Record<string, unknown>;
@@ -298,7 +350,7 @@ export const PATCH = withApiHandler(
       unknown
     >;
 
-    return jsonData(toClientPayload(stored, notifStored));
+    return jsonData(toClientPayload(stored, notifStored, profile));
   },
   { requireAuth: true },
 );

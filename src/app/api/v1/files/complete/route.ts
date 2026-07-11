@@ -1,6 +1,7 @@
 import { withApiHandler } from "@/backend/http/api-handler";
 import { jsonData } from "@/backend/http/api-response";
 import { requireSession } from "@/backend/auth/require-session";
+import * as profileRepo from "@/backend/repositories/profile.repository";
 import * as filesService from "@/backend/services/files.service";
 
 export const runtime = "nodejs";
@@ -20,6 +21,21 @@ export const POST = withApiHandler(
       contentHash: body.contentHash,
       sizeBytes: body.sizeBytes,
     });
+
+    const purpose =
+      file.metadata &&
+      typeof file.metadata === "object" &&
+      (file.metadata as Record<string, unknown>).purpose === "avatar"
+        ? "avatar"
+        : null;
+
+    if (purpose === "avatar") {
+      const download = await filesService.getUserFileDownloadUrl(
+        user.id,
+        file.id,
+      );
+      await profileRepo.updateProfile(user.id, { avatarUrl: download.url });
+    }
 
     return jsonData({ file });
   },

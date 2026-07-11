@@ -2,6 +2,8 @@ import { AppError, notFound } from "@/backend/db/errors";
 import * as onboardingRepo from "@/backend/repositories/onboarding.repository";
 import * as settingsRepo from "@/backend/repositories/settings.repository";
 import { ensureUserRecord } from "@/backend/services/identity.service";
+import * as profileService from "@/backend/services/profile.service";
+import { resolveAuthFullName } from "@/lib/profile-names";
 
 const DEFAULT_STEP = "create-account";
 
@@ -82,6 +84,7 @@ export async function updateOnboardingState(
     completed?: boolean;
     answers?: OnboardingAnswers;
     email?: string | null;
+    authMetadata?: Record<string, unknown> | null;
   },
 ) {
   if (input.step && !ALLOWED_STEPS.has(input.step)) {
@@ -176,8 +179,20 @@ export async function updateOnboardingState(
 
   if (!row) throw notFound("User settings not found.");
 
-  if (displayName) {
-    await onboardingRepo.updateProfileDisplayName(userId, displayName);
+  const authFullName = resolveAuthFullName(input.authMetadata);
+  const preferredName =
+    typeof answers?.displayName === "string"
+      ? (answers.displayName as string)
+      : null;
+  const role =
+    typeof answers?.role === "string" ? (answers.role as string) : null;
+
+  if (preferredName || role) {
+    await profileService.applyOnboardingProfile(userId, {
+      preferredName,
+      role,
+      authFullName,
+    });
   }
 
   return toClientState(row);

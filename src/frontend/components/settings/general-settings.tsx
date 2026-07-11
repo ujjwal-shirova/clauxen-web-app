@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
+import type { PersonalizationSettings } from "@/frontend/lib/api/settings";
 import {
   segmentedOptionClass,
   segmentedTrackClass,
@@ -14,12 +16,30 @@ import {
   SettingsSection,
   SettingsToggleRow,
 } from "./settings-ui";
+import {
+  ProfileAvatarUpload,
+} from "./profile-avatar-upload";
+import type { UserProfile } from "@/frontend/lib/api/profile";
 
 const appearanceModes = [
   { value: "System", icon: Monitor, label: "System" },
   { value: "Light", icon: Sun, label: "Light" },
   { value: "Dark", icon: Moon, label: "Dark" },
 ] as const;
+
+const WORK_OPTIONS = [
+  "Select",
+  "Engineering",
+  "Design",
+  "Product",
+  "Research",
+  "Founder",
+  "Student",
+  "Other",
+] as const;
+
+const inputClass =
+  "h-9 w-full max-w-[20rem] rounded-lg border border-zinc-200 bg-white px-3 text-[14px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400";
 
 function syncColorMode(preset: string): string {
   if (preset === "Light") return "Light";
@@ -28,6 +48,10 @@ function syncColorMode(preset: string): string {
 }
 
 interface GeneralSettingsProps {
+  personalization: PersonalizationSettings;
+  onPersonalizationChange: (patch: Partial<PersonalizationSettings>) => void;
+  avatarUrl?: string | null;
+  onAvatarUpdated?: (profile: UserProfile) => void;
   appearancePreset: string;
   setAppearancePreset: (value: string) => void;
   setColorMode: (value: string) => void;
@@ -40,6 +64,10 @@ interface GeneralSettingsProps {
 }
 
 export function GeneralSettings({
+  personalization,
+  onPersonalizationChange,
+  avatarUrl,
+  onAvatarUpdated,
   appearancePreset,
   setAppearancePreset,
   setColorMode,
@@ -50,6 +78,34 @@ export function GeneralSettings({
   followUpSuggestions,
   setFollowUpSuggestions,
 }: GeneralSettingsProps) {
+  const p = personalization;
+  const [nameDraft, setNameDraft] = useState(p.fullName);
+  const [callMeDraft, setCallMeDraft] = useState(p.nickname || p.fullName);
+  const [instructionsDraft, setInstructionsDraft] = useState(
+    p.customInstructions,
+  );
+
+  useEffect(() => setNameDraft(p.fullName), [p.fullName]);
+  useEffect(
+    () => setCallMeDraft(p.nickname || p.fullName),
+    [p.nickname, p.fullName],
+  );
+  useEffect(
+    () => setInstructionsDraft(p.customInstructions),
+    [p.customInstructions],
+  );
+
+  const avatarName = useMemo(
+    () => nameDraft || callMeDraft || "U",
+    [nameDraft, callMeDraft],
+  );
+
+  const workValue =
+    p.occupation &&
+    WORK_OPTIONS.includes(p.occupation as (typeof WORK_OPTIONS)[number])
+      ? p.occupation
+      : "Select";
+
   const handleAppearance = (preset: string) => {
     setAppearancePreset(preset);
     setColorMode(syncColorMode(preset));
@@ -63,6 +119,65 @@ export function GeneralSettings({
   return (
     <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
       <SettingsPanelTitle>General</SettingsPanelTitle>
+
+      <SettingsSection title="Profile">
+        <SettingsRow label="Avatar">
+          <ProfileAvatarUpload
+            name={avatarName}
+            avatarUrl={avatarUrl}
+            onUpdated={onAvatarUpdated}
+          />
+        </SettingsRow>
+        <SettingsRow label="Full name">
+          <input
+            type="text"
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={() => onPersonalizationChange({ fullName: nameDraft.trim() })}
+            className={inputClass}
+            autoComplete="name"
+          />
+        </SettingsRow>
+        <SettingsRow label="What should Clauxen call you?">
+          <input
+            type="text"
+            value={callMeDraft}
+            onChange={(e) => setCallMeDraft(e.target.value)}
+            onBlur={() => onPersonalizationChange({ nickname: callMeDraft.trim() })}
+            className={inputClass}
+          />
+        </SettingsRow>
+        <SettingsRow label="What best describes your work?">
+          <SettingsOptionPicker
+            value={workValue}
+            options={WORK_OPTIONS}
+            onValueChange={(value) =>
+              onPersonalizationChange({
+                occupation: value === "Select" ? "" : value,
+              })
+            }
+          />
+        </SettingsRow>
+        <div className="border-b border-zinc-100 py-3">
+          <p className="text-[14px] text-zinc-900">Custom instructions</p>
+          <p className="mt-1 text-[13px] leading-snug text-zinc-500">
+            Clauxen will keep these in mind across chats within product
+            guidelines.
+          </p>
+          <textarea
+            value={instructionsDraft}
+            onChange={(e) => setInstructionsDraft(e.target.value)}
+            onBlur={() =>
+              onPersonalizationChange({
+                customInstructions: instructionsDraft.trim(),
+              })
+            }
+            rows={4}
+            placeholder="e.g. when learning new concepts, I find analogies particularly helpful"
+            className="mt-3 w-full resize-y rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[14px] leading-5 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-400"
+          />
+        </div>
+      </SettingsSection>
 
       <SettingsSection title="Preferences">
         <SettingsRow label="Appearance">

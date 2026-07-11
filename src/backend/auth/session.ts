@@ -8,6 +8,7 @@ export type SessionUser = {
   id: string;
   email: string | null;
   displayName: string | null;
+  preferredName: string | null;
   avatarUrl: string | null;
 };
 
@@ -16,9 +17,11 @@ async function profileForUserId(userId: string): Promise<SessionUser | null> {
     id: string;
     email: string | null;
     display_name: string | null;
+    preferred_name: string | null;
     avatar_url: string | null;
   }>(
-    `select id, email, display_name, avatar_url from public.profiles where id = $1`,
+    `select id, email, display_name, preferred_name, avatar_url
+     from public.profiles where id = $1`,
     [userId],
   );
 
@@ -28,6 +31,7 @@ async function profileForUserId(userId: string): Promise<SessionUser | null> {
     id: profile.id,
     email: profile.email,
     displayName: profile.display_name,
+    preferredName: profile.preferred_name,
     avatarUrl: profile.avatar_url,
   };
 }

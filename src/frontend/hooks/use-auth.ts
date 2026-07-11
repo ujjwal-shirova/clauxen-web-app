@@ -59,6 +59,7 @@ export function useAuth() {
         (payload) => {
           const row = payload.new as {
             display_name?: string | null;
+            preferred_name?: string | null;
             avatar_url?: string | null;
             email?: string | null;
           } | null;
@@ -71,6 +72,10 @@ export function useAuth() {
                     row.display_name !== undefined
                       ? row.display_name
                       : prev.displayName,
+                  preferredName:
+                    row.preferred_name !== undefined
+                      ? row.preferred_name
+                      : prev.preferredName,
                   avatarUrl:
                     row.avatar_url !== undefined
                       ? row.avatar_url
@@ -105,6 +110,7 @@ export function useAuth() {
       id: data.user?.id ?? "",
       email: data.user?.email ?? null,
       displayName: null,
+      preferredName: null,
       avatarUrl: null,
     };
   }, []);
@@ -203,6 +209,7 @@ export function useAuth() {
       id: data.user?.id ?? "",
       email: data.user?.email ?? null,
       displayName: null,
+      preferredName: null,
       avatarUrl: null,
     };
   }, []);

@@ -100,7 +100,7 @@ export function OnboardingCheckboxRow({
   return (
     <label
       className={cn(
-        "flex cursor-pointer gap-3 text-left text-sm leading-snug text-zinc-700",
+        "flex cursor-pointer gap-3 text-left",
         disabled && "cursor-not-allowed opacity-60",
       )}
     >
@@ -114,18 +114,23 @@ export function OnboardingCheckboxRow({
         />
         <span
           className={cn(
-            "flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border-2 border-zinc-300 bg-white transition-colors",
-            "peer-focus-visible:ring-2 peer-focus-visible:ring-zinc-900/20",
-            checked && "border-[#0d0d0d] bg-[#0d0d0d]",
+            "flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border-2 transition-colors",
+            "border-zinc-300 bg-white",
+            "peer-focus-visible:ring-2 peer-focus-visible:ring-[#1b67b2]/25 peer-focus-visible:ring-offset-1",
+            "peer-checked:border-[#1b67b2] peer-checked:bg-[#1b67b2]",
           )}
           aria-hidden
         >
           {checked ? (
-            <Check className="h-3 w-3 text-white" strokeWidth={3} />
+            <Check
+              className="h-3 w-3 shrink-0 stroke-white text-white"
+              strokeWidth={2.75}
+              aria-hidden
+            />
           ) : null}
         </span>
       </span>
-      <span className="font-medium leading-[1.4] [&_a]:underline [&_a]:decoration-zinc-400/40 [&_a]:underline-offset-[3px]">
+      <span className="text-sm font-medium leading-[1.4] text-zinc-700 [&_a]:underline [&_a]:decoration-zinc-400/40 [&_a]:underline-offset-[3px]">
         {children}
       </span>
     </label>

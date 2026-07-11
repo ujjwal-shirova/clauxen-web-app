@@ -15,6 +15,7 @@ import { NameStep } from "./steps/name-step";
 import { RoleStep } from "./steps/role-step";
 import { OnboardingSplash } from "./onboarding-splash";
 import * as onboardingApi from "@/frontend/lib/api/onboarding";
+import * as authApi from "@/frontend/lib/api/auth";
 import type { OnboardingAnswers } from "@/frontend/lib/api/onboarding";
 import { ApiError } from "@/frontend/lib/api/client";
 
@@ -124,17 +125,25 @@ export function OnboardingFlow() {
   useEffect(() => {
     clearOnboardingHash();
 
-    void onboardingApi
-      .getOnboarding()
-      .then(({ onboarding }) => {
+    void Promise.all([onboardingApi.getOnboarding(), authApi.getSession()])
+      .then(([{ onboarding }, session]) => {
         if (onboarding.completed) {
           enterApp();
           return;
         }
+        const answers = answersFromApi(onboarding.answers);
+        const fromSession =
+          session?.preferredName?.trim() ||
+          session?.displayName?.trim() ||
+          "";
         setStep(stepFromApi(onboarding.step));
         setState((prev) => ({
           ...prev,
-          ...answersFromApi(onboarding.answers),
+          ...answers,
+          displayName:
+            (typeof answers.displayName === "string" && answers.displayName) ||
+            fromSession ||
+            prev.displayName,
         }));
         setHydrated(true);
       })

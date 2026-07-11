@@ -2,11 +2,14 @@ import { withApiHandler } from "@/backend/http/api-handler";
 import { jsonData } from "@/backend/http/api-response";
 import { AppError } from "@/backend/db/errors";
 import { ensureUserRecord } from "@/backend/services/identity.service";
+import * as profileService from "@/backend/services/profile.service";
 import { createSupabaseClientFromRequest } from "@/backend/auth/supabase-session";
+import { getSessionFromRequest } from "@/backend/auth/session";
 import {
   assertEmailNotDisposable,
   DISPOSABLE_EMAIL_CODE,
 } from "@/backend/email-verifier/disposable-email";
+import { resolveAuthFullName } from "@/lib/profile-names";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,12 +30,16 @@ export const GET = withApiHandler(async ({ request, session }) => {
         }
         throw err;
       }
+      const authFullName = resolveAuthFullName(user.user_metadata);
       await ensureUserRecord({
         userId: user.id,
         email: user.email,
-        displayName:
-          (user.user_metadata?.display_name as string | undefined) ??
-          (user.user_metadata?.full_name as string | undefined),
+        displayName: authFullName,
+      });
+      await profileService.syncProfileFromAuth({
+        userId: user.id,
+        email: user.email,
+        authMetadata: user.user_metadata,
       });
     }
   }
@@ -45,5 +52,7 @@ export const GET = withApiHandler(async ({ request, session }) => {
       displayName: session.displayName,
     });
   }
-  return jsonData({ session });
+
+  const freshSession = await getSessionFromRequest(request);
+  return jsonData({ session: freshSession ?? session });
 });

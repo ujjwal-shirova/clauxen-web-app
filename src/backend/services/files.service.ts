@@ -16,6 +16,20 @@ import {
 
 const PRESIGN_TTL_SECONDS = 900;
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+
+const AVATAR_MIMES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+]);
+
+function buildAvatarKey(userId: string, originalName: string) {
+  const ext = (originalName.split(".").pop() || "png").toLowerCase();
+  return `avatars/${userId}/${randomUUID()}.${ext}`;
+}
 
 function purposeForMime(mimeType?: string | null): StoragePurpose {
   return mimeType?.startsWith("image/") ? "images" : "documents";
@@ -63,19 +77,36 @@ export async function presignUserFileUpload(
     sizeBytes?: number;
     workspaceId?: string | null;
     projectId?: string | null;
+    purpose?: "avatar" | "library";
   },
 ) {
   const originalName = input.originalName.trim();
   if (!originalName) {
     throw new AppError("originalName is required.", 400);
   }
-  if (input.sizeBytes && input.sizeBytes > MAX_FILE_BYTES) {
+
+  const isAvatar = input.purpose === "avatar";
+  const mime = (input.mimeType ?? "").toLowerCase();
+  if (isAvatar) {
+    if (!AVATAR_MIMES.has(mime)) {
+      throw new AppError(
+        "Avatar must be PNG, JPEG, WebP, or GIF.",
+        400,
+        "invalid_avatar_type",
+      );
+    }
+    if (input.sizeBytes && input.sizeBytes > MAX_AVATAR_BYTES) {
+      throw new AppError("Avatar exceeds 2 MB limit.", 400);
+    }
+  } else if (input.sizeBytes && input.sizeBytes > MAX_FILE_BYTES) {
     throw new AppError("File exceeds 100 MB limit.", 400);
   }
 
-  const purpose = purposeForMime(input.mimeType);
+  const purpose = isAvatar ? "images" : purposeForMime(input.mimeType);
   const bucket = bucketForPurpose(purpose);
-  const storagePath = buildStorageKey(userId, originalName, input.mimeType);
+  const storagePath = isAvatar
+    ? buildAvatarKey(userId, originalName)
+    : buildStorageKey(userId, originalName, input.mimeType);
 
   const file = await userFilesRepo.createUserFile({
     userId,
@@ -87,7 +118,7 @@ export async function presignUserFileUpload(
     storageBucket: bucket,
     storagePath,
     status: "pending",
-    metadata: { purpose },
+    metadata: { purpose: isAvatar ? "avatar" : purpose },
   });
 
   if (!file) throw new AppError("Failed to create file record.", 500);

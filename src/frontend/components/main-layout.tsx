@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/frontend/components/sidebar";
 import { useAuth } from "@/frontend/hooks/use-auth";
+import { sidebarDisplayName } from "@/lib/profile-names";
 import { useChat } from "@/frontend/hooks/use-chat";
 import { useProjects } from "@/frontend/hooks/use-projects";
 import { useSidebarState } from "@/frontend/hooks/use-sidebar-state";
@@ -252,11 +253,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}
         onPinChat={handlePinChat}
-        userDisplayName={
-          auth.user?.displayName?.trim() ||
-          auth.user?.email?.split("@")[0] ||
-          "Guest"
-        }
+        userDisplayName={sidebarDisplayName({
+          fullName: auth.user?.displayName,
+          preferredName: auth.user?.preferredName,
+          email: auth.user?.email,
+        })}
+        userAvatarUrl={auth.user?.avatarUrl}
         userEmail={auth.user?.email ?? ""}
         onLogoutClick={() => void auth.logout()}
       />

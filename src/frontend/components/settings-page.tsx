@@ -14,6 +14,7 @@ import * as workspacesApi from "@/frontend/lib/api/workspaces";
 import type { Workspace } from "@/frontend/lib/api/workspaces";
 import { cn } from "@/frontend/lib/utils";
 import type { SessionUser } from "@/frontend/lib/api/auth";
+import { useAuth } from "@/frontend/hooks/use-auth";
 import { GeneralSettings } from "@/frontend/components/settings/general-settings";
 import { PersonalizationSettingsPanel } from "@/frontend/components/settings/personalization-settings";
 import { NotificationsSettings } from "@/frontend/components/settings/notifications-settings";
@@ -57,6 +58,7 @@ export function SettingsModal({
   initialTab = "General",
   onTabChange,
 }: SettingsModalProps) {
+  const { refresh: refreshAuth } = useAuth();
   const settingsEnabled = Boolean(user?.id);
   const {
     settings,
@@ -133,6 +135,12 @@ export function SettingsModal({
       case "General":
         return (
           <GeneralSettings
+            personalization={personalization}
+            onPersonalizationChange={updatePersonalization}
+            avatarUrl={user?.avatarUrl}
+            onAvatarUpdated={() => {
+              void refreshAuth({ quiet: true });
+            }}
             appearancePreset={general.appearancePreset}
             setAppearancePreset={(v) => updateGeneral({ appearancePreset: v })}
             setColorMode={(v) => updateGeneral({ colorMode: v })}

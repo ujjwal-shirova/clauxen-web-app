@@ -1,6 +1,7 @@
 import { withApiHandler } from "@/backend/http/api-handler";
 import { jsonData } from "@/backend/http/api-response";
 import { requireSession } from "@/backend/auth/require-session";
+import { createSupabaseClientFromRequest } from "@/backend/auth/supabase-session";
 import * as onboardingService from "@/backend/services/onboarding.service";
 import type { OnboardingAnswers } from "@/backend/services/onboarding.service";
 import {
@@ -49,11 +50,25 @@ export const PATCH = withApiHandler(
       completed?: boolean;
       answers?: OnboardingAnswers;
     };
+
+    let authMetadata: Record<string, unknown> | null = null;
+    const supabase = createSupabaseClientFromRequest(request);
+    if (supabase) {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+      authMetadata = (authUser?.user_metadata ?? null) as Record<
+        string,
+        unknown
+      > | null;
+    }
+
     const onboarding = await onboardingService.updateOnboardingState(user.id, {
       step: body.step,
       completed: body.completed,
       answers: body.answers,
       email: user.email,
+      authMetadata,
     });
     return withOnboardingCookie(
       jsonData({ onboarding }),

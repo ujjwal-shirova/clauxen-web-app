@@ -55,7 +55,7 @@ export class SettingsErrorBoundary extends React.Component<
                 Settings couldn&apos;t load
               </h2>
               <p className="mt-2 text-sm text-zinc-500">
-                Reload to try again, or go back.
+                Reload to try again.
               </p>
               {detail ? (
                 <p className="mt-3 break-words text-left text-xs text-zinc-400">
@@ -70,16 +70,6 @@ export class SettingsErrorBoundary extends React.Component<
                 className="inline-flex h-10 items-center justify-center rounded-lg bg-zinc-900 px-5 text-sm font-medium text-white hover:bg-zinc-800"
               >
                 Reload
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  this.setState({ error: null });
-                  this.props.onClose?.();
-                }}
-                className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
-              >
-                Back
               </button>
             </div>
           </div>

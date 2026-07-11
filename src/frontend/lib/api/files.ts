@@ -5,6 +5,7 @@ export async function presignUpload(input: {
   mimeType: string;
   sizeBytes: number;
   projectId?: string;
+  purpose?: "avatar" | "library";
 }) {
   return apiFetch<{
     fileId: string;

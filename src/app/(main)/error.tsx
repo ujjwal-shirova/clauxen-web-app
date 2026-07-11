@@ -15,7 +15,7 @@ export default function MainAppError({
       <div>
         <h1 className="text-xl font-semibold">This page couldn&apos;t load</h1>
         <p className="mt-2 text-sm text-zinc-500">
-          Reload to try again, or go back.
+          Reload to try again.
         </p>
         {process.env.NODE_ENV === "development" && error?.message ? (
           <p className="mt-3 max-w-lg text-left font-mono text-xs text-rose-600">
@@ -30,19 +30,6 @@ export default function MainAppError({
           className="inline-flex h-10 items-center justify-center rounded-lg bg-zinc-900 px-5 text-sm font-medium text-white hover:bg-zinc-800"
         >
           Reload
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (typeof window !== "undefined" && window.history.length > 1) {
-              window.history.back();
-              return;
-            }
-            window.location.assign("/");
-          }}
-          className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
-        >
-          Back
         </button>
       </div>
     </div>
