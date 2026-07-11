@@ -73,6 +73,7 @@
     "@tanstack/react-virtual": "^3.14.2",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "bcrypt": "^6.0.0",
     "bootstrap-icons": "^1.13.1",

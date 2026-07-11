@@ -5,6 +5,7 @@ import { ClientToaster } from "@/frontend/components/client-toaster";
 import { ClientSpeedInsights } from "@/frontend/components/client-speed-insights";
 import { AppNotificationsProvider } from "@/frontend/hooks/use-app-notifications";
 import { AppNotificationHost } from "@/frontend/components/app-notifications/app-notification-host";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -63,6 +64,7 @@ export default function RootLayout({
           <ClientToaster />
           <AppNotificationHost />
           <ClientSpeedInsights />
+          <Analytics />
         </AppNotificationsProvider>
       </body>
     </html>
