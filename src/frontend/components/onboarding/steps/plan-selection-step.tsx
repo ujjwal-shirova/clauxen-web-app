@@ -172,7 +172,7 @@ export function PlanSelectionStep({
 
   return (
     <OnboardingShell contentClassName="!items-stretch !justify-start !py-4 md:!py-6">
-      <div className="mx-auto flex w-full max-w-[1100px] flex-col items-center gap-6 pb-8">
+      <div className="mx-auto flex w-full min-h-0 max-w-[1100px] flex-col items-center gap-6 pb-10">
         <OnboardingHeading
           title="Plans that grow with you"
           subtitle="Start free, or pick a plan that fits how you work"

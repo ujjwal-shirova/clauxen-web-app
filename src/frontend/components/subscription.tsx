@@ -10,6 +10,7 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
+import { subscriptionSegmentClass } from "@/frontend/lib/segmented-control";
 import type { MaxTier } from "@/frontend/components/billing-checkout";
 import {
   CHECKOUT_PLAN_IDS,
@@ -607,24 +608,14 @@ export function PlansCarouselSection({
             <button
               type="button"
               onClick={() => setActiveTab("individual")}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-                activeTab === "individual"
-                  ? "bg-white shadow-sm"
-                  : "text-zinc-500 hover:text-zinc-900",
-              )}
+              className={subscriptionSegmentClass(activeTab === "individual")}
             >
               Individual
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("team")}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-                activeTab === "team"
-                  ? "bg-white shadow-sm"
-                  : "text-zinc-500 hover:text-zinc-900",
-              )}
+              className={subscriptionSegmentClass(activeTab === "team")}
             >
               Team & Enterprise
             </button>
@@ -635,24 +626,14 @@ export function PlansCarouselSection({
           <button
             type="button"
             onClick={() => setBillingCycle("monthly")}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-              billingCycle === "monthly"
-                ? "bg-white shadow-sm"
-                : "text-zinc-500 hover:text-zinc-900",
-            )}
+            className={subscriptionSegmentClass(billingCycle === "monthly")}
           >
             Monthly
           </button>
           <button
             type="button"
             onClick={() => setBillingCycle("yearly")}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-              billingCycle === "yearly"
-                ? "bg-white shadow-sm"
-                : "text-zinc-500 hover:text-zinc-900",
-            )}
+            className={subscriptionSegmentClass(billingCycle === "yearly")}
           >
             Yearly (save {YEARLY_DISCOUNT_PERCENT}%)
           </button>

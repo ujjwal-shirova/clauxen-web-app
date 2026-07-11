@@ -157,10 +157,6 @@ export function SettingsModal({
       case "Notifications":
         return (
           <NotificationsSettings
-            responseCompletions={notifications.responseCompletions ?? true}
-            setResponseCompletions={(v) =>
-              updateNotifications({ responseCompletions: v })
-            }
             codexChannel={notifications.codexChannel}
             responseChannel={notifications.responseChannel}
             groupChatChannel={notifications.groupChatChannel}

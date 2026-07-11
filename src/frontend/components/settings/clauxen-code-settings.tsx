@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 import {
+  segmentedOptionClass,
+  segmentedTrackClass,
+} from "@/frontend/lib/segmented-control";
+import {
   SettingsOptionPicker,
   SettingsPanelTitle,
   SettingsPillButton,
@@ -356,7 +360,7 @@ function SegmentedRow({
           {description}
         </p>
       </div>
-      <div className="inline-flex shrink-0 rounded-lg bg-zinc-100/90 p-0.5">
+      <div className={segmentedTrackClass}>
         {options.map((option) => {
           const active = value === option;
           return (
@@ -364,11 +368,7 @@ function SegmentedRow({
               key={option}
               type="button"
               onClick={() => onChange(option)}
-              className={
-                active
-                  ? "h-8 rounded-md bg-white px-3 text-[13px] font-medium text-zinc-900 shadow-sm"
-                  : "h-8 rounded-md px-3 text-[13px] font-medium text-zinc-500 hover:text-zinc-800"
-              }
+              className={segmentedOptionClass(active)}
             >
               {option}
             </button>

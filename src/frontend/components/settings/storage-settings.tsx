@@ -12,7 +12,10 @@ const FALLBACK_QUOTA = 512 * 1024 * 1024;
 
 function formatStorage(bytes: number) {
   if (bytes <= 0) return "0 B";
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  if (bytes >= 1024 ** 3) {
+    const gb = bytes / 1024 ** 3;
+    return gb % 1 === 0 ? `${gb} GB` : `${gb.toFixed(1)} GB`;
+  }
   if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${bytes} B`;

@@ -2,7 +2,6 @@
 
 import React, { useCallback } from "react";
 import dynamic from "next/dynamic";
-import { SettingsModal } from "@/frontend/components/settings-page";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/frontend/components/sidebar";
 import { useAuth } from "@/frontend/hooks/use-auth";
@@ -17,7 +16,10 @@ import {
   appShellRootClassName,
 } from "@/frontend/lib/app-shell-layout";
 import { cn } from "@/frontend/lib/utils";
-import type { SettingsTab } from "@/frontend/components/settings/constants";
+import {
+  isSettingsTab,
+  type SettingsTab,
+} from "@/frontend/components/settings/constants";
 import type { ApiProject } from "@/frontend/lib/api/projects";
 import type { RecentChat } from "@/frontend/lib/types";
 import { AppLayoutProvider } from "@/frontend/components/app-layout-context";
@@ -43,6 +45,12 @@ const CreateProjectDialog = dynamic(
     import("@/frontend/components/create-project-dialog").then(
       (m) => m.CreateProjectDialog,
     ),
+  { ssr: false },
+);
+
+const SettingsModal = dynamic(
+  () =>
+    import("@/frontend/components/settings-page").then((m) => m.SettingsModal),
   { ssr: false },
 );
 
@@ -286,7 +294,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <SettingsModal
           open
           onClose={overlays.closeOverlay}
-          initialTab={(overlays.settingsTab as SettingsTab) || "General"}
+          initialTab={
+            overlays.settingsTab && isSettingsTab(overlays.settingsTab)
+              ? overlays.settingsTab
+              : "General"
+          }
           onTabChange={(tab) => overlays.openSettings(tab)}
           onGoToCustomize={(tab) => {
             overlays.closeOverlay();

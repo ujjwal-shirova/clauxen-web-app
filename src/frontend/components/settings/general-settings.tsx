@@ -2,6 +2,10 @@
 
 import { Monitor, Moon, Sun } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
+import {
+  segmentedOptionClass,
+  segmentedTrackClass,
+} from "@/frontend/lib/segmented-control";
 import { fontThemes, motionOptions } from "./constants";
 import {
   SettingsOptionPicker,
@@ -62,7 +66,7 @@ export function GeneralSettings({
 
       <SettingsSection title="Preferences">
         <SettingsRow label="Appearance">
-          <div className="inline-flex rounded-lg bg-zinc-100/90 p-0.5">
+          <div className={segmentedTrackClass}>
             {appearanceModes.map(({ value, icon: Icon, label }) => {
               const active = appearancePreset === value;
               return (
@@ -72,12 +76,7 @@ export function GeneralSettings({
                   aria-label={label}
                   aria-pressed={active}
                   onClick={() => handleAppearance(value)}
-                  className={cn(
-                    "inline-flex h-8 w-9 items-center justify-center rounded-md transition-colors",
-                    active
-                      ? "bg-white text-zinc-900 shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-800",
-                  )}
+                  className={segmentedOptionClass(active, "icon")}
                 >
                   <Icon className="h-4 w-4" strokeWidth={1.75} />
                 </button>
@@ -104,7 +103,7 @@ export function GeneralSettings({
               elements.
             </p>
           </div>
-          <div className="inline-flex shrink-0 rounded-lg bg-zinc-100/90 p-0.5">
+          <div className={cn(segmentedTrackClass, "shrink-0")}>
             {motionOptions.map((option) => {
               const active = motion === option;
               return (
@@ -112,12 +111,7 @@ export function GeneralSettings({
                   key={option}
                   type="button"
                   onClick={() => setMotion(option)}
-                  className={cn(
-                    "h-8 rounded-md px-3 text-[13px] font-medium transition-colors",
-                    active
-                      ? "bg-white text-zinc-900 shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-800",
-                  )}
+                  className={segmentedOptionClass(active)}
                 >
                   {option}
                 </button>

@@ -2,6 +2,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { AppError, notFound } from "@/backend/db/errors";
 import { env } from "@/backend/config/env";
 import * as userFilesRepo from "@/backend/repositories/user-files.repository";
+import * as billingRepo from "@/backend/repositories/billing.repository";
+import {
+  resolveActiveStoragePlanId,
+  storageQuotaBytesForPlan,
+} from "@/lib/storage-quota";
 import {
   bucketForPurpose,
   buildImageKey,
@@ -137,9 +142,13 @@ export async function getUserFileDownloadUrl(userId: string, fileId: string) {
 }
 
 export async function getUserStorageSummary(userId: string) {
-  const stats = await userFilesRepo.getUserFileStorageStats(userId);
+  const [stats, subscription] = await Promise.all([
+    userFilesRepo.getUserFileStorageStats(userId),
+    billingRepo.getUserSubscription(userId),
+  ]);
   const totalBytes = Number(stats?.total_bytes ?? 0);
-  const quotaBytes = 20 * 1024 * 1024 * 1024;
+  const planId = resolveActiveStoragePlanId(subscription);
+  const quotaBytes = storageQuotaBytesForPlan(planId);
 
   return {
     usedBytes: totalBytes,
