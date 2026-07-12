@@ -30,25 +30,28 @@ export const GET = withApiHandler(async ({ request, session }) => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (user?.id && user.email) {
-      try {
-        assertEmailNotDisposable(user.email);
-      } catch (err) {
-        if (err instanceof AppError && err.code === DISPOSABLE_EMAIL_CODE) {
-          await supabase.auth.signOut();
+    if (user?.id) {
+      if (user.email) {
+        try {
+          assertEmailNotDisposable(user.email);
+        } catch (err) {
+          if (err instanceof AppError && err.code === DISPOSABLE_EMAIL_CODE) {
+            await supabase.auth.signOut();
+            throw err;
+          }
           throw err;
         }
-        throw err;
+        const authFullName = resolveAuthFullName(user.user_metadata);
+        await ensureUserRecord({
+          userId: user.id,
+          email: user.email,
+          displayName: authFullName,
+        });
       }
-      const authFullName = resolveAuthFullName(user.user_metadata);
-      await ensureUserRecord({
-        userId: user.id,
-        email: user.email,
-        displayName: authFullName,
-      });
+      // Also covers X / Twitter OAuth users who may not share an email.
       await profileService.syncProfileFromAuth({
         userId: user.id,
-        email: user.email,
+        email: user.email ?? null,
         authMetadata: user.user_metadata,
       });
     }

@@ -6,7 +6,7 @@ import {
   createSupabaseClientFromRequest,
   getSupabaseUserIdFromRequest,
 } from "@/backend/auth/supabase-session";
-import { resolveAuthFullName } from "@/lib/profile-names";
+import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
 
 export type SessionUser = {
   id: string;
@@ -62,12 +62,7 @@ function sessionFromAuthUser(user: {
     email,
     displayName: resolveAuthFullName(meta) ?? email?.split("@")[0] ?? null,
     preferredName: preferred,
-    avatarUrl:
-      typeof meta?.avatar_url === "string"
-        ? meta.avatar_url
-        : typeof meta?.picture === "string"
-          ? meta.picture
-          : null,
+    avatarUrl: resolveAuthAvatarUrl(meta),
   };
 }
 

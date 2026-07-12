@@ -502,6 +502,13 @@ export function mapSupabaseAuthError(message: string): string {
   ) {
     return "Temporary accounts are not allowed. Use a legitimate email address — disposable or temporary inboxes cannot create or sign in to Clauxen.";
   }
+  if (
+    lower.includes("provider is not enabled") ||
+    lower.includes("unsupported provider") ||
+    (lower.includes("validation_failed") && lower.includes("provider"))
+  ) {
+    return "That sign-in provider is not enabled yet. Try Google or GitHub, or contact support.";
+  }
   if (lower.includes("invalid login credentials")) {
     return "Incorrect email or password.";
   }

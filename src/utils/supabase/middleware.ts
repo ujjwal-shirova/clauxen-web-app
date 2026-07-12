@@ -16,7 +16,7 @@ import {
   identityHintCookieOptions,
   identityHintCookieValue,
 } from "@/utils/identity-cookie";
-import { resolveAuthFullName } from "@/lib/profile-names";
+import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
 
 const PUBLIC_PREFIXES = [
   "/login",
@@ -175,12 +175,7 @@ export async function updateSession(request: NextRequest) {
           user.email?.split("@")[0] ??
           null,
         preferredName: preferred,
-        avatarUrl:
-          typeof meta.avatar_url === "string"
-            ? meta.avatar_url
-            : typeof meta.picture === "string"
-              ? meta.picture
-              : null,
+        avatarUrl: resolveAuthAvatarUrl(meta),
       }),
       identityHintCookieOptions(),
     );

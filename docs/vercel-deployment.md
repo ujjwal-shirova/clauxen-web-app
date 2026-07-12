@@ -66,7 +66,7 @@ Add to **Authentication → URL Configuration**:
 | `{NEXT_PUBLIC_APP_URL}/auth/confirm` | Email / magic link / recovery OTP |
 | `http://localhost:9002/auth/callback` | Local development |
 
-Enable OAuth providers in Supabase Dashboard: Google, GitHub, Facebook, Twitter (X). Instagram skipped v1.
+Enable OAuth providers in Supabase Dashboard: Google, GitHub, Apple, GitLab, **X / Twitter (OAuth 2.0)**. Instagram skipped v1. See [`docs/auth-migration.md`](auth-migration.md) for the X developer app + `scripts/enable-x-auth.mjs` steps.
 
 See [`docs/auth-migration.md`](auth-migration.md) for dev-cookie → GoTrue migration notes.
 

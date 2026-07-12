@@ -4,6 +4,7 @@ import * as profileRepo from "@/backend/repositories/profile.repository";
 import * as settingsRepo from "@/backend/repositories/settings.repository";
 import * as filesService from "@/backend/services/files.service";
 import {
+  resolveAuthAvatarUrl,
   resolveAuthFullName,
   trimProfileName,
 } from "@/lib/profile-names";
@@ -22,12 +23,13 @@ export async function getProfileForUser(userId: string) {
 
 export async function syncProfileFromAuth(input: {
   userId: string;
-  email: string;
+  email?: string | null;
   authMetadata?: Record<string, unknown> | null;
 }) {
   const authFullName = resolveAuthFullName(input.authMetadata);
+  const authAvatar = resolveAuthAvatarUrl(input.authMetadata);
   const existing = await profileRepo.getProfile(input.userId);
-  const emailLocal = input.email.split("@")[0] || "User";
+  const emailLocal = input.email?.split("@")[0] || "User";
 
   let displayName = existing?.display_name?.trim() || null;
   if (!displayName || displayName === emailLocal) {
@@ -36,6 +38,7 @@ export async function syncProfileFromAuth(input: {
 
   const row = await profileRepo.updateProfile(input.userId, {
     displayName,
+    ...(authAvatar && !existing?.avatar_url ? { avatarUrl: authAvatar } : {}),
   });
 
   if (authFullName) {

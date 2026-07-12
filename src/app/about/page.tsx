@@ -48,7 +48,7 @@ export default function AboutPage() {
               <li>Start and continue AI conversations</li>
               <li>Group chats and files into projects</li>
               <li>Use agents, connectors, and skills to automate work</li>
-              <li>Sign in with email or providers such as Google and GitHub</li>
+              <li>Sign in with email or providers such as Google, GitHub, and X</li>
             </ul>
           </section>
 

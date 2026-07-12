@@ -20,6 +20,7 @@ import {
   readIdentityHintFromDocument,
 } from "@/utils/identity-cookie";
 import { resolveAuthFullName } from "@/lib/profile-names";
+import { oauthSignInOptions } from "@/frontend/lib/oauth-providers";
 
 type AuthContextValue = {
   user: SessionUser | null;
@@ -297,10 +298,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithOAuth = useCallback(
     async (provider: OAuthProvider, redirectTo = "/") => {
       const supabase = createClient();
+      const { provider: goTrueProvider, scopes } =
+        oauthSignInOptions(provider);
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: goTrueProvider,
         options: {
           redirectTo: `${appOrigin()}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+          ...(scopes ? { scopes } : {}),
         },
       });
       if (error) {

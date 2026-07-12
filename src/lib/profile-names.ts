@@ -11,11 +11,39 @@ export function resolveAuthFullName(
   metadata: Record<string, unknown> | null | undefined,
 ): string | null {
   if (!metadata) return null;
-  for (const key of ["full_name", "name", "display_name"] as const) {
-    const value = trimProfileName(
-      typeof metadata[key] === "string" ? metadata[key] : null,
-    );
-    if (value) return value;
+  for (const key of [
+    "full_name",
+    "name",
+    "display_name",
+    // X / Twitter OAuth 2.0 (+ legacy OAuth 1.0a) username fields
+    "user_name",
+    "preferred_username",
+    "screen_name",
+    "username",
+  ] as const) {
+    const raw = metadata[key];
+    const value = trimProfileName(typeof raw === "string" ? raw : null);
+    if (value) {
+      // X usernames often arrive without @ — keep as display when no full name.
+      return value.startsWith("@") ? value.slice(1) : value;
+    }
+  }
+  return null;
+}
+
+/** Avatar URL from common OAuth metadata shapes (Google / GitHub / X). */
+export function resolveAuthAvatarUrl(
+  metadata: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!metadata) return null;
+  for (const key of [
+    "avatar_url",
+    "picture",
+    "profile_image_url",
+    "profile_image_url_https",
+  ] as const) {
+    const raw = metadata[key];
+    if (typeof raw === "string" && raw.trim()) return raw.trim();
   }
   return null;
 }
@@ -66,6 +94,15 @@ if (process.env.NODE_ENV !== "production") {
   assert(
     resolveAuthFullName({ full_name: "Jane Doe" }) === "Jane Doe",
     "oauth full_name",
+  );
+  assert(
+    resolveAuthFullName({ user_name: "clauxen" }) === "clauxen",
+    "x user_name",
+  );
+  assert(
+    resolveAuthAvatarUrl({ profile_image_url_https: "https://x.test/a.jpg" }) ===
+      "https://x.test/a.jpg",
+    "x avatar",
   );
   assert(
     greetingFirstName({ preferredName: "Ujjwal Tyagi" }) === "Ujjwal",
