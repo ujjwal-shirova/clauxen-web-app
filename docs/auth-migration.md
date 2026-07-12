@@ -27,13 +27,17 @@
 
 App code uses Supabase provider `x` (not legacy `twitter` OAuth 1.0a).
 
+Supabase Auth custom domain for this project: **`https://auth.clauxen.com`**
+(do **not** use `*.supabase.co` callback URLs).
+
 1. Create an app at [developer.x.com](https://developer.x.com/en/portal/dashboard).
 2. User authentication settings:
    - Type of App: **Web App**
    - Turn **ON** “Request email from users”
-   - Callback URL: `https://ntplcfsbcyhiqklkbldk.supabase.co/auth/v1/callback`
-   - Website URL: production app URL (and localhost for dev)
-   - Terms / Privacy: `https://<app>/legal/terms` and `https://<app>/legal/privacy`
+   - Callback URL: `https://auth.clauxen.com/auth/v1/callback`
+   - Website URL: `https://www.clauxen.com` (or `https://clauxen.com`)
+   - Terms: `https://www.clauxen.com/legal/terms`
+   - Privacy: `https://www.clauxen.com/legal/privacy`
 3. Copy **Client ID** + **Client Secret** (OAuth 2.0 section under Keys and tokens).
 4. Enable in Supabase:
    - Dashboard → Authentication → Sign In / Providers → **X / Twitter (OAuth 2.0)**, or

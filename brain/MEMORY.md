@@ -88,3 +88,5 @@ Full target surface — **remember only; implement only when user asks for a sli
 - 2026-07-12: Say remember X and the agent should write it into brain/MEMORY.md
 - 2026-07-12: Build auth, billing, onboarding, settings, projects, chat-view; Supabase for messages; Cloudflare R2 for files/photos; also plans, customize, skills, plugins, gifts — **slice-by-slice, not all at once**.
 - 2026-07-12: Auth slice — wire **X (Twitter) OAuth 2.0** via Supabase provider `x` (not legacy `twitter`).
+- 2026-07-12: X OAuth callback must be https://auth.clauxen.com/auth/v1/callback (Supabase Auth custom domain), website https://www.clauxen.com — never *.supabase.co
+- 2026-07-12: X developer portal setup via Playwright (not Cursor browser); login required before app create
