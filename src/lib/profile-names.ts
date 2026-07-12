@@ -41,12 +41,14 @@ export function sidebarDisplayName(input: {
   fullName?: string | null;
   preferredName?: string | null;
   email?: string | null;
+  /** When true, never paint "Guest" — show a neutral placeholder instead. */
+  authenticated?: boolean;
 }): string {
   return (
     trimProfileName(input.fullName) ??
     trimProfileName(input.preferredName) ??
     trimProfileName(input.email?.split("@")[0] ?? null) ??
-    "Guest"
+    (input.authenticated ? "Account" : "Guest")
   );
 }
 

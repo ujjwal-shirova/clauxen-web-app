@@ -128,6 +128,7 @@ function toClientPayload(
             fullName: profile.display_name,
             preferredName: profile.preferred_name,
             email: profile.email,
+            authenticated: true,
           }),
         }
       : null,

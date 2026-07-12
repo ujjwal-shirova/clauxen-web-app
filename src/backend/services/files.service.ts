@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { AppError, notFound } from "@/backend/db/errors";
-import { env } from "@/backend/config/env";
+import { env, isR2Configured } from "@/backend/config/env";
 import * as userFilesRepo from "@/backend/repositories/user-files.repository";
 import * as billingRepo from "@/backend/repositories/billing.repository";
 import {
@@ -11,6 +11,8 @@ import {
   bucketForPurpose,
   buildImageKey,
   buildUserLibraryKey,
+  createPresignedGetUrl,
+  createPresignedPutUrl,
   type StoragePurpose,
 } from "@/backend/storage/object-store";
 
@@ -41,30 +43,98 @@ function buildStorageKey(userId: string, filename: string, mimeType?: string | n
     : buildUserLibraryKey(userId, filename);
 }
 
-/** ponytail: presign URLs use Worker when WORKER_URL set, else stub fallback. */
-function buildPresignStub(input: {
+/** Worker → R2 S3 presign → stub (local only). */
+async function buildUploadPresign(input: {
+  purpose: StoragePurpose;
   bucket: string;
   key: string;
-  method?: string;
+  contentType?: string | null;
 }) {
   const expiresAt = new Date(Date.now() + PRESIGN_TTL_SECONDS * 1000).toISOString();
+
   if (env.workerUrl) {
     const base = env.workerUrl.replace(/\/+$/, "");
     return {
-      method: input.method ?? "PUT",
-      uploadUrl: `${base}/upload/presign`,
+      method: "PUT" as const,
+      uploadUrl: `${base}/upload/put?bucket=${encodeURIComponent(input.bucket)}&key=${encodeURIComponent(input.key)}`,
       downloadUrl: `${base}/download/${encodeURIComponent(input.key)}?bucket=${encodeURIComponent(input.bucket)}`,
       expiresAt,
       stub: false,
       worker: true,
     };
   }
+
+  if (isR2Configured()) {
+    const put = await createPresignedPutUrl({
+      purpose: input.purpose,
+      key: input.key,
+      contentType: input.contentType ?? undefined,
+      expiresInSeconds: PRESIGN_TTL_SECONDS,
+      bucketOverride: input.bucket,
+    });
+    const get = await createPresignedGetUrl({
+      purpose: input.purpose,
+      key: input.key,
+      expiresInSeconds: PRESIGN_TTL_SECONDS,
+      bucketOverride: input.bucket,
+    });
+    if (put && get) {
+      return {
+        method: "PUT" as const,
+        uploadUrl: put.uploadUrl,
+        downloadUrl: get.downloadUrl,
+        expiresAt: put.expiresAt,
+        stub: false,
+        worker: false,
+      };
+    }
+  }
+
   const base = env.r2PublicBaseUrl || env.appUrl;
   return {
-    method: input.method ?? "PUT",
+    method: "PUT" as const,
     uploadUrl: `${base}/api/v1/files/stub-upload?bucket=${encodeURIComponent(input.bucket)}&key=${encodeURIComponent(input.key)}`,
     downloadUrl: `${base}/api/v1/files/stub-download?bucket=${encodeURIComponent(input.bucket)}&key=${encodeURIComponent(input.key)}`,
     expiresAt,
+    stub: true,
+    worker: false,
+  };
+}
+
+async function buildDownloadPresign(input: {
+  purpose: StoragePurpose;
+  bucket: string;
+  key: string;
+}) {
+  if (env.workerUrl) {
+    const base = env.workerUrl.replace(/\/+$/, "");
+    return {
+      downloadUrl: `${base}/download/${encodeURIComponent(input.key)}?bucket=${encodeURIComponent(input.bucket)}`,
+      expiresAt: new Date(Date.now() + PRESIGN_TTL_SECONDS * 1000).toISOString(),
+      stub: false,
+    };
+  }
+
+  if (isR2Configured()) {
+    const get = await createPresignedGetUrl({
+      purpose: input.purpose,
+      key: input.key,
+      expiresInSeconds: PRESIGN_TTL_SECONDS,
+      bucketOverride: input.bucket,
+    });
+    if (get) {
+      return {
+        downloadUrl: get.downloadUrl,
+        expiresAt: get.expiresAt,
+        stub: false,
+      };
+    }
+  }
+
+  const base = env.r2PublicBaseUrl || env.appUrl;
+  return {
+    downloadUrl: `${base}/api/v1/files/stub-download?bucket=${encodeURIComponent(input.bucket)}&key=${encodeURIComponent(input.key)}`,
+    expiresAt: new Date(Date.now() + PRESIGN_TTL_SECONDS * 1000).toISOString(),
     stub: true,
   };
 }
@@ -123,7 +193,12 @@ export async function presignUserFileUpload(
 
   if (!file) throw new AppError("Failed to create file record.", 500);
 
-  const presign = buildPresignStub({ bucket, key: storagePath });
+  const presign = await buildUploadPresign({
+    purpose,
+    bucket,
+    key: storagePath,
+    contentType: input.mimeType,
+  });
 
   return {
     fileId: file.id,
@@ -155,11 +230,13 @@ export async function getUserFileDownloadUrl(userId: string, fileId: string) {
   const file = await userFilesRepo.getUserFile(fileId, userId);
   if (!file) throw notFound("File not found.");
 
-  const purpose = file.mime_type?.startsWith("image/") ? "images" : "documents";
-  const presign = buildPresignStub({
+  const purpose: StoragePurpose = file.mime_type?.startsWith("image/")
+    ? "images"
+    : "documents";
+  const presign = await buildDownloadPresign({
+    purpose,
     bucket: file.storage_bucket,
     key: file.storage_path,
-    method: "GET",
   });
 
   return {

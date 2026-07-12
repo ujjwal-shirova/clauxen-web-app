@@ -1,15 +1,25 @@
+import { NextResponse } from "next/server";
 import { withApiHandler } from "@/backend/http/api-handler";
 import { jsonData } from "@/backend/http/api-response";
 import { AppError } from "@/backend/db/errors";
 import { ensureUserRecord } from "@/backend/services/identity.service";
 import * as profileService from "@/backend/services/profile.service";
 import { createSupabaseClientFromRequest } from "@/backend/auth/supabase-session";
-import { getSessionFromRequest } from "@/backend/auth/session";
+import {
+  getSessionFromRequest,
+  sessionCookieHeader,
+  clearSessionCookieHeader,
+} from "@/backend/auth/session";
 import {
   assertEmailNotDisposable,
   DISPOSABLE_EMAIL_CODE,
 } from "@/backend/email-verifier/disposable-email";
 import { resolveAuthFullName } from "@/lib/profile-names";
+import {
+  IDENTITY_HINT_COOKIE,
+  identityHintCookieOptions,
+  identityHintCookieValue,
+} from "@/utils/identity-cookie";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,5 +64,29 @@ export const GET = withApiHandler(async ({ request, session }) => {
   }
 
   const freshSession = await getSessionFromRequest(request);
-  return jsonData({ session: freshSession ?? session });
+  const resolved = freshSession ?? session;
+  const response = jsonData({ session: resolved });
+
+  if (resolved?.id) {
+    response.headers.append("Set-Cookie", sessionCookieHeader(resolved.id));
+    response.cookies.set(
+      IDENTITY_HINT_COOKIE,
+      identityHintCookieValue({
+        id: resolved.id,
+        email: resolved.email,
+        displayName: resolved.displayName,
+        preferredName: resolved.preferredName,
+        avatarUrl: resolved.avatarUrl,
+      }),
+      identityHintCookieOptions(),
+    );
+  } else {
+    response.headers.append("Set-Cookie", clearSessionCookieHeader());
+    response.cookies.set(IDENTITY_HINT_COOKIE, "", {
+      ...identityHintCookieOptions(0),
+      maxAge: 0,
+    });
+  }
+
+  return response;
 });

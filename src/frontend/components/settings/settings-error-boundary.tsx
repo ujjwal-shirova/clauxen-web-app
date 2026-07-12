@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle } from "lucide-react";
 
 type SettingsErrorBoundaryProps = {
   children: React.ReactNode;
@@ -10,73 +9,60 @@ type SettingsErrorBoundaryProps = {
 };
 
 type SettingsErrorBoundaryState = {
-  error: Error | null;
+  generation: number;
+  hasError: boolean;
 };
 
 /**
- * Catches render failures inside the settings modal.
- * Prefer fixing the root cause; this is the last-resort recovery UI.
+ * Isolates settings modal crashes — silent remount, no "couldn't load" chrome.
  */
 export class SettingsErrorBoundary extends React.Component<
   SettingsErrorBoundaryProps,
   SettingsErrorBoundaryState
 > {
-  override state: SettingsErrorBoundaryState = { error: null };
+  override state: SettingsErrorBoundaryState = {
+    generation: 0,
+    hasError: false,
+  };
 
-  static getDerivedStateFromError(error: Error): SettingsErrorBoundaryState {
-    return { error };
+  private failCount = 0;
+
+  static getDerivedStateFromError(): Partial<SettingsErrorBoundaryState> {
+    return { hasError: true };
   }
 
   override componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[settings] render failed:", error, info.componentStack);
+    this.failCount += 1;
+    if (this.failCount > 3) {
+      this.props.onClose?.();
+      this.failCount = 0;
+      this.setState({ hasError: false, generation: 0 });
+      return;
+    }
+    window.setTimeout(() => {
+      this.setState((s) => ({
+        hasError: false,
+        generation: s.generation + 1,
+      }));
+      this.props.onReload?.();
+    }, 0);
   }
 
-  private handleReload = () => {
-    this.setState({ error: null });
-    this.props.onReload?.();
-  };
-
   override render() {
-    if (this.state.error) {
-      const detail =
-        process.env.NODE_ENV !== "production"
-          ? this.state.error.message
-          : null;
-
+    if (this.state.hasError) {
       return (
-        <div className="fixed inset-0 z-[101] flex items-center justify-center bg-[rgba(244,244,245,0.92)] p-6">
-          <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-2xl border border-zinc-200 bg-white px-6 py-8 text-center shadow-lg">
-            <AlertTriangle
-              className="h-10 w-10 text-zinc-900"
-              strokeWidth={1.5}
-            />
-            <div>
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Settings couldn&apos;t load
-              </h2>
-              <p className="mt-2 text-sm text-zinc-500">
-                Reload to try again.
-              </p>
-              {detail ? (
-                <p className="mt-3 break-words text-left text-xs text-zinc-400">
-                  {detail}
-                </p>
-              ) : null}
-            </div>
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
-              <button
-                type="button"
-                onClick={this.handleReload}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-zinc-900 px-5 text-sm font-medium text-white hover:bg-zinc-800"
-              >
-                Reload
-              </button>
-            </div>
-          </div>
-        </div>
+        <div
+          className="fixed inset-0 z-[101] bg-[rgba(244,244,245,0.4)]"
+          aria-busy="true"
+        />
       );
     }
 
-    return this.props.children;
+    return (
+      <React.Fragment key={this.state.generation}>
+        {this.props.children}
+      </React.Fragment>
+    );
   }
 }

@@ -6,6 +6,7 @@ import { ClientTelemetry } from "@/frontend/components/client-telemetry";
 import { ChunkLoadRecovery } from "@/frontend/components/chunk-load-recovery";
 import { AppNotificationsProvider } from "@/frontend/hooks/use-app-notifications";
 import { AppNotificationHost } from "@/frontend/components/app-notifications/app-notification-host";
+import { AuthProvider } from "@/frontend/contexts/auth-context";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -59,13 +60,15 @@ export default function RootLayout({
         className={`${inter.className} antialiased`}
         suppressHydrationWarning
       >
-        <AppNotificationsProvider>
-          <ChunkLoadRecovery />
-          {children}
-          <ClientToaster />
-          <AppNotificationHost />
-          <ClientTelemetry />
-        </AppNotificationsProvider>
+        <AuthProvider>
+          <AppNotificationsProvider>
+            <ChunkLoadRecovery />
+            {children}
+            <ClientToaster />
+            <AppNotificationHost />
+            <ClientTelemetry />
+          </AppNotificationsProvider>
+        </AuthProvider>
       </body>
     </html>
   );

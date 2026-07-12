@@ -190,3 +190,55 @@ export function buildSkillObjectKey(
   const safe = relativePath.replace(/^\/+/, "").replace(/\.\./g, "_");
   return `${buildSkillPrefix(userId, skillId)}/${safe}`;
 }
+
+/** Direct-to-R2 upload URL (S3-compatible). Prefer Worker when WORKER_URL is set. */
+export async function createPresignedPutUrl(input: {
+  purpose: StoragePurpose;
+  key: string;
+  contentType?: string;
+  expiresInSeconds?: number;
+  bucketOverride?: string;
+}): Promise<{ uploadUrl: string; bucket: string; key: string; expiresAt: string } | null> {
+  const client = getR2Client();
+  if (!client) return null;
+  const bucket = input.bucketOverride ?? bucketForPurpose(input.purpose);
+  const expiresIn = input.expiresInSeconds ?? 900;
+  const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+  const uploadUrl = await getSignedUrl(
+    client,
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: input.key,
+      ContentType: input.contentType,
+    }),
+    { expiresIn },
+  );
+  return {
+    uploadUrl,
+    bucket,
+    key: input.key,
+    expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+  };
+}
+
+export async function createPresignedGetUrl(input: {
+  purpose: StoragePurpose;
+  key: string;
+  expiresInSeconds?: number;
+  bucketOverride?: string;
+}): Promise<{ downloadUrl: string; expiresAt: string } | null> {
+  const client = getR2Client();
+  if (!client) return null;
+  const bucket = input.bucketOverride ?? bucketForPurpose(input.purpose);
+  const expiresIn = input.expiresInSeconds ?? 900;
+  const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+  const downloadUrl = await getSignedUrl(
+    client,
+    new GetObjectCommand({ Bucket: bucket, Key: input.key }),
+    { expiresIn },
+  );
+  return {
+    downloadUrl,
+    expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+  };
+}

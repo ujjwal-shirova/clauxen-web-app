@@ -172,7 +172,18 @@ export function useChatApi(
   }, [projectIdFilter]);
 
   useEffect(() => {
-    void refreshChats();
+    // Home = blank new chat immediately (don't wait for list / IndexedDB).
+    if (
+      typeof window !== "undefined" &&
+      (window.location.pathname === "/" || window.location.pathname === "")
+    ) {
+      setActiveChatId(null);
+    }
+    // Defer sidebar list so the composer paints first.
+    const t = window.setTimeout(() => {
+      void refreshChats();
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [refreshChats]);
 
   // Live sidebar updates when chats change in Supabase (other tabs / title gen).

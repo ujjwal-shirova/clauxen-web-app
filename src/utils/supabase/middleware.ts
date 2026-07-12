@@ -11,6 +11,12 @@ import {
   onboardingDoneCookieOptions,
   onboardingDoneCookieValue,
 } from "@/utils/onboarding-cookie";
+import {
+  IDENTITY_HINT_COOKIE,
+  identityHintCookieOptions,
+  identityHintCookieValue,
+} from "@/utils/identity-cookie";
+import { resolveAuthFullName } from "@/lib/profile-names";
 
 const PUBLIC_PREFIXES = [
   "/login",
@@ -151,6 +157,39 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Fast UI identity hint (non-HttpOnly) — mirrors ChatGPT split-cookie pattern.
+  if (user?.id) {
+    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const preferred =
+      typeof meta.preferred_name === "string"
+        ? meta.preferred_name.trim() || null
+        : null;
+    supabaseResponse.cookies.set(
+      IDENTITY_HINT_COOKIE,
+      identityHintCookieValue({
+        id: user.id,
+        email: user.email ?? null,
+        displayName:
+          resolveAuthFullName(meta) ??
+          user.email?.split("@")[0] ??
+          null,
+        preferredName: preferred,
+        avatarUrl:
+          typeof meta.avatar_url === "string"
+            ? meta.avatar_url
+            : typeof meta.picture === "string"
+              ? meta.picture
+              : null,
+      }),
+      identityHintCookieOptions(),
+    );
+  } else {
+    supabaseResponse.cookies.set(IDENTITY_HINT_COOKIE, "", {
+      ...identityHintCookieOptions(0),
+      maxAge: 0,
+    });
+  }
 
   // Hard gate: disposable sessions cannot use the app (DevTools / direct API bypass).
   if (

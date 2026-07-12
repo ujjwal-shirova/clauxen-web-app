@@ -55,6 +55,14 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     sidebarHydrated,
   } = useSidebarState();
 
+  // Client auth gate — middleware is primary; this catches JWT-less shells.
+  React.useEffect(() => {
+    if (auth.loading) return;
+    if (auth.user?.id) return;
+    const redirectTo = `${pathname ?? "/"}${typeof window !== "undefined" ? window.location.search : ""}`;
+    router.replace(`/login?redirectTo=${encodeURIComponent(redirectTo)}`);
+  }, [auth.loading, auth.user?.id, pathname, router]);
+
   const chat = useChatSession();
   const {
     startedRecentChats,
@@ -236,6 +244,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           fullName: auth.user?.displayName,
           preferredName: auth.user?.preferredName,
           email: auth.user?.email,
+          authenticated: Boolean(auth.user?.id) || auth.loading,
         })}
         userAvatarUrl={auth.user?.avatarUrl}
         userEmail={auth.user?.email ?? ""}
@@ -360,11 +369,18 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 
 /**
  * Main app shell. Middleware already requires auth for these routes, so the
- * chat session always boots in API mode — never flips hooks after paint.
+ * chat session always boots in API mode — remount when the signed-in user changes.
  */
 export function MainLayout({ children }: { children: React.ReactNode }) {
+  const auth = useAuth();
+
+  // Wait for identity (cookie hint / JWT / session) before mounting chat hooks.
+  if (!auth.user?.id) {
+    return <div className="min-h-[100dvh] w-full bg-white" aria-busy="true" />;
+  }
+
   return (
-    <ChatSessionProvider apiEnabled>
+    <ChatSessionProvider key={auth.user.id} apiEnabled>
       <MainLayoutShell>{children}</MainLayoutShell>
     </ChatSessionProvider>
   );

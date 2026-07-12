@@ -133,7 +133,13 @@ export default {
       const headers = new Headers();
       object.writeHttpMetadata(headers);
       headers.set("etag", object.httpEtag);
-      headers.set("cache-control", "public, max-age=300");
+      // Cloudflare edge cache — long TTL for immutable user object keys.
+      headers.set(
+        "cache-control",
+        "public, max-age=31536000, immutable, stale-while-revalidate=86400",
+      );
+      headers.set("cdn-cache-control", "max-age=31536000");
+      headers.set("access-control-allow-origin", "*");
 
       const response = new Response(object.body, { headers });
       ctx.waitUntil(cache.put(cacheKey, response.clone()));
