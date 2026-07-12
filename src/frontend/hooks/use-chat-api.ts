@@ -270,6 +270,55 @@ export function useChatApi(
             if (existing.some((message) => message.id === mapped.id)) {
               return prev;
             }
+
+            // While this tab is streaming, reconcile the DB assistant row with
+            // the optimistic local assistant instead of appending a duplicate.
+            const gen = sharedApiGeneration.context;
+            if (
+              gen?.chatId === activeChatId &&
+              mapped.role === "assistant" &&
+              gen.assistantMessageId
+            ) {
+              const localIndex = existing.findIndex(
+                (message) => message.id === gen.assistantMessageId,
+              );
+              if (localIndex >= 0) {
+                const local = existing[localIndex]!;
+                const next = [...existing];
+                next[localIndex] = {
+                  ...local,
+                  id: mapped.id,
+                  isStreaming: local.isStreaming || mapped.isStreaming,
+                };
+                sharedApiGeneration.context = {
+                  chatId: gen.chatId,
+                  assistantMessageId: mapped.id,
+                };
+                return { ...prev, [activeChatId]: next };
+              }
+              // Local stream already owns this turn — ignore sparse DB insert.
+              return prev;
+            }
+
+            // Same for optimistic user rows (temp id → server id).
+            if (mapped.role === "user") {
+              const tempIndex = existing.findIndex(
+                (message) =>
+                  message.role === "user" &&
+                  message.id.startsWith("temp-") &&
+                  message.content === mapped.content,
+              );
+              if (tempIndex >= 0) {
+                const next = [...existing];
+                next[tempIndex] = {
+                  ...next[tempIndex]!,
+                  ...mapped,
+                  id: mapped.id,
+                };
+                return { ...prev, [activeChatId]: next };
+              }
+            }
+
             return {
               ...prev,
               [activeChatId]: [...existing, mapped],
@@ -324,33 +373,11 @@ export function useChatApi(
   const loadChatMessages = useCallback(async (chatId: string) => {
     setMessagesLoading(true);
     try {
-      let page = await chatsApi.listMessagesPage(chatId, {
+      // Worker (and Next fallback) already align to a complete latest pair —
+      // do not fetch older pages here; that only happens on scroll-up.
+      const page = await chatsApi.listMessagesPage(chatId, {
         limit: INITIAL_CHAT_MESSAGE_PAGE_SIZE,
       });
-
-      // Latest keyset page is newest-N messages. If it starts mid-turn
-      // (assistant without its user), pull one more older chunk so the UI
-      // always opens on a complete user→assistant pair when possible.
-      if (
-        page.messages[0]?.role !== "user" &&
-        page.hasMore &&
-        page.nextCursor
-      ) {
-        const older = await chatsApi.listMessagesPage(chatId, {
-          limit: INITIAL_CHAT_MESSAGE_PAGE_SIZE,
-          cursorId: page.nextCursor.id,
-          cursorCreatedAt: page.nextCursor.createdAt,
-        });
-        const existingIds = new Set(page.messages.map((message) => message.id));
-        const prepended = older.messages.filter(
-          (message) => !existingIds.has(message.id),
-        );
-        page = {
-          messages: [...prepended, ...page.messages],
-          nextCursor: older.nextCursor,
-          hasMore: Boolean(older.hasMore),
-        };
-      }
 
       const apiMessages = page.messages.map(mapApiMessage);
       let branchMessages: unknown = null;
@@ -617,9 +644,9 @@ export function useChatApi(
       overrideAssistantId?: string,
     ) => {
       const controller = new AbortController();
+      const assistantIdLocal = overrideAssistantId ?? randomUUID();
+      let assistantId = assistantIdLocal;
       sharedApiGeneration.request = controller;
-
-      const assistantId = overrideAssistantId ?? randomUUID();
       sharedApiGeneration.context = {
         chatId,
         assistantMessageId: assistantId,
@@ -682,6 +709,25 @@ export function useChatApi(
 
         if (!response.ok || !response.body) {
           throw new Error("Generation failed.");
+        }
+
+        // Sync optimistic local id → durable DB assistant id (prevents duplicates).
+        const serverAssistantId = response.headers.get("X-Assistant-Message-Id");
+        if (serverAssistantId && serverAssistantId !== assistantId) {
+          const previousId = assistantId;
+          assistantId = serverAssistantId;
+          sharedApiGeneration.context = {
+            chatId,
+            assistantMessageId: assistantId,
+          };
+          setAllChats((prev) => {
+            const list = prev[chatId] ?? [];
+            const index = list.findIndex((message) => message.id === previousId);
+            if (index < 0) return prev;
+            const next = [...list];
+            next[index] = { ...next[index]!, id: assistantId };
+            return { ...prev, [chatId]: next };
+          });
         }
 
         let completedAnswer = "";
@@ -872,13 +918,22 @@ export function useChatApi(
       prompt: string,
       options?: { forceNewChat?: boolean },
     ): Promise<string | null> => {
-      if (!prompt.trim() || isGenerating) return null;
+      const trimmed = prompt.trim();
+      if (!trimmed || isGenerating) return null;
 
       let chatId = options?.forceNewChat ? null : activeChatId;
       const isNewChat = !chatId;
+      const tempUserId = `temp-${randomUUID()}`;
+      const optimisticUser: Message = {
+        id: tempUserId,
+        role: "user",
+        content: trimmed,
+      };
+
       if (!chatId) {
         setCreatingChatPending(true);
       }
+
       try {
         if (!chatId) {
           const { chat } = await chatsApi.createChat({
@@ -901,29 +956,53 @@ export function useChatApi(
             recentChatsRef.current = next;
             return next;
           });
-          setAllChats((prev) => ({ ...prev, [chatId!]: [] }));
+          setAllChats((prev) => ({
+            ...prev,
+            [chatId!]: [optimisticUser],
+          }));
+        } else {
+          // Existing chat — paint the user bubble immediately (before network).
+          setAllChats((prev) => ({
+            ...prev,
+            [chatId!]: [...(prev[chatId!] ?? []), optimisticUser],
+          }));
         }
 
-        const { message: saved } = await chatsApi.appendMessage(
-          chatId!,
-          prompt.trim(),
+        const priorMessages = (allChatsRef.current[chatId!] ?? []).filter(
+          (message) => message.id !== tempUserId,
         );
-        const userMessage = mapApiMessage(saved);
-
-        const priorMessages = allChatsRef.current[chatId!] ?? [];
-        const conversation = buildConversation([...priorMessages, userMessage]);
-
-        setAllChats((prev) => ({
-          ...prev,
-          [chatId!]: [...(prev[chatId!] ?? []), userMessage],
-        }));
+        const conversation = buildConversation([
+          ...priorMessages,
+          optimisticUser,
+        ]);
 
         setIsGenerating(true);
         void streamAssistantResponse(
           chatId!,
           conversation,
-          isNewChat ? prompt.trim() : undefined,
+          isNewChat ? trimmed : undefined,
         );
+
+        // Persist user message without blocking the bubble / stream start.
+        void chatsApi
+          .appendMessage(chatId!, trimmed)
+          .then(({ message: saved }) => {
+            const real = mapApiMessage(saved);
+            setAllChats((prev) => {
+              const list = prev[chatId!] ?? [];
+              const index = list.findIndex((message) => message.id === tempUserId);
+              if (index < 0) {
+                if (list.some((message) => message.id === real.id)) return prev;
+                return { ...prev, [chatId!]: [...list, real] };
+              }
+              const next = [...list];
+              next[index] = { ...next[index]!, ...real, id: real.id };
+              return { ...prev, [chatId!]: next };
+            });
+          })
+          .catch((error) => {
+            console.warn("[chat] appendMessage failed:", error);
+          });
 
         return chatId;
       } finally {

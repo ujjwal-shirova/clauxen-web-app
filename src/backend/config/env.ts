@@ -147,6 +147,8 @@ export const env = {
   chatHistoryWorkerUrl: normalizeBaseUrl(
     optional("CHAT_HISTORY_WORKER_URL") || optional("NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL"),
   ),
+  /** Shared secret for Worker /internal/warm write-through. */
+  chatHistoryInternalToken: optional("CHAT_HISTORY_INTERNAL_TOKEN"),
 
   r2ImagesBucket: optional("R2_IMAGES_BUCKET", "clauxen-images"),
   r2DocumentsBucket: optional(

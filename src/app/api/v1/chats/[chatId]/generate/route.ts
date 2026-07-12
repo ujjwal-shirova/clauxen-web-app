@@ -25,7 +25,8 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       throw new AppError("messages are required.", 400);
     }
 
-    const { stream, onComplete } = await chatService.streamChatGeneration({
+    const { stream, onComplete, assistantMessageId } =
+      await chatService.streamChatGeneration({
       chatId: params.chatId,
       userId: user.id,
       messages,
@@ -56,6 +57,9 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     return new Response(wrapped, {
       headers: {
         ...CLAUXEN_STREAM_HEADERS,
+        ...(assistantMessageId
+          ? { "X-Assistant-Message-Id": assistantMessageId }
+          : {}),
       },
     });
   },

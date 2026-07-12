@@ -9,8 +9,8 @@ import { AgentTimelineStep } from "./agent-timeline";
 import { CreateFileStreamBlock } from "./create-file-stream-block";
 
 /**
- * create_file / file_write: timeline step + themed content container.
- * present_files is a separate "Presented file" step.
+ * create_file / file_write: while running → stream container;
+ * when done → collapsed file chip only (Thought-style compact row).
  */
 export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
   const path =
@@ -34,28 +34,38 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
     typeof tool.args?.description === "string"
       ? tool.args.description
       : tool.description;
-  const showStream = Boolean(content) || isRunning;
+  const showStream = isRunning;
+
+  // Done → Thought-style collapsed chip only (no stream preview / timeline chrome).
+  if (!isRunning) {
+    return (
+      <div className="mb-1">
+        <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-zinc-200 bg-background px-2.5 py-1 text-[12px] font-medium text-zinc-600">
+          <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+          <span className="truncate">{fileName || "file"}</span>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <AgentTimelineStep
       icon="file"
-      isActive={isRunning}
+      isActive
       title={
         <span
           className={cn(
-            "truncate font-medium text-zinc-800",
-            isRunning && "shimmer-text",
+            "truncate font-medium text-zinc-800 shimmer-text",
           )}
         >
-          {description ||
-            (isRunning ? `Creating ${fileName}` : `Creating ${fileName}`)}
+          {description || `Creating ${fileName}`}
         </span>
       }
     >
       {fileName ? (
-        <span className="mb-2 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-background px-2.5 py-1 text-[12px] font-medium text-zinc-600">
-          <FileText className="h-3.5 w-3.5 text-zinc-400" />
-          {fileName}
+        <span className="mb-1 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-zinc-200 bg-background px-2.5 py-1 text-[12px] font-medium text-zinc-600">
+          <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+          <span className="truncate">{fileName}</span>
         </span>
       ) : null}
       {showStream ? (
@@ -67,7 +77,7 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
             title: fileName.replace(/\.[^.]+$/, "") || "Untitled",
             language,
             content,
-            isComplete: !isRunning,
+            isComplete: false,
           }}
           streamKey={tool.id}
         />
@@ -91,8 +101,15 @@ export function PresentFilesBlock({ tool }: { tool: AgentToolSegment }) {
       icon="file"
       isActive={isRunning}
       title={
-        <span className={cn(isRunning && "shimmer-text")}>
-          {isRunning ? `Presenting file${plural}` : `Presented file${plural}`}
+        <span
+          className={cn(
+            "truncate font-medium text-zinc-800",
+            isRunning && "shimmer-text",
+          )}
+        >
+          {isRunning
+            ? `Presenting file${plural}`
+            : `Presented ${count || ""} file${plural}`.trim()}
         </span>
       }
     />

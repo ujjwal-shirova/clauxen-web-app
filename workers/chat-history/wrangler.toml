@@ -11,7 +11,8 @@ preview_urls = true
 region = "aws:us-west-1"
 
 [vars]
-LATEST_PAGE_CACHE_TTL_SECONDS = "10"
+# Longer TTL — Cache API has no daily quota; Hyperdrive is miss-only.
+LATEST_PAGE_CACHE_TTL_SECONDS = "120"
 
 [[hyperdrive]]
 binding = "HYPERDRIVE"
@@ -21,3 +22,7 @@ localConnectionString = "postgres://postgres:postgres@127.0.0.1:5432/postgres"
 [[kv_namespaces]]
 binding = "CHAT_HISTORY_CACHE"
 id = "8d917e9639df4dc2a12be2a35cf264af"
+
+[[r2_buckets]]
+binding = "CHAT_ARCHIVES"
+bucket_name = "clauxen-chat-archives"

@@ -71,20 +71,33 @@ function toolActionPhrase(tool: AgentToolSegment): string {
 }
 
 /** "Searched the web, viewed a file" — one phrase per distinct tool kind
- * used in this frame, in first-appearance order, lowercased after the first. */
+ * used in this frame, in first-appearance order, lowercased after the first.
+ * create_file / file_write alone → filename (Thought-style collapsed chip label). */
 function frameSummaryLabel(segments: AgentSegment[]): string | undefined {
+  const tools = segments.filter(
+    (segment): segment is AgentToolSegment =>
+      segment.kind === "tool" && segment.name !== "ask_user_input_v0",
+  );
+  if (tools.length === 0) return undefined;
+
+  const onlyFileCreates = tools.every(
+    (tool) =>
+      tool.name === "create_file" ||
+      tool.name === "file_write" ||
+      tool.name === "present_files",
+  );
+  if (onlyFileCreates) {
+    return toolStepLabel(tools[tools.length - 1]!);
+  }
+
   const seen = new Set<string>();
   const phrases: string[] = [];
 
-  for (const segment of segments) {
-    if (segment.kind !== "tool") continue;
-    if (segment.name === "ask_user_input_v0") continue; // gets its own frame
-    if (seen.has(segment.name)) continue;
-    seen.add(segment.name);
-    phrases.push(toolActionPhrase(segment));
+  for (const tool of tools) {
+    if (seen.has(tool.name)) continue;
+    seen.add(tool.name);
+    phrases.push(toolActionPhrase(tool));
   }
-
-  if (phrases.length === 0) return undefined;
 
   return phrases
     .map((phrase, index) =>

@@ -429,11 +429,21 @@ export async function streamChatGeneration(input: {
       } catch {
         // token metering is best-effort; stream already completed
       }
+
+      void import("@/backend/chat/warm-history-cache")
+        .then(({ warmChatHistoryCache }) =>
+          warmChatHistoryCache({
+            userId: input.userId,
+            chatId: input.chatId,
+            limit: 2,
+          }),
+        )
+        .catch(() => {});
     };
 
     return {
       stream: body,
-      assistantMessageId: null as string | null,
+      assistantMessageId: (await assistantPromise)?.id ?? null,
       onComplete: persistOnDone,
     };
   } catch (error) {

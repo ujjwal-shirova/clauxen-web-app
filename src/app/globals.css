@@ -1400,27 +1400,41 @@ button.user-message-card__body:not(:disabled):hover {
 
 .shimmer-text {
   background: linear-gradient(
-    to right,
-    rgb(61, 61, 58) 30%,
-    rgba(255, 255, 255, 0.8) 50%,
-    rgb(61, 61, 58) 80%
+    100deg,
+    rgb(61, 61, 58) 0%,
+    rgb(61, 61, 58) 35%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgb(61, 61, 58) 65%,
+    rgb(61, 61, 58) 100%
   );
-  background-size: 400% 100%;
+  background-size: 240% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: shimmer 2.2s infinite linear;
+  animation: shimmer-loop 2.4s ease-in-out infinite;
 }
 
 .shimmer-bg {
+  position: relative;
+  overflow: hidden;
+  background-color: rgb(244, 244, 245);
+  isolation: isolate;
+}
+
+.shimmer-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translate3d(-100%, 0, 0);
   background: linear-gradient(
     90deg,
-    rgba(244, 244, 245, 0.92) 0%,
-    rgba(228, 228, 231, 0.9) 45%,
-    rgba(244, 244, 245, 0.92) 100%
+    transparent 0%,
+    rgba(255, 255, 255, 0.72) 48%,
+    transparent 100%
   );
-  background-size: 220% 100%;
-  animation: shimmer 1.25s infinite linear;
+  /* linear + fully off-screen endpoints = seamless loop, no hard cut */
+  animation: skeleton-shimmer 1.4s linear infinite;
+  pointer-events: none;
 }
 
 /* Circular splash on auth button press */
@@ -1439,12 +1453,22 @@ button.user-message-card__body:not(:disabled):hover {
   }
 }
 
-@keyframes shimmer {
+/* Seamless shimmer — end state matches start (no hard cut). */
+@keyframes shimmer-loop {
   0% {
-    background-position: 200% 0;
+    background-position: 100% 50%;
   }
   100% {
-    background-position: -200% 0;
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }
 
@@ -1501,12 +1525,15 @@ button.user-message-card__body:not(:disabled):hover {
     var(--skeleton-highlight) 48%,
     transparent 100%
   );
-  animation: skeleton-shimmer var(--skeleton-duration) ease-in-out infinite;
+  animation: skeleton-shimmer var(--skeleton-duration) linear infinite;
   animation-delay: var(--skeleton-delay, 0ms);
   pointer-events: none;
 }
 
 @keyframes skeleton-shimmer {
+  0% {
+    transform: translate3d(-100%, 0, 0);
+  }
   100% {
     transform: translate3d(100%, 0, 0);
   }

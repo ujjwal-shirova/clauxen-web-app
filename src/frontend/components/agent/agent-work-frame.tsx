@@ -57,14 +57,12 @@ export function AgentWorkFrame({
     (segment) =>
       segment.kind === "tool" && segment.name === "ask_user_input_v0",
   );
-  /** Keep web search / create_file timelines expanded after reload (Claude-like). */
+  /** Keep web search timelines expanded after reload (Claude-like).
+   * create_file collapses to the Thought-style chip when complete. */
   const hasPersistentToolUi = items.some(
     (segment) =>
       segment.kind === "tool" &&
-      (segment.name === "web_search" ||
-        segment.name === "create_file" ||
-        segment.name === "file_write" ||
-        segment.name === "present_files"),
+      (segment.name === "web_search" || segment.name === "present_files"),
   );
   const userInputTools = items.filter(
     (segment): segment is AgentToolSegment =>

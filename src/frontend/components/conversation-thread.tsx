@@ -1168,10 +1168,14 @@ export function ConversationThread({
     if (!viewport || !onLoadOlderMessages) return;
 
     let raf = 0;
+    let userScrolledUp = false;
     const maybeLoadOlder = () => {
       if (raf !== 0) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
+        // Only fetch older pages after the user deliberately scrolls up —
+        // never on mount / initial pin-to-bottom.
+        if (!userScrolledUp) return;
         if (viewport.scrollTop > LOAD_OLDER_SCROLL_THRESHOLD_PX) return;
         if (!hasMoreMessages || isLoadingOlderMessages || loadingOlderRef.current) {
           return;
@@ -1187,11 +1191,16 @@ export function ConversationThread({
       });
     };
 
-    viewport.addEventListener("scroll", maybeLoadOlder, { passive: true });
-    // Also try once on mount if content is shorter than the viewport.
-    maybeLoadOlder();
+    const onScroll = () => {
+      if (viewport.scrollTop < viewport.scrollHeight - viewport.clientHeight - 24) {
+        userScrolledUp = true;
+      }
+      maybeLoadOlder();
+    };
+
+    viewport.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      viewport.removeEventListener("scroll", maybeLoadOlder);
+      viewport.removeEventListener("scroll", onScroll);
       if (raf !== 0) cancelAnimationFrame(raf);
     };
   }, [
@@ -1199,7 +1208,6 @@ export function ConversationThread({
     hasMoreMessages,
     isLoadingOlderMessages,
     onLoadOlderMessages,
-    groups.length,
   ]);
 
   React.useLayoutEffect(() => {

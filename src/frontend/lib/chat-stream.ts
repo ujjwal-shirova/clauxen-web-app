@@ -1,5 +1,5 @@
 export type StreamEvent =
-  | { type: "start"; agentMode?: boolean }
+  | { type: "start"; agentMode?: boolean; assistantMessageId?: string }
   | { type: "thinking_start" }
   | { type: "thinking_delta"; delta: string; segmentId?: string }
   | { type: "thinking_end"; segmentId?: string }

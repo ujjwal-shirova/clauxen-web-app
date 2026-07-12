@@ -252,26 +252,73 @@ export async function executeAutonomousTool(
     const filePath = String(args.path ?? "");
     const content = stripGeneratedArtifactFooter(String(args.content ?? ""));
     const output = await writeScopedFile(ctx.conversationId, filePath, content);
+
+    let persisted: { fileId: string; storagePath: string } | null = null;
+    if (ctx.userId) {
+      try {
+        const { persistAgentCreatedFile } = await import(
+          "@/backend/inference/autonomous-tools/persist-agent-file"
+        );
+        persisted = await persistAgentCreatedFile({
+          userId: ctx.userId,
+          chatId: ctx.conversationId,
+          path: filePath,
+          content,
+        });
+      } catch (error) {
+        console.warn("[create_file] R2/Supabase persist failed:", error);
+      }
+    }
+
     return {
       output: {
         ...output,
         content,
         description:
           typeof args.description === "string" ? args.description : undefined,
+        ...(persisted
+          ? { fileId: persisted.fileId, storagePath: persisted.storagePath }
+          : {}),
       },
     };
   }
 
   if (name === "present_files") {
     const paths = Array.isArray(args.paths) ? (args.paths as unknown[]) : [];
-    const files: Array<{ path: string; content: string }> = [];
+    const files: Array<{
+      path: string;
+      content: string;
+      fileId?: string;
+      storagePath?: string;
+    }> = [];
     const errors: string[] = [];
     for (const rawPath of paths) {
       const filePath = String(rawPath ?? "").trim();
       if (!filePath) continue;
       try {
         const file = await readScopedFile(ctx.conversationId, filePath);
-        files.push(file);
+        let persisted: { fileId: string; storagePath: string } | null = null;
+        if (ctx.userId) {
+          try {
+            const { persistAgentCreatedFile } = await import(
+              "@/backend/inference/autonomous-tools/persist-agent-file"
+            );
+            persisted = await persistAgentCreatedFile({
+              userId: ctx.userId,
+              chatId: ctx.conversationId,
+              path: filePath,
+              content: file.content,
+            });
+          } catch {
+            // best-effort
+          }
+        }
+        files.push({
+          ...file,
+          ...(persisted
+            ? { fileId: persisted.fileId, storagePath: persisted.storagePath }
+            : {}),
+        });
       } catch {
         errors.push(filePath);
       }

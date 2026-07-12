@@ -7,8 +7,9 @@ import type {
 import * as messagesRepo from "@/backend/repositories/messages.repository";
 
 /**
- * Prefer Cloudflare chat-history Worker (Hyperdrive + edge cache) when
- * configured; otherwise query Postgres directly via the RPC.
+ * Prefer Cloudflare chat-history Worker (Cache API → KV → R2 → Hyperdrive)
+ * when configured; otherwise query Postgres directly via the RPC.
+ * Latest pages are pair-aligned so the client never needs a second fetch.
  */
 export async function listMessagesPagePreferEdge(input: {
   chatId: string;
@@ -57,11 +58,37 @@ export async function listMessagesPagePreferEdge(input: {
     }
   }
 
-  return messagesRepo.listMessagesPage({
+  const page = await messagesRepo.listMessagesPage({
     chatId: input.chatId,
     userId: input.userId,
     cursorCreatedAt: input.cursorCreatedAt,
     cursorId: input.cursorId,
     limit: input.limit,
   });
+
+  // Match Worker alignLatestPair when serving the latest page from Postgres.
+  const isLatestPage = !input.cursorId && !input.cursorCreatedAt;
+  if (
+    !isLatestPage ||
+    page.messages[0]?.role === "user" ||
+    !page.hasMore ||
+    !page.nextCursor
+  ) {
+    return page;
+  }
+
+  const older = await messagesRepo.listMessagesPage({
+    chatId: input.chatId,
+    userId: input.userId,
+    cursorCreatedAt: page.nextCursor.createdAt,
+    cursorId: page.nextCursor.id,
+    limit: input.limit,
+  });
+  const existing = new Set(page.messages.map((message) => message.id));
+  const prepended = older.messages.filter((message) => !existing.has(message.id));
+  return {
+    messages: [...prepended, ...page.messages],
+    nextCursor: older.nextCursor,
+    hasMore: older.hasMore,
+  };
 }
