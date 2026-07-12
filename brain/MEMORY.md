@@ -82,6 +82,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Inference: server uses `Provider_API_Key` + `Provider_BASE_URL` (+ `Provider_Model_Clauxen_V1`); Exa uses `EXA_API_KEY`. No hardcoded provider base URL/keys. Fail closed via `requireProviderApiKey` / `requireProviderBaseUrl` / `requireExaApiKey`.
 - Sidebar Recents shimmer on first chat list fetch; conversation pane shimmer while `/c/[id]` messages hydrate. Realtime chat list refresh is silent (no full-list re-shimmer).
 - Chat transcripts for training: `chat_transcript_lines` stores Cursor-style JSONL records (`role` + `message.content` parts including `text` / `thinking` / `tool_use` / `tool_result`, plus `turn_ended`). View `chat_transcripts_jsonl` aggregates one JSONL doc per chat. Export: `GET /api/v1/chats/[chatId]/transcript`.
+- Branch PUT must use `sanitizeBranchMessages` (keeps ids/frames). Never `sanitizeMessages` for branch state — that stripped ids and caused reload duplicate assistants.
 
 ---
 
@@ -89,7 +90,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
 - Enable **X / Twitter (OAuth 2.0)** in Supabase with Client ID/Secret via Dashboard or `scripts/enable-x-auth.mjs` (app code already uses provider `x`).
-- Local-only (do not commit until asked): login OAuth button set (no Apple/X); Provider_* env rename; Provider/Exa + chat hydrate UX work.
+- Local-only (do not commit until asked): login OAuth button set (no Apple/X).
 
 ---
 
