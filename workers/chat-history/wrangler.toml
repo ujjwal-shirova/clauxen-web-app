@@ -8,13 +8,15 @@ compatibility_flags = ["nodejs_compat"]
 region = "wnam"
 
 [vars]
-# SUPABASE_URL / SUPABASE_ANON_KEY set via wrangler secret
 LATEST_PAGE_CACHE_TTL_SECONDS = "10"
 
-# Create with:
-#   npx wrangler hyperdrive create clauxen-supabase --connection-string="$DATABASE_URL"
-# Then paste the id below.
-[[hyperdrive]]
-binding = "HYPERDRIVE"
-id = "00000000000000000000000000000000"
-localConnectionString = "postgres://postgres:postgres@127.0.0.1:5432/postgres"
+# After:
+#   npx wrangler hyperdrive create clauxen-supabase-chat --connection-string="$POSTGRES_URL_NON_POOLING"
+# uncomment and paste the id:
+#
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "<hyperdrive-id>"
+# localConnectionString = "postgres://postgres:postgres@127.0.0.1:5432/postgres"
+#
+# Until Hyperdrive is configured, set secret DATABASE_URL (Supabase non-pooling).

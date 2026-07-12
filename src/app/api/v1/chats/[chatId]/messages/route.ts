@@ -3,17 +3,37 @@
 // POST: new user message insert — 201 Created
 // =============================================================================
 
+import type { NextRequest } from "next/server";
 import { withApiRouteParams } from "@/backend/http/route-params"; // [chatId] params inject + auth gates
 import { jsonData } from "@/backend/http/api-response"; // { data: … } success envelope
 import { requireSession } from "@/backend/auth/require-session"; // null session → 401
+import { createSupabaseClientFromRequest } from "@/backend/auth/supabase-session";
 import { AppError } from "@/backend/db/errors"; // validation errors — 400 bad request
 import * as chatService from "@/backend/services/chat.service"; // ownership check + appendUserMessage business logic
 
 const MAX_MESSAGE_CONTENT_CHARS = 256 * 1024; // cap oversized payloads — DoS mitigation on text column inserts
-const DEFAULT_PAGE_LIMIT = 20;
+const DEFAULT_PAGE_LIMIT = 2;
 
 export const runtime = "nodejs"; // Node.js — pg pool queries
 export const dynamic = "force-dynamic";
+
+async function accessTokenFromRequest(
+  request: NextRequest,
+): Promise<string | null> {
+  const auth =
+    request.headers.get("authorization") ??
+    request.headers.get("Authorization");
+  if (auth?.startsWith("Bearer ")) {
+    const token = auth.slice(7).trim();
+    if (token) return token;
+  }
+  const supabase = createSupabaseClientFromRequest(request);
+  if (!supabase) return null;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
+}
 
 export const GET = withApiRouteParams<{ chatId: string }>(
   async ({ session, params, request }) => {
@@ -25,11 +45,13 @@ export const GET = withApiRouteParams<{ chatId: string }>(
       : DEFAULT_PAGE_LIMIT;
     const cursorId = url.searchParams.get("cursor_id");
     const cursorCreatedAt = url.searchParams.get("cursor_created_at");
+    const accessToken = await accessTokenFromRequest(request);
 
     const page = await chatService.getChatMessagesPage(params.chatId, user.id, {
       cursorId,
       cursorCreatedAt,
       limit,
+      accessToken,
     });
 
     return jsonData({

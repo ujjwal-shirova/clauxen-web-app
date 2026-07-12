@@ -137,7 +137,6 @@ const nextConfig: NextConfig = {
       "recharts",
       "framer-motion",
       "@tanstack/react-query",
-      "@tanstack/react-virtual",
     ],
   },
   outputFileTracingIncludes: {

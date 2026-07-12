@@ -56,6 +56,10 @@ import {
   hydrateMessageFromContentJson,
   overlayBranchMessagesOnPage,
 } from "@/frontend/lib/hydrate-chat-messages";
+import {
+  INITIAL_CHAT_MESSAGE_PAGE_SIZE,
+  OLDER_CHAT_MESSAGE_PAGE_SIZE,
+} from "@/frontend/lib/chat-history-page-size";
 import { useShallow } from "zustand/react/shallow";
 
 type ChatHistoryCursor = {
@@ -320,7 +324,34 @@ export function useChatApi(
   const loadChatMessages = useCallback(async (chatId: string) => {
     setMessagesLoading(true);
     try {
-      const page = await chatsApi.listMessagesPage(chatId, { limit: 20 });
+      let page = await chatsApi.listMessagesPage(chatId, {
+        limit: INITIAL_CHAT_MESSAGE_PAGE_SIZE,
+      });
+
+      // Latest keyset page is newest-N messages. If it starts mid-turn
+      // (assistant without its user), pull one more older chunk so the UI
+      // always opens on a complete user→assistant pair when possible.
+      if (
+        page.messages[0]?.role !== "user" &&
+        page.hasMore &&
+        page.nextCursor
+      ) {
+        const older = await chatsApi.listMessagesPage(chatId, {
+          limit: INITIAL_CHAT_MESSAGE_PAGE_SIZE,
+          cursorId: page.nextCursor.id,
+          cursorCreatedAt: page.nextCursor.createdAt,
+        });
+        const existingIds = new Set(page.messages.map((message) => message.id));
+        const prepended = older.messages.filter(
+          (message) => !existingIds.has(message.id),
+        );
+        page = {
+          messages: [...prepended, ...page.messages],
+          nextCursor: older.nextCursor,
+          hasMore: Boolean(older.hasMore),
+        };
+      }
+
       const apiMessages = page.messages.map(mapApiMessage);
       let branchMessages: unknown = null;
       try {
@@ -364,7 +395,7 @@ export function useChatApi(
 
     try {
       const page = await chatsApi.listMessagesPage(chatId, {
-        limit: 20,
+        limit: OLDER_CHAT_MESSAGE_PAGE_SIZE,
         cursorId: current.nextCursor.id,
         cursorCreatedAt: current.nextCursor.createdAt,
       });

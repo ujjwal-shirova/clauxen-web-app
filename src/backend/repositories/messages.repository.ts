@@ -24,7 +24,7 @@ export type MessagePageResult = {
 
 type PageRpcRow = MessageRow & { has_more: boolean };
 
-const DEFAULT_PAGE_LIMIT = 20;
+const DEFAULT_PAGE_LIMIT = 2;
 const MAX_PAGE_LIMIT = 50;
 
 /** Full history — share/export only. Prefer listMessagesPage for UI. */

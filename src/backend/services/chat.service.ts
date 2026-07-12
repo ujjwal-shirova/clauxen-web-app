@@ -123,13 +123,18 @@ export async function getChatMessagesPage(
     cursorId?: string | null;
     cursorCreatedAt?: string | null;
     limit?: number;
+    accessToken?: string | null;
   },
 ) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
-  const page = await messagesRepo.listMessagesPage({
+  const { listMessagesPagePreferEdge } = await import(
+    "@/backend/chat/list-messages-page"
+  );
+  const page = await listMessagesPagePreferEdge({
     chatId,
     userId,
+    accessToken: input?.accessToken,
     cursorId: input?.cursorId,
     cursorCreatedAt: input?.cursorCreatedAt,
     limit: input?.limit,

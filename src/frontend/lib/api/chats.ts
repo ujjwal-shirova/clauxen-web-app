@@ -1,4 +1,5 @@
 import { apiFetch } from "@/frontend/lib/api/client";
+import { createClient } from "@/utils/supabase/client";
 
 export type ApiChat = {
   id: string;
@@ -47,6 +48,57 @@ export type MessagesPage = {
   hasMore: boolean;
 };
 
+function chatHistoryWorkerBase(): string {
+  return (process.env.NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL ?? "").replace(
+    /\/+$/,
+    "",
+  );
+}
+
+/** Prefer Cloudflare Worker (Hyperdrive) when configured; fall back to Next API. */
+async function listMessagesPageViaWorker(
+  chatId: string,
+  input?: {
+    cursorId?: string;
+    cursorCreatedAt?: string;
+    limit?: number;
+  },
+): Promise<MessagesPage | null> {
+  const base = chatHistoryWorkerBase();
+  if (!base || typeof window === "undefined") return null;
+
+  try {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+
+    const params = new URLSearchParams();
+    if (input?.limit) params.set("limit", String(input.limit));
+    if (input?.cursorId) params.set("cursor_id", input.cursorId);
+    if (input?.cursorCreatedAt) {
+      params.set("cursor_created_at", input.cursorCreatedAt);
+    }
+    const qs = params.toString();
+    const response = await fetch(
+      `${base}/v1/chats/${encodeURIComponent(chatId)}/messages${qs ? `?${qs}` : ""}`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          Accept: "application/json",
+        },
+        credentials: "omit",
+      },
+    );
+    if (!response.ok) return null;
+    const payload = (await response.json()) as { data?: MessagesPage };
+    return payload.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getChat(chatId: string) {
   return apiFetch<{
     chat: unknown;
@@ -65,6 +117,9 @@ export async function listMessagesPage(
     limit?: number;
   },
 ) {
+  const fromWorker = await listMessagesPageViaWorker(chatId, input);
+  if (fromWorker) return fromWorker;
+
   const params = new URLSearchParams();
   if (input?.limit) params.set("limit", String(input.limit));
   if (input?.cursorId) params.set("cursor_id", input.cursorId);

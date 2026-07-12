@@ -26,7 +26,6 @@ import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility
 import { useMessageEnterAnimation } from "@/frontend/hooks/use-message-enter-animation";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { useIsMobile } from "@/frontend/hooks/use-mobile";
-import { useVirtualizer } from "@tanstack/react-virtual";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 /** Trigger server keyset fetch when the viewport is this close to the top. */
@@ -670,7 +669,7 @@ const ConversationTurn = React.memo(
             <div
               ref={userMsgHostRef}
               data-sticky-user-msg
-              className="sticky-user-msg-host sticky-user-msg w-full max-w-full"
+              className="sticky-user-msg-host sticky-user-msg w-full max-w-full shrink-0"
             >
               <MessageRow
                 message={userMessage}
@@ -1164,17 +1163,6 @@ export function ConversationThread({
     return listRef.current;
   }, [scrollAreaRef]);
 
-  const virtualizer = useVirtualizer({
-    count: groups.length,
-    getScrollElement,
-    estimateSize: () => 280,
-    overscan: 3,
-    getItemKey: (index) =>
-      groups[index]?.userMessage?.id ??
-      groups[index]?.assistantMessages[0]?.id ??
-      `turn-${index}`,
-  });
-
   React.useEffect(() => {
     const viewport = getScrollElement();
     if (!viewport || !onLoadOlderMessages) return;
@@ -1200,6 +1188,8 @@ export function ConversationThread({
     };
 
     viewport.addEventListener("scroll", maybeLoadOlder, { passive: true });
+    // Also try once on mount if content is shorter than the viewport.
+    maybeLoadOlder();
     return () => {
       viewport.removeEventListener("scroll", maybeLoadOlder);
       if (raf !== 0) cancelAnimationFrame(raf);
@@ -1209,6 +1199,7 @@ export function ConversationThread({
     hasMoreMessages,
     isLoadingOlderMessages,
     onLoadOlderMessages,
+    groups.length,
   ]);
 
   React.useLayoutEffect(() => {
@@ -1317,7 +1308,6 @@ export function ConversationThread({
     groups.length,
     conversationKey,
     isGeneratingProp,
-    virtualizer.range,
   ]);
 
   React.useEffect(() => {
@@ -1341,22 +1331,19 @@ export function ConversationThread({
     onToggleMoreMenu: toggleMoreMenu,
   };
 
-  const virtualItems = virtualizer.getVirtualItems();
-
   return (
     <div
       ref={listRef}
       className={cn(
-        "relative w-full min-w-0 max-w-full px-0 pt-5 pb-5 sm:px-0 sm:pt-10 sm:pb-8",
+        "flex w-full min-w-0 max-w-full flex-col gap-4 px-0 pt-5 pb-5 sm:gap-6 sm:px-0 sm:pt-10 sm:pb-8",
         className,
       )}
       data-virtual-scroll
       data-fast-scrolling={isFastScrollingProp || undefined}
-      style={{ height: Math.max(virtualizer.getTotalSize(), 1) }}
     >
       {hasMoreMessages ? (
         <div
-          className="absolute left-0 right-0 top-0 z-10 flex flex-col items-center gap-2 py-1 text-[11px] font-medium text-zinc-400"
+          className="flex flex-col items-center gap-2 py-1 text-[11px] font-medium text-zinc-400"
           aria-hidden
         >
           {isLoadingOlderMessages ? (
@@ -1370,37 +1357,20 @@ export function ConversationThread({
         </div>
       ) : null}
 
-      {virtualItems.map((virtualRow) => {
-        const group = groups[virtualRow.index];
-        if (!group) return null;
-        return (
-          <div
-            key={virtualRow.key}
-            data-index={virtualRow.index}
-            ref={virtualizer.measureElement}
-            className="absolute left-0 top-0 w-full min-w-0"
-            style={{
-              transform: `translateY(${virtualRow.start}px)`,
-            }}
-          >
-            <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-6">
-              <ConversationTurn
-                turnIndex={virtualRow.index}
-                userMessage={group.userMessage}
-                assistantMessages={group.assistantMessages}
-                editValue={
-                  editingMessageId === group.userMessage?.id
-                    ? editValue
-                    : undefined
-                }
-                {...turnProps}
-              />
-            </div>
-          </div>
-        );
-      })}
+      {groups.map((group, index) => (
+        <ConversationTurn
+          key={group.userMessage?.id || `turn-${index}`}
+          turnIndex={index}
+          userMessage={group.userMessage}
+          assistantMessages={group.assistantMessages}
+          editValue={
+            editingMessageId === group.userMessage?.id ? editValue : undefined
+          }
+          {...turnProps}
+        />
+      ))}
       <div
-        className="chat-thread-scroll-anchor absolute bottom-0 left-0 h-px w-full shrink-0"
+        className="chat-thread-scroll-anchor h-px w-full shrink-0"
         aria-hidden
       />
 
@@ -1502,4 +1472,5 @@ export function ConversationThread({
     </div>
   );
 }
+
 

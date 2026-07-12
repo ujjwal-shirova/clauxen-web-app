@@ -143,6 +143,10 @@ export const env = {
   /** Optional public base URL for signed/public object delivery (custom domain or r2.dev). */
   r2PublicBaseUrl: optional("R2_PUBLIC_BASE_URL"),
   workerUrl: optional("WORKER_URL"),
+  /** Cloudflare chat-history Worker (keyset pages via Hyperdrive). */
+  chatHistoryWorkerUrl: normalizeBaseUrl(
+    optional("CHAT_HISTORY_WORKER_URL") || optional("NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL"),
+  ),
 
   r2ImagesBucket: optional("R2_IMAGES_BUCKET", "clauxen-images"),
   r2DocumentsBucket: optional(

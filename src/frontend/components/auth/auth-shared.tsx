@@ -28,20 +28,10 @@ export const authPageStyles = {
     "h-11 w-full rounded-[10px] border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus-visible:border-zinc-300 focus-visible:ring-2 focus-visible:ring-zinc-900/10",
 };
 
-export function getSafeRedirectTo(value: string | null): string {
-  if (!value) return "/";
-  if (value.startsWith("/") && !value.startsWith("//")) return value;
-  return "/";
-}
-
-/** Preserve overlay hashes (e.g. #settings/General) after auth redirects. */
-export function redirectTargetWithHash(path: string): string {
-  if (typeof window === "undefined") return path;
-  const hash = window.location.hash;
-  if (!hash || hash === "#") return path;
-  if (path.includes("#")) return path;
-  return `${path}${hash}`;
-}
+export {
+  getSafeRedirectTo,
+  redirectTargetWithHash,
+} from "@/frontend/lib/auth-redirect";
 
 export type OAuthProvider =
   | "google"
@@ -62,37 +52,6 @@ function AuthSplash({ active }: { active: boolean }) {
     </span>
   );
 }
-
-const ICON_OAUTH: {
-  provider: Exclude<OAuthProvider, "google" | "github">;
-  label: string;
-  shortLabel: string;
-  icon: React.ReactNode;
-}[] = [
-  {
-    provider: "x",
-    label: "Continue with X",
-    shortLabel: "X",
-    icon: <i className="bi bi-twitter-x text-[16px] leading-none" aria-hidden />,
-  },
-  {
-    provider: "apple",
-    label: "Continue with Apple",
-    shortLabel: "Apple",
-    icon: <i className="bi bi-apple text-[18px] leading-none" aria-hidden />,
-  },
-  {
-    provider: "gitlab",
-    label: "Continue with GitLab",
-    shortLabel: "GitLab",
-    icon: (
-      <i
-        className="bi bi-gitlab text-[17px] leading-none text-[#FC6D26]"
-        aria-hidden
-      />
-    ),
-  },
-];
 
 export function AuthOAuthButtons({
   onOAuth,
@@ -127,27 +86,19 @@ export function AuthOAuthButtons({
         <i className="bi bi-github text-[16px] leading-none" aria-hidden />
         Continue with GitHub
       </button>
-
-      {/* @container: show labels when the row is wide enough */}
-      <div className="@container w-full">
-        <div className="flex w-full items-stretch gap-2.5">
-          {ICON_OAUTH.map(({ provider, label, shortLabel, icon }) => (
-            <button
-              key={provider}
-              type="button"
-              disabled={disabled}
-              onClick={() => onOAuth(provider)}
-              className={authPageStyles.iconBtn}
-              aria-label={label}
-              title={label}
-            >
-              <AuthSplash active={pendingProvider === provider} />
-              {icon}
-              <span className="hidden truncate @[280px]:inline">{shortLabel}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onOAuth("gitlab")}
+        className={authPageStyles.outlinedBtn}
+      >
+        <AuthSplash active={pendingProvider === "gitlab"} />
+        <i
+          className="bi bi-gitlab text-[17px] leading-none text-[#FC6D26]"
+          aria-hidden
+        />
+        Continue with GitLab
+      </button>
 
       <button
         type="button"
@@ -542,11 +493,7 @@ export function AuthLoadingShell() {
           <div className="mb-4 h-8 w-56 rounded-lg shimmer-bg" />
           <div className="h-11 w-full rounded-[10px] shimmer-bg" />
           <div className="h-11 w-full rounded-[10px] shimmer-bg" />
-          <div className="flex gap-2.5">
-            <div className="h-11 flex-1 rounded-[10px] shimmer-bg" />
-            <div className="h-11 flex-1 rounded-[10px] shimmer-bg" />
-            <div className="h-11 flex-1 rounded-[10px] shimmer-bg" />
-          </div>
+          <div className="h-11 w-full rounded-[10px] shimmer-bg" />
           <div className="h-11 w-full rounded-[10px] shimmer-bg" />
           <div className="my-2 h-px w-full bg-zinc-100" />
           <div className="h-11 w-full rounded-[10px] shimmer-bg" />

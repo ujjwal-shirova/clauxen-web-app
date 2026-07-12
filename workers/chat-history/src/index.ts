@@ -3,7 +3,10 @@ import postgres from "postgres";
 export interface Env {
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
-  HYPERDRIVE: Hyperdrive;
+  /** Preferred: Hyperdrive binding to Supabase Postgres. */
+  HYPERDRIVE?: Hyperdrive;
+  /** Fallback when Hyperdrive is not bound (local / bootstrap). */
+  DATABASE_URL?: string;
   LATEST_PAGE_CACHE_TTL_SECONDS?: string;
 }
 
@@ -54,7 +57,12 @@ async function verifySupabaseJwt(
 }
 
 function sqlClient(env: Env) {
-  return postgres(env.HYPERDRIVE.connectionString, {
+  const connectionString =
+    env.HYPERDRIVE?.connectionString || env.DATABASE_URL || "";
+  if (!connectionString) {
+    throw new Error("HYPERDRIVE or DATABASE_URL is required");
+  }
+  return postgres(connectionString, {
     max: 1,
     fetch_types: false,
     prepare: false,
@@ -127,7 +135,7 @@ export default {
     const chatId = decodeURIComponent(match[1]!);
     const limit = Math.min(
       50,
-      Math.max(1, Number(url.searchParams.get("limit") ?? "20") || 20),
+      Math.max(1, Number(url.searchParams.get("limit") ?? "2") || 2),
     );
     const cursorId = url.searchParams.get("cursor_id");
     const cursorCreatedAt = url.searchParams.get("cursor_created_at");

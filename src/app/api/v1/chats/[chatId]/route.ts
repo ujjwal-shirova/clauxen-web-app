@@ -17,7 +17,7 @@ export const GET = withApiRouteParams<{ chatId: string }>(
     requireChatIdParam(params.chatId);
     // Latest keyset page only — full history is loaded via /messages?cursor_*
     const page = await chatService.getChatMessagesPage(params.chatId, user.id, {
-      limit: 20,
+      limit: 2,
     });
     return jsonData({
       chat: page.chat,
