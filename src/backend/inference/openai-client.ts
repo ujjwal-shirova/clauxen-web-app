@@ -1,21 +1,25 @@
 import OpenAI from "openai";
-import { env, requireNovitaApiKey } from "@/backend/config/env";
+import {
+  env,
+  requireProviderApiKey,
+  requireProviderBaseUrl,
+} from "@/backend/config/env";
 import { novitaFetch } from "@/backend/inference/novita-fetch";
 
 const clients = new Map<string, OpenAI>();
 
 function normalizeOpenAiCompatBaseUrl(baseUrl?: string) {
-  const normalized = (baseUrl ?? env.novitaOpenAiBaseUrl).replace(/\/+$/, "");
-  return normalized.endsWith("/v1") ? normalized : `${normalized}/v1`;
+  const raw = (baseUrl?.trim() || requireProviderBaseUrl()).replace(/\/+$/, "");
+  return raw.endsWith("/v1") ? raw : `${raw}/v1`;
 }
 
-/** OpenAI SDK client for a Novita-compatible base URL (cached per URL). */
+/** OpenAI SDK client for the Provider_* OpenAI-compatible base URL (cached per URL). */
 export function getOpenAIClient(baseUrl?: string) {
   const normalized = normalizeOpenAiCompatBaseUrl(baseUrl);
   const existing = clients.get(normalized);
   if (existing) return existing;
 
-  const apiKey = requireNovitaApiKey();
+  const apiKey = requireProviderApiKey();
   const client = new OpenAI({
     apiKey,
     baseURL: normalized,
@@ -26,7 +30,8 @@ export function getOpenAIClient(baseUrl?: string) {
   return client;
 }
 
-export const DEFAULT_MODEL = "moonshotai/kimi-k2.6";
+/** Upstream model slug — prefer Provider_Model_Clauxen_V1 via env.defaultModel. */
+export const DEFAULT_MODEL = env.defaultModel;
 
 export const AVAILABLE_MODELS = [
   {

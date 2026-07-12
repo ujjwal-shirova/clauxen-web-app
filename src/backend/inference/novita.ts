@@ -137,13 +137,23 @@ export function sanitizeGeneratedTitle(
   return normalizeChatTitle(raw, exchange);
 }
 
-/** Pass-through for agent/chat SSE while tapping answer/thinking deltas for persistence. */
+/** Pass-through for agent/chat SSE while tapping answer/thinking/tools for persistence. */
 export function tapChatSseStream(
   source: ReadableStream<Uint8Array>,
   callbacks: {
     onAnswerDelta?: (delta: string) => void;
     onThinkingDelta?: (delta: string) => void;
     onChatTitle?: (title: string) => void;
+    onToolStart?: (tool: {
+      toolCallId: string;
+      name: string;
+      args?: Record<string, unknown>;
+    }) => void;
+    onToolEnd?: (tool: {
+      toolCallId: string;
+      name: string;
+      result: string;
+    }) => void;
   },
   signal?: AbortSignal,
 ): ReadableStream<Uint8Array> {

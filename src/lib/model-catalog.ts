@@ -1,9 +1,9 @@
-import { MODEL_CONFIG, normalizeUpstreamModelSlug, type ConfiguredModelId } from "./model-config";
-
 /**
  * Product model catalog — single source of truth for the one visible chat model.
  * Legacy IDs are still parsed for old persisted chats, but the UI exposes Virgil only.
  */
+
+import { MODEL_CONFIG, normalizeUpstreamModelSlug, type ConfiguredModelId } from "./model-config";
 
 export type ChatModelId = ConfiguredModelId;
 
@@ -15,13 +15,13 @@ export type ModelCatalogEntry = {
   shortLabel: string;
   description: string;
   provider: InferenceProviderKind;
-  /** Default Novita upstream model id */
+  /** Default upstream model id */
   defaultModelSlug: string;
   /** Env var for model slug override */
   modelEnvKey: string;
   /** Env var for API base URL override */
   baseUrlEnvKey: string;
-  /** Fallback base URL when env override is unset */
+  /** Fallback base URL when env override is unset (server resolves Provider_BASE_URL) */
   defaultBaseUrl: string;
   available: boolean;
   requiresUpgrade?: boolean;
@@ -35,9 +35,9 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     description: MODEL_CONFIG.metadata.virgil.description,
     provider: "openai",
     defaultModelSlug: MODEL_CONFIG.models.virgil.defaultSlug,
-    modelEnvKey: MODEL_CONFIG.models.virgil.envKey,
-    baseUrlEnvKey: "NOVITA_OPENAI_BASE_URL",
-    defaultBaseUrl: MODEL_CONFIG.endpoints.novitaOpenAiBaseUrl,
+    modelEnvKey: MODEL_CONFIG.providerEnv.modelClauxenV1,
+    baseUrlEnvKey: MODEL_CONFIG.providerEnv.baseUrl,
+    defaultBaseUrl: "",
     available: MODEL_CONFIG.metadata.virgil.available,
     requiresUpgrade: MODEL_CONFIG.metadata.virgil.requiresUpgrade,
   },
@@ -74,12 +74,29 @@ function readEnvOverride(key: string): string | undefined {
   return value || undefined;
 }
 
+function readProviderModel(): string | undefined {
+  return (
+    readEnvOverride(MODEL_CONFIG.providerEnv.modelClauxenV1) ||
+    readEnvOverride("SHIROVA_DEFAULT_MODEL")
+  );
+}
+
+function readProviderBaseUrl(): string | undefined {
+  return (
+    readEnvOverride(MODEL_CONFIG.providerEnv.baseUrl) ||
+    readEnvOverride("NOVITA_OPENAI_BASE_URL") ||
+    readEnvOverride("LLM_BASE_URL")
+  );
+}
+
 function modelSlugForEntry(
   entry: ModelCatalogEntry,
   env: ModelCatalogEnv,
 ): string {
+  const fromProvider = readProviderModel();
   const fromEnv = readEnvOverride(entry.modelEnvKey);
   const raw =
+    fromProvider ??
     fromEnv ??
     (entry.id === "homer"
       ? env.homerModel
@@ -93,7 +110,7 @@ function baseUrlForEntry(
   entry: ModelCatalogEntry,
   env: ModelCatalogEnv,
 ): string {
-  const fromEnv = readEnvOverride(entry.baseUrlEnvKey);
+  const fromEnv = readEnvOverride(entry.baseUrlEnvKey) || readProviderBaseUrl();
   if (fromEnv) return normalizeBaseUrl(fromEnv);
   return normalizeBaseUrl(env.novitaOpenAiBaseUrl || entry.defaultBaseUrl);
 }
@@ -126,7 +143,7 @@ export function resolveModelRuntime(
   };
 }
 
-/** UI selector options (frontend + API). */
+/** UI selector options (frontend + API). Never includes secrets or upstream URLs. */
 export type ChatModelOption = {
   id: ChatModelId;
   label: string;
@@ -175,33 +192,28 @@ export function resolveOpenAiModelId(
 }
 
 export function modelCatalogEnvFromProcess(): ModelCatalogEnv {
-  const homerDefault = MODEL_CONFIG.models.homer.defaultSlug;
-  const heliosDefault = MODEL_CONFIG.models.helios.defaultSlug;
-  const virgilDefault = MODEL_CONFIG.models.virgil.defaultSlug;
-  const thinkingDefault = MODEL_CONFIG.models.thinking.defaultSlug;
+  const providerModel =
+    readProviderModel() ?? MODEL_CONFIG.models.virgil.defaultSlug;
+  const providerBase = readProviderBaseUrl() ?? "";
 
   return {
-    novitaAnthropicBaseUrl:
-      readEnvOverride("NOVITA_ANTHROPIC_BASE_URL") ??
-      MODEL_CONFIG.endpoints.novitaAnthropicBaseUrl,
-    novitaOpenAiBaseUrl:
-      readEnvOverride("NOVITA_OPENAI_BASE_URL") ??
-      MODEL_CONFIG.endpoints.novitaOpenAiBaseUrl,
+    novitaAnthropicBaseUrl: providerBase,
+    novitaOpenAiBaseUrl: providerBase,
     homerModel: normalizeUpstreamModelSlug(
-      readEnvOverride(MODEL_CONFIG.models.homer.envKey),
-      homerDefault,
+      providerModel,
+      MODEL_CONFIG.models.homer.defaultSlug,
     ),
     heliosModel: normalizeUpstreamModelSlug(
-      readEnvOverride(MODEL_CONFIG.models.helios.envKey),
-      heliosDefault,
+      providerModel,
+      MODEL_CONFIG.models.helios.defaultSlug,
     ),
     virgilModel: normalizeUpstreamModelSlug(
-      readEnvOverride(MODEL_CONFIG.models.virgil.envKey),
-      virgilDefault,
+      providerModel,
+      MODEL_CONFIG.models.virgil.defaultSlug,
     ),
     thinkingModel: normalizeUpstreamModelSlug(
-      readEnvOverride(MODEL_CONFIG.models.thinking.envKey),
-      thinkingDefault,
+      providerModel,
+      MODEL_CONFIG.models.thinking.defaultSlug,
     ),
   };
 }

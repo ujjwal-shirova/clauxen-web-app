@@ -127,3 +127,28 @@ export async function saveBranchState(
     },
   );
 }
+
+/** Download Cursor-style JSONL transcript for a chat (training export). */
+export async function getChatTranscript(
+  chatId: string,
+  format: "jsonl" | "json" = "json",
+) {
+  if (format === "jsonl") {
+    const response = await fetch(
+      `/api/v1/chats/${encodeURIComponent(chatId)}/transcript?format=jsonl`,
+      { credentials: "include" },
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch transcript (${response.status})`);
+    }
+    return response.text();
+  }
+  return apiFetch<{
+    chatId: string;
+    title: string;
+    lineCount: number;
+    trainingEligible: boolean;
+    schemaVersion: string;
+    jsonl: string;
+  }>(`/api/v1/chats/${encodeURIComponent(chatId)}/transcript?format=json`);
+}

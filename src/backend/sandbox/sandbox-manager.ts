@@ -19,14 +19,16 @@ type SandboxModule = typeof import("novita-sandbox/code-interpreter");
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const sessionIndex = new Map<string, string>();
 
-function ensureNovitaKey() {
+function ensureProviderKey() {
   const key = requireNovitaApiKey();
+  // novita-sandbox SDK reads NOVITA_API_KEY — mirror server-side only, never expose to client.
   process.env.NOVITA_API_KEY = process.env.NOVITA_API_KEY || key;
+  process.env.Provider_API_Key = process.env.Provider_API_Key || key;
   return key;
 }
 
 async function loadSandboxClass() {
-  ensureNovitaKey();
+  ensureProviderKey();
   const mod =
     (await import("novita-sandbox/code-interpreter")) as SandboxModule;
   return mod.Sandbox;

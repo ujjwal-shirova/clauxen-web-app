@@ -13,7 +13,10 @@
  */
 
 import { Agent, fetch as undiciFetch } from "undici";
-import { requireNovitaApiKey, env } from "@/backend/config/env";
+import {
+  requireProviderApiKey,
+  requireProviderBaseUrl,
+} from "@/backend/config/env";
 
 const novitaDispatcher = new Agent({
   allowH2: false,
@@ -122,8 +125,8 @@ type RawChunk = {
 };
 
 function normalizeBaseUrl(baseUrl?: string): string {
-  const normalized = (baseUrl ?? env.novitaOpenAiBaseUrl).replace(/\/+$/, "");
-  return normalized.endsWith("/v1") ? normalized : `${normalized}/v1`;
+  const raw = (baseUrl?.trim() || requireProviderBaseUrl()).replace(/\/+$/, "");
+  return raw.endsWith("/v1") ? raw : `${raw}/v1`;
 }
 
 function isAbortError(error: unknown, signal?: AbortSignal): boolean {
@@ -145,8 +148,8 @@ function isAbortError(error: unknown, signal?: AbortSignal): boolean {
 export async function* streamChatCompletion(
   options: ChatCompletionOptions,
 ): AsyncGenerator<StreamPart> {
-  const apiKey = requireNovitaApiKey();
-  const baseUrl = normalizeBaseUrl(options.model.includes("zai") ? undefined : undefined);
+  const apiKey = requireProviderApiKey();
+  const baseUrl = normalizeBaseUrl();
   const url = `${baseUrl}/chat/completions`;
 
   const body: Record<string, unknown> = {
@@ -357,7 +360,7 @@ export async function* streamChatCompletion(
 export async function completeChat(
   options: Omit<ChatCompletionOptions, "stream">,
 ): Promise<string> {
-  const apiKey = requireNovitaApiKey();
+  const apiKey = requireProviderApiKey();
   const baseUrl = normalizeBaseUrl();
   const url = `${baseUrl}/chat/completions`;
 

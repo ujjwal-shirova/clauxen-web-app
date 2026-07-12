@@ -46,6 +46,8 @@ interface ChatAreaProps {
     direction: "prev" | "next",
   ) => void;
   activeChatId: string | null;
+  /** True while hydrating messages for the active /c/[id] route. */
+  messagesLoading?: boolean;
   activeChatTitle?: string;
   isActiveChatTitleStreaming?: boolean;
   isActiveChatPinned?: boolean;
@@ -81,6 +83,7 @@ function ChatAreaLayout({
   retryAssistantWithBranch,
   switchMessageBranch,
   activeChatId,
+  messagesLoading = false,
   activeChatTitle,
   isActiveChatTitleStreaming,
   isActiveChatPinned,
@@ -112,18 +115,21 @@ function ChatAreaLayout({
   const displayMessages = messages;
 
   const isConversationStarted = messages.length > 0;
-  const showChatOptionsHeader = isConversationStarted || Boolean(activeChatId);
+  const showMessageSkeleton =
+    messagesLoading && !isConversationStarted && Boolean(activeChatId);
+  const showChatOptionsHeader =
+    isConversationStarted || Boolean(activeChatId) || showMessageSkeleton;
   const showDesktopArtifactsRail =
     isConversationStarted && !isMobile && !isViewerOpen && !isSourcesPanelOpen;
 
   const { scrollToBottom, pinToBottom, showScrollToBottom, followContentGrowth } =
     useChatScroll({
       scrollAreaRef,
-      enabled: isConversationStarted,
+      enabled: isConversationStarted || showMessageSkeleton,
     });
   const { isFastScrolling } = useChatScrollActivity(
     scrollAreaRef,
-    isConversationStarted,
+    isConversationStarted || showMessageSkeleton,
   );
   const chatArtifacts = React.useMemo(
     () => collectChatArtifacts(messages),
@@ -324,7 +330,7 @@ function ChatAreaLayout({
               (isArtifactsPanelOpen ? "lg:pr-[392px]" : "lg:pr-28"),
           )}
         >
-          {!isConversationStarted ? (
+          {!isConversationStarted && !showMessageSkeleton ? (
             <ChatViewHeader
               isConversationStarted={false}
               isGenerating={isGenerating}
@@ -344,7 +350,7 @@ function ChatAreaLayout({
           ) : null}
           <ChatViewPane
             className="flex min-h-0 flex-1 flex-col"
-            hasConversation={isConversationStarted}
+            hasConversation={isConversationStarted || showMessageSkeleton}
             isGenerating={isGenerating}
             hasPromptDraft={hasPromptDraft}
             isAddMenuOpen={isAddMenuOpen}
@@ -353,23 +359,50 @@ function ChatAreaLayout({
             onSendMessage={handleSendMessageAndScroll}
             scrollAreaRef={scrollAreaRef}
             conversation={
-              <ConversationThread
-                messages={displayMessages}
-                conversationKey={activeChatId}
-                // The velocity-based fast-scroll heuristic can't tell our own
-                // programmatic auto-follow (streaming + a big block appearing)
-                // from a real user flick. Never let it starve the sticky
-                // code/table header resync while a response is generating —
-                // that's exactly when headers need to dock in real time.
-                isFastScrolling={isFastScrolling && !isGenerating}
-                isGenerating={isGenerating}
-                onSaveEditedMessage={handleSaveEditedMessage}
-                onRetryUserMessage={handleRetryUserMessage}
-                onRetryAssistant={handleRetryAssistant}
-                onSwitchBranch={handleSwitchBranch}
-                onOpenSources={openSourcesPanel}
-                scrollAreaRef={scrollAreaRef}
-              />
+              showMessageSkeleton ? (
+                <div
+                  className="flex w-full min-w-0 max-w-full flex-col gap-6 px-0 pt-5 pb-5 sm:gap-8 sm:pt-10 sm:pb-8"
+                  aria-busy="true"
+                  aria-label="Loading conversation"
+                >
+                  {[0, 1].map((turn) => (
+                    <div key={turn} className="flex flex-col gap-3">
+                      <div className="ml-auto h-10 w-[min(72%,28rem)] overflow-hidden rounded-2xl">
+                        <div className="h-full w-full shimmer-bg" />
+                      </div>
+                      <div className="mr-auto flex w-full max-w-[40rem] flex-col gap-2">
+                        <div className="h-3.5 w-[92%] overflow-hidden rounded-full">
+                          <div className="h-full w-full shimmer-bg" />
+                        </div>
+                        <div className="h-3.5 w-[78%] overflow-hidden rounded-full">
+                          <div className="h-full w-full shimmer-bg" />
+                        </div>
+                        <div className="h-3.5 w-[64%] overflow-hidden rounded-full">
+                          <div className="h-full w-full shimmer-bg" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <ConversationThread
+                  messages={displayMessages}
+                  conversationKey={activeChatId}
+                  // The velocity-based fast-scroll heuristic can't tell our own
+                  // programmatic auto-follow (streaming + a big block appearing)
+                  // from a real user flick. Never let it starve the sticky
+                  // code/table header resync while a response is generating —
+                  // that's exactly when headers need to dock in real time.
+                  isFastScrolling={isFastScrolling && !isGenerating}
+                  isGenerating={isGenerating}
+                  onSaveEditedMessage={handleSaveEditedMessage}
+                  onRetryUserMessage={handleRetryUserMessage}
+                  onRetryAssistant={handleRetryAssistant}
+                  onSwitchBranch={handleSwitchBranch}
+                  onOpenSources={openSourcesPanel}
+                  scrollAreaRef={scrollAreaRef}
+                />
+              )
             }
             promptInput={promptInput}
           />

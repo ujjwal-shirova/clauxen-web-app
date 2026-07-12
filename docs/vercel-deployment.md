@@ -2,17 +2,18 @@
 
 Set these in **Vercel → Project → Settings → Environment Variables** for Production, Preview, and Development.
 
-## Model routing (Homer / Helios / Virgil)
+## Model routing (chat)
 
-Defined in `src/lib/model-catalog.ts`. Each model has its own base URL and upstream slug:
+Server-only inference secrets (never `NEXT_PUBLIC_*`):
 
-| Model | Provider | Base URL env | Model env |
-|---|---|---|---|
-| Homer | Anthropic | `NOVITA_ANTHROPIC_BASE_URL` | `SHIROVA_HOMER_MODEL` |
-| Helios | OpenAI-compatible | `NOVITA_OPENAI_BASE_URL` | `SHIROVA_HELIOS_MODEL` |
-| Virgil | OpenAI-compatible | `NOVITA_OPENAI_BASE_URL` | `SHIROVA_VIRGIL_MODEL` |
+| Variable | Description |
+|---|---|
+| `Provider_API_Key` | Inference API key (Vercel Sensitive) |
+| `Provider_BASE_URL` | OpenAI-compatible API base URL |
+| `Provider_SANDBOX_TIMEOUT_MS` | Sandbox idle timeout (ms) |
+| `Provider_Model_Clauxen_V1` | Default chat model slug (e.g. `moonshotai/kimi-k2.6`) |
 
-Set `NOVITA_AI_KEY` on Vercel for all three paths.
+Chat resolves the model from `Provider_Model_Clauxen_V1` on the server. These values must not appear in the browser bundle or DevTools.
 
 ## Required (core app)
 
@@ -20,7 +21,9 @@ Set `NOVITA_AI_KEY` on Vercel for all three paths.
 |---|---|
 | `DATABASE_URL` | Supabase Postgres direct connection string (Session mode / port 5432) |
 | `JWT_SECRET` | Strong random secret for project auth JWT |
-| `NOVITA_AI_KEY` | Inference API key |
+| `Provider_API_Key` | Inference API key (sensitive) |
+| `Provider_BASE_URL` | Inference OpenAI-compatible base URL |
+| `Provider_Model_Clauxen_V1` | Chat model slug |
 | `NEXT_PUBLIC_APP_URL` | `https://your-domain.vercel.app` or custom domain |
 
 ## Required (file storage on Vercel)

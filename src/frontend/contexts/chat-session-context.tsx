@@ -76,6 +76,8 @@ export function ChatSessionProvider({
       chat.activeChatId,
       chat.isGenerating,
       chat.creatingChatPending,
+      chat.loading,
+      chat.messagesLoading,
       chat.handleSendMessage,
       chat.stopGeneration,
       chat.startNewChat,

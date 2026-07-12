@@ -103,6 +103,8 @@ interface SidebarProps {
   activeView?: string;
   recentChats: RecentChat[];
   activeChatId: string | null;
+  /** Initial / reload fetch of the chats list. */
+  chatsLoading?: boolean;
   creatingChatPending?: boolean;
   onSelectChat: (chat: RecentChat) => void;
   onDeleteChat?: (chatId: string) => void;
@@ -135,6 +137,7 @@ export function Sidebar({
   activeView,
   recentChats,
   activeChatId,
+  chatsLoading = false,
   creatingChatPending = false,
   onSelectChat,
   onDeleteChat,
@@ -508,26 +511,52 @@ export function Sidebar({
                 />
               </div>
               <div className="mt-1 space-y-2">
-                {creatingChatPending ? (
+                {chatsLoading ? (
                   <div
-                    className="mx-0.5 h-7 overflow-hidden rounded-md"
-                    aria-hidden
+                    className="space-y-1.5 px-0.5"
+                    aria-busy="true"
+                    aria-label="Loading conversations"
                   >
-                    <div className="h-full w-full shimmer-bg rounded-md" />
+                    {[1, 2, 3, 4, 5, 6].map((row) => (
+                      <div
+                        key={row}
+                        className="h-7 overflow-hidden rounded-md"
+                        aria-hidden
+                      >
+                        <div
+                          className="h-full shimmer-bg rounded-md"
+                          style={{
+                            width: `${72 - ((row * 7) % 28)}%`,
+                            minWidth: "42%",
+                          }}
+                        />
+                      </div>
+                    ))}
                   </div>
                 ) : null}
-                {groupedChats.map((group) => (
-                  <div key={group.label || "all"}>
-                    {group.label ? (
-                      <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
-                        {group.label}
-                      </p>
-                    ) : null}
-                    <div className="space-y-0.5">
-                      {group.chats.map((chat) => renderChatRow(chat))}
-                    </div>
+                {!chatsLoading && creatingChatPending ? (
+                  <div
+                    className="mx-0.5 h-7 overflow-hidden rounded-md"
+                    aria-busy="true"
+                    aria-label="Creating chat"
+                  >
+                    <div className="h-full w-[58%] shimmer-bg rounded-md" />
                   </div>
-                ))}
+                ) : null}
+                {!chatsLoading
+                  ? groupedChats.map((group) => (
+                      <div key={group.label || "all"}>
+                        {group.label ? (
+                          <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
+                            {group.label}
+                          </p>
+                        ) : null}
+                        <div className="space-y-0.5">
+                          {group.chats.map((chat) => renderChatRow(chat))}
+                        </div>
+                      </div>
+                    ))
+                  : null}
               </div>
             </div>
           )}

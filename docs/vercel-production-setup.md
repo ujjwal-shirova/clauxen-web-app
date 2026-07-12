@@ -17,7 +17,7 @@ Copy all keys from `.env.local` / `.env.example`. Set production overrides:
 | `STORAGE_REQUIRE_R2` | `true` |
 | `NEXT_PUBLIC_APP_URL` | `https://www.clauxen.com` |
 
-Mark secrets as **Sensitive**: `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NOVITA_AI_KEY`, `EXA_API_KEY`, `FAL_KEY`, `RAZORPAY_KEY_SECRET`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_API_TOKEN`, `JWT_SECRET`.
+Mark secrets as **Sensitive**: `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `Provider_API_Key`, `Provider_Model_Clauxen_V1`, `EXA_API_KEY`, `FAL_KEY`, `RAZORPAY_KEY_SECRET`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_API_TOKEN`, `JWT_SECRET`. Never use `NEXT_PUBLIC_` for provider keys.
 
 ### Option B — REST API scripts (needs fresh token)
 

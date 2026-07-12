@@ -78,6 +78,10 @@ Full target surface — **remember only; implement only when user asks for a sli
 - New-chat send: keep showing chat-view once messages/activeChatId exist (don’t blank while still on `/new`); sidebar shows shimmer until chat id + first message land; tab is brand-only (`Clauxen`) until a real title exists.
 - Checkout UPI is INR-only; geo USD can wrongly hide it — prefer browser India heuristic; use local UPI/card SVG icons (no Stripe/logo CDNs).
 - `chats.id` is `text` (custom long ids + legacy UUID strings). Validate with `requireChatIdParam`.
+- Recents filter: never treat “messages not hydrated yet” as empty — `filterStartedRecentChats` keeps chats when local messages are `undefined` (reload bug that hid all chats).
+- Inference: server uses `Provider_API_Key` + `Provider_BASE_URL` (+ `Provider_Model_Clauxen_V1`); Exa uses `EXA_API_KEY`. No hardcoded provider base URL/keys. Fail closed via `requireProviderApiKey` / `requireProviderBaseUrl` / `requireExaApiKey`.
+- Sidebar Recents shimmer on first chat list fetch; conversation pane shimmer while `/c/[id]` messages hydrate. Realtime chat list refresh is silent (no full-list re-shimmer).
+- Chat transcripts for training: `chat_transcript_lines` stores Cursor-style JSONL records (`role` + `message.content` parts including `text` / `thinking` / `tool_use` / `tool_result`, plus `turn_ended`). View `chat_transcripts_jsonl` aggregates one JSONL doc per chat. Export: `GET /api/v1/chats/[chatId]/transcript`.
 
 ---
 
@@ -85,7 +89,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
 - Enable **X / Twitter (OAuth 2.0)** in Supabase with Client ID/Secret via Dashboard or `scripts/enable-x-auth.mjs` (app code already uses provider `x`).
-- Local-only (do not commit until asked): login OAuth button set (no Apple/X); Provider_* env rename.
+- Local-only (do not commit until asked): login OAuth button set (no Apple/X); Provider_* env rename; Provider/Exa + chat hydrate UX work.
 
 ---
 

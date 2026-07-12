@@ -78,6 +78,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     startedRecentChats,
     activeChatId,
     creatingChatPending,
+    loading: chatsLoading,
     handleSelectChat,
     handleDeleteChat,
     handleRenameChat,
@@ -256,6 +257,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         activeView={computeActiveViewFromPath(pathname)}
         recentChats={startedRecentChats}
         activeChatId={sidebarActiveChatId}
+        chatsLoading={chatsLoading}
         creatingChatPending={creatingChatPending}
         onSelectChat={onSelectChatFromSidebar}
         onDeleteChat={handleDeleteChat}

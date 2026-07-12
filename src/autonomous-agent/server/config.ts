@@ -17,7 +17,10 @@ export const autonomousAgentConfig = {
   wsPort: Number(optional("AUTONOMOUS_AGENT_WS_PORT", "8081")),
   /** Default model when none passed from chat routing. */
   defaultModel: env.heliosModel,
-  defaultBaseUrl: env.novitaOpenAiBaseUrl,
+  /** Provider_BASE_URL — required at request time via requireProviderBaseUrl. */
+  get defaultBaseUrl() {
+    return env.providerBaseUrl || env.novitaOpenAiBaseUrl;
+  },
 };
 
 export function resolveAutonomousAgentModel(chatModel?: string): {

@@ -8,12 +8,13 @@ function optional(name: string, fallback = ""): string {
   return process.env[name]?.trim() || fallback;
 }
 
-function required(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`${name} is not configured.`);
+/** First non-empty env value among names (server-only secrets). */
+function firstOptional(...names: string[]): string {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
   }
-  return value;
+  return "";
 }
 
 function normalizeBaseUrl(url: string): string {
@@ -23,6 +24,28 @@ function normalizeBaseUrl(url: string): string {
 const isVercel = optional("VERCEL", "") === "1";
 const isProduction = process.env.NODE_ENV === "production" || isVercel;
 
+const PROVIDER = MODEL_CONFIG.providerEnv;
+
+const providerApiKey = firstOptional(
+  PROVIDER.apiKey,
+  "NOVITA_AI_KEY",
+  "NOVITA_API_KEY",
+);
+
+/** Primary chat / inference model from Provider_Model_Clauxen_V1. */
+const providerModelClauxenV1 = normalizeUpstreamModelSlug(
+  firstOptional(PROVIDER.modelClauxenV1, "SHIROVA_DEFAULT_MODEL"),
+  MODEL_CONFIG.models.virgil.defaultSlug,
+);
+
+const providerOpenAiBaseUrl = normalizeBaseUrl(
+  firstOptional(
+    PROVIDER.baseUrl,
+    "NOVITA_OPENAI_BASE_URL",
+    "LLM_BASE_URL",
+  ) || MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
+);
+
 export const env = {
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:9002"),
   authRequiredForChat: optional("AUTH_REQUIRED_FOR_CHAT", "false") === "true",
@@ -31,50 +54,56 @@ export const env = {
     optional("AUTH_DEV_BYPASS", isVercel ? "false" : "true") === "true",
   databaseUrl: resolveDatabaseUrl(),
   supabaseServiceRoleKey: resolveSupabaseServiceRoleKey(),
-  novitaApiKey: optional("NOVITA_AI_KEY") || optional("NOVITA_API_KEY"),
+
+  /**
+   * Inference API key — Provider_API_Key (Vercel sensitive).
+   * Legacy NOVITA_* aliases accepted only as fallback for local migration.
+   */
+  providerApiKey,
+  /** @deprecated Use providerApiKey */
+  novitaApiKey: providerApiKey,
+
   novitaAnthropicBaseUrl: normalizeBaseUrl(
-    optional("NOVITA_ANTHROPIC_BASE_URL", MODEL_CONFIG.endpoints.novitaAnthropicBaseUrl),
+    firstOptional(
+      PROVIDER.baseUrl,
+      "NOVITA_ANTHROPIC_BASE_URL",
+      "LLM_BASE_URL",
+    ) || providerOpenAiBaseUrl,
   ),
-  novitaOpenAiBaseUrl: normalizeBaseUrl(
-    optional("NOVITA_OPENAI_BASE_URL", MODEL_CONFIG.endpoints.novitaOpenAiBaseUrl),
-  ),
-  /** Homer — GLM-5.2 on Novita OpenAI-compatible path. */
+  novitaOpenAiBaseUrl: providerOpenAiBaseUrl,
+  /** Alias for OpenAI-compatible provider base URL. */
+  providerBaseUrl: providerOpenAiBaseUrl,
+
+  /** Homer — uses Provider_Model_Clauxen_V1 unless a legacy override exists. */
   homerModel: normalizeUpstreamModelSlug(
-    optional(MODEL_CONFIG.models.homer.envKey),
+    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.homer.envKey),
     MODEL_CONFIG.models.homer.defaultSlug,
   ),
-  /** Helios — Kimi K2.6 on Novita OpenAI-compatible path. */
   heliosModel: normalizeUpstreamModelSlug(
-    optional(MODEL_CONFIG.models.helios.envKey),
+    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.helios.envKey),
     MODEL_CONFIG.models.helios.defaultSlug,
   ),
   virgilModel: normalizeUpstreamModelSlug(
-    optional(MODEL_CONFIG.models.virgil.envKey),
+    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.virgil.envKey),
     MODEL_CONFIG.models.virgil.defaultSlug,
   ),
-  /** Interleaved-thinking agent model on Novita chat/completions. */
   thinkingModel: normalizeUpstreamModelSlug(
-    optional(MODEL_CONFIG.models.thinking.envKey),
+    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.thinking.envKey),
     MODEL_CONFIG.models.thinking.defaultSlug,
   ),
-  /** Model for OpenAI-compatible fast chat path (Helios default). */
   openAiFastModel: normalizeUpstreamModelSlug(
-    optional(MODEL_CONFIG.models.fast.envKey),
+    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.fast.envKey),
     MODEL_CONFIG.models.fast.defaultSlug,
   ),
-  novitaMessagesUrl: optional(
-    "SHIROVA_NOVITA_MESSAGES_URL",
-    MODEL_CONFIG.endpoints.novitaMessagesUrl,
-  ),
+  novitaMessagesUrl: optional("SHIROVA_NOVITA_MESSAGES_URL", ""),
   novitaModelsUrl: optional("NOVITA_MODELS_URL", ""),
   defaultSandboxTimeoutMs: Number(
-    optional("NOVITA_SANDBOX_TIMEOUT_MS", "300000"),
+    firstOptional(PROVIDER.sandboxTimeoutMs, "NOVITA_SANDBOX_TIMEOUT_MS") ||
+      "300000",
   ),
-  defaultModel: normalizeUpstreamModelSlug(
-    optional("SHIROVA_DEFAULT_MODEL"),
-    MODEL_CONFIG.models.helios.defaultSlug,
-  ),
-  exaApiKey: optional("EXA_API_KEY"),
+  defaultModel: providerModelClauxenV1,
+  /** Exa web search — EXA_API_KEY from Vercel / .env.local (server-only). */
+  exaApiKey: firstOptional("EXA_API_KEY"),
   falKey: optional("FAL_KEY"),
   parallelApiKey: optional("PARALLEL_API_KEY"),
   googlePlacesApiKey: optional("GOOGLE_PLACES_API_KEY"),
@@ -149,10 +178,46 @@ export function requireDatabaseUrl(): string {
   return url;
 }
 
-export function requireNovitaApiKey(): string {
-  const key = env.novitaApiKey;
+/** Server-only inference API key (Provider_API_Key). */
+export function requireProviderApiKey(): string {
+  if (typeof window !== "undefined") {
+    throw new Error("Provider credentials are server-only.");
+  }
+  const key = env.providerApiKey;
   if (!key) {
-    throw new Error("NOVITA_AI_KEY is not configured on the server.");
+    throw new Error(
+      `${PROVIDER.apiKey} is not configured on the server.`,
+    );
+  }
+  return key;
+}
+
+/** @deprecated Use requireProviderApiKey */
+export function requireNovitaApiKey(): string {
+  return requireProviderApiKey();
+}
+
+export function requireProviderBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    throw new Error("Provider base URL is server-only.");
+  }
+  const url = env.providerBaseUrl;
+  if (!url) {
+    throw new Error(
+      `${PROVIDER.baseUrl} is not configured on the server.`,
+    );
+  }
+  return url;
+}
+
+/** Server-only Exa API key (EXA_API_KEY). */
+export function requireExaApiKey(): string {
+  if (typeof window !== "undefined") {
+    throw new Error("Exa credentials are server-only.");
+  }
+  const key = env.exaApiKey;
+  if (!key) {
+    throw new Error("EXA_API_KEY is not configured on the server.");
   }
   return key;
 }

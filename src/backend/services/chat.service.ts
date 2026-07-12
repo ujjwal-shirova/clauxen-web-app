@@ -4,6 +4,7 @@ import * as pinnedChatsRepo from "@/backend/repositories/pinned-chats.repository
 import * as messagePartsRepo from "@/backend/repositories/chat-message-parts.repository";
 import * as messagesRepo from "@/backend/repositories/messages.repository";
 import * as branchesRepo from "@/backend/repositories/branches.repository";
+import * as transcriptRepo from "@/backend/repositories/transcript.repository";
 import { createChatStream } from "@/app/api/chat/stream";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
 import {
@@ -13,7 +14,6 @@ import {
   type IncomingMessage,
 } from "@/backend/inference/novita";
 import { generateOpenAiTitle } from "@/backend/inference/openai-stream";
-import { env } from "@/backend/config/env";
 import { resolveInferenceRoute } from "@/lib/inference-routing";
 import { parseChatModelId } from "@/lib/model-catalog";
 import { logInferenceTelemetry } from "@/backend/telemetry/inference-log";
@@ -25,6 +25,69 @@ import {
   resolveGenerateChatTitle,
   deriveTitleFromExchange,
 } from "@/lib/chat-title";
+import {
+  buildAssistantTranscriptRecord,
+  buildTurnEndedRecord,
+  buildUserTranscriptRecord,
+  messagesToTranscriptRecords,
+  type CapturedToolCall,
+} from "@/backend/training/transcript-format";
+
+async function persistUserTranscriptLine(input: {
+  chatId: string;
+  userId: string;
+  messageId?: string | null;
+  content: string;
+}) {
+  const record = buildUserTranscriptRecord(input.content);
+  try {
+    await transcriptRepo.appendTranscriptLine({
+      chatId: input.chatId,
+      userId: input.userId,
+      messageId: input.messageId,
+      role: "user",
+      record,
+    });
+  } catch (error) {
+    console.warn("[transcript] failed to append user line:", error);
+  }
+  return record;
+}
+
+async function persistAssistantTranscriptTurn(input: {
+  chatId: string;
+  userId: string;
+  messageId?: string | null;
+  answer: string;
+  thinking?: string;
+  tools: CapturedToolCall[];
+  status: "success" | "error" | "cancelled";
+}) {
+  const record = buildAssistantTranscriptRecord({
+    answer: input.answer,
+    thinking: input.thinking,
+    tools: input.tools,
+  });
+  try {
+    await transcriptRepo.appendTranscriptLine({
+      chatId: input.chatId,
+      userId: input.userId,
+      messageId: input.messageId,
+      role: "assistant",
+      record,
+    });
+    await transcriptRepo.appendTranscriptLine({
+      chatId: input.chatId,
+      userId: input.userId,
+      messageId: input.messageId,
+      role: "meta",
+      record: buildTurnEndedRecord(input.status),
+    });
+  } catch (error) {
+    console.warn("[transcript] failed to append assistant turn:", error);
+  }
+  return record;
+}
 
 export async function listRecentChats(userId: string, projectId?: string) {
   const [chats, pinned] = await Promise.all([
@@ -76,11 +139,13 @@ export async function appendUserMessage(
 ) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
+  const contentJson = buildUserTranscriptRecord(content);
   const message = await messagesRepo.createMessage({
     chatId,
     userId,
     role: "user",
     content,
+    contentJson,
   });
   if (message?.id && fileIds?.length) {
     await messagePartsRepo.attachFilePartsToMessage(
@@ -89,6 +154,12 @@ export async function appendUserMessage(
       userId,
     );
   }
+  await persistUserTranscriptLine({
+    chatId,
+    userId,
+    messageId: message?.id ?? null,
+    content,
+  });
   return message;
 }
 
@@ -164,6 +235,7 @@ export async function streamChatGeneration(input: {
   const started = Date.now();
   let answer = "";
   let thinking = "";
+  const toolsById = new Map<string, CapturedToolCall>();
 
   const modelForTelemetry = resolveInferenceRoute({
     chatModel: parseChatModelId(input.chatModel),
@@ -177,6 +249,7 @@ export async function streamChatGeneration(input: {
       role: "assistant",
       content: "",
       status: "streaming",
+      contentJson: buildAssistantTranscriptRecord({ answer: "" }),
     })
     .then((row) => {
       assistant = row;
@@ -206,24 +279,57 @@ export async function streamChatGeneration(input: {
         onChatTitle: (title) => {
           generatedTitle = normalizeInlineChatTitle(title, titleUserContent);
         },
+        onToolStart: (tool) => {
+          toolsById.set(tool.toolCallId, {
+            id: tool.toolCallId,
+            name: tool.name,
+            input: tool.args ?? {},
+          });
+        },
+        onToolEnd: (tool) => {
+          const existing = toolsById.get(tool.toolCallId);
+          toolsById.set(tool.toolCallId, {
+            id: tool.toolCallId,
+            name: tool.name || existing?.name || "tool",
+            input: existing?.input ?? {},
+            result: tool.result,
+          });
+        },
       },
       input.signal,
     );
 
     const persistOnDone = async () => {
       const assistantRow = assistant ?? (await assistantPromise);
+      const cleanedAnswer = finalizeChatTitleStrippedAnswer(answer);
+      const tools = Array.from(toolsById.values());
+      const contentJson = buildAssistantTranscriptRecord({
+        answer: cleanedAnswer,
+        thinking,
+        tools,
+      });
       if (assistantRow?.id) {
-        const cleanedAnswer = finalizeChatTitleStrippedAnswer(answer);
         await messagesRepo.updateMessageContent(
           assistantRow.id,
+          input.chatId,
           cleanedAnswer,
           "complete",
+          contentJson,
         );
         if (generatedTitle) {
           await chatsRepo.updateChat(input.chatId, input.userId, {
             title: generatedTitle,
           });
         }
+        await persistAssistantTranscriptTurn({
+          chatId: input.chatId,
+          userId: input.userId,
+          messageId: assistantRow.id,
+          answer: cleanedAnswer,
+          thinking,
+          tools,
+          status: "success",
+        });
       }
       const latencyMs = Date.now() - started;
       await logInferenceTelemetry({
@@ -257,12 +363,30 @@ export async function streamChatGeneration(input: {
     };
   } catch (error) {
     const assistantRow = assistant ?? (await assistantPromise.catch(() => null));
+    const tools = Array.from(toolsById.values());
     if (assistantRow?.id) {
+      const failedContent = answer || "Generation failed.";
+      const contentJson = buildAssistantTranscriptRecord({
+        answer: failedContent,
+        thinking,
+        tools,
+      });
       await messagesRepo.updateMessageContent(
         assistantRow.id,
-        answer || "Generation failed.",
+        input.chatId,
+        failedContent,
         "failed",
+        contentJson,
       );
+      await persistAssistantTranscriptTurn({
+        chatId: input.chatId,
+        userId: input.userId,
+        messageId: assistantRow.id,
+        answer: failedContent,
+        thinking,
+        tools,
+        status: "error",
+      });
     }
     await logInferenceTelemetry({
       userId: input.userId,
@@ -316,16 +440,78 @@ export async function saveBranchState(
   activePath: unknown,
   messages: unknown,
 ) {
-  return branchesRepo.upsertBranchState({
+  const saved = await branchesRepo.upsertBranchState({
     chatId,
     userId,
     activePath,
     messages,
   });
+
+  // Branch tree is canonical for edits/retries — rebuild JSONL from it.
+  if (Array.isArray(messages)) {
+    try {
+      const lines = messagesToTranscriptRecords(
+        messages as Array<{
+          id?: string;
+          role: string;
+          content?: string;
+          thinkingContent?: string;
+          agentSegments?: Array<{
+            kind: string;
+            toolCallId?: string;
+            name?: string;
+            args?: Record<string, unknown>;
+            result?: string;
+            status?: string;
+          }>;
+          agentFrames?: Array<{
+            segments?: Array<{
+              kind: string;
+              toolCallId?: string;
+              name?: string;
+              args?: Record<string, unknown>;
+              result?: string;
+              status?: string;
+            }>;
+          }>;
+        }>,
+      );
+      await transcriptRepo.replaceTranscriptLines({
+        chatId,
+        userId,
+        lines: lines.map((line) => ({
+          role: line.role,
+          record: line.record,
+          messageId: line.messageId,
+        })),
+      });
+    } catch (error) {
+      console.warn("[transcript] failed to rebuild from branch state:", error);
+    }
+  }
+
+  return saved;
 }
 
 export async function getBranchState(chatId: string, userId: string) {
   return branchesRepo.getBranchState(chatId, userId);
+}
+
+export async function getChatTranscript(chatId: string, userId: string) {
+  const chat = await chatsRepo.getChatForUser(chatId, userId);
+  if (!chat) throw notFound("Chat not found.");
+  const aggregated = await transcriptRepo.getChatTranscriptJsonl(chatId, userId);
+  if (aggregated?.jsonl) return aggregated;
+
+  const lines = await transcriptRepo.listTranscriptLines(chatId, userId);
+  return {
+    chat_id: chatId,
+    user_id: userId,
+    chat_title: chat.title,
+    line_count: lines.length,
+    training_eligible: lines.every((line) => line.training_eligible),
+    jsonl: lines.map((line) => JSON.stringify(line.record)).join("\n"),
+  };
 }
 
 export function legacyStreamFromMessages(

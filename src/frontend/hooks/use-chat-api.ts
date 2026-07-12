@@ -100,8 +100,10 @@ export function useChatApi(
   const setIsGenerating = useCallback((value: boolean) => {
     useChatStore.getState().setIsGenerating(value);
   }, []);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [creatingChatPending, setCreatingChatPending] = useState(false);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const chatsLoadedOnceRef = useRef(false);
   const allChatsRef = useRef<Record<string, Message[]>>({});
   const recentChatsRef = useRef<RecentChat[]>([]);
   const branchPersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -150,8 +152,9 @@ export function useChatApi(
     [persistBranches],
   );
 
-  const refreshChats = useCallback(async () => {
-    setLoading(true);
+  const refreshChats = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true && chatsLoadedOnceRef.current;
+    if (!silent) setLoading(true);
     try {
       const { chats } = await chatsApi.listChats(projectIdFilter ?? undefined);
       const nextChats = chats.map((c) => ({
@@ -168,6 +171,7 @@ export function useChatApi(
       // Challenge HTML / transient network — keep existing sidebar list.
       console.warn("[chats] list failed (soft):", error);
     } finally {
+      chatsLoadedOnceRef.current = true;
       setLoading(false);
     }
   }, [projectIdFilter]);
@@ -202,7 +206,7 @@ export function useChatApi(
           table: "chats",
         },
         () => {
-          void refreshChats();
+          void refreshChats({ silent: true });
         },
       )
       .subscribe();
@@ -213,23 +217,28 @@ export function useChatApi(
   }, [projectIdFilter, refreshChats]);
 
   const loadChatMessages = useCallback(async (chatId: string) => {
-    const { messages: rows } = await chatsApi.getChat(chatId);
-    setAllChats((prev) => ({
-      ...prev,
-      [chatId]: rows.map(mapApiMessage),
-    }));
+    setMessagesLoading(true);
     try {
-      const branch = await chatsApi.getBranchState(chatId);
-      const row = branch.state as { messages?: unknown } | null;
-      const stored = row?.messages;
-      if (Array.isArray(stored) && stored.length) {
-        setAllChats((prev) => ({
-          ...prev,
-          [chatId]: stored as Message[],
-        }));
+      const { messages: rows } = await chatsApi.getChat(chatId);
+      setAllChats((prev) => ({
+        ...prev,
+        [chatId]: rows.map(mapApiMessage),
+      }));
+      try {
+        const branch = await chatsApi.getBranchState(chatId);
+        const row = branch.state as { messages?: unknown } | null;
+        const stored = row?.messages;
+        if (Array.isArray(stored) && stored.length) {
+          setAllChats((prev) => ({
+            ...prev,
+            [chatId]: stored as Message[],
+          }));
+        }
+      } catch {
+        // No branch state yet.
       }
-    } catch {
-      // No branch state yet.
+    } finally {
+      setMessagesLoading(false);
     }
   }, []);
 
@@ -237,11 +246,15 @@ export function useChatApi(
     async (chatId: string | null) => {
       if (!chatId) {
         setActiveChatId(null);
+        setMessagesLoading(false);
         return;
       }
       setActiveChatId(chatId);
       const existing = useChatStore.getState().messageIdsByChatId[chatId];
-      if (existing && existing.length > 0) return;
+      if (existing && existing.length > 0) {
+        setMessagesLoading(false);
+        return;
+      }
       await loadChatMessages(chatId);
     },
     [loadChatMessages],
@@ -942,6 +955,7 @@ export function useChatApi(
     activeChatId,
     isGenerating,
     loading,
+    messagesLoading,
     creatingChatPending,
     handleSendMessage,
     stopGeneration,

@@ -1,64 +1,69 @@
 /**
  * Clauxen Model & Endpoint Configuration
  *
- * This is the SINGLE CENTRAL FILE for configuring all model slugs, base URLs,
- * and display metadata for the single chat model: Virgil.
- *
- * Edit this file to easily change endpoints, default models, or descriptions.
+ * Single central file for model slugs, base URLs, and display metadata.
+ * Secrets and upstream URLs come from server env (`Provider_*`) — never
+ * NEXT_PUBLIC_* and never hardcode API keys here.
  */
 
 export const MODEL_CONFIG = {
   // ==========================================
-  // 1. Upstream Base Endpoints (Base URLs)
+  // 1. Upstream Base Endpoints (fallbacks only)
   // ==========================================
   endpoints: {
-    /** Novita OpenAI-compatible base URL */
-    novitaOpenAiBaseUrl: "https://api.novita.ai/openai",
+    /**
+     * Last-resort OpenAI-compatible base URL when Provider_BASE_URL is unset.
+     * Prefer Provider_BASE_URL in Vercel / .env.local.
+     */
+    providerOpenAiBaseUrl: "",
 
-    /** Novita Anthropic-compatible base URL */
-    novitaAnthropicBaseUrl: "https://api.novita.ai/anthropic",
+    /** @deprecated Prefer Provider_BASE_URL */
+    novitaOpenAiBaseUrl: "",
 
-    /** Novita Anthropic Messages endpoint */
-    novitaMessagesUrl: "https://api.novita.ai/anthropic/v1/messages",
+    /** @deprecated Prefer Provider_BASE_URL for OpenAI-compatible traffic */
+    novitaAnthropicBaseUrl: "",
+
+    /** @deprecated */
+    novitaMessagesUrl: "",
   },
 
   // ==========================================
   // 2. Upstream Model Slugs (Default Slugs)
   // ==========================================
   models: {
-    /** Homer — Most capable model for ambitious work (GLM-5.2) */
+    /** Homer — most capable (optional override) */
     homer: {
-      defaultSlug: "zai-org/glm-5.2",
-      envKey: "SHIROVA_HOMER_MODEL",
+      defaultSlug: "moonshotai/kimi-k2.6",
+      envKey: "Provider_Model_Clauxen_V1",
     },
 
-    /** Helios — Responsive model for everyday work (Kimi K2.6) */
+    /** Helios — everyday work */
     helios: {
       defaultSlug: "moonshotai/kimi-k2.6",
-      envKey: "SHIROVA_HELIOS_MODEL",
+      envKey: "Provider_Model_Clauxen_V1",
     },
 
-    /** Virgil — single autonomous model (Tencent Hy3) */
+    /** Virgil — default chat model */
     virgil: {
-      defaultSlug: "tencent/hy3",
-      envKey: "SHIROVA_VIRGIL_MODEL",
+      defaultSlug: "moonshotai/kimi-k2.6",
+      envKey: "Provider_Model_Clauxen_V1",
     },
 
-    /** Interleaved-thinking agent model (Tencent Hy3) */
+    /** Interleaved-thinking agent model */
     thinking: {
-      defaultSlug: "tencent/hy3",
-      envKey: "SHIROVA_THINKING_MODEL",
+      defaultSlug: "moonshotai/kimi-k2.6",
+      envKey: "Provider_Model_Clauxen_V1",
     },
 
-    /** Fast chat path model (defaults to Helios) */
+    /** Fast chat path */
     fast: {
       defaultSlug: "moonshotai/kimi-k2.6",
-      envKey: "SHIROVA_OPENAI_FAST_MODEL",
+      envKey: "Provider_Model_Clauxen_V1",
     },
   },
 
   // ==========================================
-  // 3. Model Display Metadata (Homer, Helios, Virgil)
+  // 3. Model Display Metadata
   // ==========================================
   metadata: {
     homer: {
@@ -78,7 +83,7 @@ export const MODEL_CONFIG = {
     virgil: {
       label: "Virgil",
       shortLabel: "Virgil",
-      description: "Autonomous chat and tool orchestration (Hy3)",
+      description: "Autonomous chat and tool orchestration",
       available: true,
       requiresUpgrade: false,
     },
@@ -88,18 +93,26 @@ export const MODEL_CONFIG = {
   // 4. Default Selected Model
   // ==========================================
   defaultModelId: "virgil" as const,
-};
 
-/** Upstream slugs that Novita no longer serves — remapped at runtime. */
+  /** Canonical sensitive env keys for inference (server-only). */
+  providerEnv: {
+    apiKey: "Provider_API_Key",
+    baseUrl: "Provider_BASE_URL",
+    sandboxTimeoutMs: "Provider_SANDBOX_TIMEOUT_MS",
+    modelClauxenV1: "Provider_Model_Clauxen_V1",
+  },
+} as const;
+
+/** Upstream slugs that are no longer served — remapped at runtime. */
 const DEPRECATED_MODEL_SLUGS: Record<string, string> = {
   "nex-agi/nex-n2-pro": "moonshotai/kimi-k2.6",
+  "tencent/hy3": "moonshotai/kimi-k2.6",
   "deepseek/deepseek_v3": "",
 };
 
 /**
  * Normalize an upstream model slug from env overrides or legacy config.
- * Empty string is returned for deprecated/removed models with no replacement
- * (e.g. Virgil placeholder).
+ * Empty string is returned for deprecated/removed models with no replacement.
  */
 export function normalizeUpstreamModelSlug(
   slug: string | undefined | null,

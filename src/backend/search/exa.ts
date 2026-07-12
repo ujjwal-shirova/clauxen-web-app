@@ -1,5 +1,5 @@
 import Exa from "exa-js";
-import { env } from "@/backend/config/env";
+import { env, requireExaApiKey } from "@/backend/config/env";
 
 export type ExaSearchHit = {
   title: string;
@@ -50,6 +50,10 @@ function getExaClient(): Exa | null {
   const apiKey = env.exaApiKey;
   if (!apiKey) return null;
   return new Exa(apiKey);
+}
+
+function requireExaClient(): Exa {
+  return new Exa(requireExaApiKey());
 }
 
 function buildSearchRequestOptions(options?: {
@@ -128,10 +132,7 @@ export async function searchWebWithExa(
   query: string,
   options?: ExaSearchOptions,
 ): Promise<ExaSearchHit[]> {
-  const exa = getExaClient();
-  if (!exa) {
-    throw new Error("EXA_API_KEY is not configured");
-  }
+  const exa = requireExaClient();
 
   const requestOptions = buildSearchRequestOptions({
     userLocation: options?.userLocation,
@@ -176,10 +177,7 @@ export async function fetchUrlContentsWithExa(
   urls: string[],
   textMaxCharacters = 8000,
 ): Promise<ExaSearchHit[]> {
-  const exa = getExaClient();
-  if (!exa) {
-    throw new Error("EXA_API_KEY is not configured");
-  }
+  const exa = requireExaClient();
 
   const response = await exa.getContents(urls, {
     text: { maxCharacters: textMaxCharacters },

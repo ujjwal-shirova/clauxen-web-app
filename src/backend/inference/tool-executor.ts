@@ -85,10 +85,15 @@ export async function executePlatformTool(
         language: "python",
         install: "pip install browser-use e2b-code-interpreter",
         environment: {
-          E2B_DOMAIN: "sandbox.novita.ai",
+          E2B_DOMAIN: process.env.E2B_DOMAIN?.trim() || "sandbox.novita.ai",
+          Provider_API_Key: "required",
+          Provider_BASE_URL: "required",
+          Provider_Model_Clauxen_V1: "required",
+          // Compatibility aliases for sandbox SDKs that still read these names:
           NOVITA_API_KEY: "required",
           LLM_API_KEY: "required",
-          LLM_BASE_URL: "https://api.novita.ai/openai",
+          LLM_BASE_URL: "required",
+          LLM_MODEL: "required",
         },
         code: browserUseRecipe(
           String(args.task ?? "Open example.com"),

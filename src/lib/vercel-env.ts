@@ -22,7 +22,7 @@ export const USER_FILL_ENV_KEYS = new Set([
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
 ]);
 
-/** Exact 33 keys on Vercel — one sensitive row each (production, preview, development). */
+/** Exact keys on Vercel — one sensitive row each where applicable. */
 export const CANONICAL_VERCEL_ENV_KEYS = [
   ...USER_FILL_ENV_KEYS,
   "AUTH_DEV_BYPASS",
@@ -31,14 +31,13 @@ export const CANONICAL_VERCEL_ENV_KEYS = [
   "NEXT_PUBLIC_APP_URL",
   "NEXT_PUBLIC_AUTH_REQUIRED_FOR_CHAT",
   "JWT_SECRET",
-  "NOVITA_AI_KEY",
-  "NOVITA_OPENAI_BASE_URL",
-  "NOVITA_SANDBOX_TIMEOUT_MS",
+  "Provider_API_Key",
+  "Provider_BASE_URL",
+  "Provider_SANDBOX_TIMEOUT_MS",
+  "Provider_Model_Clauxen_V1",
   "EXA_API_KEY",
   "FAL_KEY",
   "PARALLEL_API_KEY",
-  "SHIROVA_DEFAULT_MODEL",
-  "SHIROVA_GATEWAY_KEY",
   "SHIROVA_THINKING_TYPE",
   "R2_IMAGES_BUCKET",
   "R2_DOCUMENTS_BUCKET",
@@ -104,6 +103,37 @@ export function bootstrapVercelEnvAliases(): void {
   if (isBlankEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY)) {
     const key = firstEnv("SUPABASE_SECRET_KEY");
     if (key) process.env.SUPABASE_SERVICE_ROLE_KEY = key;
+  }
+
+  // Inference: prefer Provider_* names; mirror legacy NOVITA_* only when unset.
+  if (isBlankEnvValue(process.env.Provider_API_Key)) {
+    const key = firstEnv("NOVITA_AI_KEY", "NOVITA_API_KEY");
+    if (key) process.env.Provider_API_Key = key;
+  }
+  if (isBlankEnvValue(process.env.Provider_BASE_URL)) {
+    const url = firstEnv("NOVITA_OPENAI_BASE_URL", "LLM_BASE_URL");
+    if (url) process.env.Provider_BASE_URL = url;
+  }
+  if (isBlankEnvValue(process.env.Provider_SANDBOX_TIMEOUT_MS)) {
+    const ms = firstEnv("NOVITA_SANDBOX_TIMEOUT_MS");
+    if (ms) process.env.Provider_SANDBOX_TIMEOUT_MS = ms;
+  }
+  if (isBlankEnvValue(process.env.Provider_Model_Clauxen_V1)) {
+    const model = firstEnv(
+      "SHIROVA_DEFAULT_MODEL",
+      "SHIROVA_HELIOS_MODEL",
+      "SHIROVA_VIRGIL_MODEL",
+      "LLM_MODEL",
+    );
+    if (model) process.env.Provider_Model_Clauxen_V1 = model;
+  }
+
+  // Sandbox SDK still reads NOVITA_API_KEY — mirror Provider key server-side only.
+  if (
+    isBlankEnvValue(process.env.NOVITA_API_KEY) &&
+    !isBlankEnvValue(process.env.Provider_API_Key)
+  ) {
+    process.env.NOVITA_API_KEY = process.env.Provider_API_Key;
   }
 }
 

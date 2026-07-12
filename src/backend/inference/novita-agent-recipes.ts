@@ -1,6 +1,7 @@
 import { env } from "@/backend/config/env";
 
 export function browserUseRecipe(task: string, model?: string) {
+  const modelSlug = model || env.defaultModel;
   return [
     "import asyncio",
     "import os",
@@ -15,12 +16,16 @@ export function browserUseRecipe(task: string, model?: string) {
     "        host = sandbox.get_host(9223)",
     "        browser_session = BrowserSession(cdp_url=f'https://{host}')",
     "        await browser_session.start()",
+    "        api_key = os.environ.get('Provider_API_Key') or os.environ.get('LLM_API_KEY') or os.environ.get('NOVITA_API_KEY')",
+    "        base_url = os.environ.get('Provider_BASE_URL') or os.environ.get('LLM_BASE_URL') or ''",
+    "        model_id = os.environ.get('Provider_Model_Clauxen_V1') or os.environ.get('LLM_MODEL') or " +
+      JSON.stringify(modelSlug),
     "        agent = Agent(",
     `            task=${JSON.stringify(task)},`,
     "            llm=ChatAnthropic(",
-    "                api_key=os.environ['LLM_API_KEY'],",
-    "base_url=os.getenv('LLM_BASE_URL', 'https://api.novita.ai/openai'),",
-    `                model=os.getenv('LLM_MODEL', ${JSON.stringify(model || env.defaultModel)}),`,
+    "                api_key=api_key,",
+    "                base_url=base_url,",
+    "                model=model_id,",
     "                temperature=0.6,",
     "            ),",
     "            browser_session=browser_session,",

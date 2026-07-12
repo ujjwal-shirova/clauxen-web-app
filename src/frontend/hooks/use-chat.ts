@@ -1352,6 +1352,8 @@ function useLocalChat(
     startedRecentChats,
     activeChat,
     isGenerating,
+    loading: false as boolean,
+    messagesLoading: false as boolean,
     creatingChatPending: false as boolean,
     activeChatId,
     startNewChat,

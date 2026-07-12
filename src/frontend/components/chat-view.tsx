@@ -136,6 +136,8 @@ function ChatViewBody({
   const displayMessages = blankNewChatComposer ? [] : messages;
   const displayActiveChatId = blankNewChatComposer ? null : activeChatId;
   const displayActiveChat = blankNewChatComposer ? null : activeChat;
+  const displayMessagesLoading =
+    !blankNewChatComposer && Boolean(chat.messagesLoading);
 
   const brandOnlyTab =
     !blankNewChatComposer &&
@@ -159,6 +161,7 @@ function ChatViewBody({
       retryAssistantWithBranch={retryAssistantWithBranch}
       switchMessageBranch={switchMessageBranch}
       activeChatId={displayActiveChatId}
+      messagesLoading={displayMessagesLoading}
       activeChatTitle={displayActiveChat?.name ?? "New Chat"}
       isActiveChatTitleStreaming={!!displayActiveChat?.isTitleStreaming}
       isActiveChatPinned={!!displayActiveChat?.pinned}

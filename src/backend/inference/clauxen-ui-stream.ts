@@ -69,13 +69,23 @@ export function encodeUiMessageStreamToBytes(
   );
 }
 
-/** Tap answer/thinking/title from a UI message SSE byte stream for DB persistence. */
+/** Tap answer/thinking/title/tools from a UI message SSE byte stream for DB persistence. */
 export function tapUiMessageSseStream(
   source: ReadableStream<Uint8Array>,
   callbacks: {
     onAnswerDelta?: (delta: string) => void;
     onThinkingDelta?: (delta: string) => void;
     onChatTitle?: (title: string) => void;
+    onToolStart?: (tool: {
+      toolCallId: string;
+      name: string;
+      args?: Record<string, unknown>;
+    }) => void;
+    onToolEnd?: (tool: {
+      toolCallId: string;
+      name: string;
+      result: string;
+    }) => void;
   },
   signal?: AbortSignal,
 ): ReadableStream<Uint8Array> {
@@ -126,46 +136,77 @@ export function tapUiMessageSseStream(
             if (!payload || payload === "[DONE]") continue;
 
             try {
-              const parsed = JSON.parse(payload) as { type?: string };
+              const parsed = JSON.parse(payload) as {
+                type?: string;
+                delta?: unknown;
+                title?: unknown;
+                data?: { title?: string };
+                toolCallId?: unknown;
+                name?: unknown;
+                args?: unknown;
+                result?: unknown;
+              };
               if (
                 parsed.type === "text-delta" &&
-                typeof (parsed as { delta?: unknown }).delta === "string"
+                typeof parsed.delta === "string"
               ) {
-                callbacks.onAnswerDelta?.(
-                  (parsed as { delta: string }).delta,
-                );
+                callbacks.onAnswerDelta?.(parsed.delta);
               }
               if (
                 parsed.type === "reasoning-delta" &&
-                typeof (parsed as { delta?: unknown }).delta === "string"
+                typeof parsed.delta === "string"
               ) {
-                callbacks.onThinkingDelta?.(
-                  (parsed as { delta: string }).delta,
-                );
+                callbacks.onThinkingDelta?.(parsed.delta);
               }
               if (parsed.type === "data-chat-title") {
-                const title = (parsed as { data?: { title?: string } }).data
-                  ?.title;
+                const title = parsed.data?.title;
                 if (typeof title === "string") {
                   callbacks.onChatTitle?.(title);
                 }
               }
               if (parsed.type === "answer_delta") {
-                const delta = (parsed as { delta?: unknown }).delta;
-                if (typeof delta === "string") {
-                  callbacks.onAnswerDelta?.(delta);
+                if (typeof parsed.delta === "string") {
+                  callbacks.onAnswerDelta?.(parsed.delta);
                 }
               }
               if (parsed.type === "thinking_delta") {
-                const delta = (parsed as { delta?: unknown }).delta;
-                if (typeof delta === "string") {
-                  callbacks.onThinkingDelta?.(delta);
+                if (typeof parsed.delta === "string") {
+                  callbacks.onThinkingDelta?.(parsed.delta);
                 }
               }
               if (parsed.type === "chat_title") {
-                const title = (parsed as { title?: unknown }).title;
-                if (typeof title === "string") {
-                  callbacks.onChatTitle?.(title);
+                if (typeof parsed.title === "string") {
+                  callbacks.onChatTitle?.(parsed.title);
+                }
+              }
+              if (parsed.type === "tool_start") {
+                if (
+                  typeof parsed.toolCallId === "string" &&
+                  typeof parsed.name === "string"
+                ) {
+                  callbacks.onToolStart?.({
+                    toolCallId: parsed.toolCallId,
+                    name: parsed.name,
+                    args:
+                      parsed.args &&
+                      typeof parsed.args === "object" &&
+                      !Array.isArray(parsed.args)
+                        ? (parsed.args as Record<string, unknown>)
+                        : {},
+                  });
+                }
+              }
+              if (parsed.type === "tool_end") {
+                if (
+                  typeof parsed.toolCallId === "string" &&
+                  typeof parsed.name === "string"
+                ) {
+                  callbacks.onToolEnd?.({
+                    toolCallId: parsed.toolCallId,
+                    name: parsed.name,
+                    result:
+                      typeof parsed.result === "string" ? parsed.result : "",
+                  });
                 }
               }
             } catch {

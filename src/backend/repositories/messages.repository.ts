@@ -7,12 +7,14 @@ export type MessageRow = {
   content: string | null;
   status: string; // complete | streaming | error | cancelled
   metadata: Record<string, unknown>;
+  content_json: Record<string, unknown>;
   created_at: string;
 };
 
 export async function listMessagesForChat(chatId: string) {
   return query<MessageRow>(
-    `select id, chat_id, role, coalesce(content, '') as content, status, metadata, created_at
+    `select id, chat_id, role, coalesce(content, '') as content, status, metadata,
+            coalesce(content_json, '{}'::jsonb) as content_json, created_at
      from public.chat_messages
      where chat_id = $1 and status != 'cancelled'
      order by created_at asc`,
@@ -27,11 +29,14 @@ export async function createMessage(input: {
   content: string;
   status?: string;
   metadata?: Record<string, unknown>;
+  contentJson?: Record<string, unknown>;
 }) {
   return queryOne<MessageRow>(
-    `insert into public.chat_messages (chat_id, user_id, role, content, status, metadata)
-     values ($1, $2, $3, $4, $5, $6::jsonb)
-     returning id, chat_id, role, content, status, metadata, created_at`,
+    `insert into public.chat_messages (
+       chat_id, user_id, role, content, status, metadata, content_json
+     )
+     values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
+     returning id, chat_id, role, content, status, metadata, content_json, created_at`,
     [
       input.chatId,
       input.userId ?? null,
@@ -39,6 +44,7 @@ export async function createMessage(input: {
       input.content,
       input.status ?? "complete",
       JSON.stringify(input.metadata ?? {}),
+      JSON.stringify(input.contentJson ?? {}),
     ],
   );
 }
@@ -89,12 +95,22 @@ export async function updateMessageContent(
   chatId: string,
   content: string,
   status = "complete",
+  contentJson?: Record<string, unknown>,
 ) {
   return queryOne<MessageRow>(
     `update public.chat_messages
-     set content = $3, status = $4, updated_at = now()
+     set content = $3,
+         status = $4,
+         content_json = coalesce($5::jsonb, content_json),
+         updated_at = now()
      where id = $1 and chat_id = $2
-     returning id, chat_id, role, content, status, metadata, created_at`,
-    [messageId, chatId, content, status],
+     returning id, chat_id, role, content, status, metadata, content_json, created_at`,
+    [
+      messageId,
+      chatId,
+      content,
+      status,
+      contentJson ? JSON.stringify(contentJson) : null,
+    ],
   ); // composite key — message UUID alone insufficient; prevents cross-chat IDOR
 }
