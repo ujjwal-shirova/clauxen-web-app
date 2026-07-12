@@ -114,7 +114,8 @@ function ChatViewBody({
     !projectId &&
     isNewChatPath(pathname) &&
     !activeChatId &&
-    messages.length === 0;
+    messages.length === 0 &&
+    !creatingChatPending;
 
   useEffect(() => {
     if (routeChatId) {
@@ -128,8 +129,10 @@ function ChatViewBody({
 
   const handleSendMessageAndRoute = useCallback(
     async (prompt: string) => {
+      const forceNew =
+        !activeChatId && (blankNewChatComposer || isNewChatPath(pathname));
       const chatId = await handleSendMessage(prompt, {
-        forceNewChat: blankNewChatComposer,
+        forceNewChat: forceNew,
       });
       if (!chatId) return;
 
@@ -142,7 +145,7 @@ function ChatViewBody({
         return;
       }
 
-      if (blankNewChatComposer || isNewChatPath(pathname)) {
+      if (forceNew || isNewChatPath(pathname)) {
         const target = APP_ROUTES.chat(chatId);
         if (typeof window !== "undefined") {
           window.history.replaceState(window.history.state, "", target);
@@ -150,7 +153,30 @@ function ChatViewBody({
         router.replace(target, { scroll: false });
       }
     },
-    [handleSendMessage, blankNewChatComposer, projectId, pathname, router],
+    [
+      handleSendMessage,
+      blankNewChatComposer,
+      activeChatId,
+      projectId,
+      pathname,
+      router,
+    ],
+  );
+
+  const handleDeleteChatAndLeave = useCallback(
+    async (chatId: string) => {
+      const wasActive = activeChatId === chatId;
+      await handleDeleteChat(chatId);
+      if (!wasActive) return;
+      const target = projectId
+        ? APP_ROUTES.project(projectId)
+        : APP_ROUTES.newChat;
+      if (typeof window !== "undefined") {
+        window.history.replaceState(window.history.state, "", target);
+      }
+      router.replace(target, { scroll: false });
+    },
+    [activeChatId, handleDeleteChat, projectId, router],
   );
 
   const displayMessages = blankNewChatComposer ? [] : messages;
@@ -195,7 +221,7 @@ function ChatViewBody({
       isActiveChatPinned={!!displayActiveChat?.pinned}
       onRenameChat={handleRenameChat}
       onPinChat={handlePinChat}
-      onDeleteChat={handleDeleteChat}
+      onDeleteChat={handleDeleteChatAndLeave}
       onOpenSettings={() => overlays.openSettings("General")}
       onMoveToProject={() => router.push("/projects")}
       homerReasoningEffort={homerReasoningEffort}

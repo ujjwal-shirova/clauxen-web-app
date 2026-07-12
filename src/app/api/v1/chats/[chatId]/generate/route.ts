@@ -33,54 +33,86 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     // Durable generation: abort only via explicit stop, not client disconnect.
     const generationController = beginChatGeneration(params.chatId);
 
-    const { stream, onComplete, assistantMessageId } =
-      await chatService.streamChatGeneration({
-        chatId: params.chatId,
-        userId: user.id,
-        messages,
-        signal: generationController.signal,
-        userCountryCode: resolveRequestCountryCode(request.headers),
-        generateChatTitle: body.generateChatTitle,
-        chatModel: body.chatModel,
-        homerReasoningEffort: parseHomerReasoningEffort(
-          body.homerReasoningEffort,
-        ),
-      });
+    let finishOnce: (() => Promise<void>) | null = null;
 
-    const [clientStream, persistStream] = stream.tee();
+    try {
+      const { stream, onComplete, assistantMessageId } =
+        await chatService.streamChatGeneration({
+          chatId: params.chatId,
+          userId: user.id,
+          messages,
+          signal: generationController.signal,
+          userCountryCode: resolveRequestCountryCode(request.headers),
+          generateChatTitle: body.generateChatTitle,
+          chatModel: body.chatModel,
+          homerReasoningEffort: parseHomerReasoningEffort(
+            body.homerReasoningEffort,
+          ),
+        });
 
-    const persistPromise = (async () => {
-      const reader = persistStream.getReader();
-      try {
-        while (true) {
-          const { done } = await reader.read();
-          if (done) break;
-        }
-        await onComplete();
-      } catch {
-        // aborted / cancelled — still try to finalize row state via onComplete
+      let finished = false;
+      finishOnce = async () => {
+        if (finished) return;
+        finished = true;
         try {
           await onComplete();
-        } catch {
-          // ignore
+        } finally {
+          endChatGeneration(params.chatId, generationController);
         }
-      } finally {
-        endChatGeneration(params.chatId, generationController);
-      }
-    })();
+      };
 
-    // Ensure Vercel keeps the isolate alive until DB persist finishes,
-    // even if the browser tab closed mid-stream.
-    after(() => persistPromise);
+      // Keep the isolate alive until DB persist finishes (tab close safe).
+      after(() => {
+        void finishOnce?.();
+      });
 
-    return new Response(clientStream, {
-      headers: {
-        ...CLAUXEN_STREAM_HEADERS,
-        ...(assistantMessageId
-          ? { "X-Assistant-Message-Id": assistantMessageId }
-          : {}),
-      },
-    });
+      const wrapped = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const reader = stream.getReader();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              try {
+                controller.enqueue(value);
+              } catch {
+                // Client disconnected — drain the rest so onComplete can persist.
+                while (true) {
+                  const next = await reader.read();
+                  if (next.done) break;
+                }
+                break;
+              }
+            }
+            try {
+              controller.close();
+            } catch {
+              // already closed
+            }
+          } catch (error) {
+            try {
+              controller.error(error);
+            } catch {
+              // already closed
+            }
+          } finally {
+            await finishOnce?.();
+          }
+        },
+      });
+
+      return new Response(wrapped, {
+        headers: {
+          ...CLAUXEN_STREAM_HEADERS,
+          ...(assistantMessageId
+            ? { "X-Assistant-Message-Id": assistantMessageId }
+            : {}),
+        },
+      });
+    } catch (error) {
+      endChatGeneration(params.chatId, generationController);
+      throw error;
+    }
   },
   { requireAuth: true, requireChatAuth: true },
 );

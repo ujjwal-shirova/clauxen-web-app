@@ -149,6 +149,26 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     [handleSelectChat, instantNavigate, closeMobileNav],
   );
 
+  const onDeleteChatFromSidebar = useCallback(
+    async (chatId: string) => {
+      const wasActive =
+        activeChatId === chatId ||
+        getRouteChatIdForSidebar(pathname) === chatId;
+      await handleDeleteChat(chatId);
+      if (wasActive) {
+        instantNavigate(APP_ROUTES.newChat, { replace: true });
+      }
+      closeMobileNav();
+    },
+    [
+      activeChatId,
+      closeMobileNav,
+      handleDeleteChat,
+      instantNavigate,
+      pathname,
+    ],
+  );
+
   const onUpgradeClick = useCallback(() => {
     overlays.openPricing();
     closeMobileNav();
@@ -261,7 +281,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         chatsLoading={chatsLoading}
         creatingChatPending={creatingChatPending}
         onSelectChat={onSelectChatFromSidebar}
-        onDeleteChat={handleDeleteChat}
+        onDeleteChat={onDeleteChatFromSidebar}
         onRenameChat={handleRenameChat}
         onPinChat={handlePinChat}
         generatingChatIds={generatingChatIds}

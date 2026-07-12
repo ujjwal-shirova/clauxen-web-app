@@ -248,13 +248,22 @@ export async function recordModelUsage(input: {
   latencyMs: number;
   metadata?: Record<string, unknown>;
 }) {
+  // message_id is uuid; ignore optimistic temp-* / non-uuid client ids.
+  const messageId =
+    input.messageId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      input.messageId,
+    )
+      ? input.messageId
+      : null;
+
   const rows = await query<{ record_model_usage: string }>(
     `select public.record_model_usage($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb) as record_model_usage`, // returns usage row id
     [
       input.userId,
       input.workspaceId,
       input.chatId,
-      input.messageId,
+      messageId,
       input.provider,
       input.modelId,
       input.inputTokens,

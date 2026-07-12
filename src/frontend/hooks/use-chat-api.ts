@@ -503,8 +503,11 @@ export function useChatApi(
       setActiveChatId(chatId);
       const existing = useChatStore.getState().messageIdsByChatId[chatId];
       const history = historyByChatIdRef.current[chatId];
-      // Re-fetch when we have never loaded a page for this chat.
-      if (existing && existing.length > 0 && history) {
+      const isLive =
+        Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
+        Boolean(getGeneration(chatId));
+      // Keep optimistic / in-flight turns — don't replace with a stale page fetch.
+      if (existing && existing.length > 0 && (history || isLive)) {
         setMessagesLoading(false);
         return;
       }
@@ -732,7 +735,21 @@ export function useChatApi(
         });
 
         if (!response.ok || !response.body) {
-          throw new Error("Generation failed.");
+          let detail = `Generation failed (${response.status})`;
+          try {
+            const payload = (await response.json()) as {
+              error?: string | { message?: string };
+              message?: string;
+            };
+            const fromError =
+              typeof payload.error === "string"
+                ? payload.error
+                : payload.error?.message;
+            detail = fromError || payload.message || detail;
+          } catch {
+            // ignore parse errors
+          }
+          throw new Error(detail);
         }
 
         // Sync optimistic local id → durable DB assistant id (prevents duplicates).
@@ -963,6 +980,7 @@ export function useChatApi(
     ): Promise<string | null> => {
       const trimmed = prompt.trim();
       if (!trimmed) return null;
+      if (creatingChatPending && !options?.chatIdOverride) return null;
 
       let chatId = options?.chatIdOverride
         ? options.chatIdOverride
@@ -999,6 +1017,7 @@ export function useChatApi(
             projectId: projectIdFilter ?? undefined,
           });
           chatId = chat.id;
+          // Paint chat-view immediately: set id + user bubble before generate.
           setActiveChatId(chatId);
           setRecentChats((prev) => {
             const next = [
@@ -1017,6 +1036,15 @@ export function useChatApi(
           setAllChats((prev) => ({
             ...prev,
             [chatId!]: [optimisticUser],
+          }));
+          // Seed history metadata so handleSelectChat won't wipe optimistic turns.
+          setHistoryByChatId((prev) => ({
+            ...prev,
+            [chatId!]: {
+              hasMore: false,
+              nextCursor: null,
+              isLoadingOlder: false,
+            },
           }));
         } else {
           // Existing chat — paint the user bubble immediately (before network).
@@ -1067,27 +1095,55 @@ export function useChatApi(
         if (isNewChat) setCreatingChatPending(false);
       }
     },
-    [activeChatId, projectIdFilter, streamAssistantResponse],
+    [
+      activeChatId,
+      creatingChatPending,
+      projectIdFilter,
+      streamAssistantResponse,
+    ],
   );
 
   handleSendMessageRef.current = handleSendMessage;
 
   const handleDeleteChat = useCallback(
     async (chatId: string) => {
+      // Stop any in-flight generation for this chat first.
+      const gen = getGeneration(chatId);
+      if (gen) {
+        void fetch(`/api/v1/chats/${chatId}/generate/stop`, {
+          method: "POST",
+          credentials: "include",
+        }).catch(() => {});
+        gen.request.abort();
+        setGeneration(chatId, null);
+      }
+      useChatStore.getState().setChatGenerating(chatId, false);
+      useChatStore.setState((state) => {
+        const queued = { ...state.queuedMessagesByChatId };
+        delete queued[chatId];
+        return { queuedMessagesByChatId: queued };
+      });
+
       await chatsApi.deleteChat(chatId);
       setAllChats((prev) => {
         const next = { ...prev };
         delete next[chatId];
         return next;
       });
+      setHistoryByChatId((prev) => {
+        const next = { ...prev };
+        delete next[chatId];
+        return next;
+      });
       const remaining = recentChats.filter((c) => c.id !== chatId);
       setRecentChats(remaining);
+      recentChatsRef.current = remaining;
+      // Leave navigation to the caller (sidebar / chat header → /new).
       if (activeChatId === chatId) {
-        setActiveChatId(remaining[0]?.id ?? null);
-        if (remaining[0]?.id) void loadChatMessages(remaining[0].id);
+        setActiveChatId(null);
       }
     },
-    [activeChatId, loadChatMessages, recentChats],
+    [activeChatId, recentChats],
   );
 
   const handleRenameChat = useCallback(

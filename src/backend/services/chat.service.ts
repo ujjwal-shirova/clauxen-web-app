@@ -321,6 +321,7 @@ export async function streamChatGeneration(input: {
   const assistantPromise = messagesRepo
     .createMessage({
       chatId: input.chatId,
+      userId: input.userId,
       role: "assistant",
       content: "",
       status: "streaming",

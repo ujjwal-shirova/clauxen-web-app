@@ -256,9 +256,7 @@ export function Sidebar({
             onPinChat?.(chat.id, !chat.pinned);
           }}
           className={cn(
-            "flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-all hover:bg-zinc-100 hover:text-zinc-800",
-            "opacity-0 group-hover/chat:opacity-100 focus-visible:opacity-100",
-            chat.pinned && "opacity-100 text-zinc-700",
+            "flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 hover:text-zinc-800 focus-visible:opacity-100",
           )}
         >
           {chat.pinned ? (

@@ -11,6 +11,9 @@ type DeleteChatDialogProps = {
   onOpenSettings?: () => void;
 };
 
+/**
+ * Delete confirmation — matches Clauxen dialog chrome (zinc-50 panel, soft border).
+ */
 export function DeleteChatDialog({
   open,
   onOpenChange,
@@ -23,26 +26,26 @@ export function DeleteChatDialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-black/25 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-[#1a1712]/25 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-1/2 top-1/2 z-[81] flex w-[min(calc(100vw-2rem),448px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white font-sans text-zinc-900 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)] outline-none",
+            "fixed left-1/2 top-1/2 z-[81] flex w-[min(calc(100vw-2rem),420px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[16px] border border-zinc-200 bg-zinc-50 font-sans text-zinc-900 shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.08)] outline-none",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
           )}
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
-          <header className="flex min-h-[52px] items-center justify-between px-4 pb-2.5 pt-2.5">
-            <DialogPrimitive.Title className="text-[18px] font-medium leading-7 text-zinc-900">
+          <header className="flex items-center justify-between border-b border-zinc-200/80 px-5 py-4">
+            <DialogPrimitive.Title className="text-[17px] font-semibold leading-6 text-zinc-900">
               Delete chat?
             </DialogPrimitive.Title>
           </header>
 
-          <div className="flex-1 overflow-auto px-4 pb-4 pt-1 text-[16px] leading-6 text-zinc-900">
+          <div className="px-5 pb-5 pt-4 text-[14px] leading-5 text-zinc-700">
             <p>
-              This will delete{" "}
-              <strong className="font-bold">{displayTitle}</strong>.
+              This will permanently delete{" "}
+              <span className="font-semibold text-zinc-900">{displayTitle}</span>.
             </p>
-            <p className="mt-2 text-[14px] leading-5 text-[#8f8f8f]">
+            <p className="mt-2 text-[13px] leading-5 text-zinc-500">
               Visit{" "}
               <button
                 type="button"
@@ -50,28 +53,28 @@ export function DeleteChatDialog({
                   onOpenChange(false);
                   onOpenSettings?.();
                 }}
-                className="underline decoration-[#8f8f8f] underline-offset-2 hover:text-zinc-800"
+                className="font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 transition-colors hover:text-zinc-900 hover:decoration-zinc-500"
               >
                 settings
               </button>{" "}
               to delete any memories saved during this chat.
             </p>
 
-            <div className="mt-4 flex w-full flex-row-reverse items-center justify-end gap-3">
+            <div className="mt-5 flex w-full flex-row-reverse items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => {
                   onConfirm();
                   onOpenChange(false);
                 }}
-                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full bg-[#e02e2a] px-3 text-[14px] font-medium leading-5 text-white transition-colors hover:bg-[#c92824]"
+                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 px-4 text-[13px] font-medium leading-5 text-white transition-colors hover:bg-zinc-800"
               >
                 Delete
               </button>
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-black/15 bg-white px-3 text-[14px] font-medium leading-5 text-zinc-900 transition-colors hover:bg-black/[0.03]"
+                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-[13px] font-medium leading-5 text-zinc-700 transition-colors hover:bg-zinc-100"
               >
                 Cancel
               </button>
