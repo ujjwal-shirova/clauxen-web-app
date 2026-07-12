@@ -1,9 +1,4 @@
-"use client";
-
-import { GiftView } from "@/frontend/components/gift-view";
-import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
-
+/** Deep-link / refresh: overlay is hosted by MainLayout (AppOverlayHost). */
 export default function GiftPage() {
-  const { closeOverlay } = useAppOverlays();
-  return <GiftView onClose={closeOverlay} />;
+  return null;
 }

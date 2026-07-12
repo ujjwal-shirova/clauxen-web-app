@@ -80,7 +80,11 @@ export function CheckoutPayWithSection({
             onClick={() => onPaymentTabChange("upi")}
             className={checkoutTabClass(paymentTab === "upi")}
           >
-            <CheckoutPaymentIcon src={CHECKOUT_UPI_ICON_URL} alt="UPI" />
+            <CheckoutPaymentIcon
+              src={CHECKOUT_UPI_ICON_URL}
+              alt="UPI"
+              className="h-5 w-8 rounded-[3px]"
+            />
             <span>UPI</span>
           </button>
         )}

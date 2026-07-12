@@ -7,6 +7,7 @@ import { cn } from "@/frontend/lib/utils"; // className merge utility — select
 import { appBtn } from "@/frontend/lib/app-buttons";
 import { GiftPayment } from "./gift-payment";
 import { GiftAnimation } from "./gift-animation";
+import { FullscreenPortal } from "./fullscreen-portal";
 import { purchaseGift } from "@/frontend/lib/api/gifts";
 import { ApiError } from "@/frontend/lib/api/client";
 import { useAuth } from "@/frontend/hooks/use-auth";
@@ -147,7 +148,8 @@ export function GiftView({ onClose }: GiftViewProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] font-sans animate-in fade-in duration-300 lg:flex-row lg:pt-0">
+    <FullscreenPortal>
+    <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] font-sans lg:flex-row lg:pt-0">
       <button
         onClick={handleBack}
         className="absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[110] rounded-lg p-2 transition-all hover:bg-zinc-100 sm:left-6 sm:top-6"
@@ -577,5 +579,6 @@ export function GiftView({ onClose }: GiftViewProps) {
         </div>
       </div>
     </div>
+    </FullscreenPortal>
   );
 }

@@ -145,7 +145,7 @@ export function BillingCheckout({
   initialCheckoutSessionId,
 }: BillingCheckoutProps) {
   const auth = useAuth();
-  const { currency, formatInr, isUsd } = useCheckoutCurrency();
+  const { currency, formatInr, isUsd, ready } = useCheckoutCurrency();
   const [billingCycle, setBillingCycle] =
     useState<BillingCycle>(initialBillingCycle);
   const [maxTier, setMaxTier] = useState<MaxTier>(initialMaxTier);
@@ -274,10 +274,10 @@ export function BillingCheckout({
     isMaxPlan || isVariableCheckoutPlan ? "monthly" : billingCycle;
 
   useEffect(() => {
-    if (isUsd && paymentTab === "upi") {
+    if (ready && isUsd && paymentTab === "upi") {
       setPaymentTab("card");
     }
-  }, [isUsd, paymentTab]);
+  }, [ready, isUsd, paymentTab]);
 
   useEffect(() => {
     if (isVariableCheckoutPlan) return;
@@ -884,7 +884,7 @@ export function BillingCheckout({
   ]);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-50 font-sans text-zinc-800 animate-in fade-in duration-500">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-50 font-sans text-zinc-800">
       <header className="relative flex w-full shrink-0 items-center justify-center px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))] sm:py-6">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 sm:left-6">
           <button
@@ -1057,7 +1057,7 @@ export function BillingCheckout({
               onPay={() => void handleSubscribe()}
               onCardFieldsChange={handleCardFieldsChange}
               showExpressCheckout={applePayAvailable}
-              hideUpi={isUsd}
+              hideUpi={!ready || isUsd}
               onExpressCheckout={() => {
                 void handleSubscribe("card", { walletExpress: true });
               }}

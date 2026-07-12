@@ -13,6 +13,7 @@ import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
 import * as workspacesApi from "@/frontend/lib/api/workspaces";
 import type { Workspace } from "@/frontend/lib/api/workspaces";
 import { cn } from "@/frontend/lib/utils";
+import { FullscreenPortal } from "@/frontend/components/fullscreen-portal";
 import type { SessionUser } from "@/frontend/lib/api/auth";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { GeneralSettings } from "@/frontend/components/settings/general-settings";
@@ -321,7 +322,8 @@ export function SettingsModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100]" role="presentation">
+    <FullscreenPortal>
+    <div className="fixed inset-0 z-[200]" role="presentation">
       {/*
         Div (not button): global button:hover forces background-color to near-transparent
         and washed out the settings backdrop on hover outside the dialog.
@@ -338,7 +340,7 @@ export function SettingsModal({
         aria-modal="true"
         aria-labelledby="settings-modal-title"
         className={cn(
-          "fixed z-[101] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none",
+          "fixed z-[201] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none",
           "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",
           "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
           "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)] md:pt-0 md:pb-0",
@@ -404,6 +406,7 @@ export function SettingsModal({
         </div>
       </div>
     </div>
+    </FullscreenPortal>
   );
 }
 

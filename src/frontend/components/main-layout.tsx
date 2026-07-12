@@ -8,7 +8,6 @@ import { useAuth } from "@/frontend/hooks/use-auth";
 import { sidebarDisplayName } from "@/lib/profile-names";
 import { useProjects } from "@/frontend/hooks/use-projects";
 import { useSidebarState } from "@/frontend/hooks/use-sidebar-state";
-import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
 import { useToast } from "@/frontend/hooks/use-toast";
 import {
   appAgentPanelClassName,
@@ -25,6 +24,11 @@ import {
   useChatSession,
 } from "@/frontend/contexts/chat-session-context";
 import { CreateProjectDialog } from "@/frontend/components/create-project-dialog";
+import { AppOverlayHost } from "@/frontend/components/app-overlay-host";
+import {
+  AppOverlaysProvider,
+  useAppOverlays,
+} from "@/frontend/hooks/use-app-overlays";
 import { APP_ROUTES } from "@/frontend/lib/app-routes";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
@@ -89,8 +93,12 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const handleNewChat = useCallback(() => {
     startNewChat();
     closeMobileNav();
+    if (overlays.currentOverlay) {
+      overlays.closeOverlay();
+      return;
+    }
     router.push(APP_ROUTES.newChat, { scroll: false });
-  }, [startNewChat, closeMobileNav, router]);
+  }, [startNewChat, closeMobileNav, overlays, router]);
 
   const goToLibrary = useCallback(() => {
     router.push(APP_ROUTES.library);
@@ -315,6 +323,8 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           }}
         />
       ) : null}
+
+      <AppOverlayHost />
     </div>
   );
 }
@@ -332,9 +342,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ChatSessionProvider key={auth.user.id} apiEnabled>
-      <MainLayoutShell>{children}</MainLayoutShell>
-    </ChatSessionProvider>
+    <AppOverlaysProvider>
+      <ChatSessionProvider key={auth.user.id} apiEnabled>
+        <MainLayoutShell>{children}</MainLayoutShell>
+      </ChatSessionProvider>
+    </AppOverlaysProvider>
   );
 }
 

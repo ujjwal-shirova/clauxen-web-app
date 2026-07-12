@@ -1441,32 +1441,32 @@ button.user-message-card__body:not(:disabled):hover {
   }
 }
 
-/* Checkout preparing — slow, smooth title shimmer */
+/* Checkout preparing — clear, slightly brisk title shimmer */
 @keyframes checkout-preparing-shimmer {
   0% {
-    background-position: 120% 50%;
+    background-position: 100% 50%;
   }
   100% {
-    background-position: -20% 50%;
+    background-position: 0% 50%;
   }
 }
 
 .checkout-preparing-title {
   background: linear-gradient(
-    105deg,
-    #3d3d3a 0%,
-    #3d3d3a 38%,
-    #7a7a76 46%,
-    #f4f4f2 50%,
-    #7a7a76 54%,
-    #3d3d3a 62%,
-    #3d3d3a 100%
+    100deg,
+    #3f3f46 0%,
+    #3f3f46 35%,
+    #a1a1aa 45%,
+    #fafafa 50%,
+    #a1a1aa 55%,
+    #3f3f46 65%,
+    #3f3f46 100%
   );
-  background-size: 220% 100%;
+  background-size: 240% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: checkout-preparing-shimmer 6.5s ease-in-out infinite;
+  animation: checkout-preparing-shimmer 2.4s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

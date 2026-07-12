@@ -1,11 +1,4 @@
-"use client";
-
-import { AppsExtensionsView } from "@/frontend/components/apps-extensions-view";
-import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
-
+/** Deep-link / refresh: overlay is hosted by MainLayout (AppOverlayHost). */
 export default function AppsPage() {
-  const { closeOverlay, openPricing } = useAppOverlays();
-  return (
-    <AppsExtensionsView onClose={closeOverlay} onUpgradeClick={openPricing} />
-  );
+  return null;
 }

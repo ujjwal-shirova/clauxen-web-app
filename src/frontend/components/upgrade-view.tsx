@@ -6,6 +6,7 @@ import type { MaxTier } from "./billing-checkout";
 import { BillingCheckout } from "./billing-checkout";
 import { CheckoutPreparing } from "./checkout-preparing";
 import { InvoiceView, type InvoiceData } from "./invoice-view";
+import { FullscreenPortal } from "./fullscreen-portal";
 import { createCheckoutSession } from "@/frontend/lib/api/billing";
 
 interface UpgradeViewProps {
@@ -135,42 +136,44 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-hidden bg-white animate-in fade-in duration-300">
-      {currentView === "plans" && (
-        <UpgradePageContent
-          key={plansRefreshKey}
-          onClose={onClose}
-          onSelectPlan={(planId, cycle, tier, name) =>
-            handleSelectPlan(planId, cycle, tier, name)
-          }
-        />
-      )}
+    <FullscreenPortal>
+      <div className="fixed inset-0 z-[200] overflow-hidden bg-white">
+        {currentView === "plans" && (
+          <UpgradePageContent
+            key={plansRefreshKey}
+            onClose={onClose}
+            onSelectPlan={(planId, cycle, tier, name) =>
+              handleSelectPlan(planId, cycle, tier, name)
+            }
+          />
+        )}
 
-      {currentView === "preparing" && selectedPlanId && (
-        <CheckoutPreparing
-          planId={selectedPlanId}
-          maxTier={selectedMaxTier}
-        />
-      )}
+        {currentView === "preparing" && selectedPlanId && (
+          <CheckoutPreparing
+            planId={selectedPlanId}
+            maxTier={selectedMaxTier}
+          />
+        )}
 
-      {currentView === "checkout" && selectedPlanId && (
-        <BillingCheckout
-          onBack={handleBackToPlans}
-          onPaymentSuccess={handlePaymentSuccess}
-          planId={selectedPlanId}
-          initialBillingCycle={selectedBillingCycle}
-          initialMaxTier={selectedMaxTier}
-          initialCheckoutSessionId={checkoutSessionId}
-        />
-      )}
+        {currentView === "checkout" && selectedPlanId && (
+          <BillingCheckout
+            onBack={handleBackToPlans}
+            onPaymentSuccess={handlePaymentSuccess}
+            planId={selectedPlanId}
+            initialBillingCycle={selectedBillingCycle}
+            initialMaxTier={selectedMaxTier}
+            initialCheckoutSessionId={checkoutSessionId}
+          />
+        )}
 
-      {currentView === "invoice" && invoiceData && (
-        <InvoiceView
-          data={invoiceData}
-          onClose={handleInvoiceClose}
-          onDownload={handleInvoiceDownload}
-        />
-      )}
-    </div>
+        {currentView === "invoice" && invoiceData && (
+          <InvoiceView
+            data={invoiceData}
+            onClose={handleInvoiceClose}
+            onDownload={handleInvoiceDownload}
+          />
+        )}
+      </div>
+    </FullscreenPortal>
   );
 }

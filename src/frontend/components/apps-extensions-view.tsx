@@ -5,6 +5,7 @@ import { ArrowLeft, Smartphone, Laptop, ChevronRight } from "lucide-react";
 import { Button } from "@/frontend/components/ui/button";
 import { cn } from "@/frontend/lib/utils";
 import { appBtn } from "@/frontend/lib/app-buttons";
+import { FullscreenPortal } from "@/frontend/components/fullscreen-portal";
 
 interface AppsExtensionsViewProps {
   onClose: () => void; // back button / overlay dismiss callback
@@ -16,8 +17,8 @@ export function AppsExtensionsView({
   onUpgradeClick,
 }: AppsExtensionsViewProps) {
   return (
-    // root overlay — fixed fullscreen, high z-index, fade-in animation, warm background
-    <div className="fixed inset-0 z-[100] flex min-h-0 flex-col overflow-hidden bg-zinc-50 pt-[env(safe-area-inset-top)] animate-in fade-in duration-300">
+    <FullscreenPortal>
+    <div className="fixed inset-0 z-[200] flex min-h-0 flex-col overflow-hidden bg-zinc-50 pt-[env(safe-area-inset-top)]">
       {/* header — centered layout with absolute-positioned back button */}
       <header className="relative z-20 flex w-full shrink-0 items-center justify-center bg-zinc-50/80 px-4 py-3.5 backdrop-blur-md sm:py-5">
         {/* back button — absolute left; onClose parent callback */}
@@ -302,5 +303,6 @@ export function AppsExtensionsView({
         </div>
       </div>
     </div>
+    </FullscreenPortal>
   );
 }

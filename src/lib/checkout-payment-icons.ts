@@ -1,10 +1,4 @@
-/** Payment network / method icon URLs used in checkout UI. */
-
-export const CHECKOUT_UPI_ICON_URL =
-  "https://js.stripe.com/v3/fingerprinted/img/payment-methods/icon-pm-upi-9107c036320866a1dae0be4b59015a31.svg";
-
-const LOGO_CTX =
-  "https://logos.context.dev/?publicClientId=brandLL_2e85d343a7c6c164be5d27c628bd8ef70b7cb7f3f3b28d28";
+/** Payment network / method icons — local SVGs (no third-party logo CDNs). */
 
 export type CardBrandId =
   | "visa"
@@ -14,33 +8,57 @@ export type CardBrandId =
   | "discover"
   | "rupay";
 
-export const CARD_BRAND_ICONS: Record<CardBrandId, { label: string; src: string }> =
-  {
-    visa: {
-      label: "Visa",
-      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 20'%3E%3Crect width='32' height='20' rx='2' fill='%231A1F71'/%3E%3Ctext x='16' y='14' font-size='9' font-family='Arial Black, sans-serif' fill='white' text-anchor='middle'%3EVISA%3C/text%3E%3C/svg%3E",
-    },
-    mastercard: {
-      label: "Mastercard",
-      src: `${LOGO_CTX}&domain=www.mastercard.com`,
-    },
-    amex: {
-      label: "American Express",
-      src: `${LOGO_CTX}&domain=americanexpress.com`,
-    },
-    jcb: {
-      label: "JCB",
-      src: `${LOGO_CTX}&domain=www.global.jcb`,
-    },
-    discover: {
-      label: "Discover",
-      src: `${LOGO_CTX}&domain=www.discover.com`,
-    },
-    rupay: {
-      label: "RuPay",
-      src: `${LOGO_CTX}&domain=www.rupay.co.in`,
-    },
-  };
+const svg = (body: string) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 20" role="img">${body}</svg>`,
+  )}`;
+
+export const CARD_BRAND_ICONS: Record<
+  CardBrandId,
+  { label: string; src: string }
+> = {
+  visa: {
+    label: "Visa",
+    src: svg(
+      `<rect width="32" height="20" rx="2.5" fill="#1A1F71"/><text x="16" y="13.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="700" fill="#fff" letter-spacing="0.5">VISA</text>`,
+    ),
+  },
+  mastercard: {
+    label: "Mastercard",
+    src: svg(
+      `<rect width="32" height="20" rx="2.5" fill="#fff" stroke="#E5E7EB"/><circle cx="12.5" cy="10" r="6" fill="#EB001B"/><circle cx="19.5" cy="10" r="6" fill="#F79E1B"/><path d="M16 5.2a6 6 0 0 1 0 9.6 6 6 0 0 1 0-9.6z" fill="#FF5F00"/>`,
+    ),
+  },
+  amex: {
+    label: "American Express",
+    src: svg(
+      `<rect width="32" height="20" rx="2.5" fill="#006FCF"/><text x="16" y="13.2" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="6.5" font-weight="700" fill="#fff">AMEX</text>`,
+    ),
+  },
+  jcb: {
+    label: "JCB",
+    src: svg(
+      `<rect width="32" height="20" rx="2.5" fill="#0E4C94"/><text x="16" y="13.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="700" fill="#fff">JCB</text>`,
+    ),
+  },
+  discover: {
+    label: "Discover",
+    src: svg(
+      `<rect width="32" height="20" rx="2.5" fill="#FF6000"/><text x="16" y="13.2" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="5.5" font-weight="800" fill="#fff">DISCOVER</text>`,
+    ),
+  },
+  rupay: {
+    label: "RuPay",
+    src: svg(
+      `<rect width="32" height="20" rx="2.5" fill="#097939"/><text x="16" y="13.2" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="6.5" font-weight="700" fill="#fff">RuPay</text>`,
+    ),
+  },
+};
+
+/** Inline UPI mark — avoids broken Stripe CDN icons. */
+export const CHECKOUT_UPI_ICON_URL = svg(
+  `<rect width="32" height="20" rx="2.5" fill="#fff" stroke="#E5E7EB"/><text x="16" y="13.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="800" fill="#097939">UPI</text>`,
+);
 
 export const DEFAULT_CARD_BRAND_STACK: CardBrandId[] = [
   "visa",
@@ -62,28 +80,18 @@ export function detectCardBrand(digits: string): CardBrandId | null {
 
   if (/^35(2[89]|[3-8]\d)/.test(digits)) return "jcb";
 
-  if (/^(508|606|607|608|6521)/.test(digits)) return "rupay";
+  // RuPay ranges before Discover's 65 overlap
+  if (/^(508|60[6-8]|6521|6531|81|82)/.test(digits)) return "rupay";
 
   if (/^(6011|64[4-9]|65)/.test(digits)) return "discover";
 
   return null;
 }
 
-/** Four icons for the card field — detected brand animates to the front. */
+/**
+ * Stripe-like stack: idle shows common brands; once detected, only that brand.
+ */
 export function getCardBrandStack(detected: CardBrandId | null): CardBrandId[] {
-  const pool: CardBrandId[] = [
-    "visa",
-    "mastercard",
-    "amex",
-    "discover",
-    "jcb",
-    "rupay",
-  ];
-
-  if (!detected) {
-    return DEFAULT_CARD_BRAND_STACK;
-  }
-
-  const rest = pool.filter((id) => id !== detected);
-  return [...rest.slice(0, 3), detected];
+  if (!detected) return DEFAULT_CARD_BRAND_STACK;
+  return [detected];
 }

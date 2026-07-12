@@ -1,9 +1,4 @@
-"use client";
-
-import { UpgradeView } from "@/frontend/components/upgrade-view";
-import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
-
+/** Deep-link / refresh: overlay is hosted by MainLayout (AppOverlayHost). */
 export default function UpgradePage() {
-  const { closeOverlay } = useAppOverlays();
-  return <UpgradeView onClose={closeOverlay} />;
+  return null;
 }

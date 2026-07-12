@@ -69,6 +69,8 @@ export async function resolveInitialCheckoutCurrency(): Promise<CheckoutCurrency
   const stored = readStoredCheckoutCurrency();
   if (stored) return stored;
 
+  const browserGuess = detectBrowserCheckoutCurrency();
+
   try {
     const response = await fetch("/api/v1/geo/checkout-default", {
       credentials: "same-origin",
@@ -79,6 +81,10 @@ export async function resolveInitialCheckoutCurrency(): Promise<CheckoutCurrency
       };
       const currency = json.data?.currency;
       if (isCheckoutCurrency(currency)) {
+        // Prefer local India signals over edge geo that often resolves to USD.
+        if (browserGuess === "INR" && currency === "USD") {
+          return "INR";
+        }
         return currency;
       }
     }
@@ -86,7 +92,7 @@ export async function resolveInitialCheckoutCurrency(): Promise<CheckoutCurrency
     // fall through to browser heuristics
   }
 
-  return detectBrowserCheckoutCurrency();
+  return browserGuess;
 }
 
 export function getPublicUsdInrRate(): number {
