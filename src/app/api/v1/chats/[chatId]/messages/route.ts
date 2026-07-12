@@ -1,5 +1,5 @@
 // Params: chatId — URL dynamic segment
-// GET: messages array — conversation thread render
+// GET: keyset message page — conversation thread render
 // POST: new user message insert — 201 Created
 // =============================================================================
 
@@ -10,18 +10,33 @@ import { AppError } from "@/backend/db/errors"; // validation errors — 400 bad
 import * as chatService from "@/backend/services/chat.service"; // ownership check + appendUserMessage business logic
 
 const MAX_MESSAGE_CONTENT_CHARS = 256 * 1024; // cap oversized payloads — DoS mitigation on text column inserts
+const DEFAULT_PAGE_LIMIT = 20;
 
 export const runtime = "nodejs"; // Node.js — pg pool queries
 export const dynamic = "force-dynamic";
 
 export const GET = withApiRouteParams<{ chatId: string }>(
-  async ({ session, params }) => {
+  async ({ session, params, request }) => {
     const user = requireSession(session); // authenticated user id
-    const { messages } = await chatService.getChatWithMessages(
-      params.chatId,
-      user.id,
-    ); // ownership verify + scoped list
-    return jsonData({ messages }); // { data: { messages } } — frontend conversation thread hydrate
+    const url = new URL(request.url);
+    const limitRaw = url.searchParams.get("limit");
+    const limit = limitRaw
+      ? Math.min(50, Math.max(1, Number(limitRaw) || DEFAULT_PAGE_LIMIT))
+      : DEFAULT_PAGE_LIMIT;
+    const cursorId = url.searchParams.get("cursor_id");
+    const cursorCreatedAt = url.searchParams.get("cursor_created_at");
+
+    const page = await chatService.getChatMessagesPage(params.chatId, user.id, {
+      cursorId,
+      cursorCreatedAt,
+      limit,
+    });
+
+    return jsonData({
+      messages: page.messages,
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
+    });
   },
   { requireAuth: true, requireChatAuth: true },
 );

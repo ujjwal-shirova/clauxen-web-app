@@ -115,6 +115,39 @@ export async function getChatWithMessages(chatId: string, userId: string) {
   return { chat, messages };
 }
 
+/** Keyset page for conversation UI (default latest page). */
+export async function getChatMessagesPage(
+  chatId: string,
+  userId: string,
+  input?: {
+    cursorId?: string | null;
+    cursorCreatedAt?: string | null;
+    limit?: number;
+  },
+) {
+  const chat = await chatsRepo.getChatForUser(chatId, userId);
+  if (!chat) throw notFound("Chat not found.");
+  const page = await messagesRepo.listMessagesPage({
+    chatId,
+    userId,
+    cursorId: input?.cursorId,
+    cursorCreatedAt: input?.cursorCreatedAt,
+    limit: input?.limit,
+  });
+  return { chat, ...page };
+}
+
+/** Recent chronological messages for inference when client history is partial. */
+export async function getRecentMessagesForInference(
+  chatId: string,
+  userId: string,
+  limit = 40,
+) {
+  const chat = await chatsRepo.getChatForUser(chatId, userId);
+  if (!chat) throw notFound("Chat not found.");
+  return messagesRepo.listRecentMessagesForChat(chatId, limit);
+}
+
 export async function createChatForUser(
   userId: string,
   input?: { title?: string; projectId?: string | null },
@@ -213,6 +246,43 @@ export async function streamChatGeneration(input: {
     throw new AppError("messages are required.", 400);
   }
 
+  // Prompt context from DB recent turns so partial client pages cannot starve
+  // the model. Prefer the client's latest user turn content when present.
+  const dbRecent = await messagesRepo.listRecentMessagesForChat(
+    input.chatId,
+    40,
+  );
+  const fromDb: IncomingMessage[] = dbRecent
+    .filter((row) => row.role === "user" || row.role === "assistant")
+    .map((row) => ({
+      role: row.role as "user" | "assistant",
+      content: (row.content ?? "").trim(),
+    }))
+    .filter((message) => message.content.length > 0);
+
+  const lastClientUser = [...clientConversation]
+    .reverse()
+    .find((message) => message.role === "user");
+  let conversationForModel =
+    fromDb.length > 0 ? fromDb : clientConversation;
+  if (lastClientUser) {
+    const lastDbUserIndex = (() => {
+      for (let i = conversationForModel.length - 1; i >= 0; i -= 1) {
+        if (conversationForModel[i]?.role === "user") return i;
+      }
+      return -1;
+    })();
+    if (lastDbUserIndex >= 0) {
+      conversationForModel = conversationForModel.map((message, index) =>
+        index === lastDbUserIndex
+          ? { ...message, content: lastClientUser.content }
+          : message,
+      );
+    } else {
+      conversationForModel = [...conversationForModel, lastClientUser];
+    }
+  }
+
   // Persist user message without blocking the inference stream.
   void persistLatestUserMessage(
     input.chatId,
@@ -256,7 +326,7 @@ export async function streamChatGeneration(input: {
       return row;
     });
 
-  const sourceStream = await createChatStream(clientConversation, {
+  const sourceStream = await createChatStream(conversationForModel, {
     chatModel: input.chatModel,
     userId: input.userId,
     conversationId: input.chatId,

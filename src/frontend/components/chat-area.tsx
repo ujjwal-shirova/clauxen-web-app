@@ -50,6 +50,10 @@ interface ChatAreaProps {
   messagesLoading?: boolean;
   /** True while a brand-new chat is being created / first reply boots. */
   creatingChatPending?: boolean;
+  /** Server keyset: older history remains beyond the loaded window. */
+  hasMoreMessages?: boolean;
+  isLoadingOlderMessages?: boolean;
+  onLoadOlderMessages?: () => Promise<boolean>;
   activeChatTitle?: string;
   isActiveChatTitleStreaming?: boolean;
   isActiveChatPinned?: boolean;
@@ -87,6 +91,9 @@ function ChatAreaLayout({
   activeChatId,
   messagesLoading = false,
   creatingChatPending = false,
+  hasMoreMessages = false,
+  isLoadingOlderMessages = false,
+  onLoadOlderMessages,
   activeChatTitle,
   isActiveChatTitleStreaming,
   isActiveChatPinned,
@@ -412,6 +419,9 @@ function ChatAreaLayout({
                   // that's exactly when headers need to dock in real time.
                   isFastScrolling={isFastScrolling && !isGenerating}
                   isGenerating={isGenerating}
+                  hasMoreMessages={hasMoreMessages}
+                  isLoadingOlderMessages={isLoadingOlderMessages}
+                  onLoadOlderMessages={onLoadOlderMessages}
                   onSaveEditedMessage={handleSaveEditedMessage}
                   onRetryUserMessage={handleRetryUserMessage}
                   onRetryAssistant={handleRetryAssistant}

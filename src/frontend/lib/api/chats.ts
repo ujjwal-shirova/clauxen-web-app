@@ -36,9 +36,44 @@ export async function createChat(input?: {
   });
 }
 
+export type MessagePageCursor = {
+  id: string;
+  createdAt: string;
+};
+
+export type MessagesPage = {
+  messages: ApiMessage[];
+  nextCursor: MessagePageCursor | null;
+  hasMore: boolean;
+};
+
 export async function getChat(chatId: string) {
-  return apiFetch<{ chat: unknown; messages: ApiMessage[] }>(
-    `/api/v1/chats/${encodeURIComponent(chatId)}`,
+  return apiFetch<{
+    chat: unknown;
+    messages: ApiMessage[];
+    nextCursor?: MessagePageCursor | null;
+    hasMore?: boolean;
+  }>(`/api/v1/chats/${encodeURIComponent(chatId)}`);
+}
+
+/** Keyset page — latest when cursor omitted; older when cursor provided. */
+export async function listMessagesPage(
+  chatId: string,
+  input?: {
+    cursorId?: string;
+    cursorCreatedAt?: string;
+    limit?: number;
+  },
+) {
+  const params = new URLSearchParams();
+  if (input?.limit) params.set("limit", String(input.limit));
+  if (input?.cursorId) params.set("cursor_id", input.cursorId);
+  if (input?.cursorCreatedAt) {
+    params.set("cursor_created_at", input.cursorCreatedAt);
+  }
+  const qs = params.toString();
+  return apiFetch<MessagesPage>(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/messages${qs ? `?${qs}` : ""}`,
   );
 }
 

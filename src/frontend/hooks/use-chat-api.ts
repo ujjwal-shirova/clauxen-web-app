@@ -54,9 +54,20 @@ import {
 import { filterStartedRecentChats } from "@/frontend/lib/started-recent-chats";
 import {
   hydrateMessageFromContentJson,
-  resolveHydratedChatMessages,
+  overlayBranchMessagesOnPage,
 } from "@/frontend/lib/hydrate-chat-messages";
 import { useShallow } from "zustand/react/shallow";
+
+type ChatHistoryCursor = {
+  id: string;
+  createdAt: string;
+};
+
+type ChatHistoryPageState = {
+  hasMore: boolean;
+  nextCursor: ChatHistoryCursor | null;
+  isLoadingOlder: boolean;
+};
 
 function mapApiMessage(row: chatsApi.ApiMessage): Message {
   const meta = row.metadata as {
@@ -114,10 +125,15 @@ export function useChatApi(
   const [loading, setLoading] = useState(true);
   const [creatingChatPending, setCreatingChatPending] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [historyByChatId, setHistoryByChatId] = useState<
+    Record<string, ChatHistoryPageState>
+  >({});
   const chatsLoadedOnceRef = useRef(false);
   const allChatsRef = useRef<Record<string, Message[]>>({});
   const recentChatsRef = useRef<RecentChat[]>([]);
   const branchPersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const historyByChatIdRef = useRef(historyByChatId);
+  historyByChatIdRef.current = historyByChatId;
   const titleGenerationInProgressRef = useRef<Set<string>>(new Set());
 
   const messages = useActiveChatMessages();
@@ -227,11 +243,85 @@ export function useChatApi(
     };
   }, [projectIdFilter, refreshChats]);
 
+  // Live message inserts/updates for the open chat (other devices / tabs).
+  useEffect(() => {
+    if (!activeChatId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`chat-messages:${activeChatId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_messages",
+          filter: `chat_id=eq.${activeChatId}`,
+        },
+        (payload) => {
+          const row = payload.new as chatsApi.ApiMessage | undefined;
+          if (!row?.id || row.status === "cancelled") return;
+          const mapped = mapApiMessage(row);
+          setAllChats((prev) => {
+            const existing = prev[activeChatId] ?? [];
+            if (existing.some((message) => message.id === mapped.id)) {
+              return prev;
+            }
+            return {
+              ...prev,
+              [activeChatId]: [...existing, mapped],
+            };
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "chat_messages",
+          filter: `chat_id=eq.${activeChatId}`,
+        },
+        (payload) => {
+          const row = payload.new as chatsApi.ApiMessage | undefined;
+          if (!row?.id) return;
+          const mapped = mapApiMessage(row);
+          const rowStatus = row.status;
+          setAllChats((prev) => {
+            const existing = prev[activeChatId] ?? [];
+            const index = existing.findIndex((message) => message.id === mapped.id);
+            if (index < 0) {
+              return {
+                ...prev,
+                [activeChatId]: [...existing, mapped],
+              };
+            }
+            const next = [...existing];
+            const prevMessage = next[index]!;
+            // Don't clobber an in-progress local stream with a sparse DB row.
+            if (prevMessage.isStreaming && rowStatus === "streaming") {
+              return prev;
+            }
+            next[index] = {
+              ...prevMessage,
+              ...mapped,
+              isStreaming: rowStatus === "streaming",
+            };
+            return { ...prev, [activeChatId]: next };
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [activeChatId, setAllChats]);
+
   const loadChatMessages = useCallback(async (chatId: string) => {
     setMessagesLoading(true);
     try {
-      const { messages: rows } = await chatsApi.getChat(chatId);
-      const apiMessages = rows.map(mapApiMessage);
+      const page = await chatsApi.listMessagesPage(chatId, { limit: 20 });
+      const apiMessages = page.messages.map(mapApiMessage);
       let branchMessages: unknown = null;
       try {
         const branch = await chatsApi.getBranchState(chatId);
@@ -240,16 +330,91 @@ export function useChatApi(
       } catch {
         // No branch state yet.
       }
-      const hydrated = resolveHydratedChatMessages({
-        apiMessages,
+      const hydrated = overlayBranchMessagesOnPage({
+        pageMessages: apiMessages,
         branchMessages,
       });
       setAllChats((prev) => ({
         ...prev,
         [chatId]: hydrated,
       }));
+      setHistoryByChatId((prev) => ({
+        ...prev,
+        [chatId]: {
+          hasMore: Boolean(page.hasMore),
+          nextCursor: page.nextCursor,
+          isLoadingOlder: false,
+        },
+      }));
     } finally {
       setMessagesLoading(false);
+    }
+  }, []);
+
+  const loadOlderMessages = useCallback(async (chatId: string) => {
+    const current = historyByChatIdRef.current[chatId];
+    if (!current?.hasMore || !current.nextCursor || current.isLoadingOlder) {
+      return false;
+    }
+
+    setHistoryByChatId((prev) => ({
+      ...prev,
+      [chatId]: { ...current, isLoadingOlder: true },
+    }));
+
+    try {
+      const page = await chatsApi.listMessagesPage(chatId, {
+        limit: 20,
+        cursorId: current.nextCursor.id,
+        cursorCreatedAt: current.nextCursor.createdAt,
+      });
+      const apiMessages = page.messages.map(mapApiMessage);
+      let branchMessages: unknown = null;
+      try {
+        const branch = await chatsApi.getBranchState(chatId);
+        const row = branch.state as { messages?: unknown } | null;
+        branchMessages = row?.messages ?? null;
+      } catch {
+        // ignore
+      }
+      const older = overlayBranchMessagesOnPage({
+        pageMessages: apiMessages,
+        branchMessages,
+      });
+
+      setAllChats((prev) => {
+        const existing = prev[chatId] ?? [];
+        const existingIds = new Set(existing.map((message) => message.id));
+        const prepended = older.filter((message) => !existingIds.has(message.id));
+        if (prepended.length === 0) return prev;
+        return {
+          ...prev,
+          [chatId]: [...prepended, ...existing],
+        };
+      });
+
+      setHistoryByChatId((prev) => ({
+        ...prev,
+        [chatId]: {
+          hasMore: Boolean(page.hasMore),
+          nextCursor: page.nextCursor,
+          isLoadingOlder: false,
+        },
+      }));
+      return true;
+    } catch {
+      setHistoryByChatId((prev) => ({
+        ...prev,
+        [chatId]: {
+          ...(prev[chatId] ?? {
+            hasMore: false,
+            nextCursor: null,
+            isLoadingOlder: false,
+          }),
+          isLoadingOlder: false,
+        },
+      }));
+      return false;
     }
   }, []);
 
@@ -262,7 +427,9 @@ export function useChatApi(
       }
       setActiveChatId(chatId);
       const existing = useChatStore.getState().messageIdsByChatId[chatId];
-      if (existing && existing.length > 0) {
+      const history = historyByChatIdRef.current[chatId];
+      // Re-fetch when we have never loaded a page for this chat.
+      if (existing && existing.length > 0 && history) {
         setMessagesLoading(false);
         return;
       }
@@ -958,6 +1125,10 @@ export function useChatApi(
     [persistBranches],
   );
 
+  const historyState = activeChatId
+    ? historyByChatId[activeChatId]
+    : undefined;
+
   return {
     messages,
     recentChats,
@@ -968,6 +1139,10 @@ export function useChatApi(
     loading,
     messagesLoading,
     creatingChatPending,
+    hasMoreMessages: Boolean(historyState?.hasMore),
+    isLoadingOlderMessages: Boolean(historyState?.isLoadingOlder),
+    loadOlderMessages: () =>
+      activeChatId ? loadOlderMessages(activeChatId) : Promise.resolve(false),
     handleSendMessage,
     stopGeneration,
     startNewChat,

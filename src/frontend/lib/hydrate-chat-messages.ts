@@ -130,34 +130,51 @@ export function hydrateMessageFromContentJson(
   });
 }
 
-/** Prefer branch tree when it has real message ids; otherwise use API rows. */
+/**
+ * Overlay branch-state edits onto the loaded page only.
+ * Never replace the full thread with an unbounded branch blob.
+ */
+export function overlayBranchMessagesOnPage(input: {
+  pageMessages: Message[];
+  branchMessages: unknown;
+}): Message[] {
+  const page = input.pageMessages.map(enrichMessageAgentUi);
+  if (!Array.isArray(input.branchMessages) || input.branchMessages.length === 0) {
+    return page;
+  }
+
+  const byId = new Map<string, Message>();
+  for (const raw of input.branchMessages) {
+    if (!raw || typeof raw !== "object") continue;
+    const message = raw as Message;
+    if (typeof message.id !== "string" || !message.id) continue;
+    if (message.role !== "user" && message.role !== "assistant") continue;
+    byId.set(message.id, enrichMessageAgentUi(message));
+  }
+
+  if (byId.size === 0) return page;
+
+  return page.map((message) => {
+    const overlay = byId.get(message.id);
+    if (!overlay) return message;
+    // Prefer branch UI fields (agent frames / edits) while keeping page order.
+    return {
+      ...message,
+      ...overlay,
+      id: message.id,
+      role: message.role,
+      createdAt: overlay.createdAt ?? message.createdAt,
+    };
+  });
+}
+
+/** @deprecated Prefer overlayBranchMessagesOnPage for keyset pages. */
 export function resolveHydratedChatMessages(input: {
   apiMessages: Message[];
   branchMessages: unknown;
 }): Message[] {
-  const branch = Array.isArray(input.branchMessages)
-    ? (input.branchMessages as Message[])
-    : [];
-  const branchHasIds =
-    branch.length > 0 &&
-    branch.every(
-      (message) =>
-        typeof message?.id === "string" &&
-        message.id.length > 0 &&
-        (message.role === "user" || message.role === "assistant"),
-    );
-
-  if (branchHasIds) {
-    // Dedupe by id while preserving order — guards against corrupt trees.
-    const seen = new Set<string>();
-    const deduped: Message[] = [];
-    for (const message of branch) {
-      if (seen.has(message.id)) continue;
-      seen.add(message.id);
-      deduped.push(enrichMessageAgentUi(message));
-    }
-    return deduped;
-  }
-
-  return input.apiMessages.map(enrichMessageAgentUi);
+  return overlayBranchMessagesOnPage({
+    pageMessages: input.apiMessages,
+    branchMessages: input.branchMessages,
+  });
 }

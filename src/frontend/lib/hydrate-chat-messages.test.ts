@@ -2,12 +2,46 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   hydrateMessageFromContentJson,
+  overlayBranchMessagesOnPage,
   resolveHydratedChatMessages,
 } from "@/frontend/lib/hydrate-chat-messages";
 import type { Message } from "@/frontend/lib/types";
 
 describe("hydrate-chat-messages", () => {
-  it("ignores branch trees that lost message ids", () => {
+  it("overlays branch edits only onto loaded page ids", () => {
+    const apiMessages: Message[] = [
+      { id: "u1", role: "user", content: "hi" },
+      { id: "a1", role: "assistant", content: "hello" },
+    ];
+    const hydrated = overlayBranchMessagesOnPage({
+      pageMessages: apiMessages,
+      branchMessages: [
+        {
+          id: "a1",
+          role: "assistant",
+          content: "hello edited",
+          agentMode: true,
+          agentFrames: [
+            {
+              id: "f1",
+              complete: true,
+              startedAtMs: 1,
+              segments: [],
+            },
+          ],
+        },
+        // Extra branch history must not expand the page.
+        { id: "old-u", role: "user", content: "ancient" },
+        { id: "old-a", role: "assistant", content: "ancient reply" },
+      ],
+    });
+    assert.equal(hydrated.length, 2);
+    assert.equal(hydrated[0]?.id, "u1");
+    assert.equal(hydrated[1]?.content, "hello edited");
+    assert.equal(hydrated[1]?.agentMode, true);
+  });
+
+  it("resolveHydratedChatMessages prefers page length over branch blob", () => {
     const apiMessages: Message[] = [
       { id: "u1", role: "user", content: "hi" },
       { id: "a1", role: "assistant", content: "hello" },
@@ -15,14 +49,12 @@ describe("hydrate-chat-messages", () => {
     const hydrated = resolveHydratedChatMessages({
       apiMessages,
       branchMessages: [
-        { role: "user", content: "hi" },
-        { role: "assistant", content: "hello" },
-        { role: "assistant", content: "hello" },
+        { id: "u1", role: "user", content: "hi" },
+        { id: "a1", role: "assistant", content: "hello" },
+        { id: "a1-dup", role: "assistant", content: "hello" },
       ],
     });
     assert.equal(hydrated.length, 2);
-    assert.equal(hydrated[0]?.id, "u1");
-    assert.equal(hydrated[1]?.id, "a1");
   });
 
   it("hydrates thinking + tools from Cursor content_json", () => {

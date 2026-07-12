@@ -26,13 +26,11 @@ import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility
 import { useMessageEnterAnimation } from "@/frontend/hooks/use-message-enter-animation";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { useIsMobile } from "@/frontend/hooks/use-mobile";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
-/** Mount only the latest few user/assistant pairs by default; older turns load on upward scroll. */
-const INITIAL_RENDERED_TURNS = 3;
-const RENDER_MORE_TURNS = 1;
+/** Trigger server keyset fetch when the viewport is this close to the top. */
 const LOAD_OLDER_SCROLL_THRESHOLD_PX = 96;
-const LOAD_OLDER_SHIMMER_MS = 180;
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
 
 function messageAnchorId(messageId: string) {
@@ -57,6 +55,10 @@ interface ConversationThreadProps {
   isFastScrolling?: boolean;
   /** Throttle sticky observers while the model is streaming. */
   isGenerating?: boolean;
+  /** Server keyset: more history exists above the loaded window. */
+  hasMoreMessages?: boolean;
+  isLoadingOlderMessages?: boolean;
+  onLoadOlderMessages?: () => Promise<boolean>;
 }
 
 type ConversationTurnGroup = {
@@ -931,6 +933,9 @@ export function ConversationThread({
   conversationKey,
   isFastScrolling: isFastScrollingProp = false,
   isGenerating: isGeneratingProp = false,
+  hasMoreMessages = false,
+  isLoadingOlderMessages = false,
+  onLoadOlderMessages,
 }: ConversationThreadProps) {
   const [editingMessageId, setEditingMessageId] = React.useState<string | null>(
     null,
@@ -1122,34 +1127,6 @@ export function ConversationThread({
     () => groupMessagesIntoTurns(messages),
     [messages],
   );
-  const [visibleTurnCount, setVisibleTurnCount] = React.useState(
-    INITIAL_RENDERED_TURNS,
-  );
-  const [isLoadingOlder, setIsLoadingOlder] = React.useState(false);
-  const latestTurnKey =
-    groups[groups.length - 1]?.userMessage?.id ??
-    groups[groups.length - 1]?.assistantMessages.at(-1)?.id ??
-    "empty";
-
-  React.useEffect(() => {
-    // Switching chats or sending a new user turn should snap the DOM window
-    // back to the recent tail. This keeps the sent message + streaming
-    // assistant mounted immediately instead of leaving the user in an old,
-    // expanded history window.
-    setVisibleTurnCount(INITIAL_RENDERED_TURNS);
-    setIsLoadingOlder(false);
-  }, [conversationKey, latestTurnKey]);
-
-  const effectiveVisibleTurnCount = Math.min(groups.length, visibleTurnCount);
-  const firstRenderedTurnIndex = Math.max(
-    0,
-    groups.length - effectiveVisibleTurnCount,
-  );
-  const renderedGroups = React.useMemo(
-    () => groups.slice(firstRenderedTurnIndex),
-    [groups, firstRenderedTurnIndex],
-  );
-  const hasHiddenOlderTurns = firstRenderedTurnIndex > 0;
 
   const stickyStreamKey = React.useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -1173,7 +1150,8 @@ export function ConversationThread({
     scrollHeight: number;
     scrollTop: number;
   } | null>(null);
-  const loadOlderTimerRef = React.useRef<number | null>(null);
+  const loadingOlderRef = React.useRef(false);
+  const prevGroupCountRef = React.useRef(groups.length);
 
   const getScrollElement = React.useCallback(() => {
     if (scrollAreaRef?.current) {
@@ -1186,9 +1164,20 @@ export function ConversationThread({
     return listRef.current;
   }, [scrollAreaRef]);
 
+  const virtualizer = useVirtualizer({
+    count: groups.length,
+    getScrollElement,
+    estimateSize: () => 280,
+    overscan: 3,
+    getItemKey: (index) =>
+      groups[index]?.userMessage?.id ??
+      groups[index]?.assistantMessages[0]?.id ??
+      `turn-${index}`,
+  });
+
   React.useEffect(() => {
     const viewport = getScrollElement();
-    if (!viewport || groups.length <= INITIAL_RENDERED_TURNS) return;
+    if (!viewport || !onLoadOlderMessages) return;
 
     let raf = 0;
     const maybeLoadOlder = () => {
@@ -1196,51 +1185,47 @@ export function ConversationThread({
       raf = requestAnimationFrame(() => {
         raf = 0;
         if (viewport.scrollTop > LOAD_OLDER_SCROLL_THRESHOLD_PX) return;
-        if (firstRenderedTurnIndex <= 0) return;
-        if (isLoadingOlder || loadOlderTimerRef.current != null) return;
-
-        setIsLoadingOlder(true);
-        loadOlderTimerRef.current = window.setTimeout(() => {
-          pendingPrependAdjustmentRef.current = {
-            scrollHeight: viewport.scrollHeight,
-            scrollTop: viewport.scrollTop,
-          };
-          setVisibleTurnCount((count) =>
-            Math.min(groups.length, count + RENDER_MORE_TURNS),
-          );
-          setIsLoadingOlder(false);
-          loadOlderTimerRef.current = null;
-        }, LOAD_OLDER_SHIMMER_MS);
+        if (!hasMoreMessages || isLoadingOlderMessages || loadingOlderRef.current) {
+          return;
+        }
+        loadingOlderRef.current = true;
+        pendingPrependAdjustmentRef.current = {
+          scrollHeight: viewport.scrollHeight,
+          scrollTop: viewport.scrollTop,
+        };
+        void onLoadOlderMessages().finally(() => {
+          loadingOlderRef.current = false;
+        });
       });
     };
 
     viewport.addEventListener("scroll", maybeLoadOlder, { passive: true });
-
     return () => {
       viewport.removeEventListener("scroll", maybeLoadOlder);
       if (raf !== 0) cancelAnimationFrame(raf);
-      if (loadOlderTimerRef.current != null) {
-        window.clearTimeout(loadOlderTimerRef.current);
-        loadOlderTimerRef.current = null;
-      }
     };
-  }, [firstRenderedTurnIndex, getScrollElement, groups.length, isLoadingOlder]);
+  }, [
+    getScrollElement,
+    hasMoreMessages,
+    isLoadingOlderMessages,
+    onLoadOlderMessages,
+  ]);
 
   React.useLayoutEffect(() => {
+    const grewAtTop = groups.length > prevGroupCountRef.current;
+    prevGroupCountRef.current = groups.length;
     const pending = pendingPrependAdjustmentRef.current;
-    if (!pending) return;
+    if (!pending || !grewAtTop) return;
     const viewport = getScrollElement();
     pendingPrependAdjustmentRef.current = null;
     if (!viewport) return;
 
-    // Preserve what the user was reading when older turns are prepended.
-    // Without this, loading history at the top shifts the viewport downward.
     const delta = viewport.scrollHeight - pending.scrollHeight;
     if (delta > 0) {
       viewport.scrollTop = pending.scrollTop + delta;
     }
     stickySyncRef.current?.();
-  }, [getScrollElement, firstRenderedTurnIndex]);
+  }, [getScrollElement, groups.length]);
 
   React.useLayoutEffect(() => {
     resetStickyTurnCache();
@@ -1306,7 +1291,6 @@ export function ConversationThread({
       resizeObserver.observe(host);
     });
 
-    // characterData on every streamed token forced sticky resyncs at token rate.
     const mutationObserver = new MutationObserver(() => scheduleSync(false));
     mutationObserver.observe(content, {
       childList: true,
@@ -1332,9 +1316,8 @@ export function ConversationThread({
     getScrollElement,
     groups.length,
     conversationKey,
-    firstRenderedTurnIndex,
-    effectiveVisibleTurnCount,
     isGeneratingProp,
+    virtualizer.range,
   ]);
 
   React.useEffect(() => {
@@ -1358,22 +1341,25 @@ export function ConversationThread({
     onToggleMoreMenu: toggleMoreMenu,
   };
 
+  const virtualItems = virtualizer.getVirtualItems();
+
   return (
     <div
       ref={listRef}
       className={cn(
-        "flex w-full min-w-0 max-w-full flex-col gap-4 px-0 pt-5 pb-5 sm:gap-6 sm:px-0 sm:pt-10 sm:pb-8",
+        "relative w-full min-w-0 max-w-full px-0 pt-5 pb-5 sm:px-0 sm:pt-10 sm:pb-8",
         className,
       )}
       data-virtual-scroll
       data-fast-scrolling={isFastScrollingProp || undefined}
+      style={{ height: Math.max(virtualizer.getTotalSize(), 1) }}
     >
-      {hasHiddenOlderTurns ? (
+      {hasMoreMessages ? (
         <div
-          className="flex flex-col items-center gap-2 py-1 text-[11px] font-medium text-zinc-400"
+          className="absolute left-0 right-0 top-0 z-10 flex flex-col items-center gap-2 py-1 text-[11px] font-medium text-zinc-400"
           aria-hidden
         >
-          {isLoadingOlder ? (
+          {isLoadingOlderMessages ? (
             <>
               <div className="h-3 w-32 rounded-full bg-zinc-100 shimmer-bg" />
               <div className="h-3 w-20 rounded-full bg-zinc-100 shimmer-bg" />
@@ -1384,29 +1370,40 @@ export function ConversationThread({
         </div>
       ) : null}
 
-      {renderedGroups.map((group, offset) => {
-        const index = firstRenderedTurnIndex + offset;
+      {virtualItems.map((virtualRow) => {
+        const group = groups[virtualRow.index];
+        if (!group) return null;
         return (
-          <ConversationTurn
-            key={group.userMessage?.id || `turn-${index}`}
-            turnIndex={index}
-            userMessage={group.userMessage}
-            assistantMessages={group.assistantMessages}
-            editValue={
-              editingMessageId === group.userMessage?.id
-                ? editValue
-                : undefined
-            }
-            {...turnProps}
-          />
+          <div
+            key={virtualRow.key}
+            data-index={virtualRow.index}
+            ref={virtualizer.measureElement}
+            className="absolute left-0 top-0 w-full min-w-0"
+            style={{
+              transform: `translateY(${virtualRow.start}px)`,
+            }}
+          >
+            <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-6">
+              <ConversationTurn
+                turnIndex={virtualRow.index}
+                userMessage={group.userMessage}
+                assistantMessages={group.assistantMessages}
+                editValue={
+                  editingMessageId === group.userMessage?.id
+                    ? editValue
+                    : undefined
+                }
+                {...turnProps}
+              />
+            </div>
+          </div>
         );
       })}
       <div
-        className="chat-thread-scroll-anchor h-px w-full shrink-0"
+        className="chat-thread-scroll-anchor absolute bottom-0 left-0 h-px w-full shrink-0"
         aria-hidden
       />
 
-      {/* Desktop-only floating selection action bar (appears near highlighted text in assistant answers) */}
       {selectionMenu &&
         !isMobile &&
         createPortal(
@@ -1505,3 +1502,4 @@ export function ConversationThread({
     </div>
   );
 }
+

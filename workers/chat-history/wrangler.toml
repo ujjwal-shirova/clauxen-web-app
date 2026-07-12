@@ -1,0 +1,20 @@
+name = "clauxen-chat-history"
+main = "src/index.ts"
+compatibility_date = "2025-02-04"
+compatibility_flags = ["nodejs_compat"]
+
+# Place near Supabase (us-west-1) for low query latency.
+[placement]
+region = "wnam"
+
+[vars]
+# SUPABASE_URL / SUPABASE_ANON_KEY set via wrangler secret
+LATEST_PAGE_CACHE_TTL_SECONDS = "10"
+
+# Create with:
+#   npx wrangler hyperdrive create clauxen-supabase --connection-string="$DATABASE_URL"
+# Then paste the id below.
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "00000000000000000000000000000000"
+localConnectionString = "postgres://postgres:postgres@127.0.0.1:5432/postgres"
