@@ -1,0 +1,14 @@
+---
+description: Always load project brain memory before acting; update when user shares durable facts
+alwaysApply: true
+---
+
+# Brain memory (always on)
+
+Before starting non-trivial work in this repo:
+
+1. **Read** `brain/MEMORY.md` with the Read tool (even after context summarization).
+2. Treat facts there as source of truth for project preferences, decisions, and gotchas.
+3. When the user says to remember something, shares a durable preference/decision, or you discover a lasting gotcha — **update** `brain/MEMORY.md` (or use the `brain-memory` skill / CLI).
+4. Keep entries short, dated, and factual. Do not dump chat transcripts.
+5. Do not store secrets (tokens, passwords, private keys) in memory.

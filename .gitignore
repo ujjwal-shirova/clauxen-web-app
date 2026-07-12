@@ -13,7 +13,13 @@ supabase/functions/.env
 # Legacy — do not recreate
 
 .vercel/
-.cursor/
+# Ignore Cursor local state, but keep brain-memory rule + skill
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/brain-memory.mdc
+!.cursor/skills/
+!.cursor/skills/brain-memory/
+!.cursor/skills/brain-memory/**
 .tools/
 tsconfig.tsbuildinfo
 
