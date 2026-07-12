@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Projects - Clauxen",
+  title: "Library - Clauxen",
 };
 
-export default function ProjectsLayout({
+export default function LibraryLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return children;
 }

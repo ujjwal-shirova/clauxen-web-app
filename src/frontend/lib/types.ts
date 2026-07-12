@@ -45,6 +45,8 @@ export type RecentChat = {
   readonly updatedAt?: number;
   readonly projectId?: string | null;
   readonly pinned?: boolean;
+  /** Sidebar placeholder while the server allocates a unique chat id. */
+  readonly isCreating?: boolean;
 };
 
 export type TextSize = "small" | "medium" | "large";

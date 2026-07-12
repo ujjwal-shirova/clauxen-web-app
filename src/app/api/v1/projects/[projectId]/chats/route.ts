@@ -7,8 +7,9 @@ import { requireSession } from "@/backend/auth/require-session"; // null session
 import * as projectsRepo from "@/backend/repositories/projects.repository"; // project lookup — user_id scoped
 import * as chatsRepo from "@/backend/repositories/chats.repository"; // chat update — project_id column set
 import { AppError, notFound } from "@/backend/db/errors"; // 400 validation, 404 missing resources
+import { requireChatIdParam } from "@/backend/http/chat-id";
 
-// UUID shape — malformed ids fail fast with 400 instead of database_error 500
+// UUID shape — malformed project ids fail fast with 400 instead of database_error 500
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -31,9 +32,7 @@ export const POST = withApiRouteParams<{ projectId: string }>(
     if (!chatId) {
       throw new AppError("chatId is required.", 400);
     }
-    if (!UUID_RE.test(chatId)) {
-      throw new AppError("Invalid chat id.", 400, "bad_request");
-    }
+    requireChatIdParam(chatId);
 
     const chat = await chatsRepo.updateChat(chatId, user.id, {
       projectId: params.projectId, // chats.project_id column update — sidebar project grouping

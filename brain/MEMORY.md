@@ -41,7 +41,8 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
-| 2026-07-12 | Instant overlays via pushState + body portal | Avoid RSC delay and transform-trapped fixed positioning |
+| 2026-07-12 | Chat ids use long-form text IDs (`generateChatId`) verified unique in DB | Shareable ChatGPT-style `/c/...` URLs |
+| 2026-07-12 | Browser tab titles use hyphen (`New chat - Clauxen`) and update live | Match product UX; middle-dot was hard to read |
 
 ---
 
@@ -73,7 +74,10 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Prefer path routes (`/upgrade`, `/settings/general`) over hash overlays (`#pricing`) — hash + Next soft-nav caused hydration mismatches.
 - Canonical new-chat URL is `/new` (`/` redirects there). Overlay surfaces live as real routes under `(main)`.
 - Overlay open must be instant: `AppOverlaysProvider` uses `history.pushState` + local state (not blocking `router.push`). Host via `AppOverlayHost` + `FullscreenPortal` to `document.body` because `.agent-panel` uses `transform: translateZ(0)` which traps `position: fixed`.
+- Main surfaces (library/projects/customize/chats) use `useInstantNavigate` (pushState + soft Next sync).
+- New-chat send: keep showing chat-view once messages/activeChatId exist (don’t blank while still on `/new`); sidebar shows shimmer until chat id + first message land; tab is brand-only (`Clauxen`) until a real title exists.
 - Checkout UPI is INR-only; geo USD can wrongly hide it — prefer browser India heuristic; use local UPI/card SVG icons (no Stripe/logo CDNs).
+- `chats.id` is `text` (custom long ids + legacy UUID strings). Validate with `requireChatIdParam`.
 
 ---
 

@@ -103,6 +103,7 @@ interface SidebarProps {
   activeView?: string;
   recentChats: RecentChat[];
   activeChatId: string | null;
+  creatingChatPending?: boolean;
   onSelectChat: (chat: RecentChat) => void;
   onDeleteChat?: (chatId: string) => void;
   onRenameChat?: (chatId: string, newName: string) => void;
@@ -134,6 +135,7 @@ export function Sidebar({
   activeView,
   recentChats,
   activeChatId,
+  creatingChatPending = false,
   onSelectChat,
   onDeleteChat,
   onRenameChat,
@@ -506,6 +508,14 @@ export function Sidebar({
                 />
               </div>
               <div className="mt-1 space-y-2">
+                {creatingChatPending ? (
+                  <div
+                    className="mx-0.5 h-7 overflow-hidden rounded-md"
+                    aria-hidden
+                  >
+                    <div className="h-full w-full shimmer-bg rounded-md" />
+                  </div>
+                ) : null}
                 {groupedChats.map((group) => (
                   <div key={group.label || "all"}>
                     {group.label ? (

@@ -29,7 +29,7 @@ export default function AboutPage() {
           About Clauxen
         </h1>
         <p className="mt-2 text-sm text-zinc-500">
-          Operated by Shirova AI · clauxen.com
+          Operated by Shirova AI - clauxen.com
         </p>
 
         <div className="mt-8 space-y-6 text-[15px] leading-relaxed text-zinc-700">
@@ -92,14 +92,14 @@ export default function AboutPage() {
           >
             Privacy Policy
           </Link>
-          {" · "}
+          {" - "}
           <Link
             href="/legal/terms"
             className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900"
           >
             Terms of Service
           </Link>
-          {" · "}
+          {" - "}
           <a
             href="mailto:support@clauxen.com"
             className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900"

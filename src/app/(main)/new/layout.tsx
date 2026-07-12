@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "New chat · Clauxen",
+  title: "New chat - Clauxen",
 };
 
 export default function NewChatLayout({

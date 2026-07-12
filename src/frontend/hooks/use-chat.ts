@@ -1352,6 +1352,7 @@ function useLocalChat(
     startedRecentChats,
     activeChat,
     isGenerating,
+    creatingChatPending: false as boolean,
     activeChatId,
     startNewChat,
     handleSendMessage,

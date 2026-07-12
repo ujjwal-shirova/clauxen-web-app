@@ -3,17 +3,10 @@ import { jsonData } from "@/backend/http/api-response"; // { data } success enve
 import { requireSession } from "@/backend/auth/require-session"; // null session → 401
 import * as chatsRepo from "@/backend/repositories/chats.repository"; // PATCH/DELETE — direct chat row updates
 import * as chatService from "@/backend/services/chat.service";
-import { AppError, notFound } from "@/backend/db/errors";
+import { notFound } from "@/backend/db/errors";
+import { requireChatIdParam } from "@/backend/http/chat-id";
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_CHAT_TITLE_LENGTH = 200;
-
-function requireChatId(chatId: string) {
-  if (!UUID_RE.test(chatId)) {
-    throw new AppError("Invalid chat id.", 400, "bad_request");
-  }
-}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const GET = withApiRouteParams<{ chatId: string }>(
   async ({ session, params }) => {
     const user = requireSession(session); // authenticated user id
-    requireChatId(params.chatId);
+    requireChatIdParam(params.chatId);
     const data = await chatService.getChatWithMessages(params.chatId, user.id); // ownership check + messages fetch
     return jsonData(data);
   },
@@ -46,7 +39,7 @@ export const PATCH = withApiRouteParams<{ chatId: string }>(
 export const DELETE = withApiRouteParams<{ chatId: string }>(
   async ({ session, params }) => {
     const user = requireSession(session);
-    requireChatId(params.chatId);
+    requireChatIdParam(params.chatId);
     await chatsRepo.deleteChat(params.chatId, user.id);
     return jsonData({ ok: true }); // success confirmation, body minimal
   },

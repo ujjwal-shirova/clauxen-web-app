@@ -29,6 +29,8 @@ import {
   AppOverlaysProvider,
   useAppOverlays,
 } from "@/frontend/hooks/use-app-overlays";
+import { useInstantNavigate } from "@/frontend/hooks/use-instant-navigate";
+import { useDocumentTitle } from "@/frontend/hooks/use-document-title";
 import { APP_ROUTES } from "@/frontend/lib/app-routes";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
@@ -51,6 +53,7 @@ function shouldMobileFullBleed(pathname: string | null): boolean {
 function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const instantNavigate = useInstantNavigate();
   const auth = useAuth();
   const { toast } = useToast();
   const {
@@ -59,6 +62,8 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     setIsSidebarCollapsed,
     sidebarHydrated,
   } = useSidebarState();
+
+  useDocumentTitle();
 
   // Client auth gate — middleware is primary; this catches JWT-less shells.
   React.useEffect(() => {
@@ -72,6 +77,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const {
     startedRecentChats,
     activeChatId,
+    creatingChatPending,
     handleSelectChat,
     handleDeleteChat,
     handleRenameChat,
@@ -97,27 +103,27 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       overlays.closeOverlay();
       return;
     }
-    router.push(APP_ROUTES.newChat, { scroll: false });
-  }, [startNewChat, closeMobileNav, overlays, router]);
+    instantNavigate(APP_ROUTES.newChat, { replace: true });
+  }, [startNewChat, closeMobileNav, overlays, instantNavigate]);
 
   const goToLibrary = useCallback(() => {
-    router.push(APP_ROUTES.library);
+    instantNavigate(APP_ROUTES.library);
     closeMobileNav();
-  }, [router, closeMobileNav]);
+  }, [instantNavigate, closeMobileNav]);
 
   const goToProjects = useCallback(() => {
-    router.push(APP_ROUTES.projects);
+    instantNavigate(APP_ROUTES.projects);
     closeMobileNav();
-  }, [router, closeMobileNav]);
+  }, [instantNavigate, closeMobileNav]);
 
   const goToCustomize = useCallback(() => {
-    router.push(APP_ROUTES.customize);
+    instantNavigate(APP_ROUTES.customize);
     closeMobileNav();
-  }, [router, closeMobileNav]);
+  }, [instantNavigate, closeMobileNav]);
 
   const goToHistory = useCallback(() => {
     if (!activeChatId) {
-      router.push(APP_ROUTES.newChat);
+      instantNavigate(APP_ROUTES.newChat);
       closeMobileNav();
       return;
     }
@@ -125,9 +131,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     const target = entry?.projectId
       ? APP_ROUTES.projectConversation(entry.projectId, activeChatId)
       : APP_ROUTES.chat(activeChatId);
-    router.push(target);
+    instantNavigate(target);
     closeMobileNav();
-  }, [router, activeChatId, closeMobileNav, startedRecentChats]);
+  }, [instantNavigate, activeChatId, closeMobileNav, startedRecentChats]);
 
   const onSelectChatFromSidebar = useCallback(
     (chatEntry: RecentChat) => {
@@ -135,10 +141,10 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       const target = chatEntry.projectId
         ? APP_ROUTES.projectConversation(chatEntry.projectId, chatEntry.id)
         : APP_ROUTES.chat(chatEntry.id);
-      router.push(target);
+      instantNavigate(target);
       closeMobileNav();
     },
-    [handleSelectChat, router, closeMobileNav],
+    [handleSelectChat, instantNavigate, closeMobileNav],
   );
 
   const onUpgradeClick = useCallback(() => {
@@ -250,6 +256,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         activeView={computeActiveViewFromPath(pathname)}
         recentChats={startedRecentChats}
         activeChatId={sidebarActiveChatId}
+        creatingChatPending={creatingChatPending}
         onSelectChat={onSelectChatFromSidebar}
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}

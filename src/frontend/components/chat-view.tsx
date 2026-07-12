@@ -9,6 +9,7 @@ import { useAuth } from "@/frontend/hooks/use-auth";
 import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
 import { useAppLayout } from "@/frontend/components/app-layout-context";
 import { APP_ROUTES, isNewChatPath } from "@/frontend/lib/app-routes";
+import { useDocumentTitle } from "@/frontend/hooks/use-document-title";
 import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,
@@ -87,43 +88,64 @@ function ChatViewBody({
   } = chat;
 
   const routeChatId = getRouteChatId(pathname);
-  const isNewChatHome = !projectId && isNewChatPath(pathname);
+  // Keep showing the live conversation as soon as a chat id / messages exist,
+  // even before Next finishes soft-navigating off /new.
+  const blankNewChatComposer =
+    !projectId &&
+    isNewChatPath(pathname) &&
+    !activeChatId &&
+    messages.length === 0;
 
   useEffect(() => {
     if (routeChatId) {
       void handleSelectChat(routeChatId);
       return;
     }
-    if (isNewChatHome) {
+    if (blankNewChatComposer) {
       startNewChat();
     }
-  }, [routeChatId, isNewChatHome, handleSelectChat, startNewChat]);
+  }, [routeChatId, blankNewChatComposer, handleSelectChat, startNewChat]);
 
   const handleSendMessageAndRoute = useCallback(
     async (prompt: string) => {
       const chatId = await handleSendMessage(prompt, {
-        forceNewChat: isNewChatHome,
+        forceNewChat: blankNewChatComposer,
       });
       if (!chatId) return;
 
       if (projectId) {
-        router.replace(APP_ROUTES.projectConversation(projectId, chatId), {
-          scroll: false,
-        });
+        const target = APP_ROUTES.projectConversation(projectId, chatId);
+        if (typeof window !== "undefined") {
+          window.history.replaceState(window.history.state, "", target);
+        }
+        router.replace(target, { scroll: false });
         return;
       }
 
-      if (isNewChatHome) {
-        router.replace(APP_ROUTES.chat(chatId), { scroll: false });
+      if (blankNewChatComposer || isNewChatPath(pathname)) {
+        const target = APP_ROUTES.chat(chatId);
+        if (typeof window !== "undefined") {
+          window.history.replaceState(window.history.state, "", target);
+        }
+        router.replace(target, { scroll: false });
       }
     },
-    [handleSendMessage, isNewChatHome, projectId, router],
+    [handleSendMessage, blankNewChatComposer, projectId, pathname, router],
   );
 
-  // On home, always show a blank new-chat composer until the user sends.
-  const displayMessages = isNewChatHome ? [] : messages;
-  const displayActiveChatId = isNewChatHome ? null : activeChatId;
-  const displayActiveChat = isNewChatHome ? null : activeChat;
+  const displayMessages = blankNewChatComposer ? [] : messages;
+  const displayActiveChatId = blankNewChatComposer ? null : activeChatId;
+  const displayActiveChat = blankNewChatComposer ? null : activeChat;
+
+  const brandOnlyTab =
+    !blankNewChatComposer &&
+    isGenerating &&
+    (!displayActiveChat?.name ||
+      /^new chat$/i.test(displayActiveChat.name.trim()));
+
+  useDocumentTitle(displayActiveChat?.name ?? null, {
+    brandOnly: brandOnlyTab,
+  });
 
   return (
     <ChatArea

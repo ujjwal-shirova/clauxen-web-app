@@ -101,6 +101,7 @@ export function useChatApi(
     useChatStore.getState().setIsGenerating(value);
   }, []);
   const [loading, setLoading] = useState(false);
+  const [creatingChatPending, setCreatingChatPending] = useState(false);
   const allChatsRef = useRef<Record<string, Message[]>>({});
   const recentChatsRef = useRef<RecentChat[]>([]);
   const branchPersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -645,67 +646,71 @@ export function useChatApi(
   );
 
   const handleSendMessage = useCallback(
-    async (prompt: string): Promise<string | null> => {
+    async (
+      prompt: string,
+      options?: { forceNewChat?: boolean },
+    ): Promise<string | null> => {
       if (!prompt.trim() || isGenerating) return null;
 
-      let chatId = activeChatId;
+      let chatId = options?.forceNewChat ? null : activeChatId;
       const isNewChat = !chatId;
       if (!chatId) {
-        const { chat } = await chatsApi.createChat({
-          title: "New chat",
-          projectId: projectIdFilter ?? undefined,
-        });
-        chatId = chat.id;
-        setActiveChatId(chatId);
-        setRecentChats((prev) => {
-          const next = [
-            {
-              id: chat.id,
-              name: chat.title,
-              titleGenerated: false,
-              projectId: projectIdFilter ?? undefined,
-              updatedAt: Date.now(),
-            },
-            ...prev,
-          ];
-          recentChatsRef.current = next;
-          return next;
-        });
-        setAllChats((prev) => ({ ...prev, [chatId!]: [] }));
+        setCreatingChatPending(true);
       }
+      try {
+        if (!chatId) {
+          const { chat } = await chatsApi.createChat({
+            title: "New chat",
+            projectId: projectIdFilter ?? undefined,
+          });
+          chatId = chat.id;
+          setActiveChatId(chatId);
+          setRecentChats((prev) => {
+            const next = [
+              {
+                id: chat.id,
+                name: chat.title || "New chat",
+                titleGenerated: false,
+                projectId: projectIdFilter ?? undefined,
+                updatedAt: Date.now(),
+              },
+              ...prev.filter((c) => c.id !== chat.id),
+            ];
+            recentChatsRef.current = next;
+            return next;
+          });
+          setAllChats((prev) => ({ ...prev, [chatId!]: [] }));
+        }
 
-      const { message: saved } = await chatsApi.appendMessage(
-        chatId!,
-        prompt.trim(),
-      );
-      const userMessage = mapApiMessage(saved);
+        const { message: saved } = await chatsApi.appendMessage(
+          chatId!,
+          prompt.trim(),
+        );
+        const userMessage = mapApiMessage(saved);
 
-      const priorMessages = allChatsRef.current[chatId!] ?? [];
-      const conversation = buildConversation([...priorMessages, userMessage]);
+        const priorMessages = allChatsRef.current[chatId!] ?? [];
+        const conversation = buildConversation([...priorMessages, userMessage]);
 
-      setAllChats((prev) => ({
-        ...prev,
-        [chatId!]: [...(prev[chatId!] ?? []), userMessage],
-      }));
+        setAllChats((prev) => ({
+          ...prev,
+          [chatId!]: [...(prev[chatId!] ?? []), userMessage],
+        }));
 
-      setIsGenerating(true);
-      // Fire-and-forget: the stream patches the global chat store, so the
-      // caller (e.g. the project home) can navigate to the conversation route
-      // immediately and watch the generation continue there — same handoff as
-      // the local chat path. streamAssistantResponse owns isGenerating/state
-      // cleanup via its finally.
-      void streamAssistantResponse(
-        chatId!,
-        conversation,
-        isNewChat ? prompt.trim() : undefined,
-      );
+        setIsGenerating(true);
+        void streamAssistantResponse(
+          chatId!,
+          conversation,
+          isNewChat ? prompt.trim() : undefined,
+        );
 
-      return chatId;
+        return chatId;
+      } finally {
+        if (isNewChat) setCreatingChatPending(false);
+      }
     },
     [
       activeChatId,
       isGenerating,
-      maybeGenerateChatTitle,
       projectIdFilter,
       streamAssistantResponse,
     ],
@@ -937,6 +942,7 @@ export function useChatApi(
     activeChatId,
     isGenerating,
     loading,
+    creatingChatPending,
     handleSendMessage,
     stopGeneration,
     startNewChat,

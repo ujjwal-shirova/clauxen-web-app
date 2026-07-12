@@ -7,6 +7,8 @@ import { SkillsView } from "./customize/skills/view";
 import { ConnectorsView } from "./customize/connectors/view";
 import { useAppLayout } from "@/frontend/components/app-layout-context";
 import { MobileMenuButton } from "@/frontend/components/mobile-menu-button";
+import { useInstantNavigate } from "@/frontend/hooks/use-instant-navigate";
+import { useDocumentTitle } from "@/frontend/hooks/use-document-title";
 
 interface CustomizePageProps {
   onClose: () => void;
@@ -23,15 +25,29 @@ export function CustomizePage({
   onClose,
   initialTab = null,
 }: CustomizePageProps) {
+  const instantNavigate = useInstantNavigate();
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
   const [activeTab, setActiveTab] = useState<"skills" | "connectors" | null>(
     initialTab,
   ); // null = landing; skills/connectors = child view
   const [mobileInDetail, setMobileInDetail] = useState(false);
 
+  useDocumentTitle();
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   useEffect(() => {
     setMobileInDetail(false);
   }, [activeTab]);
+
+  const openTab = (tab: "skills" | "connectors") => {
+    setActiveTab(tab);
+    instantNavigate(
+      tab === "skills" ? "/customize/skills" : "/customize/connectors",
+    );
+  };
 
   const ToolboxIcon = () => (
     // inline SVG illustration — landing hero toolbox graphic
@@ -88,7 +104,7 @@ export function CustomizePage({
             <button
               key={id}
               type="button"
-              onClick={() => setActiveTab(id)}
+              onClick={() => openTab(id)}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-4 py-2 text-left text-[14px] transition-all duration-150",
                 activeTab === id
@@ -134,7 +150,7 @@ export function CustomizePage({
               <button
                 key={id}
                 type="button"
-                onClick={() => setActiveTab(id)}
+                onClick={() => openTab(id)}
                 className={cn(
                   "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors",
                   activeTab === id
@@ -164,13 +180,13 @@ export function CustomizePage({
                 <div className="flex w-full flex-col gap-1">
                   <button
                     type="button"
-                    onClick={() => setActiveTab("connectors")}
+                    onClick={() => openTab("connectors")}
                     className="group flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all hover:bg-black/[0.02] sm:gap-4"
                   >
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 transition-transform group-hover:scale-105 sm:h-12 sm:w-12">
                       <Boxes className="icon-2xl icon-primary" />
                     </div>
-                    <div className="min-w-0 flex-1 flex-col gap-0.5">
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="text-[15px] font-semibold text-zinc-900 sm:text-[16px]">
                         Connect your tools
                       </span>
@@ -185,13 +201,13 @@ export function CustomizePage({
 
                   <button
                     type="button"
-                    onClick={() => setActiveTab("skills")}
+                    onClick={() => openTab("skills")}
                     className="group flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all hover:bg-black/[0.02] sm:gap-4"
                   >
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 transition-transform group-hover:scale-105 sm:h-12 sm:w-12">
                       <BookOpen className="icon-2xl icon-primary" />
                     </div>
-                    <div className="min-w-0 flex-1 flex-col gap-0.5">
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="text-[15px] font-semibold text-zinc-900 sm:text-[16px]">
                         Create new skills
                       </span>

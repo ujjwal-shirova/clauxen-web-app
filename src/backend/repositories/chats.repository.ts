@@ -1,4 +1,5 @@
 import { query, queryOne } from "@/backend/db/pool";
+import { generateChatId } from "@/lib/chat-id";
 
 export type ChatRow = {
   id: string;
@@ -15,6 +16,27 @@ export type ChatRow = {
 
 const DEFAULT_LIST_LIMIT = 50; // sidebar default — recent chats window
 const MAX_LIST_LIMIT = 100;
+
+export async function chatIdExists(chatId: string): Promise<boolean> {
+  const row = await queryOne<{ exists: boolean }>(
+    `select public.chat_id_exists($1) as exists`,
+    [chatId],
+  );
+  return Boolean(row?.exists);
+}
+
+export async function allocateUniqueChatId(
+  existingHints?: Iterable<string>,
+): Promise<string> {
+  const hints = existingHints ? new Set(existingHints) : new Set<string>();
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const id = generateChatId(hints);
+    hints.add(id);
+    if (!(await chatIdExists(id))) return id;
+  }
+  // Extremely unlikely — timestamp suffix forces uniqueness.
+  return `${generateChatId()}-${Date.now().toString(36)}`;
+}
 
 export async function listChatsForUser(
   userId: string,
@@ -59,14 +81,17 @@ export async function createChat(input: {
   title?: string;
   projectId?: string | null;
   workspaceId?: string | null;
+  id?: string;
 }) {
+  const id = input.id ?? (await allocateUniqueChatId());
   return queryOne<ChatRow>(
-    `insert into public.chats (user_id, project_id, workspace_id, title)
-     values ($1, $2, $3, $4)
+    `insert into public.chats (id, user_id, project_id, workspace_id, title)
+     values ($1, $2, $3, $4, $5)
      returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
     [
+      id,
       input.userId,
-      input.projectId ?? null, // unset → SQL NULL — unassigned project
+      input.projectId ?? null,
       input.workspaceId ?? null,
       input.title ?? "New chat",
     ],
