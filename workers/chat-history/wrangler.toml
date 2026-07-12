@@ -2,21 +2,22 @@ name = "clauxen-chat-history"
 main = "src/index.ts"
 compatibility_date = "2025-02-04"
 compatibility_flags = ["nodejs_compat"]
+account_id = "8fc7a67e9057989309921f362784ecf4"
+workers_dev = true
+preview_urls = true
 
 # Place near Supabase (us-west-1) for low query latency.
 [placement]
-region = "wnam"
+region = "aws:us-west-1"
 
 [vars]
 LATEST_PAGE_CACHE_TTL_SECONDS = "10"
 
-# After:
-#   npx wrangler hyperdrive create clauxen-supabase-chat --connection-string="$POSTGRES_URL_NON_POOLING"
-# uncomment and paste the id:
-#
-# [[hyperdrive]]
-# binding = "HYPERDRIVE"
-# id = "<hyperdrive-id>"
-# localConnectionString = "postgres://postgres:postgres@127.0.0.1:5432/postgres"
-#
-# Until Hyperdrive is configured, set secret DATABASE_URL (Supabase non-pooling).
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "54df64d31cce4e6f8f34415c6fb4e849"
+localConnectionString = "postgres://postgres:postgres@127.0.0.1:5432/postgres"
+
+[[kv_namespaces]]
+binding = "CHAT_HISTORY_CACHE"
+id = "8d917e9639df4dc2a12be2a35cf264af"

@@ -7,6 +7,8 @@ export interface Env {
   HYPERDRIVE?: Hyperdrive;
   /** Fallback when Hyperdrive is not bound (local / bootstrap). */
   DATABASE_URL?: string;
+  /** Edge KV cache for latest message pages. */
+  CHAT_HISTORY_CACHE?: KVNamespace;
   LATEST_PAGE_CACHE_TTL_SECONDS?: string;
 }
 
@@ -22,12 +24,19 @@ type MessageRow = {
   has_more: boolean;
 };
 
+const CORS_HEADERS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET,OPTIONS",
+  "access-control-allow-headers": "authorization,content-type",
+  "access-control-max-age": "86400",
+};
+
 function json(data: unknown, status = 200, extraHeaders?: HeadersInit) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "content-type": "application/json",
-      "access-control-allow-origin": "*",
+      ...CORS_HEADERS,
       ...extraHeaders,
     },
   });
@@ -106,22 +115,24 @@ async function fetchMessagesPage(
   }
 }
 
+function kvCacheKey(userId: string, chatId: string, limit: number) {
+  return `latest:${userId}:${chatId}:${limit}`;
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    const url = new URL(request.url);
-
     if (request.method === "OPTIONS") {
-      return new Response(null, {
-        headers: {
-          "access-control-allow-origin": "*",
-          "access-control-allow-methods": "GET,OPTIONS",
-          "access-control-allow-headers": "authorization,content-type",
-        },
-      });
+      return new Response(null, { headers: CORS_HEADERS });
     }
 
+    const url = new URL(request.url);
+
     if (url.pathname === "/health") {
-      return json({ ok: true });
+      return json({
+        ok: true,
+        hyperdrive: Boolean(env.HYPERDRIVE?.connectionString),
+        kv: Boolean(env.CHAT_HISTORY_CACHE),
+      });
     }
 
     const match = url.pathname.match(/^\/v1\/chats\/([^/]+)\/messages$/);
@@ -145,15 +156,35 @@ export default {
       Number(env.LATEST_PAGE_CACHE_TTL_SECONDS ?? "10") || 10,
     );
 
+    const kvKey = kvCacheKey(user.sub, chatId, limit);
+
+    if (isLatestPage && env.CHAT_HISTORY_CACHE) {
+      const cached = await env.CHAT_HISTORY_CACHE.get(kvKey, "json");
+      if (cached) {
+        return json(
+          { data: cached },
+          200,
+          {
+            "cache-control": `private, max-age=${cacheTtl}`,
+            "x-clauxen-cache": "kv-hit",
+          },
+        );
+      }
+    }
+
+    // Secondary Cache API (edge) for same-colo hot reads.
     const cache = caches.default;
     const cacheKey = new Request(
       `https://chat-history.internal/latest/${user.sub}/${chatId}?limit=${limit}`,
       { method: "GET" },
     );
-
     if (isLatestPage) {
       const hit = await cache.match(cacheKey);
-      if (hit) return hit;
+      if (hit) {
+        const headers = new Headers(hit.headers);
+        headers.set("x-clauxen-cache", "cache-api-hit");
+        return new Response(hit.body, { status: hit.status, headers });
+      }
     }
 
     try {
@@ -165,21 +196,31 @@ export default {
         limit,
       });
 
+      const payload = {
+        messages: page.messages,
+        nextCursor: page.nextCursor,
+        hasMore: page.hasMore,
+      };
+
+      if (isLatestPage && env.CHAT_HISTORY_CACHE) {
+        ctx.waitUntil(
+          env.CHAT_HISTORY_CACHE.put(kvKey, JSON.stringify(payload), {
+            expirationTtl: cacheTtl,
+          }),
+        );
+      }
+
       const response = json(
-        {
-          data: {
-            messages: page.messages,
-            nextCursor: page.nextCursor,
-            hasMore: page.hasMore,
-          },
-        },
+        { data: payload },
         200,
         isLatestPage
           ? {
               "cache-control": `private, max-age=${cacheTtl}`,
+              "x-clauxen-cache": "miss",
             }
           : {
               "cache-control": "private, no-store",
+              "x-clauxen-cache": "bypass",
             },
       );
 
