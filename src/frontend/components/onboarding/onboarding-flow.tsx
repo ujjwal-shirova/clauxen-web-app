@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import dynamic from "next/dynamic";
 import {
   DEFAULT_ONBOARDING_STATE,
   type OnboardingState,
@@ -12,6 +11,7 @@ import { DesktopStep } from "./steps/desktop-step";
 import { BeforeChatStep } from "./steps/before-chat-step";
 import { NameStep } from "./steps/name-step";
 import { RoleStep } from "./steps/role-step";
+import { PlanSelectionStep } from "./steps/plan-selection-step";
 import { OnboardingSplash } from "./onboarding-splash";
 import * as onboardingApi from "@/frontend/lib/api/onboarding";
 import * as authApi from "@/frontend/lib/api/auth";
@@ -24,15 +24,6 @@ import {
   pushOnboardingStepHash,
   replaceOnboardingStepHash,
 } from "@/lib/onboarding-steps";
-
-const PlanSelectionStep = dynamic(
-  () =>
-    import("./steps/plan-selection-step").then((m) => m.PlanSelectionStep),
-  {
-    ssr: false,
-    loading: () => <OnboardingSplash message="Loading plans…" />,
-  },
-);
 
 const STEP_ORDER: OnboardingStep[] = [...ONBOARDING_STEPS];
 

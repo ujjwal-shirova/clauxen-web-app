@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import { useChat, type UseChatOptions } from "@/frontend/hooks/use-chat";
 import {
   DEFAULT_CHAT_MODEL_ID,
@@ -22,8 +28,7 @@ const ChatSessionContext = createContext<ChatSessionValue | null>(null);
 
 /**
  * One chat session for the whole main shell (sidebar + chat view).
- * `apiEnabled` must be stable for the lifetime of this mount — parent should
- * remount with a new `key` when the signed-in user changes.
+ * `apiEnabled` is locked on first render of this provider instance.
  */
 export function ChatSessionProvider({
   children,
@@ -34,22 +39,27 @@ export function ChatSessionProvider({
   apiEnabled: boolean;
   projectId?: string | null;
 }) {
+  // Freeze the mode for this mount — prevents mid-session hook graph flips.
+  const lockedApi = useRef(apiEnabled).current;
+
   const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
   const [homerReasoningEffort, setHomerReasoningEffort] =
     useState<HomerReasoningEffort>(DEFAULT_HOMER_REASONING_EFFORT);
 
   const options = useMemo<UseChatOptions>(
     () => ({
-      apiEnabled,
+      apiEnabled: lockedApi,
       projectId,
       chatModel,
       homerReasoningEffort,
     }),
-    [apiEnabled, projectId, chatModel, homerReasoningEffort],
+    [lockedApi, projectId, chatModel, homerReasoningEffort],
   );
 
   const chat = useChat(options);
 
+  // Keep a stable context object identity for method refs; only bump when
+  // observable chat fields change.
   const value = useMemo<ChatSessionValue>(
     () => ({
       ...chat,
@@ -58,7 +68,27 @@ export function ChatSessionProvider({
       homerReasoningEffort,
       setHomerReasoningEffort,
     }),
-    [chat, chatModel, homerReasoningEffort],
+    [
+      chat.messages,
+      chat.recentChats,
+      chat.startedRecentChats,
+      chat.activeChat,
+      chat.activeChatId,
+      chat.isGenerating,
+      chat.handleSendMessage,
+      chat.stopGeneration,
+      chat.startNewChat,
+      chat.handleSelectChat,
+      chat.handleDeleteChat,
+      chat.handleRenameChat,
+      chat.handlePinChat,
+      chat.editMessageWithBranch,
+      chat.redoUserMessageWithBranch,
+      chat.retryAssistantWithBranch,
+      chat.switchMessageBranch,
+      chatModel,
+      homerReasoningEffort,
+    ],
   );
 
   return (

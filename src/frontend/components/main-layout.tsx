@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useCallback } from "react";
-import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/frontend/components/sidebar";
 import { SettingsErrorBoundary } from "@/frontend/components/settings/settings-error-boundary";
+import { SoftErrorBoundary } from "@/frontend/components/soft-error-boundary";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { sidebarDisplayName } from "@/lib/profile-names";
 import { useProjects } from "@/frontend/hooks/use-projects";
@@ -24,37 +24,15 @@ import {
 import type { ApiProject } from "@/frontend/lib/api/projects";
 import type { RecentChat } from "@/frontend/lib/types";
 import { AppLayoutProvider } from "@/frontend/components/app-layout-context";
-import { ChatSessionProvider, useChatSession } from "@/frontend/contexts/chat-session-context";
-
-const UpgradeView = dynamic(
-  () =>
-    import("@/frontend/components/upgrade-view").then((m) => m.UpgradeView),
-  { ssr: false },
-);
-const AppsExtensionsView = dynamic(
-  () =>
-    import("@/frontend/components/apps-extensions-view").then(
-      (m) => m.AppsExtensionsView,
-    ),
-  { ssr: false },
-);
-const GiftView = dynamic(
-  () => import("@/frontend/components/gift-view").then((m) => m.GiftView),
-  { ssr: false },
-);
-const CreateProjectDialog = dynamic(
-  () =>
-    import("@/frontend/components/create-project-dialog").then(
-      (m) => m.CreateProjectDialog,
-    ),
-  { ssr: false },
-);
-
-const SettingsModal = dynamic(
-  () =>
-    import("@/frontend/components/settings-page").then((m) => m.SettingsModal),
-  { ssr: false },
-);
+import {
+  ChatSessionProvider,
+  useChatSession,
+} from "@/frontend/contexts/chat-session-context";
+import { UpgradeView } from "@/frontend/components/upgrade-view";
+import { AppsExtensionsView } from "@/frontend/components/apps-extensions-view";
+import { GiftView } from "@/frontend/components/gift-view";
+import { CreateProjectDialog } from "@/frontend/components/create-project-dialog";
+import { SettingsModal } from "@/frontend/components/settings-page";
 
 const MOBILE_FULL_BLEED_PREFIXES = ["/library", "/customize", "/projects"] as const;
 
@@ -265,33 +243,53 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       />
 
       <main
-        data-sidebar-collapsed={!isMobile && isSidebarCollapsed ? "true" : undefined}
-        className={appMainShellClassName({ isMobile, fullBleed: isMobileFullBleed })}
+        data-sidebar-collapsed={
+          !isMobile && isSidebarCollapsed ? "true" : undefined
+        }
+        className={appMainShellClassName({
+          isMobile,
+          fullBleed: isMobileFullBleed,
+        })}
       >
         <div
           data-component="agent-panel"
           data-layout="panel"
-          className={appAgentPanelClassName({ isMobile, fullBleed: isMobileFullBleed })}
+          className={appAgentPanelClassName({
+            isMobile,
+            fullBleed: isMobileFullBleed,
+          })}
         >
           <div className="flex min-h-0 h-full w-full max-w-full flex-1 flex-col overflow-hidden items-stretch">
-            <AppLayoutProvider value={layoutValue}>{children}</AppLayoutProvider>
+            <AppLayoutProvider value={layoutValue}>
+              <SoftErrorBoundary name="main-panel">{children}</SoftErrorBoundary>
+            </AppLayoutProvider>
           </div>
         </div>
       </main>
 
-      {overlays.isOpen.pricing && <UpgradeView onClose={overlays.closeOverlay} />}
+      {overlays.isOpen.pricing ? (
+        <SoftErrorBoundary name="pricing">
+          <UpgradeView onClose={overlays.closeOverlay} />
+        </SoftErrorBoundary>
+      ) : null}
 
-      {overlays.isOpen.apps && (
-        <AppsExtensionsView
-          onClose={overlays.closeOverlay}
-          onUpgradeClick={() => {
-            overlays.closeOverlay();
-            setTimeout(() => overlays.openPricing(), 0);
-          }}
-        />
-      )}
+      {overlays.isOpen.apps ? (
+        <SoftErrorBoundary name="apps">
+          <AppsExtensionsView
+            onClose={overlays.closeOverlay}
+            onUpgradeClick={() => {
+              overlays.closeOverlay();
+              setTimeout(() => overlays.openPricing(), 0);
+            }}
+          />
+        </SoftErrorBoundary>
+      ) : null}
 
-      {overlays.isOpen.gift && <GiftView onClose={overlays.closeOverlay} />}
+      {overlays.isOpen.gift ? (
+        <SoftErrorBoundary name="gift">
+          <GiftView onClose={overlays.closeOverlay} />
+        </SoftErrorBoundary>
+      ) : null}
 
       {overlays.isOpen.settings ? (
         <SettingsErrorBoundary
@@ -361,63 +359,12 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Wait for auth before mounting chat so `apiEnabled` never flips mid-mount
- * (that hooks switch was crashing into "This page couldn't load").
+ * Main app shell. Middleware already requires auth for these routes, so the
+ * chat session always boots in API mode — never flips hooks after paint.
  */
 export function MainLayout({ children }: { children: React.ReactNode }) {
-  const auth = useAuth();
-  const {
-    isMobile,
-    isSidebarCollapsed,
-    setIsSidebarCollapsed,
-    sidebarHydrated,
-  } = useSidebarState();
-
-  if (auth.loading) {
-    return (
-      <div className={appShellRootClassName(isMobile)}>
-        <Sidebar
-          id="app-primary-nav"
-          handleNewChat={() => {}}
-          isCollapsed={isSidebarCollapsed}
-          setIsCollapsed={setIsSidebarCollapsed}
-          isMobileLayout={isMobile}
-          sidebarReady={sidebarHydrated}
-          onNavigate={() => {}}
-          onUpgradeClick={() => {}}
-          onSettingsClick={() => {}}
-          onPersonalizationClick={() => {}}
-          onAppsExtensionsClick={() => {}}
-          onGiftClick={() => {}}
-          onProjectsClick={() => {}}
-          onLibraryClick={() => {}}
-          onCustomizeClick={() => {}}
-          onHistoryClick={() => {}}
-          activeView="chat"
-          recentChats={[]}
-          activeChatId={null}
-          onSelectChat={() => {}}
-          userDisplayName=""
-          userAvatarUrl={null}
-          userEmail=""
-          onLogoutClick={() => {}}
-        />
-        <main className={appMainShellClassName({ isMobile, fullBleed: false })}>
-          <div
-            data-component="agent-panel"
-            data-layout="panel"
-            className={appAgentPanelClassName({ isMobile, fullBleed: false })}
-          />
-        </main>
-      </div>
-    );
-  }
-
   return (
-    <ChatSessionProvider
-      key={auth.user?.id ?? "anon"}
-      apiEnabled={Boolean(auth.user)}
-    >
+    <ChatSessionProvider apiEnabled>
       <MainLayoutShell>{children}</MainLayoutShell>
     </ChatSessionProvider>
   );

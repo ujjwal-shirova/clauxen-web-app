@@ -1368,14 +1368,17 @@ function useLocalChat(
 }
 
 /**
- * IMPORTANT: `options.apiEnabled` must stay stable for the lifetime of the
- * component that calls this hook. Flipping it mid-mount switches between
- * useChatApi and useLocalChat (different hook graphs) and crashes React —
- * that was the "page couldn't load" failure after auth resolved.
- * Remount with a new `key` when the signed-in user changes instead.
+ * IMPORTANT: the api/local branch is locked on the first render of each
+ * component instance (ref). Callers must remount with a new `key` when the
+ * signed-in user changes — never flip `apiEnabled` on a live instance.
  */
 export function useChat(options: UseChatOptions = {}) {
-  if (options.apiEnabled) {
+  const modeRef = useRef<"api" | "local" | null>(null);
+  if (modeRef.current === null) {
+    modeRef.current = options.apiEnabled ? "api" : "local";
+  }
+
+  if (modeRef.current === "api") {
     return useChatApi(
       options.projectId ?? null,
       options.chatModel,

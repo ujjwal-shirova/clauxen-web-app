@@ -24,6 +24,7 @@ import {
   useChatStore,
 } from "@/frontend/stores/chat-store";
 import * as chatsApi from "@/frontend/lib/api/chats";
+import { createClient } from "@/utils/supabase/client";
 import { randomUUID } from "@/frontend/lib/id";
 import {
   attachSnapshotToBranchVersion,
@@ -162,6 +163,9 @@ export function useChatApi(
       }));
       recentChatsRef.current = nextChats;
       setRecentChats(nextChats);
+    } catch (error) {
+      // Challenge HTML / transient network — keep existing sidebar list.
+      console.warn("[chats] list failed (soft):", error);
     } finally {
       setLoading(false);
     }
@@ -170,6 +174,29 @@ export function useChatApi(
   useEffect(() => {
     void refreshChats();
   }, [refreshChats]);
+
+  // Live sidebar updates when chats change in Supabase (other tabs / title gen).
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`chats-sidebar:${projectIdFilter ?? "all"}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "chats",
+        },
+        () => {
+          void refreshChats();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [projectIdFilter, refreshChats]);
 
   const loadChatMessages = useCallback(async (chatId: string) => {
     const { messages: rows } = await chatsApi.getChat(chatId);
