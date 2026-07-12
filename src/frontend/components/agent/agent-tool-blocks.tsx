@@ -105,8 +105,10 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   const results = tool.searchResults ?? [];
   const isRunning = tool.status === "running";
   const faviconUrls = results.map((result) => result.url);
-  const [visibleCount, setVisibleCount] = useState(0);
-  const prevLengthRef = useRef(0);
+  const [visibleCount, setVisibleCount] = useState(() =>
+    tool.status === "running" ? 0 : results.length,
+  );
+  const prevLengthRef = useRef(results.length);
 
   useEffect(() => {
     if (results.length === 0) {
@@ -170,7 +172,7 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
       }
     >
       {showResultsContainer ? (
-        <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/70 px-2 py-2">
+        <div className="rounded-[12px] border border-zinc-200 bg-background px-2 py-2">
           <div
             ref={scrollRef}
             className="flex max-h-[18rem] min-h-[3.5rem] flex-col gap-1 overflow-y-auto pr-0.5"

@@ -11,9 +11,12 @@ import { HighlightCode } from "@/frontend/lib/syntax-highlight";
 export function CreateFileStreamBlock({
   block,
   streamKey,
+  compact = false,
 }: {
   block: CreateFileBlock;
   streamKey: string;
+  /** Hide the outer file header — used inside the agent timeline step. */
+  compact?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isStreaming = !block.isComplete;
@@ -24,30 +27,32 @@ export function CreateFileStreamBlock({
   }, [block.content, isStreaming]);
 
   return (
-    <div className="my-3 w-full min-w-0">
-      <div className="mb-2 flex items-center gap-2">
-        <div className="flex h-6 w-6 items-center justify-center rounded-md border border-violet-200/80 bg-violet-50 text-violet-600">
-          <FileCode className="h-3.5 w-3.5" strokeWidth={1.75} />
+    <div className={cn("w-full min-w-0", !compact && "my-3")}>
+      {!compact ? (
+        <div className="mb-2 flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md border border-violet-200/80 bg-violet-50 text-violet-600">
+            <FileCode className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p
+              className={cn(
+                "truncate text-[13px] font-semibold text-zinc-800",
+                isStreaming && "shimmer-text",
+              )}
+            >
+              {isStreaming ? `Creating ${block.title}` : block.title}
+            </p>
+            <p className="truncate text-[11.5px] text-zinc-400">
+              {artifactMetaLabel(block.path, block.language)}
+            </p>
+          </div>
+          {isStreaming ? (
+            <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-400" />
+          ) : null}
         </div>
-        <div className="min-w-0 flex-1">
-          <p
-            className={cn(
-              "truncate text-[13px] font-semibold text-zinc-800",
-              isStreaming && "shimmer-text",
-            )}
-          >
-            {isStreaming ? `Creating ${block.title}` : block.title}
-          </p>
-          <p className="truncate text-[11.5px] text-zinc-400">
-            {artifactMetaLabel(block.path, block.language)}
-          </p>
-        </div>
-        {isStreaming ? (
-          <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-400" />
-        ) : null}
-      </div>
+      ) : null}
 
-      <div className="overflow-hidden rounded-[12px] border border-zinc-200/90 bg-[#faf9f7] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+      <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:shadow-none">
         <div
           ref={scrollRef}
           className="create-file-stream-scroll max-h-[16rem] overflow-y-auto px-3 py-2.5"

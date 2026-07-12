@@ -248,11 +248,18 @@ export async function executeAutonomousTool(
     return { output };
   }
 
-  if (name === "file_write") {
+  if (name === "create_file" || name === "file_write") {
     const filePath = String(args.path ?? "");
     const content = stripGeneratedArtifactFooter(String(args.content ?? ""));
     const output = await writeScopedFile(ctx.conversationId, filePath, content);
-    return { output: { ...output, content } };
+    return {
+      output: {
+        ...output,
+        content,
+        description:
+          typeof args.description === "string" ? args.description : undefined,
+      },
+    };
   }
 
   if (name === "present_files") {

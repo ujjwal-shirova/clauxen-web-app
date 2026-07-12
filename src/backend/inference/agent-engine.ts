@@ -83,9 +83,15 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
   file_read: z.object({
     path: z.string(),
   }),
+  create_file: z.object({
+    path: z.string(),
+    content: z.string(),
+    description: z.string().optional(),
+  }),
   file_write: z.object({
     path: z.string(),
     content: z.string(),
+    description: z.string().optional(),
   }),
   ask_user_input_v0: z.object({
     questions: z.array(
@@ -507,9 +513,27 @@ export async function runAutonomousAgent(
               }
             }
 
-            // file_write is a scratch write — it does not surface to the
-            // user. present_files is the explicit "show this to the user"
-            // step, so the artifact card only appears once that's called.
+            // Stream create_file content into the timeline container immediately.
+            // present_files still emits the downloadable artifact card(s).
+            if (
+              (tc.name === "create_file" || tc.name === "file_write") &&
+              result.output &&
+              typeof result.output === "object"
+            ) {
+              const output = result.output as {
+                path?: string;
+                content?: string;
+              };
+              if (output.path && typeof output.content === "string") {
+                sse.writeArtifact(
+                  output.path,
+                  output.path,
+                  output.content,
+                  undefined,
+                );
+              }
+            }
+
             if (tc.name === "present_files" && result.output && typeof result.output === "object") {
               const output = result.output as {
                 files?: Array<{ path: string; content: string }>;
@@ -555,6 +579,38 @@ export async function runAutonomousAgent(
             const resultStr = typeof outcome.output === "string"
               ? outcome.output
               : JSON.stringify(outcome.output ?? {});
+
+            if (
+              (tc.name === "create_file" || tc.name === "file_write") &&
+              outcome.output &&
+              typeof outcome.output === "object"
+            ) {
+              const output = outcome.output as {
+                path?: string;
+                content?: string;
+              };
+              if (output.path && typeof output.content === "string") {
+                sse.writeArtifact(
+                  output.path,
+                  output.path,
+                  output.content,
+                  undefined,
+                );
+              }
+            }
+
+            if (
+              tc.name === "present_files" &&
+              outcome.output &&
+              typeof outcome.output === "object"
+            ) {
+              const output = outcome.output as {
+                files?: Array<{ path: string; content: string }>;
+              };
+              for (const file of output.files ?? []) {
+                sse.writeArtifact(file.path, file.path, file.content, undefined);
+              }
+            }
 
             if (outcome.pauseForUser || tc.name === "ask_user_input_v0") {
               pauseForUser = true;

@@ -17,11 +17,10 @@ const FOLLOW_THRESHOLD = 48;
 const SHOW_BUTTON_THRESHOLD = 220;
 /** Ignore auto-follow briefly after explicit user wheel/touch input. */
 const USER_INPUT_COOLDOWN_MS = 180;
-/** Fraction of remaining distance closed per frame while chasing the bottom.
- * Higher = snappier token-follow (less typewriter lag). */
-const FOLLOW_EASE = 0.72;
+/** Instant snap while following — matches create_file container scrollTop = scrollHeight. */
+const FOLLOW_EASE = 1;
 /** Below this distance we snap exactly to bottom instead of easing forever. */
-const FOLLOW_SNAP_EPSILON_PX = 1.5;
+const FOLLOW_SNAP_EPSILON_PX = 0.5;
 
 function maxScrollTop(viewport: HTMLElement) {
   return Math.max(0, viewport.scrollHeight - viewport.clientHeight);
@@ -102,20 +101,21 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     programmaticScrollUntilRef.current = performance.now() + 120;
   }, []);
 
-  /** Ease toward bottom when pinned — tracks token growth without laggy typewriter feel. */
+  /** Snap to bottom when pinned — same instant behavior as create_file stream scroll. */
   const stickToBottomWhenPinned = useCallback(
     (viewport: HTMLElement) => {
       if (!pinnedRef.current || isUserInputActive()) return;
-      if (distanceFromBottom(viewport) > FOLLOW_THRESHOLD * 4) {
-        // Large jump (tool panel / code block): snap, don't ease forever.
+      if (distanceFromBottom(viewport) > FOLLOW_THRESHOLD) {
+        // Large growth (tool panel / create_file stream): hard snap like
+        // create-file-stream-block (scrollTop = scrollHeight).
         markProgrammaticScroll();
         viewport.scrollTop = maxScrollTop(viewport);
         lastScrollHeightRef.current = viewport.scrollHeight;
         return;
       }
-      if (distanceFromBottom(viewport) > FOLLOW_THRESHOLD) return;
 
-      easeTowardBottom(viewport, markProgrammaticScroll);
+      markProgrammaticScroll();
+      viewport.scrollTop = maxScrollTop(viewport);
       lastScrollHeightRef.current = viewport.scrollHeight;
     },
     [isUserInputActive, markProgrammaticScroll],
@@ -130,13 +130,15 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
         followRafRef.current = null;
         return;
       }
-      if (distanceFromBottom(viewport) > FOLLOW_THRESHOLD) {
-        followRafRef.current = null;
+      markProgrammaticScroll();
+      viewport.scrollTop = maxScrollTop(viewport);
+      lastScrollHeightRef.current = viewport.scrollHeight;
+      // One more frame in case layout grew again (create_file stream / tool panel).
+      if (distanceFromBottom(viewport) > FOLLOW_SNAP_EPSILON_PX) {
+        followRafRef.current = requestAnimationFrame(step);
         return;
       }
-      const caughtUp = easeTowardBottom(viewport, markProgrammaticScroll);
-      lastScrollHeightRef.current = viewport.scrollHeight;
-      followRafRef.current = caughtUp ? null : requestAnimationFrame(step);
+      followRafRef.current = null;
     };
     followRafRef.current = requestAnimationFrame(step);
   }, [resolveViewport, isUserInputActive, markProgrammaticScroll]);

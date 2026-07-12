@@ -1,6 +1,9 @@
 import type { Message } from "@/frontend/lib/types";
 import type { AgentFrame } from "@/frontend/lib/agent-frames";
-import type { AgentSegment } from "@/frontend/lib/agent-segments";
+import type {
+  AgentSegment,
+  WebSearchResult,
+} from "@/frontend/lib/agent-segments";
 import type { ChatArtifact } from "@/frontend/lib/chat-artifacts";
 
 const MAX_BRANCH_MESSAGES = 500;
@@ -42,6 +45,32 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
     };
   }
   if (kind === "tool") {
+    const searchResults = Array.isArray(row.searchResults)
+      ? (row.searchResults
+          .map((item): WebSearchResult | null => {
+            const result = asRecord(item);
+            if (!result) return null;
+            const title = asString(result.title);
+            const url = asString(result.url);
+            if (!title || !url) return null;
+            const publishedDate = asString(result.publishedDate);
+            const favicon = asString(result.favicon);
+            const highlights = Array.isArray(result.highlights)
+              ? result.highlights
+                  .map((h) => asString(h))
+                  .filter((h): h is string => Boolean(h))
+              : undefined;
+            return {
+              title,
+              url,
+              snippet: asString(result.snippet) ?? "",
+              ...(publishedDate ? { publishedDate } : {}),
+              ...(favicon ? { favicon } : {}),
+              ...(highlights && highlights.length > 0 ? { highlights } : {}),
+            };
+          })
+          .filter((item): item is WebSearchResult => item !== null) as WebSearchResult[])
+      : undefined;
     return {
       kind: "tool",
       id,
@@ -57,6 +86,8 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
       stdout: asString(row.stdout, MAX_CONTENT_CHARS),
       stderr: asString(row.stderr, MAX_CONTENT_CHARS),
       searchQuery: asString(row.searchQuery),
+      searchResults:
+        searchResults && searchResults.length > 0 ? searchResults : undefined,
       filePath: asString(row.filePath),
       fileContent: asString(row.fileContent, MAX_CONTENT_CHARS),
       fileLanguage: asString(row.fileLanguage),

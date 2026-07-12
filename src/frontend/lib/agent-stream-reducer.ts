@@ -4,13 +4,14 @@ import type {
   AgentToolSegment,
   WebSearchResult,
 } from "@/frontend/lib/agent-segments";
-import { parseToolResult } from "@/frontend/lib/agent-segments";
 import type { ChatArtifact } from "@/frontend/lib/chat-artifacts";
 import { fileNameFromPath } from "@/frontend/lib/chat-artifacts";
 import {
   collectCreateFileArtifacts,
   mergeChatArtifacts,
+  inferLanguageFromPath,
 } from "@/frontend/lib/create-file-tags";
+import { enrichToolFromResult } from "@/frontend/lib/enrich-agent-tool";
 import type { AgentFrame } from "@/frontend/lib/agent-frames";
 import {
   activeFrameIndex,
@@ -187,51 +188,6 @@ function finalizeStreamingSegments(segments: AgentSegment[]): AgentSegment[] {
     }
     return segment;
   });
-}
-
-function enrichToolFromResult(
-  tool: AgentToolSegment,
-  result: string,
-): AgentToolSegment {
-  const parsed = parseToolResult(result);
-  const next: AgentToolSegment = {
-    ...tool,
-    result,
-    status: "done",
-    completedAtMs: Date.now(),
-  };
-
-  if (tool.name === "web_search") {
-    if (Array.isArray(parsed)) {
-      next.searchResults = parsed as WebSearchResult[];
-      const query =
-        typeof tool.args?.query === "string" ? tool.args.query : undefined;
-      if (query) next.searchQuery = query;
-    } else if (parsed && typeof parsed === "object") {
-      const record = parsed as {
-        error?: string;
-        query?: string;
-        results?: unknown;
-      };
-      if (record.error) next.status = "error";
-      if (record.query) next.searchQuery = record.query;
-      if (Array.isArray(record.results)) {
-        next.searchResults = record.results as WebSearchResult[];
-      }
-    }
-  }
-
-  if (tool.name === "bash_tool" && !next.stdout?.trim()) {
-    if (typeof parsed === "string") {
-      next.stdout = parsed;
-    } else if (parsed && typeof parsed === "object") {
-      const record = parsed as { stdout?: string; stderr?: string };
-      next.stdout = record.stdout ?? next.stdout;
-      next.stderr = record.stderr ?? next.stderr;
-    }
-  }
-
-  return next;
 }
 
 function parsePartialToolInput(input: unknown): Record<string, unknown> {
@@ -591,8 +547,24 @@ export function applyAgentStreamEvent(
           argsComplete: event.argsComplete ?? existingTool?.argsComplete,
           searchQuery: nextSearchQuery,
           searchResults: existingTool?.searchResults,
+          filePath:
+            (event.name === "create_file" || event.name === "file_write") &&
+            typeof mergedArgs.path === "string"
+              ? mergedArgs.path
+              : existingTool?.filePath,
+          fileContent:
+            (event.name === "create_file" || event.name === "file_write") &&
+            typeof mergedArgs.content === "string"
+              ? mergedArgs.content
+              : typeof mergedArgs.file_text === "string"
+                ? mergedArgs.file_text
+                : existingTool?.fileContent,
+          fileLanguage: existingTool?.fileLanguage,
           startedAtMs: existingTool?.startedAtMs ?? Date.now(),
         };
+        if (toolSegment.filePath && !toolSegment.fileLanguage) {
+          toolSegment.fileLanguage = inferLanguageFromPath(toolSegment.filePath);
+        }
         return upsertToolSegment(segments, toolSegment);
       });
       return syncFrameState(state, {

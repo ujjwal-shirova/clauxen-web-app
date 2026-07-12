@@ -57,6 +57,15 @@ export function AgentWorkFrame({
     (segment) =>
       segment.kind === "tool" && segment.name === "ask_user_input_v0",
   );
+  /** Keep web search / create_file timelines expanded after reload (Claude-like). */
+  const hasPersistentToolUi = items.some(
+    (segment) =>
+      segment.kind === "tool" &&
+      (segment.name === "web_search" ||
+        segment.name === "create_file" ||
+        segment.name === "file_write" ||
+        segment.name === "present_files"),
+  );
   const userInputTools = items.filter(
     (segment): segment is AgentToolSegment =>
       isToolSegment(segment) && segment.name === "ask_user_input_v0",
@@ -70,7 +79,7 @@ export function AgentWorkFrame({
   const userInputOnly = hasUserInputTool && timelineItems.length === 0;
 
   useEffect(() => {
-    if (hasUserInputTool) {
+    if (hasUserInputTool || hasPersistentToolUi) {
       userToggledRef.current = false;
       setExpanded(true);
       return;
@@ -83,7 +92,7 @@ export function AgentWorkFrame({
     if (frameComplete && !userToggledRef.current) {
       setExpanded(false);
     }
-  }, [isStreaming, frameComplete, hasUserInputTool]);
+  }, [isStreaming, frameComplete, hasUserInputTool, hasPersistentToolUi]);
 
   const hasActiveWork = items.some(
     (segment) =>

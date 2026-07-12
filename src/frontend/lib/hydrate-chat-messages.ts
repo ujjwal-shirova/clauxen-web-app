@@ -1,10 +1,34 @@
 import type { Message } from "@/frontend/lib/types";
 import type { AgentFrame } from "@/frontend/lib/agent-frames";
-import type { AgentSegment } from "@/frontend/lib/agent-segments";
+import type { AgentSegment, AgentToolSegment } from "@/frontend/lib/agent-segments";
+import { enrichPersistedToolSegment } from "@/frontend/lib/enrich-agent-tool";
 import type {
   TranscriptContentPart,
   TranscriptMessageRecord,
 } from "@/backend/training/transcript-format";
+
+function enrichSegments(segments: AgentSegment[]): AgentSegment[] {
+  return segments.map((segment) => {
+    if (segment.kind !== "tool") return segment;
+    return enrichPersistedToolSegment(segment);
+  });
+}
+
+function enrichMessageAgentUi(message: Message): Message {
+  const frames = message.agentFrames?.map((frame) => ({
+    ...frame,
+    segments: enrichSegments(frame.segments),
+  }));
+  const segments = message.agentSegments
+    ? enrichSegments(message.agentSegments)
+    : frames?.[0]?.segments;
+  if (!frames && !segments) return message;
+  return {
+    ...message,
+    agentFrames: frames ?? message.agentFrames,
+    agentSegments: segments ?? message.agentSegments,
+  };
+}
 
 /**
  * Hydrate a UI Message from chat_messages.content_json when it is Cursor-style
@@ -20,7 +44,7 @@ export function hydrateMessageFromContentJson(
 
   const parts = record.message.content as TranscriptContentPart[];
   let thinking = base.thinkingContent ?? "";
-  const tools: AgentSegment[] = [];
+  const tools: AgentToolSegment[] = [];
   const texts: string[] = [];
 
   for (const part of parts) {
@@ -43,21 +67,23 @@ export function hydrateMessageFromContentJson(
           candidate?.type === "tool_result" &&
           candidate.tool_use_id === id,
       );
-      tools.push({
-        kind: "tool",
-        id,
-        toolCallId: id,
-        name: part.name,
-        status: "done",
-        args:
-          part.input && typeof part.input === "object"
-            ? part.input
-            : {},
-        result:
-          resultPart && resultPart.type === "tool_result"
-            ? resultPart.content
-            : undefined,
-      });
+      tools.push(
+        enrichPersistedToolSegment({
+          kind: "tool",
+          id,
+          toolCallId: id,
+          name: part.name,
+          status: "done",
+          args:
+            part.input && typeof part.input === "object"
+              ? (part.input as Record<string, unknown>)
+              : {},
+          result:
+            resultPart && resultPart.type === "tool_result"
+              ? resultPart.content
+              : undefined,
+        }),
+      );
     }
   }
 
@@ -92,7 +118,7 @@ export function hydrateMessageFromContentJson(
       ]
     : undefined;
 
-  return {
+  return enrichMessageAgentUi({
     ...base,
     content,
     thinkingContent: hasThinking ? thinking : base.thinkingContent,
@@ -101,7 +127,7 @@ export function hydrateMessageFromContentJson(
     agentFrameComplete: frames ? true : base.agentFrameComplete,
     agentFrames: frames ?? base.agentFrames,
     agentSegments: frames?.[0]?.segments ?? base.agentSegments,
-  };
+  });
 }
 
 /** Prefer branch tree when it has real message ids; otherwise use API rows. */
@@ -128,10 +154,10 @@ export function resolveHydratedChatMessages(input: {
     for (const message of branch) {
       if (seen.has(message.id)) continue;
       seen.add(message.id);
-      deduped.push(message);
+      deduped.push(enrichMessageAgentUi(message));
     }
     return deduped;
   }
 
-  return input.apiMessages;
+  return input.apiMessages.map(enrichMessageAgentUi);
 }

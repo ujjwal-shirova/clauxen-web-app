@@ -9,11 +9,8 @@ import { AgentTimelineStep } from "./agent-timeline";
 import { CreateFileStreamBlock } from "./create-file-stream-block";
 
 /**
- * file_write is a scratch write — it does not show a downloadable card by
- * itself (that only happens once present_files is called; see
- * PresentFilesBlock + the artifact cards rendered at the end of the message
- * in agent-orchestration.tsx). While running/just-finished this just shows a
- * lightweight "wrote this file" chip, matching the reference agent UI.
+ * create_file / file_write: timeline step + themed content container.
+ * present_files is a separate "Presented file" step.
  */
 export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
   const path =
@@ -36,7 +33,8 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
   const description =
     typeof tool.args?.description === "string"
       ? tool.args.description
-      : undefined;
+      : tool.description;
+  const showStream = Boolean(content) || isRunning;
 
   return (
     <AgentTimelineStep
@@ -49,27 +47,30 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
             isRunning && "shimmer-text",
           )}
         >
-          {description || `Creating ${fileName}`}
+          {description ||
+            (isRunning ? `Creating ${fileName}` : `Creating ${fileName}`)}
         </span>
       }
     >
-      {isRunning ? (
+      {fileName ? (
+        <span className="mb-2 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-background px-2.5 py-1 text-[12px] font-medium text-zinc-600">
+          <FileText className="h-3.5 w-3.5 text-zinc-400" />
+          {fileName}
+        </span>
+      ) : null}
+      {showStream ? (
         <CreateFileStreamBlock
+          compact
           block={{
             id: path || tool.id,
             path: path || fileName,
             title: fileName.replace(/\.[^.]+$/, "") || "Untitled",
             language,
             content,
-            isComplete: false,
+            isComplete: !isRunning,
           }}
           streamKey={tool.id}
         />
-      ) : fileName ? (
-        <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[12px] font-medium text-zinc-600">
-          <FileText className="h-3.5 w-3.5 text-zinc-400" />
-          {fileName}
-        </span>
       ) : null}
     </AgentTimelineStep>
   );
@@ -77,8 +78,13 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
 
 export function PresentFilesBlock({ tool }: { tool: AgentToolSegment }) {
   const isRunning = tool.status === "running";
-  const count = Array.isArray(tool.args?.paths) ? tool.args.paths.length : 0;
-  const plural = count > 1 ? "s" : "";
+  const paths = Array.isArray(tool.args?.paths)
+    ? tool.args.paths.filter((p): p is string => typeof p === "string")
+    : tool.filePath
+      ? [tool.filePath]
+      : [];
+  const count = paths.length;
+  const plural = count !== 1 ? "s" : "";
 
   return (
     <AgentTimelineStep
