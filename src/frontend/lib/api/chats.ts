@@ -16,6 +16,7 @@ export type ApiMessage = {
   content: string;
   status: string;
   metadata: Record<string, unknown>;
+  content_json?: Record<string, unknown>;
   created_at: string;
 };
 

@@ -48,6 +48,8 @@ interface ChatAreaProps {
   activeChatId: string | null;
   /** True while hydrating messages for the active /c/[id] route. */
   messagesLoading?: boolean;
+  /** True while a brand-new chat is being created / first reply boots. */
+  creatingChatPending?: boolean;
   activeChatTitle?: string;
   isActiveChatTitleStreaming?: boolean;
   isActiveChatPinned?: boolean;
@@ -84,6 +86,7 @@ function ChatAreaLayout({
   switchMessageBranch,
   activeChatId,
   messagesLoading = false,
+  creatingChatPending = false,
   activeChatTitle,
   isActiveChatTitleStreaming,
   isActiveChatPinned,
@@ -113,14 +116,33 @@ function ChatAreaLayout({
   const [sourcesMessageId, setSourcesMessageId] = useState<string | null>(null);
   const [, startTransition] = React.useTransition();
   const displayMessages = messages;
+  const chatArtifacts = React.useMemo(
+    () => collectChatArtifacts(messages),
+    [messages],
+  );
+  const chatSources = React.useMemo(() => collectChatSources(messages), [messages]);
 
   const isConversationStarted = messages.length > 0;
   const showMessageSkeleton =
     messagesLoading && !isConversationStarted && Boolean(activeChatId);
+  const hasArtifacts = chatArtifacts.length > 0;
+  const headerControlsLoading =
+    Boolean(creatingChatPending) ||
+    (Boolean(isGenerating) &&
+      isConversationStarted &&
+      messages.every(
+        (message) =>
+          message.role !== "assistant" ||
+          (!message.content.trim() && !message.thinkingContent?.trim()),
+      ));
   const showChatOptionsHeader =
     isConversationStarted || Boolean(activeChatId) || showMessageSkeleton;
   const showDesktopArtifactsRail =
-    isConversationStarted && !isMobile && !isViewerOpen && !isSourcesPanelOpen;
+    hasArtifacts &&
+    isConversationStarted &&
+    !isMobile &&
+    !isViewerOpen &&
+    !isSourcesPanelOpen;
 
   const { scrollToBottom, pinToBottom, showScrollToBottom, followContentGrowth } =
     useChatScroll({
@@ -131,11 +153,6 @@ function ChatAreaLayout({
     scrollAreaRef,
     isConversationStarted || showMessageSkeleton,
   );
-  const chatArtifacts = React.useMemo(
-    () => collectChatArtifacts(messages),
-    [messages],
-  );
-  const chatSources = React.useMemo(() => collectChatSources(messages), [messages]);
   const artifactCountRef = React.useRef(chatArtifacts.length);
   const sourceCountRef = React.useRef(chatSources.length);
 
@@ -418,6 +435,8 @@ function ChatAreaLayout({
               isTitleStreaming={isActiveChatTitleStreaming}
               suppressArtifactsHover={isViewerOpen}
               isChatPinned={isActiveChatPinned}
+              hasArtifacts={hasArtifacts}
+              headerControlsLoading={headerControlsLoading}
               onRenameChat={(title) => {
                 if (!activeChatId) return;
                 onRenameChat?.(activeChatId, title);

@@ -17,10 +17,11 @@ const FOLLOW_THRESHOLD = 48;
 const SHOW_BUTTON_THRESHOLD = 220;
 /** Ignore auto-follow briefly after explicit user wheel/touch input. */
 const USER_INPUT_COOLDOWN_MS = 180;
-/** Fraction of the remaining distance closed per animation frame while chasing the bottom. */
-const FOLLOW_EASE = 0.32;
+/** Fraction of remaining distance closed per frame while chasing the bottom.
+ * Higher = snappier token-follow (less typewriter lag). */
+const FOLLOW_EASE = 0.72;
 /** Below this distance we snap exactly to bottom instead of easing forever. */
-const FOLLOW_SNAP_EPSILON_PX = 0.75;
+const FOLLOW_SNAP_EPSILON_PX = 1.5;
 
 function maxScrollTop(viewport: HTMLElement) {
   return Math.max(0, viewport.scrollHeight - viewport.clientHeight);
@@ -101,10 +102,17 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     programmaticScrollUntilRef.current = performance.now() + 120;
   }, []);
 
-  /** Ease toward bottom when pinned — avoids delta-scroll jumps during markdown reflow. */
+  /** Ease toward bottom when pinned — tracks token growth without laggy typewriter feel. */
   const stickToBottomWhenPinned = useCallback(
     (viewport: HTMLElement) => {
       if (!pinnedRef.current || isUserInputActive()) return;
+      if (distanceFromBottom(viewport) > FOLLOW_THRESHOLD * 4) {
+        // Large jump (tool panel / code block): snap, don't ease forever.
+        markProgrammaticScroll();
+        viewport.scrollTop = maxScrollTop(viewport);
+        lastScrollHeightRef.current = viewport.scrollHeight;
+        return;
+      }
       if (distanceFromBottom(viewport) > FOLLOW_THRESHOLD) return;
 
       easeTowardBottom(viewport, markProgrammaticScroll);

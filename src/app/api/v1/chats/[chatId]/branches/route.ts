@@ -6,7 +6,7 @@ import { withApiRouteParams } from "@/backend/http/route-params"; // [chatId] pa
 import { jsonData } from "@/backend/http/api-response"; // { data: … } success envelope
 import { requireSession } from "@/backend/auth/require-session"; // null session → 401 AppError
 import { AppError } from "@/backend/db/errors"; // validation errors — malformed body / oversized payload
-import { sanitizeMessages } from "@/backend/inference/novita"; // messages → role/content only — strip unknown fields
+import { sanitizeBranchMessages } from "@/backend/chat/sanitize-branch-messages";
 import * as chatService from "@/backend/services/chat.service"; // branch state read/write — ownership check included
 
 export const runtime = "nodejs";
@@ -54,7 +54,8 @@ export const PUT = withApiRouteParams<{ chatId: string }>(
       throw new AppError("Invalid JSON body.", 400);
     }
     const activePath = sanitizeActivePath(body.activePath); // non-array / invalid indices → []
-    const messages = sanitizeMessages(body.messages); // strip non user/assistant/system messages
+    // Keep ids + agent frames — do NOT use sanitizeMessages (prompt-only stripper).
+    const messages = sanitizeBranchMessages(body.messages);
     assertBranchPayloadSize(activePath, messages); // reject oversized jsonb writes
     const state = await chatService.saveBranchState(
       params.chatId,

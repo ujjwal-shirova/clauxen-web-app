@@ -87,6 +87,13 @@ function ChatViewBody({
     handleSelectChat,
   } = chat;
 
+  const creatingChatPending = Boolean(
+    (chat as { creatingChatPending?: boolean }).creatingChatPending,
+  );
+  const messagesLoading = Boolean(
+    (chat as { messagesLoading?: boolean }).messagesLoading,
+  );
+
   const routeChatId = getRouteChatId(pathname);
   // Keep showing the live conversation as soon as a chat id / messages exist,
   // even before Next finishes soft-navigating off /new.
@@ -137,7 +144,7 @@ function ChatViewBody({
   const displayActiveChatId = blankNewChatComposer ? null : activeChatId;
   const displayActiveChat = blankNewChatComposer ? null : activeChat;
   const displayMessagesLoading =
-    !blankNewChatComposer && Boolean(chat.messagesLoading);
+    !blankNewChatComposer && Boolean(messagesLoading);
 
   const brandOnlyTab =
     !blankNewChatComposer &&
@@ -162,6 +169,7 @@ function ChatViewBody({
       switchMessageBranch={switchMessageBranch}
       activeChatId={displayActiveChatId}
       messagesLoading={displayMessagesLoading}
+      creatingChatPending={creatingChatPending && !blankNewChatComposer}
       activeChatTitle={displayActiveChat?.name ?? "New Chat"}
       isActiveChatTitleStreaming={!!displayActiveChat?.isTitleStreaming}
       isActiveChatPinned={!!displayActiveChat?.pinned}

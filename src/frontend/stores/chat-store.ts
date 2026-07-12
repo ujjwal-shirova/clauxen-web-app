@@ -74,6 +74,7 @@ function indexMessages(messages: Message[]): {
   const byId: Record<string, Message> = {};
   const ids: string[] = [];
   for (const message of messages) {
+    if (!message?.id) continue;
     byId[message.id] = message;
     ids.push(message.id);
   }

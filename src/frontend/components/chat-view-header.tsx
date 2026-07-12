@@ -44,6 +44,10 @@ interface ChatViewHeaderProps {
   /** Desktop artifacts rail owns Artifacts + Share; hide duplicates in header. */
   hideTrailingRailControlsOnDesktop?: boolean;
   suppressArtifactsHover?: boolean;
+  /** Show Artifacts icon only when the chat has files / photos / artifacts. */
+  hasArtifacts?: boolean;
+  /** Shimmer title + menu controls while the first reply is bootstrapping. */
+  headerControlsLoading?: boolean;
 }
 
 export function ChatViewHeader({
@@ -68,6 +72,8 @@ export function ChatViewHeader({
   projectBreadcrumb,
   hideTrailingRailControlsOnDesktop = false,
   suppressArtifactsHover = false,
+  hasArtifacts = false,
+  headerControlsLoading = false,
 }: ChatViewHeaderProps) {
   const isClient = useIsClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -142,6 +148,20 @@ export function ChatViewHeader({
                     {displayTitle}
                   </span>
                 </div>
+              ) : headerControlsLoading ? (
+                <div
+                  className="inline-flex h-7 max-w-full items-stretch overflow-hidden rounded-lg"
+                  aria-busy="true"
+                  aria-label="Loading chat"
+                >
+                  <div className="h-7 w-[min(42vw,220px)] overflow-hidden rounded-l-lg">
+                    <div className="h-full w-full shimmer-bg" />
+                  </div>
+                  <div className="h-7 w-px shrink-0 self-center bg-black/10" />
+                  <div className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-r-lg">
+                    <div className="h-4 w-4 shimmer-bg rounded-sm" />
+                  </div>
+                </div>
               ) : (
                 <DropdownMenu modal={false}>
                   <div className="inline-flex max-w-full items-stretch overflow-hidden rounded-lg border border-transparent">
@@ -210,13 +230,30 @@ export function ChatViewHeader({
                 hideTrailingRailControlsOnDesktop && "lg:hidden",
               )}
             >
-              <ChatRightRailControls
-                isArtifactsPanelOpen={isArtifactsPanelOpen}
-                onToggleArtifactsPanel={onToggleArtifactsPanel}
-                onShareClick={onShareClick}
-                shareClassName="hidden min-[420px]:inline-flex"
-                suppressArtifactsHover={suppressArtifactsHover}
-              />
+              {headerControlsLoading ? (
+                <div
+                  className="flex items-center gap-2"
+                  aria-busy="true"
+                  aria-label="Loading chat actions"
+                >
+                  <div className="h-8 w-8 overflow-hidden rounded-[10px]">
+                    <div className="h-full w-full shimmer-bg" />
+                  </div>
+                  <div className="hidden h-8 w-14 overflow-hidden rounded-[10px] min-[420px]:block">
+                    <div className="h-full w-full shimmer-bg" />
+                  </div>
+                </div>
+              ) : (
+                <ChatRightRailControls
+                  isArtifactsPanelOpen={isArtifactsPanelOpen}
+                  onToggleArtifactsPanel={
+                    hasArtifacts ? onToggleArtifactsPanel : undefined
+                  }
+                  onShareClick={onShareClick}
+                  shareClassName="hidden min-[420px]:inline-flex"
+                  suppressArtifactsHover={suppressArtifactsHover}
+                />
+              )}
             </div>
           </div>
         </header>

@@ -52,6 +52,10 @@ import {
   type HomerReasoningEffort,
 } from "@/lib/model-effort";
 import { filterStartedRecentChats } from "@/frontend/lib/started-recent-chats";
+import {
+  hydrateMessageFromContentJson,
+  resolveHydratedChatMessages,
+} from "@/frontend/lib/hydrate-chat-messages";
 import { useShallow } from "zustand/react/shallow";
 
 function mapApiMessage(row: chatsApi.ApiMessage): Message {
@@ -62,7 +66,7 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     branchVersions?: Message["branchVersions"];
     activeBranchIndex?: number;
   };
-  return compactMessageBranchData({
+  const base = compactMessageBranchData({
     id: row.id,
     role: row.role as Message["role"],
     content: finalizeChatTitleStrippedAnswer(row.content),
@@ -71,7 +75,14 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     thinkingDurationSeconds: meta.thinkingDurationSeconds,
     branchVersions: meta.branchVersions,
     activeBranchIndex: meta.activeBranchIndex,
+    createdAt: row.created_at
+      ? new Date(row.created_at).getTime()
+      : undefined,
   });
+  return hydrateMessageFromContentJson(
+    base,
+    (row as { content_json?: unknown }).content_json,
+  );
 }
 
 function buildConversation(messages: Message[]) {
@@ -220,23 +231,23 @@ export function useChatApi(
     setMessagesLoading(true);
     try {
       const { messages: rows } = await chatsApi.getChat(chatId);
-      setAllChats((prev) => ({
-        ...prev,
-        [chatId]: rows.map(mapApiMessage),
-      }));
+      const apiMessages = rows.map(mapApiMessage);
+      let branchMessages: unknown = null;
       try {
         const branch = await chatsApi.getBranchState(chatId);
         const row = branch.state as { messages?: unknown } | null;
-        const stored = row?.messages;
-        if (Array.isArray(stored) && stored.length) {
-          setAllChats((prev) => ({
-            ...prev,
-            [chatId]: stored as Message[],
-          }));
-        }
+        branchMessages = row?.messages ?? null;
       } catch {
         // No branch state yet.
       }
+      const hydrated = resolveHydratedChatMessages({
+        apiMessages,
+        branchMessages,
+      });
+      setAllChats((prev) => ({
+        ...prev,
+        [chatId]: hydrated,
+      }));
     } finally {
       setMessagesLoading(false);
     }

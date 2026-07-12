@@ -177,34 +177,25 @@ export function resolveOrchestrationBlocks(
   const streaming = message.isStreaming === true;
   const blocks: OrchestrationBlock[] = [];
 
-  const allFramesDone =
-    frames.length === 0 ||
-    frames.every((frame) => frame.complete) ||
-    message.agentFrameComplete === true;
-
   let lastInterimNarrative: string | undefined;
 
   for (let index = 0; index < frames.length; index += 1) {
     const frame = frames[index];
     const isActive =
       streaming && index === frames.length - 1 && !frame.complete;
-    const frameHasTools = frameHasToolSegments(frame.segments);
 
     if (frame.interimOutput?.trim()) {
       lastInterimNarrative = frame.interimOutput.trim();
     }
 
-    const introNarrative =
-      isActive && !frameHasTools && message.content.trim()
-        ? message.content
-        : frame.introNarrative?.trim();
+    const introNarrative = frame.introNarrative?.trim();
 
     if (introNarrative) {
       blocks.push({
         kind: "markdown",
         blockId: `${frame.id}-intro`,
         content: introNarrative,
-        isStreaming: isActive && !frameHasTools,
+        isStreaming: false,
       });
     }
 
@@ -219,24 +210,17 @@ export function resolveOrchestrationBlocks(
   }
 
   const trailingContent = message.content.trim();
-  const introBlocksContent = blocks
-    .filter((block) => block.kind === "markdown" && block.blockId.endsWith("-intro"))
-    .map((block) => (block.kind === "markdown" ? block.content.trim() : ""))
-    .filter(Boolean);
-  const trailingIsIntroOnly =
-    trailingContent.length > 0 &&
-    introBlocksContent.some((intro) => intro === trailingContent);
-
+  // Never hoist final answer into the work timeline — keep the vertical
+  // timeline anchored above the streaming answer.
   if (
     trailingContent &&
-    !trailingIsIntroOnly &&
     !agentAnswerDuplicatesInterim(message)
   ) {
     blocks.push({
       kind: "markdown",
       blockId: `${message.id}-answer`,
       content: message.content,
-      isStreaming: streaming && allFramesDone,
+      isStreaming: streaming,
     });
   }
 
