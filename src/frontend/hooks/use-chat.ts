@@ -100,12 +100,12 @@ function readRouteChatIdFromLocation(): string | null {
 function isNewChatHomePath(): boolean {
   if (typeof window === "undefined") return false;
   const path = window.location.pathname;
-  return path === "/" || path === "";
+  return path === "/new" || path === "/" || path === "";
 }
 
 /**
- * Prefer the URL chat id. On `/` always start a blank new chat (ChatGPT/Claude
- * style) — never reopen the previous conversation from IndexedDB.
+ * Prefer the URL chat id. On `/` and `/new` always start a blank new chat
+ * (ChatGPT/Claude style) — never reopen the previous conversation from IndexedDB.
  */
 function preferRouteActiveChatId(restored: string | null): string | null {
   const routeId = readRouteChatIdFromLocation();

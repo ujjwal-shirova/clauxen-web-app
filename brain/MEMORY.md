@@ -37,10 +37,11 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-12 | Use Provider_* Vercel env for inference | Avoid leaking vendor keys via NEXT_PUBLIC or browser DevTools |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
-| 2026-07-12 | Chat messages → Supabase; files/photos → Cloudflare R2 | Split structured data vs blob storage |
+| 2026-07-12 | Shareable App Router paths (`/new`, `/upgrade`, …) instead of hash overlays | Avoid hydration races; Claude-style copy-pasteable URLs |
 
 ---
 
@@ -69,7 +70,8 @@ Full target surface — **remember only; implement only when user asks for a sli
 
 ## Gotchas
 
-- (none recorded yet)
+- Prefer path routes (`/upgrade`, `/settings/general`) over hash overlays (`#pricing`) — hash + Next soft-nav caused hydration mismatches.
+- Canonical new-chat URL is `/new` (`/` redirects there). Overlay surfaces live as real routes under `(main)`.
 
 ---
 
@@ -77,6 +79,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
 - Enable **X / Twitter (OAuth 2.0)** in Supabase with Client ID/Secret via Dashboard or `scripts/enable-x-auth.mjs` (app code already uses provider `x`).
+- Local-only (do not commit until asked): login OAuth button set (no Apple/X); Provider_* env rename.
 
 ---
 
@@ -90,3 +93,6 @@ Full target surface — **remember only; implement only when user asks for a sli
 - 2026-07-12: Auth slice — wire **X (Twitter) OAuth 2.0** via Supabase provider `x` (not legacy `twitter`).
 - 2026-07-12: X OAuth callback must be https://auth.clauxen.com/auth/v1/callback (Supabase Auth custom domain), website https://www.clauxen.com — never *.supabase.co
 - 2026-07-12: X developer portal setup via Playwright (not Cursor browser); login required before app create
+- 2026-07-12: Login OAuth buttons: Google, GitHub, GitLab only — Apple and X/Twitter removed from login UI (do not commit this preference change unless asked)
+- 2026-07-12: Inference env renamed to Provider_API_Key, Provider_BASE_URL, Provider_SANDBOX_TIMEOUT_MS, Provider_Model_Clauxen_V1 (server-only Sensitive). Chat uses Provider_Model_Clauxen_V1. Do not commit until asked.
+- 2026-07-12: App surfaces use shareable paths: `/new`, `/upgrade`, `/gift`, `/apps`, `/settings/[tab]`; legacy `#pricing` / `#settings/...` hashes redirect to paths.

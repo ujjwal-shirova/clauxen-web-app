@@ -3,7 +3,6 @@
 import React, { useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/frontend/components/sidebar";
-import { SettingsErrorBoundary } from "@/frontend/components/settings/settings-error-boundary";
 import { SoftErrorBoundary } from "@/frontend/components/soft-error-boundary";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { sidebarDisplayName } from "@/lib/profile-names";
@@ -17,10 +16,7 @@ import {
   appShellRootClassName,
 } from "@/frontend/lib/app-shell-layout";
 import { cn } from "@/frontend/lib/utils";
-import {
-  isSettingsTab,
-  type SettingsTab,
-} from "@/frontend/components/settings/constants";
+import type { SettingsTab } from "@/frontend/components/settings/constants";
 import type { ApiProject } from "@/frontend/lib/api/projects";
 import type { RecentChat } from "@/frontend/lib/types";
 import { AppLayoutProvider } from "@/frontend/components/app-layout-context";
@@ -28,13 +24,18 @@ import {
   ChatSessionProvider,
   useChatSession,
 } from "@/frontend/contexts/chat-session-context";
-import { UpgradeView } from "@/frontend/components/upgrade-view";
-import { AppsExtensionsView } from "@/frontend/components/apps-extensions-view";
-import { GiftView } from "@/frontend/components/gift-view";
 import { CreateProjectDialog } from "@/frontend/components/create-project-dialog";
-import { SettingsModal } from "@/frontend/components/settings-page";
+import { APP_ROUTES } from "@/frontend/lib/app-routes";
 
-const MOBILE_FULL_BLEED_PREFIXES = ["/library", "/customize", "/projects"] as const;
+const MOBILE_FULL_BLEED_PREFIXES = [
+  "/library",
+  "/customize",
+  "/projects",
+  "/upgrade",
+  "/gift",
+  "/apps",
+  "/settings",
+] as const;
 
 function shouldMobileFullBleed(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -88,34 +89,34 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const handleNewChat = useCallback(() => {
     startNewChat();
     closeMobileNav();
-    router.push("/", { scroll: false });
+    router.push(APP_ROUTES.newChat, { scroll: false });
   }, [startNewChat, closeMobileNav, router]);
 
   const goToLibrary = useCallback(() => {
-    router.push("/library");
+    router.push(APP_ROUTES.library);
     closeMobileNav();
   }, [router, closeMobileNav]);
 
   const goToProjects = useCallback(() => {
-    router.push("/projects");
+    router.push(APP_ROUTES.projects);
     closeMobileNav();
   }, [router, closeMobileNav]);
 
   const goToCustomize = useCallback(() => {
-    router.push("/customize");
+    router.push(APP_ROUTES.customize);
     closeMobileNav();
   }, [router, closeMobileNav]);
 
   const goToHistory = useCallback(() => {
     if (!activeChatId) {
-      router.push("/");
+      router.push(APP_ROUTES.newChat);
       closeMobileNav();
       return;
     }
     const entry = startedRecentChats.find((c) => c.id === activeChatId);
     const target = entry?.projectId
-      ? `/projects/${entry.projectId}/conversations/${activeChatId}`
-      : `/c/${activeChatId}`;
+      ? APP_ROUTES.projectConversation(entry.projectId, activeChatId)
+      : APP_ROUTES.chat(activeChatId);
     router.push(target);
     closeMobileNav();
   }, [router, activeChatId, closeMobileNav, startedRecentChats]);
@@ -124,8 +125,8 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     (chatEntry: RecentChat) => {
       handleSelectChat(chatEntry.id);
       const target = chatEntry.projectId
-        ? `/projects/${chatEntry.projectId}/conversations/${chatEntry.id}`
-        : `/c/${chatEntry.id}`;
+        ? APP_ROUTES.projectConversation(chatEntry.projectId, chatEntry.id)
+        : APP_ROUTES.chat(chatEntry.id);
       router.push(target);
       closeMobileNav();
     },
@@ -180,8 +181,13 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     const p = pathname || "";
     if (
       p === "/" ||
+      p === "/new" ||
       p === "/library" ||
       p === "/projects" ||
+      p === "/upgrade" ||
+      p === "/gift" ||
+      p === "/apps" ||
+      p.startsWith("/settings") ||
       p.startsWith("/customize") ||
       (p.startsWith("/projects") && !p.includes("/conversations/"))
     ) {
@@ -276,60 +282,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {overlays.isOpen.pricing ? (
-        <SoftErrorBoundary name="pricing">
-          <UpgradeView onClose={overlays.closeOverlay} />
-        </SoftErrorBoundary>
-      ) : null}
-
-      {overlays.isOpen.apps ? (
-        <SoftErrorBoundary name="apps">
-          <AppsExtensionsView
-            onClose={overlays.closeOverlay}
-            onUpgradeClick={() => {
-              overlays.closeOverlay();
-              setTimeout(() => overlays.openPricing(), 0);
-            }}
-          />
-        </SoftErrorBoundary>
-      ) : null}
-
-      {overlays.isOpen.gift ? (
-        <SoftErrorBoundary name="gift">
-          <GiftView onClose={overlays.closeOverlay} />
-        </SoftErrorBoundary>
-      ) : null}
-
-      {overlays.isOpen.settings ? (
-        <SettingsErrorBoundary
-          onClose={overlays.closeOverlay}
-          onReload={overlays.closeOverlay}
-        >
-          <SettingsModal
-            open
-            onClose={overlays.closeOverlay}
-            initialTab={
-              overlays.settingsTab && isSettingsTab(overlays.settingsTab)
-                ? overlays.settingsTab
-                : "General"
-            }
-            onTabChange={(tab) => overlays.openSettings(tab)}
-            onGoToCustomize={(tab) => {
-              overlays.closeOverlay();
-              router.push(
-                tab === "connectors" ? "/customize/connectors" : "/customize",
-              );
-            }}
-            onUpgradeClick={() => {
-              overlays.closeOverlay();
-              setTimeout(() => overlays.openPricing(), 0);
-            }}
-            user={auth.user}
-            onLogout={() => void auth.logout()}
-          />
-        </SettingsErrorBoundary>
-      ) : null}
-
       {createProjectOpen ? (
         <CreateProjectDialog
           open={createProjectOpen}
@@ -391,6 +343,11 @@ function computeActiveViewFromPath(pathname: string | null): string {
   if (pathname.startsWith("/projects")) return "projects";
   if (pathname.startsWith("/library")) return "library";
   if (pathname.startsWith("/customize")) return "customize";
+  if (pathname.startsWith("/settings")) return "settings";
+  if (pathname === "/upgrade" || pathname === "/pricing") return "upgrade";
+  if (pathname === "/gift") return "gift";
+  if (pathname === "/apps") return "apps";
+  if (pathname === "/new" || pathname === "/") return "chat";
   return "chat";
 }
 

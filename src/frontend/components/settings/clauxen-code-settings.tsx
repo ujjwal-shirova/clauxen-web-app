@@ -102,7 +102,7 @@ export function ClauxenCodeSettings({
             ship faster. Upgrade your plan to get started.
           </p>
           <a
-            href="#pricing"
+            href="/upgrade"
             className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full bg-zinc-900 px-4 text-[13px] font-medium text-white transition-colors hover:bg-zinc-800"
           >
             Upgrade to Max or Pro

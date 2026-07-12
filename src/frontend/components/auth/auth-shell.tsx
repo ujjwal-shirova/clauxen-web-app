@@ -5,7 +5,7 @@ import { LoginDemoPlayer } from "@/frontend/components/auth/login-demo";
 
 const NAV = [
   { label: "Product", href: "/#product" },
-  { label: "Pricing", href: "/#pricing" },
+  { label: "Pricing", href: "/upgrade" },
   { label: "Enterprise", href: "/contact-sales" },
   { label: "Docs", href: "/#docs" },
 ] as const;

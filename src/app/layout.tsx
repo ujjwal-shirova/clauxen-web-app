@@ -23,7 +23,10 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Clauxen",
+  title: {
+    default: "Clauxen",
+    template: "%s",
+  },
   description: "An AI-powered chat application.",
   icons: {
     icon: [

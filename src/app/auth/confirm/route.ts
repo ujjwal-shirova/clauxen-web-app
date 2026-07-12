@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type");
-  const next = searchParams.get("next") ?? "/";
+  const next = searchParams.get("next") ?? "/new";
 
   if (!tokenHash || !type) {
     return NextResponse.redirect(`${origin}/login?error=invalid_confirm_link`);
@@ -72,6 +72,10 @@ export async function GET(request: NextRequest) {
   }
 
   const safeNext =
-    next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    next.startsWith("/") && !next.startsWith("//")
+      ? next === "/"
+        ? "/new"
+        : next
+      : "/new";
   return NextResponse.redirect(`${origin}${safeNext}`);
 }

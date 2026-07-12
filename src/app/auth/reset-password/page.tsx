@@ -34,7 +34,7 @@ export default function ResetPasswordPage() {
         password,
       });
       if (updateError) throw updateError;
-      router.replace("/");
+      router.replace("/new");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Could not update password.",

@@ -296,7 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signInWithOAuth = useCallback(
-    async (provider: OAuthProvider, redirectTo = "/") => {
+    async (provider: OAuthProvider, redirectTo = "/new") => {
       const supabase = createClient();
       const { provider: goTrueProvider, scopes } =
         oauthSignInOptions(provider);
@@ -315,7 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signInWithMagicLink = useCallback(
-    async (email: string, redirectTo = "/") => {
+    async (email: string, redirectTo = "/new") => {
       await authApi.validateEmail(email);
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOtp({

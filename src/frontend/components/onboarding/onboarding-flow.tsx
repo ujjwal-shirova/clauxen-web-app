@@ -92,7 +92,7 @@ function answersForStep(
 function enterApp() {
   // Hard navigation so middleware re-reads onboarding_completed_at
   // and we never soft-loop back onto a stale OnboardingFlow instance.
-  window.location.assign("/");
+  window.location.assign("/new");
 }
 
 export function OnboardingFlow() {

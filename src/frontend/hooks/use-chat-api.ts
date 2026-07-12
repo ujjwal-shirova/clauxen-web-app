@@ -175,7 +175,9 @@ export function useChatApi(
     // Home = blank new chat immediately (don't wait for list / IndexedDB).
     if (
       typeof window !== "undefined" &&
-      (window.location.pathname === "/" || window.location.pathname === "")
+      (window.location.pathname === "/new" ||
+        window.location.pathname === "/" ||
+        window.location.pathname === "")
     ) {
       setActiveChatId(null);
     }

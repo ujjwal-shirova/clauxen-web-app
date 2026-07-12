@@ -1,137 +1,57 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import type { SettingsTab } from "@/frontend/components/settings/constants";
 import {
-  isSettingsTab,
-  type SettingsTab,
-} from "@/frontend/components/settings/constants";
+  APP_ROUTES,
+  legacyHashToPath,
+  overlayToPath,
+  parseOverlayPath,
+  type AppOverlayPath,
+} from "@/frontend/lib/app-routes";
 
-export type Overlay =
-  | { type: "pricing" }
-  | { type: "apps" }
-  | { type: "gift" }
-  | { type: "settings"; tab: SettingsTab };
-
+export type Overlay = AppOverlayPath;
 export type OverlayType = Overlay["type"];
 
-/** Map removed / renamed settings tabs to the current IA. */
-const LEGACY_SETTINGS_TABS: Record<string, SettingsTab> = {
-  Enterprise: "General",
-  "Data controls": "Privacy",
-  Apps: "Connectors",
-  Voice: "General",
-};
-
-function normalizeSettingsTab(value: string): SettingsTab {
-  if (isSettingsTab(value)) return value;
-  return LEGACY_SETTINGS_TABS[value] ?? "General";
-}
-
-function parseHash(hash: string): Overlay | null {
-  if (!hash) return null;
-  // Browsers can stack fragments after redirects — only honor the first.
-  const clean = hash.replace(/^#/, "").split("#")[0] ?? "";
-  if (!clean) return null;
-
-  if (clean === "pricing") return { type: "pricing" };
-  if (clean === "apps") return { type: "apps" };
-  if (clean === "gift") return { type: "gift" };
-
-  if (clean.startsWith("settings")) {
-    const parts = clean.split("/");
-    const raw = parts[1] ? decodeURIComponent(parts[1]) : "General";
-    return { type: "settings", tab: normalizeSettingsTab(raw) };
-  }
-
-  return null;
-}
-
-function buildHash(overlay: Overlay | null): string {
-  if (!overlay) return "";
-  switch (overlay.type) {
-    case "pricing":
-      return "#pricing";
-    case "apps":
-      return "#apps";
-    case "gift":
-      return "#gift";
-    case "settings":
-      return `#settings/${encodeURIComponent(overlay.tab)}`;
-    default:
-      return "";
-  }
-}
-
-function currentPathBase(pathname: string | null): string {
-  return (pathname || "/").split("#")[0] || "/";
-}
-
-/** Hash-only overlay changes must not go through Next router — that can hard-navigate and crash webviews. */
-function replaceLocationHash(pathname: string | null, hash: string) {
-  if (typeof window === "undefined") return;
-  const base = currentPathBase(pathname);
-  const next = hash ? `${base}${hash}` : base;
-  if (`${window.location.pathname}${window.location.search}${window.location.hash}` === next) {
-    return;
-  }
-  window.history.replaceState(window.history.state, "", next);
-}
-
+/**
+ * Path-based app surfaces (upgrade / gift / apps / settings).
+ * URLs are shareable; avoids hash + Next router hydration races.
+ */
 export function useAppOverlays() {
   const pathname = usePathname();
-  const [overlay, setOverlay] = useState<Overlay | null>(null);
+  const router = useRouter();
 
-  const syncFromLocation = useCallback(() => {
+  const currentOverlay = useMemo(
+    () => parseOverlayPath(pathname),
+    [pathname],
+  );
+
+  // One-shot migration: #pricing → /upgrade (and friends).
+  useEffect(() => {
     if (typeof window === "undefined") return;
-    // Never open settings/pricing overlays on auth or onboarding surfaces.
-    // Do NOT strip onboarding step hashes (/onboarding#plan-selection).
     if (
       pathname === "/onboarding" ||
       pathname === "/login" ||
       pathname === "/signup"
     ) {
-      const overlay = parseHash(window.location.hash);
-      if (overlay) {
-        // Only clear overlay hashes (settings/pricing/…), keep wizard steps.
-        replaceLocationHash(pathname, "");
-      }
-      setOverlay(null);
       return;
     }
-    const current = parseHash(window.location.hash);
-    setOverlay(current);
-  }, [pathname]);
-
-  useEffect(() => {
-    syncFromLocation();
-
-    const onHash = () => syncFromLocation();
-    const onPop = () => syncFromLocation();
-
-    window.addEventListener("hashchange", onHash);
-    window.addEventListener("popstate", onPop);
-    return () => {
-      window.removeEventListener("hashchange", onHash);
-      window.removeEventListener("popstate", onPop);
-    };
-  }, [syncFromLocation]);
-
-  useEffect(() => {
-    syncFromLocation();
-  }, [pathname, syncFromLocation]);
-
-  const currentOverlay = overlay;
+    const mapped = legacyHashToPath(window.location.hash);
+    if (!mapped) return;
+    const base = `${window.location.pathname}${window.location.search}`;
+    // Strip hash then navigate to canonical path.
+    window.history.replaceState(window.history.state, "", base);
+    router.replace(mapped, { scroll: false });
+  }, [pathname, router]);
 
   const closeOverlay = useCallback(() => {
-    if (typeof window === "undefined") return;
-    replaceLocationHash(pathname, "");
-    setOverlay(null);
-  }, [pathname]);
+    // Always land on a real app path (avoids blank history / external referrer).
+    router.push(APP_ROUTES.newChat, { scroll: false });
+  }, [router]);
 
   const openOverlay = useCallback(
     (next: Overlay) => {
-      if (typeof window === "undefined") return;
       if (
         pathname === "/onboarding" ||
         pathname === "/login" ||
@@ -139,15 +59,25 @@ export function useAppOverlays() {
       ) {
         return;
       }
-      replaceLocationHash(pathname, buildHash(next));
-      setOverlay(next);
+      const target = overlayToPath(next);
+      if (pathname === target) return;
+      router.push(target, { scroll: false });
     },
-    [pathname],
+    [pathname, router],
   );
 
-  const openPricing = useCallback(() => openOverlay({ type: "pricing" }), [openOverlay]);
-  const openApps = useCallback(() => openOverlay({ type: "apps" }), [openOverlay]);
-  const openGift = useCallback(() => openOverlay({ type: "gift" }), [openOverlay]);
+  const openPricing = useCallback(
+    () => openOverlay({ type: "pricing" }),
+    [openOverlay],
+  );
+  const openApps = useCallback(
+    () => openOverlay({ type: "apps" }),
+    [openOverlay],
+  );
+  const openGift = useCallback(
+    () => openOverlay({ type: "gift" }),
+    [openOverlay],
+  );
   const openSettings = useCallback(
     (tab: SettingsTab = "General") => openOverlay({ type: "settings", tab }),
     [openOverlay],
@@ -163,7 +93,8 @@ export function useAppOverlays() {
     [currentOverlay],
   );
 
-  const settingsTab = currentOverlay?.type === "settings" ? currentOverlay.tab : null;
+  const settingsTab =
+    currentOverlay?.type === "settings" ? currentOverlay.tab : null;
 
   return {
     currentOverlay,

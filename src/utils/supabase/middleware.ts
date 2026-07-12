@@ -266,7 +266,7 @@ export async function updateSession(request: NextRequest) {
     );
     if (complete) {
       const home = request.nextUrl.clone();
-      home.pathname = "/";
+      home.pathname = "/new";
       home.search = "";
       return withSessionCookies(supabaseResponse, NextResponse.redirect(home));
     }
@@ -286,7 +286,7 @@ export async function updateSession(request: NextRequest) {
         )
       : false;
     const dest = request.nextUrl.clone();
-    dest.pathname = complete ? "/" : "/onboarding";
+    dest.pathname = complete ? "/new" : "/onboarding";
     dest.search = "";
     return withSessionCookies(supabaseResponse, NextResponse.redirect(dest));
   }

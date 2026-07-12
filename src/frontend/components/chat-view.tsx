@@ -8,6 +8,7 @@ import { useChat } from "@/frontend/hooks/use-chat";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
 import { useAppLayout } from "@/frontend/components/app-layout-context";
+import { APP_ROUTES, isNewChatPath } from "@/frontend/lib/app-routes";
 import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,
@@ -86,7 +87,7 @@ function ChatViewBody({
   } = chat;
 
   const routeChatId = getRouteChatId(pathname);
-  const isNewChatHome = !projectId && pathname === "/";
+  const isNewChatHome = !projectId && isNewChatPath(pathname);
 
   useEffect(() => {
     if (routeChatId) {
@@ -106,14 +107,14 @@ function ChatViewBody({
       if (!chatId) return;
 
       if (projectId) {
-        router.replace(`/projects/${projectId}/conversations/${chatId}`, {
+        router.replace(APP_ROUTES.projectConversation(projectId, chatId), {
           scroll: false,
         });
         return;
       }
 
       if (isNewChatHome) {
-        router.replace(`/c/${chatId}`, { scroll: false });
+        router.replace(APP_ROUTES.chat(chatId), { scroll: false });
       }
     },
     [handleSendMessage, isNewChatHome, projectId, router],

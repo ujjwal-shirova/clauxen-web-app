@@ -1,10 +1,6 @@
-import { Suspense } from "react";
-import { ChatView } from "@/frontend/components/chat-view";
+import { redirect } from "next/navigation";
 
-export default function RootChatPage() {
-  return (
-    <Suspense fallback={null}>
-      <ChatView />
-    </Suspense>
-  );
+/** Home → canonical new-chat URL (Claude-style /new). */
+export default function HomePage() {
+  redirect("/new");
 }

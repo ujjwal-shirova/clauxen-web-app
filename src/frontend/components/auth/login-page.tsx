@@ -8,13 +8,15 @@ import {
   AuthOAuthButtons,
   AuthEmailForm,
   AuthLoadingShell,
-  getSafeRedirectTo,
   mapSupabaseAuthError,
-  redirectTargetWithHash,
   resolveAuthIdentifier,
   type OAuthProvider,
 } from "@/frontend/components/auth/auth-shared";
 import { AuthShell } from "@/frontend/components/auth/auth-shell";
+import {
+  getSafeRedirectTo,
+  redirectTargetWithHash,
+} from "@/frontend/lib/auth-redirect";
 import { looksLikePhone, PHONE_COUNTRIES } from "@/frontend/lib/phone-countries";
 
 export function LoginPage() {
