@@ -26,6 +26,10 @@ interface ChatAreaProps {
   onSendMessage: (prompt: string) => void | Promise<void>;
   onStopGeneration: () => void;
   isGenerating: boolean;
+  queuedMessages?: import("@/frontend/stores/chat-store").QueuedChatMessage[];
+  onEditQueuedMessage?: (id: string, content: string) => void;
+  onSendQueuedMessageNow?: (id: string) => void;
+  onRemoveQueuedMessage?: (id: string) => void;
   onUpgradeClick: () => void;
   editMessageWithBranch: (
     chatId: string,
@@ -83,6 +87,10 @@ function ChatAreaLayout({
   onSendMessage,
   onStopGeneration,
   isGenerating,
+  queuedMessages = [],
+  onEditQueuedMessage,
+  onSendQueuedMessageNow,
+  onRemoveQueuedMessage,
   onUpgradeClick,
   editMessageWithBranch,
   redoUserMessageWithBranch,
@@ -279,13 +287,13 @@ function ChatAreaLayout({
     const onChatSend = (event: Event) => {
       const detail = (event as CustomEvent<{ content?: string }>).detail;
       const content = detail?.content?.trim();
-      if (!content || isGenerating) return;
+      if (!content) return;
       handleSendMessageAndScroll(content);
     };
 
     window.addEventListener(CLAUXEN_CHAT_SEND_EVENT, onChatSend);
     return () => window.removeEventListener(CLAUXEN_CHAT_SEND_EVENT, onChatSend);
-  }, [handleSendMessageAndScroll, isGenerating]);
+  }, [handleSendMessageAndScroll]);
 
   const toggleArtifactsPanel = React.useCallback(() => {
     if (artifactPanelOpenTimerRef.current != null) {
@@ -332,6 +340,10 @@ function ChatAreaLayout({
       showScrollToBottomButton={showScrollToBottom}
       isConversationStarted={isConversationStarted}
       isGenerating={isGenerating}
+      queuedMessages={queuedMessages}
+      onEditQueuedMessage={onEditQueuedMessage}
+      onSendQueuedMessageNow={onSendQueuedMessageNow}
+      onRemoveQueuedMessage={onRemoveQueuedMessage}
       onPromptChange={handlePromptDraftChange}
       onAddMenuOpenChange={setIsAddMenuOpen}
       focusKey={activeChatId ?? "new"}

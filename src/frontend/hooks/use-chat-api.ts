@@ -104,14 +104,24 @@ function buildConversation(messages: Message[]) {
   return buildChatConversation(messages);
 }
 
-// Module-level shared generation state so an in-flight stream survives route
-// changes (e.g. project home -> conversation view). The stream patches the
-// global chat store; the active controller/context live here so the next
-// mounted useChatApi instance can still stop or finalize the generation.
-const sharedApiGeneration = {
-  request: null as AbortController | null,
-  context: null as { chatId: string; assistantMessageId: string } | null,
-};
+// Module-level shared generation state so in-flight streams survive route
+// changes and multitasking across chats. Keyed by chatId.
+const sharedApiGenerations = new Map<
+  string,
+  { request: AbortController; assistantMessageId: string }
+>();
+
+function getGeneration(chatId: string) {
+  return sharedApiGenerations.get(chatId) ?? null;
+}
+
+function setGeneration(
+  chatId: string,
+  entry: { request: AbortController; assistantMessageId: string } | null,
+) {
+  if (!entry) sharedApiGenerations.delete(chatId);
+  else sharedApiGenerations.set(chatId, entry);
+}
 
 export function useChatApi(
   projectIdFilter: string | null,
@@ -139,6 +149,17 @@ export function useChatApi(
   const historyByChatIdRef = useRef(historyByChatId);
   historyByChatIdRef.current = historyByChatId;
   const titleGenerationInProgressRef = useRef<Set<string>>(new Set());
+  const handleSendMessageRef = useRef<
+    | ((
+        prompt: string,
+        options?: {
+          forceNewChat?: boolean;
+          bypassQueue?: boolean;
+          chatIdOverride?: string;
+        },
+      ) => Promise<string | null>)
+    | null
+  >(null);
 
   const messages = useActiveChatMessages();
   const messageIdsByChatId = useChatStore(
@@ -273,12 +294,8 @@ export function useChatApi(
 
             // While this tab is streaming, reconcile the DB assistant row with
             // the optimistic local assistant instead of appending a duplicate.
-            const gen = sharedApiGeneration.context;
-            if (
-              gen?.chatId === activeChatId &&
-              mapped.role === "assistant" &&
-              gen.assistantMessageId
-            ) {
+            const gen = getGeneration(activeChatId);
+            if (mapped.role === "assistant" && gen?.assistantMessageId) {
               const localIndex = existing.findIndex(
                 (message) => message.id === gen.assistantMessageId,
               );
@@ -290,10 +307,10 @@ export function useChatApi(
                   id: mapped.id,
                   isStreaming: local.isStreaming || mapped.isStreaming,
                 };
-                sharedApiGeneration.context = {
-                  chatId: gen.chatId,
+                setGeneration(activeChatId, {
+                  request: gen.request,
                   assistantMessageId: mapped.id,
-                };
+                });
                 return { ...prev, [activeChatId]: next };
               }
               // Local stream already owns this turn — ignore sparse DB insert.
@@ -501,26 +518,32 @@ export function useChatApi(
   }, []);
 
   const stopGeneration = useCallback(() => {
-    sharedApiGeneration.request?.abort();
-    sharedApiGeneration.request = null;
+    const chatId = useChatStore.getState().activeChatId;
+    if (!chatId) return;
+    const gen = getGeneration(chatId);
+    if (!gen) return;
 
-    const activeGen = sharedApiGeneration.context;
-    if (activeGen) {
-      setAllChats((prev) => {
-        const currentMessages = prev[activeGen.chatId] || [];
-        return {
-          ...prev,
-          [activeGen.chatId]: currentMessages.map((message) =>
-            message.id === activeGen.assistantMessageId
-              ? { ...message, isStreaming: false }
-              : message,
-          ),
-        };
-      });
-      sharedApiGeneration.context = null;
-    }
+    // Explicit server stop — tab close alone must not cancel durable generation.
+    void fetch(`/api/v1/chats/${chatId}/generate/stop`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {});
 
-    setIsGenerating(false);
+    gen.request.abort();
+    setGeneration(chatId, null);
+    useChatStore.getState().setChatGenerating(chatId, false);
+
+    setAllChats((prev) => {
+      const currentMessages = prev[chatId] || [];
+      return {
+        ...prev,
+        [chatId]: currentMessages.map((message) =>
+          message.id === gen.assistantMessageId
+            ? { ...message, isStreaming: false }
+            : message,
+        ),
+      };
+    });
   }, []);
 
   const streamChatTitle = useCallback(
@@ -646,11 +669,12 @@ export function useChatApi(
       const controller = new AbortController();
       const assistantIdLocal = overrideAssistantId ?? randomUUID();
       let assistantId = assistantIdLocal;
-      sharedApiGeneration.request = controller;
-      sharedApiGeneration.context = {
-        chatId,
+      setGeneration(chatId, {
+        request: controller,
         assistantMessageId: assistantId,
-      };
+      });
+      useChatStore.getState().setChatGenerating(chatId, true);
+      useChatStore.getState().setStreaming({ chatId, messageId: assistantId });
 
       // Optimistic assistant placeholder — visible immediately with fade-in
       // while the generate request is in flight (cuts perceived TTFT).
@@ -716,10 +740,14 @@ export function useChatApi(
         if (serverAssistantId && serverAssistantId !== assistantId) {
           const previousId = assistantId;
           assistantId = serverAssistantId;
-          sharedApiGeneration.context = {
-            chatId,
-            assistantMessageId: assistantId,
-          };
+          const current = getGeneration(chatId);
+          if (current?.request === controller) {
+            setGeneration(chatId, {
+              request: controller,
+              assistantMessageId: assistantId,
+            });
+          }
+          useChatStore.getState().setStreaming({ chatId, messageId: assistantId });
           setAllChats((prev) => {
             const list = prev[chatId] ?? [];
             const index = list.findIndex((message) => message.id === previousId);
@@ -835,7 +863,7 @@ export function useChatApi(
           }));
         }
 
-        if (sharedApiGeneration.request !== controller) return;
+        if (getGeneration(chatId)?.request !== controller) return;
 
         setAllChats((prev) => ({
           ...prev,
@@ -872,7 +900,7 @@ export function useChatApi(
         // assistant message and cleared generation state.
         const isAbort =
           error instanceof Error && error.name === "AbortError";
-        if (sharedApiGeneration.request === controller && !isAbort) {
+        if (getGeneration(chatId)?.request === controller && !isAbort) {
           setAllChats((prev) => ({
             ...prev,
             [chatId]: (prev[chatId] ?? []).map((m) =>
@@ -894,12 +922,23 @@ export function useChatApi(
           console.error("Chat generation failed:", error);
         }
       } finally {
-        // Only clear state if this generation is still the active one — a
-        // newer generation (rare, guarded by isGenerating) owns the state now.
-        if (sharedApiGeneration.request === controller) {
-          sharedApiGeneration.request = null;
-          sharedApiGeneration.context = null;
-          setIsGenerating(false);
+        // Only clear state if this generation is still the active one.
+        if (getGeneration(chatId)?.request === controller) {
+          setGeneration(chatId, null);
+          useChatStore.getState().setChatGenerating(chatId, false);
+          // Drain one queued prompt for this chat, if any.
+          const nextQueued = useChatStore
+            .getState()
+            .shiftQueuedMessage(chatId);
+          if (nextQueued?.content) {
+            queueMicrotask(() => {
+              void handleSendMessageRef.current?.(nextQueued.content, {
+                forceNewChat: false,
+                bypassQueue: true,
+                chatIdOverride: chatId,
+              });
+            });
+          }
         }
       }
     },
@@ -916,12 +955,31 @@ export function useChatApi(
   const handleSendMessage = useCallback(
     async (
       prompt: string,
-      options?: { forceNewChat?: boolean },
+      options?: {
+        forceNewChat?: boolean;
+        bypassQueue?: boolean;
+        chatIdOverride?: string;
+      },
     ): Promise<string | null> => {
       const trimmed = prompt.trim();
-      if (!trimmed || isGenerating) return null;
+      if (!trimmed) return null;
 
-      let chatId = options?.forceNewChat ? null : activeChatId;
+      let chatId = options?.chatIdOverride
+        ? options.chatIdOverride
+        : options?.forceNewChat
+          ? null
+          : activeChatId;
+
+      // Queue when this chat is already generating (unless flushing the queue).
+      if (
+        chatId &&
+        !options?.bypassQueue &&
+        useChatStore.getState().generatingChatIds[chatId]
+      ) {
+        useChatStore.getState().enqueueQueuedMessage(chatId, trimmed);
+        return chatId;
+      }
+
       const isNewChat = !chatId;
       const tempUserId = `temp-${randomUUID()}`;
       const optimisticUser: Message = {
@@ -976,7 +1034,7 @@ export function useChatApi(
           optimisticUser,
         ]);
 
-        setIsGenerating(true);
+        useChatStore.getState().setChatGenerating(chatId!, true);
         void streamAssistantResponse(
           chatId!,
           conversation,
@@ -1009,13 +1067,10 @@ export function useChatApi(
         if (isNewChat) setCreatingChatPending(false);
       }
     },
-    [
-      activeChatId,
-      isGenerating,
-      projectIdFilter,
-      streamAssistantResponse,
-    ],
+    [activeChatId, projectIdFilter, streamAssistantResponse],
   );
+
+  handleSendMessageRef.current = handleSendMessage;
 
   const handleDeleteChat = useCallback(
     async (chatId: string) => {
@@ -1087,7 +1142,7 @@ export function useChatApi(
         return;
       }
 
-      setIsGenerating(true);
+      useChatStore.getState().setChatGenerating(chatId, true);
 
       const { nextChat } = helperResult;
       setAllChats((prev) => ({
@@ -1134,7 +1189,7 @@ export function useChatApi(
         return;
       }
 
-      setIsGenerating(true);
+      useChatStore.getState().setChatGenerating(chatId, true);
 
       const { nextChat } = helperResult;
       setAllChats((prev) => ({
@@ -1179,7 +1234,7 @@ export function useChatApi(
         return;
       }
 
-      setIsGenerating(true);
+      useChatStore.getState().setChatGenerating(chatId, true);
 
       const { nextChat } = helperResult;
       setAllChats((prev) => ({
@@ -1239,6 +1294,53 @@ export function useChatApi(
     ? historyByChatId[activeChatId]
     : undefined;
 
+  const generatingChatIds = useChatStore(
+    useShallow((state) => Object.keys(state.generatingChatIds)),
+  );
+  const queuedMessages = useChatStore(
+    useShallow((state) =>
+      activeChatId ? (state.queuedMessagesByChatId[activeChatId] ?? []) : [],
+    ),
+  );
+
+  const editQueuedMessage = useCallback(
+    (id: string, content: string) => {
+      if (!activeChatId) return;
+      useChatStore.getState().updateQueuedMessage(activeChatId, id, content);
+    },
+    [activeChatId],
+  );
+
+  const removeQueuedMessage = useCallback(
+    (id: string) => {
+      if (!activeChatId) return;
+      useChatStore.getState().removeQueuedMessage(activeChatId, id);
+    },
+    [activeChatId],
+  );
+
+  const sendQueuedMessageNow = useCallback(
+    (id: string) => {
+      if (!activeChatId) return;
+      const promoted = useChatStore
+        .getState()
+        .promoteQueuedMessage(activeChatId, id);
+      if (!promoted) return;
+      if (useChatStore.getState().generatingChatIds[activeChatId]) {
+        // Already generating — keep at front; will flush when idle.
+        return;
+      }
+      const shifted = useChatStore.getState().shiftQueuedMessage(activeChatId);
+      if (shifted) {
+        void handleSendMessage(shifted.content, {
+          bypassQueue: true,
+          chatIdOverride: activeChatId,
+        });
+      }
+    },
+    [activeChatId, handleSendMessage],
+  );
+
   return {
     messages,
     recentChats,
@@ -1246,6 +1348,11 @@ export function useChatApi(
     activeChat,
     activeChatId,
     isGenerating,
+    generatingChatIds,
+    queuedMessages,
+    editQueuedMessage,
+    removeQueuedMessage,
+    sendQueuedMessageNow,
     loading,
     messagesLoading,
     creatingChatPending,

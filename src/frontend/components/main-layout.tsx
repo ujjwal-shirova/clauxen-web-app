@@ -79,6 +79,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     activeChatId,
     creatingChatPending,
     loading: chatsLoading,
+    generatingChatIds,
     handleSelectChat,
     handleDeleteChat,
     handleRenameChat,
@@ -263,6 +264,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}
         onPinChat={handlePinChat}
+        generatingChatIds={generatingChatIds}
         userDisplayName={sidebarDisplayName({
           fullName: auth.user?.displayName,
           preferredName: auth.user?.preferredName,

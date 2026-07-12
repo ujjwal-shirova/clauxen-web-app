@@ -74,6 +74,10 @@ function ChatViewBody({
     activeChat,
     activeChatId,
     isGenerating,
+    queuedMessages,
+    editQueuedMessage,
+    removeQueuedMessage,
+    sendQueuedMessageNow,
     handleSendMessage,
     stopGeneration,
     editMessageWithBranch,
@@ -171,6 +175,10 @@ function ChatViewBody({
       onSendMessage={handleSendMessageAndRoute}
       onStopGeneration={stopGeneration}
       isGenerating={isGenerating}
+      queuedMessages={queuedMessages ?? []}
+      onEditQueuedMessage={editQueuedMessage}
+      onSendQueuedMessageNow={sendQueuedMessageNow}
+      onRemoveQueuedMessage={removeQueuedMessage}
       onUpgradeClick={() => overlays.openPricing()}
       editMessageWithBranch={editMessageWithBranch}
       redoUserMessageWithBranch={redoUserMessageWithBranch}

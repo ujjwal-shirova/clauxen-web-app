@@ -12,13 +12,22 @@ const EMPTY_MESSAGES: readonly Message[] = [];
 /** Active RAM window — only this many messages stay in heap per chat. */
 export const ACTIVE_RAM_MESSAGE_WINDOW = 15;
 
+export type QueuedChatMessage = {
+  id: string;
+  content: string;
+  createdAt: number;
+};
+
 export type ChatStoreState = {
   messagesById: Record<string, Message>;
   messageIdsByChatId: Record<string, string[]>;
   recentChats: RecentChat[];
   activeChatId: string | null;
   isGenerating: boolean;
+  /** Chat IDs currently streaming an assistant reply (multitask-safe). */
+  generatingChatIds: Record<string, true>;
   streaming: { chatId: string; messageId: string } | null;
+  queuedMessagesByChatId: Record<string, QueuedChatMessage[]>;
   branchDataset: Record<
     string,
     Record<
@@ -49,7 +58,13 @@ type ChatStoreActions = {
   ) => void;
   setActiveChatId: (chatId: string | null) => void;
   setIsGenerating: (value: boolean) => void;
+  setChatGenerating: (chatId: string, generating: boolean) => void;
   setStreaming: (value: { chatId: string; messageId: string } | null) => void;
+  enqueueQueuedMessage: (chatId: string, content: string) => QueuedChatMessage;
+  updateQueuedMessage: (chatId: string, id: string, content: string) => void;
+  removeQueuedMessage: (chatId: string, id: string) => void;
+  shiftQueuedMessage: (chatId: string) => QueuedChatMessage | null;
+  promoteQueuedMessage: (chatId: string, id: string) => QueuedChatMessage | null;
   setBranchDataset: (
     updater:
       | ChatStoreState["branchDataset"]
@@ -88,7 +103,9 @@ export const useChatStore = create<ChatStore>()(
     recentChats: [],
     activeChatId: null,
     isGenerating: false,
+    generatingChatIds: {},
     streaming: null,
+    queuedMessagesByChatId: {},
     branchDataset: {},
 
     getMessagesForChat: (chatId) => {
@@ -192,11 +209,104 @@ export const useChatStore = create<ChatStore>()(
       }));
     },
 
-    setActiveChatId: (chatId) => set({ activeChatId: chatId }),
+    setActiveChatId: (chatId) =>
+      set((state) => ({
+        activeChatId: chatId,
+        isGenerating: Boolean(chatId && state.generatingChatIds[chatId]),
+      })),
 
     setIsGenerating: (value) => set({ isGenerating: value }),
 
+    setChatGenerating: (chatId, generating) => {
+      set((state) => {
+        const next = { ...state.generatingChatIds };
+        if (generating) next[chatId] = true;
+        else delete next[chatId];
+        const activeGenerating = Boolean(
+          state.activeChatId && next[state.activeChatId],
+        );
+        return {
+          generatingChatIds: next,
+          isGenerating: activeGenerating,
+          streaming: generating
+            ? state.streaming?.chatId === chatId
+              ? state.streaming
+              : state.streaming
+            : state.streaming?.chatId === chatId
+              ? null
+              : state.streaming,
+        };
+      });
+    },
+
     setStreaming: (value) => set({ streaming: value }),
+
+    enqueueQueuedMessage: (chatId, content) => {
+      const item: QueuedChatMessage = {
+        id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        content: content.trim(),
+        createdAt: Date.now(),
+      };
+      set((state) => ({
+        queuedMessagesByChatId: {
+          ...state.queuedMessagesByChatId,
+          [chatId]: [...(state.queuedMessagesByChatId[chatId] ?? []), item],
+        },
+      }));
+      return item;
+    },
+
+    updateQueuedMessage: (chatId, id, content) => {
+      const trimmed = content.trim();
+      if (!trimmed) return;
+      set((state) => ({
+        queuedMessagesByChatId: {
+          ...state.queuedMessagesByChatId,
+          [chatId]: (state.queuedMessagesByChatId[chatId] ?? []).map((item) =>
+            item.id === id ? { ...item, content: trimmed } : item,
+          ),
+        },
+      }));
+    },
+
+    removeQueuedMessage: (chatId, id) => {
+      set((state) => ({
+        queuedMessagesByChatId: {
+          ...state.queuedMessagesByChatId,
+          [chatId]: (state.queuedMessagesByChatId[chatId] ?? []).filter(
+            (item) => item.id !== id,
+          ),
+        },
+      }));
+    },
+
+    shiftQueuedMessage: (chatId) => {
+      const list = get().queuedMessagesByChatId[chatId] ?? [];
+      if (list.length === 0) return null;
+      const [first, ...rest] = list;
+      set((state) => ({
+        queuedMessagesByChatId: {
+          ...state.queuedMessagesByChatId,
+          [chatId]: rest,
+        },
+      }));
+      return first ?? null;
+    },
+
+    promoteQueuedMessage: (chatId, id) => {
+      const list = get().queuedMessagesByChatId[chatId] ?? [];
+      const index = list.findIndex((item) => item.id === id);
+      if (index < 0) return null;
+      const item = list[index]!;
+      const next = [item, ...list.filter((_, i) => i !== index)];
+      set((state) => ({
+        queuedMessagesByChatId: {
+          ...state.queuedMessagesByChatId,
+          [chatId]: next,
+        },
+      }));
+      return item;
+    },
 
     setBranchDataset: (updater) => {
       set((state) => ({
@@ -299,6 +409,23 @@ export function useActiveChatMessages(): Message[] {
         if (message) result.push(message);
       }
       return result;
+    }),
+  );
+}
+
+export function useGeneratingChatIds(): ReadonlySet<string> {
+  return useChatStore(
+    useShallow((state) => new Set(Object.keys(state.generatingChatIds))),
+  );
+}
+
+export function useQueuedMessagesForChat(
+  chatId: string | null,
+): QueuedChatMessage[] {
+  return useChatStore(
+    useShallow((state) => {
+      if (!chatId) return [];
+      return state.queuedMessagesByChatId[chatId] ?? [];
     }),
   );
 }

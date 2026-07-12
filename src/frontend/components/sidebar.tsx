@@ -8,6 +8,8 @@ import {
   HelpCircle,
   LogOut,
   MoreVertical,
+  Pin,
+  PinOff,
   Search,
   Languages,
   Sparkles,
@@ -110,6 +112,8 @@ interface SidebarProps {
   onDeleteChat?: (chatId: string) => void;
   onRenameChat?: (chatId: string, newName: string) => void;
   onPinChat?: (chatId: string, pinned: boolean) => void;
+  /** Chat IDs with an in-flight assistant generation (sidebar splash). */
+  generatingChatIds?: ReadonlySet<string> | string[];
   userDisplayName?: string;
   userAvatarUrl?: string | null;
   userEmail?: string;
@@ -143,6 +147,7 @@ export function Sidebar({
   onDeleteChat,
   onRenameChat,
   onPinChat,
+  generatingChatIds,
   userDisplayName = "Guest",
   userAvatarUrl,
   userEmail = "",
@@ -202,7 +207,16 @@ export function Sidebar({
     if (isMobileLayout) onNavigate?.();
   };
 
-  const renderChatRow = (chat: RecentChat) => (
+  const generatingSet = useMemo(() => {
+    if (!generatingChatIds) return new Set<string>();
+    return generatingChatIds instanceof Set
+      ? generatingChatIds
+      : new Set(generatingChatIds);
+  }, [generatingChatIds]);
+
+  const renderChatRow = (chat: RecentChat) => {
+    const isGeneratingChat = generatingSet.has(chat.id);
+    return (
     <div
       key={chat.id}
       role="button"
@@ -222,33 +236,62 @@ export function Sidebar({
         activeChatId === chat.id && "bg-black/[0.06]",
       )}
     >
-      <div className="flex h-full min-w-0 flex-1 items-center text-left">
+      <div className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left">
+        {isGeneratingChat ? (
+          <span
+            className="chat-gen-splash shrink-0"
+            aria-label="Generating"
+            title="Generating"
+          />
+        ) : null}
         <span className="truncate">{chat.name || "New Chat"}</span>
-        {chat.isTitleStreaming && <TypingDots className="ml-1.5" />}
+        {chat.isTitleStreaming && <TypingDots className="ml-0.5" />}
       </div>
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <button
+      <div className="ml-1 flex shrink-0 items-center">
+        <button
+          type="button"
+          aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPinChat?.(chat.id, !chat.pinned);
+          }}
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-all hover:bg-zinc-100 hover:text-zinc-800",
+            "opacity-0 group-hover/chat:opacity-100 focus-visible:opacity-100",
+            chat.pinned && "opacity-100 text-zinc-700",
+          )}
+        >
+          {chat.pinned ? (
+            <PinOff className="h-3.5 w-3.5" strokeWidth={2} />
+          ) : (
+            <Pin className="h-3.5 w-3.5" strokeWidth={2} />
+          )}
+        </button>
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <button
+              onClick={(e) => e.stopPropagation()}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
+            >
+              <MoreVertical className="icon-md icon-muted" />
+            </button>
+          </DropdownMenuTrigger>
+          <ChatRowMenuContent
+            align="end"
+            side="right"
+            isPinned={!!chat.pinned}
+            onRename={() => setRenameChatId(chat.id)}
+            onMoveToProject={() => runNavAction(onProjectsClick)}
+            onPin={() => onPinChat?.(chat.id, true)}
+            onUnpin={() => onPinChat?.(chat.id, false)}
+            onDelete={() => setDeleteChatId(chat.id)}
             onClick={(e) => e.stopPropagation()}
-            className="ml-1 flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
-          >
-            <MoreVertical className="icon-md icon-muted" />
-          </button>
-        </DropdownMenuTrigger>
-        <ChatRowMenuContent
-          align="end"
-          side="right"
-          isPinned={!!chat.pinned}
-          onRename={() => setRenameChatId(chat.id)}
-          onMoveToProject={() => runNavAction(onProjectsClick)}
-          onPin={() => onPinChat?.(chat.id, true)}
-          onUnpin={() => onPinChat?.(chat.id, false)}
-          onDelete={() => setDeleteChatId(chat.id)}
-          onClick={(e) => e.stopPropagation()}
-        />
-      </DropdownMenu>
+          />
+        </DropdownMenu>
+      </div>
     </div>
-  );
+    );
+  };
 
   return (
     <>

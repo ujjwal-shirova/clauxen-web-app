@@ -25,8 +25,10 @@ import {
 } from "./prompt-inline-mode-chip";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { useIsClient } from "@/frontend/hooks/use-is-client";
+import { MessageQueuePanel } from "./message-queue-panel";
 import type { ChatModelId } from "@/lib/chat-models";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
+import type { QueuedChatMessage } from "@/frontend/stores/chat-store";
 
 interface PromptInputProps {
   onSendMessage: (prompt: string) => void;
@@ -35,6 +37,10 @@ interface PromptInputProps {
   showScrollToBottomButton?: boolean;
   isConversationStarted: boolean;
   isGenerating: boolean;
+  queuedMessages?: QueuedChatMessage[];
+  onEditQueuedMessage?: (id: string, content: string) => void;
+  onSendQueuedMessageNow?: (id: string) => void;
+  onRemoveQueuedMessage?: (id: string) => void;
   /** Fires on every draft change so parent layouts can react without lifting full state. */
   onPromptChange?: (value: string) => void;
   /** Fires when the + menu opens or closes (welcome chips hide while open). */
@@ -108,6 +114,10 @@ export function PromptInput({
   showScrollToBottomButton = false,
   isConversationStarted,
   isGenerating,
+  queuedMessages = [],
+  onEditQueuedMessage,
+  onSendQueuedMessageNow,
+  onRemoveQueuedMessage,
   onPromptChange,
   focusKey,
   onAddMenuOpenChange,
@@ -511,7 +521,8 @@ export function PromptInput({
 
   const handleSubmit = () => {
     const value = readDraft().trim();
-    if ((value || attachments.length > 0) && !isGenerating) {
+    // Allow send while generating — active chat queues; other chats start a stream.
+    if (value || attachments.length > 0) {
       onSendMessage(value);
       syncDraftImmediate("");
       setAttachments([]);
@@ -634,7 +645,6 @@ export function PromptInput({
 
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (isGenerating) return;
       handleSubmit();
     }
   };
@@ -1160,6 +1170,18 @@ export function PromptInput({
           )}
 
           {isConversationStarted ? renderAddMenuPanel("above") : null}
+
+          {queuedMessages.length > 0 &&
+          onEditQueuedMessage &&
+          onSendQueuedMessageNow &&
+          onRemoveQueuedMessage ? (
+            <MessageQueuePanel
+              items={queuedMessages}
+              onEdit={onEditQueuedMessage}
+              onSendNow={onSendQueuedMessageNow}
+              onRemove={onRemoveQueuedMessage}
+            />
+          ) : null}
 
           <div
             className={promptShellClass}
