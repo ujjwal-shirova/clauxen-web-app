@@ -1,14 +1,9 @@
 import type { OnboardingPlanId } from "@/lib/plans-catalog";
+import type { OnboardingStepId } from "@/lib/onboarding-steps";
 
 export type { OnboardingPlanId };
 
-export type OnboardingStep =
-  | "create-account"
-  | "plan-selection"
-  | "desktop"
-  | "before-chat"
-  | "name"
-  | "role";
+export type OnboardingStep = OnboardingStepId;
 
 export interface OnboardingState {
   termsAccepted: boolean;

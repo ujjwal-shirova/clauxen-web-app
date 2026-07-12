@@ -85,12 +85,15 @@ export function useAppOverlays() {
   const syncFromLocation = useCallback(() => {
     if (typeof window === "undefined") return;
     // Never open settings/pricing overlays on auth or onboarding surfaces.
+    // Do NOT strip onboarding step hashes (/onboarding#plan-selection).
     if (
       pathname === "/onboarding" ||
       pathname === "/login" ||
       pathname === "/signup"
     ) {
-      if (window.location.hash) {
+      const overlay = parseHash(window.location.hash);
+      if (overlay) {
+        // Only clear overlay hashes (settings/pricing/…), keep wizard steps.
         replaceLocationHash(pathname, "");
       }
       setOverlay(null);

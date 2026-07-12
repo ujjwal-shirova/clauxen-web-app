@@ -8,12 +8,28 @@ import { useAuth } from "@/frontend/hooks/use-auth";
 import * as projectsApi from "@/frontend/lib/api/projects";
 import type { ApiProject } from "@/frontend/lib/api/projects";
 
-function ProjectConversationContent() {
+function ProjectConversationGate() {
+  const auth = useAuth();
+  if (auth.loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-white text-sm text-zinc-500 lg:rounded-[inherit]">
+        Loading conversation…
+      </div>
+    );
+  }
+  return (
+    <ProjectConversationContent
+      key={auth.user?.id ?? "anon"}
+      apiEnabled={Boolean(auth.user)}
+    />
+  );
+}
+
+function ProjectConversationContent({ apiEnabled }: { apiEnabled: boolean }) {
   const params = useParams<{ id: string; convId: string }>();
   const projectId = params?.id ?? "";
   const router = useRouter();
-  const auth = useAuth();
-  const projectsHook = useProjects(auth.isAuthenticated);
+  const projectsHook = useProjects(apiEnabled);
 
   const [project, setProject] = useState<ApiProject | null>(null);
 
@@ -24,7 +40,7 @@ function ProjectConversationContent() {
       setProject(cached);
       return;
     }
-    if (auth.isAuthenticated && !projectId.startsWith("local-")) {
+    if (apiEnabled && !projectId.startsWith("local-")) {
       void projectsApi.getProject(projectId).then(
         ({ project: row }) => {
           if (!cancelled) setProject(row);
@@ -37,7 +53,7 @@ function ProjectConversationContent() {
     return () => {
       cancelled = true;
     };
-  }, [projectId, auth.isAuthenticated, projectsHook.projects]);
+  }, [projectId, apiEnabled, projectsHook.projects]);
 
   const breadcrumb = project
     ? {
@@ -54,13 +70,10 @@ function ProjectConversationContent() {
     );
   }
 
-  // Authenticated project conversations run through the server chat API
-  // (same path that created the chat from the project home) so messages
-  // persist and stream via /api/v1/chats/[chatId]/generate.
   return (
     <ChatView
       projectId={projectId}
-      apiEnabled={auth.isAuthenticated}
+      apiEnabled={apiEnabled}
       projectBreadcrumb={breadcrumb}
     />
   );
@@ -69,7 +82,7 @@ function ProjectConversationContent() {
 export default function ProjectConversationRoutePage() {
   return (
     <Suspense fallback={null}>
-      <ProjectConversationContent />
+      <ProjectConversationGate />
     </Suspense>
   );
 }

@@ -7,7 +7,6 @@ import { Sidebar } from "@/frontend/components/sidebar";
 import { SettingsErrorBoundary } from "@/frontend/components/settings/settings-error-boundary";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { sidebarDisplayName } from "@/lib/profile-names";
-import { useChat } from "@/frontend/hooks/use-chat";
 import { useProjects } from "@/frontend/hooks/use-projects";
 import { useSidebarState } from "@/frontend/hooks/use-sidebar-state";
 import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
@@ -25,6 +24,7 @@ import {
 import type { ApiProject } from "@/frontend/lib/api/projects";
 import type { RecentChat } from "@/frontend/lib/types";
 import { AppLayoutProvider } from "@/frontend/components/app-layout-context";
+import { ChatSessionProvider, useChatSession } from "@/frontend/contexts/chat-session-context";
 
 const UpgradeView = dynamic(
   () =>
@@ -65,7 +65,7 @@ function shouldMobileFullBleed(pathname: string | null): boolean {
   );
 }
 
-export function MainLayout({ children }: { children: React.ReactNode }) {
+function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const auth = useAuth();
@@ -77,7 +77,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     sidebarHydrated,
   } = useSidebarState();
 
-  const chat = useChat({ apiEnabled: false });
+  const chat = useChatSession();
   const {
     startedRecentChats,
     activeChatId,
@@ -126,20 +126,20 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       closeMobileNav();
       return;
     }
-    const chat = startedRecentChats.find((c) => c.id === activeChatId);
-    const target = chat?.projectId
-      ? `/projects/${chat.projectId}/conversations/${activeChatId}`
+    const entry = startedRecentChats.find((c) => c.id === activeChatId);
+    const target = entry?.projectId
+      ? `/projects/${entry.projectId}/conversations/${activeChatId}`
       : `/c/${activeChatId}`;
     router.push(target);
     closeMobileNav();
   }, [router, activeChatId, closeMobileNav, startedRecentChats]);
 
   const onSelectChatFromSidebar = useCallback(
-    (chat: RecentChat) => {
-      handleSelectChat(chat.id);
-      const target = chat.projectId
-        ? `/projects/${chat.projectId}/conversations/${chat.id}`
-        : `/c/${chat.id}`;
+    (chatEntry: RecentChat) => {
+      handleSelectChat(chatEntry.id);
+      const target = chatEntry.projectId
+        ? `/projects/${chatEntry.projectId}/conversations/${chatEntry.id}`
+        : `/c/${chatEntry.id}`;
       router.push(target);
       closeMobileNav();
     },
@@ -357,6 +357,69 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Wait for auth before mounting chat so `apiEnabled` never flips mid-mount
+ * (that hooks switch was crashing into "This page couldn't load").
+ */
+export function MainLayout({ children }: { children: React.ReactNode }) {
+  const auth = useAuth();
+  const {
+    isMobile,
+    isSidebarCollapsed,
+    setIsSidebarCollapsed,
+    sidebarHydrated,
+  } = useSidebarState();
+
+  if (auth.loading) {
+    return (
+      <div className={appShellRootClassName(isMobile)}>
+        <Sidebar
+          id="app-primary-nav"
+          handleNewChat={() => {}}
+          isCollapsed={isSidebarCollapsed}
+          setIsCollapsed={setIsSidebarCollapsed}
+          isMobileLayout={isMobile}
+          sidebarReady={sidebarHydrated}
+          onNavigate={() => {}}
+          onUpgradeClick={() => {}}
+          onSettingsClick={() => {}}
+          onPersonalizationClick={() => {}}
+          onAppsExtensionsClick={() => {}}
+          onGiftClick={() => {}}
+          onProjectsClick={() => {}}
+          onLibraryClick={() => {}}
+          onCustomizeClick={() => {}}
+          onHistoryClick={() => {}}
+          activeView="chat"
+          recentChats={[]}
+          activeChatId={null}
+          onSelectChat={() => {}}
+          userDisplayName=""
+          userAvatarUrl={null}
+          userEmail=""
+          onLogoutClick={() => {}}
+        />
+        <main className={appMainShellClassName({ isMobile, fullBleed: false })}>
+          <div
+            data-component="agent-panel"
+            data-layout="panel"
+            className={appAgentPanelClassName({ isMobile, fullBleed: false })}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <ChatSessionProvider
+      key={auth.user?.id ?? "anon"}
+      apiEnabled={Boolean(auth.user)}
+    >
+      <MainLayoutShell>{children}</MainLayoutShell>
+    </ChatSessionProvider>
   );
 }
 

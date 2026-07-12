@@ -20,17 +20,34 @@ import type { ApiProject } from "@/frontend/lib/api/projects";
 export default function ProjectDetailRoutePage() {
   return (
     <Suspense fallback={null}>
-      <ProjectDetailRouteContent />
+      <ProjectDetailRouteGate />
     </Suspense>
   );
 }
 
-function ProjectDetailRouteContent() {
+function ProjectDetailRouteGate() {
+  const auth = useAuth();
+  if (auth.loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-white text-sm text-zinc-500">
+        Loading project…
+      </div>
+    );
+  }
+  return (
+    <ProjectDetailRouteContent
+      key={auth.user?.id ?? "anon"}
+      apiEnabled={Boolean(auth.user)}
+    />
+  );
+}
+
+function ProjectDetailRouteContent({ apiEnabled }: { apiEnabled: boolean }) {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const router = useRouter();
   const auth = useAuth();
-  const projectsHook = useProjects(auth.isAuthenticated);
+  const projectsHook = useProjects(apiEnabled);
 
   const [project, setProject] = useState<ApiProject | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,6 +57,7 @@ function ProjectDetailRouteContent() {
   const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
 
   const chat = useProjectChat(id, {
+    apiEnabled,
     homerReasoningEffort,
     chatModel,
   });
@@ -68,7 +86,7 @@ function ProjectDetailRouteContent() {
         }
         return;
       }
-      if (auth.isAuthenticated && !id.startsWith("local-")) {
+      if (apiEnabled && !id.startsWith("local-")) {
         try {
           const { project: row } = await projectsApi.getProject(id);
           if (!cancelled) setProject(row);
@@ -82,7 +100,7 @@ function ProjectDetailRouteContent() {
     return () => {
       cancelled = true;
     };
-  }, [id, auth.isAuthenticated, projectsHook.projects]);
+  }, [id, apiEnabled, projectsHook.projects]);
 
   if (loading) {
     return (
@@ -109,33 +127,35 @@ function ProjectDetailRouteContent() {
 
   return (
     <ProjectDetailView
-        project={project}
-        onBack={() => router.push("/projects")}
-        onSendMessage={async (prompt) => {
-          startNewChat();
-          const chatId = await handleSendMessage(prompt, { forceNewChat: true });
-          if (chatId) {
-            router.push(`/projects/${id}/conversations/${chatId}`);
-          }
-        }}
-        onStopGeneration={stopGeneration}
-        isGenerating={isGenerating}
-        homerReasoningEffort={homerReasoningEffort}
-        onHomerReasoningEffortChange={setHomerReasoningEffort}
-        chatModel={chatModel}
-        onChatModelChange={setChatModel}
-        projectChats={projectChats}
-        activeChatId={activeChatId}
-        onOpenChat={(chatId) => router.push(`/projects/${id}/conversations/${chatId}`)}
-        onNewChat={startNewChat}
-        onSaveInstructions={async (text) => {
-          if (auth.isAuthenticated && !id.startsWith("local-")) {
-            await projectsHook.updateProject(id, { system_prompt: text });
-          }
-        }}
-        onRenameChat={handleRenameChat}
-        onDeleteChat={handleDeleteChat}
-        onPinChat={handlePinChat}
-      />
+      project={project}
+      onBack={() => router.push("/projects")}
+      onSendMessage={async (prompt) => {
+        startNewChat();
+        const chatId = await handleSendMessage(prompt, { forceNewChat: true });
+        if (chatId) {
+          router.push(`/projects/${id}/conversations/${chatId}`);
+        }
+      }}
+      onStopGeneration={stopGeneration}
+      isGenerating={isGenerating}
+      homerReasoningEffort={homerReasoningEffort}
+      onHomerReasoningEffortChange={setHomerReasoningEffort}
+      chatModel={chatModel}
+      onChatModelChange={setChatModel}
+      projectChats={projectChats}
+      activeChatId={activeChatId}
+      onOpenChat={(chatId) =>
+        router.push(`/projects/${id}/conversations/${chatId}`)
+      }
+      onNewChat={startNewChat}
+      onSaveInstructions={async (text) => {
+        if (apiEnabled && !id.startsWith("local-")) {
+          await projectsHook.updateProject(id, { system_prompt: text });
+        }
+      }}
+      onRenameChat={handleRenameChat}
+      onDeleteChat={handleDeleteChat}
+      onPinChat={handlePinChat}
+    />
   );
 }

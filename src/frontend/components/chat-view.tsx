@@ -3,7 +3,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChatArea } from "@/frontend/components/chat-area";
+import { useOptionalChatSession } from "@/frontend/contexts/chat-session-context";
 import { useChat } from "@/frontend/hooks/use-chat";
+import { useAuth } from "@/frontend/hooks/use-auth";
 import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
 import { useAppLayout } from "@/frontend/components/app-layout-context";
 import {
@@ -24,6 +26,13 @@ interface ChatViewProps {
   };
 }
 
+type ChatController = ReturnType<typeof useChat> & {
+  chatModel?: ChatModelId;
+  setChatModel?: (model: ChatModelId) => void;
+  homerReasoningEffort?: HomerReasoningEffort;
+  setHomerReasoningEffort?: (effort: HomerReasoningEffort) => void;
+};
+
 function getRouteChatId(pathname: string): string | null {
   return (
     pathname.match(/\/conversations\/([^/]+)/)?.[1] ??
@@ -32,22 +41,31 @@ function getRouteChatId(pathname: string): string | null {
   );
 }
 
-export function ChatView({ projectId = null, apiEnabled = false, projectBreadcrumb }: ChatViewProps) {
+function ChatViewBody({
+  chat,
+  projectId = null,
+  projectBreadcrumb,
+}: {
+  chat: ChatController;
+  projectId?: string | null;
+  projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const overlays = useAppOverlays();
   const { isMobile, isSidebarCollapsed, openMobileNav } = useAppLayout();
 
-  const [homerReasoningEffort, setHomerReasoningEffort] =
-    useState<HomerReasoningEffort>(DEFAULT_HOMER_REASONING_EFFORT);
-  const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
+  const [localEffort, setLocalEffort] = useState<HomerReasoningEffort>(
+    DEFAULT_HOMER_REASONING_EFFORT,
+  );
+  const [localModel, setLocalModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
 
-  const chat = useChat({
-    apiEnabled,
-    projectId,
-    homerReasoningEffort,
-    chatModel,
-  });
+  const homerReasoningEffort =
+    chat.homerReasoningEffort ?? localEffort;
+  const setHomerReasoningEffort =
+    chat.setHomerReasoningEffort ?? setLocalEffort;
+  const chatModel = chat.chatModel ?? localModel;
+  const setChatModel = chat.setChatModel ?? setLocalModel;
 
   const {
     messages,
@@ -72,7 +90,7 @@ export function ChatView({ projectId = null, apiEnabled = false, projectBreadcru
 
   useEffect(() => {
     if (routeChatId) {
-      handleSelectChat(routeChatId);
+      void handleSelectChat(routeChatId);
       return;
     }
     if (isNewChatHome) {
@@ -101,13 +119,10 @@ export function ChatView({ projectId = null, apiEnabled = false, projectBreadcru
     [handleSendMessage, isNewChatHome, projectId, router],
   );
 
-  // On home, show messages once a chat has actually been created (avoids empty
-  // flash between send and route change). Once the URL switches to /c/{id},
-  // isNewChatHome is false and this falls through to the normal messages.
-  const hasStartedChat = isNewChatHome && messages.length > 0;
-  const displayMessages = isNewChatHome && !hasStartedChat ? [] : messages;
-  const displayActiveChatId = isNewChatHome && !hasStartedChat ? null : activeChatId;
-  const displayActiveChat = isNewChatHome && !hasStartedChat ? null : activeChat;
+  // On home, always show a blank new-chat composer until the user sends.
+  const displayMessages = isNewChatHome ? [] : messages;
+  const displayActiveChatId = isNewChatHome ? null : activeChatId;
+  const displayActiveChat = isNewChatHome ? null : activeChat;
 
   return (
     <ChatArea
@@ -135,6 +150,79 @@ export function ChatView({ projectId = null, apiEnabled = false, projectBreadcru
       onChatModelChange={setChatModel}
       onOpenMobileNav={openMobileNav}
       showMobileMenu={isMobile && isSidebarCollapsed}
+      projectBreadcrumb={projectBreadcrumb}
+    />
+  );
+}
+
+/**
+ * Project conversation routes may pass an explicit apiEnabled.
+ * Home /c routes reuse the shell ChatSessionProvider (single hydration).
+ */
+export function ChatView({
+  projectId = null,
+  apiEnabled,
+  projectBreadcrumb,
+}: ChatViewProps) {
+  const auth = useAuth();
+  const session = useOptionalChatSession();
+
+  // Wait for auth before creating a standalone (project) chat hook so
+  // apiEnabled never flips from false → true inside one mount.
+  if (projectId && auth.loading) {
+    return null;
+  }
+
+  if (session && !projectId) {
+    return (
+      <ChatViewBody
+        chat={session}
+        projectId={projectId}
+        projectBreadcrumb={projectBreadcrumb}
+      />
+    );
+  }
+
+  return (
+    <ChatViewStandalone
+      key={`${auth.user?.id ?? "anon"}:${projectId ?? "home"}`}
+      projectId={projectId}
+      apiEnabled={apiEnabled ?? Boolean(auth.user)}
+      projectBreadcrumb={projectBreadcrumb}
+    />
+  );
+}
+
+function ChatViewStandalone({
+  projectId,
+  apiEnabled,
+  projectBreadcrumb,
+}: {
+  projectId?: string | null;
+  apiEnabled: boolean;
+  projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
+}) {
+  const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
+  const [homerReasoningEffort, setHomerReasoningEffort] =
+    useState<HomerReasoningEffort>(DEFAULT_HOMER_REASONING_EFFORT);
+
+  const chat = useChat({
+    apiEnabled,
+    projectId,
+    chatModel,
+    homerReasoningEffort,
+  });
+
+  return (
+    <ChatViewBody
+      chat={{
+        ...chat,
+        chatModel,
+        setChatModel,
+        homerReasoningEffort,
+        setHomerReasoningEffort,
+      }}
+      projectId={projectId}
       projectBreadcrumb={projectBreadcrumb}
     />
   );

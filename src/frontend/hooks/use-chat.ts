@@ -97,9 +97,25 @@ function readRouteChatIdFromLocation(): string | null {
   );
 }
 
-function preferRouteActiveChatId(restored: string | null): string | null {
-  return readRouteChatIdFromLocation() ?? restored;
+function isNewChatHomePath(): boolean {
+  if (typeof window === "undefined") return false;
+  const path = window.location.pathname;
+  return path === "/" || path === "";
 }
+
+/**
+ * Prefer the URL chat id. On `/` always start a blank new chat (ChatGPT/Claude
+ * style) — never reopen the previous conversation from IndexedDB.
+ */
+function preferRouteActiveChatId(restored: string | null): string | null {
+  const routeId = readRouteChatIdFromLocation();
+  if (routeId) return routeId;
+  if (isNewChatHomePath()) return null;
+  return restored;
+}
+
+/** Only one useLocalChat instance may hydrate — MainLayout + ChatView used to race. */
+let localChatHydration: Promise<BranchDataset | undefined> | null = null;
 
 /** In-flight chats win over async IndexedDB hydration (avoids wiping a just-sent turn). */
 function mergeWithLiveChats(persisted: AllChats): AllChats {
@@ -174,63 +190,13 @@ function useLocalChat(
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    void (async () => {
-      try {
-        const migrated = await migrateLegacyLocalStorage();
-        if (migrated) {
-          const hydratedChats = Object.fromEntries(
-            Object.entries(migrated.allChats).map(([chatId, chatMessages]) => [
-              chatId,
-              chatMessages.map((message) =>
-                compactMessageBranchData({
-                  ...message,
-                  isStreaming: false,
-                  isThinkingStreaming: false,
-                }),
-              ),
-            ]),
-          );
-          const startedMeta = filterStartedRecentChats(
-            migrated.meta?.recentChats ?? [],
-            hydratedChats,
-          );
-          const restoredActiveId = preferRouteActiveChatId(
-            migrated.meta?.activeChatId &&
-            startedMeta.some((chat) => chat.id === migrated.meta?.activeChatId)
-              ? migrated.meta.activeChatId
-              : (startedMeta[0]?.id ?? null),
-          );
-
-          useChatStore.getState().hydrateFromLegacy({
-            allChats: mergeWithLiveChats(hydratedChats),
-            recentChats: startedMeta,
-            activeChatId: restoredActiveId,
-            branchDataset: migrated.meta?.branchDataset,
-          });
-          setActiveChatId(restoredActiveId);
-          if (migrated.meta?.branchDataset) {
-            setBranchDataset(migrated.meta.branchDataset);
-          }
-          return;
-        }
-
-        const meta = await loadChatMeta();
-        if (!meta) {
-          const saved = window.localStorage.getItem(CHAT_STORAGE_KEY);
-          if (!saved) {
-            const routeChatId = readRouteChatIdFromLocation();
-            if (routeChatId) setActiveChatId(routeChatId);
-            return;
-          }
-          const parsed = JSON.parse(saved) as {
-            allChats?: AllChats;
-            recentChats?: RecentChat[];
-            activeChatId?: string | null;
-            branchDataset?: BranchDataset;
-          };
-          if (parsed.allChats) {
+    if (!localChatHydration) {
+      localChatHydration = (async (): Promise<BranchDataset | undefined> => {
+        try {
+          const migrated = await migrateLegacyLocalStorage();
+          if (migrated) {
             const hydratedChats = Object.fromEntries(
-              Object.entries(parsed.allChats).map(([chatId, chatMessages]) => [
+              Object.entries(migrated.allChats).map(([chatId, chatMessages]) => [
                 chatId,
                 chatMessages.map((message) =>
                   compactMessageBranchData({
@@ -242,13 +208,13 @@ function useLocalChat(
               ]),
             );
             const startedMeta = filterStartedRecentChats(
-              parsed.recentChats ?? [],
+              migrated.meta?.recentChats ?? [],
               hydratedChats,
             );
             const restoredActiveId = preferRouteActiveChatId(
-              parsed.activeChatId &&
-              startedMeta.some((chat) => chat.id === parsed.activeChatId)
-                ? parsed.activeChatId
+              migrated.meta?.activeChatId &&
+              startedMeta.some((chat) => chat.id === migrated.meta?.activeChatId)
+                ? migrated.meta.activeChatId
                 : (startedMeta[0]?.id ?? null),
             );
 
@@ -256,61 +222,119 @@ function useLocalChat(
               allChats: mergeWithLiveChats(hydratedChats),
               recentChats: startedMeta,
               activeChatId: restoredActiveId,
-              branchDataset: parsed.branchDataset,
+              branchDataset: migrated.meta?.branchDataset,
             });
             setActiveChatId(restoredActiveId);
-          } else if (parsed.recentChats) {
-            const startedMeta = filterStartedRecentChats(
-              parsed.recentChats,
-              parsed.allChats ?? {},
-            );
-            useChatStore.getState().setRecentChats(startedMeta);
-            setActiveChatId(
-              preferRouteActiveChatId(startedMeta[0]?.id ?? null),
-            );
+            return migrated.meta?.branchDataset;
           }
-          if (parsed.branchDataset) setBranchDataset(parsed.branchDataset);
-          return;
-        }
 
-        const allChats: AllChats = {};
-        for (const chat of meta.recentChats) {
-          const loaded = await loadFullChatFromIndexedDB(chat.id);
-          if (loaded.length > 0) {
-            allChats[chat.id] = loaded.map((message) =>
-              compactMessageBranchData({
-                ...message,
-                isStreaming: false,
-                isThinkingStreaming: false,
-              }),
-            );
+          const meta = await loadChatMeta();
+          if (!meta) {
+            const saved = window.localStorage.getItem(CHAT_STORAGE_KEY);
+            if (!saved) {
+              const routeChatId = readRouteChatIdFromLocation();
+              if (routeChatId) setActiveChatId(routeChatId);
+              else if (isNewChatHomePath()) setActiveChatId(null);
+              return undefined;
+            }
+            const parsed = JSON.parse(saved) as {
+              allChats?: AllChats;
+              recentChats?: RecentChat[];
+              activeChatId?: string | null;
+              branchDataset?: BranchDataset;
+            };
+            if (parsed.allChats) {
+              const hydratedChats = Object.fromEntries(
+                Object.entries(parsed.allChats).map(([chatId, chatMessages]) => [
+                  chatId,
+                  chatMessages.map((message) =>
+                    compactMessageBranchData({
+                      ...message,
+                      isStreaming: false,
+                      isThinkingStreaming: false,
+                    }),
+                  ),
+                ]),
+              );
+              const startedMeta = filterStartedRecentChats(
+                parsed.recentChats ?? [],
+                hydratedChats,
+              );
+              const restoredActiveId = preferRouteActiveChatId(
+                parsed.activeChatId &&
+                startedMeta.some((chat) => chat.id === parsed.activeChatId)
+                  ? parsed.activeChatId
+                  : (startedMeta[0]?.id ?? null),
+              );
+
+              useChatStore.getState().hydrateFromLegacy({
+                allChats: mergeWithLiveChats(hydratedChats),
+                recentChats: startedMeta,
+                activeChatId: restoredActiveId,
+                branchDataset: parsed.branchDataset,
+              });
+              setActiveChatId(restoredActiveId);
+            } else if (parsed.recentChats) {
+              const startedMeta = filterStartedRecentChats(
+                parsed.recentChats,
+                parsed.allChats ?? {},
+              );
+              useChatStore.getState().setRecentChats(startedMeta);
+              setActiveChatId(
+                preferRouteActiveChatId(startedMeta[0]?.id ?? null),
+              );
+            }
+            return parsed.branchDataset;
           }
+
+          const allChats: AllChats = {};
+          for (const chat of meta.recentChats) {
+            const loaded = await loadFullChatFromIndexedDB(chat.id);
+            if (loaded.length > 0) {
+              allChats[chat.id] = loaded.map((message) =>
+                compactMessageBranchData({
+                  ...message,
+                  isStreaming: false,
+                  isThinkingStreaming: false,
+                }),
+              );
+            }
+          }
+
+          const startedMeta = filterStartedRecentChats(meta.recentChats, allChats);
+          const restoredActiveId = preferRouteActiveChatId(
+            meta.activeChatId &&
+            startedMeta.some((chat) => chat.id === meta.activeChatId)
+              ? meta.activeChatId
+              : (startedMeta[0]?.id ?? null),
+          );
+
+          setActiveChatId(restoredActiveId);
+
+          useChatStore.getState().hydrateFromLegacy({
+            allChats: mergeWithLiveChats(allChats),
+            recentChats: startedMeta.map((chat) => ({
+              ...chat,
+              isTitleStreaming: false,
+            })),
+            activeChatId: restoredActiveId,
+            branchDataset: meta.branchDataset,
+          });
+          return meta.branchDataset;
+        } catch (error) {
+          console.error("Failed to restore chat state:", error);
+          return undefined;
         }
+      })();
+    }
 
-        const startedMeta = filterStartedRecentChats(meta.recentChats, allChats);
-        const restoredActiveId = preferRouteActiveChatId(
-          meta.activeChatId &&
-          startedMeta.some((chat) => chat.id === meta.activeChatId)
-            ? meta.activeChatId
-            : (startedMeta[0]?.id ?? null),
-        );
-
-        setActiveChatId(restoredActiveId);
-        setBranchDataset(meta.branchDataset);
-
-        useChatStore.getState().hydrateFromLegacy({
-          allChats: mergeWithLiveChats(allChats),
-          recentChats: startedMeta.map((chat) => ({
-            ...chat,
-            isTitleStreaming: false,
-          })),
-          activeChatId: restoredActiveId,
-          branchDataset: meta.branchDataset,
-        });
-      } catch (error) {
-        console.error("Failed to restore chat state:", error);
+    void localChatHydration.then((branchDataset) => {
+      if (branchDataset) setBranchDataset(branchDataset);
+      // Home must stay on a blank composer even if hydration raced earlier.
+      if (isNewChatHomePath() && !readRouteChatIdFromLocation()) {
+        setActiveChatId(null);
       }
-    })();
+    });
   }, []);
 
   useEffect(() => {
@@ -1343,43 +1367,20 @@ function useLocalChat(
   };
 }
 
-function useChatDisabled() {
-  return {
-    messages: [] as Message[],
-    recentChats: [] as RecentChat[],
-    startedRecentChats: [] as RecentChat[],
-    activeChat: null,
-    activeChatId: null,
-    isGenerating: false,
-    loading: false,
-    handleSendMessage: async () => {},
-    stopGeneration: () => {},
-    startNewChat: () => {},
-    handleSelectChat: () => {},
-    handleDeleteChat: async () => {},
-    handleRenameChat: async () => {},
-    handlePinChat: async () => {},
-    editMessageWithBranch: async () => {},
-    redoUserMessageWithBranch: async () => {},
-    retryAssistantWithBranch: async () => {},
-    switchMessageBranch: () => {},
-    refreshChats: async () => {},
-  };
-}
-
+/**
+ * IMPORTANT: `options.apiEnabled` must stay stable for the lifetime of the
+ * component that calls this hook. Flipping it mid-mount switches between
+ * useChatApi and useLocalChat (different hook graphs) and crashes React —
+ * that was the "page couldn't load" failure after auth resolved.
+ * Remount with a new `key` when the signed-in user changes instead.
+ */
 export function useChat(options: UseChatOptions = {}) {
-  const authRequiredForChat =
-    process.env.NEXT_PUBLIC_AUTH_REQUIRED_FOR_CHAT === "true";
-
   if (options.apiEnabled) {
     return useChatApi(
       options.projectId ?? null,
       options.chatModel,
       options.homerReasoningEffort,
     );
-  }
-  if (authRequiredForChat) {
-    return useChatDisabled();
   }
   return useLocalChat(options);
 }

@@ -4,17 +4,15 @@ import * as settingsRepo from "@/backend/repositories/settings.repository";
 import { ensureUserRecord } from "@/backend/services/identity.service";
 import * as profileService from "@/backend/services/profile.service";
 import { resolveAuthFullName } from "@/lib/profile-names";
+import {
+  ONBOARDING_STEPS,
+  isOnboardingStep,
+  type OnboardingStepId,
+} from "@/lib/onboarding-steps";
 
-const DEFAULT_STEP = "create-account";
+const DEFAULT_STEP: OnboardingStepId = "create-account";
 
-const ALLOWED_STEPS = new Set([
-  "create-account",
-  "plan-selection",
-  "desktop",
-  "before-chat",
-  "name",
-  "role",
-]);
+const ALLOWED_STEPS = new Set<string>(ONBOARDING_STEPS);
 
 export type OnboardingAnswers = {
   termsAccepted?: boolean;
@@ -57,11 +55,13 @@ function sanitizeAnswers(input: OnboardingAnswers): Record<string, unknown> {
 }
 
 function toClientState(row: Awaited<ReturnType<typeof onboardingRepo.getOnboarding>>) {
+  const rawStep = row?.onboarding_step ?? DEFAULT_STEP;
   return {
-    step: row?.onboarding_step ?? DEFAULT_STEP,
+    step: isOnboardingStep(rawStep) ? rawStep : DEFAULT_STEP,
     completedAt: row?.onboarding_completed_at ?? null,
     completed: Boolean(row?.onboarding_completed_at),
     answers: (row?.onboarding_answers ?? {}) as Record<string, unknown>,
+    steps: [...ONBOARDING_STEPS],
   };
 }
 
@@ -87,7 +87,7 @@ export async function updateOnboardingState(
     authMetadata?: Record<string, unknown> | null;
   },
 ) {
-  if (input.step && !ALLOWED_STEPS.has(input.step)) {
+  if (input.step && !isOnboardingStep(input.step) && !ALLOWED_STEPS.has(input.step)) {
     throw new AppError("Unknown onboarding step.", 400);
   }
 

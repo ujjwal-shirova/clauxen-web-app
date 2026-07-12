@@ -16,6 +16,7 @@ export type OnboardingApiState = {
   completed: boolean;
   completedAt: string | null;
   answers?: OnboardingAnswers;
+  steps?: string[];
 };
 
 export async function getOnboarding() {

@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
 import {
   DEFAULT_ONBOARDING_STATE,
   type OnboardingState,
@@ -18,6 +17,13 @@ import * as onboardingApi from "@/frontend/lib/api/onboarding";
 import * as authApi from "@/frontend/lib/api/auth";
 import type { OnboardingAnswers } from "@/frontend/lib/api/onboarding";
 import { ApiError } from "@/frontend/lib/api/client";
+import {
+  ONBOARDING_STEPS,
+  isOnboardingStep,
+  parseOnboardingHash,
+  pushOnboardingStepHash,
+  replaceOnboardingStepHash,
+} from "@/lib/onboarding-steps";
 
 const PlanSelectionStep = dynamic(
   () =>
@@ -28,19 +34,10 @@ const PlanSelectionStep = dynamic(
   },
 );
 
-const STEP_ORDER: OnboardingStep[] = [
-  "create-account",
-  "plan-selection",
-  "desktop",
-  "before-chat",
-  "name",
-  "role",
-];
+const STEP_ORDER: OnboardingStep[] = [...ONBOARDING_STEPS];
 
 function stepFromApi(step: string | null | undefined): OnboardingStep {
-  if (step && STEP_ORDER.includes(step as OnboardingStep)) {
-    return step as OnboardingStep;
-  }
+  if (isOnboardingStep(step)) return step;
   return "create-account";
 }
 
@@ -101,12 +98,6 @@ function answersForStep(
   }
 }
 
-function clearOnboardingHash() {
-  if (typeof window === "undefined") return;
-  if (!window.location.hash) return;
-  window.history.replaceState(null, "", "/onboarding");
-}
-
 function enterApp() {
   // Hard navigation so middleware re-reads onboarding_completed_at
   // and we never soft-loop back onto a stale OnboardingFlow instance.
@@ -114,17 +105,55 @@ function enterApp() {
 }
 
 export function OnboardingFlow() {
-  const router = useRouter();
   const [step, setStep] = useState<OnboardingStep>("create-account");
   const [state, setState] = useState<OnboardingState>(DEFAULT_ONBOARDING_STATE);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [splashMessage, setSplashMessage] = useState("Setting things up…");
   const [error, setError] = useState<string | null>(null);
+  const stepRef = useRef(step);
+  const syncingHashRef = useRef(false);
 
   useEffect(() => {
-    clearOnboardingHash();
+    stepRef.current = step;
+  }, [step]);
 
+  // Keep /onboarding#step in the address bar (ChatGPT/Claude-style deep links).
+  useEffect(() => {
+    if (!hydrated || busy) return;
+    syncingHashRef.current = true;
+    replaceOnboardingStepHash(step);
+    // Allow hashchange listeners to ignore our own replace.
+    const t = window.setTimeout(() => {
+      syncingHashRef.current = false;
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [step, hydrated, busy]);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      if (syncingHashRef.current || busy) return;
+      const fromHash = parseOnboardingHash(window.location.hash);
+      if (fromHash && fromHash !== stepRef.current) {
+        setStep(fromHash);
+        // Persist soft jump so reload / new tab land on the same step.
+        void onboardingApi
+          .updateOnboarding({ step: fromHash })
+          .catch(() => {
+            /* best-effort */
+          });
+      }
+    };
+
+    window.addEventListener("hashchange", onHashChange);
+    window.addEventListener("popstate", onHashChange);
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener("popstate", onHashChange);
+    };
+  }, [busy]);
+
+  useEffect(() => {
     void Promise.all([onboardingApi.getOnboarding(), authApi.getSession()])
       .then(([{ onboarding }, session]) => {
         if (onboarding.completed) {
@@ -136,7 +165,14 @@ export function OnboardingFlow() {
           session?.preferredName?.trim() ||
           session?.displayName?.trim() ||
           "";
-        setStep(stepFromApi(onboarding.step));
+
+        // URL hash wins on first paint (copy/paste / reload deep link).
+        const hashStep = parseOnboardingHash(
+          typeof window !== "undefined" ? window.location.hash : "",
+        );
+        const resolvedStep = hashStep ?? stepFromApi(onboarding.step);
+
+        setStep(resolvedStep);
         setState((prev) => ({
           ...prev,
           ...answers,
@@ -145,6 +181,18 @@ export function OnboardingFlow() {
             fromSession ||
             prev.displayName,
         }));
+
+        // If the user opened a later hash than the server step, advance server.
+        if (hashStep && hashStep !== onboarding.step) {
+          void onboardingApi
+            .updateOnboarding({ step: hashStep })
+            .catch(() => {
+              /* best-effort */
+            });
+        } else {
+          replaceOnboardingStepHash(resolvedStep);
+        }
+
         setHydrated(true);
       })
       .catch((err) => {
@@ -153,9 +201,17 @@ export function OnboardingFlow() {
             ? err.message
             : "Could not load onboarding. Please refresh.",
         );
+        // Still honor hash so a flaky API does not trap users on create-account.
+        const hashStep = parseOnboardingHash(
+          typeof window !== "undefined" ? window.location.hash : "",
+        );
+        if (hashStep) {
+          setStep(hashStep);
+          replaceOnboardingStepHash(hashStep);
+        }
         setHydrated(true);
       });
-  }, [router]);
+  }, []);
 
   const patch = useCallback((partial: Partial<OnboardingState>) => {
     setState((prev) => ({ ...prev, ...partial }));
@@ -200,6 +256,7 @@ export function OnboardingFlow() {
         }
 
         if (opts.nextStep) {
+          pushOnboardingStepHash(opts.nextStep);
           setStep(opts.nextStep);
         }
         setBusy(false);
