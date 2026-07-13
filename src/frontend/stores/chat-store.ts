@@ -10,7 +10,10 @@ const EMPTY_IDS: readonly string[] = [];
 const EMPTY_MESSAGES: readonly Message[] = [];
 
 /** Active RAM window — only this many messages stay in heap per chat. */
-export const ACTIVE_RAM_MESSAGE_WINDOW = 15;
+export const ACTIVE_RAM_MESSAGE_WINDOW = 24;
+
+/** Max messages retained when scrolling up before older turns are dropped from RAM. */
+export const MAX_ACTIVE_CHAT_MESSAGES = 48;
 
 export type QueuedChatMessage = {
   id: string;
@@ -71,6 +74,10 @@ type ChatStoreActions = {
       | ((prev: ChatStoreState["branchDataset"]) => ChatStoreState["branchDataset"]),
   ) => void;
   evictMessagesExcept: (chatId: string, keepIds: Set<string>) => void;
+  /** Drop message bodies for every chat except `keepChatId` (re-fetched on open). */
+  clearInactiveChatMessages: (keepChatId: string | null) => void;
+  /** Keep the newest `limit` messages for a chat (always retains streaming rows). */
+  trimChatMessagesToWindow: (chatId: string, limit?: number) => void;
   hydrateFromLegacy: (payload: {
     allChats?: Record<string, Message[]>;
     recentChats?: RecentChat[];
@@ -324,6 +331,64 @@ export const useChatStore = create<ChatStore>()(
         const nextIds: string[] = [];
         for (const id of ids) {
           if (keepIds.has(id)) {
+            nextIds.push(id);
+          } else {
+            delete nextById[id];
+          }
+        }
+        return {
+          messagesById: nextById,
+          messageIdsByChatId: {
+            ...state.messageIdsByChatId,
+            [chatId]: nextIds,
+          },
+        };
+      });
+    },
+
+    clearInactiveChatMessages: (keepChatId) => {
+      set((state) => {
+        const nextById = { ...state.messagesById };
+        const nextIdsByChat: Record<string, string[]> = {};
+        for (const [chatId, ids] of Object.entries(state.messageIdsByChatId)) {
+          if (keepChatId && chatId === keepChatId) {
+            nextIdsByChat[chatId] = ids;
+            continue;
+          }
+          for (const id of ids) {
+            delete nextById[id];
+          }
+          nextIdsByChat[chatId] = [];
+        }
+        return {
+          messagesById: nextById,
+          messageIdsByChatId: nextIdsByChat,
+        };
+      });
+    },
+
+    trimChatMessagesToWindow: (chatId, limit = ACTIVE_RAM_MESSAGE_WINDOW) => {
+      set((state) => {
+        const ids = state.messageIdsByChatId[chatId] ?? [];
+        if (ids.length <= limit) return state;
+
+        const streamingIds = new Set<string>();
+        for (const id of ids) {
+          const message = state.messagesById[id];
+          if (message?.isStreaming || message?.isThinkingStreaming) {
+            streamingIds.add(id);
+          }
+        }
+
+        const keep = new Set<string>(streamingIds);
+        for (let i = ids.length - 1; i >= 0 && keep.size < limit; i -= 1) {
+          keep.add(ids[i]!);
+        }
+
+        const nextById = { ...state.messagesById };
+        const nextIds: string[] = [];
+        for (const id of ids) {
+          if (keep.has(id)) {
             nextIds.push(id);
           } else {
             delete nextById[id];

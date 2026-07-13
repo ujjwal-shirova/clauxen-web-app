@@ -59,6 +59,11 @@ export default function RootLayout({
       className={`${inter.variable} ${playfair.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Edge / browser connection warm-up for auth + vitals (FCP helpers). */}
+        <link rel="dns-prefetch" href="https://vitals.vercel-insights.com" />
+        <link rel="preconnect" href="https://vitals.vercel-insights.com" crossOrigin="anonymous" />
+      </head>
       <body
         className={`${inter.className} antialiased`}
         suppressHydrationWarning

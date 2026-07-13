@@ -32,6 +32,7 @@ import {
 import { useInstantNavigate } from "@/frontend/hooks/use-instant-navigate";
 import { useDocumentTitle } from "@/frontend/hooks/use-document-title";
 import { APP_ROUTES } from "@/frontend/lib/app-routes";
+import { MainShellSkeleton } from "@/frontend/components/chat-route-skeleton";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
@@ -368,8 +369,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
 
   // Wait for identity (cookie hint / JWT / session) before mounting chat hooks.
+  // Paint a shell skeleton immediately so FCP/LCP are not a blank white screen.
   if (!auth.user?.id) {
-    return <div className="min-h-[100dvh] w-full bg-white" aria-busy="true" />;
+    return <MainShellSkeleton />;
   }
 
   return (

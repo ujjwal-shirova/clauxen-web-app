@@ -1,6 +1,12 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { ChatView } from "@/frontend/components/chat-view";
+import { ChatRouteSkeleton } from "@/frontend/components/chat-route-skeleton";
 
-/** Home → canonical new-chat URL (Claude-style /new). */
+/** Serve / as /new without an extra redirect hop (helps FCP on home). */
 export default function HomePage() {
-  redirect("/new");
+  return (
+    <Suspense fallback={<ChatRouteSkeleton />}>
+      <ChatView />
+    </Suspense>
+  );
 }

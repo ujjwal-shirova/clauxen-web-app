@@ -1,20 +1,40 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { SoftErrorBoundary } from "@/frontend/components/soft-error-boundary";
 import { SettingsErrorBoundary } from "@/frontend/components/settings/settings-error-boundary";
-import { UpgradeView } from "@/frontend/components/upgrade-view";
-import { GiftView } from "@/frontend/components/gift-view";
-import { AppsExtensionsView } from "@/frontend/components/apps-extensions-view";
-import { SettingsModal } from "@/frontend/components/settings-page";
 import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { APP_ROUTES } from "@/frontend/lib/app-routes";
 import { useRouter } from "next/navigation";
 import { isSettingsTab } from "@/frontend/components/settings/constants";
 
+const UpgradeView = dynamic(
+  () =>
+    import("@/frontend/components/upgrade-view").then((m) => m.UpgradeView),
+  { ssr: false },
+);
+const GiftView = dynamic(
+  () => import("@/frontend/components/gift-view").then((m) => m.GiftView),
+  { ssr: false },
+);
+const AppsExtensionsView = dynamic(
+  () =>
+    import("@/frontend/components/apps-extensions-view").then(
+      (m) => m.AppsExtensionsView,
+    ),
+  { ssr: false },
+);
+const SettingsModal = dynamic(
+  () =>
+    import("@/frontend/components/settings-page").then((m) => m.SettingsModal),
+  { ssr: false },
+);
+
 /**
  * Hosts fullscreen app surfaces outside the transformed main panel so opens
  * are instant (local state) and cover the real viewport.
+ * Overlays are code-split so chat routes do not pay for settings/billing JS.
  */
 export function AppOverlayHost() {
   const overlays = useAppOverlays();
