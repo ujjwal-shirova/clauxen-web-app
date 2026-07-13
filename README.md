@@ -122,11 +122,14 @@ npm run autonomous-agent:ws    # standalone autonomous-agent WebSocket server (:
 |---|---|---|
 | **Supabase Postgres** | Relational app data, metadata pointers | `profiles`, `chats`, `chat_messages`, `user_files`, `subscriptions` |
 | **Cloudflare R2** | Binary blobs only | Avatars, chat images, project uploads, artifacts, skill packages |
-| **CF Worker (`WORKER_URL`)** | Auth-gated presign/upload/download; Cache API on public reads | Large file uploads bypass Vercel 4.5 MB limit |
+| **CF Worker (`CHAT_HISTORY_WORKER_URL`)** | Keyset chat pages: Cache API → KV → R2 → Hyperdrive | Miss-only Postgres; `x-clauxen-cache` header |
+| **CF Worker (`WORKER_URL`)** | Auth-gated upload/download to R2; Cache API on reads | Large file uploads bypass Vercel 4.5 MB limit |
 | **Browser localStorage** | Offline chat fallback when `AUTH_REQUIRED_FOR_CHAT=false` | IndexedDB path in `use-chat.ts` |
 | **D1** | Not used | See `docs/backend-audit.md` for rationale |
 
-Flow: user uploads → `POST /api/v1/files/presign` creates `user_files` row → client PUTs to Worker → `POST /api/v1/files/complete` finalizes. Chat attachments link via `chat_message_parts.file_id`.
+Flow: user uploads → `POST /api/v1/files/presign` creates `user_files` row → client PUTs to R2 gateway Worker (Bearer Supabase JWT) → `POST /api/v1/files/complete` finalizes. Chat attachments link via `chat_message_parts.file_id` (+ `metadata.attachments` for UI reload).
+
+Deploy Workers: `./scripts/deploy-cloudflare-workers.sh` (requires `CLOUDFLARE_API_TOKEN`).
 
 ## API surface
 

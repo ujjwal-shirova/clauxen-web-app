@@ -10,7 +10,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 - **Skill:** `.cursor/skills/brain-memory` (invoke for read / write / search)
 - **CLI:** `./brain/tools/memory.sh`
 - **Always-apply rule:** `.cursor/rules/brain-memory.mdc`
-- **Last updated:** 2026-07-12
+- **Last updated:** 2026-07-13
 
 ---
 
@@ -59,9 +59,9 @@ Full target surface — **remember only; implement only when user asks for a sli
 3. **Billing** — plans / subscription wiring
 4. **Settings** — account + product settings
 5. **Projects** — project model + UI integration
-6. **Chat view** — chat UI wired to persisted messages
-7. **Supabase** — store chat messages (+ related structured data) accordingly
-8. **Cloudflare R2** — file/photo (and other blob) storage via existing R2/gateway path
+6. **Chat view** — ✅ core + attachments + agent timeline orb + edge cache (2026-07-13); MCP connectors still deferred
+7. **Supabase** — store chat messages (+ related structured data) accordingly — ✅ messages + parts + transcript JSONL
+8. **Cloudflare R2** — buckets created; **r2-gateway Worker deploy + WORKER_URL** still ops follow-up
 9. **Plans** — plan entitlements tied to billing
 10. **Customize** — personalization / appearance / preferences
 11. **Skills** — skills surface (product feature, not Cursor skills)
@@ -87,6 +87,8 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Sidebar Recents shimmer on first chat list fetch; conversation pane shimmer while `/c/[id]` messages hydrate. Realtime chat list refresh is silent (no full-list re-shimmer).
 - Chat transcripts for training: `chat_transcript_lines` stores Cursor-style JSONL records (`role` + `message.content` parts including `text` / `thinking` / `tool_use` / `tool_result`, plus `turn_ended`). View `chat_transcripts_jsonl` aggregates one JSONL doc per chat. Export: `GET /api/v1/chats/[chatId]/transcript`.
 - Branch PUT must use `sanitizeBranchMessages` (keeps ids/frames). Never `sanitizeMessages` for branch state — that stripped ids and caused reload duplicate assistants.
+- Chat-history Worker already emits `x-clauxen-cache`; redeploy worker after TTL/invalidate changes (`cd workers/chat-history && npx wrangler deploy`).
+- Attachment Worker PUTs require `Authorization: Bearer <supabase access token>` when `worker: true` on presign.
 
 ---
 

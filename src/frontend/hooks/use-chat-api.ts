@@ -1073,6 +1073,7 @@ export function useChatApi(
 
         // Upload attachments in parallel; failures mark chips but still stream text.
         const fileIds: string[] = [];
+        let uploadFailures = 0;
         if (pendingAttachments.length > 0) {
           const uploaded = await Promise.all(
             pendingAttachments.map(async (attachment) => {
@@ -1082,6 +1083,7 @@ export function useChatApi(
                 return await uploadUserFile(attachment.file);
               } catch (error) {
                 console.warn("[chat] attachment upload failed:", error);
+                uploadFailures += 1;
                 return null;
               }
             }),
@@ -1090,22 +1092,28 @@ export function useChatApi(
             if (id) fileIds.push(id);
           }
 
-          if (fileIds.length > 0) {
-            setAllChats((prev) => {
-              const list = prev[chatId!] ?? [];
-              const index = list.findIndex((message) => message.id === tempUserId);
-              if (index < 0) return prev;
-              const next = [...list];
-              const current = next[index]!;
-              next[index] = {
-                ...current,
-                attachments: (current.attachments ?? []).map((item, i) => ({
-                  ...item,
-                  fileId: uploaded[i] ?? item.fileId,
-                })),
-              };
-              return { ...prev, [chatId!]: next };
-            });
+          setAllChats((prev) => {
+            const list = prev[chatId!] ?? [];
+            const index = list.findIndex((message) => message.id === tempUserId);
+            if (index < 0) return prev;
+            const next = [...list];
+            const current = next[index]!;
+            next[index] = {
+              ...current,
+              attachments: (current.attachments ?? []).map((item, i) => ({
+                ...item,
+                fileId: uploaded[i] ?? item.fileId,
+                // Keep local preview even when upload fails so the chip still renders.
+                previewUrl: item.previewUrl,
+              })),
+            };
+            return { ...prev, [chatId!]: next };
+          });
+
+          if (uploadFailures > 0 && fileIds.length === 0) {
+            console.warn(
+              `[chat] ${uploadFailures} attachment upload(s) failed; continuing with text only`,
+            );
           }
         }
 
