@@ -1,15 +1,12 @@
 "use client";
 
 import type { Message } from "@/frontend/lib/types";
-import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
 import { AssistantContentRenderer } from "@/frontend/components/assistant-content-renderer";
 import { ThinkingBlock } from "@/frontend/components/thinking-block";
 import { StreamingOrbCursor } from "@/frontend/components/ui/streaming-orb-cursor";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
-import {
-  resolveOrchestrationBlocks,
-  shouldUseAgentMessageLayout,
-} from "@/frontend/lib/agent-frames";
+import { shouldUseAgentMessageLayout } from "@/frontend/lib/agent-frames";
+import { shouldShowAssistantStreamingOrb } from "@/frontend/lib/streaming-orb-policy";
 import { AgentOrchestrationView } from "./agent-orchestration";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
 
@@ -20,15 +17,16 @@ export function AgentMessageContent({
   message: Message;
   detailLevel: MessageDetailLevel;
 }) {
-  const blocks = resolveOrchestrationBlocks(message);
   const hasAgentUi = shouldUseAgentMessageLayout(message);
 
-  const showOrb =
-    message.isStreaming === true &&
-    message.content.length === 0 &&
-    blocks.length === 0;
-
   if (!hasAgentUi) {
+    const answerStreaming =
+      message.isStreaming === true && message.content.trim().length > 0;
+    const showOrb = shouldShowAssistantStreamingOrb({
+      isStreaming: message.isStreaming === true,
+      answerStreaming,
+    });
+
     return (
       <>
         {(message.hasThinking ||
@@ -41,13 +39,12 @@ export function AgentMessageContent({
             className="mb-4"
           />
         )}
-        {showOrb ? (
-          <div className="flex items-center py-1">
-            <StreamingOrbCursor />
-          </div>
-        ) : null}
         {message.content.length > 0 ? (
-          <div data-message-id={message.id} data-assistant-content="true" className="min-w-0">
+          <div
+            data-message-id={message.id}
+            data-assistant-content="true"
+            className="min-w-0"
+          >
             <AssistantContentRenderer
               content={message.content}
               messageId={message.id}
@@ -57,6 +54,11 @@ export function AgentMessageContent({
               agentArtifacts={message.agentArtifacts}
               {...({ sources: collectMessageSources(message) } as any)}
             />
+          </div>
+        ) : null}
+        {showOrb ? (
+          <div className="flex items-center py-1" data-streaming-orb="bottom">
+            <StreamingOrbCursor />
           </div>
         ) : null}
       </>

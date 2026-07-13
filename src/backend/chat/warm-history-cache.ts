@@ -31,3 +31,30 @@ export async function warmChatHistoryCache(input: {
     // best-effort
   }
 }
+
+/** Purge edge latest-page caches after delete / destructive edits. */
+export async function invalidateChatHistoryCache(input: {
+  userId: string;
+  chatId: string;
+}): Promise<void> {
+  const base = env.chatHistoryWorkerUrl;
+  const token = env.chatHistoryInternalToken;
+  if (!base || !token) return;
+
+  try {
+    await fetch(`${base}/internal/invalidate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-clauxen-internal": token,
+      },
+      body: JSON.stringify({
+        userId: input.userId,
+        chatId: input.chatId,
+      }),
+      cache: "no-store",
+    });
+  } catch {
+    // best-effort
+  }
+}

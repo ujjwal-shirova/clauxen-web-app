@@ -26,6 +26,10 @@ import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility
 import { useMessageEnterAnimation } from "@/frontend/hooks/use-message-enter-animation";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { useIsMobile } from "@/frontend/hooks/use-mobile";
+import { AttachmentChip } from "@/frontend/components/composer/attachment-chip";
+import { AttachmentImageLightbox } from "@/frontend/components/composer/attachment-image-lightbox";
+import { AttachmentDocumentPreview } from "@/frontend/components/composer/attachment-document-preview";
+import type { MessageAttachment } from "@/frontend/lib/composer-attachments";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 /** Trigger server keyset fetch when the viewport is this close to the top. */
@@ -194,6 +198,8 @@ const MessageRow = React.memo(
     const branchVersions = message.branchVersions?.length ?? 1;
     const activeBranchIndex = message.activeBranchIndex ?? branchVersions - 1;
     const [expandOpen, setExpandOpen] = React.useState(false);
+    const [previewAttachment, setPreviewAttachment] =
+      React.useState<MessageAttachment | null>(null);
     const { ref: visibilityRef, detailLevel } = useMessageDetailLevel(
       message.role === "assistant",
       !!message.isStreaming,
@@ -227,6 +233,27 @@ const MessageRow = React.memo(
               id={messageAnchorId(message.id)}
               className="user-message-card relative flex w-full scroll-mt-20 flex-col font-sans"
             >
+              {message.attachments && message.attachments.length > 0 ? (
+                <div className="mb-1.5 flex flex-wrap gap-1.5 px-0.5">
+                  {message.attachments.map((attachment) => (
+                    <AttachmentChip
+                      key={attachment.id}
+                      file={attachment}
+                      onOpen={() =>
+                        setPreviewAttachment({
+                          ...attachment,
+                          previewUrl:
+                            attachment.previewUrl ||
+                            (attachment.fileId
+                              ? `/api/v1/files/${attachment.fileId}/url?redirect=1`
+                              : undefined),
+                        })
+                      }
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {message.content.trim() ? (
               <button
                 type="button"
                 onClick={() => setExpandOpen(true)}
@@ -244,6 +271,21 @@ const MessageRow = React.memo(
                   {message.content}
                 </p>
               </button>
+              ) : null}
+              <AttachmentImageLightbox
+                open={previewAttachment?.kind === "image"}
+                name={previewAttachment?.name ?? ""}
+                previewUrl={previewAttachment?.previewUrl ?? ""}
+                onClose={() => setPreviewAttachment(null)}
+              />
+              <AttachmentDocumentPreview
+                open={previewAttachment?.kind === "document"}
+                name={previewAttachment?.name ?? ""}
+                mimeType={previewAttachment?.mimeType ?? ""}
+                previewUrl={previewAttachment?.previewUrl}
+                textPreview={previewAttachment?.textPreview}
+                onClose={() => setPreviewAttachment(null)}
+              />
               <UserMessageExpandDialog
                 open={expandOpen}
                 onOpenChange={setExpandOpen}

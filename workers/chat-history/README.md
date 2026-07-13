@@ -9,6 +9,12 @@ Edge keyset pagination for `chat_messages`, optimized so Hyperdrive is a **miss-
 
 After each completed turn the Next app can `POST /internal/warm` (shared secret) so the next reload is served from Cache/KV/R2 without burning Hyperdrive quota.
 
+Destructive edits should `POST /internal/invalidate` so stale latest pages are purged.
+
+Default latest-page TTL is **600s**; cursor pages use **180s** (`CURSOR_PAGE_CACHE_TTL_SECONDS`).
+
+Responses include `x-clauxen-cache: cache-api|kv|r2|hyperdrive|page-*` for observability.
+
 ## Live
 
 - Worker: `https://clauxen-chat-history.ujjwal-8fc.workers.dev`

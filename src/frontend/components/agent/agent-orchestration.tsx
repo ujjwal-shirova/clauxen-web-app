@@ -6,6 +6,7 @@ import { resolveOrchestrationBlocks } from "@/frontend/lib/agent-frames";
 import { AssistantContentRenderer } from "@/frontend/components/assistant-content-renderer";
 import { StreamingOrbCursor } from "@/frontend/components/ui/streaming-orb-cursor";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
+import { shouldShowAssistantStreamingOrb } from "@/frontend/lib/streaming-orb-policy";
 import { AgentWorkFrame } from "./agent-work-frame";
 import { ArtifactFileCard } from "./artifact-file-card";
 
@@ -19,14 +20,18 @@ export function AgentOrchestrationView({
   const blocks = resolveOrchestrationBlocks(message);
   const sources = collectMessageSources(message);
   const streaming = message.isStreaming === true;
-  const hasVisibleOutput = blocks.some(
+  // Keep the orb visible during thinking/tool timelines; hide only once
+  // answer markdown is actively streaming (text caret replaces the orb).
+  const answerStreaming = blocks.some(
     (block) =>
-      block.kind === "markdown" && block.content.trim().length > 0,
+      block.kind === "markdown" &&
+      block.isStreaming &&
+      block.content.trim().length > 0,
   );
-  const hasActiveTimeline = blocks.some(
-    (block) => block.kind === "timeline" && block.isActive,
-  );
-  const showOrb = streaming && !hasVisibleOutput && !hasActiveTimeline;
+  const showOrb = shouldShowAssistantStreamingOrb({
+    isStreaming: streaming,
+    answerStreaming,
+  });
 
   if (blocks.length === 0) {
     return showOrb ? (
@@ -79,7 +84,7 @@ export function AgentOrchestrationView({
       })}
 
       {showOrb ? (
-        <div className="flex items-center py-1">
+        <div className="flex items-center py-1" data-streaming-orb="bottom">
           <StreamingOrbCursor />
         </div>
       ) : null}

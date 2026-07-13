@@ -66,8 +66,9 @@ export default {
       return new Response(null, {
         headers: {
           "access-control-allow-origin": "*",
-          "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
+          "access-control-allow-methods": "GET,PUT,POST,DELETE,OPTIONS",
           "access-control-allow-headers": "authorization,content-type",
+          "access-control-max-age": "86400",
         },
       });
     }
@@ -113,7 +114,13 @@ export default {
             request.headers.get("content-type") ?? "application/octet-stream",
         },
       });
-      return json({ ok: true, key });
+      return new Response(JSON.stringify({ ok: true, key }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "access-control-allow-origin": "*",
+        },
+      });
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/download/")) {

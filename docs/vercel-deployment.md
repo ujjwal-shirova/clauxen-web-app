@@ -79,17 +79,27 @@ See [`docs/auth-migration.md`](auth-migration.md) for dev-cookie → GoTrue migr
 |---|---|
 | `WORKER_URL` | Deployed `workers/r2-gateway` URL (e.g. `https://clauxen-r2-gateway.workers.dev`) |
 
-Deploy the worker:
+## Required (chat-history edge Worker)
+
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL` | Browser-reachable chat-history Worker origin |
+| `CHAT_HISTORY_WORKER_URL` | Server-side same origin (warm / invalidate) |
+| `CHAT_HISTORY_INTERNAL_TOKEN` | Shared secret for `/internal/warm` + `/internal/invalidate` |
+
+Deploy both Workers (needs `CLOUDFLARE_API_TOKEN`):
 
 ```bash
+./scripts/deploy-cloudflare-workers.sh
+# or manually:
+cd workers/chat-history && npx wrangler deploy
 cd workers/r2-gateway
-npm install
 npx wrangler secret put SUPABASE_URL
 npx wrangler secret put SUPABASE_ANON_KEY
-npm run deploy
+npx wrangler deploy
 ```
 
-Set `WORKER_URL` on Vercel to the deployed worker origin.
+Set `WORKER_URL` on Vercel to the deployed r2-gateway origin. R2 buckets `clauxen-images`, `clauxen-documents`, `clauxen-artifacts`, `clauxen-skills`, and `clauxen-chat-archives` already exist in the account.
 
 ## Sync from local `.env.example`
 

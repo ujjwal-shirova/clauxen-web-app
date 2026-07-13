@@ -29,9 +29,19 @@ import { MessageQueuePanel } from "./message-queue-panel";
 import type { ChatModelId } from "@/lib/chat-models";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
 import type { QueuedChatMessage } from "@/frontend/stores/chat-store";
+import {
+  COMPOSER_FILE_ACCEPT,
+  classifyComposerFile,
+  readTextPreview,
+  type ComposerAttachment,
+  type SendMessageOptions,
+} from "@/frontend/lib/composer-attachments";
+import { AttachmentChip } from "@/frontend/components/composer/attachment-chip";
+import { AttachmentImageLightbox } from "@/frontend/components/composer/attachment-image-lightbox";
+import { AttachmentDocumentPreview } from "@/frontend/components/composer/attachment-document-preview";
 
 interface PromptInputProps {
-  onSendMessage: (prompt: string) => void;
+  onSendMessage: (prompt: string, options?: SendMessageOptions) => void;
   onStopGeneration: () => void;
   onScrollToBottom?: () => void;
   showScrollToBottomButton?: boolean;
@@ -69,13 +79,6 @@ const COMPOSE_ACTION_META: Record<
     placeholder: "What do you want to research?",
     icon: Telescope,
   },
-};
-
-type PromptAttachment = {
-  id: string;
-  name: string;
-  previewUrl: string;
-  mimeType: string;
 };
 
 const addMenuTriggerClass =
@@ -138,9 +141,13 @@ export function PromptInput({
   const [activeInlineMode, setActiveInlineMode] =
     useState<PromptInlineMode | null>(null);
   const [composeChipHovered, setComposeChipHovered] = useState(false);
-  const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
+  const [previewAttachment, setPreviewAttachment] =
+    useState<ComposerAttachment | null>(null);
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const dragDepthRef = useRef(0);
   const [waveLevels, setWaveLevels] = useState<number[]>(() =>
     Array.from({ length: WAVE_DOT_COUNT }, () => 0.12),
   );
@@ -523,7 +530,8 @@ export function PromptInput({
     const value = readDraft().trim();
     // Allow send while generating — active chat queues; other chats start a stream.
     if (value || attachments.length > 0) {
-      onSendMessage(value);
+      const payload = attachments.map((item) => ({ ...item }));
+      onSendMessage(value, { attachments: payload });
       syncDraftImmediate("");
       setAttachments([]);
       setAttachmentError(null);
@@ -534,42 +542,79 @@ export function PromptInput({
     }
   };
 
-  const addAttachment = useCallback((attachment: PromptAttachment) => {
+  const addAttachment = useCallback((attachment: ComposerAttachment) => {
     setAttachments((prev) => [...prev, attachment]);
     setAttachmentError(null);
   }, []);
 
   const removeAttachment = useCallback((id: string) => {
-    setAttachments((prev) => prev.filter((item) => item.id !== id));
+    setAttachments((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target?.previewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((item) => item.id !== id);
+    });
   }, []);
 
   const openFilePicker = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
 
+  const ingestFiles = useCallback(
+    async (files: File[]) => {
+      let added = 0;
+      for (const file of files) {
+        const kind = classifyComposerFile(file);
+        if (!kind) {
+          setAttachmentError(
+            `"${file.name}" is not a supported attachment type.`,
+          );
+          continue;
+        }
+
+        const id = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        if (kind === "image") {
+          const previewUrl = URL.createObjectURL(file);
+          addAttachment({
+            id,
+            name: file.name,
+            previewUrl,
+            mimeType: file.type || "image/png",
+            kind: "image",
+            file,
+            uploadStatus: "local",
+          });
+          added += 1;
+          continue;
+        }
+
+        const textPreview = await readTextPreview(file);
+        const previewUrl = URL.createObjectURL(file);
+        addAttachment({
+          id,
+          name: file.name,
+          previewUrl,
+          mimeType: file.type || "application/octet-stream",
+          kind: "document",
+          file,
+          textPreview: textPreview || undefined,
+          uploadStatus: "local",
+        });
+        added += 1;
+      }
+      if (added > 0) setAttachmentError(null);
+    },
+    [addAttachment],
+  );
+
   const handleFileInputChange = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(event.target.files ?? []);
       event.target.value = "";
-
-      for (const file of files) {
-        if (!file.type.startsWith("image/")) continue;
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result ?? ""));
-          reader.onerror = () => reject(new Error("Could not read file."));
-          reader.readAsDataURL(file);
-        });
-
-        addAttachment({
-          id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          name: file.name,
-          previewUrl: dataUrl,
-          mimeType: file.type,
-        });
-      }
+      await ingestFiles(files);
     },
-    [addAttachment],
+    [ingestFiles],
   );
 
   const handleTakeScreenshot = useCallback(async () => {
@@ -578,11 +623,17 @@ export function PromptInput({
     setIsCapturingScreenshot(true);
     try {
       const shot = await captureDisplayScreenshot();
+      const res = await fetch(shot.dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], shot.fileName, { type: "image/png" });
       addAttachment({
         id: `screenshot-${Date.now()}`,
         name: shot.fileName,
         previewUrl: shot.dataUrl,
         mimeType: "image/png",
+        kind: "image",
+        file,
+        uploadStatus: "local",
       });
     } catch (error) {
       if (
@@ -622,6 +673,65 @@ export function PromptInput({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [openFilePicker]);
+
+  useEffect(() => {
+    const shell = promptShellRef.current;
+    if (!shell) return;
+
+    const onDragEnter = (event: DragEvent) => {
+      if (!event.dataTransfer?.types?.includes("Files")) return;
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setIsDraggingFiles(true);
+    };
+    const onDragLeave = (event: DragEvent) => {
+      if (!event.dataTransfer?.types?.includes("Files")) return;
+      event.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) setIsDraggingFiles(false);
+    };
+    const onDragOver = (event: DragEvent) => {
+      if (!event.dataTransfer?.types?.includes("Files")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    };
+    const onDrop = (event: DragEvent) => {
+      if (!event.dataTransfer?.files?.length) return;
+      event.preventDefault();
+      dragDepthRef.current = 0;
+      setIsDraggingFiles(false);
+      void ingestFiles(Array.from(event.dataTransfer.files));
+    };
+
+    shell.addEventListener("dragenter", onDragEnter);
+    shell.addEventListener("dragleave", onDragLeave);
+    shell.addEventListener("dragover", onDragOver);
+    shell.addEventListener("drop", onDrop);
+    return () => {
+      shell.removeEventListener("dragenter", onDragEnter);
+      shell.removeEventListener("dragleave", onDragLeave);
+      shell.removeEventListener("dragover", onDragOver);
+      shell.removeEventListener("drop", onDrop);
+    };
+  }, [ingestFiles]);
+
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items?.length) return;
+      const files: File[] = [];
+      for (const item of Array.from(items)) {
+        if (item.kind !== "file") continue;
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+      if (!files.length) return;
+      event.preventDefault();
+      void ingestFiles(files);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [ingestFiles]);
 
   const handleInput = useCallback(() => {
     scheduleDraftNotify();
@@ -830,7 +940,7 @@ export function PromptInput({
     "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
 
   const promptShellClass = cn(
-    "w-full max-w-full transition-[min-height,box-shadow,border-color,background-color] duration-200 ease-out",
+    "relative w-full max-w-full transition-[min-height,box-shadow,border-color,background-color] duration-200 ease-out",
     showComposeControls &&
       "min-h-[92px] border-zinc-200/80 bg-white/92 shadow-[0_8px_24px_-10px_rgba(24,24,27,0.12)] backdrop-blur-md",
   );
@@ -1184,11 +1294,17 @@ export function PromptInput({
           ) : null}
 
           <div
-            className={promptShellClass}
+            className={cn(promptShellClass, isDraggingFiles && "ring-2 ring-[#2c84db]/35")}
             ref={promptShellRef}
             data-prompt-shell
             data-compose-mode={showComposeControls || undefined}
+            data-drop-active={isDraggingFiles || undefined}
           >
+            {isDraggingFiles ? (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-[#2c84db]/50 bg-[#e9f3ff]/70 text-[13px] font-medium text-[#2c84db]">
+                Drop files to attach
+              </div>
+            ) : null}
             <AnimatePresence initial={false} mode="popLayout">
               {selectedQuickActions.length > 0 ? (
                 <motion.div
@@ -1223,24 +1339,12 @@ export function PromptInput({
                   className="flex flex-wrap gap-1.5 overflow-hidden px-2 pt-2 sm:px-2.5"
                 >
                   {attachments.map((attachment) => (
-                    <div
+                    <AttachmentChip
                       key={attachment.id}
-                      className="group relative h-12 w-12 overflow-hidden rounded-lg border border-zinc-200/90 bg-zinc-50"
-                    >
-                      <img
-                        src={attachment.previewUrl}
-                        alt={attachment.name}
-                        className="h-full w-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        aria-label={`Remove ${attachment.name}`}
-                        onClick={() => removeAttachment(attachment.id)}
-                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                      >
-                        <X className="h-2.5 w-2.5" />
-                      </button>
-                    </div>
+                      file={attachment}
+                      onRemove={() => removeAttachment(attachment.id)}
+                      onOpen={() => setPreviewAttachment(attachment)}
+                    />
                   ))}
                 </motion.div>
               ) : null}
@@ -1255,7 +1359,7 @@ export function PromptInput({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={COMPOSER_FILE_ACCEPT}
               multiple
               className="hidden"
               onChange={(event) => void handleFileInputChange(event)}
@@ -1300,6 +1404,21 @@ export function PromptInput({
           </div>
         </div>
       ) : null}
+
+      <AttachmentImageLightbox
+        open={previewAttachment?.kind === "image"}
+        name={previewAttachment?.name ?? ""}
+        previewUrl={previewAttachment?.previewUrl ?? ""}
+        onClose={() => setPreviewAttachment(null)}
+      />
+      <AttachmentDocumentPreview
+        open={previewAttachment?.kind === "document"}
+        name={previewAttachment?.name ?? ""}
+        mimeType={previewAttachment?.mimeType ?? ""}
+        previewUrl={previewAttachment?.previewUrl}
+        textPreview={previewAttachment?.textPreview}
+        onClose={() => setPreviewAttachment(null)}
+      />
     </>
   );
 }

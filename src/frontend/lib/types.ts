@@ -1,6 +1,7 @@
 import type { AgentSegment } from "@/frontend/lib/agent-segments";
 import type { AgentFrame } from "@/frontend/lib/agent-frames";
 import type { ChatArtifact } from "@/frontend/lib/chat-artifacts";
+import type { MessageAttachment } from "@/frontend/lib/composer-attachments";
 
 export type MessageBranchVersion = {
   readonly content: string;
@@ -31,6 +32,8 @@ export type Message = {
   agentFrames?: AgentFrame[];
   activeAgentFrameIndex?: number;
   agentArtifacts?: ChatArtifact[];
+  /** User-uploaded images / documents shown as chips on the message. */
+  attachments?: MessageAttachment[];
   branchVersions?: MessageBranchVersion[];
   activeBranchIndex?: number;
   /** Optional creation timestamp (ms since epoch) for UI like message menus. */

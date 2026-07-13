@@ -24,6 +24,11 @@ import {
   useChatStore,
 } from "@/frontend/stores/chat-store";
 import * as chatsApi from "@/frontend/lib/api/chats";
+import { uploadUserFile } from "@/frontend/lib/api/files";
+import {
+  toMessageAttachments,
+  type ComposerAttachment,
+} from "@/frontend/lib/composer-attachments";
 import { createClient } from "@/utils/supabase/client";
 import { randomUUID } from "@/frontend/lib/id";
 import {
@@ -80,6 +85,7 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     thinkingDurationSeconds?: number;
     branchVersions?: Message["branchVersions"];
     activeBranchIndex?: number;
+    attachments?: Message["attachments"];
   };
   const base = compactMessageBranchData({
     id: row.id,
@@ -90,6 +96,9 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     thinkingDurationSeconds: meta.thinkingDurationSeconds,
     branchVersions: meta.branchVersions,
     activeBranchIndex: meta.activeBranchIndex,
+    attachments: Array.isArray(meta.attachments)
+      ? meta.attachments
+      : undefined,
     createdAt: row.created_at
       ? new Date(row.created_at).getTime()
       : undefined,
@@ -976,10 +985,12 @@ export function useChatApi(
         forceNewChat?: boolean;
         bypassQueue?: boolean;
         chatIdOverride?: string;
+        attachments?: ComposerAttachment[];
       },
     ): Promise<string | null> => {
       const trimmed = prompt.trim();
-      if (!trimmed) return null;
+      const pendingAttachments = options?.attachments ?? [];
+      if (!trimmed && pendingAttachments.length === 0) return null;
       if (creatingChatPending && !options?.chatIdOverride) return null;
 
       let chatId = options?.chatIdOverride
@@ -989,11 +1000,13 @@ export function useChatApi(
           : activeChatId;
 
       // Queue when this chat is already generating (unless flushing the queue).
+      // Attachment-only sends cannot be queued yet — require an idle chat.
       if (
         chatId &&
         !options?.bypassQueue &&
         useChatStore.getState().generatingChatIds[chatId]
       ) {
+        if (!trimmed) return null;
         useChatStore.getState().enqueueQueuedMessage(chatId, trimmed);
         return chatId;
       }
@@ -1004,6 +1017,10 @@ export function useChatApi(
         id: tempUserId,
         role: "user",
         content: trimmed,
+        attachments:
+          pendingAttachments.length > 0
+            ? toMessageAttachments(pendingAttachments)
+            : undefined,
       };
 
       if (!chatId) {
@@ -1054,24 +1071,92 @@ export function useChatApi(
           }));
         }
 
+        // Upload attachments in parallel; failures mark chips but still stream text.
+        const fileIds: string[] = [];
+        let uploadFailures = 0;
+        if (pendingAttachments.length > 0) {
+          const uploaded = await Promise.all(
+            pendingAttachments.map(async (attachment) => {
+              if (attachment.fileId) return attachment.fileId;
+              if (!attachment.file) return null;
+              try {
+                return await uploadUserFile(attachment.file);
+              } catch (error) {
+                console.warn("[chat] attachment upload failed:", error);
+                uploadFailures += 1;
+                return null;
+              }
+            }),
+          );
+          for (const id of uploaded) {
+            if (id) fileIds.push(id);
+          }
+
+          setAllChats((prev) => {
+            const list = prev[chatId!] ?? [];
+            const index = list.findIndex((message) => message.id === tempUserId);
+            if (index < 0) return prev;
+            const next = [...list];
+            const current = next[index]!;
+            next[index] = {
+              ...current,
+              attachments: (current.attachments ?? []).map((item, i) => ({
+                ...item,
+                fileId: uploaded[i] ?? item.fileId,
+                // Keep local preview even when upload fails so the chip still renders.
+                previewUrl: item.previewUrl,
+              })),
+            };
+            return { ...prev, [chatId!]: next };
+          });
+
+          if (uploadFailures > 0 && fileIds.length === 0) {
+            console.warn(
+              `[chat] ${uploadFailures} attachment upload(s) failed; continuing with text only`,
+            );
+          }
+        }
+
+        const attachmentContext =
+          pendingAttachments.length > 0
+            ? [
+                "",
+                "[Attached files]",
+                ...pendingAttachments.map((item) => {
+                  if (item.kind === "document" && item.textPreview) {
+                    return `- ${item.name}:\n${item.textPreview.slice(0, 8000)}`;
+                  }
+                  return `- ${item.name} (${item.mimeType || item.kind})`;
+                }),
+              ].join("\n")
+            : "";
+
+        const modelUserContent = `${trimmed}${attachmentContext}`.trim();
+        const modelUser: Message = {
+          ...optimisticUser,
+          content: modelUserContent || trimmed || "(attached files)",
+        };
+
         const priorMessages = (allChatsRef.current[chatId!] ?? []).filter(
           (message) => message.id !== tempUserId,
         );
         const conversation = buildConversation([
           ...priorMessages,
-          optimisticUser,
+          modelUser,
         ]);
 
         useChatStore.getState().setChatGenerating(chatId!, true);
         void streamAssistantResponse(
           chatId!,
           conversation,
-          isNewChat ? trimmed : undefined,
+          isNewChat ? trimmed || "New chat" : undefined,
         );
 
         // Persist user message without blocking the bubble / stream start.
         void chatsApi
-          .appendMessage(chatId!, trimmed)
+          .appendMessage(chatId!, trimmed || "(attached files)", {
+            fileIds: fileIds.length ? fileIds : undefined,
+          })
           .then(({ message: saved }) => {
             const real = mapApiMessage(saved);
             setAllChats((prev) => {
@@ -1079,10 +1164,24 @@ export function useChatApi(
               const index = list.findIndex((message) => message.id === tempUserId);
               if (index < 0) {
                 if (list.some((message) => message.id === real.id)) return prev;
-                return { ...prev, [chatId!]: [...list, real] };
+                return {
+                  ...prev,
+                  [chatId!]: [
+                    ...list,
+                    {
+                      ...real,
+                      attachments: optimisticUser.attachments,
+                    },
+                  ],
+                };
               }
               const next = [...list];
-              next[index] = { ...next[index]!, ...real, id: real.id };
+              next[index] = {
+                ...next[index]!,
+                ...real,
+                id: real.id,
+                attachments: next[index]!.attachments ?? optimisticUser.attachments,
+              };
               return { ...prev, [chatId!]: next };
             });
           })

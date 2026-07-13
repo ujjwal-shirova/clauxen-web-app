@@ -132,13 +132,20 @@ export async function listMessagesPage(
   );
 }
 
-export async function appendMessage(chatId: string, content: string) {
+export async function appendMessage(
+  chatId: string,
+  content: string,
+  options?: { fileIds?: string[] },
+) {
   return apiFetch<{ message: ApiMessage }>(
     `/api/v1/chats/${encodeURIComponent(chatId)}/messages`,
     {
       method: "POST",
       // JSON.stringify — request body serialize
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({
+        content,
+        fileIds: options?.fileIds,
+      }),
     },
   );
 }
