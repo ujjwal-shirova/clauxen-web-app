@@ -12,8 +12,9 @@ region = "aws:us-west-1"
 
 [vars]
 # Longer TTL — Cache API has no daily quota; Hyperdrive is miss-only.
-LATEST_PAGE_CACHE_TTL_SECONDS = "600"
-CURSOR_PAGE_CACHE_TTL_SECONDS = "180"
+# stale-while-revalidate is applied in Worker response headers.
+LATEST_PAGE_CACHE_TTL_SECONDS = "900"
+CURSOR_PAGE_CACHE_TTL_SECONDS = "300"
 
 [[hyperdrive]]
 binding = "HYPERDRIVE"

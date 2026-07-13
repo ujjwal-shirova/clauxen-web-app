@@ -22,6 +22,7 @@ import {
   useActiveChatId,
   setActiveChatId,
   useChatStore,
+  MAX_ACTIVE_CHAT_MESSAGES,
 } from "@/frontend/stores/chat-store";
 import * as chatsApi from "@/frontend/lib/api/chats";
 import { uploadUserFile } from "@/frontend/lib/api/files";
@@ -257,6 +258,14 @@ export function useChatApi(
   // Live sidebar updates when chats change in Supabase (other tabs / title gen).
   useEffect(() => {
     const supabase = createClient();
+    let debounceTimer = 0;
+    const scheduleRefresh = () => {
+      window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(() => {
+        if (typeof document !== "undefined" && document.hidden) return;
+        void refreshChats({ silent: true });
+      }, 400);
+    };
     const channel = supabase
       .channel(`chats-sidebar:${projectIdFilter ?? "all"}`)
       .on(
@@ -266,13 +275,12 @@ export function useChatApi(
           schema: "public",
           table: "chats",
         },
-        () => {
-          void refreshChats({ silent: true });
-        },
+        scheduleRefresh,
       )
       .subscribe();
 
     return () => {
+      window.clearTimeout(debounceTimer);
       void supabase.removeChannel(channel);
     };
   }, [projectIdFilter, refreshChats]);
@@ -485,6 +493,24 @@ export function useChatApi(
           isLoadingOlder: false,
         },
       }));
+
+      // Cap heap/DOM pressure on very long threads after scroll-up pagination.
+      const store = useChatStore.getState();
+      const ids = store.messageIdsByChatId[chatId] ?? [];
+      if (ids.length > MAX_ACTIVE_CHAT_MESSAGES) {
+        store.trimChatMessagesToWindow(chatId, MAX_ACTIVE_CHAT_MESSAGES);
+        setHistoryByChatId((prev) => ({
+          ...prev,
+          [chatId]: {
+            ...(prev[chatId] ?? {
+              hasMore: true,
+              nextCursor: page.nextCursor,
+              isLoadingOlder: false,
+            }),
+            hasMore: true,
+          },
+        }));
+      }
       return true;
     } catch {
       setHistoryByChatId((prev) => ({
@@ -506,10 +532,13 @@ export function useChatApi(
     async (chatId: string | null) => {
       if (!chatId) {
         setActiveChatId(null);
+        useChatStore.getState().clearInactiveChatMessages(null);
         setMessagesLoading(false);
         return;
       }
       setActiveChatId(chatId);
+      // Drop other chats' message bodies from RAM — reopen re-fetches from edge cache.
+      useChatStore.getState().clearInactiveChatMessages(chatId);
       const existing = useChatStore.getState().messageIdsByChatId[chatId];
       const history = historyByChatIdRef.current[chatId];
       const isLive =

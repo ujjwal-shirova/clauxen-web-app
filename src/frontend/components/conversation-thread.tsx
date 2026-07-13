@@ -1332,10 +1332,12 @@ export function ConversationThread({
       resizeObserver.observe(host);
     });
 
+    // Avoid subtree MutationObserver while streaming — token inserts thrash the main thread.
+    // childList-only is enough to catch turn mount/unmount for sticky hosts.
     const mutationObserver = new MutationObserver(() => scheduleSync(false));
     mutationObserver.observe(content, {
       childList: true,
-      subtree: true,
+      subtree: !isGeneratingProp,
     });
 
     return () => {

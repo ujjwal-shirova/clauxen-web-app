@@ -1,10 +1,15 @@
 import { MainLayout } from "@/frontend/components/main-layout";
-import "streamdown/styles.css";
+import { StreamdownStyles } from "@/frontend/components/streamdown-styles";
 
 export default function MainAppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <MainLayout>{children}</MainLayout>;
+  return (
+    <>
+      <StreamdownStyles />
+      <MainLayout>{children}</MainLayout>
+    </>
+  );
 }

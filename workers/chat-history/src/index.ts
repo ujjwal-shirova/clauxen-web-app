@@ -253,7 +253,8 @@ async function writeCaches(
     { data: payload },
     200,
     {
-      "cache-control": `private, max-age=${cacheTtl}`,
+      "cache-control": `private, max-age=${cacheTtl}, stale-while-revalidate=${Math.max(60, Math.floor(cacheTtl / 2))}`,
+      "cache-tag": `chat:${chatId},user:${userId}`,
       "x-clauxen-cache": "warm-write",
     },
   );
@@ -294,7 +295,8 @@ async function writePageCaches(
     { data: input.payload },
     200,
     {
-      "cache-control": `private, max-age=${input.cacheTtl}`,
+      "cache-control": `private, max-age=${input.cacheTtl}, stale-while-revalidate=${Math.max(30, Math.floor(input.cacheTtl / 2))}`,
+      "cache-tag": `chat:${input.chatId},user:${input.userId}`,
       "x-clauxen-cache": "page-warm-write",
     },
   );
@@ -454,7 +456,8 @@ export default {
             { data: cached },
             200,
             {
-              "cache-control": `private, max-age=${cacheTtl}`,
+              "cache-control": `private, max-age=${cacheTtl}, stale-while-revalidate=${Math.max(60, Math.floor(cacheTtl / 2))}`,
+              "cache-tag": `chat:${chatId},user:${user.sub}`,
               "x-clauxen-cache": "kv",
             },
           );
@@ -477,7 +480,8 @@ export default {
             { data: payload },
             200,
             {
-              "cache-control": `private, max-age=${cacheTtl}`,
+              "cache-control": `private, max-age=${cacheTtl}, stale-while-revalidate=${Math.max(60, Math.floor(cacheTtl / 2))}`,
+              "cache-tag": `chat:${chatId},user:${user.sub}`,
               "x-clauxen-cache": "r2",
             },
           );

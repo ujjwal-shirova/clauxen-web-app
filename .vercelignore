@@ -10,3 +10,10 @@ coverage/
 # Docs and editor noise (optional; reduces upload size)
 docs/
 .agent-transcripts/
+brain/
+.cursor/
+.playwright-cli/
+workers/**/node_modules/
+workers/**/.wrangler/
+**/*.test.ts
+**/tsconfig.tsbuildinfo

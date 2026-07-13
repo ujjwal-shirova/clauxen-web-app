@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-13 | Performance: RAM message window + inactive chat eviction + LOD + overlay code-split + CF/Vercel cache | Speed Insights FCP/LCP poor on / and /c; cut DOM/RAM and edge latency |
 | 2026-07-12 | Use Provider_* Vercel env for inference | Avoid leaking vendor keys via NEXT_PUBLIC or browser DevTools |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
@@ -45,7 +46,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-12 | Browser tab titles use hyphen (`New chat - Clauxen`) and update live | Match product UX; middle-dot was hard to read |
 | 2026-07-13 | Streaming orb stays visible during agent timelines; hides only when answer markdown is streaming | Claude/Cursor vertical-timescale UX |
 | 2026-07-13 | Chat attachments: images + text docs + PDF chips via R2/`user_files`/`chat_message_parts` | ChatGPT/Claude composer parity |
-| 2026-07-13 | Chat-history Worker cache ladder (Cache API → KV → R2 → Hyperdrive); TTL 600s; invalidate on delete | Reduce Supabase/Hyperdrive load |
+| 2026-07-13 | Chat-history Worker cache ladder (Cache API → KV → R2 → Hyperdrive); latest TTL 900s / cursor 300s + SWR; invalidate on delete | Reduce Supabase/Hyperdrive load; faster /c hydrates |
 | 2026-07-13 | R2 buckets `clauxen-images/documents/artifacts/skills` created; deploy `clauxen-r2-gateway` + set `WORKER_URL` still required | Uploads off Vercel body limit |
 
 ---
@@ -76,7 +77,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 ## Gotchas
 
 - Prefer path routes (`/upgrade`, `/settings/general`) over hash overlays (`#pricing`) — hash + Next soft-nav caused hydration mismatches.
-- Canonical new-chat URL is `/new` (`/` redirects there). Overlay surfaces live as real routes under `(main)`.
+- Canonical new-chat URLs are `/` and `/new` (both render ChatView; no redirect hop). Overlay surfaces live as real routes under `(main)`.
 - Overlay open must be instant: `AppOverlaysProvider` uses `history.pushState` + local state (not blocking `router.push`). Host via `AppOverlayHost` + `FullscreenPortal` to `document.body` because `.agent-panel` uses `transform: translateZ(0)` which traps `position: fixed`.
 - Main surfaces (library/projects/customize/chats) use `useInstantNavigate` (pushState + soft Next sync).
 - New-chat send: keep showing chat-view once messages/activeChatId exist (don’t blank while still on `/new`); sidebar shows shimmer until chat id + first message land; tab is brand-only (`Clauxen`) until a real title exists.
@@ -92,6 +93,9 @@ Full target surface — **remember only; implement only when user asks for a sli
 
 ---
 
+- ChatSessionProvider is API-only (useChatApi) so local IndexedDB path stays out of main bundle; project/local still use useChat
+- Streamdown CSS loads idle via StreamdownStyles — do not re-import streamdown/styles.css in (main)/layout
+- Home `/` now renders ChatView directly (no redirect hop to /new) for FCP; isNewChatPath still treats / and /new as blank chat
 ## Open threads
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
@@ -113,3 +117,4 @@ Full target surface — **remember only; implement only when user asks for a sli
 - 2026-07-12: Login OAuth buttons: Google, GitHub, GitLab only — Apple and X/Twitter removed from login UI (do not commit this preference change unless asked)
 - 2026-07-12: Inference env renamed to Provider_API_Key, Provider_BASE_URL, Provider_SANDBOX_TIMEOUT_MS, Provider_Model_Clauxen_V1 (server-only Sensitive). Chat uses Provider_Model_Clauxen_V1. Do not commit until asked.
 - 2026-07-12: App surfaces use shareable paths: `/new`, `/upgrade`, `/gift`, `/apps`, `/settings/[tab]`; legacy `#pricing` / `#settings/...` hashes redirect to paths.
+- 2026-07-13: 2026-07-13: Perf push — target RES >90 via RAM window 24/48, LOD height-lock, CF SWR TTLs 900/300, Vercel function memory 512 default

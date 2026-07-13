@@ -5,9 +5,8 @@ import React, {
   useContext,
   useMemo,
   useState,
-  useRef,
 } from "react";
-import { useChat, type UseChatOptions } from "@/frontend/hooks/use-chat";
+import { useChatApi } from "@/frontend/hooks/use-chat-api";
 import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,
@@ -17,7 +16,7 @@ import {
   type HomerReasoningEffort,
 } from "@/lib/model-effort";
 
-type ChatSessionValue = ReturnType<typeof useChat> & {
+type ChatSessionValue = ReturnType<typeof useChatApi> & {
   chatModel: ChatModelId;
   setChatModel: (model: ChatModelId) => void;
   homerReasoningEffort: HomerReasoningEffort;
@@ -28,35 +27,22 @@ const ChatSessionContext = createContext<ChatSessionValue | null>(null);
 
 /**
  * One chat session for the whole main shell (sidebar + chat view).
- * `apiEnabled` is locked on first render of this provider instance.
+ * API-only so the local/IndexedDB path in `use-chat.ts` stays out of the main bundle.
  */
 export function ChatSessionProvider({
   children,
-  apiEnabled,
+  apiEnabled: _apiEnabled,
   projectId = null,
 }: {
   children: React.ReactNode;
   apiEnabled: boolean;
   projectId?: string | null;
 }) {
-  // Freeze the mode for this mount — prevents mid-session hook graph flips.
-  const lockedApi = useRef(apiEnabled).current;
-
   const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
   const [homerReasoningEffort, setHomerReasoningEffort] =
     useState<HomerReasoningEffort>(DEFAULT_HOMER_REASONING_EFFORT);
 
-  const options = useMemo<UseChatOptions>(
-    () => ({
-      apiEnabled: lockedApi,
-      projectId,
-      chatModel,
-      homerReasoningEffort,
-    }),
-    [lockedApi, projectId, chatModel, homerReasoningEffort],
-  );
-
-  const chat = useChat(options);
+  const chat = useChatApi(projectId, chatModel, homerReasoningEffort);
 
   // Keep a stable context object identity for method refs; only bump when
   // observable chat fields change.
