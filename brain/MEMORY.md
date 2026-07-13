@@ -83,6 +83,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Sidebar Recents shimmer on first chat list fetch; conversation pane shimmer while `/c/[id]` messages hydrate. Realtime chat list refresh is silent (no full-list re-shimmer).
 - Chat transcripts for training: `chat_transcript_lines` stores Cursor-style JSONL records (`role` + `message.content` parts including `text` / `thinking` / `tool_use` / `tool_result`, plus `turn_ended`). View `chat_transcripts_jsonl` aggregates one JSONL doc per chat. Export: `GET /api/v1/chats/[chatId]/transcript`.
 - Branch PUT must use `sanitizeBranchMessages` (keeps ids/frames). Never `sanitizeMessages` for branch state — that stripped ids and caused reload duplicate assistants.
+- Dev env (Cursor Cloud): needs Node >=24 (`.nvmrc`=24, `.npmrc` engine-strict); base image node is v22 — use nvm 24. Dev server is on :9002. `npm test`/`typecheck`/`build` pass without DB/secrets; chat pipeline works via `POST /api/chat` (needs only `Provider_BASE_URL`+`Provider_API_Key`, OpenAI-compatible). Authenticated UI (`/new`) needs a real Supabase project + Postgres (dev-bypass login also writes to DB). `npm run lint` is broken upstream (`FlatCompat`/`eslint-config-next` circular-JSON). See `AGENTS.md`.
 
 ---
 
