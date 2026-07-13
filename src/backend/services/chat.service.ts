@@ -177,6 +177,39 @@ export async function appendUserMessage(
 ) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
+
+  let attachmentsMeta: Array<{
+    id: string;
+    name: string;
+    mimeType: string;
+    kind: "image" | "document";
+    fileId: string;
+  }> = [];
+
+  if (fileIds?.length) {
+    const { query } = await import("@/backend/db/pool");
+    const files = await query<{
+      id: string;
+      original_name: string;
+      mime_type: string | null;
+    }>(
+      `select id, original_name, mime_type
+       from public.user_files
+       where user_id = $1 and id = any($2::uuid[]) and status != 'deleted'`,
+      [userId, fileIds],
+    );
+    attachmentsMeta = files.map((file) => {
+      const mime = file.mime_type ?? "application/octet-stream";
+      return {
+        id: file.id,
+        name: file.original_name,
+        mimeType: mime,
+        kind: mime.startsWith("image/") ? ("image" as const) : ("document" as const),
+        fileId: file.id,
+      };
+    });
+  }
+
   const contentJson = buildUserTranscriptRecord(content);
   const message = await messagesRepo.createMessage({
     chatId,
@@ -184,6 +217,9 @@ export async function appendUserMessage(
     role: "user",
     content,
     contentJson,
+    metadata: attachmentsMeta.length
+      ? { attachments: attachmentsMeta }
+      : undefined,
   });
   if (message?.id && fileIds?.length) {
     await messagePartsRepo.attachFilePartsToMessage(

@@ -239,7 +239,16 @@ const MessageRow = React.memo(
                     <AttachmentChip
                       key={attachment.id}
                       file={attachment}
-                      onOpen={() => setPreviewAttachment(attachment)}
+                      onOpen={() =>
+                        setPreviewAttachment({
+                          ...attachment,
+                          previewUrl:
+                            attachment.previewUrl ||
+                            (attachment.fileId
+                              ? `/api/v1/files/${attachment.fileId}/url?redirect=1`
+                              : undefined),
+                        })
+                      }
                     />
                   ))}
                 </div>

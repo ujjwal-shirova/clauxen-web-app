@@ -25,6 +25,9 @@ export function AttachmentChip({
   const uploading =
     "uploadStatus" in file && file.uploadStatus === "uploading";
   const errored = "uploadStatus" in file && file.uploadStatus === "error";
+  const previewSrc =
+    file.previewUrl ||
+    (file.fileId ? `/api/v1/files/${file.fileId}/url?redirect=1` : undefined);
 
   return (
     <button
@@ -41,13 +44,19 @@ export function AttachmentChip({
       aria-label={file.name}
     >
       {isImage ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={file.previewUrl}
-          alt={file.name}
-          className="h-full w-full object-cover"
-          draggable={false}
-        />
+        previewSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewSrc}
+            alt={file.name}
+            className="h-full w-full object-cover"
+            draggable={false}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-zinc-100">
+            <FileText className="h-4 w-4 text-zinc-400" />
+          </div>
+        )
       ) : (
         <>
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">

@@ -43,6 +43,10 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
 | 2026-07-12 | Chat ids use long-form text IDs (`generateChatId`) verified unique in DB | Shareable ChatGPT-style `/c/...` URLs |
 | 2026-07-12 | Browser tab titles use hyphen (`New chat - Clauxen`) and update live | Match product UX; middle-dot was hard to read |
+| 2026-07-13 | Streaming orb stays visible during agent timelines; hides only when answer markdown is streaming | Claude/Cursor vertical-timescale UX |
+| 2026-07-13 | Chat attachments: images + text docs + PDF chips via R2/`user_files`/`chat_message_parts` | ChatGPT/Claude composer parity |
+| 2026-07-13 | Chat-history Worker cache ladder (Cache API → KV → R2 → Hyperdrive); TTL 600s; invalidate on delete | Reduce Supabase/Hyperdrive load |
+| 2026-07-13 | R2 buckets `clauxen-images/documents/artifacts/skills` created; deploy `clauxen-r2-gateway` + set `WORKER_URL` still required | Uploads off Vercel body limit |
 
 ---
 

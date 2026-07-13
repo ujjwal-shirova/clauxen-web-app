@@ -85,6 +85,7 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     thinkingDurationSeconds?: number;
     branchVersions?: Message["branchVersions"];
     activeBranchIndex?: number;
+    attachments?: Message["attachments"];
   };
   const base = compactMessageBranchData({
     id: row.id,
@@ -95,6 +96,9 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     thinkingDurationSeconds: meta.thinkingDurationSeconds,
     branchVersions: meta.branchVersions,
     activeBranchIndex: meta.activeBranchIndex,
+    attachments: Array.isArray(meta.attachments)
+      ? meta.attachments
+      : undefined,
     createdAt: row.created_at
       ? new Date(row.created_at).getTime()
       : undefined,
