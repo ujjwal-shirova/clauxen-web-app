@@ -49,6 +49,14 @@ export const DELETE = withApiRouteParams<{ chatId: string }>(
     const user = requireSession(session);
     requireChatIdParam(params.chatId);
     await chatsRepo.deleteChat(params.chatId, user.id);
+    void import("@/backend/chat/warm-history-cache")
+      .then(({ invalidateChatHistoryCache }) =>
+        invalidateChatHistoryCache({
+          userId: user.id,
+          chatId: params.chatId,
+        }),
+      )
+      .catch(() => {});
     return jsonData({ ok: true }); // success confirmation, body minimal
   },
   { requireAuth: true, requireChatAuth: true },

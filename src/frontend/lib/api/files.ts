@@ -1,4 +1,5 @@
 import { apiFetch } from "@/frontend/lib/api/client";
+import { createClient } from "@/utils/supabase/client";
 
 export async function presignUpload(input: {
   originalName: string;
@@ -12,6 +13,7 @@ export async function presignUpload(input: {
     uploadUrl: string;
     method: string;
     stub?: boolean;
+    worker?: boolean;
   }>("/api/v1/files/presign", {
     method: "POST",
     body: JSON.stringify(input),
@@ -30,20 +32,34 @@ export async function completeUpload(input: {
 
 /** Upload a browser File via presign → PUT → complete. */
 export async function uploadUserFile(file: File) {
-  const { fileId, uploadUrl, method, stub } = await presignUpload({
+  const { fileId, uploadUrl, method, stub, worker } = await presignUpload({
     originalName: file.name,
     mimeType: file.type || "application/octet-stream",
     sizeBytes: file.size,
   });
 
   if (!stub) {
-    await fetch(uploadUrl, {
+    const headers: Record<string, string> = {
+      "content-type": file.type || "application/octet-stream",
+    };
+    // Worker gateway authenticates PUTs with the Supabase access token.
+    if (worker) {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    }
+    const putResponse = await fetch(uploadUrl, {
       method: method || "PUT",
       body: file,
-      headers: {
-        "content-type": file.type || "application/octet-stream",
-      },
+      headers,
     });
+    if (!putResponse.ok) {
+      throw new Error(`Upload failed (${putResponse.status})`);
+    }
   }
 
   await completeUpload({ fileId, sizeBytes: file.size });

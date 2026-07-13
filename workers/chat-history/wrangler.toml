@@ -12,7 +12,8 @@ region = "aws:us-west-1"
 
 [vars]
 # Longer TTL — Cache API has no daily quota; Hyperdrive is miss-only.
-LATEST_PAGE_CACHE_TTL_SECONDS = "120"
+LATEST_PAGE_CACHE_TTL_SECONDS = "600"
+CURSOR_PAGE_CACHE_TTL_SECONDS = "180"
 
 [[hyperdrive]]
 binding = "HYPERDRIVE"
