@@ -20,10 +20,14 @@ import { useChatScroll } from "@/frontend/hooks/use-chat-scroll";
 import { useChatScrollActivity } from "@/frontend/hooks/use-chat-scroll-activity";
 import { cn } from "@/frontend/lib/utils";
 import { CLAUXEN_CHAT_SEND_EVENT } from "@/frontend/lib/chat-send-event";
+import type { SendMessageOptions } from "@/frontend/lib/composer-attachments";
 
 interface ChatAreaProps {
   messages: Message[];
-  onSendMessage: (prompt: string) => void | Promise<void>;
+  onSendMessage: (
+    prompt: string,
+    options?: SendMessageOptions,
+  ) => void | Promise<void>;
   onStopGeneration: () => void;
   isGenerating: boolean;
   queuedMessages?: import("@/frontend/stores/chat-store").QueuedChatMessage[];
@@ -275,8 +279,8 @@ function ChatAreaLayout({
   );
 
   const handleSendMessageAndScroll = React.useCallback(
-    (prompt: string) => {
-      onSendMessage(prompt);
+    (prompt: string, options?: SendMessageOptions) => {
+      void onSendMessage(prompt, options);
       pinToBottom();
       requestAnimationFrame(() => pinToBottom());
     },

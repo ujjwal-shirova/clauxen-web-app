@@ -939,10 +939,16 @@ function useLocalChat(
 
   const handleSendMessage = async (
     prompt: string,
-    options?: { forceNewChat?: boolean },
+    options?: {
+      forceNewChat?: boolean;
+      attachments?: import("@/frontend/lib/composer-attachments").ComposerAttachment[];
+    },
   ): Promise<string | null> => {
     const cleanPrompt = prompt?.trim();
-    if (!cleanPrompt || isGenerating) return null;
+    const pendingAttachments = options?.attachments ?? [];
+    if ((!cleanPrompt && pendingAttachments.length === 0) || isGenerating) {
+      return null;
+    }
 
     setIsGenerating(true);
 
@@ -1006,8 +1012,20 @@ function useLocalChat(
     const userMessage: Message = {
       id: now.toString(),
       role: "user",
-      content: cleanPrompt,
+      content: cleanPrompt || "(attached files)",
       createdAt: now,
+      attachments:
+        pendingAttachments.length > 0
+          ? pendingAttachments.map((item) => ({
+              id: item.id,
+              name: item.name,
+              mimeType: item.mimeType,
+              kind: item.kind,
+              previewUrl: item.previewUrl,
+              fileId: item.fileId,
+              textPreview: item.textPreview,
+            }))
+          : undefined,
     };
     const conversationForApi = buildChatConversation([...messages, userMessage]);
 

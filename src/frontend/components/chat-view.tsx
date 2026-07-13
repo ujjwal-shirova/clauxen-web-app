@@ -128,11 +128,15 @@ function ChatViewBody({
   }, [routeChatId, blankNewChatComposer, handleSelectChat, startNewChat]);
 
   const handleSendMessageAndRoute = useCallback(
-    async (prompt: string) => {
+    async (
+      prompt: string,
+      options?: import("@/frontend/lib/composer-attachments").SendMessageOptions,
+    ) => {
       const forceNew =
         !activeChatId && (blankNewChatComposer || isNewChatPath(pathname));
       const chatId = await handleSendMessage(prompt, {
         forceNewChat: forceNew,
+        attachments: options?.attachments,
       });
       if (!chatId) return;
 
