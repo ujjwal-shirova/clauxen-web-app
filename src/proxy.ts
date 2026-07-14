@@ -1,8 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { isCloudflareChallengeDocumentPost } from "@/frontend/lib/cloudflare-challenge-post";
 import { updateSession } from "@/utils/supabase/middleware";
 import { getSupabasePublicConfig } from "@/utils/supabase/env";
 
 export async function proxy(request: NextRequest) {
+  // After Cloudflare Managed Challenge, the browser may POST to a document URL
+  // that only supports GET → Vercel 405. Convert to GET without changing CF rules.
+  if (isCloudflareChallengeDocumentPost(request)) {
+    const url = request.nextUrl.clone();
+    return NextResponse.redirect(url, 303);
+  }
+
   const supabase = getSupabasePublicConfig();
   if (supabase.url && supabase.publishableKey) {
     return updateSession(request);

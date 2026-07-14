@@ -119,6 +119,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Account API token can deploy Workers/Hyperdrive but not Zone settings/Cache Rules API (403) — use dashboard or User API token with Zone Cache Rules Edit
 - CF dash cookie consent overlay blocks clicks; dismiss Allow All before Deploy on Cache Rules
 - cf.threat_score is deprecated on upgraded CF security — do not use in custom rules. Free plan: 5 custom rules, 1 rate-limit rule.
+- CF Managed Challenge can POST back to document URLs → Vercel 405. Fixed in src/proxy.ts with 303 POST→GET (keeps /api and next-action). Do not weaken CF rules for this.
 ## Open threads
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
