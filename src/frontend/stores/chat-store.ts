@@ -75,7 +75,10 @@ type ChatStoreActions = {
   ) => void;
   evictMessagesExcept: (chatId: string, keepIds: Set<string>) => void;
   /** Drop message bodies for every chat except `keepChatId` (re-fetched on open). */
-  clearInactiveChatMessages: (keepChatId: string | null) => void;
+  clearInactiveChatMessages: (
+    keepChatId: string | null,
+    opts?: { alsoKeep?: string | null },
+  ) => void;
   /** Keep the newest `limit` messages for a chat (always retains streaming rows). */
   trimChatMessagesToWindow: (chatId: string, limit?: number) => void;
   hydrateFromLegacy: (payload: {
@@ -346,12 +349,17 @@ export const useChatStore = create<ChatStore>()(
       });
     },
 
-    clearInactiveChatMessages: (keepChatId) => {
+    clearInactiveChatMessages: (keepChatId, opts) => {
       set((state) => {
+        const keep = new Set<string>();
+        if (keepChatId) keep.add(keepChatId);
+        if (opts?.alsoKeep && opts.alsoKeep !== keepChatId) {
+          keep.add(opts.alsoKeep);
+        }
         const nextById = { ...state.messagesById };
         const nextIdsByChat: Record<string, string[]> = {};
         for (const [chatId, ids] of Object.entries(state.messageIdsByChatId)) {
-          if (keepChatId && chatId === keepChatId) {
+          if (keep.has(chatId)) {
             nextIdsByChat[chatId] = ids;
             continue;
           }

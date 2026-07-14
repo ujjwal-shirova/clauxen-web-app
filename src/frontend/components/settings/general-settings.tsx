@@ -117,9 +117,11 @@ export function GeneralSettings({
         value: option.id,
         label: option.label,
         labelStyle: {
-          fontFamily: option.cssVar
-            ? `var(${option.cssVar}), ${option.stack}`
-            : option.stack,
+          fontFamily: option.familyName
+            ? `"${option.familyName}", ${option.stack}`
+            : option.cssVar
+              ? `var(${option.cssVar}), ${option.stack}`
+              : option.stack,
         },
       })),
     [],

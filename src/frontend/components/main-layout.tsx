@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
-import { Sidebar } from "@/frontend/components/sidebar";
 import { SoftErrorBoundary } from "@/frontend/components/soft-error-boundary";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { sidebarDisplayName } from "@/lib/profile-names";
@@ -33,6 +33,22 @@ import { useInstantNavigate } from "@/frontend/hooks/use-instant-navigate";
 import { useDocumentTitle } from "@/frontend/hooks/use-document-title";
 import { APP_ROUTES } from "@/frontend/lib/app-routes";
 import { MainShellSkeleton } from "@/frontend/components/chat-route-skeleton";
+
+const Sidebar = dynamic(
+  () =>
+    import("@/frontend/components/sidebar").then((mod) => ({
+      default: mod.Sidebar,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <aside
+        className="hidden h-full w-[260px] shrink-0 border-r border-border/40 bg-background md:block"
+        aria-hidden
+      />
+    ),
+  },
+);
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",

@@ -11,6 +11,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url, 303);
   }
 
+  // API handlers authenticate themselves. Skipping edge getUser() here cuts
+  // stacked TTFB on /c cold loads (document + session + messages + branches).
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.next({ request });
+  }
+
   const supabase = getSupabasePublicConfig();
   if (supabase.url && supabase.publishableKey) {
     return updateSession(request);

@@ -22,9 +22,10 @@ function assertNonEmptyEmail(email: string) {
   }
 }
 
-export async function getSession() {
+export async function getSession(opts?: { quiet?: boolean }) {
+  const qs = opts?.quiet ? "?quiet=1" : "";
   const data = await apiFetch<{ session: SessionUser | null }>(
-    "/api/v1/auth/session",
+    `/api/v1/auth/session${qs}`,
   );
   return data.session;
 }

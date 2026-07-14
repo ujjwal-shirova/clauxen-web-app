@@ -1,20 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import {
-  Atkinson_Hyperlegible,
-  IBM_Plex_Sans,
-  Inter,
-  Literata,
-  Lora,
-  Merriweather,
-  Nunito_Sans,
-  Playfair_Display,
-  Source_Sans_3,
-  Source_Serif_4,
-} from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { ClientToaster } from "@/frontend/components/client-toaster";
 import { ClientTelemetry } from "@/frontend/components/client-telemetry";
 import { ChunkLoadRecovery } from "@/frontend/components/chunk-load-recovery";
+import { ChatFontLoader } from "@/frontend/components/chat-font-loader";
 import { AppNotificationsProvider } from "@/frontend/hooks/use-app-notifications";
 import { AppNotificationHost } from "@/frontend/components/app-notifications/app-notification-host";
 import { AuthProvider } from "@/frontend/contexts/auth-context";
@@ -33,73 +23,6 @@ const playfair = Playfair_Display({
   variable: "--font-playfair",
   weight: ["400", "700"],
 });
-
-const chatLora = Lora({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-chat-lora",
-  weight: ["400", "500", "600", "700"],
-});
-
-const chatSourceSerif = Source_Serif_4({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-chat-source-serif",
-  weight: ["400", "600", "700"],
-});
-
-const chatLiterata = Literata({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-chat-literata",
-  weight: ["400", "500", "600", "700"],
-});
-
-const chatMerriweather = Merriweather({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-chat-merriweather",
-  weight: ["400", "700"],
-});
-
-const chatIbmPlex = IBM_Plex_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-chat-ibm-plex",
-  weight: ["400", "500", "600", "700"],
-});
-
-const chatSourceSans = Source_Sans_3({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-chat-source-sans",
-  weight: ["400", "500", "600", "700"],
-});
-
-const chatNunito = Nunito_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-chat-nunito",
-  weight: ["400", "500", "600", "700"],
-});
-
-const chatAtkinson = Atkinson_Hyperlegible({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-chat-atkinson",
-  weight: ["400", "700"],
-});
-
-const chatFontVariables = [
-  chatLora.variable,
-  chatSourceSerif.variable,
-  chatLiterata.variable,
-  chatMerriweather.variable,
-  chatIbmPlex.variable,
-  chatSourceSans.variable,
-  chatNunito.variable,
-  chatAtkinson.variable,
-].join(" ");
 
 /** Avoid FOUC for theme + chat font before React hydrates. */
 const preferenceBootScript = `(function(){try{var a=localStorage.getItem("clauxen.appearance");var t=localStorage.getItem("theme");var mode=t==="dark"||t==="light"?t:a==="Dark"?"dark":a==="Light"?"light":null;if(!mode)mode=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";var r=document.documentElement;if(mode==="dark")r.classList.add("dark");else r.classList.remove("dark");var f=localStorage.getItem("clauxen.chatFont");if(f)r.setAttribute("data-chat-font",f);if(localStorage.getItem("clauxen.motion")==="Reduced")r.setAttribute("data-reduce-motion","1");var s=localStorage.getItem("clauxen.followUpSuggestions");if(s==="0"||s==="1")r.setAttribute("data-follow-up-suggestions",s);}catch(e){}})();`;
@@ -130,6 +53,11 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+const supabasePreconnect =
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "") || null;
+const chatHistoryPreconnect =
+  process.env.NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL?.replace(/\/+$/, "") || null;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -138,7 +66,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${playfair.variable} ${chatFontVariables}`}
+      className={`${inter.variable} ${playfair.variable}`}
       suppressHydrationWarning
     >
       <head>
@@ -150,6 +78,22 @@ export default function RootLayout({
           href="https://vitals.vercel-insights.com"
           crossOrigin="anonymous"
         />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        {supabasePreconnect ? (
+          <link rel="preconnect" href={supabasePreconnect} crossOrigin="anonymous" />
+        ) : null}
+        {chatHistoryPreconnect ? (
+          <link
+            rel="preconnect"
+            href={chatHistoryPreconnect}
+            crossOrigin="anonymous"
+          />
+        ) : null}
       </head>
       <body
         className={`${inter.className} antialiased`}
@@ -159,6 +103,7 @@ export default function RootLayout({
           <AppPreferencesProvider>
             <AppNotificationsProvider>
               <ChunkLoadRecovery />
+              <ChatFontLoader />
               {children}
               <ClientToaster />
               <AppNotificationHost />

@@ -10,7 +10,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 - **Skill:** `.cursor/skills/brain-memory` (invoke for read / write / search)
 - **CLI:** `./brain/tools/memory.sh`
 - **Always-apply rule:** `.cursor/rules/brain-memory.mdc`
-- **Last updated:** 2026-07-13
+- **Last updated:** 2026-07-14
 
 ---
 
@@ -49,7 +49,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Settings Personalization: style/characteristics/fast answers/memory note + Advanced (web search, canvas, connector search; no voice) wired to settings JSONB + capabilities | ChatGPT-parity personalization pane |
 | 2026-07-14 | Settings General preferences: theme (light/dark/system via next-themes + `.dark` tokens), Google chat fonts on assistant markdown only, motion + follow-up chips; AppPreferencesProvider applies + persists to Supabase `user_settings.settings.general` | Prefs were saved but never applied to DOM |
 | 2026-07-14 | Overlays use ChatGPT-style hashes (`#settings`, `#settings/Personalization`, `#pricing`) on parent pages (`/new`, `/c/…`); legacy `/settings/*` `/upgrade` redirect to `/new#…` | Path overlays blanked the main panel and forced close→`/new` |
-| 2026-07-14 | Edge perf: chat-history Worker ladder (Cache API→KV→R2→Hyperdrive) + `/v1/chats` list cache; Supabase revoked anon RPC EXECUTE + FK/list indexes; Vercel CDN/no-store headers | Blazing-fast hydrates; CF/Vercel API tokens currently invalid for live deploy |
+| 2026-07-14 | Speed Insights RES: skip proxy getUser for `/api/*`; middleware prefer getSession until token near-expiry; SSR chat seed (450ms budget); defer 8 chat fonts; quiet `?quiet=1` session; parallel message+branch fetch; keep previous chat warm; dynamic Sidebar | Desktop RES 65 / `/c` 37 from TTFB 1.84s + LCP 5.31s; target RES >90 |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
@@ -101,7 +101,10 @@ Full target surface — **remember only; implement only when user asks for a sli
 - `chats.id` is `text` (custom long ids + legacy UUID strings). Validate with `requireChatIdParam`.
 - Recents filter: never treat “messages not hydrated yet” as empty — `filterStartedRecentChats` keeps chats when local messages are `undefined` (reload bug that hid all chats).
 - Inference: server uses `Provider_API_Key` + `Provider_BASE_URL` (+ `Provider_Model_Clauxen_V1`); Exa uses `EXA_API_KEY`. No hardcoded provider base URL/keys. Fail closed via `requireProviderApiKey` / `requireProviderBaseUrl` / `requireExaApiKey`.
-- Sidebar Recents shimmer on first chat list fetch; conversation pane shimmer while `/c/[id]` messages hydrate. Realtime chat list refresh is silent (no full-list re-shimmer).
+- Sidebar Recents shimmer on first chat list fetch; `/c/[id]` prefers SSR seed (no message shimmer when seed hits) else client hydrate shimmer. Realtime chat list refresh is silent (no full-list re-shimmer).
+- Chat fonts: only Inter + Playfair in root layout; other Google chat fonts load on demand via `ChatFontLoader` when `data-chat-font` is set.
+- Auth boot uses `GET /api/v1/auth/session?quiet=1` (local JWT/hint, no profile sync); full session sync runs in background after FCP.
+- Edge `proxy.ts` skips `updateSession` for `/api/*` (handlers auth themselves) to cut stacked TTFB on `/c` cold loads.
 - Chat transcripts for training: `chat_transcript_lines` stores Cursor-style JSONL records (`role` + `message.content` parts including `text` / `thinking` / `tool_use` / `tool_result`, plus `turn_ended`). View `chat_transcripts_jsonl` aggregates one JSONL doc per chat. Export: `GET /api/v1/chats/[chatId]/transcript`.
 - Branch PUT must use `sanitizeBranchMessages` (keeps ids/frames). Never `sanitizeMessages` for branch state — that stripped ids and caused reload duplicate assistants.
 - Chat-history Worker: Cache API → KV → R2 → Hyperdrive; also caches sidebar `GET /v1/chats` + JWT memo. Redeploy via `./scripts/ops/apply-cloudflare-perf-stack.sh` when `CLOUDFLARE_API_TOKEN` is valid. Tune Hyperdrive `--max-age 300 --swr 60`.

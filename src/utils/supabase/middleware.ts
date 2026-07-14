@@ -154,9 +154,25 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
+  // Prefer local JWT read for document gates. Only revalidate with Auth when
+  // there is no session or the access token is missing / near expiry.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  let user = session?.user ?? null;
+  const expiresAtMs =
+    typeof session?.expires_at === "number" ? session.expires_at * 1000 : 0;
+  const needsRemoteValidation =
+    !user ||
+    !session?.access_token ||
+    expiresAtMs < Date.now() + 5 * 60 * 1000;
+
+  if (needsRemoteValidation) {
+    const {
+      data: { user: remoteUser },
+    } = await supabase.auth.getUser();
+    user = remoteUser;
+  }
 
   // Fast UI identity hint (non-HttpOnly) — mirrors ChatGPT split-cookie pattern.
   if (user?.id) {

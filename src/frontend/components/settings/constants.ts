@@ -102,10 +102,11 @@ export const fontThemes = CHAT_FONT_OPTIONS.map((option) => ({
   label: option.label,
   serif: Boolean(
     option.cssVar?.includes("playfair") ||
-      option.cssVar?.includes("lora") ||
-      option.cssVar?.includes("serif") ||
-      option.cssVar?.includes("literata") ||
-      option.cssVar?.includes("merriweather"),
+      option.familyName === "Lora" ||
+      option.familyName?.toLowerCase().includes("serif") ||
+      option.familyName === "Literata" ||
+      option.familyName === "Merriweather" ||
+      option.id === "Default",
   ),
   dyslexic: option.id === "Atkinson Hyperlegible",
 }));

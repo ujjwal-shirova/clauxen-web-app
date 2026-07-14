@@ -94,7 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async (opts?: { quiet?: boolean }) => {
     if (!opts?.quiet) setLoading(true);
     try {
-      const session = await authApi.getSession();
+      const session = await authApi.getSession(
+        opts?.quiet ? { quiet: true } : undefined,
+      );
       if (session) {
         setUser(session);
         return;
@@ -152,6 +154,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (!cancelled) await refresh({ quiet: true });
       if (!cancelled) setLoading(false);
+      // Background profile sync — keep ensureUserRecord off the FCP path.
+      if (!cancelled) {
+        void authApi
+          .getSession()
+          .then((session) => {
+            if (!cancelled && session) setUser(session);
+          })
+          .catch(() => {});
+      }
     })();
 
     const supabase = createClient();

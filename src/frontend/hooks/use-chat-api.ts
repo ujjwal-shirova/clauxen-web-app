@@ -66,6 +66,7 @@ import {
   INITIAL_CHAT_MESSAGE_PAGE_SIZE,
   OLDER_CHAT_MESSAGE_PAGE_SIZE,
 } from "@/frontend/lib/chat-history-page-size";
+import { takePendingChatRouteSeed } from "@/frontend/lib/chat-route-seed";
 import { useShallow } from "zustand/react/shallow";
 
 type ChatHistoryCursor = {
@@ -404,26 +405,18 @@ export function useChatApi(
     };
   }, [activeChatId, setAllChats]);
 
-  const loadChatMessages = useCallback(async (chatId: string) => {
-    setMessagesLoading(true);
-    try {
-      // Worker (and Next fallback) already align to a complete latest pair —
-      // do not fetch older pages here; that only happens on scroll-up.
-      const page = await chatsApi.listMessagesPage(chatId, {
-        limit: INITIAL_CHAT_MESSAGE_PAGE_SIZE,
-      });
-
-      const apiMessages = page.messages.map(mapApiMessage);
-      let branchMessages: unknown = null;
-      try {
-        const branch = await chatsApi.getBranchState(chatId);
-        const row = branch.state as { messages?: unknown } | null;
-        branchMessages = row?.messages ?? null;
-      } catch {
-        // No branch state yet.
-      }
+  const applyLoadedPage = useCallback(
+    (
+      chatId: string,
+      page: {
+        messages: chatsApi.ApiMessage[];
+        hasMore: boolean;
+        nextCursor: { id: string; createdAt: string } | null;
+      },
+      branchMessages: unknown,
+    ) => {
       const hydrated = overlayBranchMessagesOnPage({
-        pageMessages: apiMessages,
+        pageMessages: page.messages.map(mapApiMessage),
         branchMessages,
       });
       setAllChats((prev) => ({
@@ -438,10 +431,30 @@ export function useChatApi(
           isLoadingOlder: false,
         },
       }));
-    } finally {
-      setMessagesLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
+
+  const loadChatMessages = useCallback(
+    async (chatId: string) => {
+      setMessagesLoading(true);
+      try {
+        // Worker (and Next fallback) already align to a complete latest pair —
+        // do not fetch older pages here; that only happens on scroll-up.
+        const [page, branch] = await Promise.all([
+          chatsApi.listMessagesPage(chatId, {
+            limit: INITIAL_CHAT_MESSAGE_PAGE_SIZE,
+          }),
+          chatsApi.getBranchState(chatId).catch(() => null),
+        ]);
+        const row = branch?.state as { messages?: unknown } | null;
+        applyLoadedPage(chatId, page, row?.messages ?? null);
+      } finally {
+        setMessagesLoading(false);
+      }
+    },
+    [applyLoadedPage],
+  );
 
   const loadOlderMessages = useCallback(async (chatId: string) => {
     const current = historyByChatIdRef.current[chatId];
@@ -536,9 +549,28 @@ export function useChatApi(
         setMessagesLoading(false);
         return;
       }
+      const previousChatId = useChatStore.getState().activeChatId;
       setActiveChatId(chatId);
-      // Drop other chats' message bodies from RAM — reopen re-fetches from edge cache.
-      useChatStore.getState().clearInactiveChatMessages(chatId);
+      // Keep the previous chat warm for back-nav; drop everything else.
+      useChatStore
+        .getState()
+        .clearInactiveChatMessages(chatId, { alsoKeep: previousChatId });
+
+      const ssrSeed = takePendingChatRouteSeed(chatId);
+      if (ssrSeed) {
+        applyLoadedPage(
+          chatId,
+          {
+            messages: ssrSeed.messages,
+            hasMore: ssrSeed.hasMore,
+            nextCursor: ssrSeed.nextCursor,
+          },
+          ssrSeed.branchMessages,
+        );
+        setMessagesLoading(false);
+        return;
+      }
+
       const existing = useChatStore.getState().messageIdsByChatId[chatId];
       const history = historyByChatIdRef.current[chatId];
       const isLive =
@@ -549,9 +581,14 @@ export function useChatApi(
         setMessagesLoading(false);
         return;
       }
+      // Warm RAM hit after back-nav — paint immediately without shimmer.
+      if (existing && existing.length > 0) {
+        setMessagesLoading(false);
+        return;
+      }
       await loadChatMessages(chatId);
     },
-    [loadChatMessages],
+    [applyLoadedPage, loadChatMessages],
   );
 
   const startNewChat = useCallback(() => {

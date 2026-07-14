@@ -28,8 +28,10 @@ export type ChatFontOption = {
   id: ChatFontId;
   /** Label shown in Settings → Chat font */
   label: string;
-  /** CSS variable set by next/font (undefined = system stack) */
+  /** CSS variable from root next/font (Default / Sans only). */
   cssVar?: string;
+  /** Google Fonts family name when loaded on demand. */
+  familyName?: string;
   stack: string;
 };
 
@@ -49,49 +51,49 @@ export const CHAT_FONT_OPTIONS: readonly ChatFontOption[] = [
   {
     id: "Lora",
     label: "Lora",
-    cssVar: "--font-chat-lora",
+    familyName: "Lora",
     stack: "Georgia, serif",
   },
   {
     id: "Source Serif",
     label: "Source Serif",
-    cssVar: "--font-chat-source-serif",
+    familyName: "Source Serif 4",
     stack: "Georgia, serif",
   },
   {
     id: "Literata",
     label: "Literata",
-    cssVar: "--font-chat-literata",
+    familyName: "Literata",
     stack: "Georgia, serif",
   },
   {
     id: "Merriweather",
     label: "Merriweather",
-    cssVar: "--font-chat-merriweather",
+    familyName: "Merriweather",
     stack: "Georgia, serif",
   },
   {
     id: "IBM Plex Sans",
     label: "IBM Plex Sans",
-    cssVar: "--font-chat-ibm-plex",
+    familyName: "IBM Plex Sans",
     stack: "system-ui, sans-serif",
   },
   {
     id: "Source Sans",
     label: "Source Sans",
-    cssVar: "--font-chat-source-sans",
+    familyName: "Source Sans 3",
     stack: "system-ui, sans-serif",
   },
   {
     id: "Nunito Sans",
     label: "Nunito Sans",
-    cssVar: "--font-chat-nunito",
+    familyName: "Nunito Sans",
     stack: "system-ui, sans-serif",
   },
   {
     id: "Atkinson Hyperlegible",
     label: "Atkinson Hyperlegible",
-    cssVar: "--font-chat-atkinson",
+    familyName: "Atkinson Hyperlegible",
     stack: "system-ui, sans-serif",
   },
   {

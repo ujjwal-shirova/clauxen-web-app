@@ -145,7 +145,10 @@ export function OnboardingFlow() {
   }, [busy]);
 
   useEffect(() => {
-    void Promise.all([onboardingApi.getOnboarding(), authApi.getSession()])
+    void Promise.all([
+      onboardingApi.getOnboarding(),
+      authApi.getSession({ quiet: true }),
+    ])
       .then(([{ onboarding }, session]) => {
         if (onboarding.completed) {
           enterApp();
