@@ -151,7 +151,7 @@ async function sendOtpEmail(
   code: string,
   ttlSeconds: number,
 ): Promise<{ sent: boolean; messageId?: string; simulated?: boolean }> {
-  const fromEmail = (env.FROM_EMAIL || "noreply@clauxen.com").trim();
+  const fromEmail = (env.FROM_EMAIL || "no-reply@clauxen.com").trim();
   const fromName = (env.FROM_NAME || "Clauxen").trim();
   const ttlMinutes = Math.max(1, Math.round(ttlSeconds / 60));
   const subject = `${code} is your Clauxen verification code`;
