@@ -74,3 +74,55 @@ export async function validateEmail(email: string) {
     body: JSON.stringify({ email: normalizedEmail }),
   });
 }
+
+/** Check whether email already has an account (login vs create). */
+export async function checkEmailStatus(email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  assertNonEmptyEmail(normalizedEmail);
+  return apiFetch<{
+    email: string;
+    exists: boolean;
+    mode: "login" | "create";
+  }>("/api/v1/auth/email-status", {
+    method: "POST",
+    body: JSON.stringify({ email: normalizedEmail }),
+  });
+}
+
+/** Send signup OTP via Cloudflare auth-email Worker. */
+export async function requestSignupOtp(email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  assertNonEmptyEmail(normalizedEmail);
+  return apiFetch<{
+    ok: true;
+    expiresInSeconds: number;
+    delivered: boolean;
+    simulated?: boolean;
+    debugCode?: string;
+  }>("/api/v1/auth/signup/request-otp", {
+    method: "POST",
+    body: JSON.stringify({ email: normalizedEmail }),
+  });
+}
+
+/** Verify OTP and create the confirmed account; then client signs in. */
+export async function verifySignupAndCreate(input: {
+  email: string;
+  code: string;
+  password: string;
+}) {
+  const normalizedEmail = normalizeEmail(input.email);
+  assertNonEmptyEmail(normalizedEmail);
+  const safePassword = input.password.slice(0, MAX_LOGIN_PASSWORD_LEN);
+  return apiFetch<{ ok: true; email: string; userId: string }>(
+    "/api/v1/auth/signup/verify",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        email: normalizedEmail,
+        code: input.code.replace(/\D/g, "").slice(0, 6),
+        password: safePassword,
+      }),
+    },
+  );
+}

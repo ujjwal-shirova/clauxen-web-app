@@ -1,0 +1,22 @@
+name = "clauxen-auth-email"
+main = "src/index.ts"
+compatibility_date = "2025-02-04"
+account_id = "8fc7a67e9057989309921f362784ecf4"
+workers_dev = true
+
+# Outbound transactional email via Cloudflare Email Service.
+# Onboard domain (e.g. clauxen.com) under Email Service → Email Sending first.
+[[send_email]]
+name = "EMAIL"
+
+[vars]
+FROM_EMAIL = "noreply@clauxen.com"
+FROM_NAME = "Clauxen"
+OTP_TTL_SECONDS = "600"
+OTP_MAX_ATTEMPTS = "5"
+OTP_RESEND_COOLDOWN_SECONDS = "45"
+# AUTH_EMAIL_INTERNAL_TOKEN set via: wrangler secret put AUTH_EMAIL_INTERNAL_TOKEN
+
+[[kv_namespaces]]
+binding = "OTP_STORE"
+id = "980848de9e8a45ae86f20b3db8adf222"
