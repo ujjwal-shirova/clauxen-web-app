@@ -49,7 +49,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Settings Personalization: style/characteristics/fast answers/memory note + Advanced (web search, canvas, connector search; no voice) wired to settings JSONB + capabilities | ChatGPT-parity personalization pane |
 | 2026-07-14 | Settings General preferences: theme (light/dark/system via next-themes + `.dark` tokens), Google chat fonts on assistant markdown only, motion + follow-up chips; AppPreferencesProvider applies + persists to Supabase `user_settings.settings.general` | Prefs were saved but never applied to DOM |
 | 2026-07-14 | Overlays use ChatGPT-style hashes (`#settings`, `#settings/Personalization`, `#pricing`) on parent pages (`/new`, `/c/…`); legacy `/settings/*` `/upgrade` redirect to `/new#…` | Path overlays blanked the main panel and forced close→`/new` |
-| 2026-07-14 | Artifact file cards + right file viewer redesigned (hover lift, smooth 560px rail, no chat hard-cut) | User asked for better present-file UI and sidebar transitions |
+| 2026-07-15 | Vercel Require Verified Commits is ON — GitHub must show commit as Verified (SSH signing key uploaded separately from auth key) | Deployments of unverified commits are auto-canceled |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
@@ -106,6 +106,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Auth boot uses `GET /api/v1/auth/session?quiet=1` (local JWT/hint, no profile sync); full session sync runs in background after FCP.
 - Edge `proxy.ts` skips `updateSession` for `/api/*` (handlers auth themselves) to cut stacked TTFB on `/c` cold loads.
 - Chat history: full-thread hydrate (Worker-first `listAllChatMessages`, limit 500). No scroll-up pagination UI. Rare longer threads silently page before paint. SSR seed same path with `hasMore: false`.
+- Vercel Require Verified Commits: HEAD must be GitHub-Verified. Sign with SSH (`git -c gpg.format=ssh -c user.signingkey=~/.ssh/id_ed25519.pub commit -S`). Same pubkey must also be added under GitHub → Settings → SSH and GPG keys → **New SSH key** → Key type **Signing Key** (auth key alone is not enough). `gh` token in keyring was invalid as of 2026-07-15 — re-run `gh auth login` after adding the signing key.
 - User message edit: inline in the bubble (`UserMessageInlineEditor`) — no expand dialog. Attachments render inside the card; edit grows chips + bottom plus/mic/send (no model selector). Clear-all cancels. Send creates a branch via `editMessageWithBranch`.
 - Chat transcripts for training: `chat_transcript_lines` stores Cursor-style JSONL records (`role` + `message.content` parts including `text` / `thinking` / `tool_use` / `tool_result`, plus `turn_ended`). View `chat_transcripts_jsonl` aggregates one JSONL doc per chat. Export: `GET /api/v1/chats/[chatId]/transcript`.
 - Branch PUT must use `sanitizeBranchMessages` (keeps ids/frames). Never `sanitizeMessages` for branch state — that stripped ids and caused reload duplicate assistants.
