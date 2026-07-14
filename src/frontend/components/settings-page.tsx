@@ -71,6 +71,7 @@ export function SettingsModal({
     updateNotifications,
     updatePersonalization,
     updateSafety,
+    refresh: refreshSettings,
   } = useSettings(settingsEnabled);
 
   const safeInitial = isSettingsTab(initialTab) ? initialTab : "General";
@@ -86,8 +87,9 @@ export function SettingsModal({
   useEffect(() => {
     if (open) {
       setActiveTab(isSettingsTab(initialTab) ? initialTab : "General");
+      if (settingsEnabled) void refreshSettings();
     }
-  }, [initialTab, open]);
+  }, [initialTab, open, settingsEnabled, refreshSettings]);
 
   useEffect(() => {
     if (!open) return;

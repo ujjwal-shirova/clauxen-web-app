@@ -7,6 +7,7 @@ import * as profileRepo from "@/backend/repositories/profile.repository";
 import * as profileService from "@/backend/services/profile.service";
 import { ensureUserRecord } from "@/backend/services/identity.service";
 import { sidebarDisplayName } from "@/lib/profile-names";
+import { sanitizeCustomInstructions } from "@/backend/services/user-personalization.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -102,15 +103,36 @@ function toClientPayload(
   stored: Record<string, unknown>,
   notifStored: Record<string, unknown>,
   profile?: Awaited<ReturnType<typeof profileRepo.getProfile>> | null,
+  onboardingAnswers?: Record<string, unknown> | null,
 ) {
   const personalization = mergeSettings(
     defaultPersonalization,
     stored.personalization as Record<string, unknown>,
   );
 
-  if (profile) {
-    if (profile.display_name) personalization.fullName = profile.display_name;
-    if (profile.preferred_name) personalization.nickname = profile.preferred_name;
+  // Prefer canonical profile columns, then fall back to onboarding answers.
+  if (profile?.display_name) {
+    personalization.fullName = profile.display_name;
+  }
+  if (profile?.preferred_name) {
+    personalization.nickname = profile.preferred_name;
+  } else if (
+    !personalization.nickname &&
+    typeof onboardingAnswers?.displayName === "string"
+  ) {
+    personalization.nickname = String(onboardingAnswers.displayName).trim();
+  }
+  if (
+    !personalization.occupation &&
+    typeof onboardingAnswers?.role === "string"
+  ) {
+    personalization.occupation = String(onboardingAnswers.role).trim();
+  }
+
+  if (typeof personalization.customInstructions === "string") {
+    personalization.customInstructions = sanitizeCustomInstructions(
+      personalization.customInstructions,
+    );
   }
 
   return {
@@ -199,6 +221,7 @@ export const GET = withApiHandler(
     let notifStored: Record<string, unknown> = {};
     let profile: Awaited<ReturnType<typeof profileRepo.getProfile>> | null =
       null;
+    let onboardingAnswers: Record<string, unknown> | null = null;
 
     try {
       const [userSettings, notificationPrefs, profileRow] = await Promise.all([
@@ -212,12 +235,17 @@ export const GET = withApiHandler(
         unknown
       >;
       profile = profileRow;
+      onboardingAnswers =
+        ((userSettings as { onboarding_answers?: Record<string, unknown> } | null)
+          ?.onboarding_answers as Record<string, unknown> | null) ?? null;
     } catch (error) {
       // Return defaults rather than 500 — UI must stay usable during DB blips.
       console.error("[settings] read failed, returning defaults:", error);
     }
 
-    return jsonData(toClientPayload(stored, notifStored, profile));
+    return jsonData(
+      toClientPayload(stored, notifStored, profile, onboardingAnswers),
+    );
   },
   { requireAuth: true },
 );
@@ -256,9 +284,18 @@ export const PATCH = withApiHandler(
       "claw",
     ] as const) {
       if (body[key]) {
+        const patch = { ...body[key] } as Record<string, unknown>;
+        if (
+          key === "personalization" &&
+          typeof patch.customInstructions === "string"
+        ) {
+          patch.customInstructions = sanitizeCustomInstructions(
+            patch.customInstructions,
+          );
+        }
         nextSettings[key] = {
           ...((currentSettings[key] as Record<string, unknown>) ?? {}),
-          ...body[key],
+          ...patch,
         };
       }
     }
@@ -350,8 +387,13 @@ export const PATCH = withApiHandler(
       string,
       unknown
     >;
+    const onboardingAnswers =
+      ((userSettings as { onboarding_answers?: Record<string, unknown> } | null)
+        ?.onboarding_answers as Record<string, unknown> | null) ?? null;
 
-    return jsonData(toClientPayload(stored, notifStored, profile));
+    return jsonData(
+      toClientPayload(stored, notifStored, profile, onboardingAnswers),
+    );
   },
   { requireAuth: true },
 );

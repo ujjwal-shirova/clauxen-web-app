@@ -640,6 +640,7 @@ export function legacyStreamFromMessages(
   messages: IncomingMessage[],
   signal?: AbortSignal,
   options?: {
+    userId?: string;
     userCountryCode?: string;
     generateChatTitle?: boolean;
     chatModel?: string;
@@ -654,6 +655,7 @@ export function legacyStreamFromMessages(
 
   return createChatStream(messages, {
     chatModel: options?.chatModel,
+    userId: options?.userId,
     userCountryCode: options?.userCountryCode,
     generateChatTitle,
     conversationId: options?.conversationId,

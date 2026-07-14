@@ -20,6 +20,7 @@ import {
   CLAUXEN_STREAM_HEADERS,
 } from "@/backend/inference/clauxen-sse-stream";
 import { buildModelSystemPrompt } from "@/backend/inference/system-prompt";
+import { buildUserPersonalizationAppend } from "@/backend/services/user-personalization.service";
 
 async function requireChatSession(request: Request) {
   const session = await getSessionFromRequest(request as NextRequest);
@@ -66,11 +67,13 @@ export async function handleChatPost(request: Request) {
 
     const homerReasoningEffort = parseHomerReasoningEffort(body?.homerReasoningEffort);
 
-    // Build the system prompt from the model's .md file (helios.md, homor.md, etc.)
-    // Kept unchanged — this is the large authored prompt.
+    // Build the system prompt from the model's .md file + user personalization.
+    const personalizationAppend = await buildUserPersonalizationAppend(
+      auth.session?.id,
+    );
     const systemPrompt = buildModelSystemPrompt({
       model: chatModelId,
-      append: undefined,
+      append: personalizationAppend || undefined,
     });
 
     // Build agent stream options

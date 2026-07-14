@@ -3,23 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/frontend/lib/utils";
+import { ONBOARDING_ROLES } from "@/lib/work-roles";
 
-export const ONBOARDING_ROLES = [
-  "Product management",
-  "Software engineer",
-  "Engineering",
-  "Human resources",
-  "Finance",
-  "Marketing",
-  "Sales",
-  "Operations",
-  "Data science",
-  "Design",
-  "Scientist",
-  "Legal",
-  "Student",
-  "Founder",
-] as const;
+export { ONBOARDING_ROLES };
 
 type RoleSelectionDropdownProps = {
   open: boolean;

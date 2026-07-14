@@ -9,6 +9,7 @@ import { runAutonomousAgent, type AgentStreamOptions } from "@/backend/inference
 import { ClauxenSseStream } from "@/backend/inference/clauxen-sse-stream";
 import type { IncomingMessage } from "@/backend/inference/novita";
 import { buildModelSystemPrompt } from "@/backend/inference/system-prompt";
+import { buildUserPersonalizationAppend } from "@/backend/services/user-personalization.service";
 import { resolveModelRuntime, parseChatModelId, modelCatalogEnvFromProcess } from "@/lib/model-catalog";
 import {
   parseHomerReasoningEffort,
@@ -26,14 +27,31 @@ export type ChatStreamOptions = {
 };
 
 /** Use runAutonomousAgent from agent-engine directly for new code. */
-export function createChatStream(
+export async function createChatStream(
   messages: IncomingMessage[],
   options: ChatStreamOptions = {},
-): ReadableStream<Uint8Array> {
+): Promise<ReadableStream<Uint8Array>> {
   const catalogEnv = modelCatalogEnvFromProcess();
   const chatModelId = parseChatModelId(options.chatModel);
   const runtime = resolveModelRuntime(chatModelId, catalogEnv);
-  const systemPrompt = buildModelSystemPrompt({ model: chatModelId });
+
+  const [personalizationAppend] = await Promise.all([
+    buildUserPersonalizationAppend(options.userId),
+  ]);
+
+  const titleInstr = options.generateChatTitle
+    ? "When the conversation has a clear topic, output a short title (3-6 words) for the sidebar."
+    : "";
+
+  const append = [personalizationAppend, titleInstr]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("\n\n");
+
+  const systemPrompt = buildModelSystemPrompt({
+    model: chatModelId,
+    append: append || undefined,
+  });
 
   const sse = new ClauxenSseStream();
 

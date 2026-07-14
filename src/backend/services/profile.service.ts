@@ -131,9 +131,11 @@ export async function updateUserProfile(
   });
 
   await mirrorPersonalizationNames(userId, {
-    fullName: fullName ?? undefined,
-    nickname: preferredName ?? undefined,
-    occupation: occupation ?? undefined,
+    ...(fullName !== null ? { fullName } : {}),
+    ...(preferredName !== null ? { nickname: preferredName } : {}),
+    ...(input.occupation !== undefined
+      ? { occupation: occupation ?? "" }
+      : {}),
   });
 
   if (fullName) {
@@ -190,9 +192,11 @@ async function mirrorPersonalizationNames(
     ...((settings.personalization as Record<string, unknown>) ?? {}),
   };
 
-  if (patch.fullName) personalization.fullName = patch.fullName;
-  if (patch.nickname) personalization.nickname = patch.nickname;
-  if (patch.occupation) personalization.occupation = patch.occupation;
+  if (patch.fullName != null) personalization.fullName = patch.fullName;
+  if (patch.nickname != null) personalization.nickname = patch.nickname;
+  if (patch.occupation !== undefined) {
+    personalization.occupation = patch.occupation ?? "";
+  }
 
   await settingsRepo.updateUserSettings(userId, {
     settings: { ...settings, personalization },

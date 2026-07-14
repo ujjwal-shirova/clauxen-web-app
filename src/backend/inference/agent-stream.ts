@@ -24,6 +24,7 @@ import type {
 } from "@/backend/inference/novita-agent";
 import { buildStructuredOutputTool } from "@/backend/inference/openai-agent-adapter";
 import { buildModelSystemPrompt } from "@/backend/inference/system-prompt";
+import { buildUserPersonalizationAppend } from "@/backend/services/user-personalization.service";
 
 export type AgentStreamEvent =
   | { event: "text_delta"; data: { text: string } }
@@ -76,8 +77,7 @@ function resolveAgentTools(request: AgentChatRequest) {
   return all;
 }
 
-function buildSystemPrompt(request: AgentChatRequest) {
-  // Full Virgil .md system prompt + Clauxen platform UI appendix (create_file tags, etc.).
+async function buildSystemPromptAsync(request: AgentChatRequest) {
   const logicalModel =
     (request as any).chatModel ||
     (typeof request.model === "string" ? request.model : undefined) ||
@@ -87,9 +87,17 @@ function buildSystemPrompt(request: AgentChatRequest) {
     ? "When the conversation has a clear topic, output a short title (3-6 words) for the sidebar."
     : "";
 
+  const personalization = await buildUserPersonalizationAppend(
+    (request as { userId?: string }).userId,
+  );
+  const append = [personalization, titleInstr]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("\n\n");
+
   const full = buildModelSystemPrompt({
     model: logicalModel,
-    append: titleInstr,
+    append: append || undefined,
   });
   return buildCacheableSystemPrefix(full);
 }
@@ -173,7 +181,10 @@ export async function streamNovitaAgentChat(
   const thinkState = { inThink: false };
 
   const conversation: AgentMessage[] = [
-    { role: "system", content: buildSystemPrompt(request) },
+    { role: "system", content: await buildSystemPromptAsync({
+      ...request,
+      ...(context?.userId ? { userId: context.userId } : {}),
+    } as AgentChatRequest) },
     ...(request.messages ?? []),
   ];
 

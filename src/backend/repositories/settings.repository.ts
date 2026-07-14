@@ -35,8 +35,11 @@ export async function ensureSettingsRows(userId: string, email?: string | null) 
 }
 
 export async function getUserSettings(userId: string) {
-  return queryOne<UserSettingsRow>(
-    `select user_id, settings, theme, language, display_name
+  return queryOne<UserSettingsRow & {
+    onboarding_answers?: Record<string, unknown> | null;
+  }>(
+    `select user_id, settings, theme, language, display_name,
+            coalesce(onboarding_answers, '{}'::jsonb) as onboarding_answers
      from public.user_settings where user_id = $1`,
     [userId],
   );

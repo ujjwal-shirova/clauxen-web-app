@@ -266,9 +266,21 @@ export async function runNovitaAgentChat(
   const { buildModelSystemPrompt } = await import(
     "@/backend/inference/system-prompt"
   );
+  const { buildUserPersonalizationAppend } = await import(
+    "@/backend/services/user-personalization.service"
+  );
   const logical = request.chatModel || request.model || "virgil";
+  const personalizationAppend = await buildUserPersonalizationAppend(
+    context?.userId,
+  );
   const conversation: AgentMessage[] = [
-    { role: "system", content: buildModelSystemPrompt({ model: logical }) },
+    {
+      role: "system",
+      content: buildModelSystemPrompt({
+        model: logical,
+        append: personalizationAppend || undefined,
+      }),
+    },
     ...messages,
   ];
   const model = request.model?.trim() || env.defaultModel;
