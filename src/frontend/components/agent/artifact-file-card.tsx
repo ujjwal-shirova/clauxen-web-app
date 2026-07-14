@@ -2,12 +2,14 @@
 
 import { Download, FileText } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
-import type { ChatArtifact } from "@/frontend/lib/chat-artifacts";
+import {
+  downloadArtifact,
+  type ChatArtifact,
+} from "@/frontend/lib/chat-artifacts";
 import {
   artifactMetaLabel,
   artifactSupportsPreview,
 } from "@/frontend/lib/create-file-tags";
-import { downloadArtifact } from "@/frontend/lib/chat-artifacts";
 import { useOptionalArtifactViewer } from "@/frontend/contexts/artifact-viewer-context";
 
 function DocumentStackIcon({ size = "md" }: { size?: "sm" | "md" }) {

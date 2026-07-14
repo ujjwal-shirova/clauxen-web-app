@@ -120,6 +120,8 @@ function ChatAreaLayout({
 }: ChatAreaProps) {
   const { isViewerOpen, activeArtifact, closeViewer, clearViewer } =
     useArtifactViewer();
+  const isViewerOpenRef = React.useRef(isViewerOpen);
+  isViewerOpenRef.current = isViewerOpen;
   const isMobile = useIsMobile();
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const artifactPanelOpenTimerRef = React.useRef<number | null>(null);
@@ -496,7 +498,7 @@ function ChatAreaLayout({
         <AnimatePresence
           initial={false}
           onExitComplete={() => {
-            if (!isViewerOpen) clearViewer();
+            if (!isViewerOpenRef.current) clearViewer();
           }}
         >
           {isViewerOpen && activeArtifact ? (
@@ -533,15 +535,13 @@ function ChatAreaLayout({
                   ease: [0.32, 0.72, 0, 1],
                 }}
                 className={cn(
-                  "fixed inset-y-0 right-0 z-50 flex shrink-0 overflow-hidden border-l border-zinc-200/80 bg-white shadow-[-12px_0_40px_-24px_rgba(24,24,27,0.18)] will-change-[transform,width,opacity] lg:static lg:z-auto lg:shadow-none",
+                  "fixed inset-y-0 right-0 z-50 flex w-full max-w-full shrink-0 overflow-hidden border-l border-zinc-200/80 bg-white shadow-[-12px_0_40px_-24px_rgba(24,24,27,0.18)] will-change-[transform,width,opacity] lg:static lg:z-auto lg:w-auto lg:max-w-none lg:shadow-none",
                 )}
               >
                 <div
-                  className="h-full w-[min(100vw,100%)] shrink-0 lg:w-[560px]"
+                  className="h-full w-full shrink-0 lg:w-[560px]"
                   style={
-                    isMobile
-                      ? undefined
-                      : { width: ARTIFACT_VIEWER_WIDTH }
+                    isMobile ? undefined : { width: ARTIFACT_VIEWER_WIDTH }
                   }
                 >
                   <ArtifactViewerPanel
