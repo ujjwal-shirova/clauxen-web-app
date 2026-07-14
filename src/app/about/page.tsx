@@ -75,7 +75,7 @@ export default function AboutPage() {
               </Link>{" "}
               or{" "}
               <Link
-                href="/signup"
+                href="/login"
                 className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900"
               >
                 create an account

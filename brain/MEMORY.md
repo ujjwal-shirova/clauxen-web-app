@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-14 | Unified login: Continue with Email checks existence → password login or create+OTP via Cloudflare Email Worker | Leonardo-style single entry; remove separate signup surface |
 | 2026-07-13 | Performance: RAM message window + inactive chat eviction + LOD + overlay code-split + CF/Vercel cache | Speed Insights FCP/LCP poor on / and /c; cut DOM/RAM and edge latency |
 | 2026-07-12 | Use Provider_* Vercel env for inference | Avoid leaking vendor keys via NEXT_PUBLIC or browser DevTools |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
@@ -96,6 +97,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - ChatSessionProvider is API-only (useChatApi) so local IndexedDB path stays out of main bundle; project/local still use useChat
 - Streamdown CSS loads idle via StreamdownStyles — do not re-import streamdown/styles.css in (main)/layout
 - Home `/` now renders ChatView directly (no redirect hop to /new) for FCP; isNewChatPath still treats / and /new as blank chat
+- Signup OTP: AUTH_EMAIL_WORKER_URL + AUTH_EMAIL_INTERNAL_TOKEN; deploy workers/auth-email; onboard Email Sending domain; AUTH_DEV_BYPASS can simulate OTP locally
 ## Open threads
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
@@ -104,6 +106,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 
 ---
 
+- Deploy clauxen-auth-email Worker + set Vercel AUTH_EMAIL_* env + onboard Email Sending domain for noreply@clauxen.com
 ## User notes
 
 <!-- Append dated bullets the user wants remembered. Keep short. -->
@@ -118,3 +121,4 @@ Full target surface — **remember only; implement only when user asks for a sli
 - 2026-07-12: Inference env renamed to Provider_API_Key, Provider_BASE_URL, Provider_SANDBOX_TIMEOUT_MS, Provider_Model_Clauxen_V1 (server-only Sensitive). Chat uses Provider_Model_Clauxen_V1. Do not commit until asked.
 - 2026-07-12: App surfaces use shareable paths: `/new`, `/upgrade`, `/gift`, `/apps`, `/settings/[tab]`; legacy `#pricing` / `#settings/...` hashes redirect to paths.
 - 2026-07-13: 2026-07-13: Perf push — target RES >90 via RAM window 24/48, LOD height-lock, CF SWR TTLs 900/300, Vercel function memory 512 default
+- 2026-07-14: 2026-07-14: Login unified — no separate signup page; /signup redirects to /login; Cloudflare clauxen-auth-email Worker + KV clauxen-auth-otp

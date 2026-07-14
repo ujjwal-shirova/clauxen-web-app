@@ -150,6 +150,11 @@ export const env = {
   /** Shared secret for Worker /internal/warm write-through. */
   chatHistoryInternalToken: optional("CHAT_HISTORY_INTERNAL_TOKEN"),
 
+  /** Cloudflare auth-email Worker (OTP send/verify via Email Service). */
+  authEmailWorkerUrl: normalizeBaseUrl(optional("AUTH_EMAIL_WORKER_URL")),
+  /** Shared secret for auth-email Worker. */
+  authEmailInternalToken: optional("AUTH_EMAIL_INTERNAL_TOKEN"),
+
   r2ImagesBucket: optional("R2_IMAGES_BUCKET", "clauxen-images"),
   r2DocumentsBucket: optional(
     "R2_DOCUMENTS_BUCKET",

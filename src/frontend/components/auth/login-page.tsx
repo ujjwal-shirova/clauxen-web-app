@@ -1,23 +1,27 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { useClearAuthBusyOnReturn } from "@/frontend/hooks/use-clear-auth-busy-on-return";
 import {
   AuthOAuthButtons,
-  AuthEmailForm,
   AuthLoadingShell,
+  authPageStyles,
   mapSupabaseAuthError,
-  resolveAuthIdentifier,
   type OAuthProvider,
 } from "@/frontend/components/auth/auth-shared";
 import { AuthShell } from "@/frontend/components/auth/auth-shell";
+import { SignupOtpDialog } from "@/frontend/components/auth/signup-otp-dialog";
+import * as authApi from "@/frontend/lib/api/auth";
 import {
   getSafeRedirectTo,
   redirectTargetWithHash,
 } from "@/frontend/lib/auth-redirect";
-import { looksLikePhone, PHONE_COUNTRIES } from "@/frontend/lib/phone-countries";
+import { looksLikeEmail } from "@/frontend/lib/phone-countries";
+import { cn } from "@/frontend/lib/utils";
+
+type EmailStep = "chooser" | "email" | "login" | "create";
 
 export function LoginPage() {
   const router = useRouter();
@@ -25,24 +29,13 @@ export function LoginPage() {
   const redirectTo = getSafeRedirectTo(searchParams.get("redirectTo"));
   const urlError = searchParams.get("error");
 
-  const {
-    login,
-    signInWithOAuth,
-    signInWithMagicLink,
-    signInWithPhoneOtp,
-    verifyPhoneOtp,
-    resetPassword,
-    isAuthenticated,
-    loading,
-  } = useAuth();
+  const { login, signInWithOAuth, resetPassword, isAuthenticated, loading } =
+    useAuth();
 
+  const [step, setStep] = useState<EmailStep>("chooser");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [countryIso, setCountryIso] = useState("IN");
-  const [otpCode, setOtpCode] = useState("");
-  const [awaitingPhoneOtp, setAwaitingPhoneOtp] = useState(false);
-  const [pendingPhone, setPendingPhone] = useState<string | null>(null);
-  const [useMagicLink, setUseMagicLink] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [pendingProvider, setPendingProvider] = useState<
     OAuthProvider | "sso" | null
@@ -52,6 +45,11 @@ export function LoginPage() {
   );
   const [info, setInfo] = useState<string | null>(null);
 
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [otpSubmitting, setOtpSubmitting] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpInfo, setOtpInfo] = useState<string | null>(null);
+
   const clearBusy = useCallback(() => {
     setPendingProvider(null);
     setFormSubmitting(false);
@@ -59,25 +57,33 @@ export function LoginPage() {
   useClearAuthBusyOnReturn(clearBusy);
 
   useEffect(() => {
-    try {
-      const region = (navigator.language.split("-")[1] || "").toUpperCase();
-      if (region && PHONE_COUNTRIES.some((c) => c.iso === region)) {
-        setCountryIso(region);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  useEffect(() => {
     if (!loading && isAuthenticated) {
       router.replace(redirectTargetWithHash(redirectTo));
     }
   }, [loading, isAuthenticated, redirectTo, router]);
 
+  const busy = formSubmitting || pendingProvider != null;
+
+  const canContinueEmail = useMemo(() => {
+    if (step === "email") return looksLikeEmail(email.trim());
+    if (step === "login") {
+      return looksLikeEmail(email.trim()) && password.length > 0;
+    }
+    if (step === "create") {
+      return (
+        looksLikeEmail(email.trim()) &&
+        password.length >= 8 &&
+        confirmPassword.length >= 8 &&
+        password === confirmPassword
+      );
+    }
+    return false;
+  }, [step, email, password, confirmPassword]);
+
   const handleOAuth = useCallback(
     async (provider: OAuthProvider) => {
       setError(null);
+      setInfo(null);
       setPendingProvider(provider);
       try {
         await signInWithOAuth(provider, redirectTo);
@@ -91,67 +97,108 @@ export function LoginPage() {
     [redirectTo, signInWithOAuth],
   );
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  const openEmailFlow = () => {
+    setError(null);
+    setInfo(null);
+    setPassword("");
+    setConfirmPassword("");
+    setStep("email");
+  };
+
+  const sendSignupOtp = async () => {
+    const result = await authApi.requestSignupOtp(email.trim());
+    setOtpInfo(
+      result.delivered
+        ? "Code sent. Check your inbox."
+        : result.debugCode
+          ? `Dev code: ${result.debugCode}`
+          : "Code generated. Check your email.",
+    );
+  };
+
+  const handleEmailContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setInfo(null);
-    setFormSubmitting(true);
 
-    try {
-      if (awaitingPhoneOtp && pendingPhone) {
-        await verifyPhoneOtp(pendingPhone, otpCode);
+    if (step === "email") {
+      if (!looksLikeEmail(email.trim())) {
+        setError("Enter a valid email address.");
+        return;
+      }
+      setFormSubmitting(true);
+      try {
+        await authApi.validateEmail(email.trim());
+        const status = await authApi.checkEmailStatus(email.trim());
+        setPassword("");
+        setConfirmPassword("");
+        setStep(status.exists ? "login" : "create");
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not check that email. Try again.",
+        );
+      } finally {
+        setFormSubmitting(false);
+      }
+      return;
+    }
+
+    if (step === "login") {
+      if (!password) {
+        setError("Enter your password.");
+        return;
+      }
+      setFormSubmitting(true);
+      try {
+        await login(email.trim(), password);
         router.replace(redirectTargetWithHash(redirectTo));
-        return;
-      }
-
-      const id = resolveAuthIdentifier(email, countryIso);
-      if (id.kind === "invalid") {
-        setError(id.message);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Sign in failed. Try again.",
+        );
         setFormSubmitting(false);
+      }
+      return;
+    }
+
+    if (step === "create") {
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters.");
         return;
       }
-
-      if (id.kind === "phone") {
-        await signInWithPhoneOtp(id.value);
-        setPendingPhone(id.value);
-        setAwaitingPhoneOtp(true);
-        setInfo("We sent a verification code to your phone.");
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+      setFormSubmitting(true);
+      try {
+        await sendSignupOtp();
+        setOtpError(null);
+        setOtpOpen(true);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not send verification code.",
+        );
+      } finally {
         setFormSubmitting(false);
-        return;
       }
-
-      if (useMagicLink) {
-        await signInWithMagicLink(id.value, redirectTo);
-        setInfo("Check your email for a magic link to continue.");
-        setFormSubmitting(false);
-        return;
-      }
-
-      await login(id.value, password);
-      router.replace(redirectTargetWithHash(redirectTo));
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong. Try again.",
-      );
-      setFormSubmitting(false);
     }
   };
 
   const handleForgotPassword = async () => {
-    if (!email.trim()) {
+    if (!looksLikeEmail(email.trim())) {
       setError("Enter your email first, then click forgot password.");
-      return;
-    }
-    const id = resolveAuthIdentifier(email, countryIso);
-    if (id.kind !== "email") {
-      setError("Password reset works with email addresses only.");
       return;
     }
     setError(null);
     setInfo(null);
     setFormSubmitting(true);
     try {
-      await resetPassword(id.value);
+      await resetPassword(email.trim());
       setInfo("Password reset link sent. Check your email.");
     } catch (err) {
       setError(
@@ -162,20 +209,46 @@ export function LoginPage() {
     }
   };
 
+  const handleOtpComplete = async (code: string) => {
+    if (code.length !== 6 || otpSubmitting) return;
+    setOtpSubmitting(true);
+    setOtpError(null);
+    try {
+      await authApi.verifySignupAndCreate({
+        email: email.trim(),
+        code,
+        password,
+      });
+      await login(email.trim(), password);
+      setOtpOpen(false);
+      router.replace(redirectTargetWithHash(redirectTo));
+    } catch (err) {
+      setOtpError(
+        err instanceof Error
+          ? err.message
+          : "Verification failed. Try again.",
+      );
+      setOtpSubmitting(false);
+    }
+  };
+
+  const handleOtpResend = async () => {
+    setOtpError(null);
+    setOtpSubmitting(true);
+    try {
+      await sendSignupOtp();
+    } catch (err) {
+      setOtpError(
+        err instanceof Error ? err.message : "Could not resend code.",
+      );
+    } finally {
+      setOtpSubmitting(false);
+    }
+  };
+
   if (loading) {
     return <AuthLoadingShell />;
   }
-
-  const signupHref = `/signup?redirectTo=${encodeURIComponent(redirectTo)}`;
-  const busy = formSubmitting || pendingProvider != null;
-  const phoneMode = looksLikePhone(email) || awaitingPhoneOtp;
-  const submitLabel = awaitingPhoneOtp
-    ? "Verify code"
-    : phoneMode
-      ? "Continue with phone"
-      : useMagicLink
-        ? "Email me a link"
-        : "Continue with email";
 
   return (
     <AuthShell>
@@ -183,63 +256,221 @@ export function LoginPage() {
         <h1 className="text-[28px] font-semibold tracking-tight text-zinc-900 sm:text-[32px]">
           Welcome to Clauxen
         </h1>
+        <p className="mt-2 text-[14px] leading-relaxed text-zinc-500">
+          {step === "chooser"
+            ? "Sign in or create an account to continue."
+            : step === "create"
+              ? "Create your account with email."
+              : step === "login"
+                ? "Welcome back — enter your password."
+                : "Continue with your email address."}
+        </p>
 
-        <div className="mt-7">
-          <AuthOAuthButtons
-            onOAuth={handleOAuth}
-            onSso={() => {
-              setError(null);
-              setPendingProvider("sso");
-              window.setTimeout(() => {
-                setPendingProvider(null);
-                setInfo(
-                  "Enterprise SSO is available on Team plans — contact sales@clauxen.com.",
-                );
-              }, 450);
-            }}
-            disabled={busy}
-            pendingProvider={pendingProvider}
-          />
-        </div>
+        {step === "chooser" ? (
+          <>
+            <div className="mt-7">
+              <AuthOAuthButtons
+                onOAuth={handleOAuth}
+                onSso={() => {
+                  setError(null);
+                  setPendingProvider("sso");
+                  window.setTimeout(() => {
+                    setPendingProvider(null);
+                    setInfo(
+                      "Enterprise SSO is available on Team plans — contact sales@clauxen.com.",
+                    );
+                  }, 450);
+                }}
+                disabled={busy}
+                pendingProvider={pendingProvider}
+              />
+            </div>
 
-        <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-zinc-200" />
-          <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-            or
-          </span>
-          <div className="h-px flex-1 bg-zinc-200" />
-        </div>
+            <div className="my-5 flex items-center gap-3">
+              <div className="h-px flex-1 bg-zinc-200" />
+              <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                or
+              </span>
+              <div className="h-px flex-1 bg-zinc-200" />
+            </div>
 
-        <AuthEmailForm
-          email={email}
-          password={password}
-          showPassword
-          useMagicLink={useMagicLink}
-          onEmailChange={(v) => {
-            setEmail(v);
-            if (awaitingPhoneOtp) {
-              setAwaitingPhoneOtp(false);
-              setPendingPhone(null);
-              setOtpCode("");
-            }
-          }}
-          onPasswordChange={setPassword}
-          onToggleMagicLink={() => setUseMagicLink((v) => !v)}
-          countryIso={countryIso}
-          onCountryChange={setCountryIso}
-          otpCode={otpCode}
-          onOtpChange={setOtpCode}
-          awaitingPhoneOtp={awaitingPhoneOtp}
-          error={error}
-          info={info}
-          submitting={formSubmitting}
-          submitLabel={submitLabel}
-          onSubmit={handleEmailSubmit}
-          onForgotPassword={() => void handleForgotPassword()}
-        />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={openEmailFlow}
+              className={authPageStyles.outlinedBtn}
+            >
+              <i className="bi bi-envelope text-[16px] leading-none" aria-hidden />
+              Continue with Email
+            </button>
+
+            {error ? (
+              <p className="mt-4 text-[13px] text-red-600" role="alert">
+                {error}
+              </p>
+            ) : null}
+            {info ? (
+              <p className="mt-4 text-[13px] text-zinc-600">{info}</p>
+            ) : null}
+          </>
+        ) : (
+          <form
+            onSubmit={(e) => void handleEmailContinue(e)}
+            className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300"
+          >
+            <div className="mb-4 rounded-[12px] border border-zinc-200 bg-zinc-50 px-3.5 py-3">
+              <div className="flex items-start gap-2.5">
+                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-[11px] font-semibold text-zinc-700">
+                  i
+                </span>
+                <div>
+                  <p className="text-[13px] font-semibold text-zinc-900">
+                    {step === "create"
+                      ? "Create Account"
+                      : step === "login"
+                        ? "Sign in"
+                        : "Continue with Email"}
+                  </p>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-500">
+                    {step === "create"
+                      ? "This email is new — set a password to create your account."
+                      : step === "login"
+                        ? "We found an account for this email. Enter your password to continue."
+                        : "Create an account or log in via email."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label
+                  htmlFor="login-email"
+                  className="mb-1.5 block text-[13px] font-medium text-zinc-800"
+                >
+                  Email
+                </label>
+                <input
+                  id="login-email"
+                  type="email"
+                  autoComplete="email"
+                  autoFocus={step === "email"}
+                  value={email}
+                  disabled={busy || step === "login" || step === "create"}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@host.com"
+                  className={authPageStyles.input}
+                />
+              </div>
+
+              {step === "login" || step === "create" ? (
+                <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <label
+                      htmlFor="login-password"
+                      className="block text-[13px] font-medium text-zinc-800"
+                    >
+                      {step === "create" ? "Create password" : "Password"}
+                    </label>
+                    {step === "login" ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void handleForgotPassword()}
+                        className="text-[12px] font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-800"
+                      >
+                        Forgot password?
+                      </button>
+                    ) : null}
+                  </div>
+                  <input
+                    id="login-password"
+                    type="password"
+                    autoComplete={
+                      step === "create" ? "new-password" : "current-password"
+                    }
+                    autoFocus
+                    value={password}
+                    disabled={busy}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={
+                      step === "create"
+                        ? "At least 8 characters"
+                        : "Enter your password"
+                    }
+                    className={authPageStyles.input}
+                  />
+                </div>
+              ) : null}
+
+              {step === "create" ? (
+                <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
+                  <label
+                    htmlFor="login-confirm-password"
+                    className="mb-1.5 block text-[13px] font-medium text-zinc-800"
+                  >
+                    Confirm password
+                  </label>
+                  <input
+                    id="login-confirm-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    disabled={busy}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Enter password again"
+                    className={authPageStyles.input}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            {error ? (
+              <p className="mt-3 text-[13px] text-red-600" role="alert">
+                {error}
+              </p>
+            ) : null}
+            {info ? (
+              <p className="mt-3 text-[13px] text-zinc-600">{info}</p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={busy || !canContinueEmail}
+              className={cn(authPageStyles.primaryBtn, "mt-4")}
+            >
+              {formSubmitting
+                ? "Please wait…"
+                : step === "create"
+                  ? "Continue"
+                  : step === "login"
+                    ? "Continue"
+                    : "Continue"}
+            </button>
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setError(null);
+                setInfo(null);
+                if (step === "email") {
+                  setStep("chooser");
+                } else {
+                  setPassword("");
+                  setConfirmPassword("");
+                  setStep("email");
+                }
+              }}
+              className="mt-3 w-full text-center text-[13px] font-medium text-zinc-500 transition hover:text-zinc-800"
+            >
+              {step === "email" ? "Back to sign-in options" : "Use a different email"}
+            </button>
+          </form>
+        )}
 
         <p className="mt-5 text-[12px] leading-relaxed text-zinc-500">
-          By clicking continue, you agree to our{" "}
+          By continuing, you agree to our{" "}
           <a
             href="/legal/terms"
             className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-800"
@@ -255,20 +486,10 @@ export function LoginPage() {
           </a>
           .
         </p>
-
-        <p className="mt-4 text-[13px] text-zinc-600">
-          Don&apos;t have an account yet?{" "}
-          <a
-            href={signupHref}
-            className="font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2"
-          >
-            Sign up
-          </a>
-        </p>
       </div>
 
       <p className="mx-auto mt-auto max-w-[380px] pb-2 text-center text-[12px] leading-relaxed text-zinc-400">
-        Need help with your account?{" "}
+        Need help?{" "}
         <a
           href="mailto:support@clauxen.com"
           className="text-zinc-600 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900"
@@ -276,6 +497,21 @@ export function LoginPage() {
           Get in touch
         </a>
       </p>
+
+      <SignupOtpDialog
+        open={otpOpen}
+        email={email.trim()}
+        submitting={otpSubmitting}
+        error={otpError}
+        info={otpInfo}
+        onCodeComplete={(code) => void handleOtpComplete(code)}
+        onResend={() => void handleOtpResend()}
+        onClose={() => {
+          if (otpSubmitting) return;
+          setOtpOpen(false);
+          setOtpError(null);
+        }}
+      />
     </AuthShell>
   );
 }
