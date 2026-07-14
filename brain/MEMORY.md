@@ -49,7 +49,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Settings Personalization: style/characteristics/fast answers/memory note + Advanced (web search, canvas, connector search; no voice) wired to settings JSONB + capabilities | ChatGPT-parity personalization pane |
 | 2026-07-14 | Settings General preferences: theme (light/dark/system via next-themes + `.dark` tokens), Google chat fonts on assistant markdown only, motion + follow-up chips; AppPreferencesProvider applies + persists to Supabase `user_settings.settings.general` | Prefs were saved but never applied to DOM |
 | 2026-07-14 | Overlays use ChatGPT-style hashes (`#settings`, `#settings/Personalization`, `#pricing`) on parent pages (`/new`, `/c/…`); legacy `/settings/*` `/upgrade` redirect to `/new#…` | Path overlays blanked the main panel and forced close→`/new` |
-| 2026-07-14 | Chat pagination: IntersectionObserver top sentinel + history-load pause (no stick-to-bottom during prepend); INITIAL/OLDER page size 24; Worker page prefetch; branch snapshot reuse; no trim-on-prepend | Scroll-up never fired (userScrolledUp+short thread); stream auto-scroll unlocked it then fought prepend → flicker |
+| 2026-07-14 | Removed `@vercel/speed-insights` and all Speed Insights wiring | User requested removal |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
