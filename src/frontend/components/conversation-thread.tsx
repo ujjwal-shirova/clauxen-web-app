@@ -32,10 +32,9 @@ import { AttachmentDocumentPreview } from "@/frontend/components/composer/attach
 import type { MessageAttachment } from "@/frontend/lib/composer-attachments";
 import { FollowUpSuggestions } from "@/frontend/components/follow-up-suggestions";
 import { useAppPreferencesOptional } from "@/frontend/contexts/app-preferences-context";
+import { useLoadOlderOnScroll } from "@/frontend/hooks/use-load-older-on-scroll";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
-/** Trigger server keyset fetch when the viewport is this close to the top. */
-const LOAD_OLDER_SCROLL_THRESHOLD_PX = 96;
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
 
 function messageAnchorId(messageId: string) {
@@ -64,6 +63,8 @@ interface ConversationThreadProps {
   hasMoreMessages?: boolean;
   isLoadingOlderMessages?: boolean;
   onLoadOlderMessages?: () => Promise<boolean>;
+  /** Pause stick-to-bottom / stream follow while older pages prepend. */
+  onHistoryLoadChange?: (loading: boolean) => void;
   /** Send a suggested follow-up as a new user message. */
   onFollowUpSelect?: (prompt: string) => void;
 }
@@ -981,6 +982,7 @@ export function ConversationThread({
   hasMoreMessages = false,
   isLoadingOlderMessages = false,
   onLoadOlderMessages,
+  onHistoryLoadChange,
   onFollowUpSelect,
 }: ConversationThreadProps) {
   const preferences = useAppPreferencesOptional();
@@ -1212,7 +1214,7 @@ export function ConversationThread({
     scrollHeight: number;
     scrollTop: number;
   } | null>(null);
-  const loadingOlderRef = React.useRef(false);
+  const loadOlderSentinelRef = React.useRef<HTMLDivElement | null>(null);
   const prevGroupCountRef = React.useRef(groups.length);
 
   const getScrollElement = React.useCallback(() => {
@@ -1226,52 +1228,21 @@ export function ConversationThread({
     return listRef.current;
   }, [scrollAreaRef]);
 
-  React.useEffect(() => {
-    const viewport = getScrollElement();
-    if (!viewport || !onLoadOlderMessages) return;
-
-    let raf = 0;
-    let userScrolledUp = false;
-    const maybeLoadOlder = () => {
-      if (raf !== 0) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        // Only fetch older pages after the user deliberately scrolls up —
-        // never on mount / initial pin-to-bottom.
-        if (!userScrolledUp) return;
-        if (viewport.scrollTop > LOAD_OLDER_SCROLL_THRESHOLD_PX) return;
-        if (!hasMoreMessages || isLoadingOlderMessages || loadingOlderRef.current) {
-          return;
-        }
-        loadingOlderRef.current = true;
-        pendingPrependAdjustmentRef.current = {
-          scrollHeight: viewport.scrollHeight,
-          scrollTop: viewport.scrollTop,
-        };
-        void onLoadOlderMessages().finally(() => {
-          loadingOlderRef.current = false;
-        });
-      });
-    };
-
-    const onScroll = () => {
-      if (viewport.scrollTop < viewport.scrollHeight - viewport.clientHeight - 24) {
-        userScrolledUp = true;
-      }
-      maybeLoadOlder();
-    };
-
-    viewport.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      viewport.removeEventListener("scroll", onScroll);
-      if (raf !== 0) cancelAnimationFrame(raf);
-    };
-  }, [
-    getScrollElement,
-    hasMoreMessages,
-    isLoadingOlderMessages,
-    onLoadOlderMessages,
-  ]);
+  useLoadOlderOnScroll({
+    getViewport: getScrollElement,
+    sentinelRef: loadOlderSentinelRef,
+    hasMore: hasMoreMessages,
+    isLoading: isLoadingOlderMessages,
+    enabled: Boolean(onLoadOlderMessages),
+    onLoadOlder: onLoadOlderMessages ?? (async () => false),
+    onHistoryLoadChange,
+    onBeforeLoad: (viewport) => {
+      pendingPrependAdjustmentRef.current = {
+        scrollHeight: viewport.scrollHeight,
+        scrollTop: viewport.scrollTop,
+      };
+    },
+  });
 
   React.useLayoutEffect(() => {
     const grewAtTop = groups.length > prevGroupCountRef.current;
@@ -1416,6 +1387,8 @@ export function ConversationThread({
     >
       {hasMoreMessages ? (
         <div
+          ref={loadOlderSentinelRef}
+          data-load-older-sentinel
           className="flex flex-col items-center gap-2 py-1 text-[11px] font-medium text-zinc-400"
           aria-hidden
         >
@@ -1428,7 +1401,14 @@ export function ConversationThread({
             "Scroll up to load older messages"
           )}
         </div>
-      ) : null}
+      ) : (
+        <div
+          ref={loadOlderSentinelRef}
+          data-load-older-sentinel
+          className="h-px w-full shrink-0"
+          aria-hidden
+        />
+      )}
 
       {groups.map((group, index) => (
         <ConversationTurn

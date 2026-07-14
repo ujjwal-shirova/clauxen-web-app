@@ -49,7 +49,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Settings Personalization: style/characteristics/fast answers/memory note + Advanced (web search, canvas, connector search; no voice) wired to settings JSONB + capabilities | ChatGPT-parity personalization pane |
 | 2026-07-14 | Settings General preferences: theme (light/dark/system via next-themes + `.dark` tokens), Google chat fonts on assistant markdown only, motion + follow-up chips; AppPreferencesProvider applies + persists to Supabase `user_settings.settings.general` | Prefs were saved but never applied to DOM |
 | 2026-07-14 | Overlays use ChatGPT-style hashes (`#settings`, `#settings/Personalization`, `#pricing`) on parent pages (`/new`, `/c/…`); legacy `/settings/*` `/upgrade` redirect to `/new#…` | Path overlays blanked the main panel and forced close→`/new` |
-| 2026-07-14 | Speed Insights RES: skip proxy getUser for `/api/*`; middleware prefer getSession until token near-expiry; SSR chat seed (450ms budget); defer 8 chat fonts; quiet `?quiet=1` session; parallel message+branch fetch; keep previous chat warm; dynamic Sidebar | Desktop RES 65 / `/c` 37 from TTFB 1.84s + LCP 5.31s; target RES >90 |
+| 2026-07-14 | Chat pagination: IntersectionObserver top sentinel + history-load pause (no stick-to-bottom during prepend); INITIAL/OLDER page size 24; Worker page prefetch; branch snapshot reuse; no trim-on-prepend | Scroll-up never fired (userScrolledUp+short thread); stream auto-scroll unlocked it then fought prepend → flicker |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
@@ -105,6 +105,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Chat fonts: only Inter + Playfair in root layout; other Google chat fonts load on demand via `ChatFontLoader` when `data-chat-font` is set.
 - Auth boot uses `GET /api/v1/auth/session?quiet=1` (local JWT/hint, no profile sync); full session sync runs in background after FCP.
 - Edge `proxy.ts` skips `updateSession` for `/api/*` (handlers auth themselves) to cut stacked TTFB on `/c` cold loads.
+- Older chat history: `useLoadOlderOnScroll` (IntersectionObserver sentinel + rootMargin), not scrollTop heuristics. `useChatScroll.setHistoryLoading` pauses stream follow during prepend. Prefetch next Worker page after each hydrate/older load.
 - Chat transcripts for training: `chat_transcript_lines` stores Cursor-style JSONL records (`role` + `message.content` parts including `text` / `thinking` / `tool_use` / `tool_result`, plus `turn_ended`). View `chat_transcripts_jsonl` aggregates one JSONL doc per chat. Export: `GET /api/v1/chats/[chatId]/transcript`.
 - Branch PUT must use `sanitizeBranchMessages` (keeps ids/frames). Never `sanitizeMessages` for branch state — that stripped ids and caused reload duplicate assistants.
 - Chat-history Worker: Cache API → KV → R2 → Hyperdrive; also caches sidebar `GET /v1/chats` + JWT memo. Redeploy via `./scripts/ops/apply-cloudflare-perf-stack.sh` when `CLOUDFLARE_API_TOKEN` is valid. Tune Hyperdrive `--max-age 300 --swr 60`.

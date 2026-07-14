@@ -22,7 +22,6 @@ import {
   useActiveChatId,
   setActiveChatId,
   useChatStore,
-  MAX_ACTIVE_CHAT_MESSAGES,
 } from "@/frontend/stores/chat-store";
 import * as chatsApi from "@/frontend/lib/api/chats";
 import { uploadUserFile } from "@/frontend/lib/api/files";
@@ -159,6 +158,12 @@ export function useChatApi(
   const branchPersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const historyByChatIdRef = useRef(historyByChatId);
   historyByChatIdRef.current = historyByChatId;
+  /** Branch overlay snapshot per chat — reused on older pages (no extra RTT). */
+  const branchMessagesByChatRef = useRef<Record<string, unknown>>({});
+  /** In-flight / resolved Worker page prefetch keyed by chatId:cursorId. */
+  const olderPrefetchRef = useRef<
+    Map<string, Promise<chatsApi.MessagesPage | null>>
+  >(new Map());
   const titleGenerationInProgressRef = useRef<Set<string>>(new Set());
   const handleSendMessageRef = useRef<
     | ((
@@ -415,9 +420,13 @@ export function useChatApi(
       },
       branchMessages: unknown,
     ) => {
+      if (branchMessages != null) {
+        branchMessagesByChatRef.current[chatId] = branchMessages;
+      }
       const hydrated = overlayBranchMessagesOnPage({
         pageMessages: page.messages.map(mapApiMessage),
-        branchMessages,
+        branchMessages:
+          branchMessages ?? branchMessagesByChatRef.current[chatId] ?? null,
       });
       setAllChats((prev) => ({
         ...prev,
@@ -435,12 +444,34 @@ export function useChatApi(
     [],
   );
 
+  const prefetchOlderPage = useCallback(
+    (
+      chatId: string,
+      cursor: { id: string; createdAt: string } | null | undefined,
+    ) => {
+      if (!cursor?.id) return;
+      const key = `${chatId}:${cursor.id}`;
+      if (olderPrefetchRef.current.has(key)) return;
+      const promise = chatsApi
+        .listMessagesPage(chatId, {
+          limit: OLDER_CHAT_MESSAGE_PAGE_SIZE,
+          cursorId: cursor.id,
+          cursorCreatedAt: cursor.createdAt,
+        })
+        .catch(() => null);
+      olderPrefetchRef.current.set(key, promise);
+      // Drop failed/stale entries so a later scroll can retry.
+      void promise.then((page) => {
+        if (!page) olderPrefetchRef.current.delete(key);
+      });
+    },
+    [],
+  );
+
   const loadChatMessages = useCallback(
     async (chatId: string) => {
       setMessagesLoading(true);
       try {
-        // Worker (and Next fallback) already align to a complete latest pair —
-        // do not fetch older pages here; that only happens on scroll-up.
         const [page, branch] = await Promise.all([
           chatsApi.listMessagesPage(chatId, {
             limit: INITIAL_CHAT_MESSAGE_PAGE_SIZE,
@@ -449,97 +480,98 @@ export function useChatApi(
         ]);
         const row = branch?.state as { messages?: unknown } | null;
         applyLoadedPage(chatId, page, row?.messages ?? null);
+        // Warm the next older page in the Worker cache ladder immediately.
+        if (page.hasMore && page.nextCursor) {
+          prefetchOlderPage(chatId, page.nextCursor);
+        }
       } finally {
         setMessagesLoading(false);
       }
     },
-    [applyLoadedPage],
+    [applyLoadedPage, prefetchOlderPage],
   );
 
-  const loadOlderMessages = useCallback(async (chatId: string) => {
-    const current = historyByChatIdRef.current[chatId];
-    if (!current?.hasMore || !current.nextCursor || current.isLoadingOlder) {
-      return false;
-    }
-
-    setHistoryByChatId((prev) => ({
-      ...prev,
-      [chatId]: { ...current, isLoadingOlder: true },
-    }));
-
-    try {
-      const page = await chatsApi.listMessagesPage(chatId, {
-        limit: OLDER_CHAT_MESSAGE_PAGE_SIZE,
-        cursorId: current.nextCursor.id,
-        cursorCreatedAt: current.nextCursor.createdAt,
-      });
-      const apiMessages = page.messages.map(mapApiMessage);
-      let branchMessages: unknown = null;
-      try {
-        const branch = await chatsApi.getBranchState(chatId);
-        const row = branch.state as { messages?: unknown } | null;
-        branchMessages = row?.messages ?? null;
-      } catch {
-        // ignore
+  const loadOlderMessages = useCallback(
+    async (chatId: string) => {
+      const current = historyByChatIdRef.current[chatId];
+      if (!current?.hasMore || !current.nextCursor || current.isLoadingOlder) {
+        return false;
       }
-      const older = overlayBranchMessagesOnPage({
-        pageMessages: apiMessages,
-        branchMessages,
-      });
-
-      setAllChats((prev) => {
-        const existing = prev[chatId] ?? [];
-        const existingIds = new Set(existing.map((message) => message.id));
-        const prepended = older.filter((message) => !existingIds.has(message.id));
-        if (prepended.length === 0) return prev;
-        return {
-          ...prev,
-          [chatId]: [...prepended, ...existing],
-        };
-      });
 
       setHistoryByChatId((prev) => ({
         ...prev,
-        [chatId]: {
-          hasMore: Boolean(page.hasMore),
-          nextCursor: page.nextCursor,
-          isLoadingOlder: false,
-        },
+        [chatId]: { ...current, isLoadingOlder: true },
       }));
 
-      // Cap heap/DOM pressure on very long threads after scroll-up pagination.
-      const store = useChatStore.getState();
-      const ids = store.messageIdsByChatId[chatId] ?? [];
-      if (ids.length > MAX_ACTIVE_CHAT_MESSAGES) {
-        store.trimChatMessagesToWindow(chatId, MAX_ACTIVE_CHAT_MESSAGES);
+      const cursor = current.nextCursor;
+      const prefetchKey = `${chatId}:${cursor.id}`;
+
+      try {
+        let page: chatsApi.MessagesPage | null = null;
+        const pending = olderPrefetchRef.current.get(prefetchKey);
+        if (pending) {
+          page = await pending;
+          olderPrefetchRef.current.delete(prefetchKey);
+        }
+        if (!page) {
+          page = await chatsApi.listMessagesPage(chatId, {
+            limit: OLDER_CHAT_MESSAGE_PAGE_SIZE,
+            cursorId: cursor.id,
+            cursorCreatedAt: cursor.createdAt,
+          });
+        }
+
+        const branchMessages =
+          branchMessagesByChatRef.current[chatId] ?? null;
+        const older = overlayBranchMessagesOnPage({
+          pageMessages: page.messages.map(mapApiMessage),
+          branchMessages,
+        });
+
+        setAllChats((prev) => {
+          const existing = prev[chatId] ?? [];
+          const existingIds = new Set(existing.map((message) => message.id));
+          const prepended = older.filter(
+            (message) => !existingIds.has(message.id),
+          );
+          if (prepended.length === 0) return prev;
+          return {
+            ...prev,
+            [chatId]: [...prepended, ...existing],
+          };
+        });
+
+        setHistoryByChatId((prev) => ({
+          ...prev,
+          [chatId]: {
+            hasMore: Boolean(page.hasMore),
+            nextCursor: page.nextCursor,
+            isLoadingOlder: false,
+          },
+        }));
+
+        // Prefetch the following page while the user reads — Worker Cache API hit.
+        if (page.hasMore && page.nextCursor) {
+          prefetchOlderPage(chatId, page.nextCursor);
+        }
+        return true;
+      } catch {
         setHistoryByChatId((prev) => ({
           ...prev,
           [chatId]: {
             ...(prev[chatId] ?? {
-              hasMore: true,
-              nextCursor: page.nextCursor,
+              hasMore: false,
+              nextCursor: null,
               isLoadingOlder: false,
             }),
-            hasMore: true,
+            isLoadingOlder: false,
           },
         }));
+        return false;
       }
-      return true;
-    } catch {
-      setHistoryByChatId((prev) => ({
-        ...prev,
-        [chatId]: {
-          ...(prev[chatId] ?? {
-            hasMore: false,
-            nextCursor: null,
-            isLoadingOlder: false,
-          }),
-          isLoadingOlder: false,
-        },
-      }));
-      return false;
-    }
-  }, []);
+    },
+    [prefetchOlderPage],
+  );
 
   const handleSelectChat = useCallback(
     async (chatId: string | null) => {
@@ -567,6 +599,9 @@ export function useChatApi(
           },
           ssrSeed.branchMessages,
         );
+        if (ssrSeed.hasMore && ssrSeed.nextCursor) {
+          prefetchOlderPage(chatId, ssrSeed.nextCursor);
+        }
         setMessagesLoading(false);
         return;
       }
@@ -579,16 +614,39 @@ export function useChatApi(
       // Keep optimistic / in-flight turns — don't replace with a stale page fetch.
       if (existing && existing.length > 0 && (history || isLive)) {
         setMessagesLoading(false);
+        if (history?.hasMore && history.nextCursor) {
+          prefetchOlderPage(chatId, history.nextCursor);
+        }
         return;
       }
-      // Warm RAM hit after back-nav — paint immediately without shimmer.
+      // Warm RAM hit after back-nav — paint immediately, then restore pagination meta.
       if (existing && existing.length > 0) {
         setMessagesLoading(false);
+        void (async () => {
+          try {
+            const page = await chatsApi.listMessagesPage(chatId, {
+              limit: INITIAL_CHAT_MESSAGE_PAGE_SIZE,
+            });
+            setHistoryByChatId((prev) => ({
+              ...prev,
+              [chatId]: {
+                hasMore: Boolean(page.hasMore),
+                nextCursor: page.nextCursor,
+                isLoadingOlder: false,
+              },
+            }));
+            if (page.hasMore && page.nextCursor) {
+              prefetchOlderPage(chatId, page.nextCursor);
+            }
+          } catch {
+            /* ignore — paint already succeeded */
+          }
+        })();
         return;
       }
       await loadChatMessages(chatId);
     },
-    [applyLoadedPage, loadChatMessages],
+    [applyLoadedPage, loadChatMessages, prefetchOlderPage],
   );
 
   const startNewChat = useCallback(() => {

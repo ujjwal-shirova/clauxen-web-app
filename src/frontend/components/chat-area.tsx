@@ -163,11 +163,16 @@ function ChatAreaLayout({
     !isViewerOpen &&
     !isSourcesPanelOpen;
 
-  const { scrollToBottom, pinToBottom, showScrollToBottom, followContentGrowth } =
-    useChatScroll({
-      scrollAreaRef,
-      enabled: isConversationStarted || showMessageSkeleton,
-    });
+  const {
+    scrollToBottom,
+    pinToBottom,
+    showScrollToBottom,
+    followContentGrowth,
+    setHistoryLoading,
+  } = useChatScroll({
+    scrollAreaRef,
+    enabled: isConversationStarted || showMessageSkeleton,
+  });
   const { isFastScrolling } = useChatScrollActivity(
     scrollAreaRef,
     isConversationStarted || showMessageSkeleton,
@@ -438,6 +443,7 @@ function ChatAreaLayout({
                   hasMoreMessages={hasMoreMessages}
                   isLoadingOlderMessages={isLoadingOlderMessages}
                   onLoadOlderMessages={onLoadOlderMessages}
+                  onHistoryLoadChange={setHistoryLoading}
                   onSaveEditedMessage={handleSaveEditedMessage}
                   onRetryUserMessage={handleRetryUserMessage}
                   onRetryAssistant={handleRetryAssistant}
