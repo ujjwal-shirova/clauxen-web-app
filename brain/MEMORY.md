@@ -98,6 +98,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Streamdown CSS loads idle via StreamdownStyles — do not re-import streamdown/styles.css in (main)/layout
 - Home `/` now renders ChatView directly (no redirect hop to /new) for FCP; isNewChatPath still treats / and /new as blank chat
 - Signup OTP: AUTH_EMAIL_WORKER_URL + AUTH_EMAIL_INTERNAL_TOKEN; deploy workers/auth-email; onboard Email Sending domain; AUTH_DEV_BYPASS can simulate OTP locally
+- Cursor Cloud: this agent run has environment=null — secrets Cloudflare_Token/Vercel_Token/Supabase_Token only inject when the agent is started FROM a Cursor Environment that lists them. Adding secrets mid-run or in a different Environment does not populate this pod.
 ## Open threads
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
@@ -107,6 +108,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 ---
 
 - Deploy clauxen-auth-email Worker + set Vercel AUTH_EMAIL_* env + onboard Email Sending domain for noreply@clauxen.com
+- Deploy clauxen-auth-email (FROM no-reply@clauxen.com) + wire Vercel AUTH_EMAIL_WORKER_URL/AUTH_EMAIL_INTERNAL_TOKEN + onboard Cloudflare Email Sending for clauxen.com — requires Cloudflare_Token + Vercel_Token in an Environment-backed agent (or GH Actions secrets).
 ## User notes
 
 <!-- Append dated bullets the user wants remembered. Keep short. -->

@@ -64,11 +64,23 @@ echo "==> Deploying clauxen-auth-email (OTP via Email Service → no-reply@claux
 
 WORKER_SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-ujjwal-8fc}"
 AUTH_EMAIL_URL="https://clauxen-auth-email.${WORKER_SUBDOMAIN}.workers.dev"
+export AUTH_EMAIL_WORKER_URL="$AUTH_EMAIL_URL"
+# Keep generated token available for Vercel wiring below.
+if [[ -f /tmp/clauxen-auth-email-internal-token.txt ]]; then
+  export AUTH_EMAIL_INTERNAL_TOKEN="$(tr -d '\n' </tmp/clauxen-auth-email-internal-token.txt)"
+fi
 
-echo
-echo "Done. Wire on Vercel (production + preview):"
-echo "  AUTH_EMAIL_WORKER_URL=$AUTH_EMAIL_URL"
-echo "  AUTH_EMAIL_INTERNAL_TOKEN=<from /tmp/clauxen-auth-email-internal-token.txt>"
+if [[ -n "${VERCEL_TOKEN:-}" ]]; then
+  echo "==> Wiring AUTH_EMAIL_* on Vercel"
+  bash "$ROOT/scripts/wire-auth-email-vercel.sh"
+else
+  echo
+  echo "Done. Wire on Vercel (production + preview) with Vercel_Token:"
+  echo "  ./scripts/wire-auth-email-vercel.sh"
+  echo "  AUTH_EMAIL_WORKER_URL=$AUTH_EMAIL_URL"
+  echo "  AUTH_EMAIL_INTERNAL_TOKEN=<from /tmp/clauxen-auth-email-internal-token.txt>"
+fi
+
 echo "  CHAT_HISTORY_WORKER_URL=https://clauxen-chat-history.${WORKER_SUBDOMAIN}.workers.dev"
 echo "  WORKER_URL=https://clauxen-r2-gateway.${WORKER_SUBDOMAIN}.workers.dev"
 echo
