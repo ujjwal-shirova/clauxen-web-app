@@ -89,6 +89,10 @@ const localTickets = new Map<
   string,
   { email: string; expiresAt: number }
 >();
+const localMagicLinks = new Map<
+  string,
+  { email: string; expiresAt: number }
+>();
 
 function hashLocal(code: string, salt: string) {
   return createHash("sha256").update(`${salt}:${code}`).digest("hex");
@@ -292,5 +296,174 @@ export async function createAccountAfterOtp(input: {
     email: normalized,
   });
 
-  return { email: normalized, userId: data.user.id };
+  return { email: normalized, userId: data.user.id   };
+}
+
+/** Request a magic signup link (new users only for now). */
+export async function requestMagicSignupLink(email: string): Promise<{
+  ok: true;
+  expiresInSeconds: number;
+  delivered: boolean;
+  simulated?: boolean;
+  debugUrl?: string;
+}> {
+  const normalized = normalizeEmail(email);
+  assertEmailShape(normalized);
+
+  if (await authEmailExists(normalized)) {
+    throw new AppError(
+      "Magic link sign-in for existing accounts is coming soon. Continue with Email to sign in.",
+      409,
+      "email_exists",
+    );
+  }
+
+  const appOrigin = (env.appUrl || "https://www.clauxen.com").replace(/\/$/, "");
+
+  if (env.authEmailWorkerUrl && env.authEmailInternalToken) {
+    const result = await callAuthEmailWorker<{
+      ok: true;
+      expiresInSeconds: number;
+      delivered: boolean;
+      simulated?: boolean;
+      debugUrl?: string;
+    }>("/v1/magic/send", {
+      email: normalized,
+      purpose: "signup",
+      appOrigin,
+    });
+    return {
+      ok: true,
+      expiresInSeconds: result.expiresInSeconds,
+      delivered: result.delivered,
+      simulated: result.simulated,
+      ...(env.authDevBypass && result.debugUrl
+        ? { debugUrl: result.debugUrl }
+        : {}),
+    };
+  }
+
+  if (!env.authDevBypass) {
+    throw new AppError(
+      "Magic link is not configured.",
+      503,
+      "auth_email_unconfigured",
+    );
+  }
+
+  const token = randomBytes(24).toString("hex");
+  const expiresAt = Date.now() + 5 * 60 * 1000;
+  localMagicLinks.set(token, {
+    email: normalized,
+    expiresAt,
+  });
+  const debugUrl = `${appOrigin}/auth/magic?token=${encodeURIComponent(token)}`;
+  console.info(`[auth-email:dev] Magic link for ${normalized}: ${debugUrl}`);
+  return {
+    ok: true,
+    expiresInSeconds: 300,
+    delivered: false,
+    simulated: true,
+    debugUrl,
+  };
+}
+
+export async function inspectMagicLink(token: string): Promise<{
+  email: string;
+  purpose: "signup";
+  expiresInSeconds: number;
+}> {
+  const safeToken = String(token ?? "").trim();
+  if (!safeToken || safeToken.length < 16) {
+    throw new AppError("Invalid magic link.", 400, "invalid_token");
+  }
+
+  if (env.authEmailWorkerUrl && env.authEmailInternalToken) {
+    const result = await callAuthEmailWorker<{
+      ok: true;
+      email: string;
+      purpose: "signup";
+      expiresInSeconds: number;
+    }>("/v1/magic/inspect", { token: safeToken });
+    return {
+      email: result.email,
+      purpose: result.purpose,
+      expiresInSeconds: result.expiresInSeconds,
+    };
+  }
+
+  if (!env.authDevBypass) {
+    throw new AppError(
+      "Magic link is not configured.",
+      503,
+      "auth_email_unconfigured",
+    );
+  }
+
+  const record = localMagicLinks.get(safeToken);
+  if (!record || record.expiresAt < Date.now()) {
+    localMagicLinks.delete(safeToken);
+    throw new AppError(
+      "This magic link has expired. Request a new one.",
+      400,
+      "expired",
+    );
+  }
+  return {
+    email: record.email,
+    purpose: "signup",
+    expiresInSeconds: Math.ceil((record.expiresAt - Date.now()) / 1000),
+  };
+}
+
+export async function completeMagicSignup(input: {
+  token: string;
+  password: string;
+}): Promise<{ email: string; userId: string }> {
+  const safeToken = String(input.token ?? "").trim();
+  if (!safeToken || safeToken.length < 16) {
+    throw new AppError("Invalid magic link.", 400, "invalid_token");
+  }
+
+  let signupTicket: string;
+  let email: string;
+
+  if (env.authEmailWorkerUrl && env.authEmailInternalToken) {
+    const result = await callAuthEmailWorker<{
+      ok: true;
+      signupTicket: string;
+      email: string;
+    }>("/v1/magic/consume", { token: safeToken });
+    signupTicket = result.signupTicket;
+    email = result.email;
+  } else if (env.authDevBypass) {
+    const record = localMagicLinks.get(safeToken);
+    if (!record || record.expiresAt < Date.now()) {
+      localMagicLinks.delete(safeToken);
+      throw new AppError(
+        "This magic link has expired. Request a new one.",
+        400,
+        "expired",
+      );
+    }
+    localMagicLinks.delete(safeToken);
+    email = record.email;
+    signupTicket = randomBytes(24).toString("hex");
+    localTickets.set(signupTicket, {
+      email,
+      expiresAt: Date.now() + 15 * 60 * 1000,
+    });
+  } else {
+    throw new AppError(
+      "Magic link is not configured.",
+      503,
+      "auth_email_unconfigured",
+    );
+  }
+
+  return createAccountAfterOtp({
+    email,
+    password: input.password,
+    signupTicket,
+  });
 }

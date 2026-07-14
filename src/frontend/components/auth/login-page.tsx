@@ -21,7 +21,7 @@ import {
 import { looksLikeEmail } from "@/frontend/lib/phone-countries";
 import { cn } from "@/frontend/lib/utils";
 
-type EmailStep = "chooser" | "email" | "login" | "create";
+type EmailStep = "chooser" | "email" | "login" | "create" | "magic" | "magic-sent";
 
 export function LoginPage() {
   const router = useRouter();
@@ -44,6 +44,7 @@ export function LoginPage() {
     urlError ? mapSupabaseAuthError(decodeURIComponent(urlError)) : null,
   );
   const [info, setInfo] = useState<string | null>(null);
+  const [magicDebugUrl, setMagicDebugUrl] = useState<string | null>(null);
 
   const [otpOpen, setOtpOpen] = useState(false);
   const [otpSubmitting, setOtpSubmitting] = useState(false);
@@ -65,7 +66,7 @@ export function LoginPage() {
   const busy = formSubmitting || pendingProvider != null;
 
   const canContinueEmail = useMemo(() => {
-    if (step === "email") return looksLikeEmail(email.trim());
+    if (step === "email" || step === "magic") return looksLikeEmail(email.trim());
     if (step === "login") {
       return looksLikeEmail(email.trim()) && password.length > 0;
     }
@@ -100,9 +101,19 @@ export function LoginPage() {
   const openEmailFlow = () => {
     setError(null);
     setInfo(null);
+    setMagicDebugUrl(null);
     setPassword("");
     setConfirmPassword("");
     setStep("email");
+  };
+
+  const openMagicFlow = () => {
+    setError(null);
+    setInfo(null);
+    setMagicDebugUrl(null);
+    setPassword("");
+    setConfirmPassword("");
+    setStep("magic");
   };
 
   const sendSignupOtp = async () => {
@@ -116,10 +127,44 @@ export function LoginPage() {
     );
   };
 
+  const sendMagicLink = async () => {
+    await authApi.validateEmail(email.trim());
+    const result = await authApi.requestMagicLink(email.trim());
+    setMagicDebugUrl(result.debugUrl ?? null);
+    setInfo(
+      result.delivered
+        ? "Magic link sent — check your inbox. It expires in 5 minutes."
+        : result.debugUrl
+          ? "Dev magic link ready (email simulated)."
+          : "Magic link generated. Check your email.",
+    );
+    setStep("magic-sent");
+  };
+
   const handleEmailContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setInfo(null);
+
+    if (step === "magic") {
+      if (!looksLikeEmail(email.trim())) {
+        setError("Enter a valid email address.");
+        return;
+      }
+      setFormSubmitting(true);
+      try {
+        await sendMagicLink();
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not send magic link. Try again.",
+        );
+      } finally {
+        setFormSubmitting(false);
+      }
+      return;
+    }
 
     if (step === "email") {
       if (!looksLikeEmail(email.trim())) {
@@ -263,7 +308,11 @@ export function LoginPage() {
               ? "Create your account with email."
               : step === "login"
                 ? "Welcome back — enter your password."
-                : "Continue with your email address."}
+                : step === "magic"
+                  ? "We’ll email you a magic link — no code to type."
+                  : step === "magic-sent"
+                    ? "Check your inbox — one tap and you’re in."
+                    : "Continue with your email address."}
         </p>
 
         {step === "chooser" ? (
@@ -304,6 +353,17 @@ export function LoginPage() {
               Continue with Email
             </button>
 
+            <div className="mt-3.5 flex justify-center">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={openMagicFlow}
+                className={authPageStyles.textLink}
+              >
+                Email me a magic link
+              </button>
+            </div>
+
             {error ? (
               <p className="mt-4 text-[13px] text-red-600" role="alert">
                 {error}
@@ -313,6 +373,65 @@ export function LoginPage() {
               <p className="mt-4 text-[13px] text-zinc-600">{info}</p>
             ) : null}
           </>
+        ) : step === "magic-sent" ? (
+          <div className="magic-link-enter mt-8">
+            <div className="rounded-[14px] border border-zinc-200 bg-gradient-to-br from-zinc-50 via-white to-zinc-50 px-5 py-6 text-center">
+              <p className="magic-link-spark text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                On its way
+              </p>
+              <p className="mt-3 text-[18px] font-semibold tracking-tight text-zinc-900">
+                Your magic link is ready
+              </p>
+              <p className="mt-2 text-[13px] leading-relaxed text-zinc-500">
+                We sent a one-tap link to{" "}
+                <span className="font-medium text-zinc-800">{email.trim()}</span>.
+                It expires in 5 minutes and creates your account the moment you
+                open it.
+              </p>
+              {magicDebugUrl ? (
+                <a
+                  href={magicDebugUrl}
+                  className={cn(authPageStyles.textLink, "mt-4 inline-block")}
+                >
+                  Open dev magic link
+                </a>
+              ) : null}
+            </div>
+            {info ? (
+              <p className="mt-4 text-center text-[13px] text-zinc-600">{info}</p>
+            ) : null}
+            {error ? (
+              <p className="mt-3 text-center text-[13px] text-red-600" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setError(null);
+                setInfo(null);
+                setMagicDebugUrl(null);
+                setStep("magic");
+              }}
+              className={cn(authPageStyles.textLink, "mt-5 block w-full text-center")}
+            >
+              Use a different email
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setError(null);
+                setInfo(null);
+                setMagicDebugUrl(null);
+                setStep("chooser");
+              }}
+              className={cn(authPageStyles.textLink, "mt-3 block w-full text-center")}
+            >
+              Back to sign-in options
+            </button>
+          </div>
         ) : (
           <form
             onSubmit={(e) => void handleEmailContinue(e)}
@@ -320,8 +439,16 @@ export function LoginPage() {
           >
             <div className="mb-4 rounded-[12px] border border-zinc-200 bg-zinc-50 px-3.5 py-3">
               <div className="flex items-start gap-2.5">
-                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-[11px] font-semibold text-zinc-700">
-                  i
+                <span
+                  className={cn(
+                    "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+                    step === "magic"
+                      ? "bg-zinc-900 text-[10px] text-white"
+                      : "bg-zinc-200 text-zinc-700",
+                  )}
+                  aria-hidden
+                >
+                  {step === "magic" ? "✦" : "i"}
                 </span>
                 <div>
                   <p className="text-[13px] font-semibold text-zinc-900">
@@ -329,14 +456,18 @@ export function LoginPage() {
                       ? "Create Account"
                       : step === "login"
                         ? "Sign in"
-                        : "Continue with Email"}
+                        : step === "magic"
+                          ? "Magic link"
+                          : "Continue with Email"}
                   </p>
                   <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-500">
                     {step === "create"
                       ? "This email is new — set a password to create your account."
                       : step === "login"
                         ? "We found an account for this email. Enter your password to continue."
-                        : "Create an account or log in via email."}
+                        : step === "magic"
+                          ? "New email? We’ll send a 5-minute link that verifies you and opens password setup."
+                          : "Create an account or log in via email."}
                   </p>
                 </div>
               </div>
@@ -354,7 +485,7 @@ export function LoginPage() {
                   id="login-email"
                   type="email"
                   autoComplete="email"
-                  autoFocus={step === "email"}
+                  autoFocus={step === "email" || step === "magic"}
                   value={email}
                   disabled={busy || step === "login" || step === "create"}
                   onChange={(e) => setEmail(e.target.value)}
@@ -377,7 +508,7 @@ export function LoginPage() {
                         type="button"
                         disabled={busy}
                         onClick={() => void handleForgotPassword()}
-                        className="text-[12px] font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-800"
+                        className={authPageStyles.textLink}
                       >
                         Forgot password?
                       </button>
@@ -441,11 +572,9 @@ export function LoginPage() {
             >
               {formSubmitting
                 ? "Please wait…"
-                : step === "create"
-                  ? "Continue"
-                  : step === "login"
-                    ? "Continue"
-                    : "Continue"}
+                : step === "magic"
+                  ? "Send magic link"
+                  : "Continue"}
             </button>
 
             <button
@@ -454,7 +583,8 @@ export function LoginPage() {
               onClick={() => {
                 setError(null);
                 setInfo(null);
-                if (step === "email") {
+                setMagicDebugUrl(null);
+                if (step === "email" || step === "magic") {
                   setStep("chooser");
                 } else {
                   setPassword("");
@@ -462,9 +592,14 @@ export function LoginPage() {
                   setStep("email");
                 }
               }}
-              className="mt-3 w-full text-center text-[13px] font-medium text-zinc-500 transition hover:text-zinc-800"
+              className={cn(
+                authPageStyles.textLink,
+                "mt-3 block w-full text-center",
+              )}
             >
-              {step === "email" ? "Back to sign-in options" : "Use a different email"}
+              {step === "email" || step === "magic"
+                ? "Back to sign-in options"
+                : "Use a different email"}
             </button>
           </form>
         )}

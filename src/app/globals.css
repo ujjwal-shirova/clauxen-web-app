@@ -109,22 +109,56 @@
    * Universal hover feedback — ghost/neutral buttons only.
    * Solid dark or filled buttons must use explicit hover:bg-* (never opacity hovers).
    */
-  button:not(:disabled):not(.no-hover-overlay):not(.user-message-card__body):not(
-      .app-btn
-    ):not(.app-btn-primary):not(.app-btn-secondary):not(.app-btn-ghost):not(
-      .btn-solid-dark
-    ):not([class*="bg-black"]):not([class*="bg-zinc-9"]):not([class*="bg-zinc-8"]):not(
-      [class*="bg-primary"]
-    ):not([class*="bg-[#0b0b0b]"]):not([class*="text-white"]):hover,
+  button:not(:disabled):not(.no-hover-overlay):not(.auth-text-link):not(
+      .user-message-card__body
+    ):not(.app-btn):not(.app-btn-primary):not(.app-btn-secondary):not(
+      .app-btn-ghost
+    ):not(.btn-solid-dark):not([class*="bg-black"]):not([class*="bg-zinc-9"]):not(
+      [class*="bg-zinc-8"]
+    ):not([class*="bg-primary"]):not([class*="bg-[#0b0b0b]"]):not(
+      [class*="text-white"]
+    ):hover,
   a[role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(
-      .app-btn
-    ):not([class*="bg-black"]):not([class*="text-white"]):hover,
+      .auth-text-link
+    ):not(.app-btn):not([class*="bg-black"]):not([class*="text-white"]):hover,
   [role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(
-      .app-btn
-    ):not(.context-usage-trigger):not([class*="bg-black"]):not([class*="text-white"]):hover,
-  input[type="button"]:not(:disabled):not(.no-hover-overlay):hover,
-  input[type="submit"]:not(:disabled):not(.no-hover-overlay):hover {
+      .auth-text-link
+    ):not(.app-btn):not(.context-usage-trigger):not([class*="bg-black"]):not(
+      [class*="text-white"]
+    ):hover,
+  input[type="button"]:not(:disabled):not(.no-hover-overlay):not(
+      .auth-text-link
+    ):hover,
+  input[type="submit"]:not(:disabled):not(.no-hover-overlay):not(
+      .auth-text-link
+    ):hover {
     box-shadow: inset 0 0 0 9999px rgba(24, 24, 27, 0.05);
+  }
+
+  /* Text labels / ghost links — no button wash; only darken + weight */
+  .auth-text-link {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+    color: #71717a;
+    font-weight: 500;
+    transition:
+      color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+      font-weight 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .auth-text-link:hover:not(:disabled),
+  .auth-text-link:focus-visible:not(:disabled) {
+    color: #18181b;
+    font-weight: 600;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+  .auth-text-link:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   /* Dark solid buttons — subtle lighten on hover, never wash out */
@@ -1437,9 +1471,36 @@ button.user-message-card__body:not(:disabled):hover {
   pointer-events: none;
 }
 
-/* Circular splash on auth button press */
-.auth-splash-ring {
-  animation: auth-splash 0.7s ease-out infinite;
+/* Magic link — soft entrance + sparkle pulse */
+@keyframes magic-link-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes magic-spark {
+  0%,
+  100% {
+    opacity: 0.45;
+    letter-spacing: 0.16em;
+  }
+  50% {
+    opacity: 1;
+    letter-spacing: 0.2em;
+  }
+}
+
+.magic-link-enter {
+  animation: magic-link-enter 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.magic-link-spark {
+  animation: magic-spark 2.4s ease-in-out infinite;
 }
 
 @keyframes auth-splash {
