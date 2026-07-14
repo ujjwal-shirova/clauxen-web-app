@@ -82,6 +82,8 @@ interface ChatAreaProps {
 }
 
 const ARTIFACTS_LIST_PANEL_WIDTH = 384;
+/** Desktop file viewer rail — fixed px so open/close doesn't hard-cut the chat. */
+const ARTIFACT_VIEWER_WIDTH = 560;
 
 function ChatAreaLayout({
   messages,
@@ -116,7 +118,8 @@ function ChatAreaLayout({
   showMobileMenu = false,
   projectBreadcrumb,
 }: ChatAreaProps) {
-  const { isViewerOpen, activeArtifact, closeViewer } = useArtifactViewer();
+  const { isViewerOpen, activeArtifact, closeViewer, clearViewer } =
+    useArtifactViewer();
   const isMobile = useIsMobile();
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const artifactPanelOpenTimerRef = React.useRef<number | null>(null);
@@ -368,8 +371,7 @@ function ChatAreaLayout({
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <div
           className={cn(
-            "relative flex min-h-0 min-w-0 flex-col overflow-hidden px-0 pb-1.5 transition-[width,padding-right] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] sm:pb-1.5",
-            isViewerOpen && !isMobile ? "w-1/2 flex-none" : "flex-1",
+            "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0 pb-1.5 transition-[padding-right] duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] sm:pb-1.5",
             showDesktopArtifactsRail &&
               (isArtifactsPanelOpen ? "lg:pr-[392px]" : "lg:pr-28"),
           )}
@@ -491,7 +493,12 @@ function ChatAreaLayout({
           ) : null}
         </div>
 
-        <AnimatePresence initial={false}>
+        <AnimatePresence
+          initial={false}
+          onExitComplete={() => {
+            if (!isViewerOpen) clearViewer();
+          }}
+        >
           {isViewerOpen && activeArtifact ? (
             <>
               <motion.div
@@ -508,43 +515,40 @@ function ChatAreaLayout({
                 key="artifact-viewer-panel"
                 initial={
                   isMobile
-                    ? { x: "100%", opacity: 0 }
-                    : { width: 0, opacity: 0 }
+                    ? { x: "100%", opacity: 0.96 }
+                    : { width: 0, opacity: 0.96 }
                 }
                 animate={
                   isMobile
                     ? { x: 0, opacity: 1 }
-                    : { width: "50%", opacity: 1 }
+                    : { width: ARTIFACT_VIEWER_WIDTH, opacity: 1 }
                 }
                 exit={
                   isMobile
-                    ? { x: "100%", opacity: 0 }
-                    : { width: 0, opacity: 0 }
+                    ? { x: "100%", opacity: 0.96 }
+                    : { width: 0, opacity: 0.96 }
                 }
                 transition={{
-                  duration: isMobile ? 0.5 : 0.42,
+                  duration: isMobile ? 0.42 : 0.4,
                   ease: [0.32, 0.72, 0, 1],
                 }}
                 className={cn(
-                  "fixed inset-y-0 right-0 z-50 flex shrink-0 overflow-hidden border-l border-zinc-200 will-change-[transform,width,opacity] lg:static lg:z-auto",
+                  "fixed inset-y-0 right-0 z-50 flex shrink-0 overflow-hidden border-l border-zinc-200/80 bg-white shadow-[-12px_0_40px_-24px_rgba(24,24,27,0.18)] will-change-[transform,width,opacity] lg:static lg:z-auto lg:shadow-none",
                 )}
               >
-                <motion.div
-                  initial={{ opacity: 0, x: isMobile ? 24 : 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: isMobile ? 24 : 12 }}
-                  transition={{
-                    duration: 0.24,
-                    delay: isMobile ? 0.08 : 0.12,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  className="h-full w-full min-w-0 shrink-0 lg:w-full"
+                <div
+                  className="h-full w-[min(100vw,100%)] shrink-0 lg:w-[560px]"
+                  style={
+                    isMobile
+                      ? undefined
+                      : { width: ARTIFACT_VIEWER_WIDTH }
+                  }
                 >
                   <ArtifactViewerPanel
                     artifact={activeArtifact}
                     onClose={closeViewer}
                   />
-                </motion.div>
+                </div>
               </motion.div>
             </>
           ) : null}

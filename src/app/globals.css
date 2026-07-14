@@ -1463,6 +1463,19 @@ button.user-message-card__body:not(:disabled):hover,
   color: #27272a;
 }
 
+/* Presented file cards — soft lift on hover */
+.artifact-file-card {
+  contain: paint;
+}
+
+.artifact-file-card:active {
+  transform: translateY(0.5px);
+}
+
+.artifact-viewer-panel {
+  background-color: var(--app-panel-bg, #ffffff);
+}
+
 /* User message branch nav — hidden until hover/focus */
 .user-message-actions {
   opacity: 0;

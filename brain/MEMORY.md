@@ -49,7 +49,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Settings Personalization: style/characteristics/fast answers/memory note + Advanced (web search, canvas, connector search; no voice) wired to settings JSONB + capabilities | ChatGPT-parity personalization pane |
 | 2026-07-14 | Settings General preferences: theme (light/dark/system via next-themes + `.dark` tokens), Google chat fonts on assistant markdown only, motion + follow-up chips; AppPreferencesProvider applies + persists to Supabase `user_settings.settings.general` | Prefs were saved but never applied to DOM |
 | 2026-07-14 | Overlays use ChatGPT-style hashes (`#settings`, `#settings/Personalization`, `#pricing`) on parent pages (`/new`, `/c/…`); legacy `/settings/*` `/upgrade` redirect to `/new#…` | Path overlays blanked the main panel and forced close→`/new` |
-| 2026-07-14 | User messages: Cursor-style inline click-to-edit (attachments in bubble; plus/mic/send; no popup; no Retry/Edit/Copy bar) | Match product UX; popup edit was weak for attachments |
+| 2026-07-14 | Artifact file cards + right file viewer redesigned (hover lift, smooth 560px rail, no chat hard-cut) | User asked for better present-file UI and sidebar transitions |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |

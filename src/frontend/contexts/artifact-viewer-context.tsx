@@ -13,6 +13,8 @@ type ArtifactViewerContextValue = {
   isViewerOpen: boolean;
   openArtifact: (artifact: ChatArtifact, mode?: ArtifactViewMode) => void;
   closeViewer: () => void;
+  /** Clear artifact after exit animation completes. */
+  clearViewer: () => void;
   setViewMode: (mode: ArtifactViewMode) => void;
 };
 
@@ -54,6 +56,15 @@ export function ArtifactViewerProvider({
     setIsViewerOpen(false);
   }, []);
 
+  const clearViewer = useCallback(() => {
+    setIsViewerOpen((open) => {
+      if (!open) {
+        setActiveArtifact(null);
+      }
+      return open;
+    });
+  }, []);
+
   const value = useMemo(
     () => ({
       activeArtifact,
@@ -61,9 +72,17 @@ export function ArtifactViewerProvider({
       isViewerOpen,
       openArtifact,
       closeViewer,
+      clearViewer,
       setViewMode,
     }),
-    [activeArtifact, viewMode, isViewerOpen, openArtifact, closeViewer],
+    [
+      activeArtifact,
+      viewMode,
+      isViewerOpen,
+      openArtifact,
+      closeViewer,
+      clearViewer,
+    ],
   );
 
   return (
