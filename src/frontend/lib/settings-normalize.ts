@@ -1,5 +1,6 @@
 import type { AppSettings } from "@/frontend/lib/api/settings";
 import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
+import { normalizeChatFontId } from "@/lib/app-preferences";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -21,8 +22,11 @@ export function normalizeAppSettings(raw: unknown): AppSettings {
     ? clawRaw.deployments
     : [];
 
+  const general = mergeSection(DEFAULT_APP_SETTINGS.general, data.general);
+  general.chatFont = normalizeChatFontId(general.chatFont);
+
   return {
-    general: mergeSection(DEFAULT_APP_SETTINGS.general, data.general),
+    general,
     personalization: mergeSection(
       DEFAULT_APP_SETTINGS.personalization,
       data.personalization,

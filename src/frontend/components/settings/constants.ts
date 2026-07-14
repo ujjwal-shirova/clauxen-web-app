@@ -94,12 +94,23 @@ export function isSettingsTab(value: string): value is SettingsTab {
   return value in settingsNavByName;
 }
 
-export const fontThemes = [
-  { name: "Default", serif: true },
-  { name: "Sans", serif: false },
-  { name: "System", serif: false },
-  { name: "Dyslexic friendly", dyslexic: true },
-];
+import { CHAT_FONT_OPTIONS } from "@/lib/app-preferences";
+
+/** @deprecated Prefer CHAT_FONT_OPTIONS — kept for any legacy imports. */
+export const fontThemes = CHAT_FONT_OPTIONS.map((option) => ({
+  name: option.id,
+  label: option.label,
+  serif: Boolean(
+    option.cssVar?.includes("playfair") ||
+      option.cssVar?.includes("lora") ||
+      option.cssVar?.includes("serif") ||
+      option.cssVar?.includes("literata") ||
+      option.cssVar?.includes("merriweather"),
+  ),
+  dyslexic: option.id === "Atkinson Hyperlegible",
+}));
+
+export { CHAT_FONT_OPTIONS };
 
 export const accentColors = [
   { name: "Blue", value: "#1b67b2" },

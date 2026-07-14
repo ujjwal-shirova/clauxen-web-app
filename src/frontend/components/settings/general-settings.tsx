@@ -8,17 +8,23 @@ import {
   segmentedOptionClass,
   segmentedTrackClass,
 } from "@/frontend/lib/segmented-control";
-import { fontThemes, motionOptions } from "./constants";
+import { motionOptions } from "./constants";
 import {
   SettingsOptionPicker,
   SettingsPanelTitle,
   SettingsRow,
   SettingsSection,
   SettingsToggleRow,
+  type SettingsOptionItem,
 } from "./settings-ui";
 import { ProfileAvatarUpload } from "./profile-avatar-upload";
 import type { UserProfile } from "@/frontend/lib/api/profile";
 import { WORK_ROLE_OPTIONS } from "@/lib/work-roles";
+import {
+  CHAT_FONT_OPTIONS,
+  chatFontOption,
+  normalizeChatFontId,
+} from "@/lib/app-preferences";
 
 const appearanceModes = [
   { value: "System", icon: Monitor, label: "System" },
@@ -29,7 +35,7 @@ const appearanceModes = [
 const MAX_CUSTOM_INSTRUCTIONS = 1500;
 
 const inputClass =
-  "h-9 w-full max-w-[20rem] rounded-lg border border-zinc-200 bg-white px-3 text-[14px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400";
+  "h-9 w-full max-w-[20rem] rounded-lg border border-zinc-200 bg-white px-3 text-[14px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500";
 
 function syncColorMode(preset: string): string {
   if (preset === "Light") return "Light";
@@ -105,10 +111,21 @@ export function GeneralSettings({
     setColorMode(syncColorMode(preset));
   };
 
-  const chatFontOptions = fontThemes.map((theme) =>
-    theme.name === "Default" ? "Clauxen Serif" : theme.name,
+  const chatFontOptions: SettingsOptionItem[] = useMemo(
+    () =>
+      CHAT_FONT_OPTIONS.map((option) => ({
+        value: option.id,
+        label: option.label,
+        labelStyle: {
+          fontFamily: option.cssVar
+            ? `var(${option.cssVar}), ${option.stack}`
+            : option.stack,
+        },
+      })),
+    [],
   );
-  const chatFontValue = chatFont === "Default" ? "Clauxen Serif" : chatFont;
+  const chatFontValue = normalizeChatFontId(chatFont);
+  const selectedChatFont = chatFontOption(chatFontValue);
 
   const commitInstructions = () => {
     const next = instructionsDraft.trim().slice(0, MAX_CUSTOM_INSTRUCTIONS);
@@ -117,7 +134,7 @@ export function GeneralSettings({
   };
 
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900 dark:text-zinc-100">
       <SettingsPanelTitle>General</SettingsPanelTitle>
 
       <SettingsSection title="Profile">
@@ -181,7 +198,7 @@ export function GeneralSettings({
             rows={4}
             maxLength={MAX_CUSTOM_INSTRUCTIONS}
             placeholder="e.g. when learning new concepts, I find analogies particularly helpful"
-            className="mt-3 w-full resize-y rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[14px] leading-5 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-400"
+            className="mt-3 w-full resize-y rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[14px] leading-5 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500"
           />
           <p className="mt-1.5 text-right text-[11px] text-zinc-400">
             {instructionsDraft.length}/{MAX_CUSTOM_INSTRUCTIONS}
@@ -214,9 +231,8 @@ export function GeneralSettings({
           <SettingsOptionPicker
             value={chatFontValue}
             options={chatFontOptions}
-            onValueChange={(value) =>
-              setChatFont(value === "Clauxen Serif" ? "Default" : value)
-            }
+            onValueChange={(value) => setChatFont(normalizeChatFontId(value))}
+            aria-label={`Chat font: ${selectedChatFont.label}`}
           />
         </SettingsRow>
 

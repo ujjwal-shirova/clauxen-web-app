@@ -45,6 +45,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Magic link signup (new users): 5-min link → `/auth/magic` set-password → onboarding | Label under Continue with Email; existing-user magic login deferred |
 | 2026-07-14 | Settings Profile: names/work/custom instructions persist to profiles + user_settings; custom instructions append to chat system prompt under Shirova guidelines | Production ChatGPT/Claude-style personalization |
 | 2026-07-14 | Settings Personalization: style/characteristics/fast answers/memory note + Advanced (web search, canvas, connector search; no voice) wired to settings JSONB + capabilities | ChatGPT-parity personalization pane |
+| 2026-07-14 | Settings General preferences: theme (light/dark/system via next-themes + `.dark` tokens), Google chat fonts on assistant markdown only, motion + follow-up chips; AppPreferencesProvider applies + persists to Supabase `user_settings.settings.general` | Prefs were saved but never applied to DOM |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
@@ -85,6 +86,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Auth email OTP: Worker `https://clauxen-auth-email.ujjwal-8fc.workers.dev`; Vercel needs `AUTH_EMAIL_WORKER_URL` + `AUTH_EMAIL_INTERNAL_TOKEN` (prod/preview/dev). Cloudflare Email Sending onboarded for `clauxen.com` (sender `no-reply@clauxen.com`). Workers KV `expirationTtl` must be ≥ 60s (cooldown was 45 and crashed sends).
 - Magic link signup: Worker `/v1/magic/{send,inspect,consume}` (TTL 300s); app routes `/api/v1/auth/magic/*` + `/auth/magic`; new users only for now. Clickable auth labels use `.auth-text-link` (no button hover wash).
 - Settings Profile: `fullName`→`profiles.display_name`, nickname→`preferred_name`, occupation+customInstructions in `user_settings.settings.personalization`. Onboarding name/role hydrate settings. Chat injects via `buildUserPersonalizationAppend` into `buildModelSystemPrompt({ append })`.
+- Settings General prefs: `AppPreferencesProvider` applies theme/font/motion/follow-ups to `<html>` (`class=dark`, `data-chat-font`, etc.) and persists `settings.general` via PATCH `/api/v1/settings`. Chat fonts style `[data-assistant-content]` only — not app chrome labels.
 
 - Prefer path routes (`/upgrade`, `/settings/general`) over hash overlays (`#pricing`) — hash + Next soft-nav caused hydration mismatches.
 - Canonical new-chat URLs are `/` and `/new` (both render ChatView; no redirect hop). Overlay surfaces live as real routes under `(main)`.

@@ -30,6 +30,8 @@ import { AttachmentChip } from "@/frontend/components/composer/attachment-chip";
 import { AttachmentImageLightbox } from "@/frontend/components/composer/attachment-image-lightbox";
 import { AttachmentDocumentPreview } from "@/frontend/components/composer/attachment-document-preview";
 import type { MessageAttachment } from "@/frontend/lib/composer-attachments";
+import { FollowUpSuggestions } from "@/frontend/components/follow-up-suggestions";
+import { useAppPreferencesOptional } from "@/frontend/contexts/app-preferences-context";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 /** Trigger server keyset fetch when the viewport is this close to the top. */
@@ -62,6 +64,8 @@ interface ConversationThreadProps {
   hasMoreMessages?: boolean;
   isLoadingOlderMessages?: boolean;
   onLoadOlderMessages?: () => Promise<boolean>;
+  /** Send a suggested follow-up as a new user message. */
+  onFollowUpSelect?: (prompt: string) => void;
 }
 
 type ConversationTurnGroup = {
@@ -977,7 +981,10 @@ export function ConversationThread({
   hasMoreMessages = false,
   isLoadingOlderMessages = false,
   onLoadOlderMessages,
+  onFollowUpSelect,
 }: ConversationThreadProps) {
+  const preferences = useAppPreferencesOptional();
+  const followUpsEnabled = preferences?.general.followUpSuggestions ?? true;
   const [editingMessageId, setEditingMessageId] = React.useState<string | null>(
     null,
   );
@@ -1168,6 +1175,20 @@ export function ConversationThread({
     () => groupMessagesIntoTurns(messages),
     [messages],
   );
+
+  const showFollowUpSuggestions = React.useMemo(() => {
+    if (!followUpsEnabled || !onFollowUpSelect || isGeneratingProp) return false;
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.role !== "assistant") continue;
+      return (
+        !message.isStreaming &&
+        (Boolean(message.content?.trim()) ||
+          shouldUseAgentMessageLayout(message))
+      );
+    }
+    return false;
+  }, [followUpsEnabled, onFollowUpSelect, isGeneratingProp, messages]);
 
   const stickyStreamKey = React.useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -1421,6 +1442,9 @@ export function ConversationThread({
           {...turnProps}
         />
       ))}
+      {showFollowUpSuggestions && onFollowUpSelect ? (
+        <FollowUpSuggestions onSelect={onFollowUpSelect} />
+      ) : null}
       <div
         className="chat-thread-scroll-anchor h-px w-full shrink-0"
         aria-hidden

@@ -16,6 +16,7 @@ import { cn } from "@/frontend/lib/utils";
 import { FullscreenPortal } from "@/frontend/components/fullscreen-portal";
 import type { SessionUser } from "@/frontend/lib/api/auth";
 import { useAuth } from "@/frontend/hooks/use-auth";
+import { useAppPreferences } from "@/frontend/contexts/app-preferences-context";
 import { GeneralSettings } from "@/frontend/components/settings/general-settings";
 import { PersonalizationSettingsPanel } from "@/frontend/components/settings/personalization-settings";
 import { NotificationsSettings } from "@/frontend/components/settings/notifications-settings";
@@ -60,6 +61,11 @@ export function SettingsModal({
   onTabChange,
 }: SettingsModalProps) {
   const { refresh: refreshAuth } = useAuth();
+  const {
+    general: preferenceGeneral,
+    updateGeneral: updatePreferenceGeneral,
+    refresh: refreshPreferences,
+  } = useAppPreferences();
   const settingsEnabled = Boolean(user?.id);
   const {
     settings,
@@ -87,9 +93,12 @@ export function SettingsModal({
   useEffect(() => {
     if (open) {
       setActiveTab(isSettingsTab(initialTab) ? initialTab : "General");
-      if (settingsEnabled) void refreshSettings();
+      if (settingsEnabled) {
+        void refreshSettings();
+        void refreshPreferences();
+      }
     }
-  }, [initialTab, open, settingsEnabled, refreshSettings]);
+  }, [initialTab, open, settingsEnabled, refreshSettings, refreshPreferences]);
 
   useEffect(() => {
     if (!open) return;
@@ -101,6 +110,7 @@ export function SettingsModal({
   }, [open, onClose]);
 
   const general = settings.general ?? DEFAULT_APP_SETTINGS.general;
+  const appearanceGeneral = preferenceGeneral ?? general;
   const privacy = settings.privacy ?? DEFAULT_APP_SETTINGS.privacy;
   const capabilities =
     settings.capabilities ?? DEFAULT_APP_SETTINGS.capabilities;
@@ -144,16 +154,18 @@ export function SettingsModal({
             onAvatarUpdated={() => {
               void refreshAuth({ quiet: true });
             }}
-            appearancePreset={general.appearancePreset}
-            setAppearancePreset={(v) => updateGeneral({ appearancePreset: v })}
-            setColorMode={(v) => updateGeneral({ colorMode: v })}
-            chatFont={general.chatFont}
-            setChatFont={(v) => updateGeneral({ chatFont: v })}
-            motion={general.motion ?? "System"}
-            setMotion={(v) => updateGeneral({ motion: v })}
-            followUpSuggestions={general.followUpSuggestions ?? true}
+            appearancePreset={appearanceGeneral.appearancePreset}
+            setAppearancePreset={(v) =>
+              updatePreferenceGeneral({ appearancePreset: v })
+            }
+            setColorMode={(v) => updatePreferenceGeneral({ colorMode: v })}
+            chatFont={appearanceGeneral.chatFont}
+            setChatFont={(v) => updatePreferenceGeneral({ chatFont: v })}
+            motion={appearanceGeneral.motion ?? "System"}
+            setMotion={(v) => updatePreferenceGeneral({ motion: v })}
+            followUpSuggestions={appearanceGeneral.followUpSuggestions ?? true}
             setFollowUpSuggestions={(v) =>
-              updateGeneral({ followUpSuggestions: v })
+              updatePreferenceGeneral({ followUpSuggestions: v })
             }
           />
         );
@@ -356,7 +368,7 @@ export function SettingsModal({
       <div
         aria-hidden
         data-settings-washout
-        className="absolute inset-0 cursor-default bg-[rgba(244,244,245,0.84)] max-md:bg-[rgba(244,244,245,0.92)]"
+        className="absolute inset-0 cursor-default bg-[rgba(244,244,245,0.84)] max-md:bg-[rgba(244,244,245,0.92)] dark:bg-black/70 max-md:dark:bg-black/80"
         onClick={onClose}
       />
 
@@ -365,10 +377,10 @@ export function SettingsModal({
         aria-modal="true"
         aria-labelledby="settings-modal-title"
         className={cn(
-          "fixed z-[201] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none",
+          "fixed z-[201] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none dark:text-zinc-100",
           "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",
           "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
-          "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)] md:pt-0 md:pb-0",
+          "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)] md:pt-0 md:pb-0 dark:md:border-white/10 dark:md:shadow-[0_24px_80px_-16px_rgba(0,0,0,0.65)]",
         )}
       >
         <h1 id="settings-modal-title" className="sr-only">

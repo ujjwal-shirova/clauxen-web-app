@@ -443,6 +443,9 @@ function ChatAreaLayout({
                   onRetryAssistant={handleRetryAssistant}
                   onSwitchBranch={handleSwitchBranch}
                   onOpenSources={openSourcesPanel}
+                  onFollowUpSelect={(prompt) => {
+                    handleSendMessageAndScroll(prompt);
+                  }}
                   scrollAreaRef={scrollAreaRef}
                 />
               )

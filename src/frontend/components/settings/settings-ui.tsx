@@ -185,6 +185,9 @@ export type SettingsOptionItem = {
   label?: string;
   description?: string;
   leading?: React.ReactNode;
+  /** Optional style for the option label (e.g. chat font preview). */
+  labelStyle?: React.CSSProperties;
+  labelClassName?: string;
 };
 
 function normalizeSettingsOptions(
@@ -199,15 +202,15 @@ const settingsFocusReset =
   "outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0";
 
 const settingsOptionMenuContentClass =
-  "z-[120] min-w-[13.5rem] max-w-[18rem] rounded-xl border border-zinc-200 bg-white p-1.5 text-zinc-900 shadow-[0_8px_24px_rgba(24,24,27,0.08)]";
+  "z-[120] min-w-[13.5rem] max-w-[18rem] rounded-xl border border-zinc-200 bg-white p-1.5 text-zinc-900 shadow-[0_8px_24px_rgba(24,24,27,0.08)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)]";
 
 const settingsOptionTriggerClass = cn(
-  "no-hover-overlay inline-flex h-9 min-h-9 w-full shrink-0 items-center justify-between gap-1.5 rounded-lg bg-white/80 px-2.5 text-[14px] leading-5 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] transition-[box-shadow,background-color] duration-75 hover:bg-white sm:h-8 sm:min-h-8 sm:w-auto sm:justify-start sm:px-2 data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]",
+  "no-hover-overlay inline-flex h-9 min-h-9 w-full shrink-0 items-center justify-between gap-1.5 rounded-lg bg-white/80 px-2.5 text-[14px] leading-5 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] transition-[box-shadow,background-color] duration-75 hover:bg-white sm:h-8 sm:min-h-8 sm:w-auto sm:justify-start sm:px-2 data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] dark:hover:bg-zinc-900 dark:data-[state=open]:bg-zinc-900",
   settingsFocusReset,
 );
 
 const settingsOptionMenuItemClass = cn(
-  "flex cursor-pointer select-none items-start gap-2 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus:text-zinc-900 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900",
+  "flex cursor-pointer select-none items-start gap-2 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus:text-zinc-900 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800 dark:data-[highlighted]:bg-zinc-800",
   settingsFocusReset,
 );
 
@@ -254,7 +257,13 @@ export function SettingsOptionPicker({
           className={cn(settingsOptionTriggerClass, className)}
         >
           {leading ?? selected.leading}
-          <span className="max-w-full truncate text-left sm:max-w-[10rem]">
+          <span
+            className={cn(
+              "max-w-full truncate text-left sm:max-w-[10rem]",
+              selected.labelClassName,
+            )}
+            style={selected.labelStyle}
+          >
             {selected.label ?? selected.value}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
@@ -278,7 +287,13 @@ export function SettingsOptionPicker({
             >
               {item.leading}
               <span className="min-w-0 flex-1">
-                <span className="block font-medium leading-5">
+                <span
+                  className={cn(
+                    "block font-medium leading-5",
+                    item.labelClassName,
+                  )}
+                  style={item.labelStyle}
+                >
                   {item.label ?? item.value}
                 </span>
                 {item.description ? (
