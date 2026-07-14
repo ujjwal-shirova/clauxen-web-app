@@ -1,7 +1,6 @@
 import type { IncomingMessage } from "@/backend/inference/novita";
 import { createChatStream } from "@/app/api/chat/stream";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
-import type { ReadableStream } from "stream/web";
 
 export type ThinkingAgentStreamOptions = {
   userId?: string;
@@ -13,11 +12,11 @@ export type ThinkingAgentStreamOptions = {
 /**
  * @deprecated Use createChatStream from @/app/api/chat/stream directly.
  */
-export function streamThinkingAgentChat(
+export async function streamThinkingAgentChat(
   messages: IncomingMessage[],
   signal?: AbortSignal,
   options: ThinkingAgentStreamOptions = {},
-): ReadableStream<Uint8Array> {
+): Promise<ReadableStream<Uint8Array>> {
   return createChatStream(messages, {
     userId: options.userId,
     conversationId: options.conversationId,

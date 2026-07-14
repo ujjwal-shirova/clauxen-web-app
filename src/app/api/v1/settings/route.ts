@@ -32,10 +32,10 @@ const defaultGeneral = {
 const defaultPersonalization = {
   personality: "Default",
   baseStyleTone: "Default",
-  characteristicWarm: "Less",
+  characteristicWarm: "Default",
   characteristicEnthusiastic: "Default",
-  characteristicHeadersLists: "Less",
-  characteristicEmoji: "Less",
+  characteristicHeadersLists: "Default",
+  characteristicEmoji: "Default",
   fastAnswers: true,
   customInstructions: "",
   fullName: "",
@@ -45,6 +45,7 @@ const defaultPersonalization = {
   referenceSavedMemories: true,
   referenceChatHistory: true,
   referenceRecordHistory: true,
+  webSearch: true,
 };
 
 const defaultNotifications = {

@@ -33,6 +33,8 @@ export type PersonalizationSettings = {
   referenceSavedMemories: boolean;
   referenceChatHistory: boolean;
   referenceRecordHistory: boolean;
+  /** Advanced: allow automatic web search during chats. */
+  webSearch: boolean;
 };
 
 export type NotificationSettings = {

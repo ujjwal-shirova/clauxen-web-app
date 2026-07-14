@@ -44,6 +44,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Auth OTP emails via `clauxen-auth-email` Worker (`no-reply@clauxen.com`) | Production signup OTP path uses Cloudflare Email Sending + Vercel `AUTH_EMAIL_*` |
 | 2026-07-14 | Magic link signup (new users): 5-min link → `/auth/magic` set-password → onboarding | Label under Continue with Email; existing-user magic login deferred |
 | 2026-07-14 | Settings Profile: names/work/custom instructions persist to profiles + user_settings; custom instructions append to chat system prompt under Shirova guidelines | Production ChatGPT/Claude-style personalization |
+| 2026-07-14 | Settings Personalization: style/characteristics/fast answers/memory note + Advanced (web search, canvas, connector search; no voice) wired to settings JSONB + capabilities | ChatGPT-parity personalization pane |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |

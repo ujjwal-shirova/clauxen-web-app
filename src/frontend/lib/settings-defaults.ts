@@ -21,10 +21,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   personalization: {
     personality: "Default",
     baseStyleTone: "Default",
-    characteristicWarm: "Less",
+    characteristicWarm: "Default",
     characteristicEnthusiastic: "Default",
-    characteristicHeadersLists: "Less",
-    characteristicEmoji: "Less",
+    characteristicHeadersLists: "Default",
+    characteristicEmoji: "Default",
     fastAnswers: true,
     customInstructions: "",
     fullName: "",
@@ -34,6 +34,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     referenceSavedMemories: true,
     referenceChatHistory: true,
     referenceRecordHistory: true,
+    webSearch: true,
   },
   notifications: {
     desktopAlerts: true,

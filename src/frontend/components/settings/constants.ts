@@ -131,7 +131,82 @@ export const baseStyleToneOptions = [
   "Cynical",
 ] as const;
 
-export const characteristicLevelOptions = ["Less", "Default", "More"] as const;
+/** Rich labels for Base style and tone dropdown (ChatGPT-style). */
+export const baseStyleToneOptionItems = [
+  { value: "Default", label: "Default", description: "Preset style and tone" },
+  {
+    value: "Professional",
+    label: "Professional",
+    description: "Polished and precise",
+  },
+  { value: "Friendly", label: "Friendly", description: "Warm and chatty" },
+  { value: "Candid", label: "Candid", description: "Direct and encouraging" },
+  {
+    value: "Quirky",
+    label: "Quirky",
+    description: "Playful and imaginative",
+  },
+  { value: "Efficient", label: "Efficient", description: "Concise and plain" },
+  {
+    value: "Cynical",
+    label: "Cynical",
+    description: "Critical and sarcastic",
+  },
+] as const;
+
+export const characteristicLevelOptions = ["More", "Default", "Less"] as const;
+
+export const characteristicWarmOptions = [
+  {
+    value: "More",
+    label: "More",
+    description: "Friendlier and more personable",
+  },
+  { value: "Default", label: "Default" },
+  {
+    value: "Less",
+    label: "Less",
+    description: "More professional and factual",
+  },
+] as const;
+
+export const characteristicEnthusiasticOptions = [
+  {
+    value: "More",
+    label: "More",
+    description: "More energy and excitement",
+  },
+  { value: "Default", label: "Default" },
+  {
+    value: "Less",
+    label: "Less",
+    description: "Calmer and more neutral",
+  },
+] as const;
+
+export const characteristicHeadersListsOptions = [
+  {
+    value: "More",
+    label: "More",
+    description: "Use clear formatting and lists",
+  },
+  { value: "Default", label: "Default" },
+  {
+    value: "Less",
+    label: "Less",
+    description: "More paragraphs instead of lists",
+  },
+] as const;
+
+export const characteristicEmojiOptions = [
+  { value: "More", label: "More", description: "Use more emoji" },
+  { value: "Default", label: "Default" },
+  {
+    value: "Less",
+    label: "Less",
+    description: "Don't use as many emoji",
+  },
+] as const;
 
 export const personalityOptions = [
   "Default",

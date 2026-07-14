@@ -636,7 +636,7 @@ export async function getChatTranscript(chatId: string, userId: string) {
   };
 }
 
-export function legacyStreamFromMessages(
+export async function legacyStreamFromMessages(
   messages: IncomingMessage[],
   signal?: AbortSignal,
   options?: {
@@ -647,7 +647,7 @@ export function legacyStreamFromMessages(
     conversationId?: string;
     homerReasoningEffort?: HomerReasoningEffort;
   },
-) {
+): Promise<ReadableStream<Uint8Array>> {
   const generateChatTitle = resolveGenerateChatTitle(
     messages,
     options?.generateChatTitle,

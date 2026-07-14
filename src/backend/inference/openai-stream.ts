@@ -3,20 +3,19 @@ import { completeChat, type ChatMessage } from "@/backend/inference/novita-clien
 import { createChatStream } from "@/app/api/chat/stream";
 import { buildTitleGenerationSystemPrompt } from "@/backend/inference/system-prompt";
 import { modelCatalogEnvFromProcess } from "@/lib/model-catalog";
-import type { ReadableStream } from "stream/web";
 
 /**
  * @deprecated Use createChatStream from @/app/api/chat/stream directly.
  * Thin wrapper kept for legacy imports.
  */
-export function streamOpenAiChat(
+export async function streamOpenAiChat(
   messages: IncomingMessage[],
   signal?: AbortSignal,
   options?: {
     generateChatTitle?: boolean;
     chatModel?: "homer" | "helios" | "virgil";
   },
-): ReadableStream<Uint8Array> {
+): Promise<ReadableStream<Uint8Array>> {
   return createChatStream(messages, {
     generateChatTitle: options?.generateChatTitle,
     chatModel: options?.chatModel,

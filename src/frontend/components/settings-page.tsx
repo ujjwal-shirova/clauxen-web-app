@@ -162,6 +162,29 @@ export function SettingsModal({
           <PersonalizationSettingsPanel
             personalization={personalization}
             onChange={updatePersonalization}
+            advanced={{
+              webSearch: personalization.webSearch ?? true,
+              canvas: Boolean(capabilities.artifacts),
+              connectorSearch: Boolean(capabilities.connectorSearch),
+            }}
+            onAdvancedChange={(patch) => {
+              if (patch.webSearch != null) {
+                updatePersonalization({ webSearch: patch.webSearch });
+              }
+              const capabilityPatch: {
+                artifacts?: boolean;
+                connectorSearch?: boolean;
+              } = {};
+              if (patch.canvas != null) {
+                capabilityPatch.artifacts = patch.canvas;
+              }
+              if (patch.connectorSearch != null) {
+                capabilityPatch.connectorSearch = patch.connectorSearch;
+              }
+              if (Object.keys(capabilityPatch).length > 0) {
+                updateCapabilities(capabilityPatch);
+              }
+            }}
             onManageMemory={() => handleTabChange("Capabilities")}
           />
         );

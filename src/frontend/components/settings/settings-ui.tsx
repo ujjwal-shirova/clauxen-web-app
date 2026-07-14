@@ -183,6 +183,7 @@ export function SettingsRow({
 export type SettingsOptionItem = {
   value: string;
   label?: string;
+  description?: string;
   leading?: React.ReactNode;
 };
 
@@ -198,7 +199,7 @@ const settingsFocusReset =
   "outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0";
 
 const settingsOptionMenuContentClass =
-  "z-[120] min-w-[11rem] rounded-xl border border-zinc-200 bg-white p-1.5 text-zinc-900 shadow-[0_8px_24px_rgba(24,24,27,0.08)]";
+  "z-[120] min-w-[13.5rem] max-w-[18rem] rounded-xl border border-zinc-200 bg-white p-1.5 text-zinc-900 shadow-[0_8px_24px_rgba(24,24,27,0.08)]";
 
 const settingsOptionTriggerClass = cn(
   "no-hover-overlay inline-flex h-9 min-h-9 w-full shrink-0 items-center justify-between gap-1.5 rounded-lg bg-white/80 px-2.5 text-[14px] leading-5 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] transition-[box-shadow,background-color] duration-75 hover:bg-white sm:h-8 sm:min-h-8 sm:w-auto sm:justify-start sm:px-2 data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]",
@@ -206,7 +207,7 @@ const settingsOptionTriggerClass = cn(
 );
 
 const settingsOptionMenuItemClass = cn(
-  "flex cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus:text-zinc-900 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900",
+  "flex cursor-pointer select-none items-start gap-2 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus:text-zinc-900 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900",
   settingsFocusReset,
 );
 
@@ -240,6 +241,7 @@ export function SettingsOptionPicker({
   const items = normalizeSettingsOptions(options);
   const selected = items.find((item) => item.value === value) ??
     items[0] ?? { value, label: value };
+  const hasDescriptions = items.some((item) => Boolean(item.description));
 
   return (
     <DropdownMenu>
@@ -260,7 +262,10 @@ export function SettingsOptionPicker({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align={align}
-        className={settingsOptionMenuContentClass}
+        className={cn(
+          settingsOptionMenuContentClass,
+          hasDescriptions && "min-w-[15rem]",
+        )}
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
         {items.map((item) => {
@@ -272,14 +277,23 @@ export function SettingsOptionPicker({
               onSelect={() => onValueChange(item.value)}
             >
               {item.leading}
-              <span className="flex-1">{item.label ?? item.value}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium leading-5">
+                  {item.label ?? item.value}
+                </span>
+                {item.description ? (
+                  <span className="mt-0.5 block text-[12px] leading-4 text-zinc-500">
+                    {item.description}
+                  </span>
+                ) : null}
+              </span>
               {isSelected ? (
                 <Check
-                  className="h-4 w-4 shrink-0 text-[#1b67b2]"
+                  className="mt-0.5 h-4 w-4 shrink-0 text-zinc-900"
                   aria-hidden
                 />
               ) : (
-                <span className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               )}
             </DropdownMenuItem>
           );

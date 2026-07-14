@@ -2,8 +2,8 @@
  * Loads user profile personalization and formats it for the chat system prompt.
  * Appended after the static model + platform UI prefix so prompt cache stays stable.
  *
- * Custom instructions are scoped under Shirova guidelines — they never override
- * safety / platform rules.
+ * Custom instructions / style prefs are scoped under Shirova guidelines — they
+ * never override safety / platform rules.
  */
 
 import * as settingsRepo from "@/backend/repositories/settings.repository";
@@ -19,12 +19,29 @@ export type UserPersonalization = {
   customInstructions: string | null;
   personality: string | null;
   baseStyleTone: string | null;
+  characteristicWarm: string | null;
+  characteristicEnthusiastic: string | null;
+  characteristicHeadersLists: string | null;
+  characteristicEmoji: string | null;
+  fastAnswers: boolean;
+  referenceSavedMemories: boolean;
+  referenceChatHistory: boolean;
+  webSearch: boolean;
 };
 
 function asTrimmedString(value: unknown, maxLen: number): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim().slice(0, maxLen);
   return trimmed || null;
+}
+
+function asBool(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function nonDefault(value: string | null): string | null {
+  if (!value || value === "Default") return null;
+  return value;
 }
 
 export async function loadUserPersonalization(
@@ -35,10 +52,13 @@ export async function loadUserPersonalization(
     profileRepo.getProfile(userId),
   ]);
 
-  const personalization = ((settingsRow?.settings ?? {}) as Record<
-    string,
-    unknown
-  >).personalization as Record<string, unknown> | undefined;
+  const stored = (settingsRow?.settings ?? {}) as Record<string, unknown>;
+  const personalization = stored.personalization as
+    | Record<string, unknown>
+    | undefined;
+  const capabilities = stored.capabilities as
+    | Record<string, unknown>
+    | undefined;
   const onboardingAnswers =
     ((settingsRow as { onboarding_answers?: Record<string, unknown> } | null)
       ?.onboarding_answers as Record<string, unknown> | undefined) ?? undefined;
@@ -53,22 +73,41 @@ export async function loadUserPersonalization(
   const occupation =
     asTrimmedString(personalization?.occupation, 120) ??
     asTrimmedString(onboardingAnswers?.role, 120);
-  const customInstructions = asTrimmedString(
-    personalization?.customInstructions,
-    MAX_CUSTOM_INSTRUCTIONS_LEN,
-  );
-  const personality = asTrimmedString(personalization?.personality, 64);
-  const baseStyleTone = asTrimmedString(personalization?.baseStyleTone, 64);
 
   return {
     fullName,
     nickname,
     occupation,
-    customInstructions,
-    personality:
-      personality && personality !== "Default" ? personality : null,
-    baseStyleTone:
-      baseStyleTone && baseStyleTone !== "Default" ? baseStyleTone : null,
+    customInstructions: asTrimmedString(
+      personalization?.customInstructions,
+      MAX_CUSTOM_INSTRUCTIONS_LEN,
+    ),
+    personality: nonDefault(asTrimmedString(personalization?.personality, 64)),
+    baseStyleTone: nonDefault(
+      asTrimmedString(personalization?.baseStyleTone, 64),
+    ),
+    characteristicWarm: nonDefault(
+      asTrimmedString(personalization?.characteristicWarm, 32),
+    ),
+    characteristicEnthusiastic: nonDefault(
+      asTrimmedString(personalization?.characteristicEnthusiastic, 32),
+    ),
+    characteristicHeadersLists: nonDefault(
+      asTrimmedString(personalization?.characteristicHeadersLists, 32),
+    ),
+    characteristicEmoji: nonDefault(
+      asTrimmedString(personalization?.characteristicEmoji, 32),
+    ),
+    fastAnswers: asBool(personalization?.fastAnswers, true),
+    referenceSavedMemories: asBool(
+      personalization?.referenceSavedMemories,
+      true,
+    ),
+    referenceChatHistory: asBool(personalization?.referenceChatHistory, true),
+    webSearch: asBool(
+      personalization?.webSearch ?? capabilities?.networkEgress,
+      true,
+    ),
   };
 }
 
@@ -87,12 +126,52 @@ export function formatPersonalizationAppend(
   if (p.occupation) {
     profileLines.push(`Work / role: ${p.occupation}`);
   }
+
+  const styleLines: string[] = [];
   if (p.personality) {
-    profileLines.push(`Preferred personality: ${p.personality}`);
+    styleLines.push(`Personality: ${p.personality}`);
   }
   if (p.baseStyleTone) {
-    profileLines.push(`Preferred tone: ${p.baseStyleTone}`);
+    styleLines.push(`Base style and tone: ${p.baseStyleTone}`);
   }
+  if (p.characteristicWarm) {
+    styleLines.push(`Warmth: ${p.characteristicWarm}`);
+  }
+  if (p.characteristicEnthusiastic) {
+    styleLines.push(`Enthusiasm: ${p.characteristicEnthusiastic}`);
+  }
+  if (p.characteristicHeadersLists) {
+    styleLines.push(`Headers & lists: ${p.characteristicHeadersLists}`);
+  }
+  if (p.characteristicEmoji) {
+    styleLines.push(`Emoji: ${p.characteristicEmoji}`);
+  }
+  if (p.fastAnswers) {
+    styleLines.push(
+      "Fast answers: preferred — concise general-knowledge answers are OK when personalization is not required.",
+    );
+  } else {
+    styleLines.push(
+      "Fast answers: off — prefer thorough, personalized replies.",
+    );
+  }
+
+  const memoryLines: string[] = [];
+  memoryLines.push(
+    p.referenceSavedMemories
+      ? "Reference saved memories when relevant."
+      : "Do not rely on saved long-term memories for this user.",
+  );
+  memoryLines.push(
+    p.referenceChatHistory
+      ? "Use recent chat history for continuity."
+      : "Minimize reliance on prior chat history beyond the current turn.",
+  );
+  memoryLines.push(
+    p.webSearch
+      ? "Web search is enabled — search when facts may be outdated or unknown."
+      : "Web search is disabled for this user unless they explicitly ask to search.",
+  );
 
   const blocks: string[] = [];
 
@@ -106,6 +185,21 @@ export function formatPersonalizationAppend(
       ].join("\n"),
     );
   }
+
+  if (styleLines.length > 0) {
+    blocks.push(
+      [
+        "<response_style>",
+        "Apply these style preferences when they do not conflict with Shirova safety or platform guidelines.",
+        ...styleLines,
+        "</response_style>",
+      ].join("\n"),
+    );
+  }
+
+  blocks.push(
+    ["<memory_and_tools>", ...memoryLines, "</memory_and_tools>"].join("\n"),
+  );
 
   if (p.customInstructions) {
     blocks.push(
