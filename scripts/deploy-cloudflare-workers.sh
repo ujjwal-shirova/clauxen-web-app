@@ -23,9 +23,14 @@ if ! command -v npx >/dev/null 2>&1; then
 fi
 
 if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
-  echo "CLOUDFLARE_API_TOKEN / Cloudflare_Token is not set."
-  echo "Add it as a Cursor Environment secret (or export it), then re-run."
-  exit 2
+  # Fall back to an existing wrangler OAuth login when no API token is injected.
+  if npx wrangler whoami >/dev/null 2>&1; then
+    echo "CLOUDFLARE_API_TOKEN unset; using wrangler OAuth session."
+  else
+    echo "CLOUDFLARE_API_TOKEN / Cloudflare_Token is not set, and wrangler is not logged in."
+    echo "Add Cloudflare_Token as a Cursor Environment secret (or run: npx wrangler login), then re-run."
+    exit 2
+  fi
 fi
 
 export CLOUDFLARE_ACCOUNT_ID="$ACCOUNT_ID"

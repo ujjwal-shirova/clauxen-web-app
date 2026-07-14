@@ -40,6 +40,8 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Unified login: Continue with Email checks existence → password login or create+OTP via Cloudflare Email Worker | Leonardo-style single entry; remove separate signup surface |
 | 2026-07-13 | Performance: RAM message window + inactive chat eviction + LOD + overlay code-split + CF/Vercel cache | Speed Insights FCP/LCP poor on / and /c; cut DOM/RAM and edge latency |
 | 2026-07-12 | Use Provider_* Vercel env for inference | Avoid leaking vendor keys via NEXT_PUBLIC or browser DevTools |
+
+| 2026-07-14 | Auth OTP emails via `clauxen-auth-email` Worker (`no-reply@clauxen.com`) | Production signup OTP path uses Cloudflare Email Sending + Vercel `AUTH_EMAIL_*` |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
@@ -76,6 +78,8 @@ Full target surface — **remember only; implement only when user asks for a sli
 ---
 
 ## Gotchas
+
+- Auth email OTP: Worker `https://clauxen-auth-email.ujjwal-8fc.workers.dev`; Vercel needs `AUTH_EMAIL_WORKER_URL` + `AUTH_EMAIL_INTERNAL_TOKEN` (prod/preview/dev). Cloudflare Email Sending onboarded for `clauxen.com` (sender `no-reply@clauxen.com`). Workers KV `expirationTtl` must be ≥ 60s (cooldown was 45 and crashed sends).
 
 - Prefer path routes (`/upgrade`, `/settings/general`) over hash overlays (`#pricing`) — hash + Next soft-nav caused hydration mismatches.
 - Canonical new-chat URLs are `/` and `/new` (both render ChatView; no redirect hop). Overlay surfaces live as real routes under `(main)`.
@@ -124,3 +128,5 @@ Full target surface — **remember only; implement only when user asks for a sli
 - 2026-07-12: App surfaces use shareable paths: `/new`, `/upgrade`, `/gift`, `/apps`, `/settings/[tab]`; legacy `#pricing` / `#settings/...` hashes redirect to paths.
 - 2026-07-13: 2026-07-13: Perf push — target RES >90 via RAM window 24/48, LOD height-lock, CF SWR TTLs 900/300, Vercel function memory 512 default
 - 2026-07-14: 2026-07-14: Login unified — no separate signup page; /signup redirects to /login; Cloudflare clauxen-auth-email Worker + KV clauxen-auth-otp
+
+- 2026-07-14: `clauxen-auth-email` live; Email Sending enabled on clauxen.com; Vercel AUTH_EMAIL_* wired; OTP signup E2E verified (delivered from no-reply@clauxen.com → confirmed Supabase user + password sign-in).
