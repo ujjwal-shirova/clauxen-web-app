@@ -11,8 +11,6 @@ type UseChatScrollOptions = {
 
 /** Distance from bottom (px) under which we consider the user "pinned". */
 const REPIN_THRESHOLD = 96;
-/** Distance from bottom (px) under which resize-driven follow is allowed. */
-const FOLLOW_THRESHOLD = 48;
 /** Distance from bottom (px) past which the scroll-to-bottom affordance shows. */
 const SHOW_BUTTON_THRESHOLD = 220;
 /** Ignore auto-follow briefly after explicit user wheel/touch input. */
@@ -120,25 +118,6 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
   const markProgrammaticScroll = useCallback(() => {
     programmaticScrollUntilRef.current = performance.now() + 120;
   }, []);
-
-  /** Snap to bottom when pinned — same instant behavior as create_file stream scroll. */
-  const stickToBottomWhenPinned = useCallback(
-    (viewport: HTMLElement) => {
-      if (isHistoryLoading()) return;
-      if (!pinnedRef.current || isUserInputActive()) return;
-      if (distanceFromBottom(viewport) > FOLLOW_THRESHOLD) {
-        markProgrammaticScroll();
-        viewport.scrollTop = maxScrollTop(viewport);
-        lastScrollHeightRef.current = viewport.scrollHeight;
-        return;
-      }
-
-      markProgrammaticScroll();
-      viewport.scrollTop = maxScrollTop(viewport);
-      lastScrollHeightRef.current = viewport.scrollHeight;
-    },
-    [isHistoryLoading, isUserInputActive, markProgrammaticScroll],
-  );
 
   /** Keep chasing the bottom across frames until caught up, not just one snap. */
   const scheduleStickToBottom = useCallback(() => {
