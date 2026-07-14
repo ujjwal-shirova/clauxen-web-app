@@ -49,7 +49,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Settings Personalization: style/characteristics/fast answers/memory note + Advanced (web search, canvas, connector search; no voice) wired to settings JSONB + capabilities | ChatGPT-parity personalization pane |
 | 2026-07-14 | Settings General preferences: theme (light/dark/system via next-themes + `.dark` tokens), Google chat fonts on assistant markdown only, motion + follow-up chips; AppPreferencesProvider applies + persists to Supabase `user_settings.settings.general` | Prefs were saved but never applied to DOM |
 | 2026-07-14 | Overlays use ChatGPT-style hashes (`#settings`, `#settings/Personalization`, `#pricing`) on parent pages (`/new`, `/c/…`); legacy `/settings/*` `/upgrade` redirect to `/new#…` | Path overlays blanked the main panel and forced close→`/new` |
-| 2026-07-14 | Removed `@vercel/speed-insights` and all Speed Insights wiring | User requested removal |
+| 2026-07-14 | Removed scroll-up chat pagination; full-thread hydrate (limit 500, Worker-first) like ChatGPT/Claude | Pagination UX was fragile/useless; user asked for instant full load |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
@@ -105,7 +105,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Chat fonts: only Inter + Playfair in root layout; other Google chat fonts load on demand via `ChatFontLoader` when `data-chat-font` is set.
 - Auth boot uses `GET /api/v1/auth/session?quiet=1` (local JWT/hint, no profile sync); full session sync runs in background after FCP.
 - Edge `proxy.ts` skips `updateSession` for `/api/*` (handlers auth themselves) to cut stacked TTFB on `/c` cold loads.
-- Older chat history: `useLoadOlderOnScroll` (IntersectionObserver sentinel + rootMargin), not scrollTop heuristics. `useChatScroll.setHistoryLoading` pauses stream follow during prepend. Prefetch next Worker page after each hydrate/older load.
+- Chat history: full-thread hydrate (Worker-first `listAllChatMessages`, limit 500). No scroll-up pagination UI. Rare longer threads silently page before paint. SSR seed same path with `hasMore: false`.
 - Chat transcripts for training: `chat_transcript_lines` stores Cursor-style JSONL records (`role` + `message.content` parts including `text` / `thinking` / `tool_use` / `tool_result`, plus `turn_ended`). View `chat_transcripts_jsonl` aggregates one JSONL doc per chat. Export: `GET /api/v1/chats/[chatId]/transcript`.
 - Branch PUT must use `sanitizeBranchMessages` (keeps ids/frames). Never `sanitizeMessages` for branch state — that stripped ids and caused reload duplicate assistants.
 - Chat-history Worker: Cache API → KV → R2 → Hyperdrive; also caches sidebar `GET /v1/chats` + JWT memo. Redeploy via `./scripts/ops/apply-cloudflare-perf-stack.sh` when `CLOUDFLARE_API_TOKEN` is valid. Tune Hyperdrive `--max-age 300 --swr 60`.
@@ -150,4 +150,5 @@ Full target surface — **remember only; implement only when user asks for a sli
 - 2026-07-13: 2026-07-13: Perf push — target RES >90 via RAM window 24/48, LOD height-lock, CF SWR TTLs 900/300, Vercel function memory 512 default
 - 2026-07-14: 2026-07-14: Login unified — no separate signup page; /signup redirects to /login; Cloudflare clauxen-auth-email Worker + KV clauxen-auth-otp
 
+- 2026-07-14: Chat hydrate is full-thread (no scroll-up pagination). Limit 500 via Worker; silent multi-page only for rare mega-threads.
 - 2026-07-14: `clauxen-auth-email` live; Email Sending enabled on clauxen.com; Vercel AUTH_EMAIL_* wired; OTP signup E2E verified (delivered from no-reply@clauxen.com → confirmed Supabase user + password sign-in).

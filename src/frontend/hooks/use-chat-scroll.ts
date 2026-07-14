@@ -47,8 +47,8 @@ function easeTowardBottom(
   if (distance <= FOLLOW_SNAP_EPSILON_PX) {
     if (distance !== 0) {
       beforeScroll?.();
-      viewport.scrollTop = maxScrollTop(viewport);
     }
+    viewport.scrollTop = maxScrollTop(viewport);
     return true;
   }
   beforeScroll?.();
@@ -62,7 +62,6 @@ function easeTowardBottom(
  * - unpins as soon as the user scrolls away from the bottom
  * - re-pins when the user returns near the bottom
  * - never programmatically scrolls while unpinned
- * - pauses follow entirely while older history is prepending (no flicker)
  */
 export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) {
   const viewportRef = useRef<HTMLElement | null>(null);
@@ -73,8 +72,6 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
   const lastScrollHeightRef = useRef(0);
   const userInputUntilRef = useRef(0);
   const programmaticScrollUntilRef = useRef(0);
-  /** >0 while IntersectionObserver-driven older-page loads are in flight. */
-  const historyLoadDepthRef = useRef(0);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   const resolveViewport = useCallback((): HTMLElement | null => {
@@ -89,23 +86,6 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     viewportRef.current = viewport;
     return viewport;
   }, [scrollAreaRef]);
-
-  const isHistoryLoading = useCallback(
-    () => historyLoadDepthRef.current > 0,
-    [],
-  );
-
-  const setHistoryLoading = useCallback((loading: boolean) => {
-    if (loading) {
-      historyLoadDepthRef.current += 1;
-      if (followRafRef.current !== null) {
-        cancelAnimationFrame(followRafRef.current);
-        followRafRef.current = null;
-      }
-      return;
-    }
-    historyLoadDepthRef.current = Math.max(0, historyLoadDepthRef.current - 1);
-  }, []);
 
   const markUserInput = useCallback(() => {
     userInputUntilRef.current = performance.now() + USER_INPUT_COOLDOWN_MS;
@@ -124,12 +104,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     if (followRafRef.current !== null) return;
     const step = () => {
       const viewport = resolveViewport();
-      if (
-        !viewport ||
-        !pinnedRef.current ||
-        isUserInputActive() ||
-        isHistoryLoading()
-      ) {
+      if (!viewport || !pinnedRef.current || isUserInputActive()) {
         followRafRef.current = null;
         return;
       }
@@ -143,12 +118,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
       followRafRef.current = null;
     };
     followRafRef.current = requestAnimationFrame(step);
-  }, [
-    resolveViewport,
-    isUserInputActive,
-    isHistoryLoading,
-    markProgrammaticScroll,
-  ]);
+  }, [resolveViewport, isUserInputActive, markProgrammaticScroll]);
 
   const jumpToBottom = useCallback(
     (behavior: ScrollBehavior = "auto") => {
@@ -187,17 +157,11 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
   const followContentGrowth = useCallback(() => {
     const viewport = resolveViewport();
     if (!viewport) return;
-    if (isHistoryLoading()) return;
     if (!pinnedRef.current || isUserInputActive()) return;
 
     easeTowardBottom(viewport, markProgrammaticScroll);
     lastScrollHeightRef.current = viewport.scrollHeight;
-  }, [
-    resolveViewport,
-    isHistoryLoading,
-    isUserInputActive,
-    markProgrammaticScroll,
-  ]);
+  }, [resolveViewport, isUserInputActive, markProgrammaticScroll]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -240,10 +204,6 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     const resizeObserver = new ResizeObserver(() => {
       const viewport = resolveViewport();
       if (!viewport) return;
-      if (isHistoryLoading()) {
-        lastScrollHeightRef.current = viewport.scrollHeight;
-        return;
-      }
 
       const nextScrollHeight = viewport.scrollHeight;
       const prevScrollHeight = lastScrollHeightRef.current;
@@ -277,19 +237,12 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
         scrollRafRef.current = null;
       }
     };
-  }, [
-    enabled,
-    resolveViewport,
-    scheduleStickToBottom,
-    markUserInput,
-    isHistoryLoading,
-  ]);
+  }, [enabled, resolveViewport, scheduleStickToBottom, markUserInput]);
 
   return {
     scrollToBottom,
     pinToBottom,
     showScrollToBottom,
     followContentGrowth,
-    setHistoryLoading,
   };
 }

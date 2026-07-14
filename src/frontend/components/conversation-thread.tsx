@@ -32,7 +32,6 @@ import { AttachmentDocumentPreview } from "@/frontend/components/composer/attach
 import type { MessageAttachment } from "@/frontend/lib/composer-attachments";
 import { FollowUpSuggestions } from "@/frontend/components/follow-up-suggestions";
 import { useAppPreferencesOptional } from "@/frontend/contexts/app-preferences-context";
-import { useLoadOlderOnScroll } from "@/frontend/hooks/use-load-older-on-scroll";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
@@ -59,12 +58,6 @@ interface ConversationThreadProps {
   isFastScrolling?: boolean;
   /** Throttle sticky observers while the model is streaming. */
   isGenerating?: boolean;
-  /** Server keyset: more history exists above the loaded window. */
-  hasMoreMessages?: boolean;
-  isLoadingOlderMessages?: boolean;
-  onLoadOlderMessages?: () => Promise<boolean>;
-  /** Pause stick-to-bottom / stream follow while older pages prepend. */
-  onHistoryLoadChange?: (loading: boolean) => void;
   /** Send a suggested follow-up as a new user message. */
   onFollowUpSelect?: (prompt: string) => void;
 }
@@ -979,10 +972,6 @@ export function ConversationThread({
   conversationKey,
   isFastScrolling: isFastScrollingProp = false,
   isGenerating: isGeneratingProp = false,
-  hasMoreMessages = false,
-  isLoadingOlderMessages = false,
-  onLoadOlderMessages,
-  onHistoryLoadChange,
   onFollowUpSelect,
 }: ConversationThreadProps) {
   const preferences = useAppPreferencesOptional();
@@ -1210,12 +1199,6 @@ export function ConversationThread({
   isFastScrollingRef.current = isFastScrollingProp;
   const isGeneratingRef = React.useRef(isGeneratingProp);
   isGeneratingRef.current = isGeneratingProp;
-  const pendingPrependAdjustmentRef = React.useRef<{
-    scrollHeight: number;
-    scrollTop: number;
-  } | null>(null);
-  const loadOlderSentinelRef = React.useRef<HTMLDivElement | null>(null);
-  const prevGroupCountRef = React.useRef(groups.length);
 
   const getScrollElement = React.useCallback(() => {
     if (scrollAreaRef?.current) {
@@ -1227,38 +1210,6 @@ export function ConversationThread({
     }
     return listRef.current;
   }, [scrollAreaRef]);
-
-  useLoadOlderOnScroll({
-    getViewport: getScrollElement,
-    sentinelRef: loadOlderSentinelRef,
-    hasMore: hasMoreMessages,
-    isLoading: isLoadingOlderMessages,
-    enabled: Boolean(onLoadOlderMessages),
-    onLoadOlder: onLoadOlderMessages ?? (async () => false),
-    onHistoryLoadChange,
-    onBeforeLoad: (viewport) => {
-      pendingPrependAdjustmentRef.current = {
-        scrollHeight: viewport.scrollHeight,
-        scrollTop: viewport.scrollTop,
-      };
-    },
-  });
-
-  React.useLayoutEffect(() => {
-    const grewAtTop = groups.length > prevGroupCountRef.current;
-    prevGroupCountRef.current = groups.length;
-    const pending = pendingPrependAdjustmentRef.current;
-    if (!pending || !grewAtTop) return;
-    const viewport = getScrollElement();
-    pendingPrependAdjustmentRef.current = null;
-    if (!viewport) return;
-
-    const delta = viewport.scrollHeight - pending.scrollHeight;
-    if (delta > 0) {
-      viewport.scrollTop = pending.scrollTop + delta;
-    }
-    stickySyncRef.current?.();
-  }, [getScrollElement, groups.length]);
 
   React.useLayoutEffect(() => {
     resetStickyTurnCache();
@@ -1385,30 +1336,8 @@ export function ConversationThread({
       data-virtual-scroll
       data-fast-scrolling={isFastScrollingProp || undefined}
     >
-      {hasMoreMessages ? (
-        <div
-          ref={loadOlderSentinelRef}
-          data-load-older-sentinel
-          className="flex flex-col items-center gap-2 py-1 text-[11px] font-medium text-zinc-400"
-          aria-hidden
-        >
-          {isLoadingOlderMessages ? (
-            <>
-              <div className="h-3 w-32 rounded-full bg-zinc-100 shimmer-bg" />
-              <div className="h-3 w-20 rounded-full bg-zinc-100 shimmer-bg" />
-            </>
-          ) : (
-            "Scroll up to load older messages"
-          )}
-        </div>
-      ) : (
-        <div
-          ref={loadOlderSentinelRef}
-          data-load-older-sentinel
-          className="h-px w-full shrink-0"
-          aria-hidden
-        />
-      )}
+      {/* Full-thread hydrate — no scroll-up pagination affordance. */}
+      <div className="h-px w-full shrink-0" aria-hidden />
 
       {groups.map((group, index) => (
         <ConversationTurn

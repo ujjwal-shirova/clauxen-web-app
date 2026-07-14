@@ -348,7 +348,7 @@ async function invalidateChatCaches(
   env: Env,
   input: { userId: string; chatId: string; limits?: number[] },
 ) {
-  const limits = input.limits ?? [2, 10, 20, 50];
+  const limits = input.limits ?? [2, 10, 20, 50, 100, 200, 500];
   const tasks: Promise<unknown>[] = [];
 
   for (const limit of limits) {
@@ -582,9 +582,9 @@ export default {
       const limits = (
         body.limits?.length
           ? body.limits
-          : [body.limit ?? 2, 20]
+          : [body.limit ?? 500, 500]
       )
-        .map((n) => Math.min(50, Math.max(1, Number(n) || 2)))
+        .map((n) => Math.min(500, Math.max(1, Number(n) || 500)))
         .filter((v, i, a) => a.indexOf(v) === i);
 
       const cacheTtl = Math.max(
@@ -757,8 +757,8 @@ export default {
 
     const chatId = decodeURIComponent(match[1]!);
     const limit = Math.min(
-      50,
-      Math.max(1, Number(url.searchParams.get("limit") ?? "2") || 2),
+      500,
+      Math.max(1, Number(url.searchParams.get("limit") ?? "500") || 500),
     );
     const cursorId = url.searchParams.get("cursor_id");
     const cursorCreatedAt = url.searchParams.get("cursor_created_at");

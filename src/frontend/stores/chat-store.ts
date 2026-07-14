@@ -4,16 +4,17 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import type { Message, RecentChat } from "@/frontend/lib/types";
+import { FULL_CHAT_HYDRATE_LIMIT } from "@/frontend/lib/chat-history-page-size";
 
 /** Stable empty references — never allocate new [] in selectors (prevents infinite loops). */
 const EMPTY_IDS: readonly string[] = [];
 const EMPTY_MESSAGES: readonly Message[] = [];
 
-/** Active RAM window — only this many messages stay in heap per chat. */
-export const ACTIVE_RAM_MESSAGE_WINDOW = 24;
+/** Active RAM window hint — full-thread hydrate keeps the open chat intact. */
+export const ACTIVE_RAM_MESSAGE_WINDOW = FULL_CHAT_HYDRATE_LIMIT;
 
-/** Max messages retained when scrolling up before older turns are dropped from RAM. */
-export const MAX_ACTIVE_CHAT_MESSAGES = 48;
+/** Cap for rare trim helpers — match full-chat hydrate limit. */
+export const MAX_ACTIVE_CHAT_MESSAGES = FULL_CHAT_HYDRATE_LIMIT;
 
 export type QueuedChatMessage = {
   id: string;

@@ -97,15 +97,6 @@ function ChatViewBody({
   const messagesLoading = Boolean(
     (chat as { messagesLoading?: boolean }).messagesLoading,
   );
-  const hasMoreMessages = Boolean(
-    (chat as { hasMoreMessages?: boolean }).hasMoreMessages,
-  );
-  const isLoadingOlderMessages = Boolean(
-    (chat as { isLoadingOlderMessages?: boolean }).isLoadingOlderMessages,
-  );
-  const loadOlderMessages =
-    (chat as { loadOlderMessages?: () => Promise<boolean> }).loadOlderMessages ??
-    (async () => false);
 
   const routeChatId = getRouteChatId(pathname);
   // Keep showing the live conversation as soon as a chat id / messages exist,
@@ -217,9 +208,6 @@ function ChatViewBody({
       activeChatId={displayActiveChatId}
       messagesLoading={displayMessagesLoading}
       creatingChatPending={creatingChatPending && !blankNewChatComposer}
-      hasMoreMessages={hasMoreMessages && !blankNewChatComposer}
-      isLoadingOlderMessages={isLoadingOlderMessages && !blankNewChatComposer}
-      onLoadOlderMessages={loadOlderMessages}
       activeChatTitle={displayActiveChat?.name ?? "New Chat"}
       isActiveChatTitleStreaming={!!displayActiveChat?.isTitleStreaming}
       isActiveChatPinned={!!displayActiveChat?.pinned}

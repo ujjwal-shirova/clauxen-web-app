@@ -24,8 +24,8 @@ export type MessagePageResult = {
 
 type PageRpcRow = MessageRow & { has_more: boolean };
 
-const DEFAULT_PAGE_LIMIT = 2;
-const MAX_PAGE_LIMIT = 50;
+const DEFAULT_PAGE_LIMIT = 500;
+const MAX_PAGE_LIMIT = 500;
 
 /** Full history — share/export only. Prefer listMessagesPage for UI. */
 export async function listMessagesForChat(chatId: string) {

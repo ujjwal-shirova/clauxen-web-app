@@ -1,5 +1,6 @@
 import { apiFetch } from "@/frontend/lib/api/client";
 import { createClient } from "@/utils/supabase/client";
+import { FULL_CHAT_HYDRATE_LIMIT } from "@/frontend/lib/chat-history-page-size";
 
 export type ApiChat = {
   id: string;
@@ -130,7 +131,7 @@ async function listMessagesPageViaWorker(
         },
         credentials: "omit",
         // Fail open to Next API if Worker hangs — avoids stuck message shimmer.
-        signal: AbortSignal.timeout(8_000),
+        signal: AbortSignal.timeout(12_000),
       },
     );
     if (!response.ok) return null;
@@ -172,6 +173,35 @@ export async function listMessagesPage(
   return apiFetch<MessagesPage>(
     `/api/v1/chats/${encodeURIComponent(chatId)}/messages${qs ? `?${qs}` : ""}`,
   );
+}
+
+/**
+ * Load the full conversation in one shot (Worker-first).
+ * Silently continues keyset pages only when a thread exceeds the hydrate window.
+ */
+export async function listAllChatMessages(chatId: string): Promise<{
+  messages: ApiMessage[];
+}> {
+  const limit = FULL_CHAT_HYDRATE_LIMIT;
+  const first = await listMessagesPage(chatId, { limit });
+  if (!first.hasMore || !first.nextCursor) {
+    return { messages: first.messages };
+  }
+
+  let messages = first.messages;
+  let cursor = first.nextCursor;
+  // Rare long threads — finish before paint so the UI never shows pagination.
+  for (let i = 0; i < 20 && cursor; i += 1) {
+    const page = await listMessagesPage(chatId, {
+      limit,
+      cursorId: cursor.id,
+      cursorCreatedAt: cursor.createdAt,
+    });
+    messages = [...page.messages, ...messages];
+    if (!page.hasMore || !page.nextCursor) break;
+    cursor = page.nextCursor;
+  }
+  return { messages };
 }
 
 export async function appendMessage(
