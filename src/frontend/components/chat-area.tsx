@@ -39,6 +39,7 @@ interface ChatAreaProps {
     chatId: string,
     messageId: string,
     newContent: string,
+    options?: { attachments?: import("@/frontend/lib/composer-attachments").ComposerAttachment[] },
   ) => Promise<void>;
   redoUserMessageWithBranch: (
     chatId: string,
@@ -242,9 +243,15 @@ function ChatAreaLayout({
   }, [isGenerating, followContentGrowth]);
 
   const handleSaveEditedMessage = React.useCallback(
-    async (messageId: string, newContent: string) => {
+    async (
+      messageId: string,
+      newContent: string,
+      options?: {
+        attachments?: import("@/frontend/lib/composer-attachments").ComposerAttachment[];
+      },
+    ) => {
       if (!activeChatId) return;
-      await editMessageWithBranch(activeChatId, messageId, newContent);
+      await editMessageWithBranch(activeChatId, messageId, newContent, options);
     },
     [activeChatId, editMessageWithBranch],
   );

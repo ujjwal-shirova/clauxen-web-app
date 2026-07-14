@@ -5,13 +5,14 @@ import type { MessageAttachment } from "@/frontend/lib/composer-attachments";
 
 export type MessageBranchVersion = {
   readonly content: string;
+  readonly attachments?: MessageAttachment[];
   readonly thinkingContent?: string;
   readonly hasThinking?: boolean;
   readonly thinkingDurationSeconds?: number;
-  readonly agentSegments?: AgentSegment[];
-  readonly agentFrames?: AgentFrame[];
   readonly agentMode?: boolean;
   readonly agentFrameComplete?: boolean;
+  readonly agentSegments?: AgentSegment[];
+  readonly agentFrames?: AgentFrame[];
   readonly agentArtifacts?: ChatArtifact[];
   readonly snapshot?: readonly Message[];
 };

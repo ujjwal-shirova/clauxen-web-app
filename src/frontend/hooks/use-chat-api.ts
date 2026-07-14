@@ -1218,12 +1218,37 @@ export function useChatApi(
   }, []);
 
   const editMessageWithBranch = useCallback(
-    async (chatId: string, messageId: string, newContent: string) => {
+    async (
+      chatId: string,
+      messageId: string,
+      newContent: string,
+      options?: { attachments?: ComposerAttachment[] },
+    ) => {
       const trimmed = newContent.trim();
-      if (!trimmed || isGenerating) return;
+      const pendingAttachments = options?.attachments ?? [];
+      if ((!trimmed && pendingAttachments.length === 0) || isGenerating) return;
 
       const existing = allChatsRef.current[chatId] || [];
       const assistantMessageId = randomUUID();
+
+      // Upload new local files; keep existing fileIds.
+      const uploadedAttachments: ComposerAttachment[] = await Promise.all(
+        pendingAttachments.map(async (attachment) => {
+          if (attachment.fileId || !attachment.file) return attachment;
+          try {
+            const fileId = await uploadUserFile(attachment.file);
+            return {
+              ...attachment,
+              fileId,
+              uploadStatus: "ready" as const,
+            };
+          } catch (error) {
+            console.warn("[chat] edit attachment upload failed:", error);
+            return { ...attachment, uploadStatus: "error" as const };
+          }
+        }),
+      );
+      const messageAttachments = toMessageAttachments(uploadedAttachments);
 
       let helperResult;
       try {
@@ -1232,6 +1257,7 @@ export function useChatApi(
           messageId,
           trimmed,
           assistantMessageId,
+          messageAttachments,
         );
       } catch (err) {
         console.error(err);
@@ -1246,7 +1272,31 @@ export function useChatApi(
         [chatId]: nextChat,
       }));
 
-      const conversationForApi = buildConversation(nextChat.slice(0, -1));
+      const attachmentContext =
+        uploadedAttachments.length > 0
+          ? [
+              "",
+              "[Attached files]",
+              ...uploadedAttachments.map((item) => {
+                if (item.kind === "document" && item.textPreview) {
+                  return `- ${item.name}:\n${item.textPreview.slice(0, 8000)}`;
+                }
+                return `- ${item.name} (${item.mimeType || item.kind})`;
+              }),
+            ].join("\n")
+          : "";
+
+      const conversationBase = nextChat.slice(0, -1).map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              content: `${trimmed}${attachmentContext}`.trim() ||
+                trimmed ||
+                "(attached files)",
+            }
+          : msg,
+      );
+      const conversationForApi = buildConversation(conversationBase);
 
       try {
         await streamAssistantResponse(

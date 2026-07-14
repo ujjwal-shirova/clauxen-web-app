@@ -7,6 +7,7 @@ export const stripMessageForSnapshot = (message: Message): Message => ({
   id: message.id,
   role: message.role,
   content: message.content,
+  attachments: message.attachments,
   thinkingContent: message.thinkingContent,
   hasThinking: message.hasThinking,
   thinkingDurationSeconds: message.thinkingDurationSeconds,
@@ -22,6 +23,7 @@ const stripNestedSnapshots = (
 ): MessageBranchVersion[] =>
   versions.map((version) => ({
     content: version.content,
+    attachments: version.attachments,
     thinkingContent: version.thinkingContent,
     hasThinking: version.hasThinking,
     thinkingDurationSeconds: version.thinkingDurationSeconds,
@@ -111,6 +113,7 @@ export const ensureBranchVersions = (
     : [
         {
           content: message.content,
+          attachments: message.attachments,
           thinkingContent: message.thinkingContent,
           hasThinking: message.hasThinking,
           thinkingDurationSeconds: message.thinkingDurationSeconds,
@@ -133,6 +136,7 @@ export const hydrateMessageFromActiveBranch = (
   return {
     ...message,
     content: active.content,
+    attachments: active.attachments ?? message.attachments,
     thinkingContent: active.thinkingContent,
     hasThinking: active.hasThinking,
     thinkingDurationSeconds: active.thinkingDurationSeconds,
@@ -243,6 +247,7 @@ export function editMessageWithBranchHelper(
   messageId: string,
   newContent: string,
   newAssistantId: string,
+  attachments?: Message["attachments"],
 ): {
   nextChat: Message[];
   updatedUserMessage: Message;
@@ -261,6 +266,8 @@ export function editMessageWithBranchHelper(
   }
 
   const targetMessage = existing[targetIndex];
+  const nextAttachments =
+    attachments !== undefined ? attachments : targetMessage.attachments;
   const baseSnapshot = createChatSnapshot(existing);
   const targetWithSnapshot = saveSnapshotOnCurrentBranchVersion(
     targetMessage,
@@ -270,11 +277,12 @@ export function editMessageWithBranchHelper(
 
   const nextUserVersions = [
     ...targetVersions,
-    { content: newContent },
+    { content: newContent, attachments: nextAttachments },
   ];
   const updatedUserMessage: Message = {
     ...targetWithSnapshot,
     content: newContent,
+    attachments: nextAttachments,
     branchVersions: nextUserVersions,
     activeBranchIndex: nextUserVersions.length - 1,
   };

@@ -15,11 +15,14 @@ export function AttachmentChip({
   onRemove,
   onOpen,
   className,
+  size = "md",
 }: {
   file: ChipFile;
   onRemove?: () => void;
   onOpen?: () => void;
   className?: string;
+  /** Collapsed message = sm; composer/default = md; inline edit = lg. */
+  size?: "sm" | "md" | "lg";
 }) {
   const isImage = file.kind === "image";
   const uploading =
@@ -29,16 +32,28 @@ export function AttachmentChip({
     file.previewUrl ||
     (file.fileId ? `/api/v1/files/${file.fileId}/url?redirect=1` : undefined);
 
+  const imageSize =
+    size === "lg" ? "h-16 w-16 sm:h-[72px] sm:w-[72px]" : size === "sm" ? "h-10 w-10" : "h-12 w-12";
+  const docSize =
+    size === "lg"
+      ? "flex h-16 max-w-[200px] items-center gap-2 px-2 pr-2.5 sm:h-[72px]"
+      : size === "sm"
+        ? "flex h-10 max-w-[140px] items-center gap-1.5 px-1.5 pr-2"
+        : "flex h-12 max-w-[160px] items-center gap-1.5 px-1.5 pr-2";
+  const docThumb =
+    size === "lg" ? "h-12 w-12" : size === "sm" ? "h-7 w-7" : "h-9 w-9";
+
   return (
     <button
       type="button"
-      onClick={onOpen}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen?.();
+      }}
       className={cn(
         "group relative overflow-hidden rounded-lg border bg-zinc-50 text-left transition-colors",
         errored ? "border-red-300" : "border-zinc-200/90 hover:bg-zinc-100/80",
-        isImage
-          ? "h-12 w-12"
-          : "flex h-12 max-w-[160px] items-center gap-1.5 px-1.5 pr-2",
+        isImage ? imageSize : docSize,
         className,
       )}
       aria-label={file.name}
@@ -59,7 +74,12 @@ export function AttachmentChip({
         )
       ) : (
         <>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
+          <div
+            className={cn(
+              "flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-white",
+              docThumb,
+            )}
+          >
             {file.previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -73,7 +93,12 @@ export function AttachmentChip({
             )}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-[10px] font-medium leading-3 text-zinc-800">
+            <p
+              className={cn(
+                "truncate font-medium leading-3 text-zinc-800",
+                size === "lg" ? "text-[11px]" : "text-[10px]",
+              )}
+            >
               {file.name}
             </p>
             <p className="mt-0.5 flex items-center gap-0.5 text-[9px] text-zinc-400">
@@ -105,7 +130,7 @@ export function AttachmentChip({
               onRemove();
             }
           }}
-          className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-white opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
         >
           <X className="h-2.5 w-2.5" />
         </span>

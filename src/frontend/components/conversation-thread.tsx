@@ -19,7 +19,7 @@ import { HintTooltip } from "./ui/hint-tooltip";
 import type { Message } from "@/frontend/lib/types";
 import { agentSegmentsVisuallyEqual } from "@/frontend/lib/agent-segments";
 import { agentFramesVisuallyEqual, shouldUseAgentMessageLayout } from "@/frontend/lib/agent-frames";
-import { UserMessageExpandDialog } from "./user-message-expand-dialog";
+import { UserMessageInlineEditor } from "./user-message-inline-editor";
 import { cn } from "@/frontend/lib/utils";
 import { useMessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
@@ -29,7 +29,10 @@ import { useIsMobile } from "@/frontend/hooks/use-mobile";
 import { AttachmentChip } from "@/frontend/components/composer/attachment-chip";
 import { AttachmentImageLightbox } from "@/frontend/components/composer/attachment-image-lightbox";
 import { AttachmentDocumentPreview } from "@/frontend/components/composer/attachment-document-preview";
-import type { MessageAttachment } from "@/frontend/lib/composer-attachments";
+import type {
+  ComposerAttachment,
+  MessageAttachment,
+} from "@/frontend/lib/composer-attachments";
 import { FollowUpSuggestions } from "@/frontend/components/follow-up-suggestions";
 import { useAppPreferencesOptional } from "@/frontend/contexts/app-preferences-context";
 
@@ -45,6 +48,7 @@ interface ConversationThreadProps {
   onSaveEditedMessage: (
     messageId: string,
     newContent: string,
+    options?: { attachments?: ComposerAttachment[] },
   ) => Promise<void> | void;
   onRetryUserMessage: (messageId: string) => void;
   onRetryAssistant: (messageId: string) => void;
@@ -90,18 +94,6 @@ const RetryIcon = () => (
     xmlns="http://www.w3.org/2000/svg"
   >
     <path d="M10.3857 2.50977C14.3486 2.71054 17.5 5.98724 17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 7.54619 3.67878 5.3677 5.49902 4H3C2.72386 4 2.5 3.77614 2.5 3.5C2.5 3.22386 2.72386 3 3 3H6.5C6.63261 3 6.75975 3.05272 6.85352 3.14648C6.92392 3.21689 6.97106 3.30611 6.99023 3.40234L7 3.5V7C7 7.27614 6.77614 7.5 6.5 7.5C6.22386 7.5 6 7.27614 6 7V4.87891C4.4782 6.06926 3.5 7.91979 3.5 10C3.5 13.5899 6.41015 16.5 10 16.5C13.5899 16.5 16.5 13.5899 16.5 10C16.5 6.5225 13.7691 3.68312 10.335 3.50879L10 3.5L9.89941 3.49023C9.67145 3.44371 9.5 3.24171 9.5 3C9.5 2.72386 9.72386 2.5 10 2.5L10.3857 2.50977Z" />
-  </svg>
-);
-
-const EditPenIcon = () => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 20 20"
-    fill="currentColor"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M9.72821 2.87934C10.0318 2.10869 10.9028 1.72933 11.6735 2.03266L14.4655 3.13226C15.236 3.43593 15.6145 4.30697 15.3112 5.07758L11.3903 15.0307C11.2954 15.2717 11.1394 15.4835 10.9391 15.6459L10.8513 15.7123L7.7077 17.8979C7.29581 18.1843 6.73463 17.9917 6.57294 17.5356L6.54657 17.4409L5.737 13.6987C5.67447 13.4092 5.69977 13.107 5.80829 12.8315L9.72821 2.87934ZM6.73798 13.1987C6.70201 13.2903 6.69385 13.3906 6.71454 13.4868L7.44501 16.8627L10.28 14.892L10.3376 14.8452C10.3909 14.7949 10.4325 14.7332 10.4597 14.6645L13.0974 7.96723L9.37567 6.50141L6.73798 13.1987ZM11.3073 2.96332C11.0504 2.86217 10.7601 2.98864 10.6589 3.24555L9.74188 5.57074L13.4636 7.03754L14.3806 4.71137C14.4817 4.45445 14.3552 4.16413 14.0983 4.06293L11.3073 2.96332Z" />
   </svg>
 );
 
@@ -163,7 +155,11 @@ interface MessageRowProps {
   onEditValueChange: (value: string) => void;
   onStartEdit: (message: Message) => void;
   onCancelEdit: () => void;
-  onSaveEdit: (messageId: string) => void;
+  onSaveEdit: (
+    messageId: string,
+    attachments?: ComposerAttachment[],
+    contentOverride?: string,
+  ) => void;
   onCopy: (id: string, text: string) => void;
   onRetryUserMessage: (messageId: string) => void;
   onRetryAssistant: (messageId: string) => void;
@@ -195,7 +191,6 @@ const MessageRow = React.memo(
   }: MessageRowProps) {
     const branchVersions = message.branchVersions?.length ?? 1;
     const activeBranchIndex = message.activeBranchIndex ?? branchVersions - 1;
-    const [expandOpen, setExpandOpen] = React.useState(false);
     const [previewAttachment, setPreviewAttachment] =
       React.useState<MessageAttachment | null>(null);
     const { ref: visibilityRef, detailLevel } = useMessageDetailLevel(
@@ -231,45 +226,66 @@ const MessageRow = React.memo(
               id={messageAnchorId(message.id)}
               className="user-message-card relative flex w-full scroll-mt-20 flex-col font-sans"
             >
-              {message.attachments && message.attachments.length > 0 ? (
-                <div className="mb-1.5 flex flex-wrap gap-1.5 px-0.5">
-                  {message.attachments.map((attachment) => (
-                    <AttachmentChip
-                      key={attachment.id}
-                      file={attachment}
-                      onOpen={() =>
-                        setPreviewAttachment({
-                          ...attachment,
-                          previewUrl:
-                            attachment.previewUrl ||
-                            (attachment.fileId
-                              ? `/api/v1/files/${attachment.fileId}/url?redirect=1`
-                              : undefined),
-                        })
-                      }
-                    />
-                  ))}
-                </div>
-              ) : null}
-              {message.content.trim() ? (
-              <button
-                type="button"
-                onClick={() => setExpandOpen(true)}
-                className="user-message-card__body no-hover-overlay w-full cursor-pointer rounded-[15px] px-3 py-2.5 text-left transition-colors sm:rounded-[17px] sm:px-4 sm:py-3"
-                aria-label="Expand user message"
-              >
-                <p
-                  className="overflow-hidden whitespace-pre-wrap text-[13.5px] font-[430] leading-[1.55] text-zinc-900 sm:text-[14px] sm:leading-[1.58]"
-                  style={{
-                    display: "-webkit-box",
-                    WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
-                    WebkitBoxOrient: "vertical",
+              {editingMessageId === message.id ? (
+                <UserMessageInlineEditor
+                  messageId={message.id}
+                  initialAttachments={message.attachments}
+                  value={editValue ?? message.content}
+                  onValueChange={onEditValueChange}
+                  onCancel={onCancelEdit}
+                  onSubmit={async (content, attachments) => {
+                    await onSaveEdit(message.id, attachments, content);
                   }}
+                />
+              ) : (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onStartEdit(message)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onStartEdit(message);
+                    }
+                  }}
+                  className="user-message-card__body no-hover-overlay w-full cursor-pointer rounded-[15px] px-3 py-2.5 text-left transition-colors sm:rounded-[17px] sm:px-4 sm:py-3"
+                  aria-label="Edit message"
                 >
-                  {message.content}
-                </p>
-              </button>
-              ) : null}
+                  {message.attachments && message.attachments.length > 0 ? (
+                    <div className="mb-1.5 flex flex-wrap gap-1.5">
+                      {message.attachments.map((attachment) => (
+                        <AttachmentChip
+                          key={attachment.id}
+                          file={attachment}
+                          size="sm"
+                          onOpen={() =>
+                            setPreviewAttachment({
+                              ...attachment,
+                              previewUrl:
+                                attachment.previewUrl ||
+                                (attachment.fileId
+                                  ? `/api/v1/files/${attachment.fileId}/url?redirect=1`
+                                  : undefined),
+                            })
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  {message.content.trim() ? (
+                    <p
+                      className="overflow-hidden whitespace-pre-wrap text-[13.5px] font-[430] leading-[1.55] text-zinc-900 sm:text-[14px] sm:leading-[1.58]"
+                      style={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
+                        WebkitBoxOrient: "vertical",
+                      }}
+                    >
+                      {message.content}
+                    </p>
+                  ) : null}
+                </div>
+              )}
               <AttachmentImageLightbox
                 open={previewAttachment?.kind === "image"}
                 name={previewAttachment?.name ?? ""}
@@ -284,60 +300,12 @@ const MessageRow = React.memo(
                 textPreview={previewAttachment?.textPreview}
                 onClose={() => setPreviewAttachment(null)}
               />
-              <UserMessageExpandDialog
-                open={expandOpen}
-                onOpenChange={setExpandOpen}
-                message={message}
-                isEditing={editingMessageId === message.id}
-                editValue={
-                  editingMessageId === message.id ? (editValue ?? "") : ""
-                }
-                copiedId={copiedId}
-                onStartEdit={onStartEdit}
-                onEditValueChange={onEditValueChange}
-                onCancelEdit={onCancelEdit}
-                onSaveEdit={onSaveEdit}
-                onCopy={onCopy}
-                onRetryUserMessage={onRetryUserMessage}
-                onSwitchBranch={onSwitchBranch}
-              />
-              <div className="user-message-actions absolute inset-x-0 top-full z-10 mt-0.5 flex h-7 items-center justify-end gap-0">
-                <HintTooltip content="Retry" side="bottom">
-                  <button
-                    type="button"
-                    onClick={() => onRetryUserMessage(message.id)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
-                  >
-                    <RetryIcon />
-                  </button>
-                </HintTooltip>
-                <HintTooltip content="Edit" side="bottom">
-                  <button
-                    onClick={() => {
-                      onStartEdit(message);
-                      setExpandOpen(true);
-                    }}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
-                  >
-                    <EditPenIcon />
-                  </button>
-                </HintTooltip>
-                <HintTooltip content="Copy" side="bottom">
-                  <button
-                    onClick={() => onCopy(message.id, message.content)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
-                  >
-                    {copiedId === message.id ? (
-                      <Check className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <CustomCopyIcon />
-                    )}
-                  </button>
-                </HintTooltip>
-                {branchVersions > 1 ? (
-                  <div className="ml-1 flex items-center gap-1 text-zinc-500">
+              {branchVersions > 1 && editingMessageId !== message.id ? (
+                <div className="user-message-actions mt-0.5 flex h-7 items-center justify-end gap-0">
+                  <div className="flex items-center gap-1 text-zinc-500">
                     <HintTooltip content="Previous version" side="bottom">
                       <button
+                        type="button"
                         onClick={() => onSwitchBranch(message.id, "prev")}
                         disabled={activeBranchIndex <= 0}
                         className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
@@ -358,6 +326,7 @@ const MessageRow = React.memo(
                     </span>
                     <HintTooltip content="Next version" side="bottom">
                       <button
+                        type="button"
                         onClick={() => onSwitchBranch(message.id, "next")}
                         disabled={activeBranchIndex >= branchVersions - 1}
                         className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
@@ -374,8 +343,8 @@ const MessageRow = React.memo(
                       </button>
                     </HintTooltip>
                   </div>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
         ) : (
           <div
@@ -611,6 +580,7 @@ const MessageRow = React.memo(
       agentFramesVisuallyEqual(pm.agentFrames, nm.agentFrames) &&
       pm.activeBranchIndex === nm.activeBranchIndex &&
       pm.branchVersions === nm.branchVersions &&
+      pm.attachments === nm.attachments &&
       prev.editingMessageId === next.editingMessageId &&
       prev.editValue === next.editValue &&
       prev.copiedId === next.copiedId &&
@@ -629,7 +599,11 @@ interface ConversationTurnProps {
   onEditValueChange: (value: string) => void;
   onStartEdit: (message: Message) => void;
   onCancelEdit: () => void;
-  onSaveEdit: (messageId: string) => void;
+  onSaveEdit: (
+    messageId: string,
+    attachments?: ComposerAttachment[],
+    contentOverride?: string,
+  ) => void;
   onCopy: (id: string, text: string) => void;
   onRetryUserMessage: (messageId: string) => void;
   onRetryAssistant: (messageId: string) => void;
@@ -1152,10 +1126,14 @@ export function ConversationThread({
   }, []);
 
   const handleSaveEdit = React.useCallback(
-    async (messageId: string) => {
-      const trimmed = editValue.trim();
-      if (!trimmed) return;
-      await onSaveEditedMessage(messageId, trimmed);
+    async (
+      messageId: string,
+      attachments?: ComposerAttachment[],
+      contentOverride?: string,
+    ) => {
+      const trimmed = (contentOverride ?? editValue).trim();
+      if (!trimmed && !(attachments && attachments.length > 0)) return;
+      await onSaveEditedMessage(messageId, trimmed, { attachments });
       setEditingMessageId(null);
       setEditValue("");
     },

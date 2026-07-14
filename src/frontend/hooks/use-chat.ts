@@ -1088,9 +1088,15 @@ function useLocalChat(
   );
 
   const editMessageWithBranch = useCallback(
-    async (chatId: string, messageId: string, newContent: string) => {
+    async (
+      chatId: string,
+      messageId: string,
+      newContent: string,
+      options?: { attachments?: import("@/frontend/lib/composer-attachments").ComposerAttachment[] },
+    ) => {
       const trimmed = newContent.trim();
-      if (!trimmed || isGenerating) return;
+      const pendingAttachments = options?.attachments ?? [];
+      if ((!trimmed && pendingAttachments.length === 0) || isGenerating) return;
       const existing = allChatsRef.current[chatId] || [];
 
       const assistantMessageId = `${Date.now()}`;
@@ -1101,6 +1107,15 @@ function useLocalChat(
           messageId,
           trimmed,
           assistantMessageId,
+          pendingAttachments.map((item) => ({
+            id: item.id,
+            name: item.name,
+            mimeType: item.mimeType,
+            kind: item.kind,
+            previewUrl: item.previewUrl,
+            fileId: item.fileId,
+            textPreview: item.textPreview,
+          })),
         );
       } catch (err) {
         console.error(err);
