@@ -126,3 +126,50 @@ export async function verifySignupAndCreate(input: {
     },
   );
 }
+
+/** Email a 5-minute magic signup link (new users). */
+export async function requestMagicLink(email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  assertNonEmptyEmail(normalizedEmail);
+  return apiFetch<{
+    ok: true;
+    expiresInSeconds: number;
+    delivered: boolean;
+    simulated?: boolean;
+    debugUrl?: string;
+  }>("/api/v1/auth/magic/request", {
+    method: "POST",
+    body: JSON.stringify({ email: normalizedEmail }),
+  });
+}
+
+/** Peek magic link without consuming it. */
+export async function inspectMagicLink(token: string) {
+  return apiFetch<{
+    ok: true;
+    email: string;
+    purpose: "signup";
+    expiresInSeconds: number;
+  }>("/api/v1/auth/magic/inspect", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+/** Consume magic link + create confirmed account. */
+export async function completeMagicSignup(input: {
+  token: string;
+  password: string;
+}) {
+  const safePassword = input.password.slice(0, MAX_LOGIN_PASSWORD_LEN);
+  return apiFetch<{ ok: true; email: string; userId: string }>(
+    "/api/v1/auth/magic/complete",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        token: input.token,
+        password: safePassword,
+      }),
+    },
+  );
+}

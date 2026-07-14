@@ -42,6 +42,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-12 | Use Provider_* Vercel env for inference | Avoid leaking vendor keys via NEXT_PUBLIC or browser DevTools |
 
 | 2026-07-14 | Auth OTP emails via `clauxen-auth-email` Worker (`no-reply@clauxen.com`) | Production signup OTP path uses Cloudflare Email Sending + Vercel `AUTH_EMAIL_*` |
+| 2026-07-14 | Magic link signup (new users): 5-min link → `/auth/magic` set-password → onboarding | Label under Continue with Email; existing-user magic login deferred |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
@@ -80,6 +81,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 ## Gotchas
 
 - Auth email OTP: Worker `https://clauxen-auth-email.ujjwal-8fc.workers.dev`; Vercel needs `AUTH_EMAIL_WORKER_URL` + `AUTH_EMAIL_INTERNAL_TOKEN` (prod/preview/dev). Cloudflare Email Sending onboarded for `clauxen.com` (sender `no-reply@clauxen.com`). Workers KV `expirationTtl` must be ≥ 60s (cooldown was 45 and crashed sends).
+- Magic link signup: Worker `/v1/magic/{send,inspect,consume}` (TTL 300s); app routes `/api/v1/auth/magic/*` + `/auth/magic`; new users only for now. Clickable auth labels use `.auth-text-link` (no button hover wash).
 
 - Prefer path routes (`/upgrade`, `/settings/general`) over hash overlays (`#pricing`) — hash + Next soft-nav caused hydration mismatches.
 - Canonical new-chat URLs are `/` and `/new` (both render ChatView; no redirect hop). Overlay surfaces live as real routes under `(main)`.
