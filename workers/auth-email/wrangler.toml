@@ -5,16 +5,18 @@ account_id = "8fc7a67e9057989309921f362784ecf4"
 workers_dev = true
 
 # Outbound transactional email via Cloudflare Email Service.
-# Onboard domain (e.g. clauxen.com) under Email Service → Email Sending first.
+# Onboard domain (clauxen.com) under Email Service → Email Sending first.
+# Sends from no-reply@clauxen.com (see FROM_EMAIL var).
 [[send_email]]
 name = "EMAIL"
+allowed_sender_addresses = ["no-reply@clauxen.com"]
 
 [vars]
-FROM_EMAIL = "noreply@clauxen.com"
+FROM_EMAIL = "no-reply@clauxen.com"
 FROM_NAME = "Clauxen"
 OTP_TTL_SECONDS = "600"
 OTP_MAX_ATTEMPTS = "5"
-OTP_RESEND_COOLDOWN_SECONDS = "45"
+OTP_RESEND_COOLDOWN_SECONDS = "60"
 # AUTH_EMAIL_INTERNAL_TOKEN set via: wrangler secret put AUTH_EMAIL_INTERNAL_TOKEN
 
 [[kv_namespaces]]

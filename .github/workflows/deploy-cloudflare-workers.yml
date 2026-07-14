@@ -1,0 +1,54 @@
+name: Deploy Cloudflare Workers
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "workers/**"
+      - "scripts/deploy-cloudflare-workers.sh"
+      - ".github/workflows/deploy-cloudflare-workers.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Resolve Cloudflare token
+        id: cf
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          Cloudflare_Token: ${{ secrets.Cloudflare_Token }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$Cloudflare_Token" ]; then
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+            echo "CLOUDFLARE_API_TOKEN=$Cloudflare_Token" >> "$GITHUB_ENV"
+          else
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+            echo "No CLOUDFLARE_API_TOKEN / Cloudflare_Token secret — skipping deploy."
+          fi
+
+      - name: Deploy workers
+        if: steps.cf.outputs.has_token == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.Cloudflare_Token }}
+          CLOUDFLARE_ACCOUNT_ID: "8fc7a67e9057989309921f362784ecf4"
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN || secrets.Vercel_Token }}
+          AUTH_EMAIL_INTERNAL_TOKEN: ${{ secrets.AUTH_EMAIL_INTERNAL_TOKEN }}
+        run: |
+          chmod +x scripts/deploy-cloudflare-workers.sh scripts/wire-auth-email-vercel.sh
+          ./scripts/deploy-cloudflare-workers.sh
+          if [ -n "${VERCEL_TOKEN:-}" ]; then
+            ./scripts/wire-auth-email-vercel.sh
+          else
+            echo "VERCEL_TOKEN / Vercel_Token not set — skip Vercel AUTH_EMAIL_* wiring."
+          fi

@@ -150,8 +150,14 @@ async function sendOtpEmail(
   email: string,
   code: string,
   ttlSeconds: number,
-): Promise<{ sent: boolean; messageId?: string; simulated?: boolean }> {
-  const fromEmail = (env.FROM_EMAIL || "noreply@clauxen.com").trim();
+): Promise<{
+  sent: boolean;
+  messageId?: string;
+  simulated?: boolean;
+  errorCode?: string;
+  errorMessage?: string;
+}> {
+  const fromEmail = (env.FROM_EMAIL || "no-reply@clauxen.com").trim();
   const fromName = (env.FROM_NAME || "Clauxen").trim();
   const ttlMinutes = Math.max(1, Math.round(ttlSeconds / 60));
   const subject = `${code} is your Clauxen verification code`;
@@ -164,14 +170,28 @@ async function sendOtpEmail(
     return { sent: false, simulated: true };
   }
 
-  const response = await env.EMAIL.send({
-    to: email,
-    from: { email: fromEmail, name: fromName },
-    subject,
-    html,
-    text,
-  });
-  return { sent: true, messageId: response.messageId };
+  try {
+    const response = await env.EMAIL.send({
+      to: email,
+      from: fromEmail,
+      subject,
+      html,
+      text,
+    });
+    return { sent: true, messageId: response?.messageId };
+  } catch (err) {
+    const e = err as { code?: string; message?: string };
+    const errorCode =
+      e && typeof e === "object" && "code" in e ? String(e.code) : "unknown";
+    const errorMessage =
+      e && typeof e === "object" && "message" in e
+        ? String(e.message)
+        : String(err);
+    console.error(
+      `[auth-email] EMAIL.send failed code=${errorCode} message=${errorMessage}`,
+    );
+    return { sent: false, errorCode, errorMessage };
+  }
 }
 
 export default {
@@ -200,6 +220,7 @@ export default {
       15,
       Number(env.OTP_RESEND_COOLDOWN_SECONDS ?? "45") || 45,
     );
+
 
     if (url.pathname === "/v1/otp/send" && request.method === "POST") {
       const body = (await request.json().catch(() => ({}))) as {
@@ -237,11 +258,42 @@ export default {
       await env.OTP_STORE.put(otpKey(email), JSON.stringify(record), {
         expirationTtl: ttl,
       });
+      // Workers KV requires expirationTtl >= 60.
       await env.OTP_STORE.put(cooldownKey(email), "1", {
-        expirationTtl: cooldown,
+        expirationTtl: Math.max(60, cooldown),
       });
 
-      const delivery = await sendOtpEmail(env, email, code, ttl);
+      let delivery: {
+        sent: boolean;
+        messageId?: string;
+        simulated?: boolean;
+        errorCode?: string;
+        errorMessage?: string;
+      };
+      try {
+        delivery = await sendOtpEmail(env, email, code, ttl);
+      } catch (err) {
+        const e = err as { code?: string; message?: string };
+        return json(
+          {
+            error: "email_send_failed",
+            code: e?.code ?? "unknown",
+            message: e?.message ?? "Failed to send OTP email",
+          },
+          502,
+        );
+      }
+
+      if (!delivery.sent && !delivery.simulated) {
+        return json(
+          {
+            error: "email_send_failed",
+            code: delivery.errorCode ?? "unknown",
+            message: delivery.errorMessage ?? "Failed to send OTP email",
+          },
+          502,
+        );
+      }
 
       return json({
         ok: true,

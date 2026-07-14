@@ -19,19 +19,26 @@ All mutating routes require `Authorization: Bearer <AUTH_EMAIL_INTERNAL_TOKEN>` 
 cd workers/auth-email
 npm install
 npx wrangler secret put AUTH_EMAIL_INTERNAL_TOKEN
-# Onboard clauxen.com (or your domain) under Cloudflare Email Service → Email Sending
+# Onboard clauxen.com under Cloudflare Email Service → Email Sending
+# Sender must be allowed: no-reply@clauxen.com
 npx wrangler deploy
 ```
 
-Then set on Vercel:
+Or from repo root (accepts Cursor secrets `Cloudflare_Token` / `Vercel_Token`):
+
+```bash
+./scripts/deploy-cloudflare-workers.sh
+```
+
+Then set on Vercel (auto if `Vercel_Token` is set):
 
 ```
-AUTH_EMAIL_WORKER_URL=https://clauxen-auth-email.<subdomain>.workers.dev
+AUTH_EMAIL_WORKER_URL=https://clauxen-auth-email.ujjwal-8fc.workers.dev
 AUTH_EMAIL_INTERNAL_TOKEN=<same secret>
 ```
 
 ## Domain
 
-1. Cloudflare Dashboard → Email Service → Email Sending → Onboard Domain
+1. Cloudflare Dashboard → Email Service → Email Sending → Onboard Domain (`clauxen.com`)
 2. Add SPF/DKIM DNS records Cloudflare proposes
-3. Align `FROM_EMAIL` in `wrangler.toml` with an allowed sender on that domain
+3. Allow sender `no-reply@clauxen.com` (matches `FROM_EMAIL` in `wrangler.toml`)
