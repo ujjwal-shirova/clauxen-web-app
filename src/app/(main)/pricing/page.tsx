@@ -1,5 +1,8 @@
-import { redirect } from "next/navigation";
+"use client";
 
+import { LegacyOverlayRedirect } from "@/frontend/components/legacy-overlay-redirect";
+
+/** Legacy `/pricing` → `/new#pricing`. */
 export default function PricingAliasPage() {
-  redirect("/upgrade");
+  return <LegacyOverlayRedirect overlay={{ type: "pricing" }} />;
 }

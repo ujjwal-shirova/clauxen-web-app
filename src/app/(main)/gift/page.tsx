@@ -1,4 +1,7 @@
-/** Deep-link / refresh: overlay is hosted by MainLayout (AppOverlayHost). */
+"use client";
+
+import { LegacyOverlayRedirect } from "@/frontend/components/legacy-overlay-redirect";
+
 export default function GiftPage() {
-  return null;
+  return <LegacyOverlayRedirect overlay={{ type: "gift" }} />;
 }

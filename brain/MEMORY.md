@@ -37,6 +37,8 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-14 | CF Free-plan security: 5/5 custom rules (Managed Challenge on app HTML entry, Block scanners/empty-UA/sensitive paths, Challenge suspicious auth POSTs); SSL Full (strict); AI Labyrinth on; Block AI Training crawlers; Browser Integrity Check on; Leaked credential rate rule kept. Under Attack left OFF (custom challenge is targeted). Managed WAF rules need Pro. | User asked for captcha/security on open + advanced hardening; Free plan limits Super Bot Fight / OWASP managed ruleset |
+| 2026-07-14 | CF live: Hyperdrive max_age=300/swr=60; chat-history+r2-gateway+auth-email redeployed; zone Cache Rules for /_next/static (1y), /assets (1d), Bypass /api; Rocket Loader off; Early Hints+HTTP/3 on | Playwright dashboard + new Account API token clauxen-workers-deploy |
 | 2026-07-14 | Unified login: Continue with Email checks existence → password login or create+OTP via Cloudflare Email Worker | Leonardo-style single entry; remove separate signup surface |
 | 2026-07-13 | Performance: RAM message window + inactive chat eviction + LOD + overlay code-split + CF/Vercel cache | Speed Insights FCP/LCP poor on / and /c; cut DOM/RAM and edge latency |
 | 2026-07-12 | Use Provider_* Vercel env for inference | Avoid leaking vendor keys via NEXT_PUBLIC or browser DevTools |
@@ -46,6 +48,8 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Settings Profile: names/work/custom instructions persist to profiles + user_settings; custom instructions append to chat system prompt under Shirova guidelines | Production ChatGPT/Claude-style personalization |
 | 2026-07-14 | Settings Personalization: style/characteristics/fast answers/memory note + Advanced (web search, canvas, connector search; no voice) wired to settings JSONB + capabilities | ChatGPT-parity personalization pane |
 | 2026-07-14 | Settings General preferences: theme (light/dark/system via next-themes + `.dark` tokens), Google chat fonts on assistant markdown only, motion + follow-up chips; AppPreferencesProvider applies + persists to Supabase `user_settings.settings.general` | Prefs were saved but never applied to DOM |
+| 2026-07-14 | Overlays use ChatGPT-style hashes (`#settings`, `#settings/Personalization`, `#pricing`) on parent pages (`/new`, `/c/…`); legacy `/settings/*` `/upgrade` redirect to `/new#…` | Path overlays blanked the main panel and forced close→`/new` |
+| 2026-07-14 | Edge perf: chat-history Worker ladder (Cache API→KV→R2→Hyperdrive) + `/v1/chats` list cache; Supabase revoked anon RPC EXECUTE + FK/list indexes; Vercel CDN/no-store headers | Blazing-fast hydrates; CF/Vercel API tokens currently invalid for live deploy |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
@@ -88,11 +92,11 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Settings Profile: `fullName`→`profiles.display_name`, nickname→`preferred_name`, occupation+customInstructions in `user_settings.settings.personalization`. Onboarding name/role hydrate settings. Chat injects via `buildUserPersonalizationAppend` into `buildModelSystemPrompt({ append })`.
 - Settings General prefs: `AppPreferencesProvider` applies theme/font/motion/follow-ups to `<html>` (`class=dark`, `data-chat-font`, etc.) and persists `settings.general` via PATCH `/api/v1/settings`. Chat fonts style `[data-assistant-content]` only — not app chrome labels.
 
-- Prefer path routes (`/upgrade`, `/settings/general`) over hash overlays (`#pricing`) — hash + Next soft-nav caused hydration mismatches.
-- Canonical new-chat URLs are `/` and `/new` (both render ChatView; no redirect hop). Overlay surfaces live as real routes under `(main)`.
-- Overlay open must be instant: `AppOverlaysProvider` uses `history.pushState` + local state (not blocking `router.push`). Host via `AppOverlayHost` + `FullscreenPortal` to `document.body` because `.agent-panel` uses `transform: translateZ(0)` which traps `position: fixed`.
-- Main surfaces (library/projects/customize/chats) use `useInstantNavigate` (pushState + soft Next sync).
-- New-chat send: keep showing chat-view once messages/activeChatId exist (don’t blank while still on `/new`); sidebar shows shimmer until chat id + first message land; tab is brand-only (`Clauxen`) until a real title exists.
+- Prefer ChatGPT-style hash overlays (`#settings/Personalization`, `#pricing`) on parent paths (`/new`, `/c/…`). Legacy `/settings/*` `/upgrade` `/gift` `/apps` soft-redirect to `/new#…`. Closing an overlay stays on the parent page.
+- Canonical boot: `/` soft-replaces to `/new` after identity (hash preserved). Both render ChatView. Overlay surfaces are hashes, not Next routes.
+- Overlay open must be instant: `AppOverlaysProvider` uses `history.pushState` on `pathname#hash` (not path replacement). Host via `AppOverlayHost` + `FullscreenPortal` to `document.body` because `.agent-panel` uses `transform: translateZ(0)` which traps `position: fixed`.
+- Main surfaces (library/projects/customize/chats) use `useInstantNavigate` (pushState + soft Next sync; hash restored after soft nav).
+- Home `/` soft-replaces to `/new` after auth (hash preserved); isNewChatPath still treats `/` and `/new` as blank chat.
 - Checkout UPI is INR-only; geo USD can wrongly hide it — prefer browser India heuristic; use local UPI/card SVG icons (no Stripe/logo CDNs).
 - `chats.id` is `text` (custom long ids + legacy UUID strings). Validate with `requireChatIdParam`.
 - Recents filter: never treat “messages not hydrated yet” as empty — `filterStartedRecentChats` keeps chats when local messages are `undefined` (reload bug that hid all chats).
@@ -100,16 +104,21 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Sidebar Recents shimmer on first chat list fetch; conversation pane shimmer while `/c/[id]` messages hydrate. Realtime chat list refresh is silent (no full-list re-shimmer).
 - Chat transcripts for training: `chat_transcript_lines` stores Cursor-style JSONL records (`role` + `message.content` parts including `text` / `thinking` / `tool_use` / `tool_result`, plus `turn_ended`). View `chat_transcripts_jsonl` aggregates one JSONL doc per chat. Export: `GET /api/v1/chats/[chatId]/transcript`.
 - Branch PUT must use `sanitizeBranchMessages` (keeps ids/frames). Never `sanitizeMessages` for branch state — that stripped ids and caused reload duplicate assistants.
-- Chat-history Worker already emits `x-clauxen-cache`; redeploy worker after TTL/invalidate changes (`cd workers/chat-history && npx wrangler deploy`).
+- Chat-history Worker: Cache API → KV → R2 → Hyperdrive; also caches sidebar `GET /v1/chats` + JWT memo. Redeploy via `./scripts/ops/apply-cloudflare-perf-stack.sh` when `CLOUDFLARE_API_TOKEN` is valid. Tune Hyperdrive `--max-age 300 --swr 60`.
+- Local `CLOUDFLARE_API_TOKEN` / Vercel CLI tokens were invalid (9109 / login) as of 2026-07-14 — cannot deploy Workers or change Hyperdrive from this machine until tokens are refreshed.
+- Supabase: anon/authenticated EXECUTE revoked on chat SECURITY DEFINER RPCs; service_role/postgres only. Enable Auth leaked-password protection in dashboard.
 - Attachment Worker PUTs require `Authorization: Bearer <supabase access token>` when `worker: true` on presign.
 
 ---
 
 - ChatSessionProvider is API-only (useChatApi) so local IndexedDB path stays out of main bundle; project/local still use useChat
 - Streamdown CSS loads idle via StreamdownStyles — do not re-import streamdown/styles.css in (main)/layout
-- Home `/` now renders ChatView directly (no redirect hop to /new) for FCP; isNewChatPath still treats / and /new as blank chat
 - Signup OTP: AUTH_EMAIL_WORKER_URL + AUTH_EMAIL_INTERNAL_TOKEN; deploy workers/auth-email; onboard Email Sending domain; AUTH_DEV_BYPASS can simulate OTP locally
 - Cursor Cloud: this agent run has environment=null — secrets Cloudflare_Token/Vercel_Token/Supabase_Token only inject when the agent is started FROM a Cursor Environment that lists them. Adding secrets mid-run or in a different Environment does not populate this pod.
+- New-chat send: keep showing chat-view once messages/activeChatId exist (don’t blank while still on `/new`); sidebar shows shimmer until chat id + first message land; tab is brand-only (`Clauxen`) until a real title exists.
+- Account API token can deploy Workers/Hyperdrive but not Zone settings/Cache Rules API (403) — use dashboard or User API token with Zone Cache Rules Edit
+- CF dash cookie consent overlay blocks clicks; dismiss Allow All before Deploy on Cache Rules
+- cf.threat_score is deprecated on upgraded CF security — do not use in custom rules. Free plan: 5 custom rules, 1 rate-limit rule.
 ## Open threads
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).

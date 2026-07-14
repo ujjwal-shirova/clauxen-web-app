@@ -2,14 +2,25 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { normalizeSettingsTab } from "@/frontend/lib/app-routes";
+import {
+  parseOverlayHash,
+} from "@/frontend/lib/app-routes";
 
 const BRAND = "Clauxen";
 
 function titleForPath(
   pathname: string | null,
   chatTitle?: string | null,
+  hash?: string | null,
 ): string {
+  const overlay = parseOverlayHash(hash ?? null);
+  if (overlay?.type === "settings") {
+    return `${overlay.tab} - ${BRAND}`;
+  }
+  if (overlay?.type === "pricing") return `Upgrade - ${BRAND}`;
+  if (overlay?.type === "gift") return `Gift - ${BRAND}`;
+  if (overlay?.type === "apps") return `Apps - ${BRAND}`;
+
   if (!pathname) return BRAND;
 
   if (pathname === "/new" || pathname === "/") {
@@ -39,17 +50,6 @@ function titleForPath(
     return `Connectors - ${BRAND}`;
   }
   if (pathname.startsWith("/customize")) return `Customize - ${BRAND}`;
-  if (pathname === "/upgrade" || pathname === "/pricing") {
-    return `Upgrade - ${BRAND}`;
-  }
-  if (pathname === "/gift") return `Gift - ${BRAND}`;
-  if (pathname === "/apps") return `Apps - ${BRAND}`;
-
-  const settings = pathname.match(/^\/settings(?:\/([^/]+))?/);
-  if (settings) {
-    const tab = normalizeSettingsTab(settings[1] || "general");
-    return `${tab} - ${BRAND}`;
-  }
 
   return BRAND;
 }
@@ -72,7 +72,23 @@ export function useDocumentTitle(
     }
     const livePath =
       typeof window !== "undefined" ? window.location.pathname : pathname;
-    document.title = titleForPath(livePath, chatTitle);
+    const hash =
+      typeof window !== "undefined" ? window.location.hash : "";
+    document.title = titleForPath(livePath, chatTitle, hash);
+
+    const onHash = () => {
+      document.title = titleForPath(
+        window.location.pathname,
+        chatTitle,
+        window.location.hash,
+      );
+    };
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onHash);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("popstate", onHash);
+    };
   }, [pathname, chatTitle, options?.brandOnly]);
 }
 

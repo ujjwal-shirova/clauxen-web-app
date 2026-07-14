@@ -240,7 +240,7 @@ export function CapabilitiesSettings({
               Customize
             </button>
           ) : (
-            <a href="/settings/skills" className={linkClass}>
+            <a href="/new#settings/Skills" className={linkClass}>
               Customize
             </a>
           )}

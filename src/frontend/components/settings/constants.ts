@@ -81,12 +81,12 @@ export const settingsNavGroups: ReadonlyArray<{
     ],
   },
   {
-    label: "Safety & family",
-    items: ["Safety", "Parental controls", "Trusted contact"],
-  },
-  {
     label: "Customize",
     items: ["Skills", "Connectors", "Plugins"],
+  },
+  {
+    label: "Safety & family",
+    items: ["Safety", "Parental controls", "Trusted contact"],
   },
 ];
 

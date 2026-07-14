@@ -4,12 +4,17 @@ export interface Env {
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
   HYPERDRIVE?: Hyperdrive;
+  /** Optional second Hyperdrive with caching disabled for write-path reads. */
+  HYPERDRIVE_FRESH?: Hyperdrive;
   DATABASE_URL?: string;
   CHAT_HISTORY_CACHE?: KVNamespace;
   CHAT_ARCHIVES?: R2Bucket;
   CHAT_HISTORY_INTERNAL_TOKEN?: string;
   LATEST_PAGE_CACHE_TTL_SECONDS?: string;
   CURSOR_PAGE_CACHE_TTL_SECONDS?: string;
+  CHAT_LIST_CACHE_TTL_SECONDS?: string;
+  JWT_CACHE_TTL_SECONDS?: string;
+  APP_ORIGIN?: string;
 }
 
 type MessageRow = {
@@ -30,27 +35,72 @@ type PagePayload = {
   hasMore: boolean;
 };
 
-const CORS_HEADERS = {
-  "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET,POST,OPTIONS",
-  "access-control-allow-headers": "authorization,content-type,x-clauxen-internal",
-  "access-control-max-age": "86400",
+type ChatListItem = {
+  id: string;
+  name: string;
+  projectId: string | null;
+  starred: boolean;
+  pinned: boolean;
+  updatedAt: string;
 };
 
-function json(data: unknown, status = 200, extraHeaders?: HeadersInit) {
+function corsHeaders(env: Env, request: Request): Record<string, string> {
+  const origin = request.headers.get("origin") ?? "";
+  const allowed = (env.APP_ORIGIN ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const allowOrigin =
+    allowed.length === 0
+      ? "*"
+      : allowed.includes(origin)
+        ? origin
+        : allowed[0]!;
+
+  return {
+    "access-control-allow-origin": allowOrigin,
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-headers":
+      "authorization,content-type,x-clauxen-internal",
+    "access-control-max-age": "86400",
+    vary: "origin, authorization",
+  };
+}
+
+function json(
+  data: unknown,
+  status = 200,
+  extraHeaders?: HeadersInit,
+  cors?: Record<string, string>,
+) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "content-type": "application/json",
-      ...CORS_HEADERS,
+      ...(cors ?? {}),
       ...extraHeaders,
     },
   });
 }
 
+async function hashToken(token: string): Promise<string> {
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(token),
+  );
+  return [...new Uint8Array(buf)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/**
+ * Verify Supabase JWT with a short Cache API memo (same colo) so sidebar +
+ * message hydrates don't re-hit Auth on every parallel request.
+ */
 async function verifySupabaseJwt(
   request: Request,
   env: Env,
+  ctx: ExecutionContext,
 ): Promise<{ sub: string } | null> {
   const auth =
     request.headers.get("authorization") ??
@@ -60,6 +110,22 @@ async function verifySupabaseJwt(
   const token = auth.slice(7).trim();
   if (!token || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return null;
 
+  const jwtTtl = Math.max(
+    30,
+    Math.min(300, Number(env.JWT_CACHE_TTL_SECONDS ?? "60") || 60),
+  );
+  const digest = await hashToken(token);
+  const cacheReq = new Request(
+    `https://chat-history.internal/jwt/${digest}`,
+    { method: "GET" },
+  );
+
+  const cached = await caches.default.match(cacheReq);
+  if (cached?.ok) {
+    const body = (await cached.json()) as { sub?: string };
+    if (body.sub) return { sub: body.sub };
+  }
+
   const res = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -68,12 +134,33 @@ async function verifySupabaseJwt(
   });
   if (!res.ok) return null;
   const user = (await res.json()) as { id?: string };
-  return user.id ? { sub: user.id } : null;
+  if (!user.id) return null;
+
+  ctx.waitUntil(
+    caches.default.put(
+      cacheReq,
+      json(
+        { sub: user.id },
+        200,
+        {
+          "cache-control": `private, max-age=${jwtTtl}`,
+          "x-clauxen-cache": "jwt-warm",
+        },
+      ),
+    ),
+  );
+
+  return { sub: user.id };
 }
 
-function sqlClient(env: Env) {
+function sqlClient(env: Env, fresh = false) {
   const connectionString =
-    env.HYPERDRIVE?.connectionString || env.DATABASE_URL || "";
+    (fresh
+      ? env.HYPERDRIVE_FRESH?.connectionString
+      : undefined) ||
+    env.HYPERDRIVE?.connectionString ||
+    env.DATABASE_URL ||
+    "";
   if (!connectionString) {
     throw new Error("HYPERDRIVE or DATABASE_URL is required");
   }
@@ -121,17 +208,66 @@ async function fetchMessagesPage(
   }
 }
 
-/** Ensure latest page opens on a complete user→assistant pair when possible. */
+async function fetchChatList(
+  env: Env,
+  input: { userId: string; projectId: string | null; limit: number },
+): Promise<ChatListItem[]> {
+  const sql = sqlClient(env);
+  try {
+    const chats = input.projectId
+      ? await sql`
+          select id, title, project_id, starred, updated_at
+          from public.chats
+          where user_id = ${input.userId}::uuid
+            and status != 'deleted'
+            and project_id = ${input.projectId}
+          order by updated_at desc
+          limit ${input.limit}
+        `
+      : await sql`
+          select id, title, project_id, starred, updated_at
+          from public.chats
+          where user_id = ${input.userId}::uuid
+            and status != 'deleted'
+          order by updated_at desc
+          limit ${input.limit}
+        `;
+
+    const pinned = await sql`
+      select chat_id
+      from public.pinned_chats
+      where user_id = ${input.userId}::uuid
+    `;
+    const pinnedRows = pinned as unknown as { chat_id: string }[];
+    const pinnedIds = new Set(pinnedRows.map((p) => p.chat_id));
+
+    const chatRows = chats as unknown as Array<{
+      id: string;
+      title: string;
+      project_id: string | null;
+      starred: boolean;
+      updated_at: string;
+    }>;
+
+    return chatRows.map((chat) => ({
+      id: chat.id,
+      name: chat.title,
+      projectId: chat.project_id,
+      starred: Boolean(chat.starred),
+      pinned: pinnedIds.has(chat.id),
+      updatedAt: chat.updated_at,
+    }));
+  } finally {
+    await sql.end({ timeout: 1 });
+  }
+}
+
 async function alignLatestPair(
   env: Env,
   input: { chatId: string; userId: string; limit: number },
   page: PagePayload,
 ): Promise<PagePayload> {
-  if (
-    page.messages[0]?.role === "user" ||
-    !page.hasMore ||
-    !page.nextCursor
-  ) {
+  if (page.messages[0]?.role === "user" || !page.hasMore || !page.nextCursor) {
     return page;
   }
   const older = await fetchMessagesPage(env, {
@@ -164,6 +300,10 @@ function pageKvKey(
   return `page:${userId}:${chatId}:${limit}:${cursorCreatedAt ?? ""}:${cursorId ?? ""}`;
 }
 
+function listKvKey(userId: string, projectId: string | null, limit: number) {
+  return `list:${userId}:${projectId ?? ""}:${limit}`;
+}
+
 function r2Key(userId: string, chatId: string, limit: number) {
   return `users/${userId}/chats/${chatId}/head/latest-${limit}.json`;
 }
@@ -193,6 +333,17 @@ function pageCacheRequest(
   );
 }
 
+function listCacheRequest(
+  userId: string,
+  projectId: string | null,
+  limit: number,
+) {
+  return new Request(
+    `https://chat-history.internal/list/${userId}?project=${projectId ?? ""}&limit=${limit}`,
+    { method: "GET" },
+  );
+}
+
 async function invalidateChatCaches(
   env: Env,
   input: { userId: string; chatId: string; limits?: number[] },
@@ -216,6 +367,27 @@ async function invalidateChatCaches(
     }
   }
 
+  // Sidebar list is stale after message/title changes.
+  for (const limit of [50, 100]) {
+    tasks.push(caches.default.delete(listCacheRequest(input.userId, null, limit)));
+    if (env.CHAT_HISTORY_CACHE) {
+      tasks.push(
+        env.CHAT_HISTORY_CACHE.delete(listKvKey(input.userId, null, limit)),
+      );
+    }
+  }
+
+  await Promise.allSettled(tasks);
+}
+
+async function invalidateListCaches(env: Env, userId: string) {
+  const tasks: Promise<unknown>[] = [];
+  for (const limit of [50, 100]) {
+    tasks.push(caches.default.delete(listCacheRequest(userId, null, limit)));
+    if (env.CHAT_HISTORY_CACHE) {
+      tasks.push(env.CHAT_HISTORY_CACHE.delete(listKvKey(userId, null, limit)));
+    }
+  }
   await Promise.allSettled(tasks);
 }
 
@@ -228,9 +400,10 @@ async function writeCaches(
     limit: number;
     payload: PagePayload;
     cacheTtl: number;
+    cors: Record<string, string>;
   },
 ) {
-  const { userId, chatId, limit, payload, cacheTtl } = input;
+  const { userId, chatId, limit, payload, cacheTtl, cors } = input;
   const body = JSON.stringify(payload);
 
   if (env.CHAT_HISTORY_CACHE) {
@@ -257,6 +430,7 @@ async function writeCaches(
       "cache-tag": `chat:${chatId},user:${userId}`,
       "x-clauxen-cache": "warm-write",
     },
+    cors,
   );
   ctx.waitUntil(caches.default.put(cacheRequest(userId, chatId, limit), response));
 }
@@ -272,6 +446,7 @@ async function writePageCaches(
     cursorCreatedAt: string | null;
     payload: PagePayload;
     cacheTtl: number;
+    cors: Record<string, string>;
   },
 ) {
   const body = JSON.stringify(input.payload);
@@ -299,6 +474,7 @@ async function writePageCaches(
       "cache-tag": `chat:${input.chatId},user:${input.userId}`,
       "x-clauxen-cache": "page-warm-write",
     },
+    input.cors,
   );
   ctx.waitUntil(
     caches.default.put(
@@ -314,108 +490,270 @@ async function writePageCaches(
   );
 }
 
+async function writeListCaches(
+  env: Env,
+  ctx: ExecutionContext,
+  input: {
+    userId: string;
+    projectId: string | null;
+    limit: number;
+    chats: ChatListItem[];
+    cacheTtl: number;
+    cors: Record<string, string>;
+  },
+) {
+  const body = JSON.stringify(input.chats);
+  if (env.CHAT_HISTORY_CACHE) {
+    ctx.waitUntil(
+      env.CHAT_HISTORY_CACHE.put(
+        listKvKey(input.userId, input.projectId, input.limit),
+        body,
+        { expirationTtl: Math.max(60, input.cacheTtl) },
+      ),
+    );
+  }
+  const response = json(
+    { data: { chats: input.chats } },
+    200,
+    {
+      "cache-control": `private, max-age=${input.cacheTtl}, stale-while-revalidate=${Math.max(30, Math.floor(input.cacheTtl / 2))}`,
+      "x-clauxen-cache": "list-warm-write",
+    },
+    input.cors,
+  );
+  ctx.waitUntil(
+    caches.default.put(
+      listCacheRequest(input.userId, input.projectId, input.limit),
+      response,
+    ),
+  );
+}
+
+function requireInternal(request: Request, env: Env): boolean {
+  const token =
+    request.headers.get("x-clauxen-internal") ??
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  return Boolean(
+    env.CHAT_HISTORY_INTERNAL_TOKEN &&
+      token === env.CHAT_HISTORY_INTERNAL_TOKEN,
+  );
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const cors = corsHeaders(env, request);
+
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: CORS_HEADERS });
+      return new Response(null, { headers: cors });
     }
 
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      return json({
-        ok: true,
-        hyperdrive: Boolean(env.HYPERDRIVE?.connectionString || env.DATABASE_URL),
-        kv: Boolean(env.CHAT_HISTORY_CACHE),
-        r2: Boolean(env.CHAT_ARCHIVES),
-      });
+      return json(
+        {
+          ok: true,
+          hyperdrive: Boolean(
+            env.HYPERDRIVE?.connectionString || env.DATABASE_URL,
+          ),
+          hyperdriveFresh: Boolean(env.HYPERDRIVE_FRESH?.connectionString),
+          kv: Boolean(env.CHAT_HISTORY_CACHE),
+          r2: Boolean(env.CHAT_ARCHIVES),
+        },
+        200,
+        undefined,
+        cors,
+      );
     }
 
-    // Write-through warm — called by Next after a turn completes.
     if (url.pathname === "/internal/warm" && request.method === "POST") {
-      const token =
-        request.headers.get("x-clauxen-internal") ??
-        request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-      if (
-        !env.CHAT_HISTORY_INTERNAL_TOKEN ||
-        token !== env.CHAT_HISTORY_INTERNAL_TOKEN
-      ) {
-        return json({ error: "unauthorized" }, 401);
+      if (!requireInternal(request, env)) {
+        return json({ error: "unauthorized" }, 401, undefined, cors);
       }
       const body = (await request.json().catch(() => ({}))) as {
         userId?: string;
         chatId?: string;
         limit?: number;
+        limits?: number[];
       };
       if (!body.userId || !body.chatId) {
-        return json({ error: "userId and chatId required" }, 400);
+        return json({ error: "userId and chatId required" }, 400, undefined, cors);
       }
-      const limit = Math.min(50, Math.max(1, Number(body.limit ?? 2) || 2));
+      const limits = (
+        body.limits?.length
+          ? body.limits
+          : [body.limit ?? 2, 20]
+      )
+        .map((n) => Math.min(50, Math.max(1, Number(n) || 2)))
+        .filter((v, i, a) => a.indexOf(v) === i);
+
       const cacheTtl = Math.max(
         60,
-        Number(env.LATEST_PAGE_CACHE_TTL_SECONDS ?? "600") || 600,
+        Number(env.LATEST_PAGE_CACHE_TTL_SECONDS ?? "1800") || 1800,
       );
+
       try {
-        let page = await fetchMessagesPage(env, {
-          chatId: body.chatId,
-          userId: body.userId,
-          cursorCreatedAt: null,
-          cursorId: null,
-          limit,
-        });
-        page = await alignLatestPair(
-          env,
-          { chatId: body.chatId, userId: body.userId, limit },
-          page,
-        );
-        await writeCaches(env, ctx, {
-          userId: body.userId,
-          chatId: body.chatId,
-          limit,
-          payload: page,
-          cacheTtl,
-        });
-        return json({ ok: true, hasMore: page.hasMore });
+        for (const limit of limits) {
+          let page = await fetchMessagesPage(env, {
+            chatId: body.chatId,
+            userId: body.userId,
+            cursorCreatedAt: null,
+            cursorId: null,
+            limit,
+          });
+          page = await alignLatestPair(
+            env,
+            { chatId: body.chatId, userId: body.userId, limit },
+            page,
+          );
+          await writeCaches(env, ctx, {
+            userId: body.userId,
+            chatId: body.chatId,
+            limit,
+            payload: page,
+            cacheTtl,
+            cors,
+          });
+        }
+        ctx.waitUntil(invalidateListCaches(env, body.userId).then(async () => {
+          const chats = await fetchChatList(env, {
+            userId: body.userId!,
+            projectId: null,
+            limit: 50,
+          });
+          const listTtl = Math.max(
+            60,
+            Number(env.CHAT_LIST_CACHE_TTL_SECONDS ?? "120") || 120,
+          );
+          await writeListCaches(env, ctx, {
+            userId: body.userId!,
+            projectId: null,
+            limit: 50,
+            chats,
+            cacheTtl: listTtl,
+            cors,
+          });
+        }));
+        return json({ ok: true, limits }, 200, undefined, cors);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        return json({ error: message }, 500);
+        return json({ error: message }, 500, undefined, cors);
       }
     }
 
-    // Purge latest-page caches after delete / branch rewrite.
     if (url.pathname === "/internal/invalidate" && request.method === "POST") {
-      const token =
-        request.headers.get("x-clauxen-internal") ??
-        request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-      if (
-        !env.CHAT_HISTORY_INTERNAL_TOKEN ||
-        token !== env.CHAT_HISTORY_INTERNAL_TOKEN
-      ) {
-        return json({ error: "unauthorized" }, 401);
+      if (!requireInternal(request, env)) {
+        return json({ error: "unauthorized" }, 401, undefined, cors);
       }
       const body = (await request.json().catch(() => ({}))) as {
         userId?: string;
         chatId?: string;
+        listsOnly?: boolean;
       };
-      if (!body.userId || !body.chatId) {
-        return json({ error: "userId and chatId required" }, 400);
+      if (!body.userId) {
+        return json({ error: "userId required" }, 400, undefined, cors);
       }
-      ctx.waitUntil(
-        invalidateChatCaches(env, {
-          userId: body.userId,
-          chatId: body.chatId,
-        }),
+      if (body.listsOnly || !body.chatId) {
+        ctx.waitUntil(invalidateListCaches(env, body.userId));
+      } else {
+        ctx.waitUntil(
+          invalidateChatCaches(env, {
+            userId: body.userId,
+            chatId: body.chatId,
+          }),
+        );
+      }
+      return json({ ok: true }, 200, undefined, cors);
+    }
+
+    // Sidebar chat list — Cache API → KV → Hyperdrive
+    if (url.pathname === "/v1/chats" && request.method === "GET") {
+      const user = await verifySupabaseJwt(request, env, ctx);
+      if (!user) return json({ error: "unauthorized" }, 401, undefined, cors);
+
+      const projectId = url.searchParams.get("projectId");
+      const limit = Math.min(
+        100,
+        Math.max(1, Number(url.searchParams.get("limit") ?? "50") || 50),
       );
-      return json({ ok: true });
+      const listTtl = Math.max(
+        60,
+        Number(env.CHAT_LIST_CACHE_TTL_SECONDS ?? "120") || 120,
+      );
+
+      const listHit = await caches.default.match(
+        listCacheRequest(user.sub, projectId, limit),
+      );
+      if (listHit) {
+        const headers = new Headers(listHit.headers);
+        headers.set("x-clauxen-cache", "list-cache-api");
+        for (const [k, v] of Object.entries(cors)) headers.set(k, v);
+        return new Response(listHit.body, { status: listHit.status, headers });
+      }
+
+      if (env.CHAT_HISTORY_CACHE) {
+        const cached = await env.CHAT_HISTORY_CACHE.get(
+          listKvKey(user.sub, projectId, limit),
+          "json",
+        );
+        if (cached) {
+          const response = json(
+            { data: { chats: cached } },
+            200,
+            {
+              "cache-control": `private, max-age=${listTtl}`,
+              "x-clauxen-cache": "list-kv",
+            },
+            cors,
+          );
+          ctx.waitUntil(
+            caches.default.put(
+              listCacheRequest(user.sub, projectId, limit),
+              response.clone(),
+            ),
+          );
+          return response;
+        }
+      }
+
+      try {
+        const chats = await fetchChatList(env, {
+          userId: user.sub,
+          projectId,
+          limit,
+        });
+        ctx.waitUntil(
+          writeListCaches(env, ctx, {
+            userId: user.sub,
+            projectId,
+            limit,
+            chats,
+            cacheTtl: listTtl,
+            cors,
+          }),
+        );
+        return json(
+          { data: { chats } },
+          200,
+          {
+            "cache-control": `private, max-age=${listTtl}`,
+            "x-clauxen-cache": "list-hyperdrive",
+          },
+          cors,
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return json({ error: message }, 500, undefined, cors);
+      }
     }
 
     const match = url.pathname.match(/^\/v1\/chats\/([^/]+)\/messages$/);
     if (!match || request.method !== "GET") {
-      return json({ error: "not_found" }, 404);
+      return json({ error: "not_found" }, 404, undefined, cors);
     }
 
-    const user = await verifySupabaseJwt(request, env);
-    if (!user) return json({ error: "unauthorized" }, 401);
+    const user = await verifySupabaseJwt(request, env, ctx);
+    if (!user) return json({ error: "unauthorized" }, 401, undefined, cors);
 
     const chatId = decodeURIComponent(match[1]!);
     const limit = Math.min(
@@ -427,14 +765,13 @@ export default {
     const isLatestPage = !cursorId && !cursorCreatedAt;
     const cacheTtl = Math.max(
       60,
-      Number(env.LATEST_PAGE_CACHE_TTL_SECONDS ?? "600") || 600,
+      Number(env.LATEST_PAGE_CACHE_TTL_SECONDS ?? "1800") || 1800,
     );
     const cursorTtl = Math.max(
       60,
-      Number(env.CURSOR_PAGE_CACHE_TTL_SECONDS ?? "180") || 180,
+      Number(env.CURSOR_PAGE_CACHE_TTL_SECONDS ?? "300") || 300,
     );
 
-    // L1: Cache API (no daily quota — primary spike shield)
     if (isLatestPage) {
       const hit = await caches.default.match(
         cacheRequest(user.sub, chatId, limit),
@@ -442,10 +779,10 @@ export default {
       if (hit) {
         const headers = new Headers(hit.headers);
         headers.set("x-clauxen-cache", "cache-api");
+        for (const [k, v] of Object.entries(cors)) headers.set(k, v);
         return new Response(hit.body, { status: hit.status, headers });
       }
 
-      // L2: KV pointer/payload
       if (env.CHAT_HISTORY_CACHE) {
         const cached = await env.CHAT_HISTORY_CACHE.get(
           kvKey(user.sub, chatId, limit),
@@ -460,6 +797,7 @@ export default {
               "cache-tag": `chat:${chatId},user:${user.sub}`,
               "x-clauxen-cache": "kv",
             },
+            cors,
           );
           ctx.waitUntil(
             caches.default.put(
@@ -471,7 +809,6 @@ export default {
         }
       }
 
-      // L3: R2 snapshot (high Class B budget on free tier)
       if (env.CHAT_ARCHIVES) {
         const obj = await env.CHAT_ARCHIVES.get(r2Key(user.sub, chatId, limit));
         if (obj) {
@@ -484,25 +821,29 @@ export default {
               "cache-tag": `chat:${chatId},user:${user.sub}`,
               "x-clauxen-cache": "r2",
             },
+            cors,
           );
-          ctx.waitUntil(writeCaches(env, ctx, {
-            userId: user.sub,
-            chatId,
-            limit,
-            payload,
-            cacheTtl,
-          }));
+          ctx.waitUntil(
+            writeCaches(env, ctx, {
+              userId: user.sub,
+              chatId,
+              limit,
+              payload,
+              cacheTtl,
+              cors,
+            }),
+          );
           return response;
         }
       }
     } else {
-      // Older (cursor) pages — Cache API + KV with shorter TTL.
       const pageHit = await caches.default.match(
         pageCacheRequest(user.sub, chatId, limit, cursorId, cursorCreatedAt),
       );
       if (pageHit) {
         const headers = new Headers(pageHit.headers);
         headers.set("x-clauxen-cache", "page-cache-api");
+        for (const [k, v] of Object.entries(cors)) headers.set(k, v);
         return new Response(pageHit.body, {
           status: pageHit.status,
           headers,
@@ -521,6 +862,7 @@ export default {
               "cache-control": `private, max-age=${cursorTtl}`,
               "x-clauxen-cache": "page-kv",
             },
+            cors,
           );
         }
       }
@@ -548,6 +890,7 @@ export default {
             limit,
             payload: page,
             cacheTtl,
+            cors,
           }),
         );
       } else {
@@ -560,6 +903,7 @@ export default {
             cursorCreatedAt,
             payload: page,
             cacheTtl: cursorTtl,
+            cors,
           }),
         );
       }
@@ -576,9 +920,9 @@ export default {
               "cache-control": `private, max-age=${cursorTtl}`,
               "x-clauxen-cache": "hyperdrive-page",
             },
+        cors,
       );
     } catch (error) {
-      // Stale fallback — survive Hyperdrive/query spikes.
       if (isLatestPage && env.CHAT_HISTORY_CACHE) {
         const stale = await env.CHAT_HISTORY_CACHE.get(
           kvKey(user.sub, chatId, limit),
@@ -592,6 +936,7 @@ export default {
               "cache-control": "private, max-age=30",
               "x-clauxen-cache": "stale-fallback",
             },
+            cors,
           );
         }
       }
@@ -606,12 +951,13 @@ export default {
               "cache-control": "private, max-age=30",
               "x-clauxen-cache": "stale-r2-fallback",
             },
+            cors,
           );
         }
       }
       const message = error instanceof Error ? error.message : String(error);
       const status = /not found|not authenticated/i.test(message) ? 404 : 500;
-      return json({ error: message }, status);
+      return json({ error: message }, status, undefined, cors);
     }
   },
 };

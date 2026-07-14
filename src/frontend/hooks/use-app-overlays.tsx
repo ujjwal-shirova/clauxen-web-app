@@ -14,8 +14,10 @@ import { usePathname, useRouter } from "next/navigation";
 import type { SettingsTab } from "@/frontend/components/settings/constants";
 import {
   APP_ROUTES,
-  legacyHashToPath,
-  overlayToPath,
+  buildOverlayLocation,
+  isMainAppPath,
+  overlayToHash,
+  parseOverlayHash,
   parseOverlayPath,
   type AppOverlayPath,
 } from "@/frontend/lib/app-routes";
@@ -42,12 +44,9 @@ type AppOverlaysValue = {
 
 const AppOverlaysContext = createContext<AppOverlaysValue | null>(null);
 
+/** Prefetch real pages only — overlays are hash fragments, not routes. */
 const PREFETCH_PATHS = [
   APP_ROUTES.newChat,
-  APP_ROUTES.upgrade,
-  APP_ROUTES.gift,
-  APP_ROUTES.apps,
-  APP_ROUTES.settings("General"),
   APP_ROUTES.library,
   APP_ROUTES.projects,
   APP_ROUTES.customize,
@@ -55,30 +54,30 @@ const PREFETCH_PATHS = [
 
 function readOverlayFromLocation(): AppOverlayPath | null {
   if (typeof window === "undefined") return null;
-  return parseOverlayPath(window.location.pathname);
+  return (
+    parseOverlayHash(window.location.hash) ??
+    parseOverlayPath(window.location.pathname)
+  );
+}
+
+function parentLocationParts(): { path: string; search: string } {
+  if (typeof window === "undefined") {
+    return { path: APP_ROUTES.newChat, search: "" };
+  }
+  const path = window.location.pathname;
+  const search = window.location.search;
+  if (isMainAppPath(path)) {
+    return { path, search };
+  }
+  return { path: APP_ROUTES.newChat, search: "" };
 }
 
 export function AppOverlaysProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [overlay, setOverlay] = useState<AppOverlayPath | null>(() =>
-    parseOverlayPath(pathname),
+    readOverlayFromLocation(),
   );
-
-  // Deep links / Next Link navigations (e.g. /library) sync overlay from pathname.
-  useEffect(() => {
-    const fromPath = parseOverlayPath(pathname);
-    // Only clear/set from Next pathname when it actually matches location —
-    // avoids wiping optimistic pushState overlays before Next catches up.
-    if (typeof window !== "undefined") {
-      const live = window.location.pathname;
-      if (live !== pathname && parseOverlayPath(live)) {
-        // URL already shows an overlay via pushState; keep local state.
-        return;
-      }
-    }
-    setOverlay(fromPath);
-  }, [pathname]);
 
   useEffect(() => {
     for (const path of PREFETCH_PATHS) {
@@ -90,6 +89,10 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
     }
   }, [router]);
 
+  /**
+   * Migrate legacy path overlays (`/settings/general`, `/upgrade`, …) →
+   * parent page + hash so the main shell always has real content underneath.
+   */
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (
@@ -99,37 +102,77 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
     ) {
       return;
     }
-    const mapped = legacyHashToPath(window.location.hash);
-    if (!mapped) return;
-    const base = `${window.location.pathname}${window.location.search}`;
-    window.history.replaceState(window.history.state, "", base);
-    const next = parseOverlayPath(mapped);
-    setOverlay(next);
-    window.history.pushState({ __clxOverlay: mapped }, "", mapped);
-  }, [pathname]);
 
+    const fromPath = parseOverlayPath(pathname);
+    if (!fromPath) return;
+
+    const hash = overlayToHash(fromPath);
+    const targetPath = APP_ROUTES.newChat;
+    setOverlay(fromPath);
+
+    window.history.replaceState(
+      { __clxOverlay: hash, __clxNav: targetPath },
+      "",
+      `${targetPath}${hash}`,
+    );
+    startTransition(() => {
+      router.replace(targetPath, { scroll: false });
+    });
+    // Restore hash if Next stripped it during soft nav.
+    queueMicrotask(() => {
+      if (window.location.pathname === targetPath && !window.location.hash) {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${targetPath}${hash}`,
+        );
+      }
+    });
+  }, [pathname, router]);
+
+  /** Sync overlay state from hash (popstate / hashchange / soft nav). */
   useEffect(() => {
-    const onPopState = () => {
+    const sync = () => {
       setOverlay(readOverlayFromLocation());
     };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    window.addEventListener("popstate", sync);
+    window.addEventListener("hashchange", sync);
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("hashchange", sync);
+    };
   }, []);
 
-  const writeUrl = useCallback((target: string) => {
+  /** When pathname changes to a main page, re-read hash (deep link on /c/…). */
+  useEffect(() => {
+    if (!isMainAppPath(pathname)) return;
     if (typeof window === "undefined") return;
-    const { pathname: p, search, hash } = window.location;
-    if (p === target && !search && !hash) return;
-    window.history.pushState({ __clxOverlay: target }, "", target);
-  }, []);
+    setOverlay(parseOverlayHash(window.location.hash));
+  }, [pathname]);
+
+  const writeOverlayUrl = useCallback(
+    (next: AppOverlayPath | null, mode: "push" | "replace") => {
+      if (typeof window === "undefined") return;
+      const { path, search } = parentLocationParts();
+      const url = next
+        ? buildOverlayLocation(next, path, search)
+        : `${path}${search}`;
+      const method = mode === "replace" ? "replaceState" : "pushState";
+      const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (current === url) return;
+      window.history[method](
+        { __clxOverlay: next ? overlayToHash(next) : null },
+        "",
+        url,
+      );
+    },
+    [],
+  );
 
   const closeOverlay = useCallback(() => {
     setOverlay(null);
-    writeUrl(APP_ROUTES.newChat);
-    startTransition(() => {
-      router.replace(APP_ROUTES.newChat, { scroll: false });
-    });
-  }, [router, writeUrl]);
+    writeOverlayUrl(null, "push");
+  }, [writeOverlayUrl]);
 
   const openOverlay = useCallback(
     (next: Overlay) => {
@@ -140,14 +183,25 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
       ) {
         return;
       }
-      const target = overlayToPath(next);
+
+      const current = readOverlayFromLocation();
+      const sameSurface =
+        current?.type === next.type &&
+        (next.type !== "settings" ||
+          (current.type === "settings" &&
+            next.type === "settings" &&
+            current.tab === next.tab));
+      if (sameSurface) {
+        setOverlay(next);
+        return;
+      }
+
+      const tabSwitchOnly =
+        current?.type === "settings" && next.type === "settings";
       setOverlay(next);
-      writeUrl(target);
-      startTransition(() => {
-        router.prefetch(target);
-      });
+      writeOverlayUrl(next, tabSwitchOnly ? "replace" : "push");
     },
-    [pathname, router, writeUrl],
+    [pathname, writeOverlayUrl],
   );
 
   const openPricing = useCallback(

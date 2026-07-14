@@ -1,6 +1,12 @@
 name = "clauxen-r2-gateway"
 main = "src/index.ts"
-compatibility_date = "2024-11-01"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "8fc7a67e9057989309921f362784ecf4"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
 
 [vars]
 # SUPABASE_URL and SUPABASE_ANON_KEY set via wrangler secret

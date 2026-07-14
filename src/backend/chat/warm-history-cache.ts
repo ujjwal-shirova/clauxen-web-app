@@ -8,6 +8,7 @@ export async function warmChatHistoryCache(input: {
   userId: string;
   chatId: string;
   limit?: number;
+  limits?: number[];
 }): Promise<void> {
   const base = env.chatHistoryWorkerUrl;
   const token = env.chatHistoryInternalToken;
@@ -24,8 +25,10 @@ export async function warmChatHistoryCache(input: {
         userId: input.userId,
         chatId: input.chatId,
         limit: input.limit ?? 2,
+        limits: input.limits ?? [2, 20],
       }),
       cache: "no-store",
+      signal: AbortSignal.timeout(12_000),
     });
   } catch {
     // best-effort

@@ -1,5 +1,10 @@
-import { redirect } from "next/navigation";
+"use client";
 
+import { LegacyOverlayRedirect } from "@/frontend/components/legacy-overlay-redirect";
+
+/** Legacy `/settings` → `/new#settings`. */
 export default function SettingsIndexPage() {
-  redirect("/settings/general");
+  return (
+    <LegacyOverlayRedirect overlay={{ type: "settings", tab: "General" }} />
+  );
 }

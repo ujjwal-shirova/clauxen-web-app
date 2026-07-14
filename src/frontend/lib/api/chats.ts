@@ -21,7 +21,54 @@ export type ApiMessage = {
   created_at: string;
 };
 
+function chatHistoryWorkerBase(): string {
+  return (process.env.NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL ?? "").replace(
+    /\/+$/,
+    "",
+  );
+}
+
+/** Prefer Cloudflare Worker (Hyperdrive + cache ladder) when configured. */
+async function listChatsViaWorker(projectId?: string): Promise<{
+  chats: ApiChat[];
+} | null> {
+  const base = chatHistoryWorkerBase();
+  if (!base || typeof window === "undefined") return null;
+
+  try {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+
+    const params = new URLSearchParams({ limit: "50" });
+    if (projectId) params.set("projectId", projectId);
+    const response = await fetch(`${base}/v1/chats?${params}`, {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        Accept: "application/json",
+      },
+      credentials: "omit",
+      signal: AbortSignal.timeout(6_000),
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as {
+      data?: { chats?: ApiChat[] };
+      chats?: ApiChat[];
+    };
+    const chats = payload.data?.chats ?? payload.chats;
+    if (!Array.isArray(chats)) return null;
+    return { chats };
+  } catch {
+    return null;
+  }
+}
+
 export async function listChats(projectId?: string) {
+  const fromWorker = await listChatsViaWorker(projectId);
+  if (fromWorker) return fromWorker;
+
   const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
   return apiFetch<{ chats: ApiChat[] }>(`/api/v1/chats${qs}`);
 }
@@ -47,13 +94,6 @@ export type MessagesPage = {
   nextCursor: MessagePageCursor | null;
   hasMore: boolean;
 };
-
-function chatHistoryWorkerBase(): string {
-  return (process.env.NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL ?? "").replace(
-    /\/+$/,
-    "",
-  );
-}
 
 /** Prefer Cloudflare Worker (Hyperdrive) when configured; fall back to Next API. */
 async function listMessagesPageViaWorker(
@@ -89,6 +129,8 @@ async function listMessagesPageViaWorker(
           Accept: "application/json",
         },
         credentials: "omit",
+        // Fail open to Next API if Worker hangs — avoids stuck message shimmer.
+        signal: AbortSignal.timeout(8_000),
       },
     );
     if (!response.ok) return null;

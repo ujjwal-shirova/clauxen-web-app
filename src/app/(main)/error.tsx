@@ -56,6 +56,9 @@ export default function MainAppError({
 
   // Invisible placeholder — matches the app shell background, no copy/buttons.
   return (
-    <div className="min-h-[100dvh] w-full bg-white" aria-busy="true" />
+    <div
+      className="min-h-[100dvh] w-full bg-[var(--app-shell-bg)]"
+      aria-busy="true"
+    />
   );
 }

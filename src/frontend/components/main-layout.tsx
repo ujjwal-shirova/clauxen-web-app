@@ -38,10 +38,6 @@ const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
   "/customize",
   "/projects",
-  "/upgrade",
-  "/gift",
-  "/apps",
-  "/settings",
 ] as const;
 
 function shouldMobileFullBleed(pathname: string | null): boolean {
@@ -70,9 +66,21 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (auth.loading) return;
     if (auth.user?.id) return;
-    const redirectTo = `${pathname ?? "/"}${typeof window !== "undefined" ? window.location.search : ""}`;
+    const search =
+      typeof window !== "undefined" ? window.location.search : "";
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    const redirectTo = `${pathname ?? "/"}${search}${hash}`;
     router.replace(`/login?redirectTo=${encodeURIComponent(redirectTo)}`);
   }, [auth.loading, auth.user?.id, pathname, router]);
+
+  // Boot: `/` → `/new` once identity is known (preserve overlay hash).
+  React.useEffect(() => {
+    if (pathname !== "/") return;
+    if (!auth.user?.id) return;
+    const hash =
+      typeof window !== "undefined" ? window.location.hash : "";
+    instantNavigate(`${APP_ROUTES.newChat}${hash}`, { replace: true });
+  }, [pathname, auth.user?.id, instantNavigate]);
 
   const chat = useChatSession();
   const {
@@ -221,10 +229,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p === "/new" ||
       p === "/library" ||
       p === "/projects" ||
-      p === "/upgrade" ||
-      p === "/gift" ||
-      p === "/apps" ||
-      p.startsWith("/settings") ||
       p.startsWith("/customize") ||
       (p.startsWith("/projects") && !p.includes("/conversations/"))
     ) {
@@ -276,7 +280,10 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onLibraryClick={goToLibrary}
         onCustomizeClick={goToCustomize}
         onHistoryClick={goToHistory}
-        activeView={computeActiveViewFromPath(pathname)}
+        activeView={computeActiveView(
+          pathname,
+          overlays.currentOverlay?.type ?? null,
+        )}
         recentChats={startedRecentChats}
         activeChatId={sidebarActiveChatId}
         chatsLoading={chatsLoading}
@@ -368,8 +375,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
 
-  // Wait for identity (cookie hint / JWT / session) before mounting chat hooks.
-  // Paint a shell skeleton immediately so FCP/LCP are not a blank white screen.
+  // Identity hint seeds user instantly; shimmer only until we have an id.
   if (!auth.user?.id) {
     return <MainShellSkeleton />;
   }
@@ -383,15 +389,18 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function computeActiveViewFromPath(pathname: string | null): string {
+function computeActiveView(
+  pathname: string | null,
+  overlayType: string | null,
+): string {
+  if (overlayType === "settings") return "settings";
+  if (overlayType === "pricing") return "upgrade";
+  if (overlayType === "gift") return "gift";
+  if (overlayType === "apps") return "apps";
   if (!pathname) return "chat";
   if (pathname.startsWith("/projects")) return "projects";
   if (pathname.startsWith("/library")) return "library";
   if (pathname.startsWith("/customize")) return "customize";
-  if (pathname.startsWith("/settings")) return "settings";
-  if (pathname === "/upgrade" || pathname === "/pricing") return "upgrade";
-  if (pathname === "/gift") return "gift";
-  if (pathname === "/apps") return "apps";
   if (pathname === "/new" || pathname === "/") return "chat";
   return "chat";
 }

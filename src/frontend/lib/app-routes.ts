@@ -1,6 +1,9 @@
 /**
- * Canonical app routes — shareable paths for chat shell surfaces.
- * Prefer these over hash fragments (#pricing) to avoid hydration / router races.
+ * Canonical app routes.
+ *
+ * Main pages (real Next routes): `/`, `/new`, `/c/:id`, `/library`, `/projects`, …
+ * Sub-pages / overlays (hash fragments, ChatGPT-style): `#settings`, `#settings/Personalization`,
+ * `#pricing`, `#gift`, `#apps` — parent page stays loaded underneath.
  */
 
 import {
@@ -18,12 +21,10 @@ const LEGACY_SETTINGS_TABS: Record<string, SettingsTab> = {
 export function normalizeSettingsTab(value: string): SettingsTab {
   const decoded = decodeURIComponent(value).trim();
   if (isSettingsTab(decoded)) return decoded;
-  // slug form: personalization, time-and-focus
   const fromSlug = decoded
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-  // Fix known multi-word tabs after naive title-case
   const slugMap: Record<string, SettingsTab> = {
     general: "General",
     personalization: "Personalization",
@@ -56,30 +57,30 @@ export function normalizeSettingsTab(value: string): SettingsTab {
 }
 
 export function settingsTabToSlug(tab: SettingsTab): string {
-  return tab
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-");
+  return tab.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
+/** Main (parent) page paths — never use these for overlays. */
 export const APP_ROUTES = {
+  root: "/",
   newChat: "/new",
   home: "/new",
-  upgrade: "/upgrade",
-  pricing: "/upgrade",
-  gift: "/gift",
-  apps: "/apps",
   library: "/library",
   projects: "/projects",
   customize: "/customize",
-  settings: (tab: SettingsTab | string = "General") =>
-    `/settings/${settingsTabToSlug(
-      isSettingsTab(tab) ? tab : normalizeSettingsTab(String(tab)),
-    )}`,
   chat: (chatId: string) => `/c/${encodeURIComponent(chatId)}`,
   project: (projectId: string) => `/projects/${encodeURIComponent(projectId)}`,
   projectConversation: (projectId: string, chatId: string) =>
     `/projects/${encodeURIComponent(projectId)}/conversations/${encodeURIComponent(chatId)}`,
+  /** @deprecated Prefer overlay hash helpers — kept for legacy path redirects. */
+  upgrade: "/upgrade",
+  pricing: "/upgrade",
+  gift: "/gift",
+  apps: "/apps",
+  settings: (tab: SettingsTab | string = "General") =>
+    `/settings/${settingsTabToSlug(
+      isSettingsTab(tab) ? tab : normalizeSettingsTab(String(tab)),
+    )}`,
 } as const;
 
 export type AppOverlayPath =
@@ -88,8 +89,54 @@ export type AppOverlayPath =
   | { type: "gift" }
   | { type: "settings"; tab: SettingsTab };
 
-/** Parse pathname into an overlay surface (null = chat / other main content). */
-export function parseOverlayPath(pathname: string | null): AppOverlayPath | null {
+/** Parse hash fragment into an overlay (ChatGPT-style). */
+export function parseOverlayHash(
+  hash: string | null | undefined,
+): AppOverlayPath | null {
+  if (!hash) return null;
+  const clean = hash.replace(/^#/, "").split(/[?#]/)[0] ?? "";
+  if (!clean) return null;
+
+  if (clean === "pricing" || clean === "upgrade") {
+    return { type: "pricing" };
+  }
+  if (clean === "apps") return { type: "apps" };
+  if (clean === "gift") return { type: "gift" };
+
+  if (clean === "settings" || clean.startsWith("settings/")) {
+    const parts = clean.split("/");
+    const raw = parts[1] ? decodeURIComponent(parts.slice(1).join("/")) : "General";
+    return { type: "settings", tab: normalizeSettingsTab(raw) };
+  }
+
+  return null;
+}
+
+/** Hash fragment for an overlay (includes leading `#`). */
+export function overlayToHash(overlay: AppOverlayPath): string {
+  switch (overlay.type) {
+    case "pricing":
+      return "#pricing";
+    case "apps":
+      return "#apps";
+    case "gift":
+      return "#gift";
+    case "settings":
+      return overlay.tab === "General"
+        ? "#settings"
+        : `#settings/${encodeURIComponent(overlay.tab)}`;
+    default:
+      return "";
+  }
+}
+
+/**
+ * Legacy path overlays (`/settings/general`, `/upgrade`, …).
+ * Used only to migrate old bookmarks → hash on the parent page.
+ */
+export function parseOverlayPath(
+  pathname: string | null,
+): AppOverlayPath | null {
   if (!pathname) return null;
   if (pathname === "/upgrade" || pathname === "/pricing") {
     return { type: "pricing" };
@@ -106,6 +153,7 @@ export function parseOverlayPath(pathname: string | null): AppOverlayPath | null
   return null;
 }
 
+/** @deprecated Use overlayToHash — path overlays are no longer primary. */
 export function overlayToPath(overlay: AppOverlayPath): string {
   switch (overlay.type) {
     case "pricing":
@@ -126,21 +174,44 @@ export function isNewChatPath(pathname: string | null): boolean {
   return pathname === "/new" || pathname === "/" || pathname === "";
 }
 
+/** True when pathname is a real main surface (not a legacy overlay path). */
+export function isMainAppPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (parseOverlayPath(pathname)) return false;
+  return (
+    pathname === "/" ||
+    pathname === "/new" ||
+    pathname.startsWith("/c/") ||
+    pathname === "/library" ||
+    pathname.startsWith("/library/") ||
+    pathname === "/projects" ||
+    pathname.startsWith("/projects/") ||
+    pathname === "/customize" ||
+    pathname.startsWith("/customize/")
+  );
+}
+
 /**
- * Map legacy hash overlays (#pricing, #settings/General) → path.
- * Returns null when hash is not an overlay fragment.
+ * Build parent URL + overlay hash. Defaults parent to `/new` when current
+ * location is a legacy overlay path (so refresh never lands on a blank page).
  */
-export function legacyHashToPath(hash: string): string | null {
-  if (!hash) return null;
-  const clean = hash.replace(/^#/, "").split("#")[0] ?? "";
-  if (!clean) return null;
-  if (clean === "pricing") return APP_ROUTES.upgrade;
-  if (clean === "apps") return APP_ROUTES.apps;
-  if (clean === "gift") return APP_ROUTES.gift;
-  if (clean.startsWith("settings")) {
-    const parts = clean.split("/");
-    const raw = parts[1] ? decodeURIComponent(parts[1]) : "General";
-    return APP_ROUTES.settings(normalizeSettingsTab(raw));
+export function buildOverlayLocation(
+  overlay: AppOverlayPath,
+  parentPathname?: string | null,
+  parentSearch?: string,
+): string {
+  const hash = overlayToHash(overlay);
+  let path = parentPathname || APP_ROUTES.newChat;
+  if (!isMainAppPath(path)) {
+    path = APP_ROUTES.newChat;
   }
-  return null;
+  const search = parentSearch ?? "";
+  return `${path}${search}${hash}`;
+}
+
+/** @deprecated Prefer parseOverlayHash — kept for auth redirect helpers. */
+export function legacyHashToPath(hash: string): string | null {
+  const overlay = parseOverlayHash(hash);
+  if (!overlay) return null;
+  return overlayToPath(overlay);
 }

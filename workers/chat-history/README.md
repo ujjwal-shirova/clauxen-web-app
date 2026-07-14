@@ -1,59 +1,53 @@
 # Clauxen chat-history Worker
 
-Edge keyset pagination for `chat_messages`, optimized so Hyperdrive is a **miss-only** path:
+Edge data plane so Hyperdrive is a **miss-only** path:
 
-1. **Cache API** (same-colo, no daily quota) — hottest latest pages
+1. **Cache API** (same-colo, no daily quota) — hottest pages + JWT memo + chat list
 2. **Workers KV** (`CHAT_HISTORY_CACHE`) — short TTL edge cache
 3. **R2** (`CHAT_ARCHIVES` → `clauxen-chat-archives`) — durable head snapshots
-4. **Hyperdrive** → Supabase Postgres (`fetch_chat_messages_page`) — cold miss only
-
-After each completed turn the Next app can `POST /internal/warm` (shared secret) so the next reload is served from Cache/KV/R2 without burning Hyperdrive quota.
-
-Destructive edits should `POST /internal/invalidate` so stale latest pages are purged.
-
-Default latest-page TTL is **600s**; cursor pages use **180s** (`CURSOR_PAGE_CACHE_TTL_SECONDS`).
-
-Responses include `x-clauxen-cache: cache-api|kv|r2|hyperdrive|page-*` for observability.
+4. **Hyperdrive** → Supabase Postgres — cold miss only
 
 ## Live
 
 - Worker: `https://clauxen-chat-history.ujjwal-8fc.workers.dev`
 - Hyperdrive id: `54df64d31cce4e6f8f34415c6fb4e849`
-- KV namespace: `CHAT_HISTORY_CACHE` (`8d917e9639df4dc2a12be2a35cf264af`)
-- R2 bucket: `clauxen-chat-archives`
-- Account: `8fc7a67e9057989309921f362784ecf4`
+- KV: `CHAT_HISTORY_CACHE` (`8d917e9639df4dc2a12be2a35cf264af`)
+- R2: `clauxen-chat-archives`
+- Placement: `aws:us-west-1`
+
+## API
+
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| GET | `/v1/chats?limit=50&projectId=` | Bearer JWT | Sidebar list (Cache → KV → Hyperdrive) |
+| GET | `/v1/chats/:id/messages?limit=&cursor_*` | Bearer JWT | Message pages |
+| POST | `/internal/warm` | `x-clauxen-internal` | Warm limits `[2,20]` + refresh list |
+| POST | `/internal/invalidate` | `x-clauxen-internal` | Purge message + list caches |
+| GET | `/health` | — | Binding status |
+
+Responses include `x-clauxen-cache: cache-api|kv|r2|hyperdrive|list-*|jwt-*`.
+
+Default TTLs: latest **1800s**, cursor **300s**, list **120s**, JWT memo **60s**.
 
 ## App env
 
 ```bash
 NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL=https://clauxen-chat-history.ujjwal-8fc.workers.dev
 CHAT_HISTORY_WORKER_URL=https://clauxen-chat-history.ujjwal-8fc.workers.dev
-CHAT_HISTORY_INTERNAL_TOKEN=<shared-secret-for-/internal/warm>
-CLOUDFLARE_ACCOUNT_ID=8fc7a67e9057989309921f362784ecf4
+CHAT_HISTORY_INTERNAL_TOKEN=<shared-secret>
 ```
 
-Public Worker URLs are in Vercel + `.env.production`. Set `CHAT_HISTORY_INTERNAL_TOKEN` to the same value as the Worker secret.
-
-## Redeploy
+## Deploy / Hyperdrive tune
 
 ```bash
-cd workers/chat-history
-npx wrangler deploy
+# Needs a valid CLOUDFLARE_API_TOKEN
+./scripts/ops/apply-cloudflare-perf-stack.sh
+
+# Or manually:
+cd workers/chat-history && npx wrangler deploy
+npx wrangler hyperdrive update 54df64d31cce4e6f8f34415c6fb4e849 --max-age 300 --swr 60
 ```
 
-Secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `DATABASE_URL`, `CHAT_HISTORY_INTERNAL_TOKEN`.
+Optional second Hyperdrive (`--caching-disabled`) → bind as `HYPERDRIVE_FRESH` for read-after-write.
 
-## API
-
-`GET /v1/chats/:chatId/messages?limit=2&cursor_id=&cursor_created_at=`
-
-Authorization: `Bearer <supabase_access_token>`
-
-Default `limit` is **2** (one user + one assistant pair). Latest pages are pair-aligned server-side.
-
-`POST /internal/warm` — write-through Cache/KV/R2 after a turn completes.
-Header: `x-clauxen-internal: <CHAT_HISTORY_INTERNAL_TOKEN>`
-
-## Limits note
-
-Free Workers still have a daily request cap; Cache API itself has no daily quota. Paid Workers ($5) removes the 100k/day cliff. Hyperdrive queries stay rare because of the cache ladder.
+Secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `CHAT_HISTORY_INTERNAL_TOKEN` (+ `DATABASE_URL` fallback).
