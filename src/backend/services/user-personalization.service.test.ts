@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { formatPersonalizationAppend } from "./user-personalization.service";
 
 describe("formatPersonalizationAppend", () => {
-  it("includes preferred name, work, style, and custom instructions under Shirova scope", () => {
+  it("includes preferred name, modular style instructions, and custom instructions under Shirova scope", () => {
     const out = formatPersonalizationAppend({
       fullName: "Ujjwal Tyagi",
       nickname: "Ujjwal",
@@ -25,15 +25,19 @@ describe("formatPersonalizationAppend", () => {
     assert.match(out, /Preferred name: Ujjwal/);
     assert.match(out, /Work \/ role: Founder/);
     assert.match(out, /<response_style>/);
-    assert.match(out, /Base style and tone: Professional/);
-    assert.match(out, /Warmth: More/);
+    assert.match(out, /<base_style_and_tone>/);
+    assert.match(out, /Professional/);
+    assert.match(out, /<characteristic_warm>/);
+    assert.match(out, /Friendlier and more personable|Increase interpersonal warmth/i);
+    assert.match(out, /<characteristic_headers_lists>/);
+    assert.doesNotMatch(out, /Personality: Friendly/);
     assert.match(out, /<memory_and_tools>/);
     assert.match(out, /<custom_instructions>/);
     assert.match(out, /Shirova safety/);
     assert.match(out, /Prefer analogies when explaining concepts/);
   });
 
-  it("still emits memory block when profile fields are empty", () => {
+  it("still emits Default modular style + memory block when profile fields are empty", () => {
     const out = formatPersonalizationAppend({
       fullName: null,
       nickname: null,
@@ -50,6 +54,9 @@ describe("formatPersonalizationAppend", () => {
       referenceChatHistory: false,
       webSearch: false,
     });
+    assert.match(out, /<response_style>/);
+    assert.match(out, /<base_style_and_tone>/);
+    assert.match(out, /balanced preset style/i);
     assert.match(out, /<memory_and_tools>/);
     assert.match(out, /Web search is disabled/);
     assert.doesNotMatch(out, /<user_profile>/);

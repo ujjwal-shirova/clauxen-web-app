@@ -9,7 +9,6 @@ import {
   characteristicEnthusiasticOptions,
   characteristicHeadersListsOptions,
   characteristicWarmOptions,
-  personalityOptions,
 } from "@/frontend/components/settings/constants";
 import {
   SettingsOptionPicker,
@@ -83,16 +82,6 @@ export function PersonalizationSettingsPanel({
       </h2>
 
       <SettingsSection title="Style">
-        <SettingsRow
-          label="Personality"
-          description="How Clauxen communicates. This doesn’t change what it can do."
-        >
-          <SettingsOptionPicker
-            value={p.personality || "Default"}
-            options={personalityOptions}
-            onValueChange={(personality) => onChange({ personality })}
-          />
-        </SettingsRow>
         <SettingsRow
           label="Base style and tone"
           description="Set the style and tone of how Clauxen responds to you. This doesn’t impact Clauxen’s capabilities."

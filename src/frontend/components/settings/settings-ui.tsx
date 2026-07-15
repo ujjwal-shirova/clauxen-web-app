@@ -202,7 +202,7 @@ const settingsFocusReset =
   "outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0";
 
 const settingsOptionMenuContentClass =
-  "z-[120] min-w-[13.5rem] max-w-[18rem] rounded-xl border border-zinc-200 bg-white p-1.5 text-zinc-900 shadow-[0_8px_24px_rgba(24,24,27,0.08)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)]";
+  "z-[120] min-w-[14rem] max-w-[20rem] rounded-2xl border border-zinc-200/90 bg-white p-1.5 text-zinc-900 shadow-[0_12px_32px_rgba(24,24,27,0.12)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_12px_32px_rgba(0,0,0,0.5)]";
 
 const settingsOptionTriggerClass = cn(
   "no-hover-overlay inline-flex h-9 min-h-9 w-full shrink-0 items-center justify-between gap-1.5 rounded-lg bg-white/80 px-2.5 text-[14px] leading-5 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] transition-[box-shadow,background-color] duration-75 hover:bg-white sm:h-8 sm:min-h-8 sm:w-auto sm:justify-start sm:px-2 data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] dark:hover:bg-zinc-900 dark:data-[state=open]:bg-zinc-900",
@@ -210,7 +210,7 @@ const settingsOptionTriggerClass = cn(
 );
 
 const settingsOptionMenuItemClass = cn(
-  "flex cursor-pointer select-none items-start gap-2 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus:text-zinc-900 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800 dark:data-[highlighted]:bg-zinc-800",
+  "flex cursor-pointer select-none items-start gap-2.5 rounded-xl px-3 py-2.5 text-[14px] font-[430] text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus:text-zinc-900 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800 dark:data-[highlighted]:bg-zinc-800",
   settingsFocusReset,
 );
 
@@ -273,7 +273,7 @@ export function SettingsOptionPicker({
         align={align}
         className={cn(
           settingsOptionMenuContentClass,
-          hasDescriptions && "min-w-[15rem]",
+          hasDescriptions && "min-w-[16.5rem]",
         )}
         onCloseAutoFocus={(event) => event.preventDefault()}
       >

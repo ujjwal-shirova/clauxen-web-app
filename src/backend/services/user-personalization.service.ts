@@ -2,13 +2,15 @@
  * Loads user profile personalization and formats it for the chat system prompt.
  * Appended after the static model + platform UI prefix so prompt cache stays stable.
  *
- * Custom instructions / style prefs are scoped under Shirova guidelines — they
- * never override safety / platform rules.
+ * Style / tone / characteristics come from modular .md instruction files that
+ * swap when the user changes Personalization settings. Custom instructions are
+ * scoped under Shirova guidelines — they never override safety / platform rules.
  */
 
 import * as settingsRepo from "@/backend/repositories/settings.repository";
 import * as profileRepo from "@/backend/repositories/profile.repository";
 import { trimProfileName } from "@/lib/profile-names";
+import { formatPersonalizationStyleBlock } from "@/backend/services/personalization-style-instructions";
 
 export const MAX_CUSTOM_INSTRUCTIONS_LEN = 1500;
 
@@ -17,6 +19,7 @@ export type UserPersonalization = {
   nickname: string | null;
   occupation: string | null;
   customInstructions: string | null;
+  /** @deprecated Removed from UI — ignored in prompt (base style covers this). */
   personality: string | null;
   baseStyleTone: string | null;
   characteristicWarm: string | null;
@@ -39,9 +42,9 @@ function asBool(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
-function nonDefault(value: string | null): string | null {
-  if (!value || value === "Default") return null;
-  return value;
+/** Keep raw level including Default — modular Default .md files are intentional. */
+function asStyleChoice(value: unknown, maxLen: number): string | null {
+  return asTrimmedString(value, maxLen);
 }
 
 export async function loadUserPersonalization(
@@ -82,21 +85,23 @@ export async function loadUserPersonalization(
       personalization?.customInstructions,
       MAX_CUSTOM_INSTRUCTIONS_LEN,
     ),
-    personality: nonDefault(asTrimmedString(personalization?.personality, 64)),
-    baseStyleTone: nonDefault(
-      asTrimmedString(personalization?.baseStyleTone, 64),
+    personality: asStyleChoice(personalization?.personality, 64),
+    baseStyleTone: asStyleChoice(personalization?.baseStyleTone, 64),
+    characteristicWarm: asStyleChoice(
+      personalization?.characteristicWarm,
+      32,
     ),
-    characteristicWarm: nonDefault(
-      asTrimmedString(personalization?.characteristicWarm, 32),
+    characteristicEnthusiastic: asStyleChoice(
+      personalization?.characteristicEnthusiastic,
+      32,
     ),
-    characteristicEnthusiastic: nonDefault(
-      asTrimmedString(personalization?.characteristicEnthusiastic, 32),
+    characteristicHeadersLists: asStyleChoice(
+      personalization?.characteristicHeadersLists,
+      32,
     ),
-    characteristicHeadersLists: nonDefault(
-      asTrimmedString(personalization?.characteristicHeadersLists, 32),
-    ),
-    characteristicEmoji: nonDefault(
-      asTrimmedString(personalization?.characteristicEmoji, 32),
+    characteristicEmoji: asStyleChoice(
+      personalization?.characteristicEmoji,
+      32,
     ),
     fastAnswers: asBool(personalization?.fastAnswers, true),
     referenceSavedMemories: asBool(
@@ -127,34 +132,17 @@ export function formatPersonalizationAppend(
     profileLines.push(`Work / role: ${p.occupation}`);
   }
 
-  const styleLines: string[] = [];
-  if (p.personality) {
-    styleLines.push(`Personality: ${p.personality}`);
-  }
-  if (p.baseStyleTone) {
-    styleLines.push(`Base style and tone: ${p.baseStyleTone}`);
-  }
-  if (p.characteristicWarm) {
-    styleLines.push(`Warmth: ${p.characteristicWarm}`);
-  }
-  if (p.characteristicEnthusiastic) {
-    styleLines.push(`Enthusiasm: ${p.characteristicEnthusiastic}`);
-  }
-  if (p.characteristicHeadersLists) {
-    styleLines.push(`Headers & lists: ${p.characteristicHeadersLists}`);
-  }
-  if (p.characteristicEmoji) {
-    styleLines.push(`Emoji: ${p.characteristicEmoji}`);
-  }
-  if (p.fastAnswers) {
-    styleLines.push(
-      "Fast answers: preferred — concise general-knowledge answers are OK when personalization is not required.",
-    );
-  } else {
-    styleLines.push(
-      "Fast answers: off — prefer thorough, personalized replies.",
-    );
-  }
+  const styleBlock = formatPersonalizationStyleBlock({
+    baseStyleTone: p.baseStyleTone,
+    characteristicWarm: p.characteristicWarm,
+    characteristicEnthusiastic: p.characteristicEnthusiastic,
+    characteristicHeadersLists: p.characteristicHeadersLists,
+    characteristicEmoji: p.characteristicEmoji,
+  });
+
+  const fastAnswersLine = p.fastAnswers
+    ? "Fast answers: preferred — concise general-knowledge answers are OK when personalization is not required."
+    : "Fast answers: off — prefer thorough, personalized replies.";
 
   const memoryLines: string[] = [];
   memoryLines.push(
@@ -186,16 +174,17 @@ export function formatPersonalizationAppend(
     );
   }
 
-  if (styleLines.length > 0) {
-    blocks.push(
-      [
-        "<response_style>",
-        "Apply these style preferences when they do not conflict with Shirova safety or platform guidelines.",
-        ...styleLines,
-        "</response_style>",
-      ].join("\n"),
-    );
+  if (styleBlock) {
+    blocks.push(styleBlock);
   }
+
+  blocks.push(
+    [
+      "<response_preferences>",
+      fastAnswersLine,
+      "</response_preferences>",
+    ].join("\n"),
+  );
 
   blocks.push(
     ["<memory_and_tools>", ...memoryLines, "</memory_and_tools>"].join("\n"),

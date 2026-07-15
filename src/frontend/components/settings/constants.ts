@@ -226,3 +226,6 @@ export const personalityOptions = [
   "Pragmatic",
   "None",
 ] as const;
+
+/** @deprecated Personality row removed — base style and tone owns this. */
+export const PERSONALITY_SETTING_DEPRECATED = true;
