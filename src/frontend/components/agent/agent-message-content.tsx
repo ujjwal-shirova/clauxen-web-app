@@ -1,6 +1,7 @@
 "use client";
 
 import type { Message } from "@/frontend/lib/types";
+import { messageUiKey } from "@/frontend/lib/message-ui-key";
 import { AssistantContentRenderer } from "@/frontend/components/assistant-content-renderer";
 import { ThinkingBlock } from "@/frontend/components/thinking-block";
 import { StreamingOrbCursor } from "@/frontend/components/ui/streaming-orb-cursor";
@@ -49,7 +50,7 @@ export function AgentMessageContent({
               content={message.content}
               messageId={message.id}
               isStreaming={!!message.isStreaming}
-              streamKey={message.id}
+              streamKey={messageUiKey(message)}
               detailLevel={detailLevel}
               agentArtifacts={message.agentArtifacts}
               {...({ sources: collectMessageSources(message) } as any)}

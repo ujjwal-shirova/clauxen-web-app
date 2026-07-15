@@ -25,6 +25,8 @@ import type {
 import { buildStructuredOutputTool } from "@/backend/inference/openai-agent-adapter";
 import { buildModelSystemPrompt } from "@/backend/inference/system-prompt";
 import { buildUserPersonalizationAppend } from "@/backend/services/user-personalization.service";
+import { loadFollowUpSuggestionsEnabled } from "@/backend/services/follow-up-settings.service";
+import { buildFollowUpSystemInstruction } from "@/lib/follow-up-prompt";
 
 export type AgentStreamEvent =
   | { event: "text_delta"; data: { text: string } }
@@ -87,10 +89,15 @@ async function buildSystemPromptAsync(request: AgentChatRequest) {
     ? "When the conversation has a clear topic, output a short title (3-6 words) for the sidebar."
     : "";
 
-  const personalization = await buildUserPersonalizationAppend(
-    (request as { userId?: string }).userId,
-  );
-  const append = [personalization, titleInstr]
+  const userId = (request as { userId?: string }).userId;
+  const [personalization, followUpsEnabled] = await Promise.all([
+    buildUserPersonalizationAppend(userId),
+    loadFollowUpSuggestionsEnabled(userId),
+  ]);
+  const followUpInstr = followUpsEnabled
+    ? buildFollowUpSystemInstruction()
+    : "";
+  const append = [personalization, titleInstr, followUpInstr]
     .map((part) => part.trim())
     .filter(Boolean)
     .join("\n\n");

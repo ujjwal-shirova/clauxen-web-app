@@ -269,16 +269,32 @@ export async function runNovitaAgentChat(
   const { buildUserPersonalizationAppend } = await import(
     "@/backend/services/user-personalization.service"
   );
+  const { loadFollowUpSuggestionsEnabled } = await import(
+    "@/backend/services/follow-up-settings.service"
+  );
+  const { buildFollowUpSystemInstruction } = await import(
+    "@/lib/follow-up-prompt"
+  );
   const logical = request.chatModel || request.model || "virgil";
   const personalizationAppend = await buildUserPersonalizationAppend(
     context?.userId,
   );
+  const followUpsEnabled = await loadFollowUpSuggestionsEnabled(
+    context?.userId,
+  );
+  const followUpInstr = followUpsEnabled
+    ? buildFollowUpSystemInstruction()
+    : "";
+  const append = [personalizationAppend, followUpInstr]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("\n\n");
   const conversation: AgentMessage[] = [
     {
       role: "system",
       content: buildModelSystemPrompt({
         model: logical,
-        append: personalizationAppend || undefined,
+        append: append || undefined,
       }),
     },
     ...messages,

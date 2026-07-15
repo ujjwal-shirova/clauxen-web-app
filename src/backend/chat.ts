@@ -21,6 +21,8 @@ import {
 } from "@/backend/inference/clauxen-sse-stream";
 import { buildModelSystemPrompt } from "@/backend/inference/system-prompt";
 import { buildUserPersonalizationAppend } from "@/backend/services/user-personalization.service";
+import { loadFollowUpSuggestionsEnabled } from "@/backend/services/follow-up-settings.service";
+import { buildFollowUpSystemInstruction } from "@/lib/follow-up-prompt";
 
 async function requireChatSession(request: Request) {
   const session = await getSessionFromRequest(request as NextRequest);
@@ -68,12 +70,21 @@ export async function handleChatPost(request: Request) {
     const homerReasoningEffort = parseHomerReasoningEffort(body?.homerReasoningEffort);
 
     // Build the system prompt from the model's .md file + user personalization.
-    const personalizationAppend = await buildUserPersonalizationAppend(
-      auth.session?.id,
-    );
+    const userId = auth.session?.id;
+    const [personalizationAppend, followUpsEnabled] = await Promise.all([
+      buildUserPersonalizationAppend(userId),
+      loadFollowUpSuggestionsEnabled(userId),
+    ]);
+    const followUpInstr = followUpsEnabled
+      ? buildFollowUpSystemInstruction()
+      : "";
+    const append = [personalizationAppend, followUpInstr]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join("\n\n");
     const systemPrompt = buildModelSystemPrompt({
       model: chatModelId,
-      append: personalizationAppend || undefined,
+      append: append || undefined,
     });
 
     // Build agent stream options

@@ -101,7 +101,9 @@ export function UserMessageInlineEditor({
   React.useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    textarea.focus();
+    // preventScroll: focusing a sticky host must not fight chat scroll /
+    // sticky release (browser scrollIntoView keeps the edit box pinned).
+    textarea.focus({ preventScroll: true });
     const len = textarea.value.length;
     textarea.setSelectionRange(len, len);
   }, [messageId]);

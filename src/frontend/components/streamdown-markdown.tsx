@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, type AnchorHTMLAttributes, type ReactNode } from "react";
 import type { Components } from "react-markdown";
 import { Streamdown } from "streamdown";
 import { createMathPlugin } from "@streamdown/math";
@@ -11,6 +11,8 @@ import {
 } from "@/frontend/components/markdown-shared";
 import { createCitationLink } from "@/frontend/components/chat-sources";
 import type { ChatSource } from "@/frontend/lib/chat-sources";
+import { FollowUpPrompt } from "@/frontend/components/follow-up-prompt";
+import { parseClauxenPromptHref } from "@/frontend/lib/follow-up-tags";
 
 const streamdownMath = createMathPlugin({
   singleDollarTextMath: false,
@@ -22,6 +24,35 @@ type StreamdownStreamingMarkdownProps = {
   streamKey?: string;
   sources?: ChatSource[];
 };
+
+function createMarkdownLinkRenderer(sources: ChatSource[]) {
+  const CitationLink = sources.length > 0 ? createCitationLink(sources) : null;
+
+  return function MarkdownLink(
+    props: AnchorHTMLAttributes<HTMLAnchorElement> & {
+      node?: unknown;
+      children?: ReactNode;
+    },
+  ) {
+    const { href, children, ...rest } = props;
+    const prompt = parseClauxenPromptHref(href);
+    if (prompt) {
+      return <FollowUpPrompt prompt={prompt} />;
+    }
+    if (CitationLink) {
+      return (
+        <CitationLink href={href} {...rest}>
+          {children}
+        </CitationLink>
+      );
+    }
+    return (
+      <a href={href} {...rest}>
+        {children}
+      </a>
+    );
+  };
+}
 
 /**
  * Streamdown + LaTeX. Streaming uses the same tree as settled — no per-token fade.
@@ -46,14 +77,8 @@ export function StreamdownStreamingMarkdown({
         className?: string;
         children?: ReactNode;
       }) => <CodeRenderer {...codeProps} />,
+      a: createMarkdownLinkRenderer(sources),
     } satisfies Components;
-
-    if (sources.length > 0) {
-      return {
-        ...base,
-        a: createCitationLink(sources),
-      };
-    }
 
     return base;
   }, [sources]);

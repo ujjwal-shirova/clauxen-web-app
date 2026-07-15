@@ -19,6 +19,12 @@ export type MessageBranchVersion = {
 
 export type Message = {
   id: string;
+  /**
+   * Stable UI identity for the lifetime of a turn. Never changes when `id`
+   * swaps from optimistic (`temp-*` / client UUID) → durable DB id — keeps
+   * React keys, enter animations, and Streamdown trees from remounting.
+   */
+  clientId?: string;
   role: "user" | "assistant";
   content: string;
   thinkingContent?: string;

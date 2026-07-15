@@ -10,6 +10,8 @@ import { ClauxenSseStream } from "@/backend/inference/clauxen-sse-stream";
 import type { IncomingMessage } from "@/backend/inference/novita";
 import { buildModelSystemPrompt } from "@/backend/inference/system-prompt";
 import { buildUserPersonalizationAppend } from "@/backend/services/user-personalization.service";
+import { loadFollowUpSuggestionsEnabled } from "@/backend/services/follow-up-settings.service";
+import { buildFollowUpSystemInstruction } from "@/lib/follow-up-prompt";
 import { resolveModelRuntime, parseChatModelId, modelCatalogEnvFromProcess } from "@/lib/model-catalog";
 import {
   parseHomerReasoningEffort,
@@ -35,15 +37,20 @@ export async function createChatStream(
   const chatModelId = parseChatModelId(options.chatModel);
   const runtime = resolveModelRuntime(chatModelId, catalogEnv);
 
-  const [personalizationAppend] = await Promise.all([
+  const [personalizationAppend, followUpsEnabled] = await Promise.all([
     buildUserPersonalizationAppend(options.userId),
+    loadFollowUpSuggestionsEnabled(options.userId),
   ]);
 
   const titleInstr = options.generateChatTitle
     ? "When the conversation has a clear topic, output a short title (3-6 words) for the sidebar."
     : "";
 
-  const append = [personalizationAppend, titleInstr]
+  const followUpInstr = followUpsEnabled
+    ? buildFollowUpSystemInstruction()
+    : "";
+
+  const append = [personalizationAppend, titleInstr, followUpInstr]
     .map((part) => part.trim())
     .filter(Boolean)
     .join("\n\n");

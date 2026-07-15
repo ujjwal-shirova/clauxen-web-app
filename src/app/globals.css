@@ -1114,6 +1114,21 @@ button.user-message-card__body:not(:disabled):hover,
   padding-bottom: 0.35rem;
 }
 
+/* Expanded inline editor uses the same sticky host path as the collapsed
+   preview — do not introduce overflow/contain that would trap sticky release. */
+.sticky-user-msg-host[data-user-msg-editing="true"] {
+  position: sticky;
+  top: var(--header-height, 44px);
+  overflow: visible;
+  contain: none;
+}
+
+.sticky-user-msg-host[data-user-msg-editing="true"].sticky-user-msg--stuck {
+  z-index: 25;
+  isolation: isolate;
+  background-color: #ffffff;
+}
+
 [data-conversation-turn] .assistant-message {
   position: relative;
   z-index: 0;

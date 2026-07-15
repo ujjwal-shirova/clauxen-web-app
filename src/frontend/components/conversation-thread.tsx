@@ -33,8 +33,10 @@ import type {
   ComposerAttachment,
   MessageAttachment,
 } from "@/frontend/lib/composer-attachments";
-import { FollowUpSuggestions } from "@/frontend/components/follow-up-suggestions";
+import { messageUiKey } from "@/frontend/lib/message-ui-key";
+import { FollowUpPromptProvider } from "@/frontend/contexts/follow-up-prompt-context";
 import { useAppPreferencesOptional } from "@/frontend/contexts/app-preferences-context";
+import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
@@ -200,7 +202,7 @@ const MessageRow = React.memo(
     const renderDetailLevel: MessageDetailLevel =
       forcedDetailLevel ?? detailLevel;
     const { shouldAnimate, markEntered } = useMessageEnterAnimation(
-      message.id,
+      messageUiKey(message),
       true,
     );
     const messageSources = React.useMemo(
@@ -390,7 +392,7 @@ const MessageRow = React.memo(
                       content={message.content}
                       messageId={message.id}
                       isStreaming={!!message.isStreaming}
-                      streamKey={message.id}
+                      streamKey={messageUiKey(message)}
                       detailLevel={renderDetailLevel}
                       agentArtifacts={message.agentArtifacts}
                       {...({ sources: messageSources } as any)}
@@ -637,8 +639,12 @@ const ConversationTurn = React.memo(
     const turnRootRef = React.useRef<HTMLDivElement>(null);
     const userMsgHostRef = React.useRef<HTMLDivElement>(null);
 
+    const isEditingUser =
+      !!userMessage && editingMessageId === userMessage.id;
+
     // Measure user message height for code-header sticky offset (layout effect
     // so --turn-user-msg-height is ready before first paint / sticky sync).
+    // Re-run when entering/leaving edit — editor height differs from preview.
     React.useLayoutEffect(() => {
       const turnEl = turnRootRef.current;
       const hostEl = userMsgHostRef.current;
@@ -664,7 +670,7 @@ const ConversationTurn = React.memo(
         ro.disconnect();
         turnEl.style.removeProperty("--turn-user-msg-height");
       };
-    }, [userMessage]);
+    }, [userMessage, isEditingUser]);
 
     return (
       <div
@@ -683,6 +689,7 @@ const ConversationTurn = React.memo(
             <div
               ref={userMsgHostRef}
               data-sticky-user-msg
+              data-user-msg-editing={isEditingUser ? "true" : undefined}
               className="sticky-user-msg-host sticky-user-msg w-full max-w-full shrink-0"
             >
               <MessageRow
@@ -707,7 +714,7 @@ const ConversationTurn = React.memo(
         )}
         {assistantMessages.map((msg) => (
           <MessageRow
-            key={msg.id}
+            key={messageUiKey(msg)}
             message={msg}
             editingMessageId={editingMessageId}
             editValue={editingMessageId === msg.id ? editValue : undefined}
@@ -898,7 +905,9 @@ function syncStickyUserMessages(viewport: HTMLElement, turnCount: number) {
 
     const sentinelBottom = sentinel.getBoundingClientRect().bottom;
     const userTop = el.getBoundingClientRect().top;
-    const isPinned = Math.abs(userTop - stickyLineY) < 2;
+    // Slightly wider pin slop while editing — expanded host has more subpixel drift.
+    const pinSlop = el.dataset.userMsgEditing === "true" ? 4 : 2;
+    const isPinned = Math.abs(userTop - stickyLineY) < pinSlop;
     const shouldStuck = isPinned && sentinelBottom < stickyLineY;
 
     if (el.classList.contains("sticky-user-msg--stuck") !== shouldStuck) {
@@ -965,7 +974,7 @@ export function ConversationThread({
   const isMobile = useIsMobile();
 
   const handleCopy = React.useCallback(async (id: string, text: string) => {
-    const markdown = text.trim();
+    const markdown = stripFollowUpPromptTags(text).trim();
     if (!markdown) return;
     try {
       await navigator.clipboard.writeText(markdown);
@@ -1125,6 +1134,43 @@ export function ConversationThread({
     setEditValue("");
   }, []);
 
+  // Click main chat surface (not sidebar) to collapse the inline editor.
+  React.useEffect(() => {
+    if (!editingMessageId) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      if (target.closest("[data-user-message-editing]")) return;
+      // Keep edit open when interacting with the sidebar / mobile nav.
+      if (
+        target.closest(
+          "#app-primary-nav, .sidebar-hover-area, [data-sidebar], [data-mobile-nav]",
+        )
+      ) {
+        return;
+      }
+      // Portaled overlays (attachment preview, menus) live outside the panel.
+      if (
+        target.closest(
+          '[role="dialog"], [data-radix-portal], [data-sonner-toaster]',
+        )
+      ) {
+        return;
+      }
+      // Only dismiss when the click is inside the main chat/agent panel.
+      if (!target.closest('[data-component="agent-panel"]')) return;
+
+      handleCancelEdit();
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [editingMessageId, handleCancelEdit]);
+
   const handleSaveEdit = React.useCallback(
     async (
       messageId: string,
@@ -1144,20 +1190,6 @@ export function ConversationThread({
     () => groupMessagesIntoTurns(messages),
     [messages],
   );
-
-  const showFollowUpSuggestions = React.useMemo(() => {
-    if (!followUpsEnabled || !onFollowUpSelect || isGeneratingProp) return false;
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const message = messages[index];
-      if (message.role !== "assistant") continue;
-      return (
-        !message.isStreaming &&
-        (Boolean(message.content?.trim()) ||
-          shouldUseAgentMessageLayout(message))
-      );
-    }
-    return false;
-  }, [followUpsEnabled, onFollowUpSelect, isGeneratingProp, messages]);
 
   const stickyStreamKey = React.useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -1188,6 +1220,46 @@ export function ConversationThread({
     }
     return listRef.current;
   }, [scrollAreaRef]);
+
+  // While editing, blur on user-driven viewport scroll so focus/scrollIntoView
+  // cannot keep the expanded sticky host pinned when it should release.
+  React.useEffect(() => {
+    if (!editingMessageId) return;
+    const viewport = getScrollElement();
+    if (!viewport) return;
+
+    let userScrollArmed = false;
+    const armUserScroll = () => {
+      userScrollArmed = true;
+    };
+    const onScrollbarPointerDown = (event: PointerEvent) => {
+      if (event.target === viewport) armUserScroll();
+    };
+    const onViewportScroll = () => {
+      if (!userScrollArmed) return;
+      userScrollArmed = false;
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLElement &&
+        active.closest("[data-user-message-editing]")
+      ) {
+        active.blur();
+      }
+      stickySyncRef.current?.();
+    };
+
+    viewport.addEventListener("wheel", armUserScroll, { passive: true });
+    viewport.addEventListener("touchstart", armUserScroll, { passive: true });
+    viewport.addEventListener("pointerdown", onScrollbarPointerDown);
+    viewport.addEventListener("scroll", onViewportScroll, { passive: true });
+
+    return () => {
+      viewport.removeEventListener("wheel", armUserScroll);
+      viewport.removeEventListener("touchstart", armUserScroll);
+      viewport.removeEventListener("pointerdown", onScrollbarPointerDown);
+      viewport.removeEventListener("scroll", onViewportScroll);
+    };
+  }, [editingMessageId, getScrollElement]);
 
   React.useLayoutEffect(() => {
     resetStickyTurnCache();
@@ -1286,7 +1358,7 @@ export function ConversationThread({
   React.useEffect(() => {
     if (isFastScrollingProp || isGeneratingProp) return;
     stickySyncRef.current?.();
-  }, [stickyStreamKey, isFastScrollingProp, isGeneratingProp]);
+  }, [stickyStreamKey, isFastScrollingProp, isGeneratingProp, editingMessageId]);
 
   const turnProps = {
     editingMessageId,
@@ -1305,6 +1377,10 @@ export function ConversationThread({
   };
 
   return (
+    <FollowUpPromptProvider
+      enabled={followUpsEnabled}
+      onSelect={onFollowUpSelect}
+    >
     <div
       ref={listRef}
       className={cn(
@@ -1319,7 +1395,11 @@ export function ConversationThread({
 
       {groups.map((group, index) => (
         <ConversationTurn
-          key={group.userMessage?.id || `turn-${index}`}
+          key={
+            group.userMessage
+              ? messageUiKey(group.userMessage)
+              : `turn-${index}`
+          }
           turnIndex={index}
           userMessage={group.userMessage}
           assistantMessages={group.assistantMessages}
@@ -1329,9 +1409,6 @@ export function ConversationThread({
           {...turnProps}
         />
       ))}
-      {showFollowUpSuggestions && onFollowUpSelect ? (
-        <FollowUpSuggestions onSelect={onFollowUpSelect} />
-      ) : null}
       <div
         className="chat-thread-scroll-anchor h-px w-full shrink-0"
         aria-hidden
@@ -1433,6 +1510,7 @@ export function ConversationThread({
           document.body,
         )}
     </div>
+    </FollowUpPromptProvider>
   );
 }
 

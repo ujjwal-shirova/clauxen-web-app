@@ -265,7 +265,7 @@ export function GeneralSettings({
 
         <SettingsToggleRow
           label="Follow-up suggestions"
-          description="Show suggested follow-up questions after responses."
+          description="Let Clauxen end replies with clickable follow-up prompts."
           checked={followUpSuggestions}
           onCheckedChange={setFollowUpSuggestions}
           borderless

@@ -75,6 +75,7 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
   };
   const base = compactMessageBranchData({
     id: row.id,
+    clientId: row.id,
     role: row.role as Message["role"],
     content: finalizeChatTitleStrippedAnswer(row.content),
     thinkingContent: meta.thinkingContent,
@@ -306,6 +307,7 @@ export function useChatApi(
                 next[localIndex] = {
                   ...local,
                   id: mapped.id,
+                  clientId: local.clientId ?? local.id,
                   isStreaming: local.isStreaming || mapped.isStreaming,
                 };
                 setGeneration(activeChatId, {
@@ -328,10 +330,13 @@ export function useChatApi(
               );
               if (tempIndex >= 0) {
                 const next = [...existing];
+                const local = next[tempIndex]!;
                 next[tempIndex] = {
-                  ...next[tempIndex]!,
+                  ...local,
                   ...mapped,
                   id: mapped.id,
+                  clientId: local.clientId ?? local.id,
+                  attachments: local.attachments ?? mapped.attachments,
                 };
                 return { ...prev, [activeChatId]: next };
               }
@@ -443,6 +448,20 @@ export function useChatApi(
         .getState()
         .clearInactiveChatMessages(chatId, { alsoKeep: previousChatId });
 
+      const existing = useChatStore.getState().messageIdsByChatId[chatId];
+      const isLive =
+        Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
+        Boolean(getGeneration(chatId));
+      const alreadyHydrated = hydratedChatIdsRef.current.has(chatId);
+
+      // Keep optimistic / in-flight turns — never let SSR seed or a fetch
+      // wipe a live stream (that remount flicker on send).
+      if (existing && existing.length > 0 && (alreadyHydrated || isLive)) {
+        takePendingChatRouteSeed(chatId);
+        setMessagesLoading(false);
+        return;
+      }
+
       const ssrSeed = takePendingChatRouteSeed(chatId);
       if (ssrSeed) {
         applyHydratedMessages(
@@ -450,18 +469,6 @@ export function useChatApi(
           ssrSeed.messages,
           ssrSeed.branchMessages,
         );
-        setMessagesLoading(false);
-        return;
-      }
-
-      const existing = useChatStore.getState().messageIdsByChatId[chatId];
-      const isLive =
-        Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
-        Boolean(getGeneration(chatId));
-      const alreadyHydrated = hydratedChatIdsRef.current.has(chatId);
-
-      // Keep optimistic / in-flight turns — don't replace with a stale fetch.
-      if (existing && existing.length > 0 && (alreadyHydrated || isLive)) {
         setMessagesLoading(false);
         return;
       }
@@ -634,6 +641,7 @@ export function useChatApi(
       const controller = new AbortController();
       const assistantIdLocal = overrideAssistantId ?? randomUUID();
       let assistantId = assistantIdLocal;
+      const assistantClientId = assistantIdLocal;
       setGeneration(chatId, {
         request: controller,
         assistantMessageId: assistantId,
@@ -645,14 +653,17 @@ export function useChatApi(
       // while the generate request is in flight (cuts perceived TTFT).
       setAllChats((prev) => {
         const current = prev[chatId] ?? [];
-        const exists = current.some((m) => m.id === assistantId);
+        const exists = current.some(
+          (m) => m.id === assistantId || m.clientId === assistantClientId,
+        );
         if (exists) {
           return {
             ...prev,
             [chatId]: current.map((m) =>
-              m.id === assistantId
+              m.id === assistantId || m.clientId === assistantClientId
                 ? {
                     ...m,
+                    clientId: m.clientId ?? assistantClientId,
                     isStreaming: true,
                     content: "",
                     thinkingContent: "",
@@ -670,6 +681,7 @@ export function useChatApi(
             ...current,
             {
               id: assistantId,
+              clientId: assistantClientId,
               role: "assistant",
               content: "",
               isStreaming: true,
@@ -729,10 +741,18 @@ export function useChatApi(
           useChatStore.getState().setStreaming({ chatId, messageId: assistantId });
           setAllChats((prev) => {
             const list = prev[chatId] ?? [];
-            const index = list.findIndex((message) => message.id === previousId);
+            const index = list.findIndex(
+              (message) =>
+                message.id === previousId ||
+                message.clientId === assistantClientId,
+            );
             if (index < 0) return prev;
             const next = [...list];
-            next[index] = { ...next[index]!, id: assistantId };
+            next[index] = {
+              ...next[index]!,
+              id: assistantId,
+              clientId: next[index]!.clientId ?? assistantClientId,
+            };
             return { ...prev, [chatId]: next };
           });
         }
@@ -847,7 +867,7 @@ export function useChatApi(
         setAllChats((prev) => ({
           ...prev,
           [chatId]: (prev[chatId] ?? []).map((m) =>
-            m.id === assistantId
+            m.id === assistantId || m.clientId === assistantClientId
               ? {
                   ...m,
                   content: (() => {
@@ -883,7 +903,7 @@ export function useChatApi(
           setAllChats((prev) => ({
             ...prev,
             [chatId]: (prev[chatId] ?? []).map((m) =>
-              m.id === assistantId
+              m.id === assistantId || m.clientId === assistantClientId
                 ? {
                     ...m,
                     isStreaming: false,
@@ -968,6 +988,7 @@ export function useChatApi(
       const tempUserId = `temp-${randomUUID()}`;
       const optimisticUser: Message = {
         id: tempUserId,
+        clientId: tempUserId,
         role: "user",
         content: trimmed,
         attachments:
@@ -1125,6 +1146,7 @@ export function useChatApi(
                 ...next[index]!,
                 ...real,
                 id: real.id,
+                clientId: next[index]!.clientId ?? tempUserId,
                 attachments: next[index]!.attachments ?? optimisticUser.attachments,
               };
               return { ...prev, [chatId!]: next };

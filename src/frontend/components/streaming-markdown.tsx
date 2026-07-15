@@ -8,6 +8,8 @@ import {
 } from "@/frontend/lib/chat-sources";
 import { normalizeLatexDelimiters } from "@/frontend/components/markdown-shared";
 import { StreamdownStreamingMarkdown } from "@/frontend/components/streamdown-markdown";
+import { prepareFollowUpPromptsForMarkdown } from "@/frontend/lib/follow-up-tags";
+import { useFollowUpPrompt } from "@/frontend/contexts/follow-up-prompt-context";
 
 export type StreamingMarkdownProps = {
   content: string;
@@ -27,13 +29,19 @@ export function StreamingMarkdown({
   streamKey,
   sources = [],
 }: StreamingMarkdownProps) {
+  const { enabled: followUpsEnabled } = useFollowUpPrompt();
+
   const normalized = useMemo(() => {
     let text = stripReferenceDefinitions(normalizeLatexDelimiters(content));
+    text = prepareFollowUpPromptsForMarkdown(text, {
+      enabled: followUpsEnabled,
+      isStreaming,
+    });
     if (sources.length > 0) {
       text = convertCitationReferencesToLinks(text, sources);
     }
     return text;
-  }, [content, sources]);
+  }, [content, sources, followUpsEnabled, isStreaming]);
 
   return (
     <div
