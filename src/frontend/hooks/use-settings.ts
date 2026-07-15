@@ -16,10 +16,9 @@ import type {
 import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
 import { normalizeAppSettings } from "@/frontend/lib/settings-normalize";
 
-function mergeLocal(
-  prev: AppSettings,
-  patch: Parameters<typeof settingsApi.updateSettings>[0],
-): AppSettings {
+type SettingsPatch = Parameters<typeof settingsApi.updateSettings>[0];
+
+function mergeLocal(prev: AppSettings, patch: SettingsPatch): AppSettings {
   return normalizeAppSettings({
     ...prev,
     general: patch.general ? { ...prev.general, ...patch.general } : prev.general,
@@ -42,11 +41,43 @@ function mergeLocal(
   });
 }
 
+function mergePatches(a: SettingsPatch, b: SettingsPatch): SettingsPatch {
+  return {
+    ...a,
+    ...b,
+    general: a.general || b.general ? { ...a.general, ...b.general } : undefined,
+    personalization:
+      a.personalization || b.personalization
+        ? { ...a.personalization, ...b.personalization }
+        : undefined,
+    notifications:
+      a.notifications || b.notifications
+        ? { ...a.notifications, ...b.notifications }
+        : undefined,
+    privacy: a.privacy || b.privacy ? { ...a.privacy, ...b.privacy } : undefined,
+    capabilities:
+      a.capabilities || b.capabilities
+        ? { ...a.capabilities, ...b.capabilities }
+        : undefined,
+    timeAndFocus:
+      a.timeAndFocus || b.timeAndFocus
+        ? { ...a.timeAndFocus, ...b.timeAndFocus }
+        : undefined,
+    reflect: a.reflect || b.reflect ? { ...a.reflect, ...b.reflect } : undefined,
+    safety: a.safety || b.safety ? { ...a.safety, ...b.safety } : undefined,
+    claw: a.claw || b.claw ? { ...a.claw, ...b.claw } : undefined,
+  };
+}
+
 export function useSettings(enabled: boolean) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [loading, setLoading] = useState(enabled);
   const [saving, setSaving] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingPatchRef = useRef<SettingsPatch>({});
+  const settingsRef = useRef(settings);
+  const dirtyRef = useRef(false);
+  settingsRef.current = settings;
 
   const refresh = useCallback(async () => {
     if (!enabled) {
@@ -58,9 +89,13 @@ export function useSettings(enabled: boolean) {
     setLoading(true);
     try {
       const data = await settingsApi.getSettings();
+      // Never clobber in-flight optimistic edits with a stale GET.
+      if (dirtyRef.current || Object.keys(pendingPatchRef.current).length > 0) {
+        setSettings((prev) => prev);
+        return;
+      }
       setSettings(normalizeAppSettings(data));
     } catch {
-      // Keep current defaults — never clear the UI on API/challenge failures.
       setSettings((prev) => normalizeAppSettings(prev));
     } finally {
       setLoading(false);
@@ -77,7 +112,7 @@ export function useSettings(enabled: boolean) {
   }, [enabled, refresh]);
 
   const persist = useCallback(
-    async (patch: Parameters<typeof settingsApi.updateSettings>[0]) => {
+    async (patch: SettingsPatch) => {
       if (!enabled) {
         setSettings((prev) => mergeLocal(prev, patch));
         return;
@@ -85,10 +120,12 @@ export function useSettings(enabled: boolean) {
 
       setSaving(true);
       try {
-        const data = await settingsApi.updateSettings(patch);
-        setSettings(normalizeAppSettings(data));
+        await settingsApi.updateSettings(patch);
+        // Keep optimistic local state — replacing from the PATCH response
+        // caused 2–4s toggle flicker when GET/PATCH raced.
+        dirtyRef.current = false;
       } catch {
-        // Optimistic local state already applied via schedulePersist.
+        // Local optimistic state already applied; next refresh will reconcile.
       } finally {
         setSaving(false);
       }
@@ -96,16 +133,36 @@ export function useSettings(enabled: boolean) {
     [enabled],
   );
 
+  const flushPending = useCallback(() => {
+    const patch = pendingPatchRef.current;
+    pendingPatchRef.current = {};
+    if (!patch || Object.keys(patch).length === 0) return;
+    void persist(patch);
+  }, [persist]);
+
   const schedulePersist = useCallback(
-    (patch: Parameters<typeof settingsApi.updateSettings>[0]) => {
-      setSettings((prev) => mergeLocal(prev, patch));
+    (patch: SettingsPatch) => {
+      dirtyRef.current = true;
+      setSettings((prev) => {
+        const next = mergeLocal(prev, patch);
+        settingsRef.current = next;
+        return next;
+      });
+      pendingPatchRef.current = mergePatches(pendingPatchRef.current, patch);
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      // Short debounce — UI is already updated; backend catches up quietly.
       saveTimer.current = setTimeout(() => {
-        void persist(patch);
-      }, 400);
+        flushPending();
+      }, 120);
     },
-    [persist],
+    [flushPending],
   );
+
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
 
   const updateGeneral = useCallback(
     (patch: Partial<GeneralSettings>) => schedulePersist({ general: patch }),

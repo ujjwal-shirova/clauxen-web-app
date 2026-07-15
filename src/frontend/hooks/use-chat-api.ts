@@ -204,7 +204,7 @@ export function useChatApi(
     if (!silent) setLoading(true);
     try {
       const { chats } = await chatsApi.listChats(projectIdFilter ?? undefined);
-      const nextChats = chats.map((c) => ({
+      const serverChats: RecentChat[] = chats.map((c) => ({
         id: c.id,
         name: c.name,
         titleGenerated: c.name.toLowerCase() !== "new chat",
@@ -212,8 +212,40 @@ export function useChatApi(
         pinned: Boolean(c.pinned),
         updatedAt: new Date(c.updatedAt).getTime(),
       }));
-      recentChatsRef.current = nextChats;
-      setRecentChats(nextChats);
+      setRecentChats((prev) => {
+        const serverIds = new Set(serverChats.map((c) => c.id));
+        // Keep optimistic "creating" rows until the real id lands.
+        const optimistic = prev.filter(
+          (c) =>
+            (c.isCreating || c.id.startsWith("pending-")) &&
+            !serverIds.has(c.id),
+        );
+        const merged = serverChats.map((server) => {
+          const local = prev.find((p) => p.id === server.id);
+          if (!local) return server;
+          if (local.isTitleStreaming) {
+            return {
+              ...server,
+              name: local.name,
+              isTitleStreaming: true,
+              titleGenerated: local.titleGenerated,
+            };
+          }
+          return {
+            ...server,
+            // Prefer fresher local updatedAt so a just-created chat stays on top.
+            updatedAt: Math.max(local.updatedAt ?? 0, server.updatedAt ?? 0),
+          };
+        });
+        const next = [...optimistic, ...merged].sort((a, b) => {
+          if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+            return a.pinned ? -1 : 1;
+          }
+          return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+        });
+        recentChatsRef.current = next;
+        return next;
+      });
     } catch (error) {
       // Challenge HTML / transient network — keep existing sidebar list.
       console.warn("[chats] list failed (soft):", error);
@@ -997,44 +1029,76 @@ export function useChatApi(
             : undefined,
       };
 
+      // Optimistic pending id — paint chat-view + sidebar immediately.
+      let pendingChatId: string | null = null;
       if (!chatId) {
+        pendingChatId = `pending-${randomUUID()}`;
+        chatId = pendingChatId;
         setCreatingChatPending(true);
+        setActiveChatId(pendingChatId);
+        setRecentChats((prev) => {
+          const next = [
+            {
+              id: pendingChatId!,
+              name: "New chat",
+              titleGenerated: false,
+              isCreating: true,
+              projectId: projectIdFilter ?? undefined,
+              updatedAt: Date.now(),
+            },
+            ...prev.filter((c) => c.id !== pendingChatId),
+          ];
+          recentChatsRef.current = next;
+          return next;
+        });
+        setAllChats((prev) => ({
+          ...prev,
+          [pendingChatId!]: [optimisticUser],
+        }));
+        hydratedChatIdsRef.current.add(pendingChatId);
+      } else {
+        // Existing chat — paint the user bubble immediately (before network).
+        setAllChats((prev) => ({
+          ...prev,
+          [chatId!]: [...(prev[chatId!] ?? []), optimisticUser],
+        }));
       }
 
       try {
-        if (!chatId) {
+        if (pendingChatId) {
           const { chat } = await chatsApi.createChat({
             title: "New chat",
             projectId: projectIdFilter ?? undefined,
           });
-          chatId = chat.id;
-          // Paint chat-view immediately: set id + user bubble before generate.
-          setActiveChatId(chatId);
+          const realId = chat.id;
+
+          // Remap generation map key if anything was registered under pending.
+          const pendingGen = getGeneration(pendingChatId);
+          if (pendingGen) {
+            setGeneration(pendingChatId, null);
+            setGeneration(realId, pendingGen);
+          }
+          useChatStore.getState().migrateChatId(pendingChatId, realId);
+          hydratedChatIdsRef.current.delete(pendingChatId);
+          hydratedChatIdsRef.current.add(realId);
+
           setRecentChats((prev) => {
             const next = [
               {
-                id: chat.id,
+                id: realId,
                 name: chat.title || "New chat",
                 titleGenerated: false,
+                isCreating: false,
                 projectId: projectIdFilter ?? undefined,
                 updatedAt: Date.now(),
               },
-              ...prev.filter((c) => c.id !== chat.id),
+              ...prev.filter((c) => c.id !== pendingChatId && c.id !== realId),
             ];
             recentChatsRef.current = next;
             return next;
           });
-          setAllChats((prev) => ({
-            ...prev,
-            [chatId!]: [optimisticUser],
-          }));
-          hydratedChatIdsRef.current.add(chatId!);
-        } else {
-          // Existing chat — paint the user bubble immediately (before network).
-          setAllChats((prev) => ({
-            ...prev,
-            [chatId!]: [...(prev[chatId!] ?? []), optimisticUser],
-          }));
+          chatId = realId;
+          setCreatingChatPending(false);
         }
 
         // Upload attachments in parallel; failures mark chips but still stream text.
@@ -1157,6 +1221,22 @@ export function useChatApi(
           });
 
         return chatId;
+      } catch (error) {
+        if (pendingChatId) {
+          setCreatingChatPending(false);
+          setRecentChats((prev) => {
+            const next = prev.filter((c) => c.id !== pendingChatId);
+            recentChatsRef.current = next;
+            return next;
+          });
+          useChatStore.getState().removeChat(pendingChatId);
+          if (useChatStore.getState().activeChatId === pendingChatId) {
+            setActiveChatId(null);
+          }
+          hydratedChatIdsRef.current.delete(pendingChatId);
+        }
+        console.warn("[chat] send failed:", error);
+        return null;
       } finally {
         if (isNewChat) setCreatingChatPending(false);
       }

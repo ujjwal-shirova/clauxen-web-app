@@ -98,6 +98,28 @@ export async function createChat(input: {
   );
 }
 
+/** One DB round-trip: unique id + insert with workspace from profiles. */
+export async function createChatFast(input: {
+  userId: string;
+  title?: string;
+  projectId?: string | null;
+  id?: string;
+}) {
+  const id = input.id ?? (await allocateUniqueChatId());
+  return queryOne<ChatRow>(
+    `insert into public.chats (id, user_id, project_id, workspace_id, title)
+     values (
+       $1,
+       $2,
+       $3,
+       (select default_workspace_id from public.profiles where id = $2 limit 1),
+       $4
+     )
+     returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
+    [id, input.userId, input.projectId ?? null, input.title ?? "New chat"],
+  );
+}
+
 export async function updateChat(
   chatId: string,
   userId: string,

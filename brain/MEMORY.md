@@ -47,11 +47,13 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-14 | Magic link signup (new users): 5-min link → `/auth/magic` set-password → onboarding | Label under Continue with Email; existing-user magic login deferred |
 | 2026-07-14 | Settings Profile: names/work/custom instructions persist to profiles + user_settings; custom instructions append to chat system prompt under Shirova guidelines | Production ChatGPT/Claude-style personalization |
 | 2026-07-14 | Settings Personalization: style/characteristics/fast answers/memory note + Advanced (web search, canvas, connector search; no voice) wired to settings JSONB + capabilities | ChatGPT-parity personalization pane |
+| 2026-07-15 | Personalization: modular `.md` style instructions; Personality UI removed (duplicate of base style); virgil.md no longer hardcodes warm/emoji/list personality | Settings-driven style swaps alongside main system prompt |
 | 2026-07-14 | Settings General preferences: theme (light/dark/system via next-themes + `.dark` tokens), Google chat fonts on assistant markdown only, motion + follow-up chips; AppPreferencesProvider applies + persists to Supabase `user_settings.settings.general` | Prefs were saved but never applied to DOM |
 | 2026-07-14 | Overlays use ChatGPT-style hashes (`#settings`, `#settings/Personalization`, `#pricing`) on parent pages (`/new`, `/c/…`); legacy `/settings/*` `/upgrade` redirect to `/new#…` | Path overlays blanked the main panel and forced close→`/new` |
 | 2026-07-15 | Vercel Require Verified Commits is ON — GitHub must show commit as Verified (SSH signing key uploaded separately from auth key) | Deployments of unverified commits are auto-canceled |
-| 2026-07-15 | Follow-ups are model-emitted `<prompt>` tags in markdown, not chip rows; instruction gated by settings toggle | Match Claude-style clickable follow-up actions |
-| 2026-07-15 | Stable `clientId` + skip SSR seed while live to stop send flicker | Optimistic UI remounted on temp→DB id / route seed |
+| 2026-07-15 | Notifications: Push/Email popover with row-click toggles; settings persist optimistic (no PATCH response overwrite) | Fix 2–4s toggle flicker |
+| 2026-07-15 | New chat: optimistic pending id paints chat-view + top Recents row immediately; header controls hide (no shimmer) until server id; sidebar generating = round spinner not splash dot; createChatFast single DB round-trip | ChatGPT/Claude-like instant send |
+| 2026-07-15 | Personalization style/characteristics use modular `.md` instructions (base style + warm/enthusiastic/headers/emoji More|Default|Less); Personality row removed as duplicate of base style; virgil.md no longer hardcodes warm/emoji/list personality | ChatGPT-parity settings; style swaps without editing main system card |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |

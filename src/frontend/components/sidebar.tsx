@@ -239,9 +239,10 @@ export function Sidebar({
       <div className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left">
         {isGeneratingChat ? (
           <span
-            className="chat-gen-splash shrink-0"
+            className="chat-gen-spinner shrink-0"
             aria-label="Generating"
             title="Generating"
+            role="status"
           />
         ) : null}
         <span className="truncate">{chat.name || "New Chat"}</span>
@@ -573,15 +574,6 @@ export function Sidebar({
                         />
                       </div>
                     ))}
-                  </div>
-                ) : null}
-                {!chatsLoading && creatingChatPending ? (
-                  <div
-                    className="mx-0.5 h-7 overflow-hidden rounded-md"
-                    aria-busy="true"
-                    aria-label="Creating chat"
-                  >
-                    <div className="h-full w-[58%] shimmer-bg rounded-md" />
                   </div>
                 ) : null}
                 {!chatsLoading

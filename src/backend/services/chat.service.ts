@@ -157,15 +157,11 @@ export async function createChatForUser(
   userId: string,
   input?: { title?: string; projectId?: string | null },
 ) {
-  const profile = await query<{ default_workspace_id: string | null }>(
-    `select default_workspace_id from public.profiles where id = $1`,
-    [userId],
-  );
-  return chatsRepo.createChat({
+  // Single round-trip: allocate id + insert with workspace from profiles subquery.
+  return chatsRepo.createChatFast({
     userId,
     title: input?.title,
     projectId: input?.projectId,
-    workspaceId: profile[0]?.default_workspace_id ?? null,
   });
 }
 

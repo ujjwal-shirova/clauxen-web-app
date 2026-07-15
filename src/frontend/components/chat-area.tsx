@@ -144,15 +144,8 @@ function ChatAreaLayout({
   const showMessageSkeleton =
     messagesLoading && !isConversationStarted && Boolean(activeChatId);
   const hasArtifacts = chatArtifacts.length > 0;
-  const headerControlsLoading =
-    Boolean(creatingChatPending) ||
-    (Boolean(isGenerating) &&
-      isConversationStarted &&
-      messages.every(
-        (message) =>
-          message.role !== "assistant" ||
-          (!message.content.trim() && !message.thinkingContent?.trim()),
-      ));
+  // Hide interactive header until the server chat id exists — no shimmer.
+  const headerControlsLoading = Boolean(creatingChatPending);
   const showChatOptionsHeader =
     isConversationStarted || Boolean(activeChatId) || showMessageSkeleton;
   const showDesktopArtifactsRail =

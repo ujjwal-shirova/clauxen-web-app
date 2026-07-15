@@ -46,7 +46,7 @@ interface ChatViewHeaderProps {
   suppressArtifactsHover?: boolean;
   /** Show Artifacts icon only when the chat has files / photos / artifacts. */
   hasArtifacts?: boolean;
-  /** Shimmer title + menu controls while the first reply is bootstrapping. */
+  /** Hide interactive header controls until the chat id exists on the server (no shimmer). */
   headerControlsLoading?: boolean;
 }
 
@@ -142,25 +142,11 @@ export function ChatViewHeader({
                   <span className="shrink-0 text-zinc-400">/</span>
                 </div>
               ) : null}
-              {!isClient ? (
+              {!isClient || headerControlsLoading ? (
                 <div className="inline-flex max-w-full items-center rounded-lg border border-transparent">
                   <span className="px-1.5 py-1 text-[13px] font-medium text-zinc-800 sm:px-2">
                     {displayTitle}
                   </span>
-                </div>
-              ) : headerControlsLoading ? (
-                <div
-                  className="inline-flex h-7 max-w-full items-stretch overflow-hidden rounded-lg"
-                  aria-busy="true"
-                  aria-label="Loading chat"
-                >
-                  <div className="h-7 w-[min(42vw,220px)] overflow-hidden rounded-l-lg">
-                    <div className="h-full w-full shimmer-bg" />
-                  </div>
-                  <div className="h-7 w-px shrink-0 self-center bg-black/10" />
-                  <div className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-r-lg">
-                    <div className="h-4 w-4 shimmer-bg rounded-sm" />
-                  </div>
                 </div>
               ) : (
                 <DropdownMenu modal={false}>
@@ -230,20 +216,7 @@ export function ChatViewHeader({
                 hideTrailingRailControlsOnDesktop && "lg:hidden",
               )}
             >
-              {headerControlsLoading ? (
-                <div
-                  className="flex items-center gap-2"
-                  aria-busy="true"
-                  aria-label="Loading chat actions"
-                >
-                  <div className="h-8 w-8 overflow-hidden rounded-[10px]">
-                    <div className="h-full w-full shimmer-bg" />
-                  </div>
-                  <div className="hidden h-8 w-14 overflow-hidden rounded-[10px] min-[420px]:block">
-                    <div className="h-full w-full shimmer-bg" />
-                  </div>
-                </div>
-              ) : (
+              {headerControlsLoading ? null : (
                 <ChatRightRailControls
                   isArtifactsPanelOpen={isArtifactsPanelOpen}
                   onToggleArtifactsPanel={

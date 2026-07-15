@@ -1,8 +1,7 @@
 "use client";
 
-import { notificationDeliveryOptions } from "@/frontend/components/settings/constants";
+import { NotificationDeliveryPicker } from "@/frontend/components/settings/notification-delivery-picker";
 import {
-  SettingsOptionPicker,
   SettingsPanelTitle,
   SettingsRow,
   SettingsSection,
@@ -59,9 +58,8 @@ export function NotificationsSettings({
           label="Codex"
           description="Get notified about Codex tasks."
         >
-          <SettingsOptionPicker
+          <NotificationDeliveryPicker
             value={codexChannel}
-            options={notificationDeliveryOptions}
             onValueChange={setCodexChannel}
           />
         </SettingsRow>
@@ -70,9 +68,8 @@ export function NotificationsSettings({
           label="Group chats"
           description="You'll receive notifications for new messages from group chats."
         >
-          <SettingsOptionPicker
+          <NotificationDeliveryPicker
             value={groupChatChannel}
-            options={notificationDeliveryOptions}
             onValueChange={setGroupChatChannel}
           />
         </SettingsRow>
@@ -81,9 +78,8 @@ export function NotificationsSettings({
           label="Projects"
           description="Get notified when you receive an email invitation to a shared project."
         >
-          <SettingsOptionPicker
+          <NotificationDeliveryPicker
             value={projectsChannel}
-            options={notificationDeliveryOptions}
             onValueChange={setProjectsChannel}
           />
         </SettingsRow>
@@ -92,20 +88,18 @@ export function NotificationsSettings({
           label="Recommendations"
           description="Stay in the loop on new tools, tips, and features from Clauxen."
         >
-          <SettingsOptionPicker
+          <NotificationDeliveryPicker
             value={recommendationsChannel}
-            options={notificationDeliveryOptions}
             onValueChange={setRecommendationsChannel}
           />
         </SettingsRow>
 
         <SettingsRow
           label="Responses"
-          description="Get notified when Claude has finished a response. Useful for long-running tasks."
+          description="Get notified when Clauxen has finished a response. Useful for long-running tasks."
         >
-          <SettingsOptionPicker
+          <NotificationDeliveryPicker
             value={responseChannel}
-            options={notificationDeliveryOptions}
             onValueChange={setResponseChannel}
           />
         </SettingsRow>
@@ -124,9 +118,8 @@ export function NotificationsSettings({
             </>
           }
         >
-          <SettingsOptionPicker
+          <NotificationDeliveryPicker
             value={tasksChannel}
-            options={notificationDeliveryOptions}
             onValueChange={setTasksChannel}
           />
         </SettingsRow>
@@ -136,9 +129,8 @@ export function NotificationsSettings({
           description="We'll notify you when limits reset for features like image creation."
           borderless
         >
-          <SettingsOptionPicker
+          <NotificationDeliveryPicker
             value={usageChannel}
-            options={notificationDeliveryOptions}
             onValueChange={setUsageChannel}
           />
         </SettingsRow>

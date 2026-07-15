@@ -57,6 +57,8 @@ type ChatStoreActions = {
     delta: string,
   ) => void;
   removeChat: (chatId: string) => void;
+  /** Remap an optimistic pending chat id to the real server id without remounting messages. */
+  migrateChatId: (fromId: string, toId: string) => void;
   setRecentChats: (
     updater: RecentChat[] | ((prev: RecentChat[]) => RecentChat[]),
   ) => void;
@@ -209,6 +211,62 @@ export const useChatStore = create<ChatStore>()(
           messagesById: nextById,
           messageIdsByChatId: nextChats,
           branchDataset: nextBranch,
+        };
+      });
+    },
+
+    migrateChatId: (fromId, toId) => {
+      if (!fromId || !toId || fromId === toId) return;
+      set((state) => {
+        const nextMessageIds = { ...state.messageIdsByChatId };
+        const fromIds = nextMessageIds[fromId];
+        if (fromIds) {
+          delete nextMessageIds[fromId];
+          // Prefer keeping any messages already under toId (shouldn't happen).
+          nextMessageIds[toId] = nextMessageIds[toId]?.length
+            ? nextMessageIds[toId]!
+            : fromIds;
+        }
+
+        const nextGenerating = { ...state.generatingChatIds };
+        if (nextGenerating[fromId]) {
+          delete nextGenerating[fromId];
+          nextGenerating[toId] = true;
+        }
+
+        const nextQueued = { ...state.queuedMessagesByChatId };
+        if (nextQueued[fromId]) {
+          nextQueued[toId] = [
+            ...(nextQueued[toId] ?? []),
+            ...nextQueued[fromId]!,
+          ];
+          delete nextQueued[fromId];
+        }
+
+        const nextBranch = { ...state.branchDataset };
+        if (nextBranch[fromId] !== undefined) {
+          nextBranch[toId] = nextBranch[fromId]!;
+          delete nextBranch[fromId];
+        }
+
+        const streaming =
+          state.streaming?.chatId === fromId
+            ? { ...state.streaming, chatId: toId }
+            : state.streaming;
+
+        const activeChatId =
+          state.activeChatId === fromId ? toId : state.activeChatId;
+
+        return {
+          messageIdsByChatId: nextMessageIds,
+          generatingChatIds: nextGenerating,
+          queuedMessagesByChatId: nextQueued,
+          branchDataset: nextBranch,
+          streaming,
+          activeChatId,
+          isGenerating: Boolean(
+            activeChatId && nextGenerating[activeChatId],
+          ),
         };
       });
     },
