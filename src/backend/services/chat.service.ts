@@ -424,10 +424,19 @@ export async function streamChatGeneration(input: {
       const assistantRow = assistant ?? (await assistantPromise);
       const cleanedAnswer = finalizeChatTitleStrippedAnswer(answer);
       const tools = Array.from(toolsById.values());
+      const completedAtMs = Date.now();
+      const thinkingDurationSeconds = thinking.trim()
+        ? Math.max(1, Math.round((completedAtMs - started) / 1000))
+        : undefined;
       const contentJson = buildAssistantTranscriptRecord({
         answer: cleanedAnswer,
         thinking,
         tools,
+        agentUi: {
+          startedAtMs: started,
+          completedAtMs,
+          thinkingDurationSeconds,
+        },
       });
       if (assistantRow?.id) {
         await messagesRepo.updateMessageContent(

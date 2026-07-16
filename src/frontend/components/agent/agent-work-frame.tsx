@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
+  formatWorkedDuration,
   resolveActiveStepLabel,
   resolveWorkedForLabel,
   shouldShimmerFrameHeader,
@@ -43,11 +44,28 @@ function workSegments(segments: AgentSegment[]) {
   );
 }
 
+function thinkingOnlyDurationSeconds(segments: AgentSegment[]): number | null {
+  const items = workSegments(segments);
+  const thinking = items.filter(isThinkingSegment);
+  const tools = items.filter(isToolSegment);
+  if (thinking.length === 0 || tools.length > 0) return null;
+  const last = thinking[thinking.length - 1]!;
+  if (last.durationSeconds && last.durationSeconds > 0) {
+    return last.durationSeconds;
+  }
+  if (last.startedAtMs) {
+    return Math.max(1, Math.round((Date.now() - last.startedAtMs) / 1000));
+  }
+  return 1;
+}
+
 /**
- * Agentic activity panel for one assistant work turn.
+ * Agentic activity panel for one assistant work turn (ChatGPT / Claude / Cursor).
  *
- * Live: compact action list (thinking optional, tools as actions).
- * Done: collapses to a single "Worked for …" chip with chevron beside the label.
+ * Live: compact action list (thinking optional, tools as actions) with a
+ * shimmering step label and live elapsed time.
+ * Done: collapses to "Thought for …" (thinking-only) or "Worked for …"
+ * (tools) with the chevron beside the label.
  */
 export function AgentWorkFrame({
   segments,
@@ -63,6 +81,7 @@ export function AgentWorkFrame({
   completedAtMs?: number;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const userToggledRef = useRef(false);
   const items = workSegments(segments);
   const hasUserInputTool = items.some(
@@ -96,6 +115,15 @@ export function AgentWorkFrame({
     }
   }, [isStreaming, turnFinished, hasUserInputTool]);
 
+  // Live elapsed ticker while the frame is open (ChatGPT/Claude feel).
+  useEffect(() => {
+    if (!isStreaming || turnFinished || !startedAtMs) return;
+    const tick = () => setNowMs(Date.now());
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [isStreaming, turnFinished, startedAtMs]);
+
   const hasActiveWork = items.some(
     (segment) =>
       ((segment.kind === "thinking" || segment.kind === "text") &&
@@ -103,27 +131,44 @@ export function AgentWorkFrame({
       (segment.kind === "tool" && segment.status === "running"),
   );
 
+  const resolvedCompletedAtMs =
+    typeof completedAtMs === "number" &&
+    typeof startedAtMs === "number" &&
+    completedAtMs >= startedAtMs
+      ? completedAtMs
+      : turnFinished && typeof startedAtMs === "number"
+        ? nowMs
+        : undefined;
+
   const workedForLabel = resolveWorkedForLabel({
     startedAtMs,
-    completedAtMs:
-      typeof completedAtMs === "number"
-        ? completedAtMs
-        : turnFinished && typeof startedAtMs === "number"
-          ? startedAtMs
-          : undefined,
+    completedAtMs: resolvedCompletedAtMs,
   });
+
+  const thoughtOnlySeconds = turnFinished
+    ? thinkingOnlyDurationSeconds(items)
+    : null;
 
   const liveLabel =
     resolveActiveStepLabel(items) ??
     (hasActiveWork ? WORKING_LABEL : "Working");
 
+  const liveElapsed =
+    isStreaming && typeof startedAtMs === "number"
+      ? formatWorkedDuration(Math.max(1000, nowMs - startedAtMs))
+      : null;
+
   const frameLabel = turnFinished
-    ? workedForLabel ?? "Worked"
-    : liveLabel;
+    ? thoughtOnlySeconds != null
+      ? `Thought for ${thoughtOnlySeconds}s`
+      : (workedForLabel ?? "Worked")
+    : liveElapsed
+      ? `${liveLabel} · ${liveElapsed}`
+      : liveLabel;
 
   const showShimmer =
     isStreaming &&
-    (hasActiveWork || shouldShimmerFrameHeader(frameLabel));
+    (hasActiveWork || shouldShimmerFrameHeader(liveLabel));
 
   if (items.length === 0) return null;
 
@@ -147,6 +192,7 @@ export function AgentWorkFrame({
       className="mb-3 w-full min-w-0"
       data-agent-work-frame="true"
       data-agent-activity="panel"
+      data-agent-frame-complete={turnFinished || undefined}
     >
       <button
         type="button"

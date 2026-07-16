@@ -10,6 +10,7 @@ import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
 import { useAppLayout } from "@/frontend/components/app-layout-context";
 import { APP_ROUTES, isNewChatPath } from "@/frontend/lib/app-routes";
 import { useDocumentTitle } from "@/frontend/hooks/use-document-title";
+import { useInstantNavigate } from "@/frontend/hooks/use-instant-navigate";
 import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,
@@ -54,6 +55,7 @@ function ChatViewBody({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const instantNavigate = useInstantNavigate();
   const overlays = useAppOverlays();
   const { isMobile, isSidebarCollapsed, openMobileNav } = useAppLayout();
 
@@ -118,6 +120,19 @@ function ChatViewBody({
     }
   }, [routeChatId, blankNewChatComposer, handleSelectChat, startNewChat]);
 
+  const openChatRoute = useCallback(
+    (chatId: string) => {
+      if (projectId) {
+        instantNavigate(APP_ROUTES.projectConversation(projectId, chatId), {
+          replace: true,
+        });
+        return;
+      }
+      instantNavigate(APP_ROUTES.chat(chatId), { replace: true });
+    },
+    [instantNavigate, projectId],
+  );
+
   const handleSendMessageAndRoute = useCallback(
     async (
       prompt: string,
@@ -125,27 +140,25 @@ function ChatViewBody({
     ) => {
       const forceNew =
         !activeChatId && (blankNewChatComposer || isNewChatPath(pathname));
+      const shouldOpenRoute =
+        forceNew || isNewChatPath(pathname) || Boolean(projectId);
+
       const chatId = await handleSendMessage(prompt, {
         forceNewChat: forceNew,
         attachments: options?.attachments,
+        // ChatGPT/Claude: swap URL the instant the durable chat id exists.
+        ...(shouldOpenRoute ? { onChatCreated: openChatRoute } : {}),
       });
       if (!chatId) return;
 
-      if (projectId) {
-        const target = APP_ROUTES.projectConversation(projectId, chatId);
-        if (typeof window !== "undefined") {
-          window.history.replaceState(window.history.state, "", target);
-        }
-        router.replace(target, { scroll: false });
-        return;
-      }
-
-      if (forceNew || isNewChatPath(pathname)) {
-        const target = APP_ROUTES.chat(chatId);
-        if (typeof window !== "undefined") {
-          window.history.replaceState(window.history.state, "", target);
-        }
-        router.replace(target, { scroll: false });
+      // Fallback navigate if onChatCreated did not run (e.g. existing chat on /new).
+      const pathNow =
+        typeof window !== "undefined" ? window.location.pathname : pathname;
+      const targetPath = projectId
+        ? APP_ROUTES.projectConversation(projectId, chatId)
+        : APP_ROUTES.chat(chatId);
+      if (shouldOpenRoute && pathNow !== targetPath) {
+        openChatRoute(chatId);
       }
     },
     [
@@ -154,7 +167,7 @@ function ChatViewBody({
       activeChatId,
       projectId,
       pathname,
-      router,
+      openChatRoute,
     ],
   );
 
@@ -166,12 +179,9 @@ function ChatViewBody({
       const target = projectId
         ? APP_ROUTES.project(projectId)
         : APP_ROUTES.newChat;
-      if (typeof window !== "undefined") {
-        window.history.replaceState(window.history.state, "", target);
-      }
-      router.replace(target, { scroll: false });
+      instantNavigate(target, { replace: true });
     },
-    [activeChatId, handleDeleteChat, projectId, router],
+    [activeChatId, handleDeleteChat, projectId, instantNavigate],
   );
 
   const displayMessages = blankNewChatComposer ? [] : messages;

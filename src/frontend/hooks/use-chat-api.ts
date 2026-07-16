@@ -526,16 +526,46 @@ export function useChatApi(
         .getState()
         .clearInactiveChatMessages(chatId, { alsoKeep: previousChatId });
 
-      const existing = useChatStore.getState().messageIdsByChatId[chatId];
+      const store = useChatStore.getState();
+      const existingIds = store.messageIdsByChatId[chatId];
+      const existingMessages =
+        existingIds?.map((id) => store.messagesById[id]).filter(Boolean) ?? [];
+      const hasLocalTurns = existingMessages.length > 0;
       const isLive =
-        Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
-        Boolean(getGeneration(chatId));
+        Boolean(store.generatingChatIds[chatId]) ||
+        Boolean(getGeneration(chatId)) ||
+        existingMessages.some(
+          (message) =>
+            message?.isStreaming === true ||
+            message?.isThinkingStreaming === true ||
+            Boolean(message?.id?.startsWith("temp-")) ||
+            Boolean(message?.clientId?.startsWith("temp-")),
+        );
       const alreadyHydrated = hydratedChatIdsRef.current.has(chatId);
 
       // Keep optimistic / in-flight turns — never let SSR seed or a fetch
-      // wipe a live stream (that remount flicker on send).
-      if (existing && existing.length > 0 && (alreadyHydrated || isLive)) {
+      // wipe a live stream (that remount flicker on send from /new).
+      if (hasLocalTurns && (alreadyHydrated || isLive)) {
         takePendingChatRouteSeed(chatId);
+        setMessagesLoading(false);
+        return;
+      }
+
+      // Warm local turns always win over a sparse/empty SSR seed (brand-new
+      // /c/[id] right after create often has 0–1 DB rows while UI already
+      // painted the optimistic user + assistant placeholder).
+      if (hasLocalTurns) {
+        const ssrSeed = takePendingChatRouteSeed(chatId);
+        const seedCount = ssrSeed?.messages?.length ?? 0;
+        if (ssrSeed && seedCount > existingMessages.length) {
+          applyHydratedMessages(
+            chatId,
+            ssrSeed.messages,
+            ssrSeed.branchMessages,
+          );
+        } else {
+          hydratedChatIdsRef.current.add(chatId);
+        }
         setMessagesLoading(false);
         return;
       }
@@ -547,13 +577,6 @@ export function useChatApi(
           ssrSeed.messages,
           ssrSeed.branchMessages,
         );
-        setMessagesLoading(false);
-        return;
-      }
-
-      // Warm RAM hit after back-nav — paint immediately.
-      if (existing && existing.length > 0) {
-        hydratedChatIdsRef.current.add(chatId);
         setMessagesLoading(false);
         return;
       }
@@ -960,6 +983,16 @@ export function useChatApi(
                       : finalized;
                   })(),
                   isStreaming: false,
+                  isThinkingStreaming: false,
+                  agentFrameComplete: true,
+                  thinkingDurationSeconds:
+                    m.thinkingDurationSeconds ??
+                    (m.thinkingStartedAtMs
+                      ? Math.max(
+                          1,
+                          Math.round((Date.now() - m.thinkingStartedAtMs) / 1000),
+                        )
+                      : undefined),
                 }
               : m,
           ),
@@ -1037,6 +1070,8 @@ export function useChatApi(
         bypassQueue?: boolean;
         chatIdOverride?: string;
         attachments?: ComposerAttachment[];
+        /** Fires the moment a brand-new chat has a durable id (before persist/stream). */
+        onChatCreated?: (chatId: string) => void;
       },
     ): Promise<string | null> => {
       const trimmed = prompt.trim();
@@ -1162,6 +1197,12 @@ export function useChatApi(
           });
           chatId = realId;
           setCreatingChatPending(false);
+          // Open /c/{id} immediately (ChatGPT/Claude) — don't wait for persist/stream.
+          try {
+            options?.onChatCreated?.(realId);
+          } catch {
+            // Navigation callbacks must not abort the send path.
+          }
         }
 
         // Upload attachments in parallel; failures mark chips but still stream text.
@@ -1285,7 +1326,9 @@ export function useChatApi(
           isNewChat ? trimmed || "New chat" : undefined,
         );
 
-        await persistUser;
+        // Persist in the background so /c navigation is not blocked. Optimistic
+        // UI already paints the user turn; await only to surface append failures.
+        void persistUser;
 
         return chatId;
       } catch (error) {

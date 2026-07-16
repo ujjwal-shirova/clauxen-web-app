@@ -942,6 +942,7 @@ function useLocalChat(
     options?: {
       forceNewChat?: boolean;
       attachments?: import("@/frontend/lib/composer-attachments").ComposerAttachment[];
+      onChatCreated?: (chatId: string) => void;
     },
   ): Promise<string | null> => {
     const cleanPrompt = prompt?.trim();
@@ -982,6 +983,11 @@ function useLocalChat(
         return next;
       });
       setActiveChatId(currentChatId);
+      try {
+        options?.onChatCreated?.(currentChatId);
+      } catch {
+        // Navigation callbacks must not abort the send path.
+      }
     } else {
       const chatId = currentChatId;
       setRecentChats((prev) => {

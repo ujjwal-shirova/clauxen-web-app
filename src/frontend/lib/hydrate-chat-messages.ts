@@ -95,12 +95,29 @@ export function hydrateMessageFromContentJson(
 
   if (!hasThinking && !hasTools && !contentFromParts) return base;
 
-  // Use message creation time for both ends so "Worked for" is ~0s on hydrate
-  // (never Date.now() - createdAt, which becomes hours/days).
+  const agentUi = record.agent_ui;
   const stamp =
-    typeof base.createdAt === "number" && base.createdAt > 0
-      ? base.createdAt
-      : Date.now();
+    typeof agentUi?.startedAtMs === "number" && agentUi.startedAtMs > 0
+      ? agentUi.startedAtMs
+      : typeof base.createdAt === "number" && base.createdAt > 0
+        ? base.createdAt
+        : Date.now();
+  const thinkingDuration =
+    typeof agentUi?.thinkingDurationSeconds === "number" &&
+    agentUi.thinkingDurationSeconds > 0
+      ? agentUi.thinkingDurationSeconds
+      : typeof base.thinkingDurationSeconds === "number" &&
+          base.thinkingDurationSeconds > 0
+        ? base.thinkingDurationSeconds
+        : hasThinking
+          ? 1
+          : undefined;
+  const completedAtMs =
+    typeof agentUi?.completedAtMs === "number" &&
+    agentUi.completedAtMs >= stamp
+      ? agentUi.completedAtMs
+      : stamp +
+        Math.max(1000, (thinkingDuration ?? 1) * 1000 + (hasTools ? 2000 : 0));
 
   const frames: AgentFrame[] | undefined = hasTools || hasThinking
     ? [
@@ -108,7 +125,7 @@ export function hydrateMessageFromContentJson(
           id: `hydrated-${base.id}`,
           complete: true,
           startedAtMs: stamp,
-          completedAtMs: stamp,
+          completedAtMs,
           segments: [
             ...(hasThinking
               ? [
@@ -117,6 +134,8 @@ export function hydrateMessageFromContentJson(
                     id: `thinking-${base.id}`,
                     content: thinking,
                     isStreaming: false,
+                    durationSeconds: thinkingDuration,
+                    startedAtMs: stamp,
                   },
                 ]
               : []),
@@ -131,6 +150,8 @@ export function hydrateMessageFromContentJson(
     content,
     thinkingContent: hasThinking ? thinking : base.thinkingContent,
     hasThinking: hasThinking || base.hasThinking,
+    thinkingDurationSeconds:
+      thinkingDuration ?? base.thinkingDurationSeconds,
     agentMode: hasTools || hasThinking || base.agentMode,
     agentFrameComplete: frames ? true : base.agentFrameComplete,
     agentFrames: frames ?? base.agentFrames,

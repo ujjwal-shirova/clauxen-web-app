@@ -55,6 +55,12 @@ export type TranscriptMessageRecord = {
   message: {
     content: TranscriptContentPart[];
   };
+  /** Optional UI timing for agent work frames (not part of Anthropic wire). */
+  agent_ui?: {
+    startedAtMs?: number;
+    completedAtMs?: number;
+    thinkingDurationSeconds?: number;
+  };
 };
 
 export type TranscriptMetaRecord = {
@@ -122,6 +128,11 @@ export function buildAssistantTranscriptRecord(input: {
   answer: string;
   thinking?: string;
   tools?: CapturedToolCall[];
+  agentUi?: {
+    startedAtMs?: number;
+    completedAtMs?: number;
+    thinkingDurationSeconds?: number;
+  };
 }): TranscriptMessageRecord {
   const parts: TranscriptContentPart[] = [];
   const thinking = input.thinking?.trim();
@@ -139,6 +150,7 @@ export function buildAssistantTranscriptRecord(input: {
   return {
     role: "assistant",
     message: { content: parts },
+    ...(input.agentUi ? { agent_ui: input.agentUi } : {}),
   };
 }
 
