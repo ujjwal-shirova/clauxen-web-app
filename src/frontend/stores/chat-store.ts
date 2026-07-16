@@ -425,7 +425,8 @@ export const useChatStore = create<ChatStore>()(
           for (const id of ids) {
             delete nextById[id];
           }
-          nextIdsByChat[chatId] = [];
+          // Omit the key (do NOT set []). Empty arrays made
+          // filterStartedRecentChats hide the chat from Recents.
         }
         return {
           messagesById: nextById,

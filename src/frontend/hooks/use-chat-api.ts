@@ -138,6 +138,8 @@ export function useChatApi(
   const chatsLoadedOnceRef = useRef(false);
   const allChatsRef = useRef<Record<string, Message[]>>({});
   const recentChatsRef = useRef<RecentChat[]>([]);
+  /** Optimistic pin overrides until server list / pin API catches up. */
+  const pendingPinOverridesRef = useRef<Map<string, boolean>>(new Map());
   const branchPersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Branch overlay snapshot per chat — applied once on hydrate. */
   const branchMessagesByChatRef = useRef<Record<string, unknown>>({});
@@ -212,32 +214,44 @@ export function useChatApi(
         pinned: Boolean(c.pinned),
         updatedAt: new Date(c.updatedAt).getTime(),
       }));
+      const now = Date.now();
+      const LOCAL_LIST_GRACE_MS = 90_000;
       setRecentChats((prev) => {
         const serverIds = new Set(serverChats.map((c) => c.id));
-        // Keep optimistic "creating" rows until the real id lands.
-        const optimistic = prev.filter(
-          (c) =>
-            (c.isCreating || c.id.startsWith("pending-")) &&
-            !serverIds.has(c.id),
-        );
+        // Keep rows the server list hasn't caught yet (pending create, or
+        // Worker/list cache lag right after create / first message).
+        const localOnly = prev.filter((c) => {
+          if (serverIds.has(c.id)) return false;
+          if (c.isCreating || c.id.startsWith("pending-")) return true;
+          const age = now - (c.updatedAt ?? 0);
+          return age >= 0 && age < LOCAL_LIST_GRACE_MS;
+        });
         const merged = serverChats.map((server) => {
           const local = prev.find((p) => p.id === server.id);
-          if (!local) return server;
+          const pinOverride = pendingPinOverridesRef.current.get(server.id);
+          const pinned =
+            pinOverride !== undefined ? pinOverride : server.pinned;
+          if (!local) {
+            return pinOverride !== undefined ? { ...server, pinned } : server;
+          }
           if (local.isTitleStreaming) {
             return {
               ...server,
               name: local.name,
               isTitleStreaming: true,
               titleGenerated: local.titleGenerated,
+              pinned,
+              updatedAt: Math.max(local.updatedAt ?? 0, server.updatedAt ?? 0),
             };
           }
           return {
             ...server,
+            pinned,
             // Prefer fresher local updatedAt so a just-created chat stays on top.
             updatedAt: Math.max(local.updatedAt ?? 0, server.updatedAt ?? 0),
           };
         });
-        const next = [...optimistic, ...merged].sort((a, b) => {
+        const next = [...localOnly, ...merged].sort((a, b) => {
           if (Boolean(a.pinned) !== Boolean(b.pinned)) {
             return a.pinned ? -1 : 1;
           }
@@ -1062,6 +1076,23 @@ export function useChatApi(
           ...prev,
           [chatId!]: [...(prev[chatId!] ?? []), optimisticUser],
         }));
+        // Touch Recents so this chat stays at the top (ChatGPT/Claude).
+        setRecentChats((prev) => {
+          const touchedAt = Date.now();
+          const next = [
+            ...prev
+              .filter((c) => c.id === chatId)
+              .map((c) => ({ ...c, updatedAt: touchedAt })),
+            ...prev.filter((c) => c.id !== chatId),
+          ].sort((a, b) => {
+            if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+              return a.pinned ? -1 : 1;
+            }
+            return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+          });
+          recentChatsRef.current = next;
+          return next;
+        });
       }
 
       try {
@@ -1302,21 +1333,51 @@ export function useChatApi(
     [],
   );
 
-  const handlePinChat = useCallback(async (chatId: string, pinned: boolean) => {
-    const prevChats = recentChatsRef.current;
-    setRecentChats((prev) =>
-      prev.map((chat) => (chat.id === chatId ? { ...chat, pinned } : chat)),
-    );
-    try {
-      if (pinned) {
-        await chatsApi.pinChat(chatId);
-      } else {
-        await chatsApi.unpinChat(chatId);
-      }
-    } catch (error) {
-      console.error("Failed to persist chat pin:", error);
-      setRecentChats(prevChats);
-    }
+  const handlePinChat = useCallback((chatId: string, pinned: boolean) => {
+    const prevPinned = recentChatsRef.current.find((c) => c.id === chatId)?.pinned;
+    // Instant UI — never block on Hyperdrive / API. Persist in background.
+    pendingPinOverridesRef.current.set(chatId, pinned);
+    setRecentChats((prev) => {
+      const next = prev
+        .map((chat) => (chat.id === chatId ? { ...chat, pinned } : chat))
+        .sort((a, b) => {
+          if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+            return a.pinned ? -1 : 1;
+          }
+          return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+        });
+      recentChatsRef.current = next;
+      return next;
+    });
+
+    void (pinned ? chatsApi.pinChat(chatId) : chatsApi.unpinChat(chatId))
+      .then(() => {
+        // Drop override once server agrees; silent refresh may reconcile later.
+        const current = pendingPinOverridesRef.current.get(chatId);
+        if (current === pinned) {
+          pendingPinOverridesRef.current.delete(chatId);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to persist chat pin:", error);
+        pendingPinOverridesRef.current.delete(chatId);
+        setRecentChats((prev) => {
+          const next = prev
+            .map((chat) =>
+              chat.id === chatId
+                ? { ...chat, pinned: Boolean(prevPinned) }
+                : chat,
+            )
+            .sort((a, b) => {
+              if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+                return a.pinned ? -1 : 1;
+              }
+              return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+            });
+          recentChatsRef.current = next;
+          return next;
+        });
+      });
   }, []);
 
   const editMessageWithBranch = useCallback(

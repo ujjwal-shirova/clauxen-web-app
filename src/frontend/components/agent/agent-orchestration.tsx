@@ -55,6 +55,8 @@ export function AgentOrchestrationView({
               segments={block.frame.segments}
               isStreaming={block.isActive}
               frameComplete={block.frame.complete}
+              startedAtMs={block.frame.startedAtMs}
+              completedAtMs={block.frame.completedAtMs}
             />
           );
         }

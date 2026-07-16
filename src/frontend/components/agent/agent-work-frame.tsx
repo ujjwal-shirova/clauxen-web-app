@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
   resolveFrameHeaderLabel,
-  shouldShimmerFrameHeader,
+  resolveWorkedForLabel,
 } from "@/frontend/lib/agent-frame-label";
 import type {
   AgentSegment,
@@ -41,14 +41,23 @@ function workSegments(segments: AgentSegment[]) {
   );
 }
 
+/**
+ * Collapsible agent work summary — Cursor-inspired "Worked for Xm Ys" header
+ * with a flat chronological action log (narration + tools), not a heavy
+ * vertical icon timeline.
+ */
 export function AgentWorkFrame({
   segments,
   isStreaming,
   frameComplete,
+  startedAtMs,
+  completedAtMs,
 }: {
   segments: AgentSegment[];
   isStreaming: boolean;
   frameComplete: boolean;
+  startedAtMs?: number;
+  completedAtMs?: number;
 }) {
   const [expanded, setExpanded] = useState(true);
   const userToggledRef = useRef(false);
@@ -57,8 +66,7 @@ export function AgentWorkFrame({
     (segment) =>
       segment.kind === "tool" && segment.name === "ask_user_input_v0",
   );
-  /** Keep web search timelines expanded after reload (Claude-like).
-   * create_file collapses to the Thought-style chip when complete. */
+  /** Keep web search / present_files expanded after reload (Claude-like). */
   const hasPersistentToolUi = items.some(
     (segment) =>
       segment.kind === "tool" &&
@@ -70,9 +78,7 @@ export function AgentWorkFrame({
   );
   const timelineItems = items.filter(
     (segment) =>
-      !(
-        isToolSegment(segment) && segment.name === "ask_user_input_v0"
-      ),
+      !(isToolSegment(segment) && segment.name === "ask_user_input_v0"),
   );
   const userInputOnly = hasUserInputTool && timelineItems.length === 0;
 
@@ -99,12 +105,26 @@ export function AgentWorkFrame({
       (segment.kind === "tool" && segment.status === "running"),
   );
 
-  const frameLabel = resolveFrameHeaderLabel({
+  const workedForLabel = resolveWorkedForLabel({
+    startedAtMs,
+    completedAtMs:
+      completedAtMs ?? (frameComplete ? Date.now() : undefined),
+  });
+
+  const activeLabel = resolveFrameHeaderLabel({
     segments: items,
     hasActiveWork,
   });
-  const showShimmer = shouldShimmerFrameHeader(frameLabel);
-  const showCollapsedHeader = frameComplete && !expanded && !isStreaming && !hasUserInputTool;
+
+  // Complete → "Worked for …"; streaming → shimmering active step / planning.
+  const frameLabel =
+    frameComplete && !isStreaming
+      ? workedForLabel ?? activeLabel
+      : activeLabel;
+
+  const showShimmer = isStreaming && hasActiveWork;
+  const showCollapsedHeader =
+    frameComplete && !expanded && !isStreaming && !hasUserInputTool;
 
   if (items.length === 0) {
     return null;
@@ -126,12 +146,15 @@ export function AgentWorkFrame({
   };
 
   return (
-    <div className="mb-4 w-full min-w-0">
+    <div className="mb-4 w-full min-w-0" data-agent-work-frame="true">
       <button
         type="button"
         onClick={toggleExpanded}
         className="no-hover no-hover-overlay mb-2 inline-flex max-w-full items-center border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0"
         aria-expanded={expanded}
+        aria-label={
+          expanded ? `Collapse: ${frameLabel}` : `Expand: ${frameLabel}`
+        }
       >
         <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
           <span
@@ -156,9 +179,6 @@ export function AgentWorkFrame({
         </span>
       </button>
 
-      {/* Smooth auto-collapse with transition.
-          Uses grid-rows trick for height animation without JS measurement.
-          Works for the vertical timeline of thinking + multiple tool executions. */}
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",

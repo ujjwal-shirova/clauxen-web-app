@@ -6,6 +6,32 @@ import type {
 import { fileNameFromPath } from "@/frontend/lib/chat-artifacts";
 
 export const PLANNING_NEXT_MOVES_LABEL = "Planning next moves";
+export const WORKING_LABEL = "Working";
+
+/** Human duration for "Worked for 7m 26s" headers. */
+export function formatWorkedDuration(durationMs: number): string {
+  const totalSec = Math.max(1, Math.round(Math.max(0, durationMs) / 1000));
+  if (totalSec < 60) return `${totalSec}s`;
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+  if (minutes < 60) {
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  return remMinutes > 0 ? `${hours}h ${remMinutes}m` : `${hours}h`;
+}
+
+export function resolveWorkedForLabel(input: {
+  startedAtMs?: number;
+  completedAtMs?: number;
+  nowMs?: number;
+}): string | null {
+  const started = input.startedAtMs;
+  if (!started || started <= 0) return null;
+  const end = input.completedAtMs ?? input.nowMs ?? Date.now();
+  return `Worked for ${formatWorkedDuration(end - started)}`;
+}
 
 function thinkingDurationSeconds(segment: AgentThinkingSegment): number {
   if (segment.durationSeconds) return segment.durationSeconds;

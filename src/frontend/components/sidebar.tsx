@@ -237,6 +237,10 @@ export function Sidebar({
       )}
     >
       <div className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left">
+        <span className="truncate">{chat.name || "New Chat"}</span>
+        {chat.isTitleStreaming && <TypingDots className="ml-0.5" />}
+      </div>
+      <div className="ml-1 flex shrink-0 items-center gap-0.5">
         {isGeneratingChat ? (
           <span
             className="chat-gen-spinner shrink-0"
@@ -245,10 +249,6 @@ export function Sidebar({
             role="status"
           />
         ) : null}
-        <span className="truncate">{chat.name || "New Chat"}</span>
-        {chat.isTitleStreaming && <TypingDots className="ml-0.5" />}
-      </div>
-      <div className="ml-1 flex shrink-0 items-center">
         <button
           type="button"
           aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}

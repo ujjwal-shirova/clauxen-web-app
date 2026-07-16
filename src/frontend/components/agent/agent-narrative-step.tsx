@@ -5,10 +5,8 @@ import type { AgentTextSegment } from "@/frontend/lib/agent-segments";
 import { AgentTimelineStep } from "./agent-timeline";
 
 /**
- * A short narrative note the model emits between tool calls (e.g. "I'll start
- * by researching Nvidia and then compile the findings..."). Rendered as a
- * plain clock-icon row in the vertical timeline — same family as thinking
- * steps, but no bordered content box, matching the reference agent UI.
+ * Short narrative the model emits between tool calls — Cursor-style body copy
+ * in the work log (no icon box).
  */
 export function AgentNarrativeStep({
   segment,
@@ -26,7 +24,7 @@ export function AgentNarrativeStep({
       title={
         <span
           className={cn(
-            "leading-relaxed text-zinc-700",
+            "font-[430] leading-relaxed text-zinc-800",
             segment.isStreaming && "shimmer-text",
           )}
         >

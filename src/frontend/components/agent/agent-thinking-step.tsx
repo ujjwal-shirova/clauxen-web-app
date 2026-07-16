@@ -28,13 +28,16 @@ export function AgentThinkingStep({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [label, setLabel] = useState(() => thinkingTitle(segment));
+  const [detailsOpen, setDetailsOpen] = useState(() => !!segment.isStreaming);
 
   useEffect(() => {
     if (!segment.isStreaming) {
       setLabel(thinkingTitle(segment));
+      setDetailsOpen(false);
       return;
     }
 
+    setDetailsOpen(true);
     const tick = () => setLabel(thinkingTitle(segment));
     tick();
     const timer = window.setInterval(tick, 1000);
@@ -60,29 +63,34 @@ export function AgentThinkingStep({
       icon="thinking"
       isActive={!!segment.isStreaming}
       title={
-        <span
+        <button
+          type="button"
+          onClick={() => setDetailsOpen((open) => !open)}
           className={cn(
-            "truncate font-medium",
-            segment.isStreaming && "shimmer-text",
+            "no-hover no-hover-overlay inline-flex max-w-full items-center border-0 bg-transparent p-0 text-left shadow-none",
+            segment.isStreaming ? "shimmer-text text-zinc-700" : "text-zinc-500",
           )}
+          aria-expanded={detailsOpen}
         >
-          {label}
-        </span>
+          <span className="truncate font-medium">{label}</span>
+        </button>
       }
     >
-      <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/70 px-3 py-2.5 text-[14px] leading-[1.55] text-zinc-700">
-        <div
-          ref={scrollRef}
-          className="thinking-markdown max-h-[18rem] overflow-y-auto pr-1"
-        >
-          <MarkdownRenderer
-            content={segment.content}
-            isStreaming={segment.isStreaming}
-            showCursor={false}
-            lightweightStream={segment.isStreaming}
-          />
+      {detailsOpen && segment.content.trim() ? (
+        <div className="rounded-[12px] border border-zinc-200/90 bg-zinc-50/80 px-3 py-2.5 text-[13px] leading-[1.55] text-zinc-600">
+          <div
+            ref={scrollRef}
+            className="thinking-markdown max-h-[14rem] overflow-y-auto pr-1"
+          >
+            <MarkdownRenderer
+              content={segment.content}
+              isStreaming={segment.isStreaming}
+              showCursor={false}
+              lightweightStream={segment.isStreaming}
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
     </AgentTimelineStep>
   );
 }

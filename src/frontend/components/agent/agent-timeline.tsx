@@ -1,8 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Check, Clock, FilePenLine, Globe, Terminal } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
+
+/**
+ * Flat work-log chrome (Cursor-style), replacing the old vertical rail + icon boxes.
+ * Tool/thinking blocks still compose through AgentTimelineStep so streaming
+ * and rich tool UIs stay intact — only the presentation shell changed.
+ */
 
 export type AgentTimelineIcon =
   | "thinking"
@@ -12,15 +18,6 @@ export type AgentTimelineIcon =
   | "tool"
   | "done";
 
-const ICONS: Record<AgentTimelineIcon, typeof Clock> = {
-  thinking: Clock,
-  search: Globe,
-  bash: Terminal,
-  file: FilePenLine,
-  tool: Terminal,
-  done: Check,
-};
-
 export function AgentTimeline({
   children,
   className,
@@ -29,18 +26,19 @@ export function AgentTimeline({
   className?: string;
 }) {
   return (
-    <div className={cn("relative ml-0.5 flex flex-col", className)}>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute bottom-3 left-[11px] top-3 w-px bg-zinc-200"
-      />
+    <div
+      className={cn(
+        "relative flex flex-col gap-2.5 border-l border-zinc-200/80 pl-3.5",
+        className,
+      )}
+    >
       {children}
     </div>
   );
 }
 
 export function AgentTimelineStep({
-  icon,
+  icon: _icon,
   title,
   trailing,
   isActive = false,
@@ -54,42 +52,29 @@ export function AgentTimelineStep({
   children?: ReactNode;
   className?: string;
 }) {
-  const Icon = ICONS[icon];
-
   return (
     <div
       className={cn(
-        "relative pl-8 animate-in fade-in slide-in-from-bottom-1 duration-300 ease-out",
+        "min-w-0 animate-in fade-in slide-in-from-bottom-1 duration-300 ease-out",
         className,
       )}
     >
-      <div
-        className={cn(
-          "absolute left-0 top-0.5 flex h-6 w-6 items-center justify-center rounded-md border bg-white",
-          isActive
-            ? "border-[#2c84db]/30 text-[#2c84db]"
-            : "border-zinc-200 text-zinc-500",
-        )}
-      >
-        <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-      </div>
-
-      <div className="min-w-0 pb-4">
-        <div className="mb-2 flex items-start justify-between gap-3">
-          <div
-            className={cn(
-              "text-[14px] leading-5",
-              isActive ? "text-zinc-700" : "text-zinc-500",
-            )}
-          >
-            {title}
-          </div>
-          {trailing ? (
-            <div className="shrink-0 text-[12px] text-zinc-400">{trailing}</div>
-          ) : null}
+      <div className="flex items-start justify-between gap-3">
+        <div
+          className={cn(
+            "min-w-0 flex-1 text-[14px] leading-[1.45]",
+            isActive ? "text-zinc-800" : "text-zinc-500",
+          )}
+        >
+          {title}
         </div>
-        {children}
+        {trailing ? (
+          <div className="shrink-0 pt-0.5 text-[12px] text-zinc-400">
+            {trailing}
+          </div>
+        ) : null}
       </div>
+      {children ? <div className="mt-1.5 min-w-0">{children}</div> : null}
     </div>
   );
 }
@@ -98,8 +83,13 @@ export function AgentTimelineDone({ label = "Done" }: { label?: string }) {
   return (
     <AgentTimelineStep
       icon="done"
-      title={<span className="font-medium text-zinc-600">{label}</span>}
-      className="pb-1"
+      title={
+        <span className="inline-flex items-center gap-1.5 font-medium text-zinc-600">
+          <Check className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+          {label}
+        </span>
+      }
+      className="pb-0.5"
     />
   );
 }
