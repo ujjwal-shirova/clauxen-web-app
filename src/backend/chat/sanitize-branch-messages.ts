@@ -115,14 +115,29 @@ function sanitizeAgentFrame(value: unknown): AgentFrame | null {
         .map(sanitizeAgentSegment)
         .filter((segment): segment is AgentSegment => Boolean(segment))
     : [];
+  const startedAtMs =
+    typeof row.startedAtMs === "number" && row.startedAtMs > 0
+      ? row.startedAtMs
+      : Date.now();
+  let completedAtMs =
+    typeof row.completedAtMs === "number" ? row.completedAtMs : undefined;
+  // Clamp absurd spans (stale startedAt + missing/wrong completedAt).
+  const MAX_MS = 2 * 60 * 60 * 1000;
+  if (
+    typeof completedAtMs === "number" &&
+    completedAtMs - startedAtMs > MAX_MS
+  ) {
+    completedAtMs = startedAtMs;
+  }
+  if (row.complete && completedAtMs == null) {
+    completedAtMs = startedAtMs;
+  }
   return {
     id: asString(row.id) ?? `frame-${Math.random().toString(36).slice(2, 10)}`,
     segments,
     complete: Boolean(row.complete),
-    startedAtMs:
-      typeof row.startedAtMs === "number" ? row.startedAtMs : Date.now(),
-    completedAtMs:
-      typeof row.completedAtMs === "number" ? row.completedAtMs : undefined,
+    startedAtMs,
+    completedAtMs,
     introNarrative: asString(row.introNarrative),
     interimOutput: asString(row.interimOutput),
   };

@@ -216,6 +216,9 @@ export function Sidebar({
 
   const renderChatRow = (chat: RecentChat) => {
     const isGeneratingChat = generatingSet.has(chat.id);
+    // Spinner only for background generations — active chat already shows the stream.
+    const showSidebarSpinner =
+      isGeneratingChat && activeChatId !== chat.id;
     return (
     <div
       key={chat.id}
@@ -241,52 +244,57 @@ export function Sidebar({
         {chat.isTitleStreaming && <TypingDots className="ml-0.5" />}
       </div>
       <div className="ml-1 flex shrink-0 items-center gap-0.5">
-        {isGeneratingChat ? (
+        {showSidebarSpinner ? (
           <span
-            className="chat-gen-spinner shrink-0"
+            className="flex h-6 w-6 items-center justify-center"
             aria-label="Generating"
             title="Generating"
             role="status"
-          />
-        ) : null}
-        <button
-          type="button"
-          aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}
-          onClick={(e) => {
-            e.stopPropagation();
-            onPinChat?.(chat.id, !chat.pinned);
-          }}
-          className={cn(
-            "flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 hover:text-zinc-800 focus-visible:opacity-100",
-          )}
-        >
-          {chat.pinned ? (
-            <PinOff className="h-3.5 w-3.5" strokeWidth={2} />
-          ) : (
-            <Pin className="h-3.5 w-3.5" strokeWidth={2} />
-          )}
-        </button>
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
+          >
+            <span className="chat-gen-spinner" />
+          </span>
+        ) : (
+          <>
             <button
-              onClick={(e) => e.stopPropagation()}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
+              type="button"
+              aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPinChat?.(chat.id, !chat.pinned);
+              }}
+              className={cn(
+                "flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 hover:text-zinc-800 focus-visible:opacity-100",
+              )}
             >
-              <MoreVertical className="icon-md icon-muted" />
+              {chat.pinned ? (
+                <PinOff className="h-3.5 w-3.5" strokeWidth={2} />
+              ) : (
+                <Pin className="h-3.5 w-3.5" strokeWidth={2} />
+              )}
             </button>
-          </DropdownMenuTrigger>
-          <ChatRowMenuContent
-            align="end"
-            side="right"
-            isPinned={!!chat.pinned}
-            onRename={() => setRenameChatId(chat.id)}
-            onMoveToProject={() => runNavAction(onProjectsClick)}
-            onPin={() => onPinChat?.(chat.id, true)}
-            onUnpin={() => onPinChat?.(chat.id, false)}
-            onDelete={() => setDeleteChatId(chat.id)}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </DropdownMenu>
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
+                >
+                  <MoreVertical className="icon-md icon-muted" />
+                </button>
+              </DropdownMenuTrigger>
+              <ChatRowMenuContent
+                align="end"
+                side="right"
+                isPinned={!!chat.pinned}
+                onRename={() => setRenameChatId(chat.id)}
+                onMoveToProject={() => runNavAction(onProjectsClick)}
+                onPin={() => onPinChat?.(chat.id, true)}
+                onUnpin={() => onPinChat?.(chat.id, false)}
+                onDelete={() => setDeleteChatId(chat.id)}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </DropdownMenu>
+          </>
+        )}
       </div>
     </div>
     );

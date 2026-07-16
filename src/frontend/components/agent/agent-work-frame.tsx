@@ -108,8 +108,13 @@ export function AgentWorkFrame({
 
   const workedForLabel = resolveWorkedForLabel({
     startedAtMs,
+    // Never invent "now" as completion — that turns message age into Worked-for.
     completedAtMs:
-      completedAtMs ?? (turnFinished ? Date.now() : undefined),
+      typeof completedAtMs === "number"
+        ? completedAtMs
+        : turnFinished && typeof startedAtMs === "number"
+          ? startedAtMs
+          : undefined,
   });
 
   const activeLabel = resolveFrameHeaderLabel({

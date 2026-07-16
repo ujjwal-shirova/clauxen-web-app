@@ -22,6 +22,9 @@ export function formatWorkedDuration(durationMs: number): string {
   return formatDuration(Math.max(0, durationMs), { hideTrailingZeros: true });
 }
 
+/** Cap absurd durations from stale startedAtMs / missing completedAtMs. */
+export const MAX_WORKED_DURATION_MS = 2 * 60 * 60 * 1000; // 2 hours
+
 export function resolveWorkedForLabel(input: {
   startedAtMs?: number;
   completedAtMs?: number;
@@ -29,8 +32,22 @@ export function resolveWorkedForLabel(input: {
 }): string | null {
   const started = input.startedAtMs;
   if (!started || started <= 0) return null;
-  const end = input.completedAtMs ?? input.nowMs ?? Date.now();
-  const duration = Math.max(0, end - started);
+
+  // Prefer a real completion stamp. Falling back to "now" for finished turns
+  // rewrites history as (now - started) and can show multi-hour nonsense.
+  const end =
+    typeof input.completedAtMs === "number" && input.completedAtMs >= started
+      ? input.completedAtMs
+      : typeof input.nowMs === "number"
+        ? input.nowMs
+        : null;
+
+  if (end == null) return null;
+
+  let duration = Math.max(0, end - started);
+  if (duration > MAX_WORKED_DURATION_MS) {
+    duration = MAX_WORKED_DURATION_MS;
+  }
   const verb = pickTurnVerb(started);
   return `${verb} for ${formatWorkedDuration(Math.max(1000, duration))}`;
 }

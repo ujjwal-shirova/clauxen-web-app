@@ -71,23 +71,47 @@ export function createAgentFrame(id?: string): AgentFrame {
 
 /** Normalize legacy single-timeline messages into frame list. */
 export function resolveAgentFrames(message: Message): AgentFrame[] {
-  if (message.agentFrames?.length) {
-    return dedupeAgentFrameIds(message.agentFrames);
+  const raw = message.agentFrames?.length
+    ? dedupeAgentFrameIds(message.agentFrames)
+    : null;
+
+  if (raw) {
+    return raw.map(clampFrameDuration);
   }
 
   const segments = message.agentSegments ?? [];
   if (segments.length === 0) return [];
 
+  const stamp = message.createdAt ?? Date.now();
   return [
-    {
+    clampFrameDuration({
       id: "frame-1",
       segments,
       complete: message.agentFrameComplete === true,
-      startedAtMs: Date.now(),
+      startedAtMs: stamp,
       completedAtMs:
-        message.agentFrameComplete === true ? Date.now() : undefined,
-    },
+        message.agentFrameComplete === true ? stamp : undefined,
+    }),
   ];
+}
+
+const MAX_FRAME_DURATION_MS = 2 * 60 * 60 * 1000;
+
+function clampFrameDuration(frame: AgentFrame): AgentFrame {
+  const started = frame.startedAtMs;
+  if (!started || started <= 0) return frame;
+  let completed = frame.completedAtMs;
+  if (frame.complete && (completed == null || completed < started)) {
+    completed = started;
+  }
+  if (
+    typeof completed === "number" &&
+    completed - started > MAX_FRAME_DURATION_MS
+  ) {
+    completed = started;
+  }
+  if (completed === frame.completedAtMs) return frame;
+  return { ...frame, completedAtMs: completed };
 }
 
 export function activeFrameIndex(message: Message, frames: AgentFrame[]): number {

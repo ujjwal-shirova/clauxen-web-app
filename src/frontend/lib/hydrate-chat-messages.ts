@@ -31,8 +31,9 @@ function enrichMessageAgentUi(message: Message): Message {
 }
 
 /**
- * Hydrate a UI Message from chat_messages.content_json when it is Cursor-style
- * JSONL (`{ role, message: { content: [...] } }`).
+ * Hydrate a UI Message from chat_messages.content_json when it is an
+ * Anthropic Messages-style transcript record
+ * (`{ role, message: { content: [...] } }`).
  */
 export function hydrateMessageFromContentJson(
   base: Message,
@@ -94,13 +95,20 @@ export function hydrateMessageFromContentJson(
 
   if (!hasThinking && !hasTools && !contentFromParts) return base;
 
+  // Use message creation time for both ends so "Worked for" is ~0s on hydrate
+  // (never Date.now() - createdAt, which becomes hours/days).
+  const stamp =
+    typeof base.createdAt === "number" && base.createdAt > 0
+      ? base.createdAt
+      : Date.now();
+
   const frames: AgentFrame[] | undefined = hasTools || hasThinking
     ? [
         {
           id: `hydrated-${base.id}`,
           complete: true,
-          startedAtMs: base.createdAt ?? Date.now(),
-          completedAtMs: Date.now(),
+          startedAtMs: stamp,
+          completedAtMs: stamp,
           segments: [
             ...(hasThinking
               ? [

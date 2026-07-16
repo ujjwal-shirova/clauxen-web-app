@@ -1,13 +1,22 @@
 /**
- * Cursor-style JSONL transcript records for training export.
+ * Anthropic Messages API–shaped JSONL transcript records for training export
+ * and chat_messages.content_json persistence.
  *
- * Shape matches agent transcript dumps:
- *   {"role":"user","message":{"content":[{"type":"text","text":"..."}]}}
- *   {"role":"assistant","message":{"content":[{"type":"text","text":"..."},{"type":"tool_use",...}]}}
- *   {"type":"turn_ended","status":"success"}
+ * Content blocks match Anthropic / Clauxen Code assistant message content:
+ *   thinking | text | tool_use
+ * Tool results are stored as user-role messages (Anthropic wire format), not
+ * nested inside the assistant message (Cursor dump style).
+ *
+ * Schema also accepts legacy Cursor-style assistant records that embed
+ * tool_result parts for hydrate/back-compat.
  */
 
-export const TRANSCRIPT_SCHEMA_VERSION = "clauxen.transcript.v1" as const;
+export const TRANSCRIPT_SCHEMA_VERSION =
+  "clauxen.transcript.anthropic.v1" as const;
+
+/** @deprecated Prefer TRANSCRIPT_SCHEMA_VERSION — kept for reading old rows. */
+export const TRANSCRIPT_SCHEMA_VERSION_LEGACY =
+  "clauxen.transcript.v1" as const;
 
 export type TranscriptTextPart = {
   type: "text";
@@ -17,11 +26,13 @@ export type TranscriptTextPart = {
 export type TranscriptThinkingPart = {
   type: "thinking";
   thinking: string;
+  /** Optional Anthropic thinking signature when present. */
+  signature?: string;
 };
 
 export type TranscriptToolUsePart = {
   type: "tool_use";
-  id?: string;
+  id: string;
   name: string;
   input: Record<string, unknown>;
 };
@@ -65,18 +76,21 @@ export function textPart(text: string): TranscriptTextPart {
   return { type: "text", text };
 }
 
-export function thinkingPart(thinking: string): TranscriptThinkingPart {
-  return { type: "thinking", thinking };
+export function thinkingPart(
+  thinking: string,
+  signature?: string,
+): TranscriptThinkingPart {
+  return signature
+    ? { type: "thinking", thinking, signature }
+    : { type: "thinking", thinking };
 }
 
 export function toolUsePart(
   name: string,
   input: Record<string, unknown>,
-  id?: string,
+  id: string,
 ): TranscriptToolUsePart {
-  return id
-    ? { type: "tool_use", id, name, input }
-    : { type: "tool_use", name, input };
+  return { type: "tool_use", id, name, input };
 }
 
 export function toolResultPart(
@@ -103,6 +117,7 @@ export function buildUserTranscriptRecord(
   };
 }
 
+/** Anthropic order: thinking → tool_use* → text (no tool_result on assistant). */
 export function buildAssistantTranscriptRecord(input: {
   answer: string;
   thinking?: string;
@@ -112,21 +127,33 @@ export function buildAssistantTranscriptRecord(input: {
   const thinking = input.thinking?.trim();
   if (thinking) parts.push(thinkingPart(thinking));
 
+  for (const tool of input.tools ?? []) {
+    parts.push(toolUsePart(tool.name, tool.input ?? {}, tool.id));
+  }
+
   const answer = input.answer.trim();
   if (answer) parts.push(textPart(answer));
 
-  for (const tool of input.tools ?? []) {
-    parts.push(toolUsePart(tool.name, tool.input ?? {}, tool.id));
-    if (tool.result !== undefined) {
-      parts.push(toolResultPart(tool.id, tool.result, Boolean(tool.isError)));
-    }
-  }
-
-  // Always keep a content array so exporters never need null-guards.
   if (parts.length === 0) parts.push(textPart(""));
 
   return {
     role: "assistant",
+    message: { content: parts },
+  };
+}
+
+/** Anthropic user message carrying tool_result blocks after a tool_use turn. */
+export function buildToolResultUserRecord(
+  tools: CapturedToolCall[],
+): TranscriptMessageRecord | null {
+  const parts: TranscriptToolResultPart[] = [];
+  for (const tool of tools) {
+    if (tool.result === undefined) continue;
+    parts.push(toolResultPart(tool.id, tool.result, Boolean(tool.isError)));
+  }
+  if (parts.length === 0) return null;
+  return {
+    role: "user",
     message: { content: parts },
   };
 }
@@ -144,7 +171,7 @@ export function transcriptRoleOf(
   return record.role;
 }
 
-/** Convert UI/branch Message-like objects into JSONL records. */
+/** Convert UI/branch Message-like objects into Anthropic-shaped JSONL records. */
 export function messagesToTranscriptRecords(
   messages: Array<{
     id?: string;
@@ -223,6 +250,15 @@ export function messagesToTranscriptRecords(
       record,
       messageId: message.id ?? null,
     });
+
+    const toolResults = buildToolResultUserRecord(tools);
+    if (toolResults) {
+      lines.push({
+        role: "user",
+        record: toolResults,
+        messageId: message.id ?? null,
+      });
+    }
   }
 
   if (lines.length > 0) {

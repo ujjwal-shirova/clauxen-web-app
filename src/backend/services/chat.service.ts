@@ -28,6 +28,7 @@ import {
 import {
   buildAssistantTranscriptRecord,
   buildTurnEndedRecord,
+  buildToolResultUserRecord,
   buildUserTranscriptRecord,
   messagesToTranscriptRecords,
   type CapturedToolCall,
@@ -76,6 +77,16 @@ async function persistAssistantTranscriptTurn(input: {
       role: "assistant",
       record,
     });
+    const toolResults = buildToolResultUserRecord(input.tools);
+    if (toolResults) {
+      await transcriptRepo.appendTranscriptLine({
+        chatId: input.chatId,
+        userId: input.userId,
+        messageId: input.messageId,
+        role: "user",
+        record: toolResults,
+      });
+    }
     await transcriptRepo.appendTranscriptLine({
       chatId: input.chatId,
       userId: input.userId,
