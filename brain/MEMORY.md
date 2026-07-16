@@ -53,6 +53,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-15 | Vercel Require Verified Commits is ON — GitHub must show commit as Verified (SSH signing key uploaded separately from auth key) | Deployments of unverified commits are auto-canceled |
 | 2026-07-15 | Notifications: Push/Email popover with row-click toggles; settings persist optimistic (no PATCH response overwrite) | Fix 2–4s toggle flicker |
 | 2026-07-17 | Agentic activity UI rebuilt (no left-rail timeline; chevron beside labels; optional thinking + auto-scroll). Message persist: bump chats.updated_at on write; finalize stale streaming on load; await user append on send; healed stuck streaming rows in DB | Reload showed empty/missing turns; old vertical timeline UX |
+| 2026-07-17 | GitHub milestone **Agentic activity UI + chat persistence** (#1) + tracking issue #9; shipped in `40af97f` | Keep handoff trackable after partial commits |
 | 2026-07-16 | RAM eviction omits messageIds keys (not `[]`) so Recents filter does not hide switched-away chats | Bug: new chat vanished after opening another chat |
 | 2026-07-15 | Personalization style/characteristics use modular `.md` instructions (base style + warm/enthusiastic/headers/emoji More|Default|Less); Personality row removed as duplicate of base style; virgil.md no longer hardcodes warm/emoji/list personality | ChatGPT-parity settings; style swaps without editing main system card |
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
