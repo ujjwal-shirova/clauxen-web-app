@@ -20,7 +20,9 @@ export function stripMessageContentForModelApi(content: string): string {
     .replace(/<frame[^>]*>[\s\S]*?<\/frame>/gi, "")
     // tool call scaffolding that may leak into visible text in some paths
     .replace(/<tool-call[\s\S]*?<\/tool-call>/gi, "")
-    .replace(/\[tool:[^\]]+\]/gi, "");
+    .replace(/\[tool:[^\]]+\]/gi, "")
+    // rehype-harden leftover when custom-protocol follow-up links were blocked
+    .replace(/\s*\[blocked\]/gi, "");
 
   return stripFollowUpPromptTags(
     stripAssistantStreamArtifacts(

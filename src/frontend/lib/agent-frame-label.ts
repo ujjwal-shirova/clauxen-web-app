@@ -5,16 +5,14 @@ import type {
 } from "@/frontend/lib/agent-segments";
 import { fileNameFromPath } from "@/frontend/lib/chat-artifacts";
 import { formatDuration } from "@/frontend/lib/clauxen-code/format-duration";
-import { TURN_COMPLETION_VERBS } from "@/frontend/lib/clauxen-code/turn-completion-verbs";
 
 export const PLANNING_NEXT_MOVES_LABEL = "Planning next moves";
 export const WORKING_LABEL = "Working";
 
-function pickTurnVerb(seed: number): string {
-  const verbs = TURN_COMPLETION_VERBS;
-  if (!verbs.length) return "Worked";
-  const index = Math.abs(Math.floor(seed)) % verbs.length;
-  return verbs[index] ?? "Worked";
+function pickTurnVerb(_seed: number): string {
+  // Single consistent label — random Brewed/Churned/Cogitated chips stacked
+  // poorly when multi-frame; keep one clear agentic summary verb.
+  return "Worked";
 }
 
 /** Human duration for "Worked for 7m 26s" headers (Clauxen Code formatDuration). */

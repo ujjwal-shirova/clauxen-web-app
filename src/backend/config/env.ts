@@ -46,8 +46,11 @@ const providerOpenAiBaseUrl = normalizeBaseUrl(
   ) || MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
 );
 
-const DEFAULT_ANTHROPIC_BASE_URL = "https://api.novita.ai/anthropic";
-
+/**
+ * Resolve Anthropic Messages API base URL from Provider_* env only.
+ * Never hardcode vendor hosts — derive `/anthropic` from Provider_BASE_URL
+ * when that env points at an OpenAI-compatible path (`…/openai`).
+ */
 function resolveAnthropicBaseUrl(): string {
   const dedicated = firstOptional(
     "NOVITA_ANTHROPIC_BASE_URL",
@@ -55,13 +58,26 @@ function resolveAnthropicBaseUrl(): string {
   );
   if (dedicated) return normalizeBaseUrl(dedicated);
 
-  const providerBase = firstOptional(PROVIDER.baseUrl);
-  // Only reuse Provider_BASE_URL when it already points at an Anthropic path.
+  const providerBase = firstOptional(
+    PROVIDER.baseUrl,
+    "NOVITA_OPENAI_BASE_URL",
+    "LLM_BASE_URL",
+  );
+  if (!providerBase) {
+    return normalizeBaseUrl(MODEL_CONFIG.endpoints.novitaAnthropicBaseUrl);
+  }
+
   if (/\/anthropic\/?$/i.test(providerBase)) {
     return normalizeBaseUrl(providerBase);
   }
 
-  return DEFAULT_ANTHROPIC_BASE_URL;
+  // Provider_BASE_URL is often `https://…/openai` — map to Messages path.
+  if (/\/openai\/?$/i.test(providerBase)) {
+    return normalizeBaseUrl(providerBase.replace(/\/openai\/?$/i, "/anthropic"));
+  }
+
+  // Host-only or other path — append /anthropic.
+  return normalizeBaseUrl(`${normalizeBaseUrl(providerBase)}/anthropic`);
 }
 
 export const env = {
@@ -228,6 +244,20 @@ export function requireProviderBaseUrl(): string {
   if (!url) {
     throw new Error(
       `${PROVIDER.baseUrl} is not configured on the server.`,
+    );
+  }
+  return url;
+}
+
+/** Anthropic Messages path derived from Provider_BASE_URL (…/openai → …/anthropic). */
+export function requireAnthropicBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    throw new Error("Provider base URL is server-only.");
+  }
+  const url = env.novitaAnthropicBaseUrl;
+  if (!url) {
+    throw new Error(
+      `${PROVIDER.baseUrl} (Anthropic path) is not configured on the server.`,
     );
   }
   return url;

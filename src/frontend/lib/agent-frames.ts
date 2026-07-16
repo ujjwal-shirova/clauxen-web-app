@@ -193,15 +193,57 @@ export function agentAnswerDuplicatesInterim(message: Message): boolean {
   );
 }
 
-/** Flat render sequence driven by stream events — no fixed step layout. */
+/**
+ * Collapse multi-step agent frames into one activity panel.
+ *
+ * Older streams opened a new "Brewed/Churned for …" frame per tool round.
+ * The product UI is a single agentic activity for the whole assistant turn.
+ */
+export function mergeAgentFramesForDisplay(frames: AgentFrame[]): AgentFrame[] {
+  if (frames.length <= 1) return frames;
+
+  const withWork = frames.filter((frame) =>
+    frameHasWorkSegments(frame.segments),
+  );
+  if (withWork.length <= 1) return frames;
+
+  const first = withWork[0]!;
+  const last = withWork[withWork.length - 1]!;
+  const segments = withWork.flatMap((frame) => frame.segments);
+  const introParts = withWork
+    .map((frame) => frame.introNarrative?.trim())
+    .filter(Boolean) as string[];
+  const interimParts = withWork
+    .map((frame) => frame.interimOutput?.trim())
+    .filter(Boolean) as string[];
+
+  const merged: AgentFrame = {
+    id: first.id,
+    segments,
+    complete: withWork.every((frame) => frame.complete),
+    startedAtMs: Math.min(...withWork.map((frame) => frame.startedAtMs || Date.now())),
+    completedAtMs: last.completedAtMs ?? first.completedAtMs,
+    introNarrative: introParts[0],
+    interimOutput: interimParts.join("\n\n") || undefined,
+  };
+
+  // Preserve non-work frames (shouldn't exist) after the merged activity.
+  const leftovers = frames.filter(
+    (frame) => !frameHasWorkSegments(frame.segments),
+  );
+  return [merged, ...leftovers];
+}
+
+/** Flat render sequence — one activity panel, then the final answer. */
 export function resolveOrchestrationBlocks(
   message: Message,
 ): OrchestrationBlock[] {
-  const frames = resolveAgentFrames(message);
+  const frames = mergeAgentFramesForDisplay(resolveAgentFrames(message));
   const streaming = message.isStreaming === true;
   const blocks: OrchestrationBlock[] = [];
 
   let lastInterimNarrative: string | undefined;
+  let introShown = false;
 
   for (let index = 0; index < frames.length; index += 1) {
     const frame = frames[index];
@@ -214,7 +256,9 @@ export function resolveOrchestrationBlocks(
 
     const introNarrative = frame.introNarrative?.trim();
 
-    if (introNarrative) {
+    // Show at most one intro whisper above the activity panel.
+    if (introNarrative && !introShown) {
+      introShown = true;
       blocks.push({
         kind: "markdown",
         blockId: `${frame.id}-intro`,
@@ -234,8 +278,7 @@ export function resolveOrchestrationBlocks(
   }
 
   const trailingContent = message.content.trim();
-  // Never hoist final answer into the work timeline — keep the vertical
-  // timeline anchored above the streaming answer.
+  // Final answer stays below activity — never inside the collapsible panel.
   if (
     trailingContent &&
     !agentAnswerDuplicatesInterim(message)

@@ -2,6 +2,7 @@
 
 import type { Message } from "@/frontend/lib/types";
 import { useChatStore } from "@/frontend/stores/chat-store";
+import { dedupeChatMessages } from "@/frontend/lib/dedupe-chat-messages";
 
 export type AllChats = Record<string, Message[]>;
 
@@ -17,7 +18,8 @@ export function setAllChatsNormalized(
     if (!next[chatId]) store.removeChat(chatId);
   }
   for (const [chatId, messages] of Object.entries(next)) {
-    store.setChatMessages(chatId, messages);
+    // Always collapse optimistic/realtime duplicates before commit.
+    store.setChatMessages(chatId, dedupeChatMessages(messages));
   }
 }
 

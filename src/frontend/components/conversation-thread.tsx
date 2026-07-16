@@ -37,6 +37,7 @@ import { messageUiKey } from "@/frontend/lib/message-ui-key";
 import { FollowUpPromptProvider } from "@/frontend/contexts/follow-up-prompt-context";
 import { useAppPreferencesOptional } from "@/frontend/contexts/app-preferences-context";
 import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
+import { dedupeChatMessages } from "@/frontend/lib/dedupe-chat-messages";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
@@ -75,7 +76,8 @@ type ConversationTurnGroup = {
 
 function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
   const groups: ConversationTurnGroup[] = [];
-  messages.forEach((msg) => {
+  const deduped = dedupeChatMessages(messages);
+  deduped.forEach((msg) => {
     if (msg.role === "user") {
       groups.push({ userMessage: msg, assistantMessages: [] });
     } else if (groups.length === 0) {

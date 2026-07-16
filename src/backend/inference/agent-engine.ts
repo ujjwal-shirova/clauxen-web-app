@@ -10,7 +10,8 @@
  *
  * Architecture:
  *  1. Agentic Loop — multi-step tool-call cycles (Clauxen Code query.ts).
- *  2. Frame Events — each tool round opens/closes an agent frame.
+ *  2. Frame Events — ONE activity frame for the whole assistant turn
+ *     (not one Brewed/Churned chip per tool round).
  *  3. Interim Narrative — text between tools as progress notes.
  *  4. Self-Healing — malformed tool args healed without an LLM round-trip.
  *  5. Parallel Tool Calls — independent tools execute concurrently.
@@ -40,7 +41,11 @@ import {
 } from "@/lib/model-effort";
 import { DEFAULT_CHAT_MODEL_ID } from "@/lib/model-catalog";
 import Anthropic from "@anthropic-ai/sdk";
-import { requireProviderApiKey, env } from "@/backend/config/env";
+import {
+  requireProviderApiKey,
+  requireAnthropicBaseUrl,
+  env,
+} from "@/backend/config/env";
 
 /** Single autonomous step budget. The model decides how many steps it needs. */
 const MAX_STEPS = 24;
@@ -218,8 +223,8 @@ export async function runAutonomousAgent(
 
   sse.writeStart(true);
 
-  let frameCounter = 1;
-  let frameId = `agent-frame-${frameCounter}`;
+  // One activity frame for the entire assistant turn (Clauxen Code–style).
+  const frameId = "agent-frame-1";
   let frameOpen = false;
   let textSegmentCounter = 0;
   let activeTextSegmentId: string | null = null;
@@ -618,14 +623,13 @@ export async function runAutonomousAgent(
       });
 
       sse.writeStepDone(`Step ${step + 1} complete`);
-      closeFrame();
 
+      // Keep a single activity frame across tool rounds — closing here used
+      // to spawn stacked "Brewed for 3s / Churned for 21s" chips.
       if (pauseForUser) {
+        closeFrame();
         break;
       }
-
-      frameCounter += 1;
-      frameId = `agent-frame-${frameCounter}`;
     }
   } catch (error) {
     const aborted =
@@ -666,9 +670,7 @@ export async function generateChatTitle(
   try {
     const client = new Anthropic({
       apiKey: requireProviderApiKey(),
-      baseURL: (
-        env.novitaAnthropicBaseUrl || "https://api.novita.ai/anthropic"
-      ).replace(/\/$/, ""),
+      baseURL: requireAnthropicBaseUrl(),
     });
     const response = await client.messages.create(
       {

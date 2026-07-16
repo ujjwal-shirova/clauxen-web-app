@@ -9,7 +9,7 @@ export const FOLLOW_UP_PROMPT_TAG = "prompt";
 export function buildFollowUpSystemInstruction(): string {
   return `<follow_up_prompts>
 Near the end of your final reply, suggest 2–5 short follow-up actions the user might take next.
-Emit each as an HTML-style \`<prompt>\` tag. Tags may appear inside any markdown structure (lists, paragraphs, headings) — the UI renders them as clickable prompts:
+Emit each as an HTML-style \`<prompt>\` tag on its own line. The UI renders them as clickable prompts:
 
 - <prompt>Explain this in more detail</prompt>
 - <prompt>Show the implementation</prompt>
@@ -20,7 +20,9 @@ Rules:
 - Keep each prompt under ~12 words, specific to this conversation — not generic filler.
 - Do not wrap \`<prompt>\` tags in code fences or backticks.
 - Do not invent a separate "Follow-ups:" heading unless it helps readability.
+- Do not emit markdown links for follow-ups — only \`<prompt>\` tags.
 - Only emit \`<prompt>\` tags when this instruction is present. If it is absent, never emit them.
+- When the user sends a follow-up (including one of these prompts), answer THAT question directly using prior conversation context — do not restart a generic overview.
 </follow_up_prompts>`;
 }
 

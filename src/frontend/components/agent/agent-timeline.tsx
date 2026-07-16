@@ -1,9 +1,3 @@
-"use client";
-
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
-import { cn } from "@/frontend/lib/utils";
-
 /**
  * Agentic activity chrome (Clauxen Code–inspired).
  *
@@ -12,7 +6,14 @@ import { cn } from "@/frontend/lib/utils";
  * - Chevron sits immediately after the label (never far-right)
  * - Trailing meta (favicons, counts) follows the chevron
  * - Expanded bodies are softly indented under the label
+ * - One activity stream per assistant turn (not stacked Brewed/Churned chips)
  */
+
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
+import { cn } from "@/frontend/lib/utils";
 
 export type AgentActivityIcon =
   | "thinking"
@@ -31,7 +32,10 @@ export function AgentActivityList({
 }) {
   return (
     <div
-      className={cn("relative flex flex-col gap-1.5", className)}
+      className={cn(
+        "relative flex flex-col gap-1 border-l border-zinc-200/80 pl-3",
+        className,
+      )}
       data-agent-activity="list"
     >
       {children}
@@ -91,7 +95,7 @@ export function AgentActivityRow({
       <span
         className={cn(
           "min-w-0 truncate text-[13.5px] leading-5",
-          !isActive && "text-zinc-500",
+          isActive ? "text-zinc-700" : "text-zinc-500",
         )}
       >
         {title}
@@ -135,25 +139,23 @@ export function AgentActivityRow({
         <div className="inline-flex max-w-full items-center">{header}</div>
       )}
 
-      {canCollapse ? (
+      {hasBody ? (
         <div
           className={cn(
-            "grid transition-[grid-template-rows] duration-280 ease-[cubic-bezier(0.32,0.72,0,1)]",
+            "grid transition-[grid-template-rows] duration-250 ease-[cubic-bezier(0.32,0.72,0,1)]",
             expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
           )}
           aria-hidden={!expanded}
         >
           <div
             className={cn(
-              "min-w-0 overflow-hidden transition-opacity duration-200",
-              expanded ? "mt-1.5 opacity-100" : "opacity-0",
+              "overflow-hidden pt-1.5 transition-opacity duration-200",
+              expanded ? "opacity-100" : "opacity-0",
             )}
           >
-            <div className="min-w-0 pl-0.5">{children}</div>
+            {children}
           </div>
         </div>
-      ) : hasBody ? (
-        <div className="mt-1.5 min-w-0 pl-0.5">{children}</div>
       ) : null}
     </div>
   );
@@ -166,10 +168,8 @@ export function AgentTimelineDone({ label = "Done" }: { label?: string }) {
   return (
     <AgentActivityRow
       icon="done"
+      title={<span className="text-zinc-400">{label}</span>}
       collapsible={false}
-      title={
-        <span className="font-medium text-zinc-500">{label}</span>
-      }
     />
   );
 }

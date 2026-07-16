@@ -8,8 +8,9 @@ import {
 } from "@/frontend/lib/chat-sources";
 import { normalizeLatexDelimiters } from "@/frontend/components/markdown-shared";
 import { StreamdownStreamingMarkdown } from "@/frontend/components/streamdown-markdown";
-import { prepareFollowUpPromptsForMarkdown } from "@/frontend/lib/follow-up-tags";
+import { prepareFollowUpContent } from "@/frontend/lib/follow-up-tags";
 import { useFollowUpPrompt } from "@/frontend/contexts/follow-up-prompt-context";
+import { FollowUpPrompt } from "@/frontend/components/follow-up-prompt";
 
 export type StreamingMarkdownProps = {
   content: string;
@@ -20,8 +21,9 @@ export type StreamingMarkdownProps = {
 };
 
 /**
- * Real-time streaming markdown — Streamdown for incremental parsing,
- * custom token fade-in on text runs / code / tables.
+ * Real-time streaming markdown — Streamdown for incremental parsing.
+ * Follow-up `<prompt>` tags are extracted into dedicated clickable rows
+ * (never markdown links — rehype-harden marks unknown protocols as [blocked]).
  */
 export function StreamingMarkdown({
   content,
@@ -29,19 +31,26 @@ export function StreamingMarkdown({
   streamKey,
   sources = [],
 }: StreamingMarkdownProps) {
-  const { enabled: followUpsEnabled } = useFollowUpPrompt();
+  const { enabled: followUpsEnabled, onSelect } = useFollowUpPrompt();
 
-  const normalized = useMemo(() => {
+  const { markdown, prompts } = useMemo(() => {
     let text = stripReferenceDefinitions(normalizeLatexDelimiters(content));
-    text = prepareFollowUpPromptsForMarkdown(text, {
+    const prepared = prepareFollowUpContent(text, {
       enabled: followUpsEnabled,
       isStreaming,
     });
+    let nextMarkdown = prepared.markdown;
     if (sources.length > 0) {
-      text = convertCitationReferencesToLinks(text, sources);
+      nextMarkdown = convertCitationReferencesToLinks(nextMarkdown, sources);
     }
-    return text;
+    return { markdown: nextMarkdown, prompts: prepared.prompts };
   }, [content, sources, followUpsEnabled, isStreaming]);
+
+  const showPrompts =
+    followUpsEnabled &&
+    !isStreaming &&
+    prompts.length > 0 &&
+    typeof onSelect === "function";
 
   return (
     <div
@@ -50,11 +59,22 @@ export function StreamingMarkdown({
       data-streaming={isStreaming || undefined}
     >
       <StreamdownStreamingMarkdown
-        content={normalized}
+        content={markdown}
         isStreaming={isStreaming}
         streamKey={streamKey}
         sources={sources}
       />
+      {showPrompts ? (
+        <div
+          className="follow-up-prompt-list mt-4 flex w-full flex-col gap-2.5 font-sans"
+          role="group"
+          aria-label="Suggested follow-ups"
+        >
+          {prompts.map((prompt) => (
+            <FollowUpPrompt key={prompt} prompt={prompt} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
