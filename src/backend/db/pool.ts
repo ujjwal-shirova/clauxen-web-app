@@ -51,7 +51,7 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
     const result = await getPool().query<T>(text, params);
     return result.rows;
   } catch (error) {
-    throw mapPgError(error);
+    throw mapPgError(error, "pool.query");
   }
 }
 
@@ -74,7 +74,7 @@ export async function withTransaction<T>(
     return value;
   } catch (error) {
     await client.query("ROLLBACK");
-    throw error instanceof AppError ? error : mapPgError(error);
+    throw error instanceof AppError ? error : mapPgError(error, "pool.tx");
   } finally {
     client.release();
   }

@@ -30,6 +30,7 @@ import {
   type ComposerAttachment,
 } from "@/frontend/lib/composer-attachments";
 import { createClient } from "@/utils/supabase/client";
+import { logSupabaseQueryError } from "@/lib/supabase-query-error";
 import { randomUUID } from "@/frontend/lib/id";
 import {
   attachSnapshotToBranchVersion,
@@ -308,7 +309,14 @@ export function useChatApi(
         },
         scheduleRefresh,
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          logSupabaseQueryError("realtime.chats", err ?? { message: status }, {
+            table: "chats",
+            event: "*",
+          });
+        }
+      });
 
     return () => {
       window.clearTimeout(debounceTimer);
@@ -432,7 +440,19 @@ export function useChatApi(
           });
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          logSupabaseQueryError(
+            "realtime.chat_messages",
+            err ?? { message: status },
+            {
+              table: "chat_messages",
+              filter: `chat_id=eq.${activeChatId}`,
+              chatId: activeChatId,
+            },
+          );
+        }
+      });
 
     return () => {
       void supabase.removeChannel(channel);

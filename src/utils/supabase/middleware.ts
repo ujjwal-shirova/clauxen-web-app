@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
+import type { Database } from "@/types/database.types";
 import {
   DISPOSABLE_EMAIL_MESSAGE,
   isDisposableEmailSafe,
@@ -17,6 +18,7 @@ import {
   identityHintCookieValue,
 } from "@/utils/identity-cookie";
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
+import { logSupabaseQueryError } from "@/lib/supabase-query-error";
 
 const PUBLIC_PREFIXES = [
   "/login",
@@ -84,7 +86,7 @@ function writeOnboardingCache(
  * Uses the Edge-safe Supabase client (not pg) so the gate actually runs.
  */
 async function isOnboardingComplete(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<boolean> {
   try {
@@ -94,7 +96,14 @@ async function isOnboardingComplete(
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (error) return false;
+    if (error) {
+      logSupabaseQueryError("middleware.user_settings", error, {
+        table: "user_settings",
+        filter: `user_id=eq.${userId}`,
+        userId,
+      });
+      return false;
+    }
     return Boolean(data?.onboarding_completed_at);
   } catch {
     return false;
@@ -104,7 +113,7 @@ async function isOnboardingComplete(
 async function resolveOnboardingComplete(
   request: NextRequest,
   response: NextResponse,
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<boolean> {
   const cached = readOnboardingCache(request, userId);
@@ -124,7 +133,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   const { url, publishableKey } = requireSupabasePublicConfig();
-  const supabase = createServerClient(url, publishableKey, {
+  const supabase = createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

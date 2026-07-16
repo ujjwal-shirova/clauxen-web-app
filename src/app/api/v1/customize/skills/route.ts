@@ -19,7 +19,10 @@ export const GET = withApiHandler(
     const user = requireSession(session);
     const [textSkills, fileSkills] = await Promise.all([
       customizeRepo.listInstructionProfiles(user.id),
-      userSkillsRepo.listUserSkills(user.id),
+      userSkillsRepo.listUserSkills(user.id).catch((error) => {
+        console.warn("[skills] user_skills list failed:", error);
+        return [] as Awaited<ReturnType<typeof userSkillsRepo.listUserSkills>>;
+      }),
     ]);
     return jsonData({
       skills: textSkills,

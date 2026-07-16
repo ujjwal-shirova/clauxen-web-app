@@ -26,10 +26,20 @@ export function conflict(message = "Conflict"): AppError {
   return new AppError(message, 409, "conflict");
 }
 
-export function mapPgError(error: unknown): AppError {
-  const pg = error as { code?: string; message?: string };
+export function mapPgError(error: unknown, scope = "query"): AppError {
+  const pg = error as {
+    code?: string;
+    message?: string;
+    table?: string;
+    column?: string;
+  };
   const isProduction =
     process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+
+  // Always log the real driver error server-side (table/column/code).
+  void import("@/backend/db/log-db-error").then(({ logDbError }) => {
+    logDbError(scope, error);
+  });
 
   if (pg.code === "23505") {
     return conflict("Resource already exists.");
@@ -40,6 +50,14 @@ export function mapPgError(error: unknown): AppError {
       400,
       "invalid_reference",
     );
+  }
+  // Undefined column / missing relation — surface in non-prod for faster fixes.
+  if (
+    !isProduction &&
+    (pg.code === "42703" || pg.code === "42P01") &&
+    pg.message
+  ) {
+    return new AppError(pg.message, 500, "database_error");
   }
   return new AppError(
     isProduction ? "A database error occurred." : pg.message || "Database error.",

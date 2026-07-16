@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import type { Database } from "@/types/database.types";
 import { requireSupabasePublicConfig } from "./env";
 
 function withSecureCookieDefaults(options: CookieOptions = {}): CookieOptions {
@@ -15,7 +16,7 @@ export async function createClient() {
   const cookieStore = await cookies();
   const { url, publishableKey } = requireSupabasePublicConfig();
 
-  return createServerClient(url, publishableKey, {
+  return createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

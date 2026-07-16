@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { logSupabaseQueryError } from "@/lib/supabase-query-error";
 import * as authApi from "@/frontend/lib/api/auth";
 import type { SessionUser } from "@/frontend/lib/api/auth";
 import {
@@ -236,7 +237,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           );
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          logSupabaseQueryError(
+            "realtime.profiles",
+            err ?? { message: status },
+            {
+              table: "profiles",
+              filter: `id=eq.${user.id}`,
+              userId: user.id,
+            },
+          );
+        }
+      });
 
     return () => {
       void supabase.removeChannel(channel);

@@ -3,14 +3,15 @@ import {
   type SupabaseClient,
   type User,
 } from "@supabase/supabase-js";
+import type { Database } from "@/types/database.types";
 import {
   resolveSupabasePublicKey,
   resolveSupabaseServiceRoleKey,
   resolveSupabaseUrl,
 } from "@/lib/vercel-env";
 
-let adminClient: SupabaseClient | null = null;
-let anonClient: SupabaseClient | null = null;
+let adminClient: SupabaseClient<Database> | null = null;
+let anonClient: SupabaseClient<Database> | null = null;
 
 function requiredSupabaseUrl() {
   const value = resolveSupabaseUrl();
@@ -44,7 +45,7 @@ function requiredSupabasePublicKey() {
 
 export function getSupabaseAdmin() {
   if (!adminClient) {
-    adminClient = createClient(
+    adminClient = createClient<Database>(
       requiredSupabaseUrl(),
       requiredSupabaseServiceRoleKey(),
       {
@@ -61,7 +62,7 @@ export function getSupabaseAdmin() {
 
 export function getSupabaseAnonServerClient() {
   if (!anonClient) {
-    anonClient = createClient(
+    anonClient = createClient<Database>(
       requiredSupabaseUrl(),
       requiredSupabasePublicKey(),
       {
