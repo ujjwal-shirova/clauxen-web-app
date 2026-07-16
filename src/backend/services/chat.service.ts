@@ -122,6 +122,7 @@ export async function listRecentChats(userId: string, projectId?: string) {
 export async function getChatWithMessages(chatId: string, userId: string) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
+  await messagesRepo.finalizeStaleStreamingMessages(chatId).catch(() => 0);
   const messages = await messagesRepo.listMessagesForChat(chatId);
   return { chat, messages };
 }
@@ -139,6 +140,7 @@ export async function getChatMessagesPage(
 ) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
+  await messagesRepo.finalizeStaleStreamingMessages(chatId).catch(() => 0);
   const { listMessagesPagePreferEdge } = await import(
     "@/backend/chat/list-messages-page"
   );

@@ -5,8 +5,8 @@ import type { AgentTextSegment } from "@/frontend/lib/agent-segments";
 import { AgentTimelineStep } from "./agent-timeline";
 
 /**
- * Short narrative the model emits between tool calls — Cursor-style body copy
- * in the work log (no icon box).
+ * Short narration the model emits between tool actions — shown as an activity
+ * line (not a mandatory thinking block).
  */
 export function AgentNarrativeStep({
   segment,

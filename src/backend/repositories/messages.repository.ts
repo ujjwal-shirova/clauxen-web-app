@@ -111,11 +111,21 @@ export async function createMessage(input: {
   contentJson?: Record<string, unknown>;
 }) {
   return queryOne<MessageRow>(
-    `insert into public.chat_messages (
-       chat_id, user_id, role, content, status, metadata, content_json
+    `with inserted as (
+       insert into public.chat_messages (
+         chat_id, user_id, role, content, status, metadata, content_json
+       )
+       values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
+       returning id, chat_id, role, content, status, metadata, content_json, created_at
+     ),
+     touch as (
+       update public.chats
+       set updated_at = now()
+       where id = $1
+       returning id
      )
-     values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
-     returning id, chat_id, role, content, status, metadata, content_json, created_at`,
+     select id, chat_id, role, content, status, metadata, content_json, created_at
+     from inserted`,
     [
       input.chatId,
       input.userId ?? null,
@@ -177,13 +187,23 @@ export async function updateMessageContent(
   contentJson?: Record<string, unknown>,
 ) {
   return queryOne<MessageRow>(
-    `update public.chat_messages
-     set content = $3,
-         status = $4,
-         content_json = coalesce($5::jsonb, content_json),
-         updated_at = now()
-     where id = $1 and chat_id = $2
-     returning id, chat_id, role, content, status, metadata, content_json, created_at`,
+    `with updated as (
+       update public.chat_messages
+       set content = $3,
+           status = $4,
+           content_json = coalesce($5::jsonb, content_json),
+           updated_at = now()
+       where id = $1 and chat_id = $2
+       returning id, chat_id, role, content, status, metadata, content_json, created_at
+     ),
+     touch as (
+       update public.chats
+       set updated_at = now()
+       where id = $2
+       returning id
+     )
+     select id, chat_id, role, content, status, metadata, content_json, created_at
+     from updated`,
     [
       messageId,
       chatId,
@@ -192,4 +212,29 @@ export async function updateMessageContent(
       contentJson ? JSON.stringify(contentJson) : null,
     ],
   ); // composite key — message UUID alone insufficient; prevents cross-chat IDOR
+}
+
+/** Mark abandoned streaming rows so reloads don't show empty ghosts. */
+export async function finalizeStaleStreamingMessages(
+  chatId: string,
+  olderThanSeconds = 90,
+): Promise<number> {
+  const rows = await query<{ id: string }>(
+    `with updated as (
+       update public.chat_messages
+       set status = 'failed',
+           content = case
+             when coalesce(content, '') = '' then 'Generation interrupted.'
+             else content
+           end,
+           updated_at = now()
+       where chat_id = $1
+         and status = 'streaming'
+         and created_at < now() - make_interval(secs => $2)
+       returning id
+     )
+     select id from updated`,
+    [chatId, olderThanSeconds],
+  );
+  return rows.length;
 }

@@ -74,11 +74,24 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     activeBranchIndex?: number;
     attachments?: Message["attachments"];
   };
+  const createdAt = row.created_at
+    ? new Date(row.created_at).getTime()
+    : undefined;
+  const ageMs =
+    typeof createdAt === "number" ? Date.now() - createdAt : Number.POSITIVE_INFINITY;
+  // Abandoned streaming rows look like "missing messages" after reload.
+  const staleStreaming =
+    row.status === "streaming" &&
+    ageMs > 90_000 &&
+    !(row.content ?? "").trim();
+  const content = staleStreaming
+    ? "Generation interrupted."
+    : finalizeChatTitleStrippedAnswer(row.content);
   const base = compactMessageBranchData({
     id: row.id,
     clientId: row.id,
     role: row.role as Message["role"],
-    content: finalizeChatTitleStrippedAnswer(row.content),
+    content,
     thinkingContent: meta.thinkingContent,
     hasThinking: meta.hasThinking,
     thinkingDurationSeconds: meta.thinkingDurationSeconds,
@@ -87,9 +100,8 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     attachments: Array.isArray(meta.attachments)
       ? meta.attachments
       : undefined,
-    createdAt: row.created_at
-      ? new Date(row.created_at).getTime()
-      : undefined,
+    createdAt,
+    isStreaming: row.status === "streaming" && !staleStreaming,
   });
   return hydrateMessageFromContentJson(
     base,
@@ -1226,15 +1238,9 @@ export function useChatApi(
           modelUser,
         ]);
 
-        useChatStore.getState().setChatGenerating(chatId!, true);
-        void streamAssistantResponse(
-          chatId!,
-          conversation,
-          isNewChat ? trimmed || "New chat" : undefined,
-        );
-
-        // Persist user message without blocking the bubble / stream start.
-        void chatsApi
+        // Persist user message in parallel with stream start, but await so a
+        // quick reload cannot lose the turn before the INSERT commits.
+        const persistUser = chatsApi
           .appendMessage(chatId!, trimmed || "(attached files)", {
             fileIds: fileIds.length ? fileIds : undefined,
           })
@@ -1262,7 +1268,8 @@ export function useChatApi(
                 ...real,
                 id: real.id,
                 clientId: next[index]!.clientId ?? tempUserId,
-                attachments: next[index]!.attachments ?? optimisticUser.attachments,
+                attachments:
+                  next[index]!.attachments ?? optimisticUser.attachments,
               };
               return { ...prev, [chatId!]: next };
             });
@@ -1270,6 +1277,15 @@ export function useChatApi(
           .catch((error) => {
             console.warn("[chat] appendMessage failed:", error);
           });
+
+        useChatStore.getState().setChatGenerating(chatId!, true);
+        void streamAssistantResponse(
+          chatId!,
+          conversation,
+          isNewChat ? trimmed || "New chat" : undefined,
+        );
+
+        await persistUser;
 
         return chatId;
       } catch (error) {

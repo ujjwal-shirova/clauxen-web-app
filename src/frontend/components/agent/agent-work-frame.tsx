@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
-  resolveFrameHeaderLabel,
+  resolveActiveStepLabel,
   resolveWorkedForLabel,
   shouldShimmerFrameHeader,
+  WORKING_LABEL,
 } from "@/frontend/lib/agent-frame-label";
 import type {
   AgentSegment,
@@ -14,7 +15,7 @@ import type {
   AgentThinkingSegment,
   AgentToolSegment,
 } from "@/frontend/lib/agent-segments";
-import { AgentTimeline } from "./agent-timeline";
+import { AgentActivityList } from "./agent-timeline";
 import { AgentThinkingStep } from "./agent-thinking-step";
 import { AgentNarrativeStep } from "@/frontend/components/agent/agent-narrative-step";
 import { AgentToolBlock } from "./agent-tool-blocks";
@@ -43,10 +44,10 @@ function workSegments(segments: AgentSegment[]) {
 }
 
 /**
- * Collapsible agent work summary.
+ * Agentic activity panel for one assistant work turn.
  *
- * Streaming: expanded log; header shows shimmering active step (Thinking / tools).
- * Complete: auto-collapses to only "Worked for Xm Ys" (expandable for details).
+ * Live: compact action list (thinking optional, tools as actions).
+ * Done: collapses to a single "Worked for …" chip with chevron beside the label.
  */
 export function AgentWorkFrame({
   segments,
@@ -72,28 +73,24 @@ export function AgentWorkFrame({
     (segment): segment is AgentToolSegment =>
       isToolSegment(segment) && segment.name === "ask_user_input_v0",
   );
-  const timelineItems = items.filter(
+  const activityItems = items.filter(
     (segment) =>
       !(isToolSegment(segment) && segment.name === "ask_user_input_v0"),
   );
-  const userInputOnly = hasUserInputTool && timelineItems.length === 0;
-
+  const userInputOnly = hasUserInputTool && activityItems.length === 0;
   const turnFinished = frameComplete && !isStreaming;
 
   useEffect(() => {
-    // Interactive ask-user stays open.
     if (hasUserInputTool && !turnFinished) {
       userToggledRef.current = false;
       setExpanded(true);
       return;
     }
-    // Live work → keep the log open so streaming steps are visible.
     if (isStreaming) {
       userToggledRef.current = false;
       setExpanded(true);
       return;
     }
-    // Turn done → collapse to "Worked for …" only (unless user re-opened).
     if (turnFinished && !userToggledRef.current) {
       setExpanded(false);
     }
@@ -108,7 +105,6 @@ export function AgentWorkFrame({
 
   const workedForLabel = resolveWorkedForLabel({
     startedAtMs,
-    // Never invent "now" as completion — that turns message age into Worked-for.
     completedAtMs:
       typeof completedAtMs === "number"
         ? completedAtMs
@@ -117,28 +113,23 @@ export function AgentWorkFrame({
           : undefined,
   });
 
-  const activeLabel = resolveFrameHeaderLabel({
-    segments: items,
-    hasActiveWork,
-  });
+  const liveLabel =
+    resolveActiveStepLabel(items) ??
+    (hasActiveWork ? WORKING_LABEL : "Working");
 
-  // Complete → only "Worked for …"; streaming → shimmering Thinking / tool label.
   const frameLabel = turnFinished
-    ? workedForLabel ?? activeLabel
-    : activeLabel;
+    ? workedForLabel ?? "Worked"
+    : liveLabel;
 
   const showShimmer =
     isStreaming &&
     (hasActiveWork || shouldShimmerFrameHeader(frameLabel));
-  const showCollapsedHeader = turnFinished && !expanded && !hasUserInputTool;
 
-  if (items.length === 0) {
-    return null;
-  }
+  if (items.length === 0) return null;
 
   if (userInputOnly) {
     return (
-      <div className="mb-4 w-full min-w-0">
+      <div className="mb-3 w-full min-w-0">
         {userInputTools.map((segment) => (
           <AgentToolBlock key={segment.id} tool={segment} />
         ))}
@@ -152,37 +143,39 @@ export function AgentWorkFrame({
   };
 
   return (
-    <div className="mb-4 w-full min-w-0" data-agent-work-frame="true">
+    <div
+      className="mb-3 w-full min-w-0"
+      data-agent-work-frame="true"
+      data-agent-activity="panel"
+    >
       <button
         type="button"
         onClick={toggleExpanded}
-        className="no-hover no-hover-overlay mb-2 inline-flex max-w-full items-center border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0"
+        className="no-hover no-hover-overlay mb-1.5 inline-flex max-w-full items-center gap-1 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0"
         aria-expanded={expanded}
         aria-label={
           expanded ? `Collapse: ${frameLabel}` : `Expand: ${frameLabel}`
         }
       >
-        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
-          <span
-            className={cn(
-              "truncate text-[14px] font-medium leading-5 transition-[font-weight,color] duration-150 hover:font-semibold",
-              showCollapsedHeader
-                ? "text-zinc-400 hover:text-zinc-500"
-                : showShimmer
-                  ? "shimmer-text"
-                  : "text-zinc-700",
-            )}
-          >
-            {frameLabel}
-          </span>
-          <ChevronDown
-            className={cn(
-              "icon-md shrink-0 text-zinc-400 transition-transform duration-200",
-              expanded ? "rotate-180" : "-rotate-90",
-            )}
-            aria-hidden
-          />
+        <span
+          className={cn(
+            "truncate text-[13.5px] font-medium leading-5",
+            turnFinished && !expanded
+              ? "text-zinc-400 hover:text-zinc-500"
+              : showShimmer
+                ? "shimmer-text"
+                : "text-zinc-600",
+          )}
+        >
+          {frameLabel}
         </span>
+        <ChevronRight
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200",
+            expanded && "rotate-90",
+          )}
+          aria-hidden
+        />
       </button>
 
       <div
@@ -195,16 +188,20 @@ export function AgentWorkFrame({
         <div
           className={cn(
             "overflow-hidden transition-opacity duration-200",
-            expanded ? "opacity-100 delay-100" : "opacity-0",
+            expanded ? "opacity-100" : "opacity-0",
           )}
         >
           {userInputTools.map((segment) => (
             <AgentToolBlock key={segment.id} tool={segment} />
           ))}
-          {timelineItems.length > 0 ? (
-            <AgentTimeline>
-              {timelineItems.map((segment) => {
+          {activityItems.length > 0 ? (
+            <AgentActivityList>
+              {activityItems.map((segment) => {
                 if (isThinkingSegment(segment)) {
+                  // Skip empty non-streaming thinking — not a required block.
+                  if (!segment.content.trim() && !segment.isStreaming) {
+                    return null;
+                  }
                   return (
                     <AgentThinkingStep key={segment.id} segment={segment} />
                   );
@@ -219,7 +216,7 @@ export function AgentWorkFrame({
                 }
                 return null;
               })}
-            </AgentTimeline>
+            </AgentActivityList>
           ) : null}
         </div>
       </div>
