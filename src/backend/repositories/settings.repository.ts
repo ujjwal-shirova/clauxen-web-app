@@ -21,16 +21,20 @@ export type NotificationPreferencesRow = {
 /** Upsert empty settings rows when identity bootstrap is unavailable. */
 export async function ensureSettingsRows(userId: string, email?: string | null) {
   await query(
-    `insert into public.user_settings (user_id, email, settings)
-     values ($1, $2, '{}'::jsonb)
-     on conflict (user_id) do nothing`,
+    `with settings_row as (
+       insert into public.user_settings (user_id, email, settings)
+       values ($1, $2, '{}'::jsonb)
+       on conflict (user_id) do nothing
+       returning user_id
+     ),
+     notification_row as (
+       insert into public.notification_preferences (user_id)
+       values ($1)
+       on conflict (user_id) do nothing
+       returning user_id
+     )
+     select 1`,
     [userId, email ?? null],
-  );
-  await query(
-    `insert into public.notification_preferences (user_id)
-     values ($1)
-     on conflict (user_id) do nothing`,
-    [userId],
   );
 }
 

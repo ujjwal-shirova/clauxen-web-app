@@ -91,7 +91,8 @@ export function agentSegmentsVisuallyEqual(
       if (
         a.content !== b.content ||
         a.isStreaming !== b.isStreaming ||
-        a.durationSeconds !== b.durationSeconds
+        a.durationSeconds !== b.durationSeconds ||
+        a.startedAtMs !== b.startedAtMs
       ) {
         return false;
       }
@@ -111,6 +112,10 @@ export function agentSegmentsVisuallyEqual(
         a.searchQuery !== b.searchQuery ||
         a.stdout !== b.stdout ||
         a.stderr !== b.stderr ||
+        a.description !== b.description ||
+        a.result !== b.result ||
+        a.startedAtMs !== b.startedAtMs ||
+        a.completedAtMs !== b.completedAtMs ||
         a.argsComplete !== b.argsComplete ||
         (a.searchResults?.length ?? 0) !== (b.searchResults?.length ?? 0)
       ) {

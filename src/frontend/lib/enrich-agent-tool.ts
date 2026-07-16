@@ -14,7 +14,7 @@ export function enrichToolFromResult(
     ...tool,
     result,
     status: "done",
-    completedAtMs: Date.now(),
+    completedAtMs: tool.completedAtMs ?? Date.now(),
   };
 
   if (tool.name === "web_search") {

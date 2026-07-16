@@ -40,7 +40,10 @@ import {
   retryAssistantWithBranchHelper,
   switchMessageBranchHelper,
 } from "@/frontend/lib/chat-branch";
-import { buildChatConversation } from "@/frontend/lib/branch-conversation";
+import {
+  buildChatConversation,
+  extractActiveBranchPath,
+} from "@/frontend/lib/branch-conversation";
 import {
   appendChatTitleAnswerDelta,
   createChatTitleAnswerAccumulator,
@@ -147,7 +150,15 @@ export function useChatApi(
   }, []);
   const [loading, setLoading] = useState(true);
   const [creatingChatPending, setCreatingChatPending] = useState(false);
-  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [loadingChatId, setLoadingChatId] = useState<string | null>(null);
+  const [messageLoadErrors, setMessageLoadErrors] = useState<
+    Record<string, string>
+  >({});
+  const messagesLoading =
+    activeChatId !== null && loadingChatId === activeChatId;
+  const messagesLoadError = activeChatId
+    ? (messageLoadErrors[activeChatId] ?? null)
+    : null;
   const chatsLoadedOnceRef = useRef(false);
   const allChatsRef = useRef<Record<string, Message[]>>({});
   const recentChatsRef = useRef<RecentChat[]>([]);
@@ -195,7 +206,11 @@ export function useChatApi(
   const persistBranches = useCallback(
     async (chatId: string, chatMessages: Message[]) => {
       try {
-        await chatsApi.saveBranchState(chatId, [], chatMessages);
+        await chatsApi.saveBranchState(
+          chatId,
+          extractActiveBranchPath(chatMessages),
+          chatMessages,
+        );
       } catch {
         // Branch persistence is best-effort.
       }
@@ -443,10 +458,31 @@ export function useChatApi(
             if (prevMessage.isStreaming && rowStatus === "streaming") {
               return prev;
             }
+            const localHasAgentFrames =
+              (prevMessage.agentFrames?.some(
+                (frame) => frame.segments.length > 0,
+              ) ??
+                false) ||
+              (prevMessage.agentSegments?.length ?? 0) > 0;
+            const mappedHasAgentFrames =
+              (mapped.agentFrames?.some((frame) => frame.segments.length > 0) ??
+                false) ||
+              (mapped.agentSegments?.length ?? 0) > 0;
             next[index] = {
               ...prevMessage,
               ...mapped,
               isStreaming: rowStatus === "streaming",
+              ...(localHasAgentFrames && !mappedHasAgentFrames
+                ? {
+                    agentMode: prevMessage.agentMode,
+                    agentFrameComplete: prevMessage.agentFrameComplete,
+                    agentFrames: prevMessage.agentFrames,
+                    agentSegments: prevMessage.agentSegments,
+                    activeAgentFrameIndex:
+                      prevMessage.activeAgentFrameIndex,
+                    agentArtifacts: prevMessage.agentArtifacts,
+                  }
+                : {}),
             };
             return { ...prev, [activeChatId]: next };
           });
@@ -496,7 +532,13 @@ export function useChatApi(
 
   const loadChatMessages = useCallback(
     async (chatId: string) => {
-      setMessagesLoading(true);
+      setLoadingChatId(chatId);
+      setMessageLoadErrors((current) => {
+        if (!current[chatId]) return current;
+        const next = { ...current };
+        delete next[chatId];
+        return next;
+      });
       try {
         const [bundle, branch] = await Promise.all([
           chatsApi.listAllChatMessages(chatId),
@@ -504,19 +546,31 @@ export function useChatApi(
         ]);
         const row = branch?.state as { messages?: unknown } | null;
         applyHydratedMessages(chatId, bundle.messages, row?.messages ?? null);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Could not load this conversation.";
+        console.warn("[chat] hydrate failed:", error);
+        setMessageLoadErrors((current) => ({ ...current, [chatId]: message }));
       } finally {
-        setMessagesLoading(false);
+        setLoadingChatId((current) => (current === chatId ? null : current));
       }
     },
     [applyHydratedMessages],
   );
+
+  const retryLoadMessages = useCallback(() => {
+    if (!activeChatId) return Promise.resolve();
+    return loadChatMessages(activeChatId);
+  }, [activeChatId, loadChatMessages]);
 
   const handleSelectChat = useCallback(
     async (chatId: string | null) => {
       if (!chatId) {
         setActiveChatId(null);
         useChatStore.getState().clearInactiveChatMessages(null);
-        setMessagesLoading(false);
+        setLoadingChatId(null);
         return;
       }
       const previousChatId = useChatStore.getState().activeChatId;
@@ -547,7 +601,7 @@ export function useChatApi(
       // wipe a live stream (that remount flicker on send from /new).
       if (hasLocalTurns && (alreadyHydrated || isLive)) {
         takePendingChatRouteSeed(chatId);
-        setMessagesLoading(false);
+        setLoadingChatId((current) => (current === chatId ? null : current));
         return;
       }
 
@@ -566,7 +620,7 @@ export function useChatApi(
         } else {
           hydratedChatIdsRef.current.add(chatId);
         }
-        setMessagesLoading(false);
+        setLoadingChatId((current) => (current === chatId ? null : current));
         return;
       }
 
@@ -577,7 +631,7 @@ export function useChatApi(
           ssrSeed.messages,
           ssrSeed.branchMessages,
         );
-        setMessagesLoading(false);
+        setLoadingChatId((current) => (current === chatId ? null : current));
         return;
       }
 
@@ -738,9 +792,17 @@ export function useChatApi(
       conversation: Array<{ role: string; content: string }>,
       titleUserContent?: string,
       overrideAssistantId?: string,
+      turn?: {
+        content: string;
+        modelContent?: string;
+        fileIds?: string[];
+        userClientId: string;
+        assistantClientId: string;
+      },
     ) => {
       const controller = new AbortController();
-      const assistantIdLocal = overrideAssistantId ?? randomUUID();
+      const assistantIdLocal =
+        overrideAssistantId ?? turn?.assistantClientId ?? randomUUID();
       let assistantId = assistantIdLocal;
       const assistantClientId = assistantIdLocal;
       setGeneration(chatId, {
@@ -805,6 +867,17 @@ export function useChatApi(
             // Keep title generation off the hot response path; it runs after the
             // answer completes so first-token rendering is not blocked.
             generateChatTitle: false,
+            ...(turn
+              ? {
+                  turn: {
+                    content: turn.content,
+                    modelContent: turn.modelContent,
+                    fileIds: turn.fileIds,
+                    userClientId: turn.userClientId,
+                    assistantClientId,
+                  },
+                }
+              : {}),
           }),
           signal: controller.signal,
         });
@@ -825,6 +898,26 @@ export function useChatApi(
             // ignore parse errors
           }
           throw new Error(detail);
+        }
+
+        const serverUserId = response.headers.get("X-User-Message-Id");
+        if (turn && serverUserId && serverUserId !== turn.userClientId) {
+          setAllChats((prev) => {
+            const list = prev[chatId] ?? [];
+            const index = list.findIndex(
+              (message) =>
+                message.id === turn.userClientId ||
+                message.clientId === turn.userClientId,
+            );
+            if (index < 0) return prev;
+            const next = [...list];
+            next[index] = {
+              ...next[index]!,
+              id: serverUserId,
+              clientId: next[index]!.clientId ?? turn.userClientId,
+            };
+            return { ...prev, [chatId]: next };
+          });
         }
 
         // Sync optimistic local id → durable DB assistant id (prevents duplicates).
@@ -1279,56 +1372,25 @@ export function useChatApi(
           modelUser,
         ]);
 
-        // Persist user message in parallel with stream start, but await so a
-        // quick reload cannot lose the turn before the INSERT commits.
-        const persistUser = chatsApi
-          .appendMessage(chatId!, trimmed || "(attached files)", {
-            fileIds: fileIds.length ? fileIds : undefined,
-          })
-          .then(({ message: saved }) => {
-            const real = mapApiMessage(saved);
-            setAllChats((prev) => {
-              const list = prev[chatId!] ?? [];
-              const index = list.findIndex((message) => message.id === tempUserId);
-              if (index < 0) {
-                if (list.some((message) => message.id === real.id)) return prev;
-                return {
-                  ...prev,
-                  [chatId!]: [
-                    ...list,
-                    {
-                      ...real,
-                      attachments: optimisticUser.attachments,
-                    },
-                  ],
-                };
-              }
-              const next = [...list];
-              next[index] = {
-                ...next[index]!,
-                ...real,
-                id: real.id,
-                clientId: next[index]!.clientId ?? tempUserId,
-                attachments:
-                  next[index]!.attachments ?? optimisticUser.attachments,
-              };
-              return { ...prev, [chatId!]: next };
-            });
-          })
-          .catch((error) => {
-            console.warn("[chat] appendMessage failed:", error);
-          });
-
+        // One server-owned turn creates the durable user and assistant rows in
+        // a transaction. Sending their stable client ids makes browser retries
+        // idempotent without racing a separate /messages request.
+        const assistantClientId = randomUUID();
+        const userContent = trimmed || "(attached files)";
         useChatStore.getState().setChatGenerating(chatId!, true);
         void streamAssistantResponse(
           chatId!,
           conversation,
           isNewChat ? trimmed || "New chat" : undefined,
+          assistantClientId,
+          {
+            content: userContent,
+            modelContent: modelUserContent || userContent,
+            fileIds: fileIds.length ? fileIds : undefined,
+            userClientId: tempUserId,
+            assistantClientId,
+          },
         );
-
-        // Persist in the background so /c navigation is not blocked. Optimistic
-        // UI already paints the user turn; await only to surface append failures.
-        void persistUser;
 
         return chatId;
       } catch (error) {
@@ -1739,6 +1801,8 @@ export function useChatApi(
     sendQueuedMessageNow,
     loading,
     messagesLoading,
+    messagesLoadError,
+    retryLoadMessages,
     creatingChatPending,
     handleSendMessage,
     stopGeneration,

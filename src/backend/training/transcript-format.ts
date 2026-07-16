@@ -50,17 +50,31 @@ export type TranscriptContentPart =
   | TranscriptToolUsePart
   | TranscriptToolResultPart;
 
+export type TranscriptAgentAction = {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+  result?: string;
+  isError?: boolean;
+  description?: string;
+  startedAtMs?: number;
+  completedAtMs?: number;
+};
+
+export type TranscriptAgentUi = {
+  startedAtMs?: number;
+  completedAtMs?: number;
+  thinkingDurationSeconds?: number;
+  actions?: TranscriptAgentAction[];
+};
+
 export type TranscriptMessageRecord = {
   role: "user" | "assistant" | "system" | "tool";
   message: {
     content: TranscriptContentPart[];
   };
   /** Optional UI timing for agent work frames (not part of Anthropic wire). */
-  agent_ui?: {
-    startedAtMs?: number;
-    completedAtMs?: number;
-    thinkingDurationSeconds?: number;
-  };
+  agent_ui?: TranscriptAgentUi;
 };
 
 export type TranscriptMetaRecord = {
@@ -76,6 +90,9 @@ export type CapturedToolCall = {
   input: Record<string, unknown>;
   result?: string;
   isError?: boolean;
+  description?: string;
+  startedAtMs?: number;
+  completedAtMs?: number;
 };
 
 export function textPart(text: string): TranscriptTextPart {
@@ -128,11 +145,7 @@ export function buildAssistantTranscriptRecord(input: {
   answer: string;
   thinking?: string;
   tools?: CapturedToolCall[];
-  agentUi?: {
-    startedAtMs?: number;
-    completedAtMs?: number;
-    thinkingDurationSeconds?: number;
-  };
+  agentUi?: TranscriptAgentUi;
 }): TranscriptMessageRecord {
   const parts: TranscriptContentPart[] = [];
   const thinking = input.thinking?.trim();

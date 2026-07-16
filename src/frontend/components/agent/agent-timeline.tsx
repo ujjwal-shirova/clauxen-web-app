@@ -33,7 +33,7 @@ export function AgentActivityList({
   return (
     <div
       className={cn(
-        "relative flex flex-col gap-1 border-l border-zinc-200/80 pl-3",
+        "relative flex flex-col gap-1",
         className,
       )}
       data-agent-activity="list"

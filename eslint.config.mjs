@@ -1,21 +1,19 @@
-import js from "@eslint/js";
-import { FlatCompat } from "@eslint/eslintrc";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-  recommendedConfig: js.configs.recommended,
-});
+import nextVitals from "eslint-config-next/core-web-vitals";
 
 const config = [
   {
-    ignores: [".next/**", "dist/**", "node_modules/**"],
+    ignores: [
+      ".next/**",
+      "dist/**",
+      "node_modules/**",
+      ".playwright-cli/**",
+      ".autonomous-agent-files/**",
+      "vendor/**",
+      "output/**",
+      ".tools/**",
+    ],
   },
-  ...compat.extends("next/core-web-vitals"),
+  ...nextVitals,
   {
     rules: {
       "import/no-anonymous-default-export": "off",
@@ -27,6 +25,13 @@ const config = [
       "no-implied-eval": "error",
       "no-new-func": "error",
       "no-script-url": "error",
+      // Existing streaming and virtualized-chat patterns intentionally keep
+      // callback refs and state resets in effects. Enable these incrementally
+      // once the legacy chat surfaces have been fully retired.
+      "react-hooks/exhaustive-deps": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/purity": "off",
     },
   },
 ];

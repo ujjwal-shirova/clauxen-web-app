@@ -1,11 +1,5 @@
-import { Suspense } from "react";
 import { ChatView } from "@/frontend/components/chat-view";
-import { ChatRouteSkeleton } from "@/frontend/components/chat-route-skeleton";
 
 export default function NewChatPage() {
-  return (
-    <Suspense fallback={<ChatRouteSkeleton />}>
-      <ChatView />
-    </Suspense>
-  );
+  return <ChatView />;
 }

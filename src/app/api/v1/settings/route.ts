@@ -5,7 +5,6 @@ import { query } from "@/backend/db/pool";
 import * as settingsRepo from "@/backend/repositories/settings.repository";
 import * as profileRepo from "@/backend/repositories/profile.repository";
 import * as profileService from "@/backend/services/profile.service";
-import { ensureUserRecord } from "@/backend/services/identity.service";
 import { sidebarDisplayName } from "@/lib/profile-names";
 import { sanitizeCustomInstructions } from "@/backend/services/user-personalization.service";
 
@@ -183,40 +182,9 @@ function toClientPayload(
   };
 }
 
-async function bootstrapSettingsUser(user: {
-  id: string;
-  email?: string | null;
-  displayName?: string | null;
-}) {
-  // Fast path first — settings reads must not wait on full identity bootstrap.
-  try {
-    await settingsRepo.ensureSettingsRows(user.id, user.email);
-  } catch (error) {
-    console.error("[settings] ensureSettingsRows failed:", error);
-  }
-
-  // Best-effort identity seed; never fail the settings GET if this is slow.
-  if (!user.email) return;
-  try {
-    await Promise.race([
-      ensureUserRecord({
-        userId: user.id,
-        email: user.email,
-        displayName: user.displayName,
-      }),
-      new Promise<void>((resolve) => {
-        setTimeout(resolve, 2500);
-      }),
-    ]);
-  } catch (error) {
-    console.error("[settings] ensureUserRecord failed:", error);
-  }
-}
-
 export const GET = withApiHandler(
   async ({ session }) => {
     const user = requireSession(session);
-    await bootstrapSettingsUser(user);
 
     let stored: Record<string, unknown> = {};
     let notifStored: Record<string, unknown> = {};
@@ -254,7 +222,10 @@ export const GET = withApiHandler(
 export const PATCH = withApiHandler(
   async ({ session, request }) => {
     const user = requireSession(session);
-    await bootstrapSettingsUser(user);
+    // A write can be the first product request after authentication. Seed only
+    // the rows this route owns; full profile/workspace bootstrap belongs to the
+    // auth/onboarding flow and must not run on every settings read.
+    await settingsRepo.ensureSettingsRows(user.id, user.email);
     const body = (await request.json()) as {
       general?: Record<string, unknown>;
       personalization?: Record<string, unknown>;

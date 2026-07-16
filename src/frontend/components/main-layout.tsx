@@ -148,20 +148,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     closeMobileNav();
   }, [instantNavigate, closeMobileNav]);
 
-  const goToHistory = useCallback(() => {
-    if (!activeChatId) {
-      instantNavigate(APP_ROUTES.newChat);
-      closeMobileNav();
-      return;
-    }
-    const entry = startedRecentChats.find((c) => c.id === activeChatId);
-    const target = entry?.projectId
-      ? APP_ROUTES.projectConversation(entry.projectId, activeChatId)
-      : APP_ROUTES.chat(activeChatId);
-    instantNavigate(target);
-    closeMobileNav();
-  }, [instantNavigate, activeChatId, closeMobileNav, startedRecentChats]);
-
   const onSelectChatFromSidebar = useCallback(
     (chatEntry: RecentChat) => {
       handleSelectChat(chatEntry.id);
@@ -295,7 +281,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onProjectsClick={goToProjects}
         onLibraryClick={goToLibrary}
         onCustomizeClick={goToCustomize}
-        onHistoryClick={goToHistory}
         activeView={computeActiveView(
           pathname,
           overlays.currentOverlay?.type ?? null,

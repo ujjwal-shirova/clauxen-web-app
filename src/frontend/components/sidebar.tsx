@@ -98,7 +98,6 @@ interface SidebarProps {
   onPersonalizationClick?: () => void;
   onCustomizeClick: () => void;
   onAppsExtensionsClick: () => void;
-  onHistoryClick: () => void;
   onLibraryClick: () => void;
   onGiftClick: () => void;
   onProjectsClick: () => void;
@@ -134,7 +133,6 @@ export function Sidebar({
   onPersonalizationClick,
   onCustomizeClick,
   onAppsExtensionsClick,
-  onHistoryClick,
   onLibraryClick,
   onGiftClick,
   onProjectsClick,
@@ -220,83 +218,73 @@ export function Sidebar({
     const showSidebarSpinner =
       isGeneratingChat && activeChatId !== chat.id;
     return (
-    <div
-      key={chat.id}
-      role="button"
-      tabIndex={0}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelectChat(chat);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelectChat(chat);
-        }
-      }}
-      className={cn(
-        "group/chat glass-sidebar-agent-menu-btn flex h-7 w-full cursor-pointer items-center rounded-md px-2 text-left text-[12.5px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
-        activeChatId === chat.id && "bg-black/[0.06]",
-      )}
-    >
-      <div className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left">
-        <span className="truncate">{chat.name || "New Chat"}</span>
-        {chat.isTitleStreaming && <TypingDots className="ml-0.5" />}
-      </div>
-      <div className="ml-1 flex shrink-0 items-center gap-0.5">
-        {showSidebarSpinner ? (
-          <span
-            className="flex h-6 w-6 items-center justify-center"
-            aria-label="Generating"
-            title="Generating"
-            role="status"
-          >
-            <span className="chat-gen-spinner" />
-          </span>
-        ) : (
-          <>
-            <button
-              type="button"
-              aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}
-              onClick={(e) => {
-                e.stopPropagation();
-                onPinChat?.(chat.id, !chat.pinned);
-              }}
-              className={cn(
-                "flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 hover:text-zinc-800 focus-visible:opacity-100",
-              )}
-            >
-              {chat.pinned ? (
-                <PinOff className="h-3.5 w-3.5" strokeWidth={2} />
-              ) : (
-                <Pin className="h-3.5 w-3.5" strokeWidth={2} />
-              )}
-            </button>
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
-                >
-                  <MoreVertical className="icon-md icon-muted" />
-                </button>
-              </DropdownMenuTrigger>
-              <ChatRowMenuContent
-                align="end"
-                side="right"
-                isPinned={!!chat.pinned}
-                onRename={() => setRenameChatId(chat.id)}
-                onMoveToProject={() => runNavAction(onProjectsClick)}
-                onPin={() => onPinChat?.(chat.id, true)}
-                onUnpin={() => onPinChat?.(chat.id, false)}
-                onDelete={() => setDeleteChatId(chat.id)}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </DropdownMenu>
-          </>
+      <div
+        key={chat.id}
+        className={cn(
+          "group/chat glass-sidebar-agent-menu-btn flex h-7 w-full items-center rounded-md px-2 text-[12.5px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100",
+          activeChatId === chat.id && "bg-black/[0.06]",
         )}
+      >
+        <button
+          type="button"
+          onClick={() => onSelectChat(chat)}
+          aria-current={activeChatId === chat.id ? "page" : undefined}
+          className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+        >
+          <span className="min-w-0 flex-1 truncate">{chat.name || "New Chat"}</span>
+          {chat.isTitleStreaming ? <TypingDots className="mr-0.5 shrink-0" /> : null}
+        </button>
+        <div className="ml-1 flex shrink-0 items-center gap-0.5">
+          {showSidebarSpinner ? (
+            <span
+              className="flex h-6 w-6 items-center justify-center"
+              aria-label="Generating"
+              title="Generating"
+              role="status"
+            >
+              <span className="chat-gen-spinner" />
+            </span>
+          ) : (
+            <>
+              <button
+                type="button"
+                aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}
+                onClick={() => onPinChat?.(chat.id, !chat.pinned)}
+                className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 hover:text-zinc-800 focus-visible:opacity-100",
+                )}
+              >
+                {chat.pinned ? (
+                  <PinOff className="h-3.5 w-3.5" strokeWidth={2} />
+                ) : (
+                  <Pin className="h-3.5 w-3.5" strokeWidth={2} />
+                )}
+              </button>
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={`Chat options for ${chat.name || "New Chat"}`}
+                    className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
+                  >
+                    <MoreVertical className="icon-md icon-muted" />
+                  </button>
+                </DropdownMenuTrigger>
+                <ChatRowMenuContent
+                  align="end"
+                  side="right"
+                  isPinned={!!chat.pinned}
+                  onRename={() => setRenameChatId(chat.id)}
+                  onMoveToProject={() => runNavAction(onProjectsClick)}
+                  onPin={() => onPinChat?.(chat.id, true)}
+                  onUnpin={() => onPinChat?.(chat.id, false)}
+                  onDelete={() => setDeleteChatId(chat.id)}
+                />
+              </DropdownMenu>
+            </>
+          )}
+        </div>
       </div>
-    </div>
     );
   };
 
@@ -561,7 +549,7 @@ export function Sidebar({
                 />
               </div>
               <div className="mt-1 space-y-2">
-                {chatsLoading ? (
+                {chatsLoading && groupedChats.length === 0 && pinnedChats.length === 0 ? (
                   <div
                     className="space-y-1.5 px-0.5"
                     aria-busy="true"
@@ -584,20 +572,28 @@ export function Sidebar({
                     ))}
                   </div>
                 ) : null}
-                {!chatsLoading
-                  ? groupedChats.map((group) => (
-                      <div key={group.label || "all"}>
-                        {group.label ? (
-                          <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
-                            {group.label}
-                          </p>
-                        ) : null}
-                        <div className="space-y-0.5">
-                          {group.chats.map((chat) => renderChatRow(chat))}
-                        </div>
-                      </div>
-                    ))
-                  : null}
+                {creatingChatPending &&
+                !recentChats.some((chat) => chat.isCreating) ? (
+                  <div
+                    className="flex h-7 items-center rounded-md px-2"
+                    aria-busy="true"
+                    aria-label="Creating conversation"
+                  >
+                    <span className="shimmer-bg h-3 w-2/3 rounded" aria-hidden />
+                  </div>
+                ) : null}
+                {groupedChats.map((group) => (
+                  <div key={group.label || "all"}>
+                    {group.label ? (
+                      <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
+                        {group.label}
+                      </p>
+                    ) : null}
+                    <div className="space-y-0.5">
+                      {group.chats.map((chat) => renderChatRow(chat))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

@@ -9,11 +9,9 @@ type GenerationEntry = {
 
 const generations = new Map<string, GenerationEntry>();
 
-export function beginChatGeneration(chatId: string): AbortController {
-  const existing = generations.get(chatId);
-  if (existing) {
-    existing.controller.abort();
-    generations.delete(chatId);
+export function beginChatGeneration(chatId: string): AbortController | null {
+  if (generations.has(chatId)) {
+    return null;
   }
   const controller = new AbortController();
   generations.set(chatId, { controller, startedAt: Date.now() });

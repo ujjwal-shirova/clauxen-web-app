@@ -972,6 +972,7 @@ export type Database = {
         Row: {
           branch_id: string | null
           chat_id: string
+          client_id: string | null
           contains_pii: boolean
           content: string | null
           content_json: Json
@@ -998,6 +999,7 @@ export type Database = {
         Insert: {
           branch_id?: string | null
           chat_id: string
+          client_id?: string | null
           contains_pii?: boolean
           content?: string | null
           content_json?: Json
@@ -1024,6 +1026,7 @@ export type Database = {
         Update: {
           branch_id?: string | null
           chat_id?: string
+          client_id?: string | null
           contains_pii?: boolean
           content?: string | null
           content_json?: Json

@@ -18,6 +18,10 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     if (!chat) throw notFound("Chat not found.");
 
     const pinned = await pinnedChatsRepo.pinChat(params.chatId, user.id);
+    const { invalidateChatHistoryCache } = await import(
+      "@/backend/chat/warm-history-cache"
+    );
+    await invalidateChatHistoryCache({ userId: user.id, listsOnly: true });
     return jsonData({ pinned }, 201);
   },
   { requireAuth: true, requireChatAuth: true },
@@ -30,6 +34,10 @@ export const DELETE = withApiRouteParams<{ chatId: string }>(
 
     const unpinned = await pinnedChatsRepo.unpinChat(params.chatId, user.id);
     if (!unpinned) throw notFound("Pinned chat not found.");
+    const { invalidateChatHistoryCache } = await import(
+      "@/backend/chat/warm-history-cache"
+    );
+    await invalidateChatHistoryCache({ userId: user.id, listsOnly: true });
     return jsonData({ ok: true });
   },
   { requireAuth: true, requireChatAuth: true },

@@ -8,11 +8,13 @@ export default async function ChatRoutePage({
   params: Promise<{ chatId: string }>;
 }) {
   const { chatId } = await params;
-  // Budget seed fetch so a cold Worker/DB cannot inflate document TTFB.
+  // Let the coherent Worker-first seed resolve before falling back to a
+  // client hydrate. A 450ms budget caused a visible shimmer on normal cold
+  // reads even when the thread arrived immediately afterwards.
   const seed = await Promise.race([
     loadChatRouteSeed(chatId),
     new Promise<null>((resolve) => {
-      setTimeout(() => resolve(null), 450);
+      setTimeout(() => resolve(null), 1_200);
     }),
   ]);
 

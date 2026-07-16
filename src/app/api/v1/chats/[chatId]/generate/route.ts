@@ -21,6 +21,13 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     const user = requireSession(session);
     const body = (await request.json()) as {
       messages?: unknown;
+      turn?: {
+        content?: unknown;
+        modelContent?: unknown;
+        fileIds?: unknown;
+        userClientId?: unknown;
+        assistantClientId?: unknown;
+      };
       generateChatTitle?: boolean;
       chatModel?: string;
       homerReasoningEffort?: string;
@@ -30,17 +37,61 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       throw new AppError("messages are required.", 400);
     }
 
-    // Durable generation: abort only via explicit stop, not client disconnect.
+    const rawTurn = body.turn;
+    const turn = rawTurn
+      ? {
+          content:
+            typeof rawTurn.content === "string" ? rawTurn.content.trim() : "",
+          modelContent:
+            typeof rawTurn.modelContent === "string"
+              ? rawTurn.modelContent.trim()
+              : undefined,
+          fileIds: Array.isArray(rawTurn.fileIds)
+            ? rawTurn.fileIds.filter(
+                (fileId): fileId is string => typeof fileId === "string",
+              )
+            : undefined,
+          userClientId:
+            typeof rawTurn.userClientId === "string"
+              ? rawTurn.userClientId.trim()
+              : "",
+          assistantClientId:
+            typeof rawTurn.assistantClientId === "string"
+              ? rawTurn.assistantClientId.trim()
+              : "",
+        }
+      : undefined;
+    if (
+      turn &&
+      (!turn.content ||
+        !turn.userClientId ||
+        !turn.assistantClientId ||
+        turn.userClientId.length > 160 ||
+        turn.assistantClientId.length > 160)
+    ) {
+      throw new AppError("Invalid chat turn identifiers.", 400, "invalid_turn");
+    }
+
+    // Durable generations are only stopped explicitly. A duplicate request
+    // must never abort an existing turn and create a second assistant row.
     const generationController = beginChatGeneration(params.chatId);
+    if (!generationController) {
+      throw new AppError(
+        "This chat is already generating a response.",
+        409,
+        "generation_in_progress",
+      );
+    }
 
     let finishOnce: (() => Promise<void>) | null = null;
 
     try {
-      const { stream, onComplete, assistantMessageId } =
+      const { stream, onComplete, userMessageId, assistantMessageId } =
         await chatService.streamChatGeneration({
           chatId: params.chatId,
           userId: user.id,
           messages,
+          turn,
           signal: generationController.signal,
           userCountryCode: resolveRequestCountryCode(request.headers),
           generateChatTitle: body.generateChatTitle,
@@ -104,6 +155,9 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       return new Response(wrapped, {
         headers: {
           ...CLAUXEN_STREAM_HEADERS,
+          ...(userMessageId
+            ? { "X-User-Message-Id": userMessageId }
+            : {}),
           ...(assistantMessageId
             ? { "X-Assistant-Message-Id": assistantMessageId }
             : {}),

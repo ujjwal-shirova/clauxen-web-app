@@ -44,6 +44,10 @@ export function hydrateMessageFromContentJson(
   if (!record.message || !Array.isArray(record.message.content)) return base;
 
   const parts = record.message.content as TranscriptContentPart[];
+  const agentUi = record.agent_ui;
+  const persistedActions = Array.isArray(agentUi?.actions)
+    ? agentUi.actions
+    : [];
   let thinking = base.thinkingContent ?? "";
   const tools: AgentToolSegment[] = [];
   const texts: string[] = [];
@@ -63,6 +67,7 @@ export function hydrateMessageFromContentJson(
         typeof part.id === "string" && part.id
           ? part.id
           : `tool-${tools.length + 1}`;
+      const action = persistedActions.find((candidate) => candidate?.id === id);
       const resultPart = parts.find(
         (candidate) =>
           candidate?.type === "tool_result" &&
@@ -74,15 +79,19 @@ export function hydrateMessageFromContentJson(
           id,
           toolCallId: id,
           name: part.name,
-          status: "done",
+          status: action?.isError ? "error" : "done",
           args:
             part.input && typeof part.input === "object"
               ? (part.input as Record<string, unknown>)
-              : {},
+              : action?.input ?? {},
           result:
-            resultPart && resultPart.type === "tool_result"
+            action?.result ??
+            (resultPart && resultPart.type === "tool_result"
               ? resultPart.content
-              : undefined,
+              : undefined),
+          description: action?.description,
+          startedAtMs: action?.startedAtMs,
+          completedAtMs: action?.completedAtMs,
         }),
       );
     }
@@ -95,7 +104,6 @@ export function hydrateMessageFromContentJson(
 
   if (!hasThinking && !hasTools && !contentFromParts) return base;
 
-  const agentUi = record.agent_ui;
   const stamp =
     typeof agentUi?.startedAtMs === "number" && agentUi.startedAtMs > 0
       ? agentUi.startedAtMs
@@ -186,13 +194,26 @@ export function overlayBranchMessagesOnPage(input: {
   return page.map((message) => {
     const overlay = byId.get(message.id);
     if (!overlay) return message;
-    // Prefer branch UI fields (agent frames / edits) while keeping page order.
+    // Branch state may arrive later than the durable assistant record. Keep
+    // branch edits, but never let an older browser snapshot erase the
+    // server-captured action frame or its completion timestamps.
     return {
       ...message,
       ...overlay,
       id: message.id,
       role: message.role,
       createdAt: overlay.createdAt ?? message.createdAt,
+      agentMode: message.agentMode ?? overlay.agentMode,
+      agentFrameComplete:
+        message.agentFrameComplete ?? overlay.agentFrameComplete,
+      agentFrames: message.agentFrames ?? overlay.agentFrames,
+      agentSegments: message.agentSegments ?? overlay.agentSegments,
+      activeAgentFrameIndex:
+        message.activeAgentFrameIndex ?? overlay.activeAgentFrameIndex,
+      agentArtifacts: message.agentArtifacts ?? overlay.agentArtifacts,
+      thinkingContent: message.thinkingContent ?? overlay.thinkingContent,
+      thinkingDurationSeconds:
+        message.thinkingDurationSeconds ?? overlay.thinkingDurationSeconds,
     };
   });
 }

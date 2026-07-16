@@ -39,6 +39,13 @@ export const PATCH = withApiRouteParams<{ chatId: string }>(
     };
     const chat = await chatsRepo.updateChat(params.chatId, user.id, body); // WHERE chat_id AND user_id — scoped update
     if (!chat) throw notFound("Chat not found.");
+    const { invalidateChatHistoryCache } = await import(
+      "@/backend/chat/warm-history-cache"
+    );
+    await invalidateChatHistoryCache({
+      userId: user.id,
+      chatId: params.chatId,
+    });
     return jsonData({ chat }); // updated chat object client state sync
   },
   { requireAuth: true, requireChatAuth: true },
@@ -49,14 +56,13 @@ export const DELETE = withApiRouteParams<{ chatId: string }>(
     const user = requireSession(session);
     requireChatIdParam(params.chatId);
     await chatsRepo.deleteChat(params.chatId, user.id);
-    void import("@/backend/chat/warm-history-cache")
-      .then(({ invalidateChatHistoryCache }) =>
-        invalidateChatHistoryCache({
-          userId: user.id,
-          chatId: params.chatId,
-        }),
-      )
-      .catch(() => {});
+    const { invalidateChatHistoryCache } = await import(
+      "@/backend/chat/warm-history-cache"
+    );
+    await invalidateChatHistoryCache({
+      userId: user.id,
+      chatId: params.chatId,
+    });
     return jsonData({ ok: true }); // success confirmation, body minimal
   },
   { requireAuth: true, requireChatAuth: true },

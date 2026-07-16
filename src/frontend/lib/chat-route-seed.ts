@@ -15,6 +15,12 @@ export function setPendingChatRouteSeed(seed: ChatRouteSeed | null) {
   pendingSeed = seed;
 }
 
+export function clearPendingChatRouteSeed(chatId?: string) {
+  if (chatId && pendingSeed?.chatId === chatId) {
+    pendingSeed = null;
+  }
+}
+
 /** Consume a one-shot SSR seed for the matching chat id. */
 export function takePendingChatRouteSeed(
   chatId: string,

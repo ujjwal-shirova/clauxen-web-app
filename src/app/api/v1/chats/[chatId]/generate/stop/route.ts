@@ -2,6 +2,8 @@ import { withApiRouteParams } from "@/backend/http/route-params";
 import { requireSession } from "@/backend/auth/require-session";
 import { abortChatGeneration } from "@/backend/chat/generation-registry";
 import * as messagesRepo from "@/backend/repositories/messages.repository";
+import * as chatsRepo from "@/backend/repositories/chats.repository";
+import { notFound } from "@/backend/db/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +13,9 @@ export const dynamic = "force-dynamic";
  */
 export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, params }) => {
-    requireSession(session);
+    const user = requireSession(session);
+    const chat = await chatsRepo.getChatForUser(params.chatId, user.id);
+    if (!chat) throw notFound("Chat not found.");
     const aborted = abortChatGeneration(params.chatId);
 
     try {
@@ -33,6 +37,14 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     } catch {
       // ignore
     }
+
+    const { invalidateChatHistoryCache } = await import(
+      "@/backend/chat/warm-history-cache"
+    );
+    await invalidateChatHistoryCache({
+      userId: user.id,
+      chatId: params.chatId,
+    });
 
     return Response.json({ data: { aborted } });
   },

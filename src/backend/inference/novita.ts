@@ -148,6 +148,7 @@ export function tapChatSseStream(
       toolCallId: string;
       name: string;
       args?: Record<string, unknown>;
+      description?: string;
     }) => void;
     onToolEnd?: (tool: {
       toolCallId: string;

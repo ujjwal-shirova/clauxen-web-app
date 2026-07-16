@@ -55,6 +55,41 @@ describe("transcript-format", () => {
     assert.equal(JSON.parse(lines[1]!).role, "assistant");
   });
 
+  it("preserves durable agent action timing and results", () => {
+    const assistant = buildAssistantTranscriptRecord({
+      answer: "Found it.",
+      tools: [
+        {
+          id: "search-1",
+          name: "web_search",
+          input: { query: "Clauxen" },
+          result: '{"results":[]}',
+          description: "Searching the web",
+          startedAtMs: 1_000,
+          completedAtMs: 2_500,
+        },
+      ],
+      agentUi: {
+        startedAtMs: 800,
+        completedAtMs: 3_000,
+        actions: [
+          {
+            id: "search-1",
+            name: "web_search",
+            input: { query: "Clauxen" },
+            result: '{"results":[]}',
+            description: "Searching the web",
+            startedAtMs: 1_000,
+            completedAtMs: 2_500,
+          },
+        ],
+      },
+    });
+
+    assert.equal(assistant.agent_ui?.actions?.[0]?.id, "search-1");
+    assert.equal(assistant.agent_ui?.actions?.[0]?.completedAtMs, 2_500);
+  });
+
   it("converts UI messages into Anthropic lines + tool_result user + turn_ended", () => {
     const lines = messagesToTranscriptRecords([
       { id: "u1", role: "user", content: "search tokyo" },

@@ -2,6 +2,7 @@
 
 import { useLayoutEffect } from "react";
 import {
+  clearPendingChatRouteSeed,
   setPendingChatRouteSeed,
   type ChatRouteSeed,
 } from "@/frontend/lib/chat-route-seed";
@@ -19,7 +20,9 @@ export function ChatRouteSeedRegistrar({
   useLayoutEffect(() => {
     setPendingChatRouteSeed(seed);
     return () => {
-      setPendingChatRouteSeed(null);
+      // Do not clear a newer route's synchronous render seed during a fast
+      // /c/A → /c/B transition.
+      clearPendingChatRouteSeed(seed?.chatId);
     };
   }, [seed]);
 

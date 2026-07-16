@@ -580,6 +580,7 @@ const MessageRow = React.memo(
       pm.thinkingDurationSeconds === nm.thinkingDurationSeconds &&
       pm.agentMode === nm.agentMode &&
       pm.agentFrameComplete === nm.agentFrameComplete &&
+      pm.activeAgentFrameIndex === nm.activeAgentFrameIndex &&
       agentSegmentsVisuallyEqual(pm.agentSegments, nm.agentSegments) &&
       agentFramesVisuallyEqual(pm.agentFrames, nm.agentFrames) &&
       pm.activeBranchIndex === nm.activeBranchIndex &&

@@ -44,6 +44,22 @@ type ChatListItem = {
   updatedAt: string;
 };
 
+function originMatchesRule(origin: string, rule: string): boolean {
+  if (rule === origin) return true;
+  if (!rule.startsWith("https://*.")) return false;
+  try {
+    const originUrl = new URL(origin);
+    const suffix = rule.slice("https://*.".length);
+    return (
+      originUrl.protocol === "https:" &&
+      originUrl.hostname.endsWith(`.${suffix}`) &&
+      originUrl.hostname !== suffix
+    );
+  } catch {
+    return false;
+  }
+}
+
 function corsHeaders(env: Env, request: Request): Record<string, string> {
   const origin = request.headers.get("origin") ?? "";
   const allowed = (env.APP_ORIGIN ?? "")
@@ -53,7 +69,7 @@ function corsHeaders(env: Env, request: Request): Record<string, string> {
   const allowOrigin =
     allowed.length === 0
       ? "*"
-      : allowed.includes(origin)
+      : allowed.some((rule) => originMatchesRule(origin, rule))
         ? origin
         : allowed[0]!;
 
@@ -181,7 +197,9 @@ async function fetchMessagesPage(
     limit: number;
   },
 ): Promise<PagePayload> {
-  const sql = sqlClient(env);
+  // Chat history must be read-after-write consistent. Worker Cache/KV provides
+  // the controlled fast path; a miss must not reintroduce stale Hyperdrive SQL.
+  const sql = sqlClient(env, true);
   try {
     const rows = (await sql`
       select id, chat_id, role, content, status, metadata, content_json, created_at, has_more
@@ -212,7 +230,7 @@ async function fetchChatList(
   env: Env,
   input: { userId: string; projectId: string | null; limit: number },
 ): Promise<ChatListItem[]> {
-  const sql = sqlClient(env);
+  const sql = sqlClient(env, true);
   try {
     const chats = input.projectId
       ? await sql`
@@ -267,23 +285,36 @@ async function alignLatestPair(
   input: { chatId: string; userId: string; limit: number },
   page: PagePayload,
 ): Promise<PagePayload> {
-  if (page.messages[0]?.role === "user" || !page.hasMore || !page.nextCursor) {
-    return page;
+  let aligned = page;
+  // A large assistant/tool tail can span several pages. Keep walking until a
+  // user turn anchors the visible tail, rather than producing an orphaned
+  // assistant after a fresh hydrate.
+  for (
+    let pageCount = 0;
+    pageCount < 10 &&
+    aligned.messages[0]?.role !== "user" &&
+    aligned.hasMore &&
+    aligned.nextCursor;
+    pageCount += 1
+  ) {
+    const older = await fetchMessagesPage(env, {
+      chatId: input.chatId,
+      userId: input.userId,
+      cursorCreatedAt: aligned.nextCursor.createdAt,
+      cursorId: aligned.nextCursor.id,
+      limit: input.limit,
+    });
+    const existing = new Set(aligned.messages.map((message) => message.id));
+    aligned = {
+      messages: [
+        ...older.messages.filter((message) => !existing.has(message.id)),
+        ...aligned.messages,
+      ],
+      nextCursor: older.nextCursor,
+      hasMore: older.hasMore,
+    };
   }
-  const older = await fetchMessagesPage(env, {
-    chatId: input.chatId,
-    userId: input.userId,
-    cursorCreatedAt: page.nextCursor.createdAt,
-    cursorId: page.nextCursor.id,
-    limit: input.limit,
-  });
-  const existing = new Set(page.messages.map((m) => m.id));
-  const prepended = older.messages.filter((m) => !existing.has(m.id));
-  return {
-    messages: [...prepended, ...page.messages],
-    nextCursor: older.nextCursor,
-    hasMore: older.hasMore,
-  };
+  return aligned;
 }
 
 function kvKey(userId: string, chatId: string, limit: number) {
@@ -302,10 +333,6 @@ function pageKvKey(
 
 function listKvKey(userId: string, projectId: string | null, limit: number) {
   return `list:${userId}:${projectId ?? ""}:${limit}`;
-}
-
-function r2Key(userId: string, chatId: string, limit: number) {
-  return `users/${userId}/chats/${chatId}/head/latest-${limit}.json`;
 }
 
 function cacheRequest(userId: string, chatId: string, limit: number) {
@@ -360,11 +387,6 @@ async function invalidateChatCaches(
         env.CHAT_HISTORY_CACHE.delete(kvKey(input.userId, input.chatId, limit)),
       );
     }
-    if (env.CHAT_ARCHIVES) {
-      tasks.push(
-        env.CHAT_ARCHIVES.delete(r2Key(input.userId, input.chatId, limit)),
-      );
-    }
   }
 
   // Sidebar list is stale after message/title changes.
@@ -410,14 +432,6 @@ async function writeCaches(
     ctx.waitUntil(
       env.CHAT_HISTORY_CACHE.put(kvKey(userId, chatId, limit), body, {
         expirationTtl: Math.max(60, cacheTtl),
-      }),
-    );
-  }
-
-  if (env.CHAT_ARCHIVES) {
-    ctx.waitUntil(
-      env.CHAT_ARCHIVES.put(r2Key(userId, chatId, limit), body, {
-        httpMetadata: { contentType: "application/json" },
       }),
     );
   }
@@ -593,6 +607,12 @@ export default {
       );
 
       try {
+        // A warm represents a completed write. Remove every previous latest
+        // page before fetching via the cache-disabled Hyperdrive binding.
+        await invalidateChatCaches(env, {
+          userId: body.userId,
+          chatId: body.chatId,
+        });
         for (const limit of limits) {
           let page = await fetchMessagesPage(env, {
             chatId: body.chatId,
@@ -615,25 +635,23 @@ export default {
             cors,
           });
         }
-        ctx.waitUntil(invalidateListCaches(env, body.userId).then(async () => {
-          const chats = await fetchChatList(env, {
-            userId: body.userId!,
-            projectId: null,
-            limit: 50,
-          });
-          const listTtl = Math.max(
-            60,
-            Number(env.CHAT_LIST_CACHE_TTL_SECONDS ?? "120") || 120,
-          );
-          await writeListCaches(env, ctx, {
-            userId: body.userId!,
-            projectId: null,
-            limit: 50,
-            chats,
-            cacheTtl: listTtl,
-            cors,
-          });
-        }));
+        const chats = await fetchChatList(env, {
+          userId: body.userId,
+          projectId: null,
+          limit: 50,
+        });
+        const listTtl = Math.max(
+          60,
+          Number(env.CHAT_LIST_CACHE_TTL_SECONDS ?? "120") || 120,
+        );
+        await writeListCaches(env, ctx, {
+          userId: body.userId,
+          projectId: null,
+          limit: 50,
+          chats,
+          cacheTtl: listTtl,
+          cors,
+        });
         return json({ ok: true, limits }, 200, undefined, cors);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -654,14 +672,12 @@ export default {
         return json({ error: "userId required" }, 400, undefined, cors);
       }
       if (body.listsOnly || !body.chatId) {
-        ctx.waitUntil(invalidateListCaches(env, body.userId));
+        await invalidateListCaches(env, body.userId);
       } else {
-        ctx.waitUntil(
-          invalidateChatCaches(env, {
-            userId: body.userId,
-            chatId: body.chatId,
-          }),
-        );
+        await invalidateChatCaches(env, {
+          userId: body.userId,
+          chatId: body.chatId,
+        });
       }
       return json({ ok: true }, 200, undefined, cors);
     }
@@ -809,33 +825,6 @@ export default {
         }
       }
 
-      if (env.CHAT_ARCHIVES) {
-        const obj = await env.CHAT_ARCHIVES.get(r2Key(user.sub, chatId, limit));
-        if (obj) {
-          const payload = await obj.json<PagePayload>();
-          const response = json(
-            { data: payload },
-            200,
-            {
-              "cache-control": `private, max-age=${cacheTtl}, stale-while-revalidate=${Math.max(60, Math.floor(cacheTtl / 2))}`,
-              "cache-tag": `chat:${chatId},user:${user.sub}`,
-              "x-clauxen-cache": "r2",
-            },
-            cors,
-          );
-          ctx.waitUntil(
-            writeCaches(env, ctx, {
-              userId: user.sub,
-              chatId,
-              limit,
-              payload,
-              cacheTtl,
-              cors,
-            }),
-          );
-          return response;
-        }
-      }
     } else {
       const pageHit = await caches.default.match(
         pageCacheRequest(user.sub, chatId, limit, cursorId, cursorCreatedAt),
@@ -923,38 +912,6 @@ export default {
         cors,
       );
     } catch (error) {
-      if (isLatestPage && env.CHAT_HISTORY_CACHE) {
-        const stale = await env.CHAT_HISTORY_CACHE.get(
-          kvKey(user.sub, chatId, limit),
-          "json",
-        );
-        if (stale) {
-          return json(
-            { data: stale },
-            200,
-            {
-              "cache-control": "private, max-age=30",
-              "x-clauxen-cache": "stale-fallback",
-            },
-            cors,
-          );
-        }
-      }
-      if (isLatestPage && env.CHAT_ARCHIVES) {
-        const obj = await env.CHAT_ARCHIVES.get(r2Key(user.sub, chatId, limit));
-        if (obj) {
-          const payload = await obj.json<PagePayload>();
-          return json(
-            { data: payload },
-            200,
-            {
-              "cache-control": "private, max-age=30",
-              "x-clauxen-cache": "stale-r2-fallback",
-            },
-            cors,
-          );
-        }
-      }
       const message = error instanceof Error ? error.message : String(error);
       const status = /not found|not authenticated/i.test(message) ? 404 : 500;
       return json({ error: message }, status, undefined, cors);

@@ -30,7 +30,6 @@ import {
   buildTurnEndedRecord,
   buildToolResultUserRecord,
   buildUserTranscriptRecord,
-  messagesToTranscriptRecords,
   type CapturedToolCall,
 } from "@/backend/training/transcript-format";
 
@@ -171,11 +170,76 @@ export async function createChatForUser(
   input?: { title?: string; projectId?: string | null },
 ) {
   // Single round-trip: allocate id + insert with workspace from profiles subquery.
-  return chatsRepo.createChatFast({
+  const chat = await chatsRepo.createChatFast({
     userId,
     title: input?.title,
     projectId: input?.projectId,
   });
+  if (chat) {
+    const { invalidateChatHistoryCache } = await import(
+      "@/backend/chat/warm-history-cache"
+    );
+    await invalidateChatHistoryCache({ userId, listsOnly: true });
+  }
+  return chat;
+}
+
+type UserAttachmentMeta = {
+  id: string;
+  name: string;
+  mimeType: string;
+  kind: "image" | "document";
+  fileId: string;
+};
+
+async function resolveUserAttachmentMeta(
+  userId: string,
+  fileIds?: string[],
+): Promise<UserAttachmentMeta[]> {
+  if (!fileIds?.length) return [];
+
+  const files = await query<{
+    id: string;
+    original_name: string;
+    mime_type: string | null;
+  }>(
+    `select id, original_name, mime_type
+     from public.user_files
+     where user_id = $1
+       and id = any($2::uuid[])
+       and status != 'deleted'`,
+    [userId, fileIds],
+  );
+
+  return files.map((file) => {
+    const mime = file.mime_type ?? "application/octet-stream";
+    return {
+      id: file.id,
+      name: file.original_name,
+      mimeType: mime,
+      kind: mime.startsWith("image/") ? ("image" as const) : ("document" as const),
+      fileId: file.id,
+    };
+  });
+}
+
+function userMessageMetadata(input: {
+  attachments: UserAttachmentMeta[];
+  modelContent?: string;
+  content: string;
+}): Record<string, unknown> | undefined {
+  const metadata: Record<string, unknown> = {};
+  if (input.attachments.length) metadata.attachments = input.attachments;
+  if (
+    input.modelContent &&
+    input.modelContent.trim() &&
+    input.modelContent.trim() !== input.content.trim()
+  ) {
+    // The raw content is shown to the user; the model-only attachment context
+    // remains durable so follow-up turns can rebuild the same prompt.
+    metadata.model_content = input.modelContent;
+  }
+  return Object.keys(metadata).length ? metadata : undefined;
 }
 
 export async function appendUserMessage(
@@ -183,41 +247,12 @@ export async function appendUserMessage(
   userId: string,
   content: string,
   fileIds?: string[],
+  options?: { clientId?: string; modelContent?: string },
 ) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
 
-  let attachmentsMeta: Array<{
-    id: string;
-    name: string;
-    mimeType: string;
-    kind: "image" | "document";
-    fileId: string;
-  }> = [];
-
-  if (fileIds?.length) {
-    const { query } = await import("@/backend/db/pool");
-    const files = await query<{
-      id: string;
-      original_name: string;
-      mime_type: string | null;
-    }>(
-      `select id, original_name, mime_type
-       from public.user_files
-       where user_id = $1 and id = any($2::uuid[]) and status != 'deleted'`,
-      [userId, fileIds],
-    );
-    attachmentsMeta = files.map((file) => {
-      const mime = file.mime_type ?? "application/octet-stream";
-      return {
-        id: file.id,
-        name: file.original_name,
-        mimeType: mime,
-        kind: mime.startsWith("image/") ? ("image" as const) : ("document" as const),
-        fileId: file.id,
-      };
-    });
-  }
+  const attachmentsMeta = await resolveUserAttachmentMeta(userId, fileIds);
 
   const contentJson = buildUserTranscriptRecord(content);
   const message = await messagesRepo.createMessage({
@@ -226,9 +261,12 @@ export async function appendUserMessage(
     role: "user",
     content,
     contentJson,
-    metadata: attachmentsMeta.length
-      ? { attachments: attachmentsMeta }
-      : undefined,
+    metadata: userMessageMetadata({
+      attachments: attachmentsMeta,
+      modelContent: options?.modelContent,
+      content,
+    }),
+    clientId: options?.clientId,
   });
   if (message?.id && fileIds?.length) {
     await messagePartsRepo.attachFilePartsToMessage(
@@ -243,24 +281,11 @@ export async function appendUserMessage(
     messageId: message?.id ?? null,
     content,
   });
+  const { invalidateChatHistoryCache } = await import(
+    "@/backend/chat/warm-history-cache"
+  );
+  await invalidateChatHistoryCache({ userId, chatId });
   return message;
-}
-
-async function persistLatestUserMessage(
-  chatId: string,
-  userId: string,
-  messages: IncomingMessage[],
-) {
-  const lastUser = [...messages]
-    .reverse()
-    .find((m) => m.role === "user" && m.content.trim());
-  if (!lastUser) return;
-
-  const existing = await messagesRepo.listMessagesForChat(chatId);
-  const lastDbUser = [...existing].reverse().find((m) => m.role === "user");
-  if (lastDbUser?.content === lastUser.content) return;
-
-  await appendUserMessage(chatId, userId, lastUser.content);
 }
 
 
@@ -280,6 +305,13 @@ export async function streamChatGeneration(input: {
   chatId: string;
   userId: string;
   messages: IncomingMessage[];
+  turn?: {
+    content: string;
+    modelContent?: string;
+    fileIds?: string[];
+    userClientId: string;
+    assistantClientId: string;
+  };
   signal?: AbortSignal;
   userCountryCode?: string;
   generateChatTitle?: boolean;
@@ -296,23 +328,109 @@ export async function streamChatGeneration(input: {
     throw new AppError("messages are required.", 400);
   }
 
+  const lastClientUser = [...clientConversation]
+    .reverse()
+    .find((message) => message.role === "user");
+  const requestedUserContent =
+    input.turn?.content.trim() || lastClientUser?.content.trim() || "";
+  if (!requestedUserContent) {
+    throw new AppError("A user message is required.", 400);
+  }
+
+  let userMessageId: string | null = null;
+  let assistant: Awaited<ReturnType<typeof messagesRepo.createMessage>> | null =
+    null;
+  if (input.turn) {
+    const attachments = await resolveUserAttachmentMeta(
+      input.userId,
+      input.turn.fileIds,
+    );
+    const turn = await messagesRepo.beginChatTurn({
+      chatId: input.chatId,
+      userId: input.userId,
+      userContent: input.turn.content,
+      userMetadata: userMessageMetadata({
+        attachments,
+        modelContent: input.turn.modelContent,
+        content: input.turn.content,
+      }),
+      userContentJson: buildUserTranscriptRecord(input.turn.content),
+      fileIds: input.turn.fileIds,
+      userClientId: input.turn.userClientId,
+      assistantClientId: input.turn.assistantClientId,
+      assistantContentJson: buildAssistantTranscriptRecord({ answer: "" }),
+    });
+    assistant = turn.assistant;
+    userMessageId = turn.user.id;
+
+    if (turn.user.inserted) {
+      await persistUserTranscriptLine({
+        chatId: input.chatId,
+        userId: input.userId,
+        messageId: turn.user.id,
+        content: input.turn.content,
+      });
+    }
+
+    // A turn is durable before inference begins. Wait for edge invalidation so
+    // a reload during the stream cannot hydrate an old Cache/KV/R2 snapshot.
+    const { invalidateChatHistoryCache } = await import(
+      "@/backend/chat/warm-history-cache"
+    );
+    await invalidateChatHistoryCache({
+      userId: input.userId,
+      chatId: input.chatId,
+    });
+
+    if (!turn.assistant.inserted) {
+      const status =
+        turn.assistant.status === "streaming"
+          ? "already generating"
+          : "already completed";
+      throw new AppError(
+        `This chat turn is ${status}. Refresh the conversation before retrying.`,
+        409,
+        "chat_turn_exists",
+      );
+    }
+  } else {
+    // Compatibility path for older callers that persist their user row before
+    // invoking generation. Main product chat always supplies `turn`.
+    assistant = await messagesRepo.createMessage({
+      chatId: input.chatId,
+      userId: input.userId,
+      role: "assistant",
+      content: "",
+      status: "streaming",
+      contentJson: buildAssistantTranscriptRecord({ answer: "" }),
+    });
+  }
+
   // Prompt context from DB recent turns so partial client pages cannot starve
-  // the model. Prefer the client's latest user turn content when present.
+  // the model. Model-only attachment context is kept in metadata, while the
+  // user-visible text remains the canonical message content.
   const dbRecent = await messagesRepo.listRecentMessagesForChat(
     input.chatId,
     40,
   );
   const fromDb: IncomingMessage[] = dbRecent
     .filter((row) => row.role === "user" || row.role === "assistant")
-    .map((row) => ({
-      role: row.role as "user" | "assistant",
-      content: (row.content ?? "").trim(),
-    }))
+    .map((row) => {
+      const modelContent =
+        row.role === "user" &&
+        typeof (row.metadata as { model_content?: unknown })?.model_content ===
+          "string"
+          ? String(
+              (row.metadata as { model_content?: string }).model_content,
+            ).trim()
+          : (row.content ?? "").trim();
+      return {
+        role: row.role as "user" | "assistant",
+        content: modelContent,
+      };
+    })
     .filter((message) => message.content.length > 0);
 
-  const lastClientUser = [...clientConversation]
-    .reverse()
-    .find((message) => message.role === "user");
   let conversationForModel =
     fromDb.length > 0 ? fromDb : clientConversation;
   if (lastClientUser) {
@@ -333,13 +451,6 @@ export async function streamChatGeneration(input: {
     }
   }
 
-  // Persist user message without blocking the inference stream.
-  void persistLatestUserMessage(
-    input.chatId,
-    input.userId,
-    clientConversation,
-  );
-
   const generateChatTitle = resolveGenerateChatTitle(
     clientConversation,
     input.generateChatTitle ??
@@ -347,9 +458,7 @@ export async function streamChatGeneration(input: {
         clientConversation.filter((message) => message.role === "user")
           .length === 1),
   );
-  const titleUserContent =
-    clientConversation.find((message) => message.role === "user")?.content ??
-    "";
+  const titleUserContent = input.turn?.content ?? requestedUserContent;
   let generatedTitle: string | null = null;
 
   const started = Date.now();
@@ -361,33 +470,16 @@ export async function streamChatGeneration(input: {
     chatModel: parseChatModelId(input.chatModel),
   }).modelSlug;
 
-  let assistant: Awaited<ReturnType<typeof messagesRepo.createMessage>> | null =
-    null;
-  const assistantPromise = messagesRepo
-    .createMessage({
-      chatId: input.chatId,
-      userId: input.userId,
-      role: "assistant",
-      content: "",
-      status: "streaming",
-      contentJson: buildAssistantTranscriptRecord({ answer: "" }),
-    })
-    .then((row) => {
-      assistant = row;
-      return row;
-    });
-
-  const sourceStream = await createChatStream(conversationForModel, {
-    chatModel: input.chatModel,
-    userId: input.userId,
-    conversationId: input.chatId,
-    userCountryCode: input.userCountryCode,
-    generateChatTitle,
-    signal: input.signal,
-    homerReasoningEffort: input.homerReasoningEffort,
-  });
-
   try {
+    const sourceStream = await createChatStream(conversationForModel, {
+      chatModel: input.chatModel,
+      userId: input.userId,
+      conversationId: input.chatId,
+      userCountryCode: input.userCountryCode,
+      generateChatTitle,
+      signal: input.signal,
+      homerReasoningEffort: input.homerReasoningEffort,
+    });
     const body = tapChatSseStream(
       sourceStream,
       {
@@ -405,6 +497,8 @@ export async function streamChatGeneration(input: {
             id: tool.toolCallId,
             name: tool.name,
             input: tool.args ?? {},
+            description: tool.description,
+            startedAtMs: Date.now(),
           });
         },
         onToolEnd: (tool) => {
@@ -414,6 +508,10 @@ export async function streamChatGeneration(input: {
             name: tool.name || existing?.name || "tool",
             input: existing?.input ?? {},
             result: tool.result,
+            isError: false,
+            description: existing?.description,
+            startedAtMs: existing?.startedAtMs,
+            completedAtMs: Date.now(),
           });
         },
       },
@@ -421,10 +519,11 @@ export async function streamChatGeneration(input: {
     );
 
     const persistOnDone = async () => {
-      const assistantRow = assistant ?? (await assistantPromise);
+      const assistantRow = assistant;
       const cleanedAnswer = finalizeChatTitleStrippedAnswer(answer);
       const tools = Array.from(toolsById.values());
       const completedAtMs = Date.now();
+      const wasCancelled = input.signal?.aborted === true;
       const thinkingDurationSeconds = thinking.trim()
         ? Math.max(1, Math.round((completedAtMs - started) / 1000))
         : undefined;
@@ -436,6 +535,16 @@ export async function streamChatGeneration(input: {
           startedAtMs: started,
           completedAtMs,
           thinkingDurationSeconds,
+          actions: tools.map((tool) => ({
+            id: tool.id,
+            name: tool.name,
+            input: tool.input,
+            result: tool.result,
+            isError: tool.isError,
+            description: tool.description,
+            startedAtMs: tool.startedAtMs,
+            completedAtMs: tool.completedAtMs,
+          })),
         },
       });
       if (assistantRow?.id) {
@@ -443,10 +552,10 @@ export async function streamChatGeneration(input: {
           assistantRow.id,
           input.chatId,
           cleanedAnswer,
-          "complete",
+          wasCancelled ? "cancelled" : "complete",
           contentJson,
         );
-        if (generatedTitle) {
+        if (!wasCancelled && generatedTitle) {
           await chatsRepo.updateChat(input.chatId, input.userId, {
             title: generatedTitle,
           });
@@ -458,19 +567,21 @@ export async function streamChatGeneration(input: {
           answer: cleanedAnswer,
           thinking,
           tools,
-          status: "success",
+          status: wasCancelled ? "cancelled" : "success",
         });
       }
       const latencyMs = Date.now() - started;
       await logInferenceTelemetry({
         userId: input.userId,
         mode: "chat",
-        status: "success",
+        status: wasCancelled ? "error" : "success",
         model: modelForTelemetry,
         messageCount: clientConversation.length,
         responseCharacterCount: answer.length,
         latencyMs,
+        ...(wasCancelled ? { errorMessage: "Generation cancelled." } : {}),
       });
+      if (wasCancelled) return;
       try {
         await billingService.meterChatGeneration({
           userId: input.userId,
@@ -490,7 +601,7 @@ export async function streamChatGeneration(input: {
           warmChatHistoryCache({
             userId: input.userId,
             chatId: input.chatId,
-            limit: 2,
+            limits: [2, 20, 500],
           }),
         )
         .catch(() => {});
@@ -498,11 +609,12 @@ export async function streamChatGeneration(input: {
 
     return {
       stream: body,
-      assistantMessageId: (await assistantPromise)?.id ?? null,
+      userMessageId,
+      assistantMessageId: assistant?.id ?? null,
       onComplete: persistOnDone,
     };
   } catch (error) {
-    const assistantRow = assistant ?? (await assistantPromise.catch(() => null));
+    const assistantRow = assistant;
     const tools = Array.from(toolsById.values());
     if (assistantRow?.id) {
       const failedContent = answer || "Generation failed.";
@@ -571,6 +683,10 @@ export async function generateChatTitle(
     messages.find((m) => m.role === "user")?.content ?? "",
   );
   await chatsRepo.updateChat(chatId, userId, { title: normalized });
+  const { invalidateChatHistoryCache } = await import(
+    "@/backend/chat/warm-history-cache"
+  );
+  await invalidateChatHistoryCache({ userId, chatId });
   return normalized;
 }
 
@@ -587,49 +703,9 @@ export async function saveBranchState(
     messages,
   });
 
-  // Branch tree is canonical for edits/retries — rebuild JSONL from it.
-  if (Array.isArray(messages)) {
-    try {
-      const lines = messagesToTranscriptRecords(
-        messages as Array<{
-          id?: string;
-          role: string;
-          content?: string;
-          thinkingContent?: string;
-          agentSegments?: Array<{
-            kind: string;
-            toolCallId?: string;
-            name?: string;
-            args?: Record<string, unknown>;
-            result?: string;
-            status?: string;
-          }>;
-          agentFrames?: Array<{
-            segments?: Array<{
-              kind: string;
-              toolCallId?: string;
-              name?: string;
-              args?: Record<string, unknown>;
-              result?: string;
-              status?: string;
-            }>;
-          }>;
-        }>,
-      );
-      await transcriptRepo.replaceTranscriptLines({
-        chatId,
-        userId,
-        lines: lines.map((line) => ({
-          role: line.role,
-          record: line.record,
-          messageId: line.messageId,
-        })),
-      });
-    } catch (error) {
-      console.warn("[transcript] failed to rebuild from branch state:", error);
-    }
-  }
-
+  // Branch snapshots are UI state. Rebuilding the append-only transcript from
+  // a debounced browser snapshot deletes durable stream records and can race a
+  // still-finalizing assistant turn.
   return saved;
 }
 

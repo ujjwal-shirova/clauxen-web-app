@@ -105,6 +105,8 @@ function attachSessionCookies(
 
 const fullSessionHandler = withApiHandler(async ({ request, session }) => {
   const supabase = createSupabaseClientFromRequest(request);
+  let bootstrappedUserId: string | null = null;
+
   if (supabase) {
     const {
       data: { user },
@@ -126,6 +128,7 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
           email: user.email,
           displayName: authFullName,
         });
+        bootstrappedUserId = user.id;
       }
       await profileService.syncProfileFromAuth({
         userId: user.id,
@@ -135,7 +138,7 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
     }
   }
 
-  if (session?.id && session.email) {
+  if (session?.id && session.email && session.id !== bootstrappedUserId) {
     assertEmailNotDisposable(session.email);
     await ensureUserRecord({
       userId: session.id,

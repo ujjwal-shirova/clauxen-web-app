@@ -51,6 +51,17 @@ export function mapPgError(error: unknown, scope = "query"): AppError {
       "invalid_reference",
     );
   }
+  if (
+    pg.code === "53300" ||
+    (pg.code === "XX000" &&
+      /max clients|pool_size|too many connections/i.test(pg.message ?? ""))
+  ) {
+    return new AppError(
+      "The database is temporarily busy. Please retry in a moment.",
+      503,
+      "database_busy",
+    );
+  }
   // Undefined column / missing relation — surface in non-prod for faster fixes.
   if (
     !isProduction &&

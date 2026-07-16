@@ -19,6 +19,18 @@ function normalizeDatabaseUrl(url: string): string {
   }
 }
 
+function resolvePoolMax(): number {
+  const configured = Number(process.env.DATABASE_POOL_MAX);
+  if (Number.isFinite(configured) && configured >= 1) {
+    return Math.min(Math.floor(configured), 10);
+  }
+
+  // A Vercel function can scale into several isolates. One checked-out
+  // connection per isolate is deliberate: Supabase session poolers otherwise
+  // exhaust their client budget before a single user interaction completes.
+  return env.isVercel ? 1 : 10;
+}
+
 export function getPool(): Pool {
   if (!env.databaseUrl) {
     throw new AppError(
@@ -32,8 +44,10 @@ export function getPool(): Pool {
     const connectionString = normalizeDatabaseUrl(requireDatabaseUrl());
     pool = new Pool({
       connectionString,
-      max: 10,
-      idleTimeoutMillis: 30_000,
+      max: resolvePoolMax(),
+      idleTimeoutMillis: env.isVercel ? 5_000 : 30_000,
+      connectionTimeoutMillis: 10_000,
+      allowExitOnIdle: env.isVercel,
       ssl: connectionString.includes("localhost")
         ? false
         : { rejectUnauthorized: false },
@@ -66,16 +80,23 @@ export async function queryOne<T extends QueryResultRow = QueryResultRow>(
 export async function withTransaction<T>(
   fn: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
-  const client = await getPool().connect();
+  let client: PoolClient | null = null;
   try {
+    client = await getPool().connect();
     await client.query("BEGIN");
     const value = await fn(client);
     await client.query("COMMIT");
     return value;
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (client) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // The connection may already be closed after a failed BEGIN/COMMIT.
+      }
+    }
     throw error instanceof AppError ? error : mapPgError(error, "pool.tx");
   } finally {
-    client.release();
+    client?.release();
   }
 }

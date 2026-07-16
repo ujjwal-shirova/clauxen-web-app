@@ -80,6 +80,7 @@ export function tapUiMessageSseStream(
       toolCallId: string;
       name: string;
       args?: Record<string, unknown>;
+      description?: string;
     }) => void;
     onToolEnd?: (tool: {
       toolCallId: string;
@@ -144,6 +145,7 @@ export function tapUiMessageSseStream(
                 toolCallId?: unknown;
                 name?: unknown;
                 args?: unknown;
+                description?: unknown;
                 result?: unknown;
               };
               if (
@@ -193,6 +195,10 @@ export function tapUiMessageSseStream(
                       !Array.isArray(parsed.args)
                         ? (parsed.args as Record<string, unknown>)
                         : {},
+                    description:
+                      typeof parsed.description === "string"
+                        ? parsed.description
+                        : undefined,
                   });
                 }
               }

@@ -28,6 +28,7 @@ export const CANONICAL_VERCEL_ENV_KEYS = [
   "AUTH_DEV_BYPASS",
   "AUTH_REQUIRED_FOR_CHAT",
   "STORAGE_REQUIRE_R2",
+  "DATABASE_POOL_MAX",
   "NEXT_PUBLIC_APP_URL",
   "NEXT_PUBLIC_AUTH_REQUIRED_FOR_CHAT",
   "JWT_SECRET",
@@ -42,6 +43,10 @@ export const CANONICAL_VERCEL_ENV_KEYS = [
   "R2_IMAGES_BUCKET",
   "R2_DOCUMENTS_BUCKET",
   "R2_ARTIFACTS_BUCKET",
+  "WORKER_URL",
+  "NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL",
+  "CHAT_HISTORY_WORKER_URL",
+  "CHAT_HISTORY_INTERNAL_TOKEN",
 ] as const;
 
 const BLANK_RE =
@@ -75,13 +80,39 @@ function firstPublicEnv(
   return "";
 }
 
+function isSupabasePoolerUrl(value: string, port: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.hostname.endsWith(".pooler.supabase.com") && url.port === port;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Serverless functions should prefer Supabase's transaction pooler (6543).
+ * A session-pooler URL on 5432 can exhaust client slots when Vercel creates
+ * several isolates, so use it only when no safer candidate is provisioned.
+ */
+function firstDatabaseEnv(...names: string[]): string {
+  const candidates = names
+    .map((name) => process.env[name]?.trim() ?? "")
+    .filter((value) => !isBlankEnvValue(value));
+  return (
+    candidates.find((value) => isSupabasePoolerUrl(value, "6543")) ??
+    candidates.find((value) => !isSupabasePoolerUrl(value, "5432")) ??
+    candidates[0] ??
+    ""
+  );
+}
+
 /** Map Vercel Supabase integration vars → app aliases at runtime. */
 export function bootstrapVercelEnvAliases(): void {
   if (isBlankEnvValue(process.env.DATABASE_URL)) {
-    const url = firstEnv(
-      "POSTGRES_URL_NON_POOLING",
-      "POSTGRES_PRISMA_URL",
+    const url = firstDatabaseEnv(
       "POSTGRES_URL",
+      "POSTGRES_PRISMA_URL",
+      "POSTGRES_URL_NON_POOLING",
     );
     if (url) process.env.DATABASE_URL = url;
   }
@@ -138,11 +169,11 @@ export function bootstrapVercelEnvAliases(): void {
 }
 
 export function resolveDatabaseUrl(): string {
-  return firstEnv(
+  return firstDatabaseEnv(
     "DATABASE_URL",
-    "POSTGRES_URL_NON_POOLING",
     "POSTGRES_PRISMA_URL",
     "POSTGRES_URL",
+    "POSTGRES_URL_NON_POOLING",
   );
 }
 

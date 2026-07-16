@@ -1,4 +1,5 @@
 import { query, queryOne } from "@/backend/db/pool";
+import { AppError } from "@/backend/db/errors";
 import { generateChatId } from "@/lib/chat-id";
 
 export type ChatRow = {
@@ -98,26 +99,40 @@ export async function createChat(input: {
   );
 }
 
-/** One DB round-trip: unique id + insert with workspace from profiles. */
+/** Insert with workspace from profiles; retry only an extremely rare id collision. */
 export async function createChatFast(input: {
   userId: string;
   title?: string;
   projectId?: string | null;
   id?: string;
 }) {
-  const id = input.id ?? (await allocateUniqueChatId());
-  return queryOne<ChatRow>(
-    `insert into public.chats (id, user_id, project_id, workspace_id, title)
-     values (
-       $1,
-       $2,
-       $3,
-       (select default_workspace_id from public.profiles where id = $2 limit 1),
-       $4
-     )
-     returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
-    [id, input.userId, input.projectId ?? null, input.title ?? "New chat"],
-  );
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const id = input.id ?? generateChatId();
+    try {
+      return await queryOne<ChatRow>(
+        `insert into public.chats (id, user_id, project_id, workspace_id, title)
+         values (
+           $1,
+           $2,
+           $3,
+           (select default_workspace_id from public.profiles where id = $2 limit 1),
+           $4
+         )
+         returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
+        [id, input.userId, input.projectId ?? null, input.title ?? "New chat"],
+      );
+    } catch (error) {
+      if (
+        input.id ||
+        !(error instanceof AppError) ||
+        error.code !== "conflict" ||
+        attempt === 2
+      ) {
+        throw error;
+      }
+    }
+  }
+  return null;
 }
 
 export async function updateChat(

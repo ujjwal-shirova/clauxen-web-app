@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  clearPendingChatRouteSeed,
   peekPendingChatRouteSeed,
   setPendingChatRouteSeed,
   takePendingChatRouteSeed,
@@ -19,5 +20,19 @@ describe("chat-route-seed", () => {
     assert.equal(takePendingChatRouteSeed("chat_b"), null);
     assert.equal(takePendingChatRouteSeed("chat_a")?.chatId, "chat_a");
     assert.equal(takePendingChatRouteSeed("chat_a"), null);
+  });
+
+  it("does not clear a newer route seed during old cleanup", () => {
+    setPendingChatRouteSeed({
+      chatId: "chat_b",
+      messages: [],
+      hasMore: false,
+      nextCursor: null,
+      branchMessages: null,
+    });
+    clearPendingChatRouteSeed("chat_a");
+    assert.equal(peekPendingChatRouteSeed("chat_b")?.chatId, "chat_b");
+    clearPendingChatRouteSeed("chat_b");
+    assert.equal(peekPendingChatRouteSeed("chat_b"), null);
   });
 });

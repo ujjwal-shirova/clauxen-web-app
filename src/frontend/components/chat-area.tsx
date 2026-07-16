@@ -57,6 +57,9 @@ interface ChatAreaProps {
   activeChatId: string | null;
   /** True while hydrating messages for the active /c/[id] route. */
   messagesLoading?: boolean;
+  /** Non-fatal hydrate failure for the active chat. */
+  messagesLoadError?: string | null;
+  onRetryMessages?: () => void | Promise<void>;
   /** True while a brand-new chat is being created / first reply boots. */
   creatingChatPending?: boolean;
   activeChatTitle?: string;
@@ -101,6 +104,8 @@ function ChatAreaLayout({
   switchMessageBranch,
   activeChatId,
   messagesLoading = false,
+  messagesLoadError = null,
+  onRetryMessages,
   creatingChatPending = false,
   activeChatTitle,
   isActiveChatTitleStreaming,
@@ -143,11 +148,19 @@ function ChatAreaLayout({
   const isConversationStarted = messages.length > 0;
   const showMessageSkeleton =
     messagesLoading && !isConversationStarted && Boolean(activeChatId);
+  const showMessageLoadError =
+    !isConversationStarted &&
+    !showMessageSkeleton &&
+    Boolean(activeChatId) &&
+    Boolean(messagesLoadError);
   const hasArtifacts = chatArtifacts.length > 0;
   // Hide interactive header until the server chat id exists — no shimmer.
   const headerControlsLoading = Boolean(creatingChatPending);
   const showChatOptionsHeader =
-    isConversationStarted || Boolean(activeChatId) || showMessageSkeleton;
+    isConversationStarted ||
+    Boolean(activeChatId) ||
+    showMessageSkeleton ||
+    showMessageLoadError;
   const showDesktopArtifactsRail =
     hasArtifacts &&
     isConversationStarted &&
@@ -162,11 +175,11 @@ function ChatAreaLayout({
     followContentGrowth,
   } = useChatScroll({
     scrollAreaRef,
-    enabled: isConversationStarted || showMessageSkeleton,
+    enabled: isConversationStarted || showMessageSkeleton || showMessageLoadError,
   });
   const { isFastScrolling } = useChatScrollActivity(
     scrollAreaRef,
-    isConversationStarted || showMessageSkeleton,
+    isConversationStarted || showMessageSkeleton || showMessageLoadError,
   );
   const artifactCountRef = React.useRef(chatArtifacts.length);
   const sourceCountRef = React.useRef(chatSources.length);
@@ -391,7 +404,9 @@ function ChatAreaLayout({
           ) : null}
           <ChatViewPane
             className="flex min-h-0 flex-1 flex-col"
-            hasConversation={isConversationStarted || showMessageSkeleton}
+            hasConversation={
+              isConversationStarted || showMessageSkeleton || showMessageLoadError
+            }
             isGenerating={isGenerating}
             hasPromptDraft={hasPromptDraft}
             isAddMenuOpen={isAddMenuOpen}
@@ -400,7 +415,20 @@ function ChatAreaLayout({
             onSendMessage={handleSendMessageAndScroll}
             scrollAreaRef={scrollAreaRef}
             conversation={
-              showMessageSkeleton ? (
+              showMessageLoadError ? (
+                <div className="flex w-full flex-col items-start gap-3 px-4 py-10 sm:px-6">
+                  <p className="text-sm text-zinc-600">
+                    {messagesLoadError || "Could not load this conversation."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void onRetryMessages?.()}
+                    className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : showMessageSkeleton ? (
                 <div
                   className="flex w-full min-w-0 max-w-full flex-col gap-6 px-0 pt-5 pb-5 sm:gap-8 sm:pt-10 sm:pb-8"
                   aria-busy="true"

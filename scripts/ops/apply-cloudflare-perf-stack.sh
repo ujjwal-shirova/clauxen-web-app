@@ -25,15 +25,10 @@ HYPERDRIVE_ID="${HYPERDRIVE_ID:-54df64d31cce4e6f8f34415c6fb4e849}"
 echo "==> Whoami"
 npx wrangler@latest whoami
 
-echo "==> Tune Hyperdrive query cache (max-age=300, swr=60)"
+echo "==> Disable Hyperdrive query caching for chat read-after-write consistency"
 npx wrangler@latest hyperdrive update "$HYPERDRIVE_ID" \
-  --max-age 300 \
-  --swr 60 \
+  --caching-disabled \
   || echo "Hyperdrive update skipped (check token permissions)"
-
-echo "==> Optional: create cache-disabled Hyperdrive for fresh reads"
-echo "    npx wrangler hyperdrive create clauxen-supabase-fresh --connection-string=\"\$DATABASE_URL\" --caching-disabled"
-echo "    then bind as HYPERDRIVE_FRESH in workers/chat-history/wrangler.toml"
 
 echo "==> Deploy chat-history Worker"
 (

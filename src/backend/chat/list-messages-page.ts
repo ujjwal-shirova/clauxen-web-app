@@ -77,18 +77,31 @@ export async function listMessagesPagePreferEdge(input: {
     return page;
   }
 
-  const older = await messagesRepo.listMessagesPage({
-    chatId: input.chatId,
-    userId: input.userId,
-    cursorCreatedAt: page.nextCursor.createdAt,
-    cursorId: page.nextCursor.id,
-    limit: input.limit,
-  });
-  const existing = new Set(page.messages.map((message) => message.id));
-  const prepended = older.messages.filter((message) => !existing.has(message.id));
-  return {
-    messages: [...prepended, ...page.messages],
-    nextCursor: older.nextCursor,
-    hasMore: older.hasMore,
-  };
+  let aligned = page;
+  for (
+    let pageCount = 0;
+    pageCount < 10 &&
+    aligned.messages[0]?.role !== "user" &&
+    aligned.hasMore &&
+    aligned.nextCursor;
+    pageCount += 1
+  ) {
+    const older = await messagesRepo.listMessagesPage({
+      chatId: input.chatId,
+      userId: input.userId,
+      cursorCreatedAt: aligned.nextCursor.createdAt,
+      cursorId: aligned.nextCursor.id,
+      limit: input.limit,
+    });
+    const existing = new Set(aligned.messages.map((message) => message.id));
+    aligned = {
+      messages: [
+        ...older.messages.filter((message) => !existing.has(message.id)),
+        ...aligned.messages,
+      ],
+      nextCursor: older.nextCursor,
+      hasMore: older.hasMore,
+    };
+  }
+  return aligned;
 }

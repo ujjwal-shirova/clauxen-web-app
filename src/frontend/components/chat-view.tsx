@@ -99,6 +99,10 @@ function ChatViewBody({
   const messagesLoading = Boolean(
     (chat as { messagesLoading?: boolean }).messagesLoading,
   );
+  const messagesLoadError =
+    (chat as { messagesLoadError?: string | null }).messagesLoadError ?? null;
+  const retryLoadMessages =
+    (chat as { retryLoadMessages?: () => Promise<void> }).retryLoadMessages;
 
   const routeChatId = getRouteChatId(pathname);
   // Keep showing the live conversation as soon as a chat id / messages exist,
@@ -217,6 +221,8 @@ function ChatViewBody({
       switchMessageBranch={switchMessageBranch}
       activeChatId={displayActiveChatId}
       messagesLoading={displayMessagesLoading}
+      messagesLoadError={messagesLoadError}
+      onRetryMessages={retryLoadMessages}
       creatingChatPending={creatingChatPending && !blankNewChatComposer}
       activeChatTitle={displayActiveChat?.name ?? "New Chat"}
       isActiveChatTitleStreaming={!!displayActiveChat?.isTitleStreaming}

@@ -15,23 +15,25 @@ enabled = true
 head_sampling_rate = 1
 
 [vars]
-# Cache API / KV TTLs — Hyperdrive is miss-only.
-LATEST_PAGE_CACHE_TTL_SECONDS = "1800"
-CURSOR_PAGE_CACHE_TTL_SECONDS = "300"
-CHAT_LIST_CACHE_TTL_SECONDS = "120"
+# Cache API / KV TTLs for mutable conversations. Every write invalidates these
+# keys synchronously; short TTLs provide a safe fallback if wiring regresses.
+LATEST_PAGE_CACHE_TTL_SECONDS = "120"
+CURSOR_PAGE_CACHE_TTL_SECONDS = "120"
+CHAT_LIST_CACHE_TTL_SECONDS = "60"
 JWT_CACHE_TTL_SECONDS = "60"
-APP_ORIGIN = "https://clauxen.com,https://www.clauxen.com,http://localhost:9002"
+APP_ORIGIN = "https://clauxen.com,https://www.clauxen.com,https://*.vercel.app,http://localhost:9002"
 
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "54df64d31cce4e6f8f34415c6fb4e849"
 localConnectionString = "postgres://postgres:postgres@127.0.0.1:5432/postgres"
 
-# Optional: create a second Hyperdrive with --caching-disabled for fresh reads,
-# then set binding id here after `wrangler hyperdrive create ... --caching-disabled`.
+# HYPERDRIVE is cache-disabled in Cloudflare so a cache miss is always
+# read-after-write consistent. Keep this optional binding for future dedicated
+# fresh routing if a separate cached Hyperdrive is introduced for analytics.
 # [[hyperdrive]]
 # binding = "HYPERDRIVE_FRESH"
-# id = "REPLACE_WITH_FRESH_HYPERDRIVE_ID"
+# id = "DEDICATED_FRESH_HYPERDRIVE_ID"
 
 [[kv_namespaces]]
 binding = "CHAT_HISTORY_CACHE"

@@ -305,6 +305,8 @@ export function agentFramesVisuallyEqual(
     return (
       frame.id === other.id &&
       frame.complete === other.complete &&
+      frame.startedAtMs === other.startedAtMs &&
+      frame.completedAtMs === other.completedAtMs &&
       frame.introNarrative === other.introNarrative &&
       frame.interimOutput === other.interimOutput &&
       agentSegmentsVisuallyEqual(frame.segments, other.segments)

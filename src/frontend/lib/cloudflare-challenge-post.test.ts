@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { NextRequest } from "next/server";
 import { isCloudflareChallengeDocumentPost } from "./cloudflare-challenge-post";
 
@@ -14,26 +15,29 @@ function req(
 
 describe("isCloudflareChallengeDocumentPost", () => {
   it("treats document POSTs as challenge completions", () => {
-    expect(isCloudflareChallengeDocumentPost(req("/login"))).toBe(true);
-    expect(isCloudflareChallengeDocumentPost(req("/new"))).toBe(true);
-    expect(isCloudflareChallengeDocumentPost(req("/"))).toBe(true);
-    expect(isCloudflareChallengeDocumentPost(req("/c/abc123"))).toBe(true);
+    assert.equal(isCloudflareChallengeDocumentPost(req("/login")), true);
+    assert.equal(isCloudflareChallengeDocumentPost(req("/new")), true);
+    assert.equal(isCloudflareChallengeDocumentPost(req("/")), true);
+    assert.equal(isCloudflareChallengeDocumentPost(req("/c/abc123")), true);
   });
 
   it("ignores GET and API routes", () => {
-    expect(
+    assert.equal(
       isCloudflareChallengeDocumentPost(req("/login", { method: "GET" })),
-    ).toBe(false);
-    expect(isCloudflareChallengeDocumentPost(req("/api/v1/auth/login"))).toBe(
+      false,
+    );
+    assert.equal(
+      isCloudflareChallengeDocumentPost(req("/api/v1/auth/login")),
       false,
     );
   });
 
   it("preserves Next.js Server Actions", () => {
-    expect(
+    assert.equal(
       isCloudflareChallengeDocumentPost(
         req("/new", { headers: { "next-action": "abc" } }),
       ),
-    ).toBe(false);
+      false,
+    );
   });
 });
