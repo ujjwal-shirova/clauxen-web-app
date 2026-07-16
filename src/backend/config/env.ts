@@ -46,6 +46,24 @@ const providerOpenAiBaseUrl = normalizeBaseUrl(
   ) || MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
 );
 
+const DEFAULT_ANTHROPIC_BASE_URL = "https://api.novita.ai/anthropic";
+
+function resolveAnthropicBaseUrl(): string {
+  const dedicated = firstOptional(
+    "NOVITA_ANTHROPIC_BASE_URL",
+    "ANTHROPIC_BASE_URL",
+  );
+  if (dedicated) return normalizeBaseUrl(dedicated);
+
+  const providerBase = firstOptional(PROVIDER.baseUrl);
+  // Only reuse Provider_BASE_URL when it already points at an Anthropic path.
+  if (/\/anthropic\/?$/i.test(providerBase)) {
+    return normalizeBaseUrl(providerBase);
+  }
+
+  return DEFAULT_ANTHROPIC_BASE_URL;
+}
+
 export const env = {
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:9002"),
   authRequiredForChat: optional("AUTH_REQUIRED_FOR_CHAT", "false") === "true",
@@ -63,13 +81,7 @@ export const env = {
   /** @deprecated Use providerApiKey */
   novitaApiKey: providerApiKey,
 
-  novitaAnthropicBaseUrl: normalizeBaseUrl(
-    firstOptional(
-      PROVIDER.baseUrl,
-      "NOVITA_ANTHROPIC_BASE_URL",
-      "LLM_BASE_URL",
-    ) || providerOpenAiBaseUrl,
-  ),
+  novitaAnthropicBaseUrl: resolveAnthropicBaseUrl(),
   novitaOpenAiBaseUrl: providerOpenAiBaseUrl,
   /** Alias for OpenAI-compatible provider base URL. */
   providerBaseUrl: providerOpenAiBaseUrl,

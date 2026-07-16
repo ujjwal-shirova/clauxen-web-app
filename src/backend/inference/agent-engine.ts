@@ -666,9 +666,9 @@ export async function generateChatTitle(
   try {
     const client = new Anthropic({
       apiKey: requireProviderApiKey(),
-      ...(env.novitaAnthropicBaseUrl
-        ? { baseURL: env.novitaAnthropicBaseUrl.replace(/\/$/, "") }
-        : {}),
+      baseURL: (
+        env.novitaAnthropicBaseUrl || "https://api.novita.ai/anthropic"
+      ).replace(/\/$/, ""),
     });
     const response = await client.messages.create(
       {

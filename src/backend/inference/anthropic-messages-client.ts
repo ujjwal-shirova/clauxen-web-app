@@ -58,11 +58,13 @@ export type AnthropicCompletionOptions = {
 
 function createClient(): Anthropic {
   const apiKey = requireProviderApiKey();
-  const baseURL =
-    env.novitaAnthropicBaseUrl?.replace(/\/$/, "") || undefined;
+  // Default: Novita Anthropic Messages gateway (Clauxen Code launcher default).
+  const baseURL = (
+    env.novitaAnthropicBaseUrl || "https://api.novita.ai/anthropic"
+  ).replace(/\/$/, "");
   return new Anthropic({
     apiKey,
-    ...(baseURL ? { baseURL } : {}),
+    baseURL,
   });
 }
 

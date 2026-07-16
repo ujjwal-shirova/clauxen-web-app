@@ -170,12 +170,16 @@ export function resolveActiveStepLabel(
 
   if (last.kind === "thinking") {
     if (!last.isStreaming) return undefined;
-    return last.content.trim() ? "Thinking" : undefined;
+    // Shimmer "Thinking" from the first delta — even before content arrives.
+    return "Thinking";
   }
 
   if (last.kind === "tool" && last.status === "running") {
-    if (!toolHasVisibleOutput(last)) return undefined;
-    return toolStepLabel(last);
+    return toolStepLabel(last) || "Working";
+  }
+
+  if (last.kind === "text" && last.isStreaming) {
+    return PLANNING_NEXT_MOVES_LABEL;
   }
 
   return undefined;
@@ -218,5 +222,10 @@ export function resolveFrameHeaderLabel(input: {
 }
 
 export function shouldShimmerFrameHeader(label: string): boolean {
-  return label === PLANNING_NEXT_MOVES_LABEL;
+  return (
+    label === PLANNING_NEXT_MOVES_LABEL ||
+    label === WORKING_LABEL ||
+    label === "Thinking" ||
+    label.startsWith("Thinking")
+  );
 }

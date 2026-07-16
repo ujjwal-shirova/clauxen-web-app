@@ -83,7 +83,9 @@ export function AgentTimelineStep({
       <div
         className={cn(
           "min-w-0 flex-1 text-[14px] leading-[1.45]",
-          isActive ? "text-zinc-800" : "text-zinc-500",
+          // Don't set solid text color while active — child `.shimmer-text`
+          // needs `color: transparent` + background-clip to animate.
+          !isActive && "text-zinc-500",
         )}
       >
         {title}

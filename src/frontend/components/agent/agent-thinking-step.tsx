@@ -22,8 +22,8 @@ function thinkingTitle(segment: AgentThinkingSegment): string {
 }
 
 /**
- * Clauxen Code pattern: thinking is collapsed by default (∴ Thinking / Thought for Ns);
- * expand via chevron to read the monologue. Auto-opens while streaming.
+ * Streaming: shimmering "Thinking" label (same effect as tool steps / frame header).
+ * Complete: collapses to "Thought for Ns"; expand for the monologue.
  */
 export function AgentThinkingStep({
   segment,
@@ -31,9 +31,10 @@ export function AgentThinkingStep({
   segment: AgentThinkingSegment;
 }) {
   const [label, setLabel] = useState(() => thinkingTitle(segment));
+  const streaming = !!segment.isStreaming;
 
   useEffect(() => {
-    if (!segment.isStreaming) {
+    if (!streaming) {
       setLabel(thinkingTitle(segment));
       return;
     }
@@ -42,26 +43,27 @@ export function AgentThinkingStep({
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
   }, [
-    segment.isStreaming,
+    streaming,
     segment.durationSeconds,
     segment.startedAtMs,
     segment.content,
+    segment,
   ]);
 
-  if (!segment.content.trim() && !segment.isStreaming) {
+  if (!segment.content.trim() && !streaming) {
     return null;
   }
 
   return (
     <AgentTimelineStep
       icon="thinking"
-      isActive={!!segment.isStreaming}
+      isActive={streaming}
       collapsible
       title={
         <span
           className={cn(
             "truncate font-medium",
-            segment.isStreaming ? "shimmer-text text-zinc-700" : "text-zinc-500",
+            streaming ? "shimmer-text" : "text-zinc-500",
           )}
         >
           {label}
@@ -73,12 +75,15 @@ export function AgentThinkingStep({
           <div className="thinking-markdown max-h-[14rem] overflow-y-auto pr-1">
             <MarkdownRenderer
               content={segment.content}
-              isStreaming={segment.isStreaming}
+              isStreaming={streaming}
               showCursor={false}
-              lightweightStream={segment.isStreaming}
+              lightweightStream={streaming}
             />
           </div>
         </div>
+      ) : streaming ? (
+        // Keep a body so the step stays expandable while the first tokens arrive.
+        <div className="h-1" aria-hidden />
       ) : null}
     </AgentTimelineStep>
   );

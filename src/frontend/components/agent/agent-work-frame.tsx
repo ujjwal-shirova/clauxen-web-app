@@ -6,6 +6,7 @@ import { cn } from "@/frontend/lib/utils";
 import {
   resolveFrameHeaderLabel,
   resolveWorkedForLabel,
+  shouldShimmerFrameHeader,
 } from "@/frontend/lib/agent-frame-label";
 import type {
   AgentSegment,
@@ -13,7 +14,7 @@ import type {
   AgentThinkingSegment,
   AgentToolSegment,
 } from "@/frontend/lib/agent-segments";
-import { AgentTimeline, AgentTimelineDone } from "./agent-timeline";
+import { AgentTimeline } from "./agent-timeline";
 import { AgentThinkingStep } from "./agent-thinking-step";
 import { AgentNarrativeStep } from "@/frontend/components/agent/agent-narrative-step";
 import { AgentToolBlock } from "./agent-tool-blocks";
@@ -42,9 +43,10 @@ function workSegments(segments: AgentSegment[]) {
 }
 
 /**
- * Collapsible agent work summary — Cursor-inspired "Worked for Xm Ys" header
- * with a flat chronological action log (narration + tools), not a heavy
- * vertical icon timeline.
+ * Collapsible agent work summary.
+ *
+ * Streaming: expanded log; header shows shimmering active step (Thinking / tools).
+ * Complete: auto-collapses to only "Worked for Xm Ys" (expandable for details).
  */
 export function AgentWorkFrame({
   segments,
@@ -66,12 +68,6 @@ export function AgentWorkFrame({
     (segment) =>
       segment.kind === "tool" && segment.name === "ask_user_input_v0",
   );
-  /** Keep web search / present_files expanded after reload (Claude-like). */
-  const hasPersistentToolUi = items.some(
-    (segment) =>
-      segment.kind === "tool" &&
-      (segment.name === "web_search" || segment.name === "present_files"),
-  );
   const userInputTools = items.filter(
     (segment): segment is AgentToolSegment =>
       isToolSegment(segment) && segment.name === "ask_user_input_v0",
@@ -82,21 +78,26 @@ export function AgentWorkFrame({
   );
   const userInputOnly = hasUserInputTool && timelineItems.length === 0;
 
+  const turnFinished = frameComplete && !isStreaming;
+
   useEffect(() => {
-    if (hasUserInputTool || hasPersistentToolUi) {
+    // Interactive ask-user stays open.
+    if (hasUserInputTool && !turnFinished) {
       userToggledRef.current = false;
       setExpanded(true);
       return;
     }
+    // Live work → keep the log open so streaming steps are visible.
     if (isStreaming) {
       userToggledRef.current = false;
       setExpanded(true);
       return;
     }
-    if (frameComplete && !userToggledRef.current) {
+    // Turn done → collapse to "Worked for …" only (unless user re-opened).
+    if (turnFinished && !userToggledRef.current) {
       setExpanded(false);
     }
-  }, [isStreaming, frameComplete, hasUserInputTool, hasPersistentToolUi]);
+  }, [isStreaming, turnFinished, hasUserInputTool]);
 
   const hasActiveWork = items.some(
     (segment) =>
@@ -108,7 +109,7 @@ export function AgentWorkFrame({
   const workedForLabel = resolveWorkedForLabel({
     startedAtMs,
     completedAtMs:
-      completedAtMs ?? (frameComplete ? Date.now() : undefined),
+      completedAtMs ?? (turnFinished ? Date.now() : undefined),
   });
 
   const activeLabel = resolveFrameHeaderLabel({
@@ -116,15 +117,15 @@ export function AgentWorkFrame({
     hasActiveWork,
   });
 
-  // Complete → "Worked for …"; streaming → shimmering active step / planning.
-  const frameLabel =
-    frameComplete && !isStreaming
-      ? workedForLabel ?? activeLabel
-      : activeLabel;
+  // Complete → only "Worked for …"; streaming → shimmering Thinking / tool label.
+  const frameLabel = turnFinished
+    ? workedForLabel ?? activeLabel
+    : activeLabel;
 
-  const showShimmer = isStreaming && hasActiveWork;
-  const showCollapsedHeader =
-    frameComplete && !expanded && !isStreaming && !hasUserInputTool;
+  const showShimmer =
+    isStreaming &&
+    (hasActiveWork || shouldShimmerFrameHeader(frameLabel));
+  const showCollapsedHeader = turnFinished && !expanded && !hasUserInputTool;
 
   if (items.length === 0) {
     return null;
@@ -163,7 +164,7 @@ export function AgentWorkFrame({
               showCollapsedHeader
                 ? "text-zinc-400 hover:text-zinc-500"
                 : showShimmer
-                  ? "shimmer-text text-zinc-700 hover:font-semibold"
+                  ? "shimmer-text"
                   : "text-zinc-700",
             )}
           >
@@ -213,7 +214,6 @@ export function AgentWorkFrame({
                 }
                 return null;
               })}
-              {frameComplete && !hasUserInputTool ? <AgentTimelineDone /> : null}
             </AgentTimeline>
           ) : null}
         </div>
