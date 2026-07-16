@@ -21,6 +21,7 @@ export function AgentNarrativeStep({
     <AgentTimelineStep
       icon="thinking"
       isActive={!!segment.isStreaming}
+      collapsible={false}
       title={
         <span
           className={cn(

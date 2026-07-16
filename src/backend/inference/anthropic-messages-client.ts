@@ -1,0 +1,243 @@
+/**
+ * Anthropic Messages API streaming client for Clauxen Web.
+ *
+ * Source of agent loop design: vendor/clauxen-code-agent (Clauxen Code CLI).
+ * Uses @anthropic-ai/sdk ONLY — no OpenAI Chat Completions translation layer.
+ *
+ * Compatible with Anthropic-compatible gateways (e.g. Novita /anthropic) via
+ * baseURL override from Provider_BASE_URL / NOVITA_ANTHROPIC_BASE_URL.
+ */
+
+import Anthropic from "@anthropic-ai/sdk";
+import {
+  requireProviderApiKey,
+  env,
+} from "@/backend/config/env";
+
+export type AnthropicToolDefinition = {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+};
+
+export type AnthropicChatMessage = {
+  role: "user" | "assistant";
+  content: string | Anthropic.ContentBlockParam[];
+};
+
+export type AnthropicStreamPart =
+  | { type: "reasoning-delta"; delta: string }
+  | { type: "text-delta"; delta: string }
+  | { type: "tool-call-start"; toolCallId: string; toolName: string }
+  | {
+      type: "tool-call-delta";
+      toolCallId: string;
+      argumentsDelta: string;
+    }
+  | {
+      type: "tool-call-end";
+      toolCallId: string;
+      toolName: string;
+      arguments: string;
+    }
+  | { type: "finish"; reason: string }
+  | { type: "error"; error: string }
+  | { type: "abort" };
+
+export type AnthropicCompletionOptions = {
+  model: string;
+  system?: string;
+  messages: AnthropicChatMessage[];
+  tools?: AnthropicToolDefinition[];
+  max_tokens?: number;
+  temperature?: number;
+  signal?: AbortSignal;
+  /** Extended thinking budget tokens (0 = off). */
+  thinkingBudgetTokens?: number;
+};
+
+function createClient(): Anthropic {
+  const apiKey = requireProviderApiKey();
+  const baseURL =
+    env.novitaAnthropicBaseUrl?.replace(/\/$/, "") || undefined;
+  return new Anthropic({
+    apiKey,
+    ...(baseURL ? { baseURL } : {}),
+  });
+}
+
+/**
+ * Stream one Anthropic Messages turn. Yields the same part shapes the
+ * autonomous agent engine already understands (reasoning/text/tools).
+ */
+export async function* streamAnthropicMessages(
+  options: AnthropicCompletionOptions,
+): AsyncGenerator<AnthropicStreamPart> {
+  const client = createClient();
+  const maxTokens = options.max_tokens ?? 8192;
+
+  const tools =
+    options.tools && options.tools.length > 0
+      ? options.tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          input_schema: tool.input_schema as Anthropic.Tool.InputSchema,
+        }))
+      : undefined;
+
+  const thinking =
+    options.thinkingBudgetTokens && options.thinkingBudgetTokens > 0
+      ? ({
+          type: "enabled" as const,
+          budget_tokens: options.thinkingBudgetTokens,
+        } as const)
+      : undefined;
+
+  let stream: AsyncIterable<Anthropic.RawMessageStreamEvent>;
+  try {
+    stream = await client.messages.create(
+      {
+        model: options.model,
+        max_tokens: maxTokens,
+        temperature: options.temperature,
+        system: options.system,
+        messages: options.messages as Anthropic.MessageParam[],
+        tools,
+        ...(thinking ? { thinking } : {}),
+        stream: true,
+      },
+      { signal: options.signal },
+    );
+  } catch (error) {
+    if (options.signal?.aborted) {
+      yield { type: "abort" };
+      return;
+    }
+    yield {
+      type: "error",
+      error: error instanceof Error ? error.message : String(error),
+    };
+    return;
+  }
+
+  // Track open content blocks for tool_use argument accumulation.
+  const openTools = new Map<
+    number,
+    { id: string; name: string; args: string }
+  >();
+  let stopReason = "end_turn";
+
+  try {
+    for await (const event of stream) {
+      if (options.signal?.aborted) {
+        yield { type: "abort" };
+        return;
+      }
+
+      switch (event.type) {
+        case "content_block_start": {
+          const block = event.content_block;
+          if (block.type === "thinking") {
+            // thinking deltas arrive as thinking_delta
+            break;
+          }
+          if (block.type === "text") {
+            break;
+          }
+          if (block.type === "tool_use") {
+            openTools.set(event.index, {
+              id: block.id,
+              name: block.name,
+              args: "",
+            });
+            yield {
+              type: "tool-call-start",
+              toolCallId: block.id,
+              toolName: block.name,
+            };
+          }
+          break;
+        }
+
+        case "content_block_delta": {
+          const delta = event.delta;
+          if (delta.type === "thinking_delta") {
+            yield { type: "reasoning-delta", delta: delta.thinking };
+            break;
+          }
+          if (delta.type === "text_delta") {
+            yield { type: "text-delta", delta: delta.text };
+            break;
+          }
+          if (delta.type === "input_json_delta") {
+            const entry = openTools.get(event.index);
+            if (entry) {
+              entry.args += delta.partial_json;
+              yield {
+                type: "tool-call-delta",
+                toolCallId: entry.id,
+                argumentsDelta: delta.partial_json,
+              };
+            }
+          }
+          break;
+        }
+
+        case "content_block_stop": {
+          const entry = openTools.get(event.index);
+          if (entry) {
+            yield {
+              type: "tool-call-end",
+              toolCallId: entry.id,
+              toolName: entry.name,
+              arguments: entry.args || "{}",
+            };
+            openTools.delete(event.index);
+          }
+          break;
+        }
+
+        case "message_delta": {
+          if (event.delta.stop_reason) {
+            stopReason = event.delta.stop_reason;
+          }
+          break;
+        }
+
+        case "message_stop":
+          yield { type: "finish", reason: stopReason };
+          break;
+
+        default:
+          break;
+      }
+    }
+  } catch (error) {
+    if (options.signal?.aborted) {
+      yield { type: "abort" };
+      return;
+    }
+    yield {
+      type: "error",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/** Build Anthropic tool defs from the web autonomous tool catalog shape. */
+export function toAnthropicTools(
+  tools: Array<{
+    name: string;
+    description?: string | null;
+    parameters: Record<string, unknown>;
+  }>,
+): AnthropicToolDefinition[] {
+  return tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description ?? tool.name,
+    input_schema: {
+      type: "object",
+      ...(tool.parameters ?? {}),
+    },
+  }));
+}

@@ -1,28 +1,26 @@
 /**
  * Autonomous Agent Orchestration Engine.
  *
- * This is the cognitive architecture that wraps the static Novita OpenAI API
- * and turns it into a fully autonomous, self-healing agent loop — without
- * Vercel AI SDK, without @ai-sdk/openai.
+ * Cognitive architecture ported from Clauxen Code CLI
+ * (`vendor/clauxen-code-agent` — query loop + StreamingToolExecutor patterns).
+ *
+ * Uses Anthropic Messages API ONLY (@anthropic-ai/sdk) — no OpenAI Chat
+ * Completions translation. Streams into ClauxenSseStream for the Worked-for
+ * timeline UI.
  *
  * Architecture:
- *  1. Agentic Loop — runs multi-step tool-call cycles autonomously.
- *  2. Frame Events — each tool cycle opens/closes an agent frame for the UI.
- *  3. Interim Narrative — text between tool calls is captured as progress notes.
- *  4. Self-Healing — malformed tool args are deterministically healed (no LLM round-trip).
+ *  1. Agentic Loop — multi-step tool-call cycles (Clauxen Code query.ts).
+ *  2. Frame Events — each tool round opens/closes an agent frame.
+ *  3. Interim Narrative — text between tools as progress notes.
+ *  4. Self-Healing — malformed tool args healed without an LLM round-trip.
  *  5. Parallel Tool Calls — independent tools execute concurrently.
- *
- * The engine emits events via a ClauxenSseStream, which the frontend's
- * existing StreamEvent reducer consumes unchanged.
  */
 
 import {
-  streamChatCompletion,
-  completeChat,
-  type ChatMessage,
-  type ToolDefinition as NovitaToolDefinition,
-  type StreamPart,
-} from "@/backend/inference/novita-client";
+  streamAnthropicMessages,
+  toAnthropicTools,
+  type AnthropicChatMessage,
+} from "@/backend/inference/anthropic-messages-client";
 import type { ClauxenSseStream } from "@/backend/inference/clauxen-sse-stream";
 import {
   healToolArgs,
@@ -31,7 +29,6 @@ import {
   type ToolExecutionContext,
 } from "@/backend/inference/tool-healer";
 import { executeAutonomousTool } from "@/backend/inference/autonomous-tools/executor";
-import { buildConversationPayload } from "@/backend/inference/hebbian-memory";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
 import { autonomousAgentTools } from "@/backend/inference/autonomous-tools/definitions";
 import { parse as parsePartialJson, Allow } from "partial-json";
@@ -41,7 +38,9 @@ import {
   resolveAutonomousThinkingParams,
   type HomerReasoningEffort,
 } from "@/lib/model-effort";
-import { DEFAULT_CHAT_MODEL_ID, modelCatalogEnvFromProcess } from "@/lib/model-catalog";
+import { DEFAULT_CHAT_MODEL_ID } from "@/lib/model-catalog";
+import Anthropic from "@anthropic-ai/sdk";
+import { requireProviderApiKey, env } from "@/backend/config/env";
 
 /** Single autonomous step budget. The model decides how many steps it needs. */
 const MAX_STEPS = 24;
@@ -106,16 +105,18 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
   }),
 };
 
-/** Build Novita-format tool definitions from our autonomous tool catalog. */
-function buildNovitaTools(): NovitaToolDefinition[] {
-  return autonomousAgentTools.map((tool) => ({
-    type: "function" as const,
-    function: {
+/** Build Anthropic tool definitions from our autonomous tool catalog. */
+function buildAnthropicTools() {
+  return toAnthropicTools(
+    autonomousAgentTools.map((tool) => ({
       name: tool.name,
       description: tool.description ?? tool.name,
-      parameters: tool.parameters as Record<string, unknown>,
-    },
-  }));
+      parameters: (tool.parameters ?? {
+        type: "object",
+        properties: {},
+      }) as Record<string, unknown>,
+    })),
+  );
 }
 
 /** Build self-healing tool definitions with Zod schemas. */
@@ -156,40 +157,37 @@ export type AgentStreamOptions = {
   maxTokens?: number;
 };
 
-function buildNovitaRequestOptions(
+function resolveThinkingBudget(
   options: AgentStreamOptions,
-  overrides?: { temperature?: number; max_tokens?: number; parallel_tool_calls?: boolean; tools?: NovitaToolDefinition[] },
-) {
-  const chatModelId = options.chatModelId ?? DEFAULT_CHAT_MODEL_ID;
-  // Thinking is model-driven, not a user toggle. Capable models reason
-  // automatically; the model decides how deeply to think per task.
+): number {
   const thinking = resolveAutonomousThinkingParams({
-    chatModel: chatModelId,
+    chatModel: options.chatModelId ?? DEFAULT_CHAT_MODEL_ID,
     homerReasoningEffort: options.homerReasoningEffort,
   });
-
-  return {
-    model: options.model,
-    messages: [] as ChatMessage[],
-    temperature: overrides?.temperature ?? options.temperature ?? 0.6,
-    max_tokens: overrides?.max_tokens ?? options.maxTokens ?? 8192,
-    parallel_tool_calls: overrides?.parallel_tool_calls,
-    tools: overrides?.tools,
-    enable_thinking: thinking.enable_thinking,
-    reasoning_effort: thinking.reasoning_effort,
-    signal: options.signal,
-  };
+  if (!thinking.enable_thinking) return 0;
+  // Map effort → Anthropic thinking budget (Clauxen Code style).
+  const effort = String(thinking.reasoning_effort ?? "high");
+  switch (effort) {
+    case "low":
+      return 2_048;
+    case "medium":
+      return 5_120;
+    case "max":
+      return 10_240;
+    case "high":
+    default:
+      return 10_240;
+  }
 }
 
 /**
- * Run the autonomous agent loop, streaming events to the frontend.
+ * Run the autonomous agent loop (Anthropic Messages), streaming to the UI.
  *
- * The loop:
- *  1. Send messages + tools to Novita.
- *  2. Stream text/reasoning/tool-call deltas to the frontend in real-time.
- *  3. When tool calls complete, execute them (in parallel if independent).
- *  4. Feed results back as tool messages.
- *  5. Repeat until the model produces a final answer with no tool calls.
+ * Loop (from Clauxen Code query.ts):
+ *  1. Stream model response (thinking + text + tool_use).
+ *  2. Execute tools (parallel when safe).
+ *  3. Append tool_result blocks; call model again.
+ *  4. Repeat until no more tool_use.
  */
 export async function runAutonomousAgent(
   sse: ClauxenSseStream,
@@ -206,37 +204,20 @@ export async function runAutonomousAgent(
     maxTokens,
   } = options;
 
-  // Single autonomous mode. Tools are ALWAYS armed (tool_choice: "auto") and
-  // the model decides on its own whether/when to call them, whether to think,
-  // and how many steps it needs. A turn that needs no tools streams a plain
-  // answer with zero frame overhead; a turn that needs tools opens frames,
-  // runs them, and loops until the model produces a final answer.
   const healingTools = buildHealingTools();
-  const novitaTools = buildNovitaTools();
+  const anthropicTools = buildAnthropicTools();
+  const thinkingBudget = resolveThinkingBudget(options);
 
-  // Build conversation messages with Hebbian context forging
-  const goalText = rawMessages[rawMessages.length - 1]?.content ?? "";
-  const forgedMessages = buildConversationPayload(
-    systemPrompt
-      ? [{ role: "system", content: systemPrompt }, ...rawMessages]
-      : rawMessages,
-    goalText,
-    100_000,
-  );
-
-  let conversation: ChatMessage[] = forgedMessages.map((m) => ({
-    role: m.role as ChatMessage["role"],
-    content: m.content,
-  }));
+  // Anthropic: system is separate; history is user/assistant only.
+  let conversation: AnthropicChatMessage[] = rawMessages
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
 
   sse.writeStart(true);
 
-  // Each model round-trip that calls tools gets its own collapsible timeline
-  // frame (matches the reference agent UI: e.g. "Searched the web, viewed a
-  // file" collapses, then a second round like "Created a file, read a file"
-  // opens its own block below it) — not one continuous frame for the whole
-  // turn, since the model's tool sequence isn't a fixed loop and each round
-  // deserves its own summary.
   let frameCounter = 1;
   let frameId = `agent-frame-${frameCounter}`;
   let frameOpen = false;
@@ -277,27 +258,23 @@ export async function runAutonomousAgent(
         name: string;
         arguments: string;
       }> = [];
-      // Accumulated raw JSON per tool call, for the live "typing" preview
-      // (e.g. bash_tool's command growing character-by-character in the UI
-      // before the sandbox ever starts) — separate from pendingToolCalls,
-      // which only fills in once a call is fully finished streaming.
-      const toolCallBuffers = new Map<string, { name: string; argsBuffer: string }>();
+      const toolCallBuffers = new Map<
+        string,
+        { name: string; argsBuffer: string }
+      >();
       let fullText = "";
       let fullReasoning = "";
 
-      const novitaBase = buildNovitaRequestOptions(options, {
+      const stream = streamAnthropicMessages({
+        model: options.model,
+        system: systemPrompt,
+        messages: conversation,
+        tools: anthropicTools.length > 0 ? anthropicTools : undefined,
         temperature: temperature ?? 0.6,
         max_tokens: maxTokens ?? 8192,
-        parallel_tool_calls: true,
-        tools: novitaTools.length > 0 ? novitaTools : undefined,
+        thinkingBudgetTokens: thinkingBudget,
+        signal,
       });
-
-      const stream = streamChatCompletion({
-        ...novitaBase,
-        messages: conversation,
-      });
-
-      let finishReason: string | null = null;
 
       const ensureThinkingOpen = () => {
         if (thinkingOpen) return;
@@ -314,8 +291,6 @@ export async function runAutonomousAgent(
       for await (const part of stream) {
         switch (part.type) {
           case "reasoning-delta":
-            // The model decides whether to think. Stream reasoning whenever the
-            // model emits it — no user toggle gates this.
             openFrame();
             ensureThinkingOpen();
             sse.writeThinkingDelta(part.delta);
@@ -326,16 +301,9 @@ export async function runAutonomousAgent(
             const visible = sanitizeAssistantStreamDelta(part.delta);
             if (!visible) break;
             closeThinking();
-            // Stream live as answer text until a tool call proves it was a
-            // pre-tool whisper — then it moves to introNarrative above the
-            // timeline. Post-tool notes stay as timeline text segments.
             if (!sawToolCall) {
               sse.writeAnswerDelta(visible);
             } else {
-              // Text after a tool call in this step is a narrative note —
-              // stream it into its own persistent timeline segment (stays
-              // visible after the frame collapses, unlike the old ephemeral
-              // interim preview).
               if (!activeTextSegmentId) {
                 textSegmentCounter += 1;
                 activeTextSegmentId = `${frameId}-text-${textSegmentCounter}`;
@@ -357,15 +325,8 @@ export async function runAutonomousAgent(
                 sse.writeIntroNarrative(fullText.trim());
               }
             } else {
-              // A new tool call starts — close out any narrative note that
-              // was streaming since the previous tool result so it renders
-              // as its own row above this tool, not merged with it.
               closeActiveTextSegment();
             }
-            // argsComplete: false from the first moment — otherwise it stays
-            // undefined (== "complete" for tools that never stream partial
-            // args) and the UI would briefly treat an about-to-stream call
-            // as already finalized.
             sse.writeToolStart(
               part.toolCallId,
               part.toolName,
@@ -380,9 +341,6 @@ export async function runAutonomousAgent(
             break;
 
           case "tool-call-delta": {
-            // Stream a live preview of the growing arguments (e.g. bash_tool's
-            // command typing into the block) before the call is complete and
-            // before anything actually executes.
             const entry = toolCallBuffers.get(part.toolCallId) ?? {
               name: "",
               argsBuffer: "",
@@ -411,7 +369,6 @@ export async function runAutonomousAgent(
             break;
 
           case "finish":
-            finishReason = part.reason;
             break;
 
           case "error":
@@ -426,38 +383,35 @@ export async function runAutonomousAgent(
         }
       }
 
-      // Close out any narrative segment left open at the end of this step —
-      // the next step (if any) starts its own fresh narrative/answer text.
-      // The frame itself stays open across steps; it only closes once the
-      // whole autonomous turn actually finishes (see below and `finally`).
       closeActiveTextSegment();
-
       closeThinking();
 
-      // If no tool calls, we're done — the text is the final answer.
       if (pendingToolCalls.length === 0) {
         closeFrame();
         break;
       }
 
-      // Add assistant message with tool calls to conversation
-      const assistantMessage: ChatMessage = {
-        role: "assistant",
-        content: fullText || null,
-        tool_calls: pendingToolCalls.map((tc) => ({
-          id: tc.id,
-          type: "function" as const,
-          function: { name: tc.name, arguments: tc.arguments },
-        })),
-      };
-      if (fullReasoning) {
-        assistantMessage.reasoning_content = fullReasoning;
+      // Anthropic assistant turn: text + tool_use (thinking stays UI-only —
+      // replaying thinking blocks needs a valid signature from the API).
+      const assistantContent: Anthropic.ContentBlockParam[] = [];
+      if (fullText.trim()) {
+        assistantContent.push({ type: "text", text: fullText });
       }
-      conversation.push(assistantMessage);
+      for (const tc of pendingToolCalls) {
+        assistantContent.push({
+          type: "tool_use",
+          id: tc.id,
+          name: tc.name,
+          input: safeParseJson(tc.arguments),
+        });
+      }
+      conversation.push({
+        role: "assistant",
+        content: assistantContent.length
+          ? assistantContent
+          : [{ type: "text", text: fullText || "" }],
+      });
 
-      // Emit full tool args before execution so interactive UIs can render,
-      // and flag argsComplete so the UI can switch from "typing" to
-      // "executing" (e.g. bash_tool showing its Output panel).
       for (const tc of pendingToolCalls) {
         sse.writeToolStart(
           tc.id,
@@ -468,7 +422,6 @@ export async function runAutonomousAgent(
         );
       }
 
-      // Execute tool calls in parallel (independent calls run concurrently)
       let pauseForUser = false;
       const toolResults = await Promise.all(
         pendingToolCalls.map(async (tc) => {
@@ -497,12 +450,18 @@ export async function runAutonomousAgent(
               },
             };
 
-            // Self-healing: heal args deterministically, then execute
             const healed = healToolArgs(rawArgs, healingTool.inputSchema);
-            const result = await executeToolSafely(healingTool, healed ?? rawArgs, ctx);
+            const result = await executeToolSafely(
+              healingTool,
+              healed ?? rawArgs,
+              ctx,
+            );
 
-            // Emit tool data for web search results etc.
-            if (tc.name === "web_search" && result.output && typeof result.output === "object") {
+            if (
+              tc.name === "web_search" &&
+              result.output &&
+              typeof result.output === "object"
+            ) {
               const output = result.output as Record<string, unknown>;
               if (Array.isArray(output.results)) {
                 sse.writeToolData(tc.id, {
@@ -513,8 +472,6 @@ export async function runAutonomousAgent(
               }
             }
 
-            // Stream create_file content into the timeline container immediately.
-            // present_files still emits the downloadable artifact card(s).
             if (
               (tc.name === "create_file" || tc.name === "file_write") &&
               result.output &&
@@ -534,18 +491,28 @@ export async function runAutonomousAgent(
               }
             }
 
-            if (tc.name === "present_files" && result.output && typeof result.output === "object") {
+            if (
+              tc.name === "present_files" &&
+              result.output &&
+              typeof result.output === "object"
+            ) {
               const output = result.output as {
                 files?: Array<{ path: string; content: string }>;
               };
               for (const file of output.files ?? []) {
-                sse.writeArtifact(file.path, file.path, file.content, undefined);
+                sse.writeArtifact(
+                  file.path,
+                  file.path,
+                  file.content,
+                  undefined,
+                );
               }
             }
 
-            const resultStr = typeof result.output === "string"
-              ? result.output
-              : JSON.stringify(result.output ?? {});
+            const resultStr =
+              typeof result.output === "string"
+                ? result.output
+                : JSON.stringify(result.output ?? {});
 
             if (result.pauseForUser || tc.name === "ask_user_input_v0") {
               pauseForUser = true;
@@ -560,7 +527,6 @@ export async function runAutonomousAgent(
             };
           }
 
-          // Fallback: execute via legacy executor
           try {
             const outcome = await executeAutonomousTool(tc.name, rawArgs, {
               conversationId: conversationId ?? "chat",
@@ -576,9 +542,10 @@ export async function runAutonomousAgent(
                 }
               },
             });
-            const resultStr = typeof outcome.output === "string"
-              ? outcome.output
-              : JSON.stringify(outcome.output ?? {});
+            const resultStr =
+              typeof outcome.output === "string"
+                ? outcome.output
+                : JSON.stringify(outcome.output ?? {});
 
             if (
               (tc.name === "create_file" || tc.name === "file_write") &&
@@ -608,7 +575,12 @@ export async function runAutonomousAgent(
                 files?: Array<{ path: string; content: string }>;
               };
               for (const file of output.files ?? []) {
-                sse.writeArtifact(file.path, file.path, file.content, undefined);
+                sse.writeArtifact(
+                  file.path,
+                  file.path,
+                  file.content,
+                  undefined,
+                );
               }
             }
 
@@ -619,35 +591,39 @@ export async function runAutonomousAgent(
             sse.writeToolEnd(tc.id, tc.name, resultStr);
             return { toolCallId: tc.id, name: tc.name, result: resultStr };
           } catch (error) {
-            const errMsg = error instanceof Error ? error.message : String(error);
-            sse.writeToolEnd(tc.id, tc.name, JSON.stringify({ error: errMsg }));
-            return { toolCallId: tc.id, name: tc.name, result: JSON.stringify({ error: errMsg }) };
+            const errMsg =
+              error instanceof Error ? error.message : String(error);
+            sse.writeToolEnd(
+              tc.id,
+              tc.name,
+              JSON.stringify({ error: errMsg }),
+            );
+            return {
+              toolCallId: tc.id,
+              name: tc.name,
+              result: JSON.stringify({ error: errMsg }),
+            };
           }
         }),
       );
 
-      // Add tool results to conversation
-      for (const tr of toolResults) {
-        conversation.push({
-          role: "tool",
+      // Anthropic: tool results are a user message with tool_result blocks.
+      conversation.push({
+        role: "user",
+        content: toolResults.map((tr) => ({
+          type: "tool_result" as const,
+          tool_use_id: tr.toolCallId,
           content: tr.result,
-          tool_call_id: tr.toolCallId,
-          name: tr.name,
-        });
-      }
+        })),
+      });
 
       sse.writeStepDone(`Step ${step + 1} complete`);
-
-      // This round's frame is done — collapse it now. If the model takes
-      // another round of tool calls, it opens a fresh one below (via the new
-      // frameId), rather than reopening this same collapsed block.
       closeFrame();
 
       if (pauseForUser) {
         break;
       }
 
-      // Another round of tool calls — open a fresh frame for it.
       frameCounter += 1;
       frameId = `agent-frame-${frameCounter}`;
     }
@@ -669,52 +645,67 @@ export async function runAutonomousAgent(
     sse.writeError(message);
     return;
   } finally {
-    // Safety net: close a still-open frame/segment if the loop exited via an
-    // unhandled path (e.g. an exception thrown before a normal break/return).
     closeFrame();
     sse.writeDone();
     sse.finalize();
   }
 }
 
-/** Generate a chat title using a non-streaming completion. */
+/** Generate a chat title using a non-streaming Anthropic completion. */
 export async function generateChatTitle(
   messages: Array<{ role: string; content: string }>,
   signal?: AbortSignal,
 ): Promise<string> {
-  const userContent = messages.find((m) => m.role === "user")?.content?.trim() ?? "";
-  const assistantContent = messages.find((m) => m.role === "assistant")?.content?.trim() ?? "";
+  const userContent =
+    messages.find((m) => m.role === "user")?.content?.trim() ?? "";
+  const assistantContent =
+    messages.find((m) => m.role === "assistant")?.content?.trim() ?? "";
 
   if (!userContent) return "New Chat";
 
-  const titleMessages: ChatMessage[] = [
-    {
-      role: "system",
-      content: "You write short conversation titles for a chat sidebar. Output ONLY the title (3-6 words). No quotes or labels.",
-    },
-    {
-      role: "user",
-      content: [
-        userContent ? `User: ${userContent.slice(0, 500)}` : "",
-        assistantContent ? `Assistant: ${assistantContent.slice(0, 500)}` : "",
-      ].filter(Boolean).join("\n"),
-    },
-  ];
-
   try {
-    const title = await completeChat({
-      model: modelCatalogEnvFromProcess().heliosModel,
-      messages: titleMessages,
-      temperature: 0.3,
-      max_tokens: 48,
-      enable_thinking: false,
-      signal,
+    const client = new Anthropic({
+      apiKey: requireProviderApiKey(),
+      ...(env.novitaAnthropicBaseUrl
+        ? { baseURL: env.novitaAnthropicBaseUrl.replace(/\/$/, "") }
+        : {}),
     });
-    return title.trim().slice(0, 80);
+    const response = await client.messages.create(
+      {
+        model: optionsModelForTitle(),
+        max_tokens: 48,
+        temperature: 0.3,
+        system:
+          "You write short conversation titles for a chat sidebar. Output ONLY the title (3-6 words). No quotes or labels.",
+        messages: [
+          {
+            role: "user",
+            content: [
+              userContent ? `User: ${userContent.slice(0, 500)}` : "",
+              assistantContent
+                ? `Assistant: ${assistantContent.slice(0, 500)}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          },
+        ],
+      },
+      { signal },
+    );
+    const text = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("")
+      .trim();
+    return text.slice(0, 80) || userContent.slice(0, 50).trim();
   } catch {
-    // Fallback: derive from user content
     return userContent.slice(0, 50).trim();
   }
+}
+
+function optionsModelForTitle(): string {
+  return env.heliosModel || env.defaultModel || "claude-sonnet-4-20250514";
 }
 
 function safeParseJson(raw: string): Record<string, unknown> {

@@ -1,8 +1,8 @@
 /**
  * Compatibility re-exports — the canonical implementations now live in:
- *   - @/backend/inference/agent-engine (autonomous agent loop)
- *   - @/backend/inference/novita-client (raw Novita streaming)
- *   - @/backend/inference/clauxen-sse-stream (SSE protocol)
+ *   - @/backend/inference/agent-engine (Anthropic agent loop)
+ *   - @/backend/inference/anthropic-messages-client (Anthropic Messages SDK)
+ *   - @/backend/inference/clauxen-sse-stream (SSE protocol / timeline UI)
  */
 
 import { runAutonomousAgent, type AgentStreamOptions } from "@/backend/inference/agent-engine";

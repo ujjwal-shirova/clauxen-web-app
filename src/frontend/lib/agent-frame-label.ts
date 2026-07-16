@@ -4,22 +4,22 @@ import type {
   AgentToolSegment,
 } from "@/frontend/lib/agent-segments";
 import { fileNameFromPath } from "@/frontend/lib/chat-artifacts";
+import { formatDuration } from "@/frontend/lib/clauxen-code/format-duration";
+import { TURN_COMPLETION_VERBS } from "@/frontend/lib/clauxen-code/turn-completion-verbs";
 
 export const PLANNING_NEXT_MOVES_LABEL = "Planning next moves";
 export const WORKING_LABEL = "Working";
 
-/** Human duration for "Worked for 7m 26s" headers. */
+function pickTurnVerb(seed: number): string {
+  const verbs = TURN_COMPLETION_VERBS;
+  if (!verbs.length) return "Worked";
+  const index = Math.abs(Math.floor(seed)) % verbs.length;
+  return verbs[index] ?? "Worked";
+}
+
+/** Human duration for "Worked for 7m 26s" headers (Clauxen Code formatDuration). */
 export function formatWorkedDuration(durationMs: number): string {
-  const totalSec = Math.max(1, Math.round(Math.max(0, durationMs) / 1000));
-  if (totalSec < 60) return `${totalSec}s`;
-  const minutes = Math.floor(totalSec / 60);
-  const seconds = totalSec % 60;
-  if (minutes < 60) {
-    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const remMinutes = minutes % 60;
-  return remMinutes > 0 ? `${hours}h ${remMinutes}m` : `${hours}h`;
+  return formatDuration(Math.max(0, durationMs), { hideTrailingZeros: true });
 }
 
 export function resolveWorkedForLabel(input: {
@@ -30,7 +30,9 @@ export function resolveWorkedForLabel(input: {
   const started = input.startedAtMs;
   if (!started || started <= 0) return null;
   const end = input.completedAtMs ?? input.nowMs ?? Date.now();
-  return `Worked for ${formatWorkedDuration(end - started)}`;
+  const duration = Math.max(0, end - started);
+  const verb = pickTurnVerb(started);
+  return `${verb} for ${formatWorkedDuration(Math.max(1000, duration))}`;
 }
 
 function thinkingDurationSeconds(segment: AgentThinkingSegment): number {
