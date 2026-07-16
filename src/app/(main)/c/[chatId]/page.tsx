@@ -8,13 +8,13 @@ export default async function ChatRoutePage({
   params: Promise<{ chatId: string }>;
 }) {
   const { chatId } = await params;
-  // Let the coherent Worker-first seed resolve before falling back to a
-  // client hydrate. A 450ms budget caused a visible shimmer on normal cold
-  // reads even when the thread arrived immediately afterwards.
+  // Keep this short so soft-nav from /new does not stall behind a long seed
+  // wait (that previously paired with loading.tsx shimmer). Client optimistic
+  // turns already paint; cold loads still get a brief Worker-first seed.
   const seed = await Promise.race([
     loadChatRouteSeed(chatId),
     new Promise<null>((resolve) => {
-      setTimeout(() => resolve(null), 1_200);
+      setTimeout(() => resolve(null), 120);
     }),
   ]);
 

@@ -147,7 +147,10 @@ function ChatAreaLayout({
 
   const isConversationStarted = messages.length > 0;
   const showMessageSkeleton =
-    messagesLoading && !isConversationStarted && Boolean(activeChatId);
+    messagesLoading &&
+    !isConversationStarted &&
+    Boolean(activeChatId) &&
+    !isGenerating;
   const showMessageLoadError =
     !isConversationStarted &&
     !showMessageSkeleton &&

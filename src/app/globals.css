@@ -1267,9 +1267,19 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .glass-sidebar-docked .glass-sidebar-agent-menu-btn.bg-black\/\[0\.06\],
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn[data-active="true"],
 .glass-sidebar-docked .ui-sidebar-menu-button.bg-black\/\[0\.06\] {
   background: rgba(24, 24, 27, 0.07) !important;
   box-shadow: inset 0 0 0 1px rgba(24, 24, 27, 0.025);
+}
+
+/* Row owns selection — never paint nested pills on inner chat actions. */
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn > button,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn > button:hover,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn > button:focus,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn > button[aria-current="page"] {
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .glass-sidebar-docked .ui-sidebar-content {

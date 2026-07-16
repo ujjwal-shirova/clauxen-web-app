@@ -140,7 +140,7 @@ export function Sidebar({
   recentChats,
   activeChatId,
   chatsLoading = false,
-  creatingChatPending = false,
+  creatingChatPending: _creatingChatPending = false,
   onSelectChat,
   onDeleteChat,
   onRenameChat,
@@ -214,22 +214,27 @@ export function Sidebar({
 
   const renderChatRow = (chat: RecentChat) => {
     const isGeneratingChat = generatingSet.has(chat.id);
+    const isActive = activeChatId === chat.id;
     // Spinner only for background generations — active chat already shows the stream.
     const showSidebarSpinner =
       isGeneratingChat && activeChatId !== chat.id;
     return (
       <div
         key={chat.id}
+        data-active={isActive ? "true" : undefined}
+        aria-current={isActive ? "page" : undefined}
         className={cn(
-          "group/chat glass-sidebar-agent-menu-btn flex h-7 w-full items-center rounded-md px-2 text-[12.5px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100",
-          activeChatId === chat.id && "bg-black/[0.06]",
+          "group/chat glass-sidebar-agent-menu-btn flex h-7 w-full items-center rounded-md px-2 text-[12.5px] font-[430] text-zinc-800 transition-colors",
+          // Selection + hover live on the row only. Never put aria-current on
+          // the inner button — global button[aria-current] styles create a
+          // nested pill on top of the row highlight.
+          isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
         )}
       >
         <button
           type="button"
           onClick={() => onSelectChat(chat)}
-          aria-current={activeChatId === chat.id ? "page" : undefined}
-          className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+          className="flex h-full min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left outline-none focus-visible:ring-2 focus-visible:ring-black/10"
         >
           <span className="min-w-0 flex-1 truncate">{chat.name || "New Chat"}</span>
           {chat.isTitleStreaming ? <TypingDots className="mr-0.5 shrink-0" /> : null}
@@ -251,7 +256,7 @@ export function Sidebar({
                 aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}
                 onClick={() => onPinChat?.(chat.id, !chat.pinned)}
                 className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 hover:text-zinc-800 focus-visible:opacity-100",
+                  "flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-black/[0.06] hover:text-zinc-800 focus-visible:opacity-100",
                 )}
               >
                 {chat.pinned ? (
@@ -265,7 +270,7 @@ export function Sidebar({
                   <button
                     type="button"
                     aria-label={`Chat options for ${chat.name || "New Chat"}`}
-                    className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-zinc-100 data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
+                    className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-black/[0.06] data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
                   >
                     <MoreVertical className="icon-md icon-muted" />
                   </button>
@@ -570,16 +575,6 @@ export function Sidebar({
                         />
                       </div>
                     ))}
-                  </div>
-                ) : null}
-                {creatingChatPending &&
-                !recentChats.some((chat) => chat.isCreating) ? (
-                  <div
-                    className="flex h-7 items-center rounded-md px-2"
-                    aria-busy="true"
-                    aria-label="Creating conversation"
-                  >
-                    <span className="shimmer-bg h-3 w-2/3 rounded" aria-hidden />
                   </div>
                 ) : null}
                 {groupedChats.map((group) => (

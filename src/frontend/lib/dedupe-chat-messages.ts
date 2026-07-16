@@ -109,7 +109,9 @@ function collapseConsecutiveDuplicates(messages: Message[]): Message[] {
       prev &&
       prev.role === message.role &&
       prev.content.trim() === message.content.trim() &&
-      prev.role === "user"
+      (prev.role === "user" ||
+        (prev.role === "assistant" &&
+          (prev.isStreaming || message.isStreaming || !prev.content.trim())))
     ) {
       // Keep the durable / richer row.
       result[result.length - 1] = mergeMessagePreferRich(prev, message);

@@ -372,15 +372,17 @@ export async function streamChatGeneration(input: {
       });
     }
 
-    // A turn is durable before inference begins. Wait for edge invalidation so
-    // a reload during the stream cannot hydrate an old Cache/KV/R2 snapshot.
-    const { invalidateChatHistoryCache } = await import(
-      "@/backend/chat/warm-history-cache"
-    );
-    await invalidateChatHistoryCache({
-      userId: input.userId,
-      chatId: input.chatId,
-    });
+    // A turn is durable before inference begins. Invalidate edge caches in the
+    // background — awaiting Worker RTT here delayed first token and let the
+    // client paint a blank streaming orb while generation had not started.
+    void import("@/backend/chat/warm-history-cache")
+      .then(({ invalidateChatHistoryCache }) =>
+        invalidateChatHistoryCache({
+          userId: input.userId,
+          chatId: input.chatId,
+        }),
+      )
+      .catch(() => false);
 
     if (!turn.assistant.inserted) {
       const status =

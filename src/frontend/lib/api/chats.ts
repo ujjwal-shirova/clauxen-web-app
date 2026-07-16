@@ -20,6 +20,7 @@ export type ApiMessage = {
   metadata: Record<string, unknown>;
   content_json?: Record<string, unknown>;
   created_at: string;
+  client_id?: string | null;
 };
 
 function chatHistoryWorkerBase(): string {

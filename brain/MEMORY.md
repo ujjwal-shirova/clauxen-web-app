@@ -37,6 +37,8 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-16 | Sidebar chat selection highlight only on row container | button[aria-current=page] global CSS nested a second pill inside the selected row |
+| 2026-07-16 | No loading.tsx on /new or /c/[chatId]; seed race ≤120ms | loading.tsx + long SSR seed wait caused post-create shimmer; soft-nav must keep optimistic chat-view |
 | 2026-07-14 | CF Free-plan security: 5/5 custom rules (Managed Challenge on app HTML entry, Block scanners/empty-UA/sensitive paths, Challenge suspicious auth POSTs); SSL Full (strict); AI Labyrinth on; Block AI Training crawlers; Browser Integrity Check on; Leaked credential rate rule kept. Under Attack left OFF (custom challenge is targeted). Managed WAF rules need Pro. | User asked for captcha/security on open + advanced hardening; Free plan limits Super Bot Fight / OWASP managed ruleset |
 | 2026-07-14 | CF live: Hyperdrive max_age=300/swr=60; chat-history+r2-gateway+auth-email redeployed; zone Cache Rules for /_next/static (1y), /assets (1d), Bypass /api; Rocket Loader off; Early Hints+HTTP/3 on | Playwright dashboard + new Account API token clauxen-workers-deploy |
 | 2026-07-14 | Unified login: Continue with Email checks existence → password login or create+OTP via Cloudflare Email Worker | Leonardo-style single entry; remove separate signup surface |
@@ -135,6 +137,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - CF dash cookie consent overlay blocks clicks; dismiss Allow All before Deploy on Cache Rules
 - cf.threat_score is deprecated on upgraded CF security — do not use in custom rules. Free plan: 5 custom rules, 1 rate-limit rule.
 - CF Managed Challenge can POST back to document URLs → Vercel 405. Fixed in src/proxy.ts with 303 POST→GET (keeps /api and next-action). Do not weaken CF rules for this.
+- Realtime remapping assistant id mid-stream must update generation map; appendMessageField must resolve by clientId or tokens write to a deleted id (blank orb)
 ## Open threads
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).

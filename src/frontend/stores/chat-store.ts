@@ -164,14 +164,29 @@ export const useChatStore = create<ChatStore>()(
 
     patchMessage: (chatId, messageId, updater) => {
       set((state) => {
-        const existing = state.messagesById[messageId];
+        let existing = state.messagesById[messageId];
+        let resolvedId = messageId;
+        if (!existing) {
+          const ids = state.messageIdsByChatId[chatId] ?? [];
+          for (const id of ids) {
+            const candidate = state.messagesById[id];
+            if (
+              candidate &&
+              (candidate.clientId === messageId || candidate.id === messageId)
+            ) {
+              existing = candidate;
+              resolvedId = id;
+              break;
+            }
+          }
+        }
         if (!existing) return state;
         const ids = state.messageIdsByChatId[chatId];
-        if (!ids?.includes(messageId)) return state;
+        if (!ids?.includes(resolvedId)) return state;
         return {
           messagesById: {
             ...state.messagesById,
-            [messageId]: updater(existing),
+            [resolvedId]: updater(existing),
           },
         };
       });
@@ -180,14 +195,29 @@ export const useChatStore = create<ChatStore>()(
     appendMessageField: (chatId, messageId, field, delta) => {
       if (!delta) return;
       set((state) => {
-        const existing = state.messagesById[messageId];
+        let existing = state.messagesById[messageId];
+        let resolvedId = messageId;
+        if (!existing) {
+          const ids = state.messageIdsByChatId[chatId] ?? [];
+          for (const id of ids) {
+            const candidate = state.messagesById[id];
+            if (
+              candidate &&
+              (candidate.clientId === messageId || candidate.id === messageId)
+            ) {
+              existing = candidate;
+              resolvedId = id;
+              break;
+            }
+          }
+        }
         if (!existing) return state;
         const ids = state.messageIdsByChatId[chatId];
-        if (!ids?.includes(messageId)) return state;
+        if (!ids?.includes(resolvedId)) return state;
         return {
           messagesById: {
             ...state.messagesById,
-            [messageId]: {
+            [resolvedId]: {
               ...existing,
               [field]: `${existing[field] ?? ""}${delta}`,
               isStreaming: true,

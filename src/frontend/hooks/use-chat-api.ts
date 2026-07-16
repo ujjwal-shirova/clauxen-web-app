@@ -92,7 +92,10 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     : finalizeChatTitleStrippedAnswer(row.content);
   const base = compactMessageBranchData({
     id: row.id,
-    clientId: row.id,
+    clientId:
+      typeof row.client_id === "string" && row.client_id.trim()
+        ? row.client_id.trim()
+        : row.id,
     role: row.role as Message["role"],
     content,
     thinkingContent: meta.thinkingContent,
@@ -371,7 +374,15 @@ export function useChatApi(
           const mapped = mapApiMessage(row);
           setAllChats((prev) => {
             const existing = prev[activeChatId] ?? [];
-            if (existing.some((message) => message.id === mapped.id)) {
+            if (
+              existing.some(
+                (message) =>
+                  message.id === mapped.id ||
+                  (mapped.clientId &&
+                    (message.clientId === mapped.clientId ||
+                      message.id === mapped.clientId)),
+              )
+            ) {
               return prev;
             }
 
@@ -380,7 +391,12 @@ export function useChatApi(
             const gen = getGeneration(activeChatId);
             if (mapped.role === "assistant" && gen?.assistantMessageId) {
               const localIndex = existing.findIndex(
-                (message) => message.id === gen.assistantMessageId,
+                (message) =>
+                  message.id === gen.assistantMessageId ||
+                  message.clientId === gen.assistantMessageId ||
+                  (mapped.clientId &&
+                    (message.clientId === mapped.clientId ||
+                      message.id === mapped.clientId)),
               );
               if (localIndex >= 0) {
                 const local = existing[localIndex]!;
@@ -388,7 +404,8 @@ export function useChatApi(
                 next[localIndex] = {
                   ...local,
                   id: mapped.id,
-                  clientId: local.clientId ?? local.id,
+                  clientId:
+                    local.clientId ?? mapped.clientId ?? local.id,
                   isStreaming: local.isStreaming || mapped.isStreaming,
                 };
                 setGeneration(activeChatId, {
@@ -406,21 +423,33 @@ export function useChatApi(
               const tempIndex = existing.findIndex(
                 (message) =>
                   message.role === "user" &&
-                  message.id.startsWith("temp-") &&
-                  message.content === mapped.content,
+                  (message.id.startsWith("temp-") ||
+                    Boolean(message.clientId?.startsWith("temp-"))) &&
+                  (message.clientId === mapped.clientId ||
+                    mapped.clientId === message.id ||
+                    message.content === mapped.content),
               );
               if (tempIndex >= 0) {
                 const next = [...existing];
                 const local = next[tempIndex]!;
                 next[tempIndex] = {
                   ...local,
-                  ...mapped,
                   id: mapped.id,
-                  clientId: local.clientId ?? local.id,
+                  clientId: local.clientId ?? mapped.clientId ?? local.id,
                   attachments: local.attachments ?? mapped.attachments,
                 };
                 return { ...prev, [activeChatId]: next };
               }
+            }
+
+            // Never paint a blank streaming assistant ahead of the local
+            // optimistic placeholder — that shows the orb then goes empty.
+            if (
+              mapped.role === "assistant" &&
+              mapped.isStreaming &&
+              !(mapped.content ?? "").trim()
+            ) {
+              return prev;
             }
 
             return {
@@ -445,8 +474,21 @@ export function useChatApi(
           const rowStatus = row.status;
           setAllChats((prev) => {
             const existing = prev[activeChatId] ?? [];
-            const index = existing.findIndex((message) => message.id === mapped.id);
+            const index = existing.findIndex(
+              (message) =>
+                message.id === mapped.id ||
+                (mapped.clientId &&
+                  (message.clientId === mapped.clientId ||
+                    message.id === mapped.clientId)),
+            );
             if (index < 0) {
+              if (
+                mapped.role === "assistant" &&
+                (getGeneration(activeChatId) ||
+                  (mapped.isStreaming && !(mapped.content ?? "").trim()))
+              ) {
+                return prev;
+              }
               return {
                 ...prev,
                 [activeChatId]: [...existing, mapped],
@@ -454,8 +496,34 @@ export function useChatApi(
             }
             const next = [...existing];
             const prevMessage = next[index]!;
-            // Don't clobber an in-progress local stream with a sparse DB row.
-            if (prevMessage.isStreaming && rowStatus === "streaming") {
+            const localStreaming =
+              prevMessage.isStreaming === true ||
+              prevMessage.isThinkingStreaming === true ||
+              Boolean(getGeneration(activeChatId));
+            // Don't clobber an in-progress local stream with a sparse/empty DB row.
+            if (
+              localStreaming &&
+              (rowStatus === "streaming" ||
+                !(mapped.content ?? "").trim() ||
+                (mapped.content?.length ?? 0) <
+                  (prevMessage.content?.length ?? 0))
+            ) {
+              if (prevMessage.id !== mapped.id) {
+                next[index] = {
+                  ...prevMessage,
+                  id: mapped.id,
+                  clientId:
+                    prevMessage.clientId ?? mapped.clientId ?? prevMessage.id,
+                };
+                const gen = getGeneration(activeChatId);
+                if (gen) {
+                  setGeneration(activeChatId, {
+                    request: gen.request,
+                    assistantMessageId: mapped.id,
+                  });
+                }
+                return { ...prev, [activeChatId]: next };
+              }
               return prev;
             }
             const localHasAgentFrames =
@@ -471,6 +539,14 @@ export function useChatApi(
             next[index] = {
               ...prevMessage,
               ...mapped,
+              id: mapped.id,
+              clientId:
+                prevMessage.clientId ?? mapped.clientId ?? mapped.id,
+              content:
+                (prevMessage.content?.length ?? 0) >
+                (mapped.content?.length ?? 0)
+                  ? prevMessage.content
+                  : mapped.content,
               isStreaming: rowStatus === "streaming",
               ...(localHasAgentFrames && !mappedHasAgentFrames
                 ? {
@@ -521,10 +597,69 @@ export function useChatApi(
         branchMessages:
           branchMessages ?? branchMessagesByChatRef.current[chatId] ?? null,
       });
-      setAllChats((prev) => ({
-        ...prev,
-        [chatId]: hydrated,
-      }));
+      setAllChats((prev) => {
+        const existing = prev[chatId] ?? [];
+        const isLive =
+          Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
+          Boolean(getGeneration(chatId)) ||
+          existing.some(
+            (message) =>
+              message.isStreaming === true ||
+              message.isThinkingStreaming === true ||
+              Boolean(message.id?.startsWith("temp-")) ||
+              Boolean(message.clientId?.startsWith("temp-")),
+          );
+        // Never replace a live optimistic/streaming thread with a colder
+        // server snapshot (empty assistant rows cause the blank-orb bug).
+        if (isLive && existing.length > 0) {
+          const merged = existing.map((local) => {
+            const match = hydrated.find(
+              (remote) =>
+                remote.id === local.id ||
+                (local.clientId &&
+                  (remote.clientId === local.clientId ||
+                    remote.id === local.clientId)) ||
+                (remote.clientId && remote.clientId === local.id),
+            );
+            if (!match) return local;
+            if (
+              local.isStreaming ||
+              local.isThinkingStreaming ||
+              (local.content?.length ?? 0) >= (match.content?.length ?? 0)
+            ) {
+              return {
+                ...local,
+                id: match.id,
+                clientId: local.clientId ?? match.clientId ?? local.id,
+              };
+            }
+            return {
+              ...match,
+              clientId: local.clientId ?? match.clientId ?? match.id,
+              attachments: local.attachments ?? match.attachments,
+            };
+          });
+          const existingKeys = new Set(
+            merged.flatMap((message) =>
+              [message.id, message.clientId].filter(Boolean) as string[],
+            ),
+          );
+          for (const remote of hydrated) {
+            if (
+              existingKeys.has(remote.id) ||
+              (remote.clientId && existingKeys.has(remote.clientId))
+            ) {
+              continue;
+            }
+            merged.push(remote);
+          }
+          return { ...prev, [chatId]: merged };
+        }
+        return {
+          ...prev,
+          [chatId]: hydrated,
+        };
+      });
       hydratedChatIdsRef.current.add(chatId);
     },
     [],
@@ -611,7 +746,26 @@ export function useChatApi(
       if (hasLocalTurns) {
         const ssrSeed = takePendingChatRouteSeed(chatId);
         const seedCount = ssrSeed?.messages?.length ?? 0;
-        if (ssrSeed && seedCount > existingMessages.length) {
+        const seedHasRicherAssistant = Boolean(
+          ssrSeed?.messages?.some((message) => {
+            if (message.role !== "assistant") return false;
+            const localAssistant = existingMessages.find(
+              (local) =>
+                local.role === "assistant" &&
+                (local.id === message.id ||
+                  local.clientId ===
+                    (message as { client_id?: string }).client_id),
+            );
+            const seedLen = (message.content ?? "").trim().length;
+            const localLen = (localAssistant?.content ?? "").trim().length;
+            return seedLen > localLen && !localAssistant?.isStreaming;
+          }),
+        );
+        if (
+          ssrSeed &&
+          seedCount > existingMessages.length &&
+          seedHasRicherAssistant
+        ) {
           applyHydratedMessages(
             chatId,
             ssrSeed.messages,
@@ -812,6 +966,44 @@ export function useChatApi(
       useChatStore.getState().setChatGenerating(chatId, true);
       useChatStore.getState().setStreaming({ chatId, messageId: assistantId });
 
+      const resolveAssistantId = () => {
+        const gen = getGeneration(chatId);
+        if (gen?.request === controller && gen.assistantMessageId) {
+          assistantId = gen.assistantMessageId;
+          return assistantId;
+        }
+        const store = useChatStore.getState();
+        const ids = store.messageIdsByChatId[chatId] ?? [];
+        for (const id of ids) {
+          const message = store.messagesById[id];
+          if (
+            !message ||
+            message.role !== "assistant" ||
+            !(
+              message.id === assistantId ||
+              message.id === assistantClientId ||
+              message.clientId === assistantClientId
+            )
+          ) {
+            continue;
+          }
+          if (message.id !== assistantId) {
+            assistantId = message.id;
+            if (gen?.request === controller) {
+              setGeneration(chatId, {
+                request: controller,
+                assistantMessageId: assistantId,
+              });
+            }
+            useChatStore
+              .getState()
+              .setStreaming({ chatId, messageId: assistantId });
+          }
+          return assistantId;
+        }
+        return assistantId;
+      };
+
       // Optimistic assistant placeholder — visible immediately with fade-in
       // while the generate request is in flight (cuts perceived TTFT).
       setAllChats((prev) => {
@@ -828,10 +1020,11 @@ export function useChatApi(
                     ...m,
                     clientId: m.clientId ?? assistantClientId,
                     isStreaming: true,
-                    content: "",
-                    thinkingContent: "",
-                    hasThinking: false,
-                    agentMode: false,
+                    // Keep any tokens already painted if this is a reconcile.
+                    content: m.content ?? "",
+                    thinkingContent: m.thinkingContent ?? "",
+                    hasThinking: m.hasThinking ?? false,
+                    agentMode: m.agentMode ?? false,
                     agentFrameComplete: false,
                   }
                 : m,
@@ -961,6 +1154,7 @@ export function useChatApi(
         };
 
         const handleStreamEventImmediate = (event: StreamEvent) => {
+          const targetAssistantId = resolveAssistantId();
           if (event.type === "chat_title") {
             void applyInlineChatTitle(event.title);
             return;
@@ -985,13 +1179,18 @@ export function useChatApi(
 
             if (!visibleDelta) return;
 
-            const msg = useChatStore.getState().messagesById[assistantId];
+            const msg = useChatStore.getState().messagesById[targetAssistantId];
             if (canFastAppendAnswer(msg)) {
               useChatStore
                 .getState()
-                .appendMessageField(chatId, assistantId, "content", visibleDelta);
+                .appendMessageField(
+                  chatId,
+                  targetAssistantId,
+                  "content",
+                  visibleDelta,
+                );
             } else {
-              patchAssistantMessage(chatId, assistantId, (message) =>
+              patchAssistantMessage(chatId, targetAssistantId, (message) =>
                 applyAgentStreamEvent(message, {
                   ...event,
                   delta: visibleDelta,
@@ -1001,7 +1200,7 @@ export function useChatApi(
             return;
           }
           if (event.type === "tool_output_delta") {
-            patchAssistantMessage(chatId, assistantId, (message) =>
+            patchAssistantMessage(chatId, targetAssistantId, (message) =>
               patchToolOutputDelta(message, event),
             );
             return;
@@ -1009,7 +1208,7 @@ export function useChatApi(
           if (event.type === "error") {
             throw new Error(event.message);
           }
-          patchAssistantMessage(chatId, assistantId, (message) =>
+          patchAssistantMessage(chatId, targetAssistantId, (message) =>
             applyAgentStreamEvent(message, event),
           );
         };
@@ -1050,7 +1249,7 @@ export function useChatApi(
           if (extractedTitle) {
             void applyInlineChatTitle(extractedTitle);
           }
-          patchAssistantMessage(chatId, assistantId, (message) => ({
+          patchAssistantMessage(chatId, resolveAssistantId(), (message) => ({
             ...message,
             content: finalized,
           }));
@@ -1058,10 +1257,11 @@ export function useChatApi(
 
         if (getGeneration(chatId)?.request !== controller) return;
 
+        const finalizedAssistantId = resolveAssistantId();
         setAllChats((prev) => ({
           ...prev,
           [chatId]: (prev[chatId] ?? []).map((m) =>
-            m.id === assistantId || m.clientId === assistantClientId
+            m.id === finalizedAssistantId || m.clientId === assistantClientId
               ? {
                   ...m,
                   content: (() => {
@@ -1104,10 +1304,11 @@ export function useChatApi(
         const isAbort =
           error instanceof Error && error.name === "AbortError";
         if (getGeneration(chatId)?.request === controller && !isAbort) {
+          const failedAssistantId = resolveAssistantId();
           setAllChats((prev) => ({
             ...prev,
             [chatId]: (prev[chatId] ?? []).map((m) =>
-              m.id === assistantId || m.clientId === assistantClientId
+              m.id === failedAssistantId || m.clientId === assistantClientId
                 ? {
                     ...m,
                     isStreaming: false,
@@ -1290,12 +1491,9 @@ export function useChatApi(
           });
           chatId = realId;
           setCreatingChatPending(false);
-          // Open /c/{id} immediately (ChatGPT/Claude) — don't wait for persist/stream.
-          try {
-            options?.onChatCreated?.(realId);
-          } catch {
-            // Navigation callbacks must not abort the send path.
-          }
+          // Mark generating before navigation so /c/[id] select treats this as
+          // a live turn and never kicks off a wiping hydrate/shimmer.
+          useChatStore.getState().setChatGenerating(realId, true);
         }
 
         // Upload attachments in parallel; failures mark chips but still stream text.
@@ -1378,6 +1576,9 @@ export function useChatApi(
         const assistantClientId = randomUUID();
         const userContent = trimmed || "(attached files)";
         useChatStore.getState().setChatGenerating(chatId!, true);
+
+        // Open /c/{id} only after the assistant placeholder is armed so the
+        // route swap cannot land on an empty streaming orb.
         void streamAssistantResponse(
           chatId!,
           conversation,
@@ -1391,6 +1592,14 @@ export function useChatApi(
             assistantClientId,
           },
         );
+
+        if (pendingChatId) {
+          try {
+            options?.onChatCreated?.(chatId!);
+          } catch {
+            // Navigation callbacks must not abort the send path.
+          }
+        }
 
         return chatId;
       } catch (error) {
