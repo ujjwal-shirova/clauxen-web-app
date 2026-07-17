@@ -16,7 +16,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     const user = requireSession(session);
     const chat = await chatsRepo.getChatForUser(params.chatId, user.id);
     if (!chat) throw notFound("Chat not found.");
-    const aborted = abortChatGeneration(params.chatId);
+    const aborted = await abortChatGeneration(params.chatId);
 
     try {
       const recent = await messagesRepo.listRecentMessagesForChat(

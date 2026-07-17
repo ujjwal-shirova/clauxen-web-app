@@ -1,0 +1,24 @@
+name = "clauxen-chat-coord"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "8fc7a67e9057989309921f362784ecf4"
+workers_dev = true
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[placement]
+region = "aws:us-west-1"
+
+[vars]
+# CHAT_COORD_INTERNAL_TOKEN set via wrangler secret
+
+[[durable_objects.bindings]]
+name = "CHAT_COORD"
+class_name = "ChatCoord"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatCoord"]

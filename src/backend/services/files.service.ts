@@ -43,7 +43,11 @@ function buildStorageKey(userId: string, filename: string, mimeType?: string | n
     : buildUserLibraryKey(userId, filename);
 }
 
-/** Worker → R2 S3 presign → stub (local only). */
+/**
+ * Product uploads go through clauxen-r2-gateway only.
+ * Direct S3 presign is local/dev fallback; production requires WORKER_URL.
+ * Vercel Blob and Supabase Storage are not used for chat binaries.
+ */
 async function buildUploadPresign(input: {
   purpose: StoragePurpose;
   bucket: string;
@@ -62,6 +66,14 @@ async function buildUploadPresign(input: {
       stub: false,
       worker: true,
     };
+  }
+
+  if (env.isProduction) {
+    throw new AppError(
+      "File uploads require WORKER_URL (clauxen-r2-gateway). Direct R2/Blob paths are disabled in production.",
+      503,
+      "storage_worker_required",
+    );
   }
 
   if (isR2Configured()) {
@@ -113,6 +125,14 @@ async function buildDownloadPresign(input: {
       expiresAt: new Date(Date.now() + PRESIGN_TTL_SECONDS * 1000).toISOString(),
       stub: false,
     };
+  }
+
+  if (env.isProduction) {
+    throw new AppError(
+      "File downloads require WORKER_URL (clauxen-r2-gateway).",
+      503,
+      "storage_worker_required",
+    );
   }
 
   if (isR2Configured()) {

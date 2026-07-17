@@ -7,6 +7,11 @@ import * as profileRepo from "@/backend/repositories/profile.repository";
 import * as profileService from "@/backend/services/profile.service";
 import { sidebarDisplayName } from "@/lib/profile-names";
 import { sanitizeCustomInstructions } from "@/backend/services/user-personalization.service";
+import {
+  cacheUserSettings,
+  invalidateUserSettingsCache,
+  readCachedUserSettings,
+} from "@/backend/cache/runtime-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -186,6 +191,13 @@ export const GET = withApiHandler(
   async ({ session }) => {
     const user = requireSession(session);
 
+    const cached = await readCachedUserSettings<
+      ReturnType<typeof toClientPayload>
+    >(user.id);
+    if (cached) {
+      return jsonData(cached);
+    }
+
     let stored: Record<string, unknown> = {};
     let notifStored: Record<string, unknown> = {};
     let profile: Awaited<ReturnType<typeof profileRepo.getProfile>> | null =
@@ -212,9 +224,14 @@ export const GET = withApiHandler(
       console.error("[settings] read failed, returning defaults:", error);
     }
 
-    return jsonData(
-      toClientPayload(stored, notifStored, profile, onboardingAnswers),
+    const payload = toClientPayload(
+      stored,
+      notifStored,
+      profile,
+      onboardingAnswers,
     );
+    void cacheUserSettings(user.id, payload);
+    return jsonData(payload);
   },
   { requireAuth: true },
 );
@@ -363,9 +380,15 @@ export const PATCH = withApiHandler(
       ((userSettings as { onboarding_answers?: Record<string, unknown> } | null)
         ?.onboarding_answers as Record<string, unknown> | null) ?? null;
 
-    return jsonData(
-      toClientPayload(stored, notifStored, profile, onboardingAnswers),
+    const payload = toClientPayload(
+      stored,
+      notifStored,
+      profile,
+      onboardingAnswers,
     );
+    await invalidateUserSettingsCache(user.id);
+    void cacheUserSettings(user.id, payload);
+    return jsonData(payload);
   },
   { requireAuth: true },
 );

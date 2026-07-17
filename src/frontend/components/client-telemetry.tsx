@@ -12,6 +12,16 @@ const AnalyticsLazy = dynamic(
   { ssr: false, loading: () => null },
 );
 
+const SpeedInsightsLazy = dynamic(
+  () => import("@vercel/speed-insights/next").then((m) => m.SpeedInsights),
+  { ssr: false, loading: () => null },
+);
+
 export function ClientTelemetry() {
-  return <AnalyticsLazy />;
+  return (
+    <>
+      <AnalyticsLazy />
+      <SpeedInsightsLazy />
+    </>
+  );
 }

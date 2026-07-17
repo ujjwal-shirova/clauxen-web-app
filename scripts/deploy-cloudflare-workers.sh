@@ -98,11 +98,28 @@ echo "==> Deploying clauxen-auth-email (OTP via Email Service → no-reply@claux
   chmod 600 /tmp/clauxen-auth-email-internal-token.txt
 )
 
+if [[ -z "${CHAT_COORD_INTERNAL_TOKEN:-}" ]]; then
+  CHAT_COORD_INTERNAL_TOKEN="$(openssl rand -hex 32)"
+  export CHAT_COORD_INTERNAL_TOKEN
+  printf '%s' "$CHAT_COORD_INTERNAL_TOKEN" > /tmp/clauxen-chat-coord-internal-token.txt
+  chmod 600 /tmp/clauxen-chat-coord-internal-token.txt
+  echo "Generated CHAT_COORD_INTERNAL_TOKEN for Worker and Vercel wiring."
+fi
+
+echo "==> Deploying clauxen-chat-coord (Durable Object generation leases)"
+(
+  cd "$ROOT/workers/chat-coord"
+  put_worker_secret CHAT_COORD_INTERNAL_TOKEN "$CHAT_COORD_INTERNAL_TOKEN"
+  npx wrangler deploy
+)
+
 WORKER_SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-ujjwal-8fc}"
 AUTH_EMAIL_URL="https://clauxen-auth-email.${WORKER_SUBDOMAIN}.workers.dev"
 CHAT_HISTORY_URL="https://clauxen-chat-history.${WORKER_SUBDOMAIN}.workers.dev"
+CHAT_COORD_URL="https://clauxen-chat-coord.${WORKER_SUBDOMAIN}.workers.dev"
 export AUTH_EMAIL_WORKER_URL="$AUTH_EMAIL_URL"
 export CHAT_HISTORY_WORKER_URL="$CHAT_HISTORY_URL"
+export CHAT_COORD_WORKER_URL="$CHAT_COORD_URL"
 # Keep generated token available for Vercel wiring below.
 if [[ -f /tmp/clauxen-auth-email-internal-token.txt ]]; then
   export AUTH_EMAIL_INTERNAL_TOKEN="$(tr -d '\n' </tmp/clauxen-auth-email-internal-token.txt)"
@@ -113,6 +130,8 @@ if [[ -n "${VERCEL_TOKEN:-}" ]]; then
   bash "$ROOT/scripts/wire-auth-email-vercel.sh"
   echo "==> Wiring chat-history Worker on Vercel"
   bash "$ROOT/scripts/wire-chat-history-vercel.sh"
+  echo "==> Wiring chat-coord Worker on Vercel"
+  bash "$ROOT/scripts/wire-chat-coord-vercel.sh"
 else
   echo
   echo "Done. Wire on Vercel (production + preview) with Vercel_Token:"
@@ -121,9 +140,12 @@ else
   echo "  AUTH_EMAIL_INTERNAL_TOKEN=<from /tmp/clauxen-auth-email-internal-token.txt>"
   echo "  CHAT_HISTORY_WORKER_URL=$CHAT_HISTORY_URL"
   echo "  CHAT_HISTORY_INTERNAL_TOKEN=<from /tmp/clauxen-chat-history-internal-token.txt>"
+  echo "  CHAT_COORD_WORKER_URL=$CHAT_COORD_URL"
+  echo "  CHAT_COORD_INTERNAL_TOKEN=<from /tmp/clauxen-chat-coord-internal-token.txt>"
 fi
 
 echo "  CHAT_HISTORY_WORKER_URL=$CHAT_HISTORY_URL"
+echo "  CHAT_COORD_WORKER_URL=$CHAT_COORD_URL"
 echo "  WORKER_URL=https://clauxen-r2-gateway.${WORKER_SUBDOMAIN}.workers.dev"
 echo
 echo "Cloudflare Email Service: onboard clauxen.com and allow sender no-reply@clauxen.com"

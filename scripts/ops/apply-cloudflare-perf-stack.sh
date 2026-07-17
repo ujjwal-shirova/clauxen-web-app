@@ -48,8 +48,20 @@ echo "==> Deploy auth-email Worker"
   npx wrangler@latest deploy
 )
 
+echo "==> Deploy chat-coord Worker (Durable Object leases)"
+if [[ -d "$ROOT/workers/chat-coord" ]]; then
+  (
+    cd workers/chat-coord
+    npx wrangler@latest deploy
+  )
+else
+  echo "  workers/chat-coord missing — skip"
+fi
+
 echo "==> Done. Verify:"
 echo "  curl -sS https://clauxen-chat-history.ujjwal-8fc.workers.dev/health"
-echo "  Ensure Vercel has NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL + CHAT_HISTORY_INTERNAL_TOKEN"
-echo "  Cloudflare zone (if proxied): enable HTTP/3, Early Hints, Tiered Cache;"
+echo "  Ensure Vercel has NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL + CHAT_HISTORY_INTERNAL_TOKEN + WORKER_URL"
+echo "  Ensure Vercel has CHAT_COORD_WORKER_URL + CHAT_COORD_INTERNAL_TOKEN"
+echo "  Cloudflare zone (if proxied): HTTP/3, Early Hints, Tiered Cache Smart, Argo Smart Routing ON;"
 echo "  Cache Rules: cache /_next/static/* (1y) and /assets/* (1d+SWR); bypass /api/* and HTML shells."
+echo "  Supabase: Dedicated Pooler addon + transaction pooler :6543 for Vercel DATABASE_URL."

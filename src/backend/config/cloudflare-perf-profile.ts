@@ -2,6 +2,7 @@
  * Cloudflare zone + Worker performance checklist for Clauxen.
  * Apply in the Cloudflare dashboard (or `scripts/ops/apply-cloudflare-perf-stack.sh`)
  * when the apex/www zone proxies Vercel. Source of truth for ops — not runtime code.
+ * Full ownership matrix: `docs/perf-architecture.md`.
  *
  * ## Zone Speed (dashboard → Speed → Optimization)
  * - HTTP/3 + 0-RTT: on
@@ -11,6 +12,7 @@
  * - Auto Minify JS: OFF
  * - Polish (lossy) + WebP: on
  * - Tiered Cache: Smart
+ * - Argo Smart Routing: ON (paid — origin path to Vercel + Workers)
  *
  * ## Cache Rules
  * - `/_next/static/*` — Edge TTL 1y, Browser 1y, cache everything
@@ -20,28 +22,27 @@
  *
  * ## Hyperdrive
  * - Config id `54df64d31cce4e6f8f34415c6fb4e849` bound as `HYPERDRIVE`
- * - Target: `npx wrangler hyperdrive update <id> --max-age 300 --swr 60`
- * - Optional second config with `--caching-disabled` as `HYPERDRIVE_FRESH`
+ * - Chat-history must stay `--caching-disabled` (read-after-write)
  * - Worker placement: `aws:us-west-1` (near Supabase)
  *
- * ## Workers ladder (chat-history)
- * Cache API → KV → R2 → Hyperdrive
- * Endpoints: `GET /v1/chats`, `GET /v1/chats/:id/messages`, `POST /internal/warm|invalidate`
- * JWT auth memoized 60s in Cache API
+ * ## Workers
+ * - chat-history: Cache API → KV → R2 → Hyperdrive
+ * - r2-gateway: JWT upload/download (sole product upload path)
+ * - auth-email: OTP / magic link
+ * - chat-coord: Durable Object generation lease per chatId
  *
- * ## Supabase (applied via MCP 2026-07-14)
- * - Revoked anon/authenticated EXECUTE on SECURITY DEFINER chat RPCs
- * - Added FK covering indexes + chats(user_id, updated_at) for sidebar
- * - Enable Auth leaked-password protection in dashboard
+ * ## Supabase
+ * - Transaction pooler :6543 + Dedicated Pooler addon
+ * - SECURITY DEFINER chat RPCs service_role-only
+ * - pgvector for RAG; no Vectorize on product path
  *
  * ## Vercel
- * - `vercel.json` CDN/no-store headers for static vs API
- * - Env: `NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL`, `CHAT_HISTORY_WORKER_URL`,
- *   `CHAT_HISTORY_INTERNAL_TOKEN`, `WORKER_URL`, `AUTH_EMAIL_*`
+ * - Region `pdx1` (near Supabase us-west-1)
+ * - Fluid Compute + Performance CPU on generate
+ * - Env: chat-history + WORKER_URL + CHAT_COORD_* + EDGE_CONFIG
  *
  * ## Deploy
  * ```bash
- * chmod +x scripts/ops/apply-cloudflare-perf-stack.sh
  * ./scripts/ops/apply-cloudflare-perf-stack.sh
  * ```
  */
@@ -53,13 +54,14 @@ export const CLOUDFLARE_PERF_PROFILE = {
   autoMinifyJs: false,
   polish: "lossy",
   tieredCache: "smart",
+  argoSmartRouting: true,
   staticPathEdgeTtlSeconds: 31_536_000,
   assetsPathEdgeTtlSeconds: 86_400,
-  chatHistoryLatestTtlSeconds: 1800,
-  chatHistoryCursorTtlSeconds: 300,
-  chatListTtlSeconds: 120,
+  chatHistoryLatestTtlSeconds: 120,
+  chatHistoryCursorTtlSeconds: 120,
+  chatListTtlSeconds: 60,
   jwtCacheTtlSeconds: 60,
-  hyperdriveMaxAgeSeconds: 300,
-  hyperdriveSwrSeconds: 60,
+  hyperdriveCachingDisabled: true,
   overlayRouting: "hash",
+  vercelRegion: "pdx1",
 } as const;

@@ -607,6 +607,22 @@ export async function streamChatGeneration(input: {
           }),
         )
         .catch(() => {});
+
+      void import("@/backend/chat/enqueue-chat-job")
+        .then(({ enqueueChatJob }) =>
+          Promise.all([
+            enqueueChatJob("history_warm", {
+              userId: input.userId,
+              chatId: input.chatId,
+            }),
+            enqueueChatJob("chat_title", {
+              userId: input.userId,
+              chatId: input.chatId,
+              messageId: assistantRow?.id ?? null,
+            }),
+          ]),
+        )
+        .catch(() => {});
     };
 
     return {

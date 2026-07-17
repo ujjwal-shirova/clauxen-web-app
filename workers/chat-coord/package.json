@@ -1,0 +1,13 @@
+{
+  "name": "clauxen-chat-coord",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.110.0",
+    "@cloudflare/workers-types": "^4.20250712.0",
+    "typescript": "^5.8.3"
+  }
+}

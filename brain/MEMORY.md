@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-17 | Triple-stack ownership: Vercel=stream+Edge Config+Runtime Cache; CF=history Worker+R2+DO lease+zone; Supabase=truth+Realtime+pgvector+pgmq | Avoid duplicate caches/storage; R2-only files; no Vectorize/Blob on product path |
 | 2026-07-16 | Sidebar chat selection highlight only on row container | button[aria-current=page] global CSS nested a second pill inside the selected row |
 | 2026-07-16 | No loading.tsx on /new or /c/[chatId]; seed race ≤120ms | loading.tsx + long SSR seed wait caused post-create shimmer; soft-nav must keep optimistic chat-view |
 | 2026-07-14 | CF Free-plan security: 5/5 custom rules (Managed Challenge on app HTML entry, Block scanners/empty-UA/sensitive paths, Challenge suspicious auth POSTs); SSL Full (strict); AI Labyrinth on; Block AI Training crawlers; Browser Integrity Check on; Leaked credential rate rule kept. Under Attack left OFF (custom challenge is targeted). Managed WAF rules need Pro. | User asked for captcha/security on open + advanced hardening; Free plan limits Super Bot Fight / OWASP managed ruleset |
@@ -138,6 +139,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - cf.threat_score is deprecated on upgraded CF security — do not use in custom rules. Free plan: 5 custom rules, 1 rate-limit rule.
 - CF Managed Challenge can POST back to document URLs → Vercel 405. Fixed in src/proxy.ts with 303 POST→GET (keeps /api and next-action). Do not weaken CF rules for this.
 - Realtime remapping assistant id mid-stream must update generation map; appendMessageField must resolve by clientId or tokens write to a deleted id (blank orb)
+- Production uploads require WORKER_URL; Hyperdrive chat-history stays caching-disabled; Vercel region pdx1 near Supabase us-west-1
 ## Open threads
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).

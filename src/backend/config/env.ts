@@ -178,6 +178,10 @@ export const env = {
   /** Shared secret for Worker /internal/warm write-through. */
   chatHistoryInternalToken: optional("CHAT_HISTORY_INTERNAL_TOKEN"),
 
+  /** Cloudflare chat-coord Worker (Durable Object generation leases). */
+  chatCoordWorkerUrl: normalizeBaseUrl(optional("CHAT_COORD_WORKER_URL")),
+  chatCoordInternalToken: optional("CHAT_COORD_INTERNAL_TOKEN"),
+
   /** Cloudflare auth-email Worker (OTP send/verify via Email Service). */
   authEmailWorkerUrl: normalizeBaseUrl(optional("AUTH_EMAIL_WORKER_URL")),
   /** Shared secret for auth-email Worker. */

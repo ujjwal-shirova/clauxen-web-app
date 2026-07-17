@@ -11,6 +11,7 @@ import {
   beginChatGeneration,
   endChatGeneration,
 } from "@/backend/chat/generation-registry";
+import { readEdgeFlags } from "@/backend/config/edge-flags";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,15 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     const messages = sanitizeMessages(body.messages);
     if (!messages.length) {
       throw new AppError("messages are required.", 400);
+    }
+
+    const flags = await readEdgeFlags();
+    if (flags.maintenanceMode) {
+      throw new AppError(
+        "Clauxen is temporarily under maintenance. Try again shortly.",
+        503,
+        "maintenance_mode",
+      );
     }
 
     const rawTurn = body.turn;
@@ -74,7 +84,8 @@ export const POST = withApiRouteParams<{ chatId: string }>(
 
     // Durable generations are only stopped explicitly. A duplicate request
     // must never abort an existing turn and create a second assistant row.
-    const generationController = beginChatGeneration(params.chatId);
+    // Cross-isolate lease is owned by clauxen-chat-coord (Durable Object).
+    const generationController = await beginChatGeneration(params.chatId);
     if (!generationController) {
       throw new AppError(
         "This chat is already generating a response.",
@@ -95,7 +106,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           signal: generationController.signal,
           userCountryCode: resolveRequestCountryCode(request.headers),
           generateChatTitle: body.generateChatTitle,
-          chatModel: body.chatModel,
+          chatModel: flags.modelOverride || body.chatModel,
           homerReasoningEffort: parseHomerReasoningEffort(
             body.homerReasoningEffort,
           ),
@@ -108,7 +119,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         try {
           await onComplete();
         } finally {
-          endChatGeneration(params.chatId, generationController);
+          await endChatGeneration(params.chatId, generationController);
         }
       };
 
@@ -164,7 +175,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         },
       });
     } catch (error) {
-      endChatGeneration(params.chatId, generationController);
+      await endChatGeneration(params.chatId, generationController);
       throw error;
     }
   },
