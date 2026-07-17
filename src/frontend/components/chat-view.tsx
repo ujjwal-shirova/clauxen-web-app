@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChatArea } from "@/frontend/components/chat-area";
 import { useOptionalChatSession } from "@/frontend/contexts/chat-session-context";
@@ -114,15 +114,20 @@ function ChatViewBody({
     messages.length === 0 &&
     !creatingChatPending;
 
+  const handleSelectChatRef = useRef(handleSelectChat);
+  handleSelectChatRef.current = handleSelectChat;
+  const startNewChatRef = useRef(startNewChat);
+  startNewChatRef.current = startNewChat;
+
   useEffect(() => {
     if (routeChatId) {
-      void handleSelectChat(routeChatId);
+      void handleSelectChatRef.current(routeChatId);
       return;
     }
     if (blankNewChatComposer) {
-      startNewChat();
+      startNewChatRef.current();
     }
-  }, [routeChatId, blankNewChatComposer, handleSelectChat, startNewChat]);
+  }, [routeChatId, blankNewChatComposer]);
 
   const openChatRoute = useCallback(
     (chatId: string) => {

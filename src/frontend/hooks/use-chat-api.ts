@@ -352,13 +352,16 @@ export function useChatApi(
     if (!userId || typeof window === "undefined") return;
     let cancelPersist: (() => void) | null = null;
     const schedule = () => {
+      // Never persist mid-stream — empty assistant snapshots were poisoning
+      // reopen / silent reconcile and killing the orb.
+      if (useChatStore.getState().isGenerating) return;
       cancelPersist?.();
       cancelPersist = scheduleDeviceChatPersist({
         userId,
         allChats: getAllChatsNormalized(),
         recentChats: recentChatsRef.current,
         activeChatId,
-        delayMs: isGenerating ? 900 : 250,
+        delayMs: 250,
       });
     };
     schedule();
@@ -674,6 +677,7 @@ export function useChatApi(
                 (remote.clientId && remote.clientId === local.id),
             );
             if (!match) return local;
+            // Id remap only while streaming — never adopt colder content.
             if (
               local.isStreaming ||
               local.isThinkingStreaming ||
@@ -703,6 +707,17 @@ export function useChatApi(
             ) {
               continue;
             }
+            // Never append a blank streaming/completed assistant while live —
+            // that paints a second orb then collapses to empty.
+            if (
+              remote.role === "assistant" &&
+              !(remote.content ?? "").trim() &&
+              (remote.isStreaming ||
+                !(remote.agentFrames?.some((f) => f.segments.length > 0) ??
+                  false))
+            ) {
+              continue;
+            }
             merged.push(remote);
           }
           return { ...prev, [chatId]: merged };
@@ -720,6 +735,15 @@ export function useChatApi(
   const loadChatMessages = useCallback(
     async (chatId: string, opts?: { silent?: boolean }) => {
       const silent = opts?.silent === true;
+      // Never reconcile over a live turn — silent Worker fetches were wiping
+      // the optimistic orb on new-chat / follow-up navigations.
+      const store = useChatStore.getState();
+      const isLive =
+        Boolean(store.generatingChatIds[chatId]) ||
+        Boolean(getGeneration(chatId));
+      if (silent && isLive) {
+        return;
+      }
       if (!silent) {
         setLoadingChatId(chatId);
       }
@@ -734,6 +758,15 @@ export function useChatApi(
           chatsApi.listAllChatMessages(chatId),
           chatsApi.getBranchState(chatId).catch(() => null),
         ]);
+        // Re-check after await — generation may have started while fetching.
+        const after = useChatStore.getState();
+        if (
+          Boolean(after.generatingChatIds[chatId]) ||
+          Boolean(getGeneration(chatId))
+        ) {
+          applyHydratedMessages(chatId, bundle.messages, null);
+          return;
+        }
         const row = branch?.state as { messages?: unknown } | null;
         applyHydratedMessages(chatId, bundle.messages, row?.messages ?? null);
         if (userId) {
@@ -752,7 +785,6 @@ export function useChatApi(
             ? error.message
             : "Could not load this conversation.";
         console.warn("[chat] hydrate failed:", error);
-        // Keep painted device/SSR content; only surface error when we had nothing.
         if (!silent) {
           setMessageLoadErrors((current) => ({
             ...current,
@@ -859,8 +891,13 @@ export function useChatApi(
           ssrSeed.branchMessages,
         );
         setLoadingChatId((current) => (current === chatId ? null : current));
-        // Background reconcile keeps device cache + server in sync.
-        void loadChatMessages(chatId, { silent: true });
+        // Only silent-reconcile when idle — never during a live send/stream.
+        const liveNow =
+          Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
+          Boolean(getGeneration(chatId));
+        if (!liveNow) {
+          void loadChatMessages(chatId, { silent: true });
+        }
         return;
       }
 
@@ -871,10 +908,18 @@ export function useChatApi(
           cached.length > 0 &&
           useChatStore.getState().activeChatId === chatId
         ) {
-          setAllChats((prev) => ({ ...prev, [chatId]: cached }));
-          setLoadingChatId((current) => (current === chatId ? null : current));
-          void loadChatMessages(chatId, { silent: true });
-          return;
+          const liveNow =
+            Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
+            Boolean(getGeneration(chatId));
+          // Never overwrite a live turn with a cold device snapshot.
+          if (!liveNow) {
+            setAllChats((prev) => ({ ...prev, [chatId]: cached }));
+            setLoadingChatId((current) =>
+              current === chatId ? null : current,
+            );
+            void loadChatMessages(chatId, { silent: true });
+            return;
+          }
         }
       } catch (error) {
         console.warn("[device-chat-cache] message read failed:", error);

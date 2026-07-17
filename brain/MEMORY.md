@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-17 | Live streaming assistant always wins over empty cold server/IDB snapshots in dedupe+hydrate | Empty completed rows were preferred by score and killed the orb on new-chat/follow-up |
 | 2026-07-17 | Signed-in chats use per-user IndexedDB device cache (list + 40 bodies) with silent Worker reconcile | Cut latency and origin load at scale without polling; server remains truth |
 | 2026-07-17 | Skip Argo and any CF/Vercel billing/addons unless user asks | Free zone speed settings (HTTP/3, Early Hints, Tiered Cache, Cache Rules) are enough; Argo is optional paid |
 | 2026-07-17 | Triple-stack ownership: Vercel=stream+Edge Config+Runtime Cache; CF=history Worker+R2+DO lease+zone; Supabase=truth+Realtime+pgvector+pgmq | Avoid duplicate caches/storage; R2-only files; no Vectorize/Blob on product path |

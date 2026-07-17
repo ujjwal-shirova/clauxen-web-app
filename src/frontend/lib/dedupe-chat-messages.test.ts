@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { dedupeChatMessages } from "@/frontend/lib/dedupe-chat-messages";
+import { dedupeChatMessages, mergeMessagePreferRich } from "@/frontend/lib/dedupe-chat-messages";
 import type { Message } from "@/frontend/lib/types";
 
 function msg(
@@ -43,5 +43,46 @@ describe("dedupeChatMessages", () => {
       msg({ id: "b", role: "user", content: "same" }),
     ]);
     assert.equal(result.length, 1);
+  });
+
+  it("keeps live streaming orb over empty completed snapshot", () => {
+    const result = dedupeChatMessages([
+      msg({
+        id: "temp-asst",
+        clientId: "temp-asst",
+        role: "assistant",
+        content: "",
+        isStreaming: true,
+      }),
+      msg({
+        id: "server-asst",
+        clientId: "temp-asst",
+        role: "assistant",
+        content: "",
+        isStreaming: false,
+      }),
+    ]);
+    assert.equal(result.length, 1);
+    assert.equal(result[0]?.isStreaming, true);
+    assert.equal(result[0]?.id, "server-asst");
+  });
+
+  it("does not let empty cold row beat partial live content", () => {
+    const merged = mergeMessagePreferRich(
+      msg({
+        id: "live",
+        role: "assistant",
+        content: "Hello",
+        isStreaming: true,
+      }),
+      msg({
+        id: "cold",
+        role: "assistant",
+        content: "",
+        isStreaming: false,
+      }),
+    );
+    assert.equal(merged.isStreaming, true);
+    assert.equal(merged.content, "Hello");
   });
 });
