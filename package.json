@@ -77,7 +77,6 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/edge-config": "^1.4.3",
     "@vercel/functions": "^3.7.5",
-    "@vercel/speed-insights": "^2.0.0",
     "bcrypt": "^6.0.0",
     "bootstrap-icons": "^1.13.1",
     "bullmq": "^5.78.1",

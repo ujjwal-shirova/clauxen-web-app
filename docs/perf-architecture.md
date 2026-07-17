@@ -20,7 +20,7 @@ Source of truth for where each platform owns performance work. Do not duplicate 
 | Project / chat RAG | Supabase pgvector | Cloudflare Vectorize |
 | Background jobs | `pgmq` / `pg_cron` (+ CF Queues for Worker-only) | Blocking generate TTFT |
 | Auth email OTP | CF `clauxen-auth-email` | Supabase Edge Functions |
-| Zone transport | CF HTTP/3, Early Hints, Argo, Tiered Cache | Vercel |
+| Zone transport | CF HTTP/3, Early Hints, Tiered Cache (Smart) | Vercel; Argo optional/skipped |
 
 ## Hot paths
 
@@ -34,7 +34,7 @@ Source of truth for where each platform owns performance work. Do not duplicate 
 - Vercel: `WORKER_URL`, `CHAT_COORD_WORKER_URL`, `CHAT_COORD_INTERNAL_TOKEN`, `CHAT_HISTORY_*`, `EDGE_CONFIG`, region `pdx1` (near Supabase us-west-1)
 - Production uploads require `WORKER_URL` (no direct S3 / Blob fallback)
 - Hyperdrive chat-history: **caching disabled**
-- Supabase: transaction pooler `:6543` + Dedicated Pooler addon
+- Supabase: transaction pooler `:6543` (Dedicated Pooler only if already on plan — do not buy addons unprompted)
 
 ## Related
 
