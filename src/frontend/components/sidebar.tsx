@@ -234,7 +234,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={() => onSelectChat(chat)}
-          className="flex h-full min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
         >
           <span className="min-w-0 flex-1 truncate">
             {chat.isTitleStreaming ? (
@@ -267,7 +267,7 @@ export function Sidebar({
                   event.stopPropagation();
                   onPinChat?.(chat.id, !chat.pinned);
                 }}
-                className="flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-zinc-500 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 hover:text-zinc-800 focus-visible:opacity-100 focus-visible:outline-none"
+                className="no-hover-overlay flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-zinc-500 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 hover:bg-transparent hover:text-zinc-800 focus-visible:opacity-100 focus-visible:outline-none"
               >
                 {chat.pinned ? (
                   <PinOff className="h-3.5 w-3.5" strokeWidth={2} />
@@ -280,7 +280,7 @@ export function Sidebar({
                   <button
                     type="button"
                     aria-label={`Chat options for ${chat.name || "New Chat"}`}
-                    className="flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-zinc-500 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 hover:text-zinc-800 data-[state=open]:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+                    className="no-hover-overlay flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-zinc-500 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 hover:bg-transparent hover:text-zinc-800 data-[state=open]:bg-transparent data-[state=open]:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
                   >
                     <MoreVertical className="icon-md icon-muted" />
                   </button>

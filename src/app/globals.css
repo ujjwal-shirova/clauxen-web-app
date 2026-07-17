@@ -156,22 +156,24 @@
    * Solid dark or filled buttons must use explicit hover:bg-* (never opacity hovers).
    */
   button:not(:disabled):not(.no-hover-overlay):not(.auth-text-link):not(
-      .user-message-card__body
-    ):not(.app-btn):not(.app-btn-primary):not(.app-btn-secondary):not(
-      .app-btn-ghost
-    ):not(.btn-solid-dark):not([class*="bg-black"]):not([class*="bg-zinc-9"]):not(
-      [class*="bg-zinc-8"]
-    ):not([class*="bg-primary"]):not([class*="bg-[#0b0b0b]"]):not(
-      [class*="text-white"]
-    ):hover,
+      .label-hover-bold
+    ):not(.follow-up-prompt):not(.user-message-card__body):not(.app-btn):not(
+      .app-btn-primary
+    ):not(.app-btn-secondary):not(.app-btn-ghost):not(.btn-solid-dark):not(
+      [class*="bg-black"]
+    ):not([class*="bg-zinc-9"]):not([class*="bg-zinc-8"]):not(
+      [class*="bg-primary"]
+    ):not([class*="bg-[#0b0b0b]"]):not([class*="text-white"]):hover,
   a[role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(
       .auth-text-link
-    ):not(.app-btn):not([class*="bg-black"]):not([class*="text-white"]):hover,
+    ):not(.label-hover-bold):not(.follow-up-prompt):not(.app-btn):not(
+      [class*="bg-black"]
+    ):not([class*="text-white"]):hover,
   [role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(
       .auth-text-link
-    ):not(.app-btn):not(.context-usage-trigger):not([class*="bg-black"]):not(
-      [class*="text-white"]
-    ):hover,
+    ):not(.label-hover-bold):not(.follow-up-prompt):not(.app-btn):not(
+      .context-usage-trigger
+    ):not([class*="bg-black"]):not([class*="text-white"]):hover,
   input[type="button"]:not(:disabled):not(.no-hover-overlay):not(
       .auth-text-link
     ):hover,
@@ -181,13 +183,26 @@
     box-shadow: inset 0 0 0 9999px rgba(24, 24, 27, 0.05);
   }
 
+  /* Chat list / label controls never get the inset wash — row owns hover. */
+  .glass-sidebar-agent-menu-btn button:hover,
+  .glass-sidebar-agent-menu-btn [role="button"]:hover,
+  .group\/chat button:hover,
+  .follow-up-prompt:hover,
+  .label-hover-bold:hover {
+    box-shadow: none !important;
+  }
+
   /* Text labels / ghost links — no button wash; only darken + weight */
-  .auth-text-link {
+  .auth-text-link,
+  .label-hover-bold,
+  .follow-up-prompt {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    padding: 0;
     cursor: pointer;
+  }
+  .auth-text-link {
+    padding: 0;
     font: inherit;
     color: #71717a;
     font-weight: 500;
@@ -201,6 +216,21 @@
     font-weight: 600;
     box-shadow: none !important;
     background: transparent !important;
+  }
+  .label-hover-bold,
+  .follow-up-prompt {
+    transition:
+      color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+      font-weight 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+      text-decoration-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .label-hover-bold:hover:not(:disabled),
+  .label-hover-bold:focus-visible:not(:disabled),
+  .follow-up-prompt:hover:not(:disabled),
+  .follow-up-prompt:focus-visible:not(:disabled) {
+    font-weight: 600;
+    background: transparent !important;
+    box-shadow: none !important;
   }
   .auth-text-link:disabled {
     opacity: 0.5;
@@ -593,18 +623,31 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /* Muted secondary feedback and retry action buttons styling */
-.assistant-message button,
+.assistant-message button:not(.follow-up-prompt):not(.label-hover-bold),
 .group\/chat button {
   color: var(--icon-muted);
   border-radius: 8px !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.assistant-message button:not(.no-hover-overlay):not(.no-hover):hover,
-.group\/chat button:not(.no-hover-overlay):not(.no-hover):hover {
+/* Assistant chrome buttons may soft-hover; follow-ups + chat-row innards must not. */
+.assistant-message button:not(.no-hover-overlay):not(.no-hover):not(
+    .follow-up-prompt
+  ):not(.label-hover-bold):hover {
   background-color: rgba(24, 24, 27, 0.04) !important;
   color: var(--foreground) !important;
   transform: translateY(-0.5px);
+}
+
+.group\/chat button:not(.no-hover-overlay):not(.no-hover):hover,
+.glass-sidebar-agent-menu-btn button:hover,
+.glass-sidebar-agent-menu-btn [role="button"]:hover,
+.assistant-message .follow-up-prompt:hover,
+.assistant-message .label-hover-bold:hover {
+  background-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 @layer utilities {
@@ -1921,14 +1964,18 @@ button[data-speed-toggle],
 }
 
 /* Hover state — ghost/toolbar buttons only (never override solid primary CTAs) */
-button:not(.no-hover):not(.no-hover-overlay):not(.user-message-card__body):not(
-    :disabled
-  ):not(.app-btn):not(.app-btn-primary):not(.app-btn-secondary):not(
-    .app-btn-ghost
-  ):not(.btn-solid-dark):not(.btn-primary-solid):not([class*="text-white"]):hover,
-[role="button"]:not(.no-hover):not(.no-hover-overlay):not(
-    [aria-disabled="true"]
-  ):not(.app-btn):not(.context-usage-trigger):not([class*="text-white"]):hover,
+button:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
+    .label-hover-bold
+  ):not(.follow-up-prompt):not(.user-message-card__body):not(:disabled):not(
+    .app-btn
+  ):not(.app-btn-primary):not(.app-btn-secondary):not(.app-btn-ghost):not(
+    .btn-solid-dark
+  ):not(.btn-primary-solid):not([class*="text-white"]):hover,
+[role="button"]:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
+    .label-hover-bold
+  ):not(.follow-up-prompt):not([aria-disabled="true"]):not(.app-btn):not(
+    .context-usage-trigger
+  ):not([class*="text-white"]):hover,
 button[data-app-button]:not([class*="text-white"]):not(
     [class*="bg-zinc-9"]
   ):not([class*="bg-black"]):hover,
@@ -1938,6 +1985,19 @@ button[data-speed-toggle]:hover,
 .app-action-button:hover,
 .dropdown-menu-trigger:hover {
   background-color: rgba(24, 24, 27, 0.05) !important;
+}
+
+/* Chat rows + label prompts: never take the global button wash. */
+.group\/chat button:hover,
+.glass-sidebar-agent-menu-btn button:hover,
+.glass-sidebar-agent-menu-btn [role="button"]:hover,
+.follow-up-prompt:hover,
+.label-hover-bold:hover,
+.follow-up-prompt:focus-visible,
+.label-hover-bold:focus-visible {
+  background-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 /* Active / pressed / selected / open states */
@@ -1951,6 +2011,18 @@ button[aria-current="page"],
 button[data-state="open"]:not(.context-usage-trigger),
 [role="button"][data-state="open"]:not(.context-usage-trigger) {
   background-color: rgba(24, 24, 27, 0.08) !important;
+}
+
+/* Chat-row innards stay transparent even when menu is open — row owns the pill. */
+.group\/chat button[data-state="open"],
+.group\/chat button[aria-current="page"],
+.glass-sidebar-agent-menu-btn button[data-state="open"],
+.glass-sidebar-agent-menu-btn button[aria-current="page"],
+.follow-up-prompt[data-state="open"],
+.label-hover-bold[data-state="open"] {
+  background-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 /* Stronger active for the speed toggle when open */

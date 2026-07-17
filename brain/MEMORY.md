@@ -37,6 +37,9 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-17 | Label-style controls (follow-up prompts, chat-row innards) use bold/weight hover — never inset button wash | Universal button:hover and .group/chat button:hover were painting nested pills |
+| 2026-07-17 | Canonical Agent Skills live in repo-root skills/ (21+ clauxen-* skills), symlinked to .cursor/skills/; rule .cursor/rules/clauxen-skills.mdc | User asked for complete skills directory at workspace root |
+| 2026-07-17 | Complete docs library rewritten under docs/ (~6k lines, 40 md files: systems/, reference/, guides/, ops/, complete-product-deep-dive.md) | User asked for highly detailed multi-file documentation of the entire web app |
 | 2026-07-17 | Pin/rename/title: optimistic UI first, persist async; pin overrides stay until server list agrees | Prevents Hyperdrive/list cache lag from yanking chats out of Pinned / New chat |
 | 2026-07-17 | Sidebar chat row hover is one continuous pill; pin/menu actions never paint nested backgrounds | Global button:hover CSS was splitting the highlight under pin/more |
 | 2026-07-17 | Vercel env: production+preview=sensitive, development=encrypted; all keys on all three targets | Vercel API forbids sensitive on Development; reconcile-vercel-env.mjs enforces the allowed shape |
@@ -181,3 +184,5 @@ Full target surface — **remember only; implement only when user asks for a sli
 - 2026-07-14: `clauxen-auth-email` live; Email Sending enabled on clauxen.com; Vercel AUTH_EMAIL_* wired; OTP signup E2E verified (delivered from no-reply@clauxen.com → confirmed Supabase user + password sign-in).
 - 2026-07-17: 2026-07-17: Reconciled 52 Vercel env keys to sensitive(prod+preview)+encrypted(dev). Rotated AUTH_EMAIL_INTERNAL_TOKEN on CF Worker + Vercel. Blank dashboard fill-ins remain for POSTGRES_* and some SUPABASE secrets — fill in Vercel if production needs them.
 - 2026-07-17: 2026-07-17: Env reconcile overwrote working Provider_API_Key with invalid local key → 401. Restored Supabase/Postgres from .env.vercel; created new Novita key and redeployed.
+- 2026-07-17: 2026-07-17: Docs entrypoint is docs/README.md; deep dive is docs/complete-product-deep-dive.md
+- 2026-07-17: 2026-07-17: Start domain work by reading skills/<name>/SKILL.md; catalog at skills/README.md
