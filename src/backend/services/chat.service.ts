@@ -466,6 +466,7 @@ export async function streamChatGeneration(input: {
   const started = Date.now();
   let answer = "";
   let thinking = "";
+  let streamError: string | null = null;
   const toolsById = new Map<string, CapturedToolCall>();
 
   const modelForTelemetry = resolveInferenceRoute({
@@ -493,6 +494,9 @@ export async function streamChatGeneration(input: {
         },
         onChatTitle: (title) => {
           generatedTitle = normalizeInlineChatTitle(title, titleUserContent);
+        },
+        onError: (message) => {
+          streamError = message.trim() || "The model could not complete this response.";
         },
         onToolStart: (tool) => {
           toolsById.set(tool.toolCallId, {
@@ -522,10 +526,23 @@ export async function streamChatGeneration(input: {
 
     const persistOnDone = async () => {
       const assistantRow = assistant;
-      const cleanedAnswer = finalizeChatTitleStrippedAnswer(answer);
+      const generatedAnswer = finalizeChatTitleStrippedAnswer(answer);
+      // A terminal SSE error used to be persisted as an empty successful
+      // assistant message. Make every terminal state visible and durable.
+      const cleanedAnswer = streamError
+        ? `Generation failed: ${streamError}`
+        : generatedAnswer.trim()
+          ? generatedAnswer
+          : "I couldn't produce a response for that message. Please try again.";
       const tools = Array.from(toolsById.values());
       const completedAtMs = Date.now();
       const wasCancelled = input.signal?.aborted === true;
+      const failed = Boolean(streamError) || !generatedAnswer.trim();
+      const completionStatus = wasCancelled
+        ? "cancelled"
+        : failed
+          ? "failed"
+          : "complete";
       const thinkingDurationSeconds = thinking.trim()
         ? Math.max(1, Math.round((completedAtMs - started) / 1000))
         : undefined;
@@ -554,7 +571,7 @@ export async function streamChatGeneration(input: {
           assistantRow.id,
           input.chatId,
           cleanedAnswer,
-          wasCancelled ? "cancelled" : "complete",
+          completionStatus,
           contentJson,
         );
         if (!wasCancelled && generatedTitle) {
@@ -569,21 +586,27 @@ export async function streamChatGeneration(input: {
           answer: cleanedAnswer,
           thinking,
           tools,
-          status: wasCancelled ? "cancelled" : "success",
+          status: wasCancelled || failed ? "error" : "success",
         });
       }
       const latencyMs = Date.now() - started;
       await logInferenceTelemetry({
         userId: input.userId,
         mode: "chat",
-        status: wasCancelled ? "error" : "success",
+        status: wasCancelled || failed ? "error" : "success",
         model: modelForTelemetry,
         messageCount: clientConversation.length,
         responseCharacterCount: answer.length,
         latencyMs,
-        ...(wasCancelled ? { errorMessage: "Generation cancelled." } : {}),
+        ...(wasCancelled
+          ? { errorMessage: "Generation cancelled." }
+          : streamError
+            ? { errorMessage: streamError }
+            : failed
+              ? { errorMessage: "Model completed without visible output." }
+              : {}),
       });
-      if (wasCancelled) return;
+      if (wasCancelled || failed) return;
       try {
         await billingService.meterChatGeneration({
           userId: input.userId,

@@ -155,6 +155,7 @@ export function tapChatSseStream(
       name: string;
       result: string;
     }) => void;
+    onError?: (message: string) => void;
   },
   signal?: AbortSignal,
 ): ReadableStream<Uint8Array> {

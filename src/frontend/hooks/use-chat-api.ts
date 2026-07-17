@@ -1404,12 +1404,18 @@ export function useChatApi(
                     const finalized = answerAccumulator
                       ? finalizeChatTitleStrippedAnswer(answerAccumulator.raw)
                       : finalizeChatTitleStrippedAnswer(m.content);
-                    return agentAnswerDuplicatesInterim({
+                  const visible = agentAnswerDuplicatesInterim({
                       ...m,
                       content: finalized,
                     })
                       ? m.content
                       : finalized;
+                  // The backend persists the same fallback, but paint one
+                  // immediately when a model closes its SSE turn without text.
+                  // A completed blank assistant is never a valid UI state.
+                  return visible.trim()
+                    ? visible
+                    : "I couldn't produce a response for that message. Please try again.";
                   })(),
                   isStreaming: false,
                   isThinkingStreaming: false,

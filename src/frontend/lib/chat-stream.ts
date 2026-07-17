@@ -275,14 +275,16 @@ export function createSseParser(onEvent: (event: StreamEvent) => void) {
         continue;
       }
 
+      let parsed: StreamEvent | null = null;
       try {
-        const parsed = parseStreamEvent(JSON.parse(payload));
-        if (parsed) {
-          onEvent(parsed);
-        }
+        parsed = parseStreamEvent(JSON.parse(payload));
       } catch {
         continue;
       }
+      // Deliberately keep the consumer callback outside the JSON parse guard.
+      // A server-side `error` event makes the UI callback throw; swallowing it
+      // here converted a real generation error into a blank "successful" turn.
+      if (parsed) onEvent(parsed);
     }
   };
 }

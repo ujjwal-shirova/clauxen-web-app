@@ -87,6 +87,7 @@ export function tapUiMessageSseStream(
       name: string;
       result: string;
     }) => void;
+    onError?: (message: string) => void;
   },
   signal?: AbortSignal,
 ): ReadableStream<Uint8Array> {
@@ -141,6 +142,7 @@ export function tapUiMessageSseStream(
                 type?: string;
                 delta?: unknown;
                 title?: unknown;
+                message?: unknown;
                 data?: { title?: string };
                 toolCallId?: unknown;
                 name?: unknown;
@@ -180,6 +182,12 @@ export function tapUiMessageSseStream(
                 if (typeof parsed.title === "string") {
                   callbacks.onChatTitle?.(parsed.title);
                 }
+              }
+              if (
+                parsed.type === "error" &&
+                typeof parsed.message === "string"
+              ) {
+                callbacks.onError?.(parsed.message);
               }
               if (parsed.type === "tool_start") {
                 if (

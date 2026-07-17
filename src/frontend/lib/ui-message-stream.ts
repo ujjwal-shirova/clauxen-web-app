@@ -275,6 +275,9 @@ export async function consumeClauxenStreamResponse(
     } finally {
       reader.releaseLock();
     }
+    if (!streamComplete && !signal?.aborted) {
+      throw new Error("The response stream ended before completion.");
+    }
     return;
   }
 
@@ -312,16 +315,20 @@ export async function consumeClauxenStreamResponse(
           continue;
         }
 
+        let chunk: ClauxenStreamChunk;
         try {
-          const chunk = JSON.parse(payload) as ClauxenStreamChunk;
-          for (const event of uiMessageChunkToStreamEvents(chunk, state)) {
-            onEvent(event);
-            if (event.type === "done" || event.type === "error") {
-              streamComplete = true;
-            }
-          }
+          chunk = JSON.parse(payload) as ClauxenStreamChunk;
         } catch {
           continue;
+        }
+        // Do not catch onEvent errors here. In particular, an `error` SSE
+        // event must reject the stream promise so the live assistant receives
+        // a visible failure state instead of silently finalizing blank.
+        for (const event of uiMessageChunkToStreamEvents(chunk, state)) {
+          onEvent(event);
+          if (event.type === "done" || event.type === "error") {
+            streamComplete = true;
+          }
         }
       }
 
@@ -332,5 +339,8 @@ export async function consumeClauxenStreamResponse(
     }
   } finally {
     reader.releaseLock();
+  }
+  if (!streamComplete && !signal?.aborted) {
+    throw new Error("The response stream ended before completion.");
   }
 }
