@@ -145,6 +145,20 @@ export function scheduleDeviceChatPersist(input: {
   };
 }
 
+export async function persistDeviceRecentChatsNow(
+  userId: string,
+  recentChats: RecentChat[],
+  activeChatId: string | null,
+): Promise<void> {
+  await persistChatMeta(
+    buildDeviceChatMeta({
+      userId,
+      recentChats,
+      activeChatId,
+    }),
+  );
+}
+
 export async function persistDeviceChatNow(
   userId: string,
   chatId: string,

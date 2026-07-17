@@ -19,9 +19,10 @@ export function StreamingChatTitle({
     <span
       className={cn(
         "truncate",
-        isStreaming && "animate-in fade-in duration-300",
+        isStreaming && "animate-in fade-in duration-150",
         className,
       )}
+      data-streaming={isStreaming ? "true" : undefined}
     >
       {title}
     </span>

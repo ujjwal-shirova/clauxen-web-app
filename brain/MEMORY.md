@@ -37,6 +37,8 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-17 | Pin/rename/title: optimistic UI first, persist async; pin overrides stay until server list agrees | Prevents Hyperdrive/list cache lag from yanking chats out of Pinned / New chat |
+| 2026-07-17 | Sidebar chat row hover is one continuous pill; pin/menu actions never paint nested backgrounds | Global button:hover CSS was splitting the highlight under pin/more |
 | 2026-07-17 | Vercel env: production+preview=sensitive, development=encrypted; all keys on all three targets | Vercel API forbids sensitive on Development; reconcile-vercel-env.mjs enforces the allowed shape |
 | 2026-07-17 | Terminal SSE errors must propagate to the UI; incomplete or empty streams persist visible failure text | The SSE parser caught consumer errors, turning provider failures into blank completed assistant messages |
 | 2026-07-17 | While this tab owns SSE generation, mute Supabase chat_messages realtime except id remaps | ChatGPT/Claude pattern: stream is UI source of truth; empty WAL updates were clearing the orb mid-turn |

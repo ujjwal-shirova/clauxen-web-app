@@ -40,6 +40,7 @@ import {
   DropdownMenuPortal,
 } from "@/frontend/components/ui/dropdown-menu";
 import { TypingDots } from "./ui/typing-dots";
+import { StreamingChatTitle } from "./streaming-chat-title";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
@@ -225,9 +226,8 @@ export function Sidebar({
         aria-current={isActive ? "page" : undefined}
         className={cn(
           "group/chat glass-sidebar-agent-menu-btn flex h-7 w-full items-center rounded-md px-2 text-[12.5px] font-[430] text-zinc-800 transition-colors",
-          // Selection + hover live on the row only. Never put aria-current on
-          // the inner button — global button[aria-current] styles create a
-          // nested pill on top of the row highlight.
+          // One continuous row highlight — never nest hover/selection on
+          // the title button or pin/menu actions.
           isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
         )}
       >
@@ -236,7 +236,16 @@ export function Sidebar({
           onClick={() => onSelectChat(chat)}
           className="flex h-full min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left outline-none focus-visible:ring-2 focus-visible:ring-black/10"
         >
-          <span className="min-w-0 flex-1 truncate">{chat.name || "New Chat"}</span>
+          <span className="min-w-0 flex-1 truncate">
+            {chat.isTitleStreaming ? (
+              <StreamingChatTitle
+                title={chat.name || "New Chat"}
+                isStreaming
+              />
+            ) : (
+              chat.name || "New Chat"
+            )}
+          </span>
           {chat.isTitleStreaming ? <TypingDots className="mr-0.5 shrink-0" /> : null}
         </button>
         <div className="ml-1 flex shrink-0 items-center gap-0.5">
@@ -254,10 +263,11 @@ export function Sidebar({
               <button
                 type="button"
                 aria-label={chat.pinned ? "Unpin chat" : "Pin chat"}
-                onClick={() => onPinChat?.(chat.id, !chat.pinned)}
-                className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-black/[0.06] hover:text-zinc-800 focus-visible:opacity-100",
-                )}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPinChat?.(chat.id, !chat.pinned);
+                }}
+                className="flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-zinc-500 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 hover:text-zinc-800 focus-visible:opacity-100 focus-visible:outline-none"
               >
                 {chat.pinned ? (
                   <PinOff className="h-3.5 w-3.5" strokeWidth={2} />
@@ -270,7 +280,7 @@ export function Sidebar({
                   <button
                     type="button"
                     aria-label={`Chat options for ${chat.name || "New Chat"}`}
-                    className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-all group-hover/chat:opacity-100 hover:bg-black/[0.06] data-[state=open]:opacity-100 data-[state=open]:bg-black/5"
+                    className="flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-zinc-500 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 hover:text-zinc-800 data-[state=open]:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
                   >
                     <MoreVertical className="icon-md icon-muted" />
                   </button>

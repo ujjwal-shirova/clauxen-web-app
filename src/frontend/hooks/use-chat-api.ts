@@ -53,6 +53,7 @@ import {
   extractChatTitleFromText,
   finalizeChatTitleStrippedAnswer,
   normalizeChatTitle,
+  normalizeInlineChatTitle,
   stripTitleSourceText,
 } from "@/lib/chat-title";
 import { DEFAULT_CHAT_MODEL_ID, type ChatModelId } from "@/lib/chat-models";
@@ -69,6 +70,7 @@ import { takePendingChatRouteSeed } from "@/frontend/lib/chat-route-seed";
 import {
   forgetDeviceChat,
   persistDeviceChatNow,
+  persistDeviceRecentChatsNow,
   readDeviceChatList,
   readDeviceChatMessages,
   scheduleDeviceChatPersist,
@@ -176,8 +178,10 @@ export function useChatApi(
   const chatsLoadedOnceRef = useRef(false);
   const allChatsRef = useRef<Record<string, Message[]>>({});
   const recentChatsRef = useRef<RecentChat[]>([]);
-  /** Optimistic pin overrides until server list / pin API catches up. */
+  /** Optimistic pin overrides until server list agrees. */
   const pendingPinOverridesRef = useRef<Map<string, boolean>>(new Map());
+  /** Optimistic title overrides until server list name catches up. */
+  const pendingTitleOverridesRef = useRef<Map<string, string>>(new Map());
   const branchPersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Branch overlay snapshot per chat — applied once on hydrate. */
   const branchMessagesByChatRef = useRef<Record<string, unknown>>({});
@@ -271,10 +275,28 @@ export function useChatApi(
         const merged = serverChats.map((server) => {
           const local = prev.find((p) => p.id === server.id);
           const pinOverride = pendingPinOverridesRef.current.get(server.id);
+          const titleOverride = pendingTitleOverridesRef.current.get(server.id);
           const pinned =
             pinOverride !== undefined ? pinOverride : server.pinned;
+          // Drop pin override only once the server list agrees — avoids cache lag
+          // flipping the chat out of Pinned after a successful POST.
+          if (pinOverride !== undefined && Boolean(server.pinned) === pinOverride) {
+            pendingPinOverridesRef.current.delete(server.id);
+          }
+          if (
+            titleOverride !== undefined &&
+            server.name.trim().toLowerCase() === titleOverride.trim().toLowerCase()
+          ) {
+            pendingTitleOverridesRef.current.delete(server.id);
+          }
           if (!local) {
-            return pinOverride !== undefined ? { ...server, pinned } : server;
+            return {
+              ...server,
+              pinned,
+              ...(titleOverride
+                ? { name: titleOverride, titleGenerated: true }
+                : null),
+            };
           }
           if (local.isTitleStreaming) {
             return {
@@ -286,8 +308,20 @@ export function useChatApi(
               updatedAt: Math.max(local.updatedAt ?? 0, server.updatedAt ?? 0),
             };
           }
+          const name =
+            titleOverride ??
+            (local.titleGenerated &&
+            local.name.trim().toLowerCase() !== "new chat" &&
+            server.name.trim().toLowerCase() === "new chat"
+              ? local.name
+              : server.name);
           return {
             ...server,
+            name,
+            titleGenerated:
+              Boolean(titleOverride) ||
+              local.titleGenerated ||
+              server.name.toLowerCase() !== "new chat",
             pinned,
             // Prefer fresher local updatedAt so a just-created chat stays on top.
             updatedAt: Math.max(local.updatedAt ?? 0, server.updatedAt ?? 0),
@@ -968,8 +1002,11 @@ export function useChatApi(
       chatId: string,
       nextTitle: string,
       exchange: { userContent: string; assistantContent: string },
+      options?: { persist?: boolean },
     ) => {
       const title = normalizeChatTitle(nextTitle, exchange);
+      const shouldPersist = options?.persist !== false;
+      pendingTitleOverridesRef.current.set(chatId, title);
 
       setRecentChats((prev) => {
         const next = prev.map((chat) =>
@@ -1014,13 +1051,24 @@ export function useChatApi(
         return next;
       });
 
+      if (userId) {
+        void persistDeviceRecentChatsNow(
+          userId,
+          recentChatsRef.current,
+          useChatStore.getState().activeChatId,
+        );
+      }
+
+      if (!shouldPersist) return title;
+
       try {
         await chatsApi.updateChat(chatId, { title });
       } catch (error) {
         console.error("Failed to persist chat title:", error);
       }
+      return title;
     },
-    [],
+    [userId],
   );
 
   const maybeGenerateChatTitle = useCallback(
@@ -1059,16 +1107,49 @@ export function useChatApi(
       );
 
       try {
-        const titleMessages = [
-          { role: "user", content: userContentForTitle },
-          ...(assistantContentForTitle
-            ? [{ role: "assistant", content: assistantContentForTitle }]
-            : []),
-        ];
-        const { title } = await chatsApi.generateChatTitle(chatId, titleMessages);
-        await streamChatTitle(chatId, title, exchange);
-      } catch {
-        await streamChatTitle(chatId, fallbackTitle, exchange);
+        // Paint + animate a local title immediately so the header/sidebar
+        // never wait on the title API. Refine if the server returns better.
+        const streamedFallback = await streamChatTitle(
+          chatId,
+          fallbackTitle,
+          exchange,
+          { persist: false },
+        );
+
+        try {
+          const titleMessages = [
+            { role: "user", content: userContentForTitle },
+            ...(assistantContentForTitle
+              ? [{ role: "assistant", content: assistantContentForTitle }]
+              : []),
+          ];
+          const { title } = await chatsApi.generateChatTitle(
+            chatId,
+            titleMessages,
+          );
+          const refined = normalizeChatTitle(title, exchange);
+          if (
+            refined &&
+            refined.trim().toLowerCase() !==
+              streamedFallback.trim().toLowerCase()
+          ) {
+            await streamChatTitle(chatId, refined, exchange);
+          } else {
+            pendingTitleOverridesRef.current.set(chatId, streamedFallback);
+            try {
+              await chatsApi.updateChat(chatId, { title: streamedFallback });
+            } catch (error) {
+              console.error("Failed to persist chat title:", error);
+            }
+          }
+        } catch {
+          pendingTitleOverridesRef.current.set(chatId, streamedFallback);
+          try {
+            await chatsApi.updateChat(chatId, { title: streamedFallback });
+          } catch (error) {
+            console.error("Failed to persist chat title:", error);
+          }
+        }
       } finally {
         titleGenerationInProgressRef.current.delete(chatId);
       }
@@ -1285,8 +1366,24 @@ export function useChatApi(
           ? createChatTitleAnswerAccumulator()
           : null;
 
-        const applyInlineChatTitle = async (_rawTitle: string) => {
-          // Sidebar titles are generated after the first assistant response completes.
+        const applyInlineChatTitle = async (rawTitle: string) => {
+          const chatMeta = recentChatsRef.current.find((c) => c.id === chatId);
+          if (chatMeta?.titleGenerated || chatMeta?.isTitleStreaming) return;
+          if (titleGenerationInProgressRef.current.has(chatId)) return;
+          const title = normalizeInlineChatTitle(
+            rawTitle,
+            titleUserContent ?? "",
+          );
+          if (!title) return;
+          titleGenerationInProgressRef.current.add(chatId);
+          try {
+            await streamChatTitle(chatId, title, {
+              userContent: titleUserContent ?? "",
+              assistantContent: "",
+            });
+          } finally {
+            titleGenerationInProgressRef.current.delete(chatId);
+          }
         };
 
         const handleStreamEventImmediate = (event: StreamEvent) => {
@@ -1816,62 +1913,103 @@ export function useChatApi(
     async (chatId: string, newName: string) => {
       const title = newName.trim();
       if (!title) return;
-      await chatsApi.updateChat(chatId, { title });
-      setRecentChats((prev) =>
-        prev.map((c) =>
-          c.id === chatId ? { ...c, name: title, titleGenerated: true } : c,
-        ),
-      );
-    },
-    [],
-  );
-
-  const handlePinChat = useCallback((chatId: string, pinned: boolean) => {
-    const prevPinned = recentChatsRef.current.find((c) => c.id === chatId)?.pinned;
-    // Instant UI — never block on Hyperdrive / API. Persist in background.
-    pendingPinOverridesRef.current.set(chatId, pinned);
-    setRecentChats((prev) => {
-      const next = prev
-        .map((chat) => (chat.id === chatId ? { ...chat, pinned } : chat))
-        .sort((a, b) => {
-          if (Boolean(a.pinned) !== Boolean(b.pinned)) {
-            return a.pinned ? -1 : 1;
-          }
-          return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
-        });
-      recentChatsRef.current = next;
-      return next;
-    });
-
-    void (pinned ? chatsApi.pinChat(chatId) : chatsApi.unpinChat(chatId))
-      .then(() => {
-        // Drop override once server agrees; silent refresh may reconcile later.
-        const current = pendingPinOverridesRef.current.get(chatId);
-        if (current === pinned) {
-          pendingPinOverridesRef.current.delete(chatId);
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to persist chat pin:", error);
-        pendingPinOverridesRef.current.delete(chatId);
+      const previous =
+        recentChatsRef.current.find((c) => c.id === chatId)?.name ?? "New Chat";
+      pendingTitleOverridesRef.current.set(chatId, title);
+      setRecentChats((prev) => {
+        const next = prev.map((c) =>
+          c.id === chatId
+            ? { ...c, name: title, titleGenerated: true, isTitleStreaming: false }
+            : c,
+        );
+        recentChatsRef.current = next;
+        return next;
+      });
+      if (userId) {
+        void persistDeviceRecentChatsNow(
+          userId,
+          recentChatsRef.current,
+          useChatStore.getState().activeChatId,
+        );
+      }
+      try {
+        await chatsApi.updateChat(chatId, { title });
+      } catch (error) {
+        console.error("Failed to persist chat rename:", error);
+        pendingTitleOverridesRef.current.delete(chatId);
         setRecentChats((prev) => {
-          const next = prev
-            .map((chat) =>
-              chat.id === chatId
-                ? { ...chat, pinned: Boolean(prevPinned) }
-                : chat,
-            )
-            .sort((a, b) => {
-              if (Boolean(a.pinned) !== Boolean(b.pinned)) {
-                return a.pinned ? -1 : 1;
-              }
-              return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
-            });
+          const next = prev.map((c) =>
+            c.id === chatId ? { ...c, name: previous } : c,
+          );
           recentChatsRef.current = next;
           return next;
         });
+      }
+    },
+    [userId],
+  );
+
+  const handlePinChat = useCallback(
+    (chatId: string, pinned: boolean) => {
+      const prevPinned = recentChatsRef.current.find(
+        (c) => c.id === chatId,
+      )?.pinned;
+      // Instant UI — never block on Hyperdrive / API. Persist in background.
+      // Keep override until list refresh sees the same pinned value.
+      pendingPinOverridesRef.current.set(chatId, pinned);
+      setRecentChats((prev) => {
+        const next = prev
+          .map((chat) => (chat.id === chatId ? { ...chat, pinned } : chat))
+          .sort((a, b) => {
+            if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+              return a.pinned ? -1 : 1;
+            }
+            return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+          });
+        recentChatsRef.current = next;
+        return next;
       });
-  }, []);
+
+      if (userId) {
+        void persistDeviceRecentChatsNow(
+          userId,
+          recentChatsRef.current,
+          useChatStore.getState().activeChatId,
+        );
+      }
+
+      void (pinned ? chatsApi.pinChat(chatId) : chatsApi.unpinChat(chatId)).catch(
+        (error) => {
+          console.error("Failed to persist chat pin:", error);
+          pendingPinOverridesRef.current.delete(chatId);
+          setRecentChats((prev) => {
+            const next = prev
+              .map((chat) =>
+                chat.id === chatId
+                  ? { ...chat, pinned: Boolean(prevPinned) }
+                  : chat,
+              )
+              .sort((a, b) => {
+                if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+                  return a.pinned ? -1 : 1;
+                }
+                return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+              });
+            recentChatsRef.current = next;
+            return next;
+          });
+          if (userId) {
+            void persistDeviceRecentChatsNow(
+              userId,
+              recentChatsRef.current,
+              useChatStore.getState().activeChatId,
+            );
+          }
+        },
+      );
+    },
+    [userId],
+  );
 
   const editMessageWithBranch = useCallback(
     async (

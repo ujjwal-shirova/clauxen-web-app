@@ -298,6 +298,12 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 .dark .sidebar-scrollable [role="button"]:hover {
   background-color: rgba(255, 255, 255, 0.06) !important;
 }
+.dark .sidebar-scrollable .glass-sidebar-agent-menu-btn button:hover,
+.dark .sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:hover,
+.dark .sidebar-scrollable .glass-sidebar-agent-menu-btn button:focus,
+.dark .sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:focus {
+  background-color: transparent !important;
+}
 .dark [role="menu"],
 .dark [data-radix-popper-content-wrapper] > div,
 .dark .dropdown-menu-content {
@@ -468,6 +474,14 @@ nav.sidebar-hover-area {
 .sidebar-scrollable button:hover,
 .sidebar-scrollable [role="button"]:hover {
   background-color: rgba(24, 24, 27, 0.04) !important;
+}
+
+/* Chat rows own the hover pill — never paint nested action buttons. */
+.sidebar-scrollable .glass-sidebar-agent-menu-btn button:hover,
+.sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:hover,
+.sidebar-scrollable .glass-sidebar-agent-menu-btn button:focus,
+.sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:focus {
+  background-color: transparent !important;
 }
 
 /* Glassmorphism menu & popup overlays */
@@ -1273,11 +1287,16 @@ button.user-message-card__body:not(:disabled):hover,
   box-shadow: inset 0 0 0 1px rgba(24, 24, 27, 0.025);
 }
 
-/* Row owns selection — never paint nested pills on inner chat actions. */
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn > button,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn > button:hover,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn > button:focus,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn > button[aria-current="page"] {
+/* Row owns selection/hover — never paint nested pills on title or action buttons. */
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:hover,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:focus,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:focus-visible,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button[aria-current="page"],
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button[data-state="open"],
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"],
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:hover,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:focus {
   background: transparent !important;
   box-shadow: none !important;
 }
