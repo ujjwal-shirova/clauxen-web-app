@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-17 | Vercel env: production+preview=sensitive, development=encrypted; all keys on all three targets | Vercel API forbids sensitive on Development; reconcile-vercel-env.mjs enforces the allowed shape |
 | 2026-07-17 | Terminal SSE errors must propagate to the UI; incomplete or empty streams persist visible failure text | The SSE parser caught consumer errors, turning provider failures into blank completed assistant messages |
 | 2026-07-17 | While this tab owns SSE generation, mute Supabase chat_messages realtime except id remaps | ChatGPT/Claude pattern: stream is UI source of truth; empty WAL updates were clearing the orb mid-turn |
 | 2026-07-17 | Live streaming assistant always wins over empty cold server/IDB snapshots in dedupe+hydrate | Empty completed rows were preferred by score and killed the orb on new-chat/follow-up |
@@ -146,6 +147,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Realtime remapping assistant id mid-stream must update generation map; appendMessageField must resolve by clientId or tokens write to a deleted id (blank orb)
 - Production uploads require WORKER_URL; Hyperdrive chat-history stays caching-disabled; Vercel region pdx1 near Supabase us-west-1
 - Vercel CLI auth.json token invalid; dashboard login needs 2FA — wire CHAT_COORD_*/WORKER_URL/EDGE_CONFIG with fresh VERCEL_TOKEN or 2FA handoff. CF API token lacks zone edit (9109).
+- Vercel sensitive env vars cannot target Development — use a second encrypted row for development with the same value
 ## Open threads
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
@@ -174,3 +176,4 @@ Full target surface — **remember only; implement only when user asks for a sli
 
 - 2026-07-14: Chat hydrate is full-thread (no scroll-up pagination). Limit 500 via Worker; silent multi-page only for rare mega-threads.
 - 2026-07-14: `clauxen-auth-email` live; Email Sending enabled on clauxen.com; Vercel AUTH_EMAIL_* wired; OTP signup E2E verified (delivered from no-reply@clauxen.com → confirmed Supabase user + password sign-in).
+- 2026-07-17: 2026-07-17: Reconciled 52 Vercel env keys to sensitive(prod+preview)+encrypted(dev). Rotated AUTH_EMAIL_INTERNAL_TOKEN on CF Worker + Vercel. Blank dashboard fill-ins remain for POSTGRES_* and some SUPABASE secrets — fill in Vercel if production needs them.

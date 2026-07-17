@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 /**
- * Reconcile Vercel env: exactly 33 keys, one sensitive row each (production + preview + development).
- * Supabase/Postgres keys are seeded empty for dashboard fill-in; app keys sync from .env.local.
- * Auth: VERCEL_TOKEN
+ * Reconcile Vercel project env vars:
+ * - Production + Preview → type "sensitive" (Vercel does not allow sensitive on Development)
+ * - Development → type "encrypted" with the same value
+ * - Every key available in production, preview, and development
+ *
+ * Auth: VERCEL_TOKEN (or ~/.cursor/vercel-token / Vercel CLI auth.json)
+ * Values: decrypt existing encrypted/plain rows; fill gaps from .env.local
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 
 const ROOT = process.cwd();
 const ENV_FILE = join(ROOT, ".env.local");
@@ -13,8 +18,8 @@ const PROJECT_ID = "prj_fvcWCHb6BfJHggIDiUQDXH9sOBjr";
 const TEAM_ID = "team_uO4zWwgLWJfc9GpMMrr5KOwa";
 const API = "https://api.vercel.com";
 
-/** User fills these in Vercel dashboard — never overwrite with .env.local. */
-const USER_FILL_KEYS = new Set([
+/** Keep in sync with src/lib/vercel-env.ts CANONICAL_VERCEL_ENV_KEYS */
+const CANONICAL_VERCEL_ENV_KEYS = [
   "POSTGRES_DATABASE",
   "POSTGRES_HOST",
   "POSTGRES_PASSWORD",
@@ -30,14 +35,10 @@ const USER_FILL_KEYS = new Set([
   "SUPABASE_SERVICE_ROLE_KEY",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-]);
-
-/** Exactly 33 keys — must match src/lib/vercel-env.ts */
-const CANONICAL_KEYS = [
-  ...USER_FILL_KEYS,
   "AUTH_DEV_BYPASS",
   "AUTH_REQUIRED_FOR_CHAT",
   "STORAGE_REQUIRE_R2",
+  "DATABASE_POOL_MAX",
   "NEXT_PUBLIC_APP_URL",
   "NEXT_PUBLIC_AUTH_REQUIRED_FOR_CHAT",
   "JWT_SECRET",
@@ -52,19 +53,45 @@ const CANONICAL_KEYS = [
   "R2_IMAGES_BUCKET",
   "R2_DOCUMENTS_BUCKET",
   "R2_ARTIFACTS_BUCKET",
+  "WORKER_URL",
+  "NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL",
+  "CHAT_HISTORY_WORKER_URL",
+  "CHAT_HISTORY_INTERNAL_TOKEN",
+  "CHAT_COORD_WORKER_URL",
+  "CHAT_COORD_INTERNAL_TOKEN",
+  "EDGE_CONFIG",
 ];
 
+/** Production-safe overrides (always win when set). */
 const PROD_OVERRIDES = {
   AUTH_DEV_BYPASS: "false",
   AUTH_REQUIRED_FOR_CHAT: "true",
   STORAGE_REQUIRE_R2: "true",
   NEXT_PUBLIC_APP_URL: "https://www.clauxen.com",
+  NEXT_PUBLIC_AUTH_REQUIRED_FOR_CHAT: "true",
 };
 
-const PLACEHOLDER_RE = /YOUR_|change-me-in-production|CHANGEME/i;
+const PLACEHOLDER_RE = /YOUR_|change-me-in-production|CHANGEME|__FILL_IN_VERCEL_DASHBOARD__/i;
 const CIPHER_RE = /^eyJ2Ijoi/;
 
-const ALL_TARGETS = ["production", "preview", "development"];
+function loadToken() {
+  if (process.env.VERCEL_TOKEN?.trim()) return process.env.VERCEL_TOKEN.trim();
+  const paths = [
+    join(homedir(), ".cursor", "vercel-token"),
+    join(homedir(), "Library/Application Support/com.vercel.cli/auth.json"),
+  ];
+  for (const p of paths) {
+    if (!existsSync(p)) continue;
+    const raw = readFileSync(p, "utf8");
+    if (p.endsWith(".json")) {
+      const j = JSON.parse(raw);
+      if (j.token) return j.token;
+    } else {
+      return raw.trim();
+    }
+  }
+  return null;
+}
 
 function parseEnvLocal() {
   const map = {};
@@ -101,7 +128,7 @@ async function api(path, { method = "GET", body } = {}, token) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${text.slice(0, 400)}`);
+  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${text.slice(0, 500)}`);
   return text ? JSON.parse(text) : null;
 }
 
@@ -119,91 +146,164 @@ async function decryptValue(token, envId) {
   return data.value ?? "";
 }
 
-async function deleteAll(token, envs) {
-  for (const e of envs) {
-    await api(
-      `/v9/projects/${PROJECT_ID}/env/${e.id}?teamId=${TEAM_ID}`,
-      { method: "DELETE" },
-      token,
-    );
-  }
+async function deleteRow(token, id) {
+  await api(`/v9/projects/${PROJECT_ID}/env/${id}?teamId=${TEAM_ID}`, { method: "DELETE" }, token);
 }
 
-async function createKey(token, key, value) {
-  const body = {
-    key,
-    value: value || "",
-    target: ALL_TARGETS,
-  };
+async function createSensitive(token, key, value) {
+  await api(
+    `/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`,
+    {
+      method: "POST",
+      body: {
+        key,
+        value,
+        type: "sensitive",
+        target: ["production", "preview"],
+      },
+    },
+    token,
+  );
+}
 
-  // ponytail: one row per key — development shares production/preview values (no duplicate dev rows)
-  try {
-    await api(
-      `/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`,
-      { method: "POST", body: { ...body, type: "sensitive" } },
-      token,
-    );
-  } catch {
-    await api(
-      `/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`,
-      { method: "POST", body: { ...body, type: "encrypted" } },
-      token,
-    );
+async function createEncryptedDev(token, key, value) {
+  await api(
+    `/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`,
+    {
+      method: "POST",
+      body: {
+        key,
+        value,
+        type: "encrypted",
+        target: ["development"],
+      },
+    },
+    token,
+  );
+}
+
+async function recreateKey(token, key, value) {
+  const rows = (await listEnv(token)).filter((e) => e.key === key);
+  for (const row of rows) {
+    await deleteRow(token, row.id);
   }
+  await createSensitive(token, key, value);
+  await createEncryptedDev(token, key, value);
 }
 
 async function main() {
-  const token = process.env.VERCEL_TOKEN?.trim();
+  const token = loadToken();
   if (!token) {
     console.error("Set VERCEL_TOKEN");
     process.exit(1);
   }
 
-  if (CANONICAL_KEYS.length !== 33) {
-    throw new Error(`Expected 33 keys, got ${CANONICAL_KEYS.length}`);
-  }
-
   const local = parseEnvLocal();
+  if (isUsable(local.Provider_Model_Clauxen_V1) && !isUsable(local.SHIROVA_DEFAULT_MODEL)) {
+    local.SHIROVA_DEFAULT_MODEL = local.Provider_Model_Clauxen_V1;
+  }
+
   const rows = await listEnv(token);
-  const vercel = {};
-
+  const byKey = new Map();
   for (const row of rows) {
-    try {
-      const value = await decryptValue(token, row.id);
-      if (isUsable(value)) vercel[row.key] = value;
-    } catch {
-      /* skip */
+    if (!byKey.has(row.key)) byKey.set(row.key, []);
+    byKey.get(row.key).push(row);
+  }
+
+  const vercelValues = {};
+  const sensitiveOnly = new Set();
+
+  for (const [key, keyRows] of byKey) {
+    let best = "";
+    let anySensitive = false;
+    let anyReadable = false;
+    for (const row of keyRows) {
+      if (row.type === "sensitive") anySensitive = true;
+      try {
+        const value = await decryptValue(token, row.id);
+        if (isUsable(value)) {
+          vercelValues[key] = value;
+          best = value;
+          anyReadable = true;
+        }
+      } catch {
+        /* sensitive / forbidden */
+      }
+    }
+    if (anySensitive && !anyReadable && !isUsable(best)) {
+      sensitiveOnly.add(key);
     }
   }
 
-  const values = {};
-  for (const key of CANONICAL_KEYS) {
-    if (USER_FILL_KEYS.has(key)) {
-      // Keep existing dashboard value if set; otherwise blank for user fill-in
-      values[key] = isUsable(vercel[key]) ? vercel[key] : "";
-    } else if (isUsable(local[key])) {
-      values[key] = local[key];
-    } else if (isUsable(vercel[key])) {
-      values[key] = vercel[key];
-    } else {
-      values[key] = "";
-    }
-    if (PROD_OVERRIDES[key] !== undefined) {
-      values[key] = PROD_OVERRIDES[key];
-    }
-  }
+  const keys = new Set([
+    ...CANONICAL_VERCEL_ENV_KEYS,
+    ...byKey.keys(),
+    ...Object.keys(local).filter((k) => !k.startsWith("VERCEL_") && k !== "CI" && k !== "NODE_ENV"),
+  ]);
 
-  console.log(`Replacing ${rows.length} rows → ${CANONICAL_KEYS.length} canonical keys…`);
-  await deleteAll(token, rows);
+  // Do not push local-only tooling / Cloudflare deploy tokens into Vercel unless already present
+  const SKIP_SYNC = new Set([
+    "CLOUDFLARE_API_TOKEN",
+    "CLOUDFLARE_ACCOUNT_ID",
+    "VERCEL_TOKEN",
+    "Vercel_Token",
+  ]);
 
   let ok = 0;
+  let skip = 0;
   let fail = 0;
-  for (const key of CANONICAL_KEYS) {
+
+  console.log(`Reconciling ${keys.size} keys (sensitive on production+preview, encrypted on development)…`);
+
+  for (const key of [...keys].sort()) {
+    if (SKIP_SYNC.has(key) && !byKey.has(key)) continue;
+
+    let value = "";
+    if (PROD_OVERRIDES[key] !== undefined) {
+      value = PROD_OVERRIDES[key];
+    } else if (isUsable(vercelValues[key])) {
+      value = vercelValues[key];
+    } else if (isUsable(local[key])) {
+      value = local[key];
+    }
+
+    if (sensitiveOnly.has(key) && !isUsable(value)) {
+      // Cannot re-read sensitive values — keep production/preview; add development only if local exists (already false)
+      const existing = byKey.get(key) || [];
+      const targets = new Set(existing.flatMap((e) => e.target || []));
+      if (targets.has("production") && targets.has("preview") && !targets.has("development")) {
+        console.log(`  ↷ ${key}: sensitive prod+preview kept (no readable value for development)`);
+        skip++;
+        continue;
+      }
+      console.log(`  ↷ ${key}: sensitive rows kept (value not readable)`);
+      skip++;
+      continue;
+    }
+
+    // Blank values still get the sensitive (prod+preview) + encrypted (dev) shape
+    // so dashboard fill-in keys exist in every environment.
+    if (!isUsable(value)) {
+      if (byKey.has(key) || CANONICAL_VERCEL_ENV_KEYS.includes(key)) {
+        try {
+          await recreateKey(token, key, "");
+          ok++;
+          console.log(`  ✓ ${key} blank (sensitive prod+preview, encrypted development)`);
+        } catch (err) {
+          fail++;
+          console.error(`  ✗ ${key}: ${err.message}`);
+        }
+      } else {
+        console.log(`  ↷ ${key}: no usable value`);
+        skip++;
+      }
+      continue;
+    }
+
     try {
-      await createKey(token, key, values[key] ?? "");
+      await recreateKey(token, key, value);
       ok++;
-      const label = values[key] ? "has value" : "blank (fill in dashboard)";
-      console.log(`  ✓ ${key} ${label}`);
+      console.log(`  ✓ ${key}`);
     } catch (err) {
       fail++;
       console.error(`  ✗ ${key}: ${err.message}`);
@@ -211,21 +311,37 @@ async function main() {
   }
 
   const after = await listEnv(token);
-  const byKey = {};
+  const summary = new Map();
   for (const e of after) {
-    byKey[e.key] ??= [];
-    byKey[e.key].push(`${(e.target || []).join(",")}:${e.type}`);
+    if (!summary.has(e.key)) summary.set(e.key, []);
+    summary.get(e.key).push(`${(e.target || []).join("+")}:${e.type}`);
+  }
+
+  let bad = 0;
+  for (const [key, parts] of [...summary.entries()].sort()) {
+    const targets = new Set(
+      after.filter((e) => e.key === key).flatMap((e) => e.target || []),
+    );
+    const types = after.filter((e) => e.key === key).map((e) => e.type);
+    const hasPP = targets.has("production") && targets.has("preview");
+    const hasDev = targets.has("development");
+    const ppSensitive = after
+      .filter((e) => e.key === key && (e.target || []).some((t) => t === "production" || t === "preview"))
+      .every((e) => e.type === "sensitive");
+    const okShape = hasPP && hasDev && ppSensitive;
+    if (!okShape) {
+      bad++;
+      console.log(`  ⚠ ${key} → ${parts.join(" | ")}`);
+    }
   }
 
   console.log(
-    `\nDone: ${ok} ok, ${fail} failed → ${after.length} rows, ${Object.keys(byKey).length} keys`,
+    `\nDone: ${ok} recreated, ${skip} kept/skipped, ${fail} failed → ${after.length} rows / ${summary.size} keys (${bad} still incomplete)`,
   );
-  if (after.length !== 33) {
-    console.log(`⚠ Expected exactly 33 rows, got ${after.length}`);
-  }
+  if (fail > 0) process.exit(1);
 }
 
 main().catch((err) => {
-  console.error(err.message);
+  console.error(err.message || err);
   process.exit(1);
 });

@@ -36,7 +36,6 @@ team = os.environ["TEAM_ID"]
 project = os.environ["PROJECT_ID"]
 auth_url = os.environ["AUTH_EMAIL_URL"]
 internal = os.environ["AUTH_EMAIL_INTERNAL_TOKEN"]
-targets = ["production", "preview", "development"]
 base = "https://api.vercel.com"
 headers = {
     "Authorization": f"Bearer {token}",
@@ -58,6 +57,7 @@ def req(method: str, path: str, body: dict | None = None):
         raise SystemExit(f"{method} {path} -> {e.code}: {detail}") from e
 
 
+# Vercel: sensitive is production+preview only; development must be encrypted.
 listed = req("GET", f"/v9/projects/{project}/env?teamId={team}&decrypt=false")
 wanted = {"AUTH_EMAIL_WORKER_URL", "AUTH_EMAIL_INTERNAL_TOKEN"}
 for row in listed.get("envs", []):
@@ -73,15 +73,25 @@ for key, value in (
 ):
     req(
         "POST",
-        f"/v10/projects/{project}/env?teamId={team}&upsert=true",
+        f"/v10/projects/{project}/env?teamId={team}",
+        {
+            "key": key,
+            "value": value,
+            "type": "sensitive",
+            "target": ["production", "preview"],
+        },
+    )
+    req(
+        "POST",
+        f"/v10/projects/{project}/env?teamId={team}",
         {
             "key": key,
             "value": value,
             "type": "encrypted",
-            "target": targets,
+            "target": ["development"],
         },
     )
-    print(f"Set {key} for {targets}")
+    print(f"Set {key} → sensitive(production,preview) + encrypted(development)")
 
 print(f"Vercel env wired for project {project}. Redeploy so Next.js picks up AUTH_EMAIL_*.")
 PY
