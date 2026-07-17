@@ -410,9 +410,78 @@ export function useChatApi(
   }, [projectIdFilter, refreshChats]);
 
   // Live message inserts/updates for the open chat (other devices / tabs).
+  // ChatGPT/Claude pattern: while THIS tab owns an SSE generation, the stream
+  // is the sole source of truth for the assistant turn. Supabase Realtime must
+  // not mutate content / streaming flags mid-turn (empty DB rows kill the orb).
   useEffect(() => {
     if (!activeChatId) return;
     const supabase = createClient();
+
+    const isStreamOwner = () =>
+      Boolean(getGeneration(activeChatId)) ||
+      Boolean(useChatStore.getState().generatingChatIds[activeChatId]);
+
+    /** Remap optimistic ids only — never touch content while streaming. */
+    const remapIdsOnly = (
+      existing: Message[],
+      mapped: Message,
+    ): Message[] | null => {
+      const gen = getGeneration(activeChatId);
+      if (mapped.role === "assistant" && gen?.assistantMessageId) {
+        const localIndex = existing.findIndex(
+          (message) =>
+            message.id === gen.assistantMessageId ||
+            message.clientId === gen.assistantMessageId ||
+            (mapped.clientId &&
+              (message.clientId === mapped.clientId ||
+                message.id === mapped.clientId)),
+        );
+        if (localIndex >= 0) {
+          const local = existing[localIndex]!;
+          if (local.id === mapped.id) return null;
+          const next = [...existing];
+          next[localIndex] = {
+            ...local,
+            id: mapped.id,
+            clientId: local.clientId ?? mapped.clientId ?? local.id,
+          };
+          setGeneration(activeChatId, {
+            request: gen.request,
+            assistantMessageId: mapped.id,
+          });
+          useChatStore
+            .getState()
+            .setStreaming({ chatId: activeChatId, messageId: mapped.id });
+          return next;
+        }
+        return null;
+      }
+      if (mapped.role === "user") {
+        const tempIndex = existing.findIndex(
+          (message) =>
+            message.role === "user" &&
+            (message.id.startsWith("temp-") ||
+              Boolean(message.clientId?.startsWith("temp-"))) &&
+            (message.clientId === mapped.clientId ||
+              mapped.clientId === message.id ||
+              message.content === mapped.content),
+        );
+        if (tempIndex >= 0) {
+          const next = [...existing];
+          const local = next[tempIndex]!;
+          if (local.id === mapped.id) return null;
+          next[tempIndex] = {
+            ...local,
+            id: mapped.id,
+            clientId: local.clientId ?? mapped.clientId ?? local.id,
+            attachments: local.attachments ?? mapped.attachments,
+          };
+          return next;
+        }
+      }
+      return null;
+    };
+
     const channel = supabase
       .channel(`chat-messages:${activeChatId}`)
       .on(
@@ -441,64 +510,12 @@ export function useChatApi(
               return prev;
             }
 
-            // While this tab is streaming, reconcile the DB assistant row with
-            // the optimistic local assistant instead of appending a duplicate.
-            const gen = getGeneration(activeChatId);
-            if (mapped.role === "assistant" && gen?.assistantMessageId) {
-              const localIndex = existing.findIndex(
-                (message) =>
-                  message.id === gen.assistantMessageId ||
-                  message.clientId === gen.assistantMessageId ||
-                  (mapped.clientId &&
-                    (message.clientId === mapped.clientId ||
-                      message.id === mapped.clientId)),
-              );
-              if (localIndex >= 0) {
-                const local = existing[localIndex]!;
-                const next = [...existing];
-                next[localIndex] = {
-                  ...local,
-                  id: mapped.id,
-                  clientId:
-                    local.clientId ?? mapped.clientId ?? local.id,
-                  isStreaming: local.isStreaming || mapped.isStreaming,
-                };
-                setGeneration(activeChatId, {
-                  request: gen.request,
-                  assistantMessageId: mapped.id,
-                });
-                return { ...prev, [activeChatId]: next };
-              }
-              // Local stream already owns this turn — ignore sparse DB insert.
+            if (isStreamOwner()) {
+              const remapped = remapIdsOnly(existing, mapped);
+              if (remapped) return { ...prev, [activeChatId]: remapped };
               return prev;
             }
 
-            // Same for optimistic user rows (temp id → server id).
-            if (mapped.role === "user") {
-              const tempIndex = existing.findIndex(
-                (message) =>
-                  message.role === "user" &&
-                  (message.id.startsWith("temp-") ||
-                    Boolean(message.clientId?.startsWith("temp-"))) &&
-                  (message.clientId === mapped.clientId ||
-                    mapped.clientId === message.id ||
-                    message.content === mapped.content),
-              );
-              if (tempIndex >= 0) {
-                const next = [...existing];
-                const local = next[tempIndex]!;
-                next[tempIndex] = {
-                  ...local,
-                  id: mapped.id,
-                  clientId: local.clientId ?? mapped.clientId ?? local.id,
-                  attachments: local.attachments ?? mapped.attachments,
-                };
-                return { ...prev, [activeChatId]: next };
-              }
-            }
-
-            // Never paint a blank streaming assistant ahead of the local
-            // optimistic placeholder — that shows the orb then goes empty.
             if (
               mapped.role === "assistant" &&
               mapped.isStreaming &&
@@ -526,6 +543,18 @@ export function useChatApi(
           const row = payload.new as chatsApi.ApiMessage | undefined;
           if (!row?.id) return;
           const mapped = mapApiMessage(row);
+
+          // SSE owns the turn — ignore content/status from WAL entirely.
+          if (isStreamOwner()) {
+            setAllChats((prev) => {
+              const existing = prev[activeChatId] ?? [];
+              const remapped = remapIdsOnly(existing, mapped);
+              if (remapped) return { ...prev, [activeChatId]: remapped };
+              return prev;
+            });
+            return;
+          }
+
           const rowStatus = row.status;
           setAllChats((prev) => {
             const existing = prev[activeChatId] ?? [];
@@ -539,8 +568,8 @@ export function useChatApi(
             if (index < 0) {
               if (
                 mapped.role === "assistant" &&
-                (getGeneration(activeChatId) ||
-                  (mapped.isStreaming && !(mapped.content ?? "").trim()))
+                mapped.isStreaming &&
+                !(mapped.content ?? "").trim()
               ) {
                 return prev;
               }
@@ -551,36 +580,7 @@ export function useChatApi(
             }
             const next = [...existing];
             const prevMessage = next[index]!;
-            const localStreaming =
-              prevMessage.isStreaming === true ||
-              prevMessage.isThinkingStreaming === true ||
-              Boolean(getGeneration(activeChatId));
-            // Don't clobber an in-progress local stream with a sparse/empty DB row.
-            if (
-              localStreaming &&
-              (rowStatus === "streaming" ||
-                !(mapped.content ?? "").trim() ||
-                (mapped.content?.length ?? 0) <
-                  (prevMessage.content?.length ?? 0))
-            ) {
-              if (prevMessage.id !== mapped.id) {
-                next[index] = {
-                  ...prevMessage,
-                  id: mapped.id,
-                  clientId:
-                    prevMessage.clientId ?? mapped.clientId ?? prevMessage.id,
-                };
-                const gen = getGeneration(activeChatId);
-                if (gen) {
-                  setGeneration(activeChatId, {
-                    request: gen.request,
-                    assistantMessageId: mapped.id,
-                  });
-                }
-                return { ...prev, [activeChatId]: next };
-              }
-              return prev;
-            }
+            // Prefer richer local content if realtime is stale.
             const localHasAgentFrames =
               (prevMessage.agentFrames?.some(
                 (frame) => frame.segments.length > 0,
