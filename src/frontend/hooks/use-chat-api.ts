@@ -66,6 +66,14 @@ import {
   overlayBranchMessagesOnPage,
 } from "@/frontend/lib/hydrate-chat-messages";
 import { takePendingChatRouteSeed } from "@/frontend/lib/chat-route-seed";
+import {
+  forgetDeviceChat,
+  persistDeviceChatNow,
+  readDeviceChatList,
+  readDeviceChatMessages,
+  scheduleDeviceChatPersist,
+} from "@/frontend/lib/device-chat-cache";
+import { useAuth } from "@/frontend/contexts/auth-context";
 import { useShallow } from "zustand/react/shallow";
 
 function mapApiMessage(row: chatsApi.ApiMessage): Message {
@@ -144,10 +152,13 @@ export function useChatApi(
   homerReasoningEffort: HomerReasoningEffort = DEFAULT_HOMER_REASONING_EFFORT,
 ) {
   const { streamFromResponse } = useAiStream();
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const setAllChats = setAllChatsNormalized;
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const activeChatId = useActiveChatId();
   const isGenerating = useChatStore((state) => state.isGenerating);
+  const deviceCacheBootedRef = useRef(false);
   const setIsGenerating = useCallback((value: boolean) => {
     useChatStore.getState().setIsGenerating(value);
   }, []);
@@ -310,12 +321,53 @@ export function useChatApi(
     ) {
       setActiveChatId(null);
     }
-    // Defer sidebar list so the composer paints first.
+    // Paint sidebar from device cache first, then reconcile with Worker/API.
     const t = window.setTimeout(() => {
-      void refreshChats();
+      void (async () => {
+        if (userId && !deviceCacheBootedRef.current) {
+          deviceCacheBootedRef.current = true;
+          try {
+            const cached = await readDeviceChatList(userId);
+            if (cached?.length) {
+              setRecentChats((prev) => {
+                if (prev.length > 0) return prev;
+                recentChatsRef.current = cached;
+                return cached;
+              });
+              chatsLoadedOnceRef.current = true;
+              setLoading(false);
+            }
+          } catch (error) {
+            console.warn("[device-chat-cache] list boot failed:", error);
+          }
+        }
+        void refreshChats();
+      })();
     }, 0);
     return () => window.clearTimeout(t);
-  }, [refreshChats]);
+  }, [refreshChats, userId]);
+
+  // Debounced IndexedDB mirror — cuts refetch load across visits/tabs.
+  useEffect(() => {
+    if (!userId || typeof window === "undefined") return;
+    let cancelPersist: (() => void) | null = null;
+    const schedule = () => {
+      cancelPersist?.();
+      cancelPersist = scheduleDeviceChatPersist({
+        userId,
+        allChats: getAllChatsNormalized(),
+        recentChats: recentChatsRef.current,
+        activeChatId,
+        delayMs: isGenerating ? 900 : 250,
+      });
+    };
+    schedule();
+    const unsub = useChatStore.subscribe(schedule);
+    return () => {
+      unsub();
+      cancelPersist?.();
+    };
+  }, [userId, activeChatId, isGenerating, recentChats]);
 
   // Live sidebar updates when chats change in Supabase (other tabs / title gen).
   useEffect(() => {
@@ -666,8 +718,11 @@ export function useChatApi(
   );
 
   const loadChatMessages = useCallback(
-    async (chatId: string) => {
-      setLoadingChatId(chatId);
+    async (chatId: string, opts?: { silent?: boolean }) => {
+      const silent = opts?.silent === true;
+      if (!silent) {
+        setLoadingChatId(chatId);
+      }
       setMessageLoadErrors((current) => {
         if (!current[chatId]) return current;
         const next = { ...current };
@@ -681,18 +736,36 @@ export function useChatApi(
         ]);
         const row = branch?.state as { messages?: unknown } | null;
         applyHydratedMessages(chatId, bundle.messages, row?.messages ?? null);
+        if (userId) {
+          const messages = getAllChatsNormalized()[chatId] ?? [];
+          void persistDeviceChatNow(
+            userId,
+            chatId,
+            messages,
+            recentChatsRef.current,
+            useChatStore.getState().activeChatId,
+          );
+        }
       } catch (error) {
         const message =
           error instanceof Error
             ? error.message
             : "Could not load this conversation.";
         console.warn("[chat] hydrate failed:", error);
-        setMessageLoadErrors((current) => ({ ...current, [chatId]: message }));
+        // Keep painted device/SSR content; only surface error when we had nothing.
+        if (!silent) {
+          setMessageLoadErrors((current) => ({
+            ...current,
+            [chatId]: message,
+          }));
+        }
       } finally {
-        setLoadingChatId((current) => (current === chatId ? null : current));
+        if (!silent) {
+          setLoadingChatId((current) => (current === chatId ? null : current));
+        }
       }
     },
-    [applyHydratedMessages],
+    [applyHydratedMessages, userId],
   );
 
   const retryLoadMessages = useCallback(() => {
@@ -786,12 +859,30 @@ export function useChatApi(
           ssrSeed.branchMessages,
         );
         setLoadingChatId((current) => (current === chatId ? null : current));
+        // Background reconcile keeps device cache + server in sync.
+        void loadChatMessages(chatId, { silent: true });
         return;
+      }
+
+      // Device cache: paint immediately, then reconcile with Worker/API.
+      try {
+        const cached = await readDeviceChatMessages(chatId);
+        if (
+          cached.length > 0 &&
+          useChatStore.getState().activeChatId === chatId
+        ) {
+          setAllChats((prev) => ({ ...prev, [chatId]: cached }));
+          setLoadingChatId((current) => (current === chatId ? null : current));
+          void loadChatMessages(chatId, { silent: true });
+          return;
+        }
+      } catch (error) {
+        console.warn("[device-chat-cache] message read failed:", error);
       }
 
       await loadChatMessages(chatId);
     },
-    [applyHydratedMessages, loadChatMessages],
+    [applyHydratedMessages, loadChatMessages, setAllChats],
   );
 
   const startNewChat = useCallback(() => {
@@ -1658,6 +1749,7 @@ export function useChatApi(
         return next;
       });
       hydratedChatIdsRef.current.delete(chatId);
+      void forgetDeviceChat(chatId);
       const remaining = recentChats.filter((c) => c.id !== chatId);
       setRecentChats(remaining);
       recentChatsRef.current = remaining;

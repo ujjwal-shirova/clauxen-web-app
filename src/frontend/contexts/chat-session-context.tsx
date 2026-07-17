@@ -27,7 +27,8 @@ const ChatSessionContext = createContext<ChatSessionValue | null>(null);
 
 /**
  * One chat session for the whole main shell (sidebar + chat view).
- * API-only so the local/IndexedDB path in `use-chat.ts` stays out of the main bundle.
+ * API path with device IndexedDB cache (see `device-chat-cache.ts`).
+ * Offline-only `useLocalChat` stays out of this provider.
  */
 export function ChatSessionProvider({
   children,

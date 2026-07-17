@@ -1,16 +1,23 @@
 "use client";
 
-import { get, set, del, keys, createStore } from "idb-keyval";
+import { get, set, del, keys, clear, createStore } from "idb-keyval";
 import type { Message, RecentChat } from "@/frontend/lib/types";
 import { compactMessageBranchData } from "@/frontend/lib/chat-branch";
 
-/** Single object store — v2 after fixing multi-store NotFoundError on v1. */
+/**
+ * Single object store — v2 after fixing multi-store NotFoundError on v1.
+ * Used by both local/offline (`useLocalChat`) and signed-in device cache
+ * (`device-chat-cache` → `useChatApi`).
+ */
 const CHAT_DB = createStore("clauxen-chat-v2", "kv");
 
 export const CHAT_STORAGE_KEY = "clauxen-chat-state-v1";
 export const BRANCH_DATASET_KEY = "clauxen-branch-dataset-v1";
 
 export type PersistedChatMeta = {
+  /** Owner of this device cache — ignore/clear when auth user changes. */
+  userId?: string;
+  savedAt?: number;
   recentChats: RecentChat[];
   activeChatId: string | null;
   branchDataset: Record<
@@ -100,6 +107,21 @@ export async function deleteChatFromIndexedDB(chatId: string): Promise<void> {
     await del(sliceKey(chatId, i), CHAT_DB);
   }
   await del(`chat:${chatId}:slice-count`, CHAT_DB);
+}
+
+/** Chat ids that have at least one persisted message slice. */
+export async function listIndexedDBChatIds(): Promise<string[]> {
+  const allKeys = await keys(CHAT_DB);
+  const ids = new Set<string>();
+  for (const key of allKeys) {
+    const match = String(key).match(/^chat:([^:]+):slice-count$/);
+    if (match?.[1]) ids.add(match[1]);
+  }
+  return [...ids];
+}
+
+export async function clearAllChatIndexedDB(): Promise<void> {
+  await clear(CHAT_DB);
 }
 
 export async function persistChatMeta(

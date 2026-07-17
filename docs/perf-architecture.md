@@ -8,7 +8,7 @@ Source of truth for where each platform owns performance work. Do not duplicate 
 |--------|--------|-------------------|
 | App HTML / React / soft-nav | Vercel | CF HTML caching (bypass shells) |
 | Static `/_next/static`, `/assets` | Vercel CDN + CF Tiered Cache Rules | Worker Cache API |
-| Chat hydrate / list | CF `clauxen-chat-history` | Vercel Runtime Cache, Supabase Edge Functions |
+| Chat hydrate / list | CF `clauxen-chat-history` + **browser IndexedDB device cache** | Vercel Runtime Cache, Supabase Edge Functions |
 | Chat write / stream / finalize | Vercel Streaming Function + `after()` | CF Workers as inference origin |
 | Generation lease / stop | CF Durable Object (`clauxen-chat-coord`) | Isolate-local registry alone |
 | Attachments / artifacts | CF R2 + `clauxen-r2-gateway` | Vercel Blob, Supabase Storage binaries |
@@ -25,9 +25,11 @@ Source of truth for where each platform owns performance work. Do not duplicate 
 ## Hot paths
 
 1. **New chat send:** optimistic UI → createChat → DO lease → `beginChatTurn` → SSE → async invalidate/warm → `after()` enqueue title/embed.
-2. **Open `/c/[id]`:** Worker hydrate + SSR seed ≤120ms; never zone-cached HTML.
-3. **Sidebar:** Worker list cache + Realtime chats + DO generating hint.
+2. **Open `/c/[id]`:** device IndexedDB (if warm) → SSR seed ≤120ms → silent Worker reconcile; never zone-cached HTML.
+3. **Sidebar:** device meta → Worker list cache + Realtime chats + DO generating hint.
 4. **Files:** browser → r2-gateway → R2; Postgres metadata only.
+
+Device cache (`src/frontend/lib/device-chat-cache.ts`): per-user IndexedDB mirror of recent list + up to 40 chat bodies. No polling — Realtime + silent SWR refresh. Server remains source of truth.
 
 ## Env checklist
 
