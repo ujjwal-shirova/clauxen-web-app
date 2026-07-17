@@ -267,34 +267,32 @@ async function main() {
       value = local[key];
     }
 
-    if (sensitiveOnly.has(key) && !isUsable(value)) {
-      // Cannot re-read sensitive values — keep production/preview; add development only if local exists (already false)
-      const existing = byKey.get(key) || [];
-      const targets = new Set(existing.flatMap((e) => e.target || []));
-      if (targets.has("production") && targets.has("preview") && !targets.has("development")) {
-        console.log(`  ↷ ${key}: sensitive prod+preview kept (no readable value for development)`);
+    // CRITICAL: never overwrite an unreadable sensitive production key with a
+    // local guess — that is how a working Provider_API_Key was destroyed.
+    if (sensitiveOnly.has(key)) {
+      const force = process.env.FORCE_OVERWRITE_SENSITIVE === "1";
+      if (!force) {
+        console.log(
+          `  ↷ ${key}: keeping existing sensitive row(s) (unreadable; set FORCE_OVERWRITE_SENSITIVE=1 only when intentionally rotating)`,
+        );
         skip++;
         continue;
       }
-      console.log(`  ↷ ${key}: sensitive rows kept (value not readable)`);
-      skip++;
-      continue;
     }
 
-    // Blank values still get the sensitive (prod+preview) + encrypted (dev) shape
-    // so dashboard fill-in keys exist in every environment.
+    // Blank seeds only for brand-new canonical keys that never existed.
     if (!isUsable(value)) {
-      if (byKey.has(key) || CANONICAL_VERCEL_ENV_KEYS.includes(key)) {
+      if (!byKey.has(key) && CANONICAL_VERCEL_ENV_KEYS.includes(key)) {
         try {
           await recreateKey(token, key, "");
           ok++;
-          console.log(`  ✓ ${key} blank (sensitive prod+preview, encrypted development)`);
+          console.log(`  ✓ ${key} blank seed (fill in dashboard)`);
         } catch (err) {
           fail++;
           console.error(`  ✗ ${key}: ${err.message}`);
         }
       } else {
-        console.log(`  ↷ ${key}: no usable value`);
+        console.log(`  ↷ ${key}: no usable value (left unchanged)`);
         skip++;
       }
       continue;

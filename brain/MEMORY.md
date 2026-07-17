@@ -148,6 +148,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Production uploads require WORKER_URL; Hyperdrive chat-history stays caching-disabled; Vercel region pdx1 near Supabase us-west-1
 - Vercel CLI auth.json token invalid; dashboard login needs 2FA — wire CHAT_COORD_*/WORKER_URL/EDGE_CONFIG with fresh VERCEL_TOKEN or 2FA handoff. CF API token lacks zone edit (9109).
 - Vercel sensitive env vars cannot target Development — use a second encrypted row for development with the same value
+- Never overwrite unreadable Vercel sensitive env with .env.local — FORCE_OVERWRITE_SENSITIVE=1 only for intentional rotation
 ## Open threads
 
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
@@ -177,3 +178,4 @@ Full target surface — **remember only; implement only when user asks for a sli
 - 2026-07-14: Chat hydrate is full-thread (no scroll-up pagination). Limit 500 via Worker; silent multi-page only for rare mega-threads.
 - 2026-07-14: `clauxen-auth-email` live; Email Sending enabled on clauxen.com; Vercel AUTH_EMAIL_* wired; OTP signup E2E verified (delivered from no-reply@clauxen.com → confirmed Supabase user + password sign-in).
 - 2026-07-17: 2026-07-17: Reconciled 52 Vercel env keys to sensitive(prod+preview)+encrypted(dev). Rotated AUTH_EMAIL_INTERNAL_TOKEN on CF Worker + Vercel. Blank dashboard fill-ins remain for POSTGRES_* and some SUPABASE secrets — fill in Vercel if production needs them.
+- 2026-07-17: 2026-07-17: Env reconcile overwrote working Provider_API_Key with invalid local key → 401. Restored Supabase/Postgres from .env.vercel; created new Novita key and redeployed.
