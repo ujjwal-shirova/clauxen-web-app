@@ -127,10 +127,14 @@ function ProductWindow({
   src,
   alt,
   visible,
+  chrome = true,
+  className = "",
 }: {
   src: string;
   alt: string;
   visible: boolean;
+  chrome?: boolean;
+  className?: string;
 }) {
   return (
     <div
@@ -138,22 +142,24 @@ function ProductWindow({
         visible
           ? "translate-y-0 scale-100 opacity-100"
           : "translate-y-10 scale-[0.97] opacity-0"
-      }`}
+      } ${className}`}
     >
-      <div className="flex h-10 items-center gap-2 border-b border-zinc-100 bg-zinc-50/90 px-4">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-        <span className="ml-3 flex-1 truncate rounded-md bg-white px-3 py-1 text-center text-[11px] text-zinc-400 ring-1 ring-zinc-200/80">
-          clauxen.com
-        </span>
-      </div>
+      {chrome ? (
+        <div className="flex h-10 items-center gap-2 border-b border-zinc-100 bg-zinc-50/90 px-4">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+          <span className="ml-3 flex-1 truncate rounded-md bg-white px-3 py-1 text-center text-[11px] text-zinc-400 ring-1 ring-zinc-200/80">
+            clauxen.com
+          </span>
+        </div>
+      ) : null}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt={alt}
         className="block h-auto w-full"
-        loading="lazy"
+        loading={chrome ? "lazy" : "eager"}
       />
     </div>
   );
@@ -180,14 +186,14 @@ export function OverviewExperience() {
 
   return (
     <div className="bg-[#f7f7f7] text-zinc-900">
-      {/* Hero — pops out as a doc-like panel */}
-      <section className="relative px-4 pb-6 pt-10 sm:px-6 sm:pt-14 lg:px-8">
-        <div className="mx-auto max-w-5xl overflow-hidden rounded-[28px] bg-white px-6 py-14 shadow-[0_20px_60px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] sm:px-12 sm:py-20">
+      {/* Hero — large dock on matching page grey */}
+      <section className="relative bg-[#f7f7f7] px-3 pb-2 pt-8 sm:px-4 sm:pt-10 lg:px-5">
+        <div className="mx-auto max-w-[1320px] bg-[#f7f7f7] px-1 pb-4 pt-10 sm:px-2 sm:pb-6 sm:pt-14 lg:pt-16">
           <p className="mb-5 text-center text-sm font-medium tracking-wide text-zinc-500">
             Clauxen by {SITE.company}
           </p>
           <h1
-            className="mx-auto max-w-[18ch] text-center text-[clamp(2.4rem,7vw,4.75rem)] font-bold leading-[1.05] tracking-[-0.045em] text-balance"
+            className="mx-auto max-w-[20ch] text-center text-[clamp(2.4rem,6.5vw,4.5rem)] font-bold leading-[1.05] tracking-[-0.045em] text-balance"
             aria-label="One workspace to chat, work, and code."
           >
             <span>One workspace to </span>
@@ -232,6 +238,17 @@ export function OverviewExperience() {
               Download the app
               <i className="bi bi-box-arrow-up-right text-[12px]" aria-hidden />
             </Link>
+          </div>
+
+          {/* Large app window under CTAs */}
+          <div className="mx-auto mt-10 w-full sm:mt-12">
+            <ProductWindow
+              src="/assets/marketing/overview-hero-app-window.png"
+              alt="Clauxen workspace app window"
+              visible
+              chrome={false}
+              className="shadow-[0_24px_64px_rgba(0,0,0,0.16)]"
+            />
           </div>
         </div>
       </section>
