@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "bootstrap-icons/font/bootstrap-icons.css";
 import { MarketingShell } from "@/website/components/marketing-shell";
 
 export const metadata: Metadata = {

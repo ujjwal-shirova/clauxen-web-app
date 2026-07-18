@@ -1,6 +1,5 @@
 import type { MarketingPage } from "@/website/lib/types";
 import { pageMeta } from "@/website/lib/types";
-import { overviewPage } from "@/website/content/overview";
 import { plansPage } from "@/website/content/plans";
 import { downloadPage } from "@/website/content/download";
 import { workPage } from "@/website/content/work";
@@ -22,7 +21,7 @@ import { hubPages } from "@/website/content/hubs";
  * Route layer: src/app/(marketing)/[...slug]/page.tsx
  */
 export const MARKETING_PAGES: MarketingPage[] = [
-  overviewPage,
+  // /overview → dedicated page at app/(marketing)/overview/page.tsx
   plansPage,
   downloadPage,
   workPage,
