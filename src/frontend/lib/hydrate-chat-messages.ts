@@ -3,9 +3,102 @@ import type { AgentFrame } from "@/frontend/lib/agent-frames";
 import type { AgentSegment, AgentToolSegment } from "@/frontend/lib/agent-segments";
 import { enrichPersistedToolSegment } from "@/frontend/lib/enrich-agent-tool";
 import type {
+  TranscriptAgentModelTurn,
+  TranscriptAgentUi,
   TranscriptContentPart,
   TranscriptMessageRecord,
 } from "@/backend/training/transcript-format";
+import {
+  parseAgentTextMarkup,
+  parseThinkingMarkup,
+} from "@/lib/agent-transcript-markup";
+
+function segmentsFromModelTurns(input: {
+  messageId: string;
+  turns: TranscriptAgentModelTurn[];
+  agentUi?: TranscriptAgentUi;
+  fallbackStamp: number;
+}): AgentSegment[] {
+  const segments: AgentSegment[] = [];
+  let thinkingIndex = 0;
+  let narrationIndex = 0;
+
+  for (const turn of input.turns) {
+    const hasToolUse = turn.assistant.some((part) => part.type === "tool_use");
+    const turnStartedAt =
+      typeof turn.startedAtMs === "number"
+        ? turn.startedAtMs
+        : input.fallbackStamp;
+    const assistantCompletedAt =
+      typeof turn.assistantCompletedAtMs === "number"
+        ? turn.assistantCompletedAtMs
+        : turnStartedAt + 1000;
+
+    for (const part of turn.assistant) {
+      if (part.type === "thinking") {
+        const parsed = parseThinkingMarkup(part.thinking);
+        if (!parsed.body.trim() && !parsed.heading) continue;
+        thinkingIndex += 1;
+        segments.push({
+          kind: "thinking",
+          id: `thinking-${input.messageId}-${thinkingIndex}`,
+          heading: parsed.heading,
+          content: parsed.body.trim(),
+          isStreaming: false,
+          durationSeconds: Math.max(
+            1,
+            Math.round((assistantCompletedAt - turnStartedAt) / 1000),
+          ),
+          startedAtMs: turnStartedAt,
+        });
+        continue;
+      }
+
+      if (part.type === "text") {
+        const parsed = parseAgentTextMarkup(part.text);
+        const narrationParts = [
+          parsed.narration.trim(),
+          hasToolUse ? parsed.visibleText.trim() : "",
+        ].filter(Boolean);
+        if (narrationParts.length > 0) {
+          narrationIndex += 1;
+          segments.push({
+            kind: "narration",
+            id: `narration-${input.messageId}-${narrationIndex}`,
+            content: narrationParts.join("\n\n"),
+            isStreaming: false,
+          });
+        }
+        continue;
+      }
+
+      if (part.type !== "tool_use") continue;
+      const action = input.agentUi?.actions?.find(
+        (candidate) => candidate?.id === part.id,
+      );
+      const result = turn.toolResults?.find(
+        (candidate) => candidate.tool_use_id === part.id,
+      );
+      segments.push(
+        enrichPersistedToolSegment({
+          kind: "tool",
+          id: `tool-${part.id}`,
+          toolCallId: part.id,
+          name: part.name,
+          status:
+            action?.isError || result?.is_error === true ? "error" : "done",
+          args: part.input ?? action?.input ?? {},
+          result: action?.result ?? result?.content,
+          description: action?.description,
+          startedAtMs: action?.startedAtMs,
+          completedAtMs: action?.completedAtMs,
+        }),
+      );
+    }
+  }
+
+  return segments;
+}
 
 function enrichSegments(segments: AgentSegment[]): AgentSegment[] {
   return segments.map((segment) => {
@@ -99,17 +192,42 @@ export function hydrateMessageFromContentJson(
 
   const contentFromParts = texts.join("\n\n").trim();
   const content = contentFromParts || base.content;
-  const hasThinking = Boolean(thinking.trim());
-  const hasTools = tools.length > 0;
-
-  if (!hasThinking && !hasTools && !contentFromParts) return base;
-
   const stamp =
     typeof agentUi?.startedAtMs === "number" && agentUi.startedAtMs > 0
       ? agentUi.startedAtMs
       : typeof base.createdAt === "number" && base.createdAt > 0
         ? base.createdAt
         : Date.now();
+  const modelTurns = Array.isArray(agentUi?.modelTurns)
+    ? agentUi.modelTurns
+    : [];
+  const modelSegments =
+    modelTurns.length > 0
+      ? segmentsFromModelTurns({
+          messageId: base.id,
+          turns: modelTurns,
+          agentUi,
+          fallbackStamp: stamp,
+        })
+      : [];
+  const modelThinking = modelSegments
+    .filter(
+      (segment): segment is Extract<AgentSegment, { kind: "thinking" }> =>
+        segment.kind === "thinking",
+    )
+    .map((segment) => segment.content.trim())
+    .filter(Boolean)
+    .join("\n\n");
+  if (modelThinking) thinking = modelThinking;
+
+  const hasThinking = Boolean(thinking.trim());
+  const hasTools =
+    modelSegments.some((segment) => segment.kind === "tool") ||
+    tools.length > 0;
+  const hasAgentSegments = modelSegments.length > 0 || hasThinking || hasTools;
+
+  if (!hasAgentSegments && !contentFromParts) return base;
+
   const thinkingDuration =
     typeof agentUi?.thinkingDurationSeconds === "number" &&
     agentUi.thinkingDurationSeconds > 0
@@ -127,28 +245,32 @@ export function hydrateMessageFromContentJson(
       : stamp +
         Math.max(1000, (thinkingDuration ?? 1) * 1000 + (hasTools ? 2000 : 0));
 
-  const frames: AgentFrame[] | undefined = hasTools || hasThinking
+  const legacySegments: AgentSegment[] = [
+    ...(hasThinking
+      ? [
+          {
+            kind: "thinking" as const,
+            id: `thinking-${base.id}`,
+            content: thinking,
+            isStreaming: false,
+            durationSeconds: thinkingDuration,
+            startedAtMs: stamp,
+          },
+        ]
+      : []),
+    ...tools,
+  ];
+  const persistedSegments =
+    modelSegments.length > 0 ? modelSegments : legacySegments;
+
+  const frames: AgentFrame[] | undefined = persistedSegments.length > 0
     ? [
         {
           id: `hydrated-${base.id}`,
           complete: true,
           startedAtMs: stamp,
           completedAtMs,
-          segments: [
-            ...(hasThinking
-              ? [
-                  {
-                    kind: "thinking" as const,
-                    id: `thinking-${base.id}`,
-                    content: thinking,
-                    isStreaming: false,
-                    durationSeconds: thinkingDuration,
-                    startedAtMs: stamp,
-                  },
-                ]
-              : []),
-            ...tools,
-          ],
+          segments: persistedSegments,
         },
       ]
     : undefined;
@@ -160,7 +282,7 @@ export function hydrateMessageFromContentJson(
     hasThinking: hasThinking || base.hasThinking,
     thinkingDurationSeconds:
       thinkingDuration ?? base.thinkingDurationSeconds,
-    agentMode: hasTools || hasThinking || base.agentMode,
+    agentMode: hasAgentSegments || base.agentMode,
     agentFrameComplete: frames ? true : base.agentFrameComplete,
     agentFrames: frames ?? base.agentFrames,
     agentSegments: frames?.[0]?.segments ?? base.agentSegments,

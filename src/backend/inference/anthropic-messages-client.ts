@@ -40,7 +40,12 @@ export type AnthropicStreamPart =
       toolName: string;
       arguments: string;
     }
-  | { type: "finish"; reason: string }
+  | {
+      type: "finish";
+      reason: string;
+      /** Exact API blocks, including signed/redacted thinking, for replay. */
+      content: Anthropic.ContentBlock[];
+    }
   | { type: "error"; error: string }
   | { type: "abort" };
 
@@ -90,20 +95,31 @@ export async function* streamAnthropicMessages(
         } as const)
       : undefined;
 
-  let stream: AsyncIterable<Anthropic.RawMessageStreamEvent>;
+  let stream: ReturnType<typeof client.messages.stream>;
   try {
-    stream = await client.messages.create(
+    stream = client.messages.stream(
       {
         model: options.model,
         max_tokens: maxTokens,
-        temperature: options.temperature,
         system: options.system,
         messages: options.messages as Anthropic.MessageParam[],
         tools,
         ...(thinking ? { thinking } : {}),
-        stream: true,
+        // Anthropic does not allow temperature changes with extended thinking.
+        ...(!thinking && typeof options.temperature === "number"
+          ? { temperature: options.temperature }
+          : {}),
       },
-      { signal: options.signal },
+      {
+        signal: options.signal,
+        ...(thinking
+          ? {
+              headers: {
+                "anthropic-beta": "interleaved-thinking-2025-05-14",
+              },
+            }
+          : {}),
+      },
     );
   } catch (error) {
     if (options.signal?.aborted) {
@@ -202,13 +218,19 @@ export async function* streamAnthropicMessages(
         }
 
         case "message_stop":
-          yield { type: "finish", reason: stopReason };
           break;
 
         default:
           break;
       }
     }
+
+    const finalMessage = await stream.finalMessage();
+    yield {
+      type: "finish",
+      reason: finalMessage.stop_reason ?? stopReason,
+      content: finalMessage.content,
+    };
   } catch (error) {
     if (options.signal?.aborted) {
       yield { type: "abort" };

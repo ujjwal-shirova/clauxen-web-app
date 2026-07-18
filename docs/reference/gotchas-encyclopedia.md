@@ -26,7 +26,7 @@ Operational and product gotchas distilled for humans and agents. Prefer fixing t
 15. **Navigate on durable id** — do not await message persist before `/c/{id}`.
 16. **Sparse SSR seed must not wipe live turns** — `handleSelectChat` guard.
 17. **Branch PUT uses `sanitizeBranchMessages`** — never `sanitizeMessages` for branches.
-18. **Single agent activity frame** — no stacked Brewed/Churned.
+18. **Single chronological agent trace** — keep native thinking, tagged narration, and tools ordered; final answer stays outside.
 19. **Follow-ups are `<prompt>` buttons** — not `clauxen-prompt://` links (`[blocked]`).
 20. **Recents: undefined ≠ empty** — keep chats when messages not hydrated.
 21. **RAM eviction omits messageIds keys** — do not write `[]`.
@@ -35,6 +35,9 @@ Operational and product gotchas distilled for humans and agents. Prefer fixing t
 24. **Pin overrides until server agrees** — list cache lag otherwise yanks rows.
 25. **Full-thread hydrate limit 500** — no scroll-up pagination UI.
 26. **Chat ids are text** — validate with `requireChatIdParam`.
+
+- **Signed thinking replay is mandatory** — return the SDK-accumulated assistant content array unchanged before tool results; rebuilding it drops signatures/redacted blocks and breaks interleaved reasoning.
+- **Thinking disables temperature changes** — omit `temperature` whenever extended thinking is enabled.
 
 ## UI / CSS
 
@@ -45,6 +48,10 @@ Operational and product gotchas distilled for humans and agents. Prefer fixing t
 31. **Chat fonts only on assistant content** — not chrome labels.
 32. **Do not re-import streamdown CSS in main layout** — idle via StreamdownStyles.
 33. **Inline edit focus** — preventScroll + blur on user viewport scroll; click agent-panel collapses.
+
+- **User input beats auto-follow** — wheel/touch must cancel a recent programmatic scroll before pinned state is evaluated.
+- **Sticky user-row geometry cannot change while docked** — hide actions with visibility/opacity, never `display:none`; code/table offsets depend on the measured height.
+- **Sticky sync runs during generation** — tool/narration growth and streamed code/table mounts must update active-turn header pins.
 
 ## Infra / env
 

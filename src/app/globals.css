@@ -1159,7 +1159,7 @@ button.user-message-card__body:not(:disabled):hover,
 .sticky-user-msg-host {
   position: sticky;
   top: var(--header-height, 44px);
-  z-index: calc(2 + var(--turn-index, 0));
+  z-index: 2;
   width: 100%;
   max-width: 100%;
   flex-shrink: 0;
@@ -1210,7 +1210,9 @@ button.user-message-card__body:not(:disabled):hover,
 [data-radix-scroll-area-viewport].app-scrollbar,
 .chat-scroll-viewport {
   overscroll-behavior-y: contain;
-  scroll-behavior: smooth;
+  /* Programmatic stream-follow owns interpolation. Global smooth scrolling
+     makes wheel input race an in-flight CSS animation and causes jump-backs. */
+  scroll-behavior: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1230,8 +1232,16 @@ button.user-message-card__body:not(:disabled):hover,
     0 12px 0 0 #ffffff;
 }
 
+[data-conversation-turn][data-sticky-active="true"] .sticky-user-msg-host {
+  z-index: 25;
+}
+
 .sticky-user-msg--stuck .user-message-actions {
-  display: none;
+  /* Keep the row's measured height stable while docked. Removing it from
+     layout changed --turn-user-msg-height and made code/table headers jump. */
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sticky-user-msg-sentinel {

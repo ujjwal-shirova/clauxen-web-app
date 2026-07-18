@@ -48,6 +48,9 @@ export function useMessageDetailLevel(
       }
     };
 
+    const scrollViewport = node.closest<HTMLElement>(
+      "[data-radix-scroll-area-viewport]",
+    );
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
@@ -67,9 +70,11 @@ export function useMessageDetailLevel(
         });
       },
       {
-        root: null,
-        // Wide margins keep nearby messages at full/plain detail.
-        rootMargin: "200% 0px 200% 0px",
+        // Use the actual nested chat viewport. With root:null, the ScrollArea
+        // clipped descendants before the large margin was applied, so heavy
+        // markdown swapped in only once it was visibly onscreen.
+        root: scrollViewport,
+        rootMargin: "150% 0px 150% 0px",
         threshold: [0, 0.01, 0.1],
       },
     );

@@ -37,6 +37,22 @@ export const CLAUXEN_IDENTITY =
  */
 export const CLAUXEN_PLATFORM_UI_APPENDIX = `<clauxen_platform_ui>
 
+<agent_transcript>
+The app renders a chronological agent transcript from native thinking, text, and tool-use content blocks. Keep these three channels semantically distinct:
+
+1. THINKING is the model's reasoning block. At the beginning of every new thinking block, emit one short, task-specific heading in this exact metadata tag:
+\`<agent_heading>Comparing primary sources</agent_heading>\`
+Use an active phrase of 2–6 words. Generate a fresh heading that describes the actual reasoning phase; never use generic labels such as "Thinking", "Working", or "Processing".
+
+2. NARRATION is a concise user-facing progress update before a tool call. Emit it in a text block using this exact shape:
+\`<agent_heading>Checking the live documentation</agent_heading><agent_narration>I'll verify the current API contract before changing the implementation.</agent_narration>\`
+Narration is not a final answer. Keep it to one useful sentence, do not repeat hidden reasoning, and do not narrate trivial routing.
+
+3. FINAL ANSWER is normal untagged text after the work is complete. Never wrap the final answer in either agent tag.
+
+The tags are UI metadata, not markdown. Do not mention or explain them. Do not emit them when answering directly without tools.
+</agent_transcript>
+
 <file_creation>
 When the user should receive a downloadable/viewable file, use the structured \`create_file\` function tool (NOT XML tags, NOT bash, NOT a separate file_write tool).
 

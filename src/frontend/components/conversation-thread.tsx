@@ -798,12 +798,6 @@ function readHeaderHeightPx(from?: Element | null) {
   return Number.isFinite(parsed) ? parsed : 35;
 }
 
-let stickyActiveTurnCache = -1;
-
-export function resetStickyTurnCache() {
-  stickyActiveTurnCache = -1;
-}
-
 function resolveActiveStickyTurnIndex(
   viewport: HTMLElement,
   turnCount: number,
@@ -844,25 +838,6 @@ function resolveActiveStickyTurnIndex(
     }
   }
 
-  if (next === stickyActiveTurnCache) {
-    return next;
-  }
-
-  if (stickyActiveTurnCache >= 0 && stickyActiveTurnCache < turnCount) {
-    const cachedTurn = viewport.querySelector<HTMLElement>(
-      `[data-conversation-turn][data-turn-index="${stickyActiveTurnCache}"]`,
-    );
-    if (cachedTurn) {
-      const rect = cachedTurn.getBoundingClientRect();
-      // Hysteresis: keep the current active turn until the sticky line clearly
-      // exits its bounds — prevents rapid flip-flopping at turn boundaries.
-      if (rect.top <= stickyY + 12 && rect.bottom > stickyY - 12) {
-        return stickyActiveTurnCache;
-      }
-    }
-  }
-
-  stickyActiveTurnCache = next;
   return next;
 }
 
@@ -1198,7 +1173,31 @@ export function ConversationThread({
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       const message = messages[index];
       if (message.role === "assistant" && message.isStreaming) {
-        return `${message.id}:${message.content.length}:${message.thinkingContent?.length ?? 0}`;
+        const agentStreamSize = (message.agentFrames ?? []).reduce(
+          (frameTotal, frame) =>
+            frameTotal +
+            frame.segments.reduce((segmentTotal, segment) => {
+              if (
+                segment.kind === "thinking" ||
+                segment.kind === "narration" ||
+                segment.kind === "text"
+              ) {
+                return segmentTotal + segment.content.length;
+              }
+              if (segment.kind === "tool") {
+                return (
+                  segmentTotal +
+                  (segment.stdout?.length ?? 0) +
+                  (segment.stderr?.length ?? 0) +
+                  (segment.result?.length ?? 0) +
+                  (segment.searchResults?.length ?? 0)
+                );
+              }
+              return segmentTotal;
+            }, 0),
+          0,
+        );
+        return `${message.id}:${message.content.length}:${message.thinkingContent?.length ?? 0}:${agentStreamSize}`;
       }
     }
     return "idle";
@@ -1208,10 +1207,6 @@ export function ConversationThread({
   const turnCountRef = React.useRef(groups.length);
   turnCountRef.current = groups.length;
   const stickySyncRef = React.useRef<(() => void) | null>(null);
-  const isFastScrollingRef = React.useRef(isFastScrollingProp);
-  isFastScrollingRef.current = isFastScrollingProp;
-  const isGeneratingRef = React.useRef(isGeneratingProp);
-  isGeneratingRef.current = isGeneratingProp;
 
   const getScrollElement = React.useCallback(() => {
     if (scrollAreaRef?.current) {
@@ -1265,14 +1260,11 @@ export function ConversationThread({
   }, [editingMessageId, getScrollElement]);
 
   React.useLayoutEffect(() => {
-    resetStickyTurnCache();
-
     const viewport = getScrollElement();
     if (!viewport || groups.length === 0) return;
 
     let syncRaf = 0;
     let disposed = false;
-    let lastSyncAt = 0;
     let scrollEndTimer = 0;
 
     const runSync = () => {
@@ -1281,19 +1273,10 @@ export function ConversationThread({
     };
     stickySyncRef.current = runSync;
 
-    const scheduleSync = (force = false) => {
-      if (!force && isFastScrollingRef.current) return;
+    const scheduleSync = (_force = false) => {
       if (syncRaf !== 0) return;
       syncRaf = requestAnimationFrame(() => {
         syncRaf = 0;
-        if (!force && isFastScrollingRef.current) return;
-        const now = performance.now();
-        const minIntervalMs = isGeneratingRef.current ? 140 : 48;
-        if (!force && now - lastSyncAt < minIntervalMs) {
-          scheduleSync();
-          return;
-        }
-        lastSyncAt = now;
         runSync();
       });
     };
@@ -1359,7 +1342,6 @@ export function ConversationThread({
   ]);
 
   React.useEffect(() => {
-    if (isFastScrollingProp || isGeneratingProp) return;
     stickySyncRef.current?.();
   }, [stickyStreamKey, isFastScrollingProp, isGeneratingProp, editingMessageId]);
 

@@ -14,9 +14,9 @@ const REPIN_THRESHOLD = 96;
 /** Distance from bottom (px) past which the scroll-to-bottom affordance shows. */
 const SHOW_BUTTON_THRESHOLD = 220;
 /** Ignore auto-follow briefly after explicit user wheel/touch input. */
-const USER_INPUT_COOLDOWN_MS = 180;
-/** Instant snap while following — matches create_file container scrollTop = scrollHeight. */
-const FOLLOW_EASE = 1;
+const USER_INPUT_COOLDOWN_MS = 260;
+/** Per-frame easing keeps growing output continuous instead of hard-snapping. */
+const FOLLOW_EASE = 0.24;
 /** Below this distance we snap exactly to bottom instead of easing forever. */
 const FOLLOW_SNAP_EPSILON_PX = 0.5;
 
@@ -52,7 +52,10 @@ function easeTowardBottom(
     return true;
   }
   beforeScroll?.();
-  viewport.scrollTop += distance * FOLLOW_EASE;
+  viewport.scrollTop += Math.min(
+    distance,
+    Math.max(1, distance * FOLLOW_EASE),
+  );
   return false;
 }
 
@@ -89,6 +92,12 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
 
   const markUserInput = useCallback(() => {
     userInputUntilRef.current = performance.now() + USER_INPUT_COOLDOWN_MS;
+    // A real gesture must win over a just-issued programmatic follow scroll.
+    programmaticScrollUntilRef.current = 0;
+    if (followRafRef.current !== null) {
+      cancelAnimationFrame(followRafRef.current);
+      followRafRef.current = null;
+    }
   }, []);
 
   const isUserInputActive = useCallback(() => {
@@ -96,7 +105,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
   }, []);
 
   const markProgrammaticScroll = useCallback(() => {
-    programmaticScrollUntilRef.current = performance.now() + 120;
+    programmaticScrollUntilRef.current = performance.now() + 80;
   }, []);
 
   /** Keep chasing the bottom across frames until caught up, not just one snap. */
@@ -109,9 +118,9 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
         return;
       }
       markProgrammaticScroll();
-      viewport.scrollTop = maxScrollTop(viewport);
+      const caughtUp = easeTowardBottom(viewport);
       lastScrollHeightRef.current = viewport.scrollHeight;
-      if (distanceFromBottom(viewport) > FOLLOW_SNAP_EPSILON_PX) {
+      if (!caughtUp) {
         followRafRef.current = requestAnimationFrame(step);
         return;
       }
@@ -179,7 +188,10 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
         scrollRafRef.current = null;
 
         const distance = distanceFromBottom(viewport);
-        if (performance.now() < programmaticScrollUntilRef.current) {
+        if (
+          !isUserInputActive() &&
+          performance.now() < programmaticScrollUntilRef.current
+        ) {
           lastScrollHeightRef.current = viewport.scrollHeight;
           return;
         }
@@ -237,7 +249,13 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
         scrollRafRef.current = null;
       }
     };
-  }, [enabled, resolveViewport, scheduleStickToBottom, markUserInput]);
+  }, [
+    enabled,
+    resolveViewport,
+    scheduleStickToBottom,
+    markUserInput,
+    isUserInputActive,
+  ]);
 
   return {
     scrollToBottom,

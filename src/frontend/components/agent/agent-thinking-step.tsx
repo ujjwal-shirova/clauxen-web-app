@@ -1,22 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Clock } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/frontend/lib/utils";
 import type { AgentThinkingSegment } from "@/frontend/lib/agent-segments";
 import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
+import { normalizeAgentHeading } from "@/lib/agent-transcript-markup";
+import { AgentTimelineStep } from "./agent-timeline";
 
-function firstThinkingLine(content: string): string {
+function fallbackThinkingHeading(content: string): string {
   const line = content
     .split(/\n+/)
     .map((part) => part.replace(/^[#>*\-\s]+/, "").trim())
     .find((part) => part.length > 0);
-  return line ?? "";
+  return normalizeAgentHeading(line ?? "") || "Reasoning through the task";
 }
 
 /**
- * Interleaved thinking — Anthropic transcript style.
- * Sans-serif planning line with a clock icon (distinct from serif narration).
+ * Live reasoning viewport. The model-authored heading shimmers independently
+ * from the reasoning body, which auto-follows new thinking tokens.
  */
 export function AgentThinkingStep({
   segment,
@@ -24,61 +25,87 @@ export function AgentThinkingStep({
   segment: AgentThinkingSegment;
 }) {
   const streaming = !!segment.isStreaming;
-  const [expanded, setExpanded] = useState(false);
-  const summary = firstThinkingLine(segment.content);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(
+    segment.durationSeconds ?? 1,
+  );
+  const heading =
+    normalizeAgentHeading(segment.heading ?? "") ||
+    fallbackThinkingHeading(segment.content);
   const hasBody = segment.content.trim().length > 0;
-  const multiLine = segment.content.trim().includes("\n") || segment.content.length > 140;
 
   useEffect(() => {
-    if (streaming) setExpanded(false);
-  }, [streaming]);
+    if (!streaming) {
+      setElapsedSeconds(segment.durationSeconds ?? 1);
+      return;
+    }
+
+    const tick = () => {
+      setElapsedSeconds(
+        segment.startedAtMs
+          ? Math.max(1, Math.round((Date.now() - segment.startedAtMs) / 1000))
+          : 1,
+      );
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [streaming, segment.durationSeconds, segment.startedAtMs]);
+
+  useEffect(() => {
+    if (!streaming || !scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [segment.content, streaming]);
 
   if (!hasBody && !streaming) return null;
 
   return (
     <div
-      className="min-w-0 animate-in fade-in duration-200"
+      className="min-w-0"
       data-agent-segment="thinking"
       data-streaming={streaming || undefined}
     >
-      <button
-        type="button"
-        onClick={() => {
-          if (!multiLine || streaming) return;
-          setExpanded((value) => !value);
-        }}
-        className={cn(
-          "no-hover no-hover-overlay flex w-full max-w-full items-start gap-2 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent",
-          multiLine && !streaming ? "cursor-pointer" : "cursor-default",
-        )}
-        aria-expanded={multiLine ? expanded : undefined}
-      >
-        <Clock
-          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400"
-          aria-hidden
-        />
+      <AgentTimelineStep
+      icon="thinking"
+      isActive={streaming}
+      title={
         <span
           className={cn(
-            "min-w-0 flex-1 font-sans text-[13.5px] font-normal leading-5 text-zinc-500",
+            "block max-w-full truncate",
             streaming && "shimmer-text",
-            !expanded && "line-clamp-2",
           )}
         >
-          {summary || (streaming ? "…" : "")}
+          {heading}
         </span>
-      </button>
-
-      {expanded && multiLine ? (
-        <div className="mt-1.5 ml-[22px] max-h-48 overflow-y-auto rounded-lg bg-zinc-50/80 px-3 py-2 text-[13px] leading-[1.55] text-zinc-600 ring-1 ring-zinc-200/60">
-          <div className="thinking-markdown">
-            <MarkdownRenderer
-              content={segment.content}
-              isStreaming={false}
-              showCursor={false}
-            />
-          </div>
+      }
+      trailing={
+        <span className="tabular-nums">
+          {streaming
+            ? `${elapsedSeconds}s`
+            : `${segment.durationSeconds ?? elapsedSeconds}s`}
+        </span>
+      }
+      defaultExpanded={streaming}
+    >
+      <div
+        ref={scrollRef}
+        className={cn(
+          "app-scrollbar relative max-h-[10.5rem] overflow-y-auto rounded-xl border border-zinc-200/80 bg-zinc-50/65 px-3 py-2.5 font-sans text-[12.5px] leading-[1.55] text-zinc-600 [&_.markdown-content]:!font-sans [&_.markdown-content_*]:!font-sans",
+          streaming && "shadow-[inset_0_-16px_18px_-20px_rgba(24,24,27,0.3)]",
+        )}
+        aria-live={streaming ? "polite" : undefined}
+      >
+        <div className="thinking-markdown">
+          <MarkdownRenderer
+            content={segment.content || "…"}
+            isStreaming={streaming}
+            streamKey={segment.id}
+            showCursor={false}
+            lightweightStream={streaming}
+          />
         </div>
-      ) : null}
+      </div>
+      </AgentTimelineStep>
     </div>
   );
 }

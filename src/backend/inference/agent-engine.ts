@@ -46,6 +46,15 @@ import {
   requireAnthropicBaseUrl,
   env,
 } from "@/backend/config/env";
+import {
+  captureAnthropicContentBlocks,
+  toolResultPart,
+  type TranscriptAgentModelTurn,
+} from "@/backend/training/transcript-format";
+import {
+  parseAgentTextMarkup,
+  parseThinkingMarkup,
+} from "@/lib/agent-transcript-markup";
 
 /** Single autonomous step budget. The model decides how many steps it needs. */
 const MAX_STEPS = 24;
@@ -149,7 +158,10 @@ function buildHealingTools(): Map<string, ToolDefinition> {
 }
 
 export type AgentStreamOptions = {
-  messages: Array<{ role: string; content: string }>;
+  messages: Array<{
+    role: string;
+    content: string | Anthropic.ContentBlockParam[];
+  }>;
   model: string;
   chatModelId?: ConfiguredModelId;
   homerReasoningEffort?: HomerReasoningEffort;
@@ -162,6 +174,8 @@ export type AgentStreamOptions = {
   maxTokens?: number;
   /** Fired when ask_user_input pauses the loop — release generation lease early. */
   onPauseForUser?: () => void | Promise<void>;
+  /** Captures exact signed Messages API rounds for durable replay/training. */
+  onModelTurn?: (turn: TranscriptAgentModelTurn) => void;
 };
 
 function resolveThinkingBudget(
@@ -229,9 +243,9 @@ export async function runAutonomousAgent(
   // One activity frame for the entire assistant turn (Clauxen Code–style).
   const frameId = "agent-frame-1";
   let frameOpen = false;
-  let textSegmentCounter = 0;
+  let narrationSegmentCounter = 0;
   let thinkingSegmentCounter = 0;
-  let activeTextSegmentId: string | null = null;
+  let activeNarrationSegmentId: string | null = null;
   let activeThinkingSegmentId: string | null = null;
 
   const openFrame = () => {
@@ -240,14 +254,14 @@ export async function runAutonomousAgent(
     frameOpen = true;
   };
 
-  const closeActiveTextSegment = () => {
-    if (!activeTextSegmentId) return;
-    sse.writeSegmentEnd(activeTextSegmentId, "text");
-    activeTextSegmentId = null;
+  const closeActiveNarrationSegment = () => {
+    if (!activeNarrationSegmentId) return;
+    sse.writeSegmentEnd(activeNarrationSegmentId, "narration");
+    activeNarrationSegmentId = null;
   };
 
   const closeFrame = () => {
-    closeActiveTextSegment();
+    closeActiveNarrationSegment();
     if (!frameOpen) return;
     sse.writeFrameComplete(frameId);
     frameOpen = false;
@@ -261,8 +275,10 @@ export async function runAutonomousAgent(
         return;
       }
 
+      const modelTurnStartedAtMs = Date.now();
       let sawToolCall = false;
       let thinkingOpen = false;
+      let thinkingSegmentId: string | null = null;
       const pendingToolCalls: Array<{
         id: string;
         name: string;
@@ -272,8 +288,18 @@ export async function runAutonomousAgent(
         string,
         { name: string; argsBuffer: string }
       >();
-      let fullText = "";
-      let fullReasoning = "";
+      let rawText = "";
+      let rawReasoning = "";
+      let emittedAnswerText = "";
+      let emittedNarration = "";
+      let visibleTextAtFirstTool = "";
+      let emittedPostToolNarration = "";
+      let emittedThinking = "";
+      let parsedText = parseAgentTextMarkup("");
+      let finished:
+        | { reason: string; content: Anthropic.ContentBlock[] }
+        | undefined;
+      const turnNarrationSegmentIds: string[] = [];
 
       const stream = streamAnthropicMessages({
         model: options.model,
@@ -290,6 +316,7 @@ export async function runAutonomousAgent(
         if (thinkingOpen) return;
         thinkingSegmentCounter += 1;
         activeThinkingSegmentId = `${frameId}-thinking-${thinkingSegmentCounter}`;
+        thinkingSegmentId = activeThinkingSegmentId;
         openFrame();
         sse.writeSegmentStart(activeThinkingSegmentId, "thinking");
         sse.writeThinkingStart();
@@ -307,33 +334,90 @@ export async function runAutonomousAgent(
         activeThinkingSegmentId = null;
       };
 
+      const ensureNarrationOpen = () => {
+        if (activeNarrationSegmentId) return activeNarrationSegmentId;
+        narrationSegmentCounter += 1;
+        activeNarrationSegmentId = `${frameId}-narration-${narrationSegmentCounter}`;
+        turnNarrationSegmentIds.push(activeNarrationSegmentId);
+        openFrame();
+        sse.writeSegmentStart(activeNarrationSegmentId, "narration");
+        return activeNarrationSegmentId;
+      };
+
       for await (const part of stream) {
         switch (part.type) {
-          case "reasoning-delta":
+          case "reasoning-delta": {
             openFrame();
             ensureThinkingOpen();
-            sse.writeThinkingDelta(
-              part.delta,
-              activeThinkingSegmentId ?? undefined,
-            );
-            fullReasoning += part.delta;
+            rawReasoning += part.delta;
+            const parsed = parseThinkingMarkup(rawReasoning);
+            if (parsed.heading && thinkingSegmentId) {
+              sse.writeThinkingHeading(thinkingSegmentId, parsed.heading);
+            }
+            if (parsed.body.startsWith(emittedThinking)) {
+              const delta = parsed.body.slice(emittedThinking.length);
+              if (delta) {
+                sse.writeThinkingDelta(
+                  delta,
+                  activeThinkingSegmentId ?? undefined,
+                );
+                emittedThinking = parsed.body;
+              }
+            }
             break;
+          }
 
           case "text-delta": {
             const visible = sanitizeAssistantStreamDelta(part.delta);
             if (!visible) break;
             closeThinking();
-            if (!sawToolCall) {
-              sse.writeAnswerDelta(visible);
-            } else {
-              if (!activeTextSegmentId) {
-                textSegmentCounter += 1;
-                activeTextSegmentId = `${frameId}-text-${textSegmentCounter}`;
-                sse.writeSegmentStart(activeTextSegmentId, "text");
-              }
-              sse.writeTextDelta(activeTextSegmentId, visible);
+            rawText += visible;
+            parsedText = parseAgentTextMarkup(rawText);
+
+            if (parsedText.heading && thinkingSegmentId) {
+              sse.writeThinkingHeading(thinkingSegmentId, parsedText.heading);
             }
-            fullText += visible;
+
+            if (parsedText.narration.startsWith(emittedNarration)) {
+              const narrationDelta = parsedText.narration.slice(
+                emittedNarration.length,
+              );
+              if (narrationDelta) {
+                const segmentId = ensureNarrationOpen();
+                sse.writeNarrationDelta(segmentId, narrationDelta);
+                emittedNarration = parsedText.narration;
+              }
+            }
+
+            if (
+              !sawToolCall &&
+              parsedText.visibleText.startsWith(emittedAnswerText)
+            ) {
+              const answerDelta = parsedText.visibleText.slice(
+                emittedAnswerText.length,
+              );
+              if (answerDelta) {
+                sse.writeAnswerDelta(answerDelta);
+                emittedAnswerText = parsedText.visibleText;
+              }
+            } else if (
+              sawToolCall &&
+              parsedText.visibleText.startsWith(visibleTextAtFirstTool)
+            ) {
+              const postToolNarration = parsedText.visibleText.slice(
+                visibleTextAtFirstTool.length,
+              );
+              if (postToolNarration.startsWith(emittedPostToolNarration)) {
+                const narrationDelta = postToolNarration.slice(
+                  emittedPostToolNarration.length,
+                );
+                if (narrationDelta) {
+                  const segmentId = ensureNarrationOpen();
+                  sse.writeNarrationDelta(segmentId, narrationDelta);
+                  emittedPostToolNarration = postToolNarration;
+                }
+              }
+            }
             break;
           }
 
@@ -342,13 +426,15 @@ export async function runAutonomousAgent(
             closeThinking();
             if (!sawToolCall) {
               sawToolCall = true;
-              if (fullText.trim()) {
+              visibleTextAtFirstTool = emittedAnswerText;
+              if (emittedAnswerText.trim()) {
                 sse.writeAnswerClear();
-                sse.writeIntroNarrative(fullText.trim());
+                closeActiveNarrationSegment();
+                const segmentId = ensureNarrationOpen();
+                sse.writeNarrationDelta(segmentId, emittedAnswerText.trim());
               }
-            } else {
-              closeActiveTextSegment();
             }
+            closeActiveNarrationSegment();
             sse.writeToolStart(
               part.toolCallId,
               part.toolName,
@@ -371,11 +457,15 @@ export async function runAutonomousAgent(
             toolCallBuffers.set(part.toolCallId, entry);
             const preview = previewToolArgs(entry.argsBuffer);
             if (entry.name && Object.keys(preview).length > 0) {
+              const dynamicDescription =
+                typeof preview.description === "string"
+                  ? preview.description
+                  : undefined;
               sse.writeToolStart(
                 part.toolCallId,
                 entry.name,
                 preview,
-                undefined,
+                dynamicDescription,
                 false,
               );
             }
@@ -391,6 +481,10 @@ export async function runAutonomousAgent(
             break;
 
           case "finish":
+            finished = {
+              reason: part.reason,
+              content: part.content,
+            };
             break;
 
           case "error":
@@ -405,41 +499,55 @@ export async function runAutonomousAgent(
         }
       }
 
-      closeActiveTextSegment();
+      closeActiveNarrationSegment();
       closeThinking();
+      const assistantCompletedAtMs = Date.now();
 
       if (pendingToolCalls.length === 0) {
+        if (!parsedText.visibleText.trim() && parsedText.narration.trim()) {
+          for (const segmentId of turnNarrationSegmentIds) {
+            sse.writeSegmentRemove(segmentId);
+          }
+          sse.writeAnswerDelta(parsedText.narration.trim());
+        }
+        if (finished) {
+          try {
+            options.onModelTurn?.({
+              stopReason: finished.reason,
+              startedAtMs: modelTurnStartedAtMs,
+              assistantCompletedAtMs,
+              completedAtMs: assistantCompletedAtMs,
+              assistant: captureAnthropicContentBlocks(finished.content),
+            });
+          } catch {
+            // Transcript capture must never break the visible response.
+          }
+        }
         closeFrame();
         break;
       }
 
-      // Anthropic assistant turn: text + tool_use (thinking stays UI-only —
-      // replaying thinking blocks needs a valid signature from the API).
-      const assistantContent: Anthropic.ContentBlockParam[] = [];
-      if (fullText.trim()) {
-        assistantContent.push({ type: "text", text: fullText });
+      if (!finished || finished.content.length === 0) {
+        throw new Error(
+          "The model requested a tool without a replayable assistant message.",
+        );
       }
-      for (const tc of pendingToolCalls) {
-        assistantContent.push({
-          type: "tool_use",
-          id: tc.id,
-          name: tc.name,
-          input: safeParseJson(tc.arguments),
-        });
-      }
+
+      // Replay the exact API response, including signed/redacted thinking.
+      // Rebuilding or filtering these blocks breaks Anthropic reasoning
+      // continuity and can produce a 400 on the next tool-result request.
       conversation.push({
         role: "assistant",
-        content: assistantContent.length
-          ? assistantContent
-          : [{ type: "text", text: fullText || "" }],
+        content: finished.content as unknown as Anthropic.ContentBlockParam[],
       });
 
       for (const tc of pendingToolCalls) {
+        const args = safeParseJson(tc.arguments);
         sse.writeToolStart(
           tc.id,
           tc.name,
-          safeParseJson(tc.arguments),
-          undefined,
+          args,
+          typeof args.description === "string" ? args.description : undefined,
           true,
         );
       }
@@ -535,17 +643,19 @@ export async function runAutonomousAgent(
               typeof result.output === "string"
                 ? result.output
                 : JSON.stringify(result.output ?? {});
+            const isError = isToolErrorOutput(result.output);
 
             if (result.pauseForUser || tc.name === "ask_user_input_v0") {
               pauseForUser = true;
             }
 
-            sse.writeToolEnd(tc.id, tc.name, resultStr);
+            sse.writeToolEnd(tc.id, tc.name, resultStr, isError);
 
             return {
               toolCallId: tc.id,
               name: tc.name,
               result: resultStr,
+              isError,
             };
           }
 
@@ -568,6 +678,7 @@ export async function runAutonomousAgent(
               typeof outcome.output === "string"
                 ? outcome.output
                 : JSON.stringify(outcome.output ?? {});
+            const isError = isToolErrorOutput(outcome.output);
 
             if (
               (tc.name === "create_file" || tc.name === "file_write") &&
@@ -610,8 +721,13 @@ export async function runAutonomousAgent(
               pauseForUser = true;
             }
 
-            sse.writeToolEnd(tc.id, tc.name, resultStr);
-            return { toolCallId: tc.id, name: tc.name, result: resultStr };
+            sse.writeToolEnd(tc.id, tc.name, resultStr, isError);
+            return {
+              toolCallId: tc.id,
+              name: tc.name,
+              result: resultStr,
+              isError,
+            };
           } catch (error) {
             const errMsg =
               error instanceof Error ? error.message : String(error);
@@ -619,11 +735,13 @@ export async function runAutonomousAgent(
               tc.id,
               tc.name,
               JSON.stringify({ error: errMsg }),
+              true,
             );
             return {
               toolCallId: tc.id,
               name: tc.name,
               result: JSON.stringify({ error: errMsg }),
+              isError: true,
             };
           }
         }),
@@ -636,10 +754,28 @@ export async function runAutonomousAgent(
           type: "tool_result" as const,
           tool_use_id: tr.toolCallId,
           content: tr.result,
+          ...(tr.isError ? { is_error: true } : {}),
         })),
       });
 
-      sse.writeStepDone(`Step ${step + 1} complete`);
+      try {
+        options.onModelTurn?.({
+          stopReason: finished.reason,
+          startedAtMs: modelTurnStartedAtMs,
+          assistantCompletedAtMs,
+          completedAtMs: Date.now(),
+          assistant: captureAnthropicContentBlocks(finished.content),
+          toolResults: toolResults.map((result) =>
+            toolResultPart(
+              result.toolCallId,
+              result.result,
+              result.isError,
+            ),
+          ),
+        });
+      } catch {
+        // Transcript capture must never break the visible response.
+      }
 
       // Keep a single activity frame across tool rounds — closing here used
       // to spawn stacked "Brewed for 3s / Churned for 21s" chips.
@@ -739,6 +875,15 @@ function safeParseJson(raw: string): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function isToolErrorOutput(output: unknown): boolean {
+  return Boolean(
+    output &&
+      typeof output === "object" &&
+      !Array.isArray(output) &&
+      typeof (output as { error?: unknown }).error === "string",
+  );
 }
 
 /** Best-effort parse of a still-streaming tool-call arguments buffer (may be invalid/incomplete JSON). */

@@ -229,14 +229,15 @@ Inactive chat eviction omits `messageIds` keys (not `[]`) so Recents filter does
 
 ---
 
-## 10. Agent timeline / orb
+## 10. Agent activity transcript / orb
 
-- Streaming orb stays visible during agent timelines; hides only when answer markdown is streaming.
-- Single agent activity frame per turn (no stacked Brewed/Churned duplicates).
-- Live label format: `Label · duration`.
-- Thinking-only collapses to `Thought for Ns`.
-- Tools keep `Worked for …`.
-- Persist `agent_ui` on `content_json` for reload.
+- One minimal chronological trace per assistant turn: `thinking → narration → tool → thinking … → final answer`.
+- Thinking is a native Anthropic thinking block. Its model-authored `<agent_heading>` becomes the shimmering live label; the reasoning viewport auto-scrolls while open.
+- Narration is tagged `<agent_narration>` text: concise user-visible progress, never final-answer content and never hidden reasoning.
+- Tool rows use streamed structured input/output and rich result surfaces; failed tools persist `is_error`.
+- The final answer is ordinary untagged assistant markdown outside the activity trace.
+- Streaming orb stays visible during activity-only phases and hides once final answer markdown streams.
+- `content_json.agent_ui.modelTurns` persists exact ordered Messages API rounds (including thinking signatures and tool-result users) so reload does not flatten the transcript.
 
 Renderer: `assistant-content-renderer.tsx` + agent components under `components/agent/`.
 
@@ -292,9 +293,10 @@ Tab titles use hyphen: `New chat - Clauxen`.
 
 ## 15. Transcripts (training)
 
-`chat_transcript_lines` stores Cursor-style JSONL records:
+`chat_transcript_lines` stores Anthropic Messages-style JSONL records:
 
-- `role` + `message.content` parts: `text`, `thinking`, `tool_use`, `tool_result`
+- `role` + ordered `message.content` parts: `text`, signed `thinking`, `redacted_thinking`, `tool_use`, `tool_result`
+- Every client-tool round is persisted as the exact assistant block array followed immediately by a user-role `tool_result` array
 - `turn_ended` markers
 - View `chat_transcripts_jsonl` aggregates per chat
 - Export: `GET /api/v1/chats/:chatId/transcript`
@@ -345,6 +347,9 @@ Id remaps during stream must update generation maps.
 | 409 on send | Lease held | Stop or wait; do not force second lease |
 | Upload fails on Vercel | Missing `WORKER_URL` | Deploy r2-gateway + set env |
 | Post-create shimmer | `loading.tsx` or long SSR seed | Removed; seed ≤120ms |
+| Scroll jumps back during generation | User wheel event masked by a recent programmatic follow scroll | User input cancels follow immediately; stream follow uses eased JS scrolling |
+| Older user bubble replaces the current sticky turn | Cached/hysteretic active-turn index or per-turn z-index escalation | Resolve the active turn every animation frame; only the active turn gets elevated z-index |
+| Code/table header docks late or jumps | Sticky sync skipped during streaming or docked user actions changed measured height | Sync on streamed segment growth; preserve docked user-row geometry |
 
 ---
 

@@ -74,6 +74,7 @@ export function tapUiMessageSseStream(
   source: ReadableStream<Uint8Array>,
   callbacks: {
     onAnswerDelta?: (delta: string) => void;
+    onAnswerClear?: () => void;
     onThinkingDelta?: (delta: string) => void;
     onChatTitle?: (title: string) => void;
     onToolStart?: (tool: {
@@ -86,6 +87,7 @@ export function tapUiMessageSseStream(
       toolCallId: string;
       name: string;
       result: string;
+      isError?: boolean;
     }) => void;
     onError?: (message: string) => void;
   },
@@ -149,6 +151,7 @@ export function tapUiMessageSseStream(
                 args?: unknown;
                 description?: unknown;
                 result?: unknown;
+                isError?: unknown;
               };
               if (
                 parsed.type === "text-delta" &&
@@ -172,6 +175,9 @@ export function tapUiMessageSseStream(
                 if (typeof parsed.delta === "string") {
                   callbacks.onAnswerDelta?.(parsed.delta);
                 }
+              }
+              if (parsed.type === "answer_clear") {
+                callbacks.onAnswerClear?.();
               }
               if (parsed.type === "thinking_delta") {
                 if (typeof parsed.delta === "string") {
@@ -220,6 +226,10 @@ export function tapUiMessageSseStream(
                     name: parsed.name,
                     result:
                       typeof parsed.result === "string" ? parsed.result : "",
+                    isError:
+                      typeof parsed.isError === "boolean"
+                        ? parsed.isError
+                        : undefined,
                   });
                 }
               }

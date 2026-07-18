@@ -28,6 +28,7 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
     return {
       kind: "thinking",
       id,
+      heading: asString(row.heading, 80),
       content: asString(row.content) ?? "",
       isStreaming: Boolean(row.isStreaming),
       durationSeconds:
@@ -36,9 +37,9 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
         typeof row.startedAtMs === "number" ? row.startedAtMs : undefined,
     };
   }
-  if (kind === "text") {
+  if (kind === "narration" || kind === "text") {
     return {
-      kind: "text",
+      kind,
       id,
       content: asString(row.content) ?? "",
       isStreaming: Boolean(row.isStreaming),

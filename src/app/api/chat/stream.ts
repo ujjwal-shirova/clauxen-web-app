@@ -27,6 +27,9 @@ export type ChatStreamOptions = {
   homerReasoningEffort?: HomerReasoningEffort;
   signal?: AbortSignal;
   onPauseForUser?: () => void | Promise<void>;
+  onModelTurn?: AgentStreamOptions["onModelTurn"];
+  /** Structured replay history, including prior signed thinking/tool rounds. */
+  modelMessages?: AgentStreamOptions["messages"];
 };
 
 /** Use runAutonomousAgent from agent-engine directly for new code. */
@@ -64,7 +67,9 @@ export async function createChatStream(
   const sse = new ClauxenSseStream();
 
   const agentOptions: AgentStreamOptions = {
-    messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    messages:
+      options.modelMessages ??
+      messages.map((m) => ({ role: m.role, content: m.content })),
     model: runtime.modelSlug,
     chatModelId,
     homerReasoningEffort: parseHomerReasoningEffort(options.homerReasoningEffort),
@@ -76,6 +81,7 @@ export async function createChatStream(
     temperature: 0.6,
     maxTokens: 8192,
     onPauseForUser: options.onPauseForUser,
+    onModelTurn: options.onModelTurn,
   };
 
   // Always autonomous — tools are always armed; the model decides when to use them.

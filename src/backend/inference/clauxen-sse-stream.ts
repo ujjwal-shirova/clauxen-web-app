@@ -71,6 +71,11 @@ export class ClauxenSseStream {
     );
   }
 
+  writeThinkingHeading(segmentId: string, heading: string): void {
+    if (!heading.trim()) return;
+    this.write({ type: "thinking_heading", segmentId, heading: heading.trim() });
+  }
+
   writeThinkingEnd(segmentId?: string): void {
     this.write(
       segmentId
@@ -115,17 +120,32 @@ export class ClauxenSseStream {
   /** Persistent narrative-note segment (the small clock-icon rows between tool
    * calls in the vertical work timeline) — distinct from the ephemeral
    * agent_interim preview, these survive after the frame completes. */
-  writeSegmentStart(segmentId: string, kind: "thinking" | "text" | "tool"): void {
+  writeSegmentStart(
+    segmentId: string,
+    kind: "thinking" | "narration" | "text" | "tool",
+  ): void {
     this.write({ type: "segment_start", segmentId, kind });
   }
 
-  writeSegmentEnd(segmentId: string, kind: "thinking" | "text" | "tool"): void {
+  writeSegmentEnd(
+    segmentId: string,
+    kind: "thinking" | "narration" | "text" | "tool",
+  ): void {
     this.write({ type: "segment_end", segmentId, kind });
+  }
+
+  writeSegmentRemove(segmentId: string): void {
+    this.write({ type: "segment_remove", segmentId });
   }
 
   writeTextDelta(segmentId: string, delta: string): void {
     if (!delta) return;
     this.write({ type: "text_delta", segmentId, delta });
+  }
+
+  writeNarrationDelta(segmentId: string, delta: string): void {
+    if (!delta) return;
+    this.write({ type: "narration_delta", segmentId, delta });
   }
 
   writeToolStart(
@@ -160,8 +180,13 @@ export class ClauxenSseStream {
     this.write({ type: "tool_data", toolCallId, data });
   }
 
-  writeToolEnd(toolCallId: string, name: string, result: string): void {
-    this.write({ type: "tool_end", toolCallId, name, result });
+  writeToolEnd(
+    toolCallId: string,
+    name: string,
+    result: string,
+    isError?: boolean,
+  ): void {
+    this.write({ type: "tool_end", toolCallId, name, result, isError });
   }
 
   writeStepDone(label?: string): void {

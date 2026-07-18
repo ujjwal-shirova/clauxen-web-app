@@ -2,18 +2,21 @@ export type StreamEvent =
   | { type: "start"; agentMode?: boolean; assistantMessageId?: string }
   | { type: "thinking_start" }
   | { type: "thinking_delta"; delta: string; segmentId?: string }
+  | { type: "thinking_heading"; heading: string; segmentId: string }
   | { type: "thinking_end"; segmentId?: string }
   | { type: "text_delta"; delta: string; segmentId: string }
+  | { type: "narration_delta"; delta: string; segmentId: string }
   | {
       type: "segment_start";
       segmentId: string;
-      kind: "thinking" | "text" | "tool";
+      kind: "thinking" | "narration" | "text" | "tool";
     }
   | {
       type: "segment_end";
       segmentId: string;
-      kind: "thinking" | "text" | "tool";
+      kind: "thinking" | "narration" | "text" | "tool";
     }
+  | { type: "segment_remove"; segmentId: string }
   | { type: "answer_delta"; delta: string; segmentId?: string }
   | {
       type: "tool_start";
@@ -38,6 +41,7 @@ export type StreamEvent =
       toolCallId: string;
       name: string;
       result: string;
+      isError?: boolean;
     }
   | { type: "step_done"; label?: string }
   | {
@@ -84,6 +88,8 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
     title?: unknown;
     frameId?: unknown;
     text?: unknown;
+    heading?: unknown;
+    isError?: unknown;
     argsComplete?: unknown;
   };
 
@@ -111,9 +117,19 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
           }
         : null;
     case "text_delta":
+    case "narration_delta":
       return typeof event.delta === "string" &&
         typeof event.segmentId === "string"
-        ? { type: "text_delta", delta: event.delta, segmentId: event.segmentId }
+        ? { type: event.type, delta: event.delta, segmentId: event.segmentId }
+        : null;
+    case "thinking_heading":
+      return typeof event.heading === "string" &&
+        typeof event.segmentId === "string"
+        ? {
+            type: "thinking_heading",
+            heading: event.heading,
+            segmentId: event.segmentId,
+          }
         : null;
     case "thinking_end":
       return {
@@ -125,6 +141,7 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
     case "segment_end":
       return typeof event.segmentId === "string" &&
         (event.kind === "thinking" ||
+          event.kind === "narration" ||
           event.kind === "text" ||
           event.kind === "tool")
         ? {
@@ -132,6 +149,10 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
             segmentId: event.segmentId,
             kind: event.kind,
           }
+        : null;
+    case "segment_remove":
+      return typeof event.segmentId === "string"
+        ? { type: "segment_remove", segmentId: event.segmentId }
         : null;
     case "tool_start":
       return typeof event.toolCallId === "string" &&
@@ -184,6 +205,8 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
             toolCallId: event.toolCallId,
             name: event.name,
             result: event.result,
+            isError:
+              typeof event.isError === "boolean" ? event.isError : undefined,
           }
         : null;
     case "step_done":

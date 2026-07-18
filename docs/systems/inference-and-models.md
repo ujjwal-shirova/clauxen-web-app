@@ -86,10 +86,18 @@ Bash safety: `bash-safety.ts`. Tool healer: `tool-healer.ts`.
 Generate path:
 
 1. `chat.service` creates stream via `createChatStream` / agent stream
-2. Tokens + reasoning + tool events framed as SSE
-3. Client reducer updates assistant message fields
-4. Agent frames track durations for Thought/Worked labels
-5. Terminal error must surface as visible text
+2. `anthropic-messages-client.ts` streams indexed content blocks and returns the SDK-accumulated final block array
+3. `agent-engine.ts` replays that exact assistant array—including signed/redacted thinking—before the user-role `tool_result` continuation
+4. Thinking headings and progress narration are parsed from `<agent_heading>` / `<agent_narration>` metadata tags into distinct SSE channels
+5. The client reducer keeps thinking, narration, and tool actions chronologically ordered; only untagged text becomes the final answer
+6. Terminal errors must surface as visible text
+
+When manual extended thinking is enabled:
+
+- send the `interleaved-thinking-2025-05-14` beta header (ignored safely by newer compatible models)
+- omit `temperature` modifications
+- use only automatic tool choice
+- never rebuild, reorder, or filter the latest assistant thinking blocks before returning tool results
 
 Conversation context for follow-ups includes prior tool actions.
 

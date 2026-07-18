@@ -594,7 +594,9 @@ When reviewing a PR, ask:
 
 **Why quiet session?** Profile sync was on critical path for FCP.
 
-**Why single agent frame?** Stacked Brewed/Churned frames confused timing UX.
+**Why one chronological agent trace?** It preserves the actual thinking → narration → tool order without stacking synthetic status chips.
+
+**Why persist exact Anthropic model turns?** Thinking signatures and redacted blocks must be replayed unchanged around tool results; flattening them loses reasoning continuity.
 
 **Why prompt tags not links?** rehype-harden blocks custom protocols as `[blocked]`.
 

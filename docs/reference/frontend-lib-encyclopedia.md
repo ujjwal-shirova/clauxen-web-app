@@ -4,10 +4,9 @@ Every module under `src/frontend/lib/` with a short purpose note.
 
 | File | Purpose |
 |---|---|
-| `agent-frame-label.ts` | Label formatting for agent activity frames |
 | `agent-frames.test.ts` | Tests for agent frames |
-| `agent-frames.ts` | Agent frame model + Thought/Worked timing |
-| `agent-segments.ts` | Segment splitting for agent timelines |
+| `agent-frames.ts` | Ordered agent activity frame model |
+| `agent-segments.ts` | Typed thinking, narration, tool, and completion segments |
 | `agent-stream-fast-path.ts` | Fast-path stream handling optimizations |
 | `agent-stream-reducer.ts` | Reduce stream events into agent UI state |
 | `api/artifacts.ts` | API client helpers |
@@ -52,7 +51,6 @@ Every module under `src/frontend/lib/` with a short purpose note.
 | `checkout-currency-preference.ts` | Persist checkout currency pref |
 | `checkout-ui.ts` | Checkout UI helpers |
 | `clauxen-code/format-duration.ts` | Clauxen Code feature helpers |
-| `clauxen-code/turn-completion-verbs.ts` | Clauxen Code feature helpers |
 | `cloudflare-challenge-post.test.ts` | CF challenge tests |
 | `cloudflare-challenge-post.ts` | Detect CF challenge document POSTs |
 | `composer-attachments.test.ts` | Attachment tests |

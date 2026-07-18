@@ -10,7 +10,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 - **Skill:** `.cursor/skills/brain-memory` (invoke for read / write / search)
 - **CLI:** `./brain/tools/memory.sh`
 - **Always-apply rule:** `.cursor/rules/brain-memory.mdc`
-- **Last updated:** 2026-07-14
+- **Last updated:** 2026-07-18
 
 ---
 
@@ -37,7 +37,8 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
-| 2026-07-18 | Agentic transcript: chronological Anthropic-style loop (Cogitating spark, clock+sans thinking, serif narration, tool action labels, Done) using Clauxen Code spinner/turn verbs | Match imported agent patterns + interleaved thinking UX |
+| 2026-07-18 | Agent activity UI: one minimal Clauxen trace with model-authored `<agent_heading>`, auto-scrolling native thinking, distinct `<agent_narration>`, streamed tools, and ordinary final markdown; no Cogitating/Done/spinner-verb chrome | Preserve real event semantics while keeping the design original and minimal |
+| 2026-07-18 | Anthropic tool loop replays the SDK-accumulated assistant blocks unchanged (signed/redacted thinking included), persists ordered `agent_ui.modelTurns`, and omits temperature during thinking | Required for valid interleaved-thinking continuity and durable chronological hydrate |
 | 2026-07-18 | Marketing + legal/auth paths are public in Edge middleware via isMarketingPublicPath | Unauthenticated users must open Claude/ChatGPT-style marketing pages without login |
 | 2026-07-18 | Marketing site at src/website + (marketing)/[...slug]; chat stays at /; public pricing at /plans (not /pricing) | Avoid breaking in-app #pricing overlay and /apps /library app routes; Claude/ChatGPT-style parallel URLs |
 | 2026-07-17 | Label-style controls (follow-up prompts, chat-row innards) use bold/weight hover — never inset button wash | Universal button:hover and .group/chat button:hover were painting nested pills |
@@ -153,6 +154,8 @@ Full target surface — **remember only; implement only when user asks for a sli
 - cf.threat_score is deprecated on upgraded CF security — do not use in custom rules. Free plan: 5 custom rules, 1 rate-limit rule.
 - CF Managed Challenge can POST back to document URLs → Vercel 405. Fixed in src/proxy.ts with 303 POST→GET (keeps /api and next-action). Do not weaken CF rules for this.
 - Realtime remapping assistant id mid-stream must update generation map; appendMessageField must resolve by clientId or tokens write to a deleted id (blank orb)
+- Chat scroll: real wheel/touch input cancels programmatic stream-follow before pinned-state evaluation; follow is JS-eased and the viewport CSS stays `scroll-behavior:auto`.
+- Sticky chat: resolve active turn without cross-turn hysteresis; only the active turn is elevated. Keep docked user-action geometry in layout so code/table sticky offsets do not jump.
 - Production uploads require WORKER_URL; Hyperdrive chat-history stays caching-disabled; Vercel region pdx1 near Supabase us-west-1
 - Vercel CLI auth.json token invalid; dashboard login needs 2FA — wire CHAT_COORD_*/WORKER_URL/EDGE_CONFIG with fresh VERCEL_TOKEN or 2FA handoff. CF API token lacks zone edit (9109).
 - Vercel sensitive env vars cannot target Development — use a second encrypted row for development with the same value

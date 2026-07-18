@@ -26,15 +26,18 @@ export function resolveThinkingType(input?: {
   return "disabled";
 }
 
-export type AgentSegmentKind = "thinking" | "text" | "tool";
+export type AgentSegmentKind = "thinking" | "narration" | "text" | "tool";
 
 export type ChatStreamEvent =
   | { type: "start"; agentMode?: boolean }
   | { type: "thinking_start" }
   | { type: "thinking_delta"; delta: string; segmentId?: string }
+  | { type: "thinking_heading"; heading: string; segmentId: string }
   | { type: "thinking_end"; segmentId?: string }
   | { type: "segment_start"; segmentId: string; kind: AgentSegmentKind }
   | { type: "segment_end"; segmentId: string; kind: AgentSegmentKind }
+  | { type: "segment_remove"; segmentId: string }
+  | { type: "narration_delta"; delta: string; segmentId: string }
   | { type: "answer_delta"; delta: string; segmentId?: string }
   | {
       type: "tool_start";
@@ -55,6 +58,7 @@ export type ChatStreamEvent =
       toolCallId: string;
       name: string;
       result: string;
+      isError?: boolean;
     }
   | { type: "step_done"; label?: string }
   | {
@@ -142,6 +146,7 @@ export function tapChatSseStream(
   source: ReadableStream<Uint8Array>,
   callbacks: {
     onAnswerDelta?: (delta: string) => void;
+    onAnswerClear?: () => void;
     onThinkingDelta?: (delta: string) => void;
     onChatTitle?: (title: string) => void;
     onToolStart?: (tool: {
@@ -154,6 +159,7 @@ export function tapChatSseStream(
       toolCallId: string;
       name: string;
       result: string;
+      isError?: boolean;
     }) => void;
     onError?: (message: string) => void;
   },

@@ -1,5 +1,5 @@
 /**
- * Tests for mergeAgentFramesForDisplay — multi-frame Brewed/Churned → one panel.
+ * Tests for merging legacy multi-frame events into one chronological trace.
  */
 
 import assert from "node:assert/strict";

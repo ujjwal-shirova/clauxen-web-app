@@ -176,7 +176,10 @@ function finalizeStreamingSegments(segments: AgentSegment[]): AgentSegment[] {
         : segment.durationSeconds;
       return { ...segment, isStreaming: false, durationSeconds };
     }
-    if (segment.kind === "text" && segment.isStreaming) {
+    if (
+      (segment.kind === "narration" || segment.kind === "text") &&
+      segment.isStreaming
+    ) {
       return { ...segment, isStreaming: false };
     }
     if (segment.kind === "tool" && segment.status === "running") {
@@ -311,11 +314,12 @@ export function applyAgentStreamEvent(
             state.message.thinkingStartedAtMs ?? Date.now(),
         });
       }
-      if (event.kind === "text") {
+      if (event.kind === "narration" || event.kind === "text") {
+        const narrationKind = event.kind;
         agentMode = true;
         state = withSegments(state, (segments) =>
           upsertSegment(segments, {
-            kind: "text",
+            kind: narrationKind,
             id: event.segmentId,
             content: "",
             isStreaming: true,
@@ -324,6 +328,22 @@ export function applyAgentStreamEvent(
         return syncFrameState(state, { agentMode, isStreaming: true });
       }
       return message;
+
+    case "thinking_heading": {
+      agentMode = true;
+      state = withSegments(state, (segments) => {
+        const existing = segments.find(
+          (segment): segment is Extract<AgentSegment, { kind: "thinking" }> =>
+            segment.id === event.segmentId && segment.kind === "thinking",
+        );
+        if (!existing) return segments;
+        return upsertSegment(segments, {
+          ...existing,
+          heading: event.heading,
+        });
+      });
+      return syncFrameState(state, { agentMode, isStreaming: true });
+    }
 
     case "thinking_start":
       hasThinking = true;
@@ -349,6 +369,7 @@ export function applyAgentStreamEvent(
           return upsertSegment(segments, {
             kind: "thinking",
             id: segmentId,
+            heading: existing?.heading,
             content: `${existing?.content ?? ""}${event.delta}`,
             isStreaming: true,
             startedAtMs: existing?.startedAtMs ?? Date.now(),
@@ -373,6 +394,7 @@ export function applyAgentStreamEvent(
           return upsertSegment(segments, {
             kind: "thinking",
             id: segmentId,
+            heading: existing?.heading,
             content: `${existing?.content ?? ""}${event.delta}`,
             isStreaming: true,
             startedAtMs: existing?.startedAtMs ?? Date.now(),
@@ -388,15 +410,24 @@ export function applyAgentStreamEvent(
       });
     }
 
-    case "text_delta": {
+    case "text_delta":
+    case "narration_delta": {
       agentMode = true;
+      const segmentKind =
+        event.type === "narration_delta" ? "narration" : "text";
       state = withSegments(state, (segments) => {
         const existing = segments.find(
-          (segment): segment is Extract<AgentSegment, { kind: "text" }> =>
-            segment.id === event.segmentId && segment.kind === "text",
+          (
+            segment,
+          ): segment is Extract<
+            AgentSegment,
+            { kind: "narration" | "text" }
+          > =>
+            segment.id === event.segmentId &&
+            (segment.kind === "narration" || segment.kind === "text"),
         );
         return upsertSegment(segments, {
-          kind: "text",
+          kind: existing?.kind ?? segmentKind,
           id: event.segmentId,
           content: `${existing?.content ?? ""}${event.delta}`,
           isStreaming: true,
@@ -480,13 +511,19 @@ export function applyAgentStreamEvent(
       }
       if (
         event.type === "segment_end" &&
-        event.kind === "text" &&
+        (event.kind === "narration" || event.kind === "text") &&
         event.segmentId
       ) {
         state = withSegments(state, (segments) => {
           const existing = segments.find(
-            (segment): segment is Extract<AgentSegment, { kind: "text" }> =>
-              segment.id === event.segmentId && segment.kind === "text",
+            (
+              segment,
+            ): segment is Extract<
+              AgentSegment,
+              { kind: "narration" | "text" }
+            > =>
+              segment.id === event.segmentId &&
+              (segment.kind === "narration" || segment.kind === "text"),
           );
           if (!existing) return segments;
           return upsertSegment(segments, {
@@ -497,6 +534,14 @@ export function applyAgentStreamEvent(
         return syncFrameState(state);
       }
       return message;
+    }
+
+    case "segment_remove": {
+      if (state.frames.length === 0) return message;
+      state = withSegments(state, (segments) =>
+        segments.filter((segment) => segment.id !== event.segmentId),
+      );
+      return syncFrameState(state);
     }
 
     case "answer_clear":
@@ -632,7 +677,10 @@ export function applyAgentStreamEvent(
         if (index === -1) return segments;
         const tool = segments[index] as AgentToolSegment;
         const nextSegments = [...segments];
-        nextSegments[index] = enrichToolFromResult(tool, event.result);
+        nextSegments[index] = {
+          ...enrichToolFromResult(tool, event.result),
+          ...(event.isError ? { status: "error" as const } : {}),
+        };
         return nextSegments;
       });
       return syncFrameState(state, { isStreaming: true });

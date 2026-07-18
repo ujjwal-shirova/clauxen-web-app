@@ -29,7 +29,6 @@ import {
   ShieldAlert,
   Award,
   Image as ImageIcon,
-  Globe,
 } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
@@ -96,7 +95,11 @@ function SearchResultRow({
 export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   const query =
     tool.searchQuery ??
-    (typeof tool.args?.query === "string" ? tool.args.query : "Web search");
+    (typeof tool.args?.query === "string"
+      ? tool.args.query
+      : typeof tool.args?.url === "string"
+        ? tool.args.url
+        : tool.name.replace(/_/g, " "));
   const results = tool.searchResults ?? [];
   const isRunning = tool.status === "running";
   const [visibleCount, setVisibleCount] = useState(() =>
@@ -146,26 +149,23 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   }, [visibleResults.length, isRunning]);
 
   return (
-    <div className="min-w-0" data-agent-tool="web_search">
-      <div className="mb-1.5 flex items-center gap-2 px-0.5">
-        <Globe className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-700",
-            isRunning && "shimmer-text",
-          )}
-        >
-          {query}
+    <AgentTimelineStep
+      icon="search"
+      isActive={isRunning}
+      title={
+        <span className={cn(isRunning && "shimmer-text")}>
+          {tool.description || query}
         </span>
-        {isRunning ? (
-          <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-400" />
+      }
+      trailing={
+        isRunning ? (
+          <LoaderCircle className="h-3 w-3 animate-spin" aria-hidden />
         ) : results.length > 0 ? (
-          <span className="shrink-0 text-[12px] tabular-nums text-zinc-400">
-            {results.length} results
-          </span>
-        ) : null}
-      </div>
-
+          <span className="tabular-nums">{results.length} results</span>
+        ) : undefined
+      }
+      defaultExpanded={isRunning || results.length > 0}
+    >
       {showResultsContainer ? (
         <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white">
           <div
@@ -187,7 +187,7 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
           </div>
         </div>
       ) : null}
-    </div>
+    </AgentTimelineStep>
   );
 }
 

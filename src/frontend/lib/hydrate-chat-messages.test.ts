@@ -174,4 +174,80 @@ describe("hydrate-chat-messages", () => {
     assert.equal(tool.startedAtMs, 1_200);
     assert.equal(tool.completedAtMs, 2_400);
   });
+
+  it("rehydrates chronological model turns with distinct narration", () => {
+    const hydrated = hydrateMessageFromContentJson(
+      { id: "a3", role: "assistant", content: "Final answer" },
+      {
+        role: "assistant",
+        message: {
+          content: [{ type: "text", text: "Final answer" }],
+        },
+        agent_ui: {
+          startedAtMs: 1_000,
+          completedAtMs: 4_000,
+          modelTurns: [
+            {
+              stopReason: "tool_use",
+              startedAtMs: 1_000,
+              assistantCompletedAtMs: 2_000,
+              completedAtMs: 3_000,
+              assistant: [
+                {
+                  type: "thinking",
+                  thinking:
+                    "<agent_heading>Checking official docs</agent_heading>Compare the contracts.",
+                  signature: "signed",
+                },
+                {
+                  type: "text",
+                  text: "<agent_narration>I’ll read the official reference.</agent_narration>",
+                },
+                {
+                  type: "tool_use",
+                  id: "fetch-1",
+                  name: "web_fetch",
+                  input: { url: "https://example.com/docs" },
+                },
+              ],
+              toolResults: [
+                {
+                  type: "tool_result",
+                  tool_use_id: "fetch-1",
+                  content: "documentation",
+                },
+              ],
+            },
+            {
+              stopReason: "end_turn",
+              assistant: [{ type: "text", text: "Final answer" }],
+            },
+          ],
+          actions: [
+            {
+              id: "fetch-1",
+              name: "web_fetch",
+              input: { url: "https://example.com/docs" },
+              result: "documentation",
+            },
+          ],
+        },
+      },
+    );
+
+    const segments = hydrated.agentFrames?.[0]?.segments ?? [];
+    assert.deepEqual(
+      segments.map((segment) => segment.kind),
+      ["thinking", "narration", "tool"],
+    );
+    assert.equal(
+      segments[0]?.kind === "thinking" ? segments[0].heading : undefined,
+      "Checking official docs",
+    );
+    assert.equal(
+      segments[1]?.kind === "narration" ? segments[1].content : undefined,
+      "I’ll read the official reference.",
+    );
+    assert.equal(hydrated.content, "Final answer");
+  });
 });

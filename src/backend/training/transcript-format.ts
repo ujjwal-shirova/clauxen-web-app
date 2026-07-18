@@ -30,6 +30,11 @@ export type TranscriptThinkingPart = {
   signature?: string;
 };
 
+export type TranscriptRedactedThinkingPart = {
+  type: "redacted_thinking";
+  data: string;
+};
+
 export type TranscriptToolUsePart = {
   type: "tool_use";
   id: string;
@@ -47,6 +52,7 @@ export type TranscriptToolResultPart = {
 export type TranscriptContentPart =
   | TranscriptTextPart
   | TranscriptThinkingPart
+  | TranscriptRedactedThinkingPart
   | TranscriptToolUsePart
   | TranscriptToolResultPart;
 
@@ -66,6 +72,17 @@ export type TranscriptAgentUi = {
   completedAtMs?: number;
   thinkingDurationSeconds?: number;
   actions?: TranscriptAgentAction[];
+  /** Exact chronological Messages API rounds for durable transcript hydrate. */
+  modelTurns?: TranscriptAgentModelTurn[];
+};
+
+export type TranscriptAgentModelTurn = {
+  stopReason: string;
+  startedAtMs?: number;
+  assistantCompletedAtMs?: number;
+  completedAtMs?: number;
+  assistant: TranscriptContentPart[];
+  toolResults?: TranscriptToolResultPart[];
 };
 
 export type TranscriptMessageRecord = {
@@ -127,6 +144,59 @@ export function toolResultPart(
     content,
     ...(isError ? { is_error: true } : {}),
   };
+}
+
+/** Keep only Anthropic-compatible blocks needed for replay/training. */
+export function captureAnthropicContentBlocks(
+  blocks: readonly unknown[],
+): TranscriptContentPart[] {
+  const captured: TranscriptContentPart[] = [];
+
+  for (const value of blocks) {
+    if (!value || typeof value !== "object") continue;
+    const block = value as Record<string, unknown>;
+
+    if (block.type === "thinking" && typeof block.thinking === "string") {
+      captured.push(
+        thinkingPart(
+          block.thinking,
+          typeof block.signature === "string" ? block.signature : undefined,
+        ),
+      );
+      continue;
+    }
+
+    if (
+      block.type === "redacted_thinking" &&
+      typeof block.data === "string"
+    ) {
+      captured.push({ type: "redacted_thinking", data: block.data });
+      continue;
+    }
+
+    if (block.type === "text" && typeof block.text === "string") {
+      captured.push(textPart(block.text));
+      continue;
+    }
+
+    if (
+      block.type === "tool_use" &&
+      typeof block.id === "string" &&
+      typeof block.name === "string"
+    ) {
+      captured.push(
+        toolUsePart(
+          block.name,
+          block.input && typeof block.input === "object"
+            ? (block.input as Record<string, unknown>)
+            : {},
+          block.id,
+        ),
+      );
+    }
+  }
+
+  return captured;
 }
 
 export function buildUserTranscriptRecord(

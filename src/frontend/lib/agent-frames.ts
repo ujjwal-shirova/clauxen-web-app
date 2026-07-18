@@ -131,7 +131,9 @@ export function hasActiveFrameWork(frames: AgentFrame[], index: number): boolean
   if (!frame || frame.complete) return false;
   return frame.segments.some(
     (segment) =>
-      ((segment.kind === "thinking" || segment.kind === "text") &&
+      ((segment.kind === "thinking" ||
+        segment.kind === "narration" ||
+        segment.kind === "text") &&
         segment.isStreaming) ||
       (segment.kind === "tool" && segment.status === "running"),
   );
@@ -161,7 +163,8 @@ function frameHasWorkSegments(segments: AgentSegment[]): boolean {
     (segment) =>
       segment.kind === "thinking" ||
       segment.kind === "tool" ||
-      (segment.kind === "text" && segment.content.trim().length > 0),
+      ((segment.kind === "narration" || segment.kind === "text") &&
+        segment.content.trim().length > 0),
   );
 }
 

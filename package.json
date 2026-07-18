@@ -24,7 +24,7 @@
     "strip:annotations": "node .tools/strip-hindi-annotations.mjs",
     "worker": "tsx scripts/worker.ts",
     "autonomous-agent:ws": "tsx src/autonomous-agent/scripts/ws-server.ts",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "audit:public-env": "node scripts/audit-public-env.mjs",
     "vercel:env:sync": "node scripts/sync-vercel-env-api.mjs",
     "website:manifest": "python3 scripts/website/generate-pages-manifest.py"

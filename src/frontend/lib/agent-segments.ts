@@ -10,12 +10,22 @@ export type WebSearchResult = {
 export type AgentThinkingSegment = {
   kind: "thinking";
   id: string;
+  /** Model-authored task-specific label parsed from <agent_heading>. */
+  heading?: string;
   content: string;
   isStreaming?: boolean;
   durationSeconds?: number;
   startedAtMs?: number;
 };
 
+export type AgentNarrationSegment = {
+  kind: "narration";
+  id: string;
+  content: string;
+  isStreaming?: boolean;
+};
+
+/** @deprecated Persisted v1 transcripts used `text` for narration. */
 export type AgentTextSegment = {
   kind: "text";
   id: string;
@@ -54,6 +64,7 @@ export type AgentStepDoneSegment = {
 
 export type AgentSegment =
   | AgentThinkingSegment
+  | AgentNarrationSegment
   | AgentTextSegment
   | AgentToolSegment
   | AgentStepDoneSegment;
@@ -90,6 +101,7 @@ export function agentSegmentsVisuallyEqual(
     if (a.kind === "thinking" && b.kind === "thinking") {
       if (
         a.content !== b.content ||
+        a.heading !== b.heading ||
         a.isStreaming !== b.isStreaming ||
         a.durationSeconds !== b.durationSeconds ||
         a.startedAtMs !== b.startedAtMs
@@ -99,7 +111,10 @@ export function agentSegmentsVisuallyEqual(
       continue;
     }
 
-    if (a.kind === "text" && b.kind === "text") {
+    if (
+      (a.kind === "text" || a.kind === "narration") &&
+      (b.kind === "text" || b.kind === "narration")
+    ) {
       if (a.content !== b.content || a.isStreaming !== b.isStreaming) {
         return false;
       }

@@ -6,6 +6,7 @@ import * as messagesRepo from "@/backend/repositories/messages.repository";
 import * as branchesRepo from "@/backend/repositories/branches.repository";
 import * as transcriptRepo from "@/backend/repositories/transcript.repository";
 import { createChatStream } from "@/app/api/chat/stream";
+import type { AgentStreamOptions } from "@/backend/inference/agent-engine";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
 import {
   encodeSseEvent,
@@ -31,6 +32,7 @@ import {
   buildToolResultUserRecord,
   buildUserTranscriptRecord,
   type CapturedToolCall,
+  type TranscriptAgentModelTurn,
 } from "@/backend/training/transcript-format";
 
 async function persistUserTranscriptLine(input: {
@@ -61,6 +63,7 @@ async function persistAssistantTranscriptTurn(input: {
   answer: string;
   thinking?: string;
   tools: CapturedToolCall[];
+  modelTurns?: TranscriptAgentModelTurn[];
   status: "success" | "error" | "cancelled";
 }) {
   const record = buildAssistantTranscriptRecord({
@@ -69,22 +72,49 @@ async function persistAssistantTranscriptTurn(input: {
     tools: input.tools,
   });
   try {
-    await transcriptRepo.appendTranscriptLine({
-      chatId: input.chatId,
-      userId: input.userId,
-      messageId: input.messageId,
-      role: "assistant",
-      record,
-    });
-    const toolResults = buildToolResultUserRecord(input.tools);
-    if (toolResults) {
+    if (input.modelTurns?.length) {
+      for (const turn of input.modelTurns) {
+        await transcriptRepo.appendTranscriptLine({
+          chatId: input.chatId,
+          userId: input.userId,
+          messageId: input.messageId,
+          role: "assistant",
+          record: {
+            role: "assistant",
+            message: { content: turn.assistant },
+          },
+        });
+        if (turn.toolResults?.length) {
+          await transcriptRepo.appendTranscriptLine({
+            chatId: input.chatId,
+            userId: input.userId,
+            messageId: input.messageId,
+            role: "user",
+            record: {
+              role: "user",
+              message: { content: turn.toolResults },
+            },
+          });
+        }
+      }
+    } else {
       await transcriptRepo.appendTranscriptLine({
         chatId: input.chatId,
         userId: input.userId,
         messageId: input.messageId,
-        role: "user",
-        record: toolResults,
+        role: "assistant",
+        record,
       });
+      const toolResults = buildToolResultUserRecord(input.tools);
+      if (toolResults) {
+        await transcriptRepo.appendTranscriptLine({
+          chatId: input.chatId,
+          userId: input.userId,
+          messageId: input.messageId,
+          role: "user",
+          record: toolResults,
+        });
+      }
     }
     await transcriptRepo.appendTranscriptLine({
       chatId: input.chatId,
@@ -434,8 +464,71 @@ export async function streamChatGeneration(input: {
     })
     .filter((message) => message.content.length > 0);
 
+  const structuredFromDb: AgentStreamOptions["messages"] = [];
+  for (const row of dbRecent) {
+    if (row.role !== "user" && row.role !== "assistant") continue;
+
+    if (row.role === "user") {
+      const modelContent =
+        typeof (row.metadata as { model_content?: unknown })?.model_content ===
+        "string"
+          ? String(
+              (row.metadata as { model_content?: string }).model_content,
+            ).trim()
+          : (row.content ?? "").trim();
+      if (modelContent) {
+        structuredFromDb.push({ role: "user", content: modelContent });
+      }
+      continue;
+    }
+
+    const storedAgentUi = (
+      row.content_json as {
+        agent_ui?: { modelTurns?: TranscriptAgentModelTurn[] };
+      }
+    )?.agent_ui;
+    const storedTurns = Array.isArray(storedAgentUi?.modelTurns)
+      ? storedAgentUi.modelTurns
+      : [];
+
+    if (storedTurns.length > 0) {
+      for (const turn of storedTurns) {
+        const assistantBlocks = Array.isArray(turn.assistant)
+          ? turn.assistant.filter((part) => part.type !== "tool_result")
+          : [];
+        if (assistantBlocks.length > 0) {
+          structuredFromDb.push({
+            role: "assistant",
+            content:
+              assistantBlocks as AgentStreamOptions["messages"][number]["content"],
+          });
+        }
+        if (Array.isArray(turn.toolResults) && turn.toolResults.length > 0) {
+          structuredFromDb.push({
+            role: "user",
+            content:
+              turn.toolResults as AgentStreamOptions["messages"][number]["content"],
+          });
+        }
+      }
+      continue;
+    }
+
+    const content = (row.content ?? "").trim();
+    if (content) {
+      structuredFromDb.push({ role: "assistant", content });
+    }
+  }
+
   let conversationForModel =
     fromDb.length > 0 ? fromDb : clientConversation;
+  let conversationForAgent =
+    structuredFromDb.length > 0
+      ? structuredFromDb
+      : clientConversation.map((message) => ({
+          role: message.role,
+          content: message.content,
+        }));
   if (lastClientUser) {
     const lastDbUserIndex = (() => {
       for (let i = conversationForModel.length - 1; i >= 0; i -= 1) {
@@ -451,6 +544,29 @@ export async function streamChatGeneration(input: {
       );
     } else {
       conversationForModel = [...conversationForModel, lastClientUser];
+    }
+
+    let lastAgentUserIndex = -1;
+    for (let i = conversationForAgent.length - 1; i >= 0; i -= 1) {
+      if (
+        conversationForAgent[i]?.role === "user" &&
+        typeof conversationForAgent[i]?.content === "string"
+      ) {
+        lastAgentUserIndex = i;
+        break;
+      }
+    }
+    if (lastAgentUserIndex >= 0) {
+      conversationForAgent = conversationForAgent.map((message, index) =>
+        index === lastAgentUserIndex
+          ? { ...message, content: lastClientUser.content }
+          : message,
+      );
+    } else {
+      conversationForAgent = [
+        ...conversationForAgent,
+        { role: "user", content: lastClientUser.content },
+      ];
     }
   }
 
@@ -469,6 +585,7 @@ export async function streamChatGeneration(input: {
   let thinking = "";
   let streamError: string | null = null;
   const toolsById = new Map<string, CapturedToolCall>();
+  const modelTurns: TranscriptAgentModelTurn[] = [];
 
   const modelForTelemetry = resolveInferenceRoute({
     chatModel: parseChatModelId(input.chatModel),
@@ -484,12 +601,19 @@ export async function streamChatGeneration(input: {
       signal: input.signal,
       homerReasoningEffort: input.homerReasoningEffort,
       onPauseForUser: input.onPauseForUser,
+      modelMessages: conversationForAgent,
+      onModelTurn: (turn) => {
+        modelTurns.push(turn);
+      },
     });
     const body = tapChatSseStream(
       sourceStream,
       {
         onAnswerDelta: (delta) => {
           answer += delta;
+        },
+        onAnswerClear: () => {
+          answer = "";
         },
         onThinkingDelta: (delta) => {
           thinking += delta;
@@ -501,12 +625,13 @@ export async function streamChatGeneration(input: {
           streamError = message.trim() || "The model could not complete this response.";
         },
         onToolStart: (tool) => {
+          const existing = toolsById.get(tool.toolCallId);
           toolsById.set(tool.toolCallId, {
             id: tool.toolCallId,
             name: tool.name,
-            input: tool.args ?? {},
-            description: tool.description,
-            startedAtMs: Date.now(),
+            input: { ...existing?.input, ...(tool.args ?? {}) },
+            description: tool.description ?? existing?.description,
+            startedAtMs: existing?.startedAtMs ?? Date.now(),
           });
         },
         onToolEnd: (tool) => {
@@ -516,7 +641,7 @@ export async function streamChatGeneration(input: {
             name: tool.name || existing?.name || "tool",
             input: existing?.input ?? {},
             result: tool.result,
-            isError: false,
+            isError: tool.isError === true,
             description: existing?.description,
             startedAtMs: existing?.startedAtMs,
             completedAtMs: Date.now(),
@@ -568,6 +693,7 @@ export async function streamChatGeneration(input: {
           startedAtMs: started,
           completedAtMs,
           thinkingDurationSeconds,
+          modelTurns,
           actions: tools.map((tool) => ({
             id: tool.id,
             name: tool.name,
@@ -600,6 +726,7 @@ export async function streamChatGeneration(input: {
           answer: cleanedAnswer,
           thinking,
           tools,
+          modelTurns,
           status: wasCancelled || failed ? "error" : "success",
         });
       }
@@ -677,6 +804,12 @@ export async function streamChatGeneration(input: {
         answer: failedContent,
         thinking,
         tools,
+        agentUi: {
+          startedAtMs: started,
+          completedAtMs: Date.now(),
+          modelTurns,
+          actions: tools,
+        },
       });
       await messagesRepo.updateMessageContent(
         assistantRow.id,
@@ -692,6 +825,7 @@ export async function streamChatGeneration(input: {
         answer: failedContent,
         thinking,
         tools,
+        modelTurns,
         status: "error",
       });
     }
