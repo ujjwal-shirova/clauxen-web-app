@@ -37,7 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
-| 2026-07-18 | Marketing content split into modular src/website/content/* + section components; Claude-inspired minimal pages | Maintainability; avoid 4k-line pages.ts monolith |
+| 2026-07-18 | Agentic transcript: chronological Anthropic-style loop (Cogitating spark, clock+sans thinking, serif narration, tool action labels, Done) using Clauxen Code spinner/turn verbs | Match imported agent patterns + interleaved thinking UX |
 | 2026-07-18 | Marketing + legal/auth paths are public in Edge middleware via isMarketingPublicPath | Unauthenticated users must open Claude/ChatGPT-style marketing pages without login |
 | 2026-07-18 | Marketing site at src/website + (marketing)/[...slug]; chat stays at /; public pricing at /plans (not /pricing) | Avoid breaking in-app #pricing overlay and /apps /library app routes; Claude/ChatGPT-style parallel URLs |
 | 2026-07-17 | Label-style controls (follow-up prompts, chat-row innards) use bold/weight hover — never inset button wash | Universal button:hover and .group/chat button:hover were painting nested pills |

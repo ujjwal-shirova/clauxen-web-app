@@ -29,6 +29,7 @@ import {
   ShieldAlert,
   Award,
   Image as ImageIcon,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
@@ -37,7 +38,6 @@ import {
   type WebSearchResult,
 } from "@/frontend/lib/agent-segments";
 import { AgentTimelineStep } from "./agent-timeline";
-import { AgentFaviconStack } from "./agent-favicon-stack";
 import { AgentFileBlock, PresentFilesBlock } from "./agent-file-block";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
 import { StreamingTextFade } from "@/frontend/lib/streaming-text-fade";
@@ -73,23 +73,22 @@ function SearchResultRow({
   result: WebSearchResult;
   index: number;
 }) {
+  const domain = domainFromUrl(result.url);
   return (
     <a
       href={result.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-2 rounded-lg border border-zinc-100 bg-white px-2 py-1.5 transition-colors hover:bg-zinc-50 animate-in fade-in slide-in-from-bottom-1 duration-300"
-      style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
+      className="flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-zinc-50 animate-in fade-in duration-200"
+      style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
     >
       <SearchResultFavicon url={result.url} />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[12px] font-medium leading-4 text-zinc-900">
-          {result.title || result.url}
-        </div>
-        <div className="truncate text-[11px] leading-3.5 text-zinc-400">
-          {domainFromUrl(result.url)}
-        </div>
-      </div>
+      <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-4 text-zinc-800">
+        {result.title || result.url}
+      </span>
+      <span className="max-w-[38%] shrink-0 truncate text-right text-[12px] leading-4 text-zinc-400">
+        {domain}
+      </span>
     </a>
   );
 }
@@ -100,7 +99,6 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
     (typeof tool.args?.query === "string" ? tool.args.query : "Web search");
   const results = tool.searchResults ?? [];
   const isRunning = tool.status === "running";
-  const faviconUrls = results.map((result) => result.url);
   const [visibleCount, setVisibleCount] = useState(() =>
     tool.status === "running" ? 0 : results.length,
   );
@@ -124,7 +122,7 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
       return;
     }
 
-    const delay = visibleCount === 0 ? 0 : 110;
+    const delay = visibleCount === 0 ? 0 : 90;
     const timer = window.setTimeout(() => {
       setVisibleCount((count) => Math.min(count + 1, results.length));
     }, delay);
@@ -148,32 +146,33 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   }, [visibleResults.length, isRunning]);
 
   return (
-    <AgentTimelineStep
-      icon="search"
-      isActive={isRunning}
-      title={
-        <span className={cn("truncate", isRunning && "shimmer-text")}>
+    <div className="min-w-0" data-agent-tool="web_search">
+      <div className="mb-1.5 flex items-center gap-2 px-0.5">
+        <Globe className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-700",
+            isRunning && "shimmer-text",
+          )}
+        >
           {query}
         </span>
-      }
-      trailing={
-        isRunning ? (
-          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+        {isRunning ? (
+          <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-400" />
         ) : results.length > 0 ? (
-          <span className="flex items-center gap-1.5">
-            <AgentFaviconStack urls={faviconUrls.slice(0, 10)} />
-            <span>{results.length} results</span>
+          <span className="shrink-0 text-[12px] tabular-nums text-zinc-400">
+            {results.length} results
           </span>
-        ) : undefined
-      }
-    >
+        ) : null}
+      </div>
+
       {showResultsContainer ? (
-        <div className="rounded-[12px] border border-zinc-200 bg-background px-2 py-2">
+        <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white">
           <div
             ref={scrollRef}
-            className="flex max-h-[18rem] min-h-[3.5rem] flex-col gap-1 overflow-y-auto pr-0.5"
+            className="flex max-h-[14rem] min-h-0 flex-col divide-y divide-zinc-100 overflow-y-auto"
           >
-            {visibleResults.slice(0, 10).map((result, index) => (
+            {visibleResults.slice(0, 8).map((result, index) => (
               <SearchResultRow
                 key={result.url}
                 result={result}
@@ -181,14 +180,14 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
               />
             ))}
             {isRunning && visibleResults.length === 0 ? (
-              <div className="flex items-center px-1 py-2 text-[12px] text-zinc-500 shimmer-text">
-                Searching the web…
+              <div className="px-3 py-2.5 text-[12px] text-zinc-500 shimmer-text">
+                Searching…
               </div>
             ) : null}
           </div>
         </div>
       ) : null}
-    </AgentTimelineStep>
+    </div>
   );
 }
 

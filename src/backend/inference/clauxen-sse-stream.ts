@@ -62,13 +62,21 @@ export class ClauxenSseStream {
     this.write({ type: "thinking_start" });
   }
 
-  writeThinkingDelta(delta: string): void {
+  writeThinkingDelta(delta: string, segmentId?: string): void {
     if (!delta) return;
-    this.write({ type: "thinking_delta", delta });
+    this.write(
+      segmentId
+        ? { type: "thinking_delta", delta, segmentId }
+        : { type: "thinking_delta", delta },
+    );
   }
 
   writeThinkingEnd(segmentId?: string): void {
-    this.write({ type: "thinking_end", segmentId });
+    this.write(
+      segmentId
+        ? { type: "thinking_end", segmentId }
+        : { type: "thinking_end" },
+    );
   }
 
   writeAnswerDelta(delta: string): void {

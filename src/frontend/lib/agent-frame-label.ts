@@ -113,11 +113,35 @@ const TOOL_ACTION_PHRASE: Record<string, string> = {
   ask_user_input_v0: ASKED_QUESTIONS_LABEL,
 };
 
-function toolActionPhrase(tool: AgentToolSegment): string {
+const TOOL_RUNNING_PHRASE: Record<string, string> = {
+  web_search: "Searching the web",
+  web_fetch: "Reading a page",
+  bash_tool: "Running a command",
+  run_code_interpreter: "Running code",
+  execute_code: "Running code",
+  file_write: "Creating a file",
+  create_file: "Creating a file",
+  ask_user_input_v0: ASKING_QUESTIONS_LABEL,
+};
+
+export function toolActionPhraseForName(
+  name: string,
+  status?: "running" | "done" | "error",
+): string {
+  if (status === "running") {
+    return (
+      TOOL_RUNNING_PHRASE[name] ??
+      TOOL_ACTION_PHRASE[name] ??
+      `Using ${name.replace(/_/g, " ")}`
+    );
+  }
   return (
-    TOOL_ACTION_PHRASE[tool.name] ??
-    `Used ${tool.name.replace(/_/g, " ")}`
+    TOOL_ACTION_PHRASE[name] ?? `Used ${name.replace(/_/g, " ")}`
   );
+}
+
+function toolActionPhrase(tool: AgentToolSegment): string {
+  return toolActionPhraseForName(tool.name, tool.status);
 }
 
 /** "Searched the web, viewed a file" — one phrase per distinct tool kind
@@ -192,8 +216,7 @@ export function resolveActiveStepLabel(
 
   if (last.kind === "thinking") {
     if (!last.isStreaming) return undefined;
-    // Shimmer "Thinking" from the first delta — even before content arrives.
-    return "Thinking";
+    return "Cogitating";
   }
 
   if (last.kind === "tool" && last.status === "running") {
@@ -248,6 +271,7 @@ export function shouldShimmerFrameHeader(label: string): boolean {
     label === PLANNING_NEXT_MOVES_LABEL ||
     label === WORKING_LABEL ||
     label === ASKING_QUESTIONS_LABEL ||
+    label === "Cogitating" ||
     label === "Thinking" ||
     label.startsWith("Thinking")
   );

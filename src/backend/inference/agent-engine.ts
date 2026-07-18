@@ -230,7 +230,9 @@ export async function runAutonomousAgent(
   const frameId = "agent-frame-1";
   let frameOpen = false;
   let textSegmentCounter = 0;
+  let thinkingSegmentCounter = 0;
   let activeTextSegmentId: string | null = null;
+  let activeThinkingSegmentId: string | null = null;
 
   const openFrame = () => {
     if (frameOpen) return;
@@ -286,14 +288,23 @@ export async function runAutonomousAgent(
 
       const ensureThinkingOpen = () => {
         if (thinkingOpen) return;
+        thinkingSegmentCounter += 1;
+        activeThinkingSegmentId = `${frameId}-thinking-${thinkingSegmentCounter}`;
+        openFrame();
+        sse.writeSegmentStart(activeThinkingSegmentId, "thinking");
         sse.writeThinkingStart();
         thinkingOpen = true;
       };
 
       const closeThinking = () => {
         if (!thinkingOpen) return;
-        sse.writeThinkingEnd();
+        const segmentId = activeThinkingSegmentId ?? undefined;
+        sse.writeThinkingEnd(segmentId);
+        if (segmentId) {
+          sse.writeSegmentEnd(segmentId, "thinking");
+        }
         thinkingOpen = false;
+        activeThinkingSegmentId = null;
       };
 
       for await (const part of stream) {
@@ -301,7 +312,10 @@ export async function runAutonomousAgent(
           case "reasoning-delta":
             openFrame();
             ensureThinkingOpen();
-            sse.writeThinkingDelta(part.delta);
+            sse.writeThinkingDelta(
+              part.delta,
+              activeThinkingSegmentId ?? undefined,
+            );
             fullReasoning += part.delta;
             break;
 

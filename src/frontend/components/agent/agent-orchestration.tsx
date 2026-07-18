@@ -7,9 +7,15 @@ import { AssistantContentRenderer } from "@/frontend/components/assistant-conten
 import { StreamingOrbCursor } from "@/frontend/components/ui/streaming-orb-cursor";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { shouldShowAssistantStreamingOrb } from "@/frontend/lib/streaming-orb-policy";
+import { cn } from "@/frontend/lib/utils";
 import { AgentWorkFrame } from "./agent-work-frame";
 import { ArtifactFileCard } from "./artifact-file-card";
 
+/**
+ * Anthropic-style agent orchestration:
+ * chronological transcript (thinking / tools / narration) then final answer.
+ * Intro whispers and mid-turn text use serif narration; thinking stays sans.
+ */
 export function AgentOrchestrationView({
   message,
   detailLevel,
@@ -20,8 +26,6 @@ export function AgentOrchestrationView({
   const blocks = resolveOrchestrationBlocks(message);
   const sources = collectMessageSources(message);
   const streaming = message.isStreaming === true;
-  // Keep the orb visible during thinking/tool timelines; hide only once
-  // answer markdown is actively streaming (text caret replaces the orb).
   const answerStreaming = blocks.some(
     (block) =>
       block.kind === "markdown" &&
@@ -46,6 +50,7 @@ export function AgentOrchestrationView({
       className="flex w-full min-w-0 flex-col gap-3"
       data-message-id={message.id}
       data-assistant-content="true"
+      data-agent-transcript-root="true"
     >
       {blocks.map((block) => {
         if (block.kind === "timeline") {
@@ -61,15 +66,22 @@ export function AgentOrchestrationView({
           );
         }
 
+        const isIntro = block.blockId.endsWith("-intro");
+        const isInterim = block.blockId.endsWith("-interim");
+        const isAnswer = block.blockId.endsWith("-answer");
+        const isNarrationVoice = isIntro || isInterim || isAnswer;
+
         return (
           <div
             key={block.blockId}
-            className={
-              block.blockId.endsWith("-interim")
-                ? "text-[15px] font-semibold leading-relaxed text-zinc-900"
-                : block.blockId.endsWith("-intro")
-                  ? "text-[15px] leading-relaxed text-zinc-700"
-                  : undefined
+            className={cn(
+              isNarrationVoice &&
+                "font-serif text-[16.5px] leading-[1.65] tracking-[-0.01em] text-zinc-900",
+              isIntro && "text-zinc-800",
+              isInterim && "text-zinc-700",
+            )}
+            data-agent-block={
+              isIntro ? "intro" : isInterim ? "interim" : "answer"
             }
           >
             <AssistantContentRenderer
@@ -91,10 +103,6 @@ export function AgentOrchestrationView({
         </div>
       ) : null}
 
-      {/* present_files cards land here — after every timeline frame and the
-          final answer text, so they stay visible once the frame collapses
-          (matches the reference agent UI: the card sits at the very end of
-          the output, not buried inside a collapsible step). */}
       {message.agentArtifacts && message.agentArtifacts.length > 0 ? (
         <div className="flex w-full flex-col gap-2">
           {message.agentArtifacts.map((artifact) => (

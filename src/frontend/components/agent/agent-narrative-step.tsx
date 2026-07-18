@@ -2,11 +2,11 @@
 
 import { cn } from "@/frontend/lib/utils";
 import type { AgentTextSegment } from "@/frontend/lib/agent-segments";
-import { AgentTimelineStep } from "./agent-timeline";
+import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
 
 /**
- * Short narration the model emits between tool actions — shown as an activity
- * line (not a mandatory thinking block).
+ * Mid-turn narration — user-facing prose between tools.
+ * Serif / document voice — distinct from sans interleaved thinking.
  */
 export function AgentNarrativeStep({
   segment,
@@ -18,20 +18,27 @@ export function AgentNarrativeStep({
   }
 
   return (
-    <AgentTimelineStep
-      icon="thinking"
-      isActive={!!segment.isStreaming}
-      collapsible={false}
-      title={
-        <span
-          className={cn(
-            "font-[430] leading-relaxed text-zinc-800",
-            segment.isStreaming && "shimmer-text",
-          )}
-        >
-          {segment.content || "…"}
-        </span>
-      }
-    />
+    <div
+      className={cn(
+        "agent-narration min-w-0 animate-in fade-in duration-200 py-1",
+        segment.isStreaming && "opacity-95",
+      )}
+      data-agent-segment="narration"
+      data-assistant-content="true"
+    >
+      <div
+        className={cn(
+          "font-serif text-[16.5px] leading-[1.65] tracking-[-0.01em] text-zinc-900",
+          segment.isStreaming && "shimmer-text",
+        )}
+      >
+        <MarkdownRenderer
+          content={segment.content || "…"}
+          isStreaming={!!segment.isStreaming}
+          showCursor={false}
+          lightweightStream={!!segment.isStreaming}
+        />
+      </div>
+    </div>
   );
 }
