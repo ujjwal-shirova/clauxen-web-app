@@ -31,6 +31,8 @@ export type MessageAttachment = {
 
 export type SendMessageOptions = {
   attachments?: ComposerAttachment[];
+  /** Skip the per-chat generating queue (ask_user_input answers). */
+  bypassQueue?: boolean;
 };
 
 const IMAGE_MIMES = new Set([

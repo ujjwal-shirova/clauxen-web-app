@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import {
+  ASKING_QUESTIONS_LABEL,
+  ASKED_QUESTIONS_LABEL,
   formatWorkedDuration,
   resolveActiveStepLabel,
   resolveWorkedForLabel,
@@ -66,6 +68,8 @@ function thinkingOnlyDurationSeconds(segments: AgentSegment[]): number | null {
  * shimmering step label and live elapsed time.
  * Done: collapses to "Thought for …" (thinking-only) or "Worked for …"
  * (tools) with the chevron beside the label.
+ * Ask-user turns: "Asking Questions" / "Asked Questions" — no chevron; the
+ * questionnaire itself lives in the composer slot.
  */
 export function AgentWorkFrame({
   segments,
@@ -88,18 +92,20 @@ export function AgentWorkFrame({
     (segment) =>
       segment.kind === "tool" && segment.name === "ask_user_input_v0",
   );
-  const userInputTools = items.filter(
-    (segment): segment is AgentToolSegment =>
-      isToolSegment(segment) && segment.name === "ask_user_input_v0",
-  );
   const activityItems = items.filter(
     (segment) =>
       !(isToolSegment(segment) && segment.name === "ask_user_input_v0"),
   );
-  const userInputOnly = hasUserInputTool && activityItems.length === 0;
+  const askTools = items.filter(
+    (segment): segment is AgentToolSegment =>
+      isToolSegment(segment) && segment.name === "ask_user_input_v0",
+  );
+  const askOnly = hasUserInputTool && activityItems.length === 0;
+  const askRunning = askTools.some((tool) => tool.status === "running");
   const turnFinished = frameComplete && !isStreaming;
 
   useEffect(() => {
+    if (askOnly) return;
     if (hasUserInputTool && !turnFinished) {
       userToggledRef.current = false;
       setExpanded(true);
@@ -113,16 +119,16 @@ export function AgentWorkFrame({
     if (turnFinished && !userToggledRef.current) {
       setExpanded(false);
     }
-  }, [isStreaming, turnFinished, hasUserInputTool]);
+  }, [isStreaming, turnFinished, hasUserInputTool, askOnly]);
 
   // Live elapsed ticker while the frame is open (ChatGPT/Claude feel).
   useEffect(() => {
-    if (!isStreaming || turnFinished || !startedAtMs) return;
+    if (!isStreaming || turnFinished || !startedAtMs || askOnly) return;
     const tick = () => setNowMs(Date.now());
     tick();
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
-  }, [isStreaming, turnFinished, startedAtMs]);
+  }, [isStreaming, turnFinished, startedAtMs, askOnly]);
 
   const hasActiveWork = items.some(
     (segment) =>
@@ -158,26 +164,43 @@ export function AgentWorkFrame({
       ? formatWorkedDuration(Math.max(1000, nowMs - startedAtMs))
       : null;
 
-  const frameLabel = turnFinished
-    ? thoughtOnlySeconds != null
-      ? `Thought for ${thoughtOnlySeconds}s`
-      : (workedForLabel ?? "Worked")
-    : liveElapsed
-      ? `${liveLabel} · ${liveElapsed}`
-      : liveLabel;
+  const frameLabel = askOnly
+    ? askRunning || (isStreaming && !turnFinished)
+      ? ASKING_QUESTIONS_LABEL
+      : ASKED_QUESTIONS_LABEL
+    : turnFinished
+      ? thoughtOnlySeconds != null
+        ? `Thought for ${thoughtOnlySeconds}s`
+        : (workedForLabel ?? "Worked")
+      : liveElapsed
+        ? `${liveLabel} · ${liveElapsed}`
+        : liveLabel;
 
   const showShimmer =
+    !askOnly &&
     isStreaming &&
     (hasActiveWork || shouldShimmerFrameHeader(liveLabel));
 
+  const askShimmer =
+    askOnly && (askRunning || (isStreaming && !turnFinished));
+
   if (items.length === 0) return null;
 
-  if (userInputOnly) {
+  if (askOnly) {
     return (
-      <div className="mb-3 w-full min-w-0">
-        {userInputTools.map((segment) => (
-          <AgentToolBlock key={segment.id} tool={segment} />
-        ))}
+      <div
+        className="mb-3 w-full min-w-0"
+        data-agent-work-frame="true"
+        data-agent-ask-label="true"
+      >
+        <span
+          className={cn(
+            "inline-flex max-w-full truncate text-[13.5px] font-medium leading-5",
+            askShimmer ? "shimmer-text" : "text-zinc-500",
+          )}
+        >
+          {frameLabel}
+        </span>
       </div>
     );
   }
@@ -237,9 +260,6 @@ export function AgentWorkFrame({
             expanded ? "opacity-100" : "opacity-0",
           )}
         >
-          {userInputTools.map((segment) => (
-            <AgentToolBlock key={segment.id} tool={segment} />
-          ))}
           {activityItems.length > 0 ? (
             <AgentActivityList>
               {activityItems.map((segment) => {

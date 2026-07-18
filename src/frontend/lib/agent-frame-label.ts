@@ -8,6 +8,8 @@ import { formatDuration } from "@/frontend/lib/clauxen-code/format-duration";
 
 export const PLANNING_NEXT_MOVES_LABEL = "Planning next moves";
 export const WORKING_LABEL = "Working";
+export const ASKING_QUESTIONS_LABEL = "Asking Questions";
+export const ASKED_QUESTIONS_LABEL = "Asked Questions";
 
 function pickTurnVerb(_seed: number): string {
   // Single consistent label — random Brewed/Churned/Cogitated chips stacked
@@ -59,6 +61,11 @@ function thinkingDurationSeconds(segment: AgentThinkingSegment): number {
 }
 
 function toolStepLabel(tool: AgentToolSegment): string {
+  if (tool.name === "ask_user_input_v0") {
+    return tool.status === "running"
+      ? ASKING_QUESTIONS_LABEL
+      : ASKED_QUESTIONS_LABEL;
+  }
   if (tool.name === "web_search" || tool.name === "web_fetch") {
     return (
       tool.searchQuery ??
@@ -103,7 +110,7 @@ const TOOL_ACTION_PHRASE: Record<string, string> = {
   weather_fetch: "Checked the weather",
   places_search: "Searched places",
   image_search: "Searched images",
-  ask_user_input_v0: "Asked a question",
+  ask_user_input_v0: ASKED_QUESTIONS_LABEL,
 };
 
 function toolActionPhrase(tool: AgentToolSegment): string {
@@ -240,6 +247,7 @@ export function shouldShimmerFrameHeader(label: string): boolean {
   return (
     label === PLANNING_NEXT_MOVES_LABEL ||
     label === WORKING_LABEL ||
+    label === ASKING_QUESTIONS_LABEL ||
     label === "Thinking" ||
     label.startsWith("Thinking")
   );

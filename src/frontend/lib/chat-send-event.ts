@@ -2,16 +2,24 @@ export const CLAUXEN_CHAT_SEND_EVENT = "clauxen-chat-send";
 
 export type ChatSendEventDetail = {
   content: string;
+  /** Skip the generating queue — used when answering ask_user_input. */
+  bypassQueue?: boolean;
 };
 
 /** Dispatch a user message into the active chat composer (auto-sends). */
-export function dispatchChatSendMessage(content: string) {
+export function dispatchChatSendMessage(
+  content: string,
+  options?: { bypassQueue?: boolean },
+) {
   const trimmed = content.trim();
   if (!trimmed) return;
 
   window.dispatchEvent(
     new CustomEvent<ChatSendEventDetail>(CLAUXEN_CHAT_SEND_EVENT, {
-      detail: { content: trimmed },
+      detail: {
+        content: trimmed,
+        bypassQueue: options?.bypassQueue === true,
+      },
     }),
   );
 }

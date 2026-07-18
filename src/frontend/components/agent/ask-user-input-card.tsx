@@ -55,7 +55,9 @@ export function AskUserInputCard({
         .filter(Boolean) as Array<{ question: string; answer: string }>;
 
       if (pairs.length === 0) return;
-      dispatchChatSendMessage(formatAskUserInputReply(pairs));
+      dispatchChatSendMessage(formatAskUserInputReply(pairs), {
+        bypassQueue: true,
+      });
     },
     [disabled, questions, submitted],
   );
@@ -149,26 +151,26 @@ export function AskUserInputCard({
 
   return (
     <div
-      className="ask-user-input-card my-3 w-full max-w-[520px] overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_8px_30px_rgba(24,24,27,0.08)]"
+      className="ask-user-input-card w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_10px_36px_rgba(24,24,27,0.08)]"
       data-ask-user-input
     >
-      <div className="flex items-start justify-between gap-3 border-b border-zinc-100 px-4 py-3 sm:px-5 sm:py-3.5">
-        <h3 className="min-w-0 flex-1 font-serif text-[16.5px] font-semibold leading-snug text-zinc-900">
+      <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4 sm:px-6 sm:py-5">
+        <h3 className="min-w-0 flex-1 font-serif text-[18px] font-semibold leading-snug tracking-[-0.01em] text-zinc-900 sm:text-[19px]">
           {current.question}
         </h3>
 
         <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
-          <div className="flex items-center gap-0.5 text-[11.5px] text-zinc-400">
+          <div className="flex items-center gap-0.5 text-[12px] text-zinc-400">
             <button
               type="button"
               disabled={currentIndex === 0 || disabled}
               onClick={() => setCurrentIndex((idx) => Math.max(0, idx - 1))}
-              className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-zinc-100 hover:text-zinc-700 active:bg-zinc-200 disabled:opacity-30"
+              className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-zinc-100 hover:text-zinc-700 active:bg-zinc-200 disabled:opacity-30"
               aria-label="Previous question"
             >
-              <ChevronLeft className="h-3.5 w-3.5" />
+              <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="min-w-[3.1rem] text-center tabular-nums">
+            <span className="min-w-[3.4rem] text-center tabular-nums">
               {currentIndex + 1} of {total}
             </span>
             <button
@@ -177,10 +179,10 @@ export function AskUserInputCard({
               onClick={() =>
                 setCurrentIndex((idx) => Math.min(total - 1, idx + 1))
               }
-              className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-zinc-100 hover:text-zinc-700 active:bg-zinc-200 disabled:opacity-30"
+              className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-zinc-100 hover:text-zinc-700 active:bg-zinc-200 disabled:opacity-30"
               aria-label="Next question"
             >
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
@@ -188,10 +190,10 @@ export function AskUserInputCard({
             type="button"
             onClick={() => setDismissed(true)}
             disabled={disabled}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 active:bg-zinc-200"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 active:bg-zinc-200"
             aria-label="Dismiss"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -208,7 +210,7 @@ export function AskUserInputCard({
               onMouseLeave={() => setHoveredOption(null)}
               onClick={() => advance(option)}
               className={cn(
-                "group flex w-full items-center gap-3 px-4 py-3 text-left transition-all active:bg-zinc-100 sm:px-5 sm:py-3.5",
+                "group flex w-full items-center gap-3.5 px-5 py-3.5 text-left transition-all active:bg-zinc-100 sm:px-6 sm:py-4",
                 isHovered
                   ? "bg-zinc-100/80 text-zinc-900"
                   : "hover:bg-zinc-50 hover:text-zinc-900",
@@ -216,7 +218,7 @@ export function AskUserInputCard({
             >
               <span
                 className={cn(
-                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold tabular-nums transition-colors",
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[12px] font-semibold tabular-nums transition-colors",
                   isHovered
                     ? "bg-zinc-200 text-zinc-700"
                     : "bg-zinc-100 text-zinc-500",
@@ -224,14 +226,14 @@ export function AskUserInputCard({
               >
                 {optionIdx + 1}
               </span>
-              <span className="min-w-0 flex-1 text-[14px] leading-snug">
+              <span className="min-w-0 flex-1 text-[15px] leading-snug">
                 {option}
               </span>
               <ArrowRight
                 className={cn(
                   "h-4 w-4 shrink-0 transition-all",
                   isHovered
-                    ? "text-zinc-500 opacity-100 translate-x-0.5"
+                    ? "translate-x-0.5 text-zinc-500 opacity-100"
                     : "text-transparent opacity-0 group-hover:text-zinc-400 group-hover:opacity-70",
                 )}
                 aria-hidden
@@ -239,20 +241,16 @@ export function AskUserInputCard({
             </button>
           );
         })}
-      </div>
 
-      {!isMulti ? (
-        <div className="border-t border-zinc-100 px-4 py-3 sm:px-5 sm:py-3.5">
+        {!isMulti ? (
           <div
             className={cn(
-              "group/custom flex items-center gap-2.5 rounded-xl border border-transparent bg-transparent px-2 py-1 transition-all",
-              customText.trim()
-                ? "bg-zinc-50/70"
-                : "hover:bg-zinc-50/60 hover:border-zinc-200/60",
-              "focus-within:bg-zinc-50 focus-within:border-zinc-200/70 focus-within:shadow-sm",
+              "group/custom flex items-center gap-3 px-5 py-3.5 transition-all sm:px-6 sm:py-4",
+              customText.trim() ? "bg-zinc-50/70" : "hover:bg-zinc-50/60",
+              "focus-within:bg-zinc-50",
             )}
           >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-500 transition-colors group-focus-within/custom:bg-zinc-200/70 group-focus-within/custom:text-zinc-600">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-500 transition-colors group-focus-within/custom:bg-zinc-200/70 group-focus-within/custom:text-zinc-600">
               <Edit2 className="h-3.5 w-3.5" />
             </span>
             <input
@@ -268,29 +266,29 @@ export function AskUserInputCard({
                 }
               }}
               placeholder="Something else"
-              className="min-w-0 flex-1 border-0 bg-transparent py-1.5 text-[14px] text-zinc-800 outline-none placeholder:text-zinc-400"
+              className="min-w-0 flex-1 border-0 bg-transparent py-1 text-[15px] text-zinc-800 outline-none placeholder:text-zinc-400"
               aria-label="Custom answer"
             />
             {customText.trim() && !disabled ? (
               <button
                 type="button"
                 onClick={handleCustomSubmit}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-500 transition-all hover:bg-zinc-200 hover:text-zinc-800 active:bg-zinc-300"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-200 hover:text-zinc-800 active:bg-zinc-300"
                 aria-label="Submit custom answer"
               >
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-4 w-4" />
               </button>
             ) : null}
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
-      <div className="flex justify-end border-t border-zinc-100 px-4 py-3 sm:px-5">
+      <div className="flex justify-end border-t border-zinc-100 px-5 py-3.5 sm:px-6">
         <button
           type="button"
           onClick={handleSkip}
           disabled={disabled}
-          className="rounded-lg border border-zinc-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-zinc-700 transition-all hover:border-zinc-300 hover:bg-zinc-100 active:bg-zinc-200 active:text-zinc-800 disabled:opacity-50"
+          className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-[13px] font-medium text-zinc-700 transition-all hover:border-zinc-300 hover:bg-zinc-50 active:bg-zinc-100 active:text-zinc-800 disabled:opacity-50"
         >
           Skip
         </button>

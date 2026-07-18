@@ -23,6 +23,7 @@ import {
   normalizeChatFontId,
   persistAppearanceLocal,
 } from "@/lib/app-preferences";
+import { showSavedNotification } from "@/frontend/components/saved-notification";
 
 type AppPreferencesContextValue = {
   general: GeneralSettings;
@@ -148,6 +149,7 @@ function PreferencesInner({ children }: { children: ReactNode }) {
                 ...normalized.general,
                 chatFont: normalizeChatFontId(normalized.general.chatFont),
               });
+              showSavedNotification();
             })
             .catch(() => {
               /* keep optimistic */

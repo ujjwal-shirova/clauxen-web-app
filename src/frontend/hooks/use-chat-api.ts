@@ -1441,6 +1441,27 @@ export function useChatApi(
           if (event.type === "error") {
             throw new Error(event.message);
           }
+          if (
+            event.type === "tool_end" &&
+            event.name === "ask_user_input_v0"
+          ) {
+            // Questionnaire pause — free the composer immediately so answers
+            // are not blocked behind "still generating" / queue / 409.
+            patchAssistantMessage(chatId, targetAssistantId, (message) => {
+              const next = applyAgentStreamEvent(message, event);
+              return {
+                ...next,
+                isStreaming: false,
+                isThinkingStreaming: false,
+                agentFrameComplete: true,
+              };
+            });
+            useChatStore.getState().setChatGenerating(chatId, false);
+            if (getGeneration(chatId)?.request === controller) {
+              setGeneration(chatId, null);
+            }
+            return;
+          }
           patchAssistantMessage(chatId, targetAssistantId, (message) =>
             applyAgentStreamEvent(message, event),
           );
@@ -1455,7 +1476,11 @@ export function useChatApi(
         });
 
         const handleStreamEvent = (event: StreamEvent) => {
-          if (event.type === "error" || event.type === "done") {
+          if (
+            event.type === "error" ||
+            event.type === "done" ||
+            (event.type === "tool_end" && event.name === "ask_user_input_v0")
+          ) {
             streamBatcher.flush();
             handleStreamEventImmediate(event);
             return;
@@ -1509,9 +1534,20 @@ export function useChatApi(
                       : finalized;
                   // The backend persists the same fallback, but paint one
                   // immediately when a model closes its SSE turn without text.
-                  // A completed blank assistant is never a valid UI state.
-                  return visible.trim()
-                    ? visible
+                  // A completed blank assistant is never a valid UI state —
+                  // except ask_user_input pauses, which intentionally wait.
+                  if (visible.trim()) return visible;
+                  const hasPendingAsk = (m.agentFrames ?? [])
+                    .flatMap((frame) => frame.segments)
+                    .concat(m.agentSegments ?? [])
+                    .some(
+                      (segment) =>
+                        segment.kind === "tool" &&
+                        segment.name === "ask_user_input_v0" &&
+                        segment.status === "done",
+                    );
+                  return hasPendingAsk
+                    ? ""
                     : "I couldn't produce a response for that message. Please try again.";
                   })(),
                   isStreaming: false,
@@ -1628,6 +1664,20 @@ export function useChatApi(
         if (!trimmed) return null;
         useChatStore.getState().enqueueQueuedMessage(chatId, trimmed);
         return chatId;
+      }
+
+      // Ask-user answers bypass the queue, but the paused SSE turn may still
+      // hold the generation controller / DO lease for a few ms after tool_end.
+      // Wait for teardown so we don't race into a 409.
+      if (chatId && options?.bypassQueue) {
+        const deadline = Date.now() + 8_000;
+        while (Date.now() < deadline) {
+          const stillHeld =
+            Boolean(getGeneration(chatId)) ||
+            Boolean(useChatStore.getState().generatingChatIds[chatId]);
+          if (!stillHeld) break;
+          await new Promise((resolve) => setTimeout(resolve, 40));
+        }
       }
 
       const isNewChat = !chatId;

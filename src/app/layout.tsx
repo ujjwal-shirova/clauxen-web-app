@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { ClientToaster } from "@/frontend/components/client-toaster";
+import { SavedNotificationHost } from "@/frontend/components/saved-notification";
 import { ClientTelemetry } from "@/frontend/components/client-telemetry";
 import { ChunkLoadRecovery } from "@/frontend/components/chunk-load-recovery";
 import { ChatFontLoader } from "@/frontend/components/chat-font-loader";
@@ -100,6 +101,7 @@ export default function RootLayout({
               <ChatFontLoader />
               {children}
               <ClientToaster />
+              <SavedNotificationHost />
               <AppNotificationHost />
               <ClientTelemetry />
             </AppNotificationsProvider>

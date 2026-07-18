@@ -26,6 +26,7 @@ export type ChatStreamOptions = {
   generateChatTitle?: boolean;
   homerReasoningEffort?: HomerReasoningEffort;
   signal?: AbortSignal;
+  onPauseForUser?: () => void | Promise<void>;
 };
 
 /** Use runAutonomousAgent from agent-engine directly for new code. */
@@ -74,6 +75,7 @@ export async function createChatStream(
     systemPrompt,
     temperature: 0.6,
     maxTokens: 8192,
+    onPauseForUser: options.onPauseForUser,
   };
 
   // Always autonomous — tools are always armed; the model decides when to use them.

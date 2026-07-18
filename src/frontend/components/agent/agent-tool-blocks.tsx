@@ -39,10 +39,6 @@ import {
 import { AgentTimelineStep } from "./agent-timeline";
 import { AgentFaviconStack } from "./agent-favicon-stack";
 import { AgentFileBlock, PresentFilesBlock } from "./agent-file-block";
-import {
-  AskUserInputCard,
-  type AskUserQuestion,
-} from "./ask-user-input-card";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
 import { StreamingTextFade } from "@/frontend/lib/streaming-text-fade";
 
@@ -316,23 +312,17 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
 // ─── Interactive Tool Components ───────────────────────────────────────────
 
 export function AskUserInputBlock({ tool }: { tool: AgentToolSegment }) {
-  const questions = (tool.args?.questions as AskUserQuestion[]) ?? [];
-  const isInteractive =
-    tool.status === "done" &&
-    questions.length > 0 &&
-    !tool.result?.includes('"error"');
+  const isRunning = tool.status === "running";
 
-  if (!isInteractive) {
-    return (
-      <AgentTimelineStep
-        icon="tool"
-        isActive={tool.status === "running"}
-        title="Gathering preferences"
-      />
-    );
-  }
-
-  return <AskUserInputCard questions={questions} />;
+  // Interactive questionnaire renders in the composer slot — not inside the
+  // agentic activity frame.
+  return (
+    <AgentTimelineStep
+      icon="tool"
+      isActive={isRunning}
+      title={isRunning ? "Asking Questions" : "Asked Questions"}
+    />
+  );
 }
 
 export function SportsDataBlock({ tool }: { tool: AgentToolSegment }) {

@@ -15,6 +15,7 @@ import type {
 } from "@/frontend/lib/api/settings";
 import { DEFAULT_APP_SETTINGS } from "@/frontend/lib/settings-defaults";
 import { normalizeAppSettings } from "@/frontend/lib/settings-normalize";
+import { showSavedNotification } from "@/frontend/components/saved-notification";
 
 type SettingsPatch = Parameters<typeof settingsApi.updateSettings>[0];
 
@@ -124,6 +125,7 @@ export function useSettings(enabled: boolean) {
         // Keep optimistic local state — replacing from the PATCH response
         // caused 2–4s toggle flicker when GET/PATCH raced.
         dirtyRef.current = false;
+        showSavedNotification();
       } catch {
         // Local optimistic state already applied; next refresh will reconcile.
       } finally {
@@ -151,9 +153,18 @@ export function useSettings(enabled: boolean) {
       pendingPatchRef.current = mergePatches(pendingPatchRef.current, patch);
       if (saveTimer.current) clearTimeout(saveTimer.current);
       // Short debounce — UI is already updated; backend catches up quietly.
+      // Blur-driven text fields (custom instructions, names) flush almost
+      // immediately; toggle/picker patches still coalesce briefly.
+      const delayMs =
+        patch.personalization &&
+        ("customInstructions" in (patch.personalization ?? {}) ||
+          "fullName" in (patch.personalization ?? {}) ||
+          "nickname" in (patch.personalization ?? {}))
+          ? 0
+          : 120;
       saveTimer.current = setTimeout(() => {
         flushPending();
-      }, 120);
+      }, delayMs);
     },
     [flushPending],
   );

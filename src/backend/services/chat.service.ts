@@ -317,6 +317,7 @@ export async function streamChatGeneration(input: {
   generateChatTitle?: boolean;
   chatModel?: string;
   homerReasoningEffort?: HomerReasoningEffort;
+  onPauseForUser?: () => void | Promise<void>;
 }) {
   const chat = await chatsRepo.getChatForUser(input.chatId, input.userId);
   if (!chat) throw notFound("Chat not found.");
@@ -482,6 +483,7 @@ export async function streamChatGeneration(input: {
       generateChatTitle,
       signal: input.signal,
       homerReasoningEffort: input.homerReasoningEffort,
+      onPauseForUser: input.onPauseForUser,
     });
     const body = tapChatSseStream(
       sourceStream,
@@ -527,17 +529,29 @@ export async function streamChatGeneration(input: {
     const persistOnDone = async () => {
       const assistantRow = assistant;
       const generatedAnswer = finalizeChatTitleStrippedAnswer(answer);
+      const tools = Array.from(toolsById.values());
+      const pausedForUserInput = tools.some(
+        (tool) =>
+          tool.name === "ask_user_input_v0" ||
+          (typeof tool.result === "string" &&
+            tool.result.includes("pending_user_input")),
+      );
       // A terminal SSE error used to be persisted as an empty successful
       // assistant message. Make every terminal state visible and durable.
+      // Ask-user pauses intentionally end with no answer text — that is not
+      // a failed generation.
       const cleanedAnswer = streamError
         ? `Generation failed: ${streamError}`
         : generatedAnswer.trim()
           ? generatedAnswer
-          : "I couldn't produce a response for that message. Please try again.";
-      const tools = Array.from(toolsById.values());
+          : pausedForUserInput
+            ? ""
+            : "I couldn't produce a response for that message. Please try again.";
       const completedAtMs = Date.now();
       const wasCancelled = input.signal?.aborted === true;
-      const failed = Boolean(streamError) || !generatedAnswer.trim();
+      const failed =
+        Boolean(streamError) ||
+        (!generatedAnswer.trim() && !pausedForUserInput);
       const completionStatus = wasCancelled
         ? "cancelled"
         : failed

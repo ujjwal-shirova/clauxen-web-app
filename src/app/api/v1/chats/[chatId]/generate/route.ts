@@ -110,16 +110,25 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           homerReasoningEffort: parseHomerReasoningEffort(
             body.homerReasoningEffort,
           ),
+          onPauseForUser: async () => {
+            // Free the DO/local lease as soon as ask_user_input pauses so the
+            // user's questionnaire answers can start a new turn without 409.
+            await endChatGeneration(params.chatId, generationController);
+          },
         });
 
       let finished = false;
       finishOnce = async () => {
         if (finished) return;
         finished = true;
+        // Release the generation lease before DB persist. Ask-user pauses
+        // end the SSE stream with an empty answer; awaiting persist first
+        // left the lease held and caused 409 "already generating" when the
+        // user submitted questionnaire answers.
         try {
-          await onComplete();
-        } finally {
           await endChatGeneration(params.chatId, generationController);
+        } finally {
+          await onComplete();
         }
       };
 

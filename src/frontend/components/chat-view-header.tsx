@@ -174,13 +174,14 @@ export function ChatViewHeader({
                       <button
                         type="button"
                         onClick={startInlineEdit}
-                        className="flex h-7 max-w-[min(70vw,420px)] items-center gap-1 rounded-l-lg px-1.5 text-[13px] font-medium text-zinc-800 transition-all hover:bg-zinc-100 sm:px-2"
+                        className="inline-flex h-7 w-fit max-w-[min(70vw,420px)] items-center gap-1 rounded-l-lg px-1.5 text-[13px] font-medium text-zinc-800 transition-all hover:bg-zinc-100 sm:px-2"
                       >
                         <StreamingChatTitle
                           title={displayTitle}
                           isStreaming={isTitleStreaming}
+                          className="min-w-0"
                         />
-                        {isTitleStreaming ? <TypingDots className="ml-1" /> : null}
+                        {isTitleStreaming ? <TypingDots className="ml-1 shrink-0" /> : null}
                       </button>
                     )}
                     <div className="h-7 w-px shrink-0 self-center bg-black/10" />

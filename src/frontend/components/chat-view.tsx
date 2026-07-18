@@ -155,6 +155,7 @@ function ChatViewBody({
       const chatId = await handleSendMessage(prompt, {
         forceNewChat: forceNew,
         attachments: options?.attachments,
+        bypassQueue: options?.bypassQueue,
         // ChatGPT/Claude: swap URL the instant the durable chat id exists.
         ...(shouldOpenRoute ? { onChatCreated: openChatRoute } : {}),
       });

@@ -21,6 +21,8 @@ import { useChatScrollActivity } from "@/frontend/hooks/use-chat-scroll-activity
 import { cn } from "@/frontend/lib/utils";
 import { CLAUXEN_CHAT_SEND_EVENT } from "@/frontend/lib/chat-send-event";
 import type { SendMessageOptions } from "@/frontend/lib/composer-attachments";
+import { findPendingAskUserInput } from "@/frontend/lib/pending-ask-user-input";
+import { AskUserInputCard } from "@/frontend/components/agent/ask-user-input-card";
 
 interface ChatAreaProps {
   messages: Message[];
@@ -307,10 +309,15 @@ function ChatAreaLayout({
 
   React.useEffect(() => {
     const onChatSend = (event: Event) => {
-      const detail = (event as CustomEvent<{ content?: string }>).detail;
+      const detail = (event as CustomEvent<{
+        content?: string;
+        bypassQueue?: boolean;
+      }>).detail;
       const content = detail?.content?.trim();
       if (!content) return;
-      handleSendMessageAndScroll(content);
+      handleSendMessageAndScroll(content, {
+        bypassQueue: detail?.bypassQueue === true,
+      });
     };
 
     window.addEventListener(CLAUXEN_CHAT_SEND_EVENT, onChatSend);
@@ -353,7 +360,16 @@ function ChatAreaLayout({
     });
   }, [startTransition]);
 
-  const promptInput = (
+  const pendingAskQuestions = React.useMemo(
+    () => findPendingAskUserInput(messages),
+    [messages],
+  );
+
+  const promptInput = pendingAskQuestions ? (
+    <div className="w-full px-0.5 sm:px-1" data-ask-user-input-composer>
+      <AskUserInputCard questions={pendingAskQuestions} />
+    </div>
+  ) : (
     <IsolatedChatInput
       key="prompt-input"
       onSendMessage={handleSendMessageAndScroll}

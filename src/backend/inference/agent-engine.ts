@@ -160,6 +160,8 @@ export type AgentStreamOptions = {
   systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
+  /** Fired when ask_user_input pauses the loop — release generation lease early. */
+  onPauseForUser?: () => void | Promise<void>;
 };
 
 function resolveThinkingBudget(
@@ -207,6 +209,7 @@ export async function runAutonomousAgent(
     systemPrompt,
     temperature,
     maxTokens,
+    onPauseForUser,
   } = options;
 
   const healingTools = buildHealingTools();
@@ -628,6 +631,11 @@ export async function runAutonomousAgent(
       // to spawn stacked "Brewed for 3s / Churned for 21s" chips.
       if (pauseForUser) {
         closeFrame();
+        try {
+          await onPauseForUser?.();
+        } catch {
+          // Lease release is best-effort; stream still completes.
+        }
         break;
       }
     }

@@ -189,3 +189,4 @@ Full target surface — **remember only; implement only when user asks for a sli
 - 2026-07-17: 2026-07-17: Env reconcile overwrote working Provider_API_Key with invalid local key → 401. Restored Supabase/Postgres from .env.vercel; created new Novita key and redeployed.
 - 2026-07-17: 2026-07-17: Docs entrypoint is docs/README.md; deep dive is docs/complete-product-deep-dive.md
 - 2026-07-17: 2026-07-17: Start domain work by reading skills/<name>/SKILL.md; catalog at skills/README.md
+- 2026-07-18: Guest billing test user exists in Supabase Auth: `test-razorpay@clauxen.com` (uid `396021a9-ba81-4e17-adad-cae2514136df`, email confirmed; profile/settings/balance/workspace seeded). Password not stored in memory.
