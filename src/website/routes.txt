@@ -1,5 +1,6 @@
 # Clauxen marketing routes (108)
-# Chat stays at / ; marketing pricing is /plans (not /pricing)
+# Modular content under src/website/content/*
+# Public via isMarketingPublicPath; chat stays at /; pricing at /plans
 
 https://clauxen.com/100chats
 https://clauxen.com/100chats-project

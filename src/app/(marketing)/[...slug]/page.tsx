@@ -5,7 +5,7 @@ import {
   allMarketingPaths,
   getMarketingPage,
   metadataForPage,
-} from "@/website/content/pages";
+} from "@/website/content";
 
 type Props = { params: Promise<{ slug: string[] }> };
 
@@ -17,14 +17,12 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const path = "/" + slug.join("/");
-  return metadataForPage(path);
+  return metadataForPage("/" + slug.join("/"));
 }
 
 export default async function MarketingCatchAllPage({ params }: Props) {
   const { slug } = await params;
-  const path = "/" + slug.join("/");
-  const page = getMarketingPage(path);
+  const page = getMarketingPage("/" + slug.join("/"));
   if (!page) notFound();
   return <MarketingPageView page={page} />;
 }
