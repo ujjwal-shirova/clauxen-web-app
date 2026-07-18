@@ -54,3 +54,18 @@ Legacy routes `/api/chat` and `/api/chat/title` remain for unauthenticated/local
 - **Supabase GoTrue** — identity / auth (email + OAuth); mirrored into `public.profiles`
 - **Dev auth** — session cookie `clauxen_session` for local email/password login
 - **Thinking / autonomous agent** — `POST /api/v1/chats/:id/generate` with `thinkingType: enabled` routes to `deepseek/deepseek-v4-pro` (override via `SHIROVA_THINKING_MODEL`) on Novita `/v1/chat/completions`, preserving `reasoning_content` + `tool_calls` between tool rounds
+
+---
+
+## Full documentation
+
+This file is a short bootstrap note. For complete docs see:
+
+- [`README.md`](./README.md) — documentation index
+- [`architecture-overview.md`](./architecture-overview.md)
+- [`systems/chat-system.md`](./systems/chat-system.md)
+- [`reference/api-reference.md`](./reference/api-reference.md)
+- [`reference/database-schema.md`](./reference/database-schema.md)
+- [`complete-product-deep-dive.md`](./complete-product-deep-dive.md)
+
+**Note:** Inference env vars are `Provider_API_Key` / `Provider_BASE_URL` / `Provider_Model_Clauxen_V1` (not legacy `NOVITA_*` names in new deploys).

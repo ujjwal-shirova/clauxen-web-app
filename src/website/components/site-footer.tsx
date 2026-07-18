@@ -1,0 +1,71 @@
+import Link from "next/link";
+import { FOOTER_COLUMNS, SITE } from "@/website/lib/site";
+
+export function SiteFooter() {
+  return (
+    <footer className="border-t border-zinc-200 bg-[var(--app-shell-bg)] dark:border-zinc-800">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="lg:col-span-1">
+            <Link
+              href="/overview"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/icons/clauxen-icon.png"
+                alt=""
+                width={20}
+                height={20}
+                className="h-5 w-5 object-contain"
+              />
+              {SITE.brand}
+            </Link>
+            <p className="mt-3 max-w-[220px] text-sm leading-relaxed text-zinc-500">
+              An AI workspace by {SITE.company}.
+            </p>
+          </div>
+          {FOOTER_COLUMNS.map((col) => (
+            <div key={col.title}>
+              <div className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                {col.title}
+              </div>
+              <ul className="mt-3 space-y-2">
+                {col.links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div className="mt-12 flex flex-col gap-2 border-t border-zinc-200 pt-6 text-sm text-zinc-500 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            © {new Date().getFullYear()} {SITE.company}. {SITE.brand} ·{" "}
+            {SITE.domain}
+          </p>
+          <div className="flex gap-4">
+            <Link href="/legal/privacy" className="hover:text-zinc-800 dark:hover:text-zinc-200">
+              Privacy
+            </Link>
+            <Link href="/legal/terms" className="hover:text-zinc-800 dark:hover:text-zinc-200">
+              Terms
+            </Link>
+            <a
+              href={`mailto:${SITE.supportEmail}`}
+              className="hover:text-zinc-800 dark:hover:text-zinc-200"
+            >
+              Support
+            </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}

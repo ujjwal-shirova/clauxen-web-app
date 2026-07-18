@@ -1,0 +1,37 @@
+# Curated chatgpt.com main marketing / product routes.
+# Used when Cloudflare blocks automated sitemap fetches (403).
+# The lister merges these into --main output automatically.
+# Add newly discovered routes here, then re-run:
+#   node scripts/list-domain-pages.mjs --domain chatgpt.com --main
+
+https://chatgpt.com/
+https://chatgpt.com/overview
+https://chatgpt.com/pricing
+https://chatgpt.com/features
+https://chatgpt.com/features/agent
+https://chatgpt.com/work
+https://chatgpt.com/download
+https://chatgpt.com/apps
+https://chatgpt.com/team
+https://chatgpt.com/business
+https://chatgpt.com/business/business-plan
+https://chatgpt.com/business/enterprise
+https://chatgpt.com/business/education
+https://chatgpt.com/business/ai-for-engineering
+https://chatgpt.com/business/ai-for-finance
+https://chatgpt.com/business/ai-for-sales-marketing
+https://chatgpt.com/enterprise
+https://chatgpt.com/codex
+https://chatgpt.com/codex/pricing
+https://chatgpt.com/gpts
+https://chatgpt.com/canvas
+https://chatgpt.com/atlas
+https://chatgpt.com/college-students
+https://chatgpt.com/plans/k12-teachers
+https://chatgpt.com/auth/login
+https://chatgpt.com/auth/signup
+https://chatgpt.com/search
+https://chatgpt.com/images
+https://chatgpt.com/library
+https://chatgpt.com/100chats
+https://chatgpt.com/100chats-project

@@ -37,6 +37,8 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-18 | Marketing + legal/auth paths are public in Edge middleware via isMarketingPublicPath | Unauthenticated users must open Claude/ChatGPT-style marketing pages without login |
+| 2026-07-18 | Marketing site at src/website + (marketing)/[...slug]; chat stays at /; public pricing at /plans (not /pricing) | Avoid breaking in-app #pricing overlay and /apps /library app routes; Claude/ChatGPT-style parallel URLs |
 | 2026-07-17 | Label-style controls (follow-up prompts, chat-row innards) use bold/weight hover — never inset button wash | Universal button:hover and .group/chat button:hover were painting nested pills |
 | 2026-07-17 | Canonical Agent Skills live in repo-root skills/ (21+ clauxen-* skills), symlinked to .cursor/skills/; rule .cursor/rules/clauxen-skills.mdc | User asked for complete skills directory at workspace root |
 | 2026-07-17 | Complete docs library rewritten under docs/ (~6k lines, 40 md files: systems/, reference/, guides/, ops/, complete-product-deep-dive.md) | User asked for highly detailed multi-file documentation of the entire web app |

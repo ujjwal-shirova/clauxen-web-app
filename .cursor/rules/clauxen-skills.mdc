@@ -1,0 +1,15 @@
+---
+description: Load Clauxen project Agent Skills from skills/ for domain work
+alwaysApply: true
+---
+
+# Clauxen skills
+
+Before non-trivial domain work in this repo, read the matching skill under `skills/` (also linked from `.cursor/skills/`):
+
+1. Identify the domain (chat, auth, workers, billing, etc.).
+2. Read `skills/<skill-name>/SKILL.md` with the Read tool.
+3. Follow its hard rules; open `reference.md` only if needed.
+4. Still read `brain/MEMORY.md` at task start (brain-memory rule).
+
+Catalog: `skills/README.md`.

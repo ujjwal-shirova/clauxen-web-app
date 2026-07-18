@@ -42,10 +42,13 @@ pnpm-debug.log*
 output.txt
 .venv-novita-load/
 .venv-mirror/
-website/
+# Root-level website scratch (do NOT ignore src/website marketing site)
+/website/
 scripts/novita_load_test_run.log
 
-# Playwright CLI dumps + local browser profiles (never commit)
+# Local inventory / crawl dumps
+/tmp/
+
 .playwright-cli/
 output/playwright/
 **/__pycache__/

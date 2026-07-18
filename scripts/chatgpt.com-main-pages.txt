@@ -1,0 +1,36 @@
+# chatgpt.com — main English page links (locales + catalog detail excluded)
+# note: live sitemaps were blocked for this host; list built from scripts/chatgpt.com-main-seeds.txt
+# generated: 2026-07-18T04:57:01.316Z
+# count: 31
+# regenerate: node scripts/list-domain-pages.mjs --domain chatgpt.com --main
+https://chatgpt.com/
+https://chatgpt.com/100chats
+https://chatgpt.com/100chats-project
+https://chatgpt.com/apps
+https://chatgpt.com/atlas
+https://chatgpt.com/business
+https://chatgpt.com/canvas
+https://chatgpt.com/codex
+https://chatgpt.com/college-students
+https://chatgpt.com/download
+https://chatgpt.com/enterprise
+https://chatgpt.com/features
+https://chatgpt.com/gpts
+https://chatgpt.com/images
+https://chatgpt.com/library
+https://chatgpt.com/overview
+https://chatgpt.com/pricing
+https://chatgpt.com/search
+https://chatgpt.com/team
+https://chatgpt.com/work
+https://chatgpt.com/auth/login
+https://chatgpt.com/auth/signup
+https://chatgpt.com/business/ai-for-engineering
+https://chatgpt.com/business/ai-for-finance
+https://chatgpt.com/business/ai-for-sales-marketing
+https://chatgpt.com/business/business-plan
+https://chatgpt.com/business/education
+https://chatgpt.com/business/enterprise
+https://chatgpt.com/codex/pricing
+https://chatgpt.com/features/agent
+https://chatgpt.com/plans/k12-teachers

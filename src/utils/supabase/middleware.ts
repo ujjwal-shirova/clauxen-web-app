@@ -19,6 +19,7 @@ import {
 } from "@/utils/identity-cookie";
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
 import { logSupabaseQueryError } from "@/lib/supabase-query-error";
+import { isMarketingPublicPath } from "@/website/lib/public-paths";
 
 const PUBLIC_PREFIXES = [
   "/login",
@@ -42,6 +43,7 @@ function isPublicPath(pathname: string) {
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return true;
   }
+  if (isMarketingPublicPath(pathname)) return true;
   if (pathname.startsWith("/api/")) return true;
   return false;
 }
@@ -235,8 +237,8 @@ export async function updateSession(request: NextRequest) {
     : null;
   const isAuthenticated = Boolean(user?.id || devSession);
 
-  // Unauthenticated app routes (including `/`) → login. `/about` stays public
-  // for Google OAuth branding verification.
+  // Unauthenticated visitors may open marketing + auth/legal paths.
+  // App shell routes (/, /new, /c/*, …) still require login.
   if (!isPublicPath(pathname) && !isAuthenticated) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
