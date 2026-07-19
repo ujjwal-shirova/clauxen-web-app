@@ -35,6 +35,11 @@ import {
   type TranscriptAgentModelTurn,
 } from "@/backend/training/transcript-format";
 import { buildPromptMessagesFromDbRows } from "@/backend/inference/build-chat-prompt-messages";
+import {
+  DEMO_RAZORPAY_MESSAGE_LIMIT,
+  demoRazorpayLimitReachedError,
+  isDemoRazorpayQuotaUser,
+} from "@/backend/chat/demo-razorpay-quota";
 
 async function persistUserTranscriptLine(input: {
   chatId: string;
@@ -335,6 +340,7 @@ export async function linkChatToProject(
 export async function streamChatGeneration(input: {
   chatId: string;
   userId: string;
+  userEmail?: string | null;
   messages: IncomingMessage[];
   turn?: {
     content: string;
@@ -352,6 +358,12 @@ export async function streamChatGeneration(input: {
 }) {
   const chat = await chatsRepo.getChatForUser(input.chatId, input.userId);
   if (!chat) throw notFound("Chat not found.");
+
+  const demoQuotaUser = isDemoRazorpayQuotaUser({
+    id: input.userId,
+    email: input.userEmail,
+  });
+  let demoMessagesRemaining: number | undefined;
 
   const clientConversation = sanitizeMessages(input.messages).filter(
     (message) => message.content.trim().length > 0,
@@ -391,9 +403,13 @@ export async function streamChatGeneration(input: {
       userClientId: input.turn.userClientId,
       assistantClientId: input.turn.assistantClientId,
       assistantContentJson: buildAssistantTranscriptRecord({ answer: "" }),
+      ...(demoQuotaUser
+        ? { accountUserMessageLimit: DEMO_RAZORPAY_MESSAGE_LIMIT }
+        : {}),
     });
     assistant = turn.assistant;
     userMessageId = turn.user.id;
+    demoMessagesRemaining = turn.messagesRemaining;
 
     if (turn.user.inserted) {
       await persistUserTranscriptLine({
@@ -430,6 +446,16 @@ export async function streamChatGeneration(input: {
   } else {
     // Compatibility path for older callers that persist their user row before
     // invoking generation. Main product chat always supplies `turn`.
+    if (demoQuotaUser) {
+      const remaining = await messagesRepo.getAccountUserMessagesRemaining(
+        input.userId,
+        DEMO_RAZORPAY_MESSAGE_LIMIT,
+      );
+      if (remaining <= 0) {
+        throw demoRazorpayLimitReachedError();
+      }
+      demoMessagesRemaining = remaining;
+    }
     assistant = await messagesRepo.createMessage({
       chatId: input.chatId,
       userId: input.userId,
@@ -661,6 +687,9 @@ export async function streamChatGeneration(input: {
             startedAtMs: tool.startedAtMs,
             completedAtMs: tool.completedAtMs,
           })),
+          ...(typeof demoMessagesRemaining === "number"
+            ? { messagesRemaining: demoMessagesRemaining }
+            : {}),
         },
       });
       if (assistantRow?.id) {
@@ -750,6 +779,7 @@ export async function streamChatGeneration(input: {
       stream: body,
       userMessageId,
       assistantMessageId: assistant?.id ?? null,
+      messagesRemaining: demoMessagesRemaining,
       onComplete: persistOnDone,
     };
   } catch (error) {

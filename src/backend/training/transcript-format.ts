@@ -74,6 +74,11 @@ export type TranscriptAgentUi = {
   actions?: TranscriptAgentAction[];
   /** Exact chronological Messages API rounds for durable transcript hydrate. */
   modelTurns?: TranscriptAgentModelTurn[];
+  /**
+   * Demo Razorpay test-account remaining user-message slots after this turn.
+   * Only set for test-razorpay@clauxen.com.
+   */
+  messagesRemaining?: number;
 };
 
 export type TranscriptAgentModelTurn = {

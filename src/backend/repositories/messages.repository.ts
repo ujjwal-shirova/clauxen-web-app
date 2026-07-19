@@ -4,7 +4,29 @@ import {
   withTransaction,
 } from "@/backend/db/pool";
 import { AppError, notFound } from "@/backend/db/errors";
+import {
+  DEMO_RAZORPAY_MESSAGE_LIMIT,
+  demoRazorpayLimitReachedError,
+} from "@/backend/chat/demo-razorpay-quota";
 import type { PoolClient } from "pg";
+
+/** Account-wide user-message count (excludes deleted/cancelled). */
+async function countAccountUserMessages(
+  client: PoolClient,
+  userId: string,
+): Promise<number> {
+  const result = await client.query<{ used: number }>(
+    `select count(*)::int as used
+     from public.chat_messages m
+     join public.chats c on c.id = m.chat_id
+     where c.user_id = $1
+       and c.status != 'deleted'
+       and m.role = 'user'
+       and m.status not in ('deleted', 'cancelled')`,
+    [userId],
+  );
+  return result.rows[0]?.used ?? 0;
+}
 
 export type MessageRow = {
   id: string;
@@ -229,9 +251,16 @@ export async function beginChatTurn(input: {
   userClientId: string;
   assistantClientId: string;
   assistantContentJson?: Record<string, unknown>;
+  /**
+   * When set (demo Razorpay test account), atomically enforce a lifetime
+   * account-wide user-message cap inside this turn transaction.
+   */
+  accountUserMessageLimit?: number;
 }): Promise<{
   user: InsertedMessageRow;
   assistant: InsertedMessageRow;
+  /** Remaining user-message slots after this turn (demo quota only). */
+  messagesRemaining?: number;
 }> {
   return withTransaction(async (client) => {
     const ownedChat = await client.query<{ id: string }>(
@@ -242,6 +271,28 @@ export async function beginChatTurn(input: {
       [input.chatId, input.userId],
     );
     if (!ownedChat.rows[0]) throw notFound("Chat not found.");
+
+    const limit = input.accountUserMessageLimit;
+    if (typeof limit === "number" && limit > 0) {
+      // Serialize quota checks for this user so parallel tabs cannot exceed the cap.
+      await client.query(`select pg_advisory_xact_lock(872314001, hashtext($1))`, [
+        input.userId,
+      ]);
+      const existingUserTurn = await client.query<{ id: string }>(
+        `select id
+         from public.chat_messages
+         where chat_id = $1 and client_id = $2
+         limit 1`,
+        [input.chatId, input.userClientId],
+      );
+      // Idempotent retries of an already-accepted turn must not re-block.
+      if (!existingUserTurn.rows[0]) {
+        const usedBefore = await countAccountUserMessages(client, input.userId);
+        if (usedBefore >= limit) {
+          throw demoRazorpayLimitReachedError();
+        }
+      }
+    }
 
     const user = await insertIdempotentMessage(client, {
       chatId: input.chatId,
@@ -282,8 +333,32 @@ export async function beginChatTurn(input: {
       );
     }
 
-    return { user, assistant };
+    let messagesRemaining: number | undefined;
+    if (typeof limit === "number" && limit > 0) {
+      const usedAfter = await countAccountUserMessages(client, input.userId);
+      messagesRemaining = Math.max(0, limit - usedAfter);
+    }
+
+    return { user, assistant, messagesRemaining };
   });
+}
+
+/** Account-wide remaining slots for the demo Razorpay test account. */
+export async function getAccountUserMessagesRemaining(
+  userId: string,
+  limit = DEMO_RAZORPAY_MESSAGE_LIMIT,
+): Promise<number> {
+  const rows = await query<{ used: number }>(
+    `select count(*)::int as used
+     from public.chat_messages m
+     join public.chats c on c.id = m.chat_id
+     where c.user_id = $1
+       and c.status != 'deleted'
+       and m.role = 'user'
+       and m.status not in ('deleted', 'cancelled')`,
+    [userId],
+  );
+  return Math.max(0, limit - (rows[0]?.used ?? 0));
 }
 
 export type ChatSearchHit = {
