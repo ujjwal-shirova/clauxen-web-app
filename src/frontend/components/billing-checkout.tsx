@@ -699,10 +699,10 @@ export function BillingCheckout({
         type="button"
         onClick={() => setBillingCycle("monthly")}
         className={cn(
-          "flex flex-col items-start rounded-[8px] border px-4 py-4 text-left transition-all",
+          "flex flex-col items-start rounded-2xl border px-4 py-4 text-left transition-all",
           effectiveBillingCycle === "monthly"
-            ? "border-[#2C84DB] bg-[#D3E5F8]"
-            : "border-zinc-200 bg-white hover:border-black/30",
+            ? "border-zinc-900 bg-zinc-900 text-white"
+            : "border-zinc-200 bg-[var(--app-panel-bg)] hover:border-zinc-300",
         )}
       >
         <div className="mb-3 flex w-full items-center justify-between">
@@ -710,17 +710,24 @@ export function BillingCheckout({
             className={cn(
               "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
               effectiveBillingCycle === "monthly"
-                ? "border-[#2C84DB]"
-                : "border-black/15",
+                ? "border-white/80"
+                : "border-zinc-300",
             )}
           >
             {effectiveBillingCycle === "monthly" && (
-              <div className="h-2.5 w-2.5 rounded-full bg-[#2C84DB]" />
+              <div className="h-2.5 w-2.5 rounded-full bg-white" />
             )}
           </div>
         </div>
         <span className="max-w-[75%] text-left font-medium">Monthly</span>
-        <span className="mt-1 text-left text-[14px] leading-5 text-zinc-800">
+        <span
+          className={cn(
+            "mt-1 text-left text-[14px] leading-5",
+            effectiveBillingCycle === "monthly"
+              ? "text-white/80"
+              : "text-zinc-600",
+          )}
+        >
           {isTeamPlan || isBusinessWorkspace
             ? "Billed monthly per seat"
             : `${formatInr(details.monthly)}/month`}
@@ -732,10 +739,10 @@ export function BillingCheckout({
         onClick={() => setBillingCycle("yearly")}
         disabled={orgPlan ? !orgPlan.yearlySupported : false}
         className={cn(
-          "flex flex-col items-start rounded-[8px] border px-4 py-4 text-left transition-all",
+          "flex flex-col items-start rounded-2xl border px-4 py-4 text-left transition-all",
           effectiveBillingCycle === "yearly"
-            ? "border-[#2C84DB] bg-[#D3E5F8]"
-            : "border-zinc-200 bg-white hover:border-black/30",
+            ? "border-zinc-900 bg-zinc-900 text-white"
+            : "border-zinc-200 bg-[var(--app-panel-bg)] hover:border-zinc-300",
           orgPlan && !orgPlan.yearlySupported && "cursor-not-allowed opacity-50",
         )}
       >
@@ -744,22 +751,36 @@ export function BillingCheckout({
             className={cn(
               "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
               effectiveBillingCycle === "yearly"
-                ? "border-[#2C84DB]"
-                : "border-black/15",
+                ? "border-white/80"
+                : "border-zinc-300",
             )}
           >
             {effectiveBillingCycle === "yearly" && (
-              <div className="h-2.5 w-2.5 rounded-full bg-[#2C84DB]" />
+              <div className="h-2.5 w-2.5 rounded-full bg-white" />
             )}
           </div>
           {(orgPlan?.yearlySupported ?? details.yearly > 0) && (
-            <div className="rounded-lg bg-[#1B67B2]/10 px-2 py-1 text-[12px] font-medium leading-4 text-[#1B67B2]">
+            <div
+              className={cn(
+                "rounded-lg px-2 py-1 text-[12px] font-medium leading-4",
+                effectiveBillingCycle === "yearly"
+                  ? "bg-white/15 text-white"
+                  : "bg-zinc-100 text-zinc-700",
+              )}
+            >
               Save {YEARLY_DISCOUNT_PERCENT}%
             </div>
           )}
         </div>
         <span className="max-w-[75%] text-left font-medium">Yearly</span>
-        <span className="mt-1 text-left text-[14px] leading-5 text-zinc-800">
+        <span
+          className={cn(
+            "mt-1 text-left text-[14px] leading-5",
+            effectiveBillingCycle === "yearly"
+              ? "text-white/80"
+              : "text-zinc-600",
+          )}
+        >
           {isTeamPlan || isBusinessWorkspace
             ? `Save ${YEARLY_DISCOUNT_PERCENT}% billed annually`
             : `${formatInr(details.yearly)}/year`}
@@ -780,25 +801,32 @@ export function BillingCheckout({
           type="button"
           onClick={() => setMaxTier(tier)}
           className={cn(
-            "flex flex-col items-start rounded-[8px] border px-4 py-4 text-left transition-all",
+            "flex flex-col items-start rounded-2xl border px-4 py-4 text-left transition-all",
             maxTier === tier
-              ? "border-[#2C84DB] bg-[#D3E5F8]"
-              : "border-zinc-200 bg-white hover:border-black/30",
+              ? "border-zinc-900 bg-zinc-900 text-white"
+              : "border-zinc-200 bg-[var(--app-panel-bg)] hover:border-zinc-300",
           )}
         >
           <div className="mb-3 flex w-full items-center justify-between">
             <div
               className={cn(
                 "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
-                maxTier === tier ? "border-[#2C84DB]" : "border-black/15",
+                maxTier === tier ? "border-white/80" : "border-zinc-300",
               )}
             >
               {maxTier === tier && (
-                <div className="h-2.5 w-2.5 rounded-full bg-[#2C84DB]" />
+                <div className="h-2.5 w-2.5 rounded-full bg-white" />
               )}
             </div>
             {tierDetails.badge && (
-              <div className="rounded-lg bg-[#1B67B2]/10 px-2 py-1 text-[12px] font-medium leading-4 text-[#1B67B2]">
+              <div
+                className={cn(
+                  "rounded-lg px-2 py-1 text-[12px] font-medium leading-4",
+                  maxTier === tier
+                    ? "bg-white/15 text-white"
+                    : "bg-zinc-100 text-zinc-700",
+                )}
+              >
                 {tierDetails.badge}
               </div>
             )}
@@ -937,7 +965,7 @@ export function BillingCheckout({
   );
 
   const variablePlanNotice = isVariableCheckoutPlan && (
-    <div className="rounded-[8px] border border-zinc-200 bg-white px-4 py-4 text-[14px] leading-relaxed text-zinc-800">
+    <div className="rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] px-4 py-4 text-[14px] leading-relaxed text-zinc-800">
       {isUsageCodePlan ? (
         <p>
           <strong>Usage pricing:</strong> Clauxen Code usage is metered and
@@ -1024,22 +1052,22 @@ export function BillingCheckout({
   ]);
 
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col bg-zinc-50 font-sans text-zinc-800">
+    <div className="flex min-h-[100dvh] w-full flex-col bg-[var(--app-shell-bg)] font-sans text-zinc-800">
       {sessionPreparing && !checkoutSessionId && (
         <CheckoutPreparing planId={activePlanId} maxTier={maxTier} />
       )}
-      <header className="relative flex w-full shrink-0 items-center justify-center px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))] sm:py-6">
+      <header className="relative flex w-full shrink-0 items-center justify-center border-b border-zinc-200/70 bg-[var(--app-panel-bg)] px-4 py-3.5 pt-[max(0.85rem,env(safe-area-inset-top))] sm:py-4">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 sm:left-6">
           <button
             type="button"
             onClick={onBack}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-800 transition-all hover:bg-zinc-100"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/80 bg-white text-zinc-700 shadow-[0_1px_2px_rgba(24,24,27,0.03)] transition-colors hover:bg-zinc-50"
             aria-label="Back"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               fill="currentColor"
               viewBox="0 0 256 256"
             >
@@ -1047,13 +1075,16 @@ export function BillingCheckout({
             </svg>
           </button>
         </div>
+        <span className="text-[13px] font-medium tracking-[-0.01em] text-zinc-500">
+          Checkout
+        </span>
       </header>
 
       <div className="w-full flex-1">
-        <main className="mx-auto flex w-full max-w-[1080px] flex-col items-start gap-6 px-4 pb-28 pt-1 sm:px-6 sm:pt-2 lg:flex-row lg:gap-8">
-          {/* Left column — sticky plan summary */}
-          <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[420px]">
-            <h1 className="mb-4 text-[21px] font-medium sm:mb-6 sm:text-[24px]">
+        <main className="mx-auto flex w-full max-w-[1080px] flex-col items-start gap-6 px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:flex-row lg:gap-10">
+          {/* Left column — plan summary */}
+          <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[400px]">
+            <h1 className="mb-5 text-[22px] font-semibold tracking-[-0.03em] text-zinc-900 sm:text-[24px]">
               {details.name}
             </h1>
 
@@ -1064,8 +1095,10 @@ export function BillingCheckout({
               {businessSeatConfigurator}
               {variablePlanNotice}
 
-              <div className="flex flex-col gap-4 rounded-xl border border-black/10 bg-white p-5 text-[14px]">
-                <div className="font-semibold">Order details</div>
+              <div className="flex flex-col gap-3.5 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] p-5 text-[14px] shadow-[0_1px_2px_rgba(24,24,27,0.03)]">
+                <div className="text-[13px] font-semibold uppercase tracking-[0.04em] text-zinc-400">
+                  Order details
+                </div>
 
                 {orderLineItems.map((item) => (
                   <div
@@ -1111,8 +1144,8 @@ export function BillingCheckout({
                     {taxResult.taxNote}
                   </p>
                 )}
-                <div className="h-px w-full bg-black/10" />
-                <div className="flex items-center justify-between font-bold">
+                <div className="h-px w-full bg-zinc-100" />
+                <div className="flex items-center justify-between font-semibold text-zinc-900">
                   <span>Total due today</span>
                   <span>
                     {isVariableCheckoutPlan
@@ -1122,9 +1155,9 @@ export function BillingCheckout({
                 </div>
               </div>
 
-              <div className="flex gap-4 rounded-xl border border-black/10 bg-white p-5">
-                <Info className="icon-md mt-0.5 shrink-0 icon-muted" />
-                <p className="text-[14px] leading-relaxed">
+              <div className="flex gap-3 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] p-4">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+                <p className="text-[13px] leading-relaxed text-zinc-600">
                   {isVariableCheckoutPlan ? (
                     <>
                       No automatic renewal charge applies until a fixed price or
@@ -1155,7 +1188,7 @@ export function BillingCheckout({
           </aside>
 
           {/* Right column — checkout form */}
-          <div className="min-w-0 flex-1 pb-8">
+          <div className="min-w-0 flex-1 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] p-5 pb-8 shadow-[0_1px_2px_rgba(24,24,27,0.03)] sm:p-6">
             {payError && <CheckoutErrorBanner message={payError} />}
             <CheckoutForm
               paymentTab={paymentTab}

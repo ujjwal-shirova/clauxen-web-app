@@ -15,6 +15,7 @@ On Vercel, R2 is mandatory.
 |---|---|
 | `clauxen-images` | Images / avatars / chat images |
 | `clauxen-documents` | Docs / PDFs / user files |
+| `clauxen-invoices` | Billing invoice PDFs (customer + sales archive; `clauxen-billing` Worker) |
 | `clauxen-artifacts` | Generated artifacts |
 | `clauxen-skills` | Skill packages |
 | `clauxen-chat-archives` | History Worker durable snapshots |

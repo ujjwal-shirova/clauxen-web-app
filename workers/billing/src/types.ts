@@ -49,6 +49,9 @@ export type InvoiceGenerateResponse = {
   invoiceNumber: string;
   paymentId: string;
   r2Key: string;
+  salesKey: string;
   contentType: "application/pdf";
   bytes: number;
+  razorpayDocumentId?: string | null;
+  razorpayDocumentPurpose?: string | null;
 };

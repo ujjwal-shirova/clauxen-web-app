@@ -1,4 +1,4 @@
-/** Payment network / method icons — local SVGs (no third-party logo CDNs). */
+/** Payment network / method icons — local SVGs (no third-party logo CDNs at runtime). */
 
 export type CardBrandId =
   | "visa"
@@ -58,6 +58,14 @@ export const CARD_BRAND_ICONS: Record<
 /** Inline UPI mark fallback — prefer /checkout/icon-pm-upi.svg in UI. */
 export const CHECKOUT_UPI_ICON_URL = "/checkout/icon-pm-upi.svg";
 
+/** Vendored from Stripe fingerprinted assets — served locally (no runtime Stripe CDN). */
+export const UPI_APP_ICONS = [
+  { alt: "PhonePe", src: "/checkout/upi-apps/phonepe.svg" },
+  { alt: "Google Pay", src: "/checkout/upi-apps/gpay.svg" },
+  { alt: "Paytm", src: "/checkout/upi-apps/paytm.svg" },
+  { alt: "UPI / NPCI", src: "/checkout/upi-apps/npci.svg" },
+] as const;
+
 export const DEFAULT_CARD_BRAND_STACK: CardBrandId[] = [
   "visa",
   "mastercard",
@@ -78,7 +86,6 @@ export function detectCardBrand(digits: string): CardBrandId | null {
 
   if (/^35(2[89]|[3-8]\d)/.test(digits)) return "jcb";
 
-  // RuPay ranges before Discover's 65 overlap
   if (/^(508|60[6-8]|6521|6531|81|82)/.test(digits)) return "rupay";
 
   if (/^(6011|64[4-9]|65)/.test(digits)) return "discover";
@@ -86,9 +93,6 @@ export function detectCardBrand(digits: string): CardBrandId | null {
   return null;
 }
 
-/**
- * Stripe-like stack: idle shows common brands; once detected, only that brand.
- */
 export function getCardBrandStack(detected: CardBrandId | null): CardBrandId[] {
   if (!detected) return DEFAULT_CARD_BRAND_STACK;
   return [detected];

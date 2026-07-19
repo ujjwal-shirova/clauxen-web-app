@@ -14,14 +14,13 @@ head_sampling_rate = 1
 #   RAZORPAY_KEY_SECRET
 #   SUPABASE_URL
 #   SUPABASE_ANON_KEY
-#
-# Vars are non-secret only.
 
 [vars]
 INVOICE_ISSUER_NAME = "Shirova"
 INVOICE_ISSUER_LEGAL = "Shirova"
 INVOICE_ISSUER_ADDRESS = "India"
 
+# Dedicated invoice archive bucket (sales + customer copies).
 [[r2_buckets]]
 binding = "INVOICES"
-bucket_name = "clauxen-documents"
+bucket_name = "clauxen-invoices"

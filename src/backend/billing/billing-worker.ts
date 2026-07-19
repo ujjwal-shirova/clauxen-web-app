@@ -101,7 +101,14 @@ export async function billingWorkerRazorpay<T>(
 
 export async function generateInvoiceOnWorker(
   payload: BillingInvoicePayload,
-): Promise<{ r2Key: string; invoiceNumber: string; bytes: number } | null> {
+): Promise<{
+  r2Key: string;
+  salesKey?: string;
+  invoiceNumber: string;
+  bytes: number;
+  razorpayDocumentId?: string | null;
+  razorpayDocumentPurpose?: string | null;
+} | null> {
   if (!isBillingWorkerConfigured()) {
     console.warn(
       "[billing] BILLING_WORKER_URL not set — skipping Cloudflare invoice PDF",
@@ -117,8 +124,11 @@ export async function generateInvoiceOnWorker(
     const body = (await res.json().catch(() => ({}))) as {
       ok?: boolean;
       r2Key?: string;
+      salesKey?: string;
       invoiceNumber?: string;
       bytes?: number;
+      razorpayDocumentId?: string | null;
+      razorpayDocumentPurpose?: string | null;
       error?: string;
     };
     if (!res.ok || !body.ok || !body.r2Key) {
@@ -127,8 +137,11 @@ export async function generateInvoiceOnWorker(
     }
     return {
       r2Key: body.r2Key,
+      salesKey: body.salesKey,
       invoiceNumber: body.invoiceNumber ?? payload.invoiceNumber,
       bytes: body.bytes ?? 0,
+      razorpayDocumentId: body.razorpayDocumentId ?? null,
+      razorpayDocumentPurpose: body.razorpayDocumentPurpose ?? null,
     };
   } catch (err) {
     console.error("[billing] invoice generate error", err);

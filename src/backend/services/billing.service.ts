@@ -20,8 +20,10 @@ import {
   verifyPaymentSignatureSecure,
 } from "@/backend/billing/razorpay"; // payment gateway integration
 import {
+  fetchInvoicePdfFromWorker,
   generateInvoiceOnWorker,
 } from "@/backend/billing/billing-worker";
+import { uploadInvoicePdfToRazorpay } from "@/backend/billing/razorpay-invoice-upload";
 import {
   buildInvoicePayloadFromOrder,
   invoicePayloadToViewData,
@@ -623,12 +625,41 @@ async function enqueueInvoiceGeneration(
       payment,
     });
     const generated = await generateInvoiceOnWorker(payload);
-    if (generated?.r2Key) {
-      await billingRepo.attachInvoicePdfToPayment(paymentId, {
-        r2Key: generated.r2Key,
-        invoiceNumber: generated.invoiceNumber,
-      });
+    if (!generated?.r2Key) return;
+
+    let razorpayDocumentId = generated.razorpayDocumentId ?? null;
+    let razorpayDocumentPurpose = generated.razorpayDocumentPurpose ?? null;
+
+    // Fallback when Worker stored PDF but could not upload to Razorpay
+    // (e.g. keys only on Vercel). Fetch bytes and upload from Next.
+    if (!razorpayDocumentId) {
+      try {
+        const pdfRes = await fetchInvoicePdfFromWorker({
+          paymentId: payload.paymentId,
+          userId: order.user_id,
+        });
+        if (pdfRes?.ok) {
+          const bytes = new Uint8Array(await pdfRes.arrayBuffer());
+          const uploaded = await uploadInvoicePdfToRazorpay({
+            paymentId: payload.razorpayPaymentId || paymentId,
+            pdfBytes: bytes,
+            fileName: `${generated.invoiceNumber}.pdf`,
+          });
+          razorpayDocumentId = uploaded?.documentId ?? null;
+          razorpayDocumentPurpose = uploaded?.purpose ?? null;
+        }
+      } catch (uploadErr) {
+        console.warn("[billing] Razorpay invoice upload fallback failed", uploadErr);
+      }
     }
+
+    await billingRepo.attachInvoicePdfToPayment(paymentId, {
+      r2Key: generated.r2Key,
+      salesKey: generated.salesKey,
+      invoiceNumber: generated.invoiceNumber,
+      razorpayDocumentId,
+      razorpayDocumentPurpose,
+    });
   } catch (err) {
     console.error("[billing] invoice enqueue failed", err);
   }

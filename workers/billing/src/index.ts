@@ -13,7 +13,7 @@
  *   GET  /v1/razorpay/qr/:id/payments (internal) QR payments
  *   POST /v1/razorpay/qr/:id/close    (internal) close QR
  *   POST /v1/razorpay/verify-signature (internal)
- *   POST /v1/invoices/generate        (internal) build PDF → R2
+ *   POST /v1/invoices/generate        (internal) build PDF → R2 + Razorpay Documents
  *   GET  /v1/invoices/:paymentId/pdf  (user JWT or internal)
  *
  * Auth:
@@ -23,6 +23,7 @@
  */
 
 import { buildInvoicePdf } from "./invoice-pdf";
+import { uploadInvoicePdfToRazorpay } from "./razorpay-invoice-upload";
 import type {
   InvoiceGenerateRequest,
   InvoiceGenerateResponse,
@@ -299,13 +300,25 @@ export default {
         }),
       ]);
 
+      // Best-effort: attach PDF to Razorpay payment (Upload Invoices / Documents).
+      const razorpayPaymentId =
+        payload.razorpayPaymentId?.trim() || payload.paymentId;
+      const uploaded = await uploadInvoicePdfToRazorpay(env, {
+        paymentId: razorpayPaymentId,
+        pdfBytes: pdf,
+        fileName: `${payload.invoiceNumber}.pdf`,
+      });
+
       const response: InvoiceGenerateResponse = {
         ok: true,
         invoiceNumber: payload.invoiceNumber,
         paymentId: payload.paymentId,
         r2Key: customerKey,
+        salesKey,
         contentType: "application/pdf",
         bytes: pdf.byteLength,
+        razorpayDocumentId: uploaded?.documentId ?? null,
+        razorpayDocumentPurpose: uploaded?.purpose ?? null,
       };
       return json(response);
     }

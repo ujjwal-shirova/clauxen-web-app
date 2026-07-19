@@ -35,7 +35,7 @@ export default async function CheckoutSessionPage({
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-[var(--app-shell-bg)]">
       <CheckoutSessionClient
         planId={planIdFromSession}
         initialBillingCycle={billingCycle}

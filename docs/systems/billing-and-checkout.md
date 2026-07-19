@@ -60,6 +60,8 @@ Critical paths:
 - Worker: `workers/billing` (`clauxen-billing`)
 - When `BILLING_WORKER_URL` + `BILLING_INTERNAL_TOKEN` are set, Razorpay REST (orders, UPI QR, payment fetch, signature verify) is proxied through the Worker — secrets can live only on Cloudflare.
 - After capture, Vercel enqueues invoice PDF generation on the Worker (plan, IGST/GST, seats for team/enterprise, Shirova logo).
+- PDFs land in dedicated R2 bucket `clauxen-invoices` at `invoices/{userId}/{paymentId}.pdf` plus sales archive `invoices/sales/YYYY/MM/{paymentId}.pdf`.
+- Worker best-effort uploads the PDF to Razorpay Documents (`POST /v1/documents`, then payment documents fallback) so invoices can appear under Dashboard → Payments → Upload Invoices when the merchant product supports it.
 - Card PAN still uses Razorpay.js in the browser (PCI); never POSTed to our API or Worker.
 
 ### Card security (Custom Checkout)
@@ -74,7 +76,7 @@ Critical paths:
 1. Server creates single-use fixed-amount `upi_qr` (`name: "shirova"`).
 2. Client shows custom modal with `image_url` from Razorpay.
 3. Poll until captured; webhook is backup.
-4. UPI icon: vendored at `/public/checkout/icon-pm-upi.svg` (no Stripe CDN at runtime).
+4. UPI icon: vendored at `/public/checkout/icon-pm-upi.svg` (no Stripe CDN at runtime). App marks (PhonePe / GPay / Paytm / NPCI): `/public/checkout/upi-apps/*.svg`.
 5. Smoke: `node scripts/ops/smoke-razorpay-upi-qr.mjs` (needs `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET`).
 
 Webhook:

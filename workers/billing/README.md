@@ -32,4 +32,11 @@ Card PAN still uses Razorpay.js in the browser (PCI) — never hits our servers.
 | POST | `/v1/invoices/generate` | internal token |
 | GET | `/v1/invoices/:paymentId/pdf` | user JWT or internal |
 
-PDFs land in R2 `clauxen-documents` at `invoices/{userId}/{paymentId}.pdf`.
+## Invoice storage
+
+Dedicated R2 bucket **`clauxen-invoices`** (binding `INVOICES`):
+
+- Customer copy: `invoices/{userId}/{paymentId}.pdf`
+- Sales archive: `invoices/sales/YYYY/MM/{paymentId}.pdf`
+
+After PDF write, the Worker best-effort uploads the same file to Razorpay Documents (`POST /v1/documents`, purposes `opgsp_export_invoice` → `invoice`, then payment documents fallback) so compliance invoices can surface under Dashboard → Payments → Upload Invoices when the merchant product supports it.

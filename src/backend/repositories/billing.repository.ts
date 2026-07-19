@@ -105,7 +105,13 @@ export async function getBillingPaymentById(paymentId: string) {
 
 export async function attachInvoicePdfToPayment(
   paymentId: string,
-  input: { r2Key: string; invoiceNumber: string },
+  input: {
+    r2Key: string;
+    invoiceNumber: string;
+    salesKey?: string | null;
+    razorpayDocumentId?: string | null;
+    razorpayDocumentPurpose?: string | null;
+  },
 ) {
   await query(
     `update public.billing_payments
@@ -115,8 +121,12 @@ export async function attachInvoicePdfToPayment(
       paymentId,
       JSON.stringify({
         invoicePdfKey: input.r2Key,
+        invoiceSalesKey: input.salesKey ?? undefined,
         invoiceNumber: input.invoiceNumber,
         invoiceGeneratedAt: new Date().toISOString(),
+        razorpayInvoiceDocumentId: input.razorpayDocumentId ?? undefined,
+        razorpayInvoiceDocumentPurpose:
+          input.razorpayDocumentPurpose ?? undefined,
       }),
     ],
   );
