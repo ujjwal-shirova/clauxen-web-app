@@ -17,22 +17,46 @@ export function enrichToolFromResult(
     completedAtMs: tool.completedAtMs ?? Date.now(),
   };
 
-  if (tool.name === "web_search") {
+  if (tool.name === "web_search" || tool.name === "web_fetch") {
     if (Array.isArray(parsed)) {
       next.searchResults = parsed as WebSearchResult[];
       const query =
-        typeof tool.args?.query === "string" ? tool.args.query : undefined;
+        typeof tool.args?.query === "string"
+          ? tool.args.query
+          : typeof tool.args?.url === "string"
+            ? tool.args.url
+            : undefined;
       if (query) next.searchQuery = query;
     } else if (parsed && typeof parsed === "object") {
       const record = parsed as {
         error?: string;
         query?: string;
+        url?: string;
         results?: unknown;
+        title?: string;
+        content?: string;
       };
       if (record.error) next.status = "error";
       if (record.query) next.searchQuery = record.query;
+      else if (record.url) next.searchQuery = record.url;
       if (Array.isArray(record.results)) {
         next.searchResults = record.results as WebSearchResult[];
+      } else if (
+        tool.name === "web_fetch" &&
+        typeof record.url === "string" &&
+        (typeof record.title === "string" || typeof record.content === "string")
+      ) {
+        next.searchResults = [
+          {
+            url: record.url,
+            title: record.title || record.url,
+            snippet:
+              typeof record.content === "string"
+                ? record.content.slice(0, 240)
+                : "",
+          },
+        ];
+        next.searchQuery = record.url;
       }
     }
   }

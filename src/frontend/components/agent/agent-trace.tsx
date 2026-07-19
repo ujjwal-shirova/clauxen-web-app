@@ -85,6 +85,11 @@ export function AgentTraceBlock({
       <span className="min-w-0 flex-1 truncate text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-400">
         {title}
       </span>
+      {trailing ? (
+        <span className="shrink-0 text-[12px] tabular-nums text-zinc-400">
+          {trailing}
+        </span>
+      ) : null}
       {showChevron && canCollapse ? (
         <ChevronRight
           className={cn(
@@ -93,11 +98,6 @@ export function AgentTraceBlock({
           )}
           aria-hidden
         />
-      ) : null}
-      {trailing ? (
-        <span className="shrink-0 text-[12px] tabular-nums text-zinc-400">
-          {trailing}
-        </span>
       ) : null}
     </>
   );

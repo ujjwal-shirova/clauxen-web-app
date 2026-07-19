@@ -2,6 +2,7 @@ import type { Message } from "@/frontend/lib/types";
 import type { AgentFrame } from "@/frontend/lib/agent-frames";
 import type { AgentSegment, AgentToolSegment } from "@/frontend/lib/agent-segments";
 import { enrichPersistedToolSegment } from "@/frontend/lib/enrich-agent-tool";
+import { collectArtifactsFromAgentSegments } from "@/frontend/lib/chat-artifacts";
 import type {
   TranscriptAgentModelTurn,
   TranscriptAgentUi,
@@ -306,6 +307,13 @@ export function hydrateMessageFromContentJson(
     agentFrameComplete: frames ? true : base.agentFrameComplete,
     agentFrames: frames ?? base.agentFrames,
     agentSegments: frames?.[0]?.segments ?? base.agentSegments,
+    agentArtifacts:
+      base.agentArtifacts && base.agentArtifacts.length > 0
+        ? base.agentArtifacts
+        : collectArtifactsFromAgentSegments(
+            base.id,
+            frames?.[0]?.segments ?? persistedSegments,
+          ),
   });
 }
 

@@ -3,20 +3,20 @@
 import type { Message } from "@/frontend/lib/types";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import { resolveOrchestrationBlocks } from "@/frontend/lib/agent-frames";
+import { groupAgentTraceItems } from "@/frontend/lib/agent-fold-groups";
 import { AssistantContentRenderer } from "@/frontend/components/assistant-content-renderer";
 import { StreamingOrbCursor } from "@/frontend/components/ui/streaming-orb-cursor";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { shouldShowAssistantStreamingOrb } from "@/frontend/lib/streaming-orb-policy";
 import { cn } from "@/frontend/lib/utils";
 import { AgentTrace } from "./agent-trace";
+import { AgentFoldGroup } from "./agent-fold-group";
 import { AgentThinkingPhase } from "./agent-thinking-phase";
 import { AgentNarrationNote } from "./agent-narration-note";
 import { AgentToolBlock } from "./agent-tool-blocks";
 import { ArtifactFileCard } from "./artifact-file-card";
 import type {
-  AgentNarrationSegment,
   AgentSegment,
-  AgentTextSegment,
   AgentThinkingSegment,
   AgentToolSegment,
 } from "@/frontend/lib/agent-segments";
@@ -31,12 +31,6 @@ function isToolSegment(segment: AgentSegment): segment is AgentToolSegment {
   return segment.kind === "tool";
 }
 
-function isNarrationSegment(
-  segment: AgentSegment,
-): segment is AgentNarrationSegment | AgentTextSegment {
-  return segment.kind === "narration" || segment.kind === "text";
-}
-
 function traceSegments(segments: AgentSegment[]): AgentSegment[] {
   return segments.filter(
     (segment) =>
@@ -47,14 +41,66 @@ function traceSegments(segments: AgentSegment[]): AgentSegment[] {
   );
 }
 
+function previousFileContent(
+  segments: AgentSegment[],
+  beforeIndex: number,
+  path: string,
+): string | undefined {
+  if (!path) return undefined;
+  for (let index = beforeIndex - 1; index >= 0; index -= 1) {
+    const segment = segments[index];
+    if (!isToolSegment(segment)) continue;
+    if (segment.name !== "create_file" && segment.name !== "file_write") {
+      continue;
+    }
+    const segmentPath =
+      segment.filePath ??
+      (typeof segment.args?.path === "string" ? segment.args.path : "");
+    if (segmentPath !== path) continue;
+    const content =
+      segment.fileContent ??
+      (typeof segment.args?.content === "string"
+        ? segment.args.content
+        : typeof segment.args?.file_text === "string"
+          ? segment.args.file_text
+          : undefined);
+    if (typeof content === "string") return content;
+  }
+  return undefined;
+}
+
+function renderFoldMember(
+  segment: AgentThinkingSegment | AgentToolSegment,
+  allSegments: AgentSegment[],
+  indexInAll: number,
+) {
+  if (isThinkingSegment(segment)) {
+    return <AgentThinkingPhase key={segment.id} segment={segment} />;
+  }
+  if (isToolSegment(segment)) {
+    const path =
+      segment.filePath ??
+      (typeof segment.args?.path === "string" ? segment.args.path : "");
+    const prior =
+      segment.name === "create_file" || segment.name === "file_write"
+        ? previousFileContent(allSegments, indexInAll, path)
+        : undefined;
+    return (
+      <div
+        key={segment.id}
+        className="min-w-0"
+        data-agent-tool-group={segment.name}
+      >
+        <AgentToolBlock tool={segment} previousFileContent={prior} />
+      </div>
+    );
+  }
+  return null;
+}
+
 /**
- * Clauxen agent transcript — a single chronological trace of interleaved
- * thinking, narration, and tool execution, followed by the ordinary
- * final-answer markdown.
- *
- * The trace preserves the model's emit order (interleaved-thinking safe):
- * thinking → narration → tool → thinking → tool → … → final answer.
- * Each segment kind owns its own minimal visual treatment.
+ * Clauxen agent transcript — fold groups for thinking+tools (Explored N…),
+ * narration between folds, then ordinary final-answer markdown.
  */
 export function AgentOrchestrationView({
   message,
@@ -96,31 +142,39 @@ export function AgentOrchestrationView({
         if (block.kind === "timeline") {
           const segments = traceSegments(block.frame.segments);
           if (segments.length === 0) return null;
+          const items = groupAgentTraceItems(segments);
+          const indexById = new Map(
+            segments.map((segment, index) => [segment.id, index]),
+          );
+
           return (
             <AgentTrace key={block.frame.id}>
-              {segments.map((segment) => {
-                if (isThinkingSegment(segment)) {
+              {items.map((item) => {
+                if (item.kind === "narration") {
                   return (
-                    <AgentThinkingPhase key={segment.id} segment={segment} />
+                    <AgentNarrationNote
+                      key={item.segment.id}
+                      segment={item.segment}
+                    />
                   );
                 }
-                if (isNarrationSegment(segment)) {
-                  return (
-                    <AgentNarrationNote key={segment.id} segment={segment} />
-                  );
-                }
-                if (isToolSegment(segment)) {
-                  return (
-                    <div
-                      key={segment.id}
-                      className="min-w-0"
-                      data-agent-tool-group={segment.name}
-                    >
-                      <AgentToolBlock tool={segment} />
-                    </div>
-                  );
-                }
-                return null;
+
+                return (
+                  <AgentFoldGroup
+                    key={item.id}
+                    summary={item.summary}
+                    isActive={item.isActive}
+                    defaultExpanded={false}
+                  >
+                    {item.segments.map((segment) =>
+                      renderFoldMember(
+                        segment,
+                        segments,
+                        indexById.get(segment.id) ?? 0,
+                      ),
+                    )}
+                  </AgentFoldGroup>
+                );
               })}
             </AgentTrace>
           );

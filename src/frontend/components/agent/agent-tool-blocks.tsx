@@ -991,12 +991,20 @@ export function SuggestConnectorsBlock({ tool }: { tool: AgentToolSegment }) {
   );
 }
 
-export function AgentToolBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentToolBlock({
+  tool,
+  previousFileContent,
+}: {
+  tool: AgentToolSegment;
+  previousFileContent?: string;
+}) {
   if (tool.name === "web_search" || tool.name === "web_fetch") {
     return <AgentWebSearchBlock tool={tool} />;
   }
   if (tool.name === "create_file" || tool.name === "file_write") {
-    return <AgentFileBlock tool={tool} />;
+    return (
+      <AgentFileBlock tool={tool} previousContent={previousFileContent} />
+    );
   }
   if (tool.name === "present_files") {
     return <PresentFilesBlock tool={tool} />;
