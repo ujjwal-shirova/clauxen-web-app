@@ -177,8 +177,9 @@ export async function createUpiBillingPayment(input: {
       keyId?: string;
     };
     upi: {
-      qrId: string;
-      imageUrl: string;
+      mode: "qr" | "checkout";
+      qrId: string | null;
+      imageUrl: string | null;
       closeBy: number | null;
     };
     pricing: {

@@ -239,23 +239,29 @@ export async function createUpiCheckoutPayment(input: {
   const preferDirect = Boolean(
     env.razorpayKeyId?.trim() && env.razorpayKeySecret?.trim(),
   );
-  const [razorpay, qr] = await Promise.all([
-    createRazorpayOrder({
-      amountMinor: totalInrPaise,
-      currency: "INR",
-      receipt,
-      preferDirect,
-      notes: {
-        plan_id: planId,
-        user_id: input.userId,
-        billing_order_id: orderId,
-        channel: "upi_qr",
-        ...(input.billingDetails.gstin
-          ? { gstin: input.billingDetails.gstin }
-          : {}),
-      },
-    }),
-    createRazorpayUpiQr({
+
+  const razorpay = await createRazorpayOrder({
+    amountMinor: totalInrPaise,
+    currency: "INR",
+    receipt,
+    preferDirect,
+    notes: {
+      plan_id: planId,
+      user_id: input.userId,
+      billing_order_id: orderId,
+      channel: "upi",
+      ...(input.billingDetails.gstin
+        ? { gstin: input.billingDetails.gstin }
+        : {}),
+    },
+  });
+
+  // Prefer UPI QR Codes API when enabled on the merchant account.
+  // If Razorpay returns "URL not found", the QR product is not activated —
+  // fall back to Standard Checkout UPI (intent/collect) so pay still works.
+  let qr: Awaited<ReturnType<typeof createRazorpayUpiQr>> | null = null;
+  try {
+    qr = await createRazorpayUpiQr({
       amountPaise: totalInrPaise,
       description: input.planName,
       preferDirect,
@@ -265,8 +271,17 @@ export async function createUpiCheckoutPayment(input: {
         plan_id: planId,
         checkout_session: input.sessionId.slice(0, 120),
       },
-    }),
-  ]);
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const unavailable =
+      /not found on the server|not enabled|BAD_REQUEST_ERROR/i.test(message);
+    if (!unavailable) throw err;
+    console.warn(
+      "[billing] UPI QR Codes API unavailable — falling back to Checkout UPI",
+      message,
+    );
+  }
 
   const order = await billingRepo.createBillingOrder({
     id: orderId,
@@ -285,8 +300,8 @@ export async function createUpiCheckoutPayment(input: {
     metadata: {
       billingDetails: input.billingDetails,
       checkoutCurrency: "INR",
-      channel: "upi_qr",
-      upiQrId: qr.id,
+      channel: qr ? "upi_qr" : "upi_checkout",
+      ...(qr ? { upiQrId: qr.id } : {}),
       tax: {
         label: tax.taxLabel,
         paise: tax.taxPaise,
@@ -311,11 +326,19 @@ export async function createUpiCheckoutPayment(input: {
       currency: razorpay.currency,
       keyId: env.publicRazorpayKeyId || env.razorpayKeyId,
     },
-    upi: {
-      qrId: qr.id,
-      imageUrl: qr.image_url,
-      closeBy: qr.close_by ?? null,
-    },
+    upi: qr
+      ? {
+          mode: "qr" as const,
+          qrId: qr.id,
+          imageUrl: qr.image_url,
+          closeBy: qr.close_by ?? null,
+        }
+      : {
+          mode: "checkout" as const,
+          qrId: null,
+          imageUrl: null,
+          closeBy: null,
+        },
   };
 }
 

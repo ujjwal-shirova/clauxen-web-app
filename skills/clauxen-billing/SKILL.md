@@ -27,6 +27,7 @@ Plans in Postgres `plans` (migrations seed catalog).
 8. Prefer Cloudflare `clauxen-billing` Worker (`BILLING_WORKER_URL`) for Razorpay REST + invoice PDF — never generate payment/invoice engines in the browser.
 9. Checkout session TTL is **6 hours**. UPI address is a full form (no Google Places). Expired hosted sessions remint for the same logged-in user (no 404). No “Getting your plan ready” / checkout header chrome.
 10. Invoice PDFs go to dedicated R2 bucket **`clauxen-invoices`** (`invoices/{userId}/…` + `invoices/sales/YYYY/MM/…`). After generate, Worker best-effort uploads the PDF to Razorpay Documents for Dashboard → Payments → Upload Invoices.
+11. If Razorpay QR Codes API is unavailable (`URL was not found`), UPI falls back to Standard Checkout (`mode: "checkout"`) so Pay still works.
 
 ## Key paths
 

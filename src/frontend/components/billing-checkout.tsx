@@ -686,7 +686,8 @@ export function BillingCheckout({
 
     try {
       if (tab === "upi") {
-        // Open modal immediately with shimmer while the server creates the QR.
+        // Open modal immediately with shimmer while the server creates the QR
+        // (falls back to Razorpay Checkout UPI when QR Codes API is not enabled).
         setUpiQrImageUrl(null);
         setUpiModalOpen(true);
         setUpiPoll(null);
@@ -698,6 +699,44 @@ export function BillingCheckout({
             ? { organizationSeatCount: bundleSeatCount }
             : {}),
         });
+
+        if (checkout.upi.mode === "checkout") {
+          setUpiModalOpen(false);
+          const keyId = checkout.razorpay.keyId;
+          if (!keyId) throw new Error("Razorpay is not configured for checkout.");
+          await openRazorpayCheckout({
+            keyId,
+            orderId: checkout.razorpay.orderId,
+            amount: checkout.razorpay.amount,
+            currency: checkout.razorpay.currency,
+            name: "Shirova",
+            description: details.name,
+            paymentMethod: "upi",
+            prefill: {
+              name: billingDetails.billToName ?? billingDetails.fullName,
+              email: auth.user?.email ?? undefined,
+            },
+            onSuccess: async (payment) => {
+              await verifyBillingPayment({
+                razorpayOrderId: payment.razorpay_order_id,
+                razorpayPaymentId: payment.razorpay_payment_id,
+                razorpaySignature: payment.razorpay_signature,
+              });
+              onPaymentSuccess?.({
+                razorpayPaymentId: payment.razorpay_payment_id,
+                razorpayOrderId: payment.razorpay_order_id,
+              });
+            },
+            onDismiss: () => {
+              setPayError(PAYMENT_FAILED_MESSAGE);
+            },
+          });
+          return;
+        }
+
+        if (!checkout.upi.imageUrl || !checkout.upi.qrId) {
+          throw new Error("UPI QR could not be generated.");
+        }
         setUpiQrImageUrl(checkout.upi.imageUrl);
         setUpiPoll({
           qrId: checkout.upi.qrId,
