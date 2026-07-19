@@ -252,6 +252,8 @@ export type RazorpayQrCodeEntity = {
   id: string;
   entity: string;
   image_url: string;
+  /** Native UPI intent string — same payload Checkout encodes in its QR. */
+  image_content?: string | null;
   status: string;
   payment_amount: number;
   payments_amount_received: number;

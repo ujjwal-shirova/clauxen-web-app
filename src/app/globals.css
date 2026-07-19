@@ -2185,3 +2185,26 @@ button[data-speed-toggle][data-state="open"] {
     will-change: transform;
   }
 }
+
+/* UPI QR modal — loading shimmer for the QR square */
+@keyframes checkout-upi-qr-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.checkout-upi-qr-shimmer {
+  background: linear-gradient(
+    110deg,
+    #f4f4f5 0%,
+    #e4e4e7 35%,
+    #fafafa 50%,
+    #e4e4e7 65%,
+    #f4f4f5 100%
+  );
+  background-size: 200% 100%;
+  animation: checkout-upi-qr-shimmer 1.35s ease-in-out infinite;
+}

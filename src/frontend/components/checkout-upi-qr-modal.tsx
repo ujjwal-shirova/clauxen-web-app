@@ -32,11 +32,16 @@ export function CheckoutUpiQrModal({
   }, [closeBy, open]);
 
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setSecondsLeft(initialSeconds);
   }, [open, initialSeconds]);
+
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [imageUrl]);
 
   useEffect(() => {
     if (!open) return;
@@ -57,12 +62,14 @@ export function CheckoutUpiQrModal({
 
   if (!open) return null;
 
+  const showShimmer = !imageUrl || !imageLoaded;
+
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center">
-      <button
-        type="button"
-        aria-label="Close"
-        className="absolute inset-0 bg-zinc-900/30 backdrop-blur-[2px]"
+      {/* Stable washout — div (not button) so global button:hover cannot tint it */}
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-[rgba(24,24,27,0.42)] backdrop-blur-[6px]"
         onClick={onClose}
       />
 
@@ -73,6 +80,7 @@ export function CheckoutUpiQrModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="upi-qr-title"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 pb-2 pt-5 sm:px-6">
           <h2
@@ -106,7 +114,7 @@ export function CheckoutUpiQrModal({
         <div className="px-5 pb-6 pt-3 sm:px-6">
           <div className="rounded-2xl bg-zinc-100/90 p-4 sm:p-5">
             <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
-              <div className="shrink-0 rounded-xl bg-white p-2.5 shadow-[0_1px_2px_rgba(24,24,27,0.06)]">
+              <div className="relative shrink-0 overflow-hidden rounded-xl bg-white p-2.5 shadow-[0_1px_2px_rgba(24,24,27,0.06)]">
                 {imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- same-origin QR proxy
                   <img
@@ -114,17 +122,24 @@ export function CheckoutUpiQrModal({
                     alt="UPI QR code"
                     width={168}
                     height={168}
-                    className="h-[168px] w-[168px]"
+                    className={cn(
+                      "h-[168px] w-[168px] transition-opacity duration-300",
+                      imageLoaded ? "opacity-100" : "opacity-0",
+                    )}
                     referrerPolicy="no-referrer"
                     decoding="async"
+                    onLoad={() => setImageLoaded(true)}
+                    onError={() => setImageLoaded(true)}
                   />
-                ) : (
+                ) : null}
+
+                {showShimmer ? (
                   <div
-                    className="h-[168px] w-[168px] animate-pulse rounded-lg bg-gradient-to-br from-zinc-100 via-zinc-200/80 to-zinc-100"
+                    className="checkout-upi-qr-shimmer absolute inset-2.5 rounded-lg"
                     aria-label="Generating QR code"
                     role="status"
                   />
-                )}
+                ) : null}
               </div>
 
               <div className="min-w-0 flex-1 text-center sm:text-left">
@@ -157,7 +172,7 @@ export function CheckoutUpiQrModal({
           <button
             type="button"
             onClick={onClose}
-            className="mt-4 w-full rounded-xl py-2.5 text-[14px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800"
+            className="no-hover mt-4 w-full rounded-xl py-2.5 text-[14px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
           >
             Cancel
           </button>

@@ -11,9 +11,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Same-origin QR image:
- * - qr_*  → proxy Razorpay image_url
- * - plink_* → render PNG from UPI payment-link short_url
+ * Same-origin QR image for the custom UPI modal.
+ *
+ * - qr_* + image_content (upi://…) → render PNG of the native UPI intent
+ *   (same payload Razorpay Checkout encodes — pays into the live merchant).
+ * - qr_* + image_url only → proxy Razorpay’s QR image (or render URL if HTML).
+ * - plink_* → render PNG of the live UPI payment-link short_url (real money;
+ *   used only when QR Codes product is not enabled on the account).
  */
 export const GET = withApiRouteParams<{ qrId: string }>(
   async ({ session, params }) => {
@@ -41,6 +45,21 @@ export const GET = withApiRouteParams<{ qrId: string }>(
     }
 
     const qr = await fetchRazorpayQrCode(qrId);
+
+    // Prefer native UPI intent — this is what Checkout’s QR encodes.
+    const intent = qr.image_content?.trim();
+    if (intent && /^upi:\/\//i.test(intent)) {
+      const png = await renderPaymentQrPng(intent);
+      return new Response(new Uint8Array(png), {
+        status: 200,
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
+
     const imageUrl = qr.image_url?.trim();
     if (!imageUrl) {
       throw new AppError("QR image unavailable.", 502, "razorpay_error");
@@ -66,7 +85,6 @@ export const GET = withApiRouteParams<{ qrId: string }>(
 
     const contentType = res.headers.get("content-type") || "image/png";
     if (!contentType.startsWith("image/")) {
-      // Short URLs sometimes return HTML — render our own QR of the image URL.
       const png = await renderPaymentQrPng(upstream);
       return new Response(new Uint8Array(png), {
         status: 200,
