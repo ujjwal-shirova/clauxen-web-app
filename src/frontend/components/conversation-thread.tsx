@@ -801,7 +801,7 @@ function readHeaderHeightPx(from?: Element | null) {
 function resolveActiveStickyTurnIndex(
   viewport: HTMLElement,
   turnCount: number,
-  isGenerating: boolean,
+  _isGenerating: boolean,
 ): number {
   if (turnCount <= 0) return 0;
 
@@ -810,22 +810,16 @@ function resolveActiveStickyTurnIndex(
     "[data-conversation-turn]",
   );
 
-  // Only force the last turn while generating AND the viewport is still near
-  // the bottom. If the user scrolled up to read earlier content, use normal
-  // spanning logic — otherwise generation-end swaps sticky turn and jumps
-  // them to the top of the assistant output.
+  // Near the bottom (stream-follow or resting after a reply), always pin the
+  // last turn. This keeps code/table headers sticky through generation-end
+  // remounts and avoids the sticky-turn flip that jumped the viewport.
+  // Skip when content fits the viewport (maxTop≈0) — use spanning instead.
   const maxTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
-  const nearBottom = maxTop - viewport.scrollTop <= 96;
-  if (isGenerating && nearBottom) {
+  const nearBottom = maxTop > 48 && maxTop - viewport.scrollTop <= 140;
+  if (nearBottom) {
     return Math.max(0, turnCount - 1);
   }
 
-  // When idle (or scrolled away during generation), only pin the user message
-  // if its turn is the one currently spanning the sticky line AND it's the
-  // most recent turn the user is reading. For older turns scrolled into view,
-  // we deliberately do NOT pin — the user message scrolls naturally with the
-  // rest of the turn. This eliminates the sudden jump from one turn's sticky
-  // user msg to another's.
   let next = Math.max(0, turnCount - 1);
   let foundSpanning = false;
 
@@ -914,6 +908,9 @@ function syncStickyUserMessages(
     }
   });
 
+  // Keep per-block pin attrs in sync for older CSS / login-demo parity, but
+  // primary docking now comes from [data-sticky-active] on the turn (survives
+  // Streamdown remount when generation ends).
   syncCodeBlockHeaderPins(viewport, activeIndex);
 }
 
@@ -1228,6 +1225,8 @@ export function ConversationThread({
   const turnCountRef = React.useRef(groups.length);
   turnCountRef.current = groups.length;
   const stickySyncRef = React.useRef<(() => void) | null>(null);
+  const isGeneratingRef = React.useRef(isGeneratingProp);
+  isGeneratingRef.current = isGeneratingProp;
 
   const getScrollElement = React.useCallback(() => {
     if (scrollAreaRef?.current) {
@@ -1287,14 +1286,19 @@ export function ConversationThread({
     let syncRaf = 0;
     let disposed = false;
     let scrollEndTimer = 0;
+    let mutationTimer = 0;
 
     const runSync = () => {
       if (disposed) return;
-      syncStickyUserMessages(viewport, turnCountRef.current, isGeneratingProp);
+      syncStickyUserMessages(
+        viewport,
+        turnCountRef.current,
+        isGeneratingRef.current,
+      );
     };
     stickySyncRef.current = runSync;
 
-    const scheduleSync = (_force = false) => {
+    const scheduleSync = () => {
       if (syncRaf !== 0) return;
       syncRaf = requestAnimationFrame(() => {
         syncRaf = 0;
@@ -1302,10 +1306,10 @@ export function ConversationThread({
       });
     };
 
-    const onTurnMetrics = () => scheduleSync(true);
+    const onTurnMetrics = () => scheduleSync();
 
     const onViewportScroll = () => {
-      scheduleSync(false);
+      scheduleSync();
       window.clearTimeout(scrollEndTimer);
       scrollEndTimer = window.setTimeout(() => {
         runSync();
@@ -1325,19 +1329,26 @@ export function ConversationThread({
     window.addEventListener("resize", runSync);
 
     const content = (viewport.firstElementChild as HTMLElement | null) ?? viewport;
-    const resizeObserver = new ResizeObserver(() => scheduleSync(false));
+    const resizeObserver = new ResizeObserver(() => scheduleSync());
     resizeObserver.observe(content);
 
     viewport.querySelectorAll<HTMLElement>("[data-sticky-user-msg]").forEach((host) => {
       resizeObserver.observe(host);
     });
 
-    // Avoid subtree MutationObserver while streaming — token inserts thrash the main thread.
-    // childList-only is enough to catch turn mount/unmount for sticky hosts.
-    const mutationObserver = new MutationObserver(() => scheduleSync(false));
+    // Always observe subtree so code/table remounts after stream→final
+    // markdown still re-pin. Debounce during streaming to avoid token thrash.
+    const mutationObserver = new MutationObserver(() => {
+      if (isGeneratingRef.current) {
+        window.clearTimeout(mutationTimer);
+        mutationTimer = window.setTimeout(() => scheduleSync(), 80);
+        return;
+      }
+      scheduleSync();
+    });
     mutationObserver.observe(content, {
       childList: true,
-      subtree: !isGeneratingProp,
+      subtree: true,
     });
 
     return () => {
@@ -1349,37 +1360,45 @@ export function ConversationThread({
       window.clearTimeout(settleTimer);
       window.clearTimeout(lateTimer);
       window.clearTimeout(scrollEndTimer);
+      window.clearTimeout(mutationTimer);
       viewport.removeEventListener("scroll", onViewportScroll);
       viewport.removeEventListener("clauxen-turn-metrics", onTurnMetrics);
       window.removeEventListener("resize", runSync);
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };
-  }, [
-    getScrollElement,
-    groups.length,
-    conversationKey,
-    isGeneratingProp,
-  ]);
+  }, [getScrollElement, groups.length, conversationKey]);
 
   React.useEffect(() => {
     stickySyncRef.current?.();
   }, [stickyStreamKey, isFastScrollingProp, isGeneratingProp, editingMessageId]);
 
-  // When generation completes (isGeneratingProp flips false), re-run the
-  // sticky + code/table header pin sync so headers become sticky for the
-  // now-final turn. Previously the pin attribute was only set during scroll,
-  // so a freshly-completed answer with tables/code never got sticky headers
-  // until the user scrolled.
+  // Generation-end: Streamdown remounts code/table blocks after isStreaming
+  // clears. Re-sync sticky turn + pins across a short settle window.
   React.useEffect(() => {
     if (isGeneratingProp) return;
     const viewport = getScrollElement();
     if (!viewport) return;
-    const raf = requestAnimationFrame(() => {
+
+    const timers: number[] = [];
+    const run = () => {
       syncStickyUserMessages(viewport, turnCountRef.current, false);
+    };
+
+    run();
+    const raf = requestAnimationFrame(() => {
+      run();
+      requestAnimationFrame(run);
     });
-    return () => cancelAnimationFrame(raf);
-  }, [isGeneratingProp, getScrollElement]);
+    for (const delay of [40, 120, 280, 520]) {
+      timers.push(window.setTimeout(run, delay));
+    }
+
+    return () => {
+      cancelAnimationFrame(raf);
+      for (const timer of timers) window.clearTimeout(timer);
+    };
+  }, [isGeneratingProp, getScrollElement, stickyStreamKey]);
 
   const turnProps = {
     editingMessageId,

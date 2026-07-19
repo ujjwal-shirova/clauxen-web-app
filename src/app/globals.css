@@ -923,6 +923,10 @@ button.user-message-card__body:not(:disabled):hover,
 
 .login-demo-stage
   .composer-message-codeblock[data-code-header-pin="true"]
+  .ui-code-block.code-block-header-sticky,
+.login-demo-stage
+  [data-conversation-turn][data-sticky-active="true"]
+  .composer-message-codeblock
   .ui-code-block.code-block-header-sticky {
   position: sticky;
   top: calc(var(--header-height, 0px) + var(--turn-user-msg-height, 0px));
@@ -933,6 +937,10 @@ button.user-message-card__body:not(:disabled):hover,
 
 .login-demo-stage
   .composer-message-table[data-table-header-pin="true"]
+  .ui-table-title-header.table-title-header-sticky,
+.login-demo-stage
+  [data-conversation-turn][data-sticky-active="true"]
+  .composer-message-table
   .ui-table-title-header.table-title-header-sticky {
   position: sticky;
   top: calc(var(--header-height, 0px) + var(--turn-user-msg-height, 0px));
@@ -1250,8 +1258,13 @@ button.user-message-card__body:not(:disabled):hover,
   visibility: hidden;
 }
 
-/* Code block header docks under its turn's sticky user message box. */
+/* Code / table headers dock under the active turn's sticky user message.
+   Prefer [data-sticky-active] on the turn so pins survive Streamdown remount
+   when generation ends (per-block data-*-header-pin is kept as a fallback). */
 .composer-message-codeblock[data-code-header-pin="true"]
+  .ui-code-block.code-block-header-sticky,
+[data-conversation-turn][data-sticky-active="true"]
+  .composer-message-codeblock
   .ui-code-block.code-block-header-sticky {
   position: sticky;
   top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px));
@@ -1265,7 +1278,11 @@ button.user-message-card__body:not(:disabled):hover,
 /* Table toolbar docks under its turn's sticky user message box.
    The column <thead> stays in normal table flow; making thead sticky caused
    horizontal/header misalignment near the bottom of long chat scrolls. */
-.composer-message-table[data-table-header-pin="true"] .ui-table-title-header.table-title-header-sticky {
+.composer-message-table[data-table-header-pin="true"]
+  .ui-table-title-header.table-title-header-sticky,
+[data-conversation-turn][data-sticky-active="true"]
+  .composer-message-table
+  .ui-table-title-header.table-title-header-sticky {
   position: sticky;
   top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px));
   z-index: 25;
@@ -1356,10 +1373,8 @@ button.user-message-card__body:not(:disabled):hover,
   50% { opacity: 1; transform: scale(1); }
 }
 
-/* Smooth sticky user-message handoff. When the active sticky turn changes
-   (e.g. generation completes and a new turn becomes active), the docked user
-   message transitions opacity/transform over 180ms instead of hard-cutting.
-   This is the fix for the "scroll up → sticky jumps to older user msg" jump. */
+/* Soften sticky offset changes — avoid animating `top` (that flickered when
+   generation ended and pin attrs remounted). Background/shadow only. */
 .sticky-user-msg-host {
   transition:
     background-color 0.18s ease-out,
@@ -1369,17 +1384,22 @@ button.user-message-card__body:not(:disabled):hover,
 .sticky-user-msg--stuck {
   transition:
     background-color 0.18s ease-out,
-    box-shadow 0.18s ease-out,
-    transform 0.18s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow 0.18s ease-out;
 }
 
-/* Code/table header pins transition smoothly when the active turn changes
-   so the offset (top: header-height + turn-user-msg-height) does not snap. */
 .composer-message-codeblock[data-code-header-pin="true"]
   .ui-code-block.code-block-header-sticky,
 .composer-message-table[data-table-header-pin="true"]
+  .ui-table-title-header.table-title-header-sticky,
+[data-conversation-turn][data-sticky-active="true"]
+  .composer-message-codeblock
+  .ui-code-block.code-block-header-sticky,
+[data-conversation-turn][data-sticky-active="true"]
+  .composer-message-table
   .ui-table-title-header.table-title-header-sticky {
-  transition: top 0.18s cubic-bezier(0.32, 0.72, 0, 1);
+  transition:
+    background-color 0.15s ease-out,
+    box-shadow 0.15s ease-out;
 }
 
 .glass-sidebar-docked {

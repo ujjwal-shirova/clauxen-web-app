@@ -71,16 +71,31 @@ describe("agent-fold-groups", () => {
     }
   });
 
-  it("uses live chrome + preview while active, skips chrome for lone completed thought", () => {
+  it("uses live chrome for tools, skips chrome for lone thinking (no Pondering)", () => {
     assert.equal(
       shouldUseFoldChrome([{ kind: "thinking", id: "t", content: "x" }], {
         isActive: true,
       }),
-      true,
+      false,
     );
     assert.equal(
       shouldUseFoldChrome([{ kind: "thinking", id: "t", content: "x" }]),
       false,
+    );
+    assert.equal(
+      shouldUseFoldChrome(
+        [
+          {
+            kind: "tool",
+            id: "s",
+            toolCallId: "s",
+            name: "web_search",
+            status: "running",
+          },
+        ],
+        { isActive: true },
+      ),
+      true,
     );
 
     const live = summarizeFoldSegments(
@@ -97,6 +112,7 @@ describe("agent-fold-groups", () => {
       { isActive: true },
     );
     assert.match(live.label, /^Searching/);
+    assert.ok(!live.label.includes("Pondering"));
 
     const preview = resolveFoldLivePreview([
       {

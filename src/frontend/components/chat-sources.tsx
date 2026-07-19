@@ -92,6 +92,7 @@ export function SourceChip({
 }) {
   const anchorRef = useRef<HTMLAnchorElement>(null);
   const hideTimeoutRef = useRef<number | null>(null);
+  const showTimeoutRef = useRef<number | null>(null);
   const unmountTimeoutRef = useRef<number | null>(null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -128,14 +129,36 @@ export function SourceChip({
     }
   }, []);
 
-  const showPreview = useCallback(() => {
+  const cancelShow = useCallback(() => {
+    if (showTimeoutRef.current != null) {
+      window.clearTimeout(showTimeoutRef.current);
+      showTimeoutRef.current = null;
+    }
+  }, []);
+
+  const revealPreview = useCallback(() => {
     cancelHide();
     updatePosition();
     setMounted(true);
     requestAnimationFrame(() => setOpen(true));
   }, [cancelHide, updatePosition]);
 
+  /** Delay before the preview container appears — avoids flash on quick passes. */
+  const scheduleShow = useCallback(() => {
+    cancelHide();
+    cancelShow();
+    if (mounted || open) {
+      revealPreview();
+      return;
+    }
+    showTimeoutRef.current = window.setTimeout(() => {
+      showTimeoutRef.current = null;
+      revealPreview();
+    }, 280);
+  }, [cancelHide, cancelShow, mounted, open, revealPreview]);
+
   const scheduleHide = useCallback(() => {
+    cancelShow();
     cancelHide();
     hideTimeoutRef.current = window.setTimeout(() => {
       setOpen(false);
@@ -145,7 +168,7 @@ export function SourceChip({
         unmountTimeoutRef.current = null;
       }, 180);
     }, 160);
-  }, [cancelHide]);
+  }, [cancelHide, cancelShow]);
 
   useEffect(() => {
     if (!open) return;
@@ -163,6 +186,9 @@ export function SourceChip({
       if (hideTimeoutRef.current != null) {
         window.clearTimeout(hideTimeoutRef.current);
       }
+      if (showTimeoutRef.current != null) {
+        window.clearTimeout(showTimeoutRef.current);
+      }
       if (unmountTimeoutRef.current != null) {
         window.clearTimeout(unmountTimeoutRef.current);
       }
@@ -176,9 +202,9 @@ export function SourceChip({
         href={source.url}
         target="_blank"
         rel="noopener noreferrer"
-        onMouseEnter={showPreview}
+        onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
-        onFocus={showPreview}
+        onFocus={scheduleShow}
         onBlur={scheduleHide}
         className={cn(
           "relative mx-0.5 inline-flex align-baseline items-center border border-zinc-200 bg-white font-medium text-zinc-700 shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-md",
@@ -209,7 +235,7 @@ export function SourceChip({
                 width: cardWidth,
                 transform: `translateY(-100%) scale(${open ? 1 : 0.98})`,
               }}
-              onMouseEnter={showPreview}
+              onMouseEnter={scheduleShow}
               onMouseLeave={scheduleHide}
             >
               <SourcePreviewCard source={source} />

@@ -136,7 +136,6 @@ export function ArtifactViewerPanel({
   const meta = artifactMetaLabel(artifact.path, language);
   const supportsPreview = artifactSupportsPreview(artifact.path, language);
   const effectiveViewMode = supportsPreview ? viewMode : "code";
-  const extension = artifactExtensionLabel(artifact.path, language);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(artifact.content);
@@ -165,8 +164,6 @@ export function ArtifactViewerPanel({
               </h2>
               <p className="mt-0.5 truncate text-[12px] font-[430] text-zinc-500">
                 {meta}
-                <span className="mx-1.5 text-zinc-300">·</span>
-                {extension}
               </p>
             </div>
           </div>

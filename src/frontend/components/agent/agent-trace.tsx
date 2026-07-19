@@ -28,14 +28,12 @@ export function AgentTrace({
 
 /**
  * Collapsible action block. Collapsed by default.
- * Header: leading chips · label · trailing · chevron (flush right).
- * Optional livePreview shows under the header while collapsed + active.
+ * Header: leading chips · label · chevron (beside the label, not flush right).
  */
 export function AgentTraceBlock({
   title,
   trailing,
   leading,
-  livePreview,
   showChevron = true,
   hideHeader = false,
   isActive = false,
@@ -48,8 +46,6 @@ export function AgentTraceBlock({
   title: ReactNode;
   trailing?: ReactNode;
   leading?: ReactNode;
-  /** Cursor-style status line while collapsed and still running. */
-  livePreview?: ReactNode;
   showChevron?: boolean;
   hideHeader?: boolean;
   isActive?: boolean;
@@ -63,9 +59,6 @@ export function AgentTraceBlock({
   const canCollapse = hasBody && !hideHeader;
   const [expanded, setExpanded] = useState(hideHeader ? true : defaultExpanded);
   const userToggledRef = useRef(false);
-  const previewKeyRef = useRef(0);
-  const [previewKey, setPreviewKey] = useState(0);
-  const lastPreviewRef = useRef<string>("");
 
   useEffect(() => {
     if (hideHeader) {
@@ -78,22 +71,11 @@ export function AgentTraceBlock({
     }
   }, [canCollapse, defaultExpanded, hideHeader]);
 
-  useEffect(() => {
-    if (typeof livePreview !== "string") return;
-    if (livePreview === lastPreviewRef.current) return;
-    lastPreviewRef.current = livePreview;
-    previewKeyRef.current += 1;
-    setPreviewKey(previewKeyRef.current);
-  }, [livePreview]);
-
   const toggle = () => {
     if (!canCollapse) return;
     userToggledRef.current = true;
     setExpanded((value) => !value);
   };
-
-  const showLivePreview =
-    Boolean(livePreview) && !expanded && !hideHeader && isActive;
 
   const headerInner = (
     <>
@@ -102,12 +84,12 @@ export function AgentTraceBlock({
           {leading}
         </span>
       ) : null}
-      <span className="min-w-0 flex-1 truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-400">
-        {title}
-      </span>
-      <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 pl-2">
+      <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+        <span className="min-w-0 truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-400">
+          {title}
+        </span>
         {trailing ? (
-          <span className="text-[12px] tabular-nums text-zinc-400">
+          <span className="shrink-0 text-[12px] tabular-nums text-zinc-400">
             {trailing}
           </span>
         ) : null}
@@ -155,16 +137,6 @@ export function AgentTraceBlock({
             {headerInner}
           </div>
         )
-      ) : null}
-
-      {showLivePreview ? (
-        <div
-          key={previewKey}
-          className="agent-fold-live-preview mt-1 min-w-0 truncate pl-0.5 text-[12.5px] font-[430] leading-5 tracking-[-0.01em] text-zinc-500 animate-in fade-in slide-in-from-bottom-1 duration-200"
-          data-agent-fold-preview="true"
-        >
-          <AgentShimmerText>{livePreview}</AgentShimmerText>
-        </div>
       ) : null}
 
       {hasBody ? (

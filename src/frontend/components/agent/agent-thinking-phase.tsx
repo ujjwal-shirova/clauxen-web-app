@@ -91,20 +91,20 @@ export function AgentThinkingPhase({
         className="no-hover no-hover-overlay flex w-full max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0"
         aria-expanded={expanded}
       >
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em]",
-            streaming ? "text-zinc-500" : "text-zinc-400",
-          )}
-        >
-          {streaming ? (
-            <AgentShimmerText>{headerLabel}</AgentShimmerText>
-          ) : (
-            headerLabel
-          )}
-        </span>
-        {hasBody ? (
-          <span className="ml-auto inline-flex shrink-0 items-center pl-2">
+        <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+          <span
+            className={cn(
+              "min-w-0 truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em]",
+              streaming ? "text-zinc-500" : "text-zinc-400",
+            )}
+          >
+            {streaming ? (
+              <AgentShimmerText>{headerLabel}</AgentShimmerText>
+            ) : (
+              headerLabel
+            )}
+          </span>
+          {hasBody ? (
             <ChevronRight
               className={cn(
                 "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200",
@@ -112,8 +112,8 @@ export function AgentThinkingPhase({
               )}
               aria-hidden
             />
-          </span>
-        ) : null}
+          ) : null}
+        </span>
       </button>
 
       <div

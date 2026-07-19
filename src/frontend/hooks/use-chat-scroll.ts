@@ -219,9 +219,31 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
 
       const nextScrollHeight = viewport.scrollHeight;
       const prevScrollHeight = lastScrollHeightRef.current;
+      const heightDelta = nextScrollHeight - prevScrollHeight;
       lastScrollHeightRef.current = nextScrollHeight;
 
-      if (pinnedRef.current && nextScrollHeight !== prevScrollHeight) {
+      if (heightDelta === 0) return;
+
+      // While the user is reading earlier content, collapsing chrome above
+      // (fold headers / tool cards) would yank the viewport toward the top of
+      // the assistant. Preserve distance-from-bottom so the same lines stay put.
+      if (!pinnedRef.current && heightDelta < 0 && !isUserInputActive()) {
+        const distance = Math.max(
+          0,
+          prevScrollHeight - viewport.clientHeight - viewport.scrollTop,
+        );
+        const nextTop = Math.max(
+          0,
+          nextScrollHeight - viewport.clientHeight - distance,
+        );
+        if (Math.abs(nextTop - viewport.scrollTop) > 0.5) {
+          markProgrammaticScroll();
+          viewport.scrollTop = nextTop;
+        }
+        return;
+      }
+
+      if (pinnedRef.current) {
         scheduleStickToBottom();
       }
     });
@@ -265,6 +287,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     resolveViewport,
     scheduleStickToBottom,
     markUserInput,
+    markProgrammaticScroll,
     isUserInputActive,
   ]);
 

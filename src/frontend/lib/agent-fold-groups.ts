@@ -25,8 +25,6 @@ export type AgentTraceItem =
       segments: Array<AgentThinkingSegment | AgentToolSegment>;
       summary: AgentFoldSummary;
       isActive: boolean;
-      /** Live status line while the fold is collapsed and still running. */
-      livePreview?: string;
     }
   | {
       kind: "narration";
@@ -68,14 +66,14 @@ function pluralize(count: number, singular: string, plural: string): string {
 }
 
 /**
- * Outer chrome while live (always — keeps the stream tidy), or when done if
- * there is thinking+tool(s) or 2+ tools. Lone completed thought/tool stay bare.
+ * Outer chrome while live when tools are involved, or when done if there is
+ * thinking+tool(s) or 2+ tools. Lone thought (including live Thinking…) stays
+ * bare — never wrap it in a redundant "Pondering" header.
  */
 export function shouldUseFoldChrome(
   segments: Array<AgentThinkingSegment | AgentToolSegment>,
   options?: { isActive?: boolean },
 ): boolean {
-  if (options?.isActive) return true;
   let toolCount = 0;
   let thinkingCount = 0;
   for (const segment of segments) {
@@ -84,6 +82,8 @@ export function shouldUseFoldChrome(
   }
   if (toolCount >= 2) return true;
   if (toolCount >= 1 && thinkingCount >= 1) return true;
+  // Live tool-only folds still get chrome so the stream stays tidy.
+  if (options?.isActive && toolCount >= 1) return true;
   return false;
 }
 
@@ -91,7 +91,6 @@ function resolveActiveVerb(input: {
   fileCount: number;
   searchCount: number;
   toolCount: number;
-  hasThinking: boolean;
   runningTool?: AgentToolSegment;
 }): string {
   const running = input.runningTool;
@@ -106,12 +105,9 @@ function resolveActiveVerb(input: {
     }
     return "Working";
   }
-  if (input.hasThinking && input.fileCount + input.searchCount + input.toolCount === 0) {
-    return "Pondering";
-  }
   if (input.searchCount > 0 || input.fileCount > 0) return "Exploring";
   if (input.toolCount > 0) return "Working";
-  return "Pondering";
+  return "Thinking";
 }
 
 function resolveDoneVerb(input: {
@@ -134,12 +130,10 @@ export function summarizeFoldSegments(
   let fileCount = 0;
   let searchCount = 0;
   let toolCount = 0;
-  let hasThinking = false;
   let runningTool: AgentToolSegment | undefined;
 
   for (const segment of segments) {
     if (segment.kind === "thinking") {
-      hasThinking = true;
       continue;
     }
     if (segment.kind !== "tool") continue;
@@ -161,7 +155,6 @@ export function summarizeFoldSegments(
         fileCount,
         searchCount,
         toolCount,
-        hasThinking,
         runningTool,
       })
     : resolveDoneVerb({ fileCount, searchCount, toolCount });
@@ -260,7 +253,6 @@ export function groupAgentTraceItems(
       segments: buffer,
       summary: summarizeFoldSegments(buffer, { isActive }),
       isActive,
-      livePreview: isActive ? resolveFoldLivePreview(buffer) : undefined,
     });
     buffer = [];
   };
