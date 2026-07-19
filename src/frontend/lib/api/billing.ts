@@ -180,6 +180,7 @@ export async function createUpiBillingPayment(input: {
       mode: "qr" | "checkout";
       qrId: string | null;
       imageUrl: string | null;
+      imageDataUrl?: string | null;
       closeBy: number | null;
     };
     pricing: {

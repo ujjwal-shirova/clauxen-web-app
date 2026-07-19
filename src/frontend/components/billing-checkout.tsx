@@ -709,8 +709,10 @@ export function BillingCheckout({
           checkout.upi.closeBy ??
             Math.floor(Date.now() / 1000) + 20 * 60,
         );
+        // Prefer inline clean PNG (upi://) — skip branded Razorpay image_url card.
         setUpiQrImageUrl(
-          `/api/v1/billing/orders/upi/qr/${encodeURIComponent(checkout.upi.qrId)}/image`,
+          checkout.upi.imageDataUrl ||
+            `/api/v1/billing/orders/upi/qr/${encodeURIComponent(checkout.upi.qrId)}/image`,
         );
         setUpiPoll({
           qrId: checkout.upi.qrId,

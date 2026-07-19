@@ -64,8 +64,9 @@ export async function getBillingOrderByUpiQrId(upiQrId: string) {
     amount_paise: number;
     currency: string;
     status: string;
+    metadata: Record<string, unknown> | null;
   }>(
-    `select id, user_id, razorpay_order_id, amount_paise, currency, status
+    `select id, user_id, razorpay_order_id, amount_paise, currency, status, metadata
      from public.billing_orders
      where metadata->>'upiQrId' = $1
      order by created_at desc

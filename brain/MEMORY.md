@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-19 | UPI modal shows clean square QR from decoded upi:// intent (never Razorpay branded image_url card). Create returns imageDataUrl for faster paint; CRED/Amazon Pay icons removed. | User feedback on branded card QR |
 | 2026-07-19 | UPI QR modal: fixed-size shimmer square only while loading (no collapsed black dot); countdown pill appears only after QR image loads; timer matches Razorpay close_by (20m) and auto-closes modal on expiry. Webhook handles qr_code.credited + payment.captured with UPI order sync via notes/metadata. | Match screenshot UX + live QR fulfill |
 | 2026-07-19 | Live Razorpay QR Codes product is enabled (POST /v1/payments/qr_codes → 200 qr_*). Decoded PNG is native upi://pay?pa=…rzp@… (Checkout-style). UPI+UPI Autopay activated in Payment methods. Webhook now includes qr_code.created/credited/closed plus payment.captured. | Verified via dashboard + live API smoke 2026-07-19 |
 | 2026-07-19 | Real Checkout-equivalent UPI QR = Razorpay **QR Codes** API (`POST /v1/payments/qr_codes`). **Live enabled** (2026-07-19): create returns `qr_*`; PNG from `image_url` decodes to `upi://pay?pa=…rzp@…`. `image_content` may be absent — proxy falls back to PNG. Keep payment_links fallback for resilience. Modal washout is non-button overlay; QR square uses shimmer. | Real payments + UI polish |

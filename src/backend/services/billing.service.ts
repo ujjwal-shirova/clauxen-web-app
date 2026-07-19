@@ -20,7 +20,8 @@ import {
   isRazorpayConfigured,
   newOrderId,
   newReceipt,
-  renderPaymentQrPng,
+  renderCleanUpiQrDataUrl,
+  resolveUpiQrIntent,
   verifyPaymentSignatureSecure,
 } from "@/backend/billing/razorpay"; // payment gateway integration
 import {
@@ -244,49 +245,62 @@ export async function createUpiCheckoutPayment(input: {
     env.razorpayKeyId?.trim() && env.razorpayKeySecret?.trim(),
   );
 
-  const razorpay = await createRazorpayOrder({
-    amountMinor: totalInrPaise,
-    currency: "INR",
-    receipt,
-    preferDirect,
-    notes: {
-      plan_id: planId,
-      user_id: input.userId,
-      billing_order_id: orderId,
-      channel: "upi",
-      ...(input.billingDetails.gstin
-        ? { gstin: input.billingDetails.gstin }
-        : {}),
-    },
-  });
+  const orderNotes = {
+    plan_id: planId,
+    user_id: input.userId,
+    billing_order_id: orderId,
+    channel: "upi",
+    ...(input.billingDetails.gstin
+      ? { gstin: input.billingDetails.gstin }
+      : {}),
+  };
 
-  // Prefer UPI QR Codes API. If not enabled on the merchant, fall back to a
-  // UPI payment link + locally rendered QR — never open Razorpay hosted Checkout.
-  let qrId: string;
-  let closeBy: number | null = null;
-  let channel: "upi_qr" | "upi_payment_link" = "upi_qr";
-  let imageUrl: string | null = null;
+  const qrNotes = {
+    billing_order_id: orderId,
+    user_id: input.userId,
+    plan_id: planId,
+    checkout_session: input.sessionId.slice(0, 120),
+  };
 
-  try {
-    const qr = await createRazorpayUpiQr({
+  const [razorpay, qrSettled] = await Promise.all([
+    createRazorpayOrder({
+      amountMinor: totalInrPaise,
+      currency: "INR",
+      receipt,
+      preferDirect,
+      notes: orderNotes,
+    }),
+    createRazorpayUpiQr({
       amountPaise: totalInrPaise,
       description: input.planName,
       preferDirect,
-      notes: {
-        billing_order_id: orderId,
-        user_id: input.userId,
-        plan_id: planId,
-        checkout_session: input.sessionId.slice(0, 120),
-      },
-    });
-    qrId = qr.id;
-    closeBy = qr.close_by ?? null;
-    imageUrl = qr.image_url;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+      notes: qrNotes,
+    }).then(
+      (qr) => ({ ok: true as const, qr }),
+      (err: unknown) => ({ ok: false as const, err }),
+    ),
+  ]);
+
+  let qrId: string;
+  let closeBy: number | null = null;
+  let channel: "upi_qr" | "upi_payment_link" = "upi_qr";
+  let upiIntent: string | null = null;
+  let imageDataUrl: string | null = null;
+
+  if (qrSettled.ok) {
+    // Live QR Codes product — decode branded image_url → clean upi:// square PNG.
+    qrId = qrSettled.qr.id;
+    closeBy = qrSettled.qr.close_by ?? null;
+    upiIntent = await resolveUpiQrIntent(qrSettled.qr);
+    imageDataUrl = await renderCleanUpiQrDataUrl(upiIntent);
+  } else {
+    const message =
+      qrSettled.err instanceof Error
+        ? qrSettled.err.message
+        : String(qrSettled.err);
     const unavailable =
       /not found on the server|not enabled|BAD_REQUEST_ERROR/i.test(message);
-    if (!unavailable) throw err;
+    if (!unavailable) throw qrSettled.err;
 
     console.warn(
       "[billing] UPI QR Codes API unavailable — using UPI payment link QR",
@@ -297,22 +311,22 @@ export async function createUpiCheckoutPayment(input: {
     const link = await createRazorpayUpiPaymentLink({
       amountPaise: totalInrPaise,
       description: input.planName,
-      customerName: input.billingDetails.fullName || input.billingDetails.billToName,
+      customerName:
+        input.billingDetails.fullName || input.billingDetails.billToName,
       customerEmail: input.userEmail,
       expireBySeconds,
       notes: {
-        billing_order_id: orderId,
-        user_id: input.userId,
-        plan_id: planId,
+        ...qrNotes,
         razorpay_order_id: razorpay.id,
-        checkout_session: input.sessionId.slice(0, 120),
       },
     });
     qrId = link.id;
     channel = "upi_payment_link";
     closeBy = Math.floor(Date.now() / 1000) + expireBySeconds;
-    // Image served same-origin via /upi/qr/:id/image (renders PNG from short_url).
-    imageUrl = null;
+    if (link.short_url) {
+      upiIntent = link.short_url;
+      imageDataUrl = await renderCleanUpiQrDataUrl(link.short_url);
+    }
   }
 
   const order = await billingRepo.createBillingOrder({
@@ -334,6 +348,7 @@ export async function createUpiCheckoutPayment(input: {
       checkoutCurrency: "INR",
       channel,
       upiQrId: qrId,
+      ...(upiIntent ? { upiIntent } : {}),
       tax: {
         label: tax.taxLabel,
         paise: tax.taxPaise,
@@ -361,7 +376,9 @@ export async function createUpiCheckoutPayment(input: {
     upi: {
       mode: "qr" as const,
       qrId,
-      imageUrl,
+      /** Clean square PNG data URL — prefer over proxy for instant modal paint. */
+      imageDataUrl,
+      imageUrl: null as string | null,
       closeBy,
     },
   };

@@ -440,6 +440,105 @@ export async function renderPaymentQrPng(
   });
 }
 
+/**
+ * Razorpay’s `image_url` is a branded marketing card (Powered by Razorpay / BHIM
+ * chrome). Decode that PNG to recover the native `upi://` intent, then we render
+ * a clean square QR for the checkout modal.
+ */
+export async function decodeUpiIntentFromQrPng(
+  pngBytes: Buffer | ArrayBuffer | Uint8Array,
+): Promise<string | null> {
+  const [{ PNG }, jsQRMod] = await Promise.all([
+    import("pngjs"),
+    import("jsqr"),
+  ]);
+  const jsQR =
+    typeof jsQRMod === "function"
+      ? jsQRMod
+      : ((jsQRMod as { default?: typeof jsQRMod }).default ?? jsQRMod);
+  const buf = Buffer.isBuffer(pngBytes)
+    ? pngBytes
+    : Buffer.from(pngBytes instanceof ArrayBuffer ? pngBytes : pngBytes);
+  const png = PNG.sync.read(buf);
+  const decode = jsQR as (data: Uint8ClampedArray, w: number, h: number) => {
+    data?: string;
+  } | null;
+  const code = decode(
+    new Uint8ClampedArray(
+      png.data.buffer,
+      png.data.byteOffset,
+      png.data.byteLength,
+    ),
+    png.width,
+    png.height,
+  );
+  const data = code?.data?.trim();
+  if (!data || !/^upi:\/\//i.test(data)) return null;
+  return data;
+}
+
+export async function fetchRazorpayQrImageBytes(
+  imageUrl: string,
+): Promise<{ bytes: Buffer; contentType: string }> {
+  const upstream = imageUrl.startsWith("http://")
+    ? `https://${imageUrl.slice("http://".length)}`
+    : imageUrl;
+  const res = await fetch(upstream, {
+    method: "GET",
+    redirect: "follow",
+    headers: {
+      Accept: "image/*,*/*",
+      "User-Agent": "ClauxenBilling/1.0",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new AppError("Could not load UPI QR image.", 502, "razorpay_error");
+  }
+  const contentType = res.headers.get("content-type") || "image/png";
+  const bytes = Buffer.from(await res.arrayBuffer());
+  return { bytes, contentType };
+}
+
+/**
+ * Resolve native UPI intent for a Razorpay QR entity.
+ * Prefer `image_content`; otherwise decode Razorpay’s branded `image_url` PNG.
+ */
+export async function resolveUpiQrIntent(
+  qr: Pick<RazorpayQrCodeEntity, "image_content" | "image_url">,
+): Promise<string> {
+  const direct = qr.image_content?.trim();
+  if (direct && /^upi:\/\//i.test(direct)) return direct;
+
+  const imageUrl = qr.image_url?.trim();
+  if (!imageUrl) {
+    throw new AppError("QR image unavailable.", 502, "razorpay_error");
+  }
+
+  const { bytes, contentType } = await fetchRazorpayQrImageBytes(imageUrl);
+  if (!contentType.startsWith("image/")) {
+    // Rare: image_url is already an intent/URL page — if it's upi, use it.
+    if (/^upi:\/\//i.test(imageUrl)) return imageUrl;
+    throw new AppError("QR image unavailable.", 502, "razorpay_error");
+  }
+
+  const intent = await decodeUpiIntentFromQrPng(bytes);
+  if (!intent) {
+    throw new AppError(
+      "Could not decode UPI QR intent from Razorpay image.",
+      502,
+      "razorpay_error",
+    );
+  }
+  return intent;
+}
+
+/** Clean square PNG (data URL) for the custom UPI modal — never Razorpay’s branded card. */
+export async function renderCleanUpiQrDataUrl(intent: string): Promise<string> {
+  const png = await renderPaymentQrPng(intent);
+  return `data:image/png;base64,${png.toString("base64")}`;
+}
+
 export async function fetchRazorpayQrPayments(qrId: string) {
   if (!/^qr_[A-Za-z0-9]{8,40}$/.test(qrId)) {
     throw new AppError("Invalid QR id.", 400, "bad_request");
