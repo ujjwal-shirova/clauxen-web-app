@@ -11,7 +11,6 @@ export type AgentFoldSummary = {
   fileCount: number;
   searchCount: number;
   toolCount: number;
-  /** Present-tense while active (Exploring…), past tense when done (Explored …). */
   label: string;
   verb: string;
 };
@@ -20,7 +19,10 @@ export type AgentTraceItem =
   | {
       kind: "fold";
       id: string;
-      /** Outer Explored/Used chrome — false for a lone completed thought/tool. */
+      /**
+       * Outer summary chrome ("Searched the web", "Used 2 tools").
+       * False for bare singles: lone Thought, lone create_file chip, lone search.
+       */
       useChrome: boolean;
       segments: Array<AgentThinkingSegment | AgentToolSegment>;
       summary: AgentFoldSummary;
@@ -31,17 +33,8 @@ export type AgentTraceItem =
       segment: AgentNarrationSegment | AgentTextSegment;
     };
 
-const SEARCH_TOOLS = new Set([
-  "web_search",
-  "web_fetch",
-  "image_search",
-]);
-
-const FILE_TOOLS = new Set([
-  "create_file",
-  "file_write",
-  "present_files",
-]);
+const SEARCH_TOOLS = new Set(["web_search", "web_fetch", "image_search"]);
+const FILE_TOOLS = new Set(["create_file", "file_write"]);
 
 function isNarration(
   segment: AgentSegment,
@@ -58,6 +51,8 @@ function isFoldMember(
 function classifyTool(tool: AgentToolSegment): "file" | "search" | "tool" {
   if (FILE_TOOLS.has(tool.name)) return "file";
   if (SEARCH_TOOLS.has(tool.name)) return "search";
+  // Ignore deprecated present_files in summaries
+  if (tool.name === "present_files") return "tool";
   return "tool";
 }
 
@@ -66,24 +61,29 @@ function pluralize(count: number, singular: string, plural: string): string {
 }
 
 /**
- * Outer chrome while live when tools are involved, or when done if there is
- * thinking+tool(s) or 2+ tools. Lone thought (including live Thinking…) stays
- * bare — never wrap it in a redundant "Pondering" header.
+ * Fold chrome is for multi-step work only.
+ * Bare: lone thinking, lone create_file, lone search, lone bash.
+ * Chrome: thinking+tool(s), or 2+ tools.
  */
 export function shouldUseFoldChrome(
   segments: Array<AgentThinkingSegment | AgentToolSegment>,
   options?: { isActive?: boolean },
 ): boolean {
+  const visible = segments.filter(
+    (segment) =>
+      segment.kind === "thinking" ||
+      (segment.kind === "tool" && segment.name !== "present_files"),
+  );
   let toolCount = 0;
   let thinkingCount = 0;
-  for (const segment of segments) {
+  for (const segment of visible) {
     if (segment.kind === "tool") toolCount += 1;
     else if (segment.kind === "thinking") thinkingCount += 1;
   }
   if (toolCount >= 2) return true;
   if (toolCount >= 1 && thinkingCount >= 1) return true;
-  // Live tool-only folds still get chrome so the stream stays tidy.
-  if (options?.isActive && toolCount >= 1) return true;
+  // Live multi-step still uses chrome once a tool is running alongside prior steps
+  if (options?.isActive && toolCount >= 1 && visible.length >= 2) return true;
   return false;
 }
 
@@ -96,16 +96,14 @@ function resolveActiveVerb(input: {
   const running = input.runningTool;
   if (running) {
     if (SEARCH_TOOLS.has(running.name)) return "Searching";
-    if (running.name === "create_file" || running.name === "file_write") {
-      return "Creating";
-    }
-    if (running.name === "present_files") return "Presenting";
+    if (FILE_TOOLS.has(running.name)) return "Writing";
     if (running.name === "bash_tool" || running.name === "run_code_interpreter") {
       return "Running";
     }
     return "Working";
   }
-  if (input.searchCount > 0 || input.fileCount > 0) return "Exploring";
+  if (input.searchCount > 0) return "Searching";
+  if (input.fileCount > 0) return "Writing";
   if (input.toolCount > 0) return "Working";
   return "Thinking";
 }
@@ -115,14 +113,17 @@ function resolveDoneVerb(input: {
   searchCount: number;
   toolCount: number;
 }): string {
-  if (input.fileCount > 0 || input.searchCount > 0) return "Explored";
+  if (input.searchCount > 0 && input.fileCount === 0 && input.toolCount === 0) {
+    return "Searched";
+  }
+  if (input.fileCount > 0 && input.searchCount === 0 && input.toolCount === 0) {
+    return "Wrote";
+  }
+  if (input.fileCount > 0 || input.searchCount > 0) return "Worked across";
   if (input.toolCount > 0) return "Used";
   return "Thought";
 }
 
-/**
- * Build the Cursor-style fold header label with live/past verbs.
- */
 export function summarizeFoldSegments(
   segments: Array<AgentThinkingSegment | AgentToolSegment>,
   options?: { isActive?: boolean },
@@ -133,10 +134,9 @@ export function summarizeFoldSegments(
   let runningTool: AgentToolSegment | undefined;
 
   for (const segment of segments) {
-    if (segment.kind === "thinking") {
-      continue;
-    }
+    if (segment.kind === "thinking") continue;
     if (segment.kind !== "tool") continue;
+    if (segment.name === "present_files") continue;
     const kind = classifyTool(segment);
     if (kind === "file") fileCount += 1;
     else if (kind === "search") searchCount += 1;
@@ -151,12 +151,7 @@ export function summarizeFoldSegments(
 
   const isActive = options?.isActive === true;
   const verb = isActive
-    ? resolveActiveVerb({
-        fileCount,
-        searchCount,
-        toolCount,
-        runningTool,
-      })
+    ? resolveActiveVerb({ fileCount, searchCount, toolCount, runningTool })
     : resolveDoneVerb({ fileCount, searchCount, toolCount });
 
   let label: string;
@@ -171,7 +166,7 @@ export function summarizeFoldSegments(
   return { fileCount, searchCount, toolCount, label, verb };
 }
 
-/** One-line live status for the collapsed fold preview. */
+/** @deprecated preview line removed from UI; kept for tests. */
 export function resolveFoldLivePreview(
   segments: Array<AgentThinkingSegment | AgentToolSegment>,
 ): string | undefined {
@@ -193,9 +188,8 @@ export function resolveFoldLivePreview(
           segment.filePath ??
           (typeof segment.args?.path === "string" ? segment.args.path : "");
         const name = path ? fileNameFromPath(path) : "file";
-        return `Creating ${name}`;
+        return `Writing ${name}`;
       }
-      if (segment.name === "present_files") return "Presenting files";
       if (segment.name === "bash_tool" || segment.name === "run_code_interpreter") {
         const description =
           segment.description ??
@@ -212,26 +206,12 @@ export function resolveFoldLivePreview(
       return "Thinking";
     }
   }
-
-  const last = segments[segments.length - 1];
-  if (!last) return undefined;
-  if (last.kind === "thinking") return "Thinking";
-  if (last.kind === "tool") {
-    if (SEARCH_TOOLS.has(last.name)) return "Searched the web";
-    if (FILE_TOOLS.has(last.name)) {
-      const path =
-        last.filePath ??
-        (typeof last.args?.path === "string" ? last.args.path : "");
-      return path ? `Created ${fileNameFromPath(path)}` : "Updated files";
-    }
-    return `Used ${last.name.replace(/_/g, " ")}`;
-  }
   return undefined;
 }
 
 /**
  * Group consecutive thinking+tool segments into fold blocks.
- * Narration breaks folds and stays outside (between expanders).
+ * Narration breaks folds and stays outside. present_files is dropped.
  */
 export function groupAgentTraceItems(
   segments: AgentSegment[],
@@ -241,20 +221,27 @@ export function groupAgentTraceItems(
 
   const flush = () => {
     if (buffer.length === 0) return;
-    const isActive = buffer.some(
+    const filtered = buffer.filter(
+      (segment) =>
+        segment.kind === "thinking" ||
+        (segment.kind === "tool" && segment.name !== "present_files"),
+    );
+    buffer = [];
+    if (filtered.length === 0) return;
+
+    const isActive = filtered.some(
       (segment) =>
         (segment.kind === "thinking" && segment.isStreaming) ||
         (segment.kind === "tool" && segment.status === "running"),
     );
     items.push({
       kind: "fold",
-      id: `fold-${buffer[0]!.id}`,
-      useChrome: shouldUseFoldChrome(buffer, { isActive }),
-      segments: buffer,
-      summary: summarizeFoldSegments(buffer, { isActive }),
+      id: `fold-${filtered[0]!.id}`,
+      useChrome: shouldUseFoldChrome(filtered, { isActive }),
+      segments: filtered,
+      summary: summarizeFoldSegments(filtered, { isActive }),
       isActive,
     });
-    buffer = [];
   };
 
   for (const segment of segments) {
@@ -274,7 +261,6 @@ export function groupAgentTraceItems(
   return items;
 }
 
-/** Naive line-level rewrite stats for create_file chrome. */
 export function countContentLineDiff(
   content: string,
   previousContent?: string,

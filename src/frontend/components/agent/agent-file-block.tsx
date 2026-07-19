@@ -2,26 +2,35 @@
 
 import { FileText } from "lucide-react";
 import type { AgentToolSegment } from "@/frontend/lib/agent-segments";
-import { fileNameFromPath } from "@/frontend/lib/chat-artifacts";
-import { inferLanguageFromPath } from "@/frontend/lib/create-file-tags";
+import {
+  fileNameFromPath,
+  type ChatArtifact,
+} from "@/frontend/lib/chat-artifacts";
+import {
+  artifactMetaLabel,
+  artifactSupportsPreview,
+  inferLanguageFromPath,
+} from "@/frontend/lib/create-file-tags";
 import { countContentLineDiff } from "@/frontend/lib/agent-fold-groups";
 import { cn } from "@/frontend/lib/utils";
+import { useOptionalArtifactViewer } from "@/frontend/contexts/artifact-viewer-context";
 import { AgentToolCard } from "./agent-tool-card";
 import { CreateFileStreamBlock } from "./create-file-stream-block";
 
 /**
- * create_file / file_write — streaming write UI + compact file pill with
- * +N/−M line stats. Does NOT present a downloadable artifact; that is owned
- * by present_files (via SSE artifact_upsert → message.agentArtifacts).
+ * create_file / file_write
+ * - While writing: expanded live stream
+ * - When done: only a clickable collapsed chip (opens the file viewer).
+ * create_file auto-presents — no present_files step.
  */
 export function AgentFileBlock({
   tool,
   previousContent,
 }: {
   tool: AgentToolSegment;
-  /** Prior content for the same path (rewrite) so −M is meaningful. */
   previousContent?: string;
 }) {
+  const viewer = useOptionalArtifactViewer();
   const path =
     tool.filePath ??
     (typeof tool.args?.path === "string" ? tool.args.path : "");
@@ -46,30 +55,14 @@ export function AgentFileBlock({
   const diff = countContentLineDiff(content, previousContent);
   const showDiff = !isRunning && (diff.insertions > 0 || diff.deletions > 0);
 
-  return (
-    <div className="flex w-full min-w-0 flex-col gap-1.5" data-agent-file-block>
-      <AgentToolCard
-        label={
+  if (isRunning) {
+    return (
+      <div className="flex w-full min-w-0 flex-col" data-agent-file-block="writing">
+        <AgentToolCard
+          label={description || `Creating ${fileName || "file"}`}
           isRunning
-            ? description || `Creating ${fileName || "file"}`
-            : `Created ${fileName || "file"}`
-        }
-        trailing={
-          showDiff ? (
-            <span className="inline-flex items-center gap-1.5 tabular-nums">
-              {diff.insertions > 0 ? (
-                <span className="text-emerald-600">+{diff.insertions}</span>
-              ) : null}
-              {diff.deletions > 0 ? (
-                <span className="text-rose-500">−{diff.deletions}</span>
-              ) : null}
-            </span>
-          ) : undefined
-        }
-        isRunning={isRunning}
-        defaultExpanded
-      >
-        {isRunning || content ? (
+          defaultExpanded
+        >
           <CreateFileStreamBlock
             compact
             block={{
@@ -78,65 +71,84 @@ export function AgentFileBlock({
               title: fileName.replace(/\.[^.]+$/, "") || "Untitled",
               language,
               content,
-              isComplete: !isRunning,
+              isComplete: false,
             }}
             streamKey={tool.id}
           />
-        ) : null}
-      </AgentToolCard>
+        </AgentToolCard>
+      </div>
+    );
+  }
 
-      {!isRunning && fileName ? (
-        <div
-          className={cn(
-            "inline-flex max-w-full items-center gap-2 self-start rounded-xl border border-zinc-200/90 bg-white px-2.5 py-1.5",
-            "shadow-[0_1px_2px_rgba(24,24,27,0.03)]",
-          )}
-          data-agent-file-pill
-        >
-          <FileText
-            className="h-3.5 w-3.5 shrink-0 text-zinc-500"
-            strokeWidth={1.7}
-            aria-hidden
-          />
-          <span className="min-w-0 truncate text-[13px] font-[430] tracking-[-0.01em] text-zinc-800">
-            {fileName}
-          </span>
-        </div>
-      ) : null}
-    </div>
+  if (!fileName && !content) return null;
+
+  const artifact: ChatArtifact = {
+    id: tool.toolCallId || tool.id,
+    path: path || fileName,
+    fileName: fileName || "file",
+    content,
+    language,
+    description:
+      typeof description === "string" ? description : undefined,
+    createdAtMs: tool.completedAtMs ?? Date.now(),
+  };
+
+  const openFile = () => {
+    if (!content) return;
+    const mode = artifactSupportsPreview(artifact.path, artifact.language)
+      ? "preview"
+      : "code";
+    viewer?.openArtifact(artifact, mode);
+  };
+
+  const title =
+    artifact.description || artifact.fileName.replace(/\.[^.]+$/, "");
+  const meta = artifactMetaLabel(artifact.path, language || "text");
+
+  return (
+    <button
+      type="button"
+      onClick={openFile}
+      disabled={!content}
+      className={cn(
+        "group/file-chip no-hover-overlay flex w-full max-w-md items-center gap-2.5 rounded-[12px] border border-zinc-200/90 bg-zinc-50/90 px-2.5 py-2 text-left transition-colors duration-150",
+        "hover:border-zinc-300 hover:bg-zinc-100/90",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200/90",
+        !content && "cursor-default opacity-70",
+      )}
+      data-agent-file-block="done"
+      aria-label={content ? `Open ${title}` : title}
+    >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] border border-zinc-200/90 bg-white">
+        <FileText
+          className="h-[18px] w-[18px] text-zinc-500"
+          strokeWidth={1.6}
+          aria-hidden
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13.5px] font-semibold tracking-[-0.01em] text-zinc-900">
+          {fileName}
+        </p>
+        <p className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[12px] font-[430] text-zinc-500">
+          <span className="truncate">{meta}</span>
+          {showDiff ? (
+            <span className="inline-flex shrink-0 items-center gap-1 tabular-nums">
+              {diff.insertions > 0 ? (
+                <span className="text-emerald-600">+{diff.insertions}</span>
+              ) : null}
+              {diff.deletions > 0 ? (
+                <span className="text-rose-500">−{diff.deletions}</span>
+              ) : null}
+            </span>
+          ) : null}
+        </p>
+      </div>
+    </button>
   );
 }
 
-/**
- * present_files — status line for the present step.
- * Downloadable cards are rendered from message.agentArtifacts once the
- * tool emits artifact_upsert (not from create_file).
- */
-export function PresentFilesBlock({ tool }: { tool: AgentToolSegment }) {
-  const isRunning = tool.status === "running";
-  const paths = Array.isArray(tool.args?.paths)
-    ? tool.args.paths.filter((p): p is string => typeof p === "string")
-    : tool.filePath
-      ? [tool.filePath]
-      : [];
-  const count = paths.length || (tool.filePath ? 1 : 0);
-  const plural = count !== 1 ? "s" : "";
-  const singleName =
-    count === 1 ? fileNameFromPath(paths[0] ?? tool.filePath ?? "") : undefined;
-
-  return (
-    <AgentToolCard
-      label={
-        isRunning
-          ? `Presenting file${plural}`
-          : singleName
-            ? `Presented ${singleName}`
-            : count > 0
-              ? `Presented ${count} file${plural}`
-              : "Presented files"
-      }
-      isRunning={isRunning}
-      defaultExpanded={false}
-    />
-  );
+/** present_files is removed from the agent loop — hide legacy hydrated steps. */
+export function PresentFilesBlock(_props: { tool: AgentToolSegment }) {
+  return null;
 }

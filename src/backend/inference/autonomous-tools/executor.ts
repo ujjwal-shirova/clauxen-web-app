@@ -284,50 +284,14 @@ export async function executeAutonomousTool(
   }
 
   if (name === "present_files") {
-    const paths = Array.isArray(args.paths) ? (args.paths as unknown[]) : [];
-    const files: Array<{
-      path: string;
-      content: string;
-      fileId?: string;
-      storagePath?: string;
-    }> = [];
-    const errors: string[] = [];
-    for (const rawPath of paths) {
-      const filePath = String(rawPath ?? "").trim();
-      if (!filePath) continue;
-      try {
-        const file = await readScopedFile(ctx.conversationId, filePath);
-        let persisted: { fileId: string; storagePath: string } | null = null;
-        if (ctx.userId) {
-          try {
-            const { persistAgentCreatedFile } = await import(
-              "@/backend/inference/autonomous-tools/persist-agent-file"
-            );
-            persisted = await persistAgentCreatedFile({
-              userId: ctx.userId,
-              chatId: ctx.conversationId,
-              path: filePath,
-              content: file.content,
-            });
-          } catch {
-            // best-effort
-          }
-        }
-        files.push({
-          ...file,
-          ...(persisted
-            ? { fileId: persisted.fileId, storagePath: persisted.storagePath }
-            : {}),
-        });
-      } catch {
-        errors.push(filePath);
-      }
-    }
+    // Deprecated: create_file already presents. Keep a quiet success stub so
+    // older model turns that still emit this tool don't error the loop.
     return {
       output: {
-        presented: files.map((f) => f.path),
-        files,
-        ...(errors.length ? { notFound: errors } : {}),
+        presented: [],
+        files: [],
+        deprecated: true,
+        message: "present_files is no longer required — create_file auto-presents.",
       },
     };
   }

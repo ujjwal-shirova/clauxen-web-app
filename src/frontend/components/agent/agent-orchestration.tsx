@@ -14,7 +14,6 @@ import { AgentFoldGroup } from "./agent-fold-group";
 import { AgentThinkingPhase } from "./agent-thinking-phase";
 import { AgentNarrationNote } from "./agent-narration-note";
 import { AgentToolBlock } from "./agent-tool-blocks";
-import { ArtifactFileCard } from "./artifact-file-card";
 import type {
   AgentSegment,
   AgentThinkingSegment,
@@ -211,14 +210,6 @@ export function AgentOrchestrationView({
       {showOrb ? (
         <div className="flex items-center py-1" data-streaming-orb="bottom">
           <StreamingOrbCursor />
-        </div>
-      ) : null}
-
-      {message.agentArtifacts && message.agentArtifacts.length > 0 ? (
-        <div className="flex w-full flex-col gap-2">
-          {message.agentArtifacts.map((artifact) => (
-            <ArtifactFileCard key={artifact.id} artifact={artifact} />
-          ))}
         </div>
       ) : null}
     </div>

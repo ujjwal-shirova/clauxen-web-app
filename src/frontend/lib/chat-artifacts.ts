@@ -40,8 +40,8 @@ function preferArtifact(a: ChatArtifact, b: ChatArtifact): ChatArtifact {
 }
 
 /**
- * Rebuild downloadable cards from present_files tool results so reload
- * restores the same presentation as the live SSE artifact_upsert path.
+ * Rebuild downloadable cards from create_file (and legacy present_files)
+ * tool results so reload restores the same presentation as live SSE.
  */
 export function collectArtifactsFromAgentSegments(
   messageId: string,
@@ -61,9 +61,52 @@ export function collectArtifactsFromAgentSegments(
   const byPath = new Map<string, ChatArtifact>();
 
   for (const segment of segments) {
-    if (segment.kind !== "tool" || segment.name !== "present_files") continue;
+    if (segment.kind !== "tool") continue;
 
     const stamp = segment.completedAtMs ?? Date.now();
+
+    if (segment.name === "create_file" || segment.name === "file_write") {
+      let path =
+        segment.filePath ??
+        (typeof segment.args?.path === "string" ? segment.args.path : "");
+      let content =
+        segment.fileContent ??
+        (typeof segment.args?.content === "string"
+          ? segment.args.content
+          : typeof segment.args?.file_text === "string"
+            ? segment.args.file_text
+            : "");
+      if (segment.result?.trim()) {
+        try {
+          const parsed = JSON.parse(segment.result) as {
+            path?: string;
+            content?: string;
+          };
+          if (typeof parsed.path === "string" && parsed.path) path = parsed.path;
+          if (typeof parsed.content === "string" && parsed.content) {
+            content = parsed.content;
+          }
+        } catch {
+          // keep args / enriched fields
+        }
+      }
+      if (!path || !content) continue;
+      const key = normalizeArtifactPath(path);
+      const next: ChatArtifact = {
+        id: `${messageId}:create:${segment.toolCallId ?? segment.id}`,
+        path,
+        fileName: fileNameFromPath(path),
+        content,
+        language: segment.fileLanguage,
+        createdAtMs: stamp,
+      };
+      const existing = byPath.get(key);
+      byPath.set(key, existing ? preferArtifact(existing, next) : next);
+      continue;
+    }
+
+    if (segment.name !== "present_files") continue;
+
     let files: Array<{ path: string; content: string }> = [];
 
     if (segment.result?.trim()) {
@@ -78,7 +121,7 @@ export function collectArtifactsFromAgentSegments(
           );
         }
       } catch {
-        // fall through to args / enriched fields
+        // fall through
       }
     }
 

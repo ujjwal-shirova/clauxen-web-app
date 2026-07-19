@@ -180,7 +180,7 @@ export const autonomousAgentTools: FunctionTool[] = [
       "USE when you need to: perform calculations, transform or analyse data, verify logic by running it, generate charts or images, or produce any file output.",
       "ALWAYS call read_skill FIRST when the task involves file formats, charts, PDFs, or environment-specific libraries — the sandbox may have different packages than your training data.",
       "Print everything you want to observe; the return value is only what is printed.",
-      "SEQUENCING: read_skill → execute_code → optionally create_file → present_files.",
+      "SEQUENCING: read_skill → execute_code → optionally create_file (auto-presents).",
       "Before calling, briefly describe what the code will do.",
     ].join(" "),
     parameters: {
@@ -245,10 +245,10 @@ export const autonomousAgentTools: FunctionTool[] = [
     type: "function",
     name: "create_file",
     description: [
-      "Create/write a single text file in this conversation's workspace and stream it in the UI as a create_file container.",
+      "Create/write a single text file in this conversation's workspace.",
+      "The file is automatically presented to the user as a downloadable/viewable card when writing finishes — do NOT call present_files.",
       "This is the ONLY file-creation tool — do not use bash, tags, or alternate write tools for the same deliverable.",
       "Parent directories are created automatically. Prefer a simple relative path like `outputs/short-story.md`.",
-      "After a successful create_file, call present_files with that same path so the user gets a downloadable card.",
       "Do NOT retry the same file with a different tool if create_file succeeds. Only retry create_file once if it failed with a clear recoverable error.",
       "ALWAYS call read_skill first when producing PDFs, PPTXs, charts, or other format-specific output.",
     ].join(" "),
@@ -278,9 +278,8 @@ export const autonomousAgentTools: FunctionTool[] = [
     type: "function",
     name: "present_files",
     description: [
-      "Surface one or more already-written workspace files to the user as downloadable cards (Presented file step in the timeline).",
-      "USE once after create_file for every file the user should receive. Pass the exact path(s) from create_file.",
-      "Do not call for scratch/intermediate files you rewrote before presenting the final version.",
+      "DEPRECATED — do not call. create_file already presents files to the user automatically.",
+      "If invoked, this is a no-op compatibility stub.",
     ].join(" "),
     parameters: {
       type: "object",
@@ -289,7 +288,7 @@ export const autonomousAgentTools: FunctionTool[] = [
           type: "array",
           items: { type: "string" },
           minItems: 1,
-          description: "Workspace-relative paths previously written via create_file.",
+          description: "Ignored — create_file already presented these paths.",
         },
       },
       required: ["paths"],

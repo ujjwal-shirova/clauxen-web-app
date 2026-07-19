@@ -1580,6 +1580,16 @@ export function useChatApi(
           error instanceof Error && error.name === "AbortError";
         if (getGeneration(chatId)?.request === controller && !isAbort) {
           const failedAssistantId = resolveAssistantId();
+          const rawMessage =
+            error instanceof Error ? error.message : "Generation failed.";
+          const friendly =
+            /failed to fetch|networkerror|load failed|network request failed/i.test(
+              rawMessage,
+            )
+              ? "Connection lost while generating. Please try again."
+              : rawMessage.startsWith("Generation failed")
+                ? rawMessage
+                : `Generation failed: ${rawMessage}`;
           setAllChats((prev) => ({
             ...prev,
             [chatId]: (prev[chatId] ?? []).map((m) =>
@@ -1587,11 +1597,7 @@ export function useChatApi(
                 ? {
                     ...m,
                     isStreaming: false,
-                    content:
-                      m.content ||
-                      (error instanceof Error
-                        ? `Generation failed: ${error.message}`
-                        : "Generation failed."),
+                    content: m.content || friendly,
                   }
                 : m,
             ),

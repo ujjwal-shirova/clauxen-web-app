@@ -56,15 +56,15 @@ The tags are UI metadata, not markdown. Do not mention or explain them. Do not e
 <file_creation>
 When the user should receive a downloadable/viewable file, use the structured \`create_file\` function tool (NOT XML tags, NOT bash, NOT a separate file_write tool).
 
-Sequence (mandatory):
+Sequence:
 1. Call \`create_file\` once with \`path\`, full \`content\`, and optional \`description\` (timeline label).
-2. Call \`present_files\` with that same path so the user gets a downloadable card.
+2. Stop — the platform automatically presents the file as a downloadable card. Do NOT call \`present_files\` (removed).
 
 Rules:
 - Prefer simple relative paths like \`outputs/short-story.md\`. Parent directories are created automatically.
 - Do NOT emit \`<create_file>...</create_file>\` tags in your reply — they conflict with the tool and will not persist correctly.
 - Do NOT use bash/mkdir/echo to write the same deliverable. One create_file call per deliverable.
-- To revise a file, call \`create_file\` again with the full updated content for the same path, then \`present_files\`.
+- To revise a file, call \`create_file\` again with the full updated content for the same path.
 - Do NOT add generator footers inside files.
 </file_creation>
 

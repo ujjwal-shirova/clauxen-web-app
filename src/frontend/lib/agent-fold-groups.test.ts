@@ -62,24 +62,20 @@ describe("agent-fold-groups", () => {
     assert.equal(items[2]?.kind, "fold");
     if (items[0]?.kind === "fold") {
       assert.equal(items[0].useChrome, true);
-      assert.equal(items[0].summary.label, "Explored 1 file, 1 search");
+      assert.equal(items[0].summary.label, "Worked across 1 file, 1 search");
       assert.equal(items[0].segments.length, 3);
     }
     if (items[2]?.kind === "fold") {
       assert.equal(items[2].useChrome, true);
-      assert.equal(items[2].summary.label, "Explored 1 search");
+      assert.equal(items[2].summary.label, "Searched 1 search");
     }
   });
 
-  it("uses live chrome for tools, skips chrome for lone thinking (no Pondering)", () => {
+  it("keeps lone tools bare (no chrome) including live search", () => {
     assert.equal(
       shouldUseFoldChrome([{ kind: "thinking", id: "t", content: "x" }], {
         isActive: true,
       }),
-      false,
-    );
-    assert.equal(
-      shouldUseFoldChrome([{ kind: "thinking", id: "t", content: "x" }]),
       false,
     );
     assert.equal(
@@ -95,7 +91,22 @@ describe("agent-fold-groups", () => {
         ],
         { isActive: true },
       ),
-      true,
+      false,
+    );
+    assert.equal(
+      shouldUseFoldChrome(
+        [
+          {
+            kind: "tool",
+            id: "f",
+            toolCallId: "f",
+            name: "create_file",
+            status: "done",
+            filePath: "a.md",
+          },
+        ],
+      ),
+      false,
     );
 
     const live = summarizeFoldSegments(
@@ -112,7 +123,6 @@ describe("agent-fold-groups", () => {
       { isActive: true },
     );
     assert.match(live.label, /^Searching/);
-    assert.ok(!live.label.includes("Pondering"));
 
     const preview = resolveFoldLivePreview([
       {

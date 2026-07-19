@@ -32,6 +32,7 @@ import {
 import { executeAutonomousTool } from "@/backend/inference/autonomous-tools/executor";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
 import { autonomousAgentTools } from "@/backend/inference/autonomous-tools/definitions";
+import { inferLanguage } from "@/backend/inference/platform-tools";
 import { parse as parsePartialJson, Allow } from "partial-json";
 import { z } from "zod";
 import type { ConfiguredModelId } from "@/lib/model-config";
@@ -119,17 +120,52 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
   }),
 };
 
+/** create_file auto-presents — emit downloadable artifact immediately. */
+function emitCreatedFileArtifact(
+  sse: ClauxenSseStream,
+  output: unknown,
+  fallbackPath?: string,
+  fallbackContent?: string,
+  description?: string,
+) {
+  const record =
+    output && typeof output === "object"
+      ? (output as Record<string, unknown>)
+      : null;
+  const path =
+    (typeof record?.path === "string" && record.path) || fallbackPath || "";
+  const content =
+    (typeof record?.content === "string" && record.content) ||
+    fallbackContent ||
+    "";
+  if (!path || !content) return;
+  sse.writeArtifact(
+    path,
+    path,
+    content,
+    inferLanguage(path),
+    typeof description === "string"
+      ? description
+      : typeof record?.description === "string"
+        ? record.description
+        : undefined,
+  );
+}
+
 /** Build Anthropic tool definitions from our autonomous tool catalog. */
 function buildAnthropicTools() {
   return toAnthropicTools(
-    autonomousAgentTools.map((tool) => ({
-      name: tool.name,
-      description: tool.description ?? tool.name,
-      parameters: (tool.parameters ?? {
-        type: "object",
-        properties: {},
-      }) as Record<string, unknown>,
-    })),
+    autonomousAgentTools
+      // present_files removed — create_file auto-presents to the user.
+      .filter((tool) => tool.name !== "present_files")
+      .map((tool) => ({
+        name: tool.name,
+        description: tool.description ?? tool.name,
+        parameters: (tool.parameters ?? {
+          type: "object",
+          properties: {},
+        }) as Record<string, unknown>,
+      })),
   );
 }
 
@@ -603,6 +639,22 @@ export async function runAutonomousAgent(
             }
 
             if (
+              (tc.name === "create_file" || tc.name === "file_write") &&
+              result.output &&
+              typeof result.output === "object"
+            ) {
+              emitCreatedFileArtifact(
+                sse,
+                result.output,
+                typeof rawArgs.path === "string" ? rawArgs.path : undefined,
+                typeof rawArgs.content === "string" ? rawArgs.content : undefined,
+                typeof rawArgs.description === "string"
+                  ? rawArgs.description
+                  : undefined,
+              );
+            }
+
+            if (
               tc.name === "present_files" &&
               result.output &&
               typeof result.output === "object"
@@ -615,7 +667,7 @@ export async function runAutonomousAgent(
                   file.path,
                   file.path,
                   file.content,
-                  undefined,
+                  inferLanguage(file.path),
                 );
               }
             }
@@ -662,6 +714,22 @@ export async function runAutonomousAgent(
             const isError = isToolErrorOutput(outcome.output);
 
             if (
+              (tc.name === "create_file" || tc.name === "file_write") &&
+              outcome.output &&
+              typeof outcome.output === "object"
+            ) {
+              emitCreatedFileArtifact(
+                sse,
+                outcome.output,
+                typeof rawArgs.path === "string" ? rawArgs.path : undefined,
+                typeof rawArgs.content === "string" ? rawArgs.content : undefined,
+                typeof rawArgs.description === "string"
+                  ? rawArgs.description
+                  : undefined,
+              );
+            }
+
+            if (
               tc.name === "present_files" &&
               outcome.output &&
               typeof outcome.output === "object"
@@ -674,7 +742,7 @@ export async function runAutonomousAgent(
                   file.path,
                   file.path,
                   file.content,
-                  undefined,
+                  inferLanguage(file.path),
                 );
               }
             }

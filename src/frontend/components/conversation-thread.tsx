@@ -1043,27 +1043,35 @@ export function ConversationThread({
   }, [moreMenuId, closeMoreMenu]);
 
   // Desktop-only text selection floating menu for assistant answers.
-  // Shows a small container near the highlight (like the reference) with "Ask ChatGPT" / "Start writing".
-  // Ignores selections that are only whitespace or newlines.
+  // Debounced so the bar appears after a short intentional highlight, not
+  // on every selectionchange flicker.
   React.useEffect(() => {
-    if (isMobile) return; // only desktop / larger screens
+    if (isMobile) return;
 
     let raf = 0;
+    let showTimer = 0;
+    const SHOW_DELAY_MS = 320;
+
+    const hideMenu = () => {
+      window.clearTimeout(showTimer);
+      showTimer = 0;
+      setSelectionMenu(null);
+    };
+
     const onSelect = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-          setSelectionMenu(null);
+          hideMenu();
           return;
         }
         const text = sel.toString().replace(/\u00a0/g, " ");
         if (!text.trim()) {
-          setSelectionMenu(null);
+          hideMenu();
           return;
         }
 
-        // Find if selection is inside an assistant message content area
         const range = sel.getRangeAt(0);
         let node: Node | null = range.commonAncestorContainer;
         let messageId: string | null = null;
@@ -1071,7 +1079,9 @@ export function ConversationThread({
           const el = node instanceof Element ? node : node.parentElement;
           if (el) {
             const mid = el.getAttribute("data-message-id");
-            const isAssistantArea = el.getAttribute("data-assistant-content") === "true" || !!el.closest?.("[data-assistant-content='true']");
+            const isAssistantArea =
+              el.getAttribute("data-assistant-content") === "true" ||
+              !!el.closest?.("[data-assistant-content='true']");
             if (mid && isAssistantArea) {
               messageId = mid;
               break;
@@ -1080,18 +1090,16 @@ export function ConversationThread({
           node = node.parentNode;
         }
         if (!messageId) {
-          setSelectionMenu(null);
+          hideMenu();
           return;
         }
 
-        // Get rect for positioning the bar near the selection (viewport coords for fixed positioning)
         const rect = range.getBoundingClientRect();
         if (!rect || (rect.width === 0 && rect.height === 0)) {
-          setSelectionMenu(null);
+          hideMenu();
           return;
         }
 
-        // Position above the selection, clamped inside the viewport.
         const barApproxWidth = 248;
         const x = Math.max(
           12,
@@ -1101,22 +1109,32 @@ export function ConversationThread({
           ),
         );
         const y = Math.max(12, rect.top - 44);
+        const next = { x, y, text: text.trim(), messageId };
 
-        setSelectionMenu({ x, y, text: text.trim(), messageId });
+        window.clearTimeout(showTimer);
+        showTimer = window.setTimeout(() => {
+          showTimer = 0;
+          // Re-check selection is still valid after the delay.
+          const still = window.getSelection();
+          if (!still || still.isCollapsed) return;
+          if (still.toString().replace(/\u00a0/g, " ").trim() !== next.text) {
+            return;
+          }
+          setSelectionMenu(next);
+        }, SHOW_DELAY_MS);
       });
     };
 
-    const onHide = () => setSelectionMenu(null);
-
     document.addEventListener("selectionchange", onSelect);
-    document.addEventListener("scroll", onHide, true);
-    window.addEventListener("resize", onHide);
+    document.addEventListener("scroll", hideMenu, true);
+    window.addEventListener("resize", hideMenu);
 
     return () => {
       document.removeEventListener("selectionchange", onSelect);
-      document.removeEventListener("scroll", onHide, true);
-      window.removeEventListener("resize", onHide);
+      document.removeEventListener("scroll", hideMenu, true);
+      window.removeEventListener("resize", hideMenu);
       cancelAnimationFrame(raf);
+      window.clearTimeout(showTimer);
     };
   }, [isMobile]);
 
@@ -1458,7 +1476,7 @@ export function ConversationThread({
         !isMobile &&
         createPortal(
           <div
-            className="fixed z-[95] flex items-center overflow-hidden rounded-full border border-zinc-200 bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.28)]"
+            className="fixed z-[95] flex items-center overflow-hidden rounded-full border border-zinc-200 bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.28)] animate-in fade-in zoom-in-95 duration-150"
             style={{ left: `${selectionMenu.x}px`, top: `${selectionMenu.y}px` }}
             onMouseDown={(e) => e.preventDefault()}
           >

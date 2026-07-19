@@ -71,7 +71,7 @@ export function platformTools(): PlatformTool[] {
     ),
     tool(
       "create_file",
-      "Create or overwrite a file in the sandbox. Appears as an artifact in the chat UI. Always pass the full file content — this is the only file-write tool, used for both new files and edits.",
+      "Create or overwrite a file in the sandbox. Automatically presented to the user when writing finishes — do not call present_files.",
       {
         type: "object",
         properties: {
@@ -106,21 +106,6 @@ export function platformTools(): PlatformTool[] {
           },
         },
         required: ["path", "description"],
-      },
-    ),
-    tool(
-      "present_files",
-      "Present sandbox files to the user in the artifacts panel.",
-      {
-        type: "object",
-        properties: {
-          filepaths: {
-            type: "array",
-            items: { type: "string" },
-            minItems: 1,
-          },
-        },
-        required: ["filepaths"],
       },
     ),
     tool(
