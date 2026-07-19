@@ -41,13 +41,27 @@ import { AgentFileBlock, PresentFilesBlock } from "./agent-file-block";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
 import { StreamingTextFade } from "@/frontend/lib/streaming-text-fade";
 
-function SearchResultFavicon({ url }: { url: string }) {
+function SearchResultFavicon({
+  url,
+  size = "sm",
+}: {
+  url: string;
+  size?: "sm" | "md";
+}) {
   const [failed, setFailed] = useState(false);
   const domain = domainFromUrl(url);
+  const dim = size === "md" ? "h-5 w-5" : "h-4 w-4";
+  const text = size === "md" ? "text-[10px]" : "text-[9px]";
 
   if (failed) {
     return (
-      <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 text-[9px] font-semibold uppercase text-zinc-500">
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-full bg-zinc-100 font-semibold uppercase text-zinc-500",
+          dim,
+          text,
+        )}
+      >
         {domain.slice(0, 1)}
       </div>
     );
@@ -55,9 +69,12 @@ function SearchResultFavicon({ url }: { url: string }) {
 
   return (
     <img
-      src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`}
+      src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`}
       alt=""
-      className="h-4 w-4 shrink-0 rounded bg-zinc-100 object-cover"
+      className={cn(
+        "shrink-0 rounded-full bg-zinc-100 object-cover ring-1 ring-white",
+        dim,
+      )}
       onError={() => setFailed(true)}
       loading="lazy"
       decoding="async"
@@ -142,11 +159,7 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   const visibleResults = results.slice(0, visibleCount);
   const scrollRef = useRef<HTMLDivElement>(null);
   const showResultsContainer = isRunning || visibleResults.length > 0;
-
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [visibleResults.length, isRunning]);
+  const previewIcons = results.slice(0, 3);
 
   return (
     <AgentToolCard
@@ -157,13 +170,26 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
             ? `${query} ${results.length} results`
             : query || "Searched the web"
       }
+      leading={
+        previewIcons.length > 0 ? (
+          <span className="inline-flex items-center -space-x-1.5 pr-0.5">
+            {previewIcons.map((result) => (
+              <SearchResultFavicon
+                key={result.url}
+                url={result.url}
+                size="md"
+              />
+            ))}
+          </span>
+        ) : null
+      }
       isRunning={isRunning}
-      defaultExpanded={isRunning || results.length > 0}
+      defaultExpanded={false}
     >
       {showResultsContainer ? (
         <div
           ref={scrollRef}
-          className="flex max-h-[16rem] min-h-0 flex-col overflow-y-auto"
+          className="agent-thinking__card app-scrollbar flex max-h-[16rem] min-h-0 flex-col overflow-y-auto rounded-2xl border border-zinc-200/80 bg-white px-3.5 py-2"
         >
           {visibleResults.slice(0, 10).map((result, index) => (
             <SearchResultRow
@@ -228,7 +254,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
           : description || "Ran command"
       }
       isRunning={isRunning}
-      defaultExpanded={isRunning || !!output}
+      defaultExpanded={false}
     >
       <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.03)]">
         <div className="border-b border-zinc-100 bg-[#f4f4f5] px-3 py-2.5">

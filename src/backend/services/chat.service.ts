@@ -584,8 +584,22 @@ export async function streamChatGeneration(input: {
   let answer = "";
   let thinking = "";
   let streamError: string | null = null;
+  /** Wall time spent in thinking phases only (excludes tool execution). */
+  let thinkingStartedAtMs: number | null = null;
+  let thinkingAccumulatedMs = 0;
   const toolsById = new Map<string, CapturedToolCall>();
   const modelTurns: TranscriptAgentModelTurn[] = [];
+
+  const beginThinkingPhase = () => {
+    if (thinkingStartedAtMs == null) {
+      thinkingStartedAtMs = Date.now();
+    }
+  };
+  const endThinkingPhase = () => {
+    if (thinkingStartedAtMs == null) return;
+    thinkingAccumulatedMs += Math.max(0, Date.now() - thinkingStartedAtMs);
+    thinkingStartedAtMs = null;
+  };
 
   const modelForTelemetry = resolveInferenceRoute({
     chatModel: parseChatModelId(input.chatModel),
@@ -615,8 +629,15 @@ export async function streamChatGeneration(input: {
         onAnswerClear: () => {
           answer = "";
         },
+        onThinkingStart: () => {
+          beginThinkingPhase();
+        },
         onThinkingDelta: (delta) => {
+          beginThinkingPhase();
           thinking += delta;
+        },
+        onThinkingEnd: () => {
+          endThinkingPhase();
         },
         onChatTitle: (title) => {
           generatedTitle = normalizeInlineChatTitle(title, titleUserContent);
@@ -625,6 +646,8 @@ export async function streamChatGeneration(input: {
           streamError = message.trim() || "The model could not complete this response.";
         },
         onToolStart: (tool) => {
+          // Tool work is not thinking time.
+          endThinkingPhase();
           const existing = toolsById.get(tool.toolCallId);
           toolsById.set(tool.toolCallId, {
             id: tool.toolCallId,
@@ -682,8 +705,10 @@ export async function streamChatGeneration(input: {
         : failed
           ? "failed"
           : "complete";
+      // Close any open thinking phase before persisting.
+      endThinkingPhase();
       const thinkingDurationSeconds = thinking.trim()
-        ? Math.max(1, Math.round((completedAtMs - started) / 1000))
+        ? Math.max(1, Math.round(thinkingAccumulatedMs / 1000))
         : undefined;
       const contentJson = buildAssistantTranscriptRecord({
         answer: cleanedAnswer,

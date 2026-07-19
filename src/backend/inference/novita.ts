@@ -147,7 +147,9 @@ export function tapChatSseStream(
   callbacks: {
     onAnswerDelta?: (delta: string) => void;
     onAnswerClear?: () => void;
+    onThinkingStart?: () => void;
     onThinkingDelta?: (delta: string) => void;
+    onThinkingEnd?: () => void;
     onChatTitle?: (title: string) => void;
     onToolStart?: (tool: {
       toolCallId: string;

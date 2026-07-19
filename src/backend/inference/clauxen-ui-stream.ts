@@ -75,7 +75,9 @@ export function tapUiMessageSseStream(
   callbacks: {
     onAnswerDelta?: (delta: string) => void;
     onAnswerClear?: () => void;
+    onThinkingStart?: () => void;
     onThinkingDelta?: (delta: string) => void;
+    onThinkingEnd?: () => void;
     onChatTitle?: (title: string) => void;
     onToolStart?: (tool: {
       toolCallId: string;
@@ -159,11 +161,17 @@ export function tapUiMessageSseStream(
               ) {
                 callbacks.onAnswerDelta?.(parsed.delta);
               }
+              if (parsed.type === "reasoning-start") {
+                callbacks.onThinkingStart?.();
+              }
               if (
                 parsed.type === "reasoning-delta" &&
                 typeof parsed.delta === "string"
               ) {
                 callbacks.onThinkingDelta?.(parsed.delta);
+              }
+              if (parsed.type === "reasoning-end") {
+                callbacks.onThinkingEnd?.();
               }
               if (parsed.type === "data-chat-title") {
                 const title = parsed.data?.title;
@@ -179,10 +187,16 @@ export function tapUiMessageSseStream(
               if (parsed.type === "answer_clear") {
                 callbacks.onAnswerClear?.();
               }
+              if (parsed.type === "thinking_start") {
+                callbacks.onThinkingStart?.();
+              }
               if (parsed.type === "thinking_delta") {
                 if (typeof parsed.delta === "string") {
                   callbacks.onThinkingDelta?.(parsed.delta);
                 }
+              }
+              if (parsed.type === "thinking_end") {
+                callbacks.onThinkingEnd?.();
               }
               if (parsed.type === "chat_title") {
                 if (typeof parsed.title === "string") {

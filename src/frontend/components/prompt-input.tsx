@@ -346,8 +346,11 @@ export function PromptInput({
 
     const draft = readDraft();
     const isEmpty = draft.trim().length === 0;
-    const scrollHeight = measureTextareaScrollHeight(textarea);
     const hasExplicitNewline = draft.includes("\n");
+
+    // Measure against an unconstrained height so collapse is accurate when
+    // the user deletes back to a single line / empty draft.
+    const scrollHeight = measureTextareaScrollHeight(textarea);
     const fitsSingleLine =
       isEmpty ||
       (!hasExplicitNewline && scrollHeight <= singleLineHeight + 1);
@@ -363,10 +366,10 @@ export function PromptInput({
     }
 
     const contentHeight = isEmpty ? singleLineHeight : scrollHeight;
-    const nextHeight = Math.min(
-      Math.max(contentHeight, singleLineHeight),
-      maxHeight,
-    );
+    const nextHeight = isEmpty
+      ? singleLineHeight
+      : Math.min(Math.max(contentHeight, singleLineHeight), maxHeight);
+
     syncPromptEditorMetrics(maxHeight, singleLineHeight, nextHeight);
     textarea.style.height = `${nextHeight}px`;
     textarea.style.maxHeight = `${maxHeight}px`;
@@ -375,7 +378,11 @@ export function PromptInput({
 
     const editor = textarea.closest<HTMLElement>("[data-prompt-editor]");
     if (editor) {
-      editor.style.minHeight = `${nextHeight}px`;
+      if (isEmpty || fitsSingleLine) {
+        editor.style.minHeight = `${singleLineHeight}px`;
+      } else {
+        editor.style.minHeight = `${nextHeight}px`;
+      }
     }
   }, [
     getTextareaMaxHeight,

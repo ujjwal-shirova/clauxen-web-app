@@ -1,6 +1,5 @@
 "use client";
 
-import { FileText } from "lucide-react";
 import type { AgentToolSegment } from "@/frontend/lib/agent-segments";
 import { fileNameFromPath } from "@/frontend/lib/chat-artifacts";
 import { inferLanguageFromPath } from "@/frontend/lib/create-file-tags";
@@ -8,8 +7,9 @@ import { AgentToolCard } from "./agent-tool-card";
 import { CreateFileStreamBlock } from "./create-file-stream-block";
 
 /**
- * create_file / file_write — muted header + optional stream body.
- * No coding-agent diff chrome; file work is labeled plainly.
+ * create_file / file_write — streaming write UI only.
+ * Does NOT present a downloadable artifact; that is owned by present_files
+ * (via SSE artifact_upsert → message.agentArtifacts).
  */
 export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
   const path =
@@ -42,14 +42,8 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
           : `Created ${fileName || "file"}`
       }
       isRunning={isRunning}
-      defaultExpanded={isRunning}
+      defaultExpanded={false}
     >
-      {fileName ? (
-        <span className="mb-1 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-600">
-          <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-          <span className="truncate">{fileName}</span>
-        </span>
-      ) : null}
       {isRunning ? (
         <CreateFileStreamBlock
           compact
@@ -68,6 +62,11 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
   );
 }
 
+/**
+ * present_files — status line for the present step.
+ * Downloadable cards are rendered from message.agentArtifacts once the
+ * tool emits artifact_upsert (not from create_file).
+ */
 export function PresentFilesBlock({ tool }: { tool: AgentToolSegment }) {
   const isRunning = tool.status === "running";
   const paths = Array.isArray(tool.args?.paths)
@@ -75,10 +74,10 @@ export function PresentFilesBlock({ tool }: { tool: AgentToolSegment }) {
     : tool.filePath
       ? [tool.filePath]
       : [];
-  const count = paths.length;
+  const count = paths.length || (tool.filePath ? 1 : 0);
   const plural = count !== 1 ? "s" : "";
   const singleName =
-    count === 1 ? fileNameFromPath(paths[0] ?? "") : undefined;
+    count === 1 ? fileNameFromPath(paths[0] ?? tool.filePath ?? "") : undefined;
 
   return (
     <AgentToolCard
@@ -87,9 +86,12 @@ export function PresentFilesBlock({ tool }: { tool: AgentToolSegment }) {
           ? `Presenting file${plural}`
           : singleName
             ? `Presented ${singleName}`
-            : `Presented ${count} file${plural}`
+            : count > 0
+              ? `Presented ${count} file${plural}`
+              : "Presented files"
       }
       isRunning={isRunning}
+      defaultExpanded={false}
     />
   );
 }

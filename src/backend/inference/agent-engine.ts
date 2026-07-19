@@ -603,25 +603,6 @@ export async function runAutonomousAgent(
             }
 
             if (
-              (tc.name === "create_file" || tc.name === "file_write") &&
-              result.output &&
-              typeof result.output === "object"
-            ) {
-              const output = result.output as {
-                path?: string;
-                content?: string;
-              };
-              if (output.path && typeof output.content === "string") {
-                sse.writeArtifact(
-                  output.path,
-                  output.path,
-                  output.content,
-                  undefined,
-                );
-              }
-            }
-
-            if (
               tc.name === "present_files" &&
               result.output &&
               typeof result.output === "object"
@@ -679,25 +660,6 @@ export async function runAutonomousAgent(
                 ? outcome.output
                 : JSON.stringify(outcome.output ?? {});
             const isError = isToolErrorOutput(outcome.output);
-
-            if (
-              (tc.name === "create_file" || tc.name === "file_write") &&
-              outcome.output &&
-              typeof outcome.output === "object"
-            ) {
-              const output = outcome.output as {
-                path?: string;
-                content?: string;
-              };
-              if (output.path && typeof output.content === "string") {
-                sse.writeArtifact(
-                  output.path,
-                  output.path,
-                  output.content,
-                  undefined,
-                );
-              }
-            }
 
             if (
               tc.name === "present_files" &&

@@ -5,35 +5,34 @@ import { cn } from "@/frontend/lib/utils";
 import { AgentTraceBlock } from "./agent-trace";
 
 /**
- * Compact tool action block. A muted header line (query / label + status)
- * sits above an optional expandable result body — no timeline rail, no
- * coding-agent diff chrome. Search results and other surfaces render
- * inline under the header.
+ * Compact tool action block. Collapsed by default. Optional leading chips
+ * (search favicons) + chevron in the header.
  */
 export function AgentToolCard({
   label,
   trailing,
+  leading,
   isRunning,
   children,
-  defaultExpanded,
-  forceExpand,
+  defaultExpanded = false,
   className,
 }: {
   label: ReactNode;
   trailing?: ReactNode;
+  leading?: ReactNode;
   isRunning?: boolean;
   children?: ReactNode;
   defaultExpanded?: boolean;
-  forceExpand?: boolean;
   className?: string;
 }) {
   return (
     <AgentTraceBlock
       isActive={!!isRunning}
-      defaultExpanded={forceExpand ? true : defaultExpanded}
+      defaultExpanded={defaultExpanded}
       title={
         <span className={cn(isRunning && "shimmer-text")}>{label}</span>
       }
+      leading={leading}
       trailing={
         trailing ??
         (isRunning ? (

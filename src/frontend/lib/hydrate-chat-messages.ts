@@ -23,6 +23,18 @@ function segmentsFromModelTurns(input: {
   let thinkingIndex = 0;
   let narrationIndex = 0;
 
+  const persistedThinkingSeconds =
+    typeof input.agentUi?.thinkingDurationSeconds === "number" &&
+    input.agentUi.thinkingDurationSeconds > 0
+      ? input.agentUi.thinkingDurationSeconds
+      : undefined;
+  const thinkingPartCount = input.turns.reduce(
+    (count, turn) =>
+      count +
+      turn.assistant.filter((part) => part.type === "thinking").length,
+    0,
+  );
+
   for (const turn of input.turns) {
     const hasToolUse = turn.assistant.some((part) => part.type === "tool_use");
     const turnStartedAt =
@@ -33,22 +45,30 @@ function segmentsFromModelTurns(input: {
       typeof turn.assistantCompletedAtMs === "number"
         ? turn.assistantCompletedAtMs
         : turnStartedAt + 1000;
+    const turnThinkingSeconds = Math.max(
+      1,
+      Math.round((assistantCompletedAt - turnStartedAt) / 1000),
+    );
 
     for (const part of turn.assistant) {
       if (part.type === "thinking") {
         const parsed = parseThinkingMarkup(part.thinking);
         if (!parsed.body.trim() && !parsed.heading) continue;
         thinkingIndex += 1;
+        // Prefer the accurately measured total when this turn only had one
+        // thinking phase; otherwise fall back to per-turn assistant wall time
+        // (excludes tool execution after the assistant message).
+        const durationSeconds =
+          thinkingPartCount === 1 && persistedThinkingSeconds
+            ? persistedThinkingSeconds
+            : turnThinkingSeconds;
         segments.push({
           kind: "thinking",
           id: `thinking-${input.messageId}-${thinkingIndex}`,
           heading: parsed.heading,
           content: parsed.body.trim(),
           isStreaming: false,
-          durationSeconds: Math.max(
-            1,
-            Math.round((assistantCompletedAt - turnStartedAt) / 1000),
-          ),
+          durationSeconds,
           startedAtMs: turnStartedAt,
         });
         continue;

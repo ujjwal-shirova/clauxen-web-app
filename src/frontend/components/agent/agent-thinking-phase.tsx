@@ -1,26 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import type { AgentThinkingSegment } from "@/frontend/lib/agent-segments";
 import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
-import { normalizeAgentHeading } from "@/lib/agent-transcript-markup";
 import { AgentShimmerText } from "./agent-trace";
 
-function fallbackThinkingHeading(content: string): string {
-  const line = content
-    .split(/\n+/)
-    .map((part) => part.replace(/^[#>*\-\s]+/, "").trim())
-    .find((part) => part.length > 0);
-  return normalizeAgentHeading(line ?? "") || "Working through the request";
-}
-
 /**
- * Thinking card — muted heading + duration above a white rounded body.
- * Reasoning streams into the card with auto-scroll (paused if the user
- * scrolls up). Collapses to the heading line when idle.
- *
- * No timeline rail. Matches the floating-card agent action style.
+ * Thinking card — header is always "Thought for {Ns}" (or "Thinking…" while
+ * live). Body is a white rounded card with auto-scrolling reasoning.
+ * Collapsed by default once complete; expands while streaming.
  */
 export function AgentThinkingPhase({
   segment,
@@ -31,19 +21,16 @@ export function AgentThinkingPhase({
   const scrollRef = useRef<HTMLDivElement>(null);
   const userScrolledRef = useRef(false);
   const userToggledRef = useRef(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(
-    segment.durationSeconds ?? 1,
+  const [elapsedSeconds, setElapsedSeconds] = useState(() =>
+    resolveDurationSeconds(segment),
   );
   const [expanded, setExpanded] = useState(streaming);
 
-  const heading =
-    normalizeAgentHeading(segment.heading ?? "") ||
-    fallbackThinkingHeading(segment.content);
   const hasBody = segment.content.trim().length > 0;
 
   useEffect(() => {
     if (!streaming) {
-      setElapsedSeconds(segment.durationSeconds ?? 1);
+      setElapsedSeconds(resolveDurationSeconds(segment));
       return;
     }
     const tick = () => {
@@ -56,7 +43,7 @@ export function AgentThinkingPhase({
     tick();
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
-  }, [streaming, segment.durationSeconds, segment.startedAtMs]);
+  }, [streaming, segment.durationSeconds, segment.startedAtMs, segment]);
 
   useEffect(() => {
     if (streaming) {
@@ -84,7 +71,9 @@ export function AgentThinkingPhase({
 
   if (!hasBody && !streaming) return null;
 
-  const durationLabel = `${elapsedSeconds}s`;
+  const headerLabel = streaming
+    ? `Thinking… ${elapsedSeconds}s`
+    : `Thought for ${elapsedSeconds}s`;
 
   return (
     <div
@@ -99,7 +88,7 @@ export function AgentThinkingPhase({
           userToggledRef.current = true;
           setExpanded((value) => !value);
         }}
-        className="no-hover no-hover-overlay flex w-full max-w-full items-baseline gap-2 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0"
+        className="no-hover no-hover-overlay flex w-full max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0"
         aria-expanded={expanded}
       >
         <span
@@ -109,14 +98,20 @@ export function AgentThinkingPhase({
           )}
         >
           {streaming ? (
-            <AgentShimmerText>{heading}</AgentShimmerText>
+            <AgentShimmerText>{headerLabel}</AgentShimmerText>
           ) : (
-            heading
+            headerLabel
           )}
         </span>
-        <span className="shrink-0 text-[12px] tabular-nums text-zinc-400">
-          {durationLabel}
-        </span>
+        {hasBody ? (
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200",
+              expanded && "rotate-90",
+            )}
+            aria-hidden
+          />
+        ) : null}
       </button>
 
       <div
@@ -157,4 +152,17 @@ export function AgentThinkingPhase({
       </div>
     </div>
   );
+}
+
+function resolveDurationSeconds(segment: AgentThinkingSegment): number {
+  if (
+    typeof segment.durationSeconds === "number" &&
+    segment.durationSeconds > 0
+  ) {
+    return segment.durationSeconds;
+  }
+  if (typeof segment.startedAtMs === "number" && segment.startedAtMs > 0) {
+    return Math.max(1, Math.round((Date.now() - segment.startedAtMs) / 1000));
+  }
+  return 1;
 }
