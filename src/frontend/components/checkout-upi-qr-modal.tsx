@@ -2,17 +2,35 @@
 
 import React, { useEffect } from "react";
 import { CheckoutPaymentIcon } from "@/frontend/components/checkout-payment-icon";
-import {
-  CARD_BRAND_ICONS,
-  CHECKOUT_UPI_ICON_URL,
-} from "@/lib/checkout-payment-icons";
+import { CHECKOUT_UPI_ICON_URL } from "@/lib/checkout-payment-icons";
 import { checkoutUi } from "@/frontend/lib/checkout-ui";
 
 const UPI_APP_ICONS = [
+  {
+    alt: "Google Pay",
+    src: "data:image/svg+xml," + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#fff"/><path fill="#4285F4" d="M12.2 11.1v2.3h3.4c-.1.8-.7 2.3-2.1 3.1l-.1.1 2.5 1.9c1.5-1.4 2.3-3.4 2.3-5.8 0-.6-.1-1.1-.2-1.6H12.2z"/><path fill="#34A853" d="M7.1 14.3l-.1.1 2 1.5c.5.4 1.2.8 2.1.8 1.3 0 2.3-.4 3.1-1.2l-2.5-1.9c-.4.3-.9.5-1.5.5-.9 0-1.7-.6-2-1.4l-.1-.1-2-.3z"/><path fill="#FBBC05" d="M7 11.8c-.1-.3-.2-.6-.2-1s.1-.7.2-1l-.1-.1-2-.3C4.6 10.1 4.4 11 4.4 12s.2 1.9.5 2.7l2.1-.9z"/><path fill="#EA4335" d="M12.1 7.5c.9 0 1.7.3 2.3.9l1.7-1.7C15.1 5.7 13.7 5 12.1 5c-2.3 0-4.2 1.3-5.1 3.2l2.1.9c.5-1 1.5-1.6 3-1.6z"/></svg>`,
+    ),
+  },
+  {
+    alt: "PhonePe",
+    src: "data:image/svg+xml," + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="5" fill="#5F259F"/><text x="12" y="16" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="#fff">Pe</text></svg>`,
+    ),
+  },
+  {
+    alt: "Paytm",
+    src: "data:image/svg+xml," + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="5" fill="#00BAF2"/><text x="12" y="15.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="6" font-weight="800" fill="#fff">paytm</text></svg>`,
+    ),
+  },
+  {
+    alt: "BHIM",
+    src: "data:image/svg+xml," + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="5" fill="#fff" stroke="#E5E7EB"/><text x="12" y="15.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="800" fill="#0B5C9E">BHIM</text></svg>`,
+    ),
+  },
   { alt: "UPI", src: CHECKOUT_UPI_ICON_URL },
-  { alt: "RuPay", src: CARD_BRAND_ICONS.rupay.src },
-  { alt: "Mastercard", src: CARD_BRAND_ICONS.mastercard.src },
-  { alt: "Visa", src: CARD_BRAND_ICONS.visa.src },
 ];
 
 export function CheckoutUpiQrModal({
@@ -78,12 +96,12 @@ export function CheckoutUpiQrModal({
               <img
                 src={imageUrl}
                 alt="UPI QR code"
-                width={128}
-                height={128}
-                className="h-32 w-32"
+                width={160}
+                height={160}
+                className="h-40 w-40"
               />
             ) : (
-              <div className="flex h-32 w-32 items-center justify-center rounded-md bg-zinc-100 text-xs text-zinc-500">
+              <div className="flex h-40 w-40 items-center justify-center rounded-md bg-zinc-100 text-xs text-zinc-500">
                 Loading…
               </div>
             )}
@@ -99,6 +117,7 @@ export function CheckoutUpiQrModal({
             <div
               key={app.alt}
               className="flex h-[25px] w-[25px] items-center justify-center overflow-hidden rounded bg-white"
+              title={app.alt}
             >
               <CheckoutPaymentIcon
                 src={app.src}
@@ -110,7 +129,7 @@ export function CheckoutUpiQrModal({
         </div>
 
         <p className="mt-6 text-center text-xs text-[rgba(26,26,26,0.6)]">
-          Powered by Razorpay
+          Powered by Razorpay · shirova
         </p>
       </div>
     </div>

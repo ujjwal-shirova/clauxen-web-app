@@ -5,6 +5,11 @@ import { cn } from "@/frontend/lib/utils";
 import { appBtn } from "@/frontend/lib/app-buttons";
 import { CheckoutPayWithSection } from "@/frontend/components/checkout-pay-with-section";
 import type { CheckoutCardFieldState } from "@/frontend/components/checkout-payment-panel";
+import {
+  CheckoutBillingAddress,
+  type CheckoutAddressState,
+} from "@/frontend/components/checkout-billing-address";
+import { CheckoutQrHint } from "@/frontend/components/checkout-qr-hint";
 import { checkoutUi } from "@/frontend/lib/checkout-ui";
 import type {
   CheckoutPaymentTab,
@@ -34,6 +39,10 @@ export type CheckoutFormProps = {
   hideUpi?: boolean;
   onExpressCheckout?: () => void;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
+  billingAddress: CheckoutAddressState;
+  onBillingAddressChange: (state: CheckoutAddressState) => void;
+  billingAddressExpanded: boolean;
+  onBillingAddressExpand: () => void;
 };
 
 export function CheckoutForm({
@@ -59,7 +68,13 @@ export function CheckoutForm({
   hideUpi = false,
   onExpressCheckout,
   onCardFieldsChange,
+  billingAddress,
+  onBillingAddressChange,
+  billingAddressExpanded,
+  onBillingAddressExpand,
 }: CheckoutFormProps) {
+  const isUpi = paymentTab === "upi";
+
   return (
     <form
       className={checkoutUi.form}
@@ -78,6 +93,19 @@ export function CheckoutForm({
           onExpressCheckout={onExpressCheckout}
           onCardFieldsChange={onCardFieldsChange}
         />
+
+        {isUpi && (
+          <div className="flex flex-col gap-3">
+            {billingAddressExpanded && <CheckoutQrHint />}
+            <CheckoutBillingAddress
+              value={billingAddress}
+              onChange={onBillingAddressChange}
+              showExpanded={billingAddressExpanded}
+              onExpand={onBillingAddressExpand}
+            />
+            {!billingAddressExpanded && <CheckoutQrHint />}
+          </div>
+        )}
 
         <div className={checkoutUi.section}>
           <label className="flex cursor-pointer items-center gap-2">
@@ -125,7 +153,7 @@ export function CheckoutForm({
               className={cn(checkoutUi.checkbox, "mt-0.5")}
             />
             <span className={checkoutUi.labelFine}>
-              You agree that Clauxen will charge your payment method for this
+              You agree that shirova will charge your payment method for this
               purchase and on a recurring basis until you cancel.
             </span>
           </label>

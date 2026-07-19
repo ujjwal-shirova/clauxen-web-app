@@ -2,13 +2,14 @@
 
 ## 1. Overview
 
-Clauxen billing is **Razorpay**-based:
+Clauxen billing is **Razorpay**-based (customer-facing brand: **shirova**):
 
-- One-time orders and subscription flows
-- UPI (INR) with QR + poll
-- Cards / Apple Pay association where configured
-- Invoices list
-- Gift purchase + redeem
+- Hosted checkout sessions at `/checkout/shirova/cs_live_…` (HMAC-signed, multi-tab)
+- Card payments via **Custom Checkout** (`razorpay.js` + `createPayment`) — PAN/CVV never hit our API
+- UPI (INR) via Razorpay UPI QR Codes API + custom QR modal + poll
+- UPI billing address: progressive Full name → Google Places suggestions (proxied via `/api/v1/billing/places/*`) → manual PIN/state fields
+- Apple Pay express still uses Standard Checkout when available
+- Invoices list, gift purchase + redeem
 - Webhook-driven activation (`/api/v1/webhooks/razorpay`)
 
 Plans live in Postgres `plans` (seeded by migrations including personal catalog + Pro yearly 20%).
@@ -19,20 +20,22 @@ Plans live in Postgres `plans` (seeded by migrations including personal catalog 
 
 | Path | Role |
 |---|---|
-| `src/backend/billing/razorpay.ts` | SDK wrapper |
-| `src/backend/billing/checkout-session.ts` | Session creation |
+| `src/backend/billing/razorpay.ts` | Orders, QR create/fetch/close, signature verify |
+| `src/backend/billing/checkout-session.ts` | `cs_live_` mint/verify; merchant `shirova`; `returnPath` |
 | `src/backend/billing/checkout-pricing.ts` | Price math |
 | `src/backend/billing/checkout-currency-server.ts` | Currency |
 | `src/backend/billing/checkout-billing.ts` | Billing helpers |
 | `src/backend/services/billing.service.ts` | Orchestration |
 | `src/backend/services/gift.service.ts` | Gifts |
 | `src/backend/repositories/billing.repository.ts` | SQL |
-| `src/backend/repositories/gifts.repository.ts` | Gift SQL |
 | `src/lib/plans-catalog.ts` | Plan helpers |
 | `src/lib/checkout-currency.ts` / tax / gstin / payment icons | UI + tax |
+| `src/frontend/lib/razorpay-custom-checkout.ts` | Card Custom Checkout |
+| `src/frontend/lib/razorpay-checkout.ts` | Standard Checkout (Apple Pay / wallets) |
 | `src/frontend/components/checkout-*.tsx` | Checkout UI |
 | `src/frontend/components/billing-checkout.tsx` | In-app checkout |
 | `src/app/checkout/[merchant]/[sessionId]/page.tsx` | Hosted checkout page |
+| `scripts/ops/smoke-razorpay-upi-qr.mjs` | UPI QR API smoke (create→fetch→close) |
 | Overlay `#pricing` / legacy `/upgrade` | Pricing overlay |
 
 ---
@@ -44,22 +47,34 @@ See [`../reference/api-reference.md`](../reference/api-reference.md) § Billing.
 Critical paths:
 
 1. `GET /api/v1/billing/plans`
-2. `POST /api/v1/billing/checkout-sessions` or `orders`
-3. Client confirms via Razorpay.js (`NEXT_PUBLIC_RAZORPAY_KEY_ID` only public)
-4. `POST /api/v1/billing/orders/verify` and/or webhook
+2. `POST /api/v1/billing/checkout-sessions` → `{ sessionId, checkoutPath, returnPath }`
+3. Card: `POST /api/v1/billing/orders` → browser `createPayment` (Custom Checkout) → `POST /api/v1/billing/orders/verify`
+4. UPI: `POST /api/v1/billing/orders/upi` → custom QR modal → `POST …/upi/poll`
 5. Subscription row activated; entitlements applied
+6. Webhook `payment.captured` also fulfills (idempotent)
 
-UPI:
+### Card security (Custom Checkout)
 
-1. `POST /api/v1/billing/orders/upi`
-2. Show QR modal
-3. `GET /api/v1/billing/orders/upi/poll` until paid/failed
+- UI collects card number / expiry / CVC on-page.
+- On Pay, those fields are passed **only** to Razorpay `razorpay.js` `createPayment({ method: "card", card: {…} })`.
+- Our servers receive only `razorpay_order_id`, `razorpay_payment_id`, `razorpay_signature` and re-verify HMAC + amount via Orders/Payments APIs.
+- Never POST PAN/CVV to `/api/v1/*`.
+
+### UPI QR
+
+1. Server creates single-use fixed-amount `upi_qr` (`name: "shirova"`).
+2. Client shows custom modal with `image_url` from Razorpay.
+3. Poll until captured; webhook is backup.
+4. UPI icon: vendored at `/public/checkout/icon-pm-upi.svg` (no Stripe CDN at runtime).
+5. Smoke: `node scripts/ops/smoke-razorpay-upi-qr.mjs` (needs `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET`).
 
 Webhook:
 
 - Verify `RAZORPAY_WEBHOOK_SECRET`
-- Persist `webhook_events` idempotently
+- Persist `razorpay_webhook_events` / fulfill idempotently
 - Activate subscription / gift delivery jobs
+- Recommended events: `payment.captured`, `payment.failed`, `order.paid`
+- URL: `https://clauxen.com/api/v1/webhooks/razorpay`
 
 ---
 
@@ -73,7 +88,16 @@ Webhook:
 
 ---
 
-## 5. Gifts
+## 5. Sessions & redirects
+
+- Prefix: `cs_live_` (HMAC body + signature; 30 min TTL)
+- Path: `/checkout/shirova/{sessionId}` (default merchant `shirova`)
+- Overlay and hosted flows `history.replaceState` to that path so the link works in any tab
+- Optional claim `returnPath` (sanitized: `/new`, `/onboarding`, `/c/…`, library/projects/customize) — post-pay redirect `{returnPath}?checkout=success`
+
+---
+
+## 6. Gifts
 
 - Purchase → `gift_codes` + optional `gift_delivery_jobs`
 - Redeem → `gift_redemptions` → subscription activation events
@@ -81,36 +105,42 @@ Webhook:
 
 ---
 
-## 6. Entitlements
+## 7. Entitlements
 
 Billing service consulted during chat/generate for plan limits where enforced.
 
 `usage_daily_rollups` supports usage metering.
 
+Recurring: one-time Razorpay Order activates app-level `subscriptions` (Razorpay Subscriptions / e-mandate auto-debit is a later slice).
+
 ---
 
-## 7. Env
+## 8. Env
 
 | Variable | Notes |
 |---|---|
-| `RAZORPAY_KEY_ID` | Server |
+| `RAZORPAY_KEY_ID` | Server (`rzp_live_…`) |
 | `RAZORPAY_KEY_SECRET` | Server |
 | `RAZORPAY_WEBHOOK_SECRET` | Server |
-| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Browser checkout only |
+| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Browser Custom/Standard Checkout only |
+| `GOOGLE_PLACES_API_KEY` | Server — UPI address autocomplete / details proxy |
 | `CHECKOUT_USD_INR_RATE` | Optional |
 | `APPLE_PAY_DOMAIN_ASSOCIATION` | Apple Pay domain file content |
 
+Targets: Production + Preview on Vercel (sensitive). Local uses `.env.local`.
+
 ---
 
-## 8. UX rules
+## 9. UX rules
 
-- Local UPI/card SVG icons — no Stripe/logo CDNs
+- Checkout brand copy: **shirova**
+- UPI icon from `/checkout/icon-pm-upi.svg`
 - Preparing state + error banners
 - Pricing overlay must not blank main chat panel (hash overlay pattern)
 
 ---
 
-## 9. Related
+## 10. Related
 
 - [`../reference/database-schema.md`](../reference/database-schema.md) § Billing
 - [`routing-and-navigation.md`](./routing-and-navigation.md)

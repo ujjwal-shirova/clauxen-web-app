@@ -198,7 +198,7 @@ export async function createRazorpayUpiQr(input: {
     method: "POST",
     body: JSON.stringify({
       type: "upi_qr",
-      name: "Clauxen Checkout",
+      name: "shirova",
       usage: "single_use",
       fixed_amount: true,
       payment_amount: input.amountPaise,
@@ -239,6 +239,17 @@ export async function fetchRazorpayQrPayments(qrId: string) {
       order_id?: string;
     }>;
   }>(`/v1/payments/qr_codes/${qrId}/payments?count=5`);
+}
+
+export async function closeRazorpayQrCode(qrId: string) {
+  if (!/^qr_[A-Za-z0-9]{8,40}$/.test(qrId)) {
+    throw new AppError("Invalid QR id.", 400, "bad_request");
+  }
+
+  return razorpayApi<RazorpayQrCodeEntity>(
+    `/v1/payments/qr_codes/${qrId}/close`,
+    { method: "POST", body: "{}" },
+  );
 }
 
 // client-side checkout success signature verify — orderId|paymentId HMAC with key secret

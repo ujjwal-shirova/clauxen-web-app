@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-19 | UPI checkout collects progressive billing address (name → Google Places autocomplete via server proxy `/api/v1/billing/places/*` → PIN/state). Requires `GOOGLE_PLACES_API_KEY` on Vercel. | Match ChatGPT-style UPI billing UX |
 | 2026-07-19 | Checkout brand **shirova**; session URLs `/checkout/shirova/cs_live_…`; cards via Razorpay **Custom Checkout** (`razorpay.js` createPayment — PAN never hits our API); UPI via QR Codes API + custom modal; UPI icon vendored at `public/checkout/icon-pm-upi.svg`. Smoke script: `scripts/ops/smoke-razorpay-upi-qr.mjs`. | Production Razorpay checkout hardening |
 | 2026-07-19 | Removed demo account `test-razorpay@clauxen.com` (and its 10-message quota feature). Auth user + related rows deleted from Supabase — account is unusable. | End-of-life demo/billing test account |
 | 2026-07-18 | Agent activity UI: one minimal Clauxen trace with model-authored `<agent_heading>`, auto-scrolling native thinking, distinct `<agent_narration>`, streamed tools, and ordinary final markdown; no Cogitating/Done/spinner-verb chrome | Preserve real event semantics while keeping the design original and minimal |

@@ -6,6 +6,8 @@ import {
   type CheckoutCurrency,
 } from "@/lib/checkout-currency";
 
+export const CHECKOUT_MERCHANT = "shirova";
+
 export type CheckoutSessionClaims = {
   uid: string;
   planId: string;
@@ -15,6 +17,8 @@ export type CheckoutSessionClaims = {
   maxTier?: string;
   seatBreakdown?: Record<string, number>;
   organizationSeatCount?: number;
+  /** Soft-nav path after successful payment (e.g. /new or /c/…). */
+  returnPath?: string;
   iat: number;
   exp: number;
 };
@@ -112,6 +116,24 @@ export function verifyCheckoutSessionToken(
   return claims;
 }
 
-export function checkoutSessionPath(token: string, merchant = "clauxen") {
+export function checkoutSessionPath(
+  token: string,
+  merchant: string = CHECKOUT_MERCHANT,
+) {
   return `/checkout/${merchant}/${token}`;
+}
+
+const SAFE_RETURN_PATH =
+  /^\/(?:new|onboarding|c\/[A-Za-z0-9_-]+|library|projects(?:\/[A-Za-z0-9_-]+)?|customize)?\/?$/;
+
+/** Sanitize client-provided return path; fall back to /new. */
+export function normalizeCheckoutReturnPath(
+  raw: string | null | undefined,
+): string {
+  if (!raw || typeof raw !== "string") return "/new";
+  const path = raw.trim().split("?")[0]?.split("#")[0] ?? "";
+  if (!path.startsWith("/") || path.startsWith("//")) return "/new";
+  if (path === "/" || path === "/new" || path === "/new/") return "/new";
+  if (SAFE_RETURN_PATH.test(path)) return path.replace(/\/$/, "") || "/new";
+  return "/new";
 }

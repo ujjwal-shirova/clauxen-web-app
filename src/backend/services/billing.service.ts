@@ -2,6 +2,7 @@ import * as billingRepo from "@/backend/repositories/billing.repository"; // ord
 import {
   checkoutSessionPath,
   mintCheckoutSessionToken,
+  normalizeCheckoutReturnPath,
   verifyCheckoutSessionToken,
   type CheckoutSessionClaims,
 } from "@/backend/billing/checkout-session";
@@ -102,13 +103,17 @@ export function createCheckoutSession(input: {
   maxTier?: string | null;
   seatBreakdown?: Record<string, number> | null;
   organizationSeatCount?: number | null;
+  returnPath?: string | null;
 }) {
+  const returnPath = normalizeCheckoutReturnPath(input.returnPath);
+
   const token = mintCheckoutSessionToken({
     uid: input.userId,
     planId: input.planId.trim(),
     planName: input.planName.trim(),
     billingCycle: input.billingCycle,
     currency: input.currency ?? "INR",
+    returnPath,
     ...(input.maxTier ? { maxTier: input.maxTier } : {}),
     ...(input.seatBreakdown ? { seatBreakdown: input.seatBreakdown } : {}),
     ...(input.organizationSeatCount != null
@@ -119,6 +124,7 @@ export function createCheckoutSession(input: {
   return {
     sessionId: token,
     checkoutPath: checkoutSessionPath(token),
+    returnPath,
     expiresInSeconds: 30 * 60,
   };
 }

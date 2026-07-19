@@ -7,11 +7,13 @@ export function CheckoutSessionClient({
   initialBillingCycle,
   initialMaxTier,
   initialCheckoutSessionId,
+  returnPath = "/new",
 }: {
   planId: string | null;
   initialBillingCycle: "monthly" | "yearly";
   initialMaxTier: "5x" | "20x";
   initialCheckoutSessionId: string;
+  returnPath?: string;
 }) {
   return (
     <CheckoutPageView
@@ -19,6 +21,7 @@ export function CheckoutSessionClient({
       initialBillingCycle={initialBillingCycle}
       initialMaxTier={initialMaxTier}
       initialCheckoutSessionId={initialCheckoutSessionId}
+      returnPath={returnPath}
     />
   );
 }

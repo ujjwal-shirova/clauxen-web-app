@@ -109,8 +109,12 @@ export function PlanSelectionStep({
           planName: selectedPlanName || "Selected Plan",
           billingCycle: selectedBillingCycle,
           maxTier: selectedMaxTier,
+          returnPath: "/onboarding",
         });
         setCheckoutSessionId(session.sessionId);
+        if (typeof window !== "undefined") {
+          window.history.replaceState(null, "", session.checkoutPath);
+        }
         setView("checkout");
       } catch {
         if (attempt < 4) {

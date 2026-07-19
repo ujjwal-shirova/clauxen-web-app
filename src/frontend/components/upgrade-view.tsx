@@ -60,9 +60,17 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
         planName: selectedPlanName || "Selected Plan",
         billingCycle: selectedBillingCycle,
         maxTier: selectedMaxTier,
+        returnPath:
+          typeof window !== "undefined" &&
+          !window.location.pathname.startsWith("/checkout/")
+            ? window.location.pathname
+            : "/new",
       });
 
       setCheckoutSessionId(session.sessionId);
+      if (typeof window !== "undefined") {
+        window.history.replaceState(null, "", session.checkoutPath);
+      }
       setCurrentView("checkout");
     } catch {
       if (attempt < 4) {
@@ -103,7 +111,7 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
       },
       items: [
         {
-          label: selectedPlanName || "Clauxen Subscription",
+          label: selectedPlanName || "shirova Subscription",
           sublabel: `${selectedBillingCycle} • ${selectedMaxTier === "20x" ? "Max 20x" : selectedMaxTier === "5x" ? "Max 5x" : "Plan"}`,
           quantity: "1",
           amount: 0, // Replace with real computed subtotal+tax from order when available

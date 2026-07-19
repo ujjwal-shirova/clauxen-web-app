@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState } from "react";
 import { CreditCard, MoreHorizontal } from "lucide-react";
-import { CheckoutQrHint } from "@/frontend/components/checkout-qr-hint";
 import { CheckoutCardBrandStack } from "@/frontend/components/checkout-card-brand-stack";
 import { CheckoutPaymentIcon } from "@/frontend/components/checkout-payment-icon";
 import {
@@ -108,7 +107,8 @@ export function CheckoutPaymentPanel({
   }
 
   if (tab === "upi") {
-    return <CheckoutQrHint />;
+    // Name + QR hint live in CheckoutForm for progressive billing address UX.
+    return null;
   }
 
   return (

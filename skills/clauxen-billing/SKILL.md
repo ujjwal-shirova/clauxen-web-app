@@ -18,10 +18,12 @@ Plans in Postgres `plans` (migrations seed catalog).
 ## Hard rules
 
 1. **UPI is INR-only** — prefer browser India heuristic; geo alone can wrongly hide UPI.
-2. Local UPI/card SVG icons — **no** Stripe/logo CDNs.
-3. Pricing via **hash overlay** `#pricing` (keep chat mounted).
-4. Webhooks: verify `RAZORPAY_WEBHOOK_SECRET`; idempotent `webhook_events`.
-5. Never expose `RAZORPAY_KEY_SECRET` to client.
+2. UPI icon: `/public/checkout/icon-pm-upi.svg` (vendored) — **no** Stripe CDN at runtime.
+3. **Cards:** Razorpay Custom Checkout (`razorpay.js` createPayment); never POST PAN/CVV to our API.
+4. Checkout merchant path: `/checkout/shirova/cs_live_…`; brand copy **shirova**.
+5. Pricing via **hash overlay** `#pricing` (keep chat mounted).
+6. Webhooks: verify `RAZORPAY_WEBHOOK_SECRET`; idempotent `razorpay_webhook_events`.
+7. Never expose `RAZORPAY_KEY_SECRET` to client.
 
 ## Key paths
 

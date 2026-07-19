@@ -28,6 +28,9 @@ export type MinimalCheckoutBillingInput = {
   purchasingAsBusiness?: boolean;
   gstin?: string;
   billToName?: string;
+  fullName?: string;
+  countryCode?: string;
+  addressLine?: string;
 };
 
 export function parseMinimalCheckoutBillingInput(
@@ -65,23 +68,80 @@ export function parseMinimalCheckoutBillingInput(
     billToName = sanitizeText(record.billToName, "billToName", MAX_NAME_LEN);
   }
 
-  return { purchasingAsBusiness, gstin, billToName };
+  let fullName: string | undefined;
+  if (
+    record.fullName !== undefined &&
+    record.fullName !== null &&
+    record.fullName !== ""
+  ) {
+    fullName = sanitizeText(record.fullName, "fullName", MAX_NAME_LEN);
+  }
+
+  let countryCode: string | undefined;
+  if (
+    record.countryCode !== undefined &&
+    record.countryCode !== null &&
+    record.countryCode !== ""
+  ) {
+    const code = sanitizeText(record.countryCode, "countryCode", 2).toUpperCase();
+    if (!ISO_COUNTRY_RE.test(code) || !isKnownCountryCode(code)) {
+      throw new AppError("Invalid country.", 400, "invalid_billing_details");
+    }
+    countryCode = code;
+  }
+
+  let addressLine: string | undefined;
+  if (
+    record.addressLine !== undefined &&
+    record.addressLine !== null &&
+    record.addressLine !== ""
+  ) {
+    addressLine = sanitizeText(
+      record.addressLine,
+      "addressLine",
+      MAX_ADDRESS_LEN,
+    );
+  }
+
+  return {
+    purchasingAsBusiness,
+    gstin,
+    billToName,
+    fullName,
+    countryCode,
+    addressLine,
+  };
 }
 
-/** Server-authoritative billing profile — client cannot set price or identity. */
+/** Merge client billing address with authenticated user identity defaults. */
 export function buildCheckoutBillingDetailsForUser(
   user: { displayName?: string | null; email?: string | null },
   minimal: MinimalCheckoutBillingInput,
 ): CheckoutBillingDetails {
-  const fullName =
+  const fullName = (
+    minimal.fullName?.trim() ||
     user.displayName?.trim() ||
     user.email?.split("@")[0]?.trim() ||
-    "Customer";
+    "Customer"
+  ).slice(0, MAX_NAME_LEN);
+
+  const countryCode = minimal.countryCode?.trim().toUpperCase() || "IN";
+  const addressLine = (
+    minimal.addressLine?.trim() || "India"
+  ).slice(0, MAX_ADDRESS_LEN);
+
+  if (minimal.addressLine && !isBillingAddressComplete(addressLine)) {
+    throw new AppError(
+      "A complete billing address is required.",
+      400,
+      "invalid_billing_details",
+    );
+  }
 
   return {
-    fullName: fullName.slice(0, MAX_NAME_LEN),
-    countryCode: "IN",
-    addressLine: "India",
+    fullName,
+    countryCode,
+    addressLine,
     gstin: minimal.gstin,
     billToName: minimal.billToName,
   };

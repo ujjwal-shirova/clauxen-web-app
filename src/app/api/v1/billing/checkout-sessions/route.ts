@@ -19,6 +19,7 @@ export const POST = withApiHandler(
       seatBreakdown?: Record<string, number>;
       organizationSeatCount?: number;
       currency?: string;
+      returnPath?: string;
     };
 
     if (typeof body.planId !== "string" || !body.planId.trim()) {
@@ -45,6 +46,8 @@ export const POST = withApiHandler(
       maxTier: body.maxTier ?? null,
       seatBreakdown: body.seatBreakdown ?? null,
       organizationSeatCount: body.organizationSeatCount ?? null,
+      returnPath:
+        typeof body.returnPath === "string" ? body.returnPath : null,
     });
 
     return jsonData(checkoutSession, 201);

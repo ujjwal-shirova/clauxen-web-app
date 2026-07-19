@@ -46,6 +46,9 @@ export type MinimalBillingDetailsInput = {
   purchasingAsBusiness?: boolean;
   gstin?: string;
   billToName?: string;
+  fullName?: string;
+  countryCode?: string;
+  addressLine?: string;
 };
 
 export type BillingPlan = {
@@ -92,11 +95,13 @@ export async function createCheckoutSession(input: {
   maxTier?: string;
   seatBreakdown?: Record<string, number>;
   organizationSeatCount?: number;
+  returnPath?: string;
 }) {
   assertBillingOrderInput(input);
   return apiFetch<{
     sessionId: string;
     checkoutPath: string;
+    returnPath?: string;
     expiresInSeconds: number;
   }>("/api/v1/billing/checkout-sessions", {
     method: "POST",

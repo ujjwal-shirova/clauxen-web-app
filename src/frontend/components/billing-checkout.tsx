@@ -13,9 +13,14 @@ import {
 import { CheckoutErrorBanner } from "@/frontend/components/checkout-error-banner";
 import { CheckoutForm } from "@/frontend/components/checkout-form";
 import type { CheckoutCardFieldState } from "@/frontend/components/checkout-payment-panel";
+import {
+  checkoutAddressToBillingLine,
+  type CheckoutAddressState,
+} from "@/frontend/components/checkout-billing-address";
 import { CheckoutUpiQrModal } from "@/frontend/components/checkout-upi-qr-modal";
 import { canUseApplePay } from "@/frontend/lib/apple-pay";
 import { openRazorpayCheckout } from "@/frontend/lib/razorpay-checkout";
+import { chargeCardWithRazorpayCustom } from "@/frontend/lib/razorpay-custom-checkout";
 import { useCheckoutCurrency } from "@/frontend/hooks/use-checkout-currency";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import type {
@@ -54,6 +59,8 @@ interface BillingCheckoutProps {
   initialMaxTier?: MaxTier;
   /** If provided, use this session id instead of immediately creating a new one. */
   initialCheckoutSessionId?: string | null;
+  /** Preferred return path after pay / back (hosted checkout). */
+  returnPath?: string | null;
 }
 
 const SEAT_ASSIGNABLE_IDS = Object.keys(
@@ -143,6 +150,7 @@ export function BillingCheckout({
   initialBillingCycle = "monthly",
   initialMaxTier = "5x",
   initialCheckoutSessionId,
+  returnPath = null,
 }: BillingCheckoutProps) {
   const auth = useAuth();
   const { currency, formatInr, isUsd, ready } = useCheckoutCurrency();
@@ -168,16 +176,46 @@ export function BillingCheckout({
     qrId: string;
     billingOrderId: string;
   } | null>(null);
-  const [cardFieldsComplete, setCardFieldsComplete] = useState(false);
+  const [cardFields, setCardFields] = useState<CheckoutCardFieldState>({
+    cardNumber: "",
+    cardExpiry: "",
+    cardCvc: "",
+    isComplete: false,
+  });
+  const [billingAddress, setBillingAddress] = useState<CheckoutAddressState>({
+    fullName: "",
+    countryCode: "IN",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    pin: "",
+    state: "",
+    isComplete: false,
+  });
+  const [billingAddressExpanded, setBillingAddressExpanded] = useState(false);
   const [applePayAvailable, setApplePayAvailable] = useState(false);
 
   // When a checkout session id is provided via prop (e.g. direct /checkout link),
   // skip the *first* auto-create so we reuse the incoming session.
   const skipInitialSessionCreate = React.useRef(!!initialCheckoutSessionId);
 
+  const syncCheckoutUrl = useCallback((checkoutPath: string) => {
+    if (typeof window === "undefined") return;
+    if (window.location.pathname + window.location.search === checkoutPath) {
+      return;
+    }
+    window.history.replaceState(null, "", checkoutPath);
+  }, []);
+
   useEffect(() => {
     setApplePayAvailable(canUseApplePay());
   }, []);
+
+  useEffect(() => {
+    if (initialCheckoutSessionId?.startsWith("cs_live_")) {
+      syncCheckoutUrl(`/checkout/shirova/${initialCheckoutSessionId}`);
+    }
+  }, [initialCheckoutSessionId, syncCheckoutUrl]);
 
   useEffect(() => {
     if (!hasSavedPaymentMethod && paymentTab === "saved") {
@@ -185,8 +223,24 @@ export function BillingCheckout({
     }
   }, [hasSavedPaymentMethod, paymentTab]);
 
+  useEffect(() => {
+    if (auth.user?.displayName?.trim() && !billingAddress.fullName) {
+      setBillingAddress((prev) => ({
+        ...prev,
+        fullName: auth.user!.displayName!.trim(),
+        isComplete: prev.isComplete,
+      }));
+    }
+  }, [auth.user?.displayName, billingAddress.fullName]);
+
+  useEffect(() => {
+    if (paymentTab !== "upi") {
+      setBillingAddressExpanded(false);
+    }
+  }, [paymentTab]);
+
   const handleCardFieldsChange = useCallback((state: CheckoutCardFieldState) => {
-    setCardFieldsComplete(state.isComplete);
+    setCardFields(state);
   }, []);
 
   const activePlanId = planId || "plus";
@@ -230,11 +284,12 @@ export function BillingCheckout({
   const billingDetails: CheckoutBillingDetails = useMemo(
     () => ({
       fullName:
+        billingAddress.fullName.trim() ||
         auth.user?.displayName?.trim() ||
         auth.user?.email?.split("@")[0]?.trim() ||
         "Customer",
-      countryCode: "IN",
-      addressLine: "India",
+      countryCode: billingAddress.countryCode || "IN",
+      addressLine: checkoutAddressToBillingLine(billingAddress),
       gstin:
         purchasingAsBusiness && gstin.trim()
           ? normalizeGstin(gstin)
@@ -244,12 +299,22 @@ export function BillingCheckout({
           ? billToName.trim()
           : undefined,
     }),
-    [auth.user?.displayName, auth.user?.email, gstin, purchasingAsBusiness, billToName],
+    [
+      billingAddress,
+      auth.user?.displayName,
+      auth.user?.email,
+      gstin,
+      purchasingAsBusiness,
+      billToName,
+    ],
   );
 
   const minimalBillingDetails = useMemo(
     () => ({
       purchasingAsBusiness,
+      fullName: billingDetails.fullName,
+      countryCode: billingDetails.countryCode,
+      addressLine: billingDetails.addressLine,
       ...(purchasingAsBusiness && gstin.trim()
         ? { gstin: normalizeGstin(gstin) }
         : {}),
@@ -257,7 +322,7 @@ export function BillingCheckout({
         ? { billToName: billToName.trim() }
         : {}),
     }),
-    [purchasingAsBusiness, gstin, billToName],
+    [purchasingAsBusiness, gstin, billToName, billingDetails],
   );
 
   const totalSeats = getTotalSeatCount(seatCounts);
@@ -301,6 +366,13 @@ export function BillingCheckout({
           billingCycle: isMaxPlan ? "monthly" : effectiveBillingCycle,
           currency,
           maxTier: isMaxPlan ? maxTier : undefined,
+          returnPath:
+            returnPath ||
+            (typeof window !== "undefined"
+              ? window.location.pathname.startsWith("/checkout/")
+                ? "/new"
+                : window.location.pathname
+              : "/new"),
           ...(isTeamPlan ? { seatBreakdown: seatCounts } : {}),
           ...(isBusinessWorkspace
             ? { organizationSeatCount: bundleSeatCount }
@@ -308,9 +380,7 @@ export function BillingCheckout({
         });
         if (cancelled) return;
         setCheckoutSessionId(session.sessionId);
-        if (typeof window !== "undefined") {
-          window.history.replaceState(null, "", session.checkoutPath);
-        }
+        syncCheckoutUrl(session.checkoutPath);
       } catch {
         if (!cancelled) {
           // Soft message — the preparing screen in UpgradeView already handles the main path.
@@ -336,6 +406,8 @@ export function BillingCheckout({
     details.name,
     maxDetails.checkoutName,
     currency,
+    returnPath,
+    syncCheckoutUrl,
   ]);
 
   useEffect(() => {
@@ -425,9 +497,9 @@ export function BillingCheckout({
     Boolean(checkoutSessionId);
 
   const paymentFieldsValid =
-    paymentTab === "upi" ||
+    (paymentTab === "upi" && billingAddress.isComplete) ||
     (paymentTab === "saved" && hasSavedPaymentMethod) ||
-    (paymentTab === "card" && cardFieldsComplete);
+    (paymentTab === "card" && cardFields.isComplete);
 
   const cycleLabel = isMaxPlan
     ? "/month"
@@ -452,9 +524,9 @@ export function BillingCheckout({
     const tab = paymentTabOverride ?? paymentTab;
     const fieldsValid =
       options?.walletExpress ||
-      tab === "upi" ||
+      (tab === "upi" && billingAddress.isComplete) ||
       (tab === "saved" && hasSavedPaymentMethod) ||
-      (tab === "card" && cardFieldsComplete);
+      (tab === "card" && cardFields.isComplete);
 
     if (
       !agreed ||
@@ -506,18 +578,52 @@ export function BillingCheckout({
       const keyId = checkout.razorpay.keyId;
       if (!keyId) throw new Error("Razorpay is not configured for checkout.");
 
-      await openRazorpayCheckout({
+      // Apple Pay express still uses Standard Checkout (wallet UI).
+      if (options?.walletExpress) {
+        await openRazorpayCheckout({
+          keyId,
+          orderId: checkout.razorpay.orderId,
+          amount: checkout.razorpay.amount,
+          currency: checkout.razorpay.currency,
+          name: "shirova",
+          description: details.name,
+          paymentMethod: "card",
+          expressCheckout: "apple_pay",
+          prefill: {
+            name: billingDetails.billToName ?? billingDetails.fullName,
+            email: auth.user?.email ?? undefined,
+          },
+          onSuccess: async (payment) => {
+            await verifyBillingPayment({
+              razorpayOrderId: payment.razorpay_order_id,
+              razorpayPaymentId: payment.razorpay_payment_id,
+              razorpaySignature: payment.razorpay_signature,
+            });
+            onPaymentSuccess?.({
+              razorpayPaymentId: payment.razorpay_payment_id,
+              razorpayOrderId: payment.razorpay_order_id,
+            });
+          },
+          onDismiss: () => {
+            setPayError(PAYMENT_FAILED_MESSAGE);
+          },
+        });
+        return;
+      }
+
+      // Card tab: Custom Checkout — PAN/CVV never leave the browser except to Razorpay.
+      await chargeCardWithRazorpayCustom({
         keyId,
         orderId: checkout.razorpay.orderId,
         amount: checkout.razorpay.amount,
         currency: checkout.razorpay.currency,
-        name: "Clauxen",
+        email: auth.user?.email ?? undefined,
         description: details.name,
-        paymentMethod: "card",
-        ...(options?.walletExpress ? { expressCheckout: "apple_pay" as const } : {}),
-        prefill: {
+        card: {
+          number: cardFields.cardNumber,
           name: billingDetails.billToName ?? billingDetails.fullName,
-          email: auth.user?.email ?? undefined,
+          expiry: cardFields.cardExpiry,
+          cvc: cardFields.cardCvc,
         },
         onSuccess: async (payment) => {
           await verifyBillingPayment({
@@ -525,14 +631,13 @@ export function BillingCheckout({
             razorpayPaymentId: payment.razorpay_payment_id,
             razorpaySignature: payment.razorpay_signature,
           });
-          // Pass rich context so parent can render a beautiful auto-generated invoice immediately.
           onPaymentSuccess?.({
             razorpayPaymentId: payment.razorpay_payment_id,
             razorpayOrderId: payment.razorpay_order_id,
           });
         },
-        onDismiss: () => {
-          setPayError(PAYMENT_FAILED_MESSAGE);
+        onFailure: (message) => {
+          setPayError(message || PAYMENT_FAILED_MESSAGE);
         },
       });
     } catch (error) {
@@ -1056,6 +1161,10 @@ export function BillingCheckout({
               }
               onPay={() => void handleSubscribe()}
               onCardFieldsChange={handleCardFieldsChange}
+              billingAddress={billingAddress}
+              onBillingAddressChange={setBillingAddress}
+              billingAddressExpanded={billingAddressExpanded}
+              onBillingAddressExpand={() => setBillingAddressExpanded(true)}
               showExpressCheckout={applePayAvailable}
               hideUpi={!ready || isUsd}
               onExpressCheckout={() => {

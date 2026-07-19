@@ -55,10 +55,8 @@ export const CARD_BRAND_ICONS: Record<
   },
 };
 
-/** Inline UPI mark — avoids broken Stripe CDN icons. */
-export const CHECKOUT_UPI_ICON_URL = svg(
-  `<rect width="32" height="20" rx="2.5" fill="#fff" stroke="#E5E7EB"/><text x="16" y="13.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="800" fill="#097939">UPI</text>`,
-);
+/** Inline UPI mark fallback — prefer /checkout/icon-pm-upi.svg in UI. */
+export const CHECKOUT_UPI_ICON_URL = "/checkout/icon-pm-upi.svg";
 
 export const DEFAULT_CARD_BRAND_STACK: CardBrandId[] = [
   "visa",
