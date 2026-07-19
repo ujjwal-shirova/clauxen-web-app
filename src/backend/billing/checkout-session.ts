@@ -73,17 +73,36 @@ export function mintCheckoutSessionToken(
   return `${SESSION_PREFIX}${body}.${signature}`;
 }
 
-export function verifyCheckoutSessionToken(
+export type CheckoutSessionInspect =
+  | { status: "valid"; claims: CheckoutSessionClaims }
+  | { status: "expired"; claims: CheckoutSessionClaims }
+  | { status: "invalid" };
+
+function claimsShapeOk(claims: CheckoutSessionClaims): boolean {
+  return Boolean(
+    claims.uid &&
+      claims.planId &&
+      claims.planName &&
+      (claims.billingCycle === "monthly" || claims.billingCycle === "yearly") &&
+      (claims.currency == null || isCheckoutCurrency(claims.currency)),
+  );
+}
+
+/**
+ * Verify signature + claim shape. Distinguishes expired (still signed) from
+ * tampered/invalid so the UI can remint for the same logged-in user.
+ */
+export function inspectCheckoutSessionToken(
   token: string,
-): CheckoutSessionClaims {
+): CheckoutSessionInspect {
   if (!token.startsWith(SESSION_PREFIX)) {
-    throw new AppError("Invalid checkout session.", 400, "invalid_session");
+    return { status: "invalid" };
   }
 
   const rest = token.slice(SESSION_PREFIX.length);
   const dot = rest.lastIndexOf(".");
   if (dot <= 0) {
-    throw new AppError("Invalid checkout session.", 400, "invalid_session");
+    return { status: "invalid" };
   }
 
   const body = rest.slice(0, dot);
@@ -91,7 +110,7 @@ export function verifyCheckoutSessionToken(
   const expected = signBody(body);
 
   if (!secureEqual(expected, signature)) {
-    throw new AppError("Invalid checkout session.", 400, "invalid_session");
+    return { status: "invalid" };
   }
 
   let claims: CheckoutSessionClaims;
@@ -100,22 +119,32 @@ export function verifyCheckoutSessionToken(
       Buffer.from(body, "base64url").toString("utf8"),
     ) as CheckoutSessionClaims;
   } catch {
-    throw new AppError("Invalid checkout session.", 400, "invalid_session");
+    return { status: "invalid" };
+  }
+
+  if (!claimsShapeOk(claims)) {
+    return { status: "invalid" };
   }
 
   const now = Math.floor(Date.now() / 1000);
-  if (
-    !claims.uid ||
-    !claims.planId ||
-    !claims.planName ||
-    (claims.billingCycle !== "monthly" && claims.billingCycle !== "yearly") ||
-    (claims.currency != null && !isCheckoutCurrency(claims.currency)) ||
-    claims.exp < now
-  ) {
-    throw new AppError("Checkout session has expired.", 410, "session_expired");
+  if (claims.exp < now) {
+    return { status: "expired", claims };
   }
 
-  return claims;
+  return { status: "valid", claims };
+}
+
+export function verifyCheckoutSessionToken(
+  token: string,
+): CheckoutSessionClaims {
+  const inspected = inspectCheckoutSessionToken(token);
+  if (inspected.status === "invalid") {
+    throw new AppError("Invalid checkout session.", 400, "invalid_session");
+  }
+  if (inspected.status === "expired") {
+    throw new AppError("Checkout session has expired.", 410, "session_expired");
+  }
+  return inspected.claims;
 }
 
 export function checkoutSessionPath(

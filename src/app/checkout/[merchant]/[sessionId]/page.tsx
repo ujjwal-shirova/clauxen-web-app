@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import {
+  inspectCheckoutSessionToken,
   normalizeCheckoutReturnPath,
-  verifyCheckoutSessionToken,
 } from "@/backend/billing/checkout-session";
 import { CheckoutSessionClient } from "@/frontend/components/checkout-session-client";
 
@@ -17,31 +17,29 @@ export default async function CheckoutSessionPage({
 }) {
   const { sessionId } = await params;
 
-  let planIdFromSession: string | null = null;
-  let billingCycle: "monthly" | "yearly" = "monthly";
-  let maxTier: "5x" | "20x" = "5x";
-  let returnPath = "/new";
-
-  try {
-    const claims = verifyCheckoutSessionToken(sessionId);
-    planIdFromSession = claims.planId;
-    if (claims.billingCycle === "yearly") billingCycle = "yearly";
-    if (claims.maxTier === "20x" || claims.maxTier === "5x") {
-      maxTier = claims.maxTier;
-    }
-    returnPath = normalizeCheckoutReturnPath(claims.returnPath);
-  } catch {
+  const inspected = inspectCheckoutSessionToken(sessionId);
+  if (inspected.status === "invalid") {
     notFound();
   }
+
+  const claims = inspected.claims;
+  const billingCycle =
+    claims.billingCycle === "yearly" ? "yearly" : "monthly";
+  const maxTier =
+    claims.maxTier === "20x" || claims.maxTier === "5x"
+      ? claims.maxTier
+      : "5x";
+  const returnPath = normalizeCheckoutReturnPath(claims.returnPath);
 
   return (
     <div className="min-h-screen bg-[var(--app-shell-bg)]">
       <CheckoutSessionClient
-        planId={planIdFromSession}
+        planId={claims.planId}
         initialBillingCycle={billingCycle}
         initialMaxTier={maxTier}
         initialCheckoutSessionId={sessionId}
         returnPath={returnPath}
+        needsSessionRemint={inspected.status === "expired"}
       />
     </div>
   );

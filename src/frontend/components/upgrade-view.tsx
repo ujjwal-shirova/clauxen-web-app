@@ -4,12 +4,10 @@ import React, { useCallback, useState } from "react";
 import UpgradePageContent from "./subscription";
 import type { MaxTier } from "./billing-checkout";
 import { BillingCheckout } from "./billing-checkout";
-import { CheckoutPreparing } from "./checkout-preparing";
 import { InvoiceView, type InvoiceData } from "./invoice-view";
 import { FullscreenPortal } from "./fullscreen-portal";
 import {
   billingInvoicePdfUrl,
-  createCheckoutSession,
   getBillingInvoice,
 } from "@/frontend/lib/api/billing";
 
@@ -18,7 +16,7 @@ interface UpgradeViewProps {
 }
 
 type BillingCycle = "monthly" | "yearly";
-type ViewState = "plans" | "preparing" | "checkout" | "invoice";
+type ViewState = "plans" | "checkout" | "invoice";
 
 export function UpgradeView({ onClose }: UpgradeViewProps) {
   const [currentView, setCurrentView] = useState<ViewState>("plans");
@@ -28,19 +26,15 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
     useState<BillingCycle>("monthly");
   const [selectedMaxTier, setSelectedMaxTier] = useState<MaxTier>("5x");
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
-
-  const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(
-    null,
-  );
-
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
+  const [lastPaymentId, setLastPaymentId] = useState<string | null>(null);
 
   const resetToPlans = () => {
     setCurrentView("plans");
     setSelectedPlanId(null);
     setSelectedPlanName(null);
-    setCheckoutSessionId(null);
     setInvoiceData(null);
+    setLastPaymentId(null);
   };
 
   const handleSelectPlan = useCallback(
@@ -54,62 +48,10 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
       setSelectedBillingCycle(billingCycle);
       if (maxTier) setSelectedMaxTier(maxTier);
       setSelectedPlanName(planDisplayName || planId);
-      setCheckoutSessionId(null);
-      setCurrentView("preparing");
+      setCurrentView("checkout");
     },
     [],
   );
-
-  const createSessionForSelected = useCallback(
-    async (attempt = 1) => {
-      if (!selectedPlanId) return;
-
-      try {
-        const session = await createCheckoutSession({
-          planId: selectedPlanId,
-          planName: selectedPlanName || "Selected Plan",
-          billingCycle: selectedBillingCycle,
-          maxTier: selectedMaxTier,
-          returnPath:
-            typeof window !== "undefined" &&
-            !window.location.pathname.startsWith("/checkout/")
-              ? window.location.pathname
-              : "/new",
-        });
-
-        setCheckoutSessionId(session.sessionId);
-        if (typeof window !== "undefined") {
-          window.history.replaceState(null, "", session.checkoutPath);
-        }
-        setCurrentView("checkout");
-      } catch {
-        if (attempt < 4) {
-          window.setTimeout(() => {
-            void createSessionForSelected(attempt + 1);
-          }, 700 * attempt);
-        } else {
-          setCurrentView("checkout");
-        }
-      }
-    },
-    [
-      selectedPlanId,
-      selectedPlanName,
-      selectedBillingCycle,
-      selectedMaxTier,
-    ],
-  );
-
-  React.useEffect(() => {
-    if (currentView === "preparing" && selectedPlanId && !checkoutSessionId) {
-      void createSessionForSelected(1);
-    }
-  }, [
-    currentView,
-    selectedPlanId,
-    checkoutSessionId,
-    createSessionForSelected,
-  ]);
 
   const handleBackToPlans = () => {
     resetToPlans();
@@ -121,7 +63,7 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
   }) => {
     const paymentId = details?.razorpayPaymentId;
     if (paymentId) {
-      // Poll briefly while Cloudflare generates the PDF + DB settles.
+      setLastPaymentId(paymentId);
       for (let i = 0; i < 6; i++) {
         try {
           const res = await getBillingInvoice(paymentId);
@@ -139,12 +81,11 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
       }
     }
 
-    // Fallback snapshot if server invoice is not ready yet.
     const now = new Date();
     setInvoiceData({
       invoiceNumber: (
         details?.razorpayOrderId ||
-        checkoutSessionId ||
+        paymentId ||
         `INV${Date.now()}`
       )
         .slice(-14)
@@ -177,11 +118,14 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
 
   const handleInvoiceClose = () => {
     resetToPlans();
+    onClose();
   };
 
   const handleInvoiceDownload = () => {
     const paymentId =
-      invoiceData?.paymentId || invoiceData?.razorpayPaymentId;
+      invoiceData?.paymentId ||
+      invoiceData?.razorpayPaymentId ||
+      lastPaymentId;
     if (paymentId) {
       window.open(billingInvoicePdfUrl(paymentId), "_blank", "noopener");
       return;
@@ -191,7 +135,7 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
 
   return (
     <FullscreenPortal>
-      <div className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-white">
+      <div className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)]">
         {currentView === "plans" && (
           <UpgradePageContent
             key={plansRefreshKey}
@@ -202,13 +146,6 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
           />
         )}
 
-        {currentView === "preparing" && selectedPlanId && (
-          <CheckoutPreparing
-            planId={selectedPlanId}
-            maxTier={selectedMaxTier}
-          />
-        )}
-
         {currentView === "checkout" && selectedPlanId && (
           <BillingCheckout
             onBack={handleBackToPlans}
@@ -216,7 +153,6 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
             planId={selectedPlanId}
             initialBillingCycle={selectedBillingCycle}
             initialMaxTier={selectedMaxTier}
-            initialCheckoutSessionId={checkoutSessionId}
           />
         )}
 

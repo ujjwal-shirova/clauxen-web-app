@@ -12,8 +12,8 @@ const fieldFocus =
 
 export const checkoutUi = {
   form: "w-full max-w-[480px] font-sans text-[15px] leading-5 text-zinc-900",
-  stack: "flex flex-col gap-5",
-  section: "flex flex-col gap-3.5",
+  stack: "flex flex-col gap-6",
+  section: "flex flex-col gap-4",
 
   field: cn(fieldBase, fieldFocus),
   fieldWithIcons: cn(fieldBase, fieldFocus, "pr-28"),

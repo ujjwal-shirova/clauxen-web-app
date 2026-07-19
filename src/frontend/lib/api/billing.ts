@@ -109,6 +109,20 @@ export async function createCheckoutSession(input: {
   });
 }
 
+/** Remint an expired signed checkout session for the same logged-in user. */
+export async function refreshCheckoutSession(input: { sessionId: string }) {
+  const sessionId = assertNonEmptyString(input.sessionId, "sessionId", 8192);
+  return apiFetch<{
+    sessionId: string;
+    checkoutPath: string;
+    returnPath?: string;
+    expiresInSeconds: number;
+  }>("/api/v1/billing/checkout-sessions/refresh", {
+    method: "POST",
+    body: JSON.stringify({ sessionId }),
+  });
+}
+
 export async function createBillingOrder(input: {
   planId: string;
   planName: string;

@@ -8,6 +8,7 @@ import {
   createCheckoutSession,
   createUpiBillingPayment,
   pollUpiBillingPayment,
+  refreshCheckoutSession,
   verifyBillingPayment,
 } from "@/frontend/lib/api/billing";
 import { CheckoutErrorBanner } from "@/frontend/components/checkout-error-banner";
@@ -18,7 +19,6 @@ import {
   getCheckoutAddressIncompleteReason,
   type CheckoutAddressState,
 } from "@/frontend/components/checkout-billing-address";
-import { CheckoutPreparing } from "@/frontend/components/checkout-preparing";
 import { CheckoutUpiQrModal } from "@/frontend/components/checkout-upi-qr-modal";
 import { canUseApplePay } from "@/frontend/lib/apple-pay";
 import { openRazorpayCheckout } from "@/frontend/lib/razorpay-checkout";
@@ -63,6 +63,8 @@ interface BillingCheckoutProps {
   initialCheckoutSessionId?: string | null;
   /** Preferred return path after pay / back (hosted checkout). */
   returnPath?: string | null;
+  /** Expired signed session — remint for the same logged-in user (no 404). */
+  needsSessionRemint?: boolean;
 }
 
 const SEAT_ASSIGNABLE_IDS = Object.keys(
@@ -153,6 +155,7 @@ export function BillingCheckout({
   initialMaxTier = "5x",
   initialCheckoutSessionId,
   returnPath = null,
+  needsSessionRemint = false,
 }: BillingCheckoutProps) {
   const auth = useAuth();
   const { currency, formatInr, isUsd, ready } = useCheckoutCurrency();
@@ -170,7 +173,7 @@ export function BillingCheckout({
   const hasSavedPaymentMethod = savedMethod != null;
   const [paymentTab, setPaymentTab] = useState<CheckoutPaymentTab>("card");
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(
-    initialCheckoutSessionId ?? null,
+    needsSessionRemint ? null : (initialCheckoutSessionId ?? null),
   );
   const [upiModalOpen, setUpiModalOpen] = useState(false);
   const [upiQrImageUrl, setUpiQrImageUrl] = useState<string | null>(null);
@@ -195,11 +198,16 @@ export function BillingCheckout({
     isComplete: false,
   });
   const [applePayAvailable, setApplePayAvailable] = useState(false);
-  const [sessionPreparing, setSessionPreparing] = useState(false);
+  const [sessionReminted, setSessionReminted] = useState(!needsSessionRemint);
 
   // When a checkout session id is provided via prop (e.g. direct /checkout link),
-  // skip the *first* auto-create so we reuse the incoming session.
-  const skipInitialSessionCreate = React.useRef(!!initialCheckoutSessionId);
+  // skip the *first* auto-create so we reuse the incoming session — unless it
+  // must be reminted after expiry.
+  const skipInitialSessionCreate = React.useRef(
+    Boolean(initialCheckoutSessionId) && !needsSessionRemint,
+  );
+  const lastSessionFingerprint = React.useRef<string | null>(null);
+  const adoptRemintedSession = React.useRef(false);
 
   const syncCheckoutUrl = useCallback((checkoutPath: string) => {
     if (typeof window === "undefined") return;
@@ -214,10 +222,10 @@ export function BillingCheckout({
   }, []);
 
   useEffect(() => {
-    if (initialCheckoutSessionId?.startsWith("cs_live_")) {
+    if (initialCheckoutSessionId?.startsWith("cs_live_") && !needsSessionRemint) {
       syncCheckoutUrl(`/checkout/shirova/${initialCheckoutSessionId}`);
     }
-  }, [initialCheckoutSessionId, syncCheckoutUrl]);
+  }, [initialCheckoutSessionId, needsSessionRemint, syncCheckoutUrl]);
 
   useEffect(() => {
     if (!hasSavedPaymentMethod && paymentTab === "saved") {
@@ -234,6 +242,54 @@ export function BillingCheckout({
       }));
     }
   }, [auth.user?.displayName, billingAddress.fullName]);
+
+  // Remint expired hosted sessions for the same logged-in user (no page-not-found).
+  useEffect(() => {
+    if (!needsSessionRemint || !initialCheckoutSessionId) {
+      setSessionReminted(true);
+      return;
+    }
+    if (auth.loading) return;
+
+    let cancelled = false;
+    void (async () => {
+      if (!auth.user) {
+        if (!cancelled) {
+          setPayError("Sign in to continue this checkout.");
+          setSessionReminted(true);
+        }
+        return;
+      }
+
+      try {
+        const session = await refreshCheckoutSession({
+          sessionId: initialCheckoutSessionId,
+        });
+        if (cancelled) return;
+        adoptRemintedSession.current = true;
+        setCheckoutSessionId(session.sessionId);
+        syncCheckoutUrl(session.checkoutPath);
+        setPayError(null);
+      } catch {
+        // Fall through to a fresh mint with current plan selections.
+        if (!cancelled) {
+          setPayError(null);
+        }
+      } finally {
+        if (!cancelled) setSessionReminted(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    needsSessionRemint,
+    initialCheckoutSessionId,
+    auth.loading,
+    auth.user,
+    syncCheckoutUrl,
+  ]);
 
   const handleCardFieldsChange = useCallback((state: CheckoutCardFieldState) => {
     setCardFields(state);
@@ -334,6 +390,29 @@ export function BillingCheckout({
   const effectiveBillingCycle: BillingCycle =
     isMaxPlan || isVariableCheckoutPlan ? "monthly" : billingCycle;
 
+  const sessionFingerprint = useMemo(
+    () =>
+      JSON.stringify({
+        plan: resolveApiPlanId(activePlanId, maxTier),
+        cycle: isMaxPlan ? "monthly" : effectiveBillingCycle,
+        currency,
+        maxTier: isMaxPlan ? maxTier : null,
+        seats: isTeamPlan ? seatCounts : null,
+        bundle: isBusinessWorkspace ? bundleSeatCount : null,
+      }),
+    [
+      activePlanId,
+      maxTier,
+      isMaxPlan,
+      effectiveBillingCycle,
+      currency,
+      isTeamPlan,
+      seatCounts,
+      isBusinessWorkspace,
+      bundleSeatCount,
+    ],
+  );
+
   useEffect(() => {
     if (ready && isUsd && paymentTab === "upi") {
       setPaymentTab("card");
@@ -342,22 +421,36 @@ export function BillingCheckout({
 
   useEffect(() => {
     if (isVariableCheckoutPlan) return;
+    if (auth.loading || !sessionReminted) return;
+    if (!auth.user) return;
 
+    // Reuse a still-valid hosted session on first paint.
     if (skipInitialSessionCreate.current) {
       skipInitialSessionCreate.current = false;
+      lastSessionFingerprint.current = sessionFingerprint;
       return;
     }
 
-    // IMPORTANT SECURITY NOTE (Razorpay docs):
-    // https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/
-    // "Always verify the payment signature server-side" — we create the Checkout Session
-    // (which mints a short-lived signed token) on the server, then the server later creates
-    // the Razorpay Order with the *exact* computed amount. Client never dictates price.
+    // Remint just adopted a new session for this plan — don't mint again.
+    if (adoptRemintedSession.current) {
+      adoptRemintedSession.current = false;
+      lastSessionFingerprint.current = sessionFingerprint;
+      return;
+    }
+
+    // Already minted/reminted for this plan selection — don't loop.
+    if (
+      lastSessionFingerprint.current === sessionFingerprint &&
+      checkoutSessionId
+    ) {
+      return;
+    }
+
+    // IMPORTANT: Checkout Session is a server-signed token (6h). Client never
+    // dictates price — Razorpay Order amount is computed server-side at pay time.
     let cancelled = false;
-    const slowTimer = window.setTimeout(() => {
-      if (!cancelled) setSessionPreparing(true);
-    }, 450);
-    void (async () => {
+
+    const mint = async (attempt: number): Promise<void> => {
       try {
         const session = await createCheckoutSession({
           planId: resolveApiPlanId(activePlanId, maxTier),
@@ -378,24 +471,32 @@ export function BillingCheckout({
             : {}),
         });
         if (cancelled) return;
+        lastSessionFingerprint.current = sessionFingerprint;
         setCheckoutSessionId(session.sessionId);
         syncCheckoutUrl(session.checkoutPath);
+        setPayError(null);
       } catch {
-        if (!cancelled) {
-          setPayError("We had trouble creating your secure checkout session. Please try again in a moment.");
+        if (cancelled) return;
+        if (attempt < 4) {
+          await new Promise((r) => window.setTimeout(r, 500 * attempt));
+          if (!cancelled) await mint(attempt + 1);
+          return;
         }
-      } finally {
-        window.clearTimeout(slowTimer);
-        if (!cancelled) setSessionPreparing(false);
+        setPayError(
+          "We had trouble creating your secure checkout session. Please try again in a moment.",
+        );
       }
-    })();
+    };
+
+    void mint(1);
 
     return () => {
       cancelled = true;
-      window.clearTimeout(slowTimer);
-      setSessionPreparing(false);
     };
+    // checkoutSessionId intentionally omitted — fingerprint + lastSessionFingerprint gate remints.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
   }, [
+    sessionFingerprint,
     activePlanId,
     maxTier,
     effectiveBillingCycle,
@@ -410,6 +511,9 @@ export function BillingCheckout({
     currency,
     returnPath,
     syncCheckoutUrl,
+    auth.loading,
+    auth.user,
+    sessionReminted,
   ]);
 
   useEffect(() => {
@@ -511,7 +615,10 @@ export function BillingCheckout({
       return "This plan needs pricing confirmation before checkout.";
     }
     if (!agreed) return "Accept the terms to continue.";
-    if (!checkoutSessionId) return "Preparing your secure checkout session…";
+    if (auth.loading || !auth.user) {
+      return "Sign in to continue checkout.";
+    }
+    if (!checkoutSessionId) return "Securing your checkout…";
     if (paymentTab === "upi") {
       return getCheckoutAddressIncompleteReason(billingAddress);
     }
@@ -525,6 +632,8 @@ export function BillingCheckout({
   }, [
     isVariableCheckoutPlan,
     agreed,
+    auth.loading,
+    auth.user,
     checkoutSessionId,
     paymentTab,
     billingAddress,
@@ -1052,39 +1161,29 @@ export function BillingCheckout({
   ]);
 
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col bg-[var(--app-shell-bg)] font-sans text-zinc-800">
-      {sessionPreparing && !checkoutSessionId && (
-        <CheckoutPreparing planId={activePlanId} maxTier={maxTier} />
-      )}
-      <header className="relative flex w-full shrink-0 items-center justify-center border-b border-zinc-200/70 bg-[var(--app-panel-bg)] px-4 py-3.5 pt-[max(0.85rem,env(safe-area-inset-top))] sm:py-4">
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 sm:left-6">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/80 bg-white text-zinc-700 shadow-[0_1px_2px_rgba(24,24,27,0.03)] transition-colors hover:bg-zinc-50"
-            aria-label="Back"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              fill="currentColor"
-              viewBox="0 0 256 256"
-            >
-              <path d="M228,128a12,12,0,0,1-12,12H69l51.52,51.51a12,12,0,0,1-17,17l-72-72a12,12,0,0,1,0-17l72-72a12,12,0,0,1,17,17L69,116H216A12,12,0,0,1,228,128Z" />
-            </svg>
-          </button>
-        </div>
-        <span className="text-[13px] font-medium tracking-[-0.01em] text-zinc-500">
-          Checkout
-        </span>
-      </header>
+    <div className="relative flex min-h-[100dvh] w-full flex-col bg-[var(--app-shell-bg)] font-sans text-zinc-800">
+      <button
+        type="button"
+        onClick={onBack}
+        className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200/80 bg-[var(--app-panel-bg)] text-zinc-700 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-white sm:left-6"
+        aria-label="Back"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          fill="currentColor"
+          viewBox="0 0 256 256"
+        >
+          <path d="M228,128a12,12,0,0,1-12,12H69l51.52,51.51a12,12,0,0,1-17,17l-72-72a12,12,0,0,1,0-17l72-72a12,12,0,0,1,17,17L69,116H216A12,12,0,0,1,228,128Z" />
+        </svg>
+      </button>
 
       <div className="w-full flex-1">
-        <main className="mx-auto flex w-full max-w-[1080px] flex-col items-start gap-6 px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:flex-row lg:gap-10">
+        <main className="mx-auto flex w-full max-w-[1080px] flex-col items-start gap-8 px-4 pb-28 pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.25rem))] sm:gap-10 sm:px-6 lg:flex-row">
           {/* Left column — plan summary */}
           <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[400px]">
-            <h1 className="mb-5 text-[22px] font-semibold tracking-[-0.03em] text-zinc-900 sm:text-[24px]">
+            <h1 className="mb-6 text-[22px] font-semibold tracking-[-0.03em] text-zinc-900 sm:text-[24px]">
               {details.name}
             </h1>
 
@@ -1188,7 +1287,7 @@ export function BillingCheckout({
           </aside>
 
           {/* Right column — checkout form */}
-          <div className="min-w-0 flex-1 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] p-5 pb-8 shadow-[0_1px_2px_rgba(24,24,27,0.03)] sm:p-6">
+          <div className="min-w-0 flex-1 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] p-6 pb-9 shadow-[0_1px_2px_rgba(24,24,27,0.03)] sm:p-8 sm:pb-10">
             {payError && <CheckoutErrorBanner message={payError} />}
             <CheckoutForm
               paymentTab={paymentTab}

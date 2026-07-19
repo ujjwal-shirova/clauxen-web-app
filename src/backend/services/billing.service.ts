@@ -2,6 +2,7 @@ import * as billingRepo from "@/backend/repositories/billing.repository"; // ord
 import {
   CHECKOUT_SESSION_TTL_SECONDS,
   checkoutSessionPath,
+  inspectCheckoutSessionToken,
   mintCheckoutSessionToken,
   normalizeCheckoutReturnPath,
   verifyCheckoutSessionToken,
@@ -148,6 +149,35 @@ export function assertCheckoutSessionForUser(
     throw new AppError("Checkout session mismatch.", 403, "forbidden");
   }
   return claims;
+}
+
+/**
+ * Remint a checkout session from an expired (but still signed) token for the
+ * same logged-in user — used when a tab is reloaded after the 6h TTL.
+ */
+export function refreshCheckoutSession(input: {
+  userId: string;
+  sessionId: string;
+}) {
+  const inspected = inspectCheckoutSessionToken(input.sessionId);
+  if (inspected.status === "invalid") {
+    throw new AppError("Invalid checkout session.", 400, "invalid_session");
+  }
+  if (inspected.claims.uid !== input.userId) {
+    throw new AppError("Checkout session mismatch.", 403, "forbidden");
+  }
+
+  return createCheckoutSession({
+    userId: input.userId,
+    planId: inspected.claims.planId,
+    planName: inspected.claims.planName,
+    billingCycle: inspected.claims.billingCycle,
+    currency: inspected.claims.currency ?? "INR",
+    maxTier: inspected.claims.maxTier ?? null,
+    seatBreakdown: inspected.claims.seatBreakdown ?? null,
+    organizationSeatCount: inspected.claims.organizationSeatCount ?? null,
+    returnPath: inspected.claims.returnPath ?? null,
+  });
 }
 
 export async function createUpiCheckoutPayment(input: {

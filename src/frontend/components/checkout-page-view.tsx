@@ -8,12 +8,14 @@ export function CheckoutPageView({
   initialMaxTier,
   initialCheckoutSessionId,
   returnPath = "/new",
+  needsSessionRemint = false,
 }: {
   planId: string | null;
   initialBillingCycle: "monthly" | "yearly";
   initialMaxTier: "5x" | "20x";
   initialCheckoutSessionId: string;
   returnPath?: string;
+  needsSessionRemint?: boolean;
 }) {
   return (
     <BillingCheckout
@@ -27,6 +29,7 @@ export function CheckoutPageView({
       initialMaxTier={initialMaxTier}
       initialCheckoutSessionId={initialCheckoutSessionId}
       returnPath={returnPath}
+      needsSessionRemint={needsSessionRemint}
       onPaymentSuccess={() => {
         if (typeof window !== "undefined") {
           const base = returnPath || "/new";

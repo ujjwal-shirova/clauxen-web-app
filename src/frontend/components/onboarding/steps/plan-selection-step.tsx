@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { PlansCarouselSection } from "@/frontend/components/subscription";
 import type { MaxTier } from "@/frontend/components/billing-checkout";
 import { BillingCheckout } from "@/frontend/components/billing-checkout";
-import { CheckoutPreparing } from "@/frontend/components/checkout-preparing";
-import { createCheckoutSession } from "@/frontend/lib/api/billing";
 import { CHECKOUT_PLAN_IDS } from "@/lib/plans-catalog";
 import type { OnboardingAnswers } from "@/frontend/lib/api/onboarding";
 import type { OnboardingPlanId, OnboardingState } from "../onboarding-types";
@@ -24,7 +22,7 @@ type PlanSelectionStepProps = {
 };
 
 type BillingCycle = "monthly" | "yearly";
-type ViewState = "plans" | "preparing" | "checkout";
+type ViewState = "plans" | "checkout";
 
 export function PlanSelectionStep({
   state,
@@ -35,20 +33,16 @@ export function PlanSelectionStep({
 }: PlanSelectionStepProps) {
   const [view, setView] = useState<ViewState>("plans");
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [selectedPlanName, setSelectedPlanName] = useState<string | null>(null);
   const [selectedBillingCycle, setSelectedBillingCycle] =
     useState<BillingCycle>("monthly");
   const [selectedMaxTier, setSelectedMaxTier] = useState<MaxTier>("5x");
-  const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(
-    null,
-  );
 
   const startCheckout = useCallback(
     (
       planId: string,
       billingCycle: BillingCycle,
       maxTier?: MaxTier,
-      planDisplayName?: string,
+      _planDisplayName?: string,
     ) => {
       onChange({
         selectedPlanId: planId as OnboardingPlanId,
@@ -57,9 +51,7 @@ export function PlanSelectionStep({
       setSelectedPlanId(planId);
       setSelectedBillingCycle(billingCycle);
       if (maxTier) setSelectedMaxTier(maxTier);
-      setSelectedPlanName(planDisplayName || planId);
-      setCheckoutSessionId(null);
-      setView("preparing");
+      setView("checkout");
     },
     [onChange],
   );
@@ -100,59 +92,14 @@ export function PlanSelectionStep({
     startCheckout(plan.id, cycle, undefined, displayName ?? plan.name);
   };
 
-  const createSessionForSelected = useCallback(
-    async (attempt = 1) => {
-      if (!selectedPlanId) return;
-      try {
-        const session = await createCheckoutSession({
-          planId: selectedPlanId,
-          planName: selectedPlanName || "Selected Plan",
-          billingCycle: selectedBillingCycle,
-          maxTier: selectedMaxTier,
-          returnPath: "/onboarding",
-        });
-        setCheckoutSessionId(session.sessionId);
-        if (typeof window !== "undefined") {
-          window.history.replaceState(null, "", session.checkoutPath);
-        }
-        setView("checkout");
-      } catch {
-        if (attempt < 4) {
-          window.setTimeout(() => {
-            void createSessionForSelected(attempt + 1);
-          }, 700 * attempt);
-        } else {
-          setView("checkout");
-        }
-      }
-    },
-    [selectedPlanId, selectedPlanName, selectedBillingCycle, selectedMaxTier],
-  );
-
-  useEffect(() => {
-    if (view === "preparing" && selectedPlanId && !checkoutSessionId) {
-      void createSessionForSelected(1);
-    }
-  }, [view, selectedPlanId, checkoutSessionId, createSessionForSelected]);
-
   const backToPlans = () => {
     setView("plans");
     setSelectedPlanId(null);
-    setSelectedPlanName(null);
-    setCheckoutSessionId(null);
   };
-
-  if (view === "preparing" && selectedPlanId) {
-    return (
-      <div className="fixed inset-0 z-[100] overflow-hidden bg-white">
-        <CheckoutPreparing planId={selectedPlanId} maxTier={selectedMaxTier} />
-      </div>
-    );
-  }
 
   if (view === "checkout" && selectedPlanId) {
     return (
-      <div className="fixed inset-0 z-[100] overflow-hidden bg-white">
+      <div className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)]">
         <BillingCheckout
           onBack={backToPlans}
           onPaymentSuccess={() => {
@@ -168,7 +115,7 @@ export function PlanSelectionStep({
           planId={selectedPlanId}
           initialBillingCycle={selectedBillingCycle}
           initialMaxTier={selectedMaxTier}
-          initialCheckoutSessionId={checkoutSessionId}
+          returnPath="/onboarding"
         />
       </div>
     );
