@@ -10,7 +10,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 - **Skill:** `.cursor/skills/brain-memory` (invoke for read / write / search)
 - **CLI:** `./brain/tools/memory.sh`
 - **Always-apply rule:** `.cursor/rules/brain-memory.mdc`
-- **Last updated:** 2026-07-18
+- **Last updated:** 2026-07-19
 
 ---
 
@@ -38,6 +38,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | Date | Decision | Why |
 |------|----------|-----|
 | 2026-07-18 | Agent activity UI: one minimal Clauxen trace with model-authored `<agent_heading>`, auto-scrolling native thinking, distinct `<agent_narration>`, streamed tools, and ordinary final markdown; no Cogitating/Done/spinner-verb chrome | Preserve real event semantics while keeping the design original and minimal |
+| 2026-07-19 | Agent trace UI redesigned: new `AgentTrace` + `AgentTraceBlock` primitive (left hairline accent, no vertical rail/dots — distinct from Claude/ChatGPT). `AgentThinkingPhase` (shimmering model-authored heading + auto-scroll body with user-scroll-pause + smooth collapse to heading+duration, no "Thought for" prefix). `AgentNarrationNote` (serif italic margin note, distinct from thinking + final answer). `AgentToolCard` wraps all per-tool blocks. Old `AgentWorkFrame`/`AgentThinkingStep`/`AgentNarrativeStep`/`AgentTimeline` deleted. System prompt updated to require narration before every tool call and emphasize interleaved chronological order. Sticky user-msg jump on scroll-up fixed: while generating, pin only the active (last) turn; idle, only pin the turn spanning the sticky line (older turns scroll naturally). Code/table header pins now sync on generation completion (not just on scroll). Ponytail comment removed from globals.css. | Original minimal agent UI; smooth sticky; durable sticky headers after generation |
 | 2026-07-18 | Anthropic tool loop replays the SDK-accumulated assistant blocks unchanged (signed/redacted thinking included), persists ordered `agent_ui.modelTurns`, and omits temperature during thinking | Required for valid interleaved-thinking continuity and durable chronological hydrate |
 | 2026-07-18 | Marketing + legal/auth paths are public in Edge middleware via isMarketingPublicPath | Unauthenticated users must open Claude/ChatGPT-style marketing pages without login |
 | 2026-07-18 | Marketing site at src/website + (marketing)/[...slug]; chat stays at /; public pricing at /plans (not /pricing) | Avoid breaking in-app #pricing overlay and /apps /library app routes; Claude/ChatGPT-style parallel URLs |

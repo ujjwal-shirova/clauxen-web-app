@@ -5,12 +5,12 @@ import { cn } from "@/frontend/lib/utils";
 import type { AgentToolSegment } from "@/frontend/lib/agent-segments";
 import { fileNameFromPath } from "@/frontend/lib/chat-artifacts";
 import { inferLanguageFromPath } from "@/frontend/lib/create-file-tags";
-import { AgentTimelineStep } from "./agent-timeline";
+import { AgentToolCard } from "./agent-tool-card";
 import { CreateFileStreamBlock } from "./create-file-stream-block";
 
 /**
  * create_file / file_write: while running → stream container;
- * when done → collapsed file chip only (Thought-style compact row).
+ * when done → collapsed file chip only (compact row, no timeline chrome).
  */
 export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
   const path =
@@ -36,7 +36,7 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
       : tool.description;
   const showStream = isRunning;
 
-  // Done → Thought-style collapsed chip only (no stream preview / timeline chrome).
+  // Done → compact collapsed chip only (no stream preview / chrome).
   if (!isRunning) {
     return (
       <div className="mb-1">
@@ -49,18 +49,10 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
   }
 
   return (
-    <AgentTimelineStep
-      icon="file"
-      isActive
-      title={
-        <span
-          className={cn(
-            "truncate font-medium text-zinc-800 shimmer-text",
-          )}
-        >
-          {description || `Creating ${fileName}`}
-        </span>
-      }
+    <AgentToolCard
+      variant="file"
+      label={description || `Creating ${fileName}`}
+      isRunning
     >
       {fileName ? (
         <span className="mb-1 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-zinc-200 bg-background px-2.5 py-1 text-[12px] font-medium text-zinc-600">
@@ -82,7 +74,7 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
           streamKey={tool.id}
         />
       ) : null}
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -97,21 +89,14 @@ export function PresentFilesBlock({ tool }: { tool: AgentToolSegment }) {
   const plural = count !== 1 ? "s" : "";
 
   return (
-    <AgentTimelineStep
-      icon="file"
-      isActive={isRunning}
-      title={
-        <span
-          className={cn(
-            "truncate font-medium text-zinc-800",
-            isRunning && "shimmer-text",
-          )}
-        >
-          {isRunning
-            ? `Presenting file${plural}`
-            : `Presented ${count || ""} file${plural}`.trim()}
-        </span>
+    <AgentToolCard
+      variant="file"
+      label={
+        isRunning
+          ? `Presenting file${plural}`
+          : `Presented ${count || ""} file${plural}`.trim()
       }
+      isRunning={isRunning}
     />
   );
 }

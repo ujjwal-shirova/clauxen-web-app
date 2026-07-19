@@ -801,6 +801,7 @@ function readHeaderHeightPx(from?: Element | null) {
 function resolveActiveStickyTurnIndex(
   viewport: HTMLElement,
   turnCount: number,
+  isGenerating: boolean,
 ): number {
   if (turnCount <= 0) return 0;
 
@@ -809,6 +810,19 @@ function resolveActiveStickyTurnIndex(
     "[data-conversation-turn]",
   );
 
+  // While the assistant is actively generating, the active sticky turn is the
+  // one that owns the streaming assistant message — the last turn. This keeps
+  // the pinned user message stable while tokens stream in and avoids the
+  // hard-cut swap the user reported when scrolling up through history.
+  if (isGenerating) {
+    return Math.max(0, turnCount - 1);
+  }
+
+  // When idle, only pin the user message if its turn is the one currently
+  // spanning the sticky line AND it's the most recent turn the user is
+  // reading. For older turns scrolled into view, we deliberately do NOT pin
+  // — the user message scrolls naturally with the rest of the turn. This
+  // eliminates the sudden jump from one turn's sticky user msg to another's.
   let next = Math.max(0, turnCount - 1);
   let foundSpanning = false;
 
@@ -842,8 +856,12 @@ function resolveActiveStickyTurnIndex(
 }
 
 /** Imperative sticky sync — never triggers React re-renders during scroll. */
-function syncStickyUserMessages(viewport: HTMLElement, turnCount: number) {
-  const activeIndex = resolveActiveStickyTurnIndex(viewport, turnCount);
+function syncStickyUserMessages(
+  viewport: HTMLElement,
+  turnCount: number,
+  isGenerating: boolean,
+) {
+  const activeIndex = resolveActiveStickyTurnIndex(viewport, turnCount, isGenerating);
   const stickyLineY =
     viewport.getBoundingClientRect().top + readHeaderHeightPx(viewport);
 
@@ -1269,7 +1287,7 @@ export function ConversationThread({
 
     const runSync = () => {
       if (disposed) return;
-      syncStickyUserMessages(viewport, turnCountRef.current);
+      syncStickyUserMessages(viewport, turnCountRef.current, isGeneratingProp);
     };
     stickySyncRef.current = runSync;
 
@@ -1344,6 +1362,21 @@ export function ConversationThread({
   React.useEffect(() => {
     stickySyncRef.current?.();
   }, [stickyStreamKey, isFastScrollingProp, isGeneratingProp, editingMessageId]);
+
+  // When generation completes (isGeneratingProp flips false), re-run the
+  // sticky + code/table header pin sync so headers become sticky for the
+  // now-final turn. Previously the pin attribute was only set during scroll,
+  // so a freshly-completed answer with tables/code never got sticky headers
+  // until the user scrolled.
+  React.useEffect(() => {
+    if (isGeneratingProp) return;
+    const viewport = getScrollElement();
+    if (!viewport) return;
+    const raf = requestAnimationFrame(() => {
+      syncStickyUserMessages(viewport, turnCountRef.current, false);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [isGeneratingProp, getScrollElement]);
 
   const turnProps = {
     editingMessageId,

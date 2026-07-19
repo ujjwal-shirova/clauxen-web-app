@@ -1192,10 +1192,9 @@ button.user-message-card__body:not(:disabled):hover,
   padding-top: 0.25rem;
 }
 
-/* ponytail: intentionally NOT content-visibility: auto here. Turns vary
-   wildly in height (a one-line reply vs. a report with tables/code), and its
-   contain-intrinsic-size estimate doesn't match reality — that mismatch is
-   exactly what caused the hard-cut jump when scrolling up into
+/* Turns vary wildly in height (a one-line reply vs. a report with tables/code),
+   and a fixed contain-intrinsic-size estimate doesn't match reality — that
+   mismatch is what caused the hard-cut jump when scrolling up into
    previously-offscreen turns. If very long conversations ever need this
    render-skip optimization back, it needs a per-turn measured size (e.g. a
    ResizeObserver writing a CSS var) instead of one fixed guess. */
@@ -1302,6 +1301,105 @@ button.user-message-card__body:not(:disabled):hover,
 .composer-message-table,
 .composer-message-table .markdown-table-scroll {
   overflow-anchor: none;
+}
+
+/* ─── Clauxen agent trace ──────────────────────────────────────────────────
+   Minimal, original design — distinct from Claude/ChatGPT timeline chrome.
+   Each block owns a quiet left hairline accent; no vertical rail with dots.
+   Active blocks expand; idle blocks collapse smoothly. */
+
+.agent-trace {
+  --agent-trace-gap: 0.625rem;
+}
+
+.agent-trace__block {
+  transition: background-color 0.18s ease-out;
+}
+
+.agent-trace__accent {
+  background: rgba(24, 24, 27, 0.14);
+  transition: background-color 0.2s ease-out, height 0.2s ease-out;
+}
+
+.agent-trace__block[data-active="true"] .agent-trace__accent {
+  background: rgba(24, 24, 27, 0.32);
+}
+
+/* Variant accents — subtle color cues without imitating another product. */
+.agent-trace__accent--thinking {
+  background: rgba(99, 102, 241, 0.22);
+}
+.agent-trace__block[data-active="true"] .agent-trace__accent--thinking {
+  background: rgba(99, 102, 241, 0.5);
+}
+.agent-trace__accent--narration {
+  background: rgba(24, 24, 27, 0.1);
+}
+.agent-trace__accent--tool,
+.agent-trace__accent--bash,
+.agent-trace__accent--file {
+  background: rgba(24, 24, 27, 0.18);
+}
+.agent-trace__block[data-active="true"] .agent-trace__accent--tool,
+.agent-trace__block[data-active="true"] .agent-trace__accent--bash,
+.agent-trace__block[data-active="true"] .agent-trace__accent--file {
+  background: rgba(24, 24, 27, 0.4);
+}
+.agent-trace__accent--search {
+  background: rgba(14, 165, 233, 0.22);
+}
+.agent-trace__block[data-active="true"] .agent-trace__accent--search {
+  background: rgba(14, 165, 233, 0.5);
+}
+.agent-trace__accent--done {
+  background: rgba(16, 185, 129, 0.3);
+}
+
+/* Thinking viewport — quiet inset, soft fade at bottom while streaming. */
+.agent-trace__thinking-viewport {
+  scroll-behavior: auto;
+  overflow-anchor: none;
+}
+
+/* Running dot — quiet pulse, no spinner chrome. */
+.agent-trace__running-dot {
+  animation: agent-trace-pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes agent-trace-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* Narration — serif italic margin note, no card chrome. */
+.agent-trace__block[data-agent-trace-variant="narration"] .agent-trace__header {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+/* Smooth sticky user-message handoff. When the active sticky turn changes
+   (e.g. generation completes and a new turn becomes active), the docked user
+   message transitions opacity/transform over 180ms instead of hard-cutting.
+   This is the fix for the "scroll up → sticky jumps to older user msg" jump. */
+.sticky-user-msg-host {
+  transition:
+    background-color 0.18s ease-out,
+    box-shadow 0.18s ease-out;
+}
+
+.sticky-user-msg--stuck {
+  transition:
+    background-color 0.18s ease-out,
+    box-shadow 0.18s ease-out,
+    transform 0.18s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Code/table header pins transition smoothly when the active turn changes
+   so the offset (top: header-height + turn-user-msg-height) does not snap. */
+.composer-message-codeblock[data-code-header-pin="true"]
+  .ui-code-block.code-block-header-sticky,
+.composer-message-table[data-table-header-pin="true"]
+  .ui-table-title-header.table-title-header-sticky {
+  transition: top 0.18s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .glass-sidebar-docked {

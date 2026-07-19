@@ -5,21 +5,24 @@ import { cn } from "@/frontend/lib/utils";
 import type { AgentThinkingSegment } from "@/frontend/lib/agent-segments";
 import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
 import { normalizeAgentHeading } from "@/lib/agent-transcript-markup";
-import { AgentTimelineStep } from "./agent-timeline";
+import { AgentTraceBlock, AgentShimmerText } from "./agent-trace";
 
 function fallbackThinkingHeading(content: string): string {
   const line = content
     .split(/\n+/)
     .map((part) => part.replace(/^[#>*\-\s]+/, "").trim())
     .find((part) => part.length > 0);
-  return normalizeAgentHeading(line ?? "") || "Reasoning through the task";
+  return normalizeAgentHeading(line ?? "") || "Reasoning";
 }
 
 /**
  * Live reasoning viewport. The model-authored heading shimmers independently
- * from the reasoning body, which auto-follows new thinking tokens.
+ * from the reasoning body, which auto-follows new thinking tokens. When the
+ * phase completes, the body collapses smoothly leaving the heading + elapsed
+ * duration as a quiet one-line summary (no "Thought for" prefix — the heading
+ * itself is the label).
  */
-export function AgentThinkingStep({
+export function AgentThinkingPhase({
   segment,
 }: {
   segment: AgentThinkingSegment;
@@ -52,48 +55,60 @@ export function AgentThinkingStep({
     return () => window.clearInterval(timer);
   }, [streaming, segment.durationSeconds, segment.startedAtMs]);
 
+  // Auto-scroll the reasoning body while streaming. Pause if the user scrolls
+  // up inside the viewport so they can read prior lines without being yanked
+  // back to the bottom.
+  const userScrolledRef = useRef(false);
   useEffect(() => {
     if (!streaming || !scrollRef.current) return;
+    if (userScrolledRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [segment.content, streaming]);
 
+  const onUserScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+    userScrolledRef.current = !atBottom;
+    if (atBottom) userScrolledRef.current = false;
+  };
+
+  // Reset user-scroll lock when a new streaming phase starts.
+  useEffect(() => {
+    if (streaming) userScrolledRef.current = false;
+  }, [streaming, segment.id]);
+
   if (!hasBody && !streaming) return null;
 
+  const durationLabel = streaming
+    ? `${elapsedSeconds}s`
+    : `${segment.durationSeconds ?? elapsedSeconds}s`;
+
   return (
-    <div
-      className="min-w-0"
-      data-agent-segment="thinking"
-      data-streaming={streaming || undefined}
-    >
-      <AgentTimelineStep
-      icon="thinking"
+    <AgentTraceBlock
+      variant="thinking"
       isActive={streaming}
+      defaultExpanded={streaming}
       title={
-        <span
-          className={cn(
-            "block max-w-full truncate",
-            streaming && "shimmer-text",
-          )}
-        >
+        <AgentShimmerText className={cn(streaming && "block max-w-full truncate")}>
           {heading}
-        </span>
+        </AgentShimmerText>
       }
       trailing={
         <span className="tabular-nums">
-          {streaming
-            ? `${elapsedSeconds}s`
-            : `${segment.durationSeconds ?? elapsedSeconds}s`}
+          {durationLabel}
         </span>
       }
-      defaultExpanded={streaming}
     >
       <div
         ref={scrollRef}
+        onScroll={onUserScroll}
         className={cn(
-          "app-scrollbar relative max-h-[10.5rem] overflow-y-auto rounded-xl border border-zinc-200/80 bg-zinc-50/65 px-3 py-2.5 font-sans text-[12.5px] leading-[1.55] text-zinc-600 [&_.markdown-content]:!font-sans [&_.markdown-content_*]:!font-sans",
+          "agent-trace__thinking-viewport app-scrollbar relative max-h-[11rem] overflow-y-auto rounded-xl border border-zinc-200/70 bg-zinc-50/55 px-3 py-2.5 font-sans text-[12.5px] leading-[1.55] text-zinc-600 [&_.markdown-content]:!font-sans [&_.markdown-content_*]:!font-sans",
           streaming && "shadow-[inset_0_-16px_18px_-20px_rgba(24,24,27,0.3)]",
         )}
         aria-live={streaming ? "polite" : undefined}
+        data-agent-thinking-viewport="true"
       >
         <div className="thinking-markdown">
           <MarkdownRenderer
@@ -105,7 +120,6 @@ export function AgentThinkingStep({
           />
         </div>
       </div>
-      </AgentTimelineStep>
-    </div>
+    </AgentTraceBlock>
   );
 }

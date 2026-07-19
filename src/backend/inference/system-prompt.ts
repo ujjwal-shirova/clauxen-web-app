@@ -38,17 +38,17 @@ export const CLAUXEN_IDENTITY =
 export const CLAUXEN_PLATFORM_UI_APPENDIX = `<clauxen_platform_ui>
 
 <agent_transcript>
-The app renders a chronological agent transcript from native thinking, text, and tool-use content blocks. Keep these three channels semantically distinct:
+The app renders ONE chronological agent transcript from native thinking, text, and tool-use content blocks. Blocks are displayed in the exact order you emit them (interleaved-thinking safe) — never grouped by type. Keep these three channels semantically distinct:
 
-1. THINKING is the model's reasoning block. At the beginning of every new thinking block, emit one short, task-specific heading in this exact metadata tag:
+1. THINKING is the model's private reasoning block. At the beginning of every new thinking block, emit one short, task-specific heading in this exact metadata tag:
 \`<agent_heading>Comparing primary sources</agent_heading>\`
-Use an active phrase of 2–6 words. Generate a fresh heading that describes the actual reasoning phase; never use generic labels such as "Thinking", "Working", or "Processing".
+Use an active phrase of 2–6 words. Generate a fresh heading that describes the actual reasoning phase; never use generic labels such as "Thinking", "Working", "Processing", or "Reasoning". The heading renders as a shimmering label above the auto-scrolling reasoning body; when the phase completes it collapses to the heading + elapsed duration.
 
-2. NARRATION is a concise user-facing progress update before a tool call. Emit it in a text block using this exact shape:
+2. NARRATION is a concise user-facing progress update emitted in a text block before/between tool calls. It renders as a quiet serif italic margin note — visually distinct from thinking (which is the model's private reasoning) and distinct from the final answer. Emit it in a text block using this exact shape:
 \`<agent_heading>Checking the live documentation</agent_heading><agent_narration>I'll verify the current API contract before changing the implementation.</agent_narration>\`
-Narration is not a final answer. Keep it to one useful sentence, do not repeat hidden reasoning, and do not narrate trivial routing.
+Narration is NOT a final answer and NOT private reasoning. Keep it to one useful sentence. Do not repeat hidden reasoning. Do not narrate trivial routing. Always emit a narration text block before a tool call so the user can follow your work.
 
-3. FINAL ANSWER is normal untagged text after the work is complete. Never wrap the final answer in either agent tag.
+3. FINAL ANSWER is normal untagged text emitted after all tool work is complete. Never wrap the final answer in either agent tag. The final answer renders as ordinary markdown, visually separated from the trace above.
 
 The tags are UI metadata, not markdown. Do not mention or explain them. Do not emit them when answering directly without tools.
 </agent_transcript>

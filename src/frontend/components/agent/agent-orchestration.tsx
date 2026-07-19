@@ -8,12 +8,53 @@ import { StreamingOrbCursor } from "@/frontend/components/ui/streaming-orb-curso
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
 import { shouldShowAssistantStreamingOrb } from "@/frontend/lib/streaming-orb-policy";
 import { cn } from "@/frontend/lib/utils";
-import { AgentWorkFrame } from "./agent-work-frame";
+import { AgentTrace } from "./agent-trace";
+import { AgentThinkingPhase } from "./agent-thinking-phase";
+import { AgentNarrationNote } from "./agent-narration-note";
+import { AgentToolBlock } from "./agent-tool-blocks";
 import { ArtifactFileCard } from "./artifact-file-card";
+import type {
+  AgentNarrationSegment,
+  AgentSegment,
+  AgentTextSegment,
+  AgentThinkingSegment,
+  AgentToolSegment,
+} from "@/frontend/lib/agent-segments";
+
+function isThinkingSegment(
+  segment: AgentSegment,
+): segment is AgentThinkingSegment {
+  return segment.kind === "thinking";
+}
+
+function isToolSegment(segment: AgentSegment): segment is AgentToolSegment {
+  return segment.kind === "tool";
+}
+
+function isNarrationSegment(
+  segment: AgentSegment,
+): segment is AgentNarrationSegment | AgentTextSegment {
+  return segment.kind === "narration" || segment.kind === "text";
+}
+
+function traceSegments(segments: AgentSegment[]): AgentSegment[] {
+  return segments.filter(
+    (segment) =>
+      segment.kind === "thinking" ||
+      segment.kind === "narration" ||
+      segment.kind === "text" ||
+      segment.kind === "tool",
+  );
+}
 
 /**
- * Chronological Clauxen activity trace followed by an ordinary assistant
- * answer. Progress narration is deliberately quieter than final output.
+ * Clauxen agent transcript — a single chronological trace of interleaved
+ * thinking, narration, and tool execution, followed by the ordinary
+ * final-answer markdown.
+ *
+ * The trace preserves the model's emit order (interleaved-thinking safe):
+ * thinking → narration → tool → thinking → tool → … → final answer.
+ * Each segment kind owns its own minimal visual treatment.
  */
 export function AgentOrchestrationView({
   message,
@@ -53,15 +94,35 @@ export function AgentOrchestrationView({
     >
       {blocks.map((block) => {
         if (block.kind === "timeline") {
+          const segments = traceSegments(block.frame.segments);
+          if (segments.length === 0) return null;
           return (
-            <AgentWorkFrame
-              key={block.frame.id}
-              segments={block.frame.segments}
-              isStreaming={block.isActive}
-              frameComplete={block.frame.complete}
-              startedAtMs={block.frame.startedAtMs}
-              completedAtMs={block.frame.completedAtMs}
-            />
+            <AgentTrace key={block.frame.id}>
+              {segments.map((segment) => {
+                if (isThinkingSegment(segment)) {
+                  return (
+                    <AgentThinkingPhase key={segment.id} segment={segment} />
+                  );
+                }
+                if (isNarrationSegment(segment)) {
+                  return (
+                    <AgentNarrationNote key={segment.id} segment={segment} />
+                  );
+                }
+                if (isToolSegment(segment)) {
+                  return (
+                    <div
+                      key={segment.id}
+                      className="min-w-0"
+                      data-agent-tool-group={segment.name}
+                    >
+                      <AgentToolBlock tool={segment} />
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </AgentTrace>
           );
         }
 

@@ -36,7 +36,7 @@ import {
   type AgentToolSegment,
   type WebSearchResult,
 } from "@/frontend/lib/agent-segments";
-import { AgentTimelineStep } from "./agent-timeline";
+import { AgentToolCard, ToolRunningDot } from "./agent-tool-card";
 import { AgentFileBlock, PresentFilesBlock } from "./agent-file-block";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
 import { StreamingTextFade } from "@/frontend/lib/streaming-text-fade";
@@ -149,17 +149,13 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   }, [visibleResults.length, isRunning]);
 
   return (
-    <AgentTimelineStep
-      icon="search"
-      isActive={isRunning}
-      title={
-        <span className={cn(isRunning && "shimmer-text")}>
-          {tool.description || query}
-        </span>
-      }
-      trailing={
+    <AgentToolCard
+      variant="search"
+      label={tool.description || query}
+      isRunning={isRunning}
+      statusPill={
         isRunning ? (
-          <LoaderCircle className="h-3 w-3 animate-spin" aria-hidden />
+          <ToolRunningDot />
         ) : results.length > 0 ? (
           <span className="tabular-nums">{results.length} results</span>
         ) : undefined
@@ -187,12 +183,12 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
           </div>
         </div>
       ) : null}
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
 /** Autoscrolls a growing <pre>/code area to its latest line, same pattern as
- * AgentThinkingStep / AgentWebSearchBlock's result list. */
+ * AgentThinkingPhase / AgentWebSearchBlock's result list. */
 function useAutoScrollToBottom(dep: unknown) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -227,12 +223,10 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
   const outputScrollRef = useAutoScrollToBottom(output);
 
   return (
-    <AgentTimelineStep
-      icon="bash"
-      isActive={isRunning}
-      title={
-        <span className={cn(isRunning && "shimmer-text")}>{description}</span>
-      }
+    <AgentToolCard
+      variant="bash"
+      label={description}
+      isRunning={isRunning}
     >
       <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.03)]">
         <div className="border-b border-zinc-100 bg-[#f4f4f5] px-3 py-2.5">
@@ -276,7 +270,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
           </div>
         ) : null}
       </div>
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -287,11 +281,11 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
   const isRunning = tool.status === "running";
 
   return (
-    <AgentTimelineStep
-      icon="tool"
-      isActive={isRunning}
-      title={<span className={cn(isRunning && "shimmer-text")}>{label}</span>}
-      trailing={
+    <AgentToolCard
+      variant="tool"
+      label={label}
+      isRunning={isRunning}
+      statusPill={
         isRunning ? (
           <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
         ) : undefined
@@ -304,7 +298,7 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
           </pre>
         </div>
       ) : null}
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -316,10 +310,10 @@ export function AskUserInputBlock({ tool }: { tool: AgentToolSegment }) {
   // Interactive questionnaire renders in the composer slot — not inside the
   // agentic activity frame.
   return (
-    <AgentTimelineStep
-      icon="tool"
-      isActive={isRunning}
-      title={isRunning ? "Asking Questions" : "Asked Questions"}
+    <AgentToolCard
+      variant="tool"
+      label={isRunning ? "Asking questions" : "Asked questions"}
+      isRunning={isRunning}
     />
   );
 }
@@ -329,7 +323,11 @@ export function SportsDataBlock({ tool }: { tool: AgentToolSegment }) {
   const isRunning = tool.status === "running";
 
   return (
-    <AgentTimelineStep icon="tool" isActive={isRunning} title="Sports Scores & Stats">
+    <AgentToolCard
+      variant="tool"
+      label="Sports scores & stats"
+      isRunning={isRunning}
+    >
       {isRunning ? (
         <div className="text-[13px] text-zinc-500">Fetching live sports data...</div>
       ) : result ? (
@@ -367,7 +365,7 @@ export function SportsDataBlock({ tool }: { tool: AgentToolSegment }) {
           )}
         </div>
       ) : null}
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -399,14 +397,10 @@ export function ImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
   const images = parsed?.images ?? [];
 
   return (
-    <AgentTimelineStep
-      icon="tool"
-      isActive={isRunning}
-      title={
-        <span className={cn(isRunning && "shimmer-text")}>
-          {query ? `Image search: ${query}` : "Image search"}
-        </span>
-      }
+    <AgentToolCard
+      variant="tool"
+      label={query ? `Image search: ${query}` : "Image search"}
+      isRunning={isRunning}
     >
       {isRunning ? (
         <div className="flex items-center gap-2 text-[12px] text-zinc-500">
@@ -440,10 +434,10 @@ export function ImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
                 </span>
               ) : null}
             </a>
-          ))}
+          )          )}
         </div>
       )}
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -465,7 +459,11 @@ export function MessageComposeBlock({ tool }: { tool: AgentToolSegment }) {
   };
 
   return (
-    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title="Message Drafter">
+    <AgentToolCard
+      variant="tool"
+      label="Message drafter"
+      isRunning={tool.status === "running"}
+    >
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
         {tool.args?.summary_title && (
           <div className="bg-zinc-50 px-4 py-2 border-b border-zinc-100 text-[13px] font-semibold text-zinc-700">
@@ -513,7 +511,7 @@ export function MessageComposeBlock({ tool }: { tool: AgentToolSegment }) {
           </div>
         )}
       </div>
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -523,7 +521,11 @@ export function MapDisplayBlock({ tool }: { tool: AgentToolSegment }) {
   const narrative = tool.args?.narrative ? String(tool.args.narrative) : undefined;
 
   return (
-    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title={String(tool.args?.title ?? "Interactive Map")}>
+    <AgentToolCard
+      variant="tool"
+      label={String(tool.args?.title ?? "Interactive map")}
+      isRunning={tool.status === "running"}
+    >
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
         {narrative && (
           <div className="p-4 border-b border-zinc-100 text-[13px] text-zinc-600 leading-relaxed">
@@ -556,7 +558,7 @@ export function MapDisplayBlock({ tool }: { tool: AgentToolSegment }) {
           ))}
         </div>
       </div>
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -637,16 +639,14 @@ export function WeatherBlock({ tool }: { tool: AgentToolSegment }) {
 
   if (isRunning || !parsed) {
     return (
-      <AgentTimelineStep
-        icon="tool"
-        isActive={isRunning}
-        title={
-          <span className={cn(isRunning && "shimmer-text")}>
-            {isRunning
-              ? `Checking the weather${locationName ? ` in ${locationName}` : ""}`
-              : "Weather"}
-          </span>
+      <AgentToolCard
+        variant="tool"
+        label={
+          isRunning
+            ? `Checking the weather${locationName ? ` in ${locationName}` : ""}`
+            : "Weather"
         }
+        isRunning={isRunning}
       >
         {isRunning ? (
           <div className="flex items-center gap-2 text-[12px] text-zinc-500">
@@ -654,15 +654,15 @@ export function WeatherBlock({ tool }: { tool: AgentToolSegment }) {
             Fetching forecast…
           </div>
         ) : null}
-      </AgentTimelineStep>
+      </AgentToolCard>
     );
   }
 
   if ("error" in parsed) {
     return (
-      <AgentTimelineStep icon="tool" title="Weather">
+      <AgentToolCard variant="tool" label="Weather">
         <div className="text-[13px] text-red-600">{parsed.error}</div>
-      </AgentTimelineStep>
+      </AgentToolCard>
     );
   }
 
@@ -675,7 +675,7 @@ export function WeatherBlock({ tool }: { tool: AgentToolSegment }) {
   const CurrentIcon = weatherIconFor(current.weatherCode, current.isDay);
 
   return (
-    <AgentTimelineStep icon="tool" title={placeLabel || locationName || "Weather"}>
+    <AgentToolCard variant="tool" label={placeLabel || locationName || "Weather"}>
       <div className="w-full max-w-md overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
         <div className="flex items-center justify-between bg-gradient-to-br from-sky-50 to-white p-4">
           <div className="flex items-center gap-3">
@@ -747,7 +747,7 @@ export function WeatherBlock({ tool }: { tool: AgentToolSegment }) {
           })}
         </div>
       </div>
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -785,15 +785,13 @@ export function PlacesSearchBlock({ tool }: { tool: AgentToolSegment }) {
   const results = parsed?.results ?? [];
 
   return (
-    <AgentTimelineStep
-      icon="search"
-      isActive={isRunning}
-      title={
-        <span className={cn(isRunning && "shimmer-text")}>
-          {query ? `Searching places: ${query}` : "Searching places"}
-        </span>
+    <AgentToolCard
+      variant="search"
+      label={query ? `Searching places: ${query}` : "Searching places"}
+      isRunning={isRunning}
+      statusPill={
+        !isRunning && results.length > 0 ? `${results.length} results` : undefined
       }
-      trailing={!isRunning && results.length > 0 ? `${results.length} results` : undefined}
     >
       {isRunning ? (
         <div className="flex items-center gap-2 text-[12px] text-zinc-500">
@@ -828,7 +826,7 @@ export function PlacesSearchBlock({ tool }: { tool: AgentToolSegment }) {
           ))}
         </div>
       )}
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -841,7 +839,11 @@ export function RecipeDisplayBlock({ tool }: { tool: AgentToolSegment }) {
   const description = tool.args?.description ? String(tool.args.description) : undefined;
 
   return (
-    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title={String(tool.args?.title ?? "Recipe")}>
+    <AgentToolCard
+      variant="tool"
+      label={String(tool.args?.title ?? "Recipe")}
+      isRunning={tool.status === "running"}
+    >
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
         {description && (
           <div className="p-4 border-b border-zinc-100 text-[13px] text-zinc-600">
@@ -898,7 +900,7 @@ export function RecipeDisplayBlock({ tool }: { tool: AgentToolSegment }) {
           </div>
         </div>
       </div>
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -919,7 +921,11 @@ export function RecommendClaudeAppsBlock({ tool }: { tool: AgentToolSegment }) {
   };
 
   return (
-    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title="Recommended Apps">
+    <AgentToolCard
+      variant="tool"
+      label="Recommended apps"
+      isRunning={tool.status === "running"}
+    >
       <div className="flex flex-col gap-2 max-w-md">
         {appIds.map((id) => (
           <div key={id} className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm flex justify-between items-center">
@@ -933,7 +939,7 @@ export function RecommendClaudeAppsBlock({ tool }: { tool: AgentToolSegment }) {
           </div>
         ))}
       </div>
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
@@ -941,7 +947,11 @@ export function SuggestConnectorsBlock({ tool }: { tool: AgentToolSegment }) {
   const uuids = (tool.args?.uuids as string[]) ?? [];
 
   return (
-    <AgentTimelineStep icon="tool" isActive={tool.status === "running"} title="Connect to Services">
+    <AgentToolCard
+      variant="tool"
+      label="Connect to services"
+      isRunning={tool.status === "running"}
+    >
       <div className="flex flex-col gap-2 max-w-md">
         {uuids.map((uuid) => (
           <div key={uuid} className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm flex justify-between items-center">
@@ -955,7 +965,7 @@ export function SuggestConnectorsBlock({ tool }: { tool: AgentToolSegment }) {
           </div>
         ))}
       </div>
-    </AgentTimelineStep>
+    </AgentToolCard>
   );
 }
 
