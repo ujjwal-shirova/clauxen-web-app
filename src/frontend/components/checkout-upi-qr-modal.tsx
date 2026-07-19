@@ -1,15 +1,22 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { CheckoutPaymentIcon } from "@/frontend/components/checkout-payment-icon";
 import { UPI_APP_ICONS } from "@/lib/checkout-payment-icons";
 import { cn } from "@/frontend/lib/utils";
+
+const DEFAULT_QR_TTL_SECONDS = 20 * 60;
 
 function formatCountdown(totalSeconds: number): string {
   const safe = Math.max(0, totalSeconds);
   const m = Math.floor(safe / 60);
   const s = safe % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function secondsUntil(closeBy: number | null | undefined): number {
+  if (!closeBy) return DEFAULT_QR_TTL_SECONDS;
+  return Math.max(0, closeBy - Math.floor(Date.now() / 1000));
 }
 
 export function CheckoutUpiQrModal({
@@ -24,45 +31,69 @@ export function CheckoutUpiQrModal({
   amountLabel: string;
   /** Unix seconds — countdown target for the QR session. */
   closeBy?: number | null;
-  onClose: () => void;
+  onClose: (reason?: "cancel" | "timeout") => void;
 }) {
-  const initialSeconds = useMemo(() => {
-    if (!closeBy) return 20 * 60;
-    return Math.max(0, closeBy - Math.floor(Date.now() / 1000));
-  }, [closeBy, open]);
-
-  const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [countdownActive, setCountdownActive] = useState(false);
+  const expiredHandledRef = useRef(false);
+  const qrReady = Boolean(imageUrl) && imageLoaded;
 
   useEffect(() => {
-    if (!open) return;
-    setSecondsLeft(initialSeconds);
-  }, [open, initialSeconds]);
+    if (!open) {
+      setImageLoaded(false);
+      setSecondsLeft(0);
+      setCountdownActive(false);
+      expiredHandledRef.current = false;
+      return;
+    }
+    setImageLoaded(false);
+    setSecondsLeft(0);
+    setCountdownActive(false);
+    expiredHandledRef.current = false;
+  }, [open]);
 
   useEffect(() => {
     setImageLoaded(false);
+    setCountdownActive(false);
+    expiredHandledRef.current = false;
   }, [imageUrl]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onClose("cancel");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Start countdown only after the QR image is actually visible.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !qrReady) return;
+    setSecondsLeft(secondsUntil(closeBy));
+    setCountdownActive(true);
+  }, [open, qrReady, closeBy]);
+
+  useEffect(() => {
+    if (!open || !countdownActive) return;
     const id = window.setInterval(() => {
       setSecondsLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => window.clearInterval(id);
-  }, [open]);
+  }, [open, countdownActive]);
+
+  // Auto-close when the QR session expires (only after countdown has started).
+  useEffect(() => {
+    if (!open || !countdownActive) return;
+    if (secondsLeft > 0 || expiredHandledRef.current) return;
+    expiredHandledRef.current = true;
+    onClose("timeout");
+  }, [open, countdownActive, secondsLeft, onClose]);
 
   if (!open) return null;
 
-  const showShimmer = !imageUrl || !imageLoaded;
+  const showShimmer = !qrReady;
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center">
@@ -70,7 +101,7 @@ export function CheckoutUpiQrModal({
       <div
         aria-hidden
         className="absolute inset-0 bg-[rgba(24,24,27,0.42)] backdrop-blur-[6px]"
-        onClick={onClose}
+        onClick={() => onClose("cancel")}
       />
 
       <div
@@ -89,32 +120,48 @@ export function CheckoutUpiQrModal({
           >
             UPI QR
           </h2>
-          <div
-            className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[13px] font-medium tabular-nums text-zinc-700"
-            aria-live="polite"
-            title="QR expires in"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden
-              className="text-zinc-500"
+          {qrReady ? (
+            <div
+              className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[13px] font-medium tabular-nums text-zinc-700"
+              aria-live="polite"
+              title="QR expires in"
             >
-              <path
-                d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM8 3a.75.75 0 0 1 .75.75v3.69l2.16 1.25a.75.75 0 1 1-.75 1.3l-2.5-1.44A.75.75 0 0 1 7.25 8V3.75A.75.75 0 0 1 8 3Z"
-                fill="currentColor"
-              />
-            </svg>
-            {formatCountdown(secondsLeft)}
-          </div>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden
+                className="text-zinc-500"
+              >
+                <path
+                  d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM8 3a.75.75 0 0 1 .75.75v3.69l2.16 1.25a.75.75 0 1 1-.75 1.3l-2.5-1.44A.75.75 0 0 1 7.25 8V3.75A.75.75 0 0 1 8 3Z"
+                  fill="currentColor"
+                />
+              </svg>
+              {formatCountdown(secondsLeft)}
+            </div>
+          ) : (
+            <div className="h-7 w-[72px]" aria-hidden />
+          )}
         </div>
 
         <div className="px-5 pb-6 pt-3 sm:px-6">
           <div className="rounded-2xl bg-zinc-100/90 p-4 sm:p-5">
             <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
-              <div className="relative shrink-0 overflow-hidden rounded-xl bg-white p-2.5 shadow-[0_1px_2px_rgba(24,24,27,0.06)]">
+              {/* Fixed square — never collapse to a black/white dot while loading */}
+              <div
+                className="relative h-[168px] w-[168px] shrink-0 overflow-hidden rounded-xl bg-zinc-200/60 shadow-[0_1px_2px_rgba(24,24,27,0.06)]"
+                aria-busy={showShimmer}
+              >
+                {showShimmer ? (
+                  <div
+                    className="checkout-upi-qr-shimmer absolute inset-0 rounded-xl"
+                    aria-label="Generating QR code"
+                    role="status"
+                  />
+                ) : null}
+
                 {imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- same-origin QR proxy
                   <img
@@ -123,21 +170,13 @@ export function CheckoutUpiQrModal({
                     width={168}
                     height={168}
                     className={cn(
-                      "h-[168px] w-[168px] transition-opacity duration-300",
+                      "relative z-[1] h-[168px] w-[168px] bg-white object-contain transition-opacity duration-300",
                       imageLoaded ? "opacity-100" : "opacity-0",
                     )}
                     referrerPolicy="no-referrer"
                     decoding="async"
                     onLoad={() => setImageLoaded(true)}
                     onError={() => setImageLoaded(true)}
-                  />
-                ) : null}
-
-                {showShimmer ? (
-                  <div
-                    className="checkout-upi-qr-shimmer absolute inset-2.5 rounded-lg"
-                    aria-label="Generating QR code"
-                    role="status"
                   />
                 ) : null}
               </div>
@@ -171,7 +210,7 @@ export function CheckoutUpiQrModal({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => onClose("cancel")}
             className="no-hover mt-4 w-full rounded-xl py-2.5 text-[14px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
           >
             Cancel

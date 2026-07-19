@@ -705,7 +705,10 @@ export function BillingCheckout({
         if (!checkout.upi.qrId) {
           throw new Error("UPI QR could not be generated.");
         }
-        setUpiCloseBy(checkout.upi.closeBy ?? null);
+        setUpiCloseBy(
+          checkout.upi.closeBy ??
+            Math.floor(Date.now() / 1000) + 20 * 60,
+        );
         setUpiQrImageUrl(
           `/api/v1/billing/orders/upi/qr/${encodeURIComponent(checkout.upi.qrId)}/image`,
         );
@@ -815,14 +818,21 @@ export function BillingCheckout({
     }
   };
 
-  const handleUpiModalClose = () => {
-    setUpiModalOpen(false);
-    setUpiPoll(null);
-    setUpiQrImageUrl(null);
-    setUpiCloseBy(null);
-    setPaying(false);
-    setPayError(PAYMENT_FAILED_MESSAGE);
-  };
+  const handleUpiModalClose = useCallback(
+    (reason: "cancel" | "timeout" = "cancel") => {
+      setUpiModalOpen(false);
+      setUpiPoll(null);
+      setUpiQrImageUrl(null);
+      setUpiCloseBy(null);
+      setPaying(false);
+      if (reason === "timeout") {
+        setPayError("UPI QR expired. Please try again.");
+      } else {
+        setPayError(PAYMENT_FAILED_MESSAGE);
+      }
+    },
+    [],
+  );
 
   const billingCycleToggle = !isMaxPlan && !isVariableCheckoutPlan && (
     <div className="grid grid-cols-2 gap-2 sm:gap-4">

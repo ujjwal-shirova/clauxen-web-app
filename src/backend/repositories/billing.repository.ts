@@ -54,6 +54,26 @@ export async function getBillingOrderByRazorpayId(razorpayOrderId: string) {
   );
 }
 
+/** UPI QR / payment-link checkout — look up order by metadata.upiQrId (qr_* or plink_*). */
+export async function getBillingOrderByUpiQrId(upiQrId: string) {
+  assertNonEmpty(upiQrId, "upi qr id");
+  return queryOne<{
+    id: string;
+    user_id: string;
+    razorpay_order_id: string;
+    amount_paise: number;
+    currency: string;
+    status: string;
+  }>(
+    `select id, user_id, razorpay_order_id, amount_paise, currency, status
+     from public.billing_orders
+     where metadata->>'upiQrId' = $1
+     order by created_at desc
+     limit 1`,
+    [upiQrId],
+  );
+}
+
 export async function getBillingOrderDetailsByRazorpayId(
   razorpayOrderId: string,
 ) {

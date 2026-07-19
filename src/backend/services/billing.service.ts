@@ -51,6 +51,7 @@ const RAZORPAY_PAYMENT_ID_RE = /^pay_[A-Za-z0-9]{8,40}$/;
 const RAZORPAY_SIGNATURE_RE = /^[a-f0-9]{64}$/i;
 const MAX_CHECKOUT_SUBTOTAL_PAISE = 100_000_000; // ₹1M cap — reject tampered or absurd checkout amounts
 const WEBHOOK_CAPTURE_EVENT = "payment.captured";
+const WEBHOOK_QR_CREDITED_EVENT = "qr_code.credited";
 const CAPTURED_PAYMENT_STATUS = "captured";
 
 function assertPositiveIntegerPaise(value: number, label: string) {
@@ -581,10 +582,56 @@ export async function handleRazorpayWebhook(payload: {
         id?: string;
         status?: string;
         amount?: number;
+        method?: string;
+        notes?: Record<string, string> | string[];
+      };
+    };
+    qr_code?: {
+      entity?: {
+        id?: string;
+        status?: string;
+        notes?: Record<string, string> | string[];
       };
     };
   };
 }) {
+  if (payload.event === WEBHOOK_QR_CREDITED_EVENT) {
+    const qrId = payload.payload.qr_code?.entity?.id;
+    if (!qrId || !/^qr_[A-Za-z0-9]{8,40}$/.test(qrId)) {
+      return { status: "ignored", reason: "invalid_qr_id" };
+    }
+
+    const order = await billingRepo.getBillingOrderByUpiQrId(qrId);
+    if (!order) {
+      return { status: "ignored", reason: "qr_order_not_found" };
+    }
+
+    const payments = await fetchRazorpayQrPayments(qrId);
+    const captured = payments.items.find((p) => p.status === "captured");
+    if (!captured?.id || !captured.order_id) {
+      return { status: "ignored", reason: "qr_payment_pending" };
+    }
+
+    if (captured.order_id !== order.razorpay_order_id) {
+      await billingRepo.syncBillingOrderRazorpayId(order.id, captured.order_id);
+    }
+
+    const result = await billingRepo.fulfillPayment({
+      orderId: captured.order_id,
+      paymentId: captured.id,
+      paymentStatus: "captured",
+      paymentMethod: captured.method ?? "upi",
+      amountPaise: captured.amount,
+      currency: "INR",
+      source: "webhook",
+      webhookEventName: payload.event,
+      providerPayload: { qrId, channel: "upi_qr" },
+    });
+
+    await enqueueInvoiceGeneration(captured.order_id, captured.id);
+    return result;
+  }
+
   if (payload.event !== WEBHOOK_CAPTURE_EVENT) {
     return { status: "ignored", reason: "unsupported_event" };
   }
@@ -609,10 +656,33 @@ export async function handleRazorpayWebhook(payload: {
     return { status: "ignored", reason: "invalid_amount" };
   }
 
+  // UPI QR payments may create a new Razorpay order_id — resolve via notes or metadata.
+  let razorpayOrderId = payment.order_id;
+  const existing = await billingRepo.getBillingOrderByRazorpayId(razorpayOrderId);
+  if (!existing) {
+    const notes =
+      payment.notes && !Array.isArray(payment.notes) ? payment.notes : null;
+    const billingOrderId = notes?.billing_order_id?.trim();
+    const upiQrId = notes?.upiQrId?.trim() || notes?.upi_qr_id?.trim();
+
+    if (billingOrderId) {
+      const byId = await billingRepo.getBillingOrderById(billingOrderId);
+      if (byId) {
+        await billingRepo.syncBillingOrderRazorpayId(byId.id, razorpayOrderId);
+      }
+    } else if (upiQrId) {
+      const byQr = await billingRepo.getBillingOrderByUpiQrId(upiQrId);
+      if (byQr) {
+        await billingRepo.syncBillingOrderRazorpayId(byQr.id, razorpayOrderId);
+      }
+    }
+  }
+
   const result = await billingRepo.fulfillPayment({
-    orderId: payment.order_id,
+    orderId: razorpayOrderId,
     paymentId: payment.id,
     paymentStatus,
+    paymentMethod: payment.method ?? "card",
     amountPaise,
     currency: "INR",
     source: "webhook",
