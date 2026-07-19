@@ -10,14 +10,17 @@ import {
 } from "@/backend/billing/checkout-session";
 import {
   createRazorpayOrder,
+  createRazorpayUpiPaymentLink,
   createRazorpayUpiQr,
   fetchRazorpayOrder,
   fetchRazorpayPayment,
+  fetchRazorpayPaymentLink,
   fetchRazorpayQrCode,
   fetchRazorpayQrPayments,
   isRazorpayConfigured,
   newOrderId,
   newReceipt,
+  renderPaymentQrPng,
   verifyPaymentSignatureSecure,
 } from "@/backend/billing/razorpay"; // payment gateway integration
 import {
@@ -256,12 +259,15 @@ export async function createUpiCheckoutPayment(input: {
     },
   });
 
-  // Prefer UPI QR Codes API when enabled on the merchant account.
-  // If Razorpay returns "URL not found", the QR product is not activated —
-  // fall back to Standard Checkout UPI (intent/collect) so pay still works.
-  let qr: Awaited<ReturnType<typeof createRazorpayUpiQr>> | null = null;
+  // Prefer UPI QR Codes API. If not enabled on the merchant, fall back to a
+  // UPI payment link + locally rendered QR — never open Razorpay hosted Checkout.
+  let qrId: string;
+  let closeBy: number | null = null;
+  let channel: "upi_qr" | "upi_payment_link" = "upi_qr";
+  let imageUrl: string | null = null;
+
   try {
-    qr = await createRazorpayUpiQr({
+    const qr = await createRazorpayUpiQr({
       amountPaise: totalInrPaise,
       description: input.planName,
       preferDirect,
@@ -272,15 +278,40 @@ export async function createUpiCheckoutPayment(input: {
         checkout_session: input.sessionId.slice(0, 120),
       },
     });
+    qrId = qr.id;
+    closeBy = qr.close_by ?? null;
+    imageUrl = qr.image_url;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const unavailable =
       /not found on the server|not enabled|BAD_REQUEST_ERROR/i.test(message);
     if (!unavailable) throw err;
+
     console.warn(
-      "[billing] UPI QR Codes API unavailable — falling back to Checkout UPI",
+      "[billing] UPI QR Codes API unavailable — using UPI payment link QR",
       message,
     );
+
+    const expireBySeconds = 20 * 60;
+    const link = await createRazorpayUpiPaymentLink({
+      amountPaise: totalInrPaise,
+      description: input.planName,
+      customerName: input.billingDetails.fullName || input.billingDetails.billToName,
+      customerEmail: input.userEmail,
+      expireBySeconds,
+      notes: {
+        billing_order_id: orderId,
+        user_id: input.userId,
+        plan_id: planId,
+        razorpay_order_id: razorpay.id,
+        checkout_session: input.sessionId.slice(0, 120),
+      },
+    });
+    qrId = link.id;
+    channel = "upi_payment_link";
+    closeBy = Math.floor(Date.now() / 1000) + expireBySeconds;
+    // Image served same-origin via /upi/qr/:id/image (renders PNG from short_url).
+    imageUrl = null;
   }
 
   const order = await billingRepo.createBillingOrder({
@@ -300,8 +331,8 @@ export async function createUpiCheckoutPayment(input: {
     metadata: {
       billingDetails: input.billingDetails,
       checkoutCurrency: "INR",
-      channel: qr ? "upi_qr" : "upi_checkout",
-      ...(qr ? { upiQrId: qr.id } : {}),
+      channel,
+      upiQrId: qrId,
       tax: {
         label: tax.taxLabel,
         paise: tax.taxPaise,
@@ -326,19 +357,12 @@ export async function createUpiCheckoutPayment(input: {
       currency: razorpay.currency,
       keyId: env.publicRazorpayKeyId || env.razorpayKeyId,
     },
-    upi: qr
-      ? {
-          mode: "qr" as const,
-          qrId: qr.id,
-          imageUrl: qr.image_url,
-          closeBy: qr.close_by ?? null,
-        }
-      : {
-          mode: "checkout" as const,
-          qrId: null,
-          imageUrl: null,
-          closeBy: null,
-        },
+    upi: {
+      mode: "qr" as const,
+      qrId,
+      imageUrl,
+      closeBy,
+    },
   };
 }
 
@@ -350,6 +374,52 @@ export async function pollUpiQrPayment(input: {
   const order = await billingRepo.getBillingOrderById(input.billingOrderId);
   if (!order || order.user_id !== input.userId) {
     throw new AppError("Order not found.", 404, "not_found");
+  }
+
+  // Payment-link fallback path (when QR Codes API is unavailable).
+  if (input.qrId.startsWith("plink_")) {
+    const link = await fetchRazorpayPaymentLink(input.qrId);
+    if (link.status !== "paid" && (link.amount_paid ?? 0) < order.amount_paise) {
+      return { status: "pending" as const, qrStatus: link.status };
+    }
+
+    const payments = Array.isArray(link.payments) ? link.payments : [];
+    const captured = payments.find(
+      (p) =>
+        (p.status === "captured" || p.status === "authorized") &&
+        Boolean(p.payment_id),
+    );
+    if (!captured?.payment_id) {
+      return { status: "pending" as const, qrStatus: link.status };
+    }
+
+    const paymentEntity = await fetchRazorpayPayment(captured.payment_id);
+    if (paymentEntity.amount !== order.amount_paise) {
+      throw new AppError("Payment amount mismatch.", 400, "amount_mismatch");
+    }
+
+    const razorpayOrderId =
+      paymentEntity.order_id || captured.order_id || order.razorpay_order_id;
+    if (razorpayOrderId !== order.razorpay_order_id) {
+      await billingRepo.syncBillingOrderRazorpayId(order.id, razorpayOrderId);
+    }
+
+    const result = await billingRepo.fulfillPayment({
+      orderId: razorpayOrderId,
+      paymentId: captured.payment_id,
+      paymentStatus: "captured",
+      paymentMethod: paymentEntity.method ?? "upi",
+      amountPaise: paymentEntity.amount,
+      source: "checkout",
+      providerPayload: {
+        paymentLinkId: input.qrId,
+        channel: "upi_payment_link",
+        verifiedAt: new Date().toISOString(),
+      },
+    });
+
+    await enqueueInvoiceGeneration(razorpayOrderId, captured.payment_id);
+    return { status: "paid" as const, fulfillment: result };
   }
 
   const qr = await fetchRazorpayQrCode(input.qrId);

@@ -178,6 +178,7 @@ export function BillingCheckout({
   );
   const [upiModalOpen, setUpiModalOpen] = useState(false);
   const [upiQrImageUrl, setUpiQrImageUrl] = useState<string | null>(null);
+  const [upiCloseBy, setUpiCloseBy] = useState<number | null>(null);
   const [upiPoll, setUpiPoll] = useState<{
     qrId: string;
     billingOrderId: string;
@@ -687,7 +688,10 @@ export function BillingCheckout({
 
     try {
       if (tab === "upi") {
+        // Always use our custom QR modal — never Razorpay hosted Checkout.
         setUpiQrImageUrl(null);
+        setUpiCloseBy(null);
+        setUpiModalOpen(true);
         setUpiPoll(null);
         const checkout = await createUpiBillingPayment({
           checkoutSessionId,
@@ -698,45 +702,10 @@ export function BillingCheckout({
             : {}),
         });
 
-        // QR Codes product may be off — Standard Checkout UPI still works.
-        if (checkout.upi.mode === "checkout") {
-          const keyId = checkout.razorpay.keyId;
-          if (!keyId) throw new Error("Razorpay is not configured for checkout.");
-          await openRazorpayCheckout({
-            keyId,
-            orderId: checkout.razorpay.orderId,
-            amount: checkout.razorpay.amount,
-            currency: checkout.razorpay.currency,
-            name: "Shirova",
-            description: details.name,
-            paymentMethod: "upi",
-            prefill: {
-              name: billingDetails.billToName ?? billingDetails.fullName,
-              email: auth.user?.email ?? undefined,
-            },
-            onSuccess: async (payment) => {
-              await verifyBillingPayment({
-                razorpayOrderId: payment.razorpay_order_id,
-                razorpayPaymentId: payment.razorpay_payment_id,
-                razorpaySignature: payment.razorpay_signature,
-              });
-              onPaymentSuccess?.({
-                razorpayPaymentId: payment.razorpay_payment_id,
-                razorpayOrderId: payment.razorpay_order_id,
-              });
-            },
-            onDismiss: () => {
-              setPayError(PAYMENT_FAILED_MESSAGE);
-            },
-          });
-          return;
-        }
-
         if (!checkout.upi.qrId) {
           throw new Error("UPI QR could not be generated.");
         }
-        // Same-origin proxy — avoids CSP / third-party blocks on rzp.io images.
-        setUpiModalOpen(true);
+        setUpiCloseBy(checkout.upi.closeBy ?? null);
         setUpiQrImageUrl(
           `/api/v1/billing/orders/upi/qr/${encodeURIComponent(checkout.upi.qrId)}/image`,
         );
@@ -849,6 +818,8 @@ export function BillingCheckout({
   const handleUpiModalClose = () => {
     setUpiModalOpen(false);
     setUpiPoll(null);
+    setUpiQrImageUrl(null);
+    setUpiCloseBy(null);
     setPaying(false);
     setPayError(PAYMENT_FAILED_MESSAGE);
   };
@@ -1402,10 +1373,10 @@ export function BillingCheckout({
               onCardFieldsChange={handleCardFieldsChange}
               billingAddress={billingAddress}
               onBillingAddressChange={setBillingAddress}
-              showExpressCheckout={applePayAvailable}
+              showExpressCheckout={false}
               hideUpi={!ready || isUsd}
               onExpressCheckout={() => {
-                void handleSubscribe("card", { walletExpress: true });
+                // Apple Pay / hosted Checkout disabled — card uses Custom Checkout only.
               }}
             />
           </div>
@@ -1414,6 +1385,7 @@ export function BillingCheckout({
             open={upiModalOpen}
             imageUrl={upiQrImageUrl}
             amountLabel={formatInr(total)}
+            closeBy={upiCloseBy}
             onClose={handleUpiModalClose}
           />
         </main>

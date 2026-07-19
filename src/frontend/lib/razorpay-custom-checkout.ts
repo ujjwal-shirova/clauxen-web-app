@@ -161,6 +161,8 @@ export async function chargeCardWithRazorpayCustom(
     key: input.keyId,
     name: "Shirova",
     description: input.description,
+    // Keep bank OTP / 3DS in a minimal frame — never open Standard Checkout UI.
+    theme: { color: "#18181b", backdrop_color: "#00000066" },
   });
 
   return new Promise<void>((resolve, reject) => {

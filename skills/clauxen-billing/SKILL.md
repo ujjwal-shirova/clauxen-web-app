@@ -27,8 +27,9 @@ Plans in Postgres `plans` (migrations seed catalog).
 8. Prefer Cloudflare `clauxen-billing` Worker (`BILLING_WORKER_URL`) for Razorpay REST + invoice PDF — never generate payment/invoice engines in the browser.
 9. Checkout session TTL is **6 hours**. UPI address is a full form (no Google Places). Expired hosted sessions remint for the same logged-in user (no 404). Gate full checkout UI behind auth + session mint (`CheckoutBootstrapping`); never paint the form until ready.
 10. Invoice PDFs go to dedicated R2 bucket **`clauxen-invoices`** (`invoices/{userId}/…` + `invoices/sales/YYYY/MM/…`). After generate, Worker best-effort uploads the PDF to Razorpay Documents for Dashboard → Payments → Upload Invoices.
-11. If Razorpay QR Codes API is unavailable (`URL was not found`), UPI falls back to Standard Checkout (`mode: "checkout"`) so Pay still works. QR images are served via same-origin proxy `/api/v1/billing/orders/upi/qr/:id/image`. CSP must allow `https://*.razorpay.com` / `https://*.rzp.io` for Checkout frames/scripts.
+11. UPI always uses our custom QR modal — never Razorpay Standard Checkout. Prefer QR Codes API; if unavailable, fall back to UPI payment link + locally rendered QR (`plink_*`). Images via `/api/v1/billing/orders/upi/qr/:id/image`.
 12. Hosted checkout scroll: page wrapper is `fixed inset-0 overflow-y-auto` (body is `overflow:hidden`); do not nest a second `min-h` scrollport on `BillingCheckout`.
+13. Cards: Custom Checkout `createPayment` only (on-page fields). Do not open Standard Checkout for card.
 
 ## Key paths
 

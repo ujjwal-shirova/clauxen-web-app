@@ -1,23 +1,43 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { CheckoutPaymentIcon } from "@/frontend/components/checkout-payment-icon";
 import { UPI_APP_ICONS } from "@/lib/checkout-payment-icons";
-import { checkoutUi } from "@/frontend/lib/checkout-ui";
-import { appBtn } from "@/frontend/lib/app-buttons";
 import { cn } from "@/frontend/lib/utils";
+
+function formatCountdown(totalSeconds: number): string {
+  const safe = Math.max(0, totalSeconds);
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
 
 export function CheckoutUpiQrModal({
   open,
   imageUrl,
   amountLabel,
+  closeBy,
   onClose,
 }: {
   open: boolean;
   imageUrl: string | null;
   amountLabel: string;
+  /** Unix seconds — countdown target for the QR session. */
+  closeBy?: number | null;
   onClose: () => void;
 }) {
+  const initialSeconds = useMemo(() => {
+    if (!closeBy) return 20 * 60;
+    return Math.max(0, closeBy - Math.floor(Date.now() / 1000));
+  }, [closeBy, open]);
+
+  const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
+
+  useEffect(() => {
+    if (!open) return;
+    setSecondsLeft(initialSeconds);
+  }, [open, initialSeconds]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -27,6 +47,14 @@ export function CheckoutUpiQrModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setInterval(() => {
+      setSecondsLeft((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [open]);
+
   if (!open) return null;
 
   return (
@@ -34,94 +62,105 @@ export function CheckoutUpiQrModal({
       <button
         type="button"
         aria-label="Close"
-        className="absolute inset-0 bg-zinc-900/25 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-zinc-900/30 backdrop-blur-[2px]"
         onClick={onClose}
       />
 
       <div
         className={cn(
-          "relative z-[205] w-full max-w-md overflow-hidden rounded-t-3xl border border-zinc-200/90 bg-white shadow-[0_-8px_40px_rgba(24,24,27,0.08)] sm:mx-4 sm:rounded-3xl sm:shadow-[0_24px_64px_rgba(24,24,27,0.12)]",
+          "relative z-[205] w-full max-w-[520px] overflow-hidden rounded-t-3xl border border-zinc-200/90 bg-white shadow-[0_-8px_40px_rgba(24,24,27,0.1)] sm:mx-4 sm:rounded-[28px] sm:shadow-[0_24px_64px_rgba(24,24,27,0.14)]",
         )}
         role="dialog"
         aria-modal="true"
         aria-labelledby="upi-qr-title"
       >
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+        <div className="flex items-center justify-between px-5 pb-2 pt-5 sm:px-6">
           <h2
             id="upi-qr-title"
-            className="text-[16px] font-semibold tracking-[-0.02em] text-zinc-900"
+            className="text-[18px] font-semibold tracking-[-0.02em] text-zinc-900"
           >
-            Pay with UPI
+            UPI QR
           </h2>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            className={cn(appBtn.ghostIcon, "h-8 w-8 text-zinc-500")}
+          <div
+            className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[13px] font-medium tabular-nums text-zinc-700"
+            aria-live="polite"
+            title="QR expires in"
           >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden
+              className="text-zinc-500"
+            >
               <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M8.00085 6.58514L12.5928 1.99318C12.9837 1.60229 13.6175 1.60229 14.0083 1.99318C14.3992 2.38406 14.3992 3.01781 14.0083 3.4087L9.41703 8.00001L14.0083 12.5913C14.3992 12.9822 14.3992 13.616 14.0083 14.0068C13.6175 14.3977 12.9837 14.3977 12.5928 14.0068L8.00085 9.41488L3.40888 14.0068C3.018 14.3977 2.38425 14.3977 1.99336 14.0068C1.60247 13.616 1.60247 12.9822 1.99336 12.5913L6.58467 8.00001L1.99336 3.4087C1.60247 3.01781 1.60247 2.38406 1.99336 1.99318C2.38425 1.60229 3.018 1.60229 3.40888 1.99318L8.00085 6.58514Z"
+                d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM8 3a.75.75 0 0 1 .75.75v3.69l2.16 1.25a.75.75 0 1 1-.75 1.3l-2.5-1.44A.75.75 0 0 1 7.25 8V3.75A.75.75 0 0 1 8 3Z"
                 fill="currentColor"
               />
             </svg>
-          </button>
+            {formatCountdown(secondsLeft)}
+          </div>
         </div>
 
-        <div className="px-6 pb-7 pt-5">
-          <p className="text-center text-[14px] leading-relaxed text-zinc-500">
-            Scan this QR with your preferred UPI app and follow the prompts to
-            pay {amountLabel}.
-          </p>
+        <div className="px-5 pb-6 pt-3 sm:px-6">
+          <div className="rounded-2xl bg-zinc-100/90 p-4 sm:p-5">
+            <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
+              <div className="shrink-0 rounded-xl bg-white p-2.5 shadow-[0_1px_2px_rgba(24,24,27,0.06)]">
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- same-origin QR proxy
+                  <img
+                    src={imageUrl}
+                    alt="UPI QR code"
+                    width={168}
+                    height={168}
+                    className="h-[168px] w-[168px]"
+                    referrerPolicy="no-referrer"
+                    decoding="async"
+                  />
+                ) : (
+                  <div
+                    className="h-[168px] w-[168px] animate-pulse rounded-lg bg-gradient-to-br from-zinc-100 via-zinc-200/80 to-zinc-100"
+                    aria-label="Generating QR code"
+                    role="status"
+                  />
+                )}
+              </div>
 
-          <div className="mt-5 flex justify-center">
-            <div className={cn(checkoutUi.panel, "p-3")}>
-              {imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- same-origin QR proxy; not in next/image remotePatterns
-                <img
-                  src={imageUrl}
-                  alt="UPI QR code"
-                  width={168}
-                  height={168}
-                  className="h-[168px] w-[168px]"
-                  referrerPolicy="no-referrer"
-                  decoding="async"
-                />
-              ) : (
-                <div
-                  className="h-[168px] w-[168px] animate-pulse rounded-xl bg-gradient-to-br from-zinc-100 via-zinc-200/70 to-zinc-100"
-                  aria-label="Generating QR code"
-                  role="status"
-                />
-              )}
+              <div className="min-w-0 flex-1 text-center sm:text-left">
+                <p className="text-[15px] font-medium leading-snug text-zinc-600">
+                  Scan the QR using any UPI App
+                </p>
+                <p className="mt-1 text-[13px] text-zinc-400">
+                  Pay {amountLabel}
+                </p>
+
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5 sm:justify-start">
+                  {UPI_APP_ICONS.map((app) => (
+                    <div
+                      key={app.alt}
+                      className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-zinc-200/80 bg-white"
+                      title={app.alt}
+                    >
+                      <CheckoutPaymentIcon
+                        src={app.src}
+                        alt={app.alt}
+                        className="h-6 w-6"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          <p className="mt-5 text-center text-[12px] font-medium uppercase tracking-[0.06em] text-zinc-400">
-            Works with
-          </p>
-
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
-            {UPI_APP_ICONS.map((app) => (
-              <div
-                key={app.alt}
-                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]"
-                title={app.alt}
-              >
-                <CheckoutPaymentIcon
-                  src={app.src}
-                  alt={app.alt}
-                  className="h-7 w-7"
-                />
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-6 text-center text-[11px] text-zinc-400">
-            Secured by Razorpay · Shirova
-          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-4 w-full rounded-xl py-2.5 text-[14px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>

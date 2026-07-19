@@ -10,11 +10,14 @@ plans → checkout-session (`/checkout/shirova/cs_live_…`) → Custom Checkout
 
 ## UPI
 
-Prefer Razorpay QR Codes API (`POST /v1/payments/qr_codes`) → custom modal → poll.
-QR `<img>` must use same-origin proxy `GET /api/v1/billing/orders/upi/qr/:qrId/image` (not raw `rzp.io`).
-If QR Codes product is **not enabled** on the merchant (API returns URL not found), fall back to Standard Checkout with `method: "upi"` (intent/collect). Smoke: `scripts/ops/smoke-razorpay-upi-qr.mjs`.
+Always show our custom **UPI QR** modal (countdown + scan row) — never Razorpay Standard Checkout.
+1. Prefer `POST /v1/payments/qr_codes` → same-origin image proxy.
+2. If QR Codes product is disabled: create UPI `payment_links` (`upi_link: true`) and render a PNG QR of `short_url` via `qrcode`.
+Poll: `qr_*` via QR payments API; `plink_*` via payment link status.
 
-CSP (`next.config.ts`): allow `https://*.razorpay.com` and `https://*.rzp.io` in `script-src` / `frame-src` / `connect-src` or Checkout iframes show Chrome’s “This content is blocked”.
+## Card
+
+On-page fields + `razorpay.js` `createPayment({ method: "card" })` only — no Standard Checkout modal.
 
 ## Hosted checkout scroll
 

@@ -1,19 +1,41 @@
 import { withApiRouteParams } from "@/backend/http/route-params";
 import { requireSession } from "@/backend/auth/require-session";
 import { AppError } from "@/backend/db/errors";
-import { fetchRazorpayQrCode } from "@/backend/billing/razorpay";
+import {
+  fetchRazorpayPaymentLink,
+  fetchRazorpayQrCode,
+  renderPaymentQrPng,
+} from "@/backend/billing/razorpay";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Same-origin proxy for Razorpay UPI QR images.
- * Direct rzp.io <img> loads are often blocked in-browser; proxy keeps QR visible.
+ * Same-origin QR image:
+ * - qr_*  → proxy Razorpay image_url
+ * - plink_* → render PNG from UPI payment-link short_url
  */
 export const GET = withApiRouteParams<{ qrId: string }>(
   async ({ session, params }) => {
     requireSession(session);
     const qrId = params.qrId;
+
+    if (/^plink_[A-Za-z0-9]{8,40}$/.test(qrId)) {
+      const link = await fetchRazorpayPaymentLink(qrId);
+      if (!link.short_url) {
+        throw new AppError("Payment link QR unavailable.", 502, "razorpay_error");
+      }
+      const png = await renderPaymentQrPng(link.short_url);
+      return new Response(new Uint8Array(png), {
+        status: 200,
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
+
     if (!/^qr_[A-Za-z0-9]{8,40}$/.test(qrId)) {
       throw new AppError("Invalid QR id.", 400, "bad_request");
     }
@@ -44,7 +66,16 @@ export const GET = withApiRouteParams<{ qrId: string }>(
 
     const contentType = res.headers.get("content-type") || "image/png";
     if (!contentType.startsWith("image/")) {
-      throw new AppError("Invalid UPI QR image response.", 502, "razorpay_error");
+      // Short URLs sometimes return HTML — render our own QR of the image URL.
+      const png = await renderPaymentQrPng(upstream);
+      return new Response(new Uint8Array(png), {
+        status: 200,
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
     }
 
     const bytes = await res.arrayBuffer();

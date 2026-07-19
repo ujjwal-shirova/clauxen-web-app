@@ -331,6 +331,113 @@ export async function fetchRazorpayQrCode(
   return razorpayApi<RazorpayQrCodeEntity>(`/v1/payments/qr_codes/${qrId}`);
 }
 
+export type RazorpayPaymentLinkEntity = {
+  id: string;
+  short_url: string;
+  status: string;
+  amount: number;
+  amount_paid?: number;
+  upi_link?: boolean;
+  payments?: Array<{
+    payment_id?: string;
+    amount?: number;
+    status?: string;
+    method?: string;
+    order_id?: string;
+  }> | null;
+};
+
+/** UPI payment link — used when QR Codes API is not enabled on the merchant. */
+export async function createRazorpayUpiPaymentLink(input: {
+  amountPaise: number;
+  description: string;
+  customerName?: string;
+  customerEmail?: string;
+  notes?: Record<string, string>;
+  expireBySeconds?: number;
+}): Promise<RazorpayPaymentLinkEntity> {
+  if (!Number.isInteger(input.amountPaise) || input.amountPaise <= 0) {
+    throw new AppError("Invalid payment link amount.", 400, "bad_request");
+  }
+
+  const expireBy =
+    Math.floor(Date.now() / 1000) + (input.expireBySeconds ?? 20 * 60);
+
+  const body = JSON.stringify({
+    amount: input.amountPaise,
+    currency: "INR",
+    accept_partial: false,
+    description: input.description.slice(0, 255),
+    upi_link: true,
+    expire_by: expireBy,
+    notify: { sms: false, email: false },
+    reminder_enable: false,
+    notes: input.notes ?? {},
+    customer: {
+      ...(input.customerName ? { name: input.customerName.slice(0, 100) } : {}),
+      ...(input.customerEmail
+        ? { email: input.customerEmail.slice(0, 100) }
+        : {}),
+    },
+  });
+
+  // Payment Links are not proxied on the Worker yet — call Razorpay directly.
+  if (!env.razorpayKeyId || !env.razorpayKeySecret) {
+    throw new AppError(
+      "Razorpay keys are required for UPI payment links.",
+      503,
+      "billing_unavailable",
+    );
+  }
+
+  const link = await razorpayApiDirect<RazorpayPaymentLinkEntity>(
+    "/v1/payment_links",
+    { method: "POST", body },
+  );
+
+  if (!link?.id || !link.short_url) {
+    throw new AppError(
+      "Invalid Razorpay payment link response.",
+      502,
+      "razorpay_error",
+    );
+  }
+
+  return link;
+}
+
+export async function fetchRazorpayPaymentLink(
+  linkId: string,
+): Promise<RazorpayPaymentLinkEntity> {
+  if (!/^plink_[A-Za-z0-9]{8,40}$/.test(linkId)) {
+    throw new AppError("Invalid payment link id.", 400, "bad_request");
+  }
+  if (!env.razorpayKeyId || !env.razorpayKeySecret) {
+    throw new AppError(
+      "Razorpay is not configured.",
+      503,
+      "billing_unavailable",
+    );
+  }
+  return razorpayApiDirect<RazorpayPaymentLinkEntity>(
+    `/v1/payment_links/${linkId}`,
+  );
+}
+
+/** PNG buffer for embedding a UPI / payment-link URL as a QR code. */
+export async function renderPaymentQrPng(
+  payload: string,
+): Promise<Buffer> {
+  const QRCode = await import("qrcode");
+  return QRCode.toBuffer(payload, {
+    type: "png",
+    width: 320,
+    margin: 2,
+    errorCorrectionLevel: "M",
+    color: { dark: "#111827", light: "#ffffff" },
+  });
+}
+
 export async function fetchRazorpayQrPayments(qrId: string) {
   if (!/^qr_[A-Za-z0-9]{8,40}$/.test(qrId)) {
     throw new AppError("Invalid QR id.", 400, "bad_request");

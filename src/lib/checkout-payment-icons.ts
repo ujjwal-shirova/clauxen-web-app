@@ -60,9 +60,21 @@ export const CHECKOUT_UPI_ICON_URL = "/checkout/icon-pm-upi.svg";
 
 /** Vendored from Stripe fingerprinted assets — served locally (no runtime Stripe CDN). */
 export const UPI_APP_ICONS = [
-  { alt: "PhonePe", src: "/checkout/upi-apps/phonepe.svg" },
-  { alt: "Google Pay", src: "/checkout/upi-apps/gpay.svg" },
   { alt: "Paytm", src: "/checkout/upi-apps/paytm.svg" },
+  { alt: "Google Pay", src: "/checkout/upi-apps/gpay.svg" },
+  {
+    alt: "CRED",
+    src: `data:image/svg+xml,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#0B0B0B"/><text x="16" y="20.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="700" fill="#fff">CRED</text></svg>`,
+    )}`,
+  },
+  { alt: "PhonePe", src: "/checkout/upi-apps/phonepe.svg" },
+  {
+    alt: "Amazon Pay",
+    src: `data:image/svg+xml,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#232F3E"/><text x="16" y="20" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="700" fill="#FF9900">pay</text></svg>`,
+    )}`,
+  },
   { alt: "UPI / NPCI", src: "/checkout/upi-apps/npci.svg" },
 ] as const;
 
