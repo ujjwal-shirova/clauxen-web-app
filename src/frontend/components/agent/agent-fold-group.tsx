@@ -5,19 +5,18 @@ import type { AgentFoldSummary } from "@/frontend/lib/agent-fold-groups";
 import { AgentTraceBlock, AgentShimmerText } from "./agent-trace";
 
 /**
- * Cursor-style activity fold — collapsed summary with chevron beside the label.
+ * Activity fold — expanded while live (`isActive`), auto-collapses when done.
+ * Nested web-search stays collapsed via its own defaultExpanded={false}.
  */
 export function AgentFoldGroup({
   summary,
   isActive = false,
   useChrome = true,
-  defaultExpanded = false,
   children,
 }: {
   summary: AgentFoldSummary;
   isActive?: boolean;
   useChrome?: boolean;
-  defaultExpanded?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -30,7 +29,7 @@ export function AgentFoldGroup({
         )
       }
       isActive={isActive}
-      defaultExpanded={useChrome ? defaultExpanded : true}
+      defaultExpanded={useChrome ? isActive : true}
       showChevron={useChrome}
       hideHeader={!useChrome}
       className="agent-fold-group"

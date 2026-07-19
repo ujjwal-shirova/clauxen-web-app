@@ -7,7 +7,6 @@ import { cn } from "@/frontend/lib/utils";
 /**
  * Clauxen agent action stack — chronological interleaved thinking, narration,
  * and tool results. No vertical timeline rail. Sequence by spacing alone.
- * Blocks are collapsed by default; the user expands them.
  */
 export function AgentTrace({
   children,
@@ -27,8 +26,9 @@ export function AgentTrace({
 }
 
 /**
- * Collapsible action block. Collapsed by default.
- * Header: leading chips · label · chevron (beside the label, not flush right).
+ * Collapsible action block.
+ * Header: leading chips · label · chevron (beside the label).
+ * Instant expand/collapse (no height transition) so chat scroll stays stable.
  */
 export function AgentTraceBlock({
   title,
@@ -66,9 +66,8 @@ export function AgentTraceBlock({
       return;
     }
     if (!canCollapse) return;
-    if (!userToggledRef.current) {
-      setExpanded(defaultExpanded);
-    }
+    if (userToggledRef.current) return;
+    setExpanded(defaultExpanded);
   }, [canCollapse, defaultExpanded, hideHeader]);
 
   const toggle = () => {
@@ -106,6 +105,8 @@ export function AgentTraceBlock({
     </>
   );
 
+  const showBody = hasBody && (expanded || hideHeader);
+
   return (
     <div
       className={cn("agent-trace__block min-w-0", className)}
@@ -139,27 +140,9 @@ export function AgentTraceBlock({
         )
       ) : null}
 
-      {hasBody ? (
-        <div
-          className={cn(
-            "grid",
-            !isActive &&
-              !hideHeader &&
-              "transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
-            expanded || hideHeader ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-          )}
-          aria-hidden={!(expanded || hideHeader)}
-        >
-          <div
-            className={cn(
-              "overflow-hidden",
-              !isActive && !hideHeader && "transition-opacity duration-150",
-              expanded || hideHeader ? "opacity-100" : "opacity-0",
-              contentClassName,
-            )}
-          >
-            <div className={cn(!hideHeader && "pt-2")}>{children}</div>
-          </div>
+      {showBody ? (
+        <div className={cn(contentClassName)}>
+          <div className={cn(!hideHeader && "pt-2")}>{children}</div>
         </div>
       ) : null}
     </div>

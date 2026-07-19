@@ -8,9 +8,8 @@ import { MarkdownRenderer } from "@/frontend/components/markdown-renderer";
 import { AgentShimmerText } from "./agent-trace";
 
 /**
- * Thinking card — header is always "Thought for {Ns}" (or "Thinking…" while
- * live). Collapsed by default (including while streaming) so the chat
- * viewport does not jump when the card opens; user expands to read.
+ * Thinking card — expanded while streaming, auto-collapses when the phase
+ * finishes (unless the user toggled it). Header is always Thought for / Thinking….
  */
 export function AgentThinkingPhase({
   segment,
@@ -24,7 +23,7 @@ export function AgentThinkingPhase({
   const [elapsedSeconds, setElapsedSeconds] = useState(() =>
     resolveDurationSeconds(segment),
   );
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(() => streaming);
 
   const hasBody = segment.content.trim().length > 0;
 
@@ -46,13 +45,13 @@ export function AgentThinkingPhase({
   }, [streaming, segment.durationSeconds, segment.startedAtMs, segment]);
 
   useEffect(() => {
+    if (userToggledRef.current) return;
     if (streaming) {
       userScrolledRef.current = false;
+      setExpanded(true);
       return;
     }
-    if (!userToggledRef.current) {
-      setExpanded(false);
-    }
+    setExpanded(false);
   }, [streaming, segment.id]);
 
   useEffect(() => {
@@ -116,45 +115,30 @@ export function AgentThinkingPhase({
         </span>
       </button>
 
-      <div
-        className={cn(
-          "grid",
-          !streaming &&
-            "transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
-          expanded && hasBody ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-        )}
-        aria-hidden={!expanded}
-      >
+      {/* Instant open/close — height transitions fight stream-follow scroll. */}
+      {expanded && hasBody ? (
         <div
+          ref={scrollRef}
+          onScroll={onUserScroll}
           className={cn(
-            "overflow-hidden",
-            !streaming && "transition-opacity duration-150",
-            expanded && hasBody ? "opacity-100" : "opacity-0",
+            "agent-thinking__card app-scrollbar mt-2 max-h-[14rem] overflow-y-auto overscroll-y-contain rounded-2xl border border-zinc-200/80 bg-white px-4 py-3.5 text-[13.5px] font-[430] leading-[1.55] tracking-[-0.01em] text-zinc-700 [&_.markdown-content]:!font-sans [&_.markdown-content_*]:!font-sans",
+            streaming &&
+              "shadow-[inset_0_-18px_20px_-22px_rgba(24,24,27,0.22)]",
           )}
+          aria-live={streaming ? "polite" : undefined}
+          data-agent-thinking-viewport="true"
         >
-          <div
-            ref={scrollRef}
-            onScroll={onUserScroll}
-            className={cn(
-              "agent-thinking__card app-scrollbar mt-2 max-h-[14rem] overflow-y-auto overscroll-y-contain rounded-2xl border border-zinc-200/80 bg-white px-4 py-3.5 text-[13.5px] font-[430] leading-[1.55] tracking-[-0.01em] text-zinc-700 [&_.markdown-content]:!font-sans [&_.markdown-content_*]:!font-sans",
-              streaming &&
-                "shadow-[inset_0_-18px_20px_-22px_rgba(24,24,27,0.22)]",
-            )}
-            aria-live={streaming ? "polite" : undefined}
-            data-agent-thinking-viewport="true"
-          >
-            <div className="thinking-markdown">
-              <MarkdownRenderer
-                content={segment.content || "…"}
-                isStreaming={streaming}
-                streamKey={segment.id}
-                showCursor={false}
-                lightweightStream={streaming}
-              />
-            </div>
+          <div className="thinking-markdown">
+            <MarkdownRenderer
+              content={segment.content || "…"}
+              isStreaming={streaming}
+              streamKey={segment.id}
+              showCursor={false}
+              lightweightStream={streaming}
+            />
           </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

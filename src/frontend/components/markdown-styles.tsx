@@ -194,7 +194,7 @@ export const StyledTableContainer = ({
       className="composer-message-table my-4 w-full min-w-0 max-w-full rounded-[13px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-4"
       data-has-table-title={titleCtx ? "true" : undefined}
     >
-      <div className="ui-table-title-header table-title-header-sticky sticky top-0 z-20 flex min-h-[42px] items-center justify-between gap-2 rounded-t-[12px] border-b border-zinc-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm">
+      <div className="ui-table-title-header table-title-header-sticky sticky top-0 z-20 flex min-h-[42px] items-center justify-between gap-2 rounded-t-[12px] border-b border-zinc-200/80 bg-white px-4 py-2">
         <span className="min-w-0 truncate text-[13px] font-semibold text-zinc-900">
           {tableTitle}
         </span>
@@ -328,7 +328,7 @@ export const CodeBlockFrame = ({
 
   return (
     <div className="composer-message-codeblock relative my-2 w-full min-w-0 max-w-full rounded-[13px] border border-zinc-200/85 bg-zinc-50 shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-3">
-      <div className="ui-code-block code-block-header-sticky sticky top-0 z-10 flex min-h-[38px] items-center justify-between rounded-t-[12px] border-b border-zinc-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm sm:px-4">
+      <div className="ui-code-block code-block-header-sticky sticky top-0 z-10 flex min-h-[38px] items-center justify-between rounded-t-[12px] border-b border-zinc-200/80 bg-white px-4 py-2 sm:px-4">
         <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
           {safeLanguage}
         </span>

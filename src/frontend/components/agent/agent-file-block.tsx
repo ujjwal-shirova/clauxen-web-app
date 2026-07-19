@@ -67,7 +67,7 @@ export function AgentFileBlock({
           ) : undefined
         }
         isRunning={isRunning}
-        defaultExpanded={false}
+        defaultExpanded
       >
         {isRunning || content ? (
           <CreateFileStreamBlock

@@ -165,7 +165,6 @@ export function AgentOrchestrationView({
                     summary={item.summary}
                     isActive={item.isActive}
                     useChrome={item.useChrome}
-                    defaultExpanded={false}
                   >
                     {item.segments.map((segment) =>
                       renderFoldMember(
