@@ -19,6 +19,7 @@ import {
   getCheckoutAddressIncompleteReason,
   type CheckoutAddressState,
 } from "@/frontend/components/checkout-billing-address";
+import { CheckoutBootstrapping } from "@/frontend/components/checkout-bootstrapping";
 import { CheckoutUpiQrModal } from "@/frontend/components/checkout-upi-qr-modal";
 import { canUseApplePay } from "@/frontend/lib/apple-pay";
 import { openRazorpayCheckout } from "@/frontend/lib/razorpay-checkout";
@@ -686,10 +687,7 @@ export function BillingCheckout({
 
     try {
       if (tab === "upi") {
-        // Open modal immediately with shimmer while the server creates the QR
-        // (falls back to Razorpay Checkout UPI when QR Codes API is not enabled).
         setUpiQrImageUrl(null);
-        setUpiModalOpen(true);
         setUpiPoll(null);
         const checkout = await createUpiBillingPayment({
           checkoutSessionId,
@@ -700,8 +698,8 @@ export function BillingCheckout({
             : {}),
         });
 
+        // QR Codes product may be off — Standard Checkout UPI still works.
         if (checkout.upi.mode === "checkout") {
-          setUpiModalOpen(false);
           const keyId = checkout.razorpay.keyId;
           if (!keyId) throw new Error("Razorpay is not configured for checkout.");
           await openRazorpayCheckout({
@@ -734,10 +732,14 @@ export function BillingCheckout({
           return;
         }
 
-        if (!checkout.upi.imageUrl || !checkout.upi.qrId) {
+        if (!checkout.upi.qrId) {
           throw new Error("UPI QR could not be generated.");
         }
-        setUpiQrImageUrl(checkout.upi.imageUrl);
+        // Same-origin proxy — avoids CSP / third-party blocks on rzp.io images.
+        setUpiModalOpen(true);
+        setUpiQrImageUrl(
+          `/api/v1/billing/orders/upi/qr/${encodeURIComponent(checkout.upi.qrId)}/image`,
+        );
         setUpiPoll({
           qrId: checkout.upi.qrId,
           billingOrderId: checkout.order.id,
@@ -1209,8 +1211,25 @@ export function BillingCheckout({
     subtotal,
   ]);
 
+  const checkoutReady =
+    !auth.loading &&
+    sessionReminted &&
+    Boolean(checkoutSessionId) &&
+    ready;
+
+  if (!checkoutReady) {
+    const bootMessage = auth.loading
+      ? "Signing you in…"
+      : !sessionReminted
+        ? "Refreshing your checkout session…"
+        : !checkoutSessionId
+          ? "Securing your checkout…"
+          : "Preparing secure checkout…";
+    return <CheckoutBootstrapping message={bootMessage} />;
+  }
+
   return (
-    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)] font-sans text-zinc-800 [scrollbar-gutter:stable]">
+    <div className="relative w-full bg-[var(--app-shell-bg)] font-sans text-zinc-800">
       <button
         type="button"
         onClick={onBack}
@@ -1228,7 +1247,7 @@ export function BillingCheckout({
         </svg>
       </button>
 
-      <div className="w-full flex-1">
+      <div className="w-full">
         <main className="mx-auto flex w-full max-w-[1080px] flex-col items-start gap-8 px-4 pb-28 pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.25rem))] sm:gap-10 sm:px-6 lg:flex-row">
           {/* Left column — plan summary */}
           <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[400px]">

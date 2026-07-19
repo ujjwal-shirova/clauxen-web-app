@@ -98,19 +98,21 @@ const securityHeaders = [
     value: "max-age=63072000; includeSubDomains; preload",
   },
   {
-    // ponytail: baseline CSP — API keys never appear in inline scripts; Next uses nonces in prod builds
+    // ponytail: baseline CSP — API keys never appear in inline scripts; Next uses nonces in prod builds.
+    // Razorpay Checkout loads scripts/frames from checkout + cdn + api hosts (risk detection, UPI).
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://*.razorpay.com https://cdn.razorpay.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "img-src 'self' data: blob: https:",
+      "img-src 'self' data: blob: https: https://*.razorpay.com https://*.rzp.io",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com https://checkout.razorpay.com https://*.r2.dev https://*.cloudflarestorage.com https://*.workers.dev https://va.vercel-scripts.com",
-      "frame-src 'self' https://checkout.razorpay.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com https://*.razorpay.com https://checkout.razorpay.com https://*.r2.dev https://*.cloudflarestorage.com https://*.workers.dev https://va.vercel-scripts.com",
+      "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://*.rzp.io",
+      "child-src 'self' https://checkout.razorpay.com https://*.razorpay.com https://*.rzp.io",
       "object-src 'none'",
       "base-uri 'self'",
-      "form-action 'self'",
+      "form-action 'self' https://checkout.razorpay.com https://api.razorpay.com",
     ].join("; "),
   },
 ];

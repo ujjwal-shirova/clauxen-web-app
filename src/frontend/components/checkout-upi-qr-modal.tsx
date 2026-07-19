@@ -79,12 +79,15 @@ export function CheckoutUpiQrModal({
           <div className="mt-5 flex justify-center">
             <div className={cn(checkoutUi.panel, "p-3")}>
               {imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- same-origin QR proxy; not in next/image remotePatterns
                 <img
                   src={imageUrl}
                   alt="UPI QR code"
                   width={168}
                   height={168}
                   className="h-[168px] w-[168px]"
+                  referrerPolicy="no-referrer"
+                  decoding="async"
                 />
               ) : (
                 <div
