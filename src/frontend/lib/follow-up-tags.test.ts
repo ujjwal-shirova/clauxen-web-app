@@ -12,7 +12,7 @@ import {
 } from "@/frontend/lib/follow-up-tags";
 
 describe("prepareFollowUpContent", () => {
-  it("extracts prompts and strips tags from markdown", () => {
+  it("extracts prompts and strips tags from markdown without leaving duplicate text", () => {
     const input = `Here is the answer.
 
 <prompt>Compare Kimi K3 with Claude Opus 4.8</prompt>
@@ -23,6 +23,9 @@ describe("prepareFollowUpContent", () => {
     assert.equal(prepared.prompts[0], "Compare Kimi K3 with Claude Opus 4.8");
     assert.ok(!prepared.markdown.includes("<prompt"));
     assert.ok(!prepared.markdown.includes("[blocked]"));
+    assert.ok(!prepared.markdown.includes("Compare Kimi K3 with Claude Opus 4.8"));
+    assert.ok(!prepared.markdown.includes("Moonshot AI"));
+    assert.ok(prepared.markdown.includes("Here is the answer."));
   });
 
   it("strips harden leftovers and legacy markdown links", () => {
@@ -34,7 +37,9 @@ describe("prepareFollowUpContent", () => {
     const prepared = prepareFollowUpContent(input, { enabled: true });
     assert.ok(!prepared.markdown.includes("[blocked]"));
     assert.ok(!prepared.markdown.includes("clauxen-prompt://"));
-    assert.ok(prepared.markdown.includes("Compare models"));
+    assert.ok(!prepared.markdown.includes("Compare models"));
+    assert.ok(prepared.prompts.includes("Compare models"));
+    assert.ok(prepared.prompts.includes("Old link"));
   });
 
   it("strips tags when follow-ups disabled", () => {
@@ -42,7 +47,8 @@ describe("prepareFollowUpContent", () => {
     const prepared = prepareFollowUpContent(input, { enabled: false });
     assert.deepEqual(prepared.prompts, []);
     assert.equal(prepared.markdown.includes("<prompt"), false);
-    assert.ok(prepared.markdown.includes("Tell me more"));
+    assert.ok(!prepared.markdown.includes("Tell me more"));
+    assert.ok(prepared.markdown.includes("Hi"));
   });
 });
 

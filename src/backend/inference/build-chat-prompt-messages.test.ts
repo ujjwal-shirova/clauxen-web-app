@@ -37,8 +37,8 @@ describe("buildPromptMessagesFromDbRows", () => {
     assert.match(String(plain[1]?.content), /Anthropic headlines/);
   });
 
-  it("replays structured modelTurns including tool rounds", () => {
-    const { structured } = buildPromptMessagesFromDbRows([
+  it("flattens prior modelTurns to text (no thinking/tool_use replay)", () => {
+    const { structured, plain } = buildPromptMessagesFromDbRows([
       row({ id: "u1", role: "user", content: "Create a demo file" }),
       row({
         id: "a1",
@@ -71,17 +71,27 @@ describe("buildPromptMessagesFromDbRows", () => {
                 assistant: [{ type: "text", text: "Created the demo." }],
               },
             ],
+            actions: [
+              {
+                id: "tool-1",
+                name: "create_file",
+                input: { path: "demo.md" },
+              },
+            ],
           },
         },
       }),
       row({ id: "u2", role: "user", content: "Now present it" }),
     ]);
 
-    assert.ok(structured.length >= 4);
+    assert.equal(structured.length, 3);
     assert.equal(structured[0]?.role, "user");
     assert.equal(structured[1]?.role, "assistant");
+    assert.equal(typeof structured[1]?.content, "string");
+    assert.match(String(structured[1]?.content), /Created the demo/);
+    assert.match(String(structured[1]?.content), /create_file/);
     assert.equal(structured[2]?.role, "user");
-    assert.equal(structured[structured.length - 1]?.role, "user");
+    assert.equal(plain[1]?.role, "assistant");
   });
 
   it("skips empty streaming assistant placeholders", () => {

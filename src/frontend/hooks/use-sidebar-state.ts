@@ -58,11 +58,13 @@ function getDesktopSidebarCollapsedSnapshot(): boolean {
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === "true") return true;
   if (stored === "false") return false;
-  return true;
+  // Default expanded on first visit / reload with no preference stored.
+  return false;
 }
 
 function getDesktopSidebarCollapsedServerSnapshot(): boolean {
-  return true;
+  // Match default expanded chrome to avoid a collapsed→expanded flash.
+  return false;
 }
 
 function subscribeMobile(callback: () => void) {

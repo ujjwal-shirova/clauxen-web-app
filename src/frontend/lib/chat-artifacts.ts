@@ -27,6 +27,18 @@ export function downloadArtifact(artifact: ChatArtifact) {
   downloadTextFile(artifact.fileName, artifact.content);
 }
 
+function normalizeArtifactPath(path: string): string {
+  return path.replace(/\\/g, "/").replace(/^\.\//, "").trim().toLowerCase();
+}
+
+/** Prefer richer / newer artifact when the same path appears twice. */
+function preferArtifact(a: ChatArtifact, b: ChatArtifact): ChatArtifact {
+  if (b.content.length !== a.content.length) {
+    return b.content.length > a.content.length ? b : a;
+  }
+  return b.createdAtMs >= a.createdAtMs ? b : a;
+}
+
 /**
  * Rebuild downloadable cards from present_files tool results so reload
  * restores the same presentation as the live SSE artifact_upsert path.
@@ -46,7 +58,7 @@ export function collectArtifactsFromAgentSegments(
     completedAtMs?: number;
   }>,
 ): ChatArtifact[] {
-  const byId = new Map<string, ChatArtifact>();
+  const byPath = new Map<string, ChatArtifact>();
 
   for (const segment of segments) {
     if (segment.kind !== "tool" || segment.name !== "present_files") continue;
@@ -89,33 +101,43 @@ export function collectArtifactsFromAgentSegments(
 
     files.forEach((file, index) => {
       if (!file.content) return;
-      const id = `${messageId}:present:${segment.toolCallId ?? segment.id}:${index}`;
-      byId.set(id, {
-        id,
+      const key = normalizeArtifactPath(file.path);
+      const next: ChatArtifact = {
+        id: `${messageId}:present:${segment.toolCallId ?? segment.id}:${index}`,
         path: file.path,
         fileName: fileNameFromPath(file.path),
         content: file.content,
         language: segment.fileLanguage,
         createdAtMs: stamp,
-      });
+      };
+      const existing = byPath.get(key);
+      byPath.set(key, existing ? preferArtifact(existing, next) : next);
     });
   }
 
-  return [...byId.values()];
+  return [...byPath.values()];
 }
 
 export function collectChatArtifacts(messages: Message[]): ChatArtifact[] {
-  const byId = new Map<string, ChatArtifact>();
+  const byPath = new Map<string, ChatArtifact>();
+
+  const upsert = (artifact: ChatArtifact) => {
+    const key = normalizeArtifactPath(artifact.path || artifact.fileName);
+    if (!key) return;
+    const existing = byPath.get(key);
+    byPath.set(key, existing ? preferArtifact(existing, artifact) : artifact);
+  };
+
   for (const message of messages) {
     for (const artifact of message.agentArtifacts ?? []) {
-      byId.set(artifact.id, artifact);
+      upsert(artifact);
     }
     if (message.agentSegments) {
       for (const artifact of collectArtifactsFromAgentSegments(
         message.id,
         message.agentSegments,
       )) {
-        byId.set(artifact.id, artifact);
+        upsert(artifact);
       }
     }
     for (const frame of message.agentFrames ?? []) {
@@ -123,7 +145,7 @@ export function collectChatArtifacts(messages: Message[]): ChatArtifact[] {
         message.id,
         frame.segments,
       )) {
-        byId.set(artifact.id, artifact);
+        upsert(artifact);
       }
     }
     if (message.role === "assistant" && message.content.includes("<create_file")) {
@@ -131,9 +153,9 @@ export function collectChatArtifacts(messages: Message[]): ChatArtifact[] {
         message.content,
         message.id,
       )) {
-        byId.set(artifact.id, artifact);
+        upsert(artifact);
       }
     }
   }
-  return [...byId.values()].sort((a, b) => a.createdAtMs - b.createdAtMs);
+  return [...byPath.values()].sort((a, b) => a.createdAtMs - b.createdAtMs);
 }

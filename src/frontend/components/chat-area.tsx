@@ -449,29 +449,10 @@ function ChatAreaLayout({
                 </div>
               ) : showMessageSkeleton ? (
                 <div
-                  className="flex w-full min-w-0 max-w-full flex-col gap-6 px-0 pt-5 pb-5 sm:gap-8 sm:pt-10 sm:pb-8"
+                  className="flex w-full min-w-0 max-w-full flex-1"
                   aria-busy="true"
                   aria-label="Loading conversation"
-                >
-                  {[0, 1].map((turn) => (
-                    <div key={turn} className="flex flex-col gap-3">
-                      <div className="ml-auto h-10 w-[min(72%,28rem)] overflow-hidden rounded-2xl">
-                        <div className="h-full w-full shimmer-bg" />
-                      </div>
-                      <div className="mr-auto flex w-full max-w-[40rem] flex-col gap-2">
-                        <div className="h-3.5 w-[92%] overflow-hidden rounded-full">
-                          <div className="h-full w-full shimmer-bg" />
-                        </div>
-                        <div className="h-3.5 w-[78%] overflow-hidden rounded-full">
-                          <div className="h-full w-full shimmer-bg" />
-                        </div>
-                        <div className="h-3.5 w-[64%] overflow-hidden rounded-full">
-                          <div className="h-full w-full shimmer-bg" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                />
               ) : (
                 <ConversationThread
                   messages={displayMessages}

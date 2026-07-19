@@ -64,16 +64,24 @@ export function prepareFollowUpContent(
   }
 
   // Also strip any leftover markdown links from older persisted answers.
+  // Prefer extracting the label into prompts when we do not already have it.
   text = text.replace(
     /\[([^\]]+)\]\((?:#clauxen-prompt:|clauxen-prompt:\/\/)[^)]+\)/gi,
-    (_match, label: string) => String(label ?? "").trim(),
+    (_match, label: string) => {
+      const prompt = String(label ?? "").trim();
+      if (prompt && !prompts.includes(prompt)) {
+        prompts.push(prompt);
+      }
+      return "";
+    },
   );
 
   // Strip literal " [blocked]" leftovers from harden (persisted streams).
   text = text.replace(/\s*\[blocked\]/gi, "");
+  text = text.replace(/\n{3,}/g, "\n\n").trimEnd();
 
   return {
-    markdown: text.trimEnd(),
+    markdown: text,
     prompts: options.isStreaming
       ? // While streaming, only expose complete prompts.
         prompts

@@ -40,11 +40,12 @@ function textFromParts(parts: TranscriptContentPart[]): string {
   for (const part of parts) {
     if (part?.type === "text" && typeof part.text === "string") {
       const parsed = parseAgentTextMarkup(part.text);
-      const visible = [parsed.narration, parsed.visibleText]
-        .map((value) => value.trim())
-        .filter(Boolean)
-        .join("\n\n");
+      // Prefer final-answer text; fall back to narration so prior mid-turn
+      // updates still ground the next user message.
+      const visible = parsed.visibleText.trim();
+      const narration = parsed.narration.trim();
       if (visible) texts.push(visible);
+      else if (narration) texts.push(narration);
       else {
         const cleaned = stripAgentTranscriptMarkup(part.text).trim();
         if (cleaned) texts.push(cleaned);
@@ -54,8 +55,31 @@ function textFromParts(parts: TranscriptContentPart[]): string {
   return texts.join("\n\n").trim();
 }
 
+function textFromModelTurns(turns: TranscriptAgentModelTurn[]): string {
+  const chunks: string[] = [];
+  for (const turn of turns) {
+    if (!Array.isArray(turn.assistant)) continue;
+    const fromTurn = textFromParts(turn.assistant);
+    if (fromTurn) chunks.push(fromTurn);
+  }
+  return chunks.join("\n\n").trim();
+}
+
 function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
   const actions = Array.isArray(agentUi?.actions) ? agentUi.actions : [];
+  if (actions.length === 0 && Array.isArray(agentUi?.modelTurns)) {
+    const names: string[] = [];
+    for (const turn of agentUi.modelTurns) {
+      for (const part of turn.assistant ?? []) {
+        if (part.type === "tool_use" && part.name) names.push(part.name);
+      }
+    }
+    if (names.length === 0) return "";
+    return `Previous assistant tool activity in this chat:\n${names
+      .slice(0, 12)
+      .map((name) => `- ${name}`)
+      .join("\n")}`;
+  }
   if (actions.length === 0) return "";
   const lines = actions.slice(0, 12).map((action) => {
     const name = action.name || "tool";
@@ -74,48 +98,38 @@ function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
   return `Previous assistant actions in this chat:\n${lines.join("\n")}`;
 }
 
-function assistantPlainContent(row: MessageRow): string {
-  const direct = stripMessageContentForModelApi(row.content ?? "");
-  if (direct) return direct;
+/**
+ * Durable plain-text context for a prior assistant turn.
+ * Never replays signed thinking / tool_use blocks (those break follow-ups when
+ * signatures are missing). ChatGPT/Claude-style: prior answer text + tool summary.
+ */
+export function assistantContextTextFromRow(row: MessageRow): string {
+  const agentUi = readAgentUi(row);
+  const modelTurns = Array.isArray(agentUi?.modelTurns)
+    ? agentUi.modelTurns
+    : [];
 
+  const fromTurns = stripMessageContentForModelApi(
+    textFromModelTurns(modelTurns),
+  );
+  const fromRowContent = stripMessageContentForModelApi(row.content ?? "");
   const fromParts = stripMessageContentForModelApi(
     textFromParts(readTranscriptParts(row)),
   );
-  if (fromParts) return fromParts;
 
-  const agentUi = readAgentUi(row);
+  const answer = fromRowContent || fromTurns || fromParts;
   const summary = summarizeAgentActions(agentUi);
+
+  if (answer && summary) return `${answer}\n\n${summary}`;
+  if (answer) return answer;
   if (summary) return summary;
-
   return "";
-}
-
-function pushModelTurns(
-  messages: PromptMessage[],
-  turns: TranscriptAgentModelTurn[],
-) {
-  for (const turn of turns) {
-    const assistantBlocks = Array.isArray(turn.assistant)
-      ? turn.assistant.filter((part) => part.type !== "tool_result")
-      : [];
-    if (assistantBlocks.length > 0) {
-      messages.push({
-        role: "assistant",
-        content: assistantBlocks as PromptMessage["content"],
-      });
-    }
-    if (Array.isArray(turn.toolResults) && turn.toolResults.length > 0) {
-      messages.push({
-        role: "user",
-        content: turn.toolResults as PromptMessage["content"],
-      });
-    }
-  }
 }
 
 /**
  * Build durable model prompt history from DB rows so follow-up turns see
- * prior user + assistant work (including tool rounds), not only user text.
+ * prior user + assistant work. Prior assistants are always plain text
+ * (answer + tool summary) — never raw thinking/tool_use replay.
  */
 export function buildPromptMessagesFromDbRows(
   rows: MessageRow[],
@@ -128,6 +142,7 @@ export function buildPromptMessagesFromDbRows(
 
   for (const row of rows) {
     if (row.role !== "user" && row.role !== "assistant") continue;
+
     // Skip the in-flight empty assistant placeholder for the current turn.
     if (
       row.role === "assistant" &&
@@ -148,27 +163,13 @@ export function buildPromptMessagesFromDbRows(
       continue;
     }
 
-    const agentUi = readAgentUi(row);
-    const modelTurns = Array.isArray(agentUi?.modelTurns)
-      ? agentUi.modelTurns
-      : [];
+    const assistantText = assistantContextTextFromRow(row);
+    if (!assistantText) continue;
 
-    if (modelTurns.length > 0) {
-      pushModelTurns(structured, modelTurns);
-      const plainAnswer = assistantPlainContent(row);
-      if (plainAnswer) {
-        plain.push({ role: "assistant", content: plainAnswer });
-      } else {
-        const summary = summarizeAgentActions(agentUi);
-        if (summary) plain.push({ role: "assistant", content: summary });
-      }
-      continue;
-    }
-
-    const plainAnswer = assistantPlainContent(row);
-    if (!plainAnswer) continue;
-    plain.push({ role: "assistant", content: plainAnswer });
-    structured.push({ role: "assistant", content: plainAnswer });
+    plain.push({ role: "assistant", content: assistantText });
+    // Always string content for prior turns — safe for Anthropic replay and
+    // keeps the model grounded on what it already did / said.
+    structured.push({ role: "assistant", content: assistantText });
   }
 
   return { plain, structured };
