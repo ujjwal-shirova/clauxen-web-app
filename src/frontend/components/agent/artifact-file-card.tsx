@@ -59,9 +59,7 @@ export function ArtifactFileCard({
   return (
     <div
       className={cn(
-        "artifact-file-card group/file relative my-3 flex w-full min-w-0 items-stretch gap-2 rounded-[14px] border border-zinc-200/85 bg-white p-1.5 transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out",
-        "hover:border-zinc-300/90 hover:bg-zinc-50/40 hover:shadow-[0_8px_24px_-14px_rgba(24,24,27,0.22)]",
-        "focus-within:border-zinc-300/90 focus-within:shadow-[0_8px_24px_-14px_rgba(24,24,27,0.18)]",
+        "artifact-file-card relative my-3 flex w-full min-w-0 items-stretch gap-2 rounded-[14px] border border-zinc-200/85 bg-white p-1.5",
         isPanel && "my-0 rounded-[12px] p-1",
         className,
       )}
@@ -70,8 +68,8 @@ export function ArtifactFileCard({
         type="button"
         onClick={openFile}
         className={cn(
-          "artifact-file-card__body no-hover-overlay flex min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-zinc-50/90 px-2.5 py-2 text-left transition-colors duration-200",
-          "group-hover/file:bg-zinc-100/90",
+          "artifact-file-card__body group/file-body no-hover-overlay flex min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-zinc-50/90 px-2.5 py-2 text-left transition-colors duration-200",
+          "hover:bg-zinc-100/90",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200/90",
           isPanel && "gap-2.5 rounded-[9px] px-2 py-1.5",
         )}

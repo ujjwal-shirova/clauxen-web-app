@@ -1,6 +1,6 @@
 "use client";
 
-import { FileStack } from "lucide-react";
+import { Files } from "lucide-react";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { cn } from "@/frontend/lib/utils";
 
@@ -40,7 +40,7 @@ export function ChatRightRailControls({
                   : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-zinc-100",
             )}
           >
-            <FileStack className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            <Files className="h-[18px] w-[18px]" strokeWidth={1.75} />
           </button>
         </HintTooltip>
       ) : null}

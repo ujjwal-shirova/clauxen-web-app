@@ -34,6 +34,7 @@ import {
   type CapturedToolCall,
   type TranscriptAgentModelTurn,
 } from "@/backend/training/transcript-format";
+import { buildPromptMessagesFromDbRows } from "@/backend/inference/build-chat-prompt-messages";
 
 async function persistUserTranscriptLine(input: {
   chatId: string;
@@ -440,85 +441,16 @@ export async function streamChatGeneration(input: {
   }
 
   // Prompt context from DB recent turns so partial client pages cannot starve
-  // the model. Model-only attachment context is kept in metadata, while the
-  // user-visible text remains the canonical message content.
+  // the model. Prefer structured agent rounds (thinking/tools/text) so follow-ups
+  // see prior assistant work, not only previous user text.
   const dbRecent = await messagesRepo.listRecentMessagesForChat(
     input.chatId,
     40,
   );
-  const fromDb: IncomingMessage[] = dbRecent
-    .filter((row) => row.role === "user" || row.role === "assistant")
-    .map((row) => {
-      const modelContent =
-        row.role === "user" &&
-        typeof (row.metadata as { model_content?: unknown })?.model_content ===
-          "string"
-          ? String(
-              (row.metadata as { model_content?: string }).model_content,
-            ).trim()
-          : (row.content ?? "").trim();
-      return {
-        role: row.role as "user" | "assistant",
-        content: modelContent,
-      };
-    })
-    .filter((message) => message.content.length > 0);
-
-  const structuredFromDb: AgentStreamOptions["messages"] = [];
-  for (const row of dbRecent) {
-    if (row.role !== "user" && row.role !== "assistant") continue;
-
-    if (row.role === "user") {
-      const modelContent =
-        typeof (row.metadata as { model_content?: unknown })?.model_content ===
-        "string"
-          ? String(
-              (row.metadata as { model_content?: string }).model_content,
-            ).trim()
-          : (row.content ?? "").trim();
-      if (modelContent) {
-        structuredFromDb.push({ role: "user", content: modelContent });
-      }
-      continue;
-    }
-
-    const storedAgentUi = (
-      row.content_json as {
-        agent_ui?: { modelTurns?: TranscriptAgentModelTurn[] };
-      }
-    )?.agent_ui;
-    const storedTurns = Array.isArray(storedAgentUi?.modelTurns)
-      ? storedAgentUi.modelTurns
-      : [];
-
-    if (storedTurns.length > 0) {
-      for (const turn of storedTurns) {
-        const assistantBlocks = Array.isArray(turn.assistant)
-          ? turn.assistant.filter((part) => part.type !== "tool_result")
-          : [];
-        if (assistantBlocks.length > 0) {
-          structuredFromDb.push({
-            role: "assistant",
-            content:
-              assistantBlocks as AgentStreamOptions["messages"][number]["content"],
-          });
-        }
-        if (Array.isArray(turn.toolResults) && turn.toolResults.length > 0) {
-          structuredFromDb.push({
-            role: "user",
-            content:
-              turn.toolResults as AgentStreamOptions["messages"][number]["content"],
-          });
-        }
-      }
-      continue;
-    }
-
-    const content = (row.content ?? "").trim();
-    if (content) {
-      structuredFromDb.push({ role: "assistant", content });
-    }
-  }
+  const promptFromDb = buildPromptMessagesFromDbRows(dbRecent);
+  const fromDb: IncomingMessage[] = promptFromDb.plain;
+  const structuredFromDb: AgentStreamOptions["messages"] =
+    promptFromDb.structured;
 
   let conversationForModel =
     fromDb.length > 0 ? fromDb : clientConversation;

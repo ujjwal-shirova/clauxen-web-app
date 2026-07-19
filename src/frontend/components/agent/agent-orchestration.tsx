@@ -165,6 +165,7 @@ export function AgentOrchestrationView({
                     summary={item.summary}
                     isActive={item.isActive}
                     useChrome={item.useChrome}
+                    livePreview={item.livePreview}
                     defaultExpanded={false}
                   >
                     {item.segments.map((segment) =>

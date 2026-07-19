@@ -28,12 +28,14 @@ export function AgentTrace({
 
 /**
  * Collapsible action block. Collapsed by default.
- * Header: leading chips · label · trailing (+N/−M) · chevron (flush right).
+ * Header: leading chips · label · trailing · chevron (flush right).
+ * Optional livePreview shows under the header while collapsed + active.
  */
 export function AgentTraceBlock({
   title,
   trailing,
   leading,
+  livePreview,
   showChevron = true,
   hideHeader = false,
   isActive = false,
@@ -45,10 +47,10 @@ export function AgentTraceBlock({
 }: {
   title: ReactNode;
   trailing?: ReactNode;
-  /** Leading adornments in the header (e.g. first 3 source favicons). */
   leading?: ReactNode;
+  /** Cursor-style status line while collapsed and still running. */
+  livePreview?: ReactNode;
   showChevron?: boolean;
-  /** When true, render body only (no Explored/Used chrome). */
   hideHeader?: boolean;
   isActive?: boolean;
   defaultExpanded?: boolean;
@@ -61,6 +63,9 @@ export function AgentTraceBlock({
   const canCollapse = hasBody && !hideHeader;
   const [expanded, setExpanded] = useState(hideHeader ? true : defaultExpanded);
   const userToggledRef = useRef(false);
+  const previewKeyRef = useRef(0);
+  const [previewKey, setPreviewKey] = useState(0);
+  const lastPreviewRef = useRef<string>("");
 
   useEffect(() => {
     if (hideHeader) {
@@ -69,16 +74,26 @@ export function AgentTraceBlock({
     }
     if (!canCollapse) return;
     if (!userToggledRef.current) {
-      // Bare → chrome mid-stream: keep body open so nested tools do not vanish.
-      setExpanded(isActive ? true : defaultExpanded);
+      setExpanded(defaultExpanded);
     }
-  }, [isActive, canCollapse, defaultExpanded, hideHeader]);
+  }, [canCollapse, defaultExpanded, hideHeader]);
+
+  useEffect(() => {
+    if (typeof livePreview !== "string") return;
+    if (livePreview === lastPreviewRef.current) return;
+    lastPreviewRef.current = livePreview;
+    previewKeyRef.current += 1;
+    setPreviewKey(previewKeyRef.current);
+  }, [livePreview]);
 
   const toggle = () => {
     if (!canCollapse) return;
     userToggledRef.current = true;
     setExpanded((value) => !value);
   };
+
+  const showLivePreview =
+    Boolean(livePreview) && !expanded && !hideHeader && isActive;
 
   const headerInner = (
     <>
@@ -140,6 +155,16 @@ export function AgentTraceBlock({
             {headerInner}
           </div>
         )
+      ) : null}
+
+      {showLivePreview ? (
+        <div
+          key={previewKey}
+          className="agent-fold-live-preview mt-1 min-w-0 truncate pl-0.5 text-[12.5px] font-[430] leading-5 tracking-[-0.01em] text-zinc-500 animate-in fade-in slide-in-from-bottom-1 duration-200"
+          data-agent-fold-preview="true"
+        >
+          <AgentShimmerText>{livePreview}</AgentShimmerText>
+        </div>
       ) : null}
 
       {hasBody ? (

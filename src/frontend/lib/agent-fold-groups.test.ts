@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   countContentLineDiff,
   groupAgentTraceItems,
+  resolveFoldLivePreview,
   shouldUseFoldChrome,
   summarizeFoldSegments,
 } from "@/frontend/lib/agent-fold-groups";
@@ -70,71 +71,44 @@ describe("agent-fold-groups", () => {
     }
   });
 
-  it("skips outer chrome for a lone thought or lone tool", () => {
+  it("uses live chrome + preview while active, skips chrome for lone completed thought", () => {
     assert.equal(
-      shouldUseFoldChrome([
-        { kind: "thinking", id: "t", content: "x" },
-      ]),
-      false,
-    );
-    assert.equal(
-      shouldUseFoldChrome([
-        {
-          kind: "tool",
-          id: "s",
-          toolCallId: "s",
-          name: "web_search",
-          status: "done",
-        },
-      ]),
-      false,
-    );
-    assert.equal(
-      shouldUseFoldChrome([
-        { kind: "thinking", id: "t", content: "x" },
-        {
-          kind: "tool",
-          id: "s",
-          toolCallId: "s",
-          name: "web_search",
-          status: "done",
-        },
-      ]),
+      shouldUseFoldChrome([{ kind: "thinking", id: "t", content: "x" }], {
+        isActive: true,
+      }),
       true,
     );
     assert.equal(
-      shouldUseFoldChrome([
-        {
-          kind: "tool",
-          id: "a",
-          toolCallId: "a",
-          name: "bash_tool",
-          status: "done",
-        },
-        {
-          kind: "tool",
-          id: "b",
-          toolCallId: "b",
-          name: "weather_fetch",
-          status: "done",
-        },
-      ]),
-      true,
+      shouldUseFoldChrome([{ kind: "thinking", id: "t", content: "x" }]),
+      false,
     );
 
-    const lone = groupAgentTraceItems([
+    const live = summarizeFoldSegments(
+      [
+        {
+          kind: "tool",
+          id: "s",
+          toolCallId: "s",
+          name: "web_search",
+          status: "running",
+          searchQuery: "Anthropic news",
+        },
+      ],
+      { isActive: true },
+    );
+    assert.match(live.label, /^Searching/);
+
+    const preview = resolveFoldLivePreview([
       {
-        kind: "thinking",
-        id: "t-only",
-        content: "solo",
-        isStreaming: false,
+        kind: "tool",
+        id: "s",
+        toolCallId: "s",
+        name: "web_search",
+        status: "running",
+        searchQuery: "Anthropic news",
       },
     ]);
-    assert.equal(lone.length, 1);
-    assert.equal(lone[0]?.kind, "fold");
-    if (lone[0]?.kind === "fold") {
-      assert.equal(lone[0].useChrome, false);
-    }
+    assert.equal(preview, "Searching · Anthropic news");
   });
 
   it("summarizes tools without thought duration", () => {

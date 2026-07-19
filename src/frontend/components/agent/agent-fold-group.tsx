@@ -5,20 +5,20 @@ import type { AgentFoldSummary } from "@/frontend/lib/agent-fold-groups";
 import { AgentTraceBlock, AgentShimmerText } from "./agent-trace";
 
 /**
- * Cursor-style activity fold. When `useChrome` is false (lone thought/tool),
- * the outer Explored/Used header is omitted and the body stays open — same
- * component shell so upgrading to chrome mid-stream does not remount children.
+ * Cursor-style activity fold with shimmering live verb + collapsed preview line.
  */
 export function AgentFoldGroup({
   summary,
   isActive = false,
   useChrome = true,
+  livePreview,
   defaultExpanded = false,
   children,
 }: {
   summary: AgentFoldSummary;
   isActive?: boolean;
   useChrome?: boolean;
+  livePreview?: string;
   defaultExpanded?: boolean;
   children: ReactNode;
 }) {
@@ -31,6 +31,7 @@ export function AgentFoldGroup({
           summary.label
         )
       }
+      livePreview={livePreview}
       isActive={isActive}
       defaultExpanded={useChrome ? defaultExpanded : true}
       showChevron={useChrome}

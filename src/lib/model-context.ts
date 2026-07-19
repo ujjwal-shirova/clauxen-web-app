@@ -13,8 +13,11 @@ export function stripMessageContentForModelApi(content: string): string {
     // thinking blocks (various forms)
     .replace(/<think[\s\S]*?<\/think>/gi, "")
     .replace(/<\/?think>/gi, "")
+    // agent transcript control tags — keep inner narration/answer text
+    .replace(/<\/?agent_heading>/gi, "")
+    .replace(/<\/?agent_narration>/gi, "")
     // agent work frames / orchestration markers that should never reach the model
-    .replace(/<agent[^>]*>[\s\S]*?<\/agent>/gi, "")
+    .replace(/<agent(?!_(?:heading|narration))[^>]*>[\s\S]*?<\/agent>/gi, "")
     .replace(/\[agent[^[\]]*\]/gi, "")
     .replace(/\[frame-[^\]]+\]/gi, "")
     .replace(/<frame[^>]*>[\s\S]*?<\/frame>/gi, "")
