@@ -272,22 +272,38 @@ export default {
         address: env.INVOICE_ISSUER_ADDRESS || "India",
       });
 
-      const r2Key = `invoices/${payload.userId}/${payload.paymentId}.pdf`;
-      await env.INVOICES.put(r2Key, pdf, {
-        httpMetadata: { contentType: "application/pdf" },
-        customMetadata: {
-          invoiceNumber: payload.invoiceNumber,
-          paymentId: payload.paymentId,
-          userId: payload.userId,
-          orderId: payload.orderId,
-        },
-      });
+      const issued = new Date(payload.issuedAt || Date.now());
+      const yyyy = String(issued.getUTCFullYear());
+      const mm = String(issued.getUTCMonth() + 1).padStart(2, "0");
+
+      // Customer copy + sales-team archive (same PDF, two keys).
+      const customerKey = `invoices/${payload.userId}/${payload.paymentId}.pdf`;
+      const salesKey = `invoices/sales/${yyyy}/${mm}/${payload.paymentId}.pdf`;
+
+      const meta = {
+        invoiceNumber: payload.invoiceNumber,
+        paymentId: payload.paymentId,
+        userId: payload.userId,
+        orderId: payload.orderId,
+        planName: payload.planName,
+      };
+
+      await Promise.all([
+        env.INVOICES.put(customerKey, pdf, {
+          httpMetadata: { contentType: "application/pdf" },
+          customMetadata: meta,
+        }),
+        env.INVOICES.put(salesKey, pdf, {
+          httpMetadata: { contentType: "application/pdf" },
+          customMetadata: { ...meta, audience: "sales" },
+        }),
+      ]);
 
       const response: InvoiceGenerateResponse = {
         ok: true,
         invoiceNumber: payload.invoiceNumber,
         paymentId: payload.paymentId,
-        r2Key,
+        r2Key: customerKey,
         contentType: "application/pdf",
         bytes: pdf.byteLength,
       };

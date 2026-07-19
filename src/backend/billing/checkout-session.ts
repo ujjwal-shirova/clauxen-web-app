@@ -24,7 +24,9 @@ export type CheckoutSessionClaims = {
 };
 
 const SESSION_PREFIX = "cs_live_";
-const SESSION_TTL_SECONDS = 30 * 60;
+/** Keep checkout open long enough to complete UPI / address / payment without sudden expiry. */
+export const CHECKOUT_SESSION_TTL_SECONDS = 6 * 60 * 60; // 6 hours
+const SESSION_TTL_SECONDS = CHECKOUT_SESSION_TTL_SECONDS;
 
 function signingKey(): string {
   const key =

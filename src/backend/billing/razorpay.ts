@@ -128,6 +128,8 @@ export async function createRazorpayOrder(input: {
   currency?: string; // ISO currency — default INR
   receipt: string;
   notes?: Record<string, string>;
+  /** Skip Cloudflare Worker hop when Vercel holds Razorpay keys. */
+  preferDirect?: boolean;
 }) {
   if (!isRazorpayConfigured()) {
     throw new AppError(
@@ -149,6 +151,22 @@ export async function createRazorpayOrder(input: {
     throw new AppError("Invalid order amount.", 400, "bad_request");
   }
 
+  const body = JSON.stringify({
+    amount,
+    currency,
+    receipt: input.receipt,
+    notes: input.notes ?? {},
+  });
+
+  if (input.preferDirect && env.razorpayKeyId && env.razorpayKeySecret) {
+    return razorpayApiDirect<{
+      id: string;
+      amount: number;
+      currency: string;
+      receipt: string;
+    }>("/v1/orders", { method: "POST", body });
+  }
+
   return razorpayApi<{
     id: string;
     amount: number;
@@ -156,12 +174,7 @@ export async function createRazorpayOrder(input: {
     receipt: string;
   }>("/v1/orders", {
     method: "POST",
-    body: JSON.stringify({
-      amount,
-      currency,
-      receipt: input.receipt,
-      notes: input.notes ?? {},
-    }),
+    body,
   });
 }
 
@@ -252,27 +265,48 @@ export async function createRazorpayUpiQr(input: {
   description: string;
   notes?: Record<string, string>;
   closeBySeconds?: number;
+  /** Skip Cloudflare Worker hop — call Razorpay directly for lower latency. */
+  preferDirect?: boolean;
 }): Promise<RazorpayQrCodeEntity> {
   if (!Number.isInteger(input.amountPaise) || input.amountPaise <= 0) {
     throw new AppError("Invalid QR payment amount.", 400, "bad_request");
   }
 
-  const closeBy =
-    Math.floor(Date.now() / 1000) + (input.closeBySeconds ?? 15 * 60);
+  if (!env.razorpayKeyId || !env.razorpayKeySecret) {
+    // Fall through to worker-backed path when only CF holds keys.
+    if (!isBillingWorkerConfigured()) {
+      throw new AppError(
+        "Razorpay is not configured.",
+        503,
+        "billing_unavailable",
+      );
+    }
+  }
 
-  const qr = await razorpayApi<RazorpayQrCodeEntity>("/v1/payments/qr_codes", {
-    method: "POST",
-    body: JSON.stringify({
-      type: "upi_qr",
-      name: "shirova",
-      usage: "single_use",
-      fixed_amount: true,
-      payment_amount: input.amountPaise,
-      description: input.description.slice(0, 255),
-      close_by: closeBy,
-      notes: input.notes ?? {},
-    }),
+  const closeBy =
+    Math.floor(Date.now() / 1000) + (input.closeBySeconds ?? 20 * 60);
+
+  const body = JSON.stringify({
+    type: "upi_qr",
+    name: "shirova",
+    usage: "single_use",
+    fixed_amount: true,
+    payment_amount: input.amountPaise,
+    description: input.description.slice(0, 255),
+    close_by: closeBy,
+    notes: input.notes ?? {},
   });
+
+  const qr =
+    input.preferDirect && env.razorpayKeyId && env.razorpayKeySecret
+      ? await razorpayApiDirect<RazorpayQrCodeEntity>(
+          "/v1/payments/qr_codes",
+          { method: "POST", body },
+        )
+      : await razorpayApi<RazorpayQrCodeEntity>("/v1/payments/qr_codes", {
+          method: "POST",
+          body,
+        });
 
   if (!qr?.id || !qr.image_url) {
     throw new AppError("Invalid Razorpay QR response.", 502, "razorpay_error");
@@ -288,12 +322,30 @@ export async function fetchRazorpayQrCode(
     throw new AppError("Invalid QR id.", 400, "bad_request");
   }
 
+  if (env.razorpayKeyId && env.razorpayKeySecret) {
+    return razorpayApiDirect<RazorpayQrCodeEntity>(
+      `/v1/payments/qr_codes/${qrId}`,
+    );
+  }
+
   return razorpayApi<RazorpayQrCodeEntity>(`/v1/payments/qr_codes/${qrId}`);
 }
 
 export async function fetchRazorpayQrPayments(qrId: string) {
   if (!/^qr_[A-Za-z0-9]{8,40}$/.test(qrId)) {
     throw new AppError("Invalid QR id.", 400, "bad_request");
+  }
+
+  if (env.razorpayKeyId && env.razorpayKeySecret) {
+    return razorpayApiDirect<{
+      items: Array<{
+        id: string;
+        amount: number;
+        status: string;
+        method?: string;
+        order_id?: string;
+      }>;
+    }>(`/v1/payments/qr_codes/${qrId}/payments?count=5`);
   }
 
   return razorpayApi<{

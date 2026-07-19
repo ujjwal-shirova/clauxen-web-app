@@ -1,5 +1,6 @@
 import * as billingRepo from "@/backend/repositories/billing.repository"; // orders, subscriptions, balances, usage
 import {
+  CHECKOUT_SESSION_TTL_SECONDS,
   checkoutSessionPath,
   mintCheckoutSessionToken,
   normalizeCheckoutReturnPath,
@@ -132,7 +133,7 @@ export function createCheckoutSession(input: {
     sessionId: token,
     checkoutPath: checkoutSessionPath(token),
     returnPath,
-    expiresInSeconds: 30 * 60,
+    expiresInSeconds: CHECKOUT_SESSION_TTL_SECONDS,
   };
 }
 
@@ -161,6 +162,14 @@ export async function createUpiCheckoutPayment(input: {
   seatBreakdown?: Record<string, number> | null;
   organizationSeatCount?: number | null;
 }) {
+  if (!isRazorpayConfigured()) {
+    throw new AppError(
+      "Razorpay keys are not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
+      503,
+      "billing_unavailable",
+    );
+  }
+
   const claims = assertCheckoutSessionForUser(input.sessionId, input.userId);
   if ((claims.currency ?? "INR") !== "INR") {
     throw new AppError(
@@ -170,36 +179,102 @@ export async function createUpiCheckoutPayment(input: {
     );
   }
 
-  const checkout = await createCheckoutOrder({
-    userId: input.userId,
-    userEmail: input.userEmail,
-    planId: input.planId,
-    planName: input.planName,
-    billingCycle: input.billingCycle,
-    subtotalPaise: input.subtotalPaise,
-    billingDetails: input.billingDetails,
-    maxTier: input.maxTier,
-    seatBreakdown: input.seatBreakdown,
-    organizationSeatCount: input.organizationSeatCount,
-  });
-
-  if (!checkout.order) {
-    throw new AppError("Could not create billing order.", 500, "billing_error");
+  const planId = input.planId.trim();
+  if (!planId || planId.length > 64) {
+    throw new AppError("Invalid planId.", 400, "bad_request");
   }
 
-  const qr = await createRazorpayUpiQr({
-    amountPaise: checkout.razorpay.amount,
-    description: input.planName,
-    notes: {
-      billing_order_id: checkout.order.id,
-      user_id: input.userId,
-      plan_id: input.planId,
-      checkout_session: input.sessionId.slice(0, 120),
+  assertPositiveIntegerPaise(input.subtotalPaise, "subtotalPaise");
+
+  const tokens = PLAN_TOKEN_GRANTS[planId];
+  if (tokens === undefined) {
+    throw new AppError("Unknown billing plan.", 400, "invalid_plan");
+  }
+
+  const tax = resolveCheckoutTaxPaiseForCurrency(
+    input.subtotalPaise,
+    input.billingDetails,
+    "INR",
+  );
+  const totalInrPaise = input.subtotalPaise + tax.taxPaise;
+  assertPositiveIntegerPaise(totalInrPaise, "totalPaise");
+
+  const orderId = newOrderId();
+  const receipt = newReceipt();
+
+  // Parallel: Razorpay Order + UPI QR (QR uses preferDirect to skip Worker hop).
+  const [razorpay, qr] = await Promise.all([
+    createRazorpayOrder({
+      amountMinor: totalInrPaise,
+      currency: "INR",
+      receipt,
+      preferDirect: true,
+      notes: {
+        plan_id: planId,
+        user_id: input.userId,
+        billing_order_id: orderId,
+        channel: "upi_qr",
+        ...(input.billingDetails.gstin
+          ? { gstin: input.billingDetails.gstin }
+          : {}),
+      },
+    }),
+    createRazorpayUpiQr({
+      amountPaise: totalInrPaise,
+      description: input.planName,
+      preferDirect: true,
+      notes: {
+        billing_order_id: orderId,
+        user_id: input.userId,
+        plan_id: planId,
+        checkout_session: input.sessionId.slice(0, 120),
+      },
+    }),
+  ]);
+
+  const order = await billingRepo.createBillingOrder({
+    id: orderId,
+    razorpayOrderId: razorpay.id,
+    userId: input.userId,
+    userEmail: input.userEmail,
+    planId,
+    planName: input.planName,
+    billingCycle: input.billingCycle,
+    maxTier: input.maxTier,
+    subtotalPaise: input.subtotalPaise,
+    taxPaise: tax.taxPaise,
+    amountPaise: totalInrPaise,
+    tokens,
+    receipt,
+    metadata: {
+      billingDetails: input.billingDetails,
+      checkoutCurrency: "INR",
+      channel: "upi_qr",
+      upiQrId: qr.id,
+      tax: {
+        label: tax.taxLabel,
+        paise: tax.taxPaise,
+        gstExempt: tax.isGstExempt,
+      },
+      ...(input.seatBreakdown ? { seatBreakdown: input.seatBreakdown } : {}),
+      ...(input.organizationSeatCount != null
+        ? { organizationSeatCount: input.organizationSeatCount }
+        : {}),
     },
   });
 
+  if (!order) {
+    throw new AppError("Could not create billing order.", 500, "billing_error");
+  }
+
   return {
-    ...checkout,
+    order,
+    razorpay: {
+      orderId: razorpay.id,
+      amount: razorpay.amount,
+      currency: razorpay.currency,
+      keyId: env.publicRazorpayKeyId || env.razorpayKeyId,
+    },
     upi: {
       qrId: qr.id,
       imageUrl: qr.image_url,
@@ -255,7 +330,7 @@ export async function pollUpiQrPayment(input: {
     },
   });
 
-  void enqueueInvoiceGeneration(captured.order_id, captured.id);
+  await enqueueInvoiceGeneration(captured.order_id, captured.id);
 
   return { status: "paid" as const, fulfillment: result };
 }
@@ -415,7 +490,7 @@ export async function handleRazorpayWebhook(payload: {
     webhookEventName: payload.event,
   });
 
-  void enqueueInvoiceGeneration(payment.order_id, payment.id);
+  await enqueueInvoiceGeneration(payment.order_id, payment.id);
 
   return result;
 }
@@ -526,7 +601,7 @@ export async function verifyCheckoutPayment(input: {
     },
   });
 
-  void enqueueInvoiceGeneration(input.razorpayOrderId, input.razorpayPaymentId);
+  await enqueueInvoiceGeneration(input.razorpayOrderId, input.razorpayPaymentId);
 
   return result;
 }

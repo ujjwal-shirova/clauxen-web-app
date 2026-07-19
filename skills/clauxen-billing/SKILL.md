@@ -25,11 +25,12 @@ Plans in Postgres `plans` (migrations seed catalog).
 6. Webhooks: verify `RAZORPAY_WEBHOOK_SECRET`; idempotent `razorpay_webhook_events`.
 7. Never expose `RAZORPAY_KEY_SECRET` to client.
 8. Prefer Cloudflare `clauxen-billing` Worker (`BILLING_WORKER_URL`) for Razorpay REST + invoice PDF — never generate payment/invoice engines in the browser.
+9. Checkout session TTL is **6 hours**. UPI address is a full form (no Google Places).
 
 ## Key paths
 
 `src/backend/billing/*`, `src/backend/services/billing.service.ts`, `gift.service.ts`  
-`workers/billing/` — Razorpay proxy + PDF invoices → R2  
+`workers/billing/` — Razorpay proxy + PDF invoices → R2 (`invoices/{userId}/…` + `invoices/sales/YYYY/MM/…`)  
 `src/frontend/components/checkout-*.tsx`, `billing-checkout.tsx`, `invoice-view.tsx`  
 `/api/v1/billing/*`, `/api/v1/webhooks/razorpay`, `/api/v1/gifts/*`
 

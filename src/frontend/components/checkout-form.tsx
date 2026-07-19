@@ -43,8 +43,6 @@ export type CheckoutFormProps = {
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
   billingAddress: CheckoutAddressState;
   onBillingAddressChange: (state: CheckoutAddressState) => void;
-  billingAddressExpanded: boolean;
-  onBillingAddressExpand: () => void;
 };
 
 export function CheckoutForm({
@@ -73,8 +71,6 @@ export function CheckoutForm({
   onCardFieldsChange,
   billingAddress,
   onBillingAddressChange,
-  billingAddressExpanded,
-  onBillingAddressExpand,
 }: CheckoutFormProps) {
   const isUpi = paymentTab === "upi";
 
@@ -99,14 +95,11 @@ export function CheckoutForm({
 
         {isUpi && (
           <div className="flex flex-col gap-3">
-            {billingAddressExpanded && <CheckoutQrHint />}
+            <CheckoutQrHint />
             <CheckoutBillingAddress
               value={billingAddress}
               onChange={onBillingAddressChange}
-              showExpanded={billingAddressExpanded}
-              onExpand={onBillingAddressExpand}
             />
-            {!billingAddressExpanded && <CheckoutQrHint />}
           </div>
         )}
 

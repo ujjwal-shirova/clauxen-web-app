@@ -191,7 +191,7 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
 
   return (
     <FullscreenPortal>
-      <div className="fixed inset-0 z-[200] overflow-hidden bg-white">
+      <div className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-white">
         {currentView === "plans" && (
           <UpgradePageContent
             key={plansRefreshKey}

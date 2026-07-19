@@ -194,7 +194,6 @@ export function BillingCheckout({
     state: "",
     isComplete: false,
   });
-  const [billingAddressExpanded, setBillingAddressExpanded] = useState(false);
   const [applePayAvailable, setApplePayAvailable] = useState(false);
   const [sessionPreparing, setSessionPreparing] = useState(false);
 
@@ -235,12 +234,6 @@ export function BillingCheckout({
       }));
     }
   }, [auth.user?.displayName, billingAddress.fullName]);
-
-  useEffect(() => {
-    if (paymentTab !== "upi") {
-      setBillingAddressExpanded(false);
-    }
-  }, [paymentTab]);
 
   const handleCardFieldsChange = useCallback((state: CheckoutCardFieldState) => {
     setCardFields(state);
@@ -444,7 +437,7 @@ export function BillingCheckout({
           setPayError(PAYMENT_FAILED_MESSAGE);
         }
       })();
-    }, 3000);
+    }, 2000);
 
     return () => window.clearInterval(interval);
   }, [upiPoll, upiModalOpen, onPaymentSuccess]);
@@ -1031,7 +1024,7 @@ export function BillingCheckout({
   ]);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-50 font-sans text-zinc-800">
+    <div className="flex min-h-[100dvh] w-full flex-col bg-zinc-50 font-sans text-zinc-800">
       {sessionPreparing && !checkoutSessionId && (
         <CheckoutPreparing planId={activePlanId} maxTier={maxTier} />
       )}
@@ -1056,8 +1049,8 @@ export function BillingCheckout({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <main className="mx-auto flex w-full max-w-[1080px] flex-col items-start gap-6 px-4 pb-24 pt-1 sm:px-6 sm:pt-2 lg:flex-row lg:gap-8">
+      <div className="w-full flex-1">
+        <main className="mx-auto flex w-full max-w-[1080px] flex-col items-start gap-6 px-4 pb-28 pt-1 sm:px-6 sm:pt-2 lg:flex-row lg:gap-8">
           {/* Left column — sticky plan summary */}
           <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[420px]">
             <h1 className="mb-4 text-[21px] font-medium sm:mb-6 sm:text-[24px]">
@@ -1209,8 +1202,6 @@ export function BillingCheckout({
               onCardFieldsChange={handleCardFieldsChange}
               billingAddress={billingAddress}
               onBillingAddressChange={setBillingAddress}
-              billingAddressExpanded={billingAddressExpanded}
-              onBillingAddressExpand={() => setBillingAddressExpanded(true)}
               showExpressCheckout={applePayAvailable}
               hideUpi={!ready || isUsd}
               onExpressCheckout={() => {

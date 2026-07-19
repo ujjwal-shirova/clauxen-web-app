@@ -7,10 +7,11 @@ Clauxen billing is **Razorpay**-based (customer-facing brand: **shirova**):
 - Hosted checkout sessions at `/checkout/shirova/cs_live_…` (HMAC-signed, multi-tab)
 - Card payments via **Custom Checkout** (`razorpay.js` + `createPayment`) — PAN/CVV never hit our API
 - UPI (INR) via Razorpay UPI QR Codes API + custom QR modal + poll
-- UPI billing address: progressive Full name → Google Places suggestions (proxied via `/api/v1/billing/places/*`) → manual PIN/state fields
+- UPI billing address: **full form in one view** (name, country, lines, city, PIN, state) — no Google Places, no progressive expand
 - Apple Pay express still uses Standard Checkout when available
-- Invoices list, gift purchase + redeem
+- Invoices list, gift purchase + redeem; PDF archived to R2 (`invoices/{userId}/…` + `invoices/sales/YYYY/MM/…`)
 - Webhook-driven activation (`/api/v1/webhooks/razorpay`)
+- Checkout session TTL: **6 hours** (`cs_live_…`)
 
 Plans live in Postgres `plans` (seeded by migrations including personal catalog + Pro yearly 20%).
 
@@ -98,7 +99,7 @@ Webhook:
 
 ## 5. Sessions & redirects
 
-- Prefix: `cs_live_` (HMAC body + signature; 30 min TTL)
+- Prefix: `cs_live_` (HMAC body + signature; **6 hour** TTL)
 - Path: `/checkout/shirova/{sessionId}` (default merchant `shirova`)
 - Overlay and hosted flows `history.replaceState` to that path so the link works in any tab
 - Optional claim `returnPath` (sanitized: `/new`, `/onboarding`, `/c/…`, library/projects/customize) — post-pay redirect `{returnPath}?checkout=success`
@@ -131,7 +132,7 @@ Recurring: one-time Razorpay Order activates app-level `subscriptions` (Razorpay
 | `RAZORPAY_KEY_SECRET` | Server |
 | `RAZORPAY_WEBHOOK_SECRET` | Server |
 | `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Browser Custom/Standard Checkout only |
-| `GOOGLE_PLACES_API_KEY` | Server — UPI address autocomplete / details proxy |
+| `GOOGLE_PLACES_API_KEY` | Deprecated for checkout — Places routes removed |
 | `BILLING_WORKER_URL` | Cloudflare `clauxen-billing` Worker base URL |
 | `BILLING_INTERNAL_TOKEN` | Shared secret for billing Worker internal routes |
 | `CHECKOUT_USD_INR_RATE` | Optional |
