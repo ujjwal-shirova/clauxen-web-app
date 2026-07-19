@@ -187,6 +187,11 @@ export const env = {
   /** Shared secret for auth-email Worker. */
   authEmailInternalToken: optional("AUTH_EMAIL_INTERNAL_TOKEN"),
 
+  /** Cloudflare billing Worker (Razorpay proxy + invoice PDF). */
+  billingWorkerUrl: normalizeBaseUrl(optional("BILLING_WORKER_URL")),
+  /** Shared secret for billing Worker internal routes. */
+  billingInternalToken: optional("BILLING_INTERNAL_TOKEN"),
+
   r2ImagesBucket: optional("R2_IMAGES_BUCKET", "clauxen-images"),
   r2DocumentsBucket: optional(
     "R2_DOCUMENTS_BUCKET",

@@ -16,8 +16,15 @@ import {
   isRazorpayConfigured,
   newOrderId,
   newReceipt,
-  verifyPaymentSignature,
+  verifyPaymentSignatureSecure,
 } from "@/backend/billing/razorpay"; // payment gateway integration
+import {
+  generateInvoiceOnWorker,
+} from "@/backend/billing/billing-worker";
+import {
+  buildInvoicePayloadFromOrder,
+  invoicePayloadToViewData,
+} from "@/backend/billing/invoice";
 import type { CheckoutBillingDetails } from "@/lib/checkout-tax";
 import {
   resolveCheckoutTaxPaise,
@@ -240,12 +247,15 @@ export async function pollUpiQrPayment(input: {
     paymentStatus: "captured",
     paymentMethod: paymentEntity.method ?? "upi",
     amountPaise: paymentEntity.amount,
-    source: "upi_qr",
+    source: "checkout",
     providerPayload: {
       qrId: input.qrId,
+      channel: "upi_qr",
       verifiedAt: new Date().toISOString(),
     },
   });
+
+  void enqueueInvoiceGeneration(captured.order_id, captured.id);
 
   return { status: "paid" as const, fulfillment: result };
 }
@@ -405,6 +415,8 @@ export async function handleRazorpayWebhook(payload: {
     webhookEventName: payload.event,
   });
 
+  void enqueueInvoiceGeneration(payment.order_id, payment.id);
+
   return result;
 }
 
@@ -442,11 +454,11 @@ export async function verifyCheckoutPayment(input: {
   assertRazorpayCheckoutIds(input);
 
   if (
-    !verifyPaymentSignature({
+    !(await verifyPaymentSignatureSecure({
       orderId: input.razorpayOrderId,
       paymentId: input.razorpayPaymentId,
       signature: input.razorpaySignature,
-    })
+    }))
   ) {
     throw new AppError("Invalid payment signature.", 400, "invalid_signature");
   }
@@ -514,7 +526,61 @@ export async function verifyCheckoutPayment(input: {
     },
   });
 
+  void enqueueInvoiceGeneration(input.razorpayOrderId, input.razorpayPaymentId);
+
   return result;
+}
+
+async function enqueueInvoiceGeneration(
+  razorpayOrderId: string,
+  paymentId: string,
+) {
+  try {
+    const order = await billingRepo.getBillingOrderDetailsByRazorpayId(
+      razorpayOrderId,
+    );
+    if (!order) return;
+    const payment = await billingRepo.getBillingPaymentById(paymentId);
+    if (!payment) return;
+
+    const payload = buildInvoicePayloadFromOrder({
+      order,
+      payment,
+    });
+    const generated = await generateInvoiceOnWorker(payload);
+    if (generated?.r2Key) {
+      await billingRepo.attachInvoicePdfToPayment(paymentId, {
+        r2Key: generated.r2Key,
+        invoiceNumber: generated.invoiceNumber,
+      });
+    }
+  } catch (err) {
+    console.error("[billing] invoice enqueue failed", err);
+  }
+}
+
+export async function getInvoiceForUser(input: {
+  userId: string;
+  paymentId: string;
+}) {
+  const payment = await billingRepo.getBillingPaymentById(input.paymentId);
+  if (!payment || payment.user_id !== input.userId) {
+    throw notFound("Invoice not found.");
+  }
+  const order = await billingRepo.getBillingOrderDetailsByRazorpayId(
+    payment.order_id,
+  );
+  if (!order || order.user_id !== input.userId) {
+    throw notFound("Invoice not found.");
+  }
+
+  const payload = buildInvoicePayloadFromOrder({ order, payment });
+  return {
+    invoice: invoicePayloadToViewData(payload),
+    pdfKey:
+      (payment.provider_payload as { invoicePdfKey?: string } | null)
+        ?.invoicePdfKey ?? null,
+  };
 }
 
 export async function meterChatGeneration(input: {

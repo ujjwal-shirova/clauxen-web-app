@@ -49,9 +49,17 @@ Critical paths:
 1. `GET /api/v1/billing/plans`
 2. `POST /api/v1/billing/checkout-sessions` → `{ sessionId, checkoutPath, returnPath }`
 3. Card: `POST /api/v1/billing/orders` → browser `createPayment` (Custom Checkout) → `POST /api/v1/billing/orders/verify`
-4. UPI: `POST /api/v1/billing/orders/upi` → custom QR modal → `POST …/upi/poll`
-5. Subscription row activated; entitlements applied
+4. UPI: `POST /api/v1/billing/orders/upi` → custom QR modal (shimmer while generating) → `POST …/upi/poll`
+5. Subscription row activated (app-level auto-renew period); entitlements applied
 6. Webhook `payment.captured` also fulfills (idempotent)
+7. Invoice: Cloudflare `clauxen-billing` Worker generates PDF → R2; `GET /api/v1/billing/invoices/:paymentId` + `/pdf`
+
+### Cloudflare billing Worker
+
+- Worker: `workers/billing` (`clauxen-billing`)
+- When `BILLING_WORKER_URL` + `BILLING_INTERNAL_TOKEN` are set, Razorpay REST (orders, UPI QR, payment fetch, signature verify) is proxied through the Worker — secrets can live only on Cloudflare.
+- After capture, Vercel enqueues invoice PDF generation on the Worker (plan, IGST/GST, seats for team/enterprise, Shirova logo).
+- Card PAN still uses Razorpay.js in the browser (PCI); never POSTed to our API or Worker.
 
 ### Card security (Custom Checkout)
 
@@ -124,6 +132,8 @@ Recurring: one-time Razorpay Order activates app-level `subscriptions` (Razorpay
 | `RAZORPAY_WEBHOOK_SECRET` | Server |
 | `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Browser Custom/Standard Checkout only |
 | `GOOGLE_PLACES_API_KEY` | Server — UPI address autocomplete / details proxy |
+| `BILLING_WORKER_URL` | Cloudflare `clauxen-billing` Worker base URL |
+| `BILLING_INTERNAL_TOKEN` | Shared secret for billing Worker internal routes |
 | `CHECKOUT_USD_INR_RATE` | Optional |
 | `APPLE_PAY_DOMAIN_ASSOCIATION` | Apple Pay domain file content |
 

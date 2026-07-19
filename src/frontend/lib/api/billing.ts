@@ -187,7 +187,11 @@ export async function pollUpiBillingPayment(input: {
   return apiFetch<{
     status: "pending" | "paid";
     qrStatus?: string;
-    fulfillment?: { status?: string } | null;
+    fulfillment?: {
+      status?: string;
+      order_id?: string;
+      payment_id?: string;
+    } | null;
   }>("/api/v1/billing/orders/upi/poll", {
     method: "POST",
     body: JSON.stringify(input),
@@ -223,4 +227,16 @@ export async function cancelBillingSubscription() {
 
 export async function listInvoices() {
   return apiFetch<{ invoices: unknown[] }>("/api/v1/billing/invoices");
+}
+
+export async function getBillingInvoice(paymentId: string) {
+  return apiFetch<{
+    invoice: import("@/frontend/components/invoice-view").InvoiceData;
+    pdfKey: string | null;
+  }>(`/api/v1/billing/invoices/${encodeURIComponent(paymentId)}`);
+}
+
+/** Opens the server-generated PDF in a new tab (auth cookies applied). */
+export function billingInvoicePdfUrl(paymentId: string) {
+  return `/api/v1/billing/invoices/${encodeURIComponent(paymentId)}/pdf`;
 }

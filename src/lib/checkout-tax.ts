@@ -59,7 +59,7 @@ export function computeCheckoutTaxInr(
   return {
     taxInr,
     taxPaise: taxInr * 100,
-    taxLabel: "GST (18%)",
+    taxLabel: "IGST (18%)",
     showTaxRow: true,
     isGstExempt: false,
     taxNote: null,

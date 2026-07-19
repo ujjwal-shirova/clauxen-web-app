@@ -1,16 +1,24 @@
 import { createHmac, randomUUID, timingSafeEqual } from "crypto";
+import {
+  billingWorkerRazorpay,
+  isBillingWorkerConfigured,
+} from "@/backend/billing/billing-worker";
 import { env } from "@/backend/config/env";
 import { AppError } from "@/backend/db/errors"; // typed HTTP errors — billing_unavailable, razorpay_error codes
 
 export function isRazorpayConfigured() {
-  return Boolean(env.razorpayKeyId && env.razorpayKeySecret);
+  // Prefer Cloudflare billing Worker (keys live on CF). Fall back to Vercel keys.
+  return (
+    isBillingWorkerConfigured() ||
+    Boolean(env.razorpayKeyId && env.razorpayKeySecret)
+  );
 }
 
 const RAZORPAY_PAYMENT_ID_RE = /^pay_[A-Za-z0-9]{8,40}$/;
 const RAZORPAY_ORDER_ID_RE = /^order_[A-Za-z0-9]{8,40}$/;
 
 function razorpayAuthHeader(): string {
-  if (!isRazorpayConfigured()) {
+  if (!env.razorpayKeyId || !env.razorpayKeySecret) {
     throw new AppError(
       "Razorpay is not configured.",
       503,
@@ -20,7 +28,10 @@ function razorpayAuthHeader(): string {
   return `Basic ${Buffer.from(`${env.razorpayKeyId}:${env.razorpayKeySecret}`).toString("base64")}`;
 }
 
-async function razorpayApi<T>(path: string, init?: RequestInit): Promise<T> {
+async function razorpayApiDirect<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const response = await fetch(`https://api.razorpay.com${path}`, {
     ...init,
     headers: {
@@ -40,6 +51,61 @@ async function razorpayApi<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
   return body as T;
+}
+
+/**
+ * All Razorpay REST calls prefer Cloudflare billing Worker when configured
+ * (server-side only — secrets never touch the browser). Falls back to direct
+ * Razorpay from Vercel if the Worker is unreachable or missing keys (503).
+ */
+async function razorpayApi<T>(path: string, init?: RequestInit): Promise<T> {
+  if (isBillingWorkerConfigured()) {
+    try {
+      const method = (init?.method ?? "GET").toUpperCase();
+      let workerPath: string | null = null;
+      if (path === "/v1/orders" && method === "POST") {
+        workerPath = "/v1/razorpay/orders";
+      } else if (path === "/v1/payments/qr_codes" && method === "POST") {
+        workerPath = "/v1/razorpay/upi-qr";
+      } else {
+        const pay = path.match(/^\/v1\/payments\/([^/?]+)$/);
+        if (pay && method === "GET") {
+          workerPath = `/v1/razorpay/payments/${pay[1]}`;
+        }
+        const order = path.match(/^\/v1\/orders\/([^/?]+)$/);
+        if (order && method === "GET") {
+          workerPath = `/v1/razorpay/orders/${order[1]}`;
+        }
+        const qr = path.match(/^\/v1\/payments\/qr_codes\/([^/?]+)$/);
+        if (qr && method === "GET") {
+          workerPath = `/v1/razorpay/qr/${qr[1]}`;
+        }
+        const qrPay = path.match(/^\/v1\/payments\/qr_codes\/([^/?]+)\/payments/);
+        if (qrPay && method === "GET") {
+          workerPath = `/v1/razorpay/qr/${qrPay[1]}/payments`;
+        }
+        const qrClose = path.match(/^\/v1\/payments\/qr_codes\/([^/?]+)\/close$/);
+        if (qrClose && method === "POST") {
+          workerPath = `/v1/razorpay/qr/${qrClose[1]}/close`;
+        }
+      }
+
+      if (workerPath) {
+        return await billingWorkerRazorpay<T>(workerPath, init);
+      }
+    } catch (err) {
+      // Worker missing secrets / down — fall through to Vercel Razorpay keys.
+      if (
+        !(err instanceof AppError) ||
+        (err.status !== 503 && err.code !== "billing_unavailable")
+      ) {
+        // Still try direct if local keys exist
+        if (!env.razorpayKeyId || !env.razorpayKeySecret) throw err;
+      }
+    }
+  }
+
+  return razorpayApiDirect<T>(path, init);
 }
 
 // HMAC hex digest compare — timing-safe to avoid signature oracle via early exit
@@ -268,4 +334,28 @@ export function verifyPaymentSignature(input: {
     .update(`${input.orderId}|${input.paymentId}`) // Razorpay documented pipe-separated payload
     .digest("hex");
   return secureCompareHex(expected, input.signature);
+}
+
+/** Prefers Cloudflare billing Worker when local Razorpay secret is absent. */
+export async function verifyPaymentSignatureSecure(input: {
+  orderId: string;
+  paymentId: string;
+  signature: string;
+}): Promise<boolean> {
+  if (env.razorpayKeySecret) {
+    return verifyPaymentSignature(input);
+  }
+  if (!isBillingWorkerConfigured()) return false;
+  try {
+    const res = await billingWorkerRazorpay<{ valid?: boolean }>(
+      "/v1/razorpay/verify-signature",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+    return Boolean(res.valid);
+  } catch {
+    return false;
+  }
 }

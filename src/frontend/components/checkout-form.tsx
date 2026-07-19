@@ -32,6 +32,8 @@ export type CheckoutFormProps = {
   onAgreedChange: (value: boolean) => void;
   paying: boolean;
   payDisabled: boolean;
+  /** Shown under the Pay button when disabled so users know what's missing. */
+  payDisabledReason?: string | null;
   payLabel: string;
   variablePlanNotice?: string | null;
   onPay: () => void;
@@ -61,6 +63,7 @@ export function CheckoutForm({
   onAgreedChange,
   paying,
   payDisabled,
+  payDisabledReason = null,
   payLabel,
   variablePlanNotice,
   onPay,
@@ -167,6 +170,12 @@ export function CheckoutForm({
           >
             {paying ? "Processing…" : payLabel}
           </button>
+
+          {payDisabled && payDisabledReason && !paying && (
+            <p className={cn(checkoutUi.labelFine, "text-center text-[#911E1B]")}>
+              {payDisabledReason}
+            </p>
+          )}
 
           {variablePlanNotice && (
             <p className={cn(checkoutUi.labelFine, "text-center")}>

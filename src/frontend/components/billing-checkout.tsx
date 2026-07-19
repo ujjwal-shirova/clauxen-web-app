@@ -15,8 +15,10 @@ import { CheckoutForm } from "@/frontend/components/checkout-form";
 import type { CheckoutCardFieldState } from "@/frontend/components/checkout-payment-panel";
 import {
   checkoutAddressToBillingLine,
+  getCheckoutAddressIncompleteReason,
   type CheckoutAddressState,
 } from "@/frontend/components/checkout-billing-address";
+import { CheckoutPreparing } from "@/frontend/components/checkout-preparing";
 import { CheckoutUpiQrModal } from "@/frontend/components/checkout-upi-qr-modal";
 import { canUseApplePay } from "@/frontend/lib/apple-pay";
 import { openRazorpayCheckout } from "@/frontend/lib/razorpay-checkout";
@@ -194,6 +196,7 @@ export function BillingCheckout({
   });
   const [billingAddressExpanded, setBillingAddressExpanded] = useState(false);
   const [applePayAvailable, setApplePayAvailable] = useState(false);
+  const [sessionPreparing, setSessionPreparing] = useState(false);
 
   // When a checkout session id is provided via prop (e.g. direct /checkout link),
   // skip the *first* auto-create so we reuse the incoming session.
@@ -358,6 +361,9 @@ export function BillingCheckout({
     // (which mints a short-lived signed token) on the server, then the server later creates
     // the Razorpay Order with the *exact* computed amount. Client never dictates price.
     let cancelled = false;
+    const slowTimer = window.setTimeout(() => {
+      if (!cancelled) setSessionPreparing(true);
+    }, 450);
     void (async () => {
       try {
         const session = await createCheckoutSession({
@@ -383,15 +389,18 @@ export function BillingCheckout({
         syncCheckoutUrl(session.checkoutPath);
       } catch {
         if (!cancelled) {
-          // Soft message — the preparing screen in UpgradeView already handles the main path.
-          // For direct /checkout links or edge cases we give a gentle retryable state.
           setPayError("We had trouble creating your secure checkout session. Please try again in a moment.");
         }
+      } finally {
+        window.clearTimeout(slowTimer);
+        if (!cancelled) setSessionPreparing(false);
       }
     })();
 
     return () => {
       cancelled = true;
+      window.clearTimeout(slowTimer);
+      setSessionPreparing(false);
     };
   }, [
     activePlanId,
@@ -422,7 +431,10 @@ export function BillingCheckout({
             setUpiModalOpen(false);
             setUpiPoll(null);
             setPaying(false);
-            onPaymentSuccess?.();
+            onPaymentSuccess?.({
+              razorpayPaymentId: result.fulfillment?.payment_id,
+              razorpayOrderId: result.fulfillment?.order_id,
+            });
           }
         } catch {
           window.clearInterval(interval);
@@ -501,6 +513,33 @@ export function BillingCheckout({
     (paymentTab === "saved" && hasSavedPaymentMethod) ||
     (paymentTab === "card" && cardFields.isComplete);
 
+  const payDisabledReason = useMemo(() => {
+    if (isVariableCheckoutPlan) {
+      return "This plan needs pricing confirmation before checkout.";
+    }
+    if (!agreed) return "Accept the terms to continue.";
+    if (!checkoutSessionId) return "Preparing your secure checkout session…";
+    if (paymentTab === "upi") {
+      return getCheckoutAddressIncompleteReason(billingAddress);
+    }
+    if (paymentTab === "card" && !cardFields.isComplete) {
+      return "Enter a complete card number, expiry, and CVC.";
+    }
+    if (!seatsValid || !bundleSeatsValid) {
+      return "Adjust seat count to continue.";
+    }
+    return null;
+  }, [
+    isVariableCheckoutPlan,
+    agreed,
+    checkoutSessionId,
+    paymentTab,
+    billingAddress,
+    cardFields.isComplete,
+    seatsValid,
+    bundleSeatsValid,
+  ]);
+
   const cycleLabel = isMaxPlan
     ? "/month"
     : effectiveBillingCycle === "monthly"
@@ -545,6 +584,10 @@ export function BillingCheckout({
 
     try {
       if (tab === "upi") {
+        // Open modal immediately with shimmer while the server creates the QR.
+        setUpiQrImageUrl(null);
+        setUpiModalOpen(true);
+        setUpiPoll(null);
         const checkout = await createUpiBillingPayment({
           checkoutSessionId,
           billingDetails: minimalBillingDetails,
@@ -558,7 +601,6 @@ export function BillingCheckout({
           qrId: checkout.upi.qrId,
           billingOrderId: checkout.order.id,
         });
-        setUpiModalOpen(true);
         return;
       }
 
@@ -990,6 +1032,9 @@ export function BillingCheckout({
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-50 font-sans text-zinc-800">
+      {sessionPreparing && !checkoutSessionId && (
+        <CheckoutPreparing planId={activePlanId} maxTier={maxTier} />
+      )}
       <header className="relative flex w-full shrink-0 items-center justify-center px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))] sm:py-6">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 sm:left-6">
           <button
@@ -1153,6 +1198,7 @@ export function BillingCheckout({
                 !billingFormValid ||
                 !paymentFieldsValid
               }
+              payDisabledReason={payDisabledReason}
               payLabel={`Pay ${formatInr(total)}`}
               variablePlanNotice={
                 isVariableCheckoutPlan

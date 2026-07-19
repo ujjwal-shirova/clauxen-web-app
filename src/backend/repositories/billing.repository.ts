@@ -54,6 +54,74 @@ export async function getBillingOrderByRazorpayId(razorpayOrderId: string) {
   );
 }
 
+export async function getBillingOrderDetailsByRazorpayId(
+  razorpayOrderId: string,
+) {
+  return queryOne<{
+    id: string;
+    razorpay_order_id: string;
+    user_id: string;
+    user_email: string | null;
+    plan_id: string;
+    plan_name: string;
+    billing_cycle: string;
+    max_tier: string | null;
+    subtotal_paise: number;
+    tax_paise: number;
+    amount_paise: number;
+    currency: string;
+    paid_at: string | null;
+    fulfilled_at: string | null;
+    metadata: Record<string, unknown> | null;
+  }>(
+    `select id, razorpay_order_id, user_id, user_email, plan_id, plan_name,
+            billing_cycle, max_tier, subtotal_paise, tax_paise, amount_paise,
+            currency, paid_at, fulfilled_at, metadata
+     from public.billing_orders
+     where razorpay_order_id = $1
+     limit 1`,
+    [razorpayOrderId],
+  );
+}
+
+export async function getBillingPaymentById(paymentId: string) {
+  return queryOne<{
+    id: string;
+    order_id: string;
+    user_id: string;
+    method: string | null;
+    status: string;
+    amount_paise: number;
+    captured_at: string | null;
+    provider_payload: Record<string, unknown> | null;
+  }>(
+    `select id, order_id, user_id, method, status, amount_paise, captured_at, provider_payload
+     from public.billing_payments
+     where id = $1
+     limit 1`,
+    [paymentId],
+  );
+}
+
+export async function attachInvoicePdfToPayment(
+  paymentId: string,
+  input: { r2Key: string; invoiceNumber: string },
+) {
+  await query(
+    `update public.billing_payments
+     set provider_payload = coalesce(provider_payload, '{}'::jsonb) || $2::jsonb
+     where id = $1`,
+    [
+      paymentId,
+      JSON.stringify({
+        invoicePdfKey: input.r2Key,
+        invoiceNumber: input.invoiceNumber,
+        invoiceGeneratedAt: new Date().toISOString(),
+      }),
+    ],
+  );
+}
+
 export async function syncBillingOrderRazorpayId(
   orderId: string,
   razorpayOrderId: string,

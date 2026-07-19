@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-19 | Cloudflare `clauxen-billing` Worker owns Razorpay REST proxy + invoice PDF (pdf-lib → R2). Vercel uses `BILLING_WORKER_URL` + `BILLING_INTERNAL_TOKEN`. Card PAN still Razorpay.js only (PCI). UPI Pay requires 6-digit PIN; QR modal opens with shimmer while QR generates. Invoice UI uses `public/assets/icons/shirova-icon.jpeg`. India tax label **IGST (18%)**. App-level auto-renew via `subscriptions.current_period_end` (Razorpay e-mandate later). | Server-side payments + Hostinger-style invoices; fix disabled Pay UX |
 | 2026-07-19 | UPI checkout collects progressive billing address (name → Google Places autocomplete via server proxy `/api/v1/billing/places/*` → PIN/state). Requires `GOOGLE_PLACES_API_KEY` on Vercel. | Match ChatGPT-style UPI billing UX |
 | 2026-07-19 | Checkout brand **shirova**; session URLs `/checkout/shirova/cs_live_…`; cards via Razorpay **Custom Checkout** (`razorpay.js` createPayment — PAN never hits our API); UPI via QR Codes API + custom modal; UPI icon vendored at `public/checkout/icon-pm-upi.svg`. Smoke script: `scripts/ops/smoke-razorpay-upi-qr.mjs`. | Production Razorpay checkout hardening |
 | 2026-07-19 | Removed demo account `test-razorpay@clauxen.com` (and its 10-message quota feature). Auth user + related rows deleted from Supabase — account is unusable. | End-of-life demo/billing test account |

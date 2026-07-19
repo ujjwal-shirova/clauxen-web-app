@@ -101,9 +101,11 @@ export function CheckoutUpiQrModal({
                 className="h-40 w-40"
               />
             ) : (
-              <div className="flex h-40 w-40 items-center justify-center rounded-md bg-zinc-100 text-xs text-zinc-500">
-                Loading…
-              </div>
+              <div
+                className="h-40 w-40 animate-pulse rounded-md bg-gradient-to-br from-zinc-100 via-zinc-200/80 to-zinc-100"
+                aria-label="Generating QR code"
+                role="status"
+              />
             )}
           </div>
         </div>

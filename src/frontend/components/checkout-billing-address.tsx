@@ -43,6 +43,20 @@ export function isCheckoutAddressComplete(state: CheckoutAddressState): boolean 
   );
 }
 
+/** Human-readable reason Pay stays disabled for UPI address. */
+export function getCheckoutAddressIncompleteReason(
+  state: CheckoutAddressState,
+): string | null {
+  if (state.fullName.trim().length < 2) return "Enter your full name.";
+  if (state.addressLine1.trim().length < 3) return "Enter address line 1.";
+  if (state.city.trim().length < 2) return "Enter your city.";
+  if (!/^\d{6}$/.test(state.pin.trim())) {
+    return "Enter a valid 6-digit PIN code.";
+  }
+  if (state.state.trim().length < 2) return "Select your state.";
+  return null;
+}
+
 export function CheckoutBillingAddress({
   value,
   onChange,
@@ -54,10 +68,8 @@ export function CheckoutBillingAddress({
   showExpanded: boolean;
   onExpand: () => void;
 }) {
-  const [query, setQuery] = useState(value.addressLine1);
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [open, setOpen] = useState(false);
-  const [manual, setManual] = useState(false);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<number | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -83,9 +95,9 @@ export function CheckoutBillingAddress({
   }, [showExpanded]);
 
   useEffect(() => {
-    if (!showExpanded || manual) return;
+    if (!showExpanded) return;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    const q = query.trim();
+    const q = value.addressLine1.trim();
     if (q.length < 2) {
       setSuggestions([]);
       return;
@@ -102,7 +114,7 @@ export function CheckoutBillingAddress({
             },
           );
           setSuggestions(res.suggestions ?? []);
-          setOpen(true);
+          setOpen((res.suggestions ?? []).length > 0);
         } catch {
           setSuggestions([]);
         } finally {
@@ -113,12 +125,10 @@ export function CheckoutBillingAddress({
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [query, showExpanded, manual]);
+  }, [value.addressLine1, showExpanded]);
 
   const selectSuggestion = async (s: PlaceSuggestion) => {
     setOpen(false);
-    setQuery(s.mainText);
-    setManual(true);
     try {
       const res = await apiFetch<{
         address: {
@@ -139,24 +149,16 @@ export function CheckoutBillingAddress({
         addressLine2: a.addressLine2 || "",
         city: a.city || "",
         state: a.state || "",
-        pin: a.pin || "",
+        pin: (a.pin || "").replace(/\D/g, "").slice(0, 6),
         countryCode: a.countryCode || "IN",
       });
-      setQuery(a.addressLine1 || s.mainText);
     } catch {
       patch({ addressLine1: s.mainText });
-      setManual(true);
     }
   };
 
-  const enterManual = () => {
-    setManual(true);
-    setOpen(false);
-    setSuggestions([]);
-    if (query.trim() && !value.addressLine1) {
-      patch({ addressLine1: query.trim() });
-    }
-  };
+  const pinInvalid =
+    value.pin.length > 0 && !/^\d{6}$/.test(value.pin.trim());
 
   return (
     <div className="flex flex-col gap-3">
@@ -195,7 +197,9 @@ export function CheckoutBillingAddress({
             className={checkoutUi.field}
           />
 
-          <label className={cn(checkoutUi.field, "relative flex flex-col gap-0.5 py-2")}>
+          <label
+            className={cn(checkoutUi.field, "relative flex flex-col gap-0.5 py-2")}
+          >
             <span className="text-[11px] font-medium leading-none text-[#6d6e78]">
               Country or region
             </span>
@@ -216,31 +220,27 @@ export function CheckoutBillingAddress({
           <div ref={wrapRef} className="relative">
             <input
               type="text"
-              autoComplete="street-address"
-              placeholder={manual ? "Address line 1" : "Address"}
-              value={manual ? value.addressLine1 : query}
+              autoComplete="address-line1"
+              placeholder="Address line 1"
+              value={value.addressLine1}
               onChange={(e) => {
-                const v = e.target.value;
-                if (manual) {
-                  patch({ addressLine1: v });
-                } else {
-                  setQuery(v);
-                  setOpen(true);
-                }
+                patch({ addressLine1: e.target.value });
+                setOpen(true);
               }}
               onFocus={() => {
-                if (!manual && suggestions.length > 0) setOpen(true);
+                if (suggestions.length > 0) setOpen(true);
               }}
               className={cn(
                 checkoutUi.field,
-                open && !manual && "border-[#121212] shadow-none focus:border-[#121212] focus:shadow-none",
+                open &&
+                  "border-[#121212] shadow-none focus:border-[#121212] focus:shadow-none",
               )}
             />
 
-            {open && !manual && (
+            {open && (
               <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-[10px] border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)]">
                 <div className="flex items-center justify-between border-b border-black/5 px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+                  <span className="text-[11px] text-zinc-500">
                     Suggestions powered by{" "}
                     <span className="font-medium text-zinc-700">Google</span>
                   </span>
@@ -278,85 +278,85 @@ export function CheckoutBillingAddress({
                         </button>
                       </li>
                     ))}
-                  {!loading && suggestions.length === 0 && query.trim().length >= 2 && (
-                    <li className="px-3 py-2 text-sm text-zinc-500">
-                      No matches — enter address manually
-                    </li>
-                  )}
+                  {!loading &&
+                    suggestions.length === 0 &&
+                    value.addressLine1.trim().length >= 2 && (
+                      <li className="px-3 py-2 text-sm text-zinc-500">
+                        Keep typing, or fill the fields below manually
+                      </li>
+                    )}
                 </ul>
-                <div className="border-t border-black/5">
-                  <button
-                    type="button"
-                    className="w-full px-3 py-2.5 text-left text-sm font-medium text-[#596171] hover:bg-zinc-50"
-                    onClick={enterManual}
-                  >
-                    Enter address manually
-                  </button>
-                </div>
               </div>
             )}
           </div>
 
-          {manual && (
-            <>
+          <input
+            type="text"
+            autoComplete="address-line2"
+            placeholder="Address line 2"
+            value={value.addressLine2}
+            onChange={(e) => patch({ addressLine2: e.target.value })}
+            className={checkoutUi.field}
+          />
+          <input
+            type="text"
+            autoComplete="address-level2"
+            placeholder="City"
+            value={value.city}
+            onChange={(e) => patch({ city: e.target.value })}
+            className={checkoutUi.field}
+          />
+          <div className="grid grid-cols-[2fr_3fr] gap-3">
+            <div>
               <input
                 type="text"
-                autoComplete="address-line2"
-                placeholder="Address line 2"
-                value={value.addressLine2}
-                onChange={(e) => patch({ addressLine2: e.target.value })}
-                className={checkoutUi.field}
+                inputMode="numeric"
+                autoComplete="postal-code"
+                placeholder="PIN"
+                value={value.pin}
+                onChange={(e) =>
+                  patch({ pin: e.target.value.replace(/\D/g, "").slice(0, 6) })
+                }
+                className={cn(
+                  checkoutUi.field,
+                  pinInvalid && "border-[#DF1B41] focus:border-[#DF1B41]",
+                )}
+                aria-invalid={pinInvalid}
               />
-              <input
-                type="text"
-                autoComplete="address-level2"
-                placeholder="City"
-                value={value.city}
-                onChange={(e) => patch({ city: e.target.value })}
-                className={checkoutUi.field}
+              {pinInvalid && (
+                <p className={cn(checkoutUi.errorText, "mt-1 px-1")}>
+                  PIN must be 6 digits
+                </p>
+              )}
+            </div>
+            <label
+              className={cn(
+                checkoutUi.field,
+                "relative flex flex-col gap-0.5 py-2",
+              )}
+            >
+              <span className="text-[11px] font-medium leading-none text-[#6d6e78]">
+                State
+              </span>
+              <select
+                value={value.state}
+                onChange={(e) => patch({ state: e.target.value })}
+                className="w-full appearance-none bg-transparent pr-6 text-base text-[#121212] outline-none"
+                aria-label="State"
+              >
+                <option value="">Select state</option>
+                {INDIA_STATES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+                strokeWidth={1.75}
               />
-              <div className="grid grid-cols-[2fr_3fr] gap-3">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="postal-code"
-                  placeholder="PIN"
-                  value={value.pin}
-                  onChange={(e) =>
-                    patch({ pin: e.target.value.replace(/\D/g, "").slice(0, 6) })
-                  }
-                  className={checkoutUi.field}
-                />
-                <label
-                  className={cn(
-                    checkoutUi.field,
-                    "relative flex flex-col gap-0.5 py-2",
-                  )}
-                >
-                  <span className="text-[11px] font-medium leading-none text-[#6d6e78]">
-                    State
-                  </span>
-                  <select
-                    value={value.state}
-                    onChange={(e) => patch({ state: e.target.value })}
-                    className="w-full appearance-none bg-transparent pr-6 text-base text-[#121212] outline-none"
-                    aria-label="State"
-                  >
-                    <option value="">Select state</option>
-                    {INDIA_STATES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
-                    strokeWidth={1.75}
-                  />
-                </label>
-              </div>
-            </>
-          )}
+            </label>
+          </div>
         </div>
       )}
     </div>

@@ -1,0 +1,27 @@
+name = "clauxen-billing"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "8fc7a67e9057989309921f362784ecf4"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+# Secrets (wrangler secret put):
+#   BILLING_INTERNAL_TOKEN
+#   RAZORPAY_KEY_ID
+#   RAZORPAY_KEY_SECRET
+#   SUPABASE_URL
+#   SUPABASE_ANON_KEY
+#
+# Vars are non-secret only.
+
+[vars]
+INVOICE_ISSUER_NAME = "Shirova"
+INVOICE_ISSUER_LEGAL = "Shirova"
+INVOICE_ISSUER_ADDRESS = "India"
+
+[[r2_buckets]]
+binding = "INVOICES"
+bucket_name = "clauxen-documents"
