@@ -1303,65 +1303,50 @@ button.user-message-card__body:not(:disabled):hover,
   overflow-anchor: none;
 }
 
-/* ─── Clauxen agent trace ──────────────────────────────────────────────────
-   Minimal, original design — distinct from Claude/ChatGPT timeline chrome.
-   Each block owns a quiet left hairline accent; no vertical rail with dots.
-   Active blocks expand; idle blocks collapse smoothly. */
+/* ─── Clauxen agent action stack ───────────────────────────────────────────
+   Floating cards + muted headers. No vertical timeline rail, no left accent
+   line, no dots. Order is established by spacing alone. */
 
 .agent-trace {
-  --agent-trace-gap: 0.625rem;
+  width: 100%;
+  min-width: 0;
 }
 
-.agent-trace__block {
-  transition: background-color 0.18s ease-out;
-}
-
-.agent-trace__accent {
-  background: rgba(24, 24, 27, 0.14);
-  transition: background-color 0.2s ease-out, height 0.2s ease-out;
-}
-
-.agent-trace__block[data-active="true"] .agent-trace__accent {
-  background: rgba(24, 24, 27, 0.32);
-}
-
-/* Variant accents — subtle color cues without imitating another product. */
-.agent-trace__accent--thinking {
-  background: rgba(99, 102, 241, 0.22);
-}
-.agent-trace__block[data-active="true"] .agent-trace__accent--thinking {
-  background: rgba(99, 102, 241, 0.5);
-}
-.agent-trace__accent--narration {
-  background: rgba(24, 24, 27, 0.1);
-}
-.agent-trace__accent--tool,
-.agent-trace__accent--bash,
-.agent-trace__accent--file {
-  background: rgba(24, 24, 27, 0.18);
-}
-.agent-trace__block[data-active="true"] .agent-trace__accent--tool,
-.agent-trace__block[data-active="true"] .agent-trace__accent--bash,
-.agent-trace__block[data-active="true"] .agent-trace__accent--file {
-  background: rgba(24, 24, 27, 0.4);
-}
-.agent-trace__accent--search {
-  background: rgba(14, 165, 233, 0.22);
-}
-.agent-trace__block[data-active="true"] .agent-trace__accent--search {
-  background: rgba(14, 165, 233, 0.5);
-}
-.agent-trace__accent--done {
-  background: rgba(16, 185, 129, 0.3);
-}
-
-/* Thinking viewport — quiet inset, soft fade at bottom while streaming. */
-.agent-trace__thinking-viewport {
+.agent-thinking__card {
   scroll-behavior: auto;
   overflow-anchor: none;
 }
 
-/* Running dot — quiet pulse, no spinner chrome. */
+.agent-thinking__card .markdown-content p {
+  margin: 0 0 0.55em;
+  line-height: 1.55 !important;
+  color: #3f3f46;
+}
+
+.agent-thinking__card .markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.agent-thinking__card .markdown-content ul,
+.agent-thinking__card .markdown-content ol {
+  margin: 0.35em 0 0.55em;
+  padding-left: 1.15em;
+}
+
+.agent-narration .markdown-content p {
+  margin: 0;
+  line-height: 1.55 !important;
+}
+
+.agent-narration .markdown-content code,
+.agent-thinking__card .markdown-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  background: rgba(24, 24, 27, 0.06);
+  border-radius: 5px;
+  padding: 0.1em 0.35em;
+}
+
 .agent-trace__running-dot {
   animation: agent-trace-pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -1369,11 +1354,6 @@ button.user-message-card__body:not(:disabled):hover,
 @keyframes agent-trace-pulse {
   0%, 100% { opacity: 0.35; transform: scale(0.85); }
   50% { opacity: 1; transform: scale(1); }
-}
-
-/* Narration — serif italic margin note, no card chrome. */
-.agent-trace__block[data-agent-trace-variant="narration"] .agent-trace__header {
-  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 /* Smooth sticky user-message handoff. When the active sticky turn changes

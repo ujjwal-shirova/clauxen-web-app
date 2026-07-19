@@ -2,50 +2,48 @@
 
 import type { ReactNode } from "react";
 import { cn } from "@/frontend/lib/utils";
-import { AgentTraceBlock, AgentShimmerText } from "./agent-trace";
+import { AgentTraceBlock } from "./agent-trace";
 
 /**
- * Compact tool-execution card. Wraps the per-tool rich surfaces (search,
- * bash, weather, etc.) with a consistent minimal header: a small monospace
- * label, a live status pill, and an expandable body for the tool's native
- * result surface.
- *
- * While running: shimmering label + spinning indicator.
- * When done: a quiet result count or checkmark, body collapsed by default.
+ * Compact tool action block. A muted header line (query / label + status)
+ * sits above an optional expandable result body — no timeline rail, no
+ * coding-agent diff chrome. Search results and other surfaces render
+ * inline under the header.
  */
 export function AgentToolCard({
-  variant = "tool",
   label,
+  trailing,
   isRunning,
-  statusPill,
   children,
   defaultExpanded,
   forceExpand,
+  className,
 }: {
-  variant?: "tool" | "search" | "bash" | "file" | "done";
   label: ReactNode;
+  trailing?: ReactNode;
   isRunning?: boolean;
-  /** Custom trailing pill content (e.g. "3 results", a spinner, "done"). */
-  statusPill?: ReactNode;
   children?: ReactNode;
   defaultExpanded?: boolean;
-  /** Force the body to render expanded (e.g. rich result cards the user
-   * should always see, like weather or image search). */
   forceExpand?: boolean;
+  className?: string;
 }) {
   return (
     <AgentTraceBlock
-      variant={variant}
       isActive={!!isRunning}
       defaultExpanded={forceExpand ? true : defaultExpanded}
       title={
-        <AgentShimmerText className={cn(isRunning && "block max-w-full truncate")}>
-          {label}
-        </AgentShimmerText>
+        <span className={cn(isRunning && "shimmer-text")}>{label}</span>
       }
       trailing={
-        statusPill ?? (isRunning ? <ToolRunningDot /> : null)
+        trailing ??
+        (isRunning ? (
+          <span
+            className="agent-trace__running-dot inline-block h-1.5 w-1.5 rounded-full bg-zinc-400"
+            aria-hidden
+          />
+        ) : null)
       }
+      className={className}
     >
       {children}
     </AgentTraceBlock>
@@ -55,7 +53,7 @@ export function AgentToolCard({
 export function ToolRunningDot() {
   return (
     <span
-      className="agent-trace__running-dot inline-block h-1.5 w-1.5 rounded-full bg-zinc-500"
+      className="agent-trace__running-dot inline-block h-1.5 w-1.5 rounded-full bg-zinc-400"
       aria-hidden
     />
   );

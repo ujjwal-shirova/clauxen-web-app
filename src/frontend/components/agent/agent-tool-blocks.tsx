@@ -36,7 +36,7 @@ import {
   type AgentToolSegment,
   type WebSearchResult,
 } from "@/frontend/lib/agent-segments";
-import { AgentToolCard, ToolRunningDot } from "./agent-tool-card";
+import { AgentToolCard } from "./agent-tool-card";
 import { AgentFileBlock, PresentFilesBlock } from "./agent-file-block";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
 import { StreamingTextFade } from "@/frontend/lib/streaming-text-fade";
@@ -78,14 +78,14 @@ function SearchResultRow({
       href={result.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-zinc-50 animate-in fade-in duration-200"
+      className="flex items-center gap-2.5 py-1.5 transition-colors hover:bg-transparent animate-in fade-in duration-200"
       style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
     >
       <SearchResultFavicon url={result.url} />
-      <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-4 text-zinc-800">
+      <span className="min-w-0 flex-1 truncate text-[13px] font-[430] leading-5 text-zinc-800">
         {result.title || result.url}
       </span>
-      <span className="max-w-[38%] shrink-0 truncate text-right text-[12px] leading-4 text-zinc-400">
+      <span className="max-w-[40%] shrink-0 truncate text-right text-[12px] leading-5 text-zinc-400">
         {domain}
       </span>
     </a>
@@ -150,37 +150,33 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
 
   return (
     <AgentToolCard
-      variant="search"
-      label={tool.description || query}
-      isRunning={isRunning}
-      statusPill={
-        isRunning ? (
-          <ToolRunningDot />
-        ) : results.length > 0 ? (
-          <span className="tabular-nums">{results.length} results</span>
-        ) : undefined
+      label={
+        isRunning
+          ? query || "Searching the web"
+          : results.length > 0
+            ? `${query} ${results.length} results`
+            : query || "Searched the web"
       }
+      isRunning={isRunning}
       defaultExpanded={isRunning || results.length > 0}
     >
       {showResultsContainer ? (
-        <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white">
-          <div
-            ref={scrollRef}
-            className="flex max-h-[14rem] min-h-0 flex-col divide-y divide-zinc-100 overflow-y-auto"
-          >
-            {visibleResults.slice(0, 8).map((result, index) => (
-              <SearchResultRow
-                key={result.url}
-                result={result}
-                index={index}
-              />
-            ))}
-            {isRunning && visibleResults.length === 0 ? (
-              <div className="px-3 py-2.5 text-[12px] text-zinc-500 shimmer-text">
-                Searching…
-              </div>
-            ) : null}
-          </div>
+        <div
+          ref={scrollRef}
+          className="flex max-h-[16rem] min-h-0 flex-col overflow-y-auto"
+        >
+          {visibleResults.slice(0, 10).map((result, index) => (
+            <SearchResultRow
+              key={result.url}
+              result={result}
+              index={index}
+            />
+          ))}
+          {isRunning && visibleResults.length === 0 ? (
+            <div className="py-2 text-[12px] text-zinc-400 shimmer-text">
+              Searching…
+            </div>
+          ) : null}
         </div>
       ) : null}
     </AgentToolCard>
@@ -224,9 +220,15 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
 
   return (
     <AgentToolCard
-      variant="bash"
-      label={description}
+      label={
+        isRunning
+          ? isTyping
+            ? description || "Writing command"
+            : description || "Running command"
+          : description || "Ran command"
+      }
       isRunning={isRunning}
+      defaultExpanded={isRunning || !!output}
     >
       <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.03)]">
         <div className="border-b border-zinc-100 bg-[#f4f4f5] px-3 py-2.5">
@@ -281,16 +283,7 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
   const isRunning = tool.status === "running";
 
   return (
-    <AgentToolCard
-      variant="tool"
-      label={label}
-      isRunning={isRunning}
-      statusPill={
-        isRunning ? (
-          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-        ) : undefined
-      }
-    >
+    <AgentToolCard label={label} isRunning={isRunning}>
       {tool.args && Object.keys(tool.args).length > 0 ? (
         <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white px-3 py-2.5">
           <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5 text-zinc-700">
@@ -311,7 +304,6 @@ export function AskUserInputBlock({ tool }: { tool: AgentToolSegment }) {
   // agentic activity frame.
   return (
     <AgentToolCard
-      variant="tool"
       label={isRunning ? "Asking questions" : "Asked questions"}
       isRunning={isRunning}
     />
@@ -324,8 +316,7 @@ export function SportsDataBlock({ tool }: { tool: AgentToolSegment }) {
 
   return (
     <AgentToolCard
-      variant="tool"
-      label="Sports scores & stats"
+      label={isRunning ? "Fetching sports data" : "Fetched sports data"}
       isRunning={isRunning}
     >
       {isRunning ? (
@@ -398,8 +389,15 @@ export function ImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
 
   return (
     <AgentToolCard
-      variant="tool"
-      label={query ? `Image search: ${query}` : "Image search"}
+      label={
+        isRunning
+          ? query
+            ? `Searching images: ${query}`
+            : "Searching images"
+          : images.length > 0
+            ? `${query || "Images"} ${images.length} images`
+            : query || "Searched images"
+      }
       isRunning={isRunning}
     >
       {isRunning ? (
@@ -460,8 +458,7 @@ export function MessageComposeBlock({ tool }: { tool: AgentToolSegment }) {
 
   return (
     <AgentToolCard
-      variant="tool"
-      label="Message drafter"
+      label={tool.status === "running" ? "Drafting message" : "Drafted message"}
       isRunning={tool.status === "running"}
     >
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
@@ -522,8 +519,7 @@ export function MapDisplayBlock({ tool }: { tool: AgentToolSegment }) {
 
   return (
     <AgentToolCard
-      variant="tool"
-      label={String(tool.args?.title ?? "Interactive map")}
+      label={String(tool.args?.title ?? (tool.status === "running" ? "Building map" : "Map"))}
       isRunning={tool.status === "running"}
     >
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
@@ -640,10 +636,9 @@ export function WeatherBlock({ tool }: { tool: AgentToolSegment }) {
   if (isRunning || !parsed) {
     return (
       <AgentToolCard
-        variant="tool"
         label={
           isRunning
-            ? `Checking the weather${locationName ? ` in ${locationName}` : ""}`
+            ? `Checking weather${locationName ? ` in ${locationName}` : ""}`
             : "Weather"
         }
         isRunning={isRunning}
@@ -660,7 +655,7 @@ export function WeatherBlock({ tool }: { tool: AgentToolSegment }) {
 
   if ("error" in parsed) {
     return (
-      <AgentToolCard variant="tool" label="Weather">
+      <AgentToolCard label="Weather">
         <div className="text-[13px] text-red-600">{parsed.error}</div>
       </AgentToolCard>
     );
@@ -675,7 +670,7 @@ export function WeatherBlock({ tool }: { tool: AgentToolSegment }) {
   const CurrentIcon = weatherIconFor(current.weatherCode, current.isDay);
 
   return (
-    <AgentToolCard variant="tool" label={placeLabel || locationName || "Weather"}>
+    <AgentToolCard label={placeLabel || locationName || "Weather"}>
       <div className="w-full max-w-md overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
         <div className="flex items-center justify-between bg-gradient-to-br from-sky-50 to-white p-4">
           <div className="flex items-center gap-3">
@@ -786,12 +781,16 @@ export function PlacesSearchBlock({ tool }: { tool: AgentToolSegment }) {
 
   return (
     <AgentToolCard
-      variant="search"
-      label={query ? `Searching places: ${query}` : "Searching places"}
-      isRunning={isRunning}
-      statusPill={
-        !isRunning && results.length > 0 ? `${results.length} results` : undefined
+      label={
+        isRunning
+          ? query
+            ? `Searching places: ${query}`
+            : "Searching places"
+          : results.length > 0
+            ? `${query} ${results.length} results`
+            : query || "Searched places"
       }
+      isRunning={isRunning}
     >
       {isRunning ? (
         <div className="flex items-center gap-2 text-[12px] text-zinc-500">
@@ -840,7 +839,6 @@ export function RecipeDisplayBlock({ tool }: { tool: AgentToolSegment }) {
 
   return (
     <AgentToolCard
-      variant="tool"
       label={String(tool.args?.title ?? "Recipe")}
       isRunning={tool.status === "running"}
     >
@@ -922,8 +920,7 @@ export function RecommendClaudeAppsBlock({ tool }: { tool: AgentToolSegment }) {
 
   return (
     <AgentToolCard
-      variant="tool"
-      label="Recommended apps"
+      label={tool.status === "running" ? "Recommending apps" : "Recommended apps"}
       isRunning={tool.status === "running"}
     >
       <div className="flex flex-col gap-2 max-w-md">
@@ -948,8 +945,7 @@ export function SuggestConnectorsBlock({ tool }: { tool: AgentToolSegment }) {
 
   return (
     <AgentToolCard
-      variant="tool"
-      label="Connect to services"
+      label={tool.status === "running" ? "Suggesting connectors" : "Suggested connectors"}
       isRunning={tool.status === "running"}
     >
       <div className="flex flex-col gap-2 max-w-md">

@@ -135,9 +135,7 @@ export function AgentOrchestrationView({
             key={block.blockId}
             className={cn(
               isNarrationVoice &&
-                "rounded-xl bg-zinc-50/55 px-3 py-2 font-serif text-[15px] leading-[1.58] tracking-[-0.008em] text-zinc-700",
-              isIntro && "text-zinc-700",
-              isInterim && "text-zinc-700",
+                "text-[14px] font-[430] leading-[1.55] tracking-[-0.01em] text-zinc-700",
             )}
             data-agent-block={
               isIntro ? "intro" : isInterim ? "interim" : "answer"

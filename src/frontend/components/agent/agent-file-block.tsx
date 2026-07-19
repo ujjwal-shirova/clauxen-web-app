@@ -1,7 +1,6 @@
 "use client";
 
 import { FileText } from "lucide-react";
-import { cn } from "@/frontend/lib/utils";
 import type { AgentToolSegment } from "@/frontend/lib/agent-segments";
 import { fileNameFromPath } from "@/frontend/lib/chat-artifacts";
 import { inferLanguageFromPath } from "@/frontend/lib/create-file-tags";
@@ -9,8 +8,8 @@ import { AgentToolCard } from "./agent-tool-card";
 import { CreateFileStreamBlock } from "./create-file-stream-block";
 
 /**
- * create_file / file_write: while running → stream container;
- * when done → collapsed file chip only (compact row, no timeline chrome).
+ * create_file / file_write — muted header + optional stream body.
+ * No coding-agent diff chrome; file work is labeled plainly.
  */
 export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
   const path =
@@ -34,33 +33,24 @@ export function AgentFileBlock({ tool }: { tool: AgentToolSegment }) {
     typeof tool.args?.description === "string"
       ? tool.args.description
       : tool.description;
-  const showStream = isRunning;
-
-  // Done → compact collapsed chip only (no stream preview / chrome).
-  if (!isRunning) {
-    return (
-      <div className="mb-1">
-        <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-zinc-200 bg-background px-2.5 py-1 text-[12px] font-medium text-zinc-600">
-          <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-          <span className="truncate">{fileName || "file"}</span>
-        </span>
-      </div>
-    );
-  }
 
   return (
     <AgentToolCard
-      variant="file"
-      label={description || `Creating ${fileName}`}
-      isRunning
+      label={
+        isRunning
+          ? description || `Creating ${fileName || "file"}`
+          : `Created ${fileName || "file"}`
+      }
+      isRunning={isRunning}
+      defaultExpanded={isRunning}
     >
       {fileName ? (
-        <span className="mb-1 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-zinc-200 bg-background px-2.5 py-1 text-[12px] font-medium text-zinc-600">
+        <span className="mb-1 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-600">
           <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
           <span className="truncate">{fileName}</span>
         </span>
       ) : null}
-      {showStream ? (
+      {isRunning ? (
         <CreateFileStreamBlock
           compact
           block={{
@@ -87,14 +77,17 @@ export function PresentFilesBlock({ tool }: { tool: AgentToolSegment }) {
       : [];
   const count = paths.length;
   const plural = count !== 1 ? "s" : "";
+  const singleName =
+    count === 1 ? fileNameFromPath(paths[0] ?? "") : undefined;
 
   return (
     <AgentToolCard
-      variant="file"
       label={
         isRunning
           ? `Presenting file${plural}`
-          : `Presented ${count || ""} file${plural}`.trim()
+          : singleName
+            ? `Presented ${singleName}`
+            : `Presented ${count} file${plural}`
       }
       isRunning={isRunning}
     />
