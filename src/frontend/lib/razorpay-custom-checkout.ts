@@ -159,7 +159,7 @@ export async function chargeCardWithRazorpayCustom(
 
   const razorpay = new RazorpayCtor({
     key: input.keyId,
-    name: "shirova",
+    name: "Shirova",
     description: input.description,
   });
 

@@ -288,7 +288,7 @@ export async function createRazorpayUpiQr(input: {
 
   const body = JSON.stringify({
     type: "upi_qr",
-    name: "shirova",
+    name: "shirova", // Razorpay QR merchant slug (lowercase); UI copy uses Shirova
     usage: "single_use",
     fixed_amount: true,
     payment_amount: input.amountPaise,

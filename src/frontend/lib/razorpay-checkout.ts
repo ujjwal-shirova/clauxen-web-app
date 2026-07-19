@@ -115,7 +115,7 @@ export async function openRazorpayCheckout(input: RazorpayCheckoutInput) {
     key: input.keyId,
     amount: input.amount,
     currency: input.currency,
-    name: input.name ?? "shirova",
+    name: input.name ?? "Shirova",
     description: input.description,
     order_id: input.orderId,
     prefill,

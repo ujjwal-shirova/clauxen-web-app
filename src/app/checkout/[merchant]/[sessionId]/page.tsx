@@ -32,7 +32,7 @@ export default async function CheckoutSessionPage({
   const returnPath = normalizeCheckoutReturnPath(claims.returnPath);
 
   return (
-    <div className="min-h-screen bg-[var(--app-shell-bg)]">
+    <div className="min-h-screen overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)] [scrollbar-gutter:stable]">
       <CheckoutSessionClient
         planId={claims.planId}
         initialBillingCycle={billingCycle}

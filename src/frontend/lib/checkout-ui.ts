@@ -11,7 +11,7 @@ const fieldFocus =
   "focus:border-zinc-400 focus:shadow-[0_0_0_3px_rgba(24,24,27,0.06)]";
 
 export const checkoutUi = {
-  form: "w-full max-w-[480px] font-sans text-[15px] leading-5 text-zinc-900",
+  form: "w-full font-sans text-[15px] leading-5 text-zinc-900",
   stack: "flex flex-col gap-6",
   section: "flex flex-col gap-4",
 

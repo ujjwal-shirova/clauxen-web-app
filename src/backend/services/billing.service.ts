@@ -196,7 +196,7 @@ export async function createUpiCheckoutPayment(input: {
 }) {
   if (!isRazorpayConfigured()) {
     throw new AppError(
-      "Razorpay keys are not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
+      "Razorpay keys are not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET on Vercel or the billing Worker.",
       503,
       "billing_unavailable",
     );
@@ -234,13 +234,17 @@ export async function createUpiCheckoutPayment(input: {
   const orderId = newOrderId();
   const receipt = newReceipt();
 
-  // Parallel: Razorpay Order + UPI QR (QR uses preferDirect to skip Worker hop).
+  // Parallel: Razorpay Order + UPI QR. Prefer Worker when configured so keys
+  // can live only on Cloudflare; fall back to direct when Vercel has keys.
+  const preferDirect = Boolean(
+    env.razorpayKeyId?.trim() && env.razorpayKeySecret?.trim(),
+  );
   const [razorpay, qr] = await Promise.all([
     createRazorpayOrder({
       amountMinor: totalInrPaise,
       currency: "INR",
       receipt,
-      preferDirect: true,
+      preferDirect,
       notes: {
         plan_id: planId,
         user_id: input.userId,
@@ -254,7 +258,7 @@ export async function createUpiCheckoutPayment(input: {
     createRazorpayUpiQr({
       amountPaise: totalInrPaise,
       description: input.planName,
-      preferDirect: true,
+      preferDirect,
       notes: {
         billing_order_id: orderId,
         user_id: input.userId,
@@ -382,7 +386,7 @@ export async function createCheckoutOrder(input: {
 }) {
   if (!isRazorpayConfigured()) {
     throw new AppError(
-      "Razorpay keys are not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
+      "Razorpay keys are not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET on Vercel or the billing Worker.",
       503,
       "billing_unavailable",
     );

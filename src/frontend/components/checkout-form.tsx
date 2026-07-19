@@ -149,7 +149,7 @@ export function CheckoutForm({
               className={cn(checkoutUi.checkbox, "mt-0.5")}
             />
             <span className={checkoutUi.labelFine}>
-              You agree that shirova will charge your payment method for this
+              You agree that Shirova will charge your payment method for this
               purchase and on a recurring basis until you cancel.
             </span>
           </label>

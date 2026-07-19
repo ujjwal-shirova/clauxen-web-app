@@ -117,7 +117,7 @@ export function CheckoutUpiQrModal({
           </div>
 
           <p className="mt-6 text-center text-[11px] text-zinc-400">
-            Secured by Razorpay · shirova
+            Secured by Razorpay · Shirova
           </p>
         </div>
       </div>

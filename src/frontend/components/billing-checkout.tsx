@@ -729,7 +729,7 @@ export function BillingCheckout({
           orderId: checkout.razorpay.orderId,
           amount: checkout.razorpay.amount,
           currency: checkout.razorpay.currency,
-          name: "shirova",
+          name: "Shirova",
           description: details.name,
           paymentMethod: "card",
           expressCheckout: "apple_pay",
@@ -785,8 +785,18 @@ export function BillingCheckout({
         },
       });
     } catch (error) {
+      if (tab === "upi") {
+        setUpiModalOpen(false);
+        setUpiQrImageUrl(null);
+        setUpiPoll(null);
+        setPaying(false);
+      }
+      const message =
+        error instanceof Error ? error.message : PAYMENT_FAILED_MESSAGE;
       setPayError(
-        error instanceof Error ? error.message : PAYMENT_FAILED_MESSAGE,
+        message === "Request failed."
+          ? "UPI checkout could not start. Razorpay keys may be missing or QR Codes may not be enabled on your Razorpay account."
+          : message,
       );
     } finally {
       if (tab !== "upi") {
@@ -1161,7 +1171,7 @@ export function BillingCheckout({
   ]);
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full flex-col bg-[var(--app-shell-bg)] font-sans text-zinc-800">
+    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)] font-sans text-zinc-800 [scrollbar-gutter:stable]">
       <button
         type="button"
         onClick={onBack}
@@ -1287,7 +1297,7 @@ export function BillingCheckout({
           </aside>
 
           {/* Right column — checkout form */}
-          <div className="min-w-0 flex-1 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] p-6 pb-9 shadow-[0_1px_2px_rgba(24,24,27,0.03)] sm:p-8 sm:pb-10">
+          <div className="box-border min-w-0 w-full flex-1 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] px-6 py-7 shadow-[0_1px_2px_rgba(24,24,27,0.03)] sm:px-8 sm:py-8">
             {payError && <CheckoutErrorBanner message={payError} />}
             <CheckoutForm
               paymentTab={paymentTab}
