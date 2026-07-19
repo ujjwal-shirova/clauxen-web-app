@@ -810,19 +810,22 @@ function resolveActiveStickyTurnIndex(
     "[data-conversation-turn]",
   );
 
-  // While the assistant is actively generating, the active sticky turn is the
-  // one that owns the streaming assistant message — the last turn. This keeps
-  // the pinned user message stable while tokens stream in and avoids the
-  // hard-cut swap the user reported when scrolling up through history.
-  if (isGenerating) {
+  // Only force the last turn while generating AND the viewport is still near
+  // the bottom. If the user scrolled up to read earlier content, use normal
+  // spanning logic — otherwise generation-end swaps sticky turn and jumps
+  // them to the top of the assistant output.
+  const maxTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+  const nearBottom = maxTop - viewport.scrollTop <= 96;
+  if (isGenerating && nearBottom) {
     return Math.max(0, turnCount - 1);
   }
 
-  // When idle, only pin the user message if its turn is the one currently
-  // spanning the sticky line AND it's the most recent turn the user is
-  // reading. For older turns scrolled into view, we deliberately do NOT pin
-  // — the user message scrolls naturally with the rest of the turn. This
-  // eliminates the sudden jump from one turn's sticky user msg to another's.
+  // When idle (or scrolled away during generation), only pin the user message
+  // if its turn is the one currently spanning the sticky line AND it's the
+  // most recent turn the user is reading. For older turns scrolled into view,
+  // we deliberately do NOT pin — the user message scrolls naturally with the
+  // rest of the turn. This eliminates the sudden jump from one turn's sticky
+  // user msg to another's.
   let next = Math.max(0, turnCount - 1);
   let foundSpanning = false;
 

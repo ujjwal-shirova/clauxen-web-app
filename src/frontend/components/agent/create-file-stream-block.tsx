@@ -55,7 +55,7 @@ export function CreateFileStreamBlock({
       <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:shadow-none">
         <div
           ref={scrollRef}
-          className="create-file-stream-scroll max-h-[16rem] overflow-y-auto px-3 py-2.5"
+          className="create-file-stream-scroll max-h-[16rem] overflow-y-auto overscroll-y-contain px-3 py-2.5"
         >
           {isStreaming ? (
             <StreamingTextFade

@@ -189,7 +189,7 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
       {showResultsContainer ? (
         <div
           ref={scrollRef}
-          className="agent-thinking__card app-scrollbar flex max-h-[16rem] min-h-0 flex-col overflow-y-auto rounded-2xl border border-zinc-200/80 bg-white px-3.5 py-2"
+          className="agent-thinking__card app-scrollbar flex max-h-[16rem] min-h-0 flex-col overflow-y-auto overscroll-y-contain rounded-2xl border border-zinc-200/80 bg-white px-3.5 py-2"
         >
           {visibleResults.slice(0, 10).map((result, index) => (
             <SearchResultRow

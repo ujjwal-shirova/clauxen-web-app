@@ -228,18 +228,29 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     resizeObserver.observe(content);
 
     viewport.addEventListener("scroll", handleScroll, { passive: true });
-    viewport.addEventListener("wheel", markUserInput, { passive: true });
-    viewport.addEventListener("touchstart", markUserInput, { passive: true });
-    viewport.addEventListener("touchmove", markUserInput, { passive: true });
+    // Capture phase so nested tool/thinking overflow scrollers still unpin
+    // stream-follow when the user wheels away from the bottom.
+    viewport.addEventListener("wheel", markUserInput, {
+      passive: true,
+      capture: true,
+    });
+    viewport.addEventListener("touchstart", markUserInput, {
+      passive: true,
+      capture: true,
+    });
+    viewport.addEventListener("touchmove", markUserInput, {
+      passive: true,
+      capture: true,
+    });
 
     handleScroll();
 
     return () => {
       resizeObserver.disconnect();
       viewport.removeEventListener("scroll", handleScroll);
-      viewport.removeEventListener("wheel", markUserInput);
-      viewport.removeEventListener("touchstart", markUserInput);
-      viewport.removeEventListener("touchmove", markUserInput);
+      viewport.removeEventListener("wheel", markUserInput, true);
+      viewport.removeEventListener("touchstart", markUserInput, true);
+      viewport.removeEventListener("touchmove", markUserInput, true);
       if (followRafRef.current !== null) {
         cancelAnimationFrame(followRafRef.current);
         followRafRef.current = null;

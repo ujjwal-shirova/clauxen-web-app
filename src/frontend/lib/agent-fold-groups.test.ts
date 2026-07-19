@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   countContentLineDiff,
   groupAgentTraceItems,
+  shouldUseFoldChrome,
   summarizeFoldSegments,
 } from "@/frontend/lib/agent-fold-groups";
 import type { AgentSegment } from "@/frontend/lib/agent-segments";
@@ -59,11 +60,80 @@ describe("agent-fold-groups", () => {
     assert.equal(items[1]?.kind, "narration");
     assert.equal(items[2]?.kind, "fold");
     if (items[0]?.kind === "fold") {
+      assert.equal(items[0].useChrome, true);
       assert.equal(items[0].summary.label, "Explored 1 file, 1 search");
       assert.equal(items[0].segments.length, 3);
     }
     if (items[2]?.kind === "fold") {
+      assert.equal(items[2].useChrome, true);
       assert.equal(items[2].summary.label, "Explored 1 search");
+    }
+  });
+
+  it("skips outer chrome for a lone thought or lone tool", () => {
+    assert.equal(
+      shouldUseFoldChrome([
+        { kind: "thinking", id: "t", content: "x" },
+      ]),
+      false,
+    );
+    assert.equal(
+      shouldUseFoldChrome([
+        {
+          kind: "tool",
+          id: "s",
+          toolCallId: "s",
+          name: "web_search",
+          status: "done",
+        },
+      ]),
+      false,
+    );
+    assert.equal(
+      shouldUseFoldChrome([
+        { kind: "thinking", id: "t", content: "x" },
+        {
+          kind: "tool",
+          id: "s",
+          toolCallId: "s",
+          name: "web_search",
+          status: "done",
+        },
+      ]),
+      true,
+    );
+    assert.equal(
+      shouldUseFoldChrome([
+        {
+          kind: "tool",
+          id: "a",
+          toolCallId: "a",
+          name: "bash_tool",
+          status: "done",
+        },
+        {
+          kind: "tool",
+          id: "b",
+          toolCallId: "b",
+          name: "weather_fetch",
+          status: "done",
+        },
+      ]),
+      true,
+    );
+
+    const lone = groupAgentTraceItems([
+      {
+        kind: "thinking",
+        id: "t-only",
+        content: "solo",
+        isStreaming: false,
+      },
+    ]);
+    assert.equal(lone.length, 1);
+    assert.equal(lone[0]?.kind, "fold");
+    if (lone[0]?.kind === "fold") {
+      assert.equal(lone[0].useChrome, false);
     }
   });
 

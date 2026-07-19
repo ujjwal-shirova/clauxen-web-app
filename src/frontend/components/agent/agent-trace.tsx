@@ -28,13 +28,14 @@ export function AgentTrace({
 
 /**
  * Collapsible action block. Collapsed by default.
- * Optional leading chips (e.g. search favicons) + chevron in the header.
+ * Header: leading chips · label · trailing (+N/−M) · chevron (flush right).
  */
 export function AgentTraceBlock({
   title,
   trailing,
   leading,
   showChevron = true,
+  hideHeader = false,
   isActive = false,
   defaultExpanded = false,
   children,
@@ -47,6 +48,8 @@ export function AgentTraceBlock({
   /** Leading adornments in the header (e.g. first 3 source favicons). */
   leading?: ReactNode;
   showChevron?: boolean;
+  /** When true, render body only (no Explored/Used chrome). */
+  hideHeader?: boolean;
   isActive?: boolean;
   defaultExpanded?: boolean;
   children?: ReactNode;
@@ -55,19 +58,21 @@ export function AgentTraceBlock({
   headerClassName?: string;
 }) {
   const hasBody = children != null && children !== false;
-  const canCollapse = hasBody;
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const canCollapse = hasBody && !hideHeader;
+  const [expanded, setExpanded] = useState(hideHeader ? true : defaultExpanded);
   const userToggledRef = useRef(false);
 
   useEffect(() => {
-    if (!canCollapse) return;
-    // Stay collapsed by default. Only follow defaultExpanded when the user
-    // has not manually toggled — do not auto-expand just because a tool is
-    // running (user expands intentionally).
-    if (!userToggledRef.current) {
-      setExpanded(defaultExpanded);
+    if (hideHeader) {
+      setExpanded(true);
+      return;
     }
-  }, [isActive, canCollapse, defaultExpanded]);
+    if (!canCollapse) return;
+    if (!userToggledRef.current) {
+      // Bare → chrome mid-stream: keep body open so nested tools do not vanish.
+      setExpanded(isActive ? true : defaultExpanded);
+    }
+  }, [isActive, canCollapse, defaultExpanded, hideHeader]);
 
   const toggle = () => {
     if (!canCollapse) return;
@@ -82,75 +87,81 @@ export function AgentTraceBlock({
           {leading}
         </span>
       ) : null}
-      <span className="min-w-0 flex-1 truncate text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-400">
+      <span className="min-w-0 flex-1 truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-400">
         {title}
       </span>
-      {trailing ? (
-        <span className="shrink-0 text-[12px] tabular-nums text-zinc-400">
-          {trailing}
-        </span>
-      ) : null}
-      {showChevron && canCollapse ? (
-        <ChevronRight
-          className={cn(
-            "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200",
-            expanded && "rotate-90",
-          )}
-          aria-hidden
-        />
-      ) : null}
+      <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 pl-2">
+        {trailing ? (
+          <span className="text-[12px] tabular-nums text-zinc-400">
+            {trailing}
+          </span>
+        ) : null}
+        {showChevron && canCollapse ? (
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200",
+              expanded && "rotate-90",
+            )}
+            aria-hidden
+          />
+        ) : null}
+      </span>
     </>
   );
 
   return (
     <div
-      className={cn(
-        "agent-trace__block min-w-0 animate-in fade-in duration-200 ease-out",
-        className,
-      )}
+      className={cn("agent-trace__block min-w-0", className)}
       data-agent-trace-block="true"
       data-active={isActive || undefined}
       data-expanded={expanded || undefined}
+      data-header-hidden={hideHeader || undefined}
     >
-      {canCollapse ? (
-        <button
-          type="button"
-          onClick={toggle}
-          className={cn(
-            "agent-trace__header no-hover no-hover-overlay flex w-full max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0",
-            headerClassName,
-          )}
-          aria-expanded={expanded}
-        >
-          {headerInner}
-        </button>
-      ) : (
-        <div
-          className={cn(
-            "flex w-full max-w-full items-center gap-1.5",
-            headerClassName,
-          )}
-        >
-          {headerInner}
-        </div>
-      )}
+      {!hideHeader ? (
+        canCollapse ? (
+          <button
+            type="button"
+            onClick={toggle}
+            className={cn(
+              "agent-trace__header no-hover no-hover-overlay flex w-full max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0",
+              headerClassName,
+            )}
+            aria-expanded={expanded}
+          >
+            {headerInner}
+          </button>
+        ) : (
+          <div
+            className={cn(
+              "flex w-full max-w-full items-center gap-1.5",
+              headerClassName,
+            )}
+          >
+            {headerInner}
+          </div>
+        )
+      ) : null}
 
       {hasBody ? (
         <div
           className={cn(
-            "grid transition-[grid-template-rows] duration-250 ease-[cubic-bezier(0.32,0.72,0,1)]",
-            expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            "grid",
+            !isActive &&
+              !hideHeader &&
+              "transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
+            expanded || hideHeader ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
           )}
-          aria-hidden={!expanded}
+          aria-hidden={!(expanded || hideHeader)}
         >
           <div
             className={cn(
-              "overflow-hidden transition-opacity duration-200",
-              expanded ? "opacity-100" : "opacity-0",
+              "overflow-hidden",
+              !isActive && !hideHeader && "transition-opacity duration-150",
+              expanded || hideHeader ? "opacity-100" : "opacity-0",
               contentClassName,
             )}
           >
-            <div className="pt-2">{children}</div>
+            <div className={cn(!hideHeader && "pt-2")}>{children}</div>
           </div>
         </div>
       ) : null}

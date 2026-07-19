@@ -17,6 +17,8 @@ export type AgentTraceItem =
   | {
       kind: "fold";
       id: string;
+      /** Outer Explored/Used chrome — false for a lone thought or lone tool. */
+      useChrome: boolean;
       segments: Array<AgentThinkingSegment | AgentToolSegment>;
       summary: AgentFoldSummary;
       isActive: boolean;
@@ -58,6 +60,24 @@ function classifyTool(tool: AgentToolSegment): "file" | "search" | "tool" {
 
 function pluralize(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/**
+ * Outer Explored/Used header only when it actually tidies the transcript:
+ * thinking + tool(s), or 2+ tools. A lone thought or lone tool stays bare.
+ */
+export function shouldUseFoldChrome(
+  segments: Array<AgentThinkingSegment | AgentToolSegment>,
+): boolean {
+  let toolCount = 0;
+  let thinkingCount = 0;
+  for (const segment of segments) {
+    if (segment.kind === "tool") toolCount += 1;
+    else if (segment.kind === "thinking") thinkingCount += 1;
+  }
+  if (toolCount >= 2) return true;
+  if (toolCount >= 1 && thinkingCount >= 1) return true;
+  return false;
 }
 
 /**
@@ -117,6 +137,7 @@ export function groupAgentTraceItems(
     items.push({
       kind: "fold",
       id: `fold-${buffer[0]!.id}`,
+      useChrome: shouldUseFoldChrome(buffer),
       segments: buffer,
       summary: summarizeFoldSegments(buffer, { isActive }),
       isActive,

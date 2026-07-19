@@ -9,8 +9,8 @@ import { AgentShimmerText } from "./agent-trace";
 
 /**
  * Thinking card — header is always "Thought for {Ns}" (or "Thinking…" while
- * live). Body is a white rounded card with auto-scrolling reasoning.
- * Collapsed by default once complete; expands while streaming.
+ * live). Collapsed by default (including while streaming) so the chat
+ * viewport does not jump when the card opens; user expands to read.
  */
 export function AgentThinkingPhase({
   segment,
@@ -24,7 +24,7 @@ export function AgentThinkingPhase({
   const [elapsedSeconds, setElapsedSeconds] = useState(() =>
     resolveDurationSeconds(segment),
   );
-  const [expanded, setExpanded] = useState(streaming);
+  const [expanded, setExpanded] = useState(false);
 
   const hasBody = segment.content.trim().length > 0;
 
@@ -47,9 +47,7 @@ export function AgentThinkingPhase({
 
   useEffect(() => {
     if (streaming) {
-      userToggledRef.current = false;
       userScrolledRef.current = false;
-      setExpanded(true);
       return;
     }
     if (!userToggledRef.current) {
@@ -58,9 +56,11 @@ export function AgentThinkingPhase({
   }, [streaming, segment.id]);
 
   useEffect(() => {
-    if (!streaming || !scrollRef.current || userScrolledRef.current) return;
+    if (!streaming || !expanded || !scrollRef.current || userScrolledRef.current) {
+      return;
+    }
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [segment.content, streaming]);
+  }, [segment.content, streaming, expanded]);
 
   const onUserScroll = () => {
     const el = scrollRef.current;
@@ -77,7 +77,7 @@ export function AgentThinkingPhase({
 
   return (
     <div
-      className="agent-thinking min-w-0 animate-in fade-in duration-200"
+      className="agent-thinking min-w-0"
       data-agent-segment="thinking"
       data-streaming={streaming || undefined}
     >
@@ -93,7 +93,7 @@ export function AgentThinkingPhase({
       >
         <span
           className={cn(
-            "min-w-0 flex-1 truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]",
+            "min-w-0 flex-1 truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em]",
             streaming ? "text-zinc-500" : "text-zinc-400",
           )}
         >
@@ -104,26 +104,31 @@ export function AgentThinkingPhase({
           )}
         </span>
         {hasBody ? (
-          <ChevronRight
-            className={cn(
-              "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200",
-              expanded && "rotate-90",
-            )}
-            aria-hidden
-          />
+          <span className="ml-auto inline-flex shrink-0 items-center pl-2">
+            <ChevronRight
+              className={cn(
+                "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200",
+                expanded && "rotate-90",
+              )}
+              aria-hidden
+            />
+          </span>
         ) : null}
       </button>
 
       <div
         className={cn(
-          "grid transition-[grid-template-rows] duration-250 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          "grid",
+          !streaming &&
+            "transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
           expanded && hasBody ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
         )}
         aria-hidden={!expanded}
       >
         <div
           className={cn(
-            "overflow-hidden transition-opacity duration-200",
+            "overflow-hidden",
+            !streaming && "transition-opacity duration-150",
             expanded && hasBody ? "opacity-100" : "opacity-0",
           )}
         >
@@ -131,7 +136,7 @@ export function AgentThinkingPhase({
             ref={scrollRef}
             onScroll={onUserScroll}
             className={cn(
-              "agent-thinking__card app-scrollbar mt-2 max-h-[14rem] overflow-y-auto rounded-2xl border border-zinc-200/80 bg-white px-4 py-3.5 text-[13.5px] font-[430] leading-[1.55] tracking-[-0.01em] text-zinc-700 [&_.markdown-content]:!font-sans [&_.markdown-content_*]:!font-sans",
+              "agent-thinking__card app-scrollbar mt-2 max-h-[14rem] overflow-y-auto overscroll-y-contain rounded-2xl border border-zinc-200/80 bg-white px-4 py-3.5 text-[13.5px] font-[430] leading-[1.55] tracking-[-0.01em] text-zinc-700 [&_.markdown-content]:!font-sans [&_.markdown-content_*]:!font-sans",
               streaming &&
                 "shadow-[inset_0_-18px_20px_-22px_rgba(24,24,27,0.22)]",
             )}
