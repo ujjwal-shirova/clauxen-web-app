@@ -25,7 +25,6 @@ import { useMessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import type { MessageDetailLevel } from "@/frontend/hooks/use-message-visibility";
 import { useMessageEnterAnimation } from "@/frontend/hooks/use-message-enter-animation";
 import { collectMessageSources } from "@/frontend/lib/chat-sources";
-import { formatDemoMessagesRemainingLabel } from "@/lib/demo-razorpay-quota";
 import { useIsMobile } from "@/frontend/hooks/use-mobile";
 import { AttachmentChip } from "@/frontend/components/composer/attachment-chip";
 import { AttachmentImageLightbox } from "@/frontend/components/composer/attachment-image-lightbox";
@@ -560,13 +559,6 @@ const MessageRow = React.memo(
                         </div>
                       ) : null}
                   </div>
-                  {typeof message.messagesRemaining === "number" ? (
-                    <p className="mt-2 font-sans text-[12px] font-[430] leading-snug text-zinc-400">
-                      {formatDemoMessagesRemainingLabel(
-                        message.messagesRemaining,
-                      )}
-                    </p>
-                  ) : null}
               </>
             ) : null}
           </div>
@@ -594,7 +586,6 @@ const MessageRow = React.memo(
       pm.activeBranchIndex === nm.activeBranchIndex &&
       pm.branchVersions === nm.branchVersions &&
       pm.attachments === nm.attachments &&
-      pm.messagesRemaining === nm.messagesRemaining &&
       prev.editingMessageId === next.editingMessageId &&
       prev.editValue === next.editValue &&
       prev.copiedId === next.copiedId &&

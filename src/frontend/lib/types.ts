@@ -39,11 +39,6 @@ export type Message = {
   agentFrames?: AgentFrame[];
   activeAgentFrameIndex?: number;
   agentArtifacts?: ChatArtifact[];
-  /**
-   * Demo Razorpay test account: remaining user-message slots after this turn.
-   * When set, the thread shows a gray "You have N messages left" label.
-   */
-  messagesRemaining?: number;
   /** User-uploaded images / documents shown as chips on the message. */
   attachments?: MessageAttachment[];
   branchVersions?: MessageBranchVersion[];

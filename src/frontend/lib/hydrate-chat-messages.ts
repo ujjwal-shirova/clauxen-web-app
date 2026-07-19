@@ -159,11 +159,6 @@ export function hydrateMessageFromContentJson(
 
   const parts = record.message.content as TranscriptContentPart[];
   const agentUi = record.agent_ui;
-  const messagesRemaining =
-    typeof agentUi?.messagesRemaining === "number" &&
-    Number.isFinite(agentUi.messagesRemaining)
-      ? Math.max(0, Math.floor(agentUi.messagesRemaining))
-      : base.messagesRemaining;
   const persistedActions = Array.isArray(agentUi?.actions)
     ? agentUi.actions
     : [];
@@ -252,11 +247,7 @@ export function hydrateMessageFromContentJson(
     tools.length > 0;
   const hasAgentSegments = modelSegments.length > 0 || hasThinking || hasTools;
 
-  if (!hasAgentSegments && !contentFromParts) {
-    return typeof messagesRemaining === "number"
-      ? { ...base, messagesRemaining }
-      : base;
-  }
+  if (!hasAgentSegments && !contentFromParts) return base;
 
   const thinkingDuration =
     typeof agentUi?.thinkingDurationSeconds === "number" &&
@@ -323,7 +314,6 @@ export function hydrateMessageFromContentJson(
             base.id,
             frames?.[0]?.segments ?? persistedSegments,
           ),
-    ...(typeof messagesRemaining === "number" ? { messagesRemaining } : {}),
   });
 }
 

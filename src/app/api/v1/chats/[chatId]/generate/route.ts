@@ -97,11 +97,10 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     let finishOnce: (() => Promise<void>) | null = null;
 
     try {
-      const { stream, onComplete, userMessageId, assistantMessageId, messagesRemaining } =
+      const { stream, onComplete, userMessageId, assistantMessageId } =
         await chatService.streamChatGeneration({
           chatId: params.chatId,
           userId: user.id,
-          userEmail: user.email,
           messages,
           turn,
           signal: generationController.signal,
@@ -181,9 +180,6 @@ export const POST = withApiRouteParams<{ chatId: string }>(
             : {}),
           ...(assistantMessageId
             ? { "X-Assistant-Message-Id": assistantMessageId }
-            : {}),
-          ...(typeof messagesRemaining === "number"
-            ? { "X-Demo-Messages-Remaining": String(messagesRemaining) }
             : {}),
         },
       });

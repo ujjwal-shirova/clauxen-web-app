@@ -1332,13 +1332,6 @@ export function useChatApi(
 
         // Sync optimistic local id → durable DB assistant id (prevents duplicates).
         const serverAssistantId = response.headers.get("X-Assistant-Message-Id");
-        const demoRemainingRaw = response.headers.get(
-          "X-Demo-Messages-Remaining",
-        );
-        const demoMessagesRemaining =
-          demoRemainingRaw != null && demoRemainingRaw !== ""
-            ? Number(demoRemainingRaw)
-            : null;
         if (serverAssistantId && serverAssistantId !== assistantId) {
           const previousId = assistantId;
           assistantId = serverAssistantId;
@@ -1363,35 +1356,6 @@ export function useChatApi(
               ...next[index]!,
               id: assistantId,
               clientId: next[index]!.clientId ?? assistantClientId,
-              ...(typeof demoMessagesRemaining === "number" &&
-              Number.isFinite(demoMessagesRemaining)
-                ? {
-                    messagesRemaining: Math.max(
-                      0,
-                      Math.floor(demoMessagesRemaining),
-                    ),
-                  }
-                : {}),
-            };
-            return { ...prev, [chatId]: next };
-          });
-        } else if (
-          typeof demoMessagesRemaining === "number" &&
-          Number.isFinite(demoMessagesRemaining)
-        ) {
-          const remaining = Math.max(0, Math.floor(demoMessagesRemaining));
-          setAllChats((prev) => {
-            const list = prev[chatId] ?? [];
-            const index = list.findIndex(
-              (message) =>
-                message.id === assistantId ||
-                message.clientId === assistantClientId,
-            );
-            if (index < 0) return prev;
-            const next = [...list];
-            next[index] = {
-              ...next[index]!,
-              messagesRemaining: remaining,
             };
             return { ...prev, [chatId]: next };
           });
