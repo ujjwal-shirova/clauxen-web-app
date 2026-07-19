@@ -6,7 +6,7 @@ plans → checkout-session (`/checkout/shirova/cs_live_…`) → Custom Checkout
 
 ## Card
 
-`razorpay.js` `createPayment({ method: "card" })` — PAN/CVV browser→Razorpay only; server verifies signature.
+On-page fields + `razorpay.js` `createPayment({ method: "card" })` only — PAN/CVV never hit our API; no Standard Checkout modal.
 
 ## UPI
 
@@ -14,10 +14,6 @@ Always show our custom **UPI QR** modal (countdown + scan row) — never Razorpa
 1. Prefer `POST /v1/payments/qr_codes` → same-origin image proxy.
 2. If QR Codes product is disabled: create UPI `payment_links` (`upi_link: true`) and render a PNG QR of `short_url` via `qrcode`.
 Poll: `qr_*` via QR payments API; `plink_*` via payment link status.
-
-## Card
-
-On-page fields + `razorpay.js` `createPayment({ method: "card" })` only — no Standard Checkout modal.
 
 ## Hosted checkout scroll
 
