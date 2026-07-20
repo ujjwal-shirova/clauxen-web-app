@@ -75,6 +75,26 @@ export async function getBillingOrderByUpiQrId(upiQrId: string) {
   );
 }
 
+/** Merge JSON into billing_orders.metadata for a UPI QR / payment-link id. */
+export async function mergeBillingOrderMetadataByUpiQrId(
+  upiQrId: string,
+  patch: Record<string, unknown>,
+) {
+  assertNonEmpty(upiQrId, "upi qr id");
+  return queryOne<{ id: string }>(
+    `update public.billing_orders
+     set metadata = coalesce(metadata, '{}'::jsonb) || $2::jsonb
+     where id = (
+       select id from public.billing_orders
+       where metadata->>'upiQrId' = $1
+       order by created_at desc
+       limit 1
+     )
+     returning id`,
+    [upiQrId, JSON.stringify(patch)],
+  );
+}
+
 export async function getBillingOrderDetailsByRazorpayId(
   razorpayOrderId: string,
 ) {

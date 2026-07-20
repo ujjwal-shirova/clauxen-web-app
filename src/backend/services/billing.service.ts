@@ -284,15 +284,21 @@ export async function createUpiCheckoutPayment(input: {
   let qrId: string;
   let closeBy: number | null = null;
   let channel: "upi_qr" | "upi_payment_link" = "upi_qr";
-  let upiIntent: string | null = null;
   let imageDataUrl: string | null = null;
+  /** Started early so branded-image fetch overlaps the billing_orders insert. */
+  let upiIntentPromise: Promise<string> | null = null;
 
   if (qrSettled.ok) {
-    // Live QR Codes product — decode branded image_url → clean upi:// square PNG.
+    // Live QR Codes — prefer image_content; otherwise decode branded image_url
+    // with a fast center-crop (no full-frame scan / 512px upscale).
     qrId = qrSettled.qr.id;
     closeBy = qrSettled.qr.close_by ?? null;
-    upiIntent = await resolveUpiQrIntent(qrSettled.qr);
-    imageDataUrl = await renderCleanUpiQrDataUrl(upiIntent);
+    const direct = qrSettled.qr.image_content?.trim();
+    if (direct && /^upi:\/\//i.test(direct)) {
+      upiIntentPromise = Promise.resolve(direct);
+    } else {
+      upiIntentPromise = resolveUpiQrIntent(qrSettled.qr);
+    }
   } else {
     const message =
       qrSettled.err instanceof Error
@@ -324,12 +330,12 @@ export async function createUpiCheckoutPayment(input: {
     channel = "upi_payment_link";
     closeBy = Math.floor(Date.now() / 1000) + expireBySeconds;
     if (link.short_url) {
-      upiIntent = link.short_url;
-      imageDataUrl = await renderCleanUpiQrDataUrl(link.short_url);
+      upiIntentPromise = Promise.resolve(link.short_url);
     }
   }
 
-  const order = await billingRepo.createBillingOrder({
+  // Overlap Razorpay image fetch/decode with the order insert.
+  const orderPromise = billingRepo.createBillingOrder({
     id: orderId,
     razorpayOrderId: razorpay.id,
     userId: input.userId,
@@ -348,7 +354,6 @@ export async function createUpiCheckoutPayment(input: {
       checkoutCurrency: "INR",
       channel,
       upiQrId: qrId,
-      ...(upiIntent ? { upiIntent } : {}),
       tax: {
         label: tax.taxLabel,
         paise: tax.taxPaise,
@@ -361,8 +366,20 @@ export async function createUpiCheckoutPayment(input: {
     },
   });
 
+  const [order, resolvedIntent] = await Promise.all([
+    orderPromise,
+    upiIntentPromise ?? Promise.resolve(null),
+  ]);
+
   if (!order) {
     throw new AppError("Could not create billing order.", 500, "billing_error");
+  }
+
+  if (resolvedIntent) {
+    imageDataUrl = await renderCleanUpiQrDataUrl(resolvedIntent);
+    void billingRepo
+      .mergeBillingOrderMetadataByUpiQrId(qrId, { upiIntent: resolvedIntent })
+      .catch(() => undefined);
   }
 
   return {

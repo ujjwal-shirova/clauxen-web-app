@@ -170,6 +170,7 @@ const nextConfig: NextConfig = {
     "jsqr",
     "pngjs",
     "qrcode",
+    "sharp",
   ],
   turbopack: {
     root: projectRoot,

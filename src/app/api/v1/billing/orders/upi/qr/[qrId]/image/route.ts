@@ -29,6 +29,13 @@ async function savedUpiIntent(qrId: string): Promise<string | null> {
   return typeof intent === "string" && intent.trim() ? intent.trim() : null;
 }
 
+function rememberUpiIntent(qrId: string, intent: string) {
+  // Best-effort cache so later polls skip Razorpay fetch + decode.
+  void billingRepo
+    .mergeBillingOrderMetadataByUpiQrId(qrId, { upiIntent: intent })
+    .catch(() => undefined);
+}
+
 /**
  * Same-origin clean UPI QR image for the custom modal.
  *
@@ -53,6 +60,7 @@ export const GET = withApiRouteParams<{ qrId: string }>(
           "razorpay_error",
         );
       }
+      if (!saved) rememberUpiIntent(qrId, intent);
       return pngResponse(await renderPaymentQrPng(intent), "private, no-store");
     }
 
@@ -70,6 +78,7 @@ export const GET = withApiRouteParams<{ qrId: string }>(
 
     const qr = await fetchRazorpayQrCode(qrId);
     const intent = await resolveUpiQrIntent(qr);
+    rememberUpiIntent(qrId, intent);
     return pngResponse(
       await renderPaymentQrPng(intent),
       "private, max-age=120",

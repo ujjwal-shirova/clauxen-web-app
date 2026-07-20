@@ -426,16 +426,22 @@ export async function fetchRazorpayPaymentLink(
   );
 }
 
+/** Display-sized QR PNG — modal is ~168–220px; avoid expensive 512px upscale. */
+const CLEAN_QR_RENDER_WIDTH = 256;
+
+/** jsQR scan size after center-crop — enough modules, far fewer pixels than the tall card. */
+const UPI_QR_SCAN_SIZE = 280;
+
 /** PNG buffer for embedding a UPI / payment-link URL as a QR code. */
 export async function renderPaymentQrPng(
   payload: string,
 ): Promise<Buffer> {
   const QRCode = await import("qrcode");
-  // High-res square for phone cameras; payload string is unchanged.
+  // Payload string is unchanged; keep width at display size for speed.
   return QRCode.toBuffer(payload, {
     type: "png",
-    width: 512,
-    margin: 2,
+    width: CLEAN_QR_RENDER_WIDTH,
+    margin: 1,
     errorCorrectionLevel: "M",
     color: { dark: "#111827", light: "#ffffff" },
   });
@@ -468,6 +474,130 @@ function toNodeBuffer(bytes: Buffer | ArrayBuffer | Uint8Array): Buffer {
   return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
+function upiIntentFromJsQR(
+  decode: JsQRDecoder,
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): string | null {
+  // Dark-on-light first (typical UPI QR) — skip costly invert pass unless needed.
+  for (const inversionAttempts of ["dontInvert", "attemptBoth"] as const) {
+    const code = decode(data, width, height, { inversionAttempts });
+    const text = code?.data?.trim();
+    if (text && /^upi:\/\//i.test(text)) return text;
+  }
+  return null;
+}
+
+/**
+ * Fast path: center-crop the tall Razorpay marketing card, shrink for jsQR.
+ * Never scan the full ~674×1644 bitmap (that was the multi-second bottleneck).
+ */
+async function decodeUpiIntentWithSharp(
+  buf: Buffer,
+  decode: JsQRDecoder,
+): Promise<string | null> {
+  const sharpMod = await import("sharp");
+  const sharp = sharpMod.default;
+  const meta = await sharp(buf, { failOn: "none" }).metadata();
+  const width = meta.width ?? 0;
+  const height = meta.height ?? 0;
+  if (width < 80 || height < 80) return null;
+
+  const side = Math.min(width, height);
+  const crops = [
+    {
+      left: Math.floor((width - side) / 2),
+      top: Math.floor((height - side) / 2),
+      width: side,
+      height: side,
+    },
+    {
+      left: Math.floor((width - Math.floor(side * 0.72)) / 2),
+      top: Math.floor((height - Math.floor(side * 0.72)) / 2),
+      width: Math.floor(side * 0.72),
+      height: Math.floor(side * 0.72),
+    },
+  ];
+
+  for (const region of crops) {
+    if (region.width < 80 || region.height < 80) continue;
+    const scan = Math.min(UPI_QR_SCAN_SIZE, region.width, region.height);
+    const { data, info } = await sharp(buf, { failOn: "none" })
+      .extract(region)
+      .resize(scan, scan, { kernel: "nearest", fit: "fill" })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const rgba = new Uint8ClampedArray(
+      data.buffer,
+      data.byteOffset,
+      data.byteLength,
+    );
+    const intent = upiIntentFromJsQR(decode, rgba, info.width, info.height);
+    if (intent) return intent;
+  }
+  return null;
+}
+
+/** Fallback when sharp is unavailable — crop-first with pngjs, never full-frame scan. */
+async function decodeUpiIntentWithPngjs(
+  buf: Buffer,
+  decode: JsQRDecoder,
+): Promise<string | null> {
+  const { PNG } = await import("pngjs");
+  let png: { width: number; height: number; data: Buffer };
+  try {
+    png = PNG.sync.read(buf);
+  } catch {
+    return null;
+  }
+  if (png.width < 80 || png.height < 80) return null;
+
+  const rgba = new Uint8ClampedArray(
+    png.data.buffer,
+    png.data.byteOffset,
+    png.data.byteLength,
+  );
+  const side = Math.min(png.width, png.height);
+  const ratios = [1, 0.72] as const;
+
+  for (const ratio of ratios) {
+    const cropSide = Math.floor(side * ratio);
+    if (cropSide < 80) continue;
+    const x0 = Math.floor((png.width - cropSide) / 2);
+    const y0 = Math.floor((png.height - cropSide) / 2);
+    const cropped = new Uint8ClampedArray(cropSide * cropSide * 4);
+    for (let y = 0; y < cropSide; y += 1) {
+      const src = ((y0 + y) * png.width + x0) * 4;
+      cropped.set(rgba.subarray(src, src + cropSide * 4), y * cropSide * 4);
+    }
+
+    const scan = Math.min(UPI_QR_SCAN_SIZE, cropSide);
+    if (scan === cropSide) {
+      const intent = upiIntentFromJsQR(decode, cropped, cropSide, cropSide);
+      if (intent) return intent;
+      continue;
+    }
+    const scaled = new Uint8ClampedArray(scan * scan * 4);
+    for (let y = 0; y < scan; y += 1) {
+      const sy = Math.floor((y * cropSide) / scan);
+      for (let x = 0; x < scan; x += 1) {
+        const sx = Math.floor((x * cropSide) / scan);
+        const di = (y * scan + x) * 4;
+        const si = (sy * cropSide + sx) * 4;
+        scaled[di] = cropped[si]!;
+        scaled[di + 1] = cropped[si + 1]!;
+        scaled[di + 2] = cropped[si + 2]!;
+        scaled[di + 3] = cropped[si + 3]!;
+      }
+    }
+    const intent = upiIntentFromJsQR(decode, scaled, scan, scan);
+    if (intent) return intent;
+  }
+  return null;
+}
+
 /**
  * Razorpay’s `image_url` is a branded marketing card (Powered by Razorpay / BHIM
  * chrome). Decode that PNG to recover the native `upi://` intent, then we render
@@ -476,11 +606,6 @@ function toNodeBuffer(bytes: Buffer | ArrayBuffer | Uint8Array): Buffer {
 export async function decodeUpiIntentFromQrPng(
   pngBytes: Buffer | ArrayBuffer | Uint8Array,
 ): Promise<string | null> {
-  const [{ PNG }, jsQRMod] = await Promise.all([
-    import("pngjs"),
-    import("jsqr"),
-  ]);
-  const decode = resolveJsQRDecoder(jsQRMod);
   const buf = toNodeBuffer(pngBytes);
 
   // Razorpay serves PNG; reject non-PNG early so we never mis-decode.
@@ -488,46 +613,17 @@ export async function decodeUpiIntentFromQrPng(
     return null;
   }
 
-  let png: { width: number; height: number; data: Buffer };
+  const jsQRMod = await import("jsqr");
+  const decode = resolveJsQRDecoder(jsQRMod);
+
   try {
-    png = PNG.sync.read(buf);
+    const sharpHit = await decodeUpiIntentWithSharp(buf, decode);
+    if (sharpHit) return sharpHit;
   } catch {
-    return null;
+    // Fall through to pngjs when sharp is missing or fails.
   }
 
-  const rgba = new Uint8ClampedArray(
-    png.data.buffer,
-    png.data.byteOffset,
-    png.data.byteLength,
-  );
-
-  const tryDecode = (data: Uint8ClampedArray, width: number, height: number) => {
-    const code = decode(data, width, height, {
-      inversionAttempts: "attemptBoth",
-    });
-    const text = code?.data?.trim();
-    return text && /^upi:\/\//i.test(text) ? text : null;
-  };
-
-  // 1) Full branded card (674×1644 in practice) — jsQR usually finds the square.
-  const full = tryDecode(rgba, png.width, png.height);
-  if (full) return full;
-
-  // 2) Center crop fallback — QR sits in the middle of Razorpay’s tall card.
-  if (png.width >= 80 && png.height >= 80) {
-    const side = Math.min(png.width, png.height);
-    const x0 = Math.floor((png.width - side) / 2);
-    const y0 = Math.floor((png.height - side) / 2);
-    const cropped = new Uint8ClampedArray(side * side * 4);
-    for (let y = 0; y < side; y += 1) {
-      const src = ((y0 + y) * png.width + x0) * 4;
-      cropped.set(rgba.subarray(src, src + side * 4), y * side * 4);
-    }
-    const center = tryDecode(cropped, side, side);
-    if (center) return center;
-  }
-
-  return null;
+  return decodeUpiIntentWithPngjs(buf, decode);
 }
 
 export async function fetchRazorpayQrImageBytes(
@@ -568,7 +664,13 @@ export async function resolveUpiQrIntent(
     throw new AppError("QR image unavailable.", 502, "razorpay_error");
   }
 
-  const { bytes, contentType } = await fetchRazorpayQrImageBytes(imageUrl);
+  // Fetch branded PNG while warming decode deps in parallel.
+  const [{ bytes, contentType }] = await Promise.all([
+    fetchRazorpayQrImageBytes(imageUrl),
+    import("jsqr"),
+    import("qrcode"),
+    import("sharp").catch(() => null),
+  ]);
   if (!contentType.startsWith("image/")) {
     // Rare: image_url is already an intent/URL page — if it's upi, use it.
     if (/^upi:\/\//i.test(imageUrl)) return imageUrl;
