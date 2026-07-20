@@ -1793,6 +1793,15 @@ button.user-message-card__body:not(:disabled):hover,
   animation: shimmer-loop 2.4s ease-in-out infinite;
 }
 
+/* Instantly kill residual shimmer when the active attribute drops. */
+.shimmer-text:not([data-shimmer-active="true"]) {
+  animation: none !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  color: inherit !important;
+}
+
 .shimmer-bg {
   position: relative;
   overflow: hidden;

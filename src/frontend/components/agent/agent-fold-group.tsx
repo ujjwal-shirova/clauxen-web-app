@@ -23,7 +23,9 @@ export function AgentFoldGroup({
     <AgentTraceBlock
       title={
         isActive ? (
-          <AgentShimmerText>{summary.label}</AgentShimmerText>
+          <AgentShimmerText key={`fold-live-${summary.verb}`} active>
+            {summary.label}
+          </AgentShimmerText>
         ) : (
           summary.label
         )

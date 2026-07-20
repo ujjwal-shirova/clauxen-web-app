@@ -1476,10 +1476,14 @@ export function useChatApi(
         });
 
         const handleStreamEvent = (event: StreamEvent) => {
+          // Flush immediately on lifecycle boundaries so tool/thinking shimmer
+          // clears in the same frame the server ends the step.
           if (
             event.type === "error" ||
             event.type === "done" ||
-            (event.type === "tool_end" && event.name === "ask_user_input_v0")
+            event.type === "tool_end" ||
+            event.type === "thinking_end" ||
+            event.type === "segment_end"
           ) {
             streamBatcher.flush();
             handleStreamEventImmediate(event);
@@ -1583,7 +1587,7 @@ export function useChatApi(
           const rawMessage =
             error instanceof Error ? error.message : "Generation failed.";
           const friendly =
-            /failed to fetch|networkerror|load failed|network request failed/i.test(
+            /failed to fetch|networkerror|load failed|network request failed|stream ended before completion|the response stream ended/i.test(
               rawMessage,
             )
               ? "Connection lost while generating. Please try again."
@@ -1597,7 +1601,10 @@ export function useChatApi(
                 ? {
                     ...m,
                     isStreaming: false,
-                    content: m.content || friendly,
+                    isThinkingStreaming: false,
+                    agentFrameComplete: true,
+                    generationFailed: true,
+                    content: m.content?.trim() ? m.content : friendly,
                   }
                 : m,
             ),

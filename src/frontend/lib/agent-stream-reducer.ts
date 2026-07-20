@@ -243,6 +243,7 @@ export function applyAgentStreamEvent(
     case "start":
       return {
         ...message,
+        generationFailed: false,
         agentMode: event.agentMode === true,
         agentSegments: event.agentMode === true ? [] : message.agentSegments,
         agentFrames: event.agentMode === true ? [] : message.agentFrames,
@@ -833,6 +834,7 @@ export function applyAgentStreamEvent(
         isStreaming: false,
         isThinkingStreaming: false,
         agentFrameComplete: true,
+        generationFailed: true,
       });
     }
 

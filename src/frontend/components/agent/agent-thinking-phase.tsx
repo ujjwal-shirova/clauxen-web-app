@@ -98,7 +98,9 @@ export function AgentThinkingPhase({
             )}
           >
             {streaming ? (
-              <AgentShimmerText>{headerLabel}</AgentShimmerText>
+              <AgentShimmerText key={`thinking-${segment.id}`} active>
+                {headerLabel}
+              </AgentShimmerText>
             ) : (
               headerLabel
             )}

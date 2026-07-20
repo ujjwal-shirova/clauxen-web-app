@@ -18,7 +18,11 @@ import {
   captureDisplayScreenshot,
   ScreenshotCaptureError,
 } from "@/frontend/lib/capture-display-screenshot";
-import { PromptAddMenuPanel, type PromptComposeAction } from "./prompt-add-menu";
+import {
+  PromptAddMenuPanel,
+  type PromptComposeAction,
+  type WebSearchMode,
+} from "./prompt-add-menu";
 import {
   PromptInlineModeChip,
   type PromptInlineMode,
@@ -39,6 +43,18 @@ import {
 import { AttachmentChip } from "@/frontend/components/composer/attachment-chip";
 import { AttachmentImageLightbox } from "@/frontend/components/composer/attachment-image-lightbox";
 import { AttachmentDocumentPreview } from "@/frontend/components/composer/attachment-document-preview";
+import * as settingsApi from "@/frontend/lib/api/settings";
+import { overlayToHash } from "@/frontend/lib/app-routes";
+
+function openOverlayHash(
+  overlay: Parameters<typeof overlayToHash>[0],
+) {
+  const hash = overlayToHash(overlay);
+  if (typeof window === "undefined") return;
+  const url = `${window.location.pathname}${window.location.search}${hash}`;
+  window.history.pushState(null, "", url);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
 
 interface PromptInputProps {
   onSendMessage: (prompt: string, options?: SendMessageOptions) => void;
@@ -140,6 +156,7 @@ export function PromptInput({
     useState<PromptComposeAction | null>(null);
   const [activeInlineMode, setActiveInlineMode] =
     useState<PromptInlineMode | null>(null);
+  const [webSearchMode, setWebSearchMode] = useState<WebSearchMode>("auto");
   const [composeChipHovered, setComposeChipHovered] = useState(false);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const [previewAttachment, setPreviewAttachment] =
@@ -781,19 +798,34 @@ export function PromptInput({
     setSelectedQuickActions((prev) => prev.filter((item) => item !== action));
   };
 
-  const handleComposeActionSelect = (action: PromptComposeAction) => {
-    if (isConversationStarted) return;
-    setActiveComposeAction(action);
-  };
+  useEffect(() => {
+    let cancelled = false;
+    void settingsApi
+      .getSettings()
+      .then((settings) => {
+        if (cancelled) return;
+        setWebSearchMode(
+          settings.personalization?.webSearch === false ? "off" : "auto",
+        );
+      })
+      .catch(() => {
+        // Keep optimistic default when settings are unavailable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const handleInlineModeSelect = useCallback(
-    (mode: PromptInlineMode) => {
-      setActiveInlineMode(mode);
-      setAddMenuOpen(false);
-      requestAnimationFrame(() => textareaRef.current?.focus());
-    },
-    [setAddMenuOpen],
-  );
+  const handleWebSearchModeChange = useCallback((mode: WebSearchMode) => {
+    setWebSearchMode(mode);
+    void settingsApi
+      .updateSettings({
+        personalization: { webSearch: mode === "auto" },
+      })
+      .catch((error) => {
+        console.warn("[composer] web search preference failed:", error);
+      });
+  }, []);
 
   const handleComposeActionRemove = () => {
     setActiveComposeAction(null);
@@ -1084,11 +1116,13 @@ export function PromptInput({
           placement={placement}
           panelRef={addMenuPanelRef}
           onClose={() => setAddMenuOpen(false)}
-          onComposeActionSelect={handleComposeActionSelect}
-          onInlineModeSelect={handleInlineModeSelect}
           onAddFiles={openFilePicker}
-          onTakeScreenshot={() => void handleTakeScreenshot()}
-          showComposeActions={!isConversationStarted}
+          webSearchMode={webSearchMode}
+          onWebSearchModeChange={handleWebSearchModeChange}
+          onOpenPlugins={() => openOverlayHash({ type: "apps" })}
+          onOpenSkills={() =>
+            openOverlayHash({ type: "settings", tab: "Skills" })
+          }
           className={placement === "below" ? "mt-2" : "mb-2"}
         />
       ) : null}

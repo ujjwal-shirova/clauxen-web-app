@@ -30,7 +30,13 @@ export function AgentToolCard({
       isActive={!!isRunning}
       defaultExpanded={defaultExpanded}
       title={
-        <span className={cn(isRunning && "shimmer-text")}>{label}</span>
+        <span
+          key={isRunning ? `tool-run-${String(label)}` : `tool-done-${String(label)}`}
+          className={cn(isRunning && "shimmer-text")}
+          data-shimmer-active={isRunning || undefined}
+        >
+          {label}
+        </span>
       }
       leading={leading}
       trailing={

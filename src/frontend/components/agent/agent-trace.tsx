@@ -152,9 +152,19 @@ export function AgentTraceBlock({
 export function AgentShimmerText({
   children,
   className,
+  active = true,
 }: {
   children: ReactNode;
   className?: string;
+  /** When false, render plain text immediately (no residual animation). */
+  active?: boolean;
 }) {
-  return <span className={cn("shimmer-text", className)}>{children}</span>;
+  if (!active) {
+    return <span className={className}>{children}</span>;
+  }
+  return (
+    <span className={cn("shimmer-text", className)} data-shimmer-active="true">
+      {children}
+    </span>
+  );
 }

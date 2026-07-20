@@ -2,14 +2,15 @@
 
 import {
   ArrowUp,
+  ChevronRight,
   FileText,
   Globe,
-  ImageIcon,
   Mic,
   Paperclip,
+  Plug,
   Plus,
+  ScrollText,
   Square,
-  Telescope,
   X,
 } from "lucide-react";
 import { forwardRef, useLayoutEffect, useRef, useState } from "react";
@@ -44,30 +45,26 @@ function DemoAddMenu() {
   const items = [
     {
       id: "files",
-      label: "Add photos & files",
-      description: "Upload from computer",
+      label: "Add files & photos",
       icon: Paperclip,
     },
     {
-      id: "image",
-      label: "Create image",
-      description: "Visualize anything",
-      icon: ImageIcon,
-      iconClassName: "text-violet-500",
+      id: "plugins",
+      label: "Plugins",
+      icon: Plug,
+      hasChevron: true,
+    },
+    {
+      id: "skills",
+      label: "Skills",
+      icon: ScrollText,
+      hasChevron: true,
     },
     {
       id: "web-search",
       label: "Web search",
-      description: "Find real-time news and info",
       icon: Globe,
-      iconClassName: "text-sky-500",
-    },
-    {
-      id: "deep-research",
-      label: "Deep research",
-      description: "Get a detailed report",
-      icon: Telescope,
-      iconClassName: "text-blue-500",
+      hasChevron: true,
     },
   ] as const;
 
@@ -78,42 +75,33 @@ function DemoAddMenu() {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.985 }}
       transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-      className="mb-2 w-full overflow-hidden rounded-[14px] border border-zinc-200/90 bg-white font-sans shadow-[0_8px_28px_-20px_rgba(24,24,27,0.28)]"
+      className="mb-2 w-[240px] overflow-hidden rounded-[18px] border border-zinc-200/90 bg-white font-sans shadow-[0_12px_40px_-18px_rgba(24,24,27,0.45)]"
     >
-      <div className="flex flex-col gap-0.5 p-1">
+      <div className="flex flex-col gap-0.5 p-1.5">
         {items.map((item) => {
           const Icon = item.icon;
           return (
             <div
               key={item.id}
               data-demo-add-item={item.id}
-              className="group flex w-full min-h-[34px] items-center gap-2 rounded-[8px] px-2 py-1 text-left"
+              className="group flex w-full min-h-[40px] items-center gap-2.5 rounded-[12px] px-2.5 py-2 text-left"
             >
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] border border-zinc-200/80 bg-white">
-                <Icon
-                  className={cn(
-                    "h-3.5 w-3.5 text-zinc-700",
-                    "iconClassName" in item ? item.iconClassName : undefined,
-                  )}
+              <Icon
+                className="h-[18px] w-[18px] shrink-0 text-zinc-700"
+                strokeWidth={1.75}
+              />
+              <span className="min-w-0 flex-1 truncate text-[14px] font-[430] leading-5 text-zinc-900">
+                {item.label}
+              </span>
+              {"hasChevron" in item && item.hasChevron ? (
+                <ChevronRight
+                  className="h-4 w-4 shrink-0 text-zinc-400"
                   strokeWidth={1.75}
                 />
-              </span>
-              <span className="min-w-0 flex-1 leading-none">
-                <span className="block truncate text-[13px] font-medium leading-4 text-zinc-900">
-                  {item.label}
-                </span>
-                <span className="mt-0.5 block truncate text-[11.5px] leading-4 text-zinc-500">
-                  {item.description}
-                </span>
-              </span>
+              ) : null}
             </div>
           );
         })}
-      </div>
-      <div className="border-t border-zinc-100 px-1.5 py-1">
-        <div className="w-full rounded-md px-1.5 py-1.5 text-[11.5px] leading-4 text-zinc-400">
-          Type to search plugins, files & skills
-        </div>
       </div>
     </motion.div>
   );

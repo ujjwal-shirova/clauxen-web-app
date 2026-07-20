@@ -77,10 +77,15 @@ function welcomeFirstName(input: {
 /** Baseline reserve — actual value tracks measured composer height. */
 const MIN_CHAT_COMPOSER_RESERVE_PX = 84;
 const MIN_CHAT_COMPOSER_RESERVE_PX_DESKTOP = 96;
-const CHAT_COMPOSER_RESERVE_BUFFER_PX = 6;
+const CHAT_COMPOSER_RESERVE_BUFFER_PX = 8;
 const CHAT_FROSTED_EDGE_EXTRA_PX = 16;
-/** When within this distance of the bottom, composer padding growth follows scroll. */
-const COMPOSER_SCROLL_FOLLOW_THRESHOLD_PX = 96;
+/**
+ * Only follow composer growth when the user is already resting near the
+ * bottom. Avoid yanking the transcript when the prompt expands while reading.
+ */
+const COMPOSER_SCROLL_FOLLOW_THRESHOLD_PX = 72;
+/** Ignore sub-pixel / 1px thrash from font metrics while typing. */
+const COMPOSER_RESERVE_EPSILON_PX = 2;
 
 function maxScrollTop(viewport: HTMLElement) {
   return Math.max(0, viewport.scrollHeight - viewport.clientHeight);
@@ -99,6 +104,34 @@ function resolveScrollViewport(
   const root = scrollAreaRef?.current;
   if (!root) return null;
   return root.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]");
+}
+
+/**
+ * Write the composer clearance as a CSS variable only — no React state — so
+ * reserve changes do not re-render the transcript and fight stream-follow.
+ */
+function applyComposerReserveCss(
+  shell: HTMLElement,
+  reservePx: number,
+  scrollAreaRef?: React.RefObject<HTMLDivElement | null>,
+  previousReservePx?: number,
+) {
+  shell.style.setProperty("--chat-composer-reserve", `${reservePx}px`);
+  const spacer = shell.querySelector<HTMLElement>("[data-composer-end-spacer]");
+  if (spacer) {
+    spacer.style.height = `${reservePx}px`;
+  }
+
+  if (previousReservePx == null) return;
+  const delta = reservePx - previousReservePx;
+  if (Math.abs(delta) < COMPOSER_RESERVE_EPSILON_PX) return;
+
+  const viewport = resolveScrollViewport(scrollAreaRef);
+  if (!viewport) return;
+  const distanceFromBottom = maxScrollTop(viewport) - viewport.scrollTop;
+  if (distanceFromBottom <= COMPOSER_SCROLL_FOLLOW_THRESHOLD_PX) {
+    viewport.scrollTop = Math.max(0, viewport.scrollTop + delta);
+  }
 }
 
 export function ChatViewPane({
@@ -124,9 +157,7 @@ export function ChatViewPane({
     fullName: user?.displayName,
     email: user?.email,
   });
-  const [composerReservePx, setComposerReservePx] = useState(() =>
-    getMinComposerReservePx(),
-  );
+  const shellRef = useRef<HTMLElement>(null);
   const scrollContentRef = useRef<HTMLDivElement>(null);
   const composerMeasureRef = useRef<HTMLDivElement>(null);
   const composerReserveRef = useRef(getMinComposerReservePx());
@@ -145,42 +176,20 @@ export function ChatViewPane({
     if (hasConversation) return;
     const minReserve = getMinComposerReservePx();
     composerReserveRef.current = minReserve;
-    setComposerReservePx(minReserve);
-  }, [hasConversation]);
+    if (shellRef.current) {
+      applyComposerReserveCss(shellRef.current, minReserve, scrollAreaRef);
+    }
+  }, [hasConversation, scrollAreaRef]);
 
   useEffect(() => {
     if (!hasConversation) return;
+    const shell = shellRef.current;
+    const composer = composerMeasureRef.current;
+    if (!shell || !composer) return;
 
     const minReserve = getMinComposerReservePx();
     composerReserveRef.current = minReserve;
-    setComposerReservePx(minReserve);
-
-    const composer = composerMeasureRef.current;
-    if (!composer) return;
-
-    const applyComposerReserve = (composerHeight: number) => {
-      const minReserve = getMinComposerReservePx();
-      const nextReserve = Math.max(
-        minReserve,
-        Math.ceil(composerHeight) + CHAT_COMPOSER_RESERVE_BUFFER_PX,
-      );
-      const prevReserve = composerReserveRef.current;
-      const delta = nextReserve - prevReserve;
-
-      if (delta === 0) return;
-
-      composerReserveRef.current = nextReserve;
-      setComposerReservePx(nextReserve);
-
-      const viewport = resolveScrollViewport(scrollAreaRef);
-      if (viewport && delta !== 0) {
-        const distanceFromBottom =
-          maxScrollTop(viewport) - viewport.scrollTop;
-        if (distanceFromBottom <= COMPOSER_SCROLL_FOLLOW_THRESHOLD_PX) {
-          viewport.scrollTop = Math.max(0, viewport.scrollTop + delta);
-        }
-      }
-    };
+    applyComposerReserveCss(shell, minReserve, scrollAreaRef);
 
     const measureComposer = () => {
       cancelAnimationFrame(composerMeasureRafRef.current);
@@ -189,7 +198,21 @@ export function ChatViewPane({
           composer.getBoundingClientRect().height ||
           composer.offsetHeight ||
           MIN_CHAT_COMPOSER_RESERVE_PX;
-        applyComposerReserve(height);
+        const nextReserve = Math.max(
+          getMinComposerReservePx(),
+          Math.ceil(height) + CHAT_COMPOSER_RESERVE_BUFFER_PX,
+        );
+        const prevReserve = composerReserveRef.current;
+        if (Math.abs(nextReserve - prevReserve) < COMPOSER_RESERVE_EPSILON_PX) {
+          return;
+        }
+        composerReserveRef.current = nextReserve;
+        applyComposerReserveCss(
+          shell,
+          nextReserve,
+          scrollAreaRef,
+          prevReserve,
+        );
       });
     };
 
@@ -204,10 +227,11 @@ export function ChatViewPane({
       observer.disconnect();
       cancelAnimationFrame(composerMeasureRafRef.current);
     };
-  }, [hasConversation, scrollAreaRef]);
+  }, [hasConversation, scrollAreaRef, isAddMenuOpen]);
 
   return (
     <section
+      ref={shellRef}
       className={cn(
         "agent-panel-conversation-shell relative flex min-h-0 flex-1 flex-col",
         className,
@@ -217,7 +241,7 @@ export function ChatViewPane({
       style={
         hasConversation
           ? ({
-              "--chat-composer-reserve": `${composerReservePx}px`,
+              "--chat-composer-reserve": `${composerReserveRef.current}px`,
             } as CSSProperties)
           : undefined
       }
@@ -233,18 +257,24 @@ export function ChatViewPane({
               "chat-scroll-content flex w-full flex-1 flex-col items-center",
               !hasConversation && "min-h-full",
             )}
-            style={
-              hasConversation
-                ? {
-                    paddingBottom:
-                      "var(--chat-composer-reserve, 84px)",
-                  }
-                : undefined
-            }
           >
             {hasConversation ? (
               <div className="chat-column w-full min-w-0">
                 {conversation}
+                {/*
+                  End spacer clears the absolute composer without padding the
+                  whole scroll content. Height is driven by CSS var / direct DOM
+                  writes so transcript React trees do not re-layout on every
+                  composer resize (that was causing the upward jump).
+                */}
+                <div
+                  aria-hidden
+                  data-composer-end-spacer
+                  className="pointer-events-none w-full shrink-0"
+                  style={{
+                    height: `var(--chat-composer-reserve, ${MIN_CHAT_COMPOSER_RESERVE_PX}px)`,
+                  }}
+                />
               </div>
             ) : (
               <div

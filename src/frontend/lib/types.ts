@@ -33,6 +33,11 @@ export type Message = {
   hasThinking?: boolean;
   thinkingStartedAtMs?: number;
   thinkingDurationSeconds?: number;
+  /**
+   * True when this assistant turn failed (timeout / connection / provider).
+   * Error turns hide action buttons; editing the parent user message branches.
+   */
+  generationFailed?: boolean;
   agentMode?: boolean;
   agentFrameComplete?: boolean;
   agentSegments?: AgentSegment[];

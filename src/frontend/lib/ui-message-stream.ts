@@ -276,7 +276,9 @@ export async function consumeClauxenStreamResponse(
       reader.releaseLock();
     }
     if (!streamComplete && !signal?.aborted) {
-      throw new Error("The response stream ended before completion.");
+      // Soft-complete on premature close (proxy idle cuts) instead of wiping
+      // a live answer with a hard connection-lost error.
+      onEvent({ type: "done" });
     }
     return;
   }
@@ -341,6 +343,9 @@ export async function consumeClauxenStreamResponse(
     reader.releaseLock();
   }
   if (!streamComplete && !signal?.aborted) {
-    throw new Error("The response stream ended before completion.");
+    // Soft-complete when the upstream closed without a terminal event — common
+    // when a proxy briefly flaps. Prefer a finished partial answer over a hard
+    // "connection lost" wipe when the client already painted tokens.
+    onEvent({ type: "done" });
   }
 }

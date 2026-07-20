@@ -34,6 +34,7 @@ import type {
   MessageAttachment,
 } from "@/frontend/lib/composer-attachments";
 import { messageUiKey } from "@/frontend/lib/message-ui-key";
+import { isAssistantGenerationError } from "@/frontend/lib/assistant-generation-error";
 import { FollowUpPromptProvider } from "@/frontend/contexts/follow-up-prompt-context";
 import { useAppPreferencesOptional } from "@/frontend/contexts/app-preferences-context";
 import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
@@ -405,7 +406,8 @@ const MessageRow = React.memo(
             )}
             {(shouldUseAgentMessageLayout(message) ||
               message.content.trim().length > 0) &&
-            !message.isStreaming ? (
+            !message.isStreaming &&
+            !isAssistantGenerationError(message) ? (
               <>
                   <div className="relative mt-2 flex flex-wrap items-center gap-0.5 font-sans text-zinc-500 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
                       <HintTooltip content="Copy" side="bottom" align="start">
@@ -767,6 +769,7 @@ const ConversationTurn = React.memo(
         pa.isStreaming !== na.isStreaming ||
         pa.isThinkingStreaming !== na.isThinkingStreaming ||
         pa.thinkingDurationSeconds !== na.thinkingDurationSeconds ||
+        pa.generationFailed !== na.generationFailed ||
         pa.agentMode !== na.agentMode ||
         pa.agentFrameComplete !== na.agentFrameComplete ||
         !agentSegmentsVisuallyEqual(pa.agentSegments, na.agentSegments) ||

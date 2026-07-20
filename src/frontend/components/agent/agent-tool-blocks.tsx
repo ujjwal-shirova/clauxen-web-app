@@ -199,7 +199,10 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
             />
           ))}
           {isRunning && visibleResults.length === 0 ? (
-            <div className="py-2 text-[12px] text-zinc-400 shimmer-text">
+            <div
+              className="py-2 text-[12px] text-zinc-400 shimmer-text"
+              data-shimmer-active="true"
+            >
               Searching…
             </div>
           ) : null}

@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-20 | Plus menu: files / Plugins / Skills / Web search (Auto|Off submenu wired to personalization.webSearch). Composer reserve uses end-spacer + CSS var (no React paddingBottom) to stop scroll jumps. Tool/thinking end events flush immediately so shimmer clears. Generate SSE heartbeats every 12s; soft-complete on premature stream close. Failed assistant turns set generationFailed and hide action buttons; edit→branch, new message→no branch. | Match plus-menu screenshots + chat UX bugs |
 | 2026-07-19 | UPI modal shows clean square QR from decoded upi:// intent (never Razorpay branded image_url card). Create returns imageDataUrl for faster paint; CRED/Amazon Pay icons removed. | User feedback on branded card QR |
 | 2026-07-19 | UPI QR modal: fixed-size shimmer square only while loading (no collapsed black dot); countdown pill appears only after QR image loads; timer matches Razorpay close_by (20m) and auto-closes modal on expiry. Webhook handles qr_code.credited + payment.captured with UPI order sync via notes/metadata. | Match screenshot UX + live QR fulfill |
 | 2026-07-19 | Live Razorpay QR Codes product is enabled (POST /v1/payments/qr_codes → 200 qr_*). Decoded PNG is native upi://pay?pa=…rzp@… (Checkout-style). UPI+UPI Autopay activated in Payment methods. Webhook now includes qr_code.created/credited/closed plus payment.captured. | Verified via dashboard + live API smoke 2026-07-19 |

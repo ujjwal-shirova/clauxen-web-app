@@ -137,9 +137,27 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         void finishOnce?.();
       });
 
+      // Proxies (Cloudflare / load balancers) idle-cut SSE when no bytes flow
+      // during long tool calls. Emit comment heartbeats so the pipe stays open.
+      const HEARTBEAT_INTERVAL_MS = 12_000;
+      const heartbeatEncoder = new TextEncoder();
+
       const wrapped = new ReadableStream<Uint8Array>({
         async start(controller) {
           const reader = stream.getReader();
+          let heartbeat: ReturnType<typeof setInterval> | null = setInterval(
+            () => {
+              try {
+                controller.enqueue(heartbeatEncoder.encode(": keepalive\n\n"));
+              } catch {
+                if (heartbeat) {
+                  clearInterval(heartbeat);
+                  heartbeat = null;
+                }
+              }
+            },
+            HEARTBEAT_INTERVAL_MS,
+          );
           try {
             while (true) {
               const { done, value } = await reader.read();
@@ -167,6 +185,10 @@ export const POST = withApiRouteParams<{ chatId: string }>(
               // already closed
             }
           } finally {
+            if (heartbeat) {
+              clearInterval(heartbeat);
+              heartbeat = null;
+            }
             await finishOnce?.();
           }
         },
