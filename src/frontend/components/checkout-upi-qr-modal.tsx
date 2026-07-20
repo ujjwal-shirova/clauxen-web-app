@@ -163,14 +163,15 @@ export function CheckoutUpiQrModal({
                 ) : null}
 
                 {imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- same-origin QR proxy
+                  // eslint-disable-next-line @next/next/no-img-element -- same-origin clean QR PNG
                   <img
                     src={imageUrl}
                     alt="UPI QR code"
                     width={168}
                     height={168}
                     className={cn(
-                      "relative z-[1] h-[168px] w-[168px] bg-white object-contain transition-opacity duration-300",
+                      // Clean square PNG from /upi/qr/:id/image — fill the box edge-to-edge.
+                      "relative z-[1] h-full w-full bg-white object-cover transition-opacity duration-300",
                       imageLoaded ? "opacity-100" : "opacity-0",
                     )}
                     referrerPolicy="no-referrer"

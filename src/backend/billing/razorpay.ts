@@ -431,19 +431,47 @@ export async function renderPaymentQrPng(
   payload: string,
 ): Promise<Buffer> {
   const QRCode = await import("qrcode");
+  // High-res square for phone cameras; payload string is unchanged.
   return QRCode.toBuffer(payload, {
     type: "png",
-    width: 320,
+    width: 512,
     margin: 2,
     errorCorrectionLevel: "M",
     color: { dark: "#111827", light: "#ffffff" },
   });
 }
 
+type JsQRDecoder = (
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  options?: { inversionAttempts?: "dontInvert" | "onlyInvert" | "attemptBoth" | "invertFirst" },
+) => { data: string } | null;
+
+function resolveJsQRDecoder(mod: unknown): JsQRDecoder {
+  if (typeof mod === "function") return mod as JsQRDecoder;
+  if (mod && typeof mod === "object") {
+    const record = mod as { default?: unknown; jsQR?: unknown };
+    if (typeof record.default === "function") {
+      return record.default as JsQRDecoder;
+    }
+    if (typeof record.jsQR === "function") {
+      return record.jsQR as JsQRDecoder;
+    }
+  }
+  throw new Error("jsQR module did not export a decoder function");
+}
+
+function toNodeBuffer(bytes: Buffer | ArrayBuffer | Uint8Array): Buffer {
+  if (Buffer.isBuffer(bytes)) return bytes;
+  if (bytes instanceof ArrayBuffer) return Buffer.from(new Uint8Array(bytes));
+  return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
+
 /**
  * Razorpay’s `image_url` is a branded marketing card (Powered by Razorpay / BHIM
  * chrome). Decode that PNG to recover the native `upi://` intent, then we render
- * a clean square QR for the checkout modal.
+ * a clean square QR for the checkout modal — payload bytes are never rewritten.
  */
 export async function decodeUpiIntentFromQrPng(
   pngBytes: Buffer | ArrayBuffer | Uint8Array,
@@ -452,29 +480,54 @@ export async function decodeUpiIntentFromQrPng(
     import("pngjs"),
     import("jsqr"),
   ]);
-  const jsQR =
-    typeof jsQRMod === "function"
-      ? jsQRMod
-      : ((jsQRMod as { default?: typeof jsQRMod }).default ?? jsQRMod);
-  const buf = Buffer.isBuffer(pngBytes)
-    ? pngBytes
-    : Buffer.from(pngBytes instanceof ArrayBuffer ? pngBytes : pngBytes);
-  const png = PNG.sync.read(buf);
-  const decode = jsQR as (data: Uint8ClampedArray, w: number, h: number) => {
-    data?: string;
-  } | null;
-  const code = decode(
-    new Uint8ClampedArray(
-      png.data.buffer,
-      png.data.byteOffset,
-      png.data.byteLength,
-    ),
-    png.width,
-    png.height,
+  const decode = resolveJsQRDecoder(jsQRMod);
+  const buf = toNodeBuffer(pngBytes);
+
+  // Razorpay serves PNG; reject non-PNG early so we never mis-decode.
+  if (buf.length < 8 || buf[0] !== 0x89 || buf[1] !== 0x50) {
+    return null;
+  }
+
+  let png: { width: number; height: number; data: Buffer };
+  try {
+    png = PNG.sync.read(buf);
+  } catch {
+    return null;
+  }
+
+  const rgba = new Uint8ClampedArray(
+    png.data.buffer,
+    png.data.byteOffset,
+    png.data.byteLength,
   );
-  const data = code?.data?.trim();
-  if (!data || !/^upi:\/\//i.test(data)) return null;
-  return data;
+
+  const tryDecode = (data: Uint8ClampedArray, width: number, height: number) => {
+    const code = decode(data, width, height, {
+      inversionAttempts: "attemptBoth",
+    });
+    const text = code?.data?.trim();
+    return text && /^upi:\/\//i.test(text) ? text : null;
+  };
+
+  // 1) Full branded card (674×1644 in practice) — jsQR usually finds the square.
+  const full = tryDecode(rgba, png.width, png.height);
+  if (full) return full;
+
+  // 2) Center crop fallback — QR sits in the middle of Razorpay’s tall card.
+  if (png.width >= 80 && png.height >= 80) {
+    const side = Math.min(png.width, png.height);
+    const x0 = Math.floor((png.width - side) / 2);
+    const y0 = Math.floor((png.height - side) / 2);
+    const cropped = new Uint8ClampedArray(side * side * 4);
+    for (let y = 0; y < side; y += 1) {
+      const src = ((y0 + y) * png.width + x0) * 4;
+      cropped.set(rgba.subarray(src, src + side * 4), y * side * 4);
+    }
+    const center = tryDecode(cropped, side, side);
+    if (center) return center;
+  }
+
+  return null;
 }
 
 export async function fetchRazorpayQrImageBytes(
