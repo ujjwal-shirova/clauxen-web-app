@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-20 | Disposable email list loading uses module-adjacent path + `turbopackIgnore` on cwd fallback (no bare `path.join(process.cwd(),…)`) to stop Turbopack NFT whole-repo tracing warnings. Node engines pinned to `24.x`. | Clean Vercel builds; silence NFT spam |
 | 2026-07-20 | UPI QR: production was stuck on branded `image_url` proxy because clean-QR deploy failed typecheck on jsQR. Fixed decoder imports; always decode branded PNG → exact `upi://` → 512px square re-render; CRED/Amazon stay removed. | User still saw Razorpay marketing card |
 | 2026-07-20 | Plus menu: files / Plugins / Skills / Web search (Auto|Off submenu wired to personalization.webSearch). Composer reserve uses end-spacer + CSS var (no React paddingBottom) to stop scroll jumps. Tool/thinking end events flush immediately so shimmer clears. Generate SSE heartbeats every 12s; soft-complete on premature stream close. Failed assistant turns set generationFailed and hide action buttons; edit→branch, new message→no branch. | Match plus-menu screenshots + chat UX bugs |
 | 2026-07-19 | UPI modal shows clean square QR from decoded upi:// intent (never Razorpay branded image_url card). Create returns imageDataUrl for faster paint; CRED/Amazon Pay icons removed. | User feedback on branded card QR |

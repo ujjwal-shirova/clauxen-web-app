@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { AppError } from "@/backend/db/errors";
 
 /** Shown in UI + returned by API when a disposable/temp domain is used. */
@@ -8,23 +9,28 @@ export const DISPOSABLE_EMAIL_MESSAGE =
 
 export const DISPOSABLE_EMAIL_CODE = "disposable_email";
 
-const LIST_RELATIVE_PATH = path.join(
-  "src",
-  "backend",
-  "email-verifier",
-  "disposable.txt",
-);
-
 let domainSet: Set<string> | null = null;
 let loadError: Error | null = null;
 
+/**
+ * Candidate paths for disposable.txt.
+ *
+ * - Module-adjacent: works in local/dev when the source file sits next to the list.
+ * - Traced deploy path: outputFileTracingIncludes in next.config.ts copies the
+ *   list under src/backend/email-verifier/. The turbopackIgnore comment on
+ *   process.cwd() keeps Turbopack from walking cwd as a dynamic NFT root
+ *   (that produced the "unexpected file in NFT list" build spam).
+ */
 function listCandidates(): string[] {
-  const cwd = process.cwd();
   return [
-    path.join(cwd, LIST_RELATIVE_PATH),
-    // Vercel / monorepo cwd variants
-    path.join(cwd, "Clauxen Web App", LIST_RELATIVE_PATH),
-    path.resolve(__dirname, "disposable.txt"),
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "disposable.txt"),
+    path.join(
+      /* turbopackIgnore: true */ process.cwd(),
+      "src",
+      "backend",
+      "email-verifier",
+      "disposable.txt",
+    ),
   ];
 }
 

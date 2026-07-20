@@ -167,6 +167,9 @@ const nextConfig: NextConfig = {
     "ws",
     "exa-js",
     "parallel-web",
+    "jsqr",
+    "pngjs",
+    "qrcode",
   ],
   turbopack: {
     root: projectRoot,
