@@ -650,21 +650,69 @@ export async function fetchRazorpayQrImageBytes(
 }
 
 /**
+ * Build the native `upi://` intent for a Razorpay QR Codes API entity.
+ *
+ * Razorpay’s create response omits `image_content` unless `qr_image_content`
+ * is enabled on the account. Downloading `image_url` is a ~400KB branded PNG
+ * (~2s) just to recover a string we can derive:
+ *   tr = `${qrId without "qr_"}` + trSuffix   (e.g. qrv2)
+ *   am / pa / pn / tn / mc / mode from amount + merchant profile
+ *
+ * Verified byte-identical to decoded live QRs for this merchant (2026-07-20).
+ */
+export function constructRazorpayUpiIntent(input: {
+  qrId: string;
+  amountPaise: number;
+}): string | null {
+  if (!/^qr_[A-Za-z0-9]{8,40}$/.test(input.qrId)) return null;
+  if (!Number.isInteger(input.amountPaise) || input.amountPaise <= 0) {
+    return null;
+  }
+
+  const pa = env.razorpayUpiPa?.trim();
+  const pn = env.razorpayUpiPn?.trim();
+  const tn = env.razorpayUpiTn?.trim();
+  const mc = env.razorpayUpiMc?.trim();
+  const mode = env.razorpayUpiMode?.trim();
+  const trSuffix = env.razorpayUpiTrSuffix?.trim();
+  if (!pa || !pn || !tn || !mc || !mode || !trSuffix) return null;
+
+  const am = (input.amountPaise / 100).toFixed(2);
+  const tr = `${input.qrId.slice("qr_".length)}${trSuffix}`;
+  // Razorpay leaves `@` in `pa` unescaped — do not encodeURIComponent the VPA.
+  // Only percent-encode `tn` (spaces). Param order must match live payloads.
+  return (
+    `upi://pay?am=${am}&cu=INR&mc=${mc}&mode=${mode}&pa=${pa}` +
+    `&pn=${pn}&tn=${encodeURIComponent(tn)}&tr=${tr}`
+  );
+}
+
+/**
  * Resolve native UPI intent for a Razorpay QR entity.
- * Prefer `image_content`; otherwise decode Razorpay’s branded `image_url` PNG.
+ * Prefer `image_content`, then deterministic construct from qr id + amount
+ * (no PNG download). Decode branded `image_url` only as last-resort fallback.
  */
 export async function resolveUpiQrIntent(
-  qr: Pick<RazorpayQrCodeEntity, "image_content" | "image_url">,
+  qr: Pick<
+    RazorpayQrCodeEntity,
+    "id" | "image_content" | "image_url" | "payment_amount"
+  >,
 ): Promise<string> {
   const direct = qr.image_content?.trim();
   if (direct && /^upi:\/\//i.test(direct)) return direct;
+
+  const constructed = constructRazorpayUpiIntent({
+    qrId: qr.id,
+    amountPaise: qr.payment_amount,
+  });
+  if (constructed) return constructed;
 
   const imageUrl = qr.image_url?.trim();
   if (!imageUrl) {
     throw new AppError("QR image unavailable.", 502, "razorpay_error");
   }
 
-  // Fetch branded PNG while warming decode deps in parallel.
+  // Slow path — only when merchant UPI profile is unset / construct failed.
   const [{ bytes, contentType }] = await Promise.all([
     fetchRazorpayQrImageBytes(imageUrl),
     import("jsqr"),
@@ -672,7 +720,6 @@ export async function resolveUpiQrIntent(
     import("sharp").catch(() => null),
   ]);
   if (!contentType.startsWith("image/")) {
-    // Rare: image_url is already an intent/URL page — if it's upi, use it.
     if (/^upi:\/\//i.test(imageUrl)) return imageUrl;
     throw new AppError("QR image unavailable.", 502, "razorpay_error");
   }

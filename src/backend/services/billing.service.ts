@@ -289,16 +289,17 @@ export async function createUpiCheckoutPayment(input: {
   let upiIntentPromise: Promise<string> | null = null;
 
   if (qrSettled.ok) {
-    // Live QR Codes — prefer image_content; otherwise decode branded image_url
-    // with a fast center-crop (no full-frame scan / 512px upscale).
+    // Live QR Codes — construct native upi:// from qr id + amount (no PNG
+    // download). image_content / branded-image decode are fallbacks only.
     qrId = qrSettled.qr.id;
     closeBy = qrSettled.qr.close_by ?? null;
-    const direct = qrSettled.qr.image_content?.trim();
-    if (direct && /^upi:\/\//i.test(direct)) {
-      upiIntentPromise = Promise.resolve(direct);
-    } else {
-      upiIntentPromise = resolveUpiQrIntent(qrSettled.qr);
-    }
+    upiIntentPromise = resolveUpiQrIntent({
+      ...qrSettled.qr,
+      payment_amount:
+        qrSettled.qr.payment_amount > 0
+          ? qrSettled.qr.payment_amount
+          : totalInrPaise,
+    });
   } else {
     const message =
       qrSettled.err instanceof Error
@@ -334,7 +335,7 @@ export async function createUpiCheckoutPayment(input: {
     }
   }
 
-  // Overlap Razorpay image fetch/decode with the order insert.
+  // Overlap UPI intent resolve (usually instant construct) with order insert.
   const orderPromise = billingRepo.createBillingOrder({
     id: orderId,
     razorpayOrderId: razorpay.id,

@@ -74,10 +74,11 @@ Critical paths:
 ### UPI QR
 
 1. Server creates single-use fixed-amount `upi_qr` (`name: "shirova"`).
-2. Client shows custom modal with `image_url` from Razorpay.
-3. Poll until captured; webhook is backup.
-4. UPI icon: vendored at `/public/checkout/icon-pm-upi.svg` (no Stripe CDN at runtime). App marks (PhonePe / GPay / Paytm / NPCI): `/public/checkout/upi-apps/*.svg`.
-5. Smoke: `node scripts/ops/smoke-razorpay-upi-qr.mjs` (needs `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET`).
+2. Server **constructs** native `upi://` from `qr_*` id + amount + merchant VPA profile (`RAZORPAY_UPI_*`) — does **not** download Razorpay’s branded `image_url` PNG (~400KB / ~2s). Renders a clean square PNG as `imageDataUrl`.
+3. Client shows custom modal with that clean QR (same-origin `/upi/qr/:id/image` fallback).
+4. Poll until captured; webhook is backup.
+5. UPI icon: vendored at `/public/checkout/icon-pm-upi.svg` (no Stripe CDN at runtime). App marks (PhonePe / GPay / Paytm / NPCI): `/public/checkout/upi-apps/*.svg`.
+6. Smoke: `node scripts/ops/smoke-razorpay-upi-qr.mjs` (needs `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET`).
 
 Webhook:
 

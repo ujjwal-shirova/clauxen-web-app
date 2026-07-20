@@ -145,6 +145,24 @@ export const env = {
   razorpayKeySecret: optional("RAZORPAY_KEY_SECRET"),
   razorpayWebhookSecret: optional("RAZORPAY_WEBHOOK_SECRET"),
   publicRazorpayKeyId: optional("NEXT_PUBLIC_RAZORPAY_KEY_ID"),
+  /**
+   * UPI QR merchant profile — builds native `upi://` from qr_* id + amount
+   * without downloading Razorpay’s ~400KB branded PNG (~2s). Defaults match
+   * live Shirova VPA; override via env if Razorpay rotates the handle.
+   */
+  razorpayUpiPa: optional(
+    "RAZORPAY_UPI_PA",
+    "shirovaaiprivat478370.rzp@rxairtel",
+  ),
+  razorpayUpiPn: optional("RAZORPAY_UPI_PN", "ShirovaAI"),
+  razorpayUpiTn: optional(
+    "RAZORPAY_UPI_TN",
+    "Payment To SHIROVA AI PRIVATE LIMITED",
+  ),
+  razorpayUpiMc: optional("RAZORPAY_UPI_MC", "5817"),
+  razorpayUpiMode: optional("RAZORPAY_UPI_MODE", "22"),
+  /** Appended to qr id (without `qr_` prefix) to form the UPI `tr` param. */
+  razorpayUpiTrSuffix: optional("RAZORPAY_UPI_TR_SUFFIX", "qrv2"),
   applePayDomainAssociation: optional("APPLE_PAY_DOMAIN_ASSOCIATION"),
   checkoutUsdInrRate: optional("CHECKOUT_USD_INR_RATE"),
   sessionCookieName: "clauxen_session",
