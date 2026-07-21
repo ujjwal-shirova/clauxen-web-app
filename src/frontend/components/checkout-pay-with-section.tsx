@@ -2,11 +2,12 @@
 
 import "bootstrap-icons/font/bootstrap-icons.css";
 import React from "react";
-import { CreditCard, Wallet } from "lucide-react";
+import { CreditCard, Landmark, Wallet } from "lucide-react";
 import { CheckoutOrDivider } from "@/frontend/components/checkout-or-divider";
 import {
   CheckoutPaymentPanel,
   type CheckoutCardFieldState,
+  type CheckoutNetbankingFieldState,
 } from "@/frontend/components/checkout-payment-panel";
 import { CheckoutPaymentIcon } from "@/frontend/components/checkout-payment-icon";
 import { checkoutTabClass, checkoutUi } from "@/frontend/lib/checkout-ui";
@@ -24,18 +25,26 @@ export function CheckoutPayWithSection({
   showExpressCheckout,
   onExpressCheckout,
   onCardFieldsChange,
+  onNetbankingChange,
   hideUpi = false,
+  hideNetbanking = false,
 }: {
   paymentTab: CheckoutPaymentTab;
   onPaymentTabChange: (tab: CheckoutPaymentTab) => void;
   savedMethod: SavedPaymentMethod | null;
   showExpressCheckout?: boolean;
   hideUpi?: boolean;
+  hideNetbanking?: boolean;
   onExpressCheckout?: () => void;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
+  onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
 }) {
   const showSaved = Boolean(savedMethod);
-  const tabCount = (showSaved ? 1 : 0) + (hideUpi ? 0 : 1) + 1;
+  const tabCount =
+    (showSaved ? 1 : 0) +
+    (hideNetbanking ? 0 : 1) +
+    1 +
+    (hideUpi ? 0 : 1);
 
   return (
     <div className={checkoutUi.section}>
@@ -61,6 +70,7 @@ export function CheckoutPayWithSection({
           tabCount === 1 && "grid-cols-1",
           tabCount === 2 && "grid-cols-2",
           tabCount === 3 && "grid-cols-3",
+          tabCount >= 4 && "grid-cols-2 sm:grid-cols-4",
         )}
       >
         {showSaved && (
@@ -73,6 +83,26 @@ export function CheckoutPayWithSection({
             <span>Saved</span>
           </button>
         )}
+
+        {!hideNetbanking && (
+          <button
+            type="button"
+            onClick={() => onPaymentTabChange("netbanking")}
+            className={checkoutTabClass(paymentTab === "netbanking")}
+          >
+            <Landmark className="h-4 w-4" strokeWidth={1.75} />
+            <span className="text-center leading-tight">Net Banking</span>
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => onPaymentTabChange("card")}
+          className={checkoutTabClass(paymentTab === "card")}
+        >
+          <CreditCard className="h-4 w-4" strokeWidth={1.75} />
+          <span>Card</span>
+        </button>
 
         {!hideUpi && (
           <button
@@ -88,21 +118,13 @@ export function CheckoutPayWithSection({
             <span>UPI</span>
           </button>
         )}
-
-        <button
-          type="button"
-          onClick={() => onPaymentTabChange("card")}
-          className={checkoutTabClass(paymentTab === "card")}
-        >
-          <CreditCard className="h-4 w-4" strokeWidth={1.75} />
-          <span>Card</span>
-        </button>
       </div>
 
       <CheckoutPaymentPanel
         tab={paymentTab}
         savedMethod={savedMethod}
         onCardFieldsChange={onCardFieldsChange}
+        onNetbankingChange={onNetbankingChange}
       />
     </div>
   );

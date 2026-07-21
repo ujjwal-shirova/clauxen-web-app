@@ -4,7 +4,10 @@ import React from "react";
 import { cn } from "@/frontend/lib/utils";
 import { appBtn } from "@/frontend/lib/app-buttons";
 import { CheckoutPayWithSection } from "@/frontend/components/checkout-pay-with-section";
-import type { CheckoutCardFieldState } from "@/frontend/components/checkout-payment-panel";
+import type {
+  CheckoutCardFieldState,
+  CheckoutNetbankingFieldState,
+} from "@/frontend/components/checkout-payment-panel";
 import {
   CheckoutBillingAddress,
   type CheckoutAddressState,
@@ -39,8 +42,10 @@ export type CheckoutFormProps = {
   onPay: () => void;
   showExpressCheckout?: boolean;
   hideUpi?: boolean;
+  hideNetbanking?: boolean;
   onExpressCheckout?: () => void;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
+  onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
   billingAddress: CheckoutAddressState;
   onBillingAddressChange: (state: CheckoutAddressState) => void;
 };
@@ -67,8 +72,10 @@ export function CheckoutForm({
   onPay,
   showExpressCheckout = false,
   hideUpi = false,
+  hideNetbanking = false,
   onExpressCheckout,
   onCardFieldsChange,
+  onNetbankingChange,
   billingAddress,
   onBillingAddressChange,
 }: CheckoutFormProps) {
@@ -89,8 +96,10 @@ export function CheckoutForm({
           savedMethod={savedMethod}
           showExpressCheckout={showExpressCheckout}
           hideUpi={hideUpi}
+          hideNetbanking={hideNetbanking}
           onExpressCheckout={onExpressCheckout}
           onCardFieldsChange={onCardFieldsChange}
+          onNetbankingChange={onNetbankingChange}
         />
 
         {isUpi && (

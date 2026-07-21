@@ -1,10 +1,12 @@
 /**
- * Razorpay Custom Checkout — card data stays in the browser and is sent only
- * to Razorpay via razorpay.js createPayment (never to our /api).
+ * Razorpay Custom Checkout — card / netbanking data stays in the browser and
+ * is sent only to Razorpay via razorpay.js createPayment (never to our /api).
  *
  * Docs: https://razorpay.com/docs/payments/payment-gateway/web-integration/custom/build-integration/
+ * Netbanking: method "netbanking" + bank code (e.g. CNRB).
  */
 import { cardNumberDigits } from "@/frontend/lib/card-input-format";
+import { isActivatedNetbankingBank } from "@/lib/razorpay-netbanking-banks";
 
 type RazorpayCustomInstance = {
   createPayment: (data: Record<string, unknown>) => void;
@@ -31,7 +33,13 @@ export type CustomCardDetails = {
   cvc: string;
 };
 
-export type RazorpayCustomCardPaymentInput = {
+type RazorpayCustomSuccessPayload = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayCustomBasePaymentInput = {
   keyId: string;
   orderId: string;
   amount: number;
@@ -39,16 +47,21 @@ export type RazorpayCustomCardPaymentInput = {
   email?: string;
   contact?: string;
   description?: string;
-  card: CustomCardDetails;
-  onSuccess: (payload: {
-    razorpay_order_id: string;
-    razorpay_payment_id: string;
-    razorpay_signature: string;
-  }) => void | Promise<void>;
+  onSuccess: (payload: RazorpayCustomSuccessPayload) => void | Promise<void>;
   onFailure?: (message: string) => void;
 };
 
-function assertCheckoutInput(input: RazorpayCustomCardPaymentInput) {
+export type RazorpayCustomCardPaymentInput = RazorpayCustomBasePaymentInput & {
+  card: CustomCardDetails;
+};
+
+export type RazorpayCustomNetbankingPaymentInput =
+  RazorpayCustomBasePaymentInput & {
+    /** Razorpay bank code from activated netbanking list (e.g. `CNRB`). */
+    bank: string;
+  };
+
+function assertCheckoutInput(input: RazorpayCustomBasePaymentInput) {
   if (!RAZORPAY_KEY_ID_PATTERN.test(input.keyId)) {
     throw new Error("Invalid Razorpay checkout configuration.");
   }
@@ -214,6 +227,83 @@ export async function chargeCardWithRazorpayCustom(
         error instanceof Error
           ? error
           : new Error("Could not start card payment."),
+      );
+    }
+  });
+}
+
+/**
+ * Charge via netbanking Custom Checkout — redirects to the bank login in a
+ * Razorpay frame. Must be called from a user gesture (click).
+ * Credentials never touch our servers.
+ */
+export async function chargeNetbankingWithRazorpayCustom(
+  input: RazorpayCustomNetbankingPaymentInput,
+): Promise<void> {
+  assertCheckoutInput(input);
+
+  const bank = input.bank.trim().toUpperCase();
+  if (!isActivatedNetbankingBank(bank)) {
+    throw new Error("Select a supported bank to continue.");
+  }
+
+  const loaded = await loadRazorpayCustomScript();
+  const RazorpayCtor = getRazorpayCustomCtor();
+  if (!loaded || !RazorpayCtor) {
+    throw new Error("Could not load Razorpay checkout.");
+  }
+
+  const email = input.email?.trim();
+  if (!email) {
+    throw new Error("Email is required to complete netbanking payment.");
+  }
+
+  const razorpay = new RazorpayCtor({
+    key: input.keyId,
+    name: "Shirova",
+    description: input.description,
+    theme: { color: "#18181b", backdrop_color: "#00000066" },
+  });
+
+  return new Promise<void>((resolve, reject) => {
+    razorpay.on("payment.success", async (response: unknown) => {
+      try {
+        const payload = response as RazorpayCustomSuccessPayload;
+        assertPaymentResponse(payload);
+        await input.onSuccess(payload);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    razorpay.on("payment.error", (response: unknown) => {
+      const err = response as {
+        error?: { description?: string; reason?: string };
+      };
+      const message =
+        err?.error?.description ||
+        err?.error?.reason ||
+        "Payment was not completed. Please try again.";
+      input.onFailure?.(message);
+      reject(new Error(message));
+    });
+
+    try {
+      razorpay.createPayment({
+        amount: input.amount,
+        currency: input.currency,
+        order_id: input.orderId,
+        email,
+        ...(input.contact ? { contact: input.contact } : {}),
+        method: "netbanking",
+        bank,
+      });
+    } catch (error) {
+      reject(
+        error instanceof Error
+          ? error
+          : new Error("Could not start netbanking payment."),
       );
     }
   });

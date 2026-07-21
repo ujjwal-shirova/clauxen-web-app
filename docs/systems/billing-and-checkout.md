@@ -6,6 +6,7 @@ Clauxen billing is **Razorpay**-based (customer-facing brand: **shirova**):
 
 - Hosted checkout sessions at `/checkout/shirova/cs_live_…` (HMAC-signed, multi-tab)
 - Card payments via **Custom Checkout** (`razorpay.js` + `createPayment`) — PAN/CVV never hit our API
+- Netbanking (INR) via Custom Checkout `createPayment({ method: "netbanking", bank })` — activated banks only
 - UPI (INR) via Razorpay UPI QR Codes API + custom QR modal + poll
 - UPI billing address: **full form in one view** (name, country, lines, city, PIN, state) — no Google Places, no progressive expand
 - Apple Pay express still uses Standard Checkout when available
@@ -31,7 +32,8 @@ Plans live in Postgres `plans` (seeded by migrations including personal catalog 
 | `src/backend/repositories/billing.repository.ts` | SQL |
 | `src/lib/plans-catalog.ts` | Plan helpers |
 | `src/lib/checkout-currency.ts` / tax / gstin / payment icons | UI + tax |
-| `src/frontend/lib/razorpay-custom-checkout.ts` | Card Custom Checkout |
+| `src/frontend/lib/razorpay-custom-checkout.ts` | Card + netbanking Custom Checkout |
+| `src/lib/razorpay-netbanking-banks.ts` | Activated Razorpay netbanking bank codes |
 | `src/frontend/lib/razorpay-checkout.ts` | Standard Checkout (Apple Pay / wallets) |
 | `src/frontend/components/checkout-*.tsx` | Checkout UI |
 | `src/frontend/components/billing-checkout.tsx` | In-app checkout |
@@ -50,6 +52,7 @@ Critical paths:
 1. `GET /api/v1/billing/plans`
 2. `POST /api/v1/billing/checkout-sessions` → `{ sessionId, checkoutPath, returnPath }`
 3. Card: `POST /api/v1/billing/orders` → browser `createPayment` (Custom Checkout) → `POST /api/v1/billing/orders/verify`
+3b. Netbanking (INR): same order + verify; browser `createPayment({ method: "netbanking", bank })` after bank picker
 4. UPI: `POST /api/v1/billing/orders/upi` → custom QR modal (shimmer while generating) → `POST …/upi/poll`
 5. Subscription row activated (app-level auto-renew period); entitlements applied
 6. Webhook `payment.captured` also fulfills (idempotent)
@@ -70,6 +73,13 @@ Critical paths:
 - On Pay, those fields are passed **only** to Razorpay `razorpay.js` `createPayment({ method: "card", card: {…} })`.
 - Our servers receive only `razorpay_order_id`, `razorpay_payment_id`, `razorpay_signature` and re-verify HMAC + amount via Orders/Payments APIs.
 - Never POST PAN/CVV to `/api/v1/*`.
+
+### Netbanking (Custom Checkout)
+
+- INR checkout tab order: **Net Banking | Card | UPI**.
+- Bank list is the Dashboard-activated set in `src/lib/razorpay-netbanking-banks.ts` (not the full Razorpay catalog).
+- On Pay: `createPayment({ method: "netbanking", bank: "<CODE>" })` opens the bank login in Razorpay’s frame; credentials never hit our API.
+- Success → same `verifyBillingPayment` signature check as cards.
 
 ### UPI QR
 

@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { CreditCard, MoreHorizontal } from "lucide-react";
+import { Check, CreditCard, Landmark, MoreHorizontal, Search } from "lucide-react";
 import { CheckoutCardBrandStack } from "@/frontend/components/checkout-card-brand-stack";
 import { CheckoutPaymentIcon } from "@/frontend/components/checkout-payment-icon";
 import {
   CARD_BRAND_ICONS,
   detectCardBrand,
   getCardBrandStack,
-  type CardBrandId,
 } from "@/lib/checkout-payment-icons";
 import {
   cardNumberDigits,
@@ -18,6 +17,10 @@ import {
 } from "@/frontend/lib/card-input-format";
 import { checkoutUi } from "@/frontend/lib/checkout-ui";
 import { cn } from "@/frontend/lib/utils";
+import {
+  filterNetbankingBanks,
+  listPopularNetbankingBanks,
+} from "@/lib/razorpay-netbanking-banks";
 import type {
   CheckoutPaymentTab,
   SavedPaymentMethod,
@@ -30,14 +33,139 @@ export type CheckoutCardFieldState = {
   isComplete: boolean;
 };
 
+export type CheckoutNetbankingFieldState = {
+  bankCode: string | null;
+  isComplete: boolean;
+};
+
+function NetbankingBankPanel({
+  onNetbankingChange,
+}: {
+  onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const popular = useMemo(() => listPopularNetbankingBanks(), []);
+  const banks = useMemo(() => filterNetbankingBanks(query), [query]);
+
+  React.useEffect(() => {
+    onNetbankingChange?.({
+      bankCode: selectedCode,
+      isComplete: Boolean(selectedCode),
+    });
+  }, [selectedCode, onNetbankingChange]);
+
+  const selectBank = (code: string) => {
+    setSelectedCode(code);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="px-0.5 text-[13px] leading-5 text-zinc-500">
+        Choose your bank. You&apos;ll sign in on your bank&apos;s secure page —
+        we never see your netbanking password.
+      </p>
+
+      <div className="relative">
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+          strokeWidth={1.75}
+          aria-hidden
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search banks"
+          autoComplete="off"
+          className={cn(checkoutUi.field, "pl-9")}
+          aria-label="Search banks"
+        />
+      </div>
+
+      {!query.trim() && (
+        <div className="flex flex-wrap gap-2">
+          {popular.map((bank) => {
+            const selected = selectedCode === bank.code;
+            return (
+              <button
+                key={bank.code}
+                type="button"
+                onClick={() => selectBank(bank.code)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors duration-150",
+                  selected
+                    ? "border-zinc-900 bg-zinc-900 text-white"
+                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50",
+                )}
+              >
+                {bank.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div
+        className="max-h-[220px] overflow-y-auto rounded-2xl border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.03)]"
+        role="listbox"
+        aria-label="Banks"
+      >
+        {banks.length === 0 ? (
+          <div className="px-4 py-6 text-center text-sm text-zinc-500">
+            No banks match “{query.trim()}”.
+          </div>
+        ) : (
+          banks.map((bank, index) => {
+            const selected = selectedCode === bank.code;
+            return (
+              <button
+                key={bank.code}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => selectBank(bank.code)}
+                className={cn(
+                  "flex w-full items-center gap-3 px-3.5 py-3 text-left text-[14px] transition-colors duration-100",
+                  index > 0 && "border-t border-zinc-100",
+                  selected
+                    ? "bg-zinc-900 text-white"
+                    : "text-zinc-800 hover:bg-zinc-50",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                    selected ? "bg-white/15" : "bg-zinc-100 text-zinc-600",
+                  )}
+                >
+                  <Landmark className="h-4 w-4" strokeWidth={1.75} />
+                </span>
+                <span className="min-w-0 flex-1 font-medium leading-5">
+                  {bank.name}
+                </span>
+                {selected && (
+                  <Check className="h-4 w-4 shrink-0" strokeWidth={2} />
+                )}
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function CheckoutPaymentPanel({
   tab,
   savedMethod,
   onCardFieldsChange,
+  onNetbankingChange,
 }: {
   tab: CheckoutPaymentTab;
   savedMethod: SavedPaymentMethod | null;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
+  onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
 }) {
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -109,6 +237,10 @@ export function CheckoutPaymentPanel({
   if (tab === "upi") {
     // Name + QR hint live in CheckoutForm for progressive billing address UX.
     return null;
+  }
+
+  if (tab === "netbanking") {
+    return <NetbankingBankPanel onNetbankingChange={onNetbankingChange} />;
   }
 
   return (

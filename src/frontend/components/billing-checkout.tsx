@@ -13,7 +13,10 @@ import {
 } from "@/frontend/lib/api/billing";
 import { CheckoutErrorBanner } from "@/frontend/components/checkout-error-banner";
 import { CheckoutForm } from "@/frontend/components/checkout-form";
-import type { CheckoutCardFieldState } from "@/frontend/components/checkout-payment-panel";
+import type {
+  CheckoutCardFieldState,
+  CheckoutNetbankingFieldState,
+} from "@/frontend/components/checkout-payment-panel";
 import {
   checkoutAddressToBillingLine,
   getCheckoutAddressIncompleteReason,
@@ -23,13 +26,17 @@ import { CheckoutBootstrapping } from "@/frontend/components/checkout-bootstrapp
 import { CheckoutUpiQrModal } from "@/frontend/components/checkout-upi-qr-modal";
 import { canUseApplePay } from "@/frontend/lib/apple-pay";
 import { openRazorpayCheckout } from "@/frontend/lib/razorpay-checkout";
-import { chargeCardWithRazorpayCustom } from "@/frontend/lib/razorpay-custom-checkout";
+import {
+  chargeCardWithRazorpayCustom,
+  chargeNetbankingWithRazorpayCustom,
+} from "@/frontend/lib/razorpay-custom-checkout";
 import { useCheckoutCurrency } from "@/frontend/hooks/use-checkout-currency";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import type {
   CheckoutPaymentTab,
   SavedPaymentMethod,
 } from "@/lib/checkout-payment-tab";
+import { isActivatedNetbankingBank } from "@/lib/razorpay-netbanking-banks";
 import {
   BUSINESS_WORKSPACE_SEAT_MONTHLY_INR,
   MAX_TIER_OPTIONS,
@@ -189,6 +196,11 @@ export function BillingCheckout({
     cardCvc: "",
     isComplete: false,
   });
+  const [netbankingFields, setNetbankingFields] =
+    useState<CheckoutNetbankingFieldState>({
+      bankCode: null,
+      isComplete: false,
+    });
   const [billingAddress, setBillingAddress] = useState<CheckoutAddressState>({
     fullName: "",
     countryCode: "IN",
@@ -296,6 +308,13 @@ export function BillingCheckout({
   const handleCardFieldsChange = useCallback((state: CheckoutCardFieldState) => {
     setCardFields(state);
   }, []);
+
+  const handleNetbankingFieldsChange = useCallback(
+    (state: CheckoutNetbankingFieldState) => {
+      setNetbankingFields(state);
+    },
+    [],
+  );
 
   const activePlanId = planId || "plus";
   const orgPlan = getOrganizationPlan(activePlanId);
@@ -416,7 +435,11 @@ export function BillingCheckout({
   );
 
   useEffect(() => {
-    if (ready && isUsd && paymentTab === "upi") {
+    if (
+      ready &&
+      isUsd &&
+      (paymentTab === "upi" || paymentTab === "netbanking")
+    ) {
       setPaymentTab("card");
     }
   }, [ready, isUsd, paymentTab]);
@@ -610,6 +633,7 @@ export function BillingCheckout({
   const paymentFieldsValid =
     (paymentTab === "upi" && billingAddress.isComplete) ||
     (paymentTab === "saved" && hasSavedPaymentMethod) ||
+    (paymentTab === "netbanking" && netbankingFields.isComplete) ||
     (paymentTab === "card" && cardFields.isComplete);
 
   const payDisabledReason = useMemo(() => {
@@ -623,6 +647,9 @@ export function BillingCheckout({
     if (!checkoutSessionId) return "Securing your checkout…";
     if (paymentTab === "upi") {
       return getCheckoutAddressIncompleteReason(billingAddress);
+    }
+    if (paymentTab === "netbanking" && !netbankingFields.isComplete) {
+      return "Select your bank to continue.";
     }
     if (paymentTab === "card" && !cardFields.isComplete) {
       return "Enter a complete card number, expiry, and CVC.";
@@ -639,6 +666,7 @@ export function BillingCheckout({
     checkoutSessionId,
     paymentTab,
     billingAddress,
+    netbankingFields.isComplete,
     cardFields.isComplete,
     seatsValid,
     bundleSeatsValid,
@@ -669,6 +697,9 @@ export function BillingCheckout({
       options?.walletExpress ||
       (tab === "upi" && billingAddress.isComplete) ||
       (tab === "saved" && hasSavedPaymentMethod) ||
+      (tab === "netbanking" &&
+        Boolean(netbankingFields.bankCode) &&
+        isActivatedNetbankingBank(netbankingFields.bankCode!)) ||
       (tab === "card" && cardFields.isComplete);
 
     if (
@@ -765,6 +796,37 @@ export function BillingCheckout({
           },
           onDismiss: () => {
             setPayError(PAYMENT_FAILED_MESSAGE);
+          },
+        });
+        return;
+      }
+
+      if (tab === "netbanking") {
+        const bank = netbankingFields.bankCode;
+        if (!bank || !isActivatedNetbankingBank(bank)) {
+          throw new Error("Select a supported bank to continue.");
+        }
+        await chargeNetbankingWithRazorpayCustom({
+          keyId,
+          orderId: checkout.razorpay.orderId,
+          amount: checkout.razorpay.amount,
+          currency: checkout.razorpay.currency,
+          email: auth.user?.email ?? undefined,
+          description: details.name,
+          bank,
+          onSuccess: async (payment) => {
+            await verifyBillingPayment({
+              razorpayOrderId: payment.razorpay_order_id,
+              razorpayPaymentId: payment.razorpay_payment_id,
+              razorpaySignature: payment.razorpay_signature,
+            });
+            onPaymentSuccess?.({
+              razorpayPaymentId: payment.razorpay_payment_id,
+              razorpayOrderId: payment.razorpay_order_id,
+            });
+          },
+          onFailure: (message) => {
+            setPayError(message || PAYMENT_FAILED_MESSAGE);
           },
         });
         return;
@@ -1383,10 +1445,12 @@ export function BillingCheckout({
               }
               onPay={() => void handleSubscribe()}
               onCardFieldsChange={handleCardFieldsChange}
+              onNetbankingChange={handleNetbankingFieldsChange}
               billingAddress={billingAddress}
               onBillingAddressChange={setBillingAddress}
               showExpressCheckout={false}
               hideUpi={!ready || isUsd}
+              hideNetbanking={!ready || isUsd}
               onExpressCheckout={() => {
                 // Apple Pay / hosted Checkout disabled — card uses Custom Checkout only.
               }}

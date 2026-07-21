@@ -1,4 +1,4 @@
-export type CheckoutPaymentTab = "saved" | "upi" | "card";
+export type CheckoutPaymentTab = "saved" | "netbanking" | "card" | "upi";
 
 export type SavedPaymentMethod = {
   brand: string;
