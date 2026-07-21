@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-21 | Netbanking speed: preconnect/preload razorpay.js + `warmRazorpayCustomCheckout` (methods API + `ready`) before Pay so bank popup is not cold-starting TLS to api.razorpay.com. | Bank page took too long after popup open |
 | 2026-07-21 | Netbanking stays on checkout with Custom Checkout **popup** (no full-page redirect). Live PAYMENT FAILED / popup close often from missing `contact` — collect mobile and pass `+91…`. Prefetch order so createPayment stays in Pay click gesture. | User rejected redirect UX; popup must stay |
 | 2026-07-21 | Netbanking uses Custom Checkout **same-tab redirect** (`redirect: true` + `callback_url` → `/api/v1/billing/orders/razorpay-callback`). Popup/"Loading your bank page" frames are closed by browsers; redirect is the reliable production path. Prefetch order still used so Pay click stays sync. | Popup still vanished after gesture fix |
 | 2026-07-21 | Netbanking popup flash: root cause was `await createBillingOrder` before `createPayment` (lost user gesture → browser closes bank popup). Fix: prefetch order+`razorpay.js` on Net Banking tab; Pay calls sync `startNetbankingWithRazorpayCustom`. | Popup appeared then vanished |

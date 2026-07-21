@@ -89,6 +89,16 @@ export default function RootLayout({
             crossOrigin="anonymous"
           />
         ) : null}
+        {/* Razorpay Custom Checkout / netbanking — warm TLS before Pay. */}
+        <link rel="preconnect" href="https://checkout.razorpay.com" />
+        <link rel="preconnect" href="https://api.razorpay.com" />
+        <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
+        <link rel="dns-prefetch" href="https://api.razorpay.com" />
+        <link
+          rel="preload"
+          href="https://checkout.razorpay.com/v1/razorpay.js"
+          as="script"
+        />
       </head>
       <body
         className={`${inter.className} antialiased`}

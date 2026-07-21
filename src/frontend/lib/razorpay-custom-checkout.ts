@@ -9,6 +9,9 @@
  * click for netbanking (bank auth uses a browser popup). Prefetch the script
  * and order first; never await network before createPayment or the popup
  * opens then is closed by the browser.
+ *
+ * Speed: warm TLS + methods via {@link warmRazorpayCustomCheckout} before Pay
+ * so the bank loader does not cold-start against api.razorpay.com.
  */
 import { cardNumberDigits } from "@/frontend/lib/card-input-format";
 import { isActivatedNetbankingBank } from "@/lib/razorpay-netbanking-banks";
@@ -16,6 +19,7 @@ import { isActivatedNetbankingBank } from "@/lib/razorpay-netbanking-banks";
 type RazorpayCustomInstance = {
   createPayment: (data: Record<string, unknown>) => void;
   on: (event: string, handler: (response: unknown) => void) => void;
+  once?: (event: string, handler: (response: unknown) => void) => void;
   open?: () => void;
 };
 
@@ -31,6 +35,10 @@ const RAZORPAY_PAYMENT_ID_PATTERN = /^pay_[A-Za-z0-9]+$/;
 
 /** Keep the active Custom Checkout instance reachable so GC cannot kill the bank frame. */
 let activeCustomCheckout: RazorpayCustomInstance | null = null;
+
+/** Key last warmed (methods + TLS). */
+let warmedKeyId: string | null = null;
+let warmingPromise: Promise<boolean> | null = null;
 
 export type CustomCardDetails = {
   /** Digits only or formatted — we strip non-digits. */
@@ -127,8 +135,61 @@ export function isRazorpayCustomScriptReady(): boolean {
   return Boolean(getRazorpayCustomCtor());
 }
 
+export function isRazorpayCustomWarmed(keyId?: string): boolean {
+  if (!warmedKeyId) return false;
+  if (keyId) return warmedKeyId === keyId;
+  return true;
+}
+
+function ensurePreconnectHints() {
+  if (typeof document === "undefined") return;
+  const hints: Array<{ rel: string; href: string; as?: string }> = [
+    { rel: "preconnect", href: "https://checkout.razorpay.com" },
+    { rel: "preconnect", href: "https://api.razorpay.com" },
+    {
+      rel: "preload",
+      href: RAZORPAY_CUSTOM_SCRIPT_URL,
+      as: "script",
+    },
+  ];
+  for (const hint of hints) {
+    const selector = hint.as
+      ? `link[rel="${hint.rel}"][href="${hint.href}"][as="${hint.as}"]`
+      : `link[rel="${hint.rel}"][href="${hint.href}"]`;
+    if (document.querySelector(selector)) continue;
+    const link = document.createElement("link");
+    link.rel = hint.rel;
+    link.href = hint.href;
+    if (hint.as) link.setAttribute("as", hint.as);
+    document.head.appendChild(link);
+  }
+}
+
+/**
+ * Public methods endpoint (KEY_ID only) — warms TLS to api.razorpay.com.
+ * @see https://razorpay.com/docs/payments/payment-methods/netbanking/
+ */
+function prefetchRazorpayMethods(keyId: string): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (!RAZORPAY_KEY_ID_PATTERN.test(keyId)) return Promise.resolve();
+
+  const auth = btoa(`${keyId}:`);
+  return fetch("https://api.razorpay.com/v1/methods", {
+    method: "GET",
+    headers: {
+      Authorization: `Basic ${auth}`,
+    },
+    mode: "cors",
+    credentials: "omit",
+    cache: "force-cache",
+  })
+    .then(() => undefined)
+    .catch(() => undefined);
+}
+
 export function loadRazorpayCustomScript(): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
+  ensurePreconnectHints();
   if (getRazorpayCustomCtor()) return Promise.resolve(true);
 
   return new Promise((resolve) => {
@@ -146,10 +207,68 @@ export function loadRazorpayCustomScript(): Promise<boolean> {
     const script = document.createElement("script");
     script.src = RAZORPAY_CUSTOM_SCRIPT_URL;
     script.async = true;
+    script.setAttribute("fetchpriority", "high");
     script.onload = () => resolve(Boolean(getRazorpayCustomCtor()));
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
+}
+
+/**
+ * Load script, hit methods API, and fire Razorpay `ready` so Pay → bank is not cold.
+ * Safe to call repeatedly; concurrent callers share one in-flight warm.
+ */
+export function warmRazorpayCustomCheckout(keyId: string): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (!RAZORPAY_KEY_ID_PATTERN.test(keyId)) return Promise.resolve(false);
+  if (warmedKeyId === keyId && getRazorpayCustomCtor()) {
+    return Promise.resolve(true);
+  }
+  if (warmingPromise) return warmingPromise;
+
+  warmingPromise = (async () => {
+    ensurePreconnectHints();
+    const loaded = await loadRazorpayCustomScript();
+    const RazorpayCtor = getRazorpayCustomCtor();
+    if (!loaded || !RazorpayCtor) {
+      warmingPromise = null;
+      return false;
+    }
+
+    // Parallel: public methods + Custom Checkout ready (both hit Razorpay edge).
+    await Promise.all([
+      prefetchRazorpayMethods(keyId),
+      new Promise<void>((resolve) => {
+        try {
+          const probe = new RazorpayCtor({
+            key: keyId,
+            name: "Shirova",
+          });
+          let settled = false;
+          const done = () => {
+            if (settled) return;
+            settled = true;
+            resolve();
+          };
+          if (typeof probe.once === "function") {
+            probe.once("ready", done);
+          } else {
+            probe.on("ready", done);
+          }
+          // Don't block Pay forever if ready never fires.
+          window.setTimeout(done, 2500);
+        } catch {
+          resolve();
+        }
+      }),
+    ]);
+
+    warmedKeyId = keyId;
+    warmingPromise = null;
+    return true;
+  })();
+
+  return warmingPromise;
 }
 
 function attachPaymentHandlers(
@@ -167,7 +286,11 @@ function attachPaymentHandlers(
       resolve();
     } catch (error) {
       activeCustomCheckout = null;
-      reject(error instanceof Error ? error : new Error("Payment verification failed."));
+      reject(
+        error instanceof Error
+          ? error
+          : new Error("Payment verification failed."),
+      );
     }
   });
 
@@ -274,10 +397,9 @@ export function normalizeIndianMobileContact(raw: string): string | null {
 /**
  * Start netbanking via Custom Checkout popup (stay on checkout page).
  *
- * Prefetch order + `razorpay.js` first; call this from the Pay click with no
- * awaits before it so the bank loader popup stays in the user-gesture turn.
- * Always pass a valid `contact` — live netbanking fails immediately without it
- * (shows PAYMENT FAILED / closes the popup).
+ * Prefetch order + {@link warmRazorpayCustomCheckout} first; call this from the
+ * Pay click with no awaits before it so the bank loader popup stays in the
+ * user-gesture turn. Always pass a valid `contact`.
  */
 export function startNetbankingWithRazorpayCustom(
   input: RazorpayCustomNetbankingPaymentInput,
@@ -310,6 +432,17 @@ export function startNetbankingWithRazorpayCustom(
     );
   }
 
+  // Keep createPayment payload tiny and allocation-light on the click path.
+  const paymentData = {
+    amount: input.amount,
+    currency: input.currency,
+    order_id: input.orderId,
+    email,
+    contact,
+    method: "netbanking" as const,
+    bank,
+  };
+
   const razorpay = new RazorpayCtor({
     key: input.keyId,
     name: "Shirova",
@@ -322,16 +455,7 @@ export function startNetbankingWithRazorpayCustom(
     attachPaymentHandlers(razorpay, input, resolve, reject);
 
     try {
-      // Sync relative to Pay click — do not await network above this call.
-      razorpay.createPayment({
-        amount: input.amount,
-        currency: input.currency,
-        order_id: input.orderId,
-        email,
-        contact,
-        method: "netbanking",
-        bank,
-      });
+      razorpay.createPayment(paymentData);
     } catch (error) {
       activeCustomCheckout = null;
       reject(
@@ -349,9 +473,6 @@ export function startNetbankingWithRazorpayCustom(
 export async function chargeNetbankingWithRazorpayCustom(
   input: RazorpayCustomNetbankingPaymentInput,
 ): Promise<void> {
-  const loaded = await loadRazorpayCustomScript();
-  if (!loaded) {
-    throw new Error("Could not load Razorpay checkout.");
-  }
+  await warmRazorpayCustomCheckout(input.keyId);
   return startNetbankingWithRazorpayCustom(input);
 }

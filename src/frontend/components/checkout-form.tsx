@@ -41,6 +41,8 @@ export type CheckoutFormProps = {
   payLabel: string;
   variablePlanNotice?: string | null;
   onPay: () => void;
+  /** Fires on Pay button pointer down — use to warm payment SDKs before click completes. */
+  onPayPrepare?: () => void;
   showExpressCheckout?: boolean;
   hideUpi?: boolean;
   hideNetbanking?: boolean;
@@ -71,6 +73,7 @@ export function CheckoutForm({
   payLabel,
   variablePlanNotice,
   onPay,
+  onPayPrepare,
   showExpressCheckout = false,
   hideUpi = false,
   hideNetbanking = false,
@@ -167,6 +170,9 @@ export function CheckoutForm({
           <button
             type="submit"
             disabled={payDisabled}
+            onPointerDown={() => {
+              if (!payDisabled) onPayPrepare?.();
+            }}
             className={cn(
               payDisabled ? checkoutUi.payDisabled : appBtn.primaryLg,
             )}
