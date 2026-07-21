@@ -26,13 +26,15 @@ import { CheckoutBootstrapping } from "@/frontend/components/checkout-bootstrapp
 import { CheckoutUpiQrModal } from "@/frontend/components/checkout-upi-qr-modal";
 import { canUseApplePay } from "@/frontend/lib/apple-pay";
 import {
-  ensureStandardRazorpayScript,
   openRazorpayCheckout,
-  openRazorpayNetbankingCheckout,
 } from "@/frontend/lib/razorpay-checkout";
 import {
   chargeCardWithRazorpayCustom,
+  isRazorpayCustomScriptReady,
+  loadRazorpayCustomScript,
   normalizeIndianMobileContact,
+  startNetbankingWithRazorpayCustom,
+  warmRazorpayCustomCheckout,
 } from "@/frontend/lib/razorpay-custom-checkout";
 import { useCheckoutCurrency } from "@/frontend/hooks/use-checkout-currency";
 import { useAuth } from "@/frontend/hooks/use-auth";
@@ -464,13 +466,45 @@ export function BillingCheckout({
     }
   }, [ready, isUsd, paymentTab]);
 
-  // Prefetch Standard Checkout (`checkout.js`) for INR — netbanking uses the modal, not Custom popups.
+  // Prefetch Custom Checkout (`razorpay.js`) for INR netbanking same-tab redirect.
   useEffect(() => {
     if (!ready || isUsd) return;
-    void ensureStandardRazorpayScript().then((ok) => {
+    void loadRazorpayCustomScript().then((ok) => {
       if (ok) setRazorpayScriptReady(true);
     });
   }, [ready, isUsd]);
+
+  // After bank redirect callback lands back on checkout with ?checkout=
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("checkout");
+    if (!status) return;
+
+    params.delete("checkout");
+    const next =
+      window.location.pathname +
+      (params.toString() ? `?${params.toString()}` : "");
+    window.history.replaceState(null, "", next);
+
+    if (status === "success") {
+      onPaymentSuccess?.();
+      return;
+    }
+    if (status === "failed") {
+      setPayError(PAYMENT_FAILED_MESSAGE);
+      setNetbankingOrderReady(false);
+      setNetbankingPrepKey((key) => key + 1);
+      setPaying(false);
+      return;
+    }
+    if (status === "error") {
+      setPayError("Bank payment could not be confirmed. Please try again.");
+      setNetbankingOrderReady(false);
+      setNetbankingPrepKey((key) => key + 1);
+      setPaying(false);
+    }
+  }, [onPaymentSuccess]);
 
   // Prefetch order on Net Banking tab so Pay has no order-create wait.
   useEffect(() => {
@@ -487,6 +521,7 @@ export function BillingCheckout({
 
     let cancelled = false;
     const fingerprint = `${sessionFingerprint}::${netbankingPrepKey}`;
+    const publicKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim();
 
     if (
       netbankingOrderRef.current?.fingerprint === fingerprint &&
@@ -494,9 +529,11 @@ export function BillingCheckout({
     ) {
       setNetbankingOrderReady(true);
       setNetbankingOrderError(null);
-      void ensureStandardRazorpayScript().then((ok) => {
-        if (ok) setRazorpayScriptReady(true);
-      });
+      void warmRazorpayCustomCheckout(netbankingOrderRef.current.keyId).then(
+        (ok) => {
+          if (ok || isRazorpayCustomScriptReady()) setRazorpayScriptReady(true);
+        },
+      );
       return;
     }
 
@@ -506,9 +543,15 @@ export function BillingCheckout({
 
     void (async () => {
       try {
-        void ensureStandardRazorpayScript().then((ok) => {
-          if (ok) setRazorpayScriptReady(true);
-        });
+        if (publicKey) {
+          void warmRazorpayCustomCheckout(publicKey).then((ok) => {
+            if (ok || isRazorpayCustomScriptReady()) setRazorpayScriptReady(true);
+          });
+        } else {
+          void loadRazorpayCustomScript().then((ok) => {
+            if (ok) setRazorpayScriptReady(true);
+          });
+        }
         const checkout = await createBillingOrder({
           planId: resolveApiPlanId(activePlanId, maxTier),
           planName: isMaxPlan ? maxDetails.checkoutName : details.name,
@@ -527,6 +570,9 @@ export function BillingCheckout({
         if (!keyId) {
           throw new Error("Razorpay is not configured for checkout.");
         }
+        void warmRazorpayCustomCheckout(keyId).then((ok) => {
+          if (ok || isRazorpayCustomScriptReady()) setRazorpayScriptReady(true);
+        });
         netbankingOrderRef.current = {
           fingerprint,
           keyId,
@@ -766,7 +812,8 @@ export function BillingCheckout({
     (paymentTab === "netbanking" &&
       netbankingFields.isComplete &&
       netbankingOrderReady &&
-      razorpayScriptReady) ||
+      razorpayScriptReady &&
+      isRazorpayCustomScriptReady()) ||
     (paymentTab === "card" && cardFields.isComplete);
 
   const payDisabledReason = useMemo(() => {
@@ -791,7 +838,7 @@ export function BillingCheckout({
       if (netbankingOrderError) {
         return netbankingOrderError;
       }
-      if (!netbankingOrderReady || !razorpayScriptReady) {
+      if (!netbankingOrderReady || !razorpayScriptReady || !isRazorpayCustomScriptReady()) {
         return "Preparing secure bank payment…";
       }
       return null;
@@ -852,7 +899,8 @@ export function BillingCheckout({
         isActivatedNetbankingBank(netbankingFields.bankCode!) &&
         Boolean(normalizeIndianMobileContact(netbankingFields.mobile)) &&
         Boolean(netbankingOrderRef.current) &&
-        razorpayScriptReady) ||
+        razorpayScriptReady &&
+        isRazorpayCustomScriptReady()) ||
       (tab === "card" && cardFields.isComplete);
 
     if (
@@ -921,7 +969,8 @@ export function BillingCheckout({
         }
         if (
           !prefetched ||
-          !prefetched.fingerprint.startsWith(`${sessionFingerprint}::`)
+          !prefetched.fingerprint.startsWith(`${sessionFingerprint}::`) ||
+          !isRazorpayCustomScriptReady()
         ) {
           throw new Error(
             "Secure bank payment is still preparing. Please wait a moment and try again.",
@@ -931,9 +980,16 @@ export function BillingCheckout({
         const orderSnapshot = prefetched;
         netbankingOrderRef.current = null;
 
-        // Standard Checkout modal (on-page) — Custom createPayment hangs on
-        // "Loading your bank page" when the secondary bank popup never opens.
-        await openRazorpayNetbankingCheckout({
+        // Return to this checkout page after bank auth (success → onPaymentSuccess).
+        const checkoutReturn = (() => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("checkout");
+          return `${url.pathname}${url.search}`;
+        })();
+        const callbackUrl = `${window.location.origin}/api/v1/billing/orders/razorpay-callback?return=${encodeURIComponent(checkoutReturn)}`;
+
+        // Sync createPayment + redirect:true — same-tab bank page (no popup hang).
+        startNetbankingWithRazorpayCustom({
           keyId: orderSnapshot.keyId,
           orderId: orderSnapshot.orderId,
           amount: orderSnapshot.amount,
@@ -941,24 +997,9 @@ export function BillingCheckout({
           bank,
           email,
           contact,
-          name: "Shirova",
+          callbackUrl,
           description: details.name,
-          onSuccess: async (payment) => {
-            await verifyBillingPayment({
-              razorpayOrderId: payment.razorpay_order_id,
-              razorpayPaymentId: payment.razorpay_payment_id,
-              razorpaySignature: payment.razorpay_signature,
-            });
-            onPaymentSuccess?.({
-              razorpayPaymentId: payment.razorpay_payment_id,
-              razorpayOrderId: payment.razorpay_order_id,
-            });
-          },
-          onDismiss: () => {
-            setPayError(PAYMENT_FAILED_MESSAGE);
-            setNetbankingOrderReady(false);
-            setNetbankingPrepKey((key) => key + 1);
-          },
+          onSuccess: () => undefined,
         });
         return;
       }
@@ -1634,9 +1675,20 @@ export function BillingCheckout({
               onPay={() => void handleSubscribe()}
               onPayPrepare={() => {
                 if (paymentTab !== "netbanking" || isUsd) return;
-                void ensureStandardRazorpayScript().then((ok) => {
-                  if (ok) setRazorpayScriptReady(true);
-                });
+                const keyId =
+                  netbankingOrderRef.current?.keyId ||
+                  process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim();
+                if (keyId) {
+                  void warmRazorpayCustomCheckout(keyId).then((ok) => {
+                    if (ok || isRazorpayCustomScriptReady()) {
+                      setRazorpayScriptReady(true);
+                    }
+                  });
+                } else {
+                  void loadRazorpayCustomScript().then((ok) => {
+                    if (ok) setRazorpayScriptReady(true);
+                  });
+                }
               }}
               onCardFieldsChange={handleCardFieldsChange}
               onNetbankingChange={handleNetbankingFieldsChange}

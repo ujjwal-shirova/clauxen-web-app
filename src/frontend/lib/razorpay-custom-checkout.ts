@@ -5,13 +5,12 @@
  * Docs: https://razorpay.com/docs/payments/payment-gateway/web-integration/custom/build-integration/
  * Netbanking: method "netbanking" + bank code (e.g. CNRB).
  *
- * Important: createPayment must run in the same user-gesture turn as the Pay
- * click for netbanking (bank auth uses a browser popup). Prefetch the script
- * and order first; never await network before createPayment or the popup
- * opens then is closed by the browser.
+ * Netbanking must use constructor `redirect: true` + `callback_url` so the
+ * bank page opens in the same tab (natural navigation). Popup / modal flows
+ * hang on "Loading your bank page" when the secondary window is blocked.
  *
- * Speed: warm TLS + methods via {@link warmRazorpayCustomCheckout} before Pay
- * so the bank loader does not cold-start against api.razorpay.com.
+ * Prefetch script + order before Pay; call createPayment in the same click
+ * turn with no awaits — required for reliable redirect handoff.
  */
 import { cardNumberDigits } from "@/frontend/lib/card-input-format";
 import { isActivatedNetbankingBank } from "@/lib/razorpay-netbanking-banks";
@@ -32,6 +31,7 @@ const RAZORPAY_CUSTOM_SCRIPT_URL =
 const RAZORPAY_KEY_ID_PATTERN = /^rzp_(test|live)_[A-Za-z0-9]+$/;
 const RAZORPAY_ORDER_ID_PATTERN = /^order_[A-Za-z0-9]+$/;
 const RAZORPAY_PAYMENT_ID_PATTERN = /^pay_[A-Za-z0-9]+$/;
+const HTTPS_CALLBACK_URL_RE = /^https:\/\/[^\s]+$/i;
 
 /** Keep the active Custom Checkout instance reachable so GC cannot kill the bank frame. */
 let activeCustomCheckout: RazorpayCustomInstance | null = null;
@@ -77,6 +77,11 @@ export type RazorpayCustomNetbankingPaymentInput =
     bank: string;
     /** Indian mobile as +91XXXXXXXXXX — required for live netbanking. */
     contact: string;
+    /**
+     * Absolute HTTPS callback URL (our `/api/v1/billing/orders/razorpay-callback`).
+     * Required with `redirect: true` for same-tab bank navigation.
+     */
+    callbackUrl: string;
   };
 
 function assertCheckoutInput(input: RazorpayCustomBasePaymentInput) {
@@ -408,84 +413,74 @@ export function normalizeIndianMobileContact(raw: string): string | null {
 }
 
 /**
- * Start netbanking via Custom Checkout popup (stay on checkout page).
+ * Start netbanking via Custom Checkout **same-tab redirect** to the bank.
  *
  * Prefetch order + {@link warmRazorpayCustomCheckout} first; call this from the
- * Pay click with no awaits before it so the bank loader popup stays in the
- * user-gesture turn. Always pass a valid `contact`.
+ * Pay click with no awaits before it. Always pass valid `contact` + HTTPS
+ * `callbackUrl`. Do not use popup/modal for netbanking — it hangs.
+ *
+ * @see https://razorpay.com/docs/payments/payment-gateway/web-integration/custom/build-integration/
+ * @see https://razorpay.com/docs/payments/payment-gateway/callback-url/
  */
 export function startNetbankingWithRazorpayCustom(
   input: RazorpayCustomNetbankingPaymentInput,
-): Promise<void> {
+): void {
   assertCheckoutInput(input);
 
   const bank = input.bank.trim().toUpperCase();
   if (!isActivatedNetbankingBank(bank)) {
-    return Promise.reject(new Error("Select a supported bank to continue."));
+    throw new Error("Select a supported bank to continue.");
   }
 
   const contact = normalizeIndianMobileContact(input.contact);
   if (!contact) {
-    return Promise.reject(
-      new Error("Enter a valid 10-digit Indian mobile number."),
-    );
-  }
-
-  const RazorpayCtor = getRazorpayCustomCtor();
-  if (!RazorpayCtor) {
-    return Promise.reject(
-      new Error("Razorpay checkout is not ready. Please try again."),
-    );
+    throw new Error("Enter a valid 10-digit Indian mobile number.");
   }
 
   const email = input.email?.trim();
   if (!email) {
-    return Promise.reject(
-      new Error("Email is required to complete netbanking payment."),
-    );
+    throw new Error("Email is required to complete netbanking payment.");
   }
 
-  // Keep createPayment payload tiny and allocation-light on the click path.
-  const paymentData = {
+  const callbackUrl = input.callbackUrl.trim();
+  if (!HTTPS_CALLBACK_URL_RE.test(callbackUrl)) {
+    throw new Error("Invalid bank payment callback URL.");
+  }
+
+  const RazorpayCtor = getRazorpayCustomCtor();
+  if (!RazorpayCtor) {
+    throw new Error("Razorpay checkout is not ready. Please try again.");
+  }
+
+  // redirect:true → same-tab bank page (no secondary popup that never opens).
+  const razorpay = new RazorpayCtor({
+    key: input.keyId,
+    name: "Shirova",
+    description: input.description,
+    redirect: true,
+    callback_url: callbackUrl,
+    theme: { color: "#18181b" },
+  });
+  activeCustomCheckout = razorpay;
+
+  razorpay.createPayment({
     amount: input.amount,
     currency: input.currency,
     order_id: input.orderId,
     email,
     contact,
-    method: "netbanking" as const,
+    method: "netbanking",
     bank,
-  };
-
-  const razorpay = new RazorpayCtor({
-    key: input.keyId,
-    name: "Shirova",
-    description: input.description,
-    theme: { color: "#18181b", backdrop_color: "#00000066" },
-  });
-  activeCustomCheckout = razorpay;
-
-  return new Promise<void>((resolve, reject) => {
-    attachPaymentHandlers(razorpay, input, resolve, reject);
-
-    try {
-      razorpay.createPayment(paymentData);
-    } catch (error) {
-      activeCustomCheckout = null;
-      reject(
-        error instanceof Error
-          ? error
-          : new Error("Could not start netbanking payment."),
-      );
-    }
+    callback_url: callbackUrl,
   });
 }
 
 /**
- * @deprecated Prefer prefetch + {@link startNetbankingWithRazorpayCustom}.
+ * @deprecated Prefer sync {@link startNetbankingWithRazorpayCustom} after prefetch.
  */
 export async function chargeNetbankingWithRazorpayCustom(
   input: RazorpayCustomNetbankingPaymentInput,
 ): Promise<void> {
   await warmRazorpayCustomCheckout(input.keyId);
-  return startNetbankingWithRazorpayCustom(input);
+  startNetbankingWithRazorpayCustom(input);
 }

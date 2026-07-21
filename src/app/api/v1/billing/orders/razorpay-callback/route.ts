@@ -37,7 +37,8 @@ function redirectWithCheckout(
 
 /**
  * Razorpay Custom Checkout redirect callback for netbanking.
- * Browser POSTs here after bank auth (no popup). Verifies signature and fulfills.
+ * Browser POSTs here after same-tab bank auth. Verifies signature and fulfills,
+ * then 303s back to checkout with ?checkout=success|failed|error.
  *
  * @see https://razorpay.com/docs/payments/payment-gateway/callback-url/
  */

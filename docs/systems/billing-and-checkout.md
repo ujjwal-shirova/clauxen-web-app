@@ -74,13 +74,13 @@ Critical paths:
 - Our servers receive only `razorpay_order_id`, `razorpay_payment_id`, `razorpay_signature` and re-verify HMAC + amount via Orders/Payments APIs.
 - Never POST PAN/CVV to `/api/v1/*`.
 
-### Netbanking (Standard Checkout modal)
+### Netbanking (same-tab bank redirect)
 
 - INR checkout tab order: **Net Banking | Card | UPI**.
 - Bank list: `src/lib/razorpay-netbanking-banks.ts` (Dashboard-activated only).
-- Collect mobile (+91) + bank; prefetch order + `checkout.js`.
-- On Pay: `openRazorpayNetbankingCheckout` — Standard Checkout modal locked to that bank (not Custom `createPayment`; Custom hangs on "Loading your bank page").
-- Success → `verifyBillingPayment`.
+- Collect mobile (+91) + bank; prefetch order + `razorpay.js` (+ warm methods).
+- On Pay: sync `startNetbankingWithRazorpayCustom` with constructor `redirect: true` + `callback_url` → bank opens in the **same tab** (no popup/modal).
+- After bank: Razorpay POSTs `/api/v1/billing/orders/razorpay-callback` → verify → checkout `?checkout=success|failed`.
 - Trust line under Pay links the Razorpay logo to the merchant page.
 
 ### UPI QR

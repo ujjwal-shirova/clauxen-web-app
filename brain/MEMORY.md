@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-21 | Netbanking: **same-tab redirect** (`redirect: true` + callback + contact). Popup/modal hang on "Loading your bank page"; Standard modal still blocked bank window. Natural bank navigation is the reliable path. | Bank page still not opening |
 | 2026-07-21 | Netbanking: switch from Custom Checkout popup to **Standard Checkout modal** (`openRazorpayNetbankingCheckout` + bank-only config). Custom hangs forever on "Loading your bank page" (secondary bank popup never opens). Stay on checkout page. | Bank page never loaded / 30min hang |
 | 2026-07-21 | Netbanking speed: preconnect/preload razorpay.js + `warmRazorpayCustomCheckout` (methods API + `ready`) before Pay so bank popup is not cold-starting TLS to api.razorpay.com. | Bank page took too long after popup open |
 | 2026-07-21 | Netbanking stays on checkout with Custom Checkout **popup** (no full-page redirect). Live PAYMENT FAILED / popup close often from missing `contact` — collect mobile and pass `+91…`. Prefetch order so createPayment stays in Pay click gesture. | User rejected redirect UX; popup must stay |
