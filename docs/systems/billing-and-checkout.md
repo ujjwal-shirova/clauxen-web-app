@@ -78,9 +78,9 @@ Critical paths:
 
 - INR checkout tab order: **Net Banking | Card | UPI**.
 - Bank list is the Dashboard-activated set in `src/lib/razorpay-netbanking-banks.ts` (not the full Razorpay catalog).
-- Prefetch Razorpay order + `razorpay.js` on the Net Banking tab.
-- On Pay: sync `createPayment({ method: "netbanking", bank, callback_url })` with **`redirect: true`** (same-tab bank login — do not use popups).
-- Callback: `POST /api/v1/billing/orders/razorpay-callback` verifies signature, fulfills, redirects to `?checkout=success|failed|error`.
+- Collect **mobile** (+91) + bank; prefetch Razorpay order + `razorpay.js` on the Net Banking tab.
+- On Pay: sync `createPayment({ method: "netbanking", bank, email, contact })` — Razorpay popup stays on checkout (no full-page redirect). Live payments fail immediately without `contact`.
+- Success → `verifyBillingPayment` signature check (same as cards).
 - Trust line under Pay links the Razorpay logo to the merchant page.
 
 ### UPI QR

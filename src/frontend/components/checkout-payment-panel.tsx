@@ -35,8 +35,14 @@ export type CheckoutCardFieldState = {
 
 export type CheckoutNetbankingFieldState = {
   bankCode: string | null;
+  /** Digits as typed; normalized to +91… at charge time. */
+  mobile: string;
   isComplete: boolean;
 };
+
+function formatIndianMobileInput(raw: string): string {
+  return raw.replace(/\D/g, "").slice(0, 10);
+}
 
 function NetbankingBankPanel({
   onNetbankingChange,
@@ -45,15 +51,18 @@ function NetbankingBankPanel({
 }) {
   const [query, setQuery] = useState("");
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [mobile, setMobile] = useState("");
   const popular = useMemo(() => listPopularNetbankingBanks(), []);
   const banks = useMemo(() => filterNetbankingBanks(query), [query]);
 
   React.useEffect(() => {
+    const mobileOk = /^[6-9]\d{9}$/.test(mobile);
     onNetbankingChange?.({
       bankCode: selectedCode,
-      isComplete: Boolean(selectedCode),
+      mobile,
+      isComplete: Boolean(selectedCode) && mobileOk,
     });
-  }, [selectedCode, onNetbankingChange]);
+  }, [selectedCode, mobile, onNetbankingChange]);
 
   const selectBank = (code: string) => {
     setSelectedCode(code);
@@ -65,6 +74,27 @@ function NetbankingBankPanel({
         Choose your bank. You&apos;ll sign in on your bank&apos;s secure page —
         we never see your netbanking password.
       </p>
+
+      <div>
+        <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
+          Mobile number
+        </div>
+        <div className="relative">
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-zinc-500">
+            +91
+          </span>
+          <input
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel-national"
+            placeholder="98765 43210"
+            value={mobile}
+            onChange={(e) => setMobile(formatIndianMobileInput(e.target.value))}
+            className={cn(checkoutUi.field, "pl-12")}
+            aria-label="Mobile number"
+          />
+        </div>
+      </div>
 
       <div className="relative">
         <Search

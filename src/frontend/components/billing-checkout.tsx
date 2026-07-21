@@ -30,6 +30,7 @@ import {
   chargeCardWithRazorpayCustom,
   isRazorpayCustomScriptReady,
   loadRazorpayCustomScript,
+  normalizeIndianMobileContact,
   startNetbankingWithRazorpayCustom,
 } from "@/frontend/lib/razorpay-custom-checkout";
 import { useCheckoutCurrency } from "@/frontend/hooks/use-checkout-currency";
@@ -201,6 +202,7 @@ export function BillingCheckout({
   const [netbankingFields, setNetbankingFields] =
     useState<CheckoutNetbankingFieldState>({
       bankCode: null,
+      mobile: "",
       isComplete: false,
     });
   /** Prefetched Razorpay order so Pay can call createPayment in the same click turn. */
@@ -777,8 +779,11 @@ export function BillingCheckout({
       return getCheckoutAddressIncompleteReason(billingAddress);
     }
     if (paymentTab === "netbanking") {
-      if (!netbankingFields.isComplete) {
+      if (!netbankingFields.bankCode) {
         return "Select your bank to continue.";
+      }
+      if (!normalizeIndianMobileContact(netbankingFields.mobile)) {
+        return "Enter a valid 10-digit mobile number.";
       }
       if (netbankingOrderError) {
         return netbankingOrderError;
@@ -804,6 +809,8 @@ export function BillingCheckout({
     paymentTab,
     billingAddress,
     netbankingFields.isComplete,
+    netbankingFields.bankCode,
+    netbankingFields.mobile,
     netbankingOrderReady,
     netbankingOrderError,
     razorpayScriptReady,
@@ -840,6 +847,7 @@ export function BillingCheckout({
       (tab === "netbanking" &&
         Boolean(netbankingFields.bankCode) &&
         isActivatedNetbankingBank(netbankingFields.bankCode!) &&
+        Boolean(normalizeIndianMobileContact(netbankingFields.mobile)) &&
         Boolean(netbankingOrderRef.current) &&
         razorpayScriptReady) ||
       (tab === "card" && cardFields.isComplete);
@@ -897,8 +905,12 @@ export function BillingCheckout({
       if (tab === "netbanking") {
         const bank = netbankingFields.bankCode;
         const prefetched = netbankingOrderRef.current;
+        const contact = normalizeIndianMobileContact(netbankingFields.mobile);
         if (!bank || !isActivatedNetbankingBank(bank)) {
           throw new Error("Select a supported bank to continue.");
+        }
+        if (!contact) {
+          throw new Error("Enter a valid 10-digit mobile number.");
         }
         if (
           !prefetched ||
@@ -911,34 +923,35 @@ export function BillingCheckout({
           );
         }
 
-        const returnTo =
-          returnPath ||
-          (typeof window !== "undefined"
-            ? `${window.location.pathname}${window.location.search}`
-            : "/new");
-        const callbackUrl = `${window.location.origin}/api/v1/billing/orders/razorpay-callback?return=${encodeURIComponent(returnTo)}`;
-
-        // Consume the prefetched order (one attempt per order).
+        // Snapshot order for this click; clear after createPayment starts so
+        // React state updates cannot race the bank popup open.
+        const orderSnapshot = prefetched;
         netbankingOrderRef.current = null;
-        setNetbankingOrderReady(false);
 
-        // Same-tab redirect to bank — no popup for the browser to close.
-        // Do not await; navigation leaves this page after createPayment.
-        startNetbankingWithRazorpayCustom({
-          keyId: prefetched.keyId,
-          orderId: prefetched.orderId,
-          amount: prefetched.amount,
-          currency: prefetched.currency,
+        // Stay on checkout — Custom Checkout popup + handlers (no full-page redirect).
+        await startNetbankingWithRazorpayCustom({
+          keyId: orderSnapshot.keyId,
+          orderId: orderSnapshot.orderId,
+          amount: orderSnapshot.amount,
+          currency: orderSnapshot.currency,
           email: auth.user?.email ?? undefined,
+          contact,
           description: details.name,
           bank,
-          callbackUrl,
-          onSuccess: () => {
-            // Unreachable when redirect:true — callback route fulfills + redirects.
+          onSuccess: async (payment) => {
+            await verifyBillingPayment({
+              razorpayOrderId: payment.razorpay_order_id,
+              razorpayPaymentId: payment.razorpay_payment_id,
+              razorpaySignature: payment.razorpay_signature,
+            });
+            onPaymentSuccess?.({
+              razorpayPaymentId: payment.razorpay_payment_id,
+              razorpayOrderId: payment.razorpay_order_id,
+            });
           },
           onFailure: (message) => {
-            setPaying(false);
             setPayError(message || PAYMENT_FAILED_MESSAGE);
+            setNetbankingOrderReady(false);
             setNetbankingPrepKey((key) => key + 1);
           },
         });
@@ -1045,8 +1058,8 @@ export function BillingCheckout({
           : message,
       );
     } finally {
-      // UPI keeps paying until modal closes; netbanking redirects away (leave Processing…).
-      if (tab !== "upi" && tab !== "netbanking") {
+      // UPI keeps paying until modal closes; netbanking awaits popup handlers.
+      if (tab !== "upi") {
         setPaying(false);
       }
     }
