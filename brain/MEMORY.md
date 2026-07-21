@@ -37,7 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
-| 2026-07-21 | Razorpay `qr_image_content` **enabled** (ticket #19934703). Create prefers `image_content` → clean square `imageDataUrl` in UPI modal; construct / branded PNG decode are fallbacks. | Support confirmed feature live |
+| 2026-07-21 | UPI `pa` `shirovaaiprivat478370.rzp@rxairtel` is Razorpay’s live VPA from `image_content` (not invented). GPay merchant logo comes from Razorpay Dashboard Checkout Styling for that VPA — not from embedding an icon in the QR string. Fallback construct `pn` is `Shirova AI`. | User asked about pa origin + GPay logo |
 | 2026-07-20 | UPI QR: production was stuck on branded `image_url` proxy because clean-QR deploy failed typecheck on jsQR. Fixed decoder imports; always decode branded PNG → exact `upi://` → display-sized square re-render (256px; no 512 upscale); CRED/Amazon stay removed. | User still saw Razorpay marketing card |
 | 2026-07-20 | Plus menu: files / Plugins / Skills / Web search (Auto|Off submenu wired to personalization.webSearch). Composer reserve uses end-spacer + CSS var (no React paddingBottom) to stop scroll jumps. Tool/thinking end events flush immediately so shimmer clears. Generate SSE heartbeats every 12s; soft-complete on premature stream close. Failed assistant turns set generationFailed and hide action buttons; edit→branch, new message→no branch. | Match plus-menu screenshots + chat UX bugs |
 | 2026-07-19 | UPI modal shows clean square QR from decoded upi:// intent (never Razorpay branded image_url card). Create returns imageDataUrl for faster paint; CRED/Amazon Pay icons removed. | User feedback on branded card QR |

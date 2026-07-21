@@ -655,6 +655,7 @@ export async function fetchRazorpayQrImageBytes(
  * `image_content` is momentarily missing.
  */
 const DEFAULT_UPI_MERCHANT = {
+  /** Live Razorpay VPA from Create QR `image_content` — not a made-up handle. */
   pa: "shirovaaiprivat478370.rzp@rxairtel",
   pn: "Shirova AI",
   tn: "Payment To SHIROVA AI PRIVATE LIMITED",
@@ -691,10 +692,10 @@ export function constructRazorpayUpiIntent(input: {
   const am = (input.amountPaise / 100).toFixed(2);
   const tr = `${input.qrId.slice("qr_".length)}${trSuffix}`;
   // Razorpay leaves `@` in `pa` unescaped — do not encodeURIComponent the VPA.
-  // Only percent-encode `tn` (spaces). Param order must match live payloads.
+  // Encode `pn` / `tn` (spaces). Param order must match live payloads.
   return (
     `upi://pay?am=${am}&cu=INR&mc=${mc}&mode=${mode}&pa=${pa}` +
-    `&pn=${pn}&tn=${encodeURIComponent(tn)}&tr=${tr}`
+    `&pn=${encodeURIComponent(pn)}&tn=${encodeURIComponent(tn)}&tr=${tr}`
   );
 }
 

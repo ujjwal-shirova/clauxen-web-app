@@ -146,15 +146,16 @@ export const env = {
   razorpayWebhookSecret: optional("RAZORPAY_WEBHOOK_SECRET"),
   publicRazorpayKeyId: optional("NEXT_PUBLIC_RAZORPAY_KEY_ID"),
   /**
-   * UPI QR merchant profile — builds native `upi://` from qr_* id + amount
-   * without downloading Razorpay’s ~400KB branded PNG (~2s). Defaults match
-   * live Shirova VPA; override via env if Razorpay rotates the handle.
+   * UPI QR merchant profile — fallback construct when `image_content` is absent.
+   * `pa` is the live Razorpay-issued VPA from Create QR `image_content`
+   * (not invented). Prefer `image_content` for payments; Dashboard Checkout
+   * Styling controls the logo GPay shows for this VPA.
    */
   razorpayUpiPa: optional(
     "RAZORPAY_UPI_PA",
     "shirovaaiprivat478370.rzp@rxairtel",
   ),
-  razorpayUpiPn: optional("RAZORPAY_UPI_PN", "ShirovaAI"),
+  razorpayUpiPn: optional("RAZORPAY_UPI_PN", "Shirova AI"),
   razorpayUpiTn: optional(
     "RAZORPAY_UPI_TN",
     "Payment To SHIROVA AI PRIVATE LIMITED",

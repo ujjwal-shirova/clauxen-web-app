@@ -10,7 +10,7 @@ describe("constructRazorpayUpiIntent", () => {
     });
     assert.equal(
       intent,
-      "upi://pay?am=1.00&cu=INR&mc=5817&mode=22&pa=shirovaaiprivat478370.rzp@rxairtel&pn=ShirovaAI&tn=Payment%20To%20SHIROVA%20AI%20PRIVATE%20LIMITED&tr=TFnX6QfX8H4Pb1qrv2",
+      "upi://pay?am=1.00&cu=INR&mc=5817&mode=22&pa=shirovaaiprivat478370.rzp@rxairtel&pn=Shirova%20AI&tn=Payment%20To%20SHIROVA%20AI%20PRIVATE%20LIMITED&tr=TFnX6QfX8H4Pb1qrv2",
     );
   });
 
