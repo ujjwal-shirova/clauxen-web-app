@@ -27,6 +27,7 @@ export function CheckoutUpiQrModal({
   onClose,
 }: {
   open: boolean;
+  /** Clean square PNG (data URL or same-origin proxy) — never tall branded card. */
   imageUrl: string | null;
   amountLabel: string;
   /** Unix seconds — countdown target for the QR session. */
@@ -54,6 +55,17 @@ export function CheckoutUpiQrModal({
   }, [open]);
 
   useEffect(() => {
+    if (!imageUrl) {
+      setImageLoaded(false);
+      setCountdownActive(false);
+      expiredHandledRef.current = false;
+      return;
+    }
+    // Inline data: URLs can skip onLoad — mark ready immediately so the square paints.
+    if (imageUrl.startsWith("data:")) {
+      setImageLoaded(true);
+      return;
+    }
     setImageLoaded(false);
     setCountdownActive(false);
     expiredHandledRef.current = false;
@@ -149,9 +161,9 @@ export function CheckoutUpiQrModal({
         <div className="px-5 pb-6 pt-3 sm:px-6">
           <div className="rounded-2xl bg-zinc-100/90 p-4 sm:p-5">
             <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
-              {/* Fixed square — never collapse to a black/white dot while loading */}
+              {/* Fixed square — clean upi:// QR (from image_content), never tall branded card */}
               <div
-                className="relative h-[168px] w-[168px] shrink-0 overflow-hidden rounded-xl bg-zinc-200/60 shadow-[0_1px_2px_rgba(24,24,27,0.06)]"
+                className="relative h-[192px] w-[192px] shrink-0 overflow-hidden rounded-xl bg-white shadow-[0_1px_2px_rgba(24,24,27,0.06)] ring-1 ring-zinc-200/80"
                 aria-busy={showShimmer}
               >
                 {showShimmer ? (
@@ -163,15 +175,15 @@ export function CheckoutUpiQrModal({
                 ) : null}
 
                 {imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- same-origin clean QR PNG
+                  // eslint-disable-next-line @next/next/no-img-element -- clean square PNG / data URL
                   <img
                     src={imageUrl}
                     alt="UPI QR code"
-                    width={168}
-                    height={168}
+                    width={192}
+                    height={192}
                     className={cn(
-                      // Clean square PNG from /upi/qr/:id/image — fill the box edge-to-edge.
-                      "relative z-[1] h-full w-full bg-white object-cover transition-opacity duration-300",
+                      // Keep quiet zone — square modules must stay scannable.
+                      "relative z-[1] h-full w-full bg-white object-contain p-2 transition-opacity duration-200",
                       imageLoaded ? "opacity-100" : "opacity-0",
                     )}
                     referrerPolicy="no-referrer"

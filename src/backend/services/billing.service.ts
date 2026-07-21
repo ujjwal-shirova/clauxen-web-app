@@ -289,8 +289,8 @@ export async function createUpiCheckoutPayment(input: {
   let upiIntentPromise: Promise<string> | null = null;
 
   if (qrSettled.ok) {
-    // Live QR Codes — construct native upi:// from qr id + amount (no PNG
-    // download). image_content / branded-image decode are fallbacks only.
+    // Live QR Codes — prefer Razorpay `image_content` (qr_image_content enabled).
+    // Never show branded image_url; always re-render a clean square from upi://.
     qrId = qrSettled.qr.id;
     closeBy = qrSettled.qr.close_by ?? null;
     upiIntentPromise = resolveUpiQrIntent({

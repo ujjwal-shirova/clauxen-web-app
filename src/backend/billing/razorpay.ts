@@ -650,15 +650,26 @@ export async function fetchRazorpayQrImageBytes(
 }
 
 /**
+ * Live Shirova merchant UPI profile (matches Razorpay `image_content`).
+ * Env overrides exist for rotation; defaults keep construct available if
+ * `image_content` is momentarily missing.
+ */
+const DEFAULT_UPI_MERCHANT = {
+  pa: "shirovaaiprivat478370.rzp@rxairtel",
+  pn: "Shirova AI",
+  tn: "Payment To SHIROVA AI PRIVATE LIMITED",
+  mc: "5817",
+  mode: "22",
+  trSuffix: "qrv2",
+} as const;
+
+/**
  * Build the native `upi://` intent for a Razorpay QR Codes API entity.
  *
- * Razorpay’s create response omits `image_content` unless `qr_image_content`
- * is enabled on the account. Downloading `image_url` is a ~400KB branded PNG
- * (~2s) just to recover a string we can derive:
+ * Prefer Razorpay `image_content` when `qr_image_content` is enabled (ticket
+ * #19934703). Construct is the no-PNG fallback using:
  *   tr = `${qrId without "qr_"}` + trSuffix   (e.g. qrv2)
  *   am / pa / pn / tn / mc / mode from amount + merchant profile
- *
- * Verified byte-identical to decoded live QRs for this merchant (2026-07-20).
  */
 export function constructRazorpayUpiIntent(input: {
   qrId: string;
@@ -669,13 +680,13 @@ export function constructRazorpayUpiIntent(input: {
     return null;
   }
 
-  const pa = env.razorpayUpiPa?.trim();
-  const pn = env.razorpayUpiPn?.trim();
-  const tn = env.razorpayUpiTn?.trim();
-  const mc = env.razorpayUpiMc?.trim();
-  const mode = env.razorpayUpiMode?.trim();
-  const trSuffix = env.razorpayUpiTrSuffix?.trim();
-  if (!pa || !pn || !tn || !mc || !mode || !trSuffix) return null;
+  const pa = env.razorpayUpiPa?.trim() || DEFAULT_UPI_MERCHANT.pa;
+  const pn = env.razorpayUpiPn?.trim() || DEFAULT_UPI_MERCHANT.pn;
+  const tn = env.razorpayUpiTn?.trim() || DEFAULT_UPI_MERCHANT.tn;
+  const mc = env.razorpayUpiMc?.trim() || DEFAULT_UPI_MERCHANT.mc;
+  const mode = env.razorpayUpiMode?.trim() || DEFAULT_UPI_MERCHANT.mode;
+  const trSuffix =
+    env.razorpayUpiTrSuffix?.trim() || DEFAULT_UPI_MERCHANT.trSuffix;
 
   const am = (input.amountPaise / 100).toFixed(2);
   const tr = `${input.qrId.slice("qr_".length)}${trSuffix}`;
@@ -687,10 +698,23 @@ export function constructRazorpayUpiIntent(input: {
   );
 }
 
+/** Ensure GPay `am=` matches the charged checkout total. */
+export function assertUpiIntentAmount(intent: string, amountPaise: number) {
+  const expected = (amountPaise / 100).toFixed(2);
+  const match = /(?:^|[?&])am=([0-9]+(?:\.[0-9]+)?)/i.exec(intent);
+  if (!match || match[1] !== expected) {
+    throw new AppError(
+      `UPI amount mismatch (expected ₹${expected}).`,
+      502,
+      "amount_mismatch",
+    );
+  }
+}
+
 /**
  * Resolve native UPI intent for a Razorpay QR entity.
- * Prefer `image_content`, then deterministic construct from qr id + amount
- * (no PNG download). Decode branded `image_url` only as last-resort fallback.
+ * Prefer `image_content` (enabled via qr_image_content), then construct from
+ * qr id + amount. Decode branded `image_url` only as last-resort fallback.
  */
 export async function resolveUpiQrIntent(
   qr: Pick<
@@ -699,7 +723,12 @@ export async function resolveUpiQrIntent(
   >,
 ): Promise<string> {
   const direct = qr.image_content?.trim();
-  if (direct && /^upi:\/\//i.test(direct)) return direct;
+  if (direct && /^upi:\/\//i.test(direct)) {
+    if (qr.payment_amount > 0) {
+      assertUpiIntentAmount(direct, qr.payment_amount);
+    }
+    return direct;
+  }
 
   const constructed = constructRazorpayUpiIntent({
     qrId: qr.id,
@@ -712,7 +741,7 @@ export async function resolveUpiQrIntent(
     throw new AppError("QR image unavailable.", 502, "razorpay_error");
   }
 
-  // Slow path — only when merchant UPI profile is unset / construct failed.
+  // Slow path — only when image_content + construct are unavailable.
   const [{ bytes, contentType }] = await Promise.all([
     fetchRazorpayQrImageBytes(imageUrl),
     import("jsqr"),
