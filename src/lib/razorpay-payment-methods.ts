@@ -192,6 +192,38 @@ export function buildRazorpayConfigForAllStandardMethods(): Record<string, unkno
   };
 }
 
+/**
+ * Standard Checkout locked to a single activated netbanking bank.
+ * Prefer this over Custom Checkout `createPayment` for netbanking — Custom uses a
+ * double-popup ("Loading your bank page" → bank) that often never completes.
+ *
+ * @see https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/configure-payment-methods/sample-code/
+ */
+export function buildRazorpayConfigForNetbankingBank(
+  bankCode: string,
+): Record<string, unknown> {
+  const code = bankCode.trim().toUpperCase();
+  return {
+    display: {
+      blocks: {
+        netbanking: {
+          name: "Net Banking",
+          instruments: [
+            {
+              method: "netbanking",
+              banks: [code],
+            },
+          ],
+        },
+      },
+      sequence: ["block.netbanking"],
+      preferences: {
+        show_default_blocks: false,
+      },
+    },
+  };
+}
+
 export function getAvailablePaymentMethods(countryCode: string) {
   const isIndia = countryCode.trim().toUpperCase() === "IN";
   return CHECKOUT_PAYMENT_METHODS.filter(

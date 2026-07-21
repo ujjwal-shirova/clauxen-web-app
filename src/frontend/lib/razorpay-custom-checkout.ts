@@ -124,7 +124,15 @@ function parseExpiry(expiry: string): { month: number; year: number } {
 }
 
 function getRazorpayCustomCtor(): RazorpayCustomConstructor | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return null;
+  }
+  // Standard Checkout (`checkout.js`) also sets `window.Razorpay` — only trust
+  // the global when the Custom script tag is present.
+  const hasCustomScript = Boolean(
+    document.querySelector(`script[src="${RAZORPAY_CUSTOM_SCRIPT_URL}"]`),
+  );
+  if (!hasCustomScript) return null;
   return (
     (window as unknown as { Razorpay?: RazorpayCustomConstructor }).Razorpay ??
     null
@@ -191,6 +199,11 @@ export function loadRazorpayCustomScript(): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
   ensurePreconnectHints();
   if (getRazorpayCustomCtor()) return Promise.resolve(true);
+
+  // Standard Checkout overwrites the same global — remove it before Custom load.
+  document
+    .querySelectorAll('script[src="https://checkout.razorpay.com/v1/checkout.js"]')
+    .forEach((el) => el.remove());
 
   return new Promise((resolve) => {
     const existing = document.querySelector(

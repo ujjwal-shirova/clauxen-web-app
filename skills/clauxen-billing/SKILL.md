@@ -20,7 +20,7 @@ Plans in Postgres `plans` (migrations seed catalog).
 1. **UPI is INR-only** — prefer browser India heuristic; geo alone can wrongly hide UPI.
 2. UPI icon: `/public/checkout/icon-pm-upi.svg` (vendored) — **no** Stripe CDN at runtime. UPI app marks (PhonePe / GPay / Paytm / NPCI) live at `/public/checkout/upi-apps/*.svg`.
 3. **Cards:** Razorpay Custom Checkout (`razorpay.js` createPayment); never POST PAN/CVV to our API.
-3b. **Netbanking (INR):** Custom Checkout `createPayment({ method: "netbanking", bank })` with activated bank codes from `src/lib/razorpay-netbanking-banks.ts` only — never Standard Checkout for subscription netbanking; bank passwords stay on the bank/Razorpay frame.
+3b. **Netbanking (INR):** Standard Checkout modal (`checkout.js` + bank-only config) — **not** Custom `createPayment` popup (hangs on "Loading your bank page"). Collect mobile + bank in our UI; stay on checkout page.
 4. Checkout merchant path: `/checkout/shirova/cs_live_…`; brand copy **shirova**.
 5. Pricing via **hash overlay** `#pricing` (keep chat mounted).
 6. Webhooks: verify `RAZORPAY_WEBHOOK_SECRET`; idempotent `razorpay_webhook_events`.
@@ -31,7 +31,7 @@ Plans in Postgres `plans` (migrations seed catalog).
 11. UPI always uses our custom QR modal — never Razorpay Standard Checkout and never Razorpay’s branded `image_url` card. Create via `POST /v1/payments/qr_codes`. Prefer Razorpay **`image_content`** (`qr_image_content` enabled — ticket #19934703) as the native `upi://` payload; construct / image decode are fallbacks. Always re-render a **clean square** PNG (`imageDataUrl`) for the modal. Webhooks: `payment.captured` + `qr_code.credited`. Payment-link fallback only if QR API fails.
 12. Hosted checkout scroll: page wrapper is `fixed inset-0 overflow-y-auto` (body is `overflow:hidden`); do not nest a second `min-h` scrollport on `BillingCheckout`.
 13. Cards: Custom Checkout `createPayment` only (on-page fields). Do not open Standard Checkout for card.
-14. Netbanking: tab left of Card on INR checkout; collect mobile + bank; prefetch order + `razorpay.js`; Pay calls sync Custom Checkout **popup** `createPayment` with `contact` (+91…) — stay on checkout (no full-page redirect). Missing contact causes immediate PAYMENT FAILED / popup close. Trust logo links to rzp.io.
+14. Netbanking: tab left of Card; mobile + bank picker; prefetch order + `checkout.js`; Pay opens **Standard Checkout** locked to that bank (`openRazorpayNetbankingCheckout`). Do not use Custom Checkout createPayment for netbanking. Trust logo → rzp.io.
 
 ## Key paths
 

@@ -99,6 +99,11 @@ export default function RootLayout({
           href="https://checkout.razorpay.com/v1/razorpay.js"
           as="script"
         />
+        <link
+          rel="preload"
+          href="https://checkout.razorpay.com/v1/checkout.js"
+          as="script"
+        />
       </head>
       <body
         className={`${inter.className} antialiased`}
