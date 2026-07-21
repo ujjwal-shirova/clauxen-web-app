@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-21 | Netbanking popup flash: root cause was `await createBillingOrder` before `createPayment` (lost user gesture → browser closes bank popup). Fix: prefetch order+`razorpay.js` on Net Banking tab; Pay calls sync `startNetbankingWithRazorpayCustom`. | Popup appeared then vanished |
 | 2026-07-21 | Checkout Net Banking: Custom Checkout `createPayment({ method: "netbanking", bank })`; INR-only tab left of Card; only Dashboard-activated banks in `src/lib/razorpay-netbanking-banks.ts` (30 codes). Same order + signature verify as cards. | User requested netbanking as third pay option |
 | 2026-07-21 | UPI `pa` `shirovaaiprivat478370.rzp@rxairtel` is Razorpay’s live VPA from `image_content` (not invented). GPay merchant logo comes from Razorpay Dashboard Checkout Styling for that VPA — not from embedding an icon in the QR string. Fallback construct `pn` is `Shirova AI`. | User asked about pa origin + GPay logo |
 | 2026-07-20 | UPI QR: production was stuck on branded `image_url` proxy because clean-QR deploy failed typecheck on jsQR. Fixed decoder imports; always decode branded PNG → exact `upi://` → display-sized square re-render (256px; no 512 upscale); CRED/Amazon stay removed. | User still saw Razorpay marketing card |

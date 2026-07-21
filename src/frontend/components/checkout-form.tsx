@@ -13,6 +13,7 @@ import {
   type CheckoutAddressState,
 } from "@/frontend/components/checkout-billing-address";
 import { CheckoutQrHint } from "@/frontend/components/checkout-qr-hint";
+import { CheckoutRazorpayTrust } from "@/frontend/components/checkout-razorpay-trust";
 import { checkoutUi } from "@/frontend/lib/checkout-ui";
 import type {
   CheckoutPaymentTab,
@@ -172,6 +173,8 @@ export function CheckoutForm({
           >
             {paying ? "Processing…" : payLabel}
           </button>
+
+          <CheckoutRazorpayTrust className="pt-0.5" />
 
           {payDisabled && payDisabledReason && !paying && (
             <p className={cn(checkoutUi.labelFine, "text-center text-[#911E1B]")}>

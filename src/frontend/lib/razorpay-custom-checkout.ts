@@ -4,6 +4,11 @@
  *
  * Docs: https://razorpay.com/docs/payments/payment-gateway/web-integration/custom/build-integration/
  * Netbanking: method "netbanking" + bank code (e.g. CNRB).
+ *
+ * Important: createPayment must run in the same user-gesture turn as the Pay
+ * click for netbanking (bank auth uses a browser popup). Prefetch the script
+ * and order first; never await network before createPayment or the popup
+ * opens then is closed by the browser.
  */
 import { cardNumberDigits } from "@/frontend/lib/card-input-format";
 import { isActivatedNetbankingBank } from "@/lib/razorpay-netbanking-banks";
@@ -23,6 +28,9 @@ const RAZORPAY_CUSTOM_SCRIPT_URL =
 const RAZORPAY_KEY_ID_PATTERN = /^rzp_(test|live)_[A-Za-z0-9]+$/;
 const RAZORPAY_ORDER_ID_PATTERN = /^order_[A-Za-z0-9]+$/;
 const RAZORPAY_PAYMENT_ID_PATTERN = /^pay_[A-Za-z0-9]+$/;
+
+/** Keep the active Custom Checkout instance reachable so GC cannot kill the bank frame. */
+let activeCustomCheckout: RazorpayCustomInstance | null = null;
 
 export type CustomCardDetails = {
   /** Digits only or formatted — we strip non-digits. */
@@ -113,6 +121,10 @@ function getRazorpayCustomCtor(): RazorpayCustomConstructor | null {
   );
 }
 
+export function isRazorpayCustomScriptReady(): boolean {
+  return Boolean(getRazorpayCustomCtor());
+}
+
 export function loadRazorpayCustomScript(): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
   if (getRazorpayCustomCtor()) return Promise.resolve(true);
@@ -135,6 +147,39 @@ export function loadRazorpayCustomScript(): Promise<boolean> {
     script.onload = () => resolve(Boolean(getRazorpayCustomCtor()));
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
+  });
+}
+
+function attachPaymentHandlers(
+  razorpay: RazorpayCustomInstance,
+  input: RazorpayCustomBasePaymentInput,
+  resolve: () => void,
+  reject: (error: Error) => void,
+) {
+  razorpay.on("payment.success", async (response: unknown) => {
+    try {
+      const payload = response as RazorpayCustomSuccessPayload;
+      assertPaymentResponse(payload);
+      await input.onSuccess(payload);
+      activeCustomCheckout = null;
+      resolve();
+    } catch (error) {
+      activeCustomCheckout = null;
+      reject(error instanceof Error ? error : new Error("Payment verification failed."));
+    }
+  });
+
+  razorpay.on("payment.error", (response: unknown) => {
+    const err = response as {
+      error?: { description?: string; reason?: string };
+    };
+    const message =
+      err?.error?.description ||
+      err?.error?.reason ||
+      "Payment was not completed. Please try again.";
+    activeCustomCheckout = null;
+    input.onFailure?.(message);
+    reject(new Error(message));
   });
 }
 
@@ -177,34 +222,10 @@ export async function chargeCardWithRazorpayCustom(
     // Keep bank OTP / 3DS in a minimal frame — never open Standard Checkout UI.
     theme: { color: "#18181b", backdrop_color: "#00000066" },
   });
+  activeCustomCheckout = razorpay;
 
   return new Promise<void>((resolve, reject) => {
-    razorpay.on("payment.success", async (response: unknown) => {
-      try {
-        const payload = response as {
-          razorpay_order_id: string;
-          razorpay_payment_id: string;
-          razorpay_signature: string;
-        };
-        assertPaymentResponse(payload);
-        await input.onSuccess(payload);
-        resolve();
-      } catch (error) {
-        reject(error);
-      }
-    });
-
-    razorpay.on("payment.error", (response: unknown) => {
-      const err = response as {
-        error?: { description?: string; reason?: string };
-      };
-      const message =
-        err?.error?.description ||
-        err?.error?.reason ||
-        "Payment was not completed. Please try again.";
-      input.onFailure?.(message);
-      reject(new Error(message));
-    });
+    attachPaymentHandlers(razorpay, input, resolve, reject);
 
     try {
       razorpay.createPayment({
@@ -223,6 +244,7 @@ export async function chargeCardWithRazorpayCustom(
         },
       });
     } catch (error) {
+      activeCustomCheckout = null;
       reject(
         error instanceof Error
           ? error
@@ -233,29 +255,32 @@ export async function chargeCardWithRazorpayCustom(
 }
 
 /**
- * Charge via netbanking Custom Checkout — redirects to the bank login in a
- * Razorpay frame. Must be called from a user gesture (click).
- * Credentials never touch our servers.
+ * Start netbanking via Custom Checkout — **synchronous** `createPayment`.
+ * Caller must prefetch `loadRazorpayCustomScript()` and the Razorpay order so
+ * this runs inside the Pay click without awaiting network first.
  */
-export async function chargeNetbankingWithRazorpayCustom(
+export function startNetbankingWithRazorpayCustom(
   input: RazorpayCustomNetbankingPaymentInput,
 ): Promise<void> {
   assertCheckoutInput(input);
 
   const bank = input.bank.trim().toUpperCase();
   if (!isActivatedNetbankingBank(bank)) {
-    throw new Error("Select a supported bank to continue.");
+    return Promise.reject(new Error("Select a supported bank to continue."));
   }
 
-  const loaded = await loadRazorpayCustomScript();
   const RazorpayCtor = getRazorpayCustomCtor();
-  if (!loaded || !RazorpayCtor) {
-    throw new Error("Could not load Razorpay checkout.");
+  if (!RazorpayCtor) {
+    return Promise.reject(
+      new Error("Razorpay checkout is not ready. Please try again."),
+    );
   }
 
   const email = input.email?.trim();
   if (!email) {
-    throw new Error("Email is required to complete netbanking payment.");
+    return Promise.reject(
+      new Error("Email is required to complete netbanking payment."),
+    );
   }
 
   const razorpay = new RazorpayCtor({
@@ -264,32 +289,13 @@ export async function chargeNetbankingWithRazorpayCustom(
     description: input.description,
     theme: { color: "#18181b", backdrop_color: "#00000066" },
   });
+  activeCustomCheckout = razorpay;
 
   return new Promise<void>((resolve, reject) => {
-    razorpay.on("payment.success", async (response: unknown) => {
-      try {
-        const payload = response as RazorpayCustomSuccessPayload;
-        assertPaymentResponse(payload);
-        await input.onSuccess(payload);
-        resolve();
-      } catch (error) {
-        reject(error);
-      }
-    });
-
-    razorpay.on("payment.error", (response: unknown) => {
-      const err = response as {
-        error?: { description?: string; reason?: string };
-      };
-      const message =
-        err?.error?.description ||
-        err?.error?.reason ||
-        "Payment was not completed. Please try again.";
-      input.onFailure?.(message);
-      reject(new Error(message));
-    });
+    attachPaymentHandlers(razorpay, input, resolve, reject);
 
     try {
+      // Must stay synchronous relative to the Pay click (no await above).
       razorpay.createPayment({
         amount: input.amount,
         currency: input.currency,
@@ -300,6 +306,7 @@ export async function chargeNetbankingWithRazorpayCustom(
         bank,
       });
     } catch (error) {
+      activeCustomCheckout = null;
       reject(
         error instanceof Error
           ? error
@@ -307,4 +314,18 @@ export async function chargeNetbankingWithRazorpayCustom(
       );
     }
   });
+}
+
+/**
+ * @deprecated Prefer prefetch + {@link startNetbankingWithRazorpayCustom}.
+ * Async load-then-pay loses the user gesture and browsers close the bank popup.
+ */
+export async function chargeNetbankingWithRazorpayCustom(
+  input: RazorpayCustomNetbankingPaymentInput,
+): Promise<void> {
+  const loaded = await loadRazorpayCustomScript();
+  if (!loaded) {
+    throw new Error("Could not load Razorpay checkout.");
+  }
+  return startNetbankingWithRazorpayCustom(input);
 }
