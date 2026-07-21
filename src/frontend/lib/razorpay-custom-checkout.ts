@@ -67,6 +67,11 @@ export type RazorpayCustomNetbankingPaymentInput =
   RazorpayCustomBasePaymentInput & {
     /** Razorpay bank code from activated netbanking list (e.g. `CNRB`). */
     bank: string;
+    /**
+     * Absolute HTTPS callback URL for same-tab redirect after bank auth.
+     * Required — netbanking must not use a browser popup (browsers close it).
+     */
+    callbackUrl: string;
   };
 
 function assertCheckoutInput(input: RazorpayCustomBasePaymentInput) {
@@ -255,70 +260,86 @@ export async function chargeCardWithRazorpayCustom(
 }
 
 /**
- * Start netbanking via Custom Checkout — **synchronous** `createPayment`.
- * Caller must prefetch `loadRazorpayCustomScript()` and the Razorpay order so
- * this runs inside the Pay click without awaiting network first.
+ * Start netbanking via Custom Checkout with **same-tab redirect**.
+ *
+ * Netbanking always opens a bank page. Popup / iframe loaders ("Loading your
+ * bank page") are closed by browsers after any async gap. Redirect keeps the
+ * flow in the current tab — bank → Razorpay → our callback_url.
+ *
+ * Caller should prefetch `razorpay.js` + order, then call this from Pay click
+ * with no awaits before it.
+ *
+ * @see https://razorpay.com/docs/payments/payment-gateway/web-integration/custom/build-integration/
+ * @see https://razorpay.com/docs/payments/payment-gateway/callback-url/
  */
 export function startNetbankingWithRazorpayCustom(
   input: RazorpayCustomNetbankingPaymentInput,
-): Promise<void> {
+): void {
   assertCheckoutInput(input);
 
   const bank = input.bank.trim().toUpperCase();
   if (!isActivatedNetbankingBank(bank)) {
-    return Promise.reject(new Error("Select a supported bank to continue."));
+    throw new Error("Select a supported bank to continue.");
+  }
+
+  const callbackUrl = input.callbackUrl.trim();
+  if (
+    !/^https:\/\//i.test(callbackUrl) &&
+    !(
+      typeof window !== "undefined" &&
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(callbackUrl)
+    )
+  ) {
+    throw new Error("Invalid netbanking callback URL.");
   }
 
   const RazorpayCtor = getRazorpayCustomCtor();
   if (!RazorpayCtor) {
-    return Promise.reject(
-      new Error("Razorpay checkout is not ready. Please try again."),
-    );
+    throw new Error("Razorpay checkout is not ready. Please try again.");
   }
 
   const email = input.email?.trim();
   if (!email) {
-    return Promise.reject(
-      new Error("Email is required to complete netbanking payment."),
-    );
+    throw new Error("Email is required to complete netbanking payment.");
   }
 
+  // redirect: true → bank page in this tab (no popup for browsers to kill).
   const razorpay = new RazorpayCtor({
     key: input.keyId,
     name: "Shirova",
     description: input.description,
+    redirect: true,
     theme: { color: "#18181b", backdrop_color: "#00000066" },
   });
   activeCustomCheckout = razorpay;
 
-  return new Promise<void>((resolve, reject) => {
-    attachPaymentHandlers(razorpay, input, resolve, reject);
+  // Optional: surface rare pre-redirect failures.
+  razorpay.on("payment.error", (response: unknown) => {
+    const err = response as {
+      error?: { description?: string; reason?: string };
+    };
+    const message =
+      err?.error?.description ||
+      err?.error?.reason ||
+      "Payment was not completed. Please try again.";
+    activeCustomCheckout = null;
+    input.onFailure?.(message);
+  });
 
-    try {
-      // Must stay synchronous relative to the Pay click (no await above).
-      razorpay.createPayment({
-        amount: input.amount,
-        currency: input.currency,
-        order_id: input.orderId,
-        email,
-        ...(input.contact ? { contact: input.contact } : {}),
-        method: "netbanking",
-        bank,
-      });
-    } catch (error) {
-      activeCustomCheckout = null;
-      reject(
-        error instanceof Error
-          ? error
-          : new Error("Could not start netbanking payment."),
-      );
-    }
+  razorpay.createPayment({
+    amount: input.amount,
+    currency: input.currency,
+    order_id: input.orderId,
+    email,
+    ...(input.contact ? { contact: input.contact } : {}),
+    method: "netbanking",
+    bank,
+    callback_url: callbackUrl,
   });
 }
 
 /**
- * @deprecated Prefer prefetch + {@link startNetbankingWithRazorpayCustom}.
- * Async load-then-pay loses the user gesture and browsers close the bank popup.
+ * @deprecated Use {@link startNetbankingWithRazorpayCustom} (sync redirect).
  */
 export async function chargeNetbankingWithRazorpayCustom(
   input: RazorpayCustomNetbankingPaymentInput,
@@ -327,5 +348,5 @@ export async function chargeNetbankingWithRazorpayCustom(
   if (!loaded) {
     throw new Error("Could not load Razorpay checkout.");
   }
-  return startNetbankingWithRazorpayCustom(input);
+  startNetbankingWithRazorpayCustom(input);
 }

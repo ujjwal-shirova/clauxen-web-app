@@ -37,6 +37,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-21 | Netbanking uses Custom Checkout **same-tab redirect** (`redirect: true` + `callback_url` → `/api/v1/billing/orders/razorpay-callback`). Popup/"Loading your bank page" frames are closed by browsers; redirect is the reliable production path. Prefetch order still used so Pay click stays sync. | Popup still vanished after gesture fix |
 | 2026-07-21 | Netbanking popup flash: root cause was `await createBillingOrder` before `createPayment` (lost user gesture → browser closes bank popup). Fix: prefetch order+`razorpay.js` on Net Banking tab; Pay calls sync `startNetbankingWithRazorpayCustom`. | Popup appeared then vanished |
 | 2026-07-21 | Checkout Net Banking: Custom Checkout `createPayment({ method: "netbanking", bank })`; INR-only tab left of Card; only Dashboard-activated banks in `src/lib/razorpay-netbanking-banks.ts` (30 codes). Same order + signature verify as cards. | User requested netbanking as third pay option |
 | 2026-07-21 | UPI `pa` `shirovaaiprivat478370.rzp@rxairtel` is Razorpay’s live VPA from `image_content` (not invented). GPay merchant logo comes from Razorpay Dashboard Checkout Styling for that VPA — not from embedding an icon in the QR string. Fallback construct `pn` is `Shirova AI`. | User asked about pa origin + GPay logo |

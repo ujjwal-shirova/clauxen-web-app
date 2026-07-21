@@ -31,7 +31,7 @@ Plans in Postgres `plans` (migrations seed catalog).
 11. UPI always uses our custom QR modal — never Razorpay Standard Checkout and never Razorpay’s branded `image_url` card. Create via `POST /v1/payments/qr_codes`. Prefer Razorpay **`image_content`** (`qr_image_content` enabled — ticket #19934703) as the native `upi://` payload; construct / image decode are fallbacks. Always re-render a **clean square** PNG (`imageDataUrl`) for the modal. Webhooks: `payment.captured` + `qr_code.credited`. Payment-link fallback only if QR API fails.
 12. Hosted checkout scroll: page wrapper is `fixed inset-0 overflow-y-auto` (body is `overflow:hidden`); do not nest a second `min-h` scrollport on `BillingCheckout`.
 13. Cards: Custom Checkout `createPayment` only (on-page fields). Do not open Standard Checkout for card.
-14. Netbanking: tab left of Card on INR checkout; bank picker UI → prefetch order + `razorpay.js`, then sync Custom Checkout `createPayment` on Pay (never await network before createPayment or the bank popup closes). Reuse `verifyBillingPayment`. Trust line under Pay: vendored `/checkout/razorpay-logo.svg`.
+14. Netbanking: tab left of Card on INR checkout; bank picker → prefetch order + `razorpay.js`; Pay calls sync Custom Checkout with **`redirect: true` + `callback_url`** (`/api/v1/billing/orders/razorpay-callback`) — never rely on bank popups. Trust line under Pay links to Razorpay (`/checkout/razorpay-logo.svg` → rzp.io). Whitelist callback domain in Razorpay Dashboard if required.
 
 ## Key paths
 

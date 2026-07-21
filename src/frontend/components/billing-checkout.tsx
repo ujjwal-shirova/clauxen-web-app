@@ -911,12 +911,20 @@ export function BillingCheckout({
           );
         }
 
+        const returnTo =
+          returnPath ||
+          (typeof window !== "undefined"
+            ? `${window.location.pathname}${window.location.search}`
+            : "/new");
+        const callbackUrl = `${window.location.origin}/api/v1/billing/orders/razorpay-callback?return=${encodeURIComponent(returnTo)}`;
+
         // Consume the prefetched order (one attempt per order).
         netbankingOrderRef.current = null;
         setNetbankingOrderReady(false);
 
-        // No await before createPayment — keeps the bank popup in the user-gesture turn.
-        await startNetbankingWithRazorpayCustom({
+        // Same-tab redirect to bank — no popup for the browser to close.
+        // Do not await; navigation leaves this page after createPayment.
+        startNetbankingWithRazorpayCustom({
           keyId: prefetched.keyId,
           orderId: prefetched.orderId,
           amount: prefetched.amount,
@@ -924,19 +932,14 @@ export function BillingCheckout({
           email: auth.user?.email ?? undefined,
           description: details.name,
           bank,
-          onSuccess: async (payment) => {
-            await verifyBillingPayment({
-              razorpayOrderId: payment.razorpay_order_id,
-              razorpayPaymentId: payment.razorpay_payment_id,
-              razorpaySignature: payment.razorpay_signature,
-            });
-            onPaymentSuccess?.({
-              razorpayPaymentId: payment.razorpay_payment_id,
-              razorpayOrderId: payment.razorpay_order_id,
-            });
+          callbackUrl,
+          onSuccess: () => {
+            // Unreachable when redirect:true — callback route fulfills + redirects.
           },
           onFailure: (message) => {
+            setPaying(false);
             setPayError(message || PAYMENT_FAILED_MESSAGE);
+            setNetbankingPrepKey((key) => key + 1);
           },
         });
         return;
@@ -1028,6 +1031,7 @@ export function BillingCheckout({
         setPaying(false);
       }
       if (tab === "netbanking") {
+        setPaying(false);
         // Allow a fresh prefetched order after a failed / cancelled attempt.
         netbankingOrderRef.current = null;
         setNetbankingOrderReady(false);
@@ -1041,7 +1045,8 @@ export function BillingCheckout({
           : message,
       );
     } finally {
-      if (tab !== "upi") {
+      // UPI keeps paying until modal closes; netbanking redirects away (leave Processing…).
+      if (tab !== "upi" && tab !== "netbanking") {
         setPaying(false);
       }
     }
