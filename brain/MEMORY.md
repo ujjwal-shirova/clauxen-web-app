@@ -110,7 +110,8 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-12 | GitHub auth via SSH Ed25519 | Avoid repeated HTTPS token friction |
 | 2026-07-12 | Project memory lives in `brain/MEMORY.md` | Survive context summarization |
 | 2026-07-12 | Incremental product build (auth → …) | Avoid boiling the ocean; wire systems one slice at a time |
-| 2026-07-12 | Chat ids use long-form text IDs (`generateChatId`) verified unique in DB | Shareable ChatGPT-style `/c/...` URLs |
+| 2026-07-22 | Chat ids use short text IDs (`generateChatId` → single `8-4-4-4-12`, 36 chars incl. hyphens); legacy long triple-block ids still accepted by validators | Less DB/URL storage; keep old `/c/...` links working |
+| 2026-07-12 | ~~Chat ids use long-form text IDs (`generateChatId`) verified unique in DB~~ — superseded 2026-07-22 | Shareable ChatGPT-style `/c/...` URLs |
 | 2026-07-12 | Browser tab titles use hyphen (`New chat - Clauxen`) and update live | Match product UX; middle-dot was hard to read |
 | 2026-07-13 | Streaming orb stays visible during agent timelines; hides only when answer markdown is streaming | Claude/Cursor vertical-timescale UX |
 | 2026-07-13 | Chat attachments: images + text docs + PDF chips via R2/`user_files`/`chat_message_parts` | ChatGPT/Claude composer parity |

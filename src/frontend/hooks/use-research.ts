@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import * as researchApi from "@/frontend/lib/api/research";
 import type { ApiResearchRun } from "@/frontend/lib/api/research";
+import { isValidChatId } from "@/lib/chat-id";
 
 // Client-side bounds — oversized payloads / malformed chat ids never leave the browser
 const RESEARCH_OBJECTIVE_MAX_LEN = 16_384;
-const CHAT_ID_RE =
+const HEX_UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function useResearch(enabled: boolean) {
@@ -39,7 +40,9 @@ export function useResearch(enabled: boolean) {
       if (!trimmed) return undefined;
       const boundedObjective = trimmed.slice(0, RESEARCH_OBJECTIVE_MAX_LEN);
       const linkedChatId =
-        chatId && CHAT_ID_RE.test(chatId) ? chatId : undefined;
+        chatId && (HEX_UUID_RE.test(chatId) || isValidChatId(chatId))
+          ? chatId
+          : undefined;
       setCreating(true);
       try {
         const { run } = await researchApi.createResearchRun({

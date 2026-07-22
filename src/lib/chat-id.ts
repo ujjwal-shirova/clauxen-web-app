@@ -1,37 +1,45 @@
 /**
  * Chat ID generator — produces the Clauxen chat URL format.
  *
- * Format: c/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ * Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ * (8-4-4-4-12 lowercase alphanumeric groups, 32 chars + 4 hyphens = 36)
  *
  * Characters: a-z and 0-9 (lowercase alphanumeric).
- * This is a 5-group UUID-like format that creates unique, copyable chat URLs
- * similar to ChatGPT's sharing links.
+ * Compact shareable `/c/...` URLs; shorter than the legacy triple-block ids.
  */
 
-/**
- * Generate a random alphanumeric character (a-z, 0-9).
- */
-function randomChar(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  return chars[Math.floor(Math.random() * chars.length)];
-}
+const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 /**
- * Generate a group of n random alphanumeric characters.
+ * Generate a group of `length` random alphanumeric characters.
+ * Uses Web Crypto when available (browser + modern Node).
  */
 function randomGroup(length: number): string {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
   let group = "";
   for (let i = 0; i < length; i++) {
-    group += randomChar();
+    group += ALPHABET[bytes[i]! % ALPHABET.length];
   }
   return group;
 }
 
 /**
+ * One UUID-style chat id: 8-4-4-4-12 (36 chars including hyphens).
+ */
+function nextChatId(): string {
+  return [
+    randomGroup(8),
+    randomGroup(4),
+    randomGroup(4),
+    randomGroup(4),
+    randomGroup(12),
+  ].join("-");
+}
+
+/**
  * Generate a chat ID in the format:
- * xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
- *
- * This is 5 groups of UUID-v4-style segments joined by hyphens.
+ * xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
  *
  * If `existingIds` is provided, regenerates until the produced id does not
  * collide with any existing chat id (guarantees uniqueness).
@@ -40,34 +48,18 @@ export function generateChatId(existingIds?: Iterable<string>): string {
   const used = existingIds ? new Set(existingIds) : null;
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    const groups = [
-      randomGroup(8),
-      randomGroup(4),
-      randomGroup(4),
-      randomGroup(4),
-      randomGroup(12),
-      randomGroup(8),
-      randomGroup(4),
-      randomGroup(4),
-      randomGroup(4),
-      randomGroup(12),
-      randomGroup(8),
-      randomGroup(4),
-      randomGroup(4),
-      randomGroup(4),
-      randomGroup(12),
-    ];
-    const id = groups.join("-");
+    const id = nextChatId();
     if (!used || !used.has(id)) return id;
   }
 
-  // Extremely unlikely fallback — append a timestamp to force uniqueness.
-  return `${randomGroup(8)}-${randomGroup(4)}-${randomGroup(4)}-${randomGroup(4)}-${randomGroup(12)}-${Date.now().toString(36)}`;
+  // Extremely unlikely fallback — append a timestamp segment to force uniqueness.
+  return `${nextChatId()}-${Date.now().toString(36)}`;
 }
 
 /**
- * Validate that a string matches the chat ID format.
- * Accepts any string of lowercase alphanumeric segments separated by hyphens.
+ * Validate that a string matches a chat ID format.
+ * Accepts the current short form, legacy long multi-block ids, and rare
+ * collision-fallback suffixes (hyphenated lowercase alphanumeric).
  */
 export function isValidChatId(id: string): boolean {
   return /^[a-z0-9]+(-[a-z0-9]+)+$/.test(id) && id.length >= 20;

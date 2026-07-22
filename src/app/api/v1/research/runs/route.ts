@@ -5,13 +5,12 @@ import { randomUUID } from "crypto";
 import { withApiHandler } from "@/backend/http/api-handler"; // collection route handler wrapper
 import { jsonData } from "@/backend/http/api-response"; // JSON response helper; 201 on create
 import { requireSession } from "@/backend/auth/require-session"; // session → user.id owner binding
+import { isAcceptableChatId } from "@/backend/http/chat-id";
 import * as chatsRepo from "@/backend/repositories/chats.repository"; // chat ownership verify — linked chatId IDOR guard
 import * as researchRepo from "@/backend/repositories/research.repository"; // listResearchRuns / createResearchRun
 import { AppError, notFound } from "@/backend/db/errors"; // 400 validation — missing objective; 404 foreign chat
 
 const MAX_RESEARCH_OBJECTIVE_LENGTH = 16_384; // align with use-research client cap — server-side DoS guard
-const CHAT_ID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const RESEARCH_PROCESSOR_RE =
   /^(lite|base|core|core2x|pro|ultra|ultra2x|ultra4x|ultra8x)(-fast)?$/; // Parallel Task API processor allowlist
 
@@ -58,7 +57,7 @@ export const POST = withApiHandler(
     if (body.chatId != null && body.chatId !== "") {
       if (
         typeof body.chatId !== "string" ||
-        !CHAT_ID_RE.test(body.chatId.trim())
+        !isAcceptableChatId(body.chatId.trim())
       ) {
         throw new AppError("Invalid chatId.", 400);
       }
