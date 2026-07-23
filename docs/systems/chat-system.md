@@ -347,9 +347,10 @@ Id remaps during stream must update generation maps.
 | 409 on send | Lease held | Stop or wait; do not force second lease |
 | Upload fails on Vercel | Missing `WORKER_URL` | Deploy r2-gateway + set env |
 | Post-create shimmer | `loading.tsx` or long SSR seed | Removed; seed ≤120ms |
-| Scroll jumps back during generation | User wheel event masked by a recent programmatic follow scroll | User input cancels follow immediately; stream follow uses eased JS scrolling |
-| Older user bubble replaces the current sticky turn | Cached/hysteretic active-turn index or per-turn z-index escalation | Resolve the active turn every animation frame; only the active turn gets elevated z-index |
-| Code/table header docks late or jumps | Sticky sync skipped during streaming or docked user actions changed measured height | Sync on streamed segment growth; preserve docked user-row geometry |
+| Scroll jumps back during generation | User wheel event masked by a recent programmatic follow scroll | User input cancels follow + sync-unpins immediately; stream follow uses eased JS scrolling |
+| Scroll jumps upward while reading history | LOD downgraded without height lock; unpinned growth not compensated | Capture full height before `full→plain/placeholder`; preserve distance-from-bottom on resize |
+| Older user bubble replaces the current sticky turn | Cached/hysteretic active-turn index or per-turn z-index escalation | Resolve the active turn every animation frame; only the active turn gets elevated z-index (`lib/chat-sticky.ts`) |
+| Code/table header docks late or jumps | Header offset gated on JS pin attrs / narrow near-bottom band | CSS-first `top: calc(header + --turn-user-msg-height)` always; wider near-bottom band while generating |
 
 ---
 

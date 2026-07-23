@@ -925,37 +925,39 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .login-demo-stage
-  .composer-message-codeblock[data-code-header-pin="true"]
-  .ui-code-block.code-block-header-sticky,
-.login-demo-stage
-  [data-conversation-turn][data-sticky-active="true"]
+  [data-conversation-turn]
   .composer-message-codeblock
   .ui-code-block.code-block-header-sticky {
   position: sticky;
   top: calc(var(--header-height, 0px) + var(--turn-user-msg-height, 0px));
-  z-index: 24;
+  z-index: 10;
   background: #ffffff;
   box-shadow: 0 1px 0 rgba(24, 24, 27, 0.06);
 }
 
 .login-demo-stage
-  .composer-message-table[data-table-header-pin="true"]
-  .ui-table-title-header.table-title-header-sticky,
-.login-demo-stage
-  [data-conversation-turn][data-sticky-active="true"]
+  [data-conversation-turn]
   .composer-message-table
   .ui-table-title-header.table-title-header-sticky {
   position: sticky;
   top: calc(var(--header-height, 0px) + var(--turn-user-msg-height, 0px));
-  z-index: 25;
+  z-index: 10;
   background: #ffffff;
   box-shadow: 0 1px 0 rgba(24, 24, 27, 0.06);
 }
 
-.login-demo-stage .composer-message-codeblock .ui-code-block.code-block-header-sticky {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+.login-demo-stage
+  [data-conversation-turn][data-sticky-active="true"]
+  .composer-message-codeblock
+  .ui-code-block.code-block-header-sticky {
+  z-index: 24;
+}
+
+.login-demo-stage
+  [data-conversation-turn][data-sticky-active="true"]
+  .composer-message-table
+  .ui-table-title-header.table-title-header-sticky {
+  z-index: 25;
 }
 
 [data-chat-active],
@@ -1273,52 +1275,50 @@ button.user-message-card__body:not(:disabled):hover,
   overflow-anchor: none;
 }
 
-/* Base: stick within the block. Active-turn override below must win. */
-.composer-message-codeblock .ui-code-block.code-block-header-sticky {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  transition: none !important;
-}
-
-.composer-message-table .ui-table-title-header.table-title-header-sticky {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  transition: none !important;
-}
-
-/* Active turn: dock under sticky user message (after base so cascade is clear). */
-[data-conversation-turn][data-sticky-active="true"]
+/*
+  Code/table headers always dock under that turn's sticky user bubble via
+  --turn-user-msg-height. No JS pin attrs — sticky works as soon as the block
+  mounts during streaming (ChatGPT/Claude behavior). Active-turn only raises
+  z-index so the current turn wins over older sticky chrome.
+*/
+[data-conversation-turn]
   .composer-message-codeblock
-  .ui-code-block.code-block-header-sticky,
-.composer-message-codeblock[data-code-header-pin="true"]
   .ui-code-block.code-block-header-sticky {
   position: sticky;
   top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px));
-  z-index: 24;
+  z-index: 10;
   background: #ffffff;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   overflow-anchor: none;
   box-shadow: none;
   transition: none !important;
+}
+
+[data-conversation-turn]
+  .composer-message-table
+  .ui-table-title-header.table-title-header-sticky {
+  position: sticky;
+  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px));
+  z-index: 10;
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow-anchor: none;
+  box-shadow: none;
+  transition: none !important;
+}
+
+[data-conversation-turn][data-sticky-active="true"]
+  .composer-message-codeblock
+  .ui-code-block.code-block-header-sticky {
+  z-index: 24;
 }
 
 [data-conversation-turn][data-sticky-active="true"]
   .composer-message-table
-  .ui-table-title-header.table-title-header-sticky,
-.composer-message-table[data-table-header-pin="true"]
   .ui-table-title-header.table-title-header-sticky {
-  position: sticky;
-  top: calc(var(--header-height, 35px) + var(--turn-user-msg-height, 0px));
   z-index: 25;
-  background: #ffffff;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  overflow-anchor: none;
-  box-shadow: none;
-  transition: none !important;
 }
 
 /* ─── Clauxen agent action stack ───────────────────────────────────────────

@@ -39,6 +39,7 @@ import { FollowUpPromptProvider } from "@/frontend/contexts/follow-up-prompt-con
 import { useAppPreferencesOptional } from "@/frontend/contexts/app-preferences-context";
 import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
 import { dedupeChatMessages } from "@/frontend/lib/dedupe-chat-messages";
+import { syncStickyUserMessages } from "@/frontend/lib/chat-sticky";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
@@ -792,156 +793,6 @@ const ConversationTurn = React.memo(
   },
 );
 
-function readHeaderHeightPx(from?: Element | null) {
-  const scope =
-    from?.closest("[data-chat-active], [data-chat-streaming], .login-demo-stage") ??
-    document.documentElement;
-  const raw = getComputedStyle(scope).getPropertyValue("--header-height");
-  const parsed = parseFloat(raw);
-  return Number.isFinite(parsed) ? parsed : 35;
-}
-
-function resolveActiveStickyTurnIndex(
-  viewport: HTMLElement,
-  turnCount: number,
-  _isGenerating: boolean,
-): number {
-  if (turnCount <= 0) return 0;
-
-  const stickyY = viewport.getBoundingClientRect().top + readHeaderHeightPx(viewport);
-  const turns = viewport.querySelectorAll<HTMLElement>(
-    "[data-conversation-turn]",
-  );
-
-  // Near the bottom (stream-follow or resting after a reply), always pin the
-  // last turn. This keeps code/table headers sticky through generation-end
-  // remounts and avoids the sticky-turn flip that jumped the viewport.
-  // Skip when content fits the viewport (maxTop≈0) — use spanning instead.
-  const maxTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
-  const nearBottom = maxTop > 48 && maxTop - viewport.scrollTop <= 140;
-  if (nearBottom) {
-    return Math.max(0, turnCount - 1);
-  }
-
-  let next = Math.max(0, turnCount - 1);
-  let foundSpanning = false;
-
-  for (let i = turns.length - 1; i >= 0; i--) {
-    const el = turns[i];
-    const index = Number(el.dataset.turnIndex);
-    if (Number.isNaN(index)) continue;
-
-    const rect = el.getBoundingClientRect();
-    if (rect.top <= stickyY + 1 && rect.bottom > stickyY + 1) {
-      next = index;
-      foundSpanning = true;
-      break;
-    }
-  }
-
-  if (!foundSpanning) {
-    for (let i = 0; i < turns.length; i++) {
-      const el = turns[i];
-      const index = Number(el.dataset.turnIndex);
-      if (Number.isNaN(index)) continue;
-
-      if (el.getBoundingClientRect().bottom > stickyY + 1) {
-        next = index;
-        break;
-      }
-    }
-  }
-
-  return next;
-}
-
-/** Imperative sticky sync — never triggers React re-renders during scroll. */
-function syncStickyUserMessages(
-  viewport: HTMLElement,
-  turnCount: number,
-  isGenerating: boolean,
-) {
-  const activeIndex = resolveActiveStickyTurnIndex(viewport, turnCount, isGenerating);
-  const stickyLineY =
-    viewport.getBoundingClientRect().top + readHeaderHeightPx(viewport);
-
-  viewport
-    .querySelectorAll<HTMLElement>("[data-conversation-turn]")
-    .forEach((turn) => {
-      const index = Number(turn.dataset.turnIndex);
-      if (Number.isNaN(index)) return;
-
-      const nextAttr = index === activeIndex ? "true" : "false";
-      if (turn.dataset.stickyActive !== nextAttr) {
-        turn.dataset.stickyActive = nextAttr;
-      }
-    });
-
-  viewport.querySelectorAll<HTMLElement>("[data-sticky-user-msg]").forEach((el) => {
-    const turn = el.closest<HTMLElement>("[data-conversation-turn]");
-    const index = Number(turn?.dataset.turnIndex);
-    if (Number.isNaN(index)) return;
-
-    const isActive = index === activeIndex;
-
-    if (!isActive) {
-      if (el.classList.contains("sticky-user-msg--stuck")) {
-        el.classList.remove("sticky-user-msg--stuck");
-      }
-      return;
-    }
-
-    const sentinel = turn?.querySelector<HTMLElement>(".sticky-user-msg-sentinel");
-    if (!sentinel) {
-      if (el.classList.contains("sticky-user-msg--stuck")) {
-        el.classList.remove("sticky-user-msg--stuck");
-      }
-      return;
-    }
-
-    const sentinelBottom = sentinel.getBoundingClientRect().bottom;
-    const userTop = el.getBoundingClientRect().top;
-    // Slightly wider pin slop while editing — expanded host has more subpixel drift.
-    const pinSlop = el.dataset.userMsgEditing === "true" ? 4 : 2;
-    const isPinned = Math.abs(userTop - stickyLineY) < pinSlop;
-    const shouldStuck = isPinned && sentinelBottom < stickyLineY;
-
-    if (el.classList.contains("sticky-user-msg--stuck") !== shouldStuck) {
-      el.classList.toggle("sticky-user-msg--stuck", shouldStuck);
-    }
-  });
-
-  // Keep per-block pin attrs in sync for older CSS / login-demo parity, but
-  // primary docking now comes from [data-sticky-active] on the turn (survives
-  // Streamdown remount when generation ends).
-  syncCodeBlockHeaderPins(viewport, activeIndex);
-}
-
-/** Enable code/table header sticky for every block in the active turn (turn-level only). */
-function syncCodeBlockHeaderPins(viewport: HTMLElement, activeIndex: number) {
-  viewport
-    .querySelectorAll<HTMLElement>(".composer-message-codeblock")
-    .forEach((block) => {
-      const turn = block.closest<HTMLElement>("[data-conversation-turn]");
-      const turnIndex = Number(turn?.dataset.turnIndex);
-      const nextPin = turnIndex === activeIndex ? "true" : "false";
-      if (block.dataset.codeHeaderPin !== nextPin) {
-        block.dataset.codeHeaderPin = nextPin;
-      }
-    });
-
-  viewport
-    .querySelectorAll<HTMLElement>(".composer-message-table")
-    .forEach((block) => {
-      const turn = block.closest<HTMLElement>("[data-conversation-turn]");
-      const turnIndex = Number(turn?.dataset.turnIndex);
-      const nextPin = turnIndex === activeIndex ? "true" : "false";
-      if (block.dataset.tableHeaderPin !== nextPin) {
-        block.dataset.tableHeaderPin = nextPin;
-      }
-    });
-}
-
 export function ConversationThread({
   messages,
   onSaveEditedMessage,
@@ -1357,12 +1208,13 @@ export function ConversationThread({
       resizeObserver.observe(host);
     });
 
-    // Always observe subtree so code/table remounts after stream→final
-    // markdown still re-pin. Debounce during streaming to avoid token thrash.
+    // Observe mounts (streamed code/table blocks). Code/table offsets are CSS
+    // (--turn-user-msg-height); JS only elevates the active user bubble.
+    // Debounce during streaming to avoid token thrash.
     const mutationObserver = new MutationObserver(() => {
       if (isGeneratingRef.current) {
         window.clearTimeout(mutationTimer);
-        mutationTimer = window.setTimeout(() => scheduleSync(), 80);
+        mutationTimer = window.setTimeout(() => scheduleSync(), 48);
         return;
       }
       scheduleSync();
@@ -1394,30 +1246,23 @@ export function ConversationThread({
     stickySyncRef.current?.();
   }, [stickyStreamKey, isFastScrollingProp, isGeneratingProp, editingMessageId]);
 
-  // Generation-end: Streamdown remounts code/table blocks after isStreaming
-  // clears. Re-sync sticky turn + pins across a short settle window.
+  // Generation-end: one short settle pass after Streamdown finishes mounting.
   React.useEffect(() => {
     if (isGeneratingProp) return;
     const viewport = getScrollElement();
     if (!viewport) return;
 
-    const timers: number[] = [];
     const run = () => {
       syncStickyUserMessages(viewport, turnCountRef.current, false);
     };
 
     run();
-    const raf = requestAnimationFrame(() => {
-      run();
-      requestAnimationFrame(run);
-    });
-    for (const delay of [40, 120, 280, 520]) {
-      timers.push(window.setTimeout(run, delay));
-    }
+    const raf = requestAnimationFrame(run);
+    const timer = window.setTimeout(run, 120);
 
     return () => {
       cancelAnimationFrame(raf);
-      for (const timer of timers) window.clearTimeout(timer);
+      window.clearTimeout(timer);
     };
   }, [isGeneratingProp, getScrollElement, stickyStreamKey]);
 

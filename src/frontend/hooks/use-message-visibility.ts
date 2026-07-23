@@ -34,12 +34,16 @@ export function useMessageDetailLevel(
       return;
     }
 
+    const captureFullHeight = () => {
+      const height = node.getBoundingClientRect().height;
+      if (height > 0) lockedHeightRef.current = height;
+    };
+
     const applyHeightLock = (level: MessageDetailLevel) => {
       if (level === "full") {
-        // Capture height while fully rendered for later LOD swaps.
-        const height = node.getBoundingClientRect().height;
-        if (height > 0) lockedHeightRef.current = height;
         node.style.minHeight = "";
+        // Recapture after paint so the lock matches the restored full tree.
+        requestAnimationFrame(captureFullHeight);
         return;
       }
       const locked = lockedHeightRef.current;
@@ -47,6 +51,9 @@ export function useMessageDetailLevel(
         node.style.minHeight = `${locked}px`;
       }
     };
+
+    // Seed lock while we are still fully rendered (initial state is "full").
+    captureFullHeight();
 
     const scrollViewport = node.closest<HTMLElement>(
       "[data-radix-scroll-area-viewport]",
@@ -65,6 +72,11 @@ export function useMessageDetailLevel(
 
         setDetailLevel((prev) => {
           if (prev === next) return prev;
+          // Capture full height BEFORE downgrading — otherwise placeholder has
+          // no minHeight and scrolling back into the turn hard-jumps the thread.
+          if (prev === "full" && next !== "full") {
+            captureFullHeight();
+          }
           applyHeightLock(next);
           return next;
         });

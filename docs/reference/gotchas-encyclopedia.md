@@ -49,9 +49,10 @@ Operational and product gotchas distilled for humans and agents. Prefer fixing t
 32. **Do not re-import streamdown CSS in main layout** — idle via StreamdownStyles.
 33. **Inline edit focus** — preventScroll + blur on user viewport scroll; click agent-panel collapses.
 
-- **User input beats auto-follow** — wheel/touch must cancel a recent programmatic scroll before pinned state is evaluated.
-- **Sticky user-row geometry cannot change while docked** — hide actions with visibility/opacity, never `display:none`; code/table offsets depend on the measured height.
-- **Sticky sync runs during generation** — tool/narration growth and streamed code/table mounts must update active-turn header pins.
+- **User input beats auto-follow** — wheel/touch must cancel follow and sync unpin immediately (do not wait for scroll RAF).
+- **Sticky user-row geometry cannot change while docked** — hide actions with visibility/opacity, never `display:none`; code/table offsets depend on `--turn-user-msg-height`.
+- **Code/table sticky is CSS-first** — always `top: calc(header + turn-user-msg-height)` per turn; JS only elevates the active user bubble (`data-sticky-active`). Do not gate header offsets on pin attrs.
+- **LOD must lock height before downgrade** — capture full message height before `full → plain/placeholder` or scroll-up hard-jumps.
 
 ## Infra / env
 

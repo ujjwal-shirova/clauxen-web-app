@@ -1,7 +1,7 @@
 /**
  * Demo-only sticky pin sync for the login product animation.
- * Mirrors main-app ConversationThread sticky docking without importing or
- * mutating shared chat code — keeps the animation isolated.
+ * Mirrors main-app chat-sticky docking without importing chat hooks —
+ * keeps the animation isolated.
  */
 
 function readDemoHeaderHeightPx(viewport: HTMLElement): number {
@@ -21,6 +21,12 @@ function resolveActiveDemoTurnIndex(viewport: HTMLElement): number {
 
   const stickyY =
     viewport.getBoundingClientRect().top + readDemoHeaderHeightPx(viewport);
+
+  const maxTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+  const nearBottom = maxTop > 48 && maxTop - viewport.scrollTop <= 220;
+  if (nearBottom) {
+    return Math.max(0, turns.length - 1);
+  }
 
   for (let i = turns.length - 1; i >= 0; i--) {
     const el = turns[i]!;
@@ -44,7 +50,7 @@ function resolveActiveDemoTurnIndex(viewport: HTMLElement): number {
   return Math.max(0, turns.length - 1);
 }
 
-/** Pin user bubble + code/table headers for the turn under the sticky line. */
+/** Pin the active user bubble. Code/table headers dock via CSS turn vars. */
 export function syncDemoStickyPins(viewport: HTMLElement | null | undefined) {
   if (!viewport) return;
 
@@ -88,27 +94,5 @@ export function syncDemoStickyPins(viewport: HTMLElement | null | undefined) {
       const isPinned = Math.abs(userTop - stickyLineY) < 2;
       const shouldStuck = isPinned && sentinelBottom < stickyLineY;
       el.classList.toggle("sticky-user-msg--stuck", shouldStuck);
-    });
-
-  viewport
-    .querySelectorAll<HTMLElement>(".composer-message-codeblock")
-    .forEach((block) => {
-      const turn = block.closest<HTMLElement>("[data-conversation-turn]");
-      const turnIndex = Number(turn?.dataset.turnIndex);
-      const nextPin = turnIndex === activeIndex ? "true" : "false";
-      if (block.dataset.codeHeaderPin !== nextPin) {
-        block.dataset.codeHeaderPin = nextPin;
-      }
-    });
-
-  viewport
-    .querySelectorAll<HTMLElement>(".composer-message-table")
-    .forEach((block) => {
-      const turn = block.closest<HTMLElement>("[data-conversation-turn]");
-      const turnIndex = Number(turn?.dataset.turnIndex);
-      const nextPin = turnIndex === activeIndex ? "true" : "false";
-      if (block.dataset.tableHeaderPin !== nextPin) {
-        block.dataset.tableHeaderPin = nextPin;
-      }
     });
 }

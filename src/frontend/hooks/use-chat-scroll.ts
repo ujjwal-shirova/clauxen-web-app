@@ -14,9 +14,9 @@ const REPIN_THRESHOLD = 96;
 /** Distance from bottom (px) past which the scroll-to-bottom affordance shows. */
 const SHOW_BUTTON_THRESHOLD = 220;
 /** Ignore auto-follow briefly after explicit user wheel/touch input. */
-const USER_INPUT_COOLDOWN_MS = 260;
+const USER_INPUT_COOLDOWN_MS = 320;
 /** Per-frame easing keeps growing output continuous instead of hard-snapping. */
-const FOLLOW_EASE = 0.24;
+const FOLLOW_EASE = 0.28;
 /** Below this distance we snap exactly to bottom instead of easing forever. */
 const FOLLOW_SNAP_EPSILON_PX = 0.5;
 
@@ -34,10 +34,6 @@ function distanceFromBottom(viewport: HTMLElement) {
  * collapsing) would otherwise re-snap to a new max every frame, which reads
  * as a jittery "hard cut" rather than a continuous scroll.
  * Returns true once the viewport has fully caught up.
- * ponytail: the ease factor is per-frame, not delta-time-based, so a dropped
- * frame slows the catch-up slightly instead of skipping ahead. Fine at
- * typical 60fps; if this ever needs to be frame-rate independent, drive it
- * off performance.now() deltas instead.
  */
 function easeTowardBottom(
   viewport: HTMLElement,
@@ -90,15 +86,46 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     return viewport;
   }, [scrollAreaRef]);
 
-  const markUserInput = useCallback(() => {
-    userInputUntilRef.current = performance.now() + USER_INPUT_COOLDOWN_MS;
-    // A real gesture must win over a just-issued programmatic follow scroll.
-    programmaticScrollUntilRef.current = 0;
+  const cancelFollow = useCallback(() => {
     if (followRafRef.current !== null) {
       cancelAnimationFrame(followRafRef.current);
       followRafRef.current = null;
     }
   }, []);
+
+  const syncPinnedFromViewport = useCallback(
+    (viewport: HTMLElement) => {
+      const distance = distanceFromBottom(viewport);
+      const isPinned = distance <= REPIN_THRESHOLD;
+      const wasPinned = pinnedRef.current;
+      pinnedRef.current = isPinned;
+      if (wasPinned && !isPinned) {
+        cancelFollow();
+      }
+      const shouldShow = distance > SHOW_BUTTON_THRESHOLD;
+      if (showScrollToBottomRef.current !== shouldShow) {
+        showScrollToBottomRef.current = shouldShow;
+        setShowScrollToBottom(shouldShow);
+      }
+      return isPinned;
+    },
+    [cancelFollow],
+  );
+
+  const markUserInput = useCallback(() => {
+    userInputUntilRef.current = performance.now() + USER_INPUT_COOLDOWN_MS;
+    // A real gesture must win over a just-issued programmatic follow scroll.
+    programmaticScrollUntilRef.current = 0;
+    cancelFollow();
+
+    // Unpin synchronously on the gesture — do not wait for the scroll RAF.
+    // Otherwise a follow tick in the same frame can yank back toward bottom
+    // (or a sticky remount can feel like a jump to the message top).
+    const viewport = resolveViewport();
+    if (viewport) {
+      syncPinnedFromViewport(viewport);
+    }
+  }, [cancelFollow, resolveViewport, syncPinnedFromViewport]);
 
   const isUserInputActive = useCallback(() => {
     return performance.now() < userInputUntilRef.current;
@@ -187,7 +214,6 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
       scrollRafRef.current = requestAnimationFrame(() => {
         scrollRafRef.current = null;
 
-        const distance = distanceFromBottom(viewport);
         if (
           !isUserInputActive() &&
           performance.now() < programmaticScrollUntilRef.current
@@ -195,21 +221,8 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
           lastScrollHeightRef.current = viewport.scrollHeight;
           return;
         }
-        const wasPinned = pinnedRef.current;
-        const isPinned = distance <= REPIN_THRESHOLD;
-        pinnedRef.current = isPinned;
+        syncPinnedFromViewport(viewport);
         lastScrollHeightRef.current = viewport.scrollHeight;
-
-        if (wasPinned && !isPinned && followRafRef.current !== null) {
-          cancelAnimationFrame(followRafRef.current);
-          followRafRef.current = null;
-        }
-
-        const shouldShow = distance > SHOW_BUTTON_THRESHOLD;
-        if (showScrollToBottomRef.current !== shouldShow) {
-          showScrollToBottomRef.current = shouldShow;
-          setShowScrollToBottom(shouldShow);
-        }
       });
     };
 
@@ -224,10 +237,10 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
 
       if (heightDelta === 0) return;
 
-      // While the user is reading earlier content, collapsing chrome above
-      // (fold headers / tool cards) would yank the viewport toward the top of
-      // the assistant. Preserve distance-from-bottom so the same lines stay put.
-      if (!pinnedRef.current && heightDelta < 0 && !isUserInputActive()) {
+      // While reading earlier content, growth/collapse elsewhere (LOD restore,
+      // fold headers, tool cards) must not yank the lines in view. Preserve
+      // distance-from-bottom for both positive and negative deltas.
+      if (!pinnedRef.current && !isUserInputActive()) {
         const distance = Math.max(
           0,
           prevScrollHeight - viewport.clientHeight - viewport.scrollTop,
@@ -273,10 +286,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
       viewport.removeEventListener("wheel", markUserInput, true);
       viewport.removeEventListener("touchstart", markUserInput, true);
       viewport.removeEventListener("touchmove", markUserInput, true);
-      if (followRafRef.current !== null) {
-        cancelAnimationFrame(followRafRef.current);
-        followRafRef.current = null;
-      }
+      cancelFollow();
       if (scrollRafRef.current !== null) {
         cancelAnimationFrame(scrollRafRef.current);
         scrollRafRef.current = null;
@@ -289,6 +299,8 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     markUserInput,
     markProgrammaticScroll,
     isUserInputActive,
+    syncPinnedFromViewport,
+    cancelFollow,
   ]);
 
   return {
