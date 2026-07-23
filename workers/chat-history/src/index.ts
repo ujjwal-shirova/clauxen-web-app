@@ -9,6 +9,8 @@ export interface Env {
   DATABASE_URL?: string;
   CHAT_HISTORY_CACHE?: KVNamespace;
   CHAT_ARCHIVES?: R2Bucket;
+  /** CF Queues producer for non-blocking warm + R2 archive. */
+  HISTORY_JOBS?: Queue<HistoryJobMessage>;
   CHAT_HISTORY_INTERNAL_TOKEN?: string;
   LATEST_PAGE_CACHE_TTL_SECONDS?: string;
   CURSOR_PAGE_CACHE_TTL_SECONDS?: string;
@@ -16,6 +18,14 @@ export interface Env {
   JWT_CACHE_TTL_SECONDS?: string;
   APP_ORIGIN?: string;
 }
+
+type HistoryJobMessage = {
+  type: "warm_and_archive";
+  userId: string;
+  chatId: string;
+  limit?: number;
+  limits?: number[];
+};
 
 type MessageRow = {
   id: string;
@@ -371,11 +381,81 @@ function listCacheRequest(
   );
 }
 
+function archiveObjectKey(
+  userId: string,
+  chatId: string,
+  limit: number,
+  cursorId: string | null,
+  cursorCreatedAt: string | null,
+): string {
+  if (!cursorId && !cursorCreatedAt) {
+    return `archives/${userId}/${chatId}/latest-${limit}.json`;
+  }
+  const cursor = `${cursorCreatedAt ?? ""}:${cursorId ?? ""}`;
+  return `archives/${userId}/${chatId}/page-${limit}-${encodeURIComponent(cursor)}.json`;
+}
+
+async function writeR2Archive(
+  env: Env,
+  input: {
+    userId: string;
+    chatId: string;
+    limit: number;
+    cursorId?: string | null;
+    cursorCreatedAt?: string | null;
+    payload: PagePayload;
+  },
+): Promise<void> {
+  if (!env.CHAT_ARCHIVES) return;
+  const key = archiveObjectKey(
+    input.userId,
+    input.chatId,
+    input.limit,
+    input.cursorId ?? null,
+    input.cursorCreatedAt ?? null,
+  );
+  await env.CHAT_ARCHIVES.put(key, JSON.stringify(input.payload), {
+    httpMetadata: { contentType: "application/json" },
+    customMetadata: {
+      userId: input.userId,
+      chatId: input.chatId,
+      limit: String(input.limit),
+    },
+  });
+}
+
+async function readR2Archive(
+  env: Env,
+  input: {
+    userId: string;
+    chatId: string;
+    limit: number;
+    cursorId: string | null;
+    cursorCreatedAt: string | null;
+  },
+): Promise<PagePayload | null> {
+  if (!env.CHAT_ARCHIVES) return null;
+  const key = archiveObjectKey(
+    input.userId,
+    input.chatId,
+    input.limit,
+    input.cursorId,
+    input.cursorCreatedAt,
+  );
+  const obj = await env.CHAT_ARCHIVES.get(key);
+  if (!obj) return null;
+  try {
+    return (await obj.json()) as PagePayload;
+  } catch {
+    return null;
+  }
+}
+
 async function invalidateChatCaches(
   env: Env,
   input: { userId: string; chatId: string; limits?: number[] },
 ) {
-  const limits = input.limits ?? [2, 10, 20, 50, 100, 200, 500];
+  const limits = input.limits ?? [2, 10, 20, 50, 80, 100, 200, 500];
   const tasks: Promise<unknown>[] = [];
 
   for (const limit of limits) {
@@ -385,6 +465,14 @@ async function invalidateChatCaches(
     if (env.CHAT_HISTORY_CACHE) {
       tasks.push(
         env.CHAT_HISTORY_CACHE.delete(kvKey(input.userId, input.chatId, limit)),
+      );
+    }
+    // Drop cold R2 latest pages so warm/archive rewrites don't serve stale SoR.
+    if (env.CHAT_ARCHIVES) {
+      tasks.push(
+        env.CHAT_ARCHIVES.delete(
+          archiveObjectKey(input.userId, input.chatId, limit, null, null),
+        ),
       );
     }
   }
@@ -436,6 +524,15 @@ async function writeCaches(
     );
   }
 
+  ctx.waitUntil(
+    writeR2Archive(env, {
+      userId,
+      chatId,
+      limit,
+      payload,
+    }),
+  );
+
   const response = json(
     { data: payload },
     200,
@@ -479,6 +576,17 @@ async function writePageCaches(
       }),
     );
   }
+
+  ctx.waitUntil(
+    writeR2Archive(env, {
+      userId: input.userId,
+      chatId: input.chatId,
+      limit: input.limit,
+      cursorId: input.cursorId,
+      cursorCreatedAt: input.cursorCreatedAt,
+      payload: input.payload,
+    }),
+  );
 
   const response = json(
     { data: input.payload },
@@ -553,6 +661,74 @@ function requireInternal(request: Request, env: Env): boolean {
   );
 }
 
+async function warmAndArchiveChat(
+  env: Env,
+  ctx: ExecutionContext,
+  input: {
+    userId: string;
+    chatId: string;
+    limits: number[];
+    cors?: Record<string, string>;
+  },
+): Promise<number[]> {
+  const cors = input.cors ?? {};
+  const limits = input.limits
+    .map((n) => Math.min(500, Math.max(1, Number(n) || 500)))
+    .filter((v, i, a) => a.indexOf(v) === i);
+
+  const cacheTtl = Math.max(
+    60,
+    Number(env.LATEST_PAGE_CACHE_TTL_SECONDS ?? "1800") || 1800,
+  );
+
+  // A warm represents a completed write. Remove every previous latest
+  // page before fetching via the cache-disabled Hyperdrive binding.
+  await invalidateChatCaches(env, {
+    userId: input.userId,
+    chatId: input.chatId,
+  });
+  for (const limit of limits) {
+    let page = await fetchMessagesPage(env, {
+      chatId: input.chatId,
+      userId: input.userId,
+      cursorCreatedAt: null,
+      cursorId: null,
+      limit,
+    });
+    page = await alignLatestPair(
+      env,
+      { chatId: input.chatId, userId: input.userId, limit },
+      page,
+    );
+    await writeCaches(env, ctx, {
+      userId: input.userId,
+      chatId: input.chatId,
+      limit,
+      payload: page,
+      cacheTtl,
+      cors,
+    });
+  }
+  const chats = await fetchChatList(env, {
+    userId: input.userId,
+    projectId: null,
+    limit: 50,
+  });
+  const listTtl = Math.max(
+    60,
+    Number(env.CHAT_LIST_CACHE_TTL_SECONDS ?? "120") || 120,
+  );
+  await writeListCaches(env, ctx, {
+    userId: input.userId,
+    projectId: null,
+    limit: 50,
+    chats,
+    cacheTtl: listTtl,
+    cors,
+  });
+  return limits;
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     const cors = corsHeaders(env, request);
@@ -573,11 +749,41 @@ export default {
           hyperdriveFresh: Boolean(env.HYPERDRIVE_FRESH?.connectionString),
           kv: Boolean(env.CHAT_HISTORY_CACHE),
           r2: Boolean(env.CHAT_ARCHIVES),
+          queues: Boolean(env.HISTORY_JOBS),
+          placement: "aws:us-west-1",
         },
         200,
         undefined,
         cors,
       );
+    }
+
+    if (url.pathname === "/internal/enqueue" && request.method === "POST") {
+      if (!requireInternal(request, env)) {
+        return json({ error: "unauthorized" }, 401, undefined, cors);
+      }
+      const body = (await request.json().catch(() => ({}))) as Partial<HistoryJobMessage>;
+      if (!body.userId || !body.chatId) {
+        return json({ error: "userId and chatId required" }, 400, undefined, cors);
+      }
+      if (!env.HISTORY_JOBS) {
+        return json({ error: "queues_unavailable" }, 503, undefined, cors);
+      }
+      const limits = (
+        body.limits?.length
+          ? body.limits
+          : [body.limit ?? 80, 80, 500]
+      )
+        .map((n) => Math.min(500, Math.max(1, Number(n) || 80)))
+        .filter((v, i, a) => a.indexOf(v) === i);
+      await env.HISTORY_JOBS.send({
+        type: "warm_and_archive",
+        userId: body.userId,
+        chatId: body.chatId,
+        limit: body.limit,
+        limits,
+      });
+      return json({ ok: true, enqueued: true, limits }, 202, undefined, cors);
     }
 
     if (url.pathname === "/internal/warm" && request.method === "POST") {
@@ -601,58 +807,14 @@ export default {
         .map((n) => Math.min(500, Math.max(1, Number(n) || 500)))
         .filter((v, i, a) => a.indexOf(v) === i);
 
-      const cacheTtl = Math.max(
-        60,
-        Number(env.LATEST_PAGE_CACHE_TTL_SECONDS ?? "1800") || 1800,
-      );
-
       try {
-        // A warm represents a completed write. Remove every previous latest
-        // page before fetching via the cache-disabled Hyperdrive binding.
-        await invalidateChatCaches(env, {
+        const warmed = await warmAndArchiveChat(env, ctx, {
           userId: body.userId,
           chatId: body.chatId,
-        });
-        for (const limit of limits) {
-          let page = await fetchMessagesPage(env, {
-            chatId: body.chatId,
-            userId: body.userId,
-            cursorCreatedAt: null,
-            cursorId: null,
-            limit,
-          });
-          page = await alignLatestPair(
-            env,
-            { chatId: body.chatId, userId: body.userId, limit },
-            page,
-          );
-          await writeCaches(env, ctx, {
-            userId: body.userId,
-            chatId: body.chatId,
-            limit,
-            payload: page,
-            cacheTtl,
-            cors,
-          });
-        }
-        const chats = await fetchChatList(env, {
-          userId: body.userId,
-          projectId: null,
-          limit: 50,
-        });
-        const listTtl = Math.max(
-          60,
-          Number(env.CHAT_LIST_CACHE_TTL_SECONDS ?? "120") || 120,
-        );
-        await writeListCaches(env, ctx, {
-          userId: body.userId,
-          projectId: null,
-          limit: 50,
-          chats,
-          cacheTtl: listTtl,
+          limits,
           cors,
         });
-        return json({ ok: true, limits }, 200, undefined, cors);
+        return json({ ok: true, limits: warmed }, 200, undefined, cors);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return json({ error: message }, 500, undefined, cors);
@@ -825,6 +987,36 @@ export default {
         }
       }
 
+      const r2Latest = await readR2Archive(env, {
+        userId: user.sub,
+        chatId,
+        limit,
+        cursorId: null,
+        cursorCreatedAt: null,
+      });
+      if (r2Latest) {
+        const response = json(
+          { data: r2Latest },
+          200,
+          {
+            "cache-control": `private, max-age=${cacheTtl}, stale-while-revalidate=${Math.max(60, Math.floor(cacheTtl / 2))}`,
+            "cache-tag": `chat:${chatId},user:${user.sub}`,
+            "x-clauxen-cache": "r2",
+          },
+          cors,
+        );
+        ctx.waitUntil(
+          writeCaches(env, ctx, {
+            userId: user.sub,
+            chatId,
+            limit,
+            payload: r2Latest,
+            cacheTtl,
+            cors,
+          }),
+        );
+        return response;
+      }
     } else {
       const pageHit = await caches.default.match(
         pageCacheRequest(user.sub, chatId, limit, cursorId, cursorCreatedAt),
@@ -854,6 +1046,38 @@ export default {
             cors,
           );
         }
+      }
+
+      const r2Page = await readR2Archive(env, {
+        userId: user.sub,
+        chatId,
+        limit,
+        cursorId,
+        cursorCreatedAt,
+      });
+      if (r2Page) {
+        const response = json(
+          { data: r2Page },
+          200,
+          {
+            "cache-control": `private, max-age=${cursorTtl}`,
+            "x-clauxen-cache": "r2-page",
+          },
+          cors,
+        );
+        ctx.waitUntil(
+          writePageCaches(env, ctx, {
+            userId: user.sub,
+            chatId,
+            limit,
+            cursorId,
+            cursorCreatedAt,
+            payload: r2Page,
+            cacheTtl: cursorTtl,
+            cors,
+          }),
+        );
+        return response;
       }
     }
 
@@ -915,6 +1139,38 @@ export default {
       const message = error instanceof Error ? error.message : String(error);
       const status = /not found|not authenticated/i.test(message) ? 404 : 500;
       return json({ error: message }, status, undefined, cors);
+    }
+  },
+
+  async queue(
+    batch: MessageBatch<HistoryJobMessage>,
+    env: Env,
+    ctx: ExecutionContext,
+  ) {
+    for (const msg of batch.messages) {
+      try {
+        const body = msg.body;
+        if (body?.type !== "warm_and_archive" || !body.userId || !body.chatId) {
+          msg.ack();
+          continue;
+        }
+        const limits = (
+          body.limits?.length
+            ? body.limits
+            : [body.limit ?? 80, 80, 500]
+        )
+          .map((n) => Math.min(500, Math.max(1, Number(n) || 80)))
+          .filter((v, i, a) => a.indexOf(v) === i);
+        await warmAndArchiveChat(env, ctx, {
+          userId: body.userId,
+          chatId: body.chatId,
+          limits,
+        });
+        msg.ack();
+      } catch (error) {
+        console.error("[chat-history] queue job failed", error);
+        msg.retry();
+      }
     }
   },
 };

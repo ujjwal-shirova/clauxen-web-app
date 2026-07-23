@@ -4,11 +4,12 @@
 
 | Layer | Owner | What |
 |---|---|---|
-| Browser IndexedDB | Client | Per-user list + ≤40 bodies (`device-chat-cache`) |
+| Browser IndexedDB | Client | Sidebar list meta only (`device-chat-cache`) |
 | Cache API | chat-history Worker | Hottest pages / JWT memo / list |
 | KV | chat-history Worker | Short TTL edge |
-| R2 archives | chat-history Worker | Durable snapshots |
-| Hyperdrive | CF → Postgres | Miss-only |
+| R2 archives | chat-history Worker | Cold latest + cursor page snapshots |
+| CF Queues | chat-history Worker | Non-blocking warm + archive fanout |
+| Hyperdrive | CF → Postgres | Miss-only (caching disabled) |
 | Vercel Runtime Cache | Vercel | Settings / model catalog memo |
 | Vercel Edge Config | Vercel | Flags |
 | CDN static | Vercel + CF Cache Rules | `/_next/static`, `/assets` |
@@ -23,8 +24,9 @@ Write/stream path stays on Vercel functions + `after()` + pgmq — not CF as inf
 After generate/delete/rename:
 
 - `POST` Worker `/internal/invalidate`
-- `POST` Worker `/internal/warm` (limits e.g. `[2,20]` + list refresh)
-- Client device cache update
+- Prefer `POST` Worker `/internal/enqueue` (`warm_and_archive` → CF Queue); fallback `/internal/warm`
+- Plan-aware warm limits via `warmLimitsForPlanId`
+- Client updates IDB list meta only (no transcript bodies)
 
 Helpers: `src/backend/chat/warm-history-cache.ts`.
 

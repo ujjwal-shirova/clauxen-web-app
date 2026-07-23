@@ -12,7 +12,7 @@ import {
   endChatGeneration,
 } from "@/backend/chat/generation-registry";
 import { readEdgeFlags } from "@/backend/config/edge-flags";
-import { assertRateLimit } from "@/backend/http/rate-limit";
+import { assertDurableRateLimit } from "@/backend/http/durable-rate-limit";
 import { clientIp } from "@/backend/http/request-meta";
 
 export const runtime = "nodejs";
@@ -22,13 +22,13 @@ export const maxDuration = 300;
 export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, request, params }) => {
     const user = requireSession(session);
-    assertRateLimit({
+    await assertDurableRateLimit({
       key: `generate:user:${user.id}`,
       limit: 45,
       windowMs: 60_000,
       message: "Too many generations. Please wait a moment and try again.",
     });
-    assertRateLimit({
+    await assertDurableRateLimit({
       key: `generate:ip:${clientIp(request) ?? "unknown"}`,
       limit: 90,
       windowMs: 60_000,

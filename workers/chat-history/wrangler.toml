@@ -42,3 +42,15 @@ id = "8d917e9639df4dc2a12be2a35cf264af"
 [[r2_buckets]]
 binding = "CHAT_ARCHIVES"
 bucket_name = "clauxen-chat-archives"
+
+# Non-blocking warm + R2 archive fanout (P4).
+[[queues.producers]]
+binding = "HISTORY_JOBS"
+queue = "clauxen-chat-history-jobs"
+
+[[queues.consumers]]
+queue = "clauxen-chat-history-jobs"
+max_batch_size = 8
+max_batch_timeout = 2
+max_retries = 3
+dead_letter_queue = "clauxen-chat-history-jobs-dlq"

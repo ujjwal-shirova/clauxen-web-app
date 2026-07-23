@@ -719,13 +719,31 @@ export async function streamChatGeneration(input: {
         // token metering is best-effort; stream already completed
       }
 
-      void import("@/backend/chat/warm-history-cache")
-        .then(({ warmChatHistoryCache }) =>
-          warmChatHistoryCache({
-            userId: input.userId,
-            chatId: input.chatId,
-            limits: [2, 20, 500],
-          }),
+      void Promise.all([
+        import("@/backend/chat/warm-history-cache"),
+        import("@/backend/repositories/billing.repository"),
+        import("@/lib/storage-quota"),
+        import("@/lib/chat-hydrate-limits"),
+      ])
+        .then(
+          ([
+            { warmChatHistoryCache },
+            billingRepo,
+            { resolveActiveStoragePlanId },
+            { warmLimitsForPlanId },
+          ]) =>
+            billingRepo
+              .getUserSubscription(input.userId)
+              .then((sub) => {
+                const planId = resolveActiveStoragePlanId(sub);
+                return warmChatHistoryCache({
+                  userId: input.userId,
+                  chatId: input.chatId,
+                  planId,
+                  limits: warmLimitsForPlanId(planId),
+                  async: true,
+                });
+              }),
         )
         .catch(() => {});
 

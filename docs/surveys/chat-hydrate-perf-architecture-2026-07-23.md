@@ -204,41 +204,41 @@ Only for **cold tab reopen** when the Worker is slow once (airport Wi‑Fi). Cha
 
 ## 7. Implementation plan (phased)
 
-### Phase P0 — Align docs & metrics (1 day)
+### Phase P0 — Align docs & metrics — **shipped 2026-07-23**
 
-- Treat this doc as ownership truth alongside `perf-architecture.md`.  
-- Add timing headers already present (`x-clauxen-cache`) to client telemetry (hit/miss/hd).  
-- Confirm Hyperdrive stays **caching-disabled**.
+- This doc + `perf-architecture.md` + `realtime-and-caching.md` aligned.  
+- Worker emits `x-clauxen-cache` (`cache-api` / `kv` / `r2` / `hyperdrive`).  
+- Hyperdrive remains **caching-disabled**.
 
-### Phase P1 — Edge-first hydrate (core win)
+### Phase P1 — Edge-first hydrate — **shipped 2026-07-23**
 
-1. Ensure client **always** prefers Worker for list + messages (already mostly true).  
-2. Tighten TTLs for list (~60s) and latest page (~120s) with aggressive invalidate+warm.  
-3. Paginate open-chat: first paint **latest N** (e.g. 40–80), scroll-up loads older (Worker cursor → then R2).  
-4. Feature-flag: **disable IDB message body writes**.
+1. Client Worker-first for list + messages (unchanged).  
+2. TTLs: list 60s, latest/cursor 120s + invalidate+warm.  
+3. First hydrate window plan-aware (default 80; continues keyset pages).  
+4. IDB message body writes **disabled**.
 
-**Exit:** Opening a chat does not depend on IndexedDB bodies.
+**Exit:** Opening a chat does not depend on IndexedDB bodies. ✅
 
-### Phase P2 — Activate R2 cold archives
+### Phase P2 — Activate R2 cold archives — **shipped 2026-07-23**
 
-1. On warm/invalidate pipeline, snapshot pages older than hot window to R2 (`CHAT_ARCHIVES`).  
-2. Worker GET: Cache → KV → (if cursor old) R2 → else Hyperdrive.  
-3. Never put private archives in public CDN; auth same as today (JWT).
+1. Warm/write path snapshots latest + cursor pages to R2 (`CHAT_ARCHIVES`).  
+2. Worker GET: Cache → KV → R2 → Hyperdrive.  
+3. Private archives; JWT auth unchanged. Invalidate deletes latest R2 keys.
 
-**Exit:** Long chats stay fast without stuffing KV or IDB.
+**Exit:** Long chats stay fast without stuffing KV or IDB. ✅
 
-### Phase P3 — Shrink device cache
+### Phase P3 — Shrink device cache — **shipped 2026-07-23**
 
-1. IDB = list meta only (+ optional last-open body).  
-2. Remove slice compaction complexity from hot path.  
-3. Update skills / MEMORY / realtime-and-caching docs.
+1. IDB = list meta only; legacy body slices pruned on persist.  
+2. Hot path no longer paints from IDB bodies.  
+3. Skills / MEMORY / realtime docs updated.
 
-### Phase P4 — Optional speed polish
+### Phase P4 — Optional speed polish — **shipped 2026-07-23**
 
-- CF Queues for archive + warm fanout (non-blocking).  
-- Sticky Worker placement near Hyperdrive/Supabase.  
-- Plan-aware page sizes.  
-- Durable generate quotas (DB/KV) — complement Phase A process-local limits.
+- CF Queues `clauxen-chat-history-jobs` via `/internal/enqueue` + Worker `queue()` (sync warm fallback).  
+- Sticky placement `aws:us-west-1` (near Supabase/Hyperdrive).  
+- Plan-aware page sizes (`src/lib/chat-hydrate-limits.ts`).  
+- Durable generate quotas via `public.rate_limits` (`assertDurableRateLimit`) + process-local fallback.
 
 ---
 
@@ -275,7 +275,7 @@ Only for **cold tab reopen** when the Worker is slow once (airport Wi‑Fi). Cha
 4. **Match ChatGPT/Claude:** server truth, edge delivery, RAM UI — not a local history warehouse.  
 5. Implement in order **P1 → P2 → P3**; do not boil the ocean with D1/Vectorize.
 
-When you approve, the first build slice should be: **flag off IDB message-body writes + verify Worker hit rates on open chat**.
+**Implementation status (2026-07-23):** P0–P4 shipped in `clauxen-chat-history` + app hydrate path. Verify in production via `x-clauxen-cache` headers and `/health` (`queues:true`, `r2:true`).
 
 ---
 

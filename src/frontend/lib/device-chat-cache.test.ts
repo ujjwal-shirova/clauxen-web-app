@@ -3,27 +3,9 @@ import { describe, it } from "node:test";
 import {
   DEVICE_CHAT_MESSAGE_LIMIT,
   buildDeviceChatMeta,
-  messagesForDeviceCache,
 } from "@/frontend/lib/device-chat-cache";
-import type { Message } from "@/frontend/lib/types";
 
 describe("device-chat-cache", () => {
-  it("strips streaming flags before device persist", () => {
-    const input: Message[] = [
-      {
-        id: "m1",
-        role: "assistant",
-        content: "hello",
-        isStreaming: true,
-        isThinkingStreaming: true,
-      },
-    ];
-    const out = messagesForDeviceCache(input);
-    assert.equal(out[0]?.isStreaming, false);
-    assert.equal(out[0]?.isThinkingStreaming, false);
-    assert.equal(out[0]?.content, "hello");
-  });
-
   it("scopes meta to user and drops pending chat ids", () => {
     const meta = buildDeviceChatMeta({
       userId: "user-1",
@@ -39,7 +21,7 @@ describe("device-chat-cache", () => {
     assert.ok(typeof meta.savedAt === "number");
   });
 
-  it("keeps a bounded message cache budget", () => {
-    assert.equal(DEVICE_CHAT_MESSAGE_LIMIT, 40);
+  it("does not persist message bodies on device (edge-first)", () => {
+    assert.equal(DEVICE_CHAT_MESSAGE_LIMIT, 0);
   });
 });

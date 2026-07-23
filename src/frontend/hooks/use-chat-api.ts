@@ -72,7 +72,6 @@ import {
   persistDeviceChatNow,
   persistDeviceRecentChatsNow,
   readDeviceChatList,
-  readDeviceChatMessages,
   scheduleDeviceChatPersist,
 } from "@/frontend/lib/device-chat-cache";
 import { useAuth } from "@/frontend/contexts/auth-context";
@@ -935,30 +934,7 @@ export function useChatApi(
         return;
       }
 
-      // Device cache: paint immediately, then reconcile with Worker/API.
-      try {
-        const cached = await readDeviceChatMessages(chatId);
-        if (
-          cached.length > 0 &&
-          useChatStore.getState().activeChatId === chatId
-        ) {
-          const liveNow =
-            Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
-            Boolean(getGeneration(chatId));
-          // Never overwrite a live turn with a cold device snapshot.
-          if (!liveNow) {
-            setAllChats((prev) => ({ ...prev, [chatId]: cached }));
-            setLoadingChatId((current) =>
-              current === chatId ? null : current,
-            );
-            void loadChatMessages(chatId, { silent: true });
-            return;
-          }
-        }
-      } catch (error) {
-        console.warn("[device-chat-cache] message read failed:", error);
-      }
-
+      // Edge-first: Worker Cache/KV/R2 → Hyperdrive. Device IDB is list meta only.
       await loadChatMessages(chatId);
     },
     [applyHydratedMessages, loadChatMessages, setAllChats],

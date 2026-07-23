@@ -1,5 +1,7 @@
+import { DEFAULT_CLIENT_HYDRATE_LIMIT } from "@/lib/chat-hydrate-limits";
+
 /**
- * One-shot hydrate window — entire thread loads in a single edge fetch
- * (ChatGPT/Claude style). No scroll-up pagination in the UI.
+ * First edge fetch window for open-chat hydrate.
+ * Long threads continue via Worker keyset pages (Cache → KV → R2 → Hyperdrive).
  */
-export const FULL_CHAT_HYDRATE_LIMIT = 500;
+export const FULL_CHAT_HYDRATE_LIMIT = DEFAULT_CLIENT_HYDRATE_LIMIT;

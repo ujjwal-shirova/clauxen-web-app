@@ -1,37 +1,30 @@
 "use client";
 
 /**
- * Device-side chat cache for the signed-in (API) path.
+ * Device-side paint hint for the signed-in path.
  *
- * Ladder: RAM (Zustand) → IndexedDB → CF history Worker / API → Supabase.
- * Realtime + background reconcile keep IDB warm without polling.
- * Server remains source of truth; this only cuts latency and origin load.
+ * Edge-first architecture: Supabase SoR → chat-history Worker (Cache/KV/R2/HD)
+ * → browser RAM. IndexedDB keeps sidebar list meta only — not full transcripts.
  */
 
 import type { Message, RecentChat } from "@/frontend/lib/types";
-import { compactMessageBranchData } from "@/frontend/lib/chat-branch";
 import {
   deleteChatFromIndexedDB,
   loadChatMeta,
-  loadFullChatFromIndexedDB,
   persistChatMeta,
-  persistChatToIndexedDB,
   type PersistedChatMeta,
   clearAllChatIndexedDB,
   listIndexedDBChatIds,
 } from "@/frontend/lib/chat-storage";
 
-/** Keep message bodies for the N most recently updated chats. */
-export const DEVICE_CHAT_MESSAGE_LIMIT = 40;
+/** Sidebar meta rows retained locally (titles only). */
+export const DEVICE_CHAT_LIST_LIMIT = 100;
+
+/** @deprecated Bodies are no longer persisted; kept for import compatibility. */
+export const DEVICE_CHAT_MESSAGE_LIMIT = 0;
 
 export function messagesForDeviceCache(messages: Message[]): Message[] {
-  return messages.map((message) =>
-    compactMessageBranchData({
-      ...message,
-      isStreaming: false,
-      isThinkingStreaming: false,
-    }),
-  );
+  return messages;
 }
 
 export async function readDeviceChatList(
@@ -44,19 +37,20 @@ export async function readDeviceChatList(
     return null;
   }
   if (!meta.recentChats?.length) return null;
-  return meta.recentChats.map((chat) => ({
-    ...chat,
-    isCreating: false,
-    isTitleStreaming: false,
-  }));
+  return meta.recentChats
+    .slice(0, DEVICE_CHAT_LIST_LIMIT)
+    .map((chat) => ({
+      ...chat,
+      isCreating: false,
+      isTitleStreaming: false,
+    }));
 }
 
+/** Bodies are not stored on device — always returns []. */
 export async function readDeviceChatMessages(
-  chatId: string,
+  _chatId: string,
 ): Promise<Message[]> {
-  const loaded = await loadFullChatFromIndexedDB(chatId);
-  if (loaded.length === 0) return [];
-  return messagesForDeviceCache(loaded);
+  return [];
 }
 
 export function buildDeviceChatMeta(input: {
@@ -70,6 +64,7 @@ export function buildDeviceChatMeta(input: {
     savedAt: Date.now(),
     recentChats: input.recentChats
       .filter((chat) => !chat.id.startsWith("pending-"))
+      .slice(0, DEVICE_CHAT_LIST_LIMIT)
       .map((chat) => ({
         id: chat.id,
         name: chat.name,
@@ -83,6 +78,7 @@ export function buildDeviceChatMeta(input: {
   };
 }
 
+/** Persist sidebar meta only; prune any legacy message body slices. */
 export function scheduleDeviceChatPersist(input: {
   userId: string;
   allChats: Record<string, Message[]>;
@@ -94,44 +90,22 @@ export function scheduleDeviceChatPersist(input: {
   let cancelled = false;
   const delayMs = input.delayMs ?? 200;
 
-  const compacted: Record<string, Message[]> = {};
-  for (const [chatId, messages] of Object.entries(input.allChats)) {
-    if (chatId.startsWith("pending-")) continue;
-    if (!messages.length) continue;
-    compacted[chatId] = messagesForDeviceCache(messages);
-  }
-
   const meta = buildDeviceChatMeta({
     userId: input.userId,
     recentChats: input.recentChats,
     activeChatId: input.activeChatId,
   });
 
-  const keep = new Set(
-    [
-      ...meta.recentChats
-        .slice()
-        .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
-        .slice(0, DEVICE_CHAT_MESSAGE_LIMIT)
-        .map((c) => c.id),
-      ...Object.keys(compacted),
-      ...(input.activeChatId ? [input.activeChatId] : []),
-    ].filter(Boolean),
-  );
-
   timeoutId = setTimeout(() => {
     void (async () => {
       if (cancelled) return;
       try {
         await persistChatMeta(meta);
-        for (const [chatId, messages] of Object.entries(compacted)) {
-          if (cancelled) return;
-          await persistChatToIndexedDB(chatId, messages);
-        }
+        // Drop legacy full-body slices from older clients.
         const ids = await listIndexedDBChatIds();
         for (const id of ids) {
           if (cancelled) return;
-          if (!keep.has(id)) await deleteChatFromIndexedDB(id);
+          await deleteChatFromIndexedDB(id);
         }
       } catch (error) {
         console.warn("[device-chat-cache] persist failed:", error);
@@ -159,22 +133,15 @@ export async function persistDeviceRecentChatsNow(
   );
 }
 
+/** No-op body write — list meta only (edge-first hydrate). */
 export async function persistDeviceChatNow(
   userId: string,
-  chatId: string,
-  messages: Message[],
+  _chatId: string,
+  _messages: Message[],
   recentChats: RecentChat[],
   activeChatId: string | null,
 ): Promise<void> {
-  if (chatId.startsWith("pending-")) return;
-  await persistChatToIndexedDB(chatId, messagesForDeviceCache(messages));
-  await persistChatMeta(
-    buildDeviceChatMeta({
-      userId,
-      recentChats,
-      activeChatId,
-    }),
-  );
+  await persistDeviceRecentChatsNow(userId, recentChats, activeChatId);
 }
 
 export async function forgetDeviceChat(chatId: string): Promise<void> {
