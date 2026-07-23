@@ -67,7 +67,7 @@ export function SetProjectInstructionsDialog({
                 className="mt-1 text-[14px] leading-5 text-zinc-600"
                 aria-hidden="true"
               >
-                Provide Claude with relevant instructions and information for
+                Provide Clauxen with relevant instructions and information for
                 chats within{" "}
                 <span className="font-medium text-zinc-800">{projectName}</span>
                 . This will work alongside your{" "}

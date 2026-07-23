@@ -103,7 +103,7 @@ export function ProjectSidebar({
               <p className="line-clamp-2 text-xs text-zinc-500">{systemPrompt}</p>
             ) : (
               <p className="text-xs text-zinc-400">
-                Add instructions to tailor Claude&apos;s responses
+                Add instructions to tailor Clauxen&apos;s responses
               </p>
             )}
           </section>

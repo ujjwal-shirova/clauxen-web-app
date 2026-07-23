@@ -226,7 +226,7 @@ export function Sidebar({
   activeView,
   recentChats,
   activeChatId,
-  chatsLoading = false,
+  chatsLoading: _chatsLoading = false,
   creatingChatPending: _creatingChatPending = false,
   onSelectChat,
   onDeleteChat,
@@ -234,7 +234,7 @@ export function Sidebar({
   onPinChat,
   generatingChatIds,
   projects = [],
-  projectsLoading = false,
+  projectsLoading: _projectsLoading = false,
   activeProjectId = null,
   onNewProjectClick,
   onSelectProject,
@@ -749,9 +749,24 @@ export function Sidebar({
             </div>
           ) : null}
 
-          {/* Order: Projects → Pinned → Recent */}
-          {!isCollapsed ? (
+          {/* Order: Pinned → Projects → Recent (no shimmer while lists load) */}
+          {!isCollapsed && pinnedChats.length > 0 ? (
             <div className="mt-3 mb-1.5 px-0.5">
+              <SidebarSectionLabel
+                label="Pinned chats"
+                expanded={pinnedExpanded}
+                onToggle={() => toggleSection("pinned")}
+              />
+              {pinnedExpanded ? (
+                <div className="mt-1 space-y-0.5">
+                  {pinnedChats.map((chat) => renderChatRow(chat))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!isCollapsed ? (
+            <div className="mt-2 mb-1.5 px-0.5">
               <SidebarSectionLabel
                 label="Projects"
                 expanded={projectsExpanded}
@@ -775,29 +790,6 @@ export function Sidebar({
                     />
                     <span className="truncate">New Project</span>
                   </button>
-                  {projectsLoading && projects.length === 0 ? (
-                    <div
-                      className="space-y-1.5 px-0.5"
-                      aria-busy="true"
-                      aria-label="Loading projects"
-                    >
-                      {[1, 2, 3].map((row) => (
-                        <div
-                          key={row}
-                          className="h-7 overflow-hidden rounded-md"
-                          aria-hidden
-                        >
-                          <div
-                            className="h-full shimmer-bg rounded-md"
-                            style={{
-                              width: `${68 - ((row * 9) % 22)}%`,
-                              minWidth: "40%",
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
                   {projects.map((project) => {
                     const isActive = activeProjectId === project.id;
                     return (
@@ -831,21 +823,6 @@ export function Sidebar({
             </div>
           ) : null}
 
-          {!isCollapsed && pinnedChats.length > 0 ? (
-            <div className="mt-2 mb-1.5 px-0.5">
-              <SidebarSectionLabel
-                label="Pinned chats"
-                expanded={pinnedExpanded}
-                onToggle={() => toggleSection("pinned")}
-              />
-              {pinnedExpanded ? (
-                <div className="mt-1 space-y-0.5">
-                  {pinnedChats.map((chat) => renderChatRow(chat))}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
           {!isCollapsed && (
             <div className="relative mb-3 px-0.5">
               <SidebarSectionLabel
@@ -863,31 +840,6 @@ export function Sidebar({
               />
               {recentsExpanded ? (
                 <div className="mt-1 space-y-2">
-                  {chatsLoading &&
-                  groupedChats.length === 0 &&
-                  pinnedChats.length === 0 ? (
-                    <div
-                      className="space-y-1.5 px-0.5"
-                      aria-busy="true"
-                      aria-label="Loading conversations"
-                    >
-                      {[1, 2, 3, 4, 5, 6].map((row) => (
-                        <div
-                          key={row}
-                          className="h-7 overflow-hidden rounded-md"
-                          aria-hidden
-                        >
-                          <div
-                            className="h-full shimmer-bg rounded-md"
-                            style={{
-                              width: `${72 - ((row * 7) % 28)}%`,
-                              minWidth: "42%",
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
                   {groupedChats.map((group) => (
                     <div key={group.label || "all"}>
                       {group.label ? (

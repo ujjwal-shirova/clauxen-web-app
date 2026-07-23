@@ -935,10 +935,10 @@ export function RecommendClaudeAppsBlock({ tool }: { tool: AgentToolSegment }) {
   const appIds = (tool.args?.app_ids as string[]) ?? [];
   
   const appNames: Record<string, string> = {
-    desktop: "Claude Desktop",
-    ios: "Claude iOS App",
-    android: "Claude Android App",
-    claude_code_terminal: "Claude Code CLI",
+    desktop: "Clauxen Desktop",
+    ios: "Clauxen iOS App",
+    android: "Clauxen Android App",
+    claude_code_terminal: "Clauxen Code CLI",
     claude_code_vscode: "VS Code Extension",
     claude_code_jetbrains: "JetBrains Extension",
     claude_code_slack: "Slack Integration",

@@ -60,18 +60,30 @@ export function settingsTabToSlug(tab: SettingsTab): string {
   return tab.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
+/** Query flag: chat was started (or opened) from a project dashboard. */
+export const CHAT_ENTER_METHOD_PROJECT = "project";
+
 /** Main (parent) page paths — never use these for overlays. */
 export const APP_ROUTES = {
   root: "/",
   newChat: "/new",
   home: "/new",
   library: "/library",
-  projects: "/projects",
+  /** Create-project surface (inline form, not a gallery). */
+  projects: "/project",
   customize: "/customize",
   chat: (chatId: string) => `/c/${encodeURIComponent(chatId)}`,
-  project: (projectId: string) => `/projects/${encodeURIComponent(projectId)}`,
-  projectConversation: (projectId: string, chatId: string) =>
-    `/projects/${encodeURIComponent(projectId)}/conversations/${encodeURIComponent(chatId)}`,
+  /** Project dashboard — blank composer scoped to this project. */
+  project: (projectId: string) => `/project/${encodeURIComponent(projectId)}`,
+  /** Chat started from a project — same `/c` surface + enter-method flag. */
+  projectChat: (chatId: string) =>
+    `/c/${encodeURIComponent(chatId)}?chat_enter_method=${CHAT_ENTER_METHOD_PROJECT}`,
+  /**
+   * @deprecated Prefer `projectChat(chatId)`. Kept so call sites that still
+   * pass projectId keep compiling; navigates to `/c/…?chat_enter_method=project`.
+   */
+  projectConversation: (_projectId: string, chatId: string) =>
+    `/c/${encodeURIComponent(chatId)}?chat_enter_method=${CHAT_ENTER_METHOD_PROJECT}`,
   /** @deprecated Prefer overlay hash helpers — kept for legacy path redirects. */
   upgrade: "/upgrade",
   pricing: "/upgrade",
@@ -82,6 +94,17 @@ export const APP_ROUTES = {
       isSettingsTab(tab) ? tab : normalizeSettingsTab(String(tab)),
     )}`,
 } as const;
+
+/** True when pathname is a project dashboard (blank composer), not create. */
+export function isProjectHomePath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return /^\/project\/[^/]+\/?$/.test(pathname);
+}
+
+/** True when pathname is the create-project surface. */
+export function isProjectCreatePath(pathname: string | null): boolean {
+  return pathname === "/project" || pathname === "/project/";
+}
 
 export type AppOverlayPath =
   | { type: "pricing" }
@@ -184,6 +207,8 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname.startsWith("/c/") ||
     pathname === "/library" ||
     pathname.startsWith("/library/") ||
+    pathname === "/project" ||
+    pathname.startsWith("/project/") ||
     pathname === "/projects" ||
     pathname.startsWith("/projects/") ||
     pathname === "/customize" ||

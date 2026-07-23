@@ -1628,6 +1628,8 @@ export function useChatApi(
         bypassQueue?: boolean;
         chatIdOverride?: string;
         attachments?: ComposerAttachment[];
+        /** Bind a new chat to this project (overrides session projectIdFilter). */
+        projectId?: string | null;
         /** Fires the moment a brand-new chat has a durable id (before persist/stream). */
         onChatCreated?: (chatId: string) => void;
       },
@@ -1636,6 +1638,11 @@ export function useChatApi(
       const pendingAttachments = options?.attachments ?? [];
       if (!trimmed && pendingAttachments.length === 0) return null;
       if (creatingChatPending && !options?.chatIdOverride) return null;
+
+      const bindProjectId =
+        options?.projectId !== undefined
+          ? options.projectId
+          : projectIdFilter;
 
       let chatId = options?.chatIdOverride
         ? options.chatIdOverride
@@ -1696,7 +1703,7 @@ export function useChatApi(
               name: "New chat",
               titleGenerated: false,
               isCreating: true,
-              projectId: projectIdFilter ?? undefined,
+              projectId: bindProjectId ?? undefined,
               updatedAt: Date.now(),
             },
             ...prev.filter((c) => c.id !== pendingChatId),
@@ -1738,7 +1745,7 @@ export function useChatApi(
         if (pendingChatId) {
           const { chat } = await chatsApi.createChat({
             title: "New chat",
-            projectId: projectIdFilter ?? undefined,
+            projectId: bindProjectId ?? undefined,
           });
           const realId = chat.id;
 
@@ -1759,7 +1766,7 @@ export function useChatApi(
                 name: chat.title || "New chat",
                 titleGenerated: false,
                 isCreating: false,
-                projectId: projectIdFilter ?? undefined,
+                projectId: bindProjectId ?? undefined,
                 updatedAt: Date.now(),
               },
               ...prev.filter((c) => c.id !== pendingChatId && c.id !== realId),

@@ -85,7 +85,7 @@ export function CreateProjectModal({
               <p>
                 Projects help organize your work and leverage knowledge across
                 multiple conversations. Upload docs, code, and files to create
-                themed collections that Claude can reference again and again.
+                themed collections that Clauxen can reference again and again.
                 Start by creating a memorable title and description to organize
                 your project. You can always edit it later.
               </p>

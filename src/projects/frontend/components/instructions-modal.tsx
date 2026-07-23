@@ -65,7 +65,7 @@ export function InstructionsModal({
                 Set project instructions
               </h2>
               <p className="mt-1 text-sm text-zinc-600">
-                Provide Claude with relevant instructions and information for
+                Provide Clauxen with relevant instructions and information for
                 chats within{" "}
                 <span className="font-medium">{projectName}</span>. This will
                 work alongside your{" "}

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { CustomizePage } from "@/frontend/components/customize-page";
 import { useChatStore } from "@/frontend/stores/chat-store";
+import { APP_ROUTES } from "@/frontend/lib/app-routes";
 
 export function CustomizeRouteContent({
   initialTab = null,
@@ -20,9 +21,9 @@ export function CustomizeRouteContent({
         const chat = state.recentChats?.find((c) => c.id === chatId);
         const target = chatId
           ? chat?.projectId
-            ? `/projects/${chat.projectId}/conversations/${chatId}`
-            : `/c/${chatId}`
-          : "/";
+            ? APP_ROUTES.projectChat(chatId)
+            : APP_ROUTES.chat(chatId)
+          : APP_ROUTES.newChat;
 
         if (typeof window !== "undefined" && window.history.length > 1) {
           router.back();

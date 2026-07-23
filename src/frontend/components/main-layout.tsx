@@ -22,7 +22,6 @@ import {
   ChatSessionProvider,
   useChatSession,
 } from "@/frontend/contexts/chat-session-context";
-import { CreateProjectDialog } from "@/frontend/components/create-project-dialog";
 import { CLAUXEN_OPEN_CREATE_PROJECT_EVENT } from "@/frontend/components/composer-project-strip";
 import { AppOverlayHost } from "@/frontend/components/app-overlay-host";
 import {
@@ -37,6 +36,7 @@ import { Sidebar } from "@/frontend/components/sidebar";
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
   "/customize",
+  "/project",
   "/projects",
 ] as const;
 
@@ -142,7 +142,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     (chatEntry: RecentChat) => {
       handleSelectChat(chatEntry.id);
       const target = chatEntry.projectId
-        ? APP_ROUTES.projectConversation(chatEntry.projectId, chatEntry.id)
+        ? APP_ROUTES.projectChat(chatEntry.id)
         : APP_ROUTES.chat(chatEntry.id);
       instantNavigate(target);
       closeMobileNav();
@@ -198,10 +198,13 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     closeMobileNav();
   }, [overlays, closeMobileNav]);
 
-  const [createProjectOpen, setCreateProjectOpen] = React.useState(false);
+  const goToCreateProject = useCallback(() => {
+    instantNavigate(APP_ROUTES.projects);
+    closeMobileNav();
+  }, [instantNavigate, closeMobileNav]);
 
   React.useEffect(() => {
-    const onOpenCreate = () => setCreateProjectOpen(true);
+    const onOpenCreate = () => goToCreateProject();
     window.addEventListener(CLAUXEN_OPEN_CREATE_PROJECT_EVENT, onOpenCreate);
     return () => {
       window.removeEventListener(
@@ -209,12 +212,10 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onOpenCreate,
       );
     };
-  }, []);
-  const [isCreatingProject, setIsCreatingProject] = React.useState(false);
+  }, [goToCreateProject]);
 
   const openProjectDetail = useCallback(
     (project: ApiProject) => {
-      setCreateProjectOpen(false);
       instantNavigate(APP_ROUTES.project(project.id));
       closeMobileNav();
     },
@@ -223,7 +224,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 
   const activeProjectId = React.useMemo(() => {
     if (!pathname) return null;
-    const match = pathname.match(/^\/projects\/([^/?#]+)/);
+    const match = pathname.match(/^\/project\/([^/?#]+)/);
     return match?.[1] ?? null;
   }, [pathname]);
 
@@ -249,8 +250,10 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p === "/" ||
       p === "/new" ||
       p === "/library" ||
+      p === "/project" ||
       p === "/projects" ||
       p.startsWith("/customize") ||
+      (p.startsWith("/project/") && !p.includes("/conversations/")) ||
       (p.startsWith("/projects") && !p.includes("/conversations/"))
     ) {
       return null;
@@ -322,7 +325,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         projects={projects.projects}
         projectsLoading={projects.loading}
         activeProjectId={activeProjectId}
-        onNewProjectClick={() => setCreateProjectOpen(true)}
+        onNewProjectClick={goToCreateProject}
         onSelectProject={openProjectDetail}
         userDisplayName={sidebarDisplayName({
           fullName: auth.user?.displayName,
@@ -360,40 +363,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {createProjectOpen ? (
-        <CreateProjectDialog
-          open={createProjectOpen}
-          onOpenChange={setCreateProjectOpen}
-          isSubmitting={isCreatingProject}
-          onSubmit={async ({ name, description }) => {
-            setIsCreatingProject(true);
-            try {
-              const project = await projects.createProject({
-                name,
-                description: description || undefined,
-              });
-              if (project) {
-                openProjectDetail(project);
-              } else {
-                toast({
-                  title: "Could not create project",
-                  description: "Enter a project name and try again.",
-                  variant: "destructive",
-                });
-              }
-            } catch {
-              toast({
-                title: "Could not create project",
-                description: "Something went wrong. Please try again.",
-                variant: "destructive",
-              });
-            } finally {
-              setIsCreatingProject(false);
-            }
-          }}
-        />
-      ) : null}
-
       <AppOverlayHost />
     </div>
   );
@@ -427,7 +396,9 @@ function computeActiveView(
   if (overlayType === "gift") return "gift";
   if (overlayType === "apps") return "apps";
   if (!pathname) return "chat";
-  if (pathname.startsWith("/projects")) return "projects";
+  if (pathname.startsWith("/project") || pathname.startsWith("/projects")) {
+    return "projects";
+  }
   if (pathname.startsWith("/library")) return "library";
   if (pathname.startsWith("/customize")) return "customize";
   if (pathname === "/new" || pathname === "/") return "chat";

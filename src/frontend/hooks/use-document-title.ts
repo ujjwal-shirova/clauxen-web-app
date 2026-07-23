@@ -43,7 +43,13 @@ function titleForPath(
     return `${name} - ${BRAND}`;
   }
 
-  if (pathname.startsWith("/projects")) return `Projects - ${BRAND}`;
+  if (
+    pathname === "/project" ||
+    pathname.startsWith("/project/") ||
+    pathname.startsWith("/projects")
+  ) {
+    return `Projects - ${BRAND}`;
+  }
   if (pathname.startsWith("/library")) return `Library - ${BRAND}`;
   if (pathname.startsWith("/customize/skills")) return `Skills - ${BRAND}`;
   if (pathname.startsWith("/customize/connectors")) {

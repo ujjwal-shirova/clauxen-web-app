@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChatArea } from "@/frontend/components/chat-area";
 import { useOptionalChatSession } from "@/frontend/contexts/chat-session-context";
@@ -8,9 +8,16 @@ import { useChat } from "@/frontend/hooks/use-chat";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { useAppOverlays } from "@/frontend/hooks/use-app-overlays";
 import { useAppLayout } from "@/frontend/components/app-layout-context";
-import { APP_ROUTES, isNewChatPath } from "@/frontend/lib/app-routes";
+import {
+  APP_ROUTES,
+  CHAT_ENTER_METHOD_PROJECT,
+  isNewChatPath,
+  isProjectHomePath,
+} from "@/frontend/lib/app-routes";
 import { useDocumentTitle } from "@/frontend/hooks/use-document-title";
 import { useInstantNavigate } from "@/frontend/hooks/use-instant-navigate";
+import { useProjects } from "@/frontend/hooks/use-projects";
+import * as projectsApi from "@/frontend/lib/api/projects";
 import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,
@@ -44,6 +51,11 @@ function getRouteChatId(pathname: string): string | null {
   );
 }
 
+function readChatEnterMethod(): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get("chat_enter_method");
+}
+
 function ChatViewBody({
   chat,
   projectId = null,
@@ -58,11 +70,21 @@ function ChatViewBody({
   const instantNavigate = useInstantNavigate();
   const overlays = useAppOverlays();
   const { isMobile, isSidebarCollapsed, openMobileNav } = useAppLayout();
+  const auth = useAuth();
+  const projects = useProjects(Boolean(auth.user?.id));
 
   const [localEffort, setLocalEffort] = useState<HomerReasoningEffort>(
     DEFAULT_HOMER_REASONING_EFFORT,
   );
   const [localModel, setLocalModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
+  const [resolvedProjectName, setResolvedProjectName] = useState<string | null>(
+    projectBreadcrumb?.label ?? null,
+  );
+  const [enterMethod, setEnterMethod] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEnterMethod(readChatEnterMethod());
+  }, [pathname]);
 
   const homerReasoningEffort =
     chat.homerReasoningEffort ?? localEffort;
@@ -105,14 +127,22 @@ function ChatViewBody({
     (chat as { retryLoadMessages?: () => Promise<void> }).retryLoadMessages;
 
   const routeChatId = getRouteChatId(pathname);
+  const isProjectHome = isProjectHomePath(pathname);
+
+  // Bind new chats from the project dashboard without filtering the sidebar list.
+  const bindProjectId =
+    projectId ??
+    activeChat?.projectId ??
+    null;
+
   // Keep showing the live conversation as soon as a chat id / messages exist,
-  // even before Next finishes soft-navigating off /new.
-  const blankNewChatComposer =
-    !projectId &&
-    isNewChatPath(pathname) &&
-    !activeChatId &&
-    messages.length === 0 &&
-    !creatingChatPending;
+  // even before Next finishes soft-navigating off /new or /project/:id.
+  const blankNewChatComposer = isProjectHome
+    ? !routeChatId && !creatingChatPending && messages.length === 0
+    : isNewChatPath(pathname) &&
+      !activeChatId &&
+      messages.length === 0 &&
+      !creatingChatPending;
 
   const handleSelectChatRef = useRef(handleSelectChat);
   handleSelectChatRef.current = handleSelectChat;
@@ -124,22 +154,73 @@ function ChatViewBody({
       void handleSelectChatRef.current(routeChatId);
       return;
     }
-    if (blankNewChatComposer) {
+    if (isProjectHome || blankNewChatComposer) {
       startNewChatRef.current();
     }
-  }, [routeChatId, blankNewChatComposer]);
+  }, [routeChatId, isProjectHome, blankNewChatComposer]);
+
+  // Resolve project name for breadcrumb when opened via /c?chat_enter_method=project.
+  useEffect(() => {
+    if (projectBreadcrumb?.label) {
+      setResolvedProjectName(projectBreadcrumb.label);
+      return;
+    }
+    const id = bindProjectId;
+    if (!id) {
+      setResolvedProjectName(null);
+      return;
+    }
+    const cached = projects.projects.find((p) => p.id === id);
+    if (cached) {
+      setResolvedProjectName(cached.name);
+      return;
+    }
+    if (id.startsWith("local-")) return;
+    let cancelled = false;
+    void projectsApi.getProject(id).then(
+      ({ project }) => {
+        if (!cancelled) setResolvedProjectName(project.name);
+      },
+      () => {
+        if (!cancelled) setResolvedProjectName(null);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [bindProjectId, projectBreadcrumb?.label, projects.projects]);
+
+  const effectiveBreadcrumb = useMemo(() => {
+    if (projectBreadcrumb) return projectBreadcrumb;
+    if (!bindProjectId || !resolvedProjectName) return undefined;
+    const showChrome =
+      Boolean(projectId) ||
+      enterMethod === CHAT_ENTER_METHOD_PROJECT ||
+      Boolean(activeChat?.projectId);
+    if (!showChrome) return undefined;
+    return {
+      label: resolvedProjectName,
+      onClick: () => instantNavigate(APP_ROUTES.project(bindProjectId)),
+    };
+  }, [
+    projectBreadcrumb,
+    bindProjectId,
+    resolvedProjectName,
+    enterMethod,
+    activeChat?.projectId,
+    projectId,
+    instantNavigate,
+  ]);
 
   const openChatRoute = useCallback(
     (chatId: string) => {
-      if (projectId) {
-        instantNavigate(APP_ROUTES.projectConversation(projectId, chatId), {
-          replace: true,
-        });
+      if (projectId || bindProjectId) {
+        instantNavigate(APP_ROUTES.projectChat(chatId), { replace: true });
         return;
       }
       instantNavigate(APP_ROUTES.chat(chatId), { replace: true });
     },
-    [instantNavigate, projectId],
+    [instantNavigate, projectId, bindProjectId],
   );
 
   const handleSendMessageAndRoute = useCallback(
@@ -148,25 +229,32 @@ function ChatViewBody({
       options?: import("@/frontend/lib/composer-attachments").SendMessageOptions,
     ) => {
       const forceNew =
-        !activeChatId && (blankNewChatComposer || isNewChatPath(pathname));
+        isProjectHome ||
+        (!activeChatId && (blankNewChatComposer || isNewChatPath(pathname)));
       const shouldOpenRoute =
-        forceNew || isNewChatPath(pathname) || Boolean(projectId);
+        forceNew ||
+        isNewChatPath(pathname) ||
+        isProjectHome ||
+        Boolean(projectId);
 
       const chatId = await handleSendMessage(prompt, {
         forceNewChat: forceNew,
         attachments: options?.attachments,
         bypassQueue: options?.bypassQueue,
-        // ChatGPT/Claude: swap URL the instant the durable chat id exists.
+        projectId: projectId ?? undefined,
+        // Swap URL the instant the durable chat id exists.
         ...(shouldOpenRoute ? { onChatCreated: openChatRoute } : {}),
       });
       if (!chatId) return;
 
-      // Fallback navigate if onChatCreated did not run (e.g. existing chat on /new).
       const pathNow =
-        typeof window !== "undefined" ? window.location.pathname : pathname;
-      const targetPath = projectId
-        ? APP_ROUTES.projectConversation(projectId, chatId)
-        : APP_ROUTES.chat(chatId);
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : pathname;
+      const targetPath =
+        projectId || bindProjectId
+          ? APP_ROUTES.projectChat(chatId)
+          : APP_ROUTES.chat(chatId);
       if (shouldOpenRoute && pathNow !== targetPath) {
         openChatRoute(chatId);
       }
@@ -176,7 +264,9 @@ function ChatViewBody({
       blankNewChatComposer,
       activeChatId,
       projectId,
+      bindProjectId,
       pathname,
+      isProjectHome,
       openChatRoute,
     ],
   );
@@ -186,12 +276,12 @@ function ChatViewBody({
       const wasActive = activeChatId === chatId;
       await handleDeleteChat(chatId);
       if (!wasActive) return;
-      const target = projectId
-        ? APP_ROUTES.project(projectId)
+      const target = projectId || bindProjectId
+        ? APP_ROUTES.project(projectId || bindProjectId!)
         : APP_ROUTES.newChat;
       instantNavigate(target, { replace: true });
     },
-    [activeChatId, handleDeleteChat, projectId, instantNavigate],
+    [activeChatId, handleDeleteChat, projectId, bindProjectId, instantNavigate],
   );
 
   const displayMessages = blankNewChatComposer ? [] : messages;
@@ -206,9 +296,14 @@ function ChatViewBody({
     (!displayActiveChat?.name ||
       /^new chat$/i.test(displayActiveChat.name.trim()));
 
-  useDocumentTitle(displayActiveChat?.name ?? null, {
-    brandOnly: brandOnlyTab,
-  });
+  useDocumentTitle(
+    blankNewChatComposer
+      ? resolvedProjectName ?? "Project"
+      : displayActiveChat?.name ?? null,
+    {
+      brandOnly: brandOnlyTab,
+    },
+  );
 
   return (
     <ChatArea
@@ -237,22 +332,21 @@ function ChatViewBody({
       onPinChat={handlePinChat}
       onDeleteChat={handleDeleteChatAndLeave}
       onOpenSettings={() => overlays.openSettings("General")}
-      onMoveToProject={() => router.push("/projects")}
+      onMoveToProject={() => router.push(APP_ROUTES.projects)}
       homerReasoningEffort={homerReasoningEffort}
       onHomerReasoningEffortChange={setHomerReasoningEffort}
       chatModel={chatModel}
       onChatModelChange={setChatModel}
       onOpenMobileNav={openMobileNav}
       showMobileMenu={isMobile && isSidebarCollapsed}
-      projectBreadcrumb={projectBreadcrumb}
-      lockedProjectId={projectId}
+      projectBreadcrumb={effectiveBreadcrumb}
+      lockedProjectId={projectId ?? bindProjectId}
     />
   );
 }
 
 /**
- * Project conversation routes may pass an explicit apiEnabled.
- * Home /c routes reuse the shell ChatSessionProvider (single hydration).
+ * Prefer the shell ChatSessionProvider so project → `/c` keeps the live stream.
  */
 export function ChatView({
   projectId = null,
@@ -262,13 +356,7 @@ export function ChatView({
   const auth = useAuth();
   const session = useOptionalChatSession();
 
-  // Wait for auth before creating a standalone (project) chat hook so
-  // apiEnabled never flips from false → true inside one mount.
-  if (projectId && auth.loading) {
-    return null;
-  }
-
-  if (session && !projectId) {
+  if (session) {
     return (
       <ChatViewBody
         chat={session}
@@ -276,6 +364,10 @@ export function ChatView({
         projectBreadcrumb={projectBreadcrumb}
       />
     );
+  }
+
+  if (projectId && auth.loading) {
+    return null;
   }
 
   return (

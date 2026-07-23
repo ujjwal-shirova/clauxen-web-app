@@ -138,15 +138,28 @@ export function ChatViewHeader({
             ) : null}
             <div className="flex min-w-0 flex-1 items-center overflow-hidden">
               {projectBreadcrumb ? (
-                <div className="mr-1 flex min-w-0 items-center gap-1 text-[13px] font-medium text-zinc-500">
+                <div className="mr-1 flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-zinc-800">
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2f6fed]"
+                    aria-hidden
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/assets/icons/clauxen-icon.png"
+                      alt=""
+                      className="h-5 w-5 object-cover"
+                    />
+                  </span>
                   <button
                     type="button"
                     onClick={projectBreadcrumb.onClick}
-                    className="max-w-[min(28vw,180px)] truncate transition-colors hover:text-zinc-800"
+                    className="max-w-[min(28vw,180px)] truncate transition-colors hover:text-zinc-950"
                   >
                     {projectBreadcrumb.label}
                   </button>
-                  <span className="shrink-0 text-zinc-400">/</span>
+                  <span className="shrink-0 text-zinc-400" aria-hidden>
+                    ›
+                  </span>
                 </div>
               ) : null}
               {!isClient || headerControlsLoading ? (
