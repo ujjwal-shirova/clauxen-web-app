@@ -396,6 +396,7 @@ function ChatAreaLayout({
       chatModel={chatModel}
       onChatModelChange={onChatModelChange}
       lockedProjectId={lockedProjectId}
+      showProjectStrip={!isConversationStarted}
     />
   );
 

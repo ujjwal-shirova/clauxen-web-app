@@ -256,52 +256,53 @@ export function ChatViewHeader({
     );
   }
 
+  // Match conversation header chrome: h-7, 13px medium — not enlarged.
   const modelSwitcher = (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-7 items-center gap-0.5 rounded-lg px-1.5 text-[13px] font-semibold tracking-[-0.01em] text-zinc-900 transition-colors hover:bg-black/[0.04] data-[state=open]:bg-black/[0.04] sm:h-8 sm:px-2"
+          className="inline-flex h-7 items-center gap-0.5 rounded-lg px-1.5 text-[13px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100 data-[state=open]:bg-black/5"
           aria-label="Choose Clauxen plan"
         >
           <span>Clauxen</span>
-          <ChevronDown className="h-3 w-3 text-zinc-400" strokeWidth={2} />
+          <ChevronDown className="h-3 w-3 opacity-70" strokeWidth={2} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
         sideOffset={6}
-        className="z-[100] w-[min(calc(100vw-2rem),300px)] rounded-[16px] border-zinc-200/90 p-1 shadow-[0_14px_36px_-16px_rgba(24,24,27,0.32)]"
+        className="z-[100] w-[min(calc(100vw-2rem),280px)] rounded-[14px] border-zinc-200/90 p-1 shadow-[0_12px_32px_-14px_rgba(24,24,27,0.3)]"
       >
         <button
           type="button"
           onClick={onUpgradeClick}
-          className="flex w-full items-center gap-2.5 rounded-[12px] px-2 py-2 text-left transition-colors hover:bg-zinc-50"
+          className="flex w-full items-center gap-2 rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-zinc-50"
         >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center text-zinc-800">
-            <Sparkles className="h-4 w-4" strokeWidth={1.75} />
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center text-zinc-800">
+            <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-semibold text-zinc-900">
+            <span className="block text-[12.5px] font-medium text-zinc-900">
               Clauxen Plus
             </span>
-            <span className="block text-[11.5px] text-zinc-500">
+            <span className="block text-[11px] text-zinc-500">
               Our smartest model & more
             </span>
           </span>
-          <span className="inline-flex h-7 shrink-0 items-center rounded-full border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-800 transition-colors hover:bg-zinc-50">
+          <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-zinc-200 bg-white px-2 text-[11.5px] font-medium text-zinc-800">
             Upgrade
           </span>
         </button>
-        <div className="flex w-full items-center gap-2.5 rounded-[12px] px-2 py-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-[10px] font-semibold text-zinc-700">
+        <div className="flex w-full items-center gap-2 rounded-[10px] px-2 py-1.5">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-[9px] font-semibold text-zinc-700">
             C
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-semibold text-zinc-900">
+            <span className="block text-[12.5px] font-medium text-zinc-900">
               Clauxen
             </span>
-            <span className="block text-[11.5px] text-zinc-500">
+            <span className="block text-[11px] text-zinc-500">
               Great for everyday tasks
             </span>
           </span>
@@ -315,7 +316,7 @@ export function ChatViewHeader({
     <button
       type="button"
       onClick={onUpgradeClick}
-      className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-[12.5px] font-medium text-[#2f6fed] transition-colors hover:bg-[#2f6fed]/08 active:bg-[#2f6fed]/12 sm:h-8 sm:px-2.5 sm:text-[13px]"
+      className="inline-flex h-7 items-center gap-1 rounded-lg px-1.5 text-[13px] font-medium text-[#2f6fed] transition-colors hover:bg-[#2f6fed]/08 active:bg-[#2f6fed]/12"
       aria-label="Upgrade plan"
     >
       <Sparkles className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
@@ -338,11 +339,11 @@ export function ChatViewHeader({
         aria-label="Temporary chat"
         aria-pressed={temporaryChat}
         className={cn(
-          "inline-flex h-7 w-7 items-center justify-center rounded-full text-zinc-700 transition-colors hover:bg-black/[0.04] sm:h-8 sm:w-8",
+          "inline-flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-800",
           temporaryChat && "bg-black/[0.05] text-zinc-900",
         )}
       >
-        <GhostChatIcon className="h-4 w-4" />
+        <GhostChatIcon className="h-[15px] w-[15px]" />
       </button>
     </HintTooltip>
   );
@@ -350,7 +351,7 @@ export function ChatViewHeader({
   return (
     <div
       className={cn(
-        "content-pane-top-bar relative sticky top-0 z-20 flex h-9 w-full shrink-0 items-center justify-between gap-2 bg-[var(--app-panel-bg)] px-2.5 font-sans sm:h-10 sm:px-3.5",
+        "content-pane-top-bar relative sticky top-0 z-20 flex h-[35px] w-full shrink-0 items-center justify-between gap-1 bg-[var(--app-panel-bg)] px-3 font-sans sm:px-4",
         className,
       )}
     >

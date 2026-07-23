@@ -1240,66 +1240,7 @@ export function PromptInput({
       </div>
     );
 
-  if (!isClient) {
-    return (
-      <div
-        className={cn(
-          "flex w-full flex-col",
-          isConversationStarted ? "items-stretch" : "items-center",
-        )}
-        data-prompt-root
-        suppressHydrationWarning
-      >
-        <div
-          className={cn(
-            "relative flex w-full",
-            !isConversationStarted && "justify-center",
-          )}
-          data-prompt-wrapper
-        >
-          <div className={promptShellClass} data-prompt-shell>
-            <div
-              className="flex min-h-[56px] w-full items-center gap-2 px-2.5 py-2 sm:px-3"
-              data-prompt-layout="compact"
-            >
-              <button
-                type="button"
-                aria-label="Add content"
-                className={addMenuTriggerClass}
-                tabIndex={-1}
-              >
-                <Plus
-                  className="icon-lg shrink-0 opacity-80 sm:icon-xl"
-                  strokeWidth={1.75}
-                />
-              </button>
-              <div className="min-w-0 flex-1" data-prompt-editor>
-                <textarea
-                  readOnly
-                  tabIndex={-1}
-                  aria-hidden
-                  placeholder="Ask anything"
-                  rows={1}
-                  className="prompt-textarea block min-h-0 w-full resize-none border-0 bg-transparent py-0 text-[14px] font-[430] leading-[20px] text-zinc-800 shadow-none outline-none placeholder:text-zinc-400"
-                />
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  className={micButtonClass}
-                  tabIndex={-1}
-                  aria-hidden
-                >
-                  <Mic className="icon-lg shrink-0 opacity-80 sm:icon-xl" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // Always paint the real composer — no client-only stub / skeleton swap.
   return (
     <>
       <div
@@ -1309,6 +1250,7 @@ export function PromptInput({
         )}
         data-prompt-root
         data-streaming={isGenerating || undefined}
+        suppressHydrationWarning
       >
         <div
           className={cn(
@@ -1346,8 +1288,10 @@ export function PromptInput({
             className={cn(
               "composer-stack w-full",
               withProjectStrip && "composer-stack--with-project",
+              isAddMenuOpen && "overflow-visible",
             )}
             data-composer-stack={withProjectStrip ? "with-project" : "solo"}
+            data-add-menu-open={isAddMenuOpen || undefined}
           >
           <div
             className={cn(

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback } from "react";
-import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
 import { SoftErrorBoundary } from "@/frontend/components/soft-error-boundary";
 import { useAuth } from "@/frontend/hooks/use-auth";
@@ -33,23 +32,7 @@ import {
 import { useInstantNavigate } from "@/frontend/hooks/use-instant-navigate";
 import { useDocumentTitle } from "@/frontend/hooks/use-document-title";
 import { APP_ROUTES } from "@/frontend/lib/app-routes";
-import { MainShellSkeleton } from "@/frontend/components/chat-route-skeleton";
-
-const Sidebar = dynamic(
-  () =>
-    import("@/frontend/components/sidebar").then((mod) => ({
-      default: mod.Sidebar,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <aside
-        className="hidden h-full w-[256px] shrink-0 border-r border-border/40 bg-background md:block"
-        aria-hidden
-      />
-    ),
-  },
-);
+import { Sidebar } from "@/frontend/components/sidebar";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
@@ -422,15 +405,13 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
  */
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
-
-  // Identity hint seeds user instantly; shimmer only until we have an id.
-  if (!auth.user?.id) {
-    return <MainShellSkeleton />;
-  }
+  // Paint the real shell immediately — no intermediate skeleton chrome.
+  // Identity hint usually seeds user.id on first paint; fall back to a boot key.
+  const sessionKey = auth.user?.id ?? "boot";
 
   return (
     <AppOverlaysProvider>
-      <ChatSessionProvider key={auth.user.id} apiEnabled>
+      <ChatSessionProvider key={sessionKey} apiEnabled={Boolean(auth.user?.id)}>
         <MainLayoutShell>{children}</MainLayoutShell>
       </ChatSessionProvider>
     </AppOverlaysProvider>
