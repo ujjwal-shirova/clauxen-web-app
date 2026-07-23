@@ -278,7 +278,7 @@ export function ChatViewHeader({
   }
 
   return (
-    <div className="content-pane-top-bar relative sticky top-0 z-20 flex h-[35px] w-full shrink-0 items-center justify-center bg-white px-3 font-sans sm:px-5">
+    <div className="content-pane-top-bar relative sticky top-0 z-20 flex h-10 w-full shrink-0 items-center justify-center bg-white px-3.5 font-sans sm:h-11 sm:px-6">
       {upgradeButton}
     </div>
   );

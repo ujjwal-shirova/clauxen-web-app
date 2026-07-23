@@ -316,7 +316,7 @@ export function ChatViewPane({
                   {/* Welcome action chips — same strip as main-app new chat. */}
                   <div
                     className={cn(
-                      "flex w-full max-w-[620px] flex-col items-center justify-start transition-[min-height] duration-200 ease-out",
+                      "flex w-full max-w-[var(--chat-column-max-width,768px)] flex-col items-center justify-start transition-[min-height] duration-200 ease-out",
                       !isAddMenuOpen && "min-h-[96px]",
                       composerOnlyWelcome && "min-h-0",
                     )}
@@ -395,7 +395,7 @@ export function ChatViewPane({
           </div>
           <div
             ref={composerMeasureRef}
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pt-2.5 sm:pb-4"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pt-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] sm:pt-3 sm:pb-5"
             data-composer-dock
           >
             <div className="chat-composer-row">

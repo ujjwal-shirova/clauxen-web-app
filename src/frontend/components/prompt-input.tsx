@@ -981,7 +981,7 @@ export function PromptInput({
   const promptShellClass = cn(
     "relative w-full max-w-full transition-[min-height,box-shadow,border-color,background-color] duration-200 ease-out",
     showComposeControls &&
-      "min-h-[92px] border-zinc-200/80 bg-white/92 shadow-[0_8px_24px_-10px_rgba(24,24,27,0.12)] backdrop-blur-md",
+      "min-h-[96px] border-zinc-200/80 bg-white/92 shadow-[0_8px_24px_-10px_rgba(24,24,27,0.12)] backdrop-blur-md",
   );
 
   const renderMicButton = () => (
@@ -1149,14 +1149,14 @@ export function PromptInput({
       <div
         className={cn(
           "prompt-body-grid w-full flex flex-col",
-          useCompactPromptLayout && "prompt-body-grid--compact flex-row items-center gap-2 px-2 py-1.5 sm:px-2.5 min-h-[52px]"
+          useCompactPromptLayout && "prompt-body-grid--compact flex-row items-center gap-2 px-2.5 py-2 sm:px-3 min-h-[56px]"
         )}
         data-prompt-layout={useCompactPromptLayout ? "compact" : "stacked"}
       >
         <div
           className={cn(
             "prompt-editor-area min-w-0",
-            useCompactPromptLayout ? "order-2 flex-1" : "w-full px-2 pt-1 pb-0 sm:px-2.5",
+            useCompactPromptLayout ? "order-2 flex-1" : "w-full px-2.5 pt-1.5 pb-0 sm:px-3",
           )}
           data-prompt-editor
         >
@@ -1165,7 +1165,7 @@ export function PromptInput({
 
         <div
           className={cn(
-            "prompt-toolbar-area flex items-center gap-1 px-1.5 py-1.5 sm:gap-1.5 sm:px-2 sm:py-1.5",
+            "prompt-toolbar-area flex items-center gap-1 px-2 py-1.5 sm:gap-1.5 sm:px-2.5 sm:py-2",
             useCompactPromptLayout && "contents"
           )}
         >
@@ -1250,7 +1250,7 @@ export function PromptInput({
         >
           <div className={promptShellClass} data-prompt-shell>
             <div
-              className="flex min-h-[52px] w-full items-center gap-2 px-2 py-1.5 sm:px-2.5"
+              className="flex min-h-[56px] w-full items-center gap-2 px-2.5 py-2 sm:px-3"
               data-prompt-layout="compact"
             >
               <button

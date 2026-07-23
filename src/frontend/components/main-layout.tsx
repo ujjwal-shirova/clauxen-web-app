@@ -43,7 +43,7 @@ const Sidebar = dynamic(
     ssr: false,
     loading: () => (
       <aside
-        className="hidden h-full w-[260px] shrink-0 border-r border-border/40 bg-background md:block"
+        className="hidden h-full w-[256px] shrink-0 border-r border-border/40 bg-background md:block"
         aria-hidden
       />
     ),

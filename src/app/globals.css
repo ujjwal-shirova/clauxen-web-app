@@ -34,9 +34,11 @@
     --icon-color: #18181b;
     --icon-muted: #71717a;
     --icon-subtle: #a1a1aa;
-    /* App shell — subtle canvas behind pure white panels (Notion/Vercel) */
-    --app-shell-bg: #f4f4f5;
+    /* App shell — bright canvas behind pure white panels */
+    --app-shell-bg: #f8f8f9;
     --app-panel-bg: #ffffff;
+    /* Shared chat / composer column breadth */
+    --chat-column-max-width: 768px;
     --glass-chat-surface-background: #ffffff;
     --cursor-menu-bg: rgba(255, 255, 255, 0.94);
     --cursor-menu-border: rgba(24, 24, 27, 0.1);
@@ -983,14 +985,14 @@ button.user-message-card__body:not(:disabled):hover,
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  max-width: 720px;
+  max-width: var(--chat-column-max-width, 768px);
   margin-inline: auto;
-  padding-inline: 0.75rem;
+  padding-inline: 1rem;
 }
 
 @media (min-width: 640px) {
   .chat-column {
-    padding-inline: 1rem;
+    padding-inline: 1.25rem;
   }
 }
 
@@ -1000,22 +1002,22 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .agent-panel-conversation-shell[data-chat-active] {
-  --chat-composer-reserve: 84px;
+  --chat-composer-reserve: 92px;
 }
 
 @media (min-width: 640px) {
   .agent-panel-conversation-shell[data-chat-active] {
-    --chat-composer-reserve: 96px;
+    --chat-composer-reserve: 108px;
   }
 }
 
 [data-composer-dock] .chat-column {
-  padding-inline: 0.625rem;
+  padding-inline: 1rem;
 }
 
 @media (min-width: 640px) {
   [data-composer-dock] .chat-column {
-    padding-inline: 1rem;
+    padding-inline: 1.25rem;
   }
 }
 
@@ -1123,9 +1125,13 @@ button.user-message-card__body:not(:disabled):hover,
 
 .ui-prompt-input__container,
 [data-prompt-root] [data-prompt-shell] {
-  --prompt-input-editor-min-height: 28px;
-  --prompt-input-editor-max-height: 155px;
+  --prompt-input-editor-min-height: 32px;
+  --prompt-input-editor-max-height: 168px;
   --prompt-input-editor-height: var(--prompt-input-editor-min-height);
+}
+
+.ui-prompt-input-toolbar {
+  min-height: 36px;
 }
 
 [data-prompt-root] [data-prompt-shell] {
@@ -1140,9 +1146,9 @@ button.user-message-card__body:not(:disabled):hover,
   resize: none;
   overflow-x: hidden;
   overflow-y: hidden;
-  min-height: var(--prompt-input-editor-min-height, 28px);
-  max-height: var(--prompt-input-editor-max-height, 155px);
-  height: var(--prompt-input-editor-height, var(--prompt-input-editor-min-height, 28px));
+  min-height: var(--prompt-input-editor-min-height, 32px);
+  max-height: var(--prompt-input-editor-max-height, 168px);
+  height: var(--prompt-input-editor-height, var(--prompt-input-editor-min-height, 32px));
   overflow-anchor: none;
   box-sizing: border-box;
   transition: height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1159,10 +1165,6 @@ button.user-message-card__body:not(:disabled):hover,
 
 [data-prompt-root] [data-prompt-shell] [data-prompt-layout="stacked"].prompt-body-grid {
   min-height: 0;
-}
-
-.ui-prompt-input-toolbar {
-  min-height: 32px;
 }
 
 .sticky-user-msg-host {

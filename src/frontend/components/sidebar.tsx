@@ -313,10 +313,10 @@ export function Sidebar({
 
   const navButtonClass = (active = false) =>
     cn(
-      "ui-sidebar-menu-button mb-0 flex h-8 w-full items-center rounded-md text-[12.5px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
+      "ui-sidebar-menu-button mb-0 flex h-9 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
       isCollapsed
-        ? "mx-auto h-8 w-8 justify-center"
-        : "justify-start px-2",
+        ? "mx-auto h-9 w-9 justify-center"
+        : "justify-start px-2.5",
       active && "bg-black/[0.06]",
     );
 
@@ -373,7 +373,7 @@ export function Sidebar({
         data-active={isActive ? "true" : undefined}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "group/chat glass-sidebar-agent-menu-btn flex h-7 w-full items-center rounded-md px-2 text-[12.5px] font-[430] text-zinc-800 transition-colors",
+          "group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors",
           // One continuous row highlight — never nest hover/selection on
           // the title button or pin/menu actions.
           isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
@@ -474,19 +474,19 @@ export function Sidebar({
         !isMobileLayout && !sidebarReady && "transition-none",
         isMobileLayout &&
           isCollapsed &&
-          "pointer-events-none w-[min(88vw,240px)] -translate-x-full shadow-none",
+          "pointer-events-none w-[min(88vw,280px)] -translate-x-full shadow-none",
         isMobileLayout &&
           !isCollapsed &&
-          "z-40 w-[min(88vw,240px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[env(safe-area-inset-bottom)]",
+          "z-40 w-[min(88vw,280px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[env(safe-area-inset-bottom)]",
         !isMobileLayout &&
           isCollapsed &&
           "w-[48px] cursor-pointer",
         !isMobileLayout &&
           !isCollapsed &&
-          "w-[min(84vw,210px)] lg:w-[210px]",
+          "w-[min(86vw,256px)] lg:w-[256px]",
       )}
     >
-      <div className="ui-sidebar-top-bar relative flex h-10 shrink-0 items-center justify-between pl-1.5 pr-0.5">
+      <div className="ui-sidebar-top-bar relative flex h-11 shrink-0 items-center justify-between pl-2 pr-1">
         <div
           className={cn(
             "flex items-center pl-1.5 transition-opacity duration-300",
@@ -558,7 +558,7 @@ export function Sidebar({
       <div className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div
           className={cn(
-            "sticky top-0 z-10 bg-[var(--app-shell-bg)] pl-1.5 pr-0.5 pb-1.5 pt-1",
+            "sticky top-0 z-10 bg-[var(--app-shell-bg)] pl-2 pr-1.5 pb-2 pt-1.5",
             isCollapsed && "px-0",
           )}
         >
@@ -566,14 +566,14 @@ export function Sidebar({
             {isCollapsed ? (
               <button
                 onClick={(e) => e.stopPropagation()}
-                className="mx-auto flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition-all hover:bg-zinc-100"
+                className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
               >
                 <Search className="h-[18px] w-[18px] opacity-70" />
               </button>
             ) : (
               <button
                 onClick={(e) => e.stopPropagation()}
-                className="group flex h-8 w-full items-center justify-between gap-2 rounded-md border border-transparent bg-transparent px-2 text-[12.5px] text-zinc-700 transition-all hover:bg-zinc-100"
+                className="group flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-transparent bg-transparent px-2.5 text-[13px] text-zinc-700 transition-all hover:bg-zinc-100"
               >
                 <div className="flex items-center gap-2.5">
                   <Search className="h-3.5 w-3.5 opacity-60" />
@@ -594,9 +594,9 @@ export function Sidebar({
             }}
             aria-label="New chat"
             className={cn(
-              "ui-sidebar-menu-button group mb-0 h-8 w-full justify-start gap-2 px-2 text-[12.5px] font-[430] text-zinc-800 transition-all hover:bg-zinc-100",
+              "ui-sidebar-menu-button group mb-0 h-9 w-full justify-start gap-2.5 px-2.5 text-[13px] font-[430] text-zinc-800 transition-all hover:bg-zinc-100",
               isCollapsed &&
-                "mx-auto flex h-8 w-8 shrink-0 justify-center rounded-lg px-0",
+                "mx-auto flex h-9 w-9 shrink-0 justify-center rounded-lg px-0",
             )}
           >
             <div className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-zinc-500/15">
@@ -608,7 +608,7 @@ export function Sidebar({
           </Button>
         </div>
 
-        <div className="space-y-0.5 pl-1.5 pr-0.5">
+        <div className="space-y-0.5 pl-2 pr-1.5">
           {renderNavButton({
             label: "Library",
             icon: <Library className="h-[18px] w-[18px]" />,
@@ -727,7 +727,7 @@ export function Sidebar({
                         onNewProjectClick?.();
                       });
                     }}
-                    className="group/chat glass-sidebar-agent-menu-btn flex h-7 w-full items-center gap-1.5 rounded-md px-2 text-[12.5px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100"
+                    className="group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100"
                   >
                     <Plus
                       className="h-3.5 w-3.5 shrink-0 text-zinc-500"
@@ -773,7 +773,7 @@ export function Sidebar({
                         data-active={isActive ? "true" : undefined}
                         aria-current={isActive ? "page" : undefined}
                         className={cn(
-                          "group/chat glass-sidebar-agent-menu-btn flex h-7 w-full items-center gap-1.5 rounded-md px-2 text-[12.5px] font-[430] text-zinc-800 transition-colors",
+                          "group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors",
                           isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
                         )}
                       >
@@ -857,8 +857,8 @@ export function Sidebar({
           className={cn(
             "mt-auto shrink-0 flex flex-col bg-[var(--app-shell-bg)]",
             isCollapsed
-              ? "items-center gap-2 px-0 pb-2 pt-1"
-              : "items-stretch gap-1 py-1.5 pl-1.5 pr-0.5",
+              ? "items-center gap-2 px-0 pb-2.5 pt-1"
+              : "items-stretch gap-1 py-2 pl-2 pr-1.5",
           )}
         >
           <div
