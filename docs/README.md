@@ -40,6 +40,7 @@ This directory is the source of truth for how the product is built, wired, and o
 | Perf metrics targets | [`perf-metrics.md`](./perf-metrics.md) |
 | Competitive research | [`research/`](./research/) |
 | App health / dead-code / security survey | [`surveys/app-health-security-survey-2026-07-23.md`](./surveys/app-health-security-survey-2026-07-23.md) |
+| Chat hydrate / Cloudflare speed architecture | [`surveys/chat-hydrate-perf-architecture-2026-07-23.md`](./surveys/chat-hydrate-perf-architecture-2026-07-23.md) |
 
 ---
 
@@ -54,6 +55,7 @@ This directory is the source of truth for how the product is built, wired, and o
 - [`backend.md`](./backend.md) — short backend bootstrap (legacy summary)
 - [`backend-audit.md`](./backend-audit.md) — storage decisions audit (why not D1/Blob/Vectorize)
 - [`surveys/app-health-security-survey-2026-07-23.md`](./surveys/app-health-security-survey-2026-07-23.md) — full-app health, dual-stack debt, security, next-direction roadmap
+- [`surveys/chat-hydrate-perf-architecture-2026-07-23.md`](./surveys/chat-hydrate-perf-architecture-2026-07-23.md) — IndexedDB vs edge hydrate; Cloudflare/Supabase speed design
 
 ### Systems (deep dives)
 
