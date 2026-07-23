@@ -148,6 +148,11 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     closeMobileNav();
   }, [instantNavigate, closeMobileNav]);
 
+  const goToMyClauxen = useCallback(() => {
+    instantNavigate(APP_ROUTES.customize);
+    closeMobileNav();
+  }, [instantNavigate, closeMobileNav]);
+
   const onSelectChatFromSidebar = useCallback(
     (chatEntry: RecentChat) => {
       handleSelectChat(chatEntry.id);
@@ -214,9 +219,27 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const openProjectDetail = useCallback(
     (project: ApiProject) => {
       setCreateProjectOpen(false);
-      router.push(`/projects/${project.id}`);
+      instantNavigate(APP_ROUTES.project(project.id));
+      closeMobileNav();
     },
-    [router],
+    [instantNavigate, closeMobileNav],
+  );
+
+  const activeProjectId = React.useMemo(() => {
+    if (!pathname) return null;
+    const match = pathname.match(/^\/projects\/([^/?#]+)/);
+    return match?.[1] ?? null;
+  }, [pathname]);
+
+  const notifyComingSoon = useCallback(
+    (feature: string) => {
+      toast({
+        title: feature,
+        description: "This surface is coming soon.",
+      });
+      closeMobileNav();
+    },
+    [toast, closeMobileNav],
   );
 
   const isMobileFullBleed = isMobile && shouldMobileFullBleed(pathname);
@@ -281,6 +304,11 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onProjectsClick={goToProjects}
         onLibraryClick={goToLibrary}
         onCustomizeClick={goToCustomize}
+        onMyClauxenClick={goToMyClauxen}
+        onScheduledTasksClick={() => notifyComingSoon("Scheduled Task")}
+        onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
+        onClauxenWorkClick={() => notifyComingSoon("Clauxen Work")}
+        onClauxenClawClick={() => notifyComingSoon("Clauxen Claw")}
         activeView={computeActiveView(
           pathname,
           overlays.currentOverlay?.type ?? null,
@@ -294,6 +322,11 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onRenameChat={handleRenameChat}
         onPinChat={handlePinChat}
         generatingChatIds={generatingChatIds}
+        projects={projects.projects}
+        projectsLoading={projects.loading}
+        activeProjectId={activeProjectId}
+        onNewProjectClick={() => setCreateProjectOpen(true)}
+        onSelectProject={openProjectDetail}
         userDisplayName={sidebarDisplayName({
           fullName: auth.user?.displayName,
           preferredName: auth.user?.preferredName,

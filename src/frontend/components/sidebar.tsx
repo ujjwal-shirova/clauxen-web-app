@@ -4,16 +4,24 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Settings,
   ArrowUpCircle,
+  Briefcase,
+  Bot,
+  CalendarClock,
+  ChevronRight,
+  Code2,
+  Ellipsis,
   Gift,
   HelpCircle,
   LogOut,
   MoreVertical,
   Pin,
   PinOff,
+  Plus,
   Search,
   Languages,
   Sparkles,
   Library,
+  UserRound,
   X,
   LayoutGrid,
 } from "lucide-react";
@@ -50,23 +58,75 @@ import {
   hasProjectAssignments,
   type ChatGroupBy,
 } from "@/frontend/lib/chat-grouping";
+import type { ApiProject } from "@/frontend/lib/api/projects";
 import type { RecentChat } from "@/frontend/lib/types";
 
 const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
+const SECTION_STORAGE_PREFIX = "clauxen_sidebar_section_";
 const CLAUXEN_LOGO_SRC = "/assets/icons/clauxen-icon.png";
 
-const CustomizeIcon = () => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 20 20"
-    fill="currentColor"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <path d="M12.5 3C13.3284 3 14 3.67157 14 4.5V6H14.5C16.433 6 18 7.567 18 9.5V15.5C18 16.3284 17.3284 17 16.5 17H3.5C2.72334 17 2.08461 16.4097 2.00781 15.6533L2 15.5V9.5C2 7.567 3.567 6 5.5 6H6V4.5C6 3.67157 6.67157 3 7.5 3H12.5ZM3 15.5L3.00977 15.6006C3.05629 15.8286 3.25829 16 3.5 16H16.5C16.7761 16 17 15.7761 17 15.5V12H13V12.5C13 12.7761 12.7761 13 12.5 13C12.2239 13 12 12.7761 12 12.5V12H8V12.5C8 12.7761 7.77614 13 7.5 13C7.22386 13 7 12.7761 7 12.5V12H3V15.5ZM5.5 7C4.11929 7 3 8.11929 3 9.5V11H7V10.5C7 10.2239 7.22386 10 7.5 10C7.77614 10 8 10.2239 8 10.5V11H12V10.5C12 10.2239 12.2239 10 12.5 10C12.7761 10 13 10.2239 13 10.5V11H17V9.5C17 8.11929 15.8807 7 14.5 7H5.5ZM7.5 4C7.22386 4 7 4.22386 7 4.5V6H13V4.5C13 4.22386 12.7761 4 12.5 4H7.5Z" />
-  </svg>
-);
+type SidebarSectionKey = "pinned" | "projects" | "recents" | "more";
+
+function readSectionExpanded(key: SidebarSectionKey, fallback: boolean) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const stored = localStorage.getItem(`${SECTION_STORAGE_PREFIX}${key}`);
+    if (stored === "1") return true;
+    if (stored === "0") return false;
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
+function writeSectionExpanded(key: SidebarSectionKey, expanded: boolean) {
+  try {
+    localStorage.setItem(
+      `${SECTION_STORAGE_PREFIX}${key}`,
+      expanded ? "1" : "0",
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Category label — bold on hover, no button wash; chevron for expand/collapse. */
+function SidebarSectionLabel({
+  label,
+  expanded,
+  onToggle,
+  trailing,
+}: {
+  label: string;
+  expanded: boolean;
+  onToggle: () => void;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-1 px-2 py-1">
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle();
+        }}
+        aria-expanded={expanded}
+        className="label-hover-bold no-hover-overlay group/section flex min-w-0 items-center gap-0.5 bg-transparent p-0 text-left text-[11px] font-medium tracking-[-0.002em] text-zinc-500/90 hover:text-zinc-800"
+      >
+        <span className="truncate">{label}</span>
+        <ChevronRight
+          className={cn(
+            "h-3 w-3 shrink-0 text-zinc-400 transition-transform duration-200 group-hover/section:text-zinc-600",
+            expanded && "rotate-90",
+          )}
+          strokeWidth={2}
+          aria-hidden
+        />
+      </button>
+      {trailing}
+    </div>
+  );
+}
 
 /** Up/down chevron (Phosphor-style) for profile menu affordance */
 const ProfileMenuChevron = ({ className }: { className?: string }) => (
@@ -97,11 +157,16 @@ interface SidebarProps {
   onUpgradeClick: () => void;
   onSettingsClick: () => void;
   onPersonalizationClick?: () => void;
-  onCustomizeClick: () => void;
+  onCustomizeClick?: () => void;
   onAppsExtensionsClick: () => void;
   onLibraryClick: () => void;
   onGiftClick: () => void;
   onProjectsClick: () => void;
+  onMyClauxenClick?: () => void;
+  onScheduledTasksClick?: () => void;
+  onClauxenCodeClick?: () => void;
+  onClauxenWorkClick?: () => void;
+  onClauxenClawClick?: () => void;
   activeView?: string;
   recentChats: RecentChat[];
   activeChatId: string | null;
@@ -114,6 +179,11 @@ interface SidebarProps {
   onPinChat?: (chatId: string, pinned: boolean) => void;
   /** Chat IDs with an in-flight assistant generation (sidebar splash). */
   generatingChatIds?: ReadonlySet<string> | string[];
+  projects?: ApiProject[];
+  projectsLoading?: boolean;
+  activeProjectId?: string | null;
+  onNewProjectClick?: () => void;
+  onSelectProject?: (project: ApiProject) => void;
   userDisplayName?: string;
   userAvatarUrl?: string | null;
   userEmail?: string;
@@ -137,6 +207,11 @@ export function Sidebar({
   onLibraryClick,
   onGiftClick,
   onProjectsClick,
+  onMyClauxenClick,
+  onScheduledTasksClick,
+  onClauxenCodeClick,
+  onClauxenWorkClick,
+  onClauxenClawClick,
   activeView,
   recentChats,
   activeChatId,
@@ -147,6 +222,11 @@ export function Sidebar({
   onRenameChat,
   onPinChat,
   generatingChatIds,
+  projects = [],
+  projectsLoading = false,
+  activeProjectId = null,
+  onNewProjectClick,
+  onSelectProject,
   userDisplayName = "Guest",
   userAvatarUrl,
   userEmail = "",
@@ -157,6 +237,10 @@ export function Sidebar({
   const [chatGroupBy, setChatGroupBy] = useState<ChatGroupBy>("none");
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
+  const [pinnedExpanded, setPinnedExpanded] = useState(true);
+  const [projectsExpanded, setProjectsExpanded] = useState(true);
+  const [recentsExpanded, setRecentsExpanded] = useState(true);
+  const [moreExpanded, setMoreExpanded] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -168,7 +252,28 @@ export function Sidebar({
     } catch {
       /* ignore */
     }
+    setPinnedExpanded(readSectionExpanded("pinned", true));
+    setProjectsExpanded(readSectionExpanded("projects", true));
+    setRecentsExpanded(readSectionExpanded("recents", true));
+    setMoreExpanded(readSectionExpanded("more", false));
   }, []);
+
+  const toggleSection = (key: SidebarSectionKey) => {
+    const setters: Record<
+      SidebarSectionKey,
+      React.Dispatch<React.SetStateAction<boolean>>
+    > = {
+      pinned: setPinnedExpanded,
+      projects: setProjectsExpanded,
+      recents: setRecentsExpanded,
+      more: setMoreExpanded,
+    };
+    setters[key]((prev) => {
+      const next = !prev;
+      writeSectionExpanded(key, next);
+      return next;
+    });
+  };
 
   const projectGroupingEnabled = hasProjectAssignments(recentChats);
   const pinnedChats = useMemo(
@@ -205,6 +310,49 @@ export function Sidebar({
     action();
     if (isMobileLayout) onNavigate?.();
   };
+
+  const navButtonClass = (active = false) =>
+    cn(
+      "ui-sidebar-menu-button mb-0 flex h-8 w-full items-center rounded-md text-[12.5px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
+      isCollapsed
+        ? "mx-auto h-8 w-8 justify-center"
+        : "justify-start px-2",
+      active && "bg-black/[0.06]",
+    );
+
+  const renderNavButton = ({
+    label,
+    icon,
+    onClick,
+    active = false,
+    trailing,
+  }: {
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    active?: boolean;
+    trailing?: React.ReactNode;
+  }) => (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      aria-label={label}
+      className={navButtonClass(active)}
+    >
+      <div
+        className={cn("flex min-w-0 items-center gap-2", !isCollapsed && "w-full")}
+      >
+        <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+          {icon}
+        </div>
+        {!isCollapsed && <span className="truncate">{label}</span>}
+        {!isCollapsed && trailing}
+      </div>
+    </button>
+  );
 
   const generatingSet = useMemo(() => {
     if (!generatingChatIds) return new Set<string>();
@@ -461,145 +609,244 @@ export function Sidebar({
         </div>
 
         <div className="space-y-0.5 pl-1.5 pr-0.5">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              runNavAction(onLibraryClick);
-            }}
-            className={cn(
-              "ui-sidebar-menu-button mb-0 flex h-8 w-full items-center rounded-md text-[12.5px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
-              isCollapsed
-                ? "mx-auto h-8 w-8 justify-center"
-                : "justify-start px-2",
-              activeView === "library" && "bg-black/[0.06]",
-            )}
-          >
-            <div
-              className={cn(
-                "flex items-center gap-2",
-                !isCollapsed && "w-full",
-              )}
-            >
-              <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                <Library className="h-[18px] w-[18px]" />
-              </div>
-              {!isCollapsed && <span className="truncate">Library</span>}
-            </div>
-          </button>
+          {renderNavButton({
+            label: "Library",
+            icon: <Library className="h-[18px] w-[18px]" />,
+            onClick: () => runNavAction(onLibraryClick),
+            active: activeView === "library",
+          })}
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              runNavAction(onProjectsClick);
-            }}
-            className={cn(
-              "ui-sidebar-menu-button mb-0 flex h-8 w-full items-center rounded-md text-[12.5px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
-              isCollapsed
-                ? "mx-auto h-8 w-8 justify-center"
-                : "justify-start px-2",
-              activeView === "projects" && "bg-black/[0.06]",
-            )}
-          >
-            <div
-              className={cn(
-                "flex items-center gap-2",
-                !isCollapsed && "w-full",
-              )}
-            >
-              <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                <NavProjectsIcon />
-              </div>
-              {!isCollapsed && <span className="truncate">Projects</span>}
-            </div>
-          </button>
+          {renderNavButton({
+            label: "My Clauxen",
+            icon: <UserRound className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+            onClick: () =>
+              runNavAction(() => {
+                (onMyClauxenClick ?? onCustomizeClick)?.();
+              }),
+            active: activeView === "customize" || activeView === "my-clauxen",
+          })}
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              runNavAction(onCustomizeClick);
-            }}
-            className={cn(
-              "ui-sidebar-menu-button mb-0 flex h-8 w-full items-center rounded-md text-[12.5px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
-              isCollapsed
-                ? "mx-auto h-8 w-8 justify-center"
-                : "justify-start px-2",
-              activeView === "customize" && "bg-black/[0.06]",
-            )}
-          >
-            <div
-              className={cn(
-                "flex items-center gap-2",
-                !isCollapsed && "w-full",
-              )}
-            >
-              <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                <CustomizeIcon />
-              </div>
-              {!isCollapsed && <span className="truncate">Customize</span>}
+          {renderNavButton({
+            label: "Scheduled Task",
+            icon: (
+              <CalendarClock className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            ),
+            onClick: () =>
+              runNavAction(() => {
+                onScheduledTasksClick?.();
+              }),
+            active: activeView === "scheduled-tasks",
+          })}
+
+          {renderNavButton({
+            label: "More",
+            icon: <Ellipsis className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+            onClick: () => {
+              if (isCollapsed) {
+                setIsCollapsed(false);
+                if (!moreExpanded) toggleSection("more");
+                return;
+              }
+              toggleSection("more");
+            },
+            trailing: !isCollapsed ? (
+              <ChevronRight
+                className={cn(
+                  "ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200",
+                  moreExpanded && "rotate-90",
+                )}
+                strokeWidth={2}
+                aria-hidden
+              />
+            ) : undefined,
+          })}
+
+          {!isCollapsed && moreExpanded ? (
+            <div className="mb-0.5 space-y-0.5 pl-2">
+              {renderNavButton({
+                label: "Clauxen Code",
+                icon: <Code2 className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+                onClick: () =>
+                  runNavAction(() => {
+                    onClauxenCodeClick?.();
+                  }),
+                active: activeView === "clauxen-code",
+              })}
+              {renderNavButton({
+                label: "Clauxen Work",
+                icon: (
+                  <Briefcase className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                ),
+                onClick: () =>
+                  runNavAction(() => {
+                    onClauxenWorkClick?.();
+                  }),
+                active: activeView === "clauxen-work",
+              })}
+              {renderNavButton({
+                label: "Clauxen Claw",
+                icon: <Bot className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+                onClick: () =>
+                  runNavAction(() => {
+                    onClauxenClawClick?.();
+                  }),
+                active: activeView === "clauxen-claw",
+              })}
             </div>
-          </button>
+          ) : null}
 
           {!isCollapsed && pinnedChats.length > 0 ? (
             <div className="mt-3 mb-1.5 px-0.5">
-              <p className="px-2 py-1 text-[11px] font-medium tracking-[-0.002em] text-zinc-500/90">
-                Pinned Chats
-              </p>
-              <div className="mt-1 space-y-0.5">
-                {pinnedChats.map((chat) => renderChatRow(chat))}
-              </div>
+              <SidebarSectionLabel
+                label="Pinned chats"
+                expanded={pinnedExpanded}
+                onToggle={() => toggleSection("pinned")}
+              />
+              {pinnedExpanded ? (
+                <div className="mt-1 space-y-0.5">
+                  {pinnedChats.map((chat) => renderChatRow(chat))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!isCollapsed ? (
+            <div className="mt-2 mb-1.5 px-0.5">
+              <SidebarSectionLabel
+                label="Projects"
+                expanded={projectsExpanded}
+                onToggle={() => toggleSection("projects")}
+              />
+              {projectsExpanded ? (
+                <div className="mt-1 space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      runNavAction(() => {
+                        onNewProjectClick?.();
+                      });
+                    }}
+                    className="group/chat glass-sidebar-agent-menu-btn flex h-7 w-full items-center gap-1.5 rounded-md px-2 text-[12.5px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100"
+                  >
+                    <Plus
+                      className="h-3.5 w-3.5 shrink-0 text-zinc-500"
+                      strokeWidth={2}
+                    />
+                    <span className="truncate">New Project</span>
+                  </button>
+                  {projectsLoading && projects.length === 0 ? (
+                    <div
+                      className="space-y-1.5 px-0.5"
+                      aria-busy="true"
+                      aria-label="Loading projects"
+                    >
+                      {[1, 2, 3].map((row) => (
+                        <div
+                          key={row}
+                          className="h-7 overflow-hidden rounded-md"
+                          aria-hidden
+                        >
+                          <div
+                            className="h-full shimmer-bg rounded-md"
+                            style={{
+                              width: `${68 - ((row * 9) % 22)}%`,
+                              minWidth: "40%",
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {projects.map((project) => {
+                    const isActive = activeProjectId === project.id;
+                    return (
+                      <button
+                        key={project.id}
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          runNavAction(() => {
+                            onSelectProject?.(project);
+                          });
+                        }}
+                        data-active={isActive ? "true" : undefined}
+                        aria-current={isActive ? "page" : undefined}
+                        className={cn(
+                          "group/chat glass-sidebar-agent-menu-btn flex h-7 w-full items-center gap-1.5 rounded-md px-2 text-[12.5px] font-[430] text-zinc-800 transition-colors",
+                          isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
+                        )}
+                      >
+                        <span className="flex h-[14px] w-[14px] shrink-0 items-center justify-center text-zinc-500">
+                          <NavProjectsIcon className="h-[14px] w-[14px]" />
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-left">
+                          {project.name || "Untitled project"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
           {!isCollapsed && (
             <div className="relative mb-3 px-0.5">
-              <div className="flex items-center justify-between px-2 py-1">
-                <p className="text-[11px] font-medium tracking-[-0.002em] text-zinc-500/90">
-                  Recents
-                </p>
-                <SidebarChatGroupMenu
-                  value={chatGroupBy}
-                  onChange={handleChatGroupChange}
-                  projectGroupingEnabled={projectGroupingEnabled}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-              <div className="mt-1 space-y-2">
-                {chatsLoading && groupedChats.length === 0 && pinnedChats.length === 0 ? (
-                  <div
-                    className="space-y-1.5 px-0.5"
-                    aria-busy="true"
-                    aria-label="Loading conversations"
-                  >
-                    {[1, 2, 3, 4, 5, 6].map((row) => (
-                      <div
-                        key={row}
-                        className="h-7 overflow-hidden rounded-md"
-                        aria-hidden
-                      >
+              <SidebarSectionLabel
+                label="Recent chats"
+                expanded={recentsExpanded}
+                onToggle={() => toggleSection("recents")}
+                trailing={
+                  <SidebarChatGroupMenu
+                    value={chatGroupBy}
+                    onChange={handleChatGroupChange}
+                    projectGroupingEnabled={projectGroupingEnabled}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                }
+              />
+              {recentsExpanded ? (
+                <div className="mt-1 space-y-2">
+                  {chatsLoading &&
+                  groupedChats.length === 0 &&
+                  pinnedChats.length === 0 ? (
+                    <div
+                      className="space-y-1.5 px-0.5"
+                      aria-busy="true"
+                      aria-label="Loading conversations"
+                    >
+                      {[1, 2, 3, 4, 5, 6].map((row) => (
                         <div
-                          className="h-full shimmer-bg rounded-md"
-                          style={{
-                            width: `${72 - ((row * 7) % 28)}%`,
-                            minWidth: "42%",
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                {groupedChats.map((group) => (
-                  <div key={group.label || "all"}>
-                    {group.label ? (
-                      <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
-                        {group.label}
-                      </p>
-                    ) : null}
-                    <div className="space-y-0.5">
-                      {group.chats.map((chat) => renderChatRow(chat))}
+                          key={row}
+                          className="h-7 overflow-hidden rounded-md"
+                          aria-hidden
+                        >
+                          <div
+                            className="h-full shimmer-bg rounded-md"
+                            style={{
+                              width: `${72 - ((row * 7) % 28)}%`,
+                              minWidth: "42%",
+                            }}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ) : null}
+                  {groupedChats.map((group) => (
+                    <div key={group.label || "all"}>
+                      {group.label ? (
+                        <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
+                          {group.label}
+                        </p>
+                      ) : null}
+                      <div className="space-y-0.5">
+                        {group.chats.map((chat) => renderChatRow(chat))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           )}
         </div>
