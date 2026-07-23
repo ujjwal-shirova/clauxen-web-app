@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import * as projectsApi from "@/frontend/lib/api/projects";
 import type { ApiProject } from "@/frontend/lib/api/projects";
+import {
+  readPinnedProjectIds,
+  setProjectPinned,
+} from "@/frontend/lib/pinned-projects";
 
 const MAX_PROJECT_NAME_LENGTH = 200;
 const LOCAL_PROJECTS_KEY = "clauxen-local-projects";
@@ -46,6 +50,7 @@ function createLocalProject(input: {
 export function useProjects(apiEnabled: boolean) {
   const [projects, setProjects] = useState<ApiProject[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -66,6 +71,21 @@ export function useProjects(apiEnabled: boolean) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    setPinnedIds(readPinnedProjectIds());
+    const onStorage = (event: StorageEvent) => {
+      if (event.key && event.key !== "clauxen-pinned-project-ids") return;
+      setPinnedIds(readPinnedProjectIds());
+    };
+    const onCustom = () => setPinnedIds(readPinnedProjectIds());
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("clauxen-pinned-projects-changed", onCustom);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("clauxen-pinned-projects-changed", onCustom);
+    };
+  }, []);
 
   const createProject = useCallback(
     async (input: { name: string; description?: string }) => {
@@ -158,12 +178,32 @@ export function useProjects(apiEnabled: boolean) {
     [apiEnabled],
   );
 
+  const pinProject = useCallback((projectId: string, pinned: boolean) => {
+    setPinnedIds(setProjectPinned(projectId, pinned));
+  }, []);
+
+  const pinnedProjects = useMemo(() => {
+    const byId = new Map(projects.map((p) => [p.id, p]));
+    return pinnedIds
+      .map((id) => byId.get(id))
+      .filter((p): p is ApiProject => Boolean(p));
+  }, [projects, pinnedIds]);
+
+  const unpinnedProjects = useMemo(() => {
+    const pinned = new Set(pinnedIds);
+    return projects.filter((p) => !pinned.has(p.id));
+  }, [projects, pinnedIds]);
+
   return {
     projects,
+    pinnedProjects,
+    unpinnedProjects,
+    pinnedIds,
     loading,
     refresh,
     createProject,
     updateProject,
     deleteProject,
+    pinProject,
   };
 }

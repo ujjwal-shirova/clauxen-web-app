@@ -85,6 +85,8 @@ interface PromptInputProps {
   lockedProjectId?: string | null;
   /** Show the attached project strip under the composer (default on). */
   showProjectStrip?: boolean;
+  /** Override the default “Ask anything” placeholder. */
+  placeholder?: string;
 }
 
 const COMPOSE_ACTION_META: Record<
@@ -147,6 +149,7 @@ export function PromptInput({
   onAddMenuOpenChange,
   lockedProjectId = null,
   showProjectStrip = true,
+  placeholder = "Ask anything",
 }: PromptInputProps) {
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
@@ -1390,7 +1393,7 @@ export function PromptInput({
                 </button>,
               )
             ) : (
-              renderPromptBody("Ask anything")
+              renderPromptBody(placeholder)
             )}
           </div>
           {withProjectStrip ? (

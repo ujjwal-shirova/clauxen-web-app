@@ -323,10 +323,12 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onPinChat={handlePinChat}
         generatingChatIds={generatingChatIds}
         projects={projects.projects}
+        pinnedProjects={projects.pinnedProjects}
         projectsLoading={projects.loading}
         activeProjectId={activeProjectId}
         onNewProjectClick={goToCreateProject}
         onSelectProject={openProjectDetail}
+        onPinProject={projects.pinProject}
         userDisplayName={sidebarDisplayName({
           fullName: auth.user?.displayName,
           preferredName: auth.user?.preferredName,

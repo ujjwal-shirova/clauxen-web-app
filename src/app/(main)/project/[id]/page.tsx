@@ -1,13 +1,17 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChatView } from "@/frontend/components/chat-view";
+import { ProjectHomeView } from "@/frontend/components/project-home-view";
 import { useAuth } from "@/frontend/hooks/use-auth";
 import { useProjects } from "@/frontend/hooks/use-projects";
+import { useOptionalChatSession } from "@/frontend/contexts/chat-session-context";
+import { useAppLayout } from "@/frontend/components/app-layout-context";
 import * as projectsApi from "@/frontend/lib/api/projects";
 import type { ApiProject } from "@/frontend/lib/api/projects";
 import { APP_ROUTES } from "@/frontend/lib/app-routes";
+import { useInstantNavigate } from "@/frontend/hooks/use-instant-navigate";
+import { isProjectPinned } from "@/frontend/lib/pinned-projects";
 
 export default function ProjectHomeRoutePage() {
   return (
@@ -19,7 +23,6 @@ export default function ProjectHomeRoutePage() {
 
 function ProjectHomeGate() {
   const auth = useAuth();
-  // Paint ChatView immediately — project name resolves in parallel.
   return (
     <ProjectHomeContent
       key={auth.user?.id ?? "anon"}
@@ -32,9 +35,14 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const router = useRouter();
+  const instantNavigate = useInstantNavigate();
   const projectsHook = useProjects(apiEnabled);
+  const session = useOptionalChatSession();
+  const { isMobile, isSidebarCollapsed, openMobileNav } = useAppLayout();
+
   const [project, setProject] = useState<ApiProject | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,15 +80,34 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
     };
   }, [id, apiEnabled, projectsHook.projects]);
 
-  const breadcrumb = useMemo(
-    () =>
-      project
-        ? {
-            label: project.name,
-            onClick: () => router.push(APP_ROUTES.project(id)),
+  const handleSendMessage = useCallback(
+    async (prompt: string) => {
+      if (!session || !prompt.trim()) return;
+      setIsGenerating(true);
+      try {
+        session.startNewChat();
+        const chatId = await session.handleSendMessage(prompt, {
+          forceNewChat: true,
+          projectId: id,
+          onChatCreated: (newId) => {
+            instantNavigate(APP_ROUTES.projectChat(newId), { replace: true });
+          },
+        });
+        if (chatId) {
+          const pathNow =
+            typeof window !== "undefined"
+              ? `${window.location.pathname}${window.location.search}`
+              : "";
+          const target = APP_ROUTES.projectChat(chatId);
+          if (pathNow !== target) {
+            instantNavigate(target, { replace: true });
           }
-        : undefined,
-    [project, id, router],
+        }
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [session, id, instantNavigate],
   );
 
   if (loadFailed && !project) {
@@ -98,8 +125,31 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
     );
   }
 
-  // Project dashboard = blank new-chat composer scoped to this project.
+  if (!project) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-white text-sm text-zinc-500">
+        Loading project…
+      </div>
+    );
+  }
+
+  const pinned = isProjectPinned(project.id, projectsHook.pinnedIds);
+
   return (
-    <ChatView projectId={id} projectBreadcrumb={breadcrumb} />
+    <ProjectHomeView
+      project={project}
+      pinned={pinned}
+      onPinChange={(next) => projectsHook.pinProject(project.id, next)}
+      onSendMessage={handleSendMessage}
+      onStopGeneration={() => session?.stopGeneration()}
+      isGenerating={isGenerating || Boolean(session?.isGenerating)}
+      onSaveInstructions={async (text) => {
+        if (apiEnabled && !id.startsWith("local-")) {
+          await projectsHook.updateProject(id, { system_prompt: text });
+        }
+      }}
+      onOpenMobileNav={openMobileNav}
+      showMobileMenu={isMobile && isSidebarCollapsed}
+    />
   );
 }

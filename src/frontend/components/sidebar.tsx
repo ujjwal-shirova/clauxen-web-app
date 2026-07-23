@@ -190,10 +190,13 @@ interface SidebarProps {
   /** Chat IDs with an in-flight assistant generation (sidebar splash). */
   generatingChatIds?: ReadonlySet<string> | string[];
   projects?: ApiProject[];
+  /** Projects currently pinned into the shared Pinned section. */
+  pinnedProjects?: ApiProject[];
   projectsLoading?: boolean;
   activeProjectId?: string | null;
   onNewProjectClick?: () => void;
   onSelectProject?: (project: ApiProject) => void;
+  onPinProject?: (projectId: string, pinned: boolean) => void;
   userDisplayName?: string;
   userAvatarUrl?: string | null;
   userEmail?: string;
@@ -234,10 +237,12 @@ export function Sidebar({
   onPinChat,
   generatingChatIds,
   projects = [],
+  pinnedProjects = [],
   projectsLoading: _projectsLoading = false,
   activeProjectId = null,
   onNewProjectClick,
   onSelectProject,
+  onPinProject,
   userDisplayName = "Guest",
   userAvatarUrl,
   userEmail = "",
@@ -302,10 +307,71 @@ export function Sidebar({
     () => recentChats.filter((chat) => !chat.pinned),
     [recentChats],
   );
+  const pinnedProjectIdSet = useMemo(
+    () => new Set(pinnedProjects.map((p) => p.id)),
+    [pinnedProjects],
+  );
+  const unpinnedProjects = useMemo(
+    () => projects.filter((p) => !pinnedProjectIdSet.has(p.id)),
+    [projects, pinnedProjectIdSet],
+  );
+  const hasPinnedSection =
+    pinnedChats.length > 0 || pinnedProjects.length > 0;
   const groupedChats = useMemo(
     () => groupChats(unpinnedChats, chatGroupBy),
     [unpinnedChats, chatGroupBy],
   );
+
+  const renderProjectRow = (project: ApiProject, opts?: { pinned?: boolean }) => {
+    const isActive = activeProjectId === project.id;
+    const showUnpin = Boolean(opts?.pinned);
+    return (
+      <div
+        key={`project-${project.id}`}
+        data-active={isActive ? "true" : undefined}
+        aria-current={isActive ? "page" : undefined}
+        className={cn(
+          "group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors",
+          isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
+        )}
+      >
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            runNavAction(() => {
+              onSelectProject?.(project);
+            });
+          }}
+          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+        >
+          <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-zinc-500">
+            <NavProjectsIcon className="h-[18px] w-[18px]" />
+          </span>
+          <span className="min-w-0 flex-1 truncate">
+            {project.name || "Untitled project"}
+          </span>
+        </button>
+        {onPinProject ? (
+          <button
+            type="button"
+            aria-label={showUnpin ? "Unpin project" : "Pin project"}
+            onClick={(event) => {
+              event.stopPropagation();
+              onPinProject(project.id, !showUnpin);
+            }}
+            className="no-hover-overlay ml-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-transparent text-zinc-500 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 hover:text-zinc-800 focus-visible:opacity-100"
+          >
+            {showUnpin ? (
+              <PinOff className="h-3.5 w-3.5" strokeWidth={2} />
+            ) : (
+              <Pin className="h-3.5 w-3.5" strokeWidth={2} />
+            )}
+          </button>
+        ) : null}
+      </div>
+    );
+  };
   const renameChat = useMemo(
     () => recentChats.find((chat) => chat.id === renameChatId) ?? null,
     [recentChats, renameChatId],
@@ -749,16 +815,19 @@ export function Sidebar({
             </div>
           ) : null}
 
-          {/* Order: Pinned → Projects → Recent (no shimmer while lists load) */}
-          {!isCollapsed && pinnedChats.length > 0 ? (
+          {/* Order: Pinned (chats + projects) → Projects → Recent */}
+          {!isCollapsed && hasPinnedSection ? (
             <div className="mt-3 mb-1.5 px-0.5">
               <SidebarSectionLabel
-                label="Pinned chats"
+                label="Pinned"
                 expanded={pinnedExpanded}
                 onToggle={() => toggleSection("pinned")}
               />
               {pinnedExpanded ? (
                 <div className="mt-1 space-y-0.5">
+                  {pinnedProjects.map((project) =>
+                    renderProjectRow(project, { pinned: true }),
+                  )}
                   {pinnedChats.map((chat) => renderChatRow(chat))}
                 </div>
               ) : null}
@@ -785,39 +854,12 @@ export function Sidebar({
                     className="group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100"
                   >
                     <Plus
-                      className="h-3.5 w-3.5 shrink-0 text-zinc-500"
-                      strokeWidth={2}
+                      className="h-[18px] w-[18px] shrink-0 text-zinc-500"
+                      strokeWidth={1.75}
                     />
                     <span className="truncate">New Project</span>
                   </button>
-                  {projects.map((project) => {
-                    const isActive = activeProjectId === project.id;
-                    return (
-                      <button
-                        key={project.id}
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          runNavAction(() => {
-                            onSelectProject?.(project);
-                          });
-                        }}
-                        data-active={isActive ? "true" : undefined}
-                        aria-current={isActive ? "page" : undefined}
-                        className={cn(
-                          "group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors",
-                          isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
-                        )}
-                      >
-                        <span className="flex h-[14px] w-[14px] shrink-0 items-center justify-center text-zinc-500">
-                          <NavProjectsIcon className="h-[14px] w-[14px]" />
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-left">
-                          {project.name || "Untitled project"}
-                        </span>
-                      </button>
-                    );
-                  })}
+                  {unpinnedProjects.map((project) => renderProjectRow(project))}
                 </div>
               ) : null}
             </div>
