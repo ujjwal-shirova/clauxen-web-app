@@ -24,6 +24,7 @@ import {
   useChatSession,
 } from "@/frontend/contexts/chat-session-context";
 import { CreateProjectDialog } from "@/frontend/components/create-project-dialog";
+import { CLAUXEN_OPEN_CREATE_PROJECT_EVENT } from "@/frontend/components/composer-project-strip";
 import { AppOverlayHost } from "@/frontend/components/app-overlay-host";
 import {
   AppOverlaysProvider,
@@ -149,9 +150,10 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, [instantNavigate, closeMobileNav]);
 
   const goToMyClauxen = useCallback(() => {
-    instantNavigate(APP_ROUTES.customize);
+    // Distinct from Customize page — personalization overlay.
+    overlays.openSettings("Personalization");
     closeMobileNav();
-  }, [instantNavigate, closeMobileNav]);
+  }, [overlays, closeMobileNav]);
 
   const onSelectChatFromSidebar = useCallback(
     (chatEntry: RecentChat) => {
@@ -214,6 +216,17 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, [overlays, closeMobileNav]);
 
   const [createProjectOpen, setCreateProjectOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const onOpenCreate = () => setCreateProjectOpen(true);
+    window.addEventListener(CLAUXEN_OPEN_CREATE_PROJECT_EVENT, onOpenCreate);
+    return () => {
+      window.removeEventListener(
+        CLAUXEN_OPEN_CREATE_PROJECT_EVENT,
+        onOpenCreate,
+      );
+    };
+  }, []);
   const [isCreatingProject, setIsCreatingProject] = React.useState(false);
 
   const openProjectDetail = useCallback(
@@ -305,6 +318,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onLibraryClick={goToLibrary}
         onCustomizeClick={goToCustomize}
         onMyClauxenClick={goToMyClauxen}
+        onImageClick={() => notifyComingSoon("Image")}
         onScheduledTasksClick={() => notifyComingSoon("Scheduled Task")}
         onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
         onClauxenWorkClick={() => notifyComingSoon("Clauxen Work")}
@@ -427,7 +441,7 @@ function computeActiveView(
   pathname: string | null,
   overlayType: string | null,
 ): string {
-  if (overlayType === "settings") return "settings";
+  if (overlayType === "settings") return "my-clauxen";
   if (overlayType === "pricing") return "upgrade";
   if (overlayType === "gift") return "gift";
   if (overlayType === "apps") return "apps";

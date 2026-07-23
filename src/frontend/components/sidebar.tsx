@@ -12,6 +12,7 @@ import {
   Ellipsis,
   Gift,
   HelpCircle,
+  ImageIcon,
   LogOut,
   MoreVertical,
   Pin,
@@ -20,6 +21,7 @@ import {
   Languages,
   Sparkles,
   Library,
+  SlidersHorizontal,
   UserRound,
   X,
   LayoutGrid,
@@ -170,6 +172,7 @@ interface SidebarProps {
   onGiftClick: () => void;
   onProjectsClick: () => void;
   onMyClauxenClick?: () => void;
+  onImageClick?: () => void;
   onScheduledTasksClick?: () => void;
   onClauxenCodeClick?: () => void;
   onClauxenWorkClick?: () => void;
@@ -215,6 +218,7 @@ export function Sidebar({
   onGiftClick,
   onProjectsClick,
   onMyClauxenClick,
+  onImageClick,
   onScheduledTasksClick,
   onClauxenCodeClick,
   onClauxenWorkClick,
@@ -325,9 +329,12 @@ export function Sidebar({
     if (isMobileLayout) onNavigate?.();
   };
 
-  const navButtonClass = (active = false) =>
+  const navButtonClass = (active = false, muted = false) =>
     cn(
-      "ui-sidebar-menu-button mb-0 flex h-9 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] text-zinc-800 transition-all duration-75 hover:bg-zinc-100",
+      "ui-sidebar-menu-button mb-0 flex h-9 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] transition-all duration-75 hover:bg-zinc-100",
+      muted
+        ? "text-zinc-400 hover:text-zinc-500"
+        : "text-zinc-800",
       isCollapsed
         ? "mx-auto h-9 w-9 justify-center"
         : "justify-start px-2.5",
@@ -339,12 +346,14 @@ export function Sidebar({
     icon,
     onClick,
     active = false,
+    muted = false,
     trailing,
   }: {
     label: string;
     icon: React.ReactNode;
     onClick: () => void;
     active?: boolean;
+    muted?: boolean;
     trailing?: React.ReactNode;
   }) => (
     <button
@@ -354,15 +363,29 @@ export function Sidebar({
         onClick();
       }}
       aria-label={label}
-      className={navButtonClass(active)}
+      className={navButtonClass(active, muted)}
     >
       <div
         className={cn("flex min-w-0 items-center gap-2", !isCollapsed && "w-full")}
       >
-        <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+        <div
+          className={cn(
+            "flex h-[18px] w-[18px] shrink-0 items-center justify-center",
+            muted && "opacity-60",
+          )}
+        >
           {icon}
         </div>
-        {!isCollapsed && <span className="truncate">{label}</span>}
+        {!isCollapsed && (
+          <span
+            className={cn(
+              "truncate",
+              muted && "text-zinc-400",
+            )}
+          >
+            {label}
+          </span>
+        )}
         {!isCollapsed && trailing}
       </div>
     </button>
@@ -613,21 +636,32 @@ export function Sidebar({
         </div>
 
         <div className="space-y-0.5 pl-2 pr-1.5">
-          {renderNavButton({
-            label: "Library",
-            icon: <Library className="h-[18px] w-[18px]" />,
-            onClick: () => runNavAction(onLibraryClick),
-            active: activeView === "library",
-          })}
-
+          {/* New Chat pill is above — nav order: My Clauxen → Image → Library → Scheduled → Customize */}
           {renderNavButton({
             label: "My Clauxen",
             icon: <UserRound className="h-[18px] w-[18px]" strokeWidth={1.75} />,
             onClick: () =>
               runNavAction(() => {
-                (onMyClauxenClick ?? onCustomizeClick)?.();
+                (onMyClauxenClick ?? onPersonalizationClick ?? onCustomizeClick)?.();
               }),
-            active: activeView === "customize" || activeView === "my-clauxen",
+            active: activeView === "my-clauxen",
+          })}
+
+          {renderNavButton({
+            label: "Image",
+            icon: <ImageIcon className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+            onClick: () =>
+              runNavAction(() => {
+                onImageClick?.();
+              }),
+            active: activeView === "image",
+          })}
+
+          {renderNavButton({
+            label: "Library",
+            icon: <Library className="h-[18px] w-[18px]" />,
+            onClick: () => runNavAction(onLibraryClick),
+            active: activeView === "library",
           })}
 
           {renderNavButton({
@@ -643,8 +677,24 @@ export function Sidebar({
           })}
 
           {renderNavButton({
-            label: "More",
+            label: "Customize",
+            icon: (
+              <SlidersHorizontal
+                className="h-[18px] w-[18px]"
+                strokeWidth={1.75}
+              />
+            ),
+            onClick: () =>
+              runNavAction(() => {
+                onCustomizeClick?.();
+              }),
+            active: activeView === "customize",
+          })}
+
+          {renderNavButton({
+            label: moreExpanded ? "Collapse" : "More",
             icon: <Ellipsis className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+            muted: moreExpanded,
             onClick: () => {
               if (isCollapsed) {
                 setIsCollapsed(false);

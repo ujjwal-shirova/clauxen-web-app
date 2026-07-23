@@ -245,6 +245,7 @@ function ChatViewBody({
       onOpenMobileNav={openMobileNav}
       showMobileMenu={isMobile && isSidebarCollapsed}
       projectBreadcrumb={projectBreadcrumb}
+      lockedProjectId={projectId}
     />
   );
 }

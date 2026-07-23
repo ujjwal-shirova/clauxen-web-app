@@ -23,6 +23,7 @@ import {
   type PromptComposeAction,
   type WebSearchMode,
 } from "./prompt-add-menu";
+import { ComposerProjectStrip } from "./composer-project-strip";
 import {
   PromptInlineModeChip,
   type PromptInlineMode,
@@ -80,6 +81,10 @@ interface PromptInputProps {
   showModelSelector?: boolean;
   chatModel?: ChatModelId;
   onChatModelChange?: (model: ChatModelId) => void;
+  /** When the active chat already belongs to a project. */
+  lockedProjectId?: string | null;
+  /** Show the attached project strip under the composer (default on). */
+  showProjectStrip?: boolean;
 }
 
 const COMPOSE_ACTION_META: Record<
@@ -140,6 +145,8 @@ export function PromptInput({
   onPromptChange,
   focusKey,
   onAddMenuOpenChange,
+  lockedProjectId = null,
+  showProjectStrip = true,
 }: PromptInputProps) {
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
@@ -978,8 +985,10 @@ export function PromptInput({
   const micButtonClass =
     "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
 
+  const withProjectStrip = showProjectStrip;
   const promptShellClass = cn(
     "relative w-full max-w-full transition-[min-height,box-shadow,border-color,background-color] duration-200 ease-out",
+    withProjectStrip && "composer-shell--with-project-strip",
     showComposeControls &&
       "min-h-[96px] border-zinc-200/80 bg-white/92 shadow-[0_8px_24px_-10px_rgba(24,24,27,0.12)] backdrop-blur-md",
   );
@@ -1335,6 +1344,13 @@ export function PromptInput({
 
           <div
             className={cn(
+              "composer-stack w-full",
+              withProjectStrip && "composer-stack--with-project",
+            )}
+            data-composer-stack={withProjectStrip ? "with-project" : "solo"}
+          >
+          <div
+            className={cn(
               promptShellClass,
               isDraggingFiles && "ring-2 ring-[#2c84db]/35",
               isAddMenuOpen && "overflow-visible",
@@ -1432,6 +1448,10 @@ export function PromptInput({
             ) : (
               renderPromptBody("Ask anything")
             )}
+          </div>
+          {withProjectStrip ? (
+            <ComposerProjectStrip lockedProjectId={lockedProjectId} />
+          ) : null}
           </div>
         </div>
       </div>

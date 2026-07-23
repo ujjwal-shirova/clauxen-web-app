@@ -566,12 +566,48 @@ nav.sidebar-hover-area {
     box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
+/* Unified composer + project strip — one bordered stack, compact (not expanded). */
+[data-prompt-root] [data-composer-stack="with-project"] {
+  border: 1px solid rgba(24, 24, 27, 0.075);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(24, 24, 27, 0.018),
+    0 8px 26px -18px rgba(24, 24, 27, 0.24),
+    0 1px 2px rgba(24, 24, 27, 0.035);
+  overflow: visible;
+}
+
+[data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell] {
+  border: 0 !important;
+  border-radius: 17px 17px 0 0 !important;
+  box-shadow: none !important;
+  background: #ffffff !important;
+}
+
+[data-prompt-root] [data-composer-stack="with-project"] [data-composer-project-strip] {
+  border-radius: 0 0 17px 17px;
+}
+
+[data-prompt-root] [data-composer-stack="with-project"]:focus-within {
+  border-color: rgba(24, 24, 27, 0.13);
+  box-shadow:
+    0 0 0 1px rgba(24, 24, 27, 0.028),
+    0 12px 34px -20px rgba(24, 24, 27, 0.28),
+    0 1px 3px rgba(24, 24, 27, 0.04);
+}
+
 [data-prompt-root] [data-prompt-shell]:focus-within {
   border-color: rgba(24, 24, 27, 0.13) !important;
   box-shadow:
     0 0 0 1px rgba(24, 24, 27, 0.028),
     0 12px 34px -20px rgba(24, 24, 27, 0.28),
     0 1px 3px rgba(24, 24, 27, 0.04) !important;
+}
+
+[data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell]:focus-within {
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 /* Legacy selector kept for any older markup */

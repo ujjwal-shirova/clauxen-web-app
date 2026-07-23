@@ -84,6 +84,8 @@ interface ChatAreaProps {
     label: string;
     onClick?: () => void;
   };
+  /** When the chat already belongs to a project, lock the composer strip. */
+  lockedProjectId?: string | null;
 }
 
 const ARTIFACTS_LIST_PANEL_WIDTH = 384;
@@ -124,6 +126,7 @@ function ChatAreaLayout({
   onOpenMobileNav,
   showMobileMenu = false,
   projectBreadcrumb,
+  lockedProjectId = null,
 }: ChatAreaProps) {
   const { isViewerOpen, activeArtifact, closeViewer, clearViewer } =
     useArtifactViewer();
@@ -392,6 +395,7 @@ function ChatAreaLayout({
       onHomerReasoningEffortChange={onHomerReasoningEffortChange}
       chatModel={chatModel}
       onChatModelChange={onChatModelChange}
+      lockedProjectId={lockedProjectId}
     />
   );
 
