@@ -7,11 +7,6 @@ export interface Env {
   USER_FILES: R2Bucket;
 }
 
-type BucketBinding = keyof Pick<
-  Env,
-  "IMAGES" | "DOCUMENTS" | "ARTIFACTS" | "USER_FILES"
->;
-
 function bucketForName(env: Env, name: string): R2Bucket | null {
   const map: Record<string, R2Bucket> = {
     images: env.IMAGES,
@@ -48,6 +43,22 @@ async function verifySupabaseJwt(
   return user.id ? { sub: user.id } : null;
 }
 
+/**
+ * Object keys must be scoped to the authenticated user.
+ * Canonical app prefixes: users/{userId}/… and avatars/{userId}/…
+ */
+function assertKeyOwnedByUser(key: string, userId: string): boolean {
+  if (!key || key.includes("..") || key.startsWith("/")) return false;
+  const userPrefix = `users/${userId}/`;
+  const avatarPrefix = `avatars/${userId}/`;
+  return key.startsWith(userPrefix) || key.startsWith(avatarPrefix);
+}
+
+/** Unauthenticated public reads are limited to the public/ prefix only. */
+function isPublicObjectKey(key: string): boolean {
+  return Boolean(key) && !key.includes("..") && key.startsWith("public/");
+}
+
 function json(data: unknown, status = 200, extraHeaders?: HeadersInit) {
   return new Response(JSON.stringify(data), {
     status,
@@ -59,7 +70,7 @@ function json(data: unknown, status = 200, extraHeaders?: HeadersInit) {
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext) {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
@@ -77,12 +88,22 @@ export default {
       return json({ ok: true });
     }
 
+    const isDownload = request.method === "GET" && url.pathname.startsWith("/download/");
+    const downloadKey = isDownload
+      ? decodeURIComponent(url.pathname.slice("/download/".length))
+      : "";
+
+    // Public objects under public/ may be read without a JWT.
+    const allowAnonymousPublicRead =
+      isDownload && isPublicObjectKey(downloadKey);
+
     const user = await verifySupabaseJwt(request, env);
-    if (!user && url.pathname !== "/download/public") {
+    if (!user && !allowAnonymousPublicRead) {
       return json({ error: "Unauthorized" }, 401);
     }
 
     if (request.method === "POST" && url.pathname === "/upload/presign") {
+      if (!user) return json({ error: "Unauthorized" }, 401);
       const body = (await request.json()) as {
         bucket?: string;
         key?: string;
@@ -91,10 +112,12 @@ export default {
       if (!body.bucket || !body.key) {
         return json({ error: "bucket and key required" }, 400);
       }
+      if (!assertKeyOwnedByUser(body.key, user.sub)) {
+        return json({ error: "Forbidden key" }, 403);
+      }
       const r2 = bucketForName(env, body.bucket);
       if (!r2) return json({ error: "Unknown bucket" }, 400);
 
-      // ponytail: Worker returns upload path; client PUTs to /upload/put with same auth
       return json({
         method: "PUT",
         uploadUrl: `${url.origin}/upload/put?bucket=${encodeURIComponent(body.bucket)}&key=${encodeURIComponent(body.key)}`,
@@ -103,10 +126,14 @@ export default {
     }
 
     if (request.method === "PUT" && url.pathname === "/upload/put") {
+      if (!user) return json({ error: "Unauthorized" }, 401);
       const bucketName = url.searchParams.get("bucket") ?? "";
       const key = url.searchParams.get("key") ?? "";
       const r2 = bucketForName(env, bucketName);
       if (!r2 || !key) return json({ error: "Invalid upload target" }, 400);
+      if (!assertKeyOwnedByUser(key, user.sub)) {
+        return json({ error: "Forbidden key" }, 403);
+      }
 
       await r2.put(key, request.body ?? "", {
         httpMetadata: {
@@ -119,20 +146,22 @@ export default {
         headers: {
           "content-type": "application/json",
           "access-control-allow-origin": "*",
+          "cache-control": "private, no-store",
         },
       });
     }
 
-    if (request.method === "GET" && url.pathname.startsWith("/download/")) {
-      const key = decodeURIComponent(url.pathname.slice("/download/".length));
+    if (isDownload) {
+      const key = downloadKey;
       const bucketName = url.searchParams.get("bucket") ?? "documents";
       const r2 = bucketForName(env, bucketName);
       if (!r2 || !key) return json({ error: "Not found" }, 404);
 
-      const cache = caches.default;
-      const cacheKey = new Request(request.url, request);
-      const cached = await cache.match(cacheKey);
-      if (cached) return cached;
+      if (allowAnonymousPublicRead) {
+        // public/ only — no user JWT required
+      } else if (!user || !assertKeyOwnedByUser(key, user.sub)) {
+        return json({ error: "Not found" }, 404);
+      }
 
       const object = await r2.get(key);
       if (!object) return json({ error: "Not found" }, 404);
@@ -140,23 +169,27 @@ export default {
       const headers = new Headers();
       object.writeHttpMetadata(headers);
       headers.set("etag", object.httpEtag);
-      // Cloudflare edge cache — long TTL for immutable user object keys.
+      // Private user objects must never enter a shared public edge cache.
       headers.set(
         "cache-control",
-        "public, max-age=31536000, immutable, stale-while-revalidate=86400",
+        allowAnonymousPublicRead
+          ? "public, max-age=86400"
+          : "private, no-store",
       );
-      headers.set("cdn-cache-control", "max-age=31536000");
       headers.set("access-control-allow-origin", "*");
+      headers.set("vary", "authorization");
 
-      const response = new Response(object.body, { headers });
-      ctx.waitUntil(cache.put(cacheKey, response.clone()));
-      return response;
+      return new Response(object.body, { headers });
     }
 
     if (request.method === "DELETE" && url.pathname === "/object") {
+      if (!user) return json({ error: "Unauthorized" }, 401);
       const body = (await request.json()) as { bucket?: string; key?: string };
       const r2 = body.bucket ? bucketForName(env, body.bucket) : null;
       if (!r2 || !body.key) return json({ error: "bucket and key required" }, 400);
+      if (!assertKeyOwnedByUser(body.key, user.sub)) {
+        return json({ error: "Forbidden key" }, 403);
+      }
       await r2.delete(body.key);
       return json({ ok: true });
     }

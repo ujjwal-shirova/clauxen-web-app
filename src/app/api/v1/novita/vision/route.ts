@@ -42,5 +42,5 @@ export const POST = withApiHandler(
       model: body.model ?? DEFAULT_MODEL,
     });
   },
-  { requireChatAuth: true },
+  { requireAuth: true },
 );

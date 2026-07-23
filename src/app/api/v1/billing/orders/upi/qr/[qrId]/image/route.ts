@@ -1,6 +1,6 @@
 import { withApiRouteParams } from "@/backend/http/route-params";
 import { requireSession } from "@/backend/auth/require-session";
-import { AppError } from "@/backend/db/errors";
+import { AppError, notFound } from "@/backend/db/errors";
 import {
   fetchRazorpayPaymentLink,
   fetchRazorpayQrCode,
@@ -23,10 +23,12 @@ function pngResponse(png: Buffer, cacheControl: string) {
   });
 }
 
-async function savedUpiIntent(qrId: string): Promise<string | null> {
+async function ownedOrderForQr(qrId: string, userId: string) {
   const order = await billingRepo.getBillingOrderByUpiQrId(qrId);
-  const intent = order?.metadata?.upiIntent;
-  return typeof intent === "string" && intent.trim() ? intent.trim() : null;
+  if (!order || order.user_id !== userId) {
+    throw notFound("QR code not found.");
+  }
+  return order;
 }
 
 function rememberUpiIntent(qrId: string, intent: string) {
@@ -41,14 +43,19 @@ function rememberUpiIntent(qrId: string, intent: string) {
  *
  * Never proxies Razorpay’s branded marketing card. Always renders a square PNG
  * from the native `upi://` intent (or payment-link URL as last-resort fallback).
+ * Ownership: only the billing order owner may fetch the image.
  */
 export const GET = withApiRouteParams<{ qrId: string }>(
   async ({ session, params }) => {
-    requireSession(session);
+    const user = requireSession(session);
     const qrId = params.qrId;
 
     if (/^plink_[A-Za-z0-9]{8,40}$/.test(qrId)) {
-      const saved = await savedUpiIntent(qrId);
+      const order = await ownedOrderForQr(qrId, user.id);
+      const saved =
+        typeof order.metadata?.upiIntent === "string"
+          ? order.metadata.upiIntent.trim()
+          : "";
       const intent =
         saved ||
         (await fetchRazorpayPaymentLink(qrId)).short_url ||
@@ -68,7 +75,11 @@ export const GET = withApiRouteParams<{ qrId: string }>(
       throw new AppError("Invalid QR id.", 400, "bad_request");
     }
 
-    const saved = await savedUpiIntent(qrId);
+    const order = await ownedOrderForQr(qrId, user.id);
+    const saved =
+      typeof order.metadata?.upiIntent === "string"
+        ? order.metadata.upiIntent.trim()
+        : "";
     if (saved && /^upi:\/\//i.test(saved)) {
       return pngResponse(
         await renderPaymentQrPng(saved),

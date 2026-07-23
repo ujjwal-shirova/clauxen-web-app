@@ -110,6 +110,7 @@ export async function executeAutonomousTool(
     const url = String(args.url ?? "").trim();
     if (!url) throw new Error("url is required");
 
+    // Exa-only — never fall back to raw fetch (SSRF risk to private/metadata IPs).
     try {
       const [hit] = await fetchUrlContentsWithExa([url]);
       if (hit?.snippet) {
@@ -121,28 +122,17 @@ export async function executeAutonomousTool(
           },
         };
       }
-    } catch {
-      // fall through
+      return {
+        output: {
+          url,
+          error: "No fetchable content returned for this URL.",
+        },
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "URL fetch failed";
+      return { output: { url, error: message } };
     }
-
-    const response = await fetch(url, {
-      headers: { "User-Agent": "Clauxen-Agent/1.0" },
-    });
-    const text = await response.text();
-    const stripped = text
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    return {
-      output: {
-        url,
-        title: url,
-        snippet: stripped.slice(0, 8000),
-      },
-    };
   }
 
   if (name === "image_search") {

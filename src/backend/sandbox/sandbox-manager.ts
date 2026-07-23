@@ -1,5 +1,6 @@
 import type { SandboxBetaCreateOpts } from "novita-sandbox/code-interpreter";
 import { requireNovitaApiKey } from "@/backend/config/env";
+import { notFound } from "@/backend/db/errors";
 import type {
   SandboxCommandRequest,
   SandboxCreateOptions,
@@ -182,6 +183,27 @@ export async function getSandboxInfo(sandboxId: string) {
   const Sandbox = await loadSandboxClass();
   const info = await Sandbox.getInfo(sandboxId);
   return serializeInfo(info);
+}
+
+/**
+ * Fail closed if the sandbox is missing ownership metadata or belongs to
+ * another user. Uses 404 (not 403) to avoid leaking sandbox existence.
+ */
+export async function assertSandboxOwnedBy(
+  sandboxId: string,
+  userId: string,
+): Promise<SandboxPublicInfo> {
+  let info: SandboxPublicInfo;
+  try {
+    info = await getSandboxInfo(sandboxId);
+  } catch {
+    throw notFound("Sandbox not found.");
+  }
+  const owner = info.metadata?.userId?.trim();
+  if (!owner || owner !== userId) {
+    throw notFound("Sandbox not found.");
+  }
+  return info;
 }
 
 export async function getSandboxMetrics(sandboxId: string) {

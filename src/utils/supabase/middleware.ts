@@ -34,8 +34,10 @@ const SESSION_COOKIE_NAME = "clauxen_session";
 
 function authDevBypassEnabled() {
   const isVercel = process.env.VERCEL === "1";
-  const raw = process.env.AUTH_DEV_BYPASS?.trim();
-  return (raw || (isVercel ? "false" : "true")) === "true";
+  const isProduction =
+    process.env.NODE_ENV === "production" || isVercel;
+  if (isProduction) return false;
+  return process.env.AUTH_DEV_BYPASS?.trim() === "true";
 }
 
 function isPublicPath(pathname: string) {

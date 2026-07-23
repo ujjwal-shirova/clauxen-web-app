@@ -10,5 +10,5 @@ export const GET = withApiHandler(
     const models = await listNovitaModels(request.signal);
     return jsonData(models);
   },
-  { requireChatAuth: true },
+  { requireAuth: true },
 );

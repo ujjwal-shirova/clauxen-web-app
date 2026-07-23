@@ -222,29 +222,28 @@ export async function executePlatformTool(
         return JSON.stringify({ error: "url is required" });
       }
 
-      if (isExaConfigured()) {
-        try {
-          const [result] = await fetchUrlContentsWithExa([url]);
-          if (result?.snippet) {
-            return result.snippet;
-          }
-        } catch {
-          // fall through to direct fetch
-        }
+      // Exa-only — never fall back to raw fetch (SSRF risk).
+      if (!isExaConfigured()) {
+        return JSON.stringify({
+          error: "URL fetch is unavailable (Exa not configured).",
+          url,
+        });
       }
 
-      const response = await fetch(url, {
-        headers: { "User-Agent": "Clauxen-Agent/1.0" },
-      });
-      const text = await response.text();
-      const stripped = text
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 50_000);
-      return stripped;
+      try {
+        const [result] = await fetchUrlContentsWithExa([url]);
+        if (result?.snippet) {
+          return result.snippet;
+        }
+        return JSON.stringify({
+          error: "No fetchable content returned for this URL.",
+          url,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "URL fetch failed";
+        return JSON.stringify({ error: message, url });
+      }
     }
 
     case "weather_fetch": {

@@ -26,5 +26,5 @@ export const POST = withApiHandler(
 
     return jsonData(result);
   },
-  { requireChatAuth: true },
+  { requireAuth: true },
 );

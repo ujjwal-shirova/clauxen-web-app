@@ -5,7 +5,6 @@ import type { Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw";
 import "katex/dist/katex.min.css";
 import { HighlightCode } from "@/frontend/lib/syntax-highlight";
 import { extensionForLanguage } from "@/frontend/lib/create-file-tags";
@@ -162,8 +161,8 @@ export const markdownComponents = {
 export const sharedReactMarkdownProps: Options = {
   remarkPlugins: [remarkGfm, [remarkMath, { singleDollarTextMath: false }]],
   rehypePlugins: [
-    rehypeRaw,
-    [rehypeKatex, { output: "htmlAndMathml", trust: true }],
+    // No rehype-raw — model/user HTML must not execute as DOM.
+    [rehypeKatex, { output: "htmlAndMathml", trust: false }],
   ],
   components: markdownComponents as Options["components"],
 };

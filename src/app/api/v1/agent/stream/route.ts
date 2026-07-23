@@ -34,5 +34,5 @@ export const POST = withApiHandler(
       },
     });
   },
-  { requireChatAuth: true },
+  { requireAuth: true },
 );

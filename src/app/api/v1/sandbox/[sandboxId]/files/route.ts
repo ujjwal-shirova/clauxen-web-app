@@ -1,6 +1,8 @@
 import { withApiRouteParams } from "@/backend/http/route-params";
 import { jsonData } from "@/backend/http/api-response";
+import { requireSession } from "@/backend/auth/require-session";
 import {
+  assertSandboxOwnedBy,
   listSandboxFiles,
   readSandboxFile,
   writeSandboxFile,
@@ -11,16 +13,20 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const GET = withApiRouteParams<{ sandboxId: string }>(
-  async ({ request, params }) => {
+  async ({ session, request, params }) => {
+    const user = requireSession(session);
+    await assertSandboxOwnedBy(params.sandboxId, user.id);
     const path = new URL(request.url).searchParams.get("path") ?? "/";
     const list = await listSandboxFiles(params.sandboxId, path);
     return jsonData({ path, entries: list });
   },
-  { requireChatAuth: true },
+  { requireAuth: true },
 );
 
 export const POST = withApiRouteParams<{ sandboxId: string }>(
-  async ({ request, params }) => {
+  async ({ session, request, params }) => {
+    const user = requireSession(session);
+    await assertSandboxOwnedBy(params.sandboxId, user.id);
     const body = (await request.json()) as
       | { path: string; content: string }
       | { files: Array<{ path: string; content: string }> };
@@ -38,14 +44,16 @@ export const POST = withApiRouteParams<{ sandboxId: string }>(
     );
     return jsonData({ path: single.path, result });
   },
-  { requireChatAuth: true },
+  { requireAuth: true },
 );
 
 export const PUT = withApiRouteParams<{ sandboxId: string }>(
-  async ({ request, params }) => {
+  async ({ session, request, params }) => {
+    const user = requireSession(session);
+    await assertSandboxOwnedBy(params.sandboxId, user.id);
     const body = (await request.json()) as { path: string };
     const content = await readSandboxFile(params.sandboxId, body.path);
     return jsonData({ path: body.path, content });
   },
-  { requireChatAuth: true },
+  { requireAuth: true },
 );

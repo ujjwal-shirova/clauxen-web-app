@@ -251,13 +251,15 @@ Work in **focused slices**. Do not boil the ocean.
 
 ### Phase A — Security hardening (do first)
 
-1. R2 key ownership + private cache (`workers/r2-gateway`)  
-2. Sandbox ownership checks on every route  
-3. Fail-closed auth defaults (`AUTH_REQUIRED_FOR_CHAT=true`, `requireAuth` on inference/sandbox/agent)  
-4. Lock down `web_fetch` (no raw SSRF fallback)  
-5. Guard/disable `AUTH_DEV_BYPASS` outside local  
-6. UPI QR ownership + drop unsafe `rehypeRaw`  
-7. Generate rate limits / plan quotas  
+**Status (2026-07-23): implemented in code** — redeploy `clauxen-r2-gateway` Worker for R2 ACL/cache fix to take effect in production.
+
+1. ~~R2 key ownership + private cache (`workers/r2-gateway`)~~ ✅  
+2. ~~Sandbox ownership checks on every route~~ ✅  
+3. ~~Fail-closed auth defaults (`AUTH_REQUIRED_FOR_CHAT=true`, `requireAuth` on inference/sandbox/agent)~~ ✅  
+4. ~~Lock down `web_fetch` (no raw SSRF fallback)~~ ✅  
+5. ~~Guard/disable `AUTH_DEV_BYPASS` outside local~~ ✅  
+6. ~~UPI QR ownership + drop unsafe `rehypeRaw`~~ ✅  
+7. ~~Generate rate limits (process-local user/IP windows)~~ ✅ — durable plan quotas still follow-up  
 
 **Exit criteria:** No authenticated user can read another user’s R2 object or drive another user’s sandbox; unauthenticated inference is impossible in all deploys.
 

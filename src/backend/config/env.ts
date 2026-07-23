@@ -80,12 +80,18 @@ function resolveAnthropicBaseUrl(): string {
   return normalizeBaseUrl(`${normalizeBaseUrl(providerBase)}/anthropic`);
 }
 
+function resolveAuthDevBypass(): boolean {
+  // Never allow unsigned cookie bypass on Vercel / production.
+  if (isProduction || isVercel) return false;
+  // Local only when explicitly enabled in .env.local.
+  return optional("AUTH_DEV_BYPASS", "false") === "true";
+}
+
 export const env = {
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:9002"),
-  authRequiredForChat: optional("AUTH_REQUIRED_FOR_CHAT", "false") === "true",
-  // ponytail: on Vercel default to false — production must use Supabase GoTrue
-  authDevBypass:
-    optional("AUTH_DEV_BYPASS", isVercel ? "false" : "true") === "true",
+  // Fail closed: chat/inference APIs require auth unless explicitly disabled.
+  authRequiredForChat: optional("AUTH_REQUIRED_FOR_CHAT", "true") === "true",
+  authDevBypass: resolveAuthDevBypass(),
   databaseUrl: resolveDatabaseUrl(),
   supabaseServiceRoleKey: resolveSupabaseServiceRoleKey(),
 
