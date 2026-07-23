@@ -137,6 +137,7 @@ function ChatAreaLayout({
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
   const [isArtifactsPanelOpen, setIsArtifactsPanelOpen] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const [temporaryChat, setTemporaryChat] = useState(false);
   const [isSourcesPanelOpen, setIsSourcesPanelOpen] = useState(false);
   const [sourcesMessageId, setSourcesMessageId] = useState<string | null>(null);
   const [, startTransition] = React.useTransition();
@@ -210,6 +211,7 @@ function ChatAreaLayout({
   React.useEffect(() => {
     setHasPromptDraft(false);
     setIsAddMenuOpen(false);
+    setTemporaryChat(false);
   }, [activeChatId]);
 
   React.useEffect(() => {
@@ -418,6 +420,8 @@ function ChatAreaLayout({
               onOpenSettings={onOpenSettings}
               onOpenMobileNav={onOpenMobileNav}
               showMobileMenu={showMobileMenu}
+              temporaryChat={temporaryChat}
+              onTemporaryChatChange={setTemporaryChat}
               className="relative z-20 shrink-0"
             />
           ) : null}

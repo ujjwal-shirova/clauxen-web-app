@@ -34,8 +34,8 @@
     --icon-color: #18181b;
     --icon-muted: #71717a;
     --icon-subtle: #a1a1aa;
-    /* App shell — bright canvas behind pure white panels */
-    --app-shell-bg: #f8f8f9;
+    /* App shell — warm canvas behind pure white panels */
+    --app-shell-bg: #fcf9f8;
     --app-panel-bg: #ffffff;
     /* Shared chat / composer column breadth */
     --chat-column-max-width: 768px;
@@ -490,6 +490,18 @@ svg.app-icon[fill="currentColor"] {
 }
 
 /* Premium Sidebar layout & design */
+/* Section / More chevrons only while the pointer is over the sidebar. */
+.sidebar-hover-area .sidebar-section-chevron {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-hover-area:hover .sidebar-section-chevron,
+.sidebar-hover-area:focus-within .sidebar-section-chevron {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 nav.sidebar-hover-area {
   background-color: var(--app-shell-bg) !important;
   border-right: none !important;

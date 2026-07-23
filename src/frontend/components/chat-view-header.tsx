@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIsClient } from "@/frontend/hooks/use-is-client";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Sparkles } from "lucide-react";
 import { TypingDots } from "./ui/typing-dots";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { DeleteChatDialog } from "./delete-chat-dialog";
@@ -10,10 +10,12 @@ import { RenameChatDialog } from "./rename-chat-dialog";
 import { StreamingChatTitle } from "./streaming-chat-title";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
 import { ChatRightRailControls } from "./chat-right-rail-controls";
+import { GhostChatIcon } from "./icons";
 import { cn } from "@/frontend/lib/utils";
 import { resolveDisplayChatTitle } from "@/lib/chat-title";
 import {
   DropdownMenu,
+  DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/frontend/components/ui/dropdown-menu";
 import { MobileMenuButton } from "@/frontend/components/mobile-menu-button";
@@ -36,6 +38,9 @@ interface ChatViewHeaderProps {
   onMoveToProject?: () => void;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
+  /** Temporary / ghost chat toggle (new-chat header). */
+  temporaryChat?: boolean;
+  onTemporaryChatChange?: (enabled: boolean) => void;
   className?: string;
   projectBreadcrumb?: {
     label: string;
@@ -52,7 +57,7 @@ interface ChatViewHeaderProps {
 
 export function ChatViewHeader({
   isConversationStarted,
-  isGenerating = false,
+  isGenerating: _isGenerating = false,
   onUpgradeClick,
   onShareClick,
   onToggleArtifactsPanel,
@@ -68,6 +73,8 @@ export function ChatViewHeader({
   onMoveToProject,
   onOpenMobileNav,
   showMobileMenu = false,
+  temporaryChat = false,
+  onTemporaryChatChange,
   className,
   projectBreadcrumb,
   hideTrailingRailControlsOnDesktop = false,
@@ -249,37 +256,117 @@ export function ChatViewHeader({
     );
   }
 
+  const modelSwitcher = (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-9 items-center gap-1 rounded-xl px-2 text-[15px] font-semibold tracking-[-0.01em] text-zinc-900 transition-colors hover:bg-black/[0.04] data-[state=open]:bg-black/[0.04] sm:h-10 sm:px-2.5"
+          aria-label="Choose Clauxen plan"
+        >
+          <span>Clauxen</span>
+          <ChevronDown className="h-3.5 w-3.5 text-zinc-400" strokeWidth={2} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        sideOffset={8}
+        className="z-[100] w-[min(calc(100vw-2rem),320px)] rounded-[20px] border-zinc-200/90 p-1.5 shadow-[0_16px_40px_-18px_rgba(24,24,27,0.35)]"
+      >
+        <button
+          type="button"
+          onClick={onUpgradeClick}
+          className="flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5 text-left transition-colors hover:bg-zinc-50"
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center text-zinc-800">
+            <Sparkles className="h-[18px] w-[18px]" strokeWidth={1.75} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-semibold text-zinc-900">
+              Clauxen Plus
+            </span>
+            <span className="block text-[12.5px] text-zinc-500">
+              Our smartest model & more
+            </span>
+          </span>
+          <span className="inline-flex h-8 shrink-0 items-center rounded-full border border-zinc-200 bg-white px-3 text-[12.5px] font-medium text-zinc-800 transition-colors hover:bg-zinc-50">
+            Upgrade
+          </span>
+        </button>
+        <div className="flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-[11px] font-semibold text-zinc-700">
+            C
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-semibold text-zinc-900">
+              Clauxen
+            </span>
+            <span className="block text-[12.5px] text-zinc-500">
+              Great for everyday tasks
+            </span>
+          </span>
+          <Check className="h-4 w-4 shrink-0 text-zinc-900" strokeWidth={2.25} />
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const upgradeButton = (
     <button
       type="button"
       onClick={onUpgradeClick}
-      className="relative z-10 inline-flex h-9 max-w-full items-center gap-1.5 rounded-full border border-zinc-200 bg-transparent px-3 text-[13px] text-zinc-500 transition-colors hover:bg-black/[0.03] hover:text-zinc-800 sm:h-10 sm:gap-2 sm:px-4 sm:text-[14px]"
-      aria-label="Free plan — upgrade"
+      className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-[13.5px] font-medium text-[#2f6fed] transition-colors hover:bg-[#2f6fed]/08 active:bg-[#2f6fed]/12 sm:h-10 sm:px-3 sm:text-[14px]"
+      aria-label="Upgrade plan"
     >
-      <span className="truncate">Free plan</span>
-      <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
-      <span className="shrink-0 underline decoration-zinc-400 underline-offset-[3px]">
-        Upgrade
-      </span>
+      <Sparkles className="h-[15px] w-[15px] shrink-0" strokeWidth={2} />
+      <span>Upgrade</span>
     </button>
   );
 
-  if (showMobileMenu && onOpenMobileNav) {
-    return (
-      <div className="content-pane-top-bar relative sticky top-0 z-20 grid h-[35px] w-full shrink-0 grid-cols-[auto_1fr_auto] items-center gap-2 bg-white px-2 font-sans sm:gap-2.5 sm:px-3">
-        <MobileMenuButton
-          onClick={onOpenMobileNav}
-          aria-controls="app-primary-nav"
-        />
-        <div className="flex min-w-0 justify-center">{upgradeButton}</div>
-        <span className="w-8 shrink-0" aria-hidden />
-      </div>
-    );
-  }
+  const ghostButton = (
+    <HintTooltip
+      content={
+        temporaryChat
+          ? "Temporary chat on — this chat won’t appear in history"
+          : "Temporary chat"
+      }
+      side="bottom"
+    >
+      <button
+        type="button"
+        onClick={() => onTemporaryChatChange?.(!temporaryChat)}
+        aria-label="Temporary chat"
+        aria-pressed={temporaryChat}
+        className={cn(
+          "inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-800 transition-colors hover:bg-black/[0.04] sm:h-10 sm:w-10",
+          temporaryChat && "bg-black/[0.05] text-zinc-900",
+        )}
+      >
+        <GhostChatIcon className="h-[18px] w-[18px]" />
+      </button>
+    </HintTooltip>
+  );
 
   return (
-    <div className="content-pane-top-bar relative sticky top-0 z-20 flex h-10 w-full shrink-0 items-center justify-center bg-white px-3.5 font-sans sm:h-11 sm:px-6">
-      {upgradeButton}
+    <div
+      className={cn(
+        "content-pane-top-bar relative sticky top-0 z-20 flex h-11 w-full shrink-0 items-center justify-between gap-2 bg-[var(--app-panel-bg)] px-2.5 font-sans sm:h-12 sm:px-4",
+        className,
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-1">
+        {showMobileMenu && onOpenMobileNav ? (
+          <MobileMenuButton
+            onClick={onOpenMobileNav}
+            aria-controls="app-primary-nav"
+          />
+        ) : null}
+        {modelSwitcher}
+      </div>
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+        {upgradeButton}
+        {ghostButton}
+      </div>
     </div>
   );
 }

@@ -196,6 +196,51 @@ export function NewChatIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Speech-bubble + plus — ChatGPT-style new chat affordance. */
+export function NewChatBubbleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+      {...props}
+    >
+      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z" />
+      <path d="M12 8v8" />
+      <path d="M8 12h8" />
+    </svg>
+  );
+}
+
+/** Dashed speech bubble — temporary / ghost chat. */
+export function GhostChatIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeDasharray="2.2 2.4"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+      {...props}
+    >
+      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z" />
+    </svg>
+  );
+}
+
 export function PlusIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg

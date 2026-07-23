@@ -1088,45 +1088,45 @@ export function PromptInput({
   };
 
   const renderAddMenuButton = () => (
-    <button
-      ref={addMenuTriggerRef}
-      type="button"
-      aria-label="Add content"
-      aria-expanded={isAddMenuOpen}
-      disabled={isCapturingScreenshot}
-      onClick={() => setAddMenuOpen(!isAddMenuOpen)}
-      className={cn(
-        addMenuTriggerClass,
-        isAddMenuOpen && "border-zinc-300 bg-zinc-100 text-zinc-800",
-        isCapturingScreenshot && "opacity-50",
-      )}
-    >
-      <Plus
-        className="icon-lg shrink-0 opacity-80 sm:icon-xl"
-        strokeWidth={1.75}
-      />
-    </button>
-  );
-
-  const renderAddMenuPanel = (placement: "above" | "below") => (
-    <AnimatePresence initial={false}>
-      {isAddMenuOpen ? (
-        <PromptAddMenuPanel
-          open={isAddMenuOpen}
-          placement={placement}
-          panelRef={addMenuPanelRef}
-          onClose={() => setAddMenuOpen(false)}
-          onAddFiles={openFilePicker}
-          webSearchMode={webSearchMode}
-          onWebSearchModeChange={handleWebSearchModeChange}
-          onOpenPlugins={() => openOverlayHash({ type: "apps" })}
-          onOpenSkills={() =>
-            openOverlayHash({ type: "settings", tab: "Skills" })
-          }
-          className={placement === "below" ? "mt-2" : "mb-2"}
+    <div className="relative shrink-0" data-prompt-add-anchor>
+      <button
+        ref={addMenuTriggerRef}
+        type="button"
+        aria-label="Add content"
+        aria-expanded={isAddMenuOpen}
+        disabled={isCapturingScreenshot}
+        onClick={() => setAddMenuOpen(!isAddMenuOpen)}
+        className={cn(
+          addMenuTriggerClass,
+          isAddMenuOpen && "border-zinc-300 bg-zinc-100 text-zinc-800",
+          isCapturingScreenshot && "opacity-50",
+        )}
+      >
+        <Plus
+          className="icon-lg shrink-0 opacity-80 sm:icon-xl"
+          strokeWidth={1.75}
         />
-      ) : null}
-    </AnimatePresence>
+      </button>
+      <AnimatePresence initial={false}>
+        {isAddMenuOpen ? (
+          <div className="absolute bottom-full left-0 z-50 mb-2">
+            <PromptAddMenuPanel
+              open={isAddMenuOpen}
+              placement="above"
+              panelRef={addMenuPanelRef}
+              onClose={() => setAddMenuOpen(false)}
+              onAddFiles={openFilePicker}
+              webSearchMode={webSearchMode}
+              onWebSearchModeChange={handleWebSearchModeChange}
+              onOpenPlugins={() => openOverlayHash({ type: "apps" })}
+              onOpenSkills={() =>
+                openOverlayHash({ type: "settings", tab: "Skills" })
+              }
+            />
+          </div>
+        ) : null}
+      </AnimatePresence>
+    </div>
   );
 
   const renderModelSelector = () => null;
@@ -1305,6 +1305,7 @@ export function PromptInput({
           className={cn(
             "relative flex w-full flex-col",
             !isConversationStarted && "justify-center",
+            isAddMenuOpen && "overflow-visible",
           )}
           data-prompt-wrapper
         >
@@ -1320,8 +1321,6 @@ export function PromptInput({
             </HintTooltip>
           )}
 
-          {isConversationStarted ? renderAddMenuPanel("above") : null}
-
           {queuedMessages.length > 0 &&
           onEditQueuedMessage &&
           onSendQueuedMessageNow &&
@@ -1335,11 +1334,16 @@ export function PromptInput({
           ) : null}
 
           <div
-            className={cn(promptShellClass, isDraggingFiles && "ring-2 ring-[#2c84db]/35")}
+            className={cn(
+              promptShellClass,
+              isDraggingFiles && "ring-2 ring-[#2c84db]/35",
+              isAddMenuOpen && "overflow-visible",
+            )}
             ref={promptShellRef}
             data-prompt-shell
             data-compose-mode={showComposeControls || undefined}
             data-drop-active={isDraggingFiles || undefined}
+            data-add-menu-open={isAddMenuOpen || undefined}
           >
             {isDraggingFiles ? (
               <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-[#2c84db]/50 bg-[#e9f3ff]/70 text-[13px] font-medium text-[#2c84db]">
@@ -1429,8 +1433,6 @@ export function PromptInput({
               renderPromptBody("Ask anything")
             )}
           </div>
-
-          {!isConversationStarted ? renderAddMenuPanel("below") : null}
         </div>
       </div>
       {isConversationStarted ? (

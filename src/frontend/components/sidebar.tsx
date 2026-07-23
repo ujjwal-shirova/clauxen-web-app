@@ -17,7 +17,6 @@ import {
   Pin,
   PinOff,
   Plus,
-  Search,
   Languages,
   Sparkles,
   Library,
@@ -28,11 +27,11 @@ import {
 import {
   SidebarToggleIcon,
   SidebarOpenIcon,
-  NewChatIcon,
+  NewChatBubbleIcon,
   NavProjectsIcon,
 } from "./icons";
-import { Button } from "@/frontend/components/ui/button";
 import { cn } from "@/frontend/lib/utils";
+import { useIsClient } from "@/frontend/hooks/use-is-client";
 import { sidebarDisplayName } from "@/lib/profile-names";
 import { UserAvatarDisplay } from "@/frontend/components/settings/profile-avatar-upload";
 import {
@@ -90,7 +89,7 @@ function writeSectionExpanded(key: SidebarSectionKey, expanded: boolean) {
   }
 }
 
-/** Category label — bold on hover, no button wash; chevron for expand/collapse. */
+/** Category label — bold on hover, no button wash; chevron only while sidebar hovered. */
 function SidebarSectionLabel({
   label,
   expanded,
@@ -116,7 +115,7 @@ function SidebarSectionLabel({
         <span className="truncate">{label}</span>
         <ChevronRight
           className={cn(
-            "h-3 w-3 shrink-0 text-zinc-400 transition-transform duration-200 group-hover/section:text-zinc-600",
+            "sidebar-section-chevron h-3 w-3 shrink-0 text-zinc-400 transition-[opacity,transform,color] duration-200 group-hover/section:text-zinc-600",
             expanded && "rotate-90",
           )}
           strokeWidth={2}
@@ -125,6 +124,14 @@ function SidebarSectionLabel({
       </button>
       {trailing}
     </div>
+  );
+}
+
+function ShortcutKey({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[5px] border border-zinc-200/90 bg-zinc-100/90 px-1 font-sans text-[10px] font-medium leading-none text-zinc-500">
+      {children}
+    </kbd>
   );
 }
 
@@ -233,6 +240,13 @@ export function Sidebar({
   onLogoutClick,
   showAccountMenu = true,
 }: SidebarProps) {
+  const isClient = useIsClient();
+  const isApplePlatform =
+    isClient &&
+    typeof navigator !== "undefined" &&
+    /Mac|iPhone|iPad|iPod/i.test(
+      `${navigator.platform ?? ""} ${navigator.userAgent ?? ""}`,
+    );
   const isCustomizeActive = activeView === "customize";
   const [chatGroupBy, setChatGroupBy] = useState<ChatGroupBy>("none");
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
@@ -562,50 +576,40 @@ export function Sidebar({
             isCollapsed && "px-0",
           )}
         >
-          <div className={cn("py-0.5", isCollapsed ? "px-0" : "px-1")}>
+          <div className={cn(isCollapsed ? "px-0" : "px-1")}>
             {isCollapsed ? (
               <button
-                onClick={(e) => e.stopPropagation()}
-                className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNewChat();
+                }}
+                aria-label="New chat"
+                className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
               >
-                <Search className="h-[18px] w-[18px] opacity-70" />
+                <NewChatBubbleIcon className="h-[17px] w-[17px]" />
               </button>
             ) : (
               <button
-                onClick={(e) => e.stopPropagation()}
-                className="group flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-transparent bg-transparent px-2.5 text-[13px] text-zinc-700 transition-all hover:bg-zinc-100"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNewChat();
+                }}
+                aria-label="New chat"
+                className="group flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/90 bg-white px-2.5 text-[13px] font-[450] text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
               >
-                <div className="flex items-center gap-2.5">
-                  <Search className="h-3.5 w-3.5 opacity-60" />
-                  <span className="font-[430] opacity-60">Search</span>
-                </div>
-                <span className="pr-0.5 text-[10.5px] font-medium text-black/30">
-                  Ctrl+K
+                <span className="flex min-w-0 items-center gap-2">
+                  <NewChatBubbleIcon className="h-[17px] w-[17px] shrink-0 text-zinc-800" />
+                  <span className="truncate">New Chat</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-1">
+                  <ShortcutKey>{isApplePlatform ? "⌘" : "Ctrl"}</ShortcutKey>
+                  <ShortcutKey>K</ShortcutKey>
                 </span>
               </button>
             )}
           </div>
-
-          <Button
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNewChat();
-            }}
-            aria-label="New chat"
-            className={cn(
-              "ui-sidebar-menu-button group mb-0 h-9 w-full justify-start gap-2.5 px-2.5 text-[13px] font-[430] text-zinc-800 transition-all hover:bg-zinc-100",
-              isCollapsed &&
-                "mx-auto flex h-9 w-9 shrink-0 justify-center rounded-lg px-0",
-            )}
-          >
-            <div className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-zinc-500/15">
-              <NewChatIcon className="h-3 w-3 text-zinc-800" />
-            </div>
-            {!isCollapsed && (
-              <span className="flex-1 truncate text-left">New chat</span>
-            )}
-          </Button>
         </div>
 
         <div className="space-y-0.5 pl-2 pr-1.5">
@@ -652,7 +656,7 @@ export function Sidebar({
             trailing: !isCollapsed ? (
               <ChevronRight
                 className={cn(
-                  "ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200",
+                  "sidebar-section-chevron ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400 transition-[opacity,transform] duration-200",
                   moreExpanded && "rotate-90",
                 )}
                 strokeWidth={2}
@@ -695,23 +699,9 @@ export function Sidebar({
             </div>
           ) : null}
 
-          {!isCollapsed && pinnedChats.length > 0 ? (
-            <div className="mt-3 mb-1.5 px-0.5">
-              <SidebarSectionLabel
-                label="Pinned chats"
-                expanded={pinnedExpanded}
-                onToggle={() => toggleSection("pinned")}
-              />
-              {pinnedExpanded ? (
-                <div className="mt-1 space-y-0.5">
-                  {pinnedChats.map((chat) => renderChatRow(chat))}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
+          {/* Order: Projects → Pinned → Recent */}
           {!isCollapsed ? (
-            <div className="mt-2 mb-1.5 px-0.5">
+            <div className="mt-3 mb-1.5 px-0.5">
               <SidebarSectionLabel
                 label="Projects"
                 expanded={projectsExpanded}
@@ -786,6 +776,21 @@ export function Sidebar({
                       </button>
                     );
                   })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!isCollapsed && pinnedChats.length > 0 ? (
+            <div className="mt-2 mb-1.5 px-0.5">
+              <SidebarSectionLabel
+                label="Pinned chats"
+                expanded={pinnedExpanded}
+                onToggle={() => toggleSection("pinned")}
+              />
+              {pinnedExpanded ? (
+                <div className="mt-1 space-y-0.5">
+                  {pinnedChats.map((chat) => renderChatRow(chat))}
                 </div>
               ) : null}
             </div>
