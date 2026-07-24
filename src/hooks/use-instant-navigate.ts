@@ -2,6 +2,7 @@
 
 import { startTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { CLAUXEN_NAVIGATE_EVENT } from "@/hooks/use-document-title";
 
 /**
  * Near-instant in-app navigation: update the URL bar immediately, then soft-sync Next.
@@ -21,6 +22,9 @@ export function useInstantNavigate() {
 
       const method = options?.replace ? "replaceState" : "pushState";
       window.history[method]({ __clxNav: pathOnly }, "", full);
+      window.dispatchEvent(
+        new CustomEvent(CLAUXEN_NAVIGATE_EVENT, { detail: { path: full } }),
+      );
 
       startTransition(() => {
         if (options?.replace) {

@@ -990,10 +990,9 @@ export function PromptInput({
 
   const withProjectStrip = showProjectStrip;
   const promptShellClass = cn(
-    "relative w-full max-w-full transition-[min-height,box-shadow,border-color,background-color] duration-200 ease-out",
+    "relative w-full max-w-full bg-white transition-[min-height,border-color,background-color] duration-200 ease-out",
     withProjectStrip && "composer-shell--with-project-strip",
-    showComposeControls &&
-      "min-h-[96px] border-zinc-200/80 bg-white/92 shadow-[0_8px_24px_-10px_rgba(24,24,27,0.12)] backdrop-blur-md",
+    showComposeControls && "min-h-[96px]",
   );
 
   const renderMicButton = () => (

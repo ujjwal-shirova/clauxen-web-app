@@ -551,13 +551,11 @@ nav.sidebar-hover-area {
   transition: background-color 0.15s ease !important;
 }
 
-/* Compact prompt composer — soft zinc hairline + light lift (pill capsule) */
+/* Compact prompt composer — single zinc hairline (no double-border / dual shadow) */
 [data-prompt-root] [data-prompt-shell] {
   background: #ffffff !important;
   border: 1px solid #e4e4e7 !important; /* zinc-200 */
-  box-shadow:
-    0 1px 2px rgba(24, 24, 27, 0.04),
-    0 10px 28px -18px rgba(24, 24, 27, 0.16) !important;
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04) !important;
   border-radius: 28px !important;
   overflow: hidden;
   transition:
@@ -574,9 +572,7 @@ nav.sidebar-hover-area {
   border: 1px solid #e4e4e7;
   border-radius: 28px;
   background: #ffffff;
-  box-shadow:
-    0 1px 2px rgba(24, 24, 27, 0.04),
-    0 10px 28px -18px rgba(24, 24, 27, 0.16);
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04);
   overflow: hidden;
   isolation: isolate;
 }
@@ -600,16 +596,12 @@ nav.sidebar-hover-area {
 
 [data-prompt-root] [data-composer-stack="with-project"]:focus-within {
   border-color: #d4d4d8; /* zinc-300 */
-  box-shadow:
-    0 1px 2px rgba(24, 24, 27, 0.05),
-    0 14px 32px -18px rgba(24, 24, 27, 0.18);
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.05);
 }
 
 [data-prompt-root] [data-prompt-shell]:focus-within {
   border-color: #d4d4d8 !important;
-  box-shadow:
-    0 1px 2px rgba(24, 24, 27, 0.05),
-    0 14px 32px -18px rgba(24, 24, 27, 0.18) !important;
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.05) !important;
 }
 
 [data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell]:focus-within {

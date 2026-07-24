@@ -117,7 +117,7 @@ function SidebarSectionLabel({
         <span className="truncate">{label}</span>
         <ChevronRight
           className={cn(
-            "sidebar-section-chevron h-3 w-3 shrink-0 text-zinc-400 transition-[opacity,transform,color] duration-200 group-hover/section:text-zinc-600",
+            "sidebar-section-chevron h-3 w-3 shrink-0 text-zinc-400 transition-[opacity,transform,color] duration-200 ease-out group-hover/section:text-zinc-600",
             expanded && "rotate-90",
           )}
           strokeWidth={2}
@@ -125,6 +125,31 @@ function SidebarSectionLabel({
         />
       </button>
       {trailing}
+    </div>
+  );
+}
+
+/** Height + opacity expand/collapse for sidebar category lists. */
+function SidebarSectionBody({
+  expanded,
+  children,
+  className,
+}: {
+  expanded: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        expanded
+          ? "grid-rows-[1fr] opacity-100"
+          : "pointer-events-none grid-rows-[0fr] opacity-0",
+      )}
+      aria-hidden={!expanded}
+    >
+      <div className={cn("min-h-0 overflow-hidden", className)}>{children}</div>
     </div>
   );
 }
@@ -781,8 +806,11 @@ export function Sidebar({
             ) : undefined,
           })}
 
-          {!isCollapsed && moreExpanded ? (
-            <div className="mb-0.5 space-y-0.5 pl-2">
+          {!isCollapsed ? (
+            <SidebarSectionBody
+              expanded={moreExpanded}
+              className="mb-0.5 space-y-0.5 pl-2"
+            >
               {renderNavButton({
                 label: "Clauxen Code",
                 icon: <Code2 className="h-[18px] w-[18px]" strokeWidth={1.75} />,
@@ -812,7 +840,7 @@ export function Sidebar({
                   }),
                 active: activeView === "clauxen-claw",
               })}
-            </div>
+            </SidebarSectionBody>
           ) : null}
 
           {/* Order: Pinned (chats + projects) → Projects → Recent */}
@@ -823,14 +851,12 @@ export function Sidebar({
                 expanded={pinnedExpanded}
                 onToggle={() => toggleSection("pinned")}
               />
-              {pinnedExpanded ? (
-                <div className="mt-1 space-y-0.5">
-                  {pinnedProjects.map((project) =>
-                    renderProjectRow(project, { pinned: true }),
-                  )}
-                  {pinnedChats.map((chat) => renderChatRow(chat))}
-                </div>
-              ) : null}
+              <SidebarSectionBody expanded={pinnedExpanded} className="mt-1 space-y-0.5">
+                {pinnedProjects.map((project) =>
+                  renderProjectRow(project, { pinned: true }),
+                )}
+                {pinnedChats.map((chat) => renderChatRow(chat))}
+              </SidebarSectionBody>
             </div>
           ) : null}
 
@@ -841,27 +867,25 @@ export function Sidebar({
                 expanded={projectsExpanded}
                 onToggle={() => toggleSection("projects")}
               />
-              {projectsExpanded ? (
-                <div className="mt-1 space-y-0.5">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      runNavAction(() => {
-                        onNewProjectClick?.();
-                      });
-                    }}
-                    className="group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100"
-                  >
-                    <Plus
-                      className="h-[18px] w-[18px] shrink-0 text-zinc-500"
-                      strokeWidth={1.75}
-                    />
-                    <span className="truncate">New Project</span>
-                  </button>
-                  {unpinnedProjects.map((project) => renderProjectRow(project))}
-                </div>
-              ) : null}
+              <SidebarSectionBody expanded={projectsExpanded} className="mt-1 space-y-0.5">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    runNavAction(() => {
+                      onNewProjectClick?.();
+                    });
+                  }}
+                  className="group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100"
+                >
+                  <Plus
+                    className="h-[18px] w-[18px] shrink-0 text-zinc-500"
+                    strokeWidth={1.75}
+                  />
+                  <span className="truncate">New Project</span>
+                </button>
+                {unpinnedProjects.map((project) => renderProjectRow(project))}
+              </SidebarSectionBody>
             </div>
           ) : null}
 
@@ -880,22 +904,20 @@ export function Sidebar({
                   />
                 }
               />
-              {recentsExpanded ? (
-                <div className="mt-1 space-y-2">
-                  {groupedChats.map((group) => (
-                    <div key={group.label || "all"}>
-                      {group.label ? (
-                        <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
-                          {group.label}
-                        </p>
-                      ) : null}
-                      <div className="space-y-0.5">
-                        {group.chats.map((chat) => renderChatRow(chat))}
-                      </div>
+              <SidebarSectionBody expanded={recentsExpanded} className="mt-1 space-y-2">
+                {groupedChats.map((group) => (
+                  <div key={group.label || "all"}>
+                    {group.label ? (
+                      <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
+                        {group.label}
+                      </p>
+                    ) : null}
+                    <div className="space-y-0.5">
+                      {group.chats.map((chat) => renderChatRow(chat))}
                     </div>
-                  ))}
-                </div>
-              ) : null}
+                  </div>
+                ))}
+              </SidebarSectionBody>
             </div>
           )}
         </div>

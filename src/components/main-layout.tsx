@@ -7,7 +7,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { sidebarDisplayName } from "@/lib/profile-names";
 import { useProjects } from "@/hooks/use-projects";
 import { useSidebarState } from "@/hooks/use-sidebar-state";
-import { useToast } from "@/hooks/use-toast";
 import {
   appAgentPanelClassName,
   appMainShellClassName,
@@ -52,7 +51,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const instantNavigate = useInstantNavigate();
   const auth = useAuth();
-  const { toast } = useToast();
   const {
     isMobile,
     isSidebarCollapsed,
@@ -228,16 +226,10 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     return match?.[1] ?? null;
   }, [pathname]);
 
-  const notifyComingSoon = useCallback(
-    (feature: string) => {
-      toast({
-        title: feature,
-        description: "This surface is coming soon.",
-      });
-      closeMobileNav();
-    },
-    [toast, closeMobileNav],
-  );
+  /** Quiet no-op for unfinished surfaces — never toast placeholder cards. */
+  const deferUnbuiltSurface = useCallback(() => {
+    closeMobileNav();
+  }, [closeMobileNav]);
 
   const isMobileFullBleed = isMobile && shouldMobileFullBleed(pathname);
 
@@ -304,11 +296,11 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onLibraryClick={goToLibrary}
         onCustomizeClick={goToCustomize}
         onMyClauxenClick={goToMyClauxen}
-        onImageClick={() => notifyComingSoon("Image")}
-        onScheduledTasksClick={() => notifyComingSoon("Scheduled Task")}
+        onImageClick={deferUnbuiltSurface}
+        onScheduledTasksClick={deferUnbuiltSurface}
         onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
-        onClauxenWorkClick={() => notifyComingSoon("Clauxen Work")}
-        onClauxenClawClick={() => notifyComingSoon("Clauxen Claw")}
+        onClauxenWorkClick={deferUnbuiltSurface}
+        onClauxenClawClick={deferUnbuiltSurface}
         activeView={computeActiveView(
           pathname,
           overlays.currentOverlay?.type ?? null,

@@ -204,10 +204,8 @@ export function SourceChip({
         rel="noopener noreferrer"
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
-        onFocus={scheduleShow}
-        onBlur={scheduleHide}
         className={cn(
-          "relative mx-0.5 inline-flex align-baseline items-center border border-zinc-200 bg-white font-medium text-zinc-700 shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-md",
+          "relative mx-0.5 inline-flex align-baseline items-center border border-zinc-200 bg-white font-medium text-zinc-700 shadow-sm outline-none transition-[background-color,border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-md focus-visible:border-zinc-300 focus-visible:ring-0",
           sizeClasses,
         )}
       >

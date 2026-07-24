@@ -2,11 +2,20 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import {
-  parseOverlayHash,
-} from "@/lib/app-routes";
+import { parseOverlayHash } from "@/lib/app-routes";
 
 const BRAND = "Clauxen";
+
+/** Soft-nav from useInstantNavigate dispatches this so tab titles stay in sync. */
+export const CLAUXEN_NAVIGATE_EVENT = "clauxen:navigate";
+
+function isChatPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  return (
+    /^\/c\/[^/]+/.test(pathname) ||
+    /\/conversations\/[^/]+/.test(pathname)
+  );
+}
 
 function titleForPath(
   pathname: string | null,
@@ -63,39 +72,55 @@ function titleForPath(
 /**
  * Keeps the browser tab title in sync with the current surface / chat title.
  * Use hyphen separators: "New chat - Clauxen".
+ *
+ * ChatView owns `/c/*` titles (pass `chatTitle`). Layout calls without a title
+ * must not clobber those routes.
  */
 export function useDocumentTitle(
   chatTitle?: string | null,
   options?: { brandOnly?: boolean },
 ) {
   const pathname = usePathname();
+  const ownsChatTitle = chatTitle !== undefined;
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    if (options?.brandOnly) {
-      document.title = BRAND;
-      return;
-    }
-    const livePath =
-      typeof window !== "undefined" ? window.location.pathname : pathname;
-    const hash =
-      typeof window !== "undefined" ? window.location.hash : "";
-    document.title = titleForPath(livePath, chatTitle, hash);
 
-    const onHash = () => {
+    const apply = () => {
+      if (options?.brandOnly) {
+        document.title = BRAND;
+        return;
+      }
+
+      const livePath =
+        typeof window !== "undefined" ? window.location.pathname : pathname;
+      const hash =
+        typeof window !== "undefined" ? window.location.hash : "";
+
+      // Layout / non-chat owners: never overwrite a ChatView-owned tab title.
+      if (!ownsChatTitle && isChatPath(livePath)) {
+        return;
+      }
+
       document.title = titleForPath(
-        window.location.pathname,
-        chatTitle,
-        window.location.hash,
+        livePath,
+        ownsChatTitle ? chatTitle : null,
+        hash,
       );
     };
-    window.addEventListener("hashchange", onHash);
-    window.addEventListener("popstate", onHash);
+
+    apply();
+
+    const onNav = () => apply();
+    window.addEventListener("hashchange", onNav);
+    window.addEventListener("popstate", onNav);
+    window.addEventListener(CLAUXEN_NAVIGATE_EVENT, onNav);
     return () => {
-      window.removeEventListener("hashchange", onHash);
-      window.removeEventListener("popstate", onHash);
+      window.removeEventListener("hashchange", onNav);
+      window.removeEventListener("popstate", onNav);
+      window.removeEventListener(CLAUXEN_NAVIGATE_EVENT, onNav);
     };
-  }, [pathname, chatTitle, options?.brandOnly]);
+  }, [pathname, chatTitle, options?.brandOnly, ownsChatTitle]);
 }
 
 export function setDocumentTitle(title: string) {

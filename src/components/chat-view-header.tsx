@@ -345,6 +345,8 @@ export function ChatViewHeader({
           : "Temporary chat"
       }
       side="bottom"
+      align="end"
+      sideOffset={8}
     >
       <button
         type="button"
@@ -364,7 +366,7 @@ export function ChatViewHeader({
   return (
     <div
       className={cn(
-        "content-pane-top-bar relative sticky top-0 z-20 flex h-[35px] w-full shrink-0 items-center justify-between gap-1 bg-[var(--app-panel-bg)] px-3 font-sans sm:px-4",
+        "content-pane-top-bar relative sticky top-0 z-20 flex h-[35px] w-full shrink-0 items-center justify-between gap-1 overflow-visible bg-[var(--app-panel-bg)] px-3 font-sans sm:px-4",
         className,
       )}
     >
@@ -377,7 +379,15 @@ export function ChatViewHeader({
         ) : null}
         {modelSwitcher}
       </div>
-      <div className="flex shrink-0 items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-1.5">
+        {temporaryChat ? (
+          <span
+            className="hidden max-w-[9.5rem] truncate rounded-full border border-zinc-200/90 bg-white px-2 py-0.5 text-[11px] font-medium leading-5 text-zinc-600 sm:inline-flex"
+            title="Temporary chat on — this chat won’t appear in history"
+          >
+            Temporary chat
+          </span>
+        ) : null}
         {upgradeButton}
         {ghostButton}
       </div>
