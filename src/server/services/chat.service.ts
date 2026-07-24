@@ -34,7 +34,10 @@ import {
   type CapturedToolCall,
   type TranscriptAgentModelTurn,
 } from "@/server/training/transcript-format";
-import { buildPromptMessagesFromDbRows } from "@/server/inference/build-chat-prompt-messages";
+import {
+  buildPromptMessagesFromDbRows,
+  mergePromptHistories,
+} from "@/server/inference/build-chat-prompt-messages";
 
 async function persistUserTranscriptLine(input: {
   chatId: string;
@@ -441,43 +444,23 @@ export async function streamChatGeneration(input: {
   }
 
   // Prompt context from DB recent turns so partial client pages cannot starve
-  // the model. Prefer structured agent rounds (thinking/tools/text) so follow-ups
-  // see prior assistant work, not only previous user text.
+  // the model. Merge with client history so prior assistant answers are never
+  // dropped when a row is mid-persist or content_json is incomplete.
   const dbRecent = await messagesRepo.listRecentMessagesForChat(
     input.chatId,
     40,
   );
   const promptFromDb = buildPromptMessagesFromDbRows(dbRecent);
-  const fromDb: IncomingMessage[] = promptFromDb.plain;
-  const structuredFromDb: AgentStreamOptions["messages"] =
-    promptFromDb.structured;
-
-  let conversationForModel =
-    fromDb.length > 0 ? fromDb : clientConversation;
-  let conversationForAgent =
-    structuredFromDb.length > 0
-      ? structuredFromDb
-      : clientConversation.map((message) => ({
-          role: message.role,
-          content: message.content,
-        }));
+  const clientAsPrompt: AgentStreamOptions["messages"] =
+    clientConversation.map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+  let conversationForAgent = mergePromptHistories(
+    promptFromDb.structured,
+    clientAsPrompt,
+  );
   if (lastClientUser) {
-    const lastDbUserIndex = (() => {
-      for (let i = conversationForModel.length - 1; i >= 0; i -= 1) {
-        if (conversationForModel[i]?.role === "user") return i;
-      }
-      return -1;
-    })();
-    if (lastDbUserIndex >= 0) {
-      conversationForModel = conversationForModel.map((message, index) =>
-        index === lastDbUserIndex
-          ? { ...message, content: lastClientUser.content }
-          : message,
-      );
-    } else {
-      conversationForModel = [...conversationForModel, lastClientUser];
-    }
-
     let lastAgentUserIndex = -1;
     for (let i = conversationForAgent.length - 1; i >= 0; i -= 1) {
       if (
@@ -501,6 +484,14 @@ export async function streamChatGeneration(input: {
       ];
     }
   }
+  let conversationForModel: IncomingMessage[] = conversationForAgent
+    .filter(
+      (m): m is { role: "user" | "assistant"; content: string } =>
+        (m.role === "user" || m.role === "assistant") &&
+        typeof m.content === "string" &&
+        m.content.trim().length > 0,
+    )
+    .map((m) => ({ role: m.role, content: m.content }));
 
   const generateChatTitle = resolveGenerateChatTitle(
     clientConversation,

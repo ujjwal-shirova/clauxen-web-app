@@ -24,13 +24,10 @@ export const autonomousAgentTools: FunctionTool[] = [
     description: [
       "Search the live web (Exa, type=auto) for current, factual, or recent information. Results include titles, urls and highlights.",
       "USE PROACTIVELY when you need up-to-date or sourced information.",
-      "CITATION FORMAT — MANDATORY in your FINAL answer text after using web_search results:",
-      "• After any claim taken from results, append an inline citation in exactly this form: ([Title or Domain][N])",
-      "• N = 1-based position of that result in the list returned by the tool (first result is 1).",
-      "• Do NOT append markdown reference definitions at the end, such as [1]: https://url \"Title\".",
-      "• The UI will turn the inline citations into source chips at the right places.",
-      "• Never fabricate citations or urls. Use the exact data from the tool response.",
-      "Before calling, briefly tell the user what you are searching for. After results, you may emit a short note, then produce the final cited answer.",
+      "CITATION FORMAT — in your FINAL answer after using results:",
+      "• Cite inline as ([Title or Domain][N]) where N is the result's 1-based index field.",
+      "• Never invent indexes beyond the returned results. Never append [N]: url reference lines.",
+      "• Before calling, one short sentence of progress prose is enough; then call the tool; then write the cited final answer.",
     ].join(" "),
     parameters: {
       type: "object",

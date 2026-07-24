@@ -459,6 +459,8 @@ export async function runAutonomousAgent(
                 closeActiveNarrationSegment();
                 const segmentId = ensureNarrationOpen();
                 sse.writeNarrationDelta(segmentId, emittedAnswerText.trim());
+                // Pre-tool prose is progress, not the durable final answer.
+                emittedAnswerText = "";
               }
             }
             closeActiveNarrationSegment();
@@ -531,11 +533,19 @@ export async function runAutonomousAgent(
       const assistantCompletedAtMs = Date.now();
 
       if (pendingToolCalls.length === 0) {
-        if (!parsedText.visibleText.trim() && parsedText.narration.trim()) {
-          for (const segmentId of turnNarrationSegmentIds) {
-            sse.writeSegmentRemove(segmentId);
+        // Flush final prose into the durable answer channel when nothing was
+        // emitted as answer yet (e.g. only narration, or post-tool text held
+        // as narration). Follow-up turns replay this persisted answer.
+        if (!emittedAnswerText.trim()) {
+          const finalAnswer =
+            parsedText.visibleText.trim() || parsedText.narration.trim();
+          if (finalAnswer) {
+            for (const segmentId of turnNarrationSegmentIds) {
+              sse.writeSegmentRemove(segmentId);
+            }
+            sse.writeAnswerDelta(finalAnswer);
+            emittedAnswerText = finalAnswer;
           }
-          sse.writeAnswerDelta(parsedText.narration.trim());
         }
         if (finished) {
           try {

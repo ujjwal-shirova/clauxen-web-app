@@ -79,7 +79,8 @@ export async function executeAutonomousTool(
         ctx.onToolProgress?.({
           query,
           tool_call_id: ctx.toolCallId,
-          results: partial.slice(0, 10).map((h) => ({
+          results: partial.slice(0, 10).map((h, i) => ({
+            index: i + 1,
             title: h.title,
             url: h.url,
             snippet: h.snippet,
@@ -93,7 +94,8 @@ export async function executeAutonomousTool(
     return {
       output: {
         query,
-        results: hits.slice(0, 10).map((h) => ({
+        results: hits.slice(0, 10).map((h, i) => ({
+          index: i + 1,
           title: h.title,
           url: h.url,
           snippet: h.snippet,

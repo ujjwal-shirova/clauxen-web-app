@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildPromptMessagesFromDbRows } from "@/server/inference/build-chat-prompt-messages";
+import {
+  buildPromptMessagesFromDbRows,
+  mergePromptHistories,
+} from "@/server/inference/build-chat-prompt-messages";
 import type { MessageRow } from "@/server/repositories/messages.repository";
 
 function row(
@@ -106,5 +109,54 @@ describe("buildPromptMessagesFromDbRows", () => {
     ]);
     assert.equal(plain.length, 1);
     assert.equal(plain[0]?.role, "user");
+  });
+
+  it("keeps alternating roles when a completed assistant answer exists", () => {
+    const { plain } = buildPromptMessagesFromDbRows([
+      row({ id: "u1", role: "user", content: "hi what's up and who are you?" }),
+      row({
+        id: "a1",
+        role: "assistant",
+        content:
+          "Hey! I'm clauxen, an AI assistant made by shirova. What's up with you?",
+      }),
+      row({
+        id: "u2",
+        role: "user",
+        content: "search the web for the latest news",
+      }),
+      row({
+        id: "a2",
+        role: "assistant",
+        content: "",
+        status: "streaming",
+      }),
+    ]);
+
+    assert.equal(plain.length, 3);
+    assert.equal(plain[0]?.role, "user");
+    assert.equal(plain[1]?.role, "assistant");
+    assert.match(String(plain[1]?.content), /I'm clauxen/i);
+    assert.equal(plain[2]?.role, "user");
+    assert.match(String(plain[2]?.content), /search the web/i);
+  });
+});
+
+describe("mergePromptHistories", () => {
+  it("fills empty DB assistant slots from client history", () => {
+    const merged = mergePromptHistories(
+      [
+        { role: "user", content: "hi" },
+        { role: "assistant", content: "" },
+        { role: "user", content: "search news" },
+      ],
+      [
+        { role: "user", content: "hi" },
+        { role: "assistant", content: "I am clauxen." },
+        { role: "user", content: "search news" },
+      ],
+    );
+    assert.equal(merged.length, 3);
+    assert.equal(merged[1]?.content, "I am clauxen.");
   });
 });

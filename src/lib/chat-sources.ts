@@ -80,6 +80,49 @@ export function collectMessageSources(message: Message): ChatSource[] {
   return collectChatSources([message]);
 }
 
+function normalizeCitationKey(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/^www\./, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function findSourceByTitleOrDomain(
+  label: string,
+  sources: ChatSource[],
+): ChatSource | undefined {
+  const key = normalizeCitationKey(label);
+  if (!key) return undefined;
+
+  const exact = sources.find((src) => {
+    const title = normalizeCitationKey(src.title || "");
+    const domain = normalizeCitationKey(src.domain || domainFromUrl(src.url));
+    return title === key || domain === key || domain.startsWith(key);
+  });
+  if (exact) return exact;
+
+  return sources.find((src) => {
+    const title = normalizeCitationKey(src.title || "");
+    const domain = normalizeCitationKey(src.domain || domainFromUrl(src.url));
+    return (
+      (title && (title.includes(key) || key.includes(title))) ||
+      (domain && (domain.includes(key) || key.includes(domain)))
+    );
+  });
+}
+
+function resolveCitationSource(
+  sources: ChatSource[],
+  index: number,
+  label?: string,
+): ChatSource | undefined {
+  const byIndex = sources[index - 1];
+  if (byIndex) return byIndex;
+  if (label) return findSourceByTitleOrDomain(label, sources);
+  return undefined;
+}
+
 /**
  * Convert citation markers in the LLM output text into direct markdown links.
  * This allows the renderer to turn model citations like ([Title][3]) or [3]
@@ -89,42 +132,38 @@ export function collectMessageSources(message: Message): ChatSource[] {
  *   - [Title][N]
  *   - ([Title][N])
  *   - bare [N]
+ *
+ * If N is out of range, falls back to title/domain match. Unmatched markers
+ * are stripped to plain title text so raw `([The Hindu][9])` never leaks.
  */
 export function convertCitationReferencesToLinks(
   text: string,
   sources: ChatSource[],
 ): string {
-  if (!sources.length) return text;
-
-  const byIndex = new Map<number, ChatSource>();
-  sources.forEach((s, i) => byIndex.set(i + 1, s));
+  if (!text) return text;
 
   let result = text;
 
   // Handle parenthesized citation form used by the model: ([Title][N])
-  // Strip the surrounding () so the chip appears directly after the sentence text.
   result = result.replace(
     /\(\s*\[([^\]]+?)\]\[(\d+)\]\s*\)/g,
-    (match, title: string, nStr: string) => {
+    (_match, title: string, nStr: string) => {
       const n = parseInt(nStr, 10);
-      const src = byIndex.get(n);
-      if (src) {
-        return `[${title}](${src.url})`;
-      }
-      return match;
+      const src = resolveCitationSource(sources, n, title);
+      if (src) return `[${title}](${src.url})`;
+      // Prefer a clean domain/title chip-less fallback over raw markup.
+      return title.trim() || "";
     },
   );
 
   // [TitleOrDomain][N]  -->  [TitleOrDomain](https://url)
   result = result.replace(
     /\[([^\]\[]+?)\]\[(\d+)\]/g,
-    (match, title: string, nStr: string) => {
+    (_match, title: string, nStr: string) => {
       const n = parseInt(nStr, 10);
-      const src = byIndex.get(n);
-      if (src) {
-        return `[${title}](${src.url})`;
-      }
-      return match;
+      const src = resolveCitationSource(sources, n, title);
+      if (src) return `[${title}](${src.url})`;
+      return title.trim() || "";
     },
   );
 
@@ -133,11 +172,12 @@ export function convertCitationReferencesToLinks(
     /(^|[^[\]])\[(\d+)\](?!\(|\[)/g,
     (match, prefix: string, nStr: string) => {
       const n = parseInt(nStr, 10);
-      const src = byIndex.get(n);
+      const src = resolveCitationSource(sources, n);
       if (src) {
         return `${prefix}[](${src.url})`;
       }
-      return match;
+      // Drop unknown bare indices rather than leaving [9] in the prose.
+      return prefix;
     },
   );
 

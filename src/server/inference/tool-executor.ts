@@ -201,11 +201,15 @@ export async function executePlatformTool(
           },
         });
         send("web_search_results", { ...searchPayload, results });
+        const numbered = results.map((hit, i) => ({
+          index: i + 1,
+          ...hit,
+        }));
         return [
           `web_search results for query: ${query}`,
           "",
-          "RESULTS (use these; cite inline by 1-based index as ([Title or Domain][N])):",
-          JSON.stringify(results),
+          "RESULTS (cite inline as ([Title or Domain][N]) using each result's index):",
+          JSON.stringify(numbered),
           "",
           "Do not append markdown reference-definition lines such as [1]: https://... at the end; the UI already has the source URLs.",
         ].join("\n");
