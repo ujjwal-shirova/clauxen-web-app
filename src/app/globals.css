@@ -609,17 +609,25 @@ nav.sidebar-hover-area {
   box-shadow: none !important;
 }
 
-/* Legacy selector kept for any older markup */
-[data-prompt-root] > div > div:not([data-prompt-shell]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]) {
+/* Legacy outer wrappers only — never [data-composer-stack] / [data-prompt-shell]
+   (those own the single hairline). Matching the stack caused a double border. */
+[data-prompt-root] > div > div:not([data-prompt-shell]):not([data-composer-stack]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):not([data-ask-user-input-composer]) {
   background-color: #ffffff !important;
   border: 1px solid rgba(24, 24, 27, 0.055) !important;
-  box-shadow: var(--prompt-shadow) !important;
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04) !important;
   border-radius: var(--prompt-radius-lg) !important;
 }
 
-[data-prompt-root] > div > div:not([data-prompt-shell]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):focus-within {
+[data-prompt-root] > div > div:not([data-prompt-shell]):not([data-composer-stack]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):not([data-ask-user-input-composer]):focus-within {
   border-color: rgba(24, 24, 27, 0.1) !important;
-  box-shadow: var(--prompt-shadow-focus) !important;
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.05) !important;
+}
+
+/* Solo stack is a layout wrapper only — border lives on [data-prompt-shell]. */
+[data-prompt-root] [data-composer-stack="solo"] {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 
 /* User message — full-width Claude-style card (opaque; never ghost-button hovers) */

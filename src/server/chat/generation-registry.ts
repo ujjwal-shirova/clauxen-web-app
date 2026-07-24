@@ -64,7 +64,8 @@ export async function abortChatGeneration(chatId: string): Promise<boolean> {
   }
   entry.controller.abort();
   generations.delete(chatId);
-  void releaseChatCoordLease(chatId, entry.leaseId);
+  // Await release so the next send cannot race a still-held DO lease.
+  await releaseChatCoordLease(chatId, entry.leaseId);
   return true;
 }
 
@@ -75,7 +76,9 @@ export async function endChatGeneration(
   const entry = generations.get(chatId);
   if (entry?.controller === controller) {
     generations.delete(chatId);
-    void releaseChatCoordLease(chatId, entry.leaseId);
+    // Must await: fire-and-forget left the DO lease active and the next
+    // generate (immediate follow-up / ask-user answer) hit 409.
+    await releaseChatCoordLease(chatId, entry.leaseId);
   }
 }
 

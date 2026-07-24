@@ -28,8 +28,6 @@ import {
 } from "@/lib/chat-title";
 import {
   buildAssistantTranscriptRecord,
-  buildTurnEndedRecord,
-  buildToolResultUserRecord,
   buildUserTranscriptRecord,
   type CapturedToolCall,
   type TranscriptAgentModelTurn,
@@ -39,28 +37,24 @@ import {
   mergePromptHistories,
 } from "@/server/inference/build-chat-prompt-messages";
 
-async function persistUserTranscriptLine(input: {
+/** Training JSONL user mirror disabled — see persistAssistantTranscriptTurn. */
+async function persistUserTranscriptLine(_input: {
   chatId: string;
   userId: string;
   messageId?: string | null;
   content: string;
-}) {
-  const record = buildUserTranscriptRecord(input.content);
-  try {
-    await transcriptRepo.appendTranscriptLine({
-      chatId: input.chatId,
-      userId: input.userId,
-      messageId: input.messageId,
-      role: "user",
-      record,
-    });
-  } catch (error) {
-    console.warn("[transcript] failed to append user line:", error);
-  }
-  return record;
+}): Promise<void> {
+  // no-op
 }
 
-async function persistAssistantTranscriptTurn(input: {
+/**
+ * Training JSONL mirror is disabled. Chat history of truth is
+ * `chat_messages.content` + `content_json.agent_ui` (modelTurns/actions) in
+ * Supabase — that path still hydrates the agent UI and prompt history.
+ * Dual-writing synthetic user tool_result lines into transcript tables caused
+ * conflicting history; do not re-enable without isolating export from hydrate.
+ */
+async function persistAssistantTranscriptTurn(_input: {
   chatId: string;
   userId: string;
   messageId?: string | null;
@@ -69,68 +63,8 @@ async function persistAssistantTranscriptTurn(input: {
   tools: CapturedToolCall[];
   modelTurns?: TranscriptAgentModelTurn[];
   status: "success" | "error" | "cancelled";
-}) {
-  const record = buildAssistantTranscriptRecord({
-    answer: input.answer,
-    thinking: input.thinking,
-    tools: input.tools,
-  });
-  try {
-    if (input.modelTurns?.length) {
-      for (const turn of input.modelTurns) {
-        await transcriptRepo.appendTranscriptLine({
-          chatId: input.chatId,
-          userId: input.userId,
-          messageId: input.messageId,
-          role: "assistant",
-          record: {
-            role: "assistant",
-            message: { content: turn.assistant },
-          },
-        });
-        if (turn.toolResults?.length) {
-          await transcriptRepo.appendTranscriptLine({
-            chatId: input.chatId,
-            userId: input.userId,
-            messageId: input.messageId,
-            role: "user",
-            record: {
-              role: "user",
-              message: { content: turn.toolResults },
-            },
-          });
-        }
-      }
-    } else {
-      await transcriptRepo.appendTranscriptLine({
-        chatId: input.chatId,
-        userId: input.userId,
-        messageId: input.messageId,
-        role: "assistant",
-        record,
-      });
-      const toolResults = buildToolResultUserRecord(input.tools);
-      if (toolResults) {
-        await transcriptRepo.appendTranscriptLine({
-          chatId: input.chatId,
-          userId: input.userId,
-          messageId: input.messageId,
-          role: "user",
-          record: toolResults,
-        });
-      }
-    }
-    await transcriptRepo.appendTranscriptLine({
-      chatId: input.chatId,
-      userId: input.userId,
-      messageId: input.messageId,
-      role: "meta",
-      record: buildTurnEndedRecord(input.status),
-    });
-  } catch (error) {
-    console.warn("[transcript] failed to append assistant turn:", error);
-  }
-  return record;
+}): Promise<void> {
+  // no-op
 }
 
 export async function listRecentChats(userId: string, projectId?: string) {

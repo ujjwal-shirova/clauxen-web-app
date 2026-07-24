@@ -80,28 +80,64 @@ function summarizeAskUserQuestions(input: Record<string, unknown> | undefined): 
   return `ask_user_input_v0 asked: ${labels.join(" | ")}`;
 }
 
+/** Compact tool result note so follow-ups still see what the tool returned. */
+function summarizeToolResult(
+  name: string,
+  result: unknown,
+): string {
+  if (typeof result !== "string" || !result.trim()) return "";
+  const trimmed = result.trim();
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      results?: Array<{ title?: string; url?: string }>;
+      status?: string;
+      error?: string;
+    };
+    if (typeof parsed.error === "string" && parsed.error.trim()) {
+      return `${name} error: ${parsed.error.trim().slice(0, 160)}`;
+    }
+    if (parsed.status === "pending_user_input") {
+      return `${name}: waiting for user answers`;
+    }
+    if (Array.isArray(parsed.results) && parsed.results.length > 0) {
+      const hits = parsed.results
+        .slice(0, 4)
+        .map((item) => item.title?.trim() || item.url?.trim() || "")
+        .filter(Boolean);
+      if (hits.length > 0) return `${name} results: ${hits.join(" | ")}`;
+    }
+  } catch {
+    // plain string result
+  }
+  const flat = trimmed.replace(/\s+/g, " ");
+  return `${name} result: ${flat.slice(0, 220)}${flat.length > 220 ? "…" : ""}`;
+}
+
 function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
   const actions = Array.isArray(agentUi?.actions) ? agentUi.actions : [];
   const names: string[] = [];
+  const results: string[] = [];
 
   if (actions.length > 0) {
     for (const action of actions.slice(0, 12)) {
       const name = action.name || "tool";
       if (name === "ask_user_input_v0") {
         names.push(summarizeAskUserQuestions(action.input));
-        continue;
+      } else {
+        const detail =
+          typeof action.description === "string" && action.description.trim()
+            ? action.description.trim()
+            : typeof action.input?.query === "string"
+              ? String(action.input.query)
+              : typeof action.input?.path === "string"
+                ? String(action.input.path)
+                : typeof action.input?.command === "string"
+                  ? String(action.input.command)
+                  : "";
+        names.push(detail ? `${name}: ${detail}` : name);
       }
-      const detail =
-        typeof action.description === "string" && action.description.trim()
-          ? action.description.trim()
-          : typeof action.input?.query === "string"
-            ? String(action.input.query)
-            : typeof action.input?.path === "string"
-              ? String(action.input.path)
-              : typeof action.input?.command === "string"
-                ? String(action.input.command)
-                : "";
-      names.push(detail ? `${name}: ${detail}` : name);
+      const resultNote = summarizeToolResult(name, action.result);
+      if (resultNote) results.push(resultNote);
     }
   } else if (Array.isArray(agentUi?.modelTurns)) {
     for (const turn of agentUi.modelTurns) {
@@ -115,15 +151,32 @@ function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
                 : undefined,
             ),
           );
-          continue;
+        } else {
+          names.push(part.name);
         }
-        names.push(part.name);
+      }
+      for (const tr of turn.toolResults ?? []) {
+        const matched = turn.assistant?.find(
+          (part) => part.type === "tool_use" && part.id === tr.tool_use_id,
+        );
+        const name =
+          matched && matched.type === "tool_use" && matched.name
+            ? matched.name
+            : "tool";
+        const resultNote = summarizeToolResult(name, tr.content);
+        if (resultNote) results.push(resultNote);
       }
     }
   }
 
-  if (names.length === 0) return "";
-  return `[Prior tools this turn: ${[...new Set(names)].slice(0, 12).join("; ")}]`;
+  if (names.length === 0 && results.length === 0) return "";
+  const lines = [
+    names.length > 0
+      ? `[Prior tools this turn: ${[...new Set(names)].slice(0, 12).join("; ")}]`
+      : "",
+    ...results.slice(0, 8).map((line) => `[${line}]`),
+  ].filter(Boolean);
+  return lines.join("\n");
 }
 
 /**

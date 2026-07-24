@@ -1242,48 +1242,76 @@ export function useChatApi(
       });
 
       try {
-        const response = await fetch(`/api/v1/chats/${chatId}/generate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            messages: conversation,
-            homerReasoningEffort,
-            chatModel,
-            // Keep title generation off the hot response path; it runs after the
-            // answer completes so first-token rendering is not blocked.
-            generateChatTitle: false,
-            ...(turn
-              ? {
-                  turn: {
-                    content: turn.content,
-                    modelContent: turn.modelContent,
-                    fileIds: turn.fileIds,
-                    userClientId: turn.userClientId,
-                    assistantClientId,
-                  },
-                }
-              : {}),
-          }),
-          signal: controller.signal,
+        const generateBody = JSON.stringify({
+          messages: conversation,
+          homerReasoningEffort,
+          chatModel,
+          // Keep title generation off the hot response path; it runs after the
+          // answer completes so first-token rendering is not blocked.
+          generateChatTitle: false,
+          ...(turn
+            ? {
+                turn: {
+                  content: turn.content,
+                  modelContent: turn.modelContent,
+                  fileIds: turn.fileIds,
+                  userClientId: turn.userClientId,
+                  assistantClientId,
+                },
+              }
+            : {}),
         });
 
-        if (!response.ok || !response.body) {
-          let detail = `Generation failed (${response.status})`;
+        // Brief retry on lease races: previous turn just ended / ask pause
+        // released the DO a few ms after the client became idle.
+        let response: Response | null = null;
+        let lastDetail = "Generation failed";
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          const attemptResponse = await fetch(
+            `/api/v1/chats/${chatId}/generate`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: generateBody,
+              signal: controller.signal,
+            },
+          );
+          if (attemptResponse.ok && attemptResponse.body) {
+            response = attemptResponse;
+            break;
+          }
+
+          let detail = `Generation failed (${attemptResponse.status})`;
+          let leaseBusy = attemptResponse.status === 409;
           try {
-            const payload = (await response.json()) as {
+            const payload = (await attemptResponse.json()) as {
               error?: string | { message?: string };
               message?: string;
+              code?: string;
             };
             const fromError =
               typeof payload.error === "string"
                 ? payload.error
                 : payload.error?.message;
             detail = fromError || payload.message || detail;
+            leaseBusy =
+              leaseBusy ||
+              payload.code === "generation_in_progress" ||
+              /already generating/i.test(detail);
           } catch {
             // ignore parse errors
           }
-          throw new Error(detail);
+          lastDetail = detail;
+          if (!leaseBusy || attempt === 5) {
+            throw new Error(detail);
+          }
+          await new Promise((resolve) =>
+            setTimeout(resolve, 80 + attempt * 60),
+          );
+        }
+        if (!response?.ok || !response.body) {
+          throw new Error(lastDetail);
         }
 
         const serverUserId = response.headers.get("X-User-Message-Id");
@@ -1421,8 +1449,9 @@ export function useChatApi(
             event.type === "tool_end" &&
             event.name === "ask_user_input_v0"
           ) {
-            // Questionnaire pause — free the composer immediately so answers
-            // are not blocked behind "still generating" / queue / 409.
+            // Mark the ask turn idle in the transcript, but keep the generation
+            // controller until SSE `done`. Clearing early made bypassQueue think
+            // the lease was free while the server still held it → 409.
             patchAssistantMessage(chatId, targetAssistantId, (message) => {
               const next = applyAgentStreamEvent(message, event);
               return {
@@ -1432,10 +1461,6 @@ export function useChatApi(
                 agentFrameComplete: true,
               };
             });
-            useChatStore.getState().setChatGenerating(chatId, false);
-            if (getGeneration(chatId)?.request === controller) {
-              setGeneration(chatId, null);
-            }
             return;
           }
           patchAssistantMessage(chatId, targetAssistantId, (message) =>
