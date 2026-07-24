@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isChatScrollAnchorLockActive } from "@/lib/chat-scroll-anchor";
 
 type UseChatScrollOptions = {
   /** Radix ScrollArea root ref (we resolve the viewport from it). */
@@ -236,6 +237,12 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
       lastScrollHeightRef.current = nextScrollHeight;
 
       if (heightDelta === 0) return;
+
+      // Agent fold expand/collapse locks the header position; do not pin-follow
+      // or the user bubble jumps upward while the panel opens.
+      if (isChatScrollAnchorLockActive()) {
+        return;
+      }
 
       // While reading earlier content, growth/collapse elsewhere (LOD restore,
       // fold headers, tool cards) must not yank the lines in view. Preserve

@@ -100,4 +100,50 @@ describe("mergeAgentFramesForDisplay", () => {
     assert.equal(timelines.length, 1);
     assert.ok(blocks.some((b) => b.kind === "markdown" && b.content.includes("Final answer")));
   });
+
+  it("suppresses trailing answer that duplicates narration (ask_user_input)", () => {
+    const intro =
+      "To give you the most relevant research topics, let me ask a couple quick questions:";
+    const message: Message = {
+      id: "m-ask",
+      role: "assistant",
+      content: intro,
+      agentFrames: [
+        {
+          id: "f1",
+          complete: true,
+          startedAtMs: 1,
+          completedAtMs: 3,
+          segments: [
+            {
+              kind: "narration",
+              id: "n1",
+              content: intro,
+              isStreaming: false,
+            },
+            {
+              kind: "tool",
+              id: "t1",
+              toolCallId: "tc1",
+              name: "ask_user_input_v0",
+              status: "done",
+              args: {
+                questions: [
+                  {
+                    question: "What are you hoping to achieve?",
+                    options: ["Inform", "Persuade"],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const blocks = resolveOrchestrationBlocks(message);
+    const markdown = blocks.filter((b) => b.kind === "markdown");
+    assert.equal(markdown.length, 0);
+    assert.equal(blocks.filter((b) => b.kind === "timeline").length, 1);
+  });
 });

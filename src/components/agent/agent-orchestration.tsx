@@ -14,6 +14,7 @@ import { AgentFoldGroup } from "./agent-fold-group";
 import { AgentThinkingPhase } from "./agent-thinking-phase";
 import { AgentNarrationNote } from "./agent-narration-note";
 import { AgentToolBlock } from "./agent-tool-blocks";
+import { AgentTurnStreamingProvider } from "./agent-turn-streaming";
 import type {
   AgentSegment,
   AgentThinkingSegment,
@@ -131,87 +132,89 @@ export function AgentOrchestrationView({
   }
 
   return (
-    <div
-      className="flex w-full min-w-0 flex-col gap-3.5"
-      data-message-id={message.id}
-      data-assistant-content="true"
-      data-agent-transcript-root="true"
-    >
-      {blocks.map((block) => {
-        if (block.kind === "timeline") {
-          const segments = traceSegments(block.frame.segments);
-          if (segments.length === 0) return null;
-          const items = groupAgentTraceItems(segments);
-          const indexById = new Map(
-            segments.map((segment, index) => [segment.id, index]),
-          );
+    <AgentTurnStreamingProvider value={streaming}>
+      <div
+        className="flex w-full min-w-0 flex-col gap-3.5"
+        data-message-id={message.id}
+        data-assistant-content="true"
+        data-agent-transcript-root="true"
+      >
+        {blocks.map((block) => {
+          if (block.kind === "timeline") {
+            const segments = traceSegments(block.frame.segments);
+            if (segments.length === 0) return null;
+            const items = groupAgentTraceItems(segments);
+            const indexById = new Map(
+              segments.map((segment, index) => [segment.id, index]),
+            );
+
+            return (
+              <AgentTrace key={block.frame.id}>
+                {items.map((item) => {
+                  if (item.kind === "narration") {
+                    return (
+                      <AgentNarrationNote
+                        key={item.segment.id}
+                        segment={item.segment}
+                      />
+                    );
+                  }
+
+                  return (
+                    <AgentFoldGroup
+                      key={item.id}
+                      summary={item.summary}
+                      isActive={item.isActive}
+                      useChrome={item.useChrome}
+                    >
+                      {item.segments.map((segment) =>
+                        renderFoldMember(
+                          segment,
+                          segments,
+                          indexById.get(segment.id) ?? 0,
+                        ),
+                      )}
+                    </AgentFoldGroup>
+                  );
+                })}
+              </AgentTrace>
+            );
+          }
+
+          const isIntro = block.blockId.endsWith("-intro");
+          const isInterim = block.blockId.endsWith("-interim");
+          const isNarrationVoice = isIntro || isInterim;
 
           return (
-            <AgentTrace key={block.frame.id}>
-              {items.map((item) => {
-                if (item.kind === "narration") {
-                  return (
-                    <AgentNarrationNote
-                      key={item.segment.id}
-                      segment={item.segment}
-                    />
-                  );
-                }
-
-                return (
-                  <AgentFoldGroup
-                    key={item.id}
-                    summary={item.summary}
-                    isActive={item.isActive}
-                    useChrome={item.useChrome}
-                  >
-                    {item.segments.map((segment) =>
-                      renderFoldMember(
-                        segment,
-                        segments,
-                        indexById.get(segment.id) ?? 0,
-                      ),
-                    )}
-                  </AgentFoldGroup>
-                );
-              })}
-            </AgentTrace>
+            <div
+              key={block.blockId}
+              className={cn(
+                isNarrationVoice &&
+                  "text-[14px] font-[430] leading-[1.55] tracking-[-0.01em] text-zinc-700",
+              )}
+              data-agent-block={
+                isIntro ? "intro" : isInterim ? "interim" : "answer"
+              }
+            >
+              <AssistantContentRenderer
+                content={block.content}
+                messageId={message.id}
+                isStreaming={block.isStreaming}
+                streamKey={block.blockId}
+                detailLevel={detailLevel}
+                agentArtifacts={message.agentArtifacts}
+                {...({ sources } as any)}
+              />
+            </div>
           );
-        }
+        })}
 
-        const isIntro = block.blockId.endsWith("-intro");
-        const isInterim = block.blockId.endsWith("-interim");
-        const isNarrationVoice = isIntro || isInterim;
-
-        return (
-          <div
-            key={block.blockId}
-            className={cn(
-              isNarrationVoice &&
-                "text-[14px] font-[430] leading-[1.55] tracking-[-0.01em] text-zinc-700",
-            )}
-            data-agent-block={
-              isIntro ? "intro" : isInterim ? "interim" : "answer"
-            }
-          >
-            <AssistantContentRenderer
-              content={block.content}
-              messageId={message.id}
-              isStreaming={block.isStreaming}
-              streamKey={block.blockId}
-              detailLevel={detailLevel}
-              agentArtifacts={message.agentArtifacts}
-              {...({ sources } as any)}
-            />
+        {showOrb ? (
+          <div className="flex items-center py-1" data-streaming-orb="bottom">
+            <StreamingOrbCursor />
           </div>
-        );
-      })}
-
-      {showOrb ? (
-        <div className="flex items-center py-1" data-streaming-orb="bottom">
-          <StreamingOrbCursor />
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </AgentTurnStreamingProvider>
   );
 }

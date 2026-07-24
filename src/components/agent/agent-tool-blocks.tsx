@@ -41,6 +41,17 @@ import { AgentFileBlock, PresentFilesBlock } from "./agent-file-block";
 import { HighlightCode } from "@/lib/syntax-highlight";
 import { StreamingTextFade } from "@/lib/streaming-text-fade";
 
+/** Keep tool header shimmer alive until the whole assistant turn finishes. */
+function toolLiveChrome(
+  tool: AgentToolSegment,
+  turnStreaming?: boolean,
+): boolean {
+  return (
+    tool.status === "running" ||
+    (turnStreaming === true && tool.status === "done")
+  );
+}
+
 function SearchResultFavicon({
   url,
   size = "sm",
@@ -109,7 +120,13 @@ function SearchResultRow({
   );
 }
 
-export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentWebSearchBlock({
+  tool,
+  turnStreaming,
+}: {
+  tool: AgentToolSegment;
+  turnStreaming?: boolean;
+}) {
   const query =
     tool.searchQuery ??
     (typeof tool.args?.query === "string"
@@ -119,6 +136,7 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
         : tool.name.replace(/_/g, " "));
   const results = tool.searchResults ?? [];
   const isRunning = tool.status === "running";
+  const isLive = toolLiveChrome(tool, turnStreaming);
   const [visibleCount, setVisibleCount] = useState(() =>
     tool.status === "running" ? 0 : results.length,
   );
@@ -164,7 +182,7 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   return (
     <AgentToolCard
       label={
-        isRunning
+        isLive
           ? query || "Searching the web"
           : results.length > 0
             ? `${query} ${results.length} results`
@@ -183,7 +201,7 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
           </span>
         ) : null
       }
-      isRunning={isRunning}
+      isRunning={isLive}
       defaultExpanded={false}
     >
       {showResultsContainer ? (
@@ -223,7 +241,13 @@ function useAutoScrollToBottom(dep: unknown) {
   return ref;
 }
 
-export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentBashToolBlock({
+  tool,
+  turnStreaming,
+}: {
+  tool: AgentToolSegment;
+  turnStreaming?: boolean;
+}) {
   const command =
     typeof tool.args?.command === "string" ? tool.args.command : "";
   const description =
@@ -234,6 +258,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
   const stdout = tool.stdout ?? "";
   const stderr = tool.stderr ?? "";
   const isRunning = tool.status === "running";
+  const isLive = toolLiveChrome(tool, turnStreaming);
   // Two sub-phases while status is "running": the model is still typing the
   // command (argsComplete === false, sandbox not touched yet), or the full
   // command is finalized and it has actually been sent to the sandbox. Only
@@ -250,7 +275,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
   return (
     <AgentToolCard
       label={
-        isRunning
+        isLive
           ? isTyping
             ? description || "Writing command"
             : description || "Running command"
@@ -305,14 +330,20 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
   );
 }
 
-export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentGenericToolBlock({
+  tool,
+  turnStreaming,
+}: {
+  tool: AgentToolSegment;
+  turnStreaming?: boolean;
+}) {
   const label =
     tool.description ??
     tool.name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  const isRunning = tool.status === "running";
+  const isLive = toolLiveChrome(tool, turnStreaming);
 
   return (
-    <AgentToolCard label={label} isRunning={isRunning}>
+    <AgentToolCard label={label} isRunning={isLive}>
       {tool.args && Object.keys(tool.args).length > 0 ? (
         <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white px-3 py-2.5">
           <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5 text-zinc-700">
@@ -326,27 +357,40 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
 
 // ─── Interactive Tool Components ───────────────────────────────────────────
 
-export function AskUserInputBlock({ tool }: { tool: AgentToolSegment }) {
-  const isRunning = tool.status === "running";
+export function AskUserInputBlock({
+  tool,
+  turnStreaming,
+}: {
+  tool: AgentToolSegment;
+  turnStreaming?: boolean;
+}) {
+  const isLive = toolLiveChrome(tool, turnStreaming);
 
   // Interactive questionnaire renders in the composer slot — not inside the
   // agentic activity frame.
   return (
     <AgentToolCard
-      label={isRunning ? "Asking questions" : "Asked questions"}
-      isRunning={isRunning}
+      label={isLive ? "Asking questions" : "Asked questions"}
+      isRunning={isLive}
     />
   );
 }
 
-export function SportsDataBlock({ tool }: { tool: AgentToolSegment }) {
+export function SportsDataBlock({
+  tool,
+  turnStreaming,
+}: {
+  tool: AgentToolSegment;
+  turnStreaming?: boolean;
+}) {
   const result = tool.result ? JSON.parse(tool.result) : null;
   const isRunning = tool.status === "running";
+  const isLive = toolLiveChrome(tool, turnStreaming);
 
   return (
     <AgentToolCard
-      label={isRunning ? "Fetching sports data" : "Fetched sports data"}
-      isRunning={isRunning}
+      label={isLive ? "Fetching sports data" : "Fetched sports data"}
+      isRunning={isLive}
     >
       {isRunning ? (
         <div className="text-[13px] text-zinc-500">Fetching live sports data...</div>
@@ -398,8 +442,15 @@ type ImageSearchResult = {
   license?: string;
 };
 
-export function ImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
+export function ImageSearchBlock({
+  tool,
+  turnStreaming,
+}: {
+  tool: AgentToolSegment;
+  turnStreaming?: boolean;
+}) {
   const isRunning = tool.status === "running";
+  const isLive = toolLiveChrome(tool, turnStreaming);
   const query = typeof tool.args?.query === "string" ? tool.args.query : "";
 
   const parsed = useMemo(() => {
@@ -419,7 +470,7 @@ export function ImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
   return (
     <AgentToolCard
       label={
-        isRunning
+        isLive
           ? query
             ? `Searching images: ${query}`
             : "Searching images"

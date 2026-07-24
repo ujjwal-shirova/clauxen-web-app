@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 
 /**
  * Clauxen agent action stack — chronological interleaved thinking, narration,
@@ -59,6 +60,7 @@ export function AgentTraceBlock({
   const canCollapse = hasBody && !hideHeader;
   const [expanded, setExpanded] = useState(hideHeader ? true : defaultExpanded);
   const userToggledRef = useRef(false);
+  const headerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (hideHeader) {
@@ -73,7 +75,9 @@ export function AgentTraceBlock({
   const toggle = () => {
     if (!canCollapse) return;
     userToggledRef.current = true;
-    setExpanded((value) => !value);
+    preserveScrollAnchorOnToggle(headerRef.current, () => {
+      setExpanded((value) => !value);
+    });
   };
 
   const headerInner = (
@@ -118,6 +122,7 @@ export function AgentTraceBlock({
       {!hideHeader ? (
         canCollapse ? (
           <button
+            ref={headerRef}
             type="button"
             onClick={toggle}
             className={cn(

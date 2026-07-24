@@ -27,14 +27,11 @@ export function dispatchChatSendMessage(
 export function formatAskUserInputReply(
   answers: Array<{ question: string; answer: string }>,
 ): string {
-  if (answers.length === 1) {
-    const { question, answer } = answers[0]!;
-    return `For "${question}" I selected: ${answer}`;
-  }
-  return answers
+  const body = answers
     .map(
       ({ question, answer }, i) =>
-        `${i + 1}. ${question}\n   → ${answer}`,
+        `${i + 1}. Q: ${question}\n   A: ${answer}`,
     )
-    .join("\n\n");
+    .join("\n");
+  return `[Answers to your questions]\n${body}`;
 }

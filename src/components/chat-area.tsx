@@ -371,7 +371,10 @@ function ChatAreaLayout({
   );
 
   const promptInput = pendingAskQuestions ? (
-    <div className="w-full px-0.5 sm:px-1" data-ask-user-input-composer>
+    <div
+      className="mx-auto w-full max-w-[var(--chat-column-max-width,768px)] px-0"
+      data-ask-user-input-composer
+    >
       <AskUserInputCard questions={pendingAskQuestions} />
     </div>
   ) : (

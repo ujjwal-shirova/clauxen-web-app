@@ -142,6 +142,84 @@ describe("buildPromptMessagesFromDbRows", () => {
   });
 });
 
+describe("ask_user_input prompt context", () => {
+  it("keeps questionnaire tool detail when assistant answer is empty", () => {
+    const { plain } = buildPromptMessagesFromDbRows([
+      row({ id: "u1", role: "user", content: "Research topics for my writing" }),
+      row({
+        id: "a1",
+        role: "assistant",
+        content: "",
+        content_json: {
+          agent_ui: {
+            modelTurns: [
+              {
+                stopReason: "tool_use",
+                assistant: [
+                  {
+                    type: "text",
+                    text: "To give you the most relevant research topics, let me ask a couple quick questions:",
+                  },
+                  {
+                    type: "tool_use",
+                    id: "ask-1",
+                    name: "ask_user_input_v0",
+                    input: {
+                      questions: [
+                        {
+                          question: "What are you hoping to achieve with this piece?",
+                          options: ["Inform or educate readers", "Tell a story"],
+                        },
+                      ],
+                    },
+                  },
+                ],
+                toolResults: [
+                  {
+                    type: "tool_result",
+                    tool_use_id: "ask-1",
+                    content: '{"status":"pending_user_input"}',
+                  },
+                ],
+              },
+            ],
+            actions: [
+              {
+                id: "ask-1",
+                name: "ask_user_input_v0",
+                input: {
+                  questions: [
+                    {
+                      question: "What are you hoping to achieve with this piece?",
+                      options: ["Inform or educate readers", "Tell a story"],
+                    },
+                  ],
+                },
+                result: '{"status":"pending_user_input"}',
+              },
+            ],
+          },
+        },
+      }),
+      row({
+        id: "u2",
+        role: "user",
+        content:
+          '[Answers to your questions]\n1. Q: What are you hoping to achieve with this piece?\n   A: Inform or educate readers',
+      }),
+    ]);
+
+    assert.equal(plain.length, 3);
+    assert.match(String(plain[1]?.content), /ask_user_input_v0 asked/i);
+    assert.match(
+      String(plain[1]?.content),
+      /What are you hoping to achieve with this piece/,
+    );
+    assert.match(String(plain[1]?.content), /relevant research topics/i);
+    assert.match(String(plain[2]?.content), /Answers to your questions/);
+  });
+});
+
 describe("mergePromptHistories", () => {
   it("fills empty DB assistant slots from client history", () => {
     const merged = mergePromptHistories(

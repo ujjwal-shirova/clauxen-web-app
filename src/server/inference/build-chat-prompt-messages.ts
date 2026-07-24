@@ -63,6 +63,23 @@ function textFromModelTurns(turns: TranscriptAgentModelTurn[]): string {
   return chunks.join("\n\n").trim();
 }
 
+function summarizeAskUserQuestions(input: Record<string, unknown> | undefined): string {
+  const questions = input?.questions;
+  if (!Array.isArray(questions) || questions.length === 0) {
+    return "ask_user_input_v0";
+  }
+  const labels = questions
+    .map((item) => {
+      if (!item || typeof item !== "object") return "";
+      const question = (item as { question?: unknown }).question;
+      return typeof question === "string" ? question.trim() : "";
+    })
+    .filter(Boolean)
+    .slice(0, 6);
+  if (labels.length === 0) return "ask_user_input_v0";
+  return `ask_user_input_v0 asked: ${labels.join(" | ")}`;
+}
+
 function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
   const actions = Array.isArray(agentUi?.actions) ? agentUi.actions : [];
   const names: string[] = [];
@@ -70,6 +87,10 @@ function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
   if (actions.length > 0) {
     for (const action of actions.slice(0, 12)) {
       const name = action.name || "tool";
+      if (name === "ask_user_input_v0") {
+        names.push(summarizeAskUserQuestions(action.input));
+        continue;
+      }
       const detail =
         typeof action.description === "string" && action.description.trim()
           ? action.description.trim()
@@ -85,7 +106,18 @@ function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
   } else if (Array.isArray(agentUi?.modelTurns)) {
     for (const turn of agentUi.modelTurns) {
       for (const part of turn.assistant ?? []) {
-        if (part.type === "tool_use" && part.name) names.push(part.name);
+        if (part.type !== "tool_use" || !part.name) continue;
+        if (part.name === "ask_user_input_v0") {
+          names.push(
+            summarizeAskUserQuestions(
+              part.input && typeof part.input === "object"
+                ? (part.input as Record<string, unknown>)
+                : undefined,
+            ),
+          );
+          continue;
+        }
+        names.push(part.name);
       }
     }
   }

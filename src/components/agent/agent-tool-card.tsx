@@ -3,10 +3,12 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { AgentTraceBlock } from "./agent-trace";
+import { useAgentTurnStreaming } from "./agent-turn-streaming";
 
 /**
  * Compact tool action block. Collapsed by default. Optional leading chips
- * (search favicons) + chevron in the header.
+ * (search favicons) + chevron in the header. No status dots — shimmer alone
+ * signals a live turn (tool running or assistant turn still streaming).
  */
 export function AgentToolCard({
   label,
@@ -25,41 +27,27 @@ export function AgentToolCard({
   defaultExpanded?: boolean;
   className?: string;
 }) {
+  const turnStreaming = useAgentTurnStreaming();
+  const live = Boolean(isRunning) || turnStreaming;
+
   return (
     <AgentTraceBlock
-      isActive={!!isRunning}
+      isActive={live}
       defaultExpanded={defaultExpanded}
       title={
         <span
-          key={isRunning ? `tool-run-${String(label)}` : `tool-done-${String(label)}`}
-          className={cn(isRunning && "shimmer-text")}
-          data-shimmer-active={isRunning || undefined}
+          key={live ? `tool-run-${String(label)}` : `tool-done-${String(label)}`}
+          className={cn(live && "shimmer-text")}
+          data-shimmer-active={live || undefined}
         >
           {label}
         </span>
       }
       leading={leading}
-      trailing={
-        trailing ??
-        (isRunning ? (
-          <span
-            className="agent-trace__running-dot inline-block h-1.5 w-1.5 rounded-full bg-zinc-400"
-            aria-hidden
-          />
-        ) : null)
-      }
+      trailing={trailing}
       className={className}
     >
       {children}
     </AgentTraceBlock>
-  );
-}
-
-export function ToolRunningDot() {
-  return (
-    <span
-      className="agent-trace__running-dot inline-block h-1.5 w-1.5 rounded-full bg-zinc-400"
-      aria-hidden
-    />
   );
 }

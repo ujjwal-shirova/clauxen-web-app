@@ -211,8 +211,11 @@ export function hydrateMessageFromContentJson(
     }
   }
 
-  const contentFromParts = texts.join("\n\n").trim();
-  const content = contentFromParts || base.content;
+  const contentFromParts = texts
+    .map((text) => parseAgentTextMarkup(text).visibleText.trim())
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
   const stamp =
     typeof agentUi?.startedAtMs === "number" && agentUi.startedAtMs > 0
       ? agentUi.startedAtMs
@@ -231,6 +234,25 @@ export function hydrateMessageFromContentJson(
           fallbackStamp: stamp,
         })
       : [];
+
+  // Prefer durable row content; fall back to transcript text parts. When every
+  // text part was promoted into narration (tool turns), keep content empty so
+  // the same sentence is not shown above and below "Asked questions".
+  const narrationTexts = new Set(
+    modelSegments
+      .filter(
+        (
+          segment,
+        ): segment is Extract<AgentSegment, { kind: "narration" | "text" }> =>
+          (segment.kind === "narration" || segment.kind === "text") &&
+          Boolean(segment.content.trim()),
+      )
+      .map((segment) => segment.content.trim()),
+  );
+  let content = (base.content ?? "").trim() || contentFromParts;
+  if (content && narrationTexts.has(content)) {
+    content = "";
+  }
   const modelThinking = modelSegments
     .filter(
       (segment): segment is Extract<AgentSegment, { kind: "thinking" }> =>

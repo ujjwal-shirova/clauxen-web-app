@@ -188,12 +188,21 @@ export function agentAnswerDuplicatesInterim(message: Message): boolean {
   if (!trailing) return false;
   // Only exact full match counts as "this is just the old progress note".
   // Partial overlaps or the model naturally reusing a phrase should still show as final.
-  return resolveAgentFrames(message).some(
-    (frame) =>
-      (frame.interimOutput &&
-        frame.interimOutput.trim() === trailing) ||
-      (frame.introNarrative && frame.introNarrative.trim() === trailing),
-  );
+  return resolveAgentFrames(message).some((frame) => {
+    if (
+      (frame.interimOutput && frame.interimOutput.trim() === trailing) ||
+      (frame.introNarrative && frame.introNarrative.trim() === trailing)
+    ) {
+      return true;
+    }
+    // Pre-tool prose is moved into narration segments when tools start; after
+    // hydrate it can also linger in message.content — suppress the duplicate.
+    return frame.segments.some(
+      (segment) =>
+        (segment.kind === "narration" || segment.kind === "text") &&
+        segment.content.trim() === trailing,
+    );
+  });
 }
 
 /**

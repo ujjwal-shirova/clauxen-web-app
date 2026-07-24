@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { AgentThinkingSegment } from "@/lib/agent-segments";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { AgentShimmerText } from "./agent-trace";
+import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 
 /**
  * Thinking card — expanded while streaming, auto-collapses when the phase
@@ -18,6 +19,7 @@ export function AgentThinkingPhase({
 }) {
   const streaming = !!segment.isStreaming;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLButtonElement | null>(null);
   const userScrolledRef = useRef(false);
   const userToggledRef = useRef(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(() =>
@@ -81,11 +83,14 @@ export function AgentThinkingPhase({
       data-streaming={streaming || undefined}
     >
       <button
+        ref={headerRef}
         type="button"
         onClick={() => {
           if (!hasBody) return;
           userToggledRef.current = true;
-          setExpanded((value) => !value);
+          preserveScrollAnchorOnToggle(headerRef.current, () => {
+            setExpanded((value) => !value);
+          });
         }}
         className="no-hover no-hover-overlay flex w-full max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0"
         aria-expanded={expanded}

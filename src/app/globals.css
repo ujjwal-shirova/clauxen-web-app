@@ -1412,15 +1412,6 @@ button.user-message-card__body:not(:disabled):hover,
   padding: 0.1em 0.35em;
 }
 
-.agent-trace__running-dot {
-  animation: agent-trace-pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes agent-trace-pulse {
-  0%, 100% { opacity: 0.35; transform: scale(0.85); }
-  50% { opacity: 1; transform: scale(1); }
-}
-
 /* No animated sticky chrome — transitions on shadow/top caused flicker + jumps. */
 .sticky-user-msg-host,
 .sticky-user-msg--stuck {
