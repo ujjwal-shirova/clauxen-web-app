@@ -1,10 +1,10 @@
-import { withApiRouteParams } from "@/backend/http/route-params";
-import { requireSession } from "@/backend/auth/require-session";
-import { AppError } from "@/backend/db/errors";
+import { withApiRouteParams } from "@/server/http/route-params";
+import { requireSession } from "@/server/auth/require-session";
+import { AppError } from "@/server/db/errors";
 import {
   fetchInvoicePdfFromWorker,
-} from "@/backend/billing/billing-worker";
-import * as billingService from "@/backend/services/billing.service";
+} from "@/server/billing/billing-worker";
+import * as billingService from "@/server/services/billing.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,6 +1,6 @@
 # Autonomous Agent
 
-Code: `src/autonomous-agent/`. Upstream README: `src/autonomous-agent/README.md`.
+Code: `src/app/agent-ui/`. Upstream README: `src/app/agent-ui/README.md`.
 
 ## 1. Concept
 

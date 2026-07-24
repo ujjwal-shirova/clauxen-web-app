@@ -1,18 +1,18 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { requireSession } from "@/backend/auth/require-session";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { requireSession } from "@/server/auth/require-session";
 import {
   buildCheckoutBillingDetailsForUser,
   parseMinimalCheckoutBillingInput,
   resolveCheckoutTaxPaiseForCurrency,
-} from "@/backend/billing/checkout-billing";
+} from "@/server/billing/checkout-billing";
 import {
   assertCheckoutClaimsMatchClientInput,
   resolveCheckoutSubtotalPaise,
-} from "@/backend/billing/checkout-pricing";
-import * as billingRepo from "@/backend/repositories/billing.repository";
-import * as billingService from "@/backend/services/billing.service";
-import { AppError, notFound } from "@/backend/db/errors";
+} from "@/server/billing/checkout-pricing";
+import * as billingRepo from "@/server/repositories/billing.repository";
+import * as billingService from "@/server/services/billing.service";
+import { AppError, notFound } from "@/server/db/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

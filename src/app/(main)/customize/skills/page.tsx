@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { CustomizeRouteContent } from "@/frontend/components/customize-route-content";
+import { CustomizeRouteContent } from "@/components/customize-route-content";
 
 export default function CustomizeSkillsRoutePage() {
   return (

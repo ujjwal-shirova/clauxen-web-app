@@ -1,6 +1,6 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { structuredAgentCompletion } from "@/backend/inference/structured-agent";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { structuredAgentCompletion } from "@/server/inference/structured-agent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,9 +1,9 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { requireSession } from "@/backend/auth/require-session";
-import { createSupabaseClientFromRequest } from "@/backend/auth/supabase-session";
-import * as onboardingService from "@/backend/services/onboarding.service";
-import type { OnboardingAnswers } from "@/backend/services/onboarding.service";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { requireSession } from "@/server/auth/require-session";
+import { createSupabaseClientFromRequest } from "@/server/auth/supabase-session";
+import * as onboardingService from "@/server/services/onboarding.service";
+import type { OnboardingAnswers } from "@/server/services/onboarding.service";
 import {
   ONBOARDING_DONE_COOKIE,
   onboardingDoneCookieOptions,

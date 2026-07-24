@@ -1,8 +1,8 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { AppError } from "@/backend/db/errors";
-import { authEmailExists } from "@/backend/services/auth-email-otp.service";
-import { assertEmailNotDisposable } from "@/backend/email-verifier/disposable-email";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { AppError } from "@/server/db/errors";
+import { authEmailExists } from "@/server/services/auth-email-otp.service";
+import { assertEmailNotDisposable } from "@/server/email-verifier/disposable-email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

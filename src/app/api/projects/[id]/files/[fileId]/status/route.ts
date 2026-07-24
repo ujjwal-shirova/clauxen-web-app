@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import * as projectFilesRepo from "@/backend/repositories/project-files.repository";
+import * as projectFilesRepo from "@/server/repositories/project-files.repository";
 import { requireProjectsUser, ProjectsAuthError } from "@/projects/lib/auth";
 import { jsonData, jsonError } from "@/projects/lib/api-response";
 

@@ -5,7 +5,7 @@ import type { Database } from "@/types/database.types";
 import {
   DISPOSABLE_EMAIL_MESSAGE,
   isDisposableEmailSafe,
-} from "@/backend/email-verifier/disposable-email";
+} from "@/server/email-verifier/disposable-email";
 import { getSupabasePublicConfig, requireSupabasePublicConfig } from "./env";
 import {
   ONBOARDING_DONE_COOKIE,
@@ -19,7 +19,7 @@ import {
 } from "@/utils/identity-cookie";
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
 import { logSupabaseQueryError } from "@/lib/supabase-query-error";
-import { isMarketingPublicPath } from "@/website/lib/public-paths";
+import { isMarketingPublicPath } from "@/marketing/lib/public-paths";
 
 const PUBLIC_PREFIXES = [
   "/login",

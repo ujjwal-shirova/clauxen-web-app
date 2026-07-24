@@ -6,7 +6,7 @@ import { requireSupabasePublicConfig } from "@/utils/supabase/env";
 import {
   DISPOSABLE_EMAIL_MESSAGE,
   isDisposableEmailSafe,
-} from "@/backend/email-verifier/disposable-email";
+} from "@/server/email-verifier/disposable-email";
 
 function withSecureCookieDefaults(
   options: import("@supabase/ssr").CookieOptions = {},

@@ -1,11 +1,11 @@
 // GET: active projects newest-first; POST: name required, optional description/color
 // =============================================================================
 
-import { withApiHandler } from "@/backend/http/api-handler"; // static path handler — session/request inject
-import { jsonData } from "@/backend/http/api-response"; // JSON { data } wrapper; POST 201 status support
-import { requireSession } from "@/backend/auth/require-session"; // null session → 401 unauthorized
-import * as projectsRepo from "@/backend/repositories/projects.repository"; // listProjects / createProject SQL
-import { AppError } from "@/backend/db/errors"; // validation errors — 400 bad request factory
+import { withApiHandler } from "@/server/http/api-handler"; // static path handler — session/request inject
+import { jsonData } from "@/server/http/api-response"; // JSON { data } wrapper; POST 201 status support
+import { requireSession } from "@/server/auth/require-session"; // null session → 401 unauthorized
+import * as projectsRepo from "@/server/repositories/projects.repository"; // listProjects / createProject SQL
+import { AppError } from "@/server/db/errors"; // validation errors — 400 bad request factory
 
 const MAX_PROJECT_NAME_LENGTH = 200;
 const MAX_PROJECT_DESCRIPTION_LENGTH = 2000;

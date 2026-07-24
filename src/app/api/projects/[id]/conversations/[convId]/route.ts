@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import * as projectChatsRepo from "@/backend/repositories/project-chats.repository";
+import * as projectChatsRepo from "@/server/repositories/project-chats.repository";
 import { requireProjectsUser, ProjectsAuthError } from "@/projects/lib/auth";
 import { jsonData, jsonError } from "@/projects/lib/api-response";
 

@@ -2,7 +2,7 @@
 
 ## Autonomous agent
 
-`src/autonomous-agent/` — no system prompt; tool-steered. Bridged into main chat when search/thinking enabled. Optional WS: `npm run autonomous-agent:ws`.
+`src/app/agent-ui/` — no system prompt; tool-steered. Bridged into main chat when search/thinking enabled. Optional WS: `npm run autonomous-agent:ws`.
 
 ## Titles
 

@@ -1,13 +1,13 @@
 // Params: projectId — URL dynamic segment
 // =============================================================================
 
-import { withApiRouteParams } from "@/backend/http/route-params"; // typed params + withApiHandler wrapper
-import { jsonData } from "@/backend/http/api-response"; // { data: { chat } } success JSON
-import { requireSession } from "@/backend/auth/require-session"; // null session → 401
-import * as projectsRepo from "@/backend/repositories/projects.repository"; // project lookup — user_id scoped
-import * as chatsRepo from "@/backend/repositories/chats.repository"; // chat update — project_id column set
-import { AppError, notFound } from "@/backend/db/errors"; // 400 validation, 404 missing resources
-import { requireChatIdParam } from "@/backend/http/chat-id";
+import { withApiRouteParams } from "@/server/http/route-params"; // typed params + withApiHandler wrapper
+import { jsonData } from "@/server/http/api-response"; // { data: { chat } } success JSON
+import { requireSession } from "@/server/auth/require-session"; // null session → 401
+import * as projectsRepo from "@/server/repositories/projects.repository"; // project lookup — user_id scoped
+import * as chatsRepo from "@/server/repositories/chats.repository"; // chat update — project_id column set
+import { AppError, notFound } from "@/server/db/errors"; // 400 validation, 404 missing resources
+import { requireChatIdParam } from "@/server/http/chat-id";
 
 // UUID shape — malformed project ids fail fast with 400 instead of database_error 500
 const UUID_RE =

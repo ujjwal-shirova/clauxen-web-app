@@ -1,8 +1,8 @@
-import { withApiRouteParams } from "@/backend/http/route-params";
-import { jsonData } from "@/backend/http/api-response";
-import { requireSession } from "@/backend/auth/require-session";
-import { AppError } from "@/backend/db/errors";
-import * as billingService from "@/backend/services/billing.service";
+import { withApiRouteParams } from "@/server/http/route-params";
+import { jsonData } from "@/server/http/api-response";
+import { requireSession } from "@/server/auth/require-session";
+import { AppError } from "@/server/db/errors";
+import * as billingService from "@/server/services/billing.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -60,7 +60,7 @@ Notifications: row-click toggles; persist optimistic — **do not** overwrite UI
 
 ## 4. Personalization → model
 
-Modular markdown under `src/models-system-prompts/personalization/`:
+Modular markdown under `src/prompts/personalization/`:
 
 - `base-style/` — default, efficient, candid, professional, quirky, cynical, friendly
 - `warm/`, `enthusiastic/`, `headers-lists/`, `emoji/` — each More|Default|Less
@@ -88,11 +88,11 @@ Onboarding name/role hydrate settings.
 
 ## 6. Related UI files
 
-- `src/frontend/components/settings/*`
-- `src/frontend/hooks/use-settings.ts`
-- `src/frontend/lib/settings-defaults.ts`
-- `src/frontend/contexts/app-preferences-context.tsx`
-- `src/frontend/components/chat-font-loader.tsx`
+- `src/components/settings/*`
+- `src/hooks/use-settings.ts`
+- `src/lib/settings-defaults.ts`
+- `src/contexts/app-preferences-context.tsx`
+- `src/components/chat-font-loader.tsx`
 
 ---
 

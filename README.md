@@ -6,7 +6,7 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 
 - **Streaming chat** — SSE-based conversation streaming with per-model routing, interleaved "thinking" traces, and custom token fade-in for animated markdown.
 - **Multi-model routing** — internal model personas (**Homer**, **Helios**, **Virgil**) proxied through Novita's Anthropic- and OpenAI-compatible endpoints, plus a Claude-Messages-API-compatible proxy at `/api/shirova/v1/messages`.
-- **Autonomous agent** — a no-system-prompt, tool-steered reasoning loop (`src/autonomous-agent/`) with web search, web fetch, sandboxed code execution, scoped file read/write, skill discovery, and user-clarification pauses. See its own [README](src/autonomous-agent/README.md).
+- **Autonomous agent** — a no-system-prompt, tool-steered reasoning loop (`src/app/agent-ui/`) with web search, web fetch, sandboxed code execution, scoped file read/write, skill discovery, and user-clarification pauses. See its own [README](src/app/agent-ui/README.md).
 - **Projects & RAG** — project folders with custom instructions, file uploads, chunking + embeddings, and pgvector-backed retrieval grounding chat responses.
 - **Code sandboxes** — provision, connect to, and run commands/files inside remote sandboxes (`/api/v1/sandbox/*`, Novita sandbox).
 - **Billing & checkout** — Razorpay-based orders, subscriptions, invoices, plans, UPI flow, and gifting, with webhook handling.
@@ -36,11 +36,11 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 | Path | Purpose |
 |---|---|
 | `src/app/` | Next.js routes — pages and `/api` route handlers |
-| `src/frontend/` | Client components, hooks, and frontend-only lib code |
-| `src/backend/` | Server-side services, repositories, inference pipeline, billing, sandbox |
-| `src/autonomous-agent/` | Standalone tool-use agent loop (server + client + types) |
+| `src/` | Client components, hooks, and frontend-only lib code |
+| `src/server/` | Server-side services, repositories, inference pipeline, billing, sandbox |
+| `src/app/agent-ui/` | Standalone tool-use agent loop (server + client + types) |
 | `src/projects/` | Project RAG pipeline (ingestion, chunking, embeddings, storage) |
-| `src/models-system-prompts/` | Persona system prompts (e.g. `virgil.md`) |
+| `src/prompts/` | Persona system prompts (e.g. `virgil.md`) |
 | `src/lib/`, `src/utils/` | Shared utilities (Supabase clients, model config, sanitization) |
 | `supabase/` | Supabase project config and SQL migrations |
 | `scripts/` | Standalone scripts (ingestion worker, seeding) |

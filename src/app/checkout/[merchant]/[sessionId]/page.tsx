@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import {
   inspectCheckoutSessionToken,
   normalizeCheckoutReturnPath,
-} from "@/backend/billing/checkout-session";
-import { CheckoutSessionClient } from "@/frontend/components/checkout-session-client";
+} from "@/server/billing/checkout-session";
+import { CheckoutSessionClient } from "@/components/checkout-session-client";
 
 interface CheckoutRouteParams {
   merchant?: string;

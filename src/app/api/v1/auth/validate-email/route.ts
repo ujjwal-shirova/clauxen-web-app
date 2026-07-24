@@ -1,11 +1,11 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { AppError } from "@/backend/db/errors";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { AppError } from "@/server/db/errors";
 import {
   assertEmailNotDisposable,
   DISPOSABLE_EMAIL_CODE,
   DISPOSABLE_EMAIL_MESSAGE,
-} from "@/backend/email-verifier/disposable-email";
+} from "@/server/email-verifier/disposable-email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

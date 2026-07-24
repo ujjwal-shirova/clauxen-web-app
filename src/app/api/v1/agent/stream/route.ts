@@ -1,9 +1,9 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { createAgentSseStream } from "@/backend/inference/agent-stream";
+import { withApiHandler } from "@/server/http/api-handler";
+import { createAgentSseStream } from "@/server/inference/agent-stream";
 import {
   sanitizeAgentMessages,
   type AgentChatRequest,
-} from "@/backend/inference/novita-agent";
+} from "@/server/inference/novita-agent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

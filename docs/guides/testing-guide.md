@@ -10,17 +10,17 @@ Runs `tsx --test` on `src/**/*.test.ts`.
 
 High-value modules:
 
-- `src/frontend/lib/dedupe-chat-messages.test.ts`
-- `src/frontend/lib/hydrate-chat-messages.test.ts`
-- `src/frontend/lib/device-chat-cache.test.ts`
-- `src/frontend/lib/chat-route-seed.test.ts`
-- `src/frontend/lib/follow-up-tags.test.ts`
-- `src/frontend/lib/chat-stream.test.ts`
-- `src/frontend/lib/agent-frames.test.ts`
-- `src/frontend/lib/composer-attachments.test.ts`
-- `src/frontend/lib/cloudflare-challenge-post.test.ts`
-- `src/backend/services/user-personalization.service.test.ts`
-- `src/backend/inference/reasoning-message-history.test.ts`
+- `src/lib/dedupe-chat-messages.test.ts`
+- `src/lib/hydrate-chat-messages.test.ts`
+- `src/lib/device-chat-cache.test.ts`
+- `src/lib/chat-route-seed.test.ts`
+- `src/lib/follow-up-tags.test.ts`
+- `src/lib/chat-stream.test.ts`
+- `src/lib/agent-frames.test.ts`
+- `src/lib/composer-attachments.test.ts`
+- `src/lib/cloudflare-challenge-post.test.ts`
+- `src/server/services/user-personalization.service.test.ts`
+- `src/server/inference/reasoning-message-history.test.ts`
 
 Selfchecks (run via tsx where present): `settings-normalize.selfcheck.ts`, `phone-countries.selfcheck.ts`.
 

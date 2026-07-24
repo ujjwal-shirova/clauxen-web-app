@@ -1,7 +1,7 @@
 ---
 name: clauxen-frontend
 description: >-
-  Clauxen frontend: ChatView, overlays, soft-nav, preferences, sidebar UX, providers, Tailwind/shadcn patterns. Use when editing React components under src/frontend, hash overlays (#settings/#pricing), useInstantNavigate, AppPreferences, sidebar hover/selection, or composer UI.
+  Clauxen UI: ChatView, overlays, soft-nav, preferences, sidebar UX, providers, Tailwind/shadcn patterns. Use when editing React under src/components or src/hooks, hash overlays (#settings/#pricing), useInstantNavigate, AppPreferences, sidebar hover/selection, or composer UI.
 ---
 
 # Clauxen frontend
@@ -10,7 +10,17 @@ description: >-
 
 - `docs/systems/frontend-architecture.md`
 - `docs/systems/routing-and-navigation.md`
-- `src/frontend/lib/app-routes.ts`
+- `src/lib/app-routes.ts`
+
+## Layout
+
+| Path | Role |
+|------|------|
+| `src/components/` | All product UI |
+| `src/components/agent/` | Chat-view agent transcript (trace, folds, tools) |
+| `src/hooks/` | Client hooks |
+| `src/lib/` | Client helpers + stream reducers |
+| `src/contexts/`, `src/stores/` | Providers / stores |
 
 ## Navigation
 
@@ -39,15 +49,6 @@ Chat fonts style **`[data-assistant-content]` only**.
 - Hover = one continuous pill; pin/menu no nested hover wash
 - First list fetch may shimmer; Realtime refresh is **silent**
 
-## Streamdown
-
-Load CSS idle via `StreamdownStyles` — **do not** re-import `streamdown/styles.css` in `(main)/layout`.
-
-## Design note
-
-When creating new marketing surfaces, follow user frontend design rules. Inside the existing app chrome, **preserve** established Clauxen patterns.
-
 ## Additional resources
 
 - [reference.md](reference.md)
-- `docs/reference/ui-component-catalog.md`

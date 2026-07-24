@@ -1,17 +1,17 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { requireSession } from "@/backend/auth/require-session";
-import { query } from "@/backend/db/pool";
-import * as settingsRepo from "@/backend/repositories/settings.repository";
-import * as profileRepo from "@/backend/repositories/profile.repository";
-import * as profileService from "@/backend/services/profile.service";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { requireSession } from "@/server/auth/require-session";
+import { query } from "@/server/db/pool";
+import * as settingsRepo from "@/server/repositories/settings.repository";
+import * as profileRepo from "@/server/repositories/profile.repository";
+import * as profileService from "@/server/services/profile.service";
 import { sidebarDisplayName } from "@/lib/profile-names";
-import { sanitizeCustomInstructions } from "@/backend/services/user-personalization.service";
+import { sanitizeCustomInstructions } from "@/server/services/user-personalization.service";
 import {
   cacheUserSettings,
   invalidateUserSettingsCache,
   readCachedUserSettings,
-} from "@/backend/cache/runtime-cache";
+} from "@/server/cache/runtime-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

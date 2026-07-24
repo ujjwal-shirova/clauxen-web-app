@@ -40,10 +40,10 @@ Continue with Email → existence check → password **or** create + OTP (Worker
 
 ## Key paths
 
-- `src/backend/auth/*`
-- `src/backend/services/auth-email-otp.service.ts`
+- `src/server/auth/*`
+- `src/server/services/auth-email-otp.service.ts`
 - `src/app/login/page.tsx`, `src/app/auth/*`
-- `src/frontend/contexts/auth-context.tsx`
+- `src/contexts/auth-context.tsx`
 - `workers/auth-email/`
 
 ## Additional resources

@@ -86,7 +86,7 @@ This section distinguishes implemented behavior from a visible UI, marketing cla
 
 | Capability                                           | Evidence in repository                                                                                                                | Status assessment                                                                       |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Chat storage and streaming generation                | `src/backend/services/chat.service.ts` persists chats/messages and streams inference; `src/backend/inference/novita.ts` calls Novita. | Implemented baseline chat.                                                              |
+| Chat storage and streaming generation                | `src/server/services/chat.service.ts` persists chats/messages and streams inference; `src/server/inference/novita.ts` calls Novita. | Implemented baseline chat.                                                              |
 | Current inference/model                              | Environment default is `moonshotai/kimi-k2.6` through Novita; Shirova gateway uses a Novita OpenAI-compatible endpoint.               | One upstream model/provider path is visible, not ChatGPT model parity.                  |
 | Thinking stream support                              | Novita request and SSE transform expose separate reasoning/thinking events.                                                           | Implemented for compatible model behavior.                                              |
 | Authentication/data architecture                     | Supabase Postgres product data (pgvector RAG); Supabase GoTrue auth + development session bypass.                                    | Substantial backend architecture; production hardening still must be validated.         |
@@ -113,9 +113,9 @@ These issues should be resolved before public growth or U.S. entry:
 
 | Issue                                                       | Evidence                                                                                                                                                               | Why it matters                                                                                             |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Anthropic/Claude assets used in Clauxen UI                  | `src/frontend/components/artifacts-view.tsx` references multiple `https://claude.ai/images/artifacts-studio/...` assets and even an "Anthropic office simulator" item. | Copyright, brand confusion and dependency on a competitor's hosted assets.                                 |
-| A Clauxen share dialog copies a `claude.ai/share/...` URL   | `src/frontend/components/share-dialog.tsx` hard-codes a Claude share link.                                                                                             | Severe trust failure and potential disclosure/confusion if exposed to users.                               |
-| "Cowork" product naming and heavily derivative presentation | `src/frontend/components/apps-extensions-view.tsx` presents Cowork and Claude-like extensions.                                                                         | Trade dress/trademark/confusion concern, especially in a U.S. launch.                                      |
+| Anthropic/Claude assets used in Clauxen UI                  | `src/components/artifacts-view.tsx` references multiple `https://claude.ai/images/artifacts-studio/...` assets and even an "Anthropic office simulator" item. | Copyright, brand confusion and dependency on a competitor's hosted assets.                                 |
+| A Clauxen share dialog copies a `claude.ai/share/...` URL   | `src/components/share-dialog.tsx` hard-codes a Claude share link.                                                                                             | Severe trust failure and potential disclosure/confusion if exposed to users.                               |
+| "Cowork" product naming and heavily derivative presentation | `src/components/apps-extensions-view.tsx` presents Cowork and Claude-like extensions.                                                                         | Trade dress/trademark/confusion concern, especially in a U.S. launch.                                      |
 | Claims exceed actual execution                              | Plan copy promises broad creative, agent, voice, research and enterprise functions beyond reviewed implementation.                                                     | Consumer protection, chargeback, reputational and procurement risk.                                        |
 | Sovereignty story contradicted by default upstream          | Current default chat execution goes to Novita's hosted endpoint and a Moonshot/Kimi model.                                                                             | Clauxen cannot truthfully promise Indian inference/data control unless deployed and evidenced accordingly. |
 | Usage charging is best-effort after streamed output         | Chat completion suppresses metering failures after response generation.                                                                                                | Revenue leakage/abuse exposure at scale unless limits are reserved/enforced before inference.              |
@@ -268,20 +268,20 @@ Pricing should be driven by gross-margin tests and workflow value. A price below
 
 ### Repository evidence reviewed
 
-- `src/backend/services/chat.service.ts`
-- `src/backend/inference/novita.ts`
-- `src/backend/shirova-openai.ts`
-- `src/backend/services/billing.service.ts`
-- `src/backend/repositories/research.repository.ts`
+- `src/server/services/chat.service.ts`
+- `src/server/inference/novita.ts`
+- `src/server/shirova-openai.ts`
+- `src/server/services/billing.service.ts`
+- `src/server/repositories/research.repository.ts`
 - `src/app/api/v1/research/runs/route.ts`
 - `src/app/api/v1/customize/connectors/route.ts`
-- `src/backend/services/workspace.service.ts`
-- `src/frontend/components/subscription.tsx`
-- `src/frontend/components/deep-research-view.tsx`
-- `src/frontend/components/voice-call.tsx`
-- `src/frontend/components/apps-extensions-view.tsx`
-- `src/frontend/components/artifacts-view.tsx`
-- `src/frontend/components/share-dialog.tsx`
+- `src/server/services/workspace.service.ts`
+- `src/components/subscription.tsx`
+- `src/components/deep-research-view.tsx`
+- `src/components/voice-call.tsx`
+- `src/components/apps-extensions-view.tsx`
+- `src/components/artifacts-view.tsx`
+- `src/components/share-dialog.tsx`
 
 ## Bottom line
 

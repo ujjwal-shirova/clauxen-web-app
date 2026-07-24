@@ -20,7 +20,7 @@ description: >-
 
 ## Code
 
-`src/backend/services/workspace.service.ts`, `workspaces.repository.ts`
+`src/server/services/workspace.service.ts`, `workspaces.repository.ts`
 
 ## Note
 

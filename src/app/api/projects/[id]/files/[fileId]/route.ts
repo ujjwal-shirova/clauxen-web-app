@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import * as projectFilesRepo from "@/backend/repositories/project-files.repository";
-import { deleteObject } from "@/backend/storage/object-store";
+import * as projectFilesRepo from "@/server/repositories/project-files.repository";
+import { deleteObject } from "@/server/storage/object-store";
 import { requireProjectsUser, ProjectsAuthError } from "@/projects/lib/auth";
 import { jsonData, jsonError } from "@/projects/lib/api-response";
 

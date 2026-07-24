@@ -1,15 +1,15 @@
-import { withApiHandler } from "@/backend/http/api-handler"; // session parse + centralized error wrapper
-import { jsonData } from "@/backend/http/api-response"; // { data } success JSON shape
-import { AppError } from "@/backend/db/errors";
-import { env } from "@/backend/config/env";
+import { withApiHandler } from "@/server/http/api-handler"; // session parse + centralized error wrapper
+import { jsonData } from "@/server/http/api-response"; // { data } success JSON shape
+import { AppError } from "@/server/db/errors";
+import { env } from "@/server/config/env";
 import {
   findUserByEmail,
   logSecurityEvent,
   registerDevUser,
-} from "@/backend/services/identity.service"; // user create + audit log
-import { sessionCookieHeader } from "@/backend/auth/session"; // signed session cookie string builder
-import { clientIp, clientUserAgent } from "@/backend/http/request-meta"; // request metadata for security events
-import { assertEmailNotDisposable } from "@/backend/email-verifier/disposable-email";
+} from "@/server/services/identity.service"; // user create + audit log
+import { sessionCookieHeader } from "@/server/auth/session"; // signed session cookie string builder
+import { clientIp, clientUserAgent } from "@/server/http/request-meta"; // request metadata for security events
+import { assertEmailNotDisposable } from "@/server/email-verifier/disposable-email";
 
 const MAX_EMAIL_LEN = 254;
 const MAX_PASSWORD_LEN = 128;

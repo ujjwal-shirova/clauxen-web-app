@@ -2,10 +2,10 @@
 // =============================================================================
 
 import { NextResponse } from "next/server";
-import { verifyWebhookSignature } from "@/backend/billing/razorpay";
-import * as billingService from "@/backend/services/billing.service";
-import { jsonError } from "@/backend/http/api-response";
-import { AppError } from "@/backend/db/errors";
+import { verifyWebhookSignature } from "@/server/billing/razorpay";
+import * as billingService from "@/server/services/billing.service";
+import { jsonError } from "@/server/http/api-response";
+import { AppError } from "@/server/db/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

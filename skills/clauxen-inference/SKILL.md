@@ -10,7 +10,7 @@ description: >-
 
 - `docs/systems/inference-and-models.md`
 - `docs/systems/autonomous-agent.md`
-- `src/models-system-prompts/`
+- `src/prompts/`
 
 ## Secrets (server-only)
 
@@ -33,9 +33,9 @@ Do **not** hardcode warm/emoji/list personality into `virgil.md`.
 
 ## Key modules
 
-`src/backend/inference/*` — novita/openai/anthropic streams, agent-engine, tools, system-prompt  
-`src/backend/services/user-personalization.service.ts`  
-`src/backend/services/personalization-style-instructions.ts`  
+`src/server/inference/*` — novita/openai/anthropic streams, agent-engine, tools, system-prompt  
+`src/server/services/user-personalization.service.ts`  
+`src/server/services/personalization-style-instructions.ts`  
 `src/app/api/shirova/v1/messages/route.ts`
 
 ## Tools env

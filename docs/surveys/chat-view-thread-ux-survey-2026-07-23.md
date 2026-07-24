@@ -55,7 +55,7 @@
    `top: calc(var(--header-height) + var(--turn-user-msg-height))`.  
    JS only sets `data-sticky-active` for user-bubble elevation / z-index.
 4. **Wider near-bottom band while generating** (360px) so eased follow still pins the live turn.
-5. **Extract** `src/frontend/lib/chat-sticky.ts` + unit tests; slim demo sticky.
+5. **Extract** `src/lib/chat-sticky.ts` + unit tests; slim demo sticky.
 
 ---
 

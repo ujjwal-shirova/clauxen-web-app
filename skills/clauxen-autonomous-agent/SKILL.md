@@ -1,33 +1,40 @@
 ---
 name: clauxen-autonomous-agent
 description: >-
-  Clauxen autonomous agent loop: no-system-prompt tool steering, normalized events, bridge into main chat, standalone SSE/WS APIs. Use when editing src/autonomous-agent, agent tools, skill catalog, or agent stream bridging.
+  Clauxen chat agent loop and transcript UI. Live path is src/server/inference (agent-engine + autonomous-tools) streaming into src/components/agent. Legacy src/autonomous-agent / agent-ui /api/autonomous-agent packages were removed.
 ---
 
-# Clauxen autonomous agent
+# Clauxen chat agent
 
 ## Read first
 
-- `docs/systems/autonomous-agent.md`
-- `src/autonomous-agent/README.md`
+- `docs/systems/autonomous-agent.md` (may be historical)
+- `src/server/inference/agent-engine.ts`
+- `src/components/agent/`
 
-## Model
+## Live path
 
-No system prompt. Tools steer. `read_skill` before code/file writes. Stop when turn has no tool calls.
-
-## Integration
-
-Main chat generate may bridge via `clauxen-bridge` when search/thinking enabled.  
-Standalone: `/api/autonomous-agent/conversations/.../stream`  
-WS: `npm run autonomous-agent:ws`
+```
+POST /api/v1/chats/[chatId]/generate
+  → src/server/inference/agent-engine.ts
+  → Clauxen SSE
+  → src/lib/agent-stream-reducer.ts
+  → src/components/agent/* (trace / folds / tools)
+```
 
 ## Key paths
 
-`server/stream/*`, `server/tools/`, `server/logic/tool-steering.ts`, `client/stream-reducer.ts`
+| Path | Role |
+|------|------|
+| `src/server/inference/agent-engine.ts` | Tool loop + SSE frames |
+| `src/server/inference/autonomous-tools/` | Tool definitions + executor |
+| `src/lib/agent-stream-reducer.ts` | Client event → frames/segments |
+| `src/components/agent/` | Chat-view agent UI |
 
-## UI mapping
+## Removed
 
-Keep **one** activity frame; map Reasoning/Tool/Text events to orb + Thought/Worked labels (`clauxen-chat` skill).
+- `src/autonomous-agent/`, `src/app/agent-ui/`, `/api/autonomous-agent/**`
+- Claude Code dump under `src/app/agent/`
 
 ## Additional resources
 

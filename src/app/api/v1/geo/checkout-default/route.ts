@@ -1,5 +1,5 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
 import { defaultCurrencyForCountry } from "@/lib/checkout-currency";
 
 export const runtime = "nodejs";

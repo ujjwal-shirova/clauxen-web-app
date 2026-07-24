@@ -56,10 +56,10 @@ Presign may set `worker: true` → client must send Supabase access token to Wor
 
 ## 6. Key modules
 
-- `src/backend/storage/`
-- `src/backend/services/files.service.ts`
-- `src/backend/repositories/user-files.repository.ts`
-- `src/frontend/lib/composer-attachments.ts`
+- `src/server/storage/`
+- `src/server/services/files.service.ts`
+- `src/server/repositories/user-files.repository.ts`
+- `src/lib/composer-attachments.ts`
 - `workers/r2-gateway/`
 
 ---

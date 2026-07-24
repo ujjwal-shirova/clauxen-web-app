@@ -1,6 +1,6 @@
-import { withApiRouteParams } from "@/backend/http/route-params";
-import { requireSession } from "@/backend/auth/require-session";
-import * as chatService from "@/backend/services/chat.service";
+import { withApiRouteParams } from "@/server/http/route-params";
+import { requireSession } from "@/server/auth/require-session";
+import * as chatService from "@/server/services/chat.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,10 +1,10 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { requireSession } from "@/backend/auth/require-session";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { requireSession } from "@/server/auth/require-session";
 import {
   createSandbox,
   listSandboxes,
-} from "@/backend/sandbox/sandbox-manager";
+} from "@/server/sandbox/sandbox-manager";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

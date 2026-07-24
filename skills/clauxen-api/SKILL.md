@@ -21,7 +21,7 @@ description: >-
 ## Adding a route
 
 1. Place under `src/app/api/v1/.../route.ts`
-2. Use `withApiRouteParams` / session helpers from `src/backend/http` + `requireSession`
+2. Use `withApiRouteParams` / session helpers from `src/server/http` + `requireSession`
 3. Call service → repository (no fat SQL in route)
 4. Document in `docs/reference/api-reference.md`
 5. Set `vercel.json` memory/timeout if long-running

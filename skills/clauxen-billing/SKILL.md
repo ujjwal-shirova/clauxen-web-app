@@ -35,9 +35,9 @@ Plans in Postgres `plans` (migrations seed catalog).
 
 ## Key paths
 
-`src/backend/billing/*`, `src/backend/services/billing.service.ts`, `gift.service.ts`  
+`src/server/billing/*`, `src/server/services/billing.service.ts`, `gift.service.ts`  
 `workers/billing/` — Razorpay proxy + PDF invoices → R2 `clauxen-invoices` + Razorpay Documents upload  
-`src/frontend/components/checkout-*.tsx`, `billing-checkout.tsx`, `invoice-view.tsx`  
+`src/components/checkout-*.tsx`, `billing-checkout.tsx`, `invoice-view.tsx`  
 `/api/v1/billing/*`, `/api/v1/webhooks/razorpay`, `/api/v1/gifts/*`
 
 ## Additional resources

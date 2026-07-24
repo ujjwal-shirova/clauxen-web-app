@@ -30,7 +30,7 @@ Source of truth for where each platform owns performance work. Do not duplicate 
 4. **Files:** browser → r2-gateway → R2; Postgres metadata only.
 5. **Post-generate warm:** CF Queue `HISTORY_JOBS` → archive+warm (sync `/internal/warm` fallback).
 
-Device cache (`src/frontend/lib/device-chat-cache.ts`): per-user IndexedDB **sidebar list meta only**. Plan-aware hydrate windows in `src/lib/chat-hydrate-limits.ts`. No polling — Realtime + silent SWR refresh. Server remains source of truth.
+Device cache (`src/lib/device-chat-cache.ts`): per-user IndexedDB **sidebar list meta only**. Plan-aware hydrate windows in `src/lib/chat-hydrate-limits.ts`. No polling — Realtime + silent SWR refresh. Server remains source of truth.
 
 ## Env checklist
 
@@ -41,6 +41,6 @@ Device cache (`src/frontend/lib/device-chat-cache.ts`): per-user IndexedDB **sid
 
 ## Related
 
-- [`src/backend/config/cloudflare-perf-profile.ts`](../src/backend/config/cloudflare-perf-profile.ts)
+- [`src/server/config/cloudflare-perf-profile.ts`](../src/server/config/cloudflare-perf-profile.ts)
 - [`scripts/ops/apply-cloudflare-perf-stack.sh`](../scripts/ops/apply-cloudflare-perf-stack.sh)
 - [`workers/chat-coord/`](../workers/chat-coord/)

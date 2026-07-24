@@ -17,11 +17,11 @@ Retrieval grounds chat responses with relevant chunks.
 
 | Path | Role |
 |---|---|
-| `src/backend/services/project-ingestion.service.ts` | Ingest pipeline |
-| `src/backend/services/project-rag.service.ts` | Retrieval |
-| `src/backend/repositories/projects.repository.ts` | Projects SQL |
-| `src/backend/repositories/project-files.repository.ts` | Files |
-| `src/backend/repositories/project-chats.repository.ts` | Chat links |
+| `src/server/services/project-ingestion.service.ts` | Ingest pipeline |
+| `src/server/services/project-rag.service.ts` | Retrieval |
+| `src/server/repositories/projects.repository.ts` | Projects SQL |
+| `src/server/repositories/project-files.repository.ts` | Files |
+| `src/server/repositories/project-chats.repository.ts` | Chat links |
 | `src/projects/` | Frontend pieces + queue helpers |
 | `scripts/worker.ts` | BullMQ ingestion worker |
 | App routes | `/projects`, `/projects/[id]`, conversations |

@@ -147,9 +147,9 @@ const nextConfig: NextConfig = {
         : false,
   },
   outputFileTracingIncludes: {
-    "/api/**/*": ["./src/backend/email-verifier/disposable.txt"],
-    "/auth/**/*": ["./src/backend/email-verifier/disposable.txt"],
-    "/*": ["./src/backend/email-verifier/disposable.txt"],
+    "/api/**/*": ["./src/server/email-verifier/disposable.txt"],
+    "/auth/**/*": ["./src/server/email-verifier/disposable.txt"],
+    "/*": ["./src/server/email-verifier/disposable.txt"],
   },
   // Keep heavy server-only libs out of the client graph / slim function traces.
   serverExternalPackages: [

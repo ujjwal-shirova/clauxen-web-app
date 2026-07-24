@@ -7,7 +7,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogTitle,
-} from "@/frontend/components/ui/dialog";
+} from "@/components/ui/dialog";
 
 const MAX_CHARS = 5000;
 

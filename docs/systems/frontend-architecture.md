@@ -12,14 +12,14 @@
 | Themes | next-themes + `.dark` CSS tokens |
 | Forms | react-hook-form + zod |
 
-Client code lives primarily under `src/frontend/`. Pages under `src/app/` are thin route shells.
+Client code lives primarily under `src/`. Pages under `src/app/` are thin route shells.
 
 ---
 
 ## 2. Directory map
 
 ```
-src/frontend/
+src/
   app/                 # minor app-level client helpers
   components/          # ~94 top-level TSX modules + subfolders
     agent/             # agent timeline / orb / frames

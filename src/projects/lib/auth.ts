@@ -3,8 +3,8 @@ import {
   verifyAuthToken,
   getUserById,
   type AuthUser,
-} from "@/backend/services/auth-credentials.service";
-import { getSessionFromRequest } from "@/backend/auth/session";
+} from "@/server/services/auth-credentials.service";
+import { getSessionFromRequest } from "@/server/auth/session";
 
 export type ProjectsAuthUser = AuthUser;
 
@@ -64,4 +64,4 @@ export {
   signAuthToken,
   hashPassword,
   verifyPassword,
-} from "@/backend/services/auth-credentials.service";
+} from "@/server/services/auth-credentials.service";

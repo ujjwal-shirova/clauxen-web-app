@@ -32,10 +32,14 @@ description: >-
 
 | Path | Role |
 |------|------|
-| `src/app/` | Routes + API |
-| `src/frontend/` | Client UI/hooks |
-| `src/backend/` | Services/repos/inference |
-| `src/autonomous-agent/` | Tool-steered agent |
+| `src/app/` | Next.js App Router (pages + API routes only) |
+| `src/components/` | React UI (incl. chat-view agent transcript under `components/agent/`) |
+| `src/hooks/`, `src/contexts/`, `src/stores/` | Client hooks / providers / stores |
+| `src/lib/` | Shared + client libs (stream reducers, chat helpers, utils) |
+| `src/server/` | Server-only services, repos, inference, auth, billing |
+| `src/marketing/` | Marketing site components/content |
+| `src/prompts/` | Model system prompts |
+| `src/projects/` | Projects / RAG microfrontend libs |
 | `workers/` | CF Workers |
 | `supabase/migrations/` | Schema |
 | `docs/` | Full docs |

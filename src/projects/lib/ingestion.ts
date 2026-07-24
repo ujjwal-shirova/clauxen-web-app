@@ -4,4 +4,4 @@ export {
   retrieveProjectContext,
   buildRagContextBlock,
   assembleSystemPrompt,
-} from "@/backend/services/project-ingestion.service";
+} from "@/server/services/project-ingestion.service";

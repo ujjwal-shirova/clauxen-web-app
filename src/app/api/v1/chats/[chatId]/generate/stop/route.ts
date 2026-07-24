@@ -1,9 +1,9 @@
-import { withApiRouteParams } from "@/backend/http/route-params";
-import { requireSession } from "@/backend/auth/require-session";
-import { abortChatGeneration } from "@/backend/chat/generation-registry";
-import * as messagesRepo from "@/backend/repositories/messages.repository";
-import * as chatsRepo from "@/backend/repositories/chats.repository";
-import { notFound } from "@/backend/db/errors";
+import { withApiRouteParams } from "@/server/http/route-params";
+import { requireSession } from "@/server/auth/require-session";
+import { abortChatGeneration } from "@/server/chat/generation-registry";
+import * as messagesRepo from "@/server/repositories/messages.repository";
+import * as chatsRepo from "@/server/repositories/chats.repository";
+import { notFound } from "@/server/db/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     }
 
     const { invalidateChatHistoryCache } = await import(
-      "@/backend/chat/warm-history-cache"
+      "@/server/chat/warm-history-cache"
     );
     await invalidateChatHistoryCache({
       userId: user.id,

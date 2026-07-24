@@ -4,12 +4,12 @@
 // =============================================================================
 
 import type { NextRequest } from "next/server";
-import { withApiRouteParams } from "@/backend/http/route-params"; // [chatId] params inject + auth gates
-import { jsonData } from "@/backend/http/api-response"; // { data: … } success envelope
-import { requireSession } from "@/backend/auth/require-session"; // null session → 401
-import { createSupabaseClientFromRequest } from "@/backend/auth/supabase-session";
-import { AppError } from "@/backend/db/errors"; // validation errors — 400 bad request
-import * as chatService from "@/backend/services/chat.service"; // ownership check + appendUserMessage business logic
+import { withApiRouteParams } from "@/server/http/route-params"; // [chatId] params inject + auth gates
+import { jsonData } from "@/server/http/api-response"; // { data: … } success envelope
+import { requireSession } from "@/server/auth/require-session"; // null session → 401
+import { createSupabaseClientFromRequest } from "@/server/auth/supabase-session";
+import { AppError } from "@/server/db/errors"; // validation errors — 400 bad request
+import * as chatService from "@/server/services/chat.service"; // ownership check + appendUserMessage business logic
 
 const MAX_MESSAGE_CONTENT_CHARS = 256 * 1024; // cap oversized payloads — DoS mitigation on text column inserts
 const DEFAULT_PAGE_LIMIT = 500;

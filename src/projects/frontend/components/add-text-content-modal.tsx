@@ -6,7 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-} from "@/frontend/components/ui/dialog";
+} from "@/components/ui/dialog";
 
 type AddTextContentModalProps = {
   open: boolean;

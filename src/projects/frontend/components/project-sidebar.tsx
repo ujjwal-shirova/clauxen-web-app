@@ -10,14 +10,14 @@ import {
   Trash2,
   RotateCcw,
 } from "lucide-react";
-import { GithubIcon } from "@/frontend/components/icons/github-icon";
+import { GithubIcon } from "@/components/icons/github-icon";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/frontend/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import type { ProjectFile } from "@/projects/frontend/api";
 import {
   uploadProjectFiles,

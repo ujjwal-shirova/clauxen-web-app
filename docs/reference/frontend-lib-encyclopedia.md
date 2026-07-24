@@ -1,6 +1,6 @@
 # Frontend Lib Encyclopedia
 
-Every module under `src/frontend/lib/` with a short purpose note.
+Every module under `src/lib/` with a short purpose note.
 
 | File | Purpose |
 |---|---|

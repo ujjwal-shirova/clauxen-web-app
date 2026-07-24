@@ -2,14 +2,14 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AuthShell } from "@/frontend/components/auth/auth-shell";
+import { AuthShell } from "@/components/auth/auth-shell";
 import {
   AuthLoadingShell,
   authPageStyles,
-} from "@/frontend/components/auth/auth-shared";
-import { useAuth } from "@/frontend/hooks/use-auth";
-import * as authApi from "@/frontend/lib/api/auth";
-import { cn } from "@/frontend/lib/utils";
+} from "@/components/auth/auth-shared";
+import { useAuth } from "@/hooks/use-auth";
+import * as authApi from "@/lib/api/auth";
+import { cn } from "@/lib/utils";
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");

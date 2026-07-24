@@ -285,4 +285,4 @@ Only for **cold tab reopen** when the Worker is slow once (airport Wi‑Fi). Cha
 - [`docs/systems/realtime-and-caching.md`](../systems/realtime-and-caching.md)  
 - [`docs/surveys/app-health-security-survey-2026-07-23.md`](./app-health-security-survey-2026-07-23.md)  
 - `workers/chat-history/`  
-- `src/frontend/lib/device-chat-cache.ts`
+- `src/lib/device-chat-cache.ts`

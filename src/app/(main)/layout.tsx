@@ -1,5 +1,5 @@
-import { MainLayout } from "@/frontend/components/main-layout";
-import { StreamdownStyles } from "@/frontend/components/streamdown-styles";
+import { MainLayout } from "@/components/main-layout";
+import { StreamdownStyles } from "@/components/streamdown-styles";
 
 export default function MainAppLayout({
   children,

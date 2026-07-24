@@ -1,4 +1,4 @@
-import { handleChatPost } from "@/backend/chat";
+import { handleChatPost } from "@/server/chat";
 
 /** POST /api/chat — auth + body parsing in backend/chat; streaming in ./stream.ts */
 

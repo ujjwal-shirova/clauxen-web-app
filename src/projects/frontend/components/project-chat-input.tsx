@@ -7,7 +7,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/frontend/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 const MODELS = [
   { id: "claude-sonnet-4-6", label: "Sonnet 4.6" },

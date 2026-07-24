@@ -16,17 +16,17 @@ description: >-
 
 | Concern | Path |
 |---------|------|
-| Client API | `src/frontend/hooks/use-chat-api.ts` |
-| Session | `src/frontend/contexts/chat-session-context.tsx` |
+| Client API | `src/hooks/use-chat-api.ts` |
+| Session | `src/contexts/chat-session-context.tsx` |
 | Generate | `src/app/api/v1/chats/[chatId]/generate/route.ts` |
 | Stop | `.../generate/stop/route.ts` |
-| Service | `src/backend/services/chat.service.ts` |
-| Lease | `src/backend/chat/generation-registry.ts`, `chat-coord-client.ts` |
-| Dedupe | `src/frontend/lib/dedupe-chat-messages.ts` |
-| Hydrate | `src/frontend/lib/hydrate-chat-messages.ts` |
-| Device cache | `src/frontend/lib/device-chat-cache.ts` |
-| Branch sanitize | `src/backend/chat/sanitize-branch-messages.ts` |
-| Follow-ups | `src/frontend/lib/follow-up-tags.ts` |
+| Service | `src/server/services/chat.service.ts` |
+| Lease | `src/server/chat/generation-registry.ts`, `chat-coord-client.ts` |
+| Dedupe | `src/lib/dedupe-chat-messages.ts` |
+| Hydrate | `src/lib/hydrate-chat-messages.ts` |
+| Device cache | `src/lib/device-chat-cache.ts` |
+| Branch sanitize | `src/server/chat/sanitize-branch-messages.ts` |
+| Follow-ups | `src/lib/follow-up-tags.ts` |
 
 ## Hard rules
 
@@ -50,7 +50,7 @@ description: >-
 - [ ] Realtime mute still correct
 - [ ] Dedupe scoring: live stream wins
 - [ ] Device cache + Worker invalidate/warm
-- [ ] Tests under `src/frontend/lib/*.test.ts` if lib logic changed
+- [ ] Tests under `src/lib/*.test.ts` if lib logic changed
 
 ## Additional resources
 

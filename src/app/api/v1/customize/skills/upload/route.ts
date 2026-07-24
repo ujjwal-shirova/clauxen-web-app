@@ -1,15 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { requireSession } from "@/backend/auth/require-session";
-import { AppError } from "@/backend/db/errors";
-import * as userSkillsRepo from "@/backend/repositories/user-skills.repository";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { requireSession } from "@/server/auth/require-session";
+import { AppError } from "@/server/db/errors";
+import * as userSkillsRepo from "@/server/repositories/user-skills.repository";
 import {
   bucketForPurpose,
   buildSkillObjectKey,
   buildSkillPrefix,
   putObject,
-} from "@/backend/storage/object-store";
+} from "@/server/storage/object-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

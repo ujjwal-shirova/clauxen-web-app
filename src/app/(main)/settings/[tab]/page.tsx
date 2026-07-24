@@ -1,7 +1,7 @@
 "use client";
 
-import { LegacyOverlayRedirect } from "@/frontend/components/legacy-overlay-redirect";
-import { normalizeSettingsTab } from "@/frontend/lib/app-routes";
+import { LegacyOverlayRedirect } from "@/components/legacy-overlay-redirect";
+import { normalizeSettingsTab } from "@/lib/app-routes";
 import { use } from "react";
 
 export default function SettingsTabPage({

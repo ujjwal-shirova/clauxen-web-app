@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { APP_ROUTES } from "@/frontend/lib/app-routes";
+import { APP_ROUTES } from "@/lib/app-routes";
 
 /** Legacy `/projects/[id]` → `/project/[id]` dashboard (new-chat composer). */
 export default async function LegacyProjectDetailRedirectPage({

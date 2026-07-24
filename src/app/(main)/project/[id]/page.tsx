@@ -2,16 +2,16 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ProjectHomeView } from "@/frontend/components/project-home-view";
-import { useAuth } from "@/frontend/hooks/use-auth";
-import { useProjects } from "@/frontend/hooks/use-projects";
-import { useOptionalChatSession } from "@/frontend/contexts/chat-session-context";
-import { useAppLayout } from "@/frontend/components/app-layout-context";
-import * as projectsApi from "@/frontend/lib/api/projects";
-import type { ApiProject } from "@/frontend/lib/api/projects";
-import { APP_ROUTES } from "@/frontend/lib/app-routes";
-import { useInstantNavigate } from "@/frontend/hooks/use-instant-navigate";
-import { isProjectPinned } from "@/frontend/lib/pinned-projects";
+import { ProjectHomeView } from "@/components/project-home-view";
+import { useAuth } from "@/hooks/use-auth";
+import { useProjects } from "@/hooks/use-projects";
+import { useOptionalChatSession } from "@/contexts/chat-session-context";
+import { useAppLayout } from "@/components/app-layout-context";
+import * as projectsApi from "@/lib/api/projects";
+import type { ApiProject } from "@/lib/api/projects";
+import { APP_ROUTES } from "@/lib/app-routes";
+import { useInstantNavigate } from "@/hooks/use-instant-navigate";
+import { isProjectPinned } from "@/lib/pinned-projects";
 
 export default function ProjectHomeRoutePage() {
   return (

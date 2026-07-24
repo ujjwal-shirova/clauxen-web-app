@@ -1,9 +1,9 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
 import {
   runNovitaAgentChat,
   type AgentChatRequest,
-} from "@/backend/inference/novita-agent";
+} from "@/server/inference/novita-agent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

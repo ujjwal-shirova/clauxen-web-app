@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import * as projectsRepo from "@/backend/repositories/projects.repository";
-import * as projectChatsRepo from "@/backend/repositories/project-chats.repository";
+import * as projectsRepo from "@/server/repositories/projects.repository";
+import * as projectChatsRepo from "@/server/repositories/project-chats.repository";
 import {
   retrieveProjectContext,
   buildRagContextBlock,
   assembleSystemPrompt,
-} from "@/backend/services/project-ingestion.service";
+} from "@/server/services/project-ingestion.service";
 import { streamClaudeResponse } from "@/projects/lib/claude";
 import { requireProjectsUser, ProjectsAuthError } from "@/projects/lib/auth";
 import { jsonData, jsonError } from "@/projects/lib/api-response";

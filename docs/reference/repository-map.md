@@ -3,7 +3,7 @@
 Auto-oriented map of server repositories, services, and major frontend modules.
 Generated to stay aligned with the tree as of documentation rewrite 2026-07-17.
 
-## Backend repositories (`src/backend/repositories/`)
+## Backend repositories (`src/server/repositories/`)
 
 - `api-keys.repository.ts` — api keys data access
 - `artifacts.repository.ts` — artifacts data access
@@ -30,7 +30,7 @@ Generated to stay aligned with the tree as of documentation rewrite 2026-07-17.
 - `user-skills.repository.ts` — user skills data access
 - `workspaces.repository.ts` — workspaces data access
 
-## Backend services (`src/backend/services/`)
+## Backend services (`src/server/services/`)
 
 - `auth-credentials.service.ts`
 - `auth-email-otp.service.ts`
@@ -76,33 +76,33 @@ Generated to stay aligned with the tree as of documentation rewrite 2026-07-17.
 
 ## Frontend hooks
 
-- `src/frontend/hooks/use-ai-stream.ts`
-- `src/frontend/hooks/use-api-keys.ts`
-- `src/frontend/hooks/use-app-notifications.tsx`
-- `src/frontend/hooks/use-app-overlays.tsx`
-- `src/frontend/hooks/use-artifacts.ts`
-- `src/frontend/hooks/use-auth.ts`
-- `src/frontend/hooks/use-chat-api.ts`
-- `src/frontend/hooks/use-chat-scroll-activity.ts`
-- `src/frontend/hooks/use-chat-scroll.ts`
-- `src/frontend/hooks/use-chat-search.ts`
-- `src/frontend/hooks/use-chat.ts`
-- `src/frontend/hooks/use-checkout-currency.ts`
-- `src/frontend/hooks/use-clear-auth-busy-on-return.ts`
-- `src/frontend/hooks/use-document-title.ts`
-- `src/frontend/hooks/use-instant-navigate.ts`
-- `src/frontend/hooks/use-is-client.ts`
-- `src/frontend/hooks/use-keyboard-shortcuts.ts`
-- `src/frontend/hooks/use-message-enter-animation.ts`
-- `src/frontend/hooks/use-message-visibility.ts`
-- `src/frontend/hooks/use-minimum-loading.ts`
-- `src/frontend/hooks/use-mobile.tsx`
-- `src/frontend/hooks/use-project-chat.ts`
-- `src/frontend/hooks/use-projects.ts`
-- `src/frontend/hooks/use-research.ts`
-- `src/frontend/hooks/use-settings.ts`
-- `src/frontend/hooks/use-sidebar-state.ts`
-- `src/frontend/hooks/use-toast.ts`
+- `src/hooks/use-ai-stream.ts`
+- `src/hooks/use-api-keys.ts`
+- `src/hooks/use-app-notifications.tsx`
+- `src/hooks/use-app-overlays.tsx`
+- `src/hooks/use-artifacts.ts`
+- `src/hooks/use-auth.ts`
+- `src/hooks/use-chat-api.ts`
+- `src/hooks/use-chat-scroll-activity.ts`
+- `src/hooks/use-chat-scroll.ts`
+- `src/hooks/use-chat-search.ts`
+- `src/hooks/use-chat.ts`
+- `src/hooks/use-checkout-currency.ts`
+- `src/hooks/use-clear-auth-busy-on-return.ts`
+- `src/hooks/use-document-title.ts`
+- `src/hooks/use-instant-navigate.ts`
+- `src/hooks/use-is-client.ts`
+- `src/hooks/use-keyboard-shortcuts.ts`
+- `src/hooks/use-message-enter-animation.ts`
+- `src/hooks/use-message-visibility.ts`
+- `src/hooks/use-minimum-loading.ts`
+- `src/hooks/use-mobile.tsx`
+- `src/hooks/use-project-chat.ts`
+- `src/hooks/use-projects.ts`
+- `src/hooks/use-research.ts`
+- `src/hooks/use-settings.ts`
+- `src/hooks/use-sidebar-state.ts`
+- `src/hooks/use-toast.ts`
 
 ## Lib shared (`src/lib/`)
 

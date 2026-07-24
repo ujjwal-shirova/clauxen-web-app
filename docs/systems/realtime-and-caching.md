@@ -28,7 +28,7 @@ After generate/delete/rename:
 - Plan-aware warm limits via `warmLimitsForPlanId`
 - Client updates IDB list meta only (no transcript bodies)
 
-Helpers: `src/backend/chat/warm-history-cache.ts`.
+Helpers: `src/server/chat/warm-history-cache.ts`.
 
 ---
 

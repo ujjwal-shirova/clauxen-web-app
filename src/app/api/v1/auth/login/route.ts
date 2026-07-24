@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { AppError } from "@/backend/db/errors";
-import { env } from "@/backend/config/env";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { AppError } from "@/server/db/errors";
+import { env } from "@/server/config/env";
 import {
   findUserByEmail,
   logSecurityEvent,
   registerDevUser,
   verifyDevPassword,
-} from "@/backend/services/identity.service";
-import { clientIp, clientUserAgent } from "@/backend/http/request-meta";
-import { sessionCookieHeader } from "@/backend/auth/session";
-import { assertEmailNotDisposable } from "@/backend/email-verifier/disposable-email";
+} from "@/server/services/identity.service";
+import { clientIp, clientUserAgent } from "@/server/http/request-meta";
+import { sessionCookieHeader } from "@/server/auth/session";
+import { assertEmailNotDisposable } from "@/server/email-verifier/disposable-email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

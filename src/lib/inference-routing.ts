@@ -1,4 +1,4 @@
-import type { ThinkingType } from "@/backend/inference/novita";
+import type { ThinkingType } from "@/server/inference/novita";
 import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,

@@ -134,10 +134,6 @@
       "memory": 1024,
       "maxDuration": 300
     },
-    "src/app/api/autonomous-agent/**/stream/route.ts": {
-      "memory": 1024,
-      "maxDuration": 300
-    },
     "src/app/api/v1/sandbox/**/route.ts": {
       "memory": 1024,
       "maxDuration": 300

@@ -1,9 +1,9 @@
-import { withApiRouteParams } from "@/backend/http/route-params"; // chatId param + auth wrapper
-import { jsonData } from "@/backend/http/api-response"; // { data: { title } }
-import { requireSession } from "@/backend/auth/require-session"; // session mandatory
-import { AppError } from "@/backend/db/errors"; // structured 400 validation errors
-import * as chatService from "@/backend/services/chat.service"; // title generation + DB persist
-import { sanitizeMessages } from "@/backend/inference/novita"; // client messages → model-safe format
+import { withApiRouteParams } from "@/server/http/route-params"; // chatId param + auth wrapper
+import { jsonData } from "@/server/http/api-response"; // { data: { title } }
+import { requireSession } from "@/server/auth/require-session"; // session mandatory
+import { AppError } from "@/server/db/errors"; // structured 400 validation errors
+import * as chatService from "@/server/services/chat.service"; // title generation + DB persist
+import { sanitizeMessages } from "@/server/inference/novita"; // client messages → model-safe format
 
 export const runtime = "nodejs"; // Node.js — upstream LLM HTTP calls
 export const dynamic = "force-dynamic";

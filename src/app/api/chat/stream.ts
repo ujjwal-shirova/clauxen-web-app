@@ -1,16 +1,16 @@
 /**
  * Compatibility re-exports — the canonical implementations now live in:
- *   - @/backend/inference/agent-engine (Anthropic agent loop)
- *   - @/backend/inference/anthropic-messages-client (Anthropic Messages SDK)
- *   - @/backend/inference/clauxen-sse-stream (SSE protocol / timeline UI)
+ *   - @/server/inference/agent-engine (Anthropic agent loop)
+ *   - @/server/inference/anthropic-messages-client (Anthropic Messages SDK)
+ *   - @/server/inference/clauxen-sse-stream (SSE protocol / timeline UI)
  */
 
-import { runAutonomousAgent, type AgentStreamOptions } from "@/backend/inference/agent-engine";
-import { ClauxenSseStream } from "@/backend/inference/clauxen-sse-stream";
-import type { IncomingMessage } from "@/backend/inference/novita";
-import { buildModelSystemPrompt } from "@/backend/inference/system-prompt";
-import { buildUserPersonalizationAppend } from "@/backend/services/user-personalization.service";
-import { loadFollowUpSuggestionsEnabled } from "@/backend/services/follow-up-settings.service";
+import { runAutonomousAgent, type AgentStreamOptions } from "@/server/inference/agent-engine";
+import { ClauxenSseStream } from "@/server/inference/clauxen-sse-stream";
+import type { IncomingMessage } from "@/server/inference/novita";
+import { buildModelSystemPrompt } from "@/server/inference/system-prompt";
+import { buildUserPersonalizationAppend } from "@/server/services/user-personalization.service";
+import { loadFollowUpSuggestionsEnabled } from "@/server/services/follow-up-settings.service";
 import { buildFollowUpSystemInstruction } from "@/lib/follow-up-prompt";
 import { resolveModelRuntime, parseChatModelId, modelCatalogEnvFromProcess } from "@/lib/model-catalog";
 import {

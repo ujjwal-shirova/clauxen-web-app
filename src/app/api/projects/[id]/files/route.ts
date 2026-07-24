@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
-import * as projectsRepo from "@/backend/repositories/projects.repository";
-import * as projectFilesRepo from "@/backend/repositories/project-files.repository";
+import * as projectsRepo from "@/server/repositories/projects.repository";
+import * as projectFilesRepo from "@/server/repositories/project-files.repository";
 import {
   putObject,
   buildProjectFileKey,
   deleteObject,
   bucketForPurpose,
-} from "@/backend/storage/object-store";
-import { enqueueFileIngestion } from "@/backend/services/project-ingestion.service";
+} from "@/server/storage/object-store";
+import { enqueueFileIngestion } from "@/server/services/project-ingestion.service";
 import { requireProjectsUser, ProjectsAuthError } from "@/projects/lib/auth";
 import { jsonData, jsonError } from "@/projects/lib/api-response";
 

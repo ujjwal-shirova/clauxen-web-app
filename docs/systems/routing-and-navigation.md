@@ -2,7 +2,7 @@
 
 ## 1. Canonical routes
 
-Defined in `src/frontend/lib/app-routes.ts`.
+Defined in `src/lib/app-routes.ts`.
 
 ### Main (real Next routes — keep mounted)
 

@@ -22,21 +22,21 @@ Plans live in Postgres `plans` (seeded by migrations including personal catalog 
 
 | Path | Role |
 |---|---|
-| `src/backend/billing/razorpay.ts` | Orders, QR create/fetch/close, signature verify |
-| `src/backend/billing/checkout-session.ts` | `cs_live_` mint/verify; merchant `shirova`; `returnPath` |
-| `src/backend/billing/checkout-pricing.ts` | Price math |
-| `src/backend/billing/checkout-currency-server.ts` | Currency |
-| `src/backend/billing/checkout-billing.ts` | Billing helpers |
-| `src/backend/services/billing.service.ts` | Orchestration |
-| `src/backend/services/gift.service.ts` | Gifts |
-| `src/backend/repositories/billing.repository.ts` | SQL |
+| `src/server/billing/razorpay.ts` | Orders, QR create/fetch/close, signature verify |
+| `src/server/billing/checkout-session.ts` | `cs_live_` mint/verify; merchant `shirova`; `returnPath` |
+| `src/server/billing/checkout-pricing.ts` | Price math |
+| `src/server/billing/checkout-currency-server.ts` | Currency |
+| `src/server/billing/checkout-billing.ts` | Billing helpers |
+| `src/server/services/billing.service.ts` | Orchestration |
+| `src/server/services/gift.service.ts` | Gifts |
+| `src/server/repositories/billing.repository.ts` | SQL |
 | `src/lib/plans-catalog.ts` | Plan helpers |
 | `src/lib/checkout-currency.ts` / tax / gstin / payment icons | UI + tax |
-| `src/frontend/lib/razorpay-custom-checkout.ts` | Card + netbanking Custom Checkout |
+| `src/lib/razorpay-custom-checkout.ts` | Card + netbanking Custom Checkout |
 | `src/lib/razorpay-netbanking-banks.ts` | Activated Razorpay netbanking bank codes |
-| `src/frontend/lib/razorpay-checkout.ts` | Standard Checkout (Apple Pay / wallets) |
-| `src/frontend/components/checkout-*.tsx` | Checkout UI |
-| `src/frontend/components/billing-checkout.tsx` | In-app checkout |
+| `src/lib/razorpay-checkout.ts` | Standard Checkout (Apple Pay / wallets) |
+| `src/components/checkout-*.tsx` | Checkout UI |
+| `src/components/billing-checkout.tsx` | In-app checkout |
 | `src/app/checkout/[merchant]/[sessionId]/page.tsx` | Hosted checkout page |
 | `scripts/ops/smoke-razorpay-upi-qr.mjs` | UPI QR API smoke (create→fetch→close) |
 | Overlay `#pricing` / legacy `/upgrade` | Pricing overlay |

@@ -1,4 +1,4 @@
-import { ChatView } from "@/frontend/components/chat-view";
+import { ChatView } from "@/components/chat-view";
 
 export default function NewChatPage() {
   return <ChatView />;

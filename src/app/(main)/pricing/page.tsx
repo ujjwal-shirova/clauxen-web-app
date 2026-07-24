@@ -1,6 +1,6 @@
 "use client";
 
-import { LegacyOverlayRedirect } from "@/frontend/components/legacy-overlay-redirect";
+import { LegacyOverlayRedirect } from "@/components/legacy-overlay-redirect";
 
 /** Legacy `/pricing` → `/new#pricing`. */
 export default function PricingAliasPage() {

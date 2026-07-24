@@ -1,6 +1,6 @@
-import { ChatView } from "@/frontend/components/chat-view";
-import { ChatRouteSeedRegistrar } from "@/frontend/components/chat-route-seed-registrar";
-import { loadChatRouteSeed } from "@/backend/chat/load-chat-route-seed";
+import { ChatView } from "@/components/chat-view";
+import { ChatRouteSeedRegistrar } from "@/components/chat-route-seed-registrar";
+import { loadChatRouteSeed } from "@/server/chat/load-chat-route-seed";
 
 export default async function ChatRoutePage({
   params,

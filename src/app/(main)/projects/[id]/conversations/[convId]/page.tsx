@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { APP_ROUTES } from "@/frontend/lib/app-routes";
+import { APP_ROUTES } from "@/lib/app-routes";
 
 /**
  * Legacy nested project chat → `/c/[chatId]?chat_enter_method=project`.

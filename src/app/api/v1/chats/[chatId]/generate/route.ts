@@ -1,19 +1,19 @@
 import { after } from "next/server";
-import { withApiRouteParams } from "@/backend/http/route-params";
-import { requireSession } from "@/backend/auth/require-session";
-import * as chatService from "@/backend/services/chat.service";
-import { sanitizeMessages } from "@/backend/inference/novita";
-import { AppError } from "@/backend/db/errors";
+import { withApiRouteParams } from "@/server/http/route-params";
+import { requireSession } from "@/server/auth/require-session";
+import * as chatService from "@/server/services/chat.service";
+import { sanitizeMessages } from "@/server/inference/novita";
+import { AppError } from "@/server/db/errors";
 import { resolveRequestCountryCode } from "@/lib/request-geo";
 import { parseHomerReasoningEffort } from "@/lib/model-effort";
-import { CLAUXEN_STREAM_HEADERS } from "@/backend/inference/clauxen-sse-stream";
+import { CLAUXEN_STREAM_HEADERS } from "@/server/inference/clauxen-sse-stream";
 import {
   beginChatGeneration,
   endChatGeneration,
-} from "@/backend/chat/generation-registry";
-import { readEdgeFlags } from "@/backend/config/edge-flags";
-import { assertDurableRateLimit } from "@/backend/http/durable-rate-limit";
-import { clientIp } from "@/backend/http/request-meta";
+} from "@/server/chat/generation-registry";
+import { readEdgeFlags } from "@/server/config/edge-flags";
+import { assertDurableRateLimit } from "@/server/http/durable-rate-limit";
+import { clientIp } from "@/server/http/request-meta";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

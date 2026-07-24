@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSessionFromRequest } from "@/backend/auth/session";
-import { AppError } from "@/backend/db/errors";
-import { queryOne } from "@/backend/db/pool";
-import * as billingService from "@/backend/services/billing.service";
+import { getSessionFromRequest } from "@/server/auth/session";
+import { AppError } from "@/server/db/errors";
+import { queryOne } from "@/server/db/pool";
+import * as billingService from "@/server/services/billing.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -20,8 +20,8 @@ Upload → `project_files` / R2 → BullMQ `npm run worker` (or inline if no Red
 
 ## Key paths
 
-`src/backend/services/project-ingestion.service.ts`, `project-rag.service.ts`  
-`src/backend/repositories/projects*.ts`, `project-files.repository.ts`  
+`src/server/services/project-ingestion.service.ts`, `project-rag.service.ts`  
+`src/server/repositories/projects*.ts`, `project-files.repository.ts`  
 `src/projects/`, `scripts/worker.ts`  
 `/api/v1/projects/*` and legacy `/api/projects/*`
 

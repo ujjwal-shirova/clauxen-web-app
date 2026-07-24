@@ -86,11 +86,11 @@ Supabase (SoR)          Cloudflare Workers / R2 / DO
 | Path | Role |
 |------|------|
 | `src/app/` | Routes + API handlers |
-| `src/frontend/` | Client UI / hooks / contexts |
-| `src/backend/` | Services, repos, inference |
-| `src/autonomous-agent/` | Parallel agent package (mostly deprecated HTTP) |
+| `src/` | Client UI / hooks / contexts |
+| `src/server/` | Services, repos, inference |
+| `src/app/agent-ui/` | Parallel agent package (mostly deprecated HTTP) |
 | `src/projects/` | Legacy projects microfrontend + RAG libs |
-| `src/website/` | Marketing |
+| `src/marketing/` | Marketing |
 | `workers/` | Five CF Workers |
 | `vendor/clauxen-code-agent/` | Reference CLI agent (~5MB, not imported) |
 | `skills/` + `docs/` | Agent skills + product docs |
@@ -113,10 +113,10 @@ Supabase (SoR)          Cloudflare Workers / R2 / DO
 
 | Layer | Path |
 |-------|------|
-| Client God-hook | `src/frontend/hooks/use-chat-api.ts` |
+| Client God-hook | `src/hooks/use-chat-api.ts` |
 | Generate route | `src/app/api/v1/chats/[chatId]/generate/route.ts` |
-| Orchestration | `src/backend/services/chat.service.ts` |
-| Agent loop | `src/backend/inference/agent-engine.ts` |
+| Orchestration | `src/server/services/chat.service.ts` |
+| Agent loop | `src/server/inference/agent-engine.ts` |
 | Lease | `workers/chat-coord` + `generation-registry.ts` |
 | History edge | `workers/chat-history` |
 
@@ -132,7 +132,7 @@ Supabase (SoR)          Cloudflare Workers / R2 / DO
 |------|--------|
 | `useChatApi` + `/api/v1/chats/*/generate` | Canonical signed-in |
 | `useChat` / `useLocalChat` + `/api/chat` (~1439 LOC) | Parallel guest/local stack still compiled |
-| `src/autonomous-agent/` + `/api/autonomous-agent/**` | HTTP returns **410**; package still in tree |
+| `src/app/agent-ui/` + `/api/autonomous-agent/**` | HTTP returns **410**; package still in tree |
 | `vendor/clauxen-code-agent` | Comment-only reference |
 
 Main shell always uses `useChatApi` when authenticated. Local path still exists for project/`apiEnabled=false` and historical guest mode → cognitive load + drift risk.

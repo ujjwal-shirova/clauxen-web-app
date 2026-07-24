@@ -2,12 +2,12 @@
 // Use case: alternate reply paths (branching) UI — activePath + messages snapshot persist
 // =============================================================================
 
-import { withApiRouteParams } from "@/backend/http/route-params"; // [chatId] params inject + auth gates wrap
-import { jsonData } from "@/backend/http/api-response"; // { data: … } success envelope
-import { requireSession } from "@/backend/auth/require-session"; // null session → 401 AppError
-import { AppError } from "@/backend/db/errors"; // validation errors — malformed body / oversized payload
-import { sanitizeBranchMessages } from "@/backend/chat/sanitize-branch-messages";
-import * as chatService from "@/backend/services/chat.service"; // branch state read/write — ownership check included
+import { withApiRouteParams } from "@/server/http/route-params"; // [chatId] params inject + auth gates wrap
+import { jsonData } from "@/server/http/api-response"; // { data: … } success envelope
+import { requireSession } from "@/server/auth/require-session"; // null session → 401 AppError
+import { AppError } from "@/server/db/errors"; // validation errors — malformed body / oversized payload
+import { sanitizeBranchMessages } from "@/server/chat/sanitize-branch-messages";
+import * as chatService from "@/server/services/chat.service"; // branch state read/write — ownership check included
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

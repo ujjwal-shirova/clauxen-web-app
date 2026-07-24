@@ -1,8 +1,8 @@
-import { withApiHandler } from "@/backend/http/api-handler"; // session + centralized error handling
-import { jsonData } from "@/backend/http/api-response"; // { data } success JSON
-import { requireSession } from "@/backend/auth/require-session"; // logged-in user id
-import * as settingsRepo from "@/backend/repositories/settings.repository"; // getUserSettings / updateUserSettings
-import { AppError } from "@/backend/db/errors"; // validation 400
+import { withApiHandler } from "@/server/http/api-handler"; // session + centralized error handling
+import { jsonData } from "@/server/http/api-response"; // { data } success JSON
+import { requireSession } from "@/server/auth/require-session"; // logged-in user id
+import * as settingsRepo from "@/server/repositories/settings.repository"; // getUserSettings / updateUserSettings
+import { AppError } from "@/server/db/errors"; // validation 400
 
 export const runtime = "nodejs"; // Node.js — JSON settings column
 export const dynamic = "force-dynamic";

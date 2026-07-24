@@ -1,10 +1,10 @@
-import { withApiRouteParams } from "@/backend/http/route-params"; // chatId URL param inject
-import { jsonData } from "@/backend/http/api-response"; // { data } JSON response
-import { requireSession } from "@/backend/auth/require-session"; // session → user id
-import { env } from "@/backend/config/env"; // trusted app base URL — Host header spoofing avoid
-import * as chatsRepo from "@/backend/repositories/chats.repository"; // chat ownership verify
-import * as sharesRepo from "@/backend/repositories/shares.repository"; // share rows create/revoke/read
-import { AppError, notFound } from "@/backend/db/errors"; // validation + chat/share missing → 400/404
+import { withApiRouteParams } from "@/server/http/route-params"; // chatId URL param inject
+import { jsonData } from "@/server/http/api-response"; // { data } JSON response
+import { requireSession } from "@/server/auth/require-session"; // session → user id
+import { env } from "@/server/config/env"; // trusted app base URL — Host header spoofing avoid
+import * as chatsRepo from "@/server/repositories/chats.repository"; // chat ownership verify
+import * as sharesRepo from "@/server/repositories/shares.repository"; // share rows create/revoke/read
+import { AppError, notFound } from "@/server/db/errors"; // validation + chat/share missing → 400/404
 
 const SHARE_VISIBILITIES = ["link", "workspace", "public"] as const;
 type ShareVisibility = (typeof SHARE_VISIBILITIES)[number];

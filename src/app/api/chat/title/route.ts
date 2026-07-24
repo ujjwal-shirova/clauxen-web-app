@@ -1,4 +1,4 @@
-import { handleChatTitlePost } from "@/backend/chat";
+import { handleChatTitlePost } from "@/server/chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

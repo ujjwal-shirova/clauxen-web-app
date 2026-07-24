@@ -2,12 +2,12 @@
 
 import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreateProjectForm } from "@/frontend/components/create-project-form";
-import { useProjects } from "@/frontend/hooks/use-projects";
-import { useAuth } from "@/frontend/hooks/use-auth";
-import { useToast } from "@/frontend/hooks/use-toast";
-import { APP_ROUTES } from "@/frontend/lib/app-routes";
-import { useInstantNavigate } from "@/frontend/hooks/use-instant-navigate";
+import { CreateProjectForm } from "@/components/create-project-form";
+import { useProjects } from "@/hooks/use-projects";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { APP_ROUTES } from "@/lib/app-routes";
+import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 
 export default function ProjectCreateRoutePage() {
   return (

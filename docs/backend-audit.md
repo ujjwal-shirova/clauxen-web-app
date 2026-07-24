@@ -8,7 +8,7 @@ Generated: 2026-07-09. Source: repo migrations, MCP live checks, code grep.
 |-----------|----------------|------|
 | Next.js | 16 App Router (`src/app/`) | UI + API routes on Vercel |
 | Proxy | `src/proxy.ts` | Supabase cookie refresh; route guards (extended in this implementation) |
-| Database | `pg` pool (`src/backend/db/pool.ts`) | All app SQL — **not** PostgREST |
+| Database | `pg` pool (`src/server/db/pool.ts`) | All app SQL — **not** PostgREST |
 | Supabase Auth | `@supabase/ssr` (`src/utils/supabase/`) | GoTrue sessions (production target) |
 | Dev auth | `clauxen_session` cookie + `AUTH_DEV_BYPASS` | Local development only |
 | Background jobs | `scripts/worker.ts` (BullMQ + Redis) | Project file ingestion |

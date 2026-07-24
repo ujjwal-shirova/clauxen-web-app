@@ -1,6 +1,6 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { clearSessionCookieHeader } from "@/backend/auth/session";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { clearSessionCookieHeader } from "@/server/auth/session";
 import {
   IDENTITY_HINT_COOKIE,
   identityHintCookieOptions,

@@ -9,7 +9,7 @@ First-run setup after auth collects name/role preferences and marks the user rea
 ## 2. Routes & API
 
 - Page: `/onboarding`
-- Components: `src/frontend/components/onboarding/*`
+- Components: `src/components/onboarding/*`
 - API: `/api/v1/onboarding`
 - Steps helper: `src/lib/onboarding-steps.ts`
 - Service/repo: `onboarding.service.ts`, `onboarding.repository.ts`

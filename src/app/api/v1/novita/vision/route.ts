@@ -1,11 +1,11 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
 import {
   DEFAULT_MODEL,
   getOpenAIClient,
-} from "@/backend/inference/openai-client";
-import { buildVisionContentParts } from "@/backend/inference/vision";
-import { extractPromptCacheStats } from "@/backend/inference/prompt-cache";
+} from "@/server/inference/openai-client";
+import { buildVisionContentParts } from "@/server/inference/vision";
+import { extractPromptCacheStats } from "@/server/inference/prompt-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

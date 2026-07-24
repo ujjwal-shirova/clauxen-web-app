@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData, jsonError } from "@/backend/http/api-response";
-import { AppError } from "@/backend/db/errors";
-import { ensureUserRecord } from "@/backend/services/identity.service";
-import * as profileService from "@/backend/services/profile.service";
-import { createSupabaseClientFromRequest } from "@/backend/auth/supabase-session";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData, jsonError } from "@/server/http/api-response";
+import { AppError } from "@/server/db/errors";
+import { ensureUserRecord } from "@/server/services/identity.service";
+import * as profileService from "@/server/services/profile.service";
+import { createSupabaseClientFromRequest } from "@/server/auth/supabase-session";
 import {
   getSessionFromRequest,
   sessionCookieHeader,
   clearSessionCookieHeader,
   type SessionUser,
-} from "@/backend/auth/session";
+} from "@/server/auth/session";
 import {
   assertEmailNotDisposable,
   DISPOSABLE_EMAIL_CODE,
-} from "@/backend/email-verifier/disposable-email";
+} from "@/server/email-verifier/disposable-email";
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
 import {
   IDENTITY_HINT_COOKIE,

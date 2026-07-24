@@ -1,9 +1,9 @@
-import { withApiHandler } from "@/backend/http/api-handler"; // session-aware handler wrapper
-import { jsonData } from "@/backend/http/api-response"; // standardized JSON envelope
-import { requireSession } from "@/backend/auth/require-session";
-import * as billingService from "@/backend/services/billing.service"; // signature check + DB fulfillment
-import { AppError } from "@/backend/db/errors"; // validation failures → 400 response
-import { queryOne } from "@/backend/db/pool"; // ownership check — order belongs to session user
+import { withApiHandler } from "@/server/http/api-handler"; // session-aware handler wrapper
+import { jsonData } from "@/server/http/api-response"; // standardized JSON envelope
+import { requireSession } from "@/server/auth/require-session";
+import * as billingService from "@/server/services/billing.service"; // signature check + DB fulfillment
+import { AppError } from "@/server/db/errors"; // validation failures → 400 response
+import { queryOne } from "@/server/db/pool"; // ownership check — order belongs to session user
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

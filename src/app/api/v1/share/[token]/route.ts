@@ -1,8 +1,8 @@
-import { withApiRouteParams } from "@/backend/http/route-params";
-import { jsonData } from "@/backend/http/api-response";
-import { notFound } from "@/backend/db/errors";
-import * as sharesRepo from "@/backend/repositories/shares.repository";
-import * as messagesRepo from "@/backend/repositories/messages.repository";
+import { withApiRouteParams } from "@/server/http/route-params";
+import { jsonData } from "@/server/http/api-response";
+import { notFound } from "@/server/db/errors";
+import * as sharesRepo from "@/server/repositories/shares.repository";
+import * as messagesRepo from "@/server/repositories/messages.repository";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { env, requireNovitaApiKey } from "@/backend/config/env";
+import { env, requireNovitaApiKey } from "@/server/config/env";
 import { MODEL_CONFIG } from "@/lib/model-config";
 
 const DEFAULT_MODEL = MODEL_CONFIG.models.helios.defaultSlug;

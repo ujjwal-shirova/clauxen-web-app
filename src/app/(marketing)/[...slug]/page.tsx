@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { MarketingPageView } from "@/website/components/marketing-page-view";
+import { MarketingPageView } from "@/marketing/components/marketing-page-view";
 import {
   allMarketingPaths,
   getMarketingPage,
   metadataForPage,
-} from "@/website/content";
+} from "@/marketing/content";
 
 type Props = { params: Promise<{ slug: string[] }> };
 

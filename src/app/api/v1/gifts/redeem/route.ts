@@ -1,8 +1,8 @@
-import { withApiHandler } from "@/backend/http/api-handler"; // session + centralized error handling
-import { jsonData } from "@/backend/http/api-response"; // { data: { redemption } } success envelope
-import { requireSession } from "@/backend/auth/require-session"; // null session → 401
-import * as giftService from "@/backend/services/gift.service"; // code validate, mark redeemed, billing apply
-import { AppError } from "@/backend/db/errors";
+import { withApiHandler } from "@/server/http/api-handler"; // session + centralized error handling
+import { jsonData } from "@/server/http/api-response"; // { data: { redemption } } success envelope
+import { requireSession } from "@/server/auth/require-session"; // null session → 401
+import * as giftService from "@/server/services/gift.service"; // code validate, mark redeemed, billing apply
+import { AppError } from "@/server/db/errors";
 
 // CX-XXXXX-XXXXX-XXXX (19) + paste margin — rejects oversized bodies before hash lookup
 const MAX_GIFT_CODE_LENGTH = 64;

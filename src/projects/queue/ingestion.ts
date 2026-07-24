@@ -1,5 +1,5 @@
 import { Queue, Worker } from "bullmq";
-import { processProjectFile } from "@/backend/services/project-ingestion.service";
+import { processProjectFile } from "@/server/services/project-ingestion.service";
 
 const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
 const QUEUE_NAME = "project-file-ingestion";

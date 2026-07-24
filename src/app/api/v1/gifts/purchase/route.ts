@@ -1,8 +1,8 @@
-import { withApiHandler } from "@/backend/http/api-handler"; // session + error wrapper
-import { jsonData } from "@/backend/http/api-response"; // { data } success JSON — checkout payload
-import { requireSession } from "@/backend/auth/require-session"; // null session → 401
-import * as giftService from "@/backend/services/gift.service"; // billing + gift code generation orchestration
-import { AppError } from "@/backend/db/errors"; // validation errors — 400 with message
+import { withApiHandler } from "@/server/http/api-handler"; // session + error wrapper
+import { jsonData } from "@/server/http/api-response"; // { data } success JSON — checkout payload
+import { requireSession } from "@/server/auth/require-session"; // null session → 401
+import * as giftService from "@/server/services/gift.service"; // billing + gift code generation orchestration
+import { AppError } from "@/server/db/errors"; // validation errors — 400 with message
 import { isCheckoutCurrency } from "@/lib/checkout-currency";
 
 const MAX_PLAN_ID_LENGTH = 64;

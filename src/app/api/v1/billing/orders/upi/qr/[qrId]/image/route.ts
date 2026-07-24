@@ -1,13 +1,13 @@
-import { withApiRouteParams } from "@/backend/http/route-params";
-import { requireSession } from "@/backend/auth/require-session";
-import { AppError, notFound } from "@/backend/db/errors";
+import { withApiRouteParams } from "@/server/http/route-params";
+import { requireSession } from "@/server/auth/require-session";
+import { AppError, notFound } from "@/server/db/errors";
 import {
   fetchRazorpayPaymentLink,
   fetchRazorpayQrCode,
   renderPaymentQrPng,
   resolveUpiQrIntent,
-} from "@/backend/billing/razorpay";
-import * as billingRepo from "@/backend/repositories/billing.repository";
+} from "@/server/billing/razorpay";
+import * as billingRepo from "@/server/repositories/billing.repository";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,10 +1,10 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { requireSession } from "@/backend/auth/require-session";
-import { AppError, notFound } from "@/backend/db/errors";
-import * as customizeRepo from "@/backend/repositories/customize.repository";
-import * as userSkillsRepo from "@/backend/repositories/user-skills.repository";
-import { deleteObject } from "@/backend/storage/object-store";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { requireSession } from "@/server/auth/require-session";
+import { AppError, notFound } from "@/server/db/errors";
+import * as customizeRepo from "@/server/repositories/customize.repository";
+import * as userSkillsRepo from "@/server/repositories/user-skills.repository";
+import { deleteObject } from "@/server/storage/object-store";
 
 const SKILL_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

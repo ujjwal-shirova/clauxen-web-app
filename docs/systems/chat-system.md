@@ -21,26 +21,26 @@ Clauxen chat aims for ChatGPT/Claude feel:
 
 | Concern | File |
 |---|---|
-| Client chat API | `src/frontend/hooks/use-chat-api.ts` |
-| Local/guest chat | `src/frontend/hooks/use-chat.ts` |
-| Session provider | `src/frontend/contexts/chat-session-context.tsx` |
-| Chat view shell | `src/frontend/components/chat-view.tsx`, `chat-view-pane.tsx`, `chat-area.tsx` |
-| Thread render | `src/frontend/components/conversation-thread.tsx` |
-| Composer | `src/frontend/components/composer/*` |
-| Dedupe | `src/frontend/lib/dedupe-chat-messages.ts` |
-| Hydrate merge | `src/frontend/lib/hydrate-chat-messages.ts` |
-| Device cache | `src/frontend/lib/device-chat-cache.ts` |
-| Route seed | `src/frontend/lib/chat-route-seed.ts`, `src/backend/chat/load-chat-route-seed.ts` |
-| Stream parse | `src/frontend/lib/chat-stream.ts` |
-| Agent frames | `src/frontend/lib/agent-frames.ts`, `agent-stream-reducer.ts` |
-| Follow-ups | `src/frontend/lib/follow-up-tags.ts` |
-| Branch/edit | `src/frontend/lib/chat-branch.ts`, `branch-conversation.ts` |
+| Client chat API | `src/hooks/use-chat-api.ts` |
+| Local/guest chat | `src/hooks/use-chat.ts` |
+| Session provider | `src/contexts/chat-session-context.tsx` |
+| Chat view shell | `src/components/chat-view.tsx`, `chat-view-pane.tsx`, `chat-area.tsx` |
+| Thread render | `src/components/conversation-thread.tsx` |
+| Composer | `src/components/composer/*` |
+| Dedupe | `src/lib/dedupe-chat-messages.ts` |
+| Hydrate merge | `src/lib/hydrate-chat-messages.ts` |
+| Device cache | `src/lib/device-chat-cache.ts` |
+| Route seed | `src/lib/chat-route-seed.ts`, `src/server/chat/load-chat-route-seed.ts` |
+| Stream parse | `src/lib/chat-stream.ts` |
+| Agent frames | `src/lib/agent-frames.ts`, `agent-stream-reducer.ts` |
+| Follow-ups | `src/lib/follow-up-tags.ts` |
+| Branch/edit | `src/lib/chat-branch.ts`, `branch-conversation.ts` |
 | Generate API | `src/app/api/v1/chats/[chatId]/generate/route.ts` |
 | Stop API | `src/app/api/v1/chats/[chatId]/generate/stop/route.ts` |
-| Chat service | `src/backend/services/chat.service.ts` |
-| Generation lease | `src/backend/chat/generation-registry.ts`, `chat-coord-client.ts` |
-| History warm | `src/backend/chat/warm-history-cache.ts` |
-| Sanitize branch | `src/backend/chat/sanitize-branch-messages.ts` |
+| Chat service | `src/server/services/chat.service.ts` |
+| Generation lease | `src/server/chat/generation-registry.ts`, `chat-coord-client.ts` |
+| History warm | `src/server/chat/warm-history-cache.ts` |
+| Sanitize branch | `src/server/chat/sanitize-branch-messages.ts` |
 
 ---
 
@@ -300,7 +300,7 @@ Tab titles use hyphen: `New chat - Clauxen`.
 - `turn_ended` markers
 - View `chat_transcripts_jsonl` aggregates per chat
 - Export: `GET /api/v1/chats/:chatId/transcript`
-- Format builders: `src/backend/training/transcript-format.ts`
+- Format builders: `src/server/training/transcript-format.ts`
 
 Failures to append transcript are logged as warnings — they must not fail the user-visible turn.
 
@@ -356,7 +356,7 @@ Id remaps during stream must update generation maps.
 
 ## 20. Testing touchpoints
 
-Unit/selfcheck tests under `src/frontend/lib/*.test.ts`:
+Unit/selfcheck tests under `src/lib/*.test.ts`:
 
 - `dedupe-chat-messages.test.ts`
 - `hydrate-chat-messages.test.ts`

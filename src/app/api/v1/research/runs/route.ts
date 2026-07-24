@@ -2,13 +2,13 @@
 // =============================================================================
 
 import { randomUUID } from "crypto";
-import { withApiHandler } from "@/backend/http/api-handler"; // collection route handler wrapper
-import { jsonData } from "@/backend/http/api-response"; // JSON response helper; 201 on create
-import { requireSession } from "@/backend/auth/require-session"; // session → user.id owner binding
-import { isAcceptableChatId } from "@/backend/http/chat-id";
-import * as chatsRepo from "@/backend/repositories/chats.repository"; // chat ownership verify — linked chatId IDOR guard
-import * as researchRepo from "@/backend/repositories/research.repository"; // listResearchRuns / createResearchRun
-import { AppError, notFound } from "@/backend/db/errors"; // 400 validation — missing objective; 404 foreign chat
+import { withApiHandler } from "@/server/http/api-handler"; // collection route handler wrapper
+import { jsonData } from "@/server/http/api-response"; // JSON response helper; 201 on create
+import { requireSession } from "@/server/auth/require-session"; // session → user.id owner binding
+import { isAcceptableChatId } from "@/server/http/chat-id";
+import * as chatsRepo from "@/server/repositories/chats.repository"; // chat ownership verify — linked chatId IDOR guard
+import * as researchRepo from "@/server/repositories/research.repository"; // listResearchRuns / createResearchRun
+import { AppError, notFound } from "@/server/db/errors"; // 400 validation — missing objective; 404 foreign chat
 
 const MAX_RESEARCH_OBJECTIVE_LENGTH = 16_384; // align with use-research client cap — server-side DoS guard
 const RESEARCH_PROCESSOR_RE =

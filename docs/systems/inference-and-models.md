@@ -14,23 +14,23 @@
 
 | Path | Role |
 |---|---|
-| `src/backend/inference/novita.ts` | Core chat completions + sanitize + SSE helpers |
-| `src/backend/inference/novita-stream.ts` / `novita-client.ts` / `novita-fetch.ts` | Streaming client |
-| `src/backend/inference/openai-stream.ts` / `openai-client.ts` | OpenAI-compatible path + titles |
-| `src/backend/inference/anthropic-messages-client.ts` | Anthropic Messages |
-| `src/backend/inference/clauxen-sse-stream.ts` | SSE headers / framing |
-| `src/backend/inference/clauxen-ui-stream.ts` | UI event writer |
-| `src/backend/inference/agent-engine.ts` / `agent-stream.ts` | Agent orchestration |
-| `src/backend/inference/thinking-agent-stream.ts` | Thinking / interleaved reasoning |
-| `src/backend/inference/tool-executor.ts` / `platform-tools.ts` | Tool execution |
-| `src/backend/inference/system-prompt.ts` / `model-prompts.ts` / `agent-system-prompt.ts` | Prompt assembly |
-| `src/backend/services/user-personalization.service.ts` | Append personalization |
-| `src/backend/services/personalization-style-instructions.ts` | Load modular `.md` styles |
+| `src/server/inference/novita.ts` | Core chat completions + sanitize + SSE helpers |
+| `src/server/inference/novita-stream.ts` / `novita-client.ts` / `novita-fetch.ts` | Streaming client |
+| `src/server/inference/openai-stream.ts` / `openai-client.ts` | OpenAI-compatible path + titles |
+| `src/server/inference/anthropic-messages-client.ts` | Anthropic Messages |
+| `src/server/inference/clauxen-sse-stream.ts` | SSE headers / framing |
+| `src/server/inference/clauxen-ui-stream.ts` | UI event writer |
+| `src/server/inference/agent-engine.ts` / `agent-stream.ts` | Agent orchestration |
+| `src/server/inference/thinking-agent-stream.ts` | Thinking / interleaved reasoning |
+| `src/server/inference/tool-executor.ts` / `platform-tools.ts` | Tool execution |
+| `src/server/inference/system-prompt.ts` / `model-prompts.ts` / `agent-system-prompt.ts` | Prompt assembly |
+| `src/server/services/user-personalization.service.ts` | Append personalization |
+| `src/server/services/personalization-style-instructions.ts` | Load modular `.md` styles |
 | `src/lib/inference-routing.ts` | Route selection |
 | `src/lib/model-catalog.ts` / `model-config.ts` / `chat-models.ts` | Catalog parsing |
 | `src/lib/model-effort.ts` | Homer reasoning effort |
-| `src/models-system-prompts/virgil.md` | Base persona card |
-| `src/models-system-prompts/personalization/**` | Modular style instructions |
+| `src/prompts/virgil.md` | Base persona card |
+| `src/prompts/personalization/**` | Modular style instructions |
 | `src/app/api/shirova/v1/messages/route.ts` | External Anthropic-compatible proxy |
 
 ---

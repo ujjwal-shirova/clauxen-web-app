@@ -31,8 +31,8 @@ No Vercel Blob / Supabase Storage binaries on product path. On Vercel, R2 is man
 
 ## Key paths
 
-`src/backend/storage/`, `files.service.ts`, `user-files.repository.ts`  
-`src/frontend/lib/composer-attachments.ts`  
+`src/server/storage/`, `files.service.ts`, `user-files.repository.ts`  
+`src/lib/composer-attachments.ts`  
 `workers/r2-gateway/`
 
 ## Additional resources

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate src/website/lib/pages-manifest.ts from website/discovered-urls.json"""
+"""Generate src/marketing/lib/pages-manifest.ts from website/discovered-urls.json"""
 from __future__ import annotations
 
 import json
@@ -9,8 +9,8 @@ from urllib.parse import urlparse
 
 REPO = Path(__file__).resolve().parents[2]
 URLS_FILE = REPO / "website" / "discovered-urls.json"
-OUT_FILE = REPO / "src" / "website" / "lib" / "pages-manifest.ts"
-ROUTES_FILE = REPO / "src" / "website" / "lib" / "marketing-routes.ts"
+OUT_FILE = REPO / "src" / "marketing" / "lib" / "pages-manifest.ts"
+ROUTES_FILE = REPO / "src" / "marketing" / "lib" / "marketing-routes.ts"
 APP_PREFIX = "src/app/(marketing)/"
 
 # App routes that must stay auth-gated — never treat as public marketing.

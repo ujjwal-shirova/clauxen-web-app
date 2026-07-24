@@ -57,7 +57,7 @@ Only these `NEXT_PUBLIC_*` keys may exist in client code:
 - `NEXT_PUBLIC_AUTH_REQUIRED_FOR_CHAT`
 - `NEXT_PUBLIC_CHECKOUT_USD_INR_RATE`
 
-**Never** prefix secrets with `NEXT_PUBLIC_`. Server-only keys (Novita, Exa, Fal, R2, DB, service role, webhooks) stay without the prefix and are only read in `src/backend/` or API routes.
+**Never** prefix secrets with `NEXT_PUBLIC_`. Server-only keys (Novita, Exa, Fal, R2, DB, service role, webhooks) stay without the prefix and are only read in `src/server/` or API routes.
 
 ## 4. Supabase production
 

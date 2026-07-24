@@ -1,0 +1,105 @@
+"use client";
+
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import type { ChatArtifact } from "@/lib/chat-artifacts";
+import { artifactSupportsPreview } from "@/lib/create-file-tags";
+import { useAppLayout } from "@/components/app-layout-context";
+
+export type ArtifactViewMode = "preview" | "code";
+
+type ArtifactViewerContextValue = {
+  activeArtifact: ChatArtifact | null;
+  viewMode: ArtifactViewMode;
+  isViewerOpen: boolean;
+  openArtifact: (artifact: ChatArtifact, mode?: ArtifactViewMode) => void;
+  closeViewer: () => void;
+  /** Clear artifact after exit animation completes. */
+  clearViewer: () => void;
+  setViewMode: (mode: ArtifactViewMode) => void;
+};
+
+const ArtifactViewerContext = createContext<ArtifactViewerContextValue | null>(
+  null,
+);
+
+export function ArtifactViewerProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { setSidebarCollapsed, isMobile } = useAppLayout();
+  const [activeArtifact, setActiveArtifact] = useState<ChatArtifact | null>(
+    null,
+  );
+  const [viewMode, setViewMode] = useState<ArtifactViewMode>("preview");
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+
+  const openArtifact = useCallback(
+    (artifact: ChatArtifact, mode?: ArtifactViewMode) => {
+      const supportsPreview = artifactSupportsPreview(
+        artifact.path,
+        artifact.language,
+      );
+      const resolvedMode =
+        mode ?? (supportsPreview ? "preview" : "code");
+      setActiveArtifact(artifact);
+      setViewMode(supportsPreview ? resolvedMode : "code");
+      setIsViewerOpen(true);
+      if (!isMobile) {
+        setSidebarCollapsed?.(true);
+      }
+    },
+    [isMobile, setSidebarCollapsed],
+  );
+
+  const closeViewer = useCallback(() => {
+    setIsViewerOpen(false);
+  }, []);
+
+  const clearViewer = useCallback(() => {
+    setIsViewerOpen((open) => {
+      if (!open) {
+        setActiveArtifact(null);
+      }
+      return open;
+    });
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      activeArtifact,
+      viewMode,
+      isViewerOpen,
+      openArtifact,
+      closeViewer,
+      clearViewer,
+      setViewMode,
+    }),
+    [
+      activeArtifact,
+      viewMode,
+      isViewerOpen,
+      openArtifact,
+      closeViewer,
+      clearViewer,
+    ],
+  );
+
+  return (
+    <ArtifactViewerContext.Provider value={value}>
+      {children}
+    </ArtifactViewerContext.Provider>
+  );
+}
+
+export function useArtifactViewer(): ArtifactViewerContextValue {
+  const ctx = useContext(ArtifactViewerContext);
+  if (!ctx) {
+    throw new Error("useArtifactViewer must be used within ArtifactViewerProvider");
+  }
+  return ctx;
+}
+
+export function useOptionalArtifactViewer(): ArtifactViewerContextValue | null {
+  return useContext(ArtifactViewerContext);
+}

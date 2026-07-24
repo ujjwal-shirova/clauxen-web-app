@@ -1,8 +1,8 @@
-import { withApiHandler } from "@/backend/http/api-handler"; // shared API wrapper — auth, errors, logging
-import { jsonData } from "@/backend/http/api-response"; // consistent JSON success envelope
-import { requireSession } from "@/backend/auth/require-session";
-import * as artifactsRepo from "@/backend/repositories/artifacts.repository"; // DB layer — artifacts CRUD
-import { AppError } from "@/backend/db/errors"; // typed HTTP errors (status + code)
+import { withApiHandler } from "@/server/http/api-handler"; // shared API wrapper — auth, errors, logging
+import { jsonData } from "@/server/http/api-response"; // consistent JSON success envelope
+import { requireSession } from "@/server/auth/require-session";
+import * as artifactsRepo from "@/server/repositories/artifacts.repository"; // DB layer — artifacts CRUD
+import { AppError } from "@/server/db/errors"; // typed HTTP errors (status + code)
 
 const ARTIFACT_KINDS = new Set([
   "app",

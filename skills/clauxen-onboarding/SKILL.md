@@ -19,5 +19,5 @@ Answers hydrate Settings personalization (name/role). Grandfather migration comp
 
 ## Key paths
 
-`src/app/onboarding/page.tsx`, `src/frontend/components/onboarding/*`  
+`src/app/onboarding/page.tsx`, `src/components/onboarding/*`  
 `onboarding.service.ts`, `onboarding.repository.ts`, `src/lib/onboarding-steps.ts`

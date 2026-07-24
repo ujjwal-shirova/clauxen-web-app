@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { isCloudflareChallengeDocumentPost } from "@/frontend/lib/cloudflare-challenge-post";
+import { isCloudflareChallengeDocumentPost } from "@/lib/cloudflare-challenge-post";
 import { updateSession } from "@/utils/supabase/middleware";
 import { getSupabasePublicConfig } from "@/utils/supabase/env";
 

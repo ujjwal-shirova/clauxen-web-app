@@ -54,11 +54,11 @@ It is **not** a thin chat wrapper. The product spans three cloud platforms with 
 | Path | Role |
 |---|---|
 | `src/app/` | Next.js routes: pages under `(main)`, auth, checkout, share; all `/api` handlers |
-| `src/frontend/` | Client components, hooks, contexts, stores, frontend lib |
-| `src/backend/` | Server services, repositories, inference, auth, billing, storage, db pool |
-| `src/autonomous-agent/` | Standalone tool-steered agent loop (also bridged into main chat) |
+| `src/` | Client components, hooks, contexts, stores, frontend lib |
+| `src/server/` | Server services, repositories, inference, auth, billing, storage, db pool |
+| `src/app/agent-ui/` | Standalone tool-steered agent loop (also bridged into main chat) |
 | `src/projects/` | Project RAG ingestion/queue helpers |
-| `src/models-system-prompts/` | Persona markdown (`virgil.md`) + modular personalization instructions |
+| `src/prompts/` | Persona markdown (`virgil.md`) + modular personalization instructions |
 | `src/lib/` | Shared pure helpers (models, titles, chat ids, geo, plans) |
 | `src/utils/supabase/` | Browser/server/middleware Supabase clients |
 | `src/proxy.ts` | Edge proxy: CF challenge POST→GET, skip `/api` session refresh |
@@ -109,17 +109,17 @@ It is **not** a thin chat wrapper. The product spans three cloud platforms with 
 
 | Module | Path | Responsibility |
 |---|---|---|
-| Auth | `src/backend/auth/` | Session resolution: API key → Supabase JWT → dev cookie |
-| Chat service | `src/backend/services/chat.service.ts` | Create/list/generate/title/pin/share/transcript orchestration |
-| Inference | `src/backend/inference/` | Provider clients, SSE, tools, system prompts, agent stream |
-| Repositories | `src/backend/repositories/` | Thin SQL/RPC access per aggregate |
-| Billing | `src/backend/billing/` + `services/billing.service.ts` | Razorpay orders, verify, subscriptions |
-| Storage | `src/backend/storage/` | R2 signing / Worker URL construction |
-| Cache | `src/backend/cache/` | History warm/invalidate helpers |
-| Config | `src/backend/config/` | Edge flags, Cloudflare perf profile |
-| DB | `src/backend/db/` | `pg` pool, errors |
-| Training | `src/backend/training/` | Transcript JSONL format for model training exports |
-| HTTP | `src/backend/http/` | Route wrappers, params, response helpers |
+| Auth | `src/server/auth/` | Session resolution: API key → Supabase JWT → dev cookie |
+| Chat service | `src/server/services/chat.service.ts` | Create/list/generate/title/pin/share/transcript orchestration |
+| Inference | `src/server/inference/` | Provider clients, SSE, tools, system prompts, agent stream |
+| Repositories | `src/server/repositories/` | Thin SQL/RPC access per aggregate |
+| Billing | `src/server/billing/` + `services/billing.service.ts` | Razorpay orders, verify, subscriptions |
+| Storage | `src/server/storage/` | R2 signing / Worker URL construction |
+| Cache | `src/server/cache/` | History warm/invalidate helpers |
+| Config | `src/server/config/` | Edge flags, Cloudflare perf profile |
+| DB | `src/server/db/` | `pg` pool, errors |
+| Training | `src/server/training/` | Transcript JSONL format for model training exports |
+| HTTP | `src/server/http/` | Route wrappers, params, response helpers |
 
 ---
 

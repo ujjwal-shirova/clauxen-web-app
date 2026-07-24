@@ -1,10 +1,10 @@
 // Response: domain list (hostname, verification status) — enterprise SSO / email routing UI
 // =============================================================================
 
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { requireSession } from "@/backend/auth/require-session";
-import * as workspaceService from "@/backend/services/workspace.service";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { requireSession } from "@/server/auth/require-session";
+import * as workspaceService from "@/server/services/workspace.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

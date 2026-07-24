@@ -128,7 +128,7 @@ Per-`chatId` **generation lease** via Durable Object so concurrent Vercel isolat
 
 Header: `x-clauxen-internal: $CHAT_COORD_INTERNAL_TOKEN`
 
-Client: `src/backend/chat/chat-coord-client.ts` + `generation-registry.ts`.
+Client: `src/server/chat/chat-coord-client.ts` + `generation-registry.ts`.
 
 Wire: `scripts/wire-chat-coord-vercel.sh`.
 

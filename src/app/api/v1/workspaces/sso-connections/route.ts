@@ -1,10 +1,10 @@
 // Response: { workspace, connections } — SAML/OIDC provider metadata (secrets masked)
 // =============================================================================
 
-import { withApiHandler } from "@/backend/http/api-handler"; // session inject + centralized error mapping
-import { jsonData } from "@/backend/http/api-response"; // { data: ... } success JSON envelope
-import type { SsoConnectionRow } from "@/backend/repositories/workspaces.repository"; // SSO row shape — settings redaction typing
-import * as workspaceService from "@/backend/services/workspace.service";
+import { withApiHandler } from "@/server/http/api-handler"; // session inject + centralized error mapping
+import { jsonData } from "@/server/http/api-response"; // { data: ... } success JSON envelope
+import type { SsoConnectionRow } from "@/server/repositories/workspaces.repository"; // SSO row shape — settings redaction typing
+import * as workspaceService from "@/server/services/workspace.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

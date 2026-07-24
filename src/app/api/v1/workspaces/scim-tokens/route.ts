@@ -1,6 +1,6 @@
-import { withApiHandler } from "@/backend/http/api-handler"; // session inject + centralized error mapping
-import { jsonData } from "@/backend/http/api-response"; // { data: ... } success JSON envelope
-import * as workspaceService from "@/backend/services/workspace.service";
+import { withApiHandler } from "@/server/http/api-handler"; // session inject + centralized error mapping
+import { jsonData } from "@/server/http/api-response"; // { data: ... } success JSON envelope
+import * as workspaceService from "@/server/services/workspace.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

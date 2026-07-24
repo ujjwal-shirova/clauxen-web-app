@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { OverviewExperience } from "@/website/components/overview/overview-experience";
+import { OverviewExperience } from "@/marketing/components/overview/overview-experience";
 
 export const metadata: Metadata = {
   title: {

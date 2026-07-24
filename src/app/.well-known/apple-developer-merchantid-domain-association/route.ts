@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { env } from "@/backend/config/env";
+import { env } from "@/server/config/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

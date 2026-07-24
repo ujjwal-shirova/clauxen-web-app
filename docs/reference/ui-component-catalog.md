@@ -1,6 +1,6 @@
 # UI Component Catalog
 
-Inventory of `src/frontend/components` (top-level and key subfolders).
+Inventory of `src/components` (top-level and key subfolders).
 
 ## Top-level components
 

@@ -1,8 +1,8 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { requireSession } from "@/backend/auth/require-session";
-import { AppError } from "@/backend/db/errors";
-import * as messagesRepo from "@/backend/repositories/messages.repository";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { requireSession } from "@/server/auth/require-session";
+import { AppError } from "@/server/db/errors";
+import * as messagesRepo from "@/server/repositories/messages.repository";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

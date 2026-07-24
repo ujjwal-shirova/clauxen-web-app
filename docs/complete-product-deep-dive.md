@@ -613,12 +613,12 @@ When reviewing a PR, ask:
 ## Part T — Code reading order for new engineers
 
 1. `docs/README.md` → `architecture-overview.md` → `perf-architecture.md`
-2. `src/frontend/lib/app-routes.ts`
-3. `src/frontend/hooks/use-chat-api.ts` (skim sections)
+2. `src/lib/app-routes.ts`
+3. `src/hooks/use-chat-api.ts` (skim sections)
 4. `src/app/api/v1/chats/[chatId]/generate/route.ts`
-5. `src/backend/services/chat.service.ts`
+5. `src/server/services/chat.service.ts`
 6. `workers/chat-history/README.md` + `workers/chat-coord/README.md`
-7. `src/backend/auth/*` + `docs/systems/authentication.md`
+7. `src/server/auth/*` + `docs/systems/authentication.md`
 8. `supabase/migrations/20260507153000_platform_schema.sql` (base)
 9. `brain/MEMORY.md` gotchas
 

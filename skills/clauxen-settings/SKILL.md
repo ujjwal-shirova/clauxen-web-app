@@ -9,7 +9,7 @@ description: >-
 ## Read first
 
 - `docs/systems/settings-and-personalization.md`
-- `src/frontend/components/settings/constants.ts`
+- `src/components/settings/constants.ts`
 
 ## Delivery
 
@@ -30,7 +30,7 @@ API: `GET/PATCH /api/v1/settings`.
 
 1. `AppPreferencesProvider` must **apply** prefs to DOM (not save-only).
 2. Notifications: optimistic toggles — **no** PATCH response overwrite flicker.
-3. Modular personalization under `src/models-system-prompts/personalization/` — no duplicate Personality row.
+3. Modular personalization under `src/prompts/personalization/` — no duplicate Personality row.
 4. Follow-up system instruction only when follow-ups setting ON.
 5. Chat fonts → `[data-assistant-content]` only.
 

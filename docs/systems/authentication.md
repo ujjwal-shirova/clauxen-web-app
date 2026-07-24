@@ -23,12 +23,12 @@ Session resolution order in API handlers (`getSessionFromRequest` / auth stack):
 
 | File | Role |
 |---|---|
-| `src/backend/auth/session.ts` | Session types / cookie helpers |
-| `src/backend/auth/supabase-session.ts` | Supabase JWT extraction |
-| `src/backend/auth/require-session.ts` | Guard for authenticated routes |
-| `src/backend/services/auth-credentials.service.ts` | Password/credential flows |
-| `src/backend/services/auth-email-otp.service.ts` | Talks to auth-email Worker |
-| `src/backend/services/identity.service.ts` | Profile/workspace bootstrap |
+| `src/server/auth/session.ts` | Session types / cookie helpers |
+| `src/server/auth/supabase-session.ts` | Supabase JWT extraction |
+| `src/server/auth/require-session.ts` | Guard for authenticated routes |
+| `src/server/services/auth-credentials.service.ts` | Password/credential flows |
+| `src/server/services/auth-email-otp.service.ts` | Talks to auth-email Worker |
+| `src/server/services/identity.service.ts` | Profile/workspace bootstrap |
 | `src/utils/supabase/middleware.ts` | `updateSession` for document routes |
 | `src/proxy.ts` | Skips `/api/*` session refresh; CF challenge POST→GET |
 | `src/app/login/page.tsx` | Unified login UI |
@@ -36,7 +36,7 @@ Session resolution order in API handlers (`getSessionFromRequest` / auth stack):
 | `src/app/auth/confirm/route.ts` | Email confirm / recovery |
 | `src/app/auth/magic/page.tsx` | Magic link set-password |
 | `src/app/auth/reset-password/page.tsx` | Password reset UI |
-| `src/frontend/contexts/auth-context.tsx` | Client session boot |
+| `src/contexts/auth-context.tsx` | Client session boot |
 | `workers/auth-email/` | OTP + magic link Worker |
 
 ---

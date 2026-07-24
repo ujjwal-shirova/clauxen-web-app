@@ -1,6 +1,6 @@
-import { withApiHandler } from "@/backend/http/api-handler";
-import { jsonData } from "@/backend/http/api-response";
-import { listNovitaModels } from "@/backend/inference/novita-agent";
+import { withApiHandler } from "@/server/http/api-handler";
+import { jsonData } from "@/server/http/api-response";
+import { listNovitaModels } from "@/server/inference/novita-agent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

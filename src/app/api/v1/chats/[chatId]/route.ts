@@ -1,10 +1,10 @@
-import { withApiRouteParams } from "@/backend/http/route-params"; // [chatId] params inject + auth gates
-import { jsonData } from "@/backend/http/api-response"; // { data } success envelope
-import { requireSession } from "@/backend/auth/require-session"; // null session → 401
-import * as chatsRepo from "@/backend/repositories/chats.repository"; // PATCH/DELETE — direct chat row updates
-import * as chatService from "@/backend/services/chat.service";
-import { notFound } from "@/backend/db/errors";
-import { requireChatIdParam } from "@/backend/http/chat-id";
+import { withApiRouteParams } from "@/server/http/route-params"; // [chatId] params inject + auth gates
+import { jsonData } from "@/server/http/api-response"; // { data } success envelope
+import { requireSession } from "@/server/auth/require-session"; // null session → 401
+import * as chatsRepo from "@/server/repositories/chats.repository"; // PATCH/DELETE — direct chat row updates
+import * as chatService from "@/server/services/chat.service";
+import { notFound } from "@/server/db/errors";
+import { requireChatIdParam } from "@/server/http/chat-id";
 
 const MAX_CHAT_TITLE_LENGTH = 200;
 
@@ -40,7 +40,7 @@ export const PATCH = withApiRouteParams<{ chatId: string }>(
     const chat = await chatsRepo.updateChat(params.chatId, user.id, body); // WHERE chat_id AND user_id — scoped update
     if (!chat) throw notFound("Chat not found.");
     const { invalidateChatHistoryCache } = await import(
-      "@/backend/chat/warm-history-cache"
+      "@/server/chat/warm-history-cache"
     );
     await invalidateChatHistoryCache({
       userId: user.id,
@@ -57,7 +57,7 @@ export const DELETE = withApiRouteParams<{ chatId: string }>(
     requireChatIdParam(params.chatId);
     await chatsRepo.deleteChat(params.chatId, user.id);
     const { invalidateChatHistoryCache } = await import(
-      "@/backend/chat/warm-history-cache"
+      "@/server/chat/warm-history-cache"
     );
     await invalidateChatHistoryCache({
       userId: user.id,

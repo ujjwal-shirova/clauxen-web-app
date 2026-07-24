@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { LibraryView } from "@/frontend/components/library-view";
+import { LibraryView } from "@/components/library-view";
 
 export default function LibraryRoutePage() {
   return (

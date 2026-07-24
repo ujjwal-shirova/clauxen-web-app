@@ -1,8 +1,8 @@
-import { withApiRouteParams } from "@/backend/http/route-params";
-import { jsonData } from "@/backend/http/api-response"; // uniform JSON success envelope { data: ... }
-import { requireSession } from "@/backend/auth/require-session";
-import * as projectsRepo from "@/backend/repositories/projects.repository"; // projects table — get/update/soft-delete SQL
-import { AppError, notFound } from "@/backend/db/errors";
+import { withApiRouteParams } from "@/server/http/route-params";
+import { jsonData } from "@/server/http/api-response"; // uniform JSON success envelope { data: ... }
+import { requireSession } from "@/server/auth/require-session";
+import * as projectsRepo from "@/server/repositories/projects.repository"; // projects table — get/update/soft-delete SQL
+import { AppError, notFound } from "@/server/db/errors";
 
 const PROJECT_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
