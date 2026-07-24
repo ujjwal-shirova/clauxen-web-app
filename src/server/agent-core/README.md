@@ -10,7 +10,10 @@ agent-core/
   provider/
     messages-client.ts     # Provider_API_Key + Anthropic-compatible Messages URL
   runtime/
-    run-agent.ts           # Wired loop → chat SSE / chat-view AgentTrace
+    query-loop.ts          # Claude Code–style loop (Provider Messages)
+    run-agent.ts           # Public exports
+  query/
+    deps.ts                # Injectable callModel deps (Claude Code pattern)
   tools/
     index.ts               # Tool catalog used by the loop
   legacy-source/           # Stripped Claude Code remnants (NOT compiled; reference only)
@@ -24,7 +27,7 @@ agent-core/
 | `Provider_BASE_URL` | OpenAI-compatible base; `/openai` → `/anthropic` for Messages |
 | `Provider_Model_Clauxen_V1` | Default model slug |
 
-Implemented via `@/server/config/env` + `@/server/inference/anthropic-messages-client`.
+Implemented via `@/server/config/env` + `@/server/agent-core/provider/messages-client`.
 
 ## Wiring
 

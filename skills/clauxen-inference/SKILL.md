@@ -33,7 +33,8 @@ Do **not** hardcode warm/emoji/list personality into `virgil.md`.
 
 ## Key modules
 
-`src/server/inference/*` — novita/openai/anthropic streams, agent-engine, tools, system-prompt  
+`src/server/agent-core/*` — query loop, Provider client, tools  
+`src/server/inference/*` — SSE stream, system-prompt, tool-healer, autonomous-tools impl  
 `src/server/services/user-personalization.service.ts`  
 `src/server/services/personalization-style-instructions.ts`  
 `src/app/api/shirova/v1/messages/route.ts`

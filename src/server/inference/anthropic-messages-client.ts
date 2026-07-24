@@ -4,7 +4,7 @@
  * Auth: Provider_API_Key only (Vercel). Base URL from Provider_BASE_URL
  * (`…/openai` → `…/anthropic`). No Anthropic OAuth / Bedrock / Vertex / Foundry.
  *
- * Used by @/server/agent-core and agent-engine. Protocol: Anthropic Messages
+ * Used by @/server/agent-core. Protocol: Anthropic Messages
  * via @anthropic-ai/sdk against the Provider gateway.
  */
 

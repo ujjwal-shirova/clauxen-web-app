@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Migration: 20260516132200_create_blocked_emails
 -- Purpose: Store disposable/blocked email domains for signup verification.
---          Domains are seeded from src/backend/email-verifier/disposable.txt.
+--          Domains are seeded from src/server/email-verifier/disposable.txt.
 -- Prerequisites:
 --   - Seed script scripts/seed-blocked-email-domains.ts (run after apply).
 -- Apply-time behavior:
@@ -22,7 +22,7 @@ create table if not exists public."blocked-emails" (
 );
 
 comment on table public."blocked-emails" is
-  'Disposable, temporary, and blocked email domains loaded from src/backend/email-verifier/disposable.txt.';
+  'Disposable, temporary, and blocked email domains loaded from src/server/email-verifier/disposable.txt.';
 
 comment on column public."blocked-emails".domain is
   'Email domain portion after @ that should not be allowed during account creation.';

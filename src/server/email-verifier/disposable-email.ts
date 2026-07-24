@@ -27,7 +27,7 @@ function listCandidates(): string[] {
     path.join(
       /* turbopackIgnore: true */ process.cwd(),
       "src",
-      "backend",
+      "server",
       "email-verifier",
       "disposable.txt",
     ),

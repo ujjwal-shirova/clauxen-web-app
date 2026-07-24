@@ -12,16 +12,27 @@
 
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "node:url";
 import { buildInlineChatTitleSystemInstruction } from "@/lib/chat-title";
 import type { ConfiguredModelId } from "@/lib/model-config";
 
 // ─── Paths ───────────────────────────────────────────────────────────────────
 
-export const MODEL_SYSTEM_PROMPTS_DIR = path.join(
-  process.cwd(),
-  "src",
-  "prompts",
-);
+function resolveModelPromptsDir(): string {
+  const fromModule = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "prompts",
+  );
+  const fromCwd = path.join(process.cwd(), "src", "prompts");
+  for (const candidate of [fromModule, fromCwd]) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return fromCwd;
+}
+
+export const MODEL_SYSTEM_PROMPTS_DIR = resolveModelPromptsDir();
 
 // ─── Identity ────────────────────────────────────────────────────────────────
 

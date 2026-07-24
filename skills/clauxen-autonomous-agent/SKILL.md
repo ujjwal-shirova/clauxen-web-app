@@ -10,7 +10,7 @@ description: >-
 ## Read first
 
 - `src/server/agent-core/README.md`
-- `src/server/inference/agent-engine.ts`
+- `src/server/agent-core/runtime/query-loop.ts`
 - `src/components/agent/`
 
 ## Live path
@@ -29,9 +29,10 @@ POST /api/v1/chats/[chatId]/generate
 | Path | Role |
 |------|------|
 | `src/server/agent-core/` | Public agent API (Provider only) |
-| `src/server/inference/agent-engine.ts` | Loop implementation |
-| `src/server/inference/anthropic-messages-client.ts` | Provider Messages client |
-| `src/server/inference/autonomous-tools/` | Tool defs + executor |
+| `src/server/agent-core/runtime/query-loop.ts` | Loop implementation |
+| `src/server/agent-core/provider/messages-client.ts` | Provider Messages client |
+| `src/server/agent-core/tools/` | Tool catalog + executor re-exports |
+| `src/server/inference/autonomous-tools/` | Tool implementations (sandbox, Exa, files) |
 | `src/components/agent/` | Chat-view transcript UI |
 | `src/server/agent-core/legacy-source/` | Stripped Claude remnants (not compiled) |
 

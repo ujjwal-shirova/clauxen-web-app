@@ -2,7 +2,7 @@
 
 ## Autonomous agent
 
-`src/app/agent-ui/` — no system prompt; tool-steered. Bridged into main chat when search/thinking enabled. Optional WS: `npm run autonomous-agent:ws`.
+Live loop: `@/server/agent-core` → `runtime/query-loop.ts` → Provider Messages → SSE → `src/components/agent/*`.
 
 ## Titles
 
