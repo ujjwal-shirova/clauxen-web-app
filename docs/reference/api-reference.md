@@ -160,19 +160,17 @@ Memory 1024 / maxDuration 300 on these functions.
 
 ---
 
-## 9. Agent & autonomous agent
+## 9. Agent
 
 | Method | Path | Purpose |
 |---|---|---|
+| POST | `/api/v1/chats/:id/generate` | Main chat SSE (agent-core loop) |
 | POST | `/api/v1/agent/chat` | Agent chat |
 | GET | `/api/v1/agent/models` | Models |
 | POST | `/api/v1/agent/sandbox` | Agent sandbox |
 | POST | `/api/v1/agent/stream` | Agent SSE |
-| GET/POST | `/api/autonomous-agent/conversations` | Conversations |
-| GET | `/api/autonomous-agent/conversations/:id` | Conversation |
-| POST | `/api/autonomous-agent/conversations/:id/stream` | Stream turn |
 
-Optional WS server: `npm run autonomous-agent:ws` (port 8081).
+Removed: `/api/autonomous-agent/*` (legacy standalone package).
 
 ---
 

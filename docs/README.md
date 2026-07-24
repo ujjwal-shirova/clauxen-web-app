@@ -1,7 +1,7 @@
 # Clauxen Web App — Documentation
 
 > Complete technical documentation for the Clauxen AI chat platform.
-> Last major rewrite: **2026-07-17**.
+> Last major rewrite: **2026-07-17**. Repo layout flatten: **2026-07-24** (`src/components`, `src/server`, `src/marketing`, `src/prompts`, `src/server/agent-core`).
 
 Clauxen is a Next.js App Router product deployed on **Vercel**, with durable data in **Supabase Postgres + GoTrue + Realtime**, binary storage and edge caching on **Cloudflare** (R2, Workers, Durable Objects, Hyperdrive, Email Sending), and inference via server-only provider credentials (`Provider_*` env).
 

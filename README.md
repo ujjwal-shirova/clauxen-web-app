@@ -6,7 +6,7 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 
 - **Streaming chat** — SSE-based conversation streaming with per-model routing, interleaved "thinking" traces, and custom token fade-in for animated markdown.
 - **Multi-model routing** — internal model personas (**Homer**, **Helios**, **Virgil**) proxied through Novita's Anthropic- and OpenAI-compatible endpoints, plus a Claude-Messages-API-compatible proxy at `/api/shirova/v1/messages`.
-- **Autonomous agent** — a no-system-prompt, tool-steered reasoning loop (`src/app/agent-ui/`) with web search, web fetch, sandboxed code execution, scoped file read/write, skill discovery, and user-clarification pauses. See its own [README](src/app/agent-ui/README.md).
+- **Autonomous agent** — Provider-backed tool-use loop via `@/server/agent-core` (web search, sandbox, files, skills). Streams to `src/components/agent/*`. See [`docs/systems/autonomous-agent.md`](docs/systems/autonomous-agent.md).
 - **Projects & RAG** — project folders with custom instructions, file uploads, chunking + embeddings, and pgvector-backed retrieval grounding chat responses.
 - **Code sandboxes** — provision, connect to, and run commands/files inside remote sandboxes (`/api/v1/sandbox/*`, Novita sandbox).
 - **Billing & checkout** — Razorpay-based orders, subscriptions, invoices, plans, UPI flow, and gifting, with webhook handling.
@@ -35,16 +35,22 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 
 | Path | Purpose |
 |---|---|
-| `src/app/` | Next.js routes — pages and `/api` route handlers |
-| `src/` | Client components, hooks, and frontend-only lib code |
-| `src/server/` | Server-side services, repositories, inference pipeline, billing, sandbox |
-| `src/app/agent-ui/` | Standalone tool-use agent loop (server + client + types) |
-| `src/projects/` | Project RAG pipeline (ingestion, chunking, embeddings, storage) |
-| `src/prompts/` | Persona system prompts (e.g. `virgil.md`) |
-| `src/lib/`, `src/utils/` | Shared utilities (Supabase clients, model config, sanitization) |
-| `supabase/` | Supabase project config and SQL migrations |
-| `scripts/` | Standalone scripts (ingestion worker, seeding) |
-| `docs/` | Deployment and backend architecture notes |
+| `src/app/` | Next.js App Router — pages and `/api` route handlers |
+| `src/components/` | React UI (incl. `components/agent/` chat transcript) |
+| `src/hooks/`, `src/contexts/`, `src/stores/` | Client hooks and providers |
+| `src/lib/` | Shared client + isomorphic helpers |
+| `src/styles/` | Global CSS fragments imported by `globals.css` |
+| `src/marketing/` | Marketing site components and content |
+| `src/prompts/` | Model system prompts (`virgil.md`) + personalization `.md` |
+| `src/server/` | Server-only services, repos, inference, auth, billing |
+| `src/server/agent-core/` | Chat agent loop (Provider Messages + tools) |
+| `src/projects/` | Project RAG pipeline (ingestion, chunking, embeddings) |
+| `src/utils/supabase/` | Browser/server/middleware Supabase clients |
+| `supabase/` | Supabase config and SQL migrations |
+| `workers/` | Cloudflare Workers (chat-history, r2-gateway, etc.) |
+| `scripts/` | Deploy, env sync, seed scripts, ingestion worker |
+| `skills/` | Agent skills (symlinked to `.cursor/skills/`) |
+| `docs/` | Architecture and operations documentation |
 
 ## Getting started
 
@@ -97,7 +103,6 @@ Visit [http://localhost:9002](http://localhost:9002).
 
 ```bash
 npm run worker                 # BullMQ project-file ingestion worker
-npm run autonomous-agent:ws    # standalone autonomous-agent WebSocket server (:8081)
 ```
 
 ## Scripts
@@ -112,7 +117,7 @@ npm run autonomous-agent:ws    # standalone autonomous-agent WebSocket server (:
 | `npm run format` / `format:check` | Prettier write / check |
 | `npm run test` | Run `*.test.ts` files under `src/` via `tsx --test` |
 | `npm run worker` | Start the BullMQ ingestion worker |
-| `npm run autonomous-agent:ws` | Start the autonomous-agent WebSocket server |
+| `npm run supabase:blocked-emails:seed` | Seed blocked email domains from `disposable.txt` |
 | `npm run supabase:db:push` | Push local migrations to Supabase |
 | `npm run supabase:functions:deploy` / `:list` | Manage Supabase Edge Functions |
 

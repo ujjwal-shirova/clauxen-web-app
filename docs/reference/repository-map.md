@@ -1,7 +1,7 @@
 # Repository Map
 
 Auto-oriented map of server repositories, services, and major frontend modules.
-Generated to stay aligned with the tree as of documentation rewrite 2026-07-17.
+Updated for repo flatten (2026-07-24): no `src/frontend` / `src/backend` split.
 
 ## Backend repositories (`src/server/repositories/`)
 
@@ -63,7 +63,8 @@ Generated to stay aligned with the tree as of documentation rewrite 2026-07-17.
 | `db/` | Pool + errors |
 | `email-verifier/` | Email validation |
 | `http/` | Route wrappers |
-| `inference/` | Models, tools, SSE |
+| `inference/` | Models, tools, SSE, system prompts |
+| `agent-core/` | Chat agent loop (Provider Messages) |
 | `infrastructure/` | Supabase infra helpers |
 | `repositories/` | SQL/RPC |
 | `sandbox/` | Sandbox integration |
@@ -73,6 +74,13 @@ Generated to stay aligned with the tree as of documentation rewrite 2026-07-17.
 | `telemetry/` | Inference logs |
 | `training/` | Transcript format |
 | `weather/` | Weather tool support |
+
+## Prompts & marketing
+
+| Path | Purpose |
+|---|---|
+| `src/prompts/` | `virgil.md` + personalization instruction modules |
+| `src/marketing/` | Marketing pages content and components |
 
 ## Frontend hooks
 

@@ -1,5 +1,7 @@
 # Clauxen App Health, Complexity & Security Survey
 
+> **Path update (2026-07-24):** Repo flattened — `src/server/` (not `src/backend`), `src/components/` (not `src/frontend`), `src/marketing/` (not `src/website`), agent loop at `@/server/agent-core` (not `agent-ui` / standalone `agent-engine`).
+
 **Date:** 2026-07-23  
 **Scope:** Full-repo read-only survey (architecture, client/server wiring, dead code, security)  
 **Goal:** Orient product work toward a ChatGPT/Claude-class platform: secure server-side execution, clean client UI, less dual-stack debt  

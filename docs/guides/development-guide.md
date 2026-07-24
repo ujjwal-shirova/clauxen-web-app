@@ -53,7 +53,7 @@ JWT_SECRET=…
 | `npm run format` | Prettier |
 | `npm test` | `tsx --test` on `src/**/*.test.ts` |
 | `npm run worker` | BullMQ ingestion |
-| `npm run autonomous-agent:ws` | Agent WS :8081 |
+| `npm run supabase:blocked-emails:seed` | Seed blocked email domains |
 | `npm run audit:public-env` | Public env audit |
 | `npm run vercel:env:sync` | Sync Vercel env API |
 
@@ -63,7 +63,7 @@ JWT_SECRET=…
 
 1. Read `brain/MEMORY.md` before non-trivial work.
 2. Slice-by-slice product work — do not boil the ocean.
-3. Prefer existing patterns in `src/frontend` / `src/backend`.
+3. Prefer existing patterns under `src/components/`, `src/hooks/`, and `src/server/`.
 4. Server-only for secrets; fail closed on missing provider keys.
 5. Hash overlays for settings/pricing — do not invent new path overlays.
 6. Chat optimistic UI + clientId stability.

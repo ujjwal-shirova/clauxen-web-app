@@ -1,22 +1,25 @@
-# Autonomous Agent
+# Chat agent loop
 
-Code: `src/app/agent-ui/`. Upstream README: `src/app/agent-ui/README.md`.
+Live runtime: **`@/server/agent-core`** (Provider / Novita Messages only).
 
 ## 1. Concept
 
-Server-side reasoning-and-tool-use loop with **no system prompt**. Tool schemas are the only steering mechanism.
+Server-side tool-use loop for main chat generate. Uses layered system prompts (`src/prompts/virgil.md` + platform UI appendix + personalization). Tools are always armed; the model decides when to call them.
 
-Integrated into main chat when web search or thinking is enabled; also exposed via SSE API and optional WebSocket server (`npm run autonomous-agent:ws`).
+DOM transcript: `ClauxenSseStream` → `src/components/agent/*` (not Ink/TUI).
 
 ---
 
-## 2. Decision architecture
+## 2. Request path
 
-1. Silent triage from user text + tool descriptions
-2. Tool pecking order in `server/tools/definitions.ts` + `server/logic/tool-steering.ts`
-3. Skills slot — `read_skill` before `execute_code` / `file_write`
-4. Interleaved thinking — Reasoning* events; post-tool reflection is next model turn
-5. Stop when a turn has no tool calls; `MAX_ITERATIONS` is a safety rail
+```
+POST /api/v1/chats/[chatId]/generate
+  → chat.service / createChatStream
+  → runAutonomousAgent from @/server/agent-core
+  → Provider Messages stream (Provider_API_Key)
+  → tool execution (parallel when safe)
+  → SSE → agent-stream-reducer → components/agent/*
+```
 
 ---
 
@@ -24,51 +27,51 @@ Integrated into main chat when web search or thinking is enabled; also exposed v
 
 | Path | Purpose |
 |---|---|
-| `server/stream/agent-orchestrator.ts` | Completions vs Responses routing |
-| `server/stream/run-turn.ts` | Completions agent loop |
-| `server/stream/completion-stream.ts` | Completions SSE → events |
-| `server/stream/tool-loop.ts` | Shared tool execution |
-| `server/stream/conversation-turn.ts` | Conversation-scoped turns |
-| `server/stream/responses-turn.ts` | OpenAI Responses API loop |
-| `server/stream/normalizer.ts` | Responses → normalized events |
-| `server/stream/clauxen-bridge.ts` | → main chat UI stream |
-| `server/stream/chat-stream.ts` | Main chat entry |
-| `server/logic/decision-surface.ts` | No-system-prompt guards |
-| `server/skills/skill-catalog.ts` | SKILL.md discovery |
-| `server/tools/` | Definitions + executor |
-| `server/store/` | Conversation + event log |
-| `types/events.ts` | Event vocabulary |
-| `client/stream-reducer.ts` | Client reducer |
+| `src/server/agent-core/index.ts` | Public import surface |
+| `src/server/agent-core/runtime/query-loop.ts` | Main loop (stream → tools → tool_result → repeat) |
+| `src/server/agent-core/query/deps.ts` | Injectable `callModel` deps (Claude Code pattern) |
+| `src/server/agent-core/provider/messages-client.ts` | Provider Messages client re-export |
+| `src/server/agent-core/tools/` | Tool catalog + executor re-exports |
+| `src/server/inference/autonomous-tools/` | Tool implementations (sandbox, Exa, files) |
+| `src/server/inference/clauxen-sse-stream.ts` | SSE framing for chat UI |
+| `src/server/inference/system-prompt.ts` | Prompt assembly (`src/prompts/`) |
+| `src/server/inference/agent-engine.ts` | Deprecated shim → agent-core |
+| `src/components/agent/` | Chat-view transcript UI |
+| `src/server/agent-core/legacy-source/` | Stripped Claude Code reference (not compiled) |
 
 ---
 
-## 4. Normalized events
-
-`RunStarted` → `Reasoning*` / `TextMessage*` / `ToolCall*` → `ToolCallProgress` → `ToolCallResult` → `StepDone` → `RunFinished`
-
----
-
-## 5. Tools
+## 4. Tools
 
 | Tool | Role |
 |---|---|
-| `read_skill` | Sandbox facts before code/files |
-| `web_search` | Exa |
+| `web_search` | Exa search |
 | `web_fetch` | Deep-read URL |
 | `execute_code` | Python sandbox |
-| (+ file read/write, clarify, etc. as defined) | |
+| `bash_tool` | Shell in sandbox |
+| `create_file` | Deliverable files (auto-presents as artifact) |
+| `read_skill` | Skill catalog lookup |
+| `weather_fetch`, `places_search`, `image_search` | Free data cards |
+| `ask_user_input_v0` | Pause for user clarification |
 
 ---
 
-## 6. APIs
+## 5. APIs
 
-- Main chat bridge via generate pipeline
-- `/api/autonomous-agent/conversations` (+ `/stream`)
-- `/api/v1/agent/*`
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/v1/chats/:id/generate` | Main chat SSE (uses agent-core) |
+| POST | `/api/v1/agent/stream` | Standalone agent SSE |
+| POST | `/api/v1/agent/chat` | Agent chat helper |
+| GET | `/api/v1/agent/models` | Agent model list |
+| POST | `/api/v1/agent/sandbox` | Agent sandbox helper |
+
+Removed: `/api/autonomous-agent/*`, `src/app/agent-ui/`, WebSocket server.
 
 ---
 
-## 7. Related
+## 6. Related
 
 - [`inference-and-models.md`](./inference-and-models.md)
 - [`chat-system.md`](./chat-system.md)
+- `src/server/agent-core/README.md`

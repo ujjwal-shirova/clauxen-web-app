@@ -20,26 +20,29 @@ Client code lives primarily under `src/`. Pages under `src/app/` are thin route 
 
 ```
 src/
-  app/                 # minor app-level client helpers
-  components/          # ~94 top-level TSX modules + subfolders
-    agent/             # agent timeline / orb / frames
-    agent-swarm/       # multi-agent visualization experiments
+  app/                 # Next.js App Router pages + API routes
+  components/          # Product UI
+    agent/             # Chat-view agent transcript (trace, folds, tools)
     app-notifications/ # push/email notification popover
     auth/              # login forms, OAuth buttons, OTP
     composer/          # chat input, attachments, mic
     customize/         # skills / connectors UI
     icons/             # brand / payment icons
-    mascot/            # Clauxen mascot
     onboarding/        # first-run steps
     projects/          # project UI pieces
     settings/          # settings panes + constants
     ui/                # shadcn primitives
   contexts/            # providers
-  hooks/               # ~27 hooks
+  hooks/               # client hooks
   lib/                 # pure client utilities + tests
+  marketing/           # marketing site components + content
+  prompts/             # model system prompts (server reads via system-prompt.ts)
   stores/              # zustand stores
-  styles/              # CSS modules / global fragments
-  workers/             # browser workers if any
+  styles/              # CSS imported by globals.css
+  server/              # server-only code (see architecture-overview)
+    agent-core/        # chat agent loop
+  projects/            # project RAG libs
+  utils/supabase/      # Supabase clients
 ```
 
 ---

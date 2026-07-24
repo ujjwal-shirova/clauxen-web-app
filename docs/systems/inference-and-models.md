@@ -18,9 +18,9 @@
 | `src/server/inference/novita-stream.ts` / `novita-client.ts` / `novita-fetch.ts` | Streaming client |
 | `src/server/inference/openai-stream.ts` / `openai-client.ts` | OpenAI-compatible path + titles |
 | `src/server/inference/anthropic-messages-client.ts` | Anthropic Messages |
+| `src/server/agent-core/runtime/query-loop.ts` | Agent orchestration loop |
+| `src/server/agent-core/query/deps.ts` | Injectable Provider `callModel` deps |
 | `src/server/inference/clauxen-sse-stream.ts` | SSE headers / framing |
-| `src/server/inference/clauxen-ui-stream.ts` | UI event writer |
-| `src/server/inference/agent-engine.ts` / `agent-stream.ts` | Agent orchestration |
 | `src/server/inference/thinking-agent-stream.ts` | Thinking / interleaved reasoning |
 | `src/server/inference/tool-executor.ts` / `platform-tools.ts` | Tool execution |
 | `src/server/inference/system-prompt.ts` / `model-prompts.ts` / `agent-system-prompt.ts` | Prompt assembly |
@@ -65,7 +65,7 @@ Personality UI row was removed as duplicate of base style; `virgil.md` should no
 
 ## 5. Tools
 
-Platform tools (Exa web search/fetch, sandbox execute, file ops, skills, places, image, etc.) live under inference + autonomous-agent tool folders.
+Platform tools (Exa web search/fetch, sandbox execute, file ops, skills, places, image, etc.) live under `src/server/inference/autonomous-tools/` and are exported via `@/server/agent-core/tools`.
 
 Environment:
 
@@ -87,7 +87,7 @@ Generate path:
 
 1. `chat.service` creates stream via `createChatStream` / agent stream
 2. `anthropic-messages-client.ts` streams indexed content blocks and returns the SDK-accumulated final block array
-3. `agent-engine.ts` replays that exact assistant array—including signed/redacted thinking—before the user-role `tool_result` continuation
+3. `query-loop.ts` replays that exact assistant array—including signed/redacted thinking—before the user-role `tool_result` continuation
 4. Thinking headings and progress narration are parsed from `<agent_heading>` / `<agent_narration>` metadata tags into distinct SSE channels
 5. The client reducer keeps thinking, narration, and tool actions chronologically ordered; only untagged text becomes the final answer
 6. Terminal errors must surface as visible text
@@ -117,9 +117,9 @@ Conversation context for follow-ups includes prior tool actions.
 
 ---
 
-## 9. Autonomous agent bridge
+## 9. Chat agent loop
 
-When web search or thinking enabled, main chat may bridge into `src/autonomous-agent` loop (no system prompt; tool-steered). See [`autonomous-agent.md`](./autonomous-agent.md).
+Main chat generate always uses `@/server/agent-core` (`runtime/query-loop.ts`) with layered system prompts and native tool calling. See [`autonomous-agent.md`](./autonomous-agent.md).
 
 ---
 

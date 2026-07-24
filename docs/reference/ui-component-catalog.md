@@ -114,12 +114,6 @@ Inventory of `src/components` (top-level and key subfolders).
 - `agent/ask-user-input-card.tsx`
 - `agent/create-file-stream-block.tsx`
 
-## `agent-swarm/`
-
-- `agent-swarm/agent-swarm-left-pane.tsx`
-- `agent-swarm/agent-swarm-right-pane.tsx`
-- `agent-swarm/agent-swarm-workspace.tsx`
-
 ## `app-notifications/`
 
 - `app-notifications/app-notification-host.tsx`

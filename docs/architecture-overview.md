@@ -54,12 +54,14 @@ It is **not** a thin chat wrapper. The product spans three cloud platforms with 
 | Path | Role |
 |---|---|
 | `src/app/` | Next.js routes: pages under `(main)`, auth, checkout, share; all `/api` handlers |
-| `src/` | Client components, hooks, contexts, stores, frontend lib |
+| `src/components/` | React UI (`components/agent/` = chat transcript) |
+| `src/hooks/`, `src/contexts/`, `src/stores/` | Client hooks and providers |
+| `src/lib/`, `src/styles/` | Shared helpers and CSS fragments |
+| `src/marketing/` | Marketing site components and content |
 | `src/server/` | Server services, repositories, inference, auth, billing, storage, db pool |
-| `src/app/agent-ui/` | Standalone tool-steered agent loop (also bridged into main chat) |
+| `src/server/agent-core/` | Chat agent loop (Provider Messages + tools) |
 | `src/projects/` | Project RAG ingestion/queue helpers |
 | `src/prompts/` | Persona markdown (`virgil.md`) + modular personalization instructions |
-| `src/lib/` | Shared pure helpers (models, titles, chat ids, geo, plans) |
 | `src/utils/supabase/` | Browser/server/middleware Supabase clients |
 | `src/proxy.ts` | Edge proxy: CF challenge POST→GET, skip `/api` session refresh |
 | `workers/` | Four Workers: auth-email, chat-history, r2-gateway, chat-coord |
