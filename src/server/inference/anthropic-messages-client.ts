@@ -1,11 +1,11 @@
 /**
- * Anthropic Messages API streaming client for Clauxen Web.
+ * Provider / Novita Messages API streaming client for Clauxen Web.
  *
- * Source of agent loop design: vendor/clauxen-code-agent (Clauxen Code CLI).
- * Uses @anthropic-ai/sdk ONLY — no OpenAI Chat Completions translation layer.
+ * Auth: Provider_API_Key only (Vercel). Base URL from Provider_BASE_URL
+ * (`…/openai` → `…/anthropic`). No Anthropic OAuth / Bedrock / Vertex / Foundry.
  *
- * Compatible with Anthropic-compatible gateways (e.g. Novita /anthropic) via
- * baseURL override from Provider_BASE_URL / NOVITA_ANTHROPIC_BASE_URL.
+ * Used by @/server/agent-core and agent-engine. Protocol: Anthropic Messages
+ * via @anthropic-ai/sdk against the Provider gateway.
  */
 
 import Anthropic from "@anthropic-ai/sdk";

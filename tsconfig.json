@@ -33,5 +33,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", ".tools", "src/agent"]
+  "exclude": [
+    "node_modules",
+    ".tools",
+    "src/server/agent-core/legacy-source"
+  ]
 }

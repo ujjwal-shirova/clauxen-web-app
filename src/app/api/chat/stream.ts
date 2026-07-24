@@ -1,11 +1,12 @@
 /**
- * Compatibility re-exports — the canonical implementations now live in:
- *   - @/server/inference/agent-engine (Anthropic agent loop)
- *   - @/server/inference/anthropic-messages-client (Anthropic Messages SDK)
- *   - @/server/inference/clauxen-sse-stream (SSE protocol / timeline UI)
+ * Chat SSE factory — agent loop via @/server/agent-core (Provider / Novita only).
+ * Timeline UI: ClauxenSseStream → src/components/agent/*
  */
 
-import { runAutonomousAgent, type AgentStreamOptions } from "@/server/inference/agent-engine";
+import {
+  runAutonomousAgent,
+  type AgentStreamOptions,
+} from "@/server/agent-core";
 import { ClauxenSseStream } from "@/server/inference/clauxen-sse-stream";
 import type { IncomingMessage } from "@/server/inference/novita";
 import { buildModelSystemPrompt } from "@/server/inference/system-prompt";

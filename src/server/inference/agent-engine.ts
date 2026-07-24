@@ -1,20 +1,17 @@
 /**
- * Autonomous Agent Orchestration Engine.
+ * Autonomous Agent Orchestration Engine (Claude Code–style loop).
  *
- * Cognitive architecture ported from Clauxen Code CLI
- * (`vendor/clauxen-code-agent` — query loop + StreamingToolExecutor patterns).
- *
- * Uses Anthropic Messages API ONLY (@anthropic-ai/sdk) — no OpenAI Chat
- * Completions translation. Streams into ClauxenSseStream for the Worked-for
- * timeline UI.
+ * Wired through @/server/agent-core. Model I/O is Provider / Novita Messages
+ * only (Provider_API_Key) — no Anthropic OAuth or multi-cloud SDKs.
  *
  * Architecture:
- *  1. Agentic Loop — multi-step tool-call cycles (Clauxen Code query.ts).
- *  2. Frame Events — ONE activity frame for the whole assistant turn
- *     (not one Brewed/Churned chip per tool round).
+ *  1. Agentic Loop — stream → tools → tool_result → repeat.
+ *  2. Frame Events — ONE activity frame for the whole assistant turn.
  *  3. Interim Narrative — text between tools as progress notes.
  *  4. Self-Healing — malformed tool args healed without an LLM round-trip.
  *  5. Parallel Tool Calls — independent tools execute concurrently.
+ *
+ * DOM transcript: ClauxenSseStream → src/components/agent/*.
  */
 
 import {

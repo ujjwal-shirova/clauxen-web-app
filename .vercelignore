@@ -17,3 +17,6 @@ workers/**/node_modules/
 workers/**/.wrangler/
 **/*.test.ts
 **/tsconfig.tsbuildinfo
+
+# Claude Code leftover (not runtime)
+src/server/agent-core/legacy-source/

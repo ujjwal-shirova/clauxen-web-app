@@ -12,9 +12,9 @@ import { parseHomerReasoningEffort } from "@/lib/model-effort";
 import { resolveModelRuntime, parseChatModelId, modelCatalogEnvFromProcess } from "@/lib/model-catalog";
 import {
   runAutonomousAgent,
-  generateChatTitle,
   type AgentStreamOptions,
-} from "@/server/inference/agent-engine";
+} from "@/server/agent-core";
+import { generateChatTitle } from "@/server/inference/agent-engine";
 import {
   ClauxenSseStream,
   CLAUXEN_STREAM_HEADERS,
