@@ -147,9 +147,18 @@ const nextConfig: NextConfig = {
         : false,
   },
   outputFileTracingIncludes: {
-    "/api/**/*": ["./src/server/email-verifier/disposable.txt"],
-    "/auth/**/*": ["./src/server/email-verifier/disposable.txt"],
-    "/*": ["./src/server/email-verifier/disposable.txt"],
+    "/api/**/*": [
+      "./src/prompts/**/*",
+      "./src/server/email-verifier/disposable.txt",
+    ],
+    "/auth/**/*": [
+      "./src/prompts/**/*",
+      "./src/server/email-verifier/disposable.txt",
+    ],
+    "/*": [
+      "./src/prompts/**/*",
+      "./src/server/email-verifier/disposable.txt",
+    ],
   },
   // Keep heavy server-only libs out of the client graph / slim function traces.
   serverExternalPackages: [

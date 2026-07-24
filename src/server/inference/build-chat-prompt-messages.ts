@@ -1,4 +1,4 @@
-import type { AgentStreamOptions } from "@/server/inference/agent-engine";
+import type { AgentStreamOptions } from "@/server/agent-core";
 import type { MessageRow } from "@/server/repositories/messages.repository";
 import type { IncomingMessage } from "@/server/inference/novita";
 import { stripMessageContentForModelApi } from "@/lib/model-context";

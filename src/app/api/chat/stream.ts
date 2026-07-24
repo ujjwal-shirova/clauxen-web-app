@@ -33,7 +33,7 @@ export type ChatStreamOptions = {
   modelMessages?: AgentStreamOptions["messages"];
 };
 
-/** Use runAutonomousAgent from agent-engine directly for new code. */
+/** Agent loop via @/server/agent-core (Provider / Novita only). */
 export async function createChatStream(
   messages: IncomingMessage[],
   options: ChatStreamOptions = {},
@@ -94,6 +94,6 @@ export async function createChatStream(
   return sse.stream;
 }
 
-/** @deprecated Use runAutonomousAgent from agent-engine directly. */
+/** @deprecated Use createChatStream / @/server/agent-core. */
 export const streamNovitaChat = createChatStream;
 export const streamAiSdkChat = createChatStream;

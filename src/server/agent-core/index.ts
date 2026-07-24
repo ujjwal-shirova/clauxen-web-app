@@ -7,8 +7,11 @@
 export {
   runAgent,
   runAutonomousAgent,
+  generateChatTitle,
   type AgentStreamOptions,
 } from "@/server/agent-core/runtime/run-agent";
+
+export { productionDeps, type QueryDeps } from "@/server/agent-core/query/deps";
 
 export {
   streamAnthropicMessages,

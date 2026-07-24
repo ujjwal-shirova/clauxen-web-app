@@ -8,5 +8,6 @@
 export {
   runAutonomousAgent,
   runAutonomousAgent as runAgent,
+  generateChatTitle,
   type AgentStreamOptions,
-} from "@/server/inference/agent-engine";
+} from "@/server/agent-core/runtime/query-loop";

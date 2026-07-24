@@ -20,7 +20,7 @@ import type { ConfiguredModelId } from "@/lib/model-config";
 export const MODEL_SYSTEM_PROMPTS_DIR = path.join(
   process.cwd(),
   "src",
-  "models-system-prompts",
+  "prompts",
 );
 
 // ─── Identity ────────────────────────────────────────────────────────────────
@@ -180,7 +180,7 @@ function stripSystemPrefix(raw: string): string {
 }
 
 /**
- * Load the full model-specific system prompt from models-system-prompts/*.md.
+ * Load the full model-specific system prompt from src/prompts/*.md.
  * Memoized for the process lifetime (static content).
  */
 export function getModelSystemPrompt(

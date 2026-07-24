@@ -14,7 +14,7 @@ import {
   runAutonomousAgent,
   type AgentStreamOptions,
 } from "@/server/agent-core";
-import { generateChatTitle } from "@/server/inference/agent-engine";
+import { generateChatTitle } from "@/server/agent-core";
 import {
   ClauxenSseStream,
   CLAUXEN_STREAM_HEADERS,

@@ -6,7 +6,7 @@ import * as messagesRepo from "@/server/repositories/messages.repository";
 import * as branchesRepo from "@/server/repositories/branches.repository";
 import * as transcriptRepo from "@/server/repositories/transcript.repository";
 import { createChatStream } from "@/app/api/chat/stream";
-import type { AgentStreamOptions } from "@/server/inference/agent-engine";
+import type { AgentStreamOptions } from "@/server/agent-core";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
 import {
   encodeSseEvent,
