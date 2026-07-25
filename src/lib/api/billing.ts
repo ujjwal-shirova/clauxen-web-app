@@ -285,14 +285,17 @@ export type BillingAddressDto = {
 
 export type PaymentMethodDto = {
   id: string;
+  methodType: "card" | "upi";
   network: string;
   brand: string;
-  cardFirst4: string;
-  cardLast4: string;
+  cardFirst4: string | null;
+  cardLast4: string | null;
+  upiVpa: string | null;
   maskedNumber: string;
   expMonth: number | null;
   expYear: number | null;
   isDefault: boolean;
+  mandateMaxAmountPaise: number | null;
   createdAt: string;
 };
 
@@ -339,5 +342,40 @@ export async function deletePaymentMethod(id: string) {
   return apiFetch<{ ok: boolean }>(
     `/api/v1/billing/payment-methods/${encodeURIComponent(id)}`,
     { method: "DELETE" },
+  );
+}
+
+export async function startPaymentMethodSetup(method: "card" | "upi") {
+  return apiFetch<{
+    setup: {
+      orderId: string;
+      amount: number;
+      currency: "INR";
+      keyId: string;
+      customerId: string;
+      maxAmountPaise: number;
+      method: "card" | "upi";
+    };
+  }>("/api/v1/billing/payment-methods/setup", {
+    method: "POST",
+    body: JSON.stringify({ method }),
+  });
+}
+
+export async function verifyPaymentMethodSetup(input: {
+  method: "card" | "upi";
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+  cardFirst4?: string;
+  upiVpa?: string;
+  customerId?: string;
+}) {
+  return apiFetch<{ paymentMethod: PaymentMethodDto }>(
+    "/api/v1/billing/payment-methods/setup/verify",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
   );
 }

@@ -63,6 +63,10 @@ type RazorpayCustomBasePaymentInput = {
   email?: string;
   contact?: string;
   description?: string;
+  /** Razorpay customer id — required for ₹0 mandate / save-instrument flows. */
+  customerId?: string;
+  /** Allow amount 0 for mandate registration (no charge). */
+  allowZeroAmount?: boolean;
   onSuccess: (payload: RazorpayCustomSuccessPayload) => void | Promise<void>;
   onFailure?: (message: string) => void;
 };
@@ -91,7 +95,8 @@ function assertCheckoutInput(input: RazorpayCustomBasePaymentInput) {
   if (!RAZORPAY_ORDER_ID_PATTERN.test(input.orderId)) {
     throw new Error("Invalid Razorpay checkout configuration.");
   }
-  if (!Number.isInteger(input.amount) || input.amount <= 0) {
+  const minAmount = input.allowZeroAmount ? 0 : 1;
+  if (!Number.isInteger(input.amount) || input.amount < minAmount) {
     throw new Error("Invalid Razorpay checkout configuration.");
   }
   if (!/^[A-Z]{3}$/.test(input.currency)) {
@@ -377,6 +382,9 @@ export async function chargeCardWithRazorpayCustom(
         order_id: input.orderId,
         email,
         ...(input.contact ? { contact: input.contact } : {}),
+        ...(input.customerId ? { customer_id: input.customerId } : {}),
+        // Persist instrument on Razorpay for future charges (mandate / token).
+        save: 1,
         method: "card",
         card: {
           number,

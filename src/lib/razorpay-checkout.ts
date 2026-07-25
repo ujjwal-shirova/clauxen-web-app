@@ -30,6 +30,8 @@ function assertCheckoutInput(input: {
   orderId: string;
   amount: number;
   currency: string;
+  /** Mandate / save-instrument setup may authorize ₹0. */
+  allowZeroAmount?: boolean;
 }) {
   if (!RAZORPAY_KEY_ID_PATTERN.test(input.keyId)) {
     throw new Error("Invalid Razorpay checkout configuration.");
@@ -37,7 +39,8 @@ function assertCheckoutInput(input: {
   if (!RAZORPAY_ORDER_ID_PATTERN.test(input.orderId)) {
     throw new Error("Invalid Razorpay checkout configuration.");
   }
-  if (!Number.isInteger(input.amount) || input.amount <= 0) {
+  const minAmount = input.allowZeroAmount ? 0 : 1;
+  if (!Number.isInteger(input.amount) || input.amount < minAmount) {
     throw new Error("Invalid Razorpay checkout configuration.");
   }
   if (!/^[A-Z]{3}$/.test(input.currency)) {
@@ -125,6 +128,7 @@ export type RazorpayCheckoutInput = {
   paymentMethod?: CheckoutPaymentMethodId;
   /** Opens Razorpay with default blocks so Apple Pay is available when eligible. */
   expressCheckout?: "apple_pay";
+  allowZeroAmount?: boolean;
   prefill?: { name?: string; email?: string; contact?: string };
   onSuccess: (payload: {
     razorpay_order_id: string;

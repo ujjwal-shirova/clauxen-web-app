@@ -6,6 +6,7 @@ import { CheckoutCardBrandStack } from "@/components/checkout-card-brand-stack";
 import { CheckoutPaymentIcon } from "@/components/checkout-payment-icon";
 import {
   CARD_BRAND_ICONS,
+  CHECKOUT_UPI_ICON_URL,
   detectCardBrand,
   getCardBrandStack,
 } from "@/lib/checkout-payment-icons";
@@ -236,12 +237,15 @@ export function CheckoutPaymentPanel({
       );
     }
 
-    const icon =
-      CARD_BRAND_ICONS[
-        (savedMethod.network in CARD_BRAND_ICONS
-          ? savedMethod.network
-          : "visa") as keyof typeof CARD_BRAND_ICONS
-      ];
+    const isUpi =
+      savedMethod.methodType === "upi" || savedMethod.network === "upi";
+    const icon = isUpi
+      ? { src: CHECKOUT_UPI_ICON_URL, label: "UPI" }
+      : CARD_BRAND_ICONS[
+          (savedMethod.network in CARD_BRAND_ICONS
+            ? savedMethod.network
+            : "visa") as keyof typeof CARD_BRAND_ICONS
+        ];
 
     return (
       <div className={cn(checkoutUi.panel, "flex items-center justify-between")}>
@@ -256,9 +260,12 @@ export function CheckoutPaymentPanel({
               {savedMethod.brand}
             </div>
             <div className="text-sm text-zinc-600">
-              {savedMethod.first4
-                ? `${savedMethod.first4} •••• •••• ••••`
-                : `•••• •••• •••• ${savedMethod.last4}`}
+              {savedMethod.maskedNumber ||
+                (isUpi
+                  ? savedMethod.upiVpa || "UPI"
+                  : savedMethod.first4
+                    ? `${savedMethod.first4} •••• •••• ••••`
+                    : `•••• •••• •••• ${savedMethod.last4 || "••••"}`)}
             </div>
           </div>
         </div>

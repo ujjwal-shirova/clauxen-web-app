@@ -24,13 +24,18 @@ export type PaymentMethodRow = {
   provider_ref_fingerprint: string;
   network: string;
   brand: string;
-  card_first4: string;
-  card_last4: string;
+  card_first4: string | null;
+  card_last4: string | null;
   exp_month: number | null;
   exp_year: number | null;
   is_default: boolean;
   razorpay_customer_id: string | null;
   last_payment_id: string | null;
+  method_type: "card" | "upi";
+  upi_vpa: string | null;
+  display_label: string | null;
+  mandate_max_amount_paise: number | null;
+  mandate_status: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -130,14 +135,20 @@ export async function upsertPaymentMethod(input: {
   providerRefFingerprint: string;
   network: string;
   brand: string;
-  cardFirst4: string;
-  cardLast4: string;
+  methodType?: "card" | "upi";
+  cardFirst4?: string | null;
+  cardLast4?: string | null;
+  upiVpa?: string | null;
+  displayLabel?: string | null;
   expMonth?: number | null;
   expYear?: number | null;
   razorpayCustomerId?: string | null;
   lastPaymentId?: string | null;
+  mandateMaxAmountPaise?: number | null;
+  mandateStatus?: string | null;
   makeDefault?: boolean;
 }) {
+  const methodType = input.methodType ?? "card";
   return withTransaction(async (client) => {
     const existing = await client.query<PaymentMethodRow>(
       `select * from public.payment_methods
@@ -167,6 +178,11 @@ export async function upsertPaymentMethod(input: {
              razorpay_customer_id = coalesce($9, razorpay_customer_id),
              last_payment_id = coalesce($10, last_payment_id),
              is_default = case when $11 then true else is_default end,
+             method_type = $12,
+             upi_vpa = coalesce($13, upi_vpa),
+             display_label = coalesce($14, display_label),
+             mandate_max_amount_paise = coalesce($15, mandate_max_amount_paise),
+             mandate_status = coalesce($16, mandate_status),
              updated_at = now()
          where id = $1
          returning *`,
@@ -175,13 +191,18 @@ export async function upsertPaymentMethod(input: {
           input.providerRefEncrypted,
           input.network,
           input.brand,
-          input.cardFirst4,
-          input.cardLast4,
+          input.cardFirst4 ?? null,
+          input.cardLast4 ?? null,
           input.expMonth ?? null,
           input.expYear ?? null,
           input.razorpayCustomerId ?? null,
           input.lastPaymentId ?? null,
           input.makeDefault !== false,
+          methodType,
+          input.upiVpa ?? null,
+          input.displayLabel ?? null,
+          input.mandateMaxAmountPaise ?? null,
+          input.mandateStatus ?? null,
         ],
       );
       return updated.rows[0] ?? null;
@@ -191,8 +212,9 @@ export async function upsertPaymentMethod(input: {
       `insert into public.payment_methods (
          user_id, provider_ref_encrypted, provider_ref_fingerprint,
          network, brand, card_first4, card_last4, exp_month, exp_year,
-         is_default, razorpay_customer_id, last_payment_id
-       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         is_default, razorpay_customer_id, last_payment_id,
+         method_type, upi_vpa, display_label, mandate_max_amount_paise, mandate_status
+       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
        returning *`,
       [
         input.userId,
@@ -200,13 +222,18 @@ export async function upsertPaymentMethod(input: {
         input.providerRefFingerprint,
         input.network,
         input.brand,
-        input.cardFirst4,
-        input.cardLast4,
+        input.cardFirst4 ?? null,
+        input.cardLast4 ?? null,
         input.expMonth ?? null,
         input.expYear ?? null,
         input.makeDefault !== false,
         input.razorpayCustomerId ?? null,
         input.lastPaymentId ?? null,
+        methodType,
+        input.upiVpa ?? null,
+        input.displayLabel ?? null,
+        input.mandateMaxAmountPaise ?? null,
+        input.mandateStatus ?? null,
       ],
     );
     return inserted.rows[0] ?? null;

@@ -5,7 +5,13 @@ import { AppError } from "@/server/db/errors";
 const PREFIX = "v1";
 
 function resolveKey(): Buffer {
-  const raw = env.paymentMethodEncryptionKey?.trim();
+  // Prefer dedicated key; fall back to Razorpay secret / JWT so card-on-file
+  // encryption works in production without a separate env when keys already exist.
+  const raw =
+    env.paymentMethodEncryptionKey?.trim() ||
+    env.razorpayKeySecret?.trim() ||
+    env.jwtSecret?.trim() ||
+    "";
   if (!raw) {
     throw new AppError(
       "Payment method encryption is not configured. Set PAYMENT_METHOD_ENCRYPTION_KEY.",
@@ -18,7 +24,9 @@ function resolveKey(): Buffer {
   if (/^[0-9a-fA-F]{64}$/.test(raw)) {
     return Buffer.from(raw, "hex");
   }
-  return createHash("sha256").update(raw).digest();
+  return createHash("sha256")
+    .update(`clauxen-pm-v1:${raw}`)
+    .digest();
 }
 
 export function fingerprintProviderRef(providerRef: string): string {
@@ -59,5 +67,9 @@ export function decryptProviderRef(payload: string): string {
 }
 
 export function isPaymentMethodEncryptionConfigured(): boolean {
-  return Boolean(env.paymentMethodEncryptionKey?.trim());
+  return Boolean(
+    env.paymentMethodEncryptionKey?.trim() ||
+      env.razorpayKeySecret?.trim() ||
+      env.jwtSecret?.trim(),
+  );
 }

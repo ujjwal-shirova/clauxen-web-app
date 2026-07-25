@@ -298,17 +298,28 @@ export function BillingCheckout({
           methodsRes.paymentMethods[0];
         if (defaultMethod) {
           const network = (
-            ["visa", "mastercard", "amex", "rupay", "jcb", "discover"].includes(
-              defaultMethod.network,
-            )
+            [
+              "visa",
+              "mastercard",
+              "amex",
+              "rupay",
+              "jcb",
+              "discover",
+              "upi",
+            ].includes(defaultMethod.network)
               ? defaultMethod.network
-              : "unknown"
+              : defaultMethod.methodType === "upi"
+                ? "upi"
+                : "unknown"
           ) as SavedPaymentMethod["network"];
           setSavedMethod({
             id: defaultMethod.id,
+            methodType: defaultMethod.methodType,
             brand: defaultMethod.brand || defaultMethod.network,
-            first4: defaultMethod.cardFirst4,
-            last4: defaultMethod.cardLast4,
+            first4: defaultMethod.cardFirst4 ?? undefined,
+            last4: defaultMethod.cardLast4 ?? undefined,
+            upiVpa: defaultMethod.upiVpa,
+            maskedNumber: defaultMethod.maskedNumber,
             network,
           });
           setPaymentTab("saved");

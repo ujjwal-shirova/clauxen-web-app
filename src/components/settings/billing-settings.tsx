@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, MoreHorizontal, Sparkles } from "lucide-react";
 import {
   billingInvoicePdfUrl,
   deletePaymentMethod,
@@ -15,7 +16,11 @@ import {
   type PaymentMethodDto,
 } from "@/lib/api/billing";
 import { useAuth } from "@/hooks/use-auth";
-import { CARD_BRAND_ICONS, type CardBrandId } from "@/lib/checkout-payment-icons";
+import {
+  CARD_BRAND_ICONS,
+  CHECKOUT_UPI_ICON_URL,
+  type CardBrandId,
+} from "@/lib/checkout-payment-icons";
 import { CheckoutPaymentIcon } from "@/components/checkout-payment-icon";
 import { InvoiceView, type InvoiceData } from "@/components/invoice-view";
 import { FullscreenPortal } from "@/components/fullscreen-portal";
@@ -24,6 +29,7 @@ import {
   isCheckoutAddressComplete,
   type CheckoutAddressState,
 } from "@/components/checkout-billing-address";
+import { AddPaymentMethodDialog } from "@/components/settings/add-payment-method-dialog";
 import {
   SettingsFieldBlock,
   SettingsPanelTitle,
@@ -37,7 +43,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
+import {
+  PERSONAL_PLANS,
+  resolvePlanFeatures,
+  type PlanCard,
+} from "@/lib/plans-catalog";
 
 interface BillingSettingsProps {
   onUpgradeClick?: () => void;
@@ -52,14 +62,20 @@ type InvoiceRow = {
   created_at: string;
 };
 
-function formatPlanName(
-  planId: string | null | undefined,
-  plans: { id: string; display_name: string }[],
-) {
-  if (!planId) return "Clauxen Free";
-  const match = plans.find((p) => p.id === planId);
-  if (match) return match.display_name;
-  return planId.charAt(0).toUpperCase() + planId.slice(1).replace(/_/g, " ");
+function resolvePlanCard(planId: string | null | undefined): PlanCard {
+  if (!planId) return PERSONAL_PLANS.find((p) => p.id === "free")!;
+  const normalized = planId.replace(/_/g, "").toLowerCase();
+  const match =
+    PERSONAL_PLANS.find((p) => p.id === planId) ||
+    PERSONAL_PLANS.find((p) => p.id === normalized) ||
+    PERSONAL_PLANS.find((p) => planId.startsWith(p.id));
+  return match || PERSONAL_PLANS.find((p) => p.id === "free")!;
+}
+
+function formatPlanTitle(plan: PlanCard, planId: string | null | undefined) {
+  if (!planId || plan.id === "free") return "Clauxen Free";
+  if (plan.name.toLowerCase().includes("plan")) return `Clauxen ${plan.name}`;
+  return `Clauxen ${plan.name}`;
 }
 
 function formatDate(iso: string | null | undefined) {
@@ -81,8 +97,9 @@ function invoiceStatusTone(status: string): "success" | "info" {
   return "info";
 }
 
-function networkIcon(network: string): CardBrandId {
+function networkIcon(network: string): CardBrandId | "upi" {
   const n = network.toLowerCase();
+  if (n === "upi") return "upi";
   if (n in CARD_BRAND_ICONS) return n as CardBrandId;
   return "visa";
 }
@@ -107,10 +124,9 @@ export function BillingSettings({
 }: BillingSettingsProps) {
   const auth = useAuth();
   const [loading, setLoading] = useState(true);
-  const [planName, setPlanName] = useState("Clauxen Free");
+  const [planId, setPlanId] = useState<string | null>(null);
   const [cancelAtEnd, setCancelAtEnd] = useState(false);
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
-  const [tokensRemaining, setTokensRemaining] = useState<number | null>(null);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [address, setAddress] = useState<BillingAddressDto | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodDto[]>([]);
@@ -121,6 +137,15 @@ export function BillingSettings({
   const [savingAddress, setSavingAddress] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [invoiceView, setInvoiceView] = useState<InvoiceData | null>(null);
+  const [addMethodOpen, setAddMethodOpen] = useState(false);
+
+  const planCard = useMemo(() => resolvePlanCard(planId), [planId]);
+  const planTitle = formatPlanTitle(planCard, planId);
+  const planSubtitle = planCard.subtitle || "See what AI can do";
+  const planFeatures = useMemo(
+    () => resolvePlanFeatures(planCard),
+    [planCard],
+  );
 
   const billingName =
     address?.fullName ||
@@ -142,15 +167,9 @@ export function BillingSettings({
         listPaymentMethods(),
       ]);
       const sub = overview.subscription;
-      const plans = overview.plans ?? [];
-      setPlanName(
-        sub?.plan_id ? formatPlanName(sub.plan_id, plans) : "Clauxen Free",
-      );
+      setPlanId(sub?.plan_id ?? null);
       setCancelAtEnd(!!sub?.cancel_at_period_end);
       setPeriodEnd(sub?.current_period_end ?? null);
-      if (overview.balance?.tokens_remaining != null) {
-        setTokensRemaining(overview.balance.tokens_remaining);
-      }
       setInvoices(
         (inv.invoices as InvoiceRow[])?.filter((row) => row?.id) ?? [],
       );
@@ -167,20 +186,8 @@ export function BillingSettings({
     void reload();
   }, [reload]);
 
-  const planSubtitle = useMemo(() => {
-    if (cancelAtEnd && periodEnd) {
-      return `Your plan will be canceled on ${formatDate(periodEnd)}`;
-    }
-    if (periodEnd) {
-      return `Renews on ${formatDate(periodEnd)}`;
-    }
-    if (tokensRemaining != null) {
-      return `${tokensRemaining.toLocaleString()} tokens remaining on your current plan`;
-    }
-    return "Upgrade for higher limits and priority access.";
-  }, [cancelAtEnd, periodEnd, tokensRemaining]);
-
-  const showRenew = cancelAtEnd || planName.toLowerCase().includes("free");
+  const showUpgrade =
+    cancelAtEnd || !planId || planCard.id === "free";
 
   const openAddressEditor = () => {
     if (address) {
@@ -251,27 +258,44 @@ export function BillingSettings({
 
       <section className="border-b border-zinc-200 pb-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 className="text-[18px] font-medium leading-7">{planName}</h3>
-            <p className="mt-1 text-[14px] leading-4 text-zinc-400">
-              {loading ? "Loading subscription…" : planSubtitle}
-            </p>
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50">
+              <Sparkles className="h-4 w-4 text-zinc-700" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-[18px] font-medium leading-7">{planTitle}</h3>
+              <p className="mt-1 text-[14px] leading-5 text-zinc-500">
+                {loading
+                  ? "Loading subscription…"
+                  : cancelAtEnd && periodEnd
+                    ? `Your plan will be canceled on ${formatDate(periodEnd)}`
+                    : planSubtitle}
+              </p>
+            </div>
           </div>
-          {showRenew ? (
-            <SettingsPillButton
-              onClick={onUpgradeClick}
-              className="min-w-[140px]"
-            >
-              {planName.toLowerCase().includes("free")
-                ? "Upgrade plan"
-                : "Renew plan"}
-            </SettingsPillButton>
-          ) : (
-            <SettingsPillButton onClick={onUpgradeClick}>
-              Manage plan
-            </SettingsPillButton>
-          )}
+          <SettingsPillButton
+            onClick={onUpgradeClick}
+            className="min-w-[140px] !border-zinc-900 !bg-zinc-900 !text-white hover:!bg-zinc-800"
+          >
+            {showUpgrade ? "Upgrade plan" : "Manage plan"}
+          </SettingsPillButton>
         </div>
+
+        <ul className="mt-5 space-y-2.5 border-t border-zinc-100 pt-5">
+          {planFeatures.map((feature) => (
+            <li
+              key={feature}
+              className="flex items-start gap-2.5 text-[14px] leading-5 text-zinc-700"
+            >
+              <Check
+                className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400"
+                strokeWidth={2}
+                aria-hidden
+              />
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="border-b border-zinc-200 pb-6">
@@ -327,23 +351,38 @@ export function BillingSettings({
             label="Address"
             value={
               address?.summary ||
-              "Add your billing address — it will be used on invoices."
+              "Add a billing address to use on invoices and checkout."
             }
           />
         </div>
       </section>
 
       <section>
-        <SettingsSectionHeading>Payment methods</SettingsSectionHeading>
+        <SettingsSectionHeading
+          action={
+            <SettingsPillButton onClick={() => setAddMethodOpen(true)}>
+              Add payment method
+            </SettingsPillButton>
+          }
+        >
+          Payment methods
+        </SettingsSectionHeading>
+
         {paymentMethods.length === 0 ? (
-          <p className="mt-2 py-3 text-[14px] text-zinc-400">
-            No cards on file yet. Cards are saved securely after a successful
-            checkout (first four digits only — never the full card number).
+          <p className="mt-2 py-3 text-[14px] text-zinc-500">
+            No payment methods yet. Add a card or UPI to check out faster next
+            time.
           </p>
         ) : (
           <ul className="mt-2">
             {paymentMethods.map((method) => {
-              const icon = CARD_BRAND_ICONS[networkIcon(method.network)];
+              const iconKey = networkIcon(method.network);
+              const iconSrc =
+                iconKey === "upi"
+                  ? CHECKOUT_UPI_ICON_URL
+                  : CARD_BRAND_ICONS[iconKey].src;
+              const iconAlt =
+                iconKey === "upi" ? "UPI" : CARD_BRAND_ICONS[iconKey].label;
               return (
                 <li
                   key={method.id}
@@ -351,13 +390,13 @@ export function BillingSettings({
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <CheckoutPaymentIcon
-                      src={icon.src}
-                      alt={icon.label}
+                      src={iconSrc}
+                      alt={iconAlt}
                       className="h-7 w-10 rounded-[5px] border border-zinc-200 bg-white p-0.5"
                     />
                     <div className="min-w-0">
                       <p className="text-[14px] text-zinc-900">
-                        {method.brand || icon.label}
+                        {method.brand || iconAlt}
                       </p>
                       <p className="truncate text-[14px] text-zinc-400">
                         {method.maskedNumber}
@@ -390,6 +429,9 @@ export function BillingSettings({
                             Make default
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem onClick={openAddressEditor}>
+                          Update billing address
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-600 focus:text-red-600"
                           onClick={() =>
@@ -414,6 +456,12 @@ export function BillingSettings({
           </p>
         )}
       </section>
+
+      <AddPaymentMethodDialog
+        open={addMethodOpen}
+        onClose={() => setAddMethodOpen(false)}
+        onSaved={() => void reload()}
+      />
 
       {editingAddress && (
         <FullscreenPortal>
