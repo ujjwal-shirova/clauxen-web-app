@@ -35,6 +35,7 @@ import { Sidebar } from "@/components/sidebar";
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
   "/customize",
+  "/my-clauxen",
   "/project",
   "/projects",
 ] as const;
@@ -131,10 +132,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, [instantNavigate, closeMobileNav]);
 
   const goToMyClauxen = useCallback(() => {
-    // Distinct from Customize page — personalization overlay.
-    overlays.openSettings("Personalization");
+    instantNavigate(APP_ROUTES.myClauxen);
     closeMobileNav();
-  }, [overlays, closeMobileNav]);
+  }, [instantNavigate, closeMobileNav]);
 
   const onSelectChatFromSidebar = useCallback(
     (chatEntry: RecentChat) => {
@@ -385,11 +385,11 @@ function computeActiveView(
   pathname: string | null,
   overlayType: string | null,
 ): string {
-  if (overlayType === "settings") return "my-clauxen";
   if (overlayType === "pricing") return "upgrade";
   if (overlayType === "gift") return "gift";
   if (overlayType === "apps") return "apps";
   if (!pathname) return "chat";
+  if (pathname.startsWith("/my-clauxen")) return "my-clauxen";
   if (pathname.startsWith("/project") || pathname.startsWith("/projects")) {
     return "projects";
   }

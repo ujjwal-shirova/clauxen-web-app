@@ -217,7 +217,26 @@ export async function buildUserPersonalizationAppend(
   if (!userId) return "";
   try {
     const personalization = await loadUserPersonalization(userId);
-    return formatPersonalizationAppend(personalization);
+    const base = formatPersonalizationAppend(personalization);
+    let selfGrowthBlock = "";
+    try {
+      const { getInsights } = await import(
+        "@/server/repositories/my-clauxen.repository"
+      );
+      const insights = await getInsights(userId);
+      if (insights?.self_growth_enabled) {
+        selfGrowthBlock = [
+          "<self_growth>",
+          "Self-growth is enabled for this user.",
+          "Treat collaboration as continuous: notice stable preferences, habits, and working style,",
+          "and let later turns benefit from what you learn — without inventing facts they never shared.",
+          "</self_growth>",
+        ].join("\n");
+      }
+    } catch {
+      // Insights table may be unavailable during rollout — never block chat.
+    }
+    return [base, selfGrowthBlock].filter(Boolean).join("\n\n");
   } catch (error) {
     console.error("[personalization] failed to load for prompt:", error);
     return "";

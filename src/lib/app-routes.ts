@@ -72,6 +72,8 @@ export const APP_ROUTES = {
   /** Create-project surface (inline form, not a gallery). */
   projects: "/project",
   customize: "/customize",
+  myClauxen: "/my-clauxen",
+
   chat: (chatId: string) => `/c/${encodeURIComponent(chatId)}`,
   /** Project dashboard — blank composer scoped to this project. */
   project: (projectId: string) => `/project/${encodeURIComponent(projectId)}`,
@@ -212,7 +214,9 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname === "/projects" ||
     pathname.startsWith("/projects/") ||
     pathname === "/customize" ||
-    pathname.startsWith("/customize/")
+    pathname.startsWith("/customize/") ||
+    pathname === "/my-clauxen" ||
+    pathname.startsWith("/my-clauxen/")
   );
 }
 
