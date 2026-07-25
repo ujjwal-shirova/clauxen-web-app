@@ -28,6 +28,7 @@ import {
   useAppOverlays,
 } from "@/hooks/use-app-overlays";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
+import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { Sidebar } from "@/components/sidebar";
@@ -376,13 +377,18 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
  */
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
-  // Paint the real shell immediately — no intermediate skeleton chrome.
-  // Identity hint usually seeds user.id on first paint; fall back to a boot key.
-  const sessionKey = auth.user?.id ?? "boot";
+  // Stable key from identity hint so late auth.user.id does not remount
+  // the chat tree and wipe sync-painted sidebar / in-RAM messages.
+  const hintId =
+    typeof window !== "undefined"
+      ? readIdentityHintFromDocument()?.id
+      : null;
+  const sessionKey = auth.user?.id ?? hintId ?? "session";
+  const apiEnabled = Boolean(auth.user?.id ?? hintId);
 
   return (
     <AppOverlaysProvider>
-      <ChatSessionProvider key={sessionKey} apiEnabled={Boolean(auth.user?.id)}>
+      <ChatSessionProvider key={sessionKey} apiEnabled={apiEnabled}>
         <MainLayoutShell>{children}</MainLayoutShell>
       </ChatSessionProvider>
     </AppOverlaysProvider>

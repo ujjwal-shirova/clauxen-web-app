@@ -73,10 +73,20 @@ import {
   persistDeviceChatNow,
   persistDeviceRecentChatsNow,
   readDeviceChatList,
+  readSyncDeviceChatList,
   scheduleDeviceChatPersist,
+  writeSyncDeviceChatList,
 } from "@/lib/device-chat-cache";
 import { useAuth } from "@/contexts/auth-context";
+import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useShallow } from "zustand/react/shallow";
+
+function bootRecentChatsFromSync(): RecentChat[] {
+  if (typeof window === "undefined") return [];
+  const userId = readIdentityHintFromDocument()?.id;
+  if (!userId) return [];
+  return readSyncDeviceChatList(userId) ?? [];
+}
 
 function mapApiMessage(row: chatsApi.ApiMessage): Message {
   const meta = row.metadata as {
@@ -157,14 +167,16 @@ export function useChatApi(
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const setAllChats = setAllChatsNormalized;
-  const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
+  const [recentChats, setRecentChats] = useState<RecentChat[]>(() =>
+    bootRecentChatsFromSync(),
+  );
   const activeChatId = useActiveChatId();
   const isGenerating = useChatStore((state) => state.isGenerating);
   const deviceCacheBootedRef = useRef(false);
   const setIsGenerating = useCallback((value: boolean) => {
     useChatStore.getState().setIsGenerating(value);
   }, []);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => bootRecentChatsFromSync().length === 0);
   const [creatingChatPending, setCreatingChatPending] = useState(false);
   const [loadingChatId, setLoadingChatId] = useState<string | null>(null);
   const [messageLoadErrors, setMessageLoadErrors] = useState<
@@ -175,9 +187,9 @@ export function useChatApi(
   const messagesLoadError = activeChatId
     ? (messageLoadErrors[activeChatId] ?? null)
     : null;
-  const chatsLoadedOnceRef = useRef(false);
+  const chatsLoadedOnceRef = useRef(bootRecentChatsFromSync().length > 0);
   const allChatsRef = useRef<Record<string, Message[]>>({});
-  const recentChatsRef = useRef<RecentChat[]>([]);
+  const recentChatsRef = useRef<RecentChat[]>(bootRecentChatsFromSync());
   /** Optimistic pin overrides until server list agrees. */
   const pendingPinOverridesRef = useRef<Map<string, boolean>>(new Map());
   /** Optimistic title overrides until server list name catches up. */
@@ -248,7 +260,10 @@ export function useChatApi(
   );
 
   const refreshChats = useCallback(async (opts?: { silent?: boolean }) => {
-    const silent = opts?.silent === true && chatsLoadedOnceRef.current;
+    // Silent when caller asks and we already have rows (sync/IDB paint or prior fetch).
+    const silent =
+      opts?.silent === true &&
+      (chatsLoadedOnceRef.current || recentChatsRef.current.length > 0);
     if (!silent) setLoading(true);
     try {
       const { chats } = await chatsApi.listChats(projectIdFilter ?? undefined);
@@ -334,6 +349,9 @@ export function useChatApi(
           return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
         });
         recentChatsRef.current = next;
+        if (userId) {
+          writeSyncDeviceChatList(userId, next);
+        }
         return next;
       });
     } catch (error) {
@@ -343,7 +361,7 @@ export function useChatApi(
       chatsLoadedOnceRef.current = true;
       setLoading(false);
     }
-  }, [projectIdFilter]);
+  }, [projectIdFilter, userId]);
 
   useEffect(() => {
     // Home = blank new chat immediately (don't wait for list / IndexedDB).
@@ -355,14 +373,22 @@ export function useChatApi(
     ) {
       setActiveChatId(null);
     }
-    // Paint sidebar from device cache first, then reconcile with Worker/API.
-    const t = window.setTimeout(() => {
-      void (async () => {
-        if (userId && !deviceCacheBootedRef.current) {
-          deviceCacheBootedRef.current = true;
+
+    let cancelled = false;
+    void (async () => {
+      const hasSyncPaint = recentChatsRef.current.length > 0;
+      if (hasSyncPaint) {
+        chatsLoadedOnceRef.current = true;
+        setLoading(false);
+      }
+
+      // IDB backup when sync mirror was empty (upgrade / cleared localStorage).
+      if (userId && !deviceCacheBootedRef.current) {
+        deviceCacheBootedRef.current = true;
+        if (!hasSyncPaint) {
           try {
             const cached = await readDeviceChatList(userId);
-            if (cached?.length) {
+            if (!cancelled && cached?.length) {
               setRecentChats((prev) => {
                 if (prev.length > 0) return prev;
                 recentChatsRef.current = cached;
@@ -375,10 +401,19 @@ export function useChatApi(
             console.warn("[device-chat-cache] list boot failed:", error);
           }
         }
-        void refreshChats();
-      })();
-    }, 0);
-    return () => window.clearTimeout(t);
+      }
+
+      if (cancelled) return;
+      // Reconcile with Worker/API without blanking a painted sidebar.
+      void refreshChats({
+        silent:
+          recentChatsRef.current.length > 0 || chatsLoadedOnceRef.current,
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [refreshChats, userId]);
 
   // Debounced IndexedDB mirror — cuts refetch load across visits/tabs.
@@ -935,8 +970,9 @@ export function useChatApi(
         return;
       }
 
-      // Edge-first: Worker Cache/KV/R2 → Hyperdrive. Device IDB is list meta only.
-      await loadChatMessages(chatId);
+      // Edge-first: Worker Cache/KV/R2 → Hyperdrive. No loading chrome —
+      // empty transcript paints; messages fill in when the Worker returns.
+      void loadChatMessages(chatId, { silent: true });
     },
     [applyHydratedMessages, loadChatMessages, setAllChats],
   );

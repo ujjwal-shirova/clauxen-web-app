@@ -49,37 +49,49 @@ export async function warmChatHistoryCache(
     "x-clauxen-internal": token,
   };
 
-  // P4: enqueue archive + warm via CF Queues (non-blocking).
+  const sleep = (ms: number) =>
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, ms);
+    });
+
+  // P4: enqueue archive + warm via CF Queues (non-blocking), with one retry.
   if (input.async !== false) {
-    try {
-      const enqueued = await fetch(`${base}/internal/enqueue`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          type: "warm_and_archive",
-          ...payload,
-        }),
-        cache: "no-store",
-        signal: AbortSignal.timeout(3_000),
-      });
-      if (enqueued.ok) return true;
-    } catch {
-      // Fall through to sync warm.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const enqueued = await fetch(`${base}/internal/enqueue`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            type: "warm_and_archive",
+            ...payload,
+          }),
+          cache: "no-store",
+          signal: AbortSignal.timeout(3_000),
+        });
+        if (enqueued.ok) return true;
+      } catch {
+        // Retry once, then fall through to sync warm.
+      }
+      if (attempt === 0) await sleep(400);
     }
   }
 
-  try {
-    const response = await fetch(`${base}/internal/warm`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-      cache: "no-store",
-      signal: AbortSignal.timeout(12_000),
-    });
-    return response.ok;
-  } catch {
-    return false;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(`${base}/internal/warm`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        cache: "no-store",
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (response.ok) return true;
+    } catch {
+      // Retry sync warm once.
+    }
+    if (attempt === 0) await sleep(500);
   }
+  return false;
 }
 
 /** Purge every mutable page/list cache before a chat write becomes visible. */

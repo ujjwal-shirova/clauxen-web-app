@@ -3,6 +3,9 @@ import { describe, it } from "node:test";
 import {
   DEVICE_CHAT_MESSAGE_LIMIT,
   buildDeviceChatMeta,
+  clearSyncDeviceChatList,
+  readSyncDeviceChatList,
+  writeSyncDeviceChatList,
 } from "@/lib/device-chat-cache";
 
 describe("device-chat-cache", () => {
@@ -23,5 +26,45 @@ describe("device-chat-cache", () => {
 
   it("does not persist message bodies on device (edge-first)", () => {
     assert.equal(DEVICE_CHAT_MESSAGE_LIMIT, 0);
+  });
+
+  it("sync localStorage list is scoped to userId", () => {
+    const store = new Map<string, string>();
+    const g = globalThis as typeof globalThis & {
+      window?: unknown;
+      localStorage?: Storage;
+    };
+    const prevWindow = g.window;
+    const prevStorage = g.localStorage;
+    g.window = g;
+    g.localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        store.set(k, v);
+      },
+      removeItem: (k: string) => {
+        store.delete(k);
+      },
+      clear: () => store.clear(),
+      key: () => null,
+      get length() {
+        return store.size;
+      },
+    };
+
+    try {
+      writeSyncDeviceChatList("user-1", [
+        { id: "c1", name: "Alpha", updatedAt: 1, pinned: true },
+      ]);
+      assert.equal(readSyncDeviceChatList("user-2"), null);
+      const rows = readSyncDeviceChatList("user-1");
+      assert.equal(rows?.length, 1);
+      assert.equal(rows?.[0]?.id, "c1");
+      clearSyncDeviceChatList();
+      assert.equal(readSyncDeviceChatList("user-1"), null);
+    } finally {
+      g.window = prevWindow;
+      g.localStorage = prevStorage;
+    }
   });
 });

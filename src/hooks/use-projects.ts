@@ -10,6 +10,17 @@ import {
 
 const MAX_PROJECT_NAME_LENGTH = 200;
 const LOCAL_PROJECTS_KEY = "clauxen-local-projects";
+const API_PROJECTS_CACHE_KEY = "clauxen-api-projects-cache";
+const LIST_DEDUP_TTL_MS = 5_000;
+
+type ApiProjectsCache = {
+  savedAt: number;
+  projects: ApiProject[];
+};
+
+/** Shared across every useProjects() mount so boot doesn't triple-fetch. */
+let apiListInflight: Promise<ApiProject[]> | null = null;
+let apiListCached: ApiProjectsCache | null = null;
 
 function loadLocalProjects(): ApiProject[] {
   if (typeof window === "undefined") return [];
@@ -32,6 +43,54 @@ function saveLocalProjects(rows: ApiProject[]) {
   }
 }
 
+function loadCachedApiProjects(): ApiProject[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(API_PROJECTS_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as ApiProjectsCache;
+    if (!Array.isArray(parsed?.projects)) return [];
+    apiListCached = {
+      savedAt: parsed.savedAt || Date.now(),
+      projects: parsed.projects,
+    };
+    return parsed.projects;
+  } catch {
+    return [];
+  }
+}
+
+function saveCachedApiProjects(rows: ApiProject[]) {
+  if (typeof window === "undefined") return;
+  const payload: ApiProjectsCache = { savedAt: Date.now(), projects: rows };
+  apiListCached = payload;
+  try {
+    localStorage.setItem(API_PROJECTS_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+async function listProjectsSingleflight(): Promise<ApiProject[]> {
+  if (
+    apiListCached &&
+    Date.now() - apiListCached.savedAt < LIST_DEDUP_TTL_MS
+  ) {
+    return apiListCached.projects;
+  }
+  if (apiListInflight) return apiListInflight;
+  apiListInflight = (async () => {
+    try {
+      const { projects: rows } = await projectsApi.listProjects();
+      saveCachedApiProjects(rows);
+      return rows;
+    } finally {
+      apiListInflight = null;
+    }
+  })();
+  return apiListInflight;
+}
+
 function createLocalProject(input: {
   name: string;
   description?: string;
@@ -48,21 +107,27 @@ function createLocalProject(input: {
 }
 
 export function useProjects(apiEnabled: boolean) {
-  const [projects, setProjects] = useState<ApiProject[]>([]);
+  const [projects, setProjects] = useState<ApiProject[]>(() =>
+    apiEnabled ? loadCachedApiProjects() : loadLocalProjects(),
+  );
   const [loading, setLoading] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    const hasPaint =
+      (apiEnabled
+        ? (apiListCached?.projects.length ?? loadCachedApiProjects().length)
+        : loadLocalProjects().length) > 0;
+    if (!hasPaint) setLoading(true);
     try {
       if (apiEnabled) {
-        const { projects: rows } = await projectsApi.listProjects();
+        const rows = await listProjectsSingleflight();
         setProjects(rows);
       } else {
         setProjects(loadLocalProjects());
       }
     } catch {
-      setProjects(apiEnabled ? loadLocalProjects() : []);
+      setProjects(apiEnabled ? loadCachedApiProjects() : []);
     } finally {
       setLoading(false);
     }

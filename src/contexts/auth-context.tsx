@@ -22,6 +22,8 @@ import {
 } from "@/utils/identity-cookie";
 import { resolveAuthFullName } from "@/lib/profile-names";
 import { oauthSignInOptions } from "@/lib/oauth-providers";
+import { clearSupabaseAccessTokenSingleflight } from "@/lib/supabase-session-singleflight";
+import { clearSyncDeviceChatList } from "@/lib/device-chat-cache";
 
 type AuthContextValue = {
   user: SessionUser | null;
@@ -409,6 +411,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authApi.logout();
     } finally {
       clearIdentityHintFromDocument();
+      clearSupabaseAccessTokenSingleflight();
+      clearSyncDeviceChatList();
       setUser(null);
     }
   }, []);

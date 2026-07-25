@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api/client";
-import { createClient } from "@/utils/supabase/client";
 import { FULL_CHAT_HYDRATE_LIMIT } from "@/lib/chat-history-page-size";
+import { getSupabaseAccessTokenSingleflight } from "@/lib/supabase-session-singleflight";
 
 export type ApiChat = {
   id: string;
@@ -38,17 +38,14 @@ async function listChatsViaWorker(projectId?: string): Promise<{
   if (!base || typeof window === "undefined") return null;
 
   try {
-    const supabase = createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session?.access_token) return null;
+    const accessToken = await getSupabaseAccessTokenSingleflight();
+    if (!accessToken) return null;
 
     const params = new URLSearchParams({ limit: "50" });
     if (projectId) params.set("projectId", projectId);
     const response = await fetch(`${base}/v1/chats?${params}`, {
       headers: {
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
       credentials: "omit",
@@ -110,11 +107,8 @@ async function listMessagesPageViaWorker(
   if (!base || typeof window === "undefined") return null;
 
   try {
-    const supabase = createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session?.access_token) return null;
+    const accessToken = await getSupabaseAccessTokenSingleflight();
+    if (!accessToken) return null;
 
     const params = new URLSearchParams();
     if (input?.limit) params.set("limit", String(input.limit));
@@ -127,7 +121,7 @@ async function listMessagesPageViaWorker(
       `${base}/v1/chats/${encodeURIComponent(chatId)}/messages${qs ? `?${qs}` : ""}`,
       {
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
           Accept: "application/json",
         },
         credentials: "omit",

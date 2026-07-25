@@ -20,8 +20,84 @@ import {
 /** Sidebar meta rows retained locally (titles only). */
 export const DEVICE_CHAT_LIST_LIMIT = 100;
 
+/** Sync mirror for first-paint sidebar (IndexedDB is async). */
+const SYNC_CHAT_LIST_KEY = "clauxen-sync-chat-list";
+/** Titles painted on first frame — keep tight for localStorage quota. */
+const SYNC_CHAT_LIST_LIMIT = 50;
+
 /** @deprecated Bodies are no longer persisted; kept for import compatibility. */
 export const DEVICE_CHAT_MESSAGE_LIMIT = 0;
+
+type SyncChatListPayload = {
+  userId: string;
+  savedAt: number;
+  recentChats: RecentChat[];
+};
+
+function normalizeListRows(chats: RecentChat[]): RecentChat[] {
+  return chats
+    .filter((chat) => !chat.id.startsWith("pending-"))
+    .slice(0, DEVICE_CHAT_LIST_LIMIT)
+    .map((chat) => ({
+      id: chat.id,
+      name: chat.name,
+      titleGenerated: chat.titleGenerated,
+      projectId: chat.projectId,
+      pinned: chat.pinned,
+      updatedAt: chat.updatedAt,
+      isCreating: false,
+      isTitleStreaming: false,
+    }));
+}
+
+/** Synchronous localStorage list for first paint (return visits). */
+export function readSyncDeviceChatList(userId: string): RecentChat[] | null {
+  if (typeof window === "undefined" || !userId) return null;
+  try {
+    const raw = localStorage.getItem(SYNC_CHAT_LIST_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SyncChatListPayload;
+    if (!parsed?.userId || parsed.userId !== userId) return null;
+    if (!Array.isArray(parsed.recentChats) || parsed.recentChats.length === 0) {
+      return null;
+    }
+    return parsed.recentChats
+      .slice(0, SYNC_CHAT_LIST_LIMIT)
+      .map((chat) => ({
+        ...chat,
+        isCreating: false,
+        isTitleStreaming: false,
+      }));
+  } catch {
+    return null;
+  }
+}
+
+export function writeSyncDeviceChatList(
+  userId: string,
+  recentChats: RecentChat[],
+): void {
+  if (typeof window === "undefined" || !userId) return;
+  try {
+    const payload: SyncChatListPayload = {
+      userId,
+      savedAt: Date.now(),
+      recentChats: normalizeListRows(recentChats).slice(0, SYNC_CHAT_LIST_LIMIT),
+    };
+    localStorage.setItem(SYNC_CHAT_LIST_KEY, JSON.stringify(payload));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function clearSyncDeviceChatList(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(SYNC_CHAT_LIST_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 export function messagesForDeviceCache(messages: Message[]): Message[] {
   return messages;
@@ -34,16 +110,19 @@ export async function readDeviceChatList(
   if (!meta) return null;
   if (meta.userId && meta.userId !== userId) {
     await clearAllChatIndexedDB();
+    clearSyncDeviceChatList();
     return null;
   }
   if (!meta.recentChats?.length) return null;
-  return meta.recentChats
+  const rows = meta.recentChats
     .slice(0, DEVICE_CHAT_LIST_LIMIT)
     .map((chat) => ({
       ...chat,
       isCreating: false,
       isTitleStreaming: false,
     }));
+  writeSyncDeviceChatList(userId, rows);
+  return rows;
 }
 
 /** Bodies are not stored on device — always returns []. */
@@ -96,6 +175,8 @@ export function scheduleDeviceChatPersist(input: {
     activeChatId: input.activeChatId,
   });
 
+  writeSyncDeviceChatList(input.userId, input.recentChats);
+
   timeoutId = setTimeout(() => {
     void (async () => {
       if (cancelled) return;
@@ -124,6 +205,7 @@ export async function persistDeviceRecentChatsNow(
   recentChats: RecentChat[],
   activeChatId: string | null,
 ): Promise<void> {
+  writeSyncDeviceChatList(userId, recentChats);
   await persistChatMeta(
     buildDeviceChatMeta({
       userId,
@@ -148,9 +230,13 @@ export async function forgetDeviceChat(chatId: string): Promise<void> {
   await deleteChatFromIndexedDB(chatId);
   const meta = await loadChatMeta();
   if (!meta) return;
+  const recentChats = meta.recentChats.filter((c) => c.id !== chatId);
+  if (meta.userId) {
+    writeSyncDeviceChatList(meta.userId, recentChats);
+  }
   await persistChatMeta({
     ...meta,
-    recentChats: meta.recentChats.filter((c) => c.id !== chatId),
+    recentChats,
     activeChatId:
       meta.activeChatId === chatId ? null : meta.activeChatId,
     savedAt: Date.now(),

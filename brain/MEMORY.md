@@ -191,6 +191,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Chat transcripts for training: `chat_transcript_lines` stores Cursor-style JSONL records (`role` + `message.content` parts including `text` / `thinking` / `tool_use` / `tool_result`, plus `turn_ended`). View `chat_transcripts_jsonl` aggregates one JSONL doc per chat. Export: `GET /api/v1/chats/[chatId]/transcript`.
 - Branch PUT must use `sanitizeBranchMessages` (keeps ids/frames). Never `sanitizeMessages` for branch state — that stripped ids and caused reload duplicate assistants.
 - Chat-history Worker: Cache API → KV → R2 → Hyperdrive; also caches sidebar `GET /v1/chats` + JWT memo. Redeploy via `./scripts/ops/apply-cloudflare-perf-stack.sh` when `CLOUDFLARE_API_TOKEN` is valid. Tune Hyperdrive `--max-age 300 --swr 60`.
+- Instant app load (2026-07-25): sync `localStorage` chat-list paint + silent Worker reconcile; singleflight session token; projects list dedupe; chat-history TTLs list/JWT 300s, latest 900s / cursor 300s; SSR seed race 400ms; no loading chrome.
 - Local `CLOUDFLARE_API_TOKEN` / Vercel CLI tokens were invalid (9109 / login) as of 2026-07-14 — cannot deploy Workers or change Hyperdrive from this machine until tokens are refreshed.
 - Supabase: anon/authenticated EXECUTE revoked on chat SECURITY DEFINER RPCs; service_role/postgres only. Enable Auth leaked-password protection in dashboard.
 - Attachment Worker PUTs require `Authorization: Bearer <supabase access token>` when `worker: true` on presign.
