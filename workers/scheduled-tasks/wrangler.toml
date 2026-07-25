@@ -10,7 +10,7 @@ head_sampling_rate = 1
 
 # Secrets (wrangler secret put):
 #   SCHEDULED_TASKS_INTERNAL_TOKEN
-#   APP_ORIGIN  (e.g. https://clauxen.com)
+#   APP_ORIGIN  (e.g. https://www.clauxen.com)
 
 [vars]
 # Overridden per-env if needed; secret preferred for APP_ORIGIN in prod.

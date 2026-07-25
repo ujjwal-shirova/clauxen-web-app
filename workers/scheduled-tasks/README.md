@@ -17,7 +17,7 @@ Cron (* * * * *)
 ```bash
 cd workers/scheduled-tasks
 npx wrangler secret put SCHEDULED_TASKS_INTERNAL_TOKEN
-npx wrangler secret put APP_ORIGIN   # https://clauxen.com
+npx wrangler secret put APP_ORIGIN   # https://www.clauxen.com (avoid apex redirect; Worker must send User-Agent)
 npx wrangler deploy
 ```
 

@@ -210,13 +210,14 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Chat scroll: real wheel/touch input cancels programmatic stream-follow before pinned-state evaluation; follow is JS-eased and the viewport CSS stays `scroll-behavior:auto`.
 - Sticky chat: resolve active turn without cross-turn hysteresis; only the active turn is elevated. Keep docked user-action geometry in layout so code/table sticky offsets do not jump.
 - Production uploads require WORKER_URL; Hyperdrive chat-history stays caching-disabled; Vercel region pdx1 near Supabase us-west-1
-- Vercel CLI auth.json token invalid; dashboard login needs 2FA — wire CHAT_COORD_*/WORKER_URL/EDGE_CONFIG with fresh VERCEL_TOKEN or 2FA handoff. CF API token lacks zone edit (9109).
+- Vercel CLI auth.json token invalid; dashboard login needs 2FA — wire CHAT_COORD_*/WORKER_URL/EDGE_CONFIG with fresh VERCEL_TOKEN or 2FA handoff. CF API token lacks zone edit (9109). Prefer Chrome cookies via `pycookiecheat` (`/tmp/vercel-env-mgmt`) over Cursor browser for Vercel API.
+- CF custom rule blocks empty User-Agent → Workers that `fetch` clauxen.com must set `User-Agent` (e.g. `clauxen-scheduled-tasks-worker/1.0`) or dispatch returns 403 challenge HTML.
 - Vercel sensitive env vars cannot target Development — use a second encrypted row for development with the same value
 - Never overwrite unreadable Vercel sensitive env with .env.local — FORCE_OVERWRITE_SENSITIVE=1 only for intentional rotation
 - Razorpay live QR create may omit image_content; serve PNG from image_url (rzp.io → api.razorpay.com/v1/l/qrcode/…). Prefer image_content when present for upi:// without decode.
 ## Open threads
 
-- Deploy `clauxen-scheduled-tasks` Worker + set `SCHEDULED_TASKS_INTERNAL_TOKEN` on Vercel (prod/preview) and Worker secrets (`APP_ORIGIN=https://clauxen.com`).
+- ~~Deploy `clauxen-scheduled-tasks` Worker + `SCHEDULED_TASKS_INTERNAL_TOKEN`~~ **Done 2026-07-25**: Vercel prod/preview/dev set; Worker live with cron; `APP_ORIGIN=https://www.clauxen.com`; Worker fetch must send `User-Agent` (empty UA → CF 403).
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
 - Enable **X / Twitter (OAuth 2.0)** in Supabase with Client ID/Secret via Dashboard or `scripts/enable-x-auth.mjs` (app code already uses provider `x`).
 - Local-only (do not commit until asked): login OAuth button set (no Apple/X).

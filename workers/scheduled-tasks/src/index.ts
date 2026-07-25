@@ -14,7 +14,7 @@ export interface Env {
   APP_ORIGIN?: string;
 }
 
-const DEFAULT_ORIGIN = "https://clauxen.com";
+const DEFAULT_ORIGIN = "https://www.clauxen.com";
 
 function origin(env: Env): string {
   return (env.APP_ORIGIN?.trim() || DEFAULT_ORIGIN).replace(/\/+$/, "");
@@ -30,12 +30,15 @@ async function dispatch(env: Env, limit = 8): Promise<Response> {
   }
 
   const url = `${origin(env)}/api/v1/internal/scheduled-tasks/dispatch?async=1&limit=${limit}`;
+  // CF zone blocks empty UA (custom rule). Workers fetch often omits UA → 403 challenge HTML.
   const res = await fetch(url, {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
       "x-clauxen-internal": token,
       "content-type": "application/json",
+      "user-agent": "clauxen-scheduled-tasks-worker/1.0",
+      accept: "application/json",
     },
   });
 
