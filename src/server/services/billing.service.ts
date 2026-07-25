@@ -9,6 +9,7 @@ import {
   type CheckoutSessionClaims,
 } from "@/server/billing/checkout-session";
 import {
+  captureRazorpayPayment,
   createRazorpayOrder,
   createRazorpayUpiPaymentLink,
   createRazorpayUpiQr,
@@ -806,7 +807,42 @@ export async function verifyCheckoutPayment(input: {
   const amountPaiseForFulfill =
     payment.currency.toUpperCase() === "INR" ? payment.amount : null;
 
-  if (payment.status !== "captured" && !payment.captured) {
+  let settledPayment = payment;
+
+  if (
+    settledPayment.status === "failed" ||
+    settledPayment.status === "refunded"
+  ) {
+    throw new AppError(
+      "Payment was not successful.",
+      400,
+      "payment_not_captured",
+    );
+  }
+
+  // Auto-capture when bank auth succeeded but capture is still pending.
+  if (settledPayment.status === "authorized") {
+    try {
+      settledPayment = await captureRazorpayPayment({
+        paymentId: input.razorpayPaymentId,
+        amount: settledPayment.amount,
+        currency: settledPayment.currency,
+      });
+    } catch (err) {
+      // Race: webhook/auto-capture may have finished — re-fetch once.
+      settledPayment = await fetchRazorpayPayment(input.razorpayPaymentId);
+      if (settledPayment.status !== "captured" && !settledPayment.captured) {
+        console.warn("[billing] capture pending after authorize", err);
+        throw new AppError(
+          "Payment is not captured yet.",
+          400,
+          "payment_not_captured",
+        );
+      }
+    }
+  }
+
+  if (settledPayment.status !== "captured" && !settledPayment.captured) {
     throw new AppError(
       "Payment is not captured yet.",
       400,
@@ -819,27 +855,30 @@ export async function verifyCheckoutPayment(input: {
     paymentId: input.razorpayPaymentId,
     paymentStatus: "captured",
     paymentMethod:
-      payment.method ??
-      (typeof payment.notes === "object" &&
-      payment.notes &&
-      (payment.notes as Record<string, string>).provider === "apple_pay"
+      settledPayment.method ??
+      (typeof settledPayment.notes === "object" &&
+      settledPayment.notes &&
+      (settledPayment.notes as Record<string, string>).provider === "apple_pay"
         ? "apple_pay"
         : "card"),
-    paymentEmail: payment.email ?? "",
-    paymentContact: payment.contact ?? "",
+    paymentEmail: settledPayment.email ?? "",
+    paymentContact: settledPayment.contact ?? "",
     amountPaise: amountPaiseForFulfill,
-    currency: payment.currency,
+    currency: settledPayment.currency,
     source: "checkout",
     providerPayload: {
-      currency: payment.currency,
-      razorpayAmount: payment.amount,
+      currency: settledPayment.currency,
+      razorpayAmount: settledPayment.amount,
       inrLedgerPaise: order.amount_paise,
       verifiedAt: new Date().toISOString(),
     },
   });
 
   // Persist PCI-safe card-on-file immediately after verified capture.
-  if ((payment.method === "card" || !payment.method) && order.user_id) {
+  if (
+    (settledPayment.method === "card" || !settledPayment.method) &&
+    order.user_id
+  ) {
     try {
       const { saveCardOnFileFromPayment } = await import(
         "@/server/services/billing-profile.service"
@@ -854,7 +893,15 @@ export async function verifyCheckoutPayment(input: {
     }
   }
 
-  await enqueueInvoiceGeneration(input.razorpayOrderId, input.razorpayPaymentId);
+  // Never block plan activation / success redirect on invoice generation.
+  try {
+    await enqueueInvoiceGeneration(
+      input.razorpayOrderId,
+      input.razorpayPaymentId,
+    );
+  } catch (err) {
+    console.warn("[billing] invoice enqueue failed after fulfill", err);
+  }
 
   return result;
 }

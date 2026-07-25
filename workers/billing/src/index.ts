@@ -203,6 +203,17 @@ export default {
         });
       }
 
+      const payCaptureMatch = url.pathname.match(
+        /^\/v1\/razorpay\/payments\/([^/]+)\/capture$/,
+      );
+      if (request.method === "POST" && payCaptureMatch) {
+        const body = await request.text();
+        return razorpayApi(env, `/v1/payments/${payCaptureMatch[1]}/capture`, {
+          method: "POST",
+          body,
+        });
+      }
+
       const payMatch = url.pathname.match(/^\/v1\/razorpay\/payments\/([^/]+)$/);
       if (request.method === "GET" && payMatch) {
         return razorpayApi(env, `/v1/payments/${payMatch[1]}`);

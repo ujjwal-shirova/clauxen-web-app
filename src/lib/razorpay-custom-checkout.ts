@@ -73,6 +73,12 @@ type RazorpayCustomBasePaymentInput = {
 
 export type RazorpayCustomCardPaymentInput = RazorpayCustomBasePaymentInput & {
   card: CustomCardDetails;
+  /**
+   * Persist instrument on Razorpay (mandate / save-card setup only).
+   * Requires `customerId`. Never set on one-off subscription checkout —
+   * `save: 1` without tokenization enabled aborts createPayment with 0 attempts.
+   */
+  saveInstrument?: boolean;
 };
 
 export type RazorpayCustomNetbankingPaymentInput =
@@ -319,7 +325,13 @@ function attachPaymentHandlers(
 
   razorpay.on("payment.error", (response: unknown) => {
     const err = response as {
-      error?: { description?: string; reason?: string };
+      error?: {
+        description?: string;
+        reason?: string;
+        code?: string;
+        source?: string;
+        step?: string;
+      };
     };
     const message =
       err?.error?.description ||
@@ -331,21 +343,9 @@ function attachPaymentHandlers(
   });
 }
 
-/**
- * Charge a card immediately via Custom Checkout createPayment.
- * Must be called from a user gesture (click).
- */
-export async function chargeCardWithRazorpayCustom(
+function buildCardCreatePaymentPayload(
   input: RazorpayCustomCardPaymentInput,
-): Promise<void> {
-  assertCheckoutInput(input);
-
-  const loaded = await loadRazorpayCustomScript();
-  const RazorpayCtor = getRazorpayCustomCtor();
-  if (!loaded || !RazorpayCtor) {
-    throw new Error("Could not load Razorpay checkout.");
-  }
-
+): Record<string, unknown> {
   const number = cardNumberDigits(input.card.number);
   if (number.length < 15 || number.length > 19) {
     throw new Error("Enter a valid card number.");
@@ -363,6 +363,53 @@ export async function chargeCardWithRazorpayCustom(
     throw new Error("Email is required to complete card payment.");
   }
 
+  if (input.saveInstrument && !input.customerId) {
+    throw new Error("Customer id is required to save a payment method.");
+  }
+
+  return {
+    amount: input.amount,
+    currency: input.currency,
+    order_id: input.orderId,
+    email,
+    ...(input.contact ? { contact: input.contact } : {}),
+    ...(input.customerId ? { customer_id: input.customerId } : {}),
+    // Only for mandate/setup — never on one-off plan checkout.
+    ...(input.saveInstrument ? { save: 1 } : {}),
+    method: "card",
+    card: {
+      number,
+      name,
+      expiry_month: month,
+      // Razorpay Custom Checkout expects YY (see docs).
+      expiry_year: year,
+      cvv,
+    },
+  };
+}
+
+/**
+ * Start a card charge via Custom Checkout **in the same click turn**.
+ *
+ * Prefetch the order + {@link warmRazorpayCustomCheckout} first; call this from
+ * the Pay click with no awaits before it. Awaiting order creation before
+ * `createPayment` breaks the user-gesture chain — 3DS never opens and Razorpay
+ * records `attempts: 0`.
+ *
+ * @see https://razorpay.com/docs/payments/payment-gateway/web-integration/custom/build-integration/
+ */
+export function startCardWithRazorpayCustom(
+  input: RazorpayCustomCardPaymentInput,
+): void {
+  assertCheckoutInput(input);
+
+  const RazorpayCtor = getRazorpayCustomCtor();
+  if (!RazorpayCtor) {
+    throw new Error("Razorpay checkout is not ready. Please try again.");
+  }
+
+  const payload = buildCardCreatePaymentPayload(input);
+
   const razorpay = new RazorpayCtor({
     key: input.keyId,
     name: "Shirova",
@@ -372,28 +419,77 @@ export async function chargeCardWithRazorpayCustom(
   });
   activeCustomCheckout = razorpay;
 
+  // Fire-and-forget handlers — Pay click must not await a Promise around createPayment.
+  razorpay.on("payment.success", async (response: unknown) => {
+    try {
+      const successPayload = response as RazorpayCustomSuccessPayload;
+      assertPaymentResponse(successPayload);
+      await input.onSuccess(successPayload);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Payment verification failed.";
+      input.onFailure?.(message);
+    } finally {
+      activeCustomCheckout = null;
+    }
+  });
+
+  razorpay.on("payment.error", (response: unknown) => {
+    const err = response as {
+      error?: { description?: string; reason?: string };
+    };
+    const message =
+      err?.error?.description ||
+      err?.error?.reason ||
+      "Payment was not completed. Please try again.";
+    activeCustomCheckout = null;
+    input.onFailure?.(message);
+  });
+
+  try {
+    razorpay.createPayment(payload);
+  } catch (error) {
+    activeCustomCheckout = null;
+    const message =
+      error instanceof Error ? error.message : "Could not start card payment.";
+    input.onFailure?.(message);
+    throw error instanceof Error ? error : new Error(message);
+  }
+}
+
+/**
+ * Charge a card via Custom Checkout createPayment.
+ * Prefer {@link startCardWithRazorpayCustom} from Pay clicks after prefetch.
+ * Safe for mandate setup where an await before createPayment is unavoidable.
+ */
+export async function chargeCardWithRazorpayCustom(
+  input: RazorpayCustomCardPaymentInput,
+): Promise<void> {
+  assertCheckoutInput(input);
+
+  const loaded = await loadRazorpayCustomScript();
+  const RazorpayCtor = getRazorpayCustomCtor();
+  if (!loaded || !RazorpayCtor) {
+    throw new Error("Could not load Razorpay checkout.");
+  }
+
+  const payload = buildCardCreatePaymentPayload(input);
+
+  const razorpay = new RazorpayCtor({
+    key: input.keyId,
+    name: "Shirova",
+    description: input.description,
+    theme: { color: "#18181b", backdrop_color: "#00000066" },
+  });
+  activeCustomCheckout = razorpay;
+
   return new Promise<void>((resolve, reject) => {
     attachPaymentHandlers(razorpay, input, resolve, reject);
 
     try {
-      razorpay.createPayment({
-        amount: input.amount,
-        currency: input.currency,
-        order_id: input.orderId,
-        email,
-        ...(input.contact ? { contact: input.contact } : {}),
-        ...(input.customerId ? { customer_id: input.customerId } : {}),
-        // Persist instrument on Razorpay for future charges (mandate / token).
-        save: 1,
-        method: "card",
-        card: {
-          number,
-          name,
-          expiry_month: month,
-          expiry_year: year,
-          cvv,
-        },
-      });
+      razorpay.createPayment(payload);
     } catch (error) {
       activeCustomCheckout = null;
       reject(

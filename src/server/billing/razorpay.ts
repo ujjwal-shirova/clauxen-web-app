@@ -68,6 +68,10 @@ async function razorpayApi<T>(path: string, init?: RequestInit): Promise<T> {
       } else if (path === "/v1/payments/qr_codes" && method === "POST") {
         workerPath = "/v1/razorpay/upi-qr";
       } else {
+        const payCapture = path.match(/^\/v1\/payments\/([^/?]+)\/capture$/);
+        if (payCapture && method === "POST") {
+          workerPath = `/v1/razorpay/payments/${payCapture[1]}/capture`;
+        }
         const pay = path.match(/^\/v1\/payments\/([^/?]+)$/);
         if (pay && method === "GET") {
           workerPath = `/v1/razorpay/payments/${pay[1]}`;
@@ -156,6 +160,8 @@ export async function createRazorpayOrder(input: {
     currency,
     receipt: input.receipt,
     notes: input.notes ?? {},
+    // Auto-capture on auth so checkout verify isn't stuck on "authorized".
+    payment_capture: 1,
   });
 
   if (input.preferDirect && env.razorpayKeyId && env.razorpayKeySecret) {
@@ -246,6 +252,38 @@ export async function fetchRazorpayOrder(orderId: string) {
     currency: string;
     status: string;
   }>(`/v1/orders/${orderId}`);
+}
+
+/** Capture an authorized payment (direct keys preferred — Worker has no capture route yet). */
+export async function captureRazorpayPayment(input: {
+  paymentId: string;
+  amount: number;
+  currency: string;
+}): Promise<RazorpayPaymentEntity> {
+  if (!RAZORPAY_PAYMENT_ID_RE.test(input.paymentId)) {
+    throw new AppError("Invalid payment id.", 400, "bad_request");
+  }
+  if (!Number.isInteger(input.amount) || input.amount <= 0) {
+    throw new AppError("Invalid capture amount.", 400, "bad_request");
+  }
+
+  const body = JSON.stringify({
+    amount: input.amount,
+    currency: input.currency.toUpperCase(),
+  });
+
+  // Prefer Vercel keys so we don't depend on Worker path coverage.
+  if (env.razorpayKeyId && env.razorpayKeySecret) {
+    return razorpayApiDirect<RazorpayPaymentEntity>(
+      `/v1/payments/${input.paymentId}/capture`,
+      { method: "POST", body },
+    );
+  }
+
+  return razorpayApi<RazorpayPaymentEntity>(
+    `/v1/payments/${input.paymentId}/capture`,
+    { method: "POST", body },
+  );
 }
 
 // Razorpay webhook payload authenticity verify — HMAC-SHA256(rawBody, webhookSecret) === signature header

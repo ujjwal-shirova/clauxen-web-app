@@ -61,6 +61,7 @@ export function AddPaymentMethodDialog({
           currency: "INR",
           allowZeroAmount: true,
           customerId: setup.customerId,
+          saveInstrument: true,
           email: auth.user?.email ?? undefined,
           description: "Securely save payment method · ₹0 authorization",
           card: {
