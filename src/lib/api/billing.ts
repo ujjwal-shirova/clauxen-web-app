@@ -218,13 +218,26 @@ export async function verifyBillingPayment(input: {
   razorpayOrderId: string;
   razorpayPaymentId: string;
   razorpaySignature: string;
+  /** First 4 digits only for card-on-file display. Never send full PAN. */
+  cardFirst4?: string;
 }) {
   assertRazorpayVerifyInput(input);
+  const cardFirst4 =
+    typeof input.cardFirst4 === "string"
+      ? input.cardFirst4.replace(/\D/g, "").slice(0, 4)
+      : undefined;
   return apiFetch<{ fulfillment: { status?: string } | null }>(
     "/api/v1/billing/orders/verify",
     {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        razorpayOrderId: input.razorpayOrderId,
+        razorpayPaymentId: input.razorpayPaymentId,
+        razorpaySignature: input.razorpaySignature,
+        ...(cardFirst4 && /^\d{4}$/.test(cardFirst4)
+          ? { cardFirst4 }
+          : {}),
+      }),
     },
   );
 }
@@ -255,4 +268,76 @@ export async function getBillingInvoice(paymentId: string) {
 /** Opens the server-generated PDF in a new tab (auth cookies applied). */
 export function billingInvoicePdfUrl(paymentId: string) {
   return `/api/v1/billing/invoices/${encodeURIComponent(paymentId)}/pdf`;
+}
+
+export type BillingAddressDto = {
+  id: string;
+  fullName: string;
+  countryCode: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  phone: string | null;
+  summary: string;
+};
+
+export type PaymentMethodDto = {
+  id: string;
+  network: string;
+  brand: string;
+  cardFirst4: string;
+  cardLast4: string;
+  maskedNumber: string;
+  expMonth: number | null;
+  expYear: number | null;
+  isDefault: boolean;
+  createdAt: string;
+};
+
+export async function getBillingAddress() {
+  return apiFetch<{ address: BillingAddressDto | null }>(
+    "/api/v1/billing/address",
+  );
+}
+
+export async function upsertBillingAddress(input: {
+  fullName: string;
+  countryCode?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  phone?: string | null;
+  notify?: boolean;
+}) {
+  return apiFetch<{ address: BillingAddressDto }>("/api/v1/billing/address", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function listPaymentMethods() {
+  return apiFetch<{ paymentMethods: PaymentMethodDto[] }>(
+    "/api/v1/billing/payment-methods",
+  );
+}
+
+export async function setDefaultPaymentMethod(id: string) {
+  return apiFetch<{ paymentMethod: PaymentMethodDto }>(
+    `/api/v1/billing/payment-methods/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ action: "set_default" }),
+    },
+  );
+}
+
+export async function deletePaymentMethod(id: string) {
+  return apiFetch<{ ok: boolean }>(
+    `/api/v1/billing/payment-methods/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );
 }

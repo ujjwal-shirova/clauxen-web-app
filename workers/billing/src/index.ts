@@ -14,6 +14,7 @@
  *   POST /v1/razorpay/qr/:id/close    (internal) close QR
  *   POST /v1/razorpay/verify-signature (internal)
  *   POST /v1/invoices/generate        (internal) build PDF → R2 + Razorpay Documents
+ *   POST /v1/email/send               (internal) invoice / billing notifications
  *   GET  /v1/invoices/:paymentId/pdf  (user JWT or internal)
  *
  * Auth:
@@ -24,6 +25,7 @@
 
 import { buildInvoicePdf } from "./invoice-pdf";
 import { uploadInvoicePdfToRazorpay } from "./razorpay-invoice-upload";
+import { sendBillingEmail, type EmailSendPayload } from "./email";
 import type {
   InvoiceGenerateRequest,
   InvoiceGenerateResponse,
@@ -39,6 +41,18 @@ export interface Env {
   INVOICE_ISSUER_NAME?: string;
   INVOICE_ISSUER_LEGAL?: string;
   INVOICE_ISSUER_ADDRESS?: string;
+  EMAIL?: {
+    send: (msg: {
+      to: string | { email: string; name?: string };
+      from: string | { email: string; name?: string };
+      subject: string;
+      html?: string;
+      text?: string;
+    }) => Promise<{ messageId?: string }>;
+  };
+  FROM_EMAIL?: string;
+  FROM_NAME?: string;
+  APP_ORIGIN?: string;
 }
 
 function json(data: unknown, status = 200): Response {
@@ -321,6 +335,22 @@ export default {
         razorpayDocumentPurpose: uploaded?.purpose ?? null,
       };
       return json(response);
+    }
+
+    // --- Billing notification email (internal) ---
+    if (request.method === "POST" && url.pathname === "/v1/email/send") {
+      if (!isInternal(request, env)) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+      const payload = (await request.json()) as EmailSendPayload;
+      if (!payload?.to || !payload.kind) {
+        return json({ error: "Invalid email payload" }, 400);
+      }
+      const result = await sendBillingEmail(env, payload);
+      if (!result.ok) {
+        return json({ ok: false, error: result.error ?? "send_failed" }, 503);
+      }
+      return json({ ok: true });
     }
 
     // --- Invoice PDF download ---

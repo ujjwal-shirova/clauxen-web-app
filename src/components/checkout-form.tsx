@@ -12,6 +12,7 @@ import {
   CheckoutBillingAddress,
   type CheckoutAddressState,
 } from "@/components/checkout-billing-address";
+import { CheckoutBillingAddressSummary } from "@/components/checkout-billing-address-summary";
 import { CheckoutQrHint } from "@/components/checkout-qr-hint";
 import { CheckoutRazorpayTrust } from "@/components/checkout-razorpay-trust";
 import { checkoutUi } from "@/lib/checkout-ui";
@@ -51,6 +52,9 @@ export type CheckoutFormProps = {
   onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
   billingAddress: CheckoutAddressState;
   onBillingAddressChange: (state: CheckoutAddressState) => void;
+  /** When true, show compact address summary instead of the full form. */
+  billingAddressCollapsed?: boolean;
+  onEditBillingAddress?: () => void;
 };
 
 export function CheckoutForm({
@@ -82,6 +86,8 @@ export function CheckoutForm({
   onNetbankingChange,
   billingAddress,
   onBillingAddressChange,
+  billingAddressCollapsed = false,
+  onEditBillingAddress,
 }: CheckoutFormProps) {
   const isUpi = paymentTab === "upi";
 
@@ -106,15 +112,20 @@ export function CheckoutForm({
           onNetbankingChange={onNetbankingChange}
         />
 
-        {isUpi && (
-          <div className="flex flex-col gap-3">
-            <CheckoutQrHint />
+        <div className="flex flex-col gap-3">
+          {isUpi && <CheckoutQrHint />}
+          {billingAddressCollapsed && billingAddress.isComplete ? (
+            <CheckoutBillingAddressSummary
+              address={billingAddress}
+              onEdit={() => onEditBillingAddress?.()}
+            />
+          ) : (
             <CheckoutBillingAddress
               value={billingAddress}
               onChange={onBillingAddressChange}
             />
-          </div>
-        )}
+          )}
+        </div>
 
         <div className={checkoutUi.section}>
           <label className="flex cursor-pointer items-center gap-2">

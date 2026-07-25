@@ -5,6 +5,7 @@ import UpgradePageContent from "./subscription";
 import type { MaxTier } from "./billing-checkout";
 import { BillingCheckout } from "./billing-checkout";
 import { InvoiceView, type InvoiceData } from "./invoice-view";
+import { PaymentSuccessDialog } from "./payment-success-dialog";
 import { FullscreenPortal } from "./fullscreen-portal";
 import {
   billingInvoicePdfUrl,
@@ -16,7 +17,7 @@ interface UpgradeViewProps {
 }
 
 type BillingCycle = "monthly" | "yearly";
-type ViewState = "plans" | "checkout" | "invoice";
+type ViewState = "plans" | "checkout" | "invoice" | "success";
 
 export function UpgradeView({ onClose }: UpgradeViewProps) {
   const [currentView, setCurrentView] = useState<ViewState>("plans");
@@ -64,56 +65,35 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
     const paymentId = details?.razorpayPaymentId;
     if (paymentId) {
       setLastPaymentId(paymentId);
-      for (let i = 0; i < 6; i++) {
-        try {
-          const res = await getBillingInvoice(paymentId);
-          setInvoiceData({
-            ...res.invoice,
-            paymentId,
-            pdfAvailable: Boolean(res.pdfKey),
-          });
-          setCurrentView("invoice");
-          setPlansRefreshKey((k) => k + 1);
-          return;
-        } catch {
-          await new Promise((r) => window.setTimeout(r, 400 * (i + 1)));
+      // Prefetch invoice in background; success card is the primary UX.
+      void (async () => {
+        for (let i = 0; i < 6; i++) {
+          try {
+            const res = await getBillingInvoice(paymentId);
+            setInvoiceData({
+              ...res.invoice,
+              paymentId,
+              pdfAvailable: Boolean(res.pdfKey),
+            });
+            return;
+          } catch {
+            await new Promise((r) => window.setTimeout(r, 400 * (i + 1)));
+          }
         }
-      }
+      })();
     }
-
-    const now = new Date();
-    setInvoiceData({
-      invoiceNumber: (
-        details?.razorpayOrderId ||
-        paymentId ||
-        `INV${Date.now()}`
-      )
-        .slice(-14)
-        .toUpperCase(),
-      issuedAt: now.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-      status: "paid",
-      currency: "INR",
-      billedTo: { name: "You" },
-      items: [
-        {
-          label: selectedPlanName || "Shirova Subscription",
-          sublabel: `${selectedBillingCycle} · auto-renew`,
-          quantity: "1",
-          amount: 0,
-        },
-      ],
-      subtotal: 0,
-      total: 0,
-      paymentMethod: "Razorpay",
-      razorpayPaymentId: paymentId,
-      paymentId,
-    });
-    setCurrentView("invoice");
     setPlansRefreshKey((k) => k + 1);
+    setCurrentView("success");
+  };
+
+  const handleSuccessContinue = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("clauxen:billing-updated"));
+      onClose();
+      window.location.href = "/new?checkout=success";
+      return;
+    }
+    onClose();
   };
 
   const handleInvoiceClose = () => {
@@ -161,6 +141,14 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
             data={invoiceData}
             onClose={handleInvoiceClose}
             onDownload={handleInvoiceDownload}
+          />
+        )}
+
+        {currentView === "success" && (
+          <PaymentSuccessDialog
+            open
+            planName={selectedPlanName}
+            onGetStarted={handleSuccessContinue}
           />
         )}
       </div>

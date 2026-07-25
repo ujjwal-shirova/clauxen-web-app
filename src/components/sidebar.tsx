@@ -289,6 +289,7 @@ export function Sidebar({
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [recentsExpanded, setRecentsExpanded] = useState(true);
   const [moreExpanded, setMoreExpanded] = useState(false);
+  const [planLabel, setPlanLabel] = useState("Free plan");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -305,6 +306,38 @@ export function Sidebar({
     setRecentsExpanded(readSectionExpanded("recents", true));
     setMoreExpanded(readSectionExpanded("more", false));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPlan = async () => {
+      if (!userEmail) {
+        setPlanLabel("Free plan");
+        return;
+      }
+      try {
+        const { getBillingSubscription } = await import("@/lib/api/billing");
+        const overview = await getBillingSubscription();
+        if (cancelled) return;
+        const planId = overview.subscription?.plan_id;
+        if (!planId) {
+          setPlanLabel("Free plan");
+          return;
+        }
+        const match = overview.plans?.find((p) => p.id === planId);
+        const name = match?.display_name || planId;
+        setPlanLabel(name.toLowerCase().includes("plan") ? name : `${name} plan`);
+      } catch {
+        if (!cancelled) setPlanLabel("Free plan");
+      }
+    };
+    void loadPlan();
+    const onBillingUpdated = () => void loadPlan();
+    window.addEventListener("clauxen:billing-updated", onBillingUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("clauxen:billing-updated", onBillingUpdated);
+    };
+  }, [userEmail]);
 
   const toggleSection = (key: SidebarSectionKey) => {
     const setters: Record<
@@ -973,7 +1006,7 @@ export function Sidebar({
                       {userDisplayName}
                     </p>
                     <p className="text-[11px] leading-3.5 text-zinc-500">
-                      Free plan
+                      {planLabel}
                     </p>
                   </div>
                   {!isCollapsed && (

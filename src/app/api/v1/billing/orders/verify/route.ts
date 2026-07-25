@@ -38,6 +38,8 @@ export const POST = withApiHandler(
       razorpayOrderId?: string;
       razorpayPaymentId?: string;
       razorpaySignature?: string;
+      /** First 4 digits only — for card-on-file display. Never send full PAN. */
+      cardFirst4?: string;
     };
 
     if (
@@ -57,6 +59,14 @@ export const POST = withApiHandler(
       razorpaySignature: body.razorpaySignature,
     });
 
+    const cardFirst4 =
+      typeof body.cardFirst4 === "string"
+        ? body.cardFirst4.replace(/\D/g, "").slice(0, 4)
+        : undefined;
+    if (cardFirst4 && !/^\d{4}$/.test(cardFirst4)) {
+      throw new AppError("Invalid cardFirst4.", 400, "bad_request");
+    }
+
     const order = await queryOne<{ user_id: string }>(
       `select user_id from public.billing_orders where razorpay_order_id = $1 limit 1`,
       [body.razorpayOrderId],
@@ -70,6 +80,8 @@ export const POST = withApiHandler(
       razorpayOrderId: body.razorpayOrderId,
       razorpayPaymentId: body.razorpayPaymentId,
       razorpaySignature: body.razorpaySignature,
+      userId: user.id,
+      cardFirst4: cardFirst4 || undefined,
     });
 
     return jsonData({ fulfillment: result });

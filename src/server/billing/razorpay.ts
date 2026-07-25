@@ -178,6 +178,20 @@ export async function createRazorpayOrder(input: {
   });
 }
 
+export type RazorpayPaymentCard = {
+  id?: string;
+  entity?: string;
+  name?: string;
+  last4?: string;
+  network?: string;
+  type?: string;
+  issuer?: string;
+  international?: boolean;
+  emi?: boolean;
+  expiry_month?: number;
+  expiry_year?: number;
+};
+
 export type RazorpayPaymentEntity = {
   id: string;
   entity: string;
@@ -190,6 +204,10 @@ export type RazorpayPaymentEntity = {
   contact?: string;
   captured: boolean;
   notes?: Record<string, string> | string[];
+  /** Present on card payments when Razorpay returns card details. */
+  card?: RazorpayPaymentCard | null;
+  token_id?: string | null;
+  card_id?: string | null;
 };
 
 /** Server-side payment fetch — verify amount/order before fulfillment. */
@@ -200,12 +218,18 @@ export async function fetchRazorpayPayment(
     throw new AppError("Invalid payment id.", 400, "bad_request");
   }
 
+  // Expand card so we can persist last4/network for card-on-file (never PAN).
   const payment = await razorpayApi<RazorpayPaymentEntity>(
-    `/v1/payments/${paymentId}`,
+    `/v1/payments/${paymentId}?expand[]=card`,
   );
 
   if (!payment?.id || payment.entity !== "payment") {
     throw new AppError("Invalid Razorpay payment response.", 502, "razorpay_error");
+  }
+
+  // Normalize card_id onto card object when Razorpay returns it at top level.
+  if (!payment.card?.id && payment.card_id) {
+    payment.card = { ...(payment.card ?? {}), id: payment.card_id };
   }
 
   return payment;

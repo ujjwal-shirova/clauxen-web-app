@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChatArea } from "@/components/chat-area";
+import { PaymentSuccessDialog } from "@/components/payment-success-dialog";
 import { useOptionalChatSession } from "@/contexts/chat-session-context";
 import { useChat } from "@/hooks/use-chat";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,6 +19,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { useProjects } from "@/hooks/use-projects";
 import * as projectsApi from "@/lib/api/projects";
+import { getBillingSubscription } from "@/lib/api/billing";
 import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,
@@ -81,9 +83,30 @@ function ChatViewBody({
     projectBreadcrumb?.label ?? null,
   );
   const [enterMethod, setEnterMethod] = useState<string | null>(null);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [successPlanName, setSuccessPlanName] = useState<string | null>(null);
 
   useEffect(() => {
     setEnterMethod(readChatEnterMethod());
+  }, [pathname]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "success") return;
+    setShowPaymentSuccess(true);
+    void getBillingSubscription()
+      .then((overview) => {
+        const planId = overview.subscription?.plan_id;
+        const match = overview.plans?.find((p) => p.id === planId);
+        setSuccessPlanName(match?.display_name || planId || null);
+        window.dispatchEvent(new CustomEvent("clauxen:billing-updated"));
+      })
+      .catch(() => undefined);
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("checkout");
+    window.history.replaceState(null, "", url.pathname + url.search);
   }, [pathname]);
 
   const homerReasoningEffort =
@@ -306,42 +329,49 @@ function ChatViewBody({
   );
 
   return (
-    <ChatArea
-      messages={displayMessages}
-      onSendMessage={handleSendMessageAndRoute}
-      onStopGeneration={stopGeneration}
-      isGenerating={isGenerating}
-      queuedMessages={queuedMessages ?? []}
-      onEditQueuedMessage={editQueuedMessage}
-      onSendQueuedMessageNow={sendQueuedMessageNow}
-      onRemoveQueuedMessage={removeQueuedMessage}
-      onUpgradeClick={() => overlays.openPricing()}
-      editMessageWithBranch={editMessageWithBranch}
-      redoUserMessageWithBranch={redoUserMessageWithBranch}
-      retryAssistantWithBranch={retryAssistantWithBranch}
-      switchMessageBranch={switchMessageBranch}
-      activeChatId={displayActiveChatId}
-      messagesLoading={displayMessagesLoading}
-      messagesLoadError={messagesLoadError}
-      onRetryMessages={retryLoadMessages}
-      creatingChatPending={creatingChatPending && !blankNewChatComposer}
-      activeChatTitle={displayActiveChat?.name ?? "New Chat"}
-      isActiveChatTitleStreaming={!!displayActiveChat?.isTitleStreaming}
-      isActiveChatPinned={!!displayActiveChat?.pinned}
-      onRenameChat={handleRenameChat}
-      onPinChat={handlePinChat}
-      onDeleteChat={handleDeleteChatAndLeave}
-      onOpenSettings={() => overlays.openSettings("General")}
-      onMoveToProject={() => router.push(APP_ROUTES.projects)}
-      homerReasoningEffort={homerReasoningEffort}
-      onHomerReasoningEffortChange={setHomerReasoningEffort}
-      chatModel={chatModel}
-      onChatModelChange={setChatModel}
-      onOpenMobileNav={openMobileNav}
-      showMobileMenu={isMobile && isSidebarCollapsed}
-      projectBreadcrumb={effectiveBreadcrumb}
-      lockedProjectId={projectId ?? bindProjectId}
-    />
+    <>
+      <ChatArea
+        messages={displayMessages}
+        onSendMessage={handleSendMessageAndRoute}
+        onStopGeneration={stopGeneration}
+        isGenerating={isGenerating}
+        queuedMessages={queuedMessages ?? []}
+        onEditQueuedMessage={editQueuedMessage}
+        onSendQueuedMessageNow={sendQueuedMessageNow}
+        onRemoveQueuedMessage={removeQueuedMessage}
+        onUpgradeClick={() => overlays.openPricing()}
+        editMessageWithBranch={editMessageWithBranch}
+        redoUserMessageWithBranch={redoUserMessageWithBranch}
+        retryAssistantWithBranch={retryAssistantWithBranch}
+        switchMessageBranch={switchMessageBranch}
+        activeChatId={displayActiveChatId}
+        messagesLoading={displayMessagesLoading}
+        messagesLoadError={messagesLoadError}
+        onRetryMessages={retryLoadMessages}
+        creatingChatPending={creatingChatPending && !blankNewChatComposer}
+        activeChatTitle={displayActiveChat?.name ?? "New Chat"}
+        isActiveChatTitleStreaming={!!displayActiveChat?.isTitleStreaming}
+        isActiveChatPinned={!!displayActiveChat?.pinned}
+        onRenameChat={handleRenameChat}
+        onPinChat={handlePinChat}
+        onDeleteChat={handleDeleteChatAndLeave}
+        onOpenSettings={() => overlays.openSettings("General")}
+        onMoveToProject={() => router.push(APP_ROUTES.projects)}
+        homerReasoningEffort={homerReasoningEffort}
+        onHomerReasoningEffortChange={setHomerReasoningEffort}
+        chatModel={chatModel}
+        onChatModelChange={setChatModel}
+        onOpenMobileNav={openMobileNav}
+        showMobileMenu={isMobile && isSidebarCollapsed}
+        projectBreadcrumb={effectiveBreadcrumb}
+        lockedProjectId={projectId ?? bindProjectId}
+      />
+      <PaymentSuccessDialog
+        open={showPaymentSuccess}
+        planName={successPlanName}
+        onGetStarted={() => setShowPaymentSuccess(false)}
+      />
+    </>
   );
 }
 

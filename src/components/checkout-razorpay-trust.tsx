@@ -19,7 +19,7 @@ export function CheckoutRazorpayTrust({ className }: { className?: string }) {
         className,
       )}
     >
-      <span>Payment is handled by</span>
+      <span>Payment is securely handled by</span>
       <a
         href={RAZORPAY_TRUST_HREF}
         target="_blank"

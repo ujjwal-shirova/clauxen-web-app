@@ -81,7 +81,10 @@ Critical paths:
 - Collect mobile (+91) + bank; prefetch order + `razorpay.js` (+ warm methods).
 - On Pay: sync `startNetbankingWithRazorpayCustom` with constructor `redirect: true` + `callback_url` → bank opens in the **same tab** (no popup/modal).
 - After bank: Razorpay POSTs `/api/v1/billing/orders/razorpay-callback` → verify → checkout `?checkout=success|failed`.
-- Trust line under Pay links the Razorpay logo to the merchant page.
+- Trust line under Pay: **“Payment is securely handled by”** + Razorpay logo (merchant link).
+- After verify: plan activates immediately (`fulfill_billing_payment`), card-on-file saved (first4 + last4 + encrypted Razorpay ref — never PAN), invoice PDF + email via billing Worker, redirect to `/new?checkout=success` with success dialog.
+- Billing address persists in `billing_addresses` (summary card on checkout + editable in Settings).
+- Payment methods in `payment_methods` (default / remove menu in Settings).
 
 ### UPI QR
 

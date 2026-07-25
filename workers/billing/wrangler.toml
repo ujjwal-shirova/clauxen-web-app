@@ -19,6 +19,14 @@ head_sampling_rate = 1
 INVOICE_ISSUER_NAME = "Shirova"
 INVOICE_ISSUER_LEGAL = "Shirova"
 INVOICE_ISSUER_ADDRESS = "India"
+FROM_EMAIL = "no-reply@clauxen.com"
+FROM_NAME = "Clauxen Billing"
+APP_ORIGIN = "https://www.clauxen.com"
+
+# Outbound billing emails (invoice + address change notices).
+[[send_email]]
+name = "EMAIL"
+allowed_sender_addresses = ["no-reply@clauxen.com"]
 
 # Dedicated invoice archive bucket (sales + customer copies).
 [[r2_buckets]]

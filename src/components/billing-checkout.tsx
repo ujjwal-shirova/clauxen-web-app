@@ -7,8 +7,11 @@ import {
   createBillingOrder,
   createCheckoutSession,
   createUpiBillingPayment,
+  getBillingAddress,
+  listPaymentMethods,
   pollUpiBillingPayment,
   refreshCheckoutSession,
+  upsertBillingAddress,
   verifyBillingPayment,
 } from "@/lib/api/billing";
 import { CheckoutErrorBanner } from "@/components/checkout-error-banner";
@@ -20,6 +23,7 @@ import type {
 import {
   checkoutAddressToBillingLine,
   getCheckoutAddressIncompleteReason,
+  isCheckoutAddressComplete,
   type CheckoutAddressState,
 } from "@/components/checkout-billing-address";
 import { CheckoutBootstrapping } from "@/components/checkout-bootstrapping";
@@ -183,9 +187,12 @@ export function BillingCheckout({
   const [gstin, setGstin] = useState("");
   const [billToName, setBillToName] = useState("");
   const [gstinError, setGstinError] = useState<string | null>(null);
-  const savedMethod: SavedPaymentMethod | null = null;
+  const [savedMethod, setSavedMethod] = useState<SavedPaymentMethod | null>(
+    null,
+  );
   const hasSavedPaymentMethod = savedMethod != null;
   const [paymentTab, setPaymentTab] = useState<CheckoutPaymentTab>("card");
+  const [billingAddressCollapsed, setBillingAddressCollapsed] = useState(false);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(
     needsSessionRemint ? null : (initialCheckoutSessionId ?? null),
   );
@@ -256,6 +263,92 @@ export function BillingCheckout({
   useEffect(() => {
     setApplePayAvailable(canUseApplePay());
   }, []);
+
+  // Load saved billing address + default card-on-file for returning customers.
+  useEffect(() => {
+    if (!auth.isAuthenticated) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [addrRes, methodsRes] = await Promise.all([
+          getBillingAddress(),
+          listPaymentMethods(),
+        ]);
+        if (cancelled) return;
+
+        const addr = addrRes.address;
+        if (addr) {
+          const next: CheckoutAddressState = {
+            fullName: addr.fullName,
+            countryCode: addr.countryCode || "IN",
+            addressLine1: addr.addressLine1,
+            addressLine2: addr.addressLine2 || "",
+            city: addr.city,
+            pin: addr.postalCode,
+            state: addr.state,
+            isComplete: false,
+          };
+          next.isComplete = isCheckoutAddressComplete(next);
+          setBillingAddress(next);
+          if (next.isComplete) setBillingAddressCollapsed(true);
+        }
+
+        const defaultMethod =
+          methodsRes.paymentMethods.find((m) => m.isDefault) ||
+          methodsRes.paymentMethods[0];
+        if (defaultMethod) {
+          const network = (
+            ["visa", "mastercard", "amex", "rupay", "jcb", "discover"].includes(
+              defaultMethod.network,
+            )
+              ? defaultMethod.network
+              : "unknown"
+          ) as SavedPaymentMethod["network"];
+          setSavedMethod({
+            id: defaultMethod.id,
+            brand: defaultMethod.brand || defaultMethod.network,
+            first4: defaultMethod.cardFirst4,
+            last4: defaultMethod.cardLast4,
+            network,
+          });
+          setPaymentTab("saved");
+        }
+      } catch {
+        // keep empty defaults
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.isAuthenticated]);
+
+  // Autosave complete billing address so the next checkout skips the form.
+  useEffect(() => {
+    if (!auth.isAuthenticated || !billingAddress.isComplete) return;
+    const handle = window.setTimeout(() => {
+      void upsertBillingAddress({
+        fullName: billingAddress.fullName,
+        countryCode: billingAddress.countryCode || "IN",
+        addressLine1: billingAddress.addressLine1,
+        addressLine2: billingAddress.addressLine2,
+        city: billingAddress.city,
+        state: billingAddress.state,
+        postalCode: billingAddress.pin,
+        notify: false,
+      }).catch(() => undefined);
+    }, 800);
+    return () => window.clearTimeout(handle);
+  }, [
+    auth.isAuthenticated,
+    billingAddress.isComplete,
+    billingAddress.fullName,
+    billingAddress.countryCode,
+    billingAddress.addressLine1,
+    billingAddress.addressLine2,
+    billingAddress.city,
+    billingAddress.state,
+    billingAddress.pin,
+  ]);
 
   useEffect(() => {
     if (initialCheckoutSessionId?.startsWith("cs_live_") && !needsSessionRemint) {
@@ -807,14 +900,15 @@ export function BillingCheckout({
     Boolean(checkoutSessionId);
 
   const paymentFieldsValid =
-    (paymentTab === "upi" && billingAddress.isComplete) ||
-    (paymentTab === "saved" && hasSavedPaymentMethod) ||
-    (paymentTab === "netbanking" &&
-      netbankingFields.isComplete &&
-      netbankingOrderReady &&
-      razorpayScriptReady &&
-      isRazorpayCustomScriptReady()) ||
-    (paymentTab === "card" && cardFields.isComplete);
+    billingAddress.isComplete &&
+    ((paymentTab === "upi" && billingAddress.isComplete) ||
+      (paymentTab === "saved" && hasSavedPaymentMethod) ||
+      (paymentTab === "netbanking" &&
+        netbankingFields.isComplete &&
+        netbankingOrderReady &&
+        razorpayScriptReady &&
+        isRazorpayCustomScriptReady()) ||
+      (paymentTab === "card" && cardFields.isComplete));
 
   const payDisabledReason = useMemo(() => {
     if (isVariableCheckoutPlan) {
@@ -825,9 +919,8 @@ export function BillingCheckout({
       return "Sign in to continue checkout.";
     }
     if (!checkoutSessionId) return "Securing your checkout…";
-    if (paymentTab === "upi") {
-      return getCheckoutAddressIncompleteReason(billingAddress);
-    }
+    const addressReason = getCheckoutAddressIncompleteReason(billingAddress);
+    if (addressReason) return addressReason;
     if (paymentTab === "netbanking") {
       if (!netbankingFields.bankCode) {
         return "Select your bank to continue.";
@@ -891,17 +984,18 @@ export function BillingCheckout({
   ) => {
     const tab = paymentTabOverride ?? paymentTab;
     const fieldsValid =
-      options?.walletExpress ||
-      (tab === "upi" && billingAddress.isComplete) ||
-      (tab === "saved" && hasSavedPaymentMethod) ||
-      (tab === "netbanking" &&
-        Boolean(netbankingFields.bankCode) &&
-        isActivatedNetbankingBank(netbankingFields.bankCode!) &&
-        Boolean(normalizeIndianMobileContact(netbankingFields.mobile)) &&
-        Boolean(netbankingOrderRef.current) &&
-        razorpayScriptReady &&
-        isRazorpayCustomScriptReady()) ||
-      (tab === "card" && cardFields.isComplete);
+      billingAddress.isComplete &&
+      (options?.walletExpress ||
+        tab === "upi" ||
+        (tab === "saved" && hasSavedPaymentMethod) ||
+        (tab === "netbanking" &&
+          Boolean(netbankingFields.bankCode) &&
+          isActivatedNetbankingBank(netbankingFields.bankCode!) &&
+          Boolean(normalizeIndianMobileContact(netbankingFields.mobile)) &&
+          Boolean(netbankingOrderRef.current) &&
+          razorpayScriptReady &&
+          isRazorpayCustomScriptReady()) ||
+        (tab === "card" && cardFields.isComplete));
 
     if (
       !agreed ||
@@ -1040,6 +1134,7 @@ export function BillingCheckout({
               razorpayOrderId: payment.razorpay_order_id,
               razorpayPaymentId: payment.razorpay_payment_id,
               razorpaySignature: payment.razorpay_signature,
+              cardFirst4: cardFields.cardNumber.replace(/\D/g, "").slice(0, 4),
             });
             onPaymentSuccess?.({
               razorpayPaymentId: payment.razorpay_payment_id,
@@ -1054,6 +1149,7 @@ export function BillingCheckout({
       }
 
       // Card tab: Custom Checkout — PAN/CVV never leave the browser except to Razorpay.
+      const cardFirst4 = cardFields.cardNumber.replace(/\D/g, "").slice(0, 4);
       await chargeCardWithRazorpayCustom({
         keyId,
         orderId: checkout.razorpay.orderId,
@@ -1072,6 +1168,7 @@ export function BillingCheckout({
             razorpayOrderId: payment.razorpay_order_id,
             razorpayPaymentId: payment.razorpay_payment_id,
             razorpaySignature: payment.razorpay_signature,
+            cardFirst4,
           });
           onPaymentSuccess?.({
             razorpayPaymentId: payment.razorpay_payment_id,
@@ -1693,7 +1790,12 @@ export function BillingCheckout({
               onCardFieldsChange={handleCardFieldsChange}
               onNetbankingChange={handleNetbankingFieldsChange}
               billingAddress={billingAddress}
-              onBillingAddressChange={setBillingAddress}
+              onBillingAddressChange={(next) => {
+                setBillingAddress(next);
+                if (!next.isComplete) setBillingAddressCollapsed(false);
+              }}
+              billingAddressCollapsed={billingAddressCollapsed}
+              onEditBillingAddress={() => setBillingAddressCollapsed(false)}
               showExpressCheckout={false}
               hideUpi={!ready || isUsd}
               hideNetbanking={!ready || isUsd}

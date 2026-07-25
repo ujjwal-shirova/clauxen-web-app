@@ -759,6 +759,9 @@ export async function verifyCheckoutPayment(input: {
   razorpayOrderId: string;
   razorpayPaymentId: string;
   razorpaySignature: string;
+  userId?: string;
+  /** First 4 digits only for card-on-file display — never full PAN. */
+  cardFirst4?: string;
 }) {
   assertRazorpayCheckoutIds(input);
 
@@ -835,6 +838,22 @@ export async function verifyCheckoutPayment(input: {
     },
   });
 
+  // Persist PCI-safe card-on-file immediately after verified capture.
+  if ((payment.method === "card" || !payment.method) && order.user_id) {
+    try {
+      const { saveCardOnFileFromPayment } = await import(
+        "@/server/services/billing-profile.service"
+      );
+      await saveCardOnFileFromPayment({
+        userId: input.userId || order.user_id,
+        razorpayPaymentId: input.razorpayPaymentId,
+        cardFirst4: input.cardFirst4,
+      });
+    } catch (err) {
+      console.warn("[billing] card-on-file save failed", err);
+    }
+  }
+
   await enqueueInvoiceGeneration(input.razorpayOrderId, input.razorpayPaymentId);
 
   return result;
@@ -892,6 +911,33 @@ async function enqueueInvoiceGeneration(
       razorpayDocumentId,
       razorpayDocumentPurpose,
     });
+
+    // Email invoice receipt via Cloudflare billing Worker (best-effort).
+    const emailTo = payload.billedTo.email || order.user_email || "";
+    if (emailTo) {
+      try {
+        const { sendInvoicePaidEmail } = await import(
+          "@/server/billing/billing-email"
+        );
+        const currency = (payload.currency || "INR").toUpperCase();
+        const major = (payload.totalPaise / 100).toFixed(2);
+        const amountLabel =
+          currency === "INR" ? `₹${major}` : `${currency} ${major}`;
+        await sendInvoicePaidEmail({
+          to: emailTo,
+          invoiceNumber: generated.invoiceNumber,
+          planName: payload.planName,
+          amountLabel,
+          currency,
+          paymentId: payload.paymentId,
+          billedToName: payload.billedTo.name,
+          addressSummary: payload.billedTo.address,
+          pdfAvailable: true,
+        });
+      } catch (emailErr) {
+        console.warn("[billing] invoice email failed", emailErr);
+      }
+    }
   } catch (err) {
     console.error("[billing] invoice enqueue failed", err);
   }

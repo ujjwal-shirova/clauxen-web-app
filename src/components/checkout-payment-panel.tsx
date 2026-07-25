@@ -236,7 +236,12 @@ export function CheckoutPaymentPanel({
       );
     }
 
-    const icon = CARD_BRAND_ICONS[savedMethod.network];
+    const icon =
+      CARD_BRAND_ICONS[
+        (savedMethod.network in CARD_BRAND_ICONS
+          ? savedMethod.network
+          : "visa") as keyof typeof CARD_BRAND_ICONS
+      ];
 
     return (
       <div className={cn(checkoutUi.panel, "flex items-center justify-between")}>
@@ -250,7 +255,11 @@ export function CheckoutPaymentPanel({
             <div className="text-sm font-medium text-[#121212]">
               {savedMethod.brand}
             </div>
-            <div className="text-sm text-zinc-600">···· {savedMethod.last4}</div>
+            <div className="text-sm text-zinc-600">
+              {savedMethod.first4
+                ? `${savedMethod.first4} •••• •••• ••••`
+                : `•••• •••• •••• ${savedMethod.last4}`}
+            </div>
           </div>
         </div>
         <button
