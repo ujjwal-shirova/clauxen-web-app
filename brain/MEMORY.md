@@ -88,6 +88,7 @@ Persistent agent memory. Read this at the start of every task. Update when the u
 | 2026-07-24 | Stripped Claude Code under `src/agent`: trashed Ink/TUI/cli.js/buddy/vendor (~115MB). Kept query/tools/services for later web wiring; `tsconfig` excludes `src/agent`. | User: remove terminal UI first |
 | 2026-07-24 | **Repo layout flatten:** no `src/frontend`/`src/backend` split — `components/`, `hooks/`, `lib/`, `server/`, `marketing/`, `prompts/`. Trashed `agent-ui`, `/api/autonomous-agent`, orphan `agent-swarm`. Agent loop in `server/agent-core/`. | User: OpenAI/Anthropic-style tree |
 | 2026-07-24 | Removed `vendor/clauxen-code-agent` (dead reference dump, never imported). Live agent loop: `@/server/agent-core/runtime/query-loop.ts`. | User: trash unused vendored CLI copy |
+| 2026-07-25 | Scheduled Tasks: `/scheduled` UI (Kimi-style empty + Create manually/via chat); Supabase `scheduled_tasks` + `scheduled_task_runs`; CF Worker cron → `/api/v1/internal/scheduled-tasks/dispatch`; agent tools `create_scheduled_task` / `list_scheduled_tasks` / `cancel_scheduled_task`. Needs `SCHEDULED_TASKS_INTERNAL_TOKEN` on Vercel + Worker. | User asked for production scheduled automations |
 | 2026-07-24 | Project home = dashboard (shared context + Instructions/Files cards + composer); sidebar **Pinned** mixes pinned chats + pinned projects (localStorage); project icons 18px/zinc-500; composer border zinc-200 pill | Match Kimi-style project home + sidebar |
 | 2026-07-23 | App shell sizing: sidebar 256px, chat column 768px (`--chat-column-max-width`), warmer shell `#fcf9f8`, slightly roomier composer/header padding with compact vertical thread gaps | Wider/cleaner proportions without enlarging chrome |
 | 2026-07-23 | Full-app survey written: `docs/surveys/app-health-security-survey-2026-07-23.md` (architecture, dual chat/projects stacks, orphan UI, Critical security: R2 ACL, sandbox IDOR, fail-open auth). Next direction: Phase A security → B collapse dual stacks → C UI honesty → D split God-hooks → E product surfaces | Planning for ChatGPT/Claude-class platform readiness |
@@ -215,6 +216,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - Razorpay live QR create may omit image_content; serve PNG from image_url (rzp.io → api.razorpay.com/v1/l/qrcode/…). Prefer image_content when present for upi:// without decode.
 ## Open threads
 
+- Deploy `clauxen-scheduled-tasks` Worker + set `SCHEDULED_TASKS_INTERNAL_TOKEN` on Vercel (prod/preview) and Worker secrets (`APP_ORIGIN=https://clauxen.com`).
 - Execute product roadmap **incrementally** when user picks the next slice (do not start all areas at once).
 - Enable **X / Twitter (OAuth 2.0)** in Supabase with Client ID/Secret via Dashboard or `scripts/enable-x-auth.mjs` (app code already uses provider `x`).
 - Local-only (do not commit until asked): login OAuth button set (no Apple/X).

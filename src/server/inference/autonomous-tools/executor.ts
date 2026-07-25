@@ -301,5 +301,136 @@ export async function executeAutonomousTool(
     };
   }
 
+  if (name === "create_scheduled_task") {
+    if (!ctx.userId) {
+      return {
+        output: {
+          error: "Sign in required to create scheduled tasks.",
+        },
+      };
+    }
+    try {
+      const { createTask } = await import(
+        "@/server/services/scheduled-tasks.service"
+      );
+      const asOptionalString = (v: unknown): string | null => {
+        if (typeof v !== "string") return null;
+        const t = v.trim();
+        return t.length ? t : null;
+      };
+      const asOptionalNumber = (v: unknown): number | null => {
+        if (typeof v !== "number" || !Number.isFinite(v)) return null;
+        return v;
+      };
+      const task = await createTask(ctx.userId, {
+        name: String(args.name ?? ""),
+        requirement: String(args.requirement ?? ""),
+        frequency: args.frequency as "once" | "daily" | "weekly" | "monthly",
+        timeLocal: String(args.time_local ?? args.timeLocal ?? ""),
+        timezone: String(args.timezone ?? "UTC"),
+        runDate: asOptionalString(args.run_date ?? args.runDate),
+        dayOfWeek: asOptionalNumber(args.day_of_week ?? args.dayOfWeek),
+        dayOfMonth: asOptionalNumber(args.day_of_month ?? args.dayOfMonth),
+        expiresAt: asOptionalString(args.expires_at ?? args.expiresAt),
+        source: "chat",
+      });
+      return {
+        output: {
+          ok: true,
+          task: {
+            id: task.id,
+            name: task.name,
+            frequency: task.frequency,
+            time_local: task.time_local,
+            timezone: task.timezone,
+            next_run_at: task.next_run_at,
+            expires_at: task.expires_at,
+            status: task.status,
+          },
+          manage_url: "/scheduled",
+        },
+      };
+    } catch (error) {
+      return {
+        output: {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to create scheduled task.",
+        },
+      };
+    }
+  }
+
+  if (name === "list_scheduled_tasks") {
+    if (!ctx.userId) {
+      return {
+        output: { error: "Sign in required to list scheduled tasks." },
+      };
+    }
+    try {
+      const { listTasks } = await import(
+        "@/server/services/scheduled-tasks.service"
+      );
+      const includeCompleted = args.include_completed !== false;
+      const tasks = (await listTasks(ctx.userId)).filter((t) =>
+        includeCompleted ? true : t.status !== "completed",
+      );
+      return {
+        output: {
+          tasks: tasks.map((t) => ({
+            id: t.id,
+            name: t.name,
+            frequency: t.frequency,
+            time_local: t.time_local,
+            timezone: t.timezone,
+            next_run_at: t.next_run_at,
+            status: t.status,
+            expires_at: t.expires_at,
+            run_count: t.run_count,
+          })),
+          manage_url: "/scheduled",
+        },
+      };
+    } catch (error) {
+      return {
+        output: {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to list scheduled tasks.",
+        },
+      };
+    }
+  }
+
+  if (name === "cancel_scheduled_task") {
+    if (!ctx.userId) {
+      return {
+        output: { error: "Sign in required to cancel scheduled tasks." },
+      };
+    }
+    const taskId = String(args.task_id ?? args.taskId ?? "");
+    if (!taskId) {
+      return { output: { error: "task_id is required." } };
+    }
+    try {
+      const { deleteTask } = await import(
+        "@/server/services/scheduled-tasks.service"
+      );
+      await deleteTask(taskId, ctx.userId);
+      return { output: { ok: true, task_id: taskId } };
+    } catch (error) {
+      return {
+        output: {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to cancel scheduled task.",
+        },
+      };
+    }
+  }
+
   throw new Error(`Unknown tool: ${name}`);
 }

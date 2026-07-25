@@ -69,6 +69,8 @@ export const APP_ROUTES = {
   newChat: "/new",
   home: "/new",
   library: "/library",
+  /** Scheduled automations (run prompts on a cadence). */
+  scheduledTasks: "/scheduled",
   /** Create-project surface (inline form, not a gallery). */
   projects: "/project",
   customize: "/customize",
@@ -209,6 +211,8 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname.startsWith("/c/") ||
     pathname === "/library" ||
     pathname.startsWith("/library/") ||
+    pathname === "/scheduled" ||
+    pathname.startsWith("/scheduled/") ||
     pathname === "/project" ||
     pathname.startsWith("/project/") ||
     pathname === "/projects" ||

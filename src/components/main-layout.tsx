@@ -34,6 +34,7 @@ import { Sidebar } from "@/components/sidebar";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
+  "/scheduled",
   "/customize",
   "/my-clauxen",
   "/project",
@@ -118,6 +119,11 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 
   const goToLibrary = useCallback(() => {
     instantNavigate(APP_ROUTES.library);
+    closeMobileNav();
+  }, [instantNavigate, closeMobileNav]);
+
+  const goToScheduledTasks = useCallback(() => {
+    instantNavigate(APP_ROUTES.scheduledTasks);
     closeMobileNav();
   }, [instantNavigate, closeMobileNav]);
 
@@ -242,6 +248,8 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p === "/" ||
       p === "/new" ||
       p === "/library" ||
+      p === "/scheduled" ||
+      p.startsWith("/scheduled/") ||
       p === "/project" ||
       p === "/projects" ||
       p.startsWith("/customize") ||
@@ -297,7 +305,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onCustomizeClick={goToCustomize}
         onMyClauxenClick={goToMyClauxen}
         onImageClick={deferUnbuiltSurface}
-        onScheduledTasksClick={deferUnbuiltSurface}
+        onScheduledTasksClick={goToScheduledTasks}
         onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
         onClauxenWorkClick={deferUnbuiltSurface}
         onClauxenClawClick={deferUnbuiltSurface}
@@ -394,6 +402,7 @@ function computeActiveView(
     return "projects";
   }
   if (pathname.startsWith("/library")) return "library";
+  if (pathname.startsWith("/scheduled")) return "scheduled-tasks";
   if (pathname.startsWith("/customize")) return "customize";
   if (pathname === "/new" || pathname === "/") return "chat";
   return "chat";

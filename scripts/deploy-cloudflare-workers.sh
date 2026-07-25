@@ -113,6 +113,20 @@ echo "==> Deploying clauxen-chat-coord (Durable Object generation leases)"
   npx wrangler deploy
 )
 
+if [[ -n "${SCHEDULED_TASKS_INTERNAL_TOKEN:-}" ]]; then
+  echo "==> Deploying clauxen-scheduled-tasks (cron dispatcher)"
+  (
+    cd "$ROOT/workers/scheduled-tasks"
+    put_worker_secret SCHEDULED_TASKS_INTERNAL_TOKEN "$SCHEDULED_TASKS_INTERNAL_TOKEN"
+    if [[ -n "${APP_ORIGIN:-}${NEXT_PUBLIC_APP_URL:-}" ]]; then
+      put_worker_secret APP_ORIGIN "${APP_ORIGIN:-$NEXT_PUBLIC_APP_URL}"
+    fi
+    npx wrangler deploy
+  )
+else
+  echo "==> Skipping clauxen-scheduled-tasks (set SCHEDULED_TASKS_INTERNAL_TOKEN to deploy)"
+fi
+
 WORKER_SUBDOMAIN="${CLOUDFLARE_WORKERS_SUBDOMAIN:-ujjwal-8fc}"
 AUTH_EMAIL_URL="https://clauxen-auth-email.${WORKER_SUBDOMAIN}.workers.dev"
 CHAT_HISTORY_URL="https://clauxen-chat-history.${WORKER_SUBDOMAIN}.workers.dev"

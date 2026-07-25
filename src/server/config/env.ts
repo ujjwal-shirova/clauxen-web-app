@@ -217,6 +217,12 @@ export const env = {
   /** Shared secret for billing Worker internal routes. */
   billingInternalToken: optional("BILLING_INTERNAL_TOKEN"),
 
+  /**
+   * Shared secret for scheduled-tasks cron dispatch
+   * (`/api/v1/internal/scheduled-tasks/dispatch`).
+   */
+  scheduledTasksInternalToken: optional("SCHEDULED_TASKS_INTERNAL_TOKEN"),
+
   r2ImagesBucket: optional("R2_IMAGES_BUCKET", "clauxen-images"),
   r2DocumentsBucket: optional(
     "R2_DOCUMENTS_BUCKET",
