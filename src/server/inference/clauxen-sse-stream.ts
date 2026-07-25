@@ -13,6 +13,7 @@
  */
 
 import type { StreamEvent } from "@/lib/chat-stream";
+import { toUserFacingChatError } from "@/lib/assistant-generation-error";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -215,7 +216,8 @@ export class ClauxenSseStream {
   }
 
   writeError(message: string): void {
-    this.write({ type: "error", message });
+    // Never stream vendor/API internals into the chat transcript.
+    this.write({ type: "error", message: toUserFacingChatError(message) });
   }
 
   writeDone(): void {

@@ -23,6 +23,7 @@ import {
   uniqueAgentFrameId,
 } from "@/lib/agent-frames";
 import type { Message } from "@/lib/types";
+import { toUserFacingChatError } from "@/lib/assistant-generation-error";
 
 type FrameReducerState = {
   message: Message;
@@ -830,7 +831,10 @@ export function applyAgentStreamEvent(
       const frames = finalizeAllFrames(state.frames);
       state = { ...state, frames };
       return syncFrameState(state, {
-        content: state.message.content || event.message,
+        content:
+          state.message.content?.trim()
+            ? toUserFacingChatError(state.message.content)
+            : toUserFacingChatError(event.message),
         isStreaming: false,
         isThinkingStreaming: false,
         agentFrameComplete: true,

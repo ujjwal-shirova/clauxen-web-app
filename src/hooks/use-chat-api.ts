@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import type { StreamEvent } from "@/lib/chat-stream";
 import { applyAgentStreamEvent } from "@/lib/agent-stream-reducer";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
+import { toUserFacingChatError } from "@/lib/assistant-generation-error";
 import {
   canFastAppendAnswer,
   patchToolOutputDelta,
@@ -1586,15 +1587,8 @@ export function useChatApi(
         if (getGeneration(chatId)?.request === controller && !isAbort) {
           const failedAssistantId = resolveAssistantId();
           const rawMessage =
-            error instanceof Error ? error.message : "Generation failed.";
-          const friendly =
-            /failed to fetch|networkerror|load failed|network request failed|stream ended before completion|the response stream ended/i.test(
-              rawMessage,
-            )
-              ? "Connection lost while generating. Please try again."
-              : rawMessage.startsWith("Generation failed")
-                ? rawMessage
-                : `Generation failed: ${rawMessage}`;
+            error instanceof Error ? error.message : String(error ?? "");
+          const friendly = toUserFacingChatError(rawMessage);
           setAllChats((prev) => ({
             ...prev,
             [chatId]: (prev[chatId] ?? []).map((m) =>
@@ -1605,7 +1599,10 @@ export function useChatApi(
                     isThinkingStreaming: false,
                     agentFrameComplete: true,
                     generationFailed: true,
-                    content: m.content?.trim() ? m.content : friendly,
+                    // Never keep raw provider/API text in the transcript.
+                    content: m.content?.trim()
+                      ? toUserFacingChatError(m.content)
+                      : friendly,
                   }
                 : m,
             ),
@@ -1675,13 +1672,15 @@ export function useChatApi(
           ? null
           : activeChatId;
 
-      // Queue when this chat is already generating (unless flushing the queue).
+      // ChatGPT-style: while this chat is generating, new prompts go to the
+      // queue instead of racing a second generation (which produced 409s).
       // Attachment-only sends cannot be queued yet — require an idle chat.
-      if (
+      const locallyGenerating = Boolean(
         chatId &&
-        !options?.bypassQueue &&
-        useChatStore.getState().generatingChatIds[chatId]
-      ) {
+          (useChatStore.getState().generatingChatIds[chatId] ||
+            getGeneration(chatId)),
+      );
+      if (chatId && !options?.bypassQueue && locallyGenerating) {
         if (!trimmed) return null;
         useChatStore.getState().enqueueQueuedMessage(chatId, trimmed);
         return chatId;

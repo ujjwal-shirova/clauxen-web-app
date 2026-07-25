@@ -32,8 +32,9 @@ function titleForPath(
 
   if (!pathname) return BRAND;
 
+  // New-chat / home shell: brand only. Titled chats use "Title - Clauxen".
   if (pathname === "/new" || pathname === "/") {
-    return `New chat - ${BRAND}`;
+    return BRAND;
   }
 
   const chatMatch = pathname.match(/^\/c\/([^/]+)/);
@@ -71,7 +72,8 @@ function titleForPath(
 
 /**
  * Keeps the browser tab title in sync with the current surface / chat title.
- * Use hyphen separators: "New chat - Clauxen".
+ * Use hyphen separators for titled surfaces: "Settings - Clauxen".
+ * `/new` and `/` stay brand-only ("Clauxen").
  *
  * ChatView owns `/c/*` titles (pass `chatTitle`). Layout calls without a title
  * must not clobber those routes.

@@ -102,7 +102,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
     const generationController = await beginChatGeneration(params.chatId);
     if (!generationController) {
       throw new AppError(
-        "This chat is already generating a response.",
+        "We couldn't start that reply just yet. Please try again in a moment.",
         409,
         "generation_in_progress",
       );

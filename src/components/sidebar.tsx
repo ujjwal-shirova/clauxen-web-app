@@ -492,9 +492,14 @@ export function Sidebar({
   const renderChatRow = (chat: RecentChat) => {
     const isGeneratingChat = generatingSet.has(chat.id);
     const isActive = activeChatId === chat.id;
-    // Spinner only for background generations — active chat already shows the stream.
+    // Spinner only when another chat is generating in the background.
+    // Never on the active chat, never while creating/starting a new chat.
     const showSidebarSpinner =
-      isGeneratingChat && activeChatId !== chat.id;
+      isGeneratingChat &&
+      Boolean(activeChatId) &&
+      activeChatId !== chat.id &&
+      !chat.isCreating &&
+      !chat.id.startsWith("pending-");
     return (
       <div
         key={chat.id}

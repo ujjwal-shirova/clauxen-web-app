@@ -34,7 +34,10 @@ import type {
   MessageAttachment,
 } from "@/lib/composer-attachments";
 import { messageUiKey } from "@/lib/message-ui-key";
-import { isAssistantGenerationError } from "@/lib/assistant-generation-error";
+import {
+  isAssistantGenerationError,
+  toUserFacingChatError,
+} from "@/lib/assistant-generation-error";
 import { FollowUpPromptProvider } from "@/contexts/follow-up-prompt-context";
 import { useAppPreferencesOptional } from "@/contexts/app-preferences-context";
 import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
@@ -355,10 +358,22 @@ const MessageRow = React.memo(
         ) : (
           <div
             className={cn(
-              "assistant-message group w-full min-w-0 max-w-full text-gray-800 leading-[1.68]",
+              "assistant-message group w-full min-w-0 max-w-full leading-[1.68]",
+              isAssistantGenerationError(message)
+                ? "text-red-600"
+                : "text-gray-800",
             )}
           >
-            {shouldUseAgentMessageLayout(message) ? (
+            {isAssistantGenerationError(message) ? (
+              <p
+                data-message-id={message.id}
+                data-assistant-error="true"
+                className="min-w-0 text-[15px] font-[430] leading-[1.55] text-red-600"
+                role="alert"
+              >
+                {toUserFacingChatError(message.content)}
+              </p>
+            ) : shouldUseAgentMessageLayout(message) ? (
               <div
                 data-message-id={message.id}
                 data-assistant-content="true"

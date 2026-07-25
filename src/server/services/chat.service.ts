@@ -36,6 +36,7 @@ import {
   buildPromptMessagesFromDbRows,
   mergePromptHistories,
 } from "@/server/inference/build-chat-prompt-messages";
+import { toUserFacingChatError } from "@/lib/assistant-generation-error";
 
 /** Training JSONL user mirror disabled — see persistAssistantTranscriptTurn. */
 async function persistUserTranscriptLine(_input: {
@@ -500,7 +501,9 @@ export async function streamChatGeneration(input: {
           generatedTitle = normalizeInlineChatTitle(title, titleUserContent);
         },
         onError: (message) => {
-          streamError = message.trim() || "The model could not complete this response.";
+          streamError = toUserFacingChatError(
+            message.trim() || "The model could not complete this response.",
+          );
         },
         onToolStart: (tool) => {
           // Tool work is not thinking time.
@@ -546,7 +549,7 @@ export async function streamChatGeneration(input: {
       // Ask-user pauses intentionally end with no answer text — that is not
       // a failed generation.
       const cleanedAnswer = streamError
-        ? `Generation failed: ${streamError}`
+        ? toUserFacingChatError(streamError)
         : generatedAnswer.trim()
           ? generatedAnswer
           : pausedForUserInput
@@ -699,7 +702,9 @@ export async function streamChatGeneration(input: {
     const assistantRow = assistant;
     const tools = Array.from(toolsById.values());
     if (assistantRow?.id) {
-      const failedContent = answer || "Generation failed.";
+      const failedContent = toUserFacingChatError(
+        answer || (error instanceof Error ? error.message : String(error)),
+      );
       const contentJson = buildAssistantTranscriptRecord({
         answer: failedContent,
         thinking,
