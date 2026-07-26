@@ -258,11 +258,13 @@ export async function updateSession(request: NextRequest) {
 
   // New / incomplete users must finish onboarding before the app.
   // Dev-bypass cookie alone has no Supabase JWT → treat as incomplete.
+  // CLI OAuth consent/device pages must work even if web onboarding is incomplete.
   if (
     isAuthenticated &&
     !isPublicPath(pathname) &&
     pathname !== "/onboarding" &&
-    !pathname.startsWith("/api/")
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/cli/")
   ) {
     const complete = userId
       ? await resolveOnboardingComplete(

@@ -7,6 +7,8 @@ import {
   getSupabaseUserIdFromRequest,
 } from "@/server/auth/supabase-session";
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
+import { resolveAccessTokenUser } from "@/server/oauth/service";
+import { ACCESS_TOKEN_PREFIX } from "@/server/oauth/constants";
 
 export type SessionUser = {
   id: string;
@@ -80,7 +82,7 @@ function mergeProfilePreferred(
   };
 }
 
-async function getBearerApiKeySession(
+async function getBearerSession(
   request: NextRequest,
 ): Promise<SessionUser | null> {
   const header = request.headers.get("authorization");
@@ -89,6 +91,13 @@ async function getBearerApiKeySession(
   const token = header.slice("Bearer ".length).trim();
   if (!token) return null;
 
+  // Clauxen Code OAuth access tokens
+  if (token.startsWith(ACCESS_TOKEN_PREFIX) || token.startsWith("cla_at_")) {
+    const oauth = await resolveAccessTokenUser(token);
+    if (oauth) return profileForUserId(oauth.userId);
+  }
+
+  // User API keys (clx_…)
   const userId = await resolveUserIdFromApiKey(token);
   if (!userId) return null;
 
@@ -130,8 +139,8 @@ async function getSupabaseSession(
 export async function getSessionFromRequest(
   request: NextRequest,
 ): Promise<SessionUser | null> {
-  const apiKeySession = await getBearerApiKeySession(request);
-  if (apiKeySession) return apiKeySession;
+  const bearerSession = await getBearerSession(request);
+  if (bearerSession) return bearerSession;
 
   const supabaseSession = await getSupabaseSession(request);
   if (supabaseSession) return supabaseSession;

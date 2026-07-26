@@ -98,8 +98,12 @@ export function ClauxenCodeSettings({
         <div className="min-w-0 flex-1">
           <h2 className="text-[16px] font-semibold">Clauxen Code</h2>
           <p className="mt-1 max-w-xl text-[14px] leading-relaxed text-zinc-600">
-            Clauxen understands your codebase and helps you build, debug, and
-            ship faster. Upgrade your plan to get started.
+            Sign in from the terminal with{" "}
+            <code className="rounded bg-zinc-200/80 px-1 py-0.5 text-[12px]">
+              clauxen
+            </code>{" "}
+            (browser OAuth) or create an authorization token below for API-key
+            login. Sessions are billed to your Clauxen balance.
           </p>
           <a
             href="/new#pricing"
