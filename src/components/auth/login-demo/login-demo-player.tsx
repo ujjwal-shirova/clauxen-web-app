@@ -5,7 +5,12 @@ import { ChatViewPane } from "@/components/chat-view-pane";
 import { ConversationThread } from "@/components/conversation-thread";
 import type { Message } from "@/lib/types";
 import {
-  DEMO_DAILY_TURN,
+  DEMO_AGENT_KEYFRAMES,
+  DEMO_AGENT_TURN,
+  DEMO_FILES_TURN,
+  DEMO_SCENES,
+  applyAgentDemoKeyframe,
+  buildStreamingAgentAssistant,
   buildAssistantMessage,
   buildUserMessage,
 } from "./chat-script";
@@ -26,33 +31,35 @@ import {
 import { syncDemoStickyPins } from "./demo-sticky";
 import { magnetCursorToSend } from "./send-magnet";
 
-const IDLE_MS = 900;
+const IDLE_MS = 700;
 const MOVE_MS = 1100;
 const CLICK_DOWN_MS = 140;
 const CLICK_HOLD_MS = 160;
 const CLICK_UP_MS = 180;
 const SLIDE_MS = 720;
-const LABEL_HOLD_MS = 2200;
-const LOOP_PAUSE_MS = 1800;
+const LABEL_HOLD_MS = 2400;
+const LOOP_PAUSE_MS = 2000;
 const GROW_MS = 780;
+const HOLD_AFTER_AGENT_MS = 2800;
+const HOLD_AFTER_FILES_MS = 2200;
 
 type Scene =
-  | "label-daily"
-  | "chat-daily"
-  | "label-docs"
-  | "chat-docs";
+  | "label-agent"
+  | "chat-agent"
+  | "label-files"
+  | "chat-files";
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 function naturalTypeDelayMs(char: string, prev: string): number {
-  const base = 16 + Math.random() * 28;
+  const base = 14 + Math.random() * 24;
   if (char === " ") return base * (0.45 + Math.random() * 0.3);
-  if (/[.,!?;:]/.test(char)) return 55 + Math.random() * 90;
-  if (char === "\n") return 90 + Math.random() * 110;
-  if (Math.random() < 0.025) return 100 + Math.random() * 140;
-  if (prev.length > 8 && !prev.includes(" ")) return base * 1.1;
+  if (/[.,!?;:]/.test(char)) return 48 + Math.random() * 70;
+  if (char === "\n") return 80 + Math.random() * 100;
+  if (Math.random() < 0.02) return 90 + Math.random() * 120;
+  if (prev.length > 8 && !prev.includes(" ")) return base * 1.08;
   return base;
 }
 
@@ -62,23 +69,42 @@ function naturalStreamStep(remaining: number): { size: number; delayMs: number }
   let delayMs: number;
   if (burst < 0.14) {
     size = 2 + Math.floor(Math.random() * 2);
-    delayMs = 70 + Math.random() * 90;
+    delayMs = 60 + Math.random() * 80;
   } else if (burst < 0.5) {
     size = 3 + Math.floor(Math.random() * 5);
-    delayMs = 32 + Math.random() * 36;
+    delayMs = 28 + Math.random() * 32;
   } else {
     size = 5 + Math.floor(Math.random() * 8);
-    delayMs = 16 + Math.random() * 24;
+    delayMs = 14 + Math.random() * 22;
   }
-  if (Math.random() < 0.06) delayMs += 80 + Math.random() * 120;
+  if (Math.random() < 0.05) delayMs += 70 + Math.random() * 100;
   return { size: Math.min(size, remaining), delayMs };
+}
+
+function streamThinkingText(
+  full: string,
+  onSlice: (slice: string) => void,
+  wait: (ms: number) => Promise<void>,
+  signal: { cancelled: boolean },
+) {
+  return (async () => {
+    let i = 0;
+    while (i < full.length) {
+      if (signal.cancelled) return;
+      const { size, delayMs } = naturalStreamStep(full.length - i);
+      i = Math.min(full.length, i + size);
+      onSlice(full.slice(0, i));
+      await wait(delayMs);
+    }
+  })();
 }
 
 function noop() {}
 async function noopAsync() {}
 
 /**
- * Login product demo — multi-scene animation (daily life → docs/files).
+ * Login product demo — OpenAI/Anthropic-style capability reel:
+ * agentic research + tools + file deliverable, then docs/files.
  * Isolated from real PromptInput so main-app typing is never affected.
  */
 export function LoginDemoPlayer() {
@@ -89,7 +115,7 @@ export function LoginDemoPlayer() {
   const cursorPosRef = useRef({ x: 90, y: 160 });
   const messagesRef = useRef<Message[]>([]);
 
-  const [scene, setScene] = useState<Scene>("label-daily");
+  const [scene, setScene] = useState<Scene>("label-agent");
   const [frameTall, setFrameTall] = useState(false);
   const [slideOut, setSlideOut] = useState(false);
   const [slideIn, setSlideIn] = useState(true);
@@ -122,11 +148,11 @@ export function LoginDemoPlayer() {
 
   const isConversationStarted = messages.length > 0;
   const hasPromptDraft = draft.trim().length > 0;
-  const showChat = scene === "chat-daily" || scene === "chat-docs";
+  const showChat = scene === "chat-agent" || scene === "chat-files";
   const labelText =
-    scene === "label-docs"
-      ? "Clauxen can read docs and files"
-      : "Let Clauxen handle your daily life problems";
+    scene === "label-files"
+      ? DEMO_SCENES.files.label
+      : DEMO_SCENES.agent.label;
 
   const resolveViewport = useCallback(() => {
     return scrollAreaRef.current?.querySelector<HTMLElement>(
@@ -390,7 +416,6 @@ export function LoginDemoPlayer() {
       setScene(next);
       if (opts?.tall != null) setFrameTall(opts.tall);
       setSlideOut(false);
-      // Enter from right, then settle.
       await wait(40);
       if (cancelled) return;
       setSlideIn(true);
@@ -402,27 +427,20 @@ export function LoginDemoPlayer() {
       await wait(GROW_MS);
     };
 
-    const playDailyTurn = async () => {
-      const turn = DEMO_DAILY_TURN;
+    const clickComposerAndType = async (text: string) => {
       const stage = stageRef.current;
       const root = promptRoot();
-
       const shell = findPromptShell(root);
       const textarea = findPromptTextarea(root);
       await moveCursor(pointInStage(stage, shell ?? textarea, 0.38, 0.48));
       if (cancelled) return;
       await clickAt();
       if (cancelled) return;
-
       setActiveChip(null);
-      await typeDraft(turn.prompt);
-      if (cancelled) return;
+      await typeDraft(text);
+    };
 
-      await wait(320);
-      if (cancelled) return;
-      await wait(180);
-      if (cancelled) return;
-
+    const sendDraft = async () => {
       await magnetCursorToSend({
         stage: stageRef.current,
         root: promptRoot(),
@@ -433,74 +451,131 @@ export function LoginDemoPlayer() {
         timeoutMs: 4200,
       });
       if (cancelled) return;
-
       await wait(90);
       if (cancelled) return;
       await clickAt({ pressSend: true });
       if (cancelled) return;
-
       setCursor((c) => ({ ...c, visible: false }));
+    };
+
+    const patchAssistant = (next: Message) => {
+      const prev = messagesRef.current;
+      const head = prev.slice(0, -1);
+      const merged = [...head, next];
+      messagesRef.current = merged;
+      setMessages(merged);
+    };
+
+    /** Full agentic product demo: thinking → search → fetch → create_file → answer. */
+    const playAgentTurn = async () => {
+      const turn = DEMO_AGENT_TURN;
+      await clickComposerAndType(turn.prompt);
+      if (cancelled) return;
+      await wait(280);
+      if (cancelled) return;
+      await sendDraft();
+      if (cancelled) return;
 
       const userMsg = buildUserMessage(turn, 0);
       const assistantCreatedAt = Date.now();
-
       messagesRef.current = [...messagesRef.current, userMsg];
       setMessages(messagesRef.current);
       setDraft("");
       easeDemoToBottom(560);
 
-      await wait(420);
+      await wait(380);
       if (cancelled) return;
 
-      const assistantPlaceholder = buildAssistantMessage(
-        turn,
-        0,
-        "",
-        true,
-        assistantCreatedAt,
-      );
-      messagesRef.current = [...messagesRef.current, assistantPlaceholder];
+      let assistant = buildStreamingAgentAssistant(turn, 0, assistantCreatedAt);
+      messagesRef.current = [...messagesRef.current, assistant];
       setMessages(messagesRef.current);
       setIsGenerating(true);
       stickDemoToBottom();
 
-      await wait(220);
-      if (cancelled) return;
-
-      let cursorIdx = 0;
-      while (cursorIdx < turn.reply.length) {
+      for (const beat of DEMO_AGENT_KEYFRAMES) {
         if (cancelled) return;
-        const { size, delayMs } = naturalStreamStep(
-          turn.reply.length - cursorIdx,
-        );
-        cursorIdx = Math.min(turn.reply.length, cursorIdx + size);
-        const slice = turn.reply.slice(0, cursorIdx);
-        const prev = messagesRef.current;
-        const next = prev.slice(0, -1);
-        next.push(
-          buildAssistantMessage(turn, 0, slice, true, assistantCreatedAt),
-        );
-        messagesRef.current = next;
-        setMessages(next);
-        await wait(delayMs);
-      }
+        await wait(beat.waitMs);
+        if (cancelled) return;
 
-      const finalPrev = messagesRef.current;
-      const finalNext = finalPrev.slice(0, -1);
-      finalNext.push(
-        buildAssistantMessage(turn, 0, turn.reply, false, assistantCreatedAt),
-      );
-      messagesRef.current = finalNext;
-      setMessages(finalNext);
-      setIsGenerating(false);
-      requestAnimationFrame(() => stickDemoToBottom());
+        if (beat.frame.kind === "thinking_stream") {
+          const full = beat.frame.text;
+          await streamThinkingText(
+            full,
+            (slice) => {
+              assistant = applyAgentDemoKeyframe(
+                assistant,
+                { kind: "thinking_stream", text: slice },
+                assistantCreatedAt,
+              );
+              patchAssistant(assistant);
+            },
+            wait,
+            signal,
+          );
+          continue;
+        }
+
+        if (beat.frame.kind === "tool_args" && beat.frame.fileContent) {
+          // Reveal file contents in chunks so create_file looks live.
+          const full = beat.frame.fileContent;
+          let i = 0;
+          while (i < full.length) {
+            if (cancelled) return;
+            const { size, delayMs } = naturalStreamStep(full.length - i);
+            i = Math.min(full.length, i + Math.max(size * 3, 12));
+            const slice = full.slice(0, i);
+            assistant = applyAgentDemoKeyframe(
+              assistant,
+              {
+                kind: "tool_args",
+                toolCallId: beat.frame.toolCallId,
+                args: { ...beat.frame.args, content: slice },
+                fileContent: slice,
+              },
+              assistantCreatedAt,
+            );
+            patchAssistant(assistant);
+            await wait(delayMs);
+          }
+          continue;
+        }
+
+        if (beat.frame.kind === "answer_stream") {
+          const full = beat.frame.text;
+          let i = 0;
+          while (i < full.length) {
+            if (cancelled) return;
+            const { size, delayMs } = naturalStreamStep(full.length - i);
+            i = Math.min(full.length, i + size);
+            assistant = applyAgentDemoKeyframe(
+              assistant,
+              { kind: "answer_stream", text: full.slice(0, i) },
+              assistantCreatedAt,
+            );
+            patchAssistant(assistant);
+            await wait(delayMs);
+          }
+          continue;
+        }
+
+        assistant = applyAgentDemoKeyframe(
+          assistant,
+          beat.frame,
+          assistantCreatedAt,
+        );
+        patchAssistant(assistant);
+
+        if (beat.frame.kind === "complete") {
+          setIsGenerating(false);
+          requestAnimationFrame(() => stickDemoToBottom());
+        }
+      }
     };
 
-    const playDocsScene = async () => {
+    const playFilesScene = async () => {
       const stage = stageRef.current;
       const root = promptRoot();
 
-      // Click + button
       const addBtn = root?.querySelector(
         "[data-demo-add]",
       ) as HTMLElement | null;
@@ -512,7 +587,6 @@ export function LoginDemoPlayer() {
       await wait(480);
       if (cancelled) return;
 
-      // Click "Add photos & files"
       const filesItem = root?.querySelector(
         '[data-demo-add-item="files"]',
       ) as HTMLElement | null;
@@ -521,7 +595,7 @@ export function LoginDemoPlayer() {
       await clickAt();
       if (cancelled) return;
       setAddMenuOpen(false);
-      // Float Finder beside the chat frame (macOS desktop feel).
+
       const stageEl = stageRef.current;
       const frameEl = frameRef.current;
       if (stageEl && frameEl) {
@@ -539,7 +613,6 @@ export function LoginDemoPlayer() {
       await wait(520);
       if (cancelled) return;
 
-      // Select files one by one (cmd-click feel)
       const pickIds = [...DEMO_DRAG_FILE_IDS];
       const selected: string[] = [];
       for (const id of pickIds) {
@@ -556,7 +629,6 @@ export function LoginDemoPlayer() {
         await wait(220);
       }
 
-      // Drag selected files to composer
       const dragFiles = DEMO_FINDER_FILES.filter((f) =>
         selected.includes(f.id),
       );
@@ -585,7 +657,6 @@ export function LoginDemoPlayer() {
       await wait(120);
       if (cancelled) return;
 
-      // Drop — attachments land, composer expands
       setDragGhost({ visible: false, x: to.x, y: to.y, files: [] });
       setFinderDragging([]);
       setAttachments(dragFiles);
@@ -594,26 +665,86 @@ export function LoginDemoPlayer() {
       setFinderSelected([]);
       setCursor((c) => ({ ...c, visible: false }));
 
-      await wait(900);
+      await wait(700);
       if (cancelled) return;
 
-      // Type a short follow-up about the files
-      const followUp =
-        "Can you read these and summarize what I should do this week?";
-      await moveCursor(pointInStage(stage, shell, 0.4, 0.55));
+      const turn = DEMO_FILES_TURN;
+      await clickComposerAndType(turn.prompt);
       if (cancelled) return;
-      await clickAt();
+      await wait(280);
       if (cancelled) return;
-      await typeDraft(followUp);
+      await sendDraft();
       if (cancelled) return;
-      await wait(500);
+
+      const userMsg = {
+        ...buildUserMessage(turn, 0),
+        attachments: dragFiles.map((f) => ({
+          id: f.id,
+          name: f.name,
+          mimeType:
+            f.kind === "image"
+              ? "image/jpeg"
+              : f.kind === "pdf"
+                ? "application/pdf"
+                : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          kind:
+            f.kind === "image"
+              ? ("image" as const)
+              : ("document" as const),
+          previewUrl: f.previewUrl,
+        })),
+      };
+      const assistantCreatedAt = Date.now();
+      messagesRef.current = [...messagesRef.current, userMsg];
+      setMessages(messagesRef.current);
+      setDraft("");
+      setAttachments([]);
+      easeDemoToBottom(560);
+
+      await wait(400);
+      if (cancelled) return;
+
+      const placeholder = buildAssistantMessage(
+        turn,
+        0,
+        "",
+        true,
+        assistantCreatedAt,
+      );
+      messagesRef.current = [...messagesRef.current, placeholder];
+      setMessages(messagesRef.current);
+      setIsGenerating(true);
+      stickDemoToBottom();
+
+      await wait(220);
+      if (cancelled) return;
+
+      let cursorIdx = 0;
+      while (cursorIdx < turn.reply.length) {
+        if (cancelled) return;
+        const { size, delayMs } = naturalStreamStep(
+          turn.reply.length - cursorIdx,
+        );
+        cursorIdx = Math.min(turn.reply.length, cursorIdx + size);
+        const slice = turn.reply.slice(0, cursorIdx);
+        patchAssistant(
+          buildAssistantMessage(turn, 0, slice, true, assistantCreatedAt),
+        );
+        await wait(delayMs);
+      }
+
+      patchAssistant(
+        buildAssistantMessage(turn, 0, turn.reply, false, assistantCreatedAt),
+      );
+      setIsGenerating(false);
+      requestAnimationFrame(() => stickDemoToBottom());
     };
 
     const run = async () => {
       while (!cancelled) {
-        // 1) Daily-life label
+        // 1) Agentic chapter title
         resetChat();
-        setScene("label-daily");
+        setScene("label-agent");
         setFrameTall(false);
         setSlideOut(false);
         setSlideIn(true);
@@ -622,32 +753,34 @@ export function LoginDemoPlayer() {
         await wait(LABEL_HOLD_MS);
         if (cancelled) return;
 
-        // 2) Chat appears (taller) + daily turn
-        await transitionTo("chat-daily", { tall: false });
+        // 2) Agent product demo (search → tools → file)
+        await transitionTo("chat-agent", { tall: false });
+        if (cancelled) return;
+        await growFrame();
+        if (cancelled) return;
+        await wait(420);
+        if (cancelled) return;
+        await playAgentTurn();
+        if (cancelled) return;
+        await wait(HOLD_AFTER_AGENT_MS);
+        if (cancelled) return;
+
+        // 3) Files chapter title
+        await transitionTo("label-files", { tall: false });
+        if (cancelled) return;
+        await wait(LABEL_HOLD_MS);
+        if (cancelled) return;
+
+        // 4) Drop docs + prioritize reply
+        await transitionTo("chat-files", { tall: false });
         if (cancelled) return;
         await growFrame();
         if (cancelled) return;
         await wait(500);
         if (cancelled) return;
-        await playDailyTurn();
+        await playFilesScene();
         if (cancelled) return;
-        await wait(1600);
-        if (cancelled) return;
-
-        // 3) Docs label
-        await transitionTo("label-docs", { tall: false });
-        if (cancelled) return;
-        await wait(LABEL_HOLD_MS);
-        if (cancelled) return;
-
-        // 4) Docs/files chat scene
-        await transitionTo("chat-docs", { tall: false });
-        if (cancelled) return;
-        await growFrame();
-        if (cancelled) return;
-        await wait(600);
-        if (cancelled) return;
-        await playDocsScene();
+        await wait(HOLD_AFTER_FILES_MS);
         if (cancelled) return;
         await wait(LOOP_PAUSE_MS);
       }

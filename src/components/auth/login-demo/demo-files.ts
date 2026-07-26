@@ -72,34 +72,34 @@ const DOC_PREVIEW = svgDataUrl(`
 /** Files shown in the demo Finder + dropped into the composer. */
 export const DEMO_FINDER_FILES: DemoAttachment[] = [
   {
-    id: "receipt",
-    name: "Grocery_Receipt.pdf",
+    id: "brief",
+    name: "Q3_Launch_Brief.pdf",
     kind: "pdf",
     previewUrl: PDF_PREVIEW,
     accent: "#ef4444",
   },
   {
-    id: "budget",
-    name: "Family_Budget.docx",
+    id: "roadmap",
+    name: "Product_Roadmap.docx",
     kind: "doc",
     previewUrl: DOC_PREVIEW,
     accent: "#3b82f6",
   },
   {
-    id: "photo-a",
-    name: "Homework_Photo.jpg",
+    id: "board",
+    name: "Whiteboard_Photo.jpg",
     kind: "image",
     previewUrl: PHOTO_A,
     accent: "#0ea5e9",
   },
   {
-    id: "photo-b",
-    name: "Report_Card.png",
+    id: "budget",
+    name: "Marketing_Budget.png",
     kind: "image",
     previewUrl: PHOTO_B,
     accent: "#f97316",
   },
 ];
 
-/** Subset the cursor selects and drags in the docs scene. */
-export const DEMO_DRAG_FILE_IDS = ["receipt", "photo-a", "budget"] as const;
+/** Subset the cursor selects and drags in the files scene. */
+export const DEMO_DRAG_FILE_IDS = ["brief", "board", "roadmap"] as const;
