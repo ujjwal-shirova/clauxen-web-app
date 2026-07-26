@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  hasUsefulAssistantProgress,
   isAssistantGenerationError,
   toUserFacingChatError,
   USER_FACING_CHAT_ERROR,
@@ -31,6 +32,43 @@ describe("toUserFacingChatError", () => {
     const out = toUserFacingChatError("429 Too Many Requests");
     assert.match(out, /busy|try again/i);
     assert.equal(out.includes("429"), false);
+  });
+
+  it("maps security challenges without technical CF copy", () => {
+    const out = toUserFacingChatError("cf-mitigated challenge Just a moment");
+    assert.match(out, /security check/i);
+  });
+});
+
+describe("hasUsefulAssistantProgress", () => {
+  it("treats painted answer or finished tools as useful", () => {
+    assert.equal(
+      hasUsefulAssistantProgress({ content: "Here is the brief." }),
+      true,
+    );
+    assert.equal(
+      hasUsefulAssistantProgress({
+        content: "",
+        agentSegments: [
+          {
+            kind: "tool",
+            id: "t1",
+            toolCallId: "t1",
+            name: "web_search",
+            status: "done",
+            searchResults: [
+              {
+                title: "Example",
+                url: "https://example.com",
+                snippet: "ok",
+              },
+            ],
+          },
+        ],
+      }),
+      true,
+    );
+    assert.equal(hasUsefulAssistantProgress({ content: "" }), false);
   });
 });
 

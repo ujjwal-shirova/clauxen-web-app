@@ -30,7 +30,7 @@ description: >-
 
 ## CF Free pack (do not casually change)
 
-Managed Challenge on HTML entry; Block scanners/empty-UA/sensitive paths; Challenge suspicious auth POSTs; SSL Full strict; Under Attack OFF; no `cf.threat_score`.
+Managed Challenge only on public auth/marketing entry (not chat/API/RSC); Block scanners/empty-UA/sensitive paths; Challenge suspicious auth POSTs; SSL Full strict; Under Attack OFF; no `cf.threat_score`. Apply: `scripts/ops/apply-cloudflare-challenge-policy.mjs`.
 
 ## Additional resources
 

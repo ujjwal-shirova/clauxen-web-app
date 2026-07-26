@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import type { StreamEvent } from "@/lib/chat-stream";
 import { applyAgentStreamEvent } from "@/lib/agent-stream-reducer";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
-import { toUserFacingChatError } from "@/lib/assistant-generation-error";
+import {
+  hasUsefulAssistantProgress,
+  toUserFacingChatError,
+} from "@/lib/assistant-generation-error";
+import {
+  isEventStreamResponse,
+  looksLikeSecurityChallenge,
+} from "@/lib/security-challenge";
 import {
   canFastAppendAnswer,
   patchToolOutputDelta,
@@ -1308,12 +1315,35 @@ export function useChatApi(
             `/api/v1/chats/${chatId}/generate`,
             {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "text/event-stream",
+              },
               credentials: "include",
               body: generateBody,
               signal: controller.signal,
             },
           );
+
+          // Cloudflare/Vercel challenge HTML on /generate — brief retry instead
+          // of ending the turn with "Connection was interrupted".
+          if (
+            attemptResponse.body &&
+            !isEventStreamResponse(attemptResponse)
+          ) {
+            const peek = await attemptResponse.clone().text();
+            if (looksLikeSecurityChallenge(attemptResponse, peek)) {
+              lastDetail = "Security check in progress. Please retry in a moment.";
+              if (attempt < 5) {
+                await new Promise((resolve) =>
+                  setTimeout(resolve, 400 + attempt * 200),
+                );
+                continue;
+              }
+              throw new Error(lastDetail);
+            }
+          }
+
           if (attemptResponse.ok && attemptResponse.body) {
             response = attemptResponse;
             break;
@@ -1625,24 +1655,39 @@ export function useChatApi(
           const rawMessage =
             error instanceof Error ? error.message : String(error ?? "");
           const friendly = toUserFacingChatError(rawMessage);
-          setAllChats((prev) => ({
-            ...prev,
-            [chatId]: (prev[chatId] ?? []).map((m) =>
-              m.id === failedAssistantId || m.clientId === assistantClientId
-                ? {
+          setAllChats((prev) => {
+            const list = prev[chatId] ?? [];
+            return {
+              ...prev,
+              [chatId]: list.map((m) => {
+                if (
+                  m.id !== failedAssistantId &&
+                  m.clientId !== assistantClientId
+                ) {
+                  return m;
+                }
+                // Proxy/challenge blips mid-stream: keep painted work and
+                // soft-complete instead of replacing the answer with an error.
+                if (hasUsefulAssistantProgress(m)) {
+                  return {
                     ...m,
                     isStreaming: false,
                     isThinkingStreaming: false,
                     agentFrameComplete: true,
-                    generationFailed: true,
-                    // Never keep raw provider/API text in the transcript.
-                    content: m.content?.trim()
-                      ? toUserFacingChatError(m.content)
-                      : friendly,
-                  }
-                : m,
-            ),
-          }));
+                    generationFailed: false,
+                  };
+                }
+                return {
+                  ...m,
+                  isStreaming: false,
+                  isThinkingStreaming: false,
+                  agentFrameComplete: true,
+                  generationFailed: true,
+                  content: friendly,
+                };
+              }),
+            };
+          });
         }
         if (!isAbort) {
           console.error("Chat generation failed:", error);

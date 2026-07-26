@@ -1,3 +1,5 @@
+import { looksLikeSecurityChallenge } from "@/lib/security-challenge";
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
@@ -8,19 +10,6 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
   }
-}
-
-function looksLikeSecurityChallenge(response: Response, bodyText: string) {
-  const contentType = response.headers.get("content-type") ?? "";
-  const trimmed = bodyText.trimStart();
-  return (
-    response.status === 429 ||
-    contentType.includes("text/html") ||
-    trimmed.startsWith("<!DOCTYPE") ||
-    trimmed.startsWith("<html") ||
-    bodyText.includes("Vercel Security Checkpoint") ||
-    bodyText.includes("vercel-challenge")
-  );
 }
 
 async function parseApiPayload<T>(response: Response, bodyText: string): Promise<T> {

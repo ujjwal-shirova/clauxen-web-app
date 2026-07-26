@@ -24,13 +24,17 @@ Cache Rules:
 ## 2. Security rules (Free plan constraints)
 
 - Max **5** custom rules, **1** rate-limit rule
-- Managed Challenge on app HTML entry
+- **Do not** Managed-Challenge all HTML / chat shells — that re-fires on `/c/*` soft-nav and RSC (`_rsc`) and breaks SSE with “Connection was interrupted”
+- Managed Challenge **only** on public auth/marketing entry (`/`, `/login`, `/signup`, `/auth/*`, `/plans`, `/contact-sales`), excluding `/api/*`, `/_next/*`, and `_rsc`
 - Block scanners / empty UA / sensitive paths
-- Challenge suspicious auth POSTs
-- Keep leaked-credential rate rule
-- Under Attack mode OFF (custom challenge is targeted)
+- Challenge suspicious auth POSTs (empty/short UA only)
+- `challenge_ttl` = 1 year so clearance is not constantly re-asked
+- Under Attack mode OFF; security_level not used for blanket challenges
 - AI Labyrinth on; Block AI Training crawlers; Browser Integrity Check on
 - Super Bot Fight / OWASP managed rulesets need Pro
+
+Apply via: `node scripts/ops/apply-cloudflare-challenge-policy.mjs`  
+(Token needs **Zone WAF Edit** + **Zone Settings Edit** — Workers deploy token is not enough.)
 
 **Do not** use `cf.threat_score` (deprecated on upgraded security).
 

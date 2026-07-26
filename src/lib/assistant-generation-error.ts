@@ -9,10 +9,12 @@ const GENERATION_ERROR_PREFIXES = [
   "Something unexpected happened",
   "We couldn't complete that reply",
   "Connection lost while generating",
+  "Connection was interrupted",
   "Generation failed",
   "The response stream ended before completion",
   "Failed to generate response",
   "This chat is already generating a response",
+  "Security check in progress",
 ];
 
 const TECHNICAL_PATTERNS: Array<{ test: RegExp; message: string }> = [
@@ -22,7 +24,11 @@ const TECHNICAL_PATTERNS: Array<{ test: RegExp; message: string }> = [
       "We couldn't start that reply just yet. Please try again in a moment.",
   },
   {
-    test: /failed to fetch|networkerror|load failed|network request failed|stream ended|response stream ended|aborted|ECONNRESET|ETIMEDOUT|timeout/i,
+    test: /security check|security_challenge|just a moment|cf-mitigated|challenge-platform|vercel-challenge/i,
+    message: "Security check in progress. Please retry in a moment.",
+  },
+  {
+    test: /failed to fetch|networkerror|load failed|network request failed|stream ended|response stream ended|ECONNRESET|ETIMEDOUT|timeout/i,
     message: "Connection was interrupted. Please try again.",
   },
   {
@@ -44,6 +50,36 @@ const TECHNICAL_PATTERNS: Array<{ test: RegExp; message: string }> = [
   },
 ];
 
+/** True when the assistant already painted useful work — soft-complete instead of failing. */
+export function hasUsefulAssistantProgress(
+  message: Pick<Message, "content" | "agentSegments" | "agentFrames">,
+): boolean {
+  if (message.content?.trim()) return true;
+  const segments = [
+    ...(message.agentSegments ?? []),
+    ...(message.agentFrames?.flatMap((frame) => frame.segments) ?? []),
+  ];
+  return segments.some((segment) => {
+    if (segment.kind === "tool") {
+      return (
+        segment.status === "done" ||
+        segment.status === "running" ||
+        Boolean(segment.result?.trim()) ||
+        Boolean(segment.searchResults?.length) ||
+        Boolean(segment.fileContent?.trim())
+      );
+    }
+    if (
+      segment.kind === "thinking" ||
+      segment.kind === "narration" ||
+      segment.kind === "text"
+    ) {
+      return Boolean(segment.content?.trim());
+    }
+    return false;
+  });
+}
+
 /**
  * Map any raw/API/provider error into a short user-facing sentence.
  * Never forward status codes, stack traces, or vendor names to the chat UI.
@@ -63,7 +99,8 @@ export function toUserFacingChatError(raw: unknown): string {
     text.startsWith("Something unexpected happened") ||
     text.startsWith("We couldn't start that reply") ||
     text.startsWith("Connection was interrupted") ||
-    text.startsWith("We're a bit busy right now")
+    text.startsWith("We're a bit busy right now") ||
+    text.startsWith("Security check in progress")
   ) {
     return text;
   }

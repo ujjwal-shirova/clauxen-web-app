@@ -11,7 +11,7 @@
 | Uploads | Bearer JWT on r2-gateway |
 | Billing webhooks | Razorpay signature secret |
 | Internal Workers | Shared internal tokens |
-| HTML entry | CF Managed Challenge (targeted) |
+| Public auth/marketing HTML | CF Managed Challenge (once; long clearance TTL) — not chat/API/RSC |
 | Scanners / empty UA | CF Block rules |
 | Auth POSTs | CF Challenge rule |
 | Leaked passwords | Supabase Auth protection (enable in dash) + hibp usage where wired |
