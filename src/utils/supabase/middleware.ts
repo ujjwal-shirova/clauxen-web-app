@@ -47,6 +47,8 @@ function isPublicPath(pathname: string) {
   }
   if (isMarketingPublicPath(pathname)) return true;
   if (pathname.startsWith("/api/")) return true;
+  // Clauxen Code CLI preflight probe (not under /api/)
+  if (pathname === "/v1/oauth/hello") return true;
   return false;
 }
 
