@@ -230,8 +230,10 @@ export async function getUserSubscription(userId: string) {
     status: string;
     billing_cycle: string | null;
     current_period_end: string | null;
+    cancel_at_period_end: boolean;
   }>(
-    `select id, plan_id, status, billing_cycle, current_period_end
+    `select id, plan_id, status, billing_cycle, current_period_end,
+            coalesce(cancel_at_period_end, false) as cancel_at_period_end
      from public.subscriptions
      where user_id = $1
      order by created_at desc
@@ -318,6 +320,30 @@ export async function cancelActiveSubscription(userId: string) {
      set cancel_at_period_end = true,
          status = case when status in ('active', 'trialing', 'past_due') then 'active' else status end,
          metadata = metadata || jsonb_build_object('cancelRequestedAt', now()::text),
+         updated_at = now()
+     where id = (
+       select id from public.subscriptions
+       where user_id = $1 and status in ('active', 'trialing', 'past_due')
+       order by created_at desc
+       limit 1
+     )
+     returning id, plan_id, status, cancel_at_period_end, current_period_end`,
+    [userId],
+  );
+}
+
+/** Re-enable auto-renew for the latest active subscription. */
+export async function resumeActiveSubscription(userId: string) {
+  return queryOne<{
+    id: string;
+    plan_id: string | null;
+    status: string;
+    cancel_at_period_end: boolean;
+    current_period_end: string | null;
+  }>(
+    `update public.subscriptions
+     set cancel_at_period_end = false,
+         metadata = metadata || jsonb_build_object('autoRenewResumedAt', now()::text),
          updated_at = now()
      where id = (
        select id from public.subscriptions

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import UpgradePageContent from "./subscription";
 import type { MaxTier } from "./billing-checkout";
 import { BillingCheckout } from "./billing-checkout";
@@ -10,6 +10,7 @@ import { FullscreenPortal } from "./fullscreen-portal";
 import {
   billingInvoicePdfUrl,
   getBillingInvoice,
+  getBillingSubscription,
 } from "@/lib/api/billing";
 
 interface UpgradeViewProps {
@@ -27,8 +28,32 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
     useState<BillingCycle>("monthly");
   const [selectedMaxTier, setSelectedMaxTier] = useState<MaxTier>("5x");
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
+  const [currentPlanId, setCurrentPlanId] = useState<string>("free");
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [lastPaymentId, setLastPaymentId] = useState<string | null>(null);
+
+  const refreshCurrentPlan = useCallback(async () => {
+    try {
+      const overview = await getBillingSubscription();
+      setCurrentPlanId(overview.subscription?.plan_id ?? "free");
+    } catch {
+      /* keep previous */
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshCurrentPlan();
+  }, [refreshCurrentPlan, plansRefreshKey]);
+
+  useEffect(() => {
+    const onBillingUpdated = () => {
+      setPlansRefreshKey((k) => k + 1);
+    };
+    window.addEventListener("clauxen:billing-updated", onBillingUpdated);
+    return () => {
+      window.removeEventListener("clauxen:billing-updated", onBillingUpdated);
+    };
+  }, []);
 
   const resetToPlans = () => {
     setCurrentView("plans");
@@ -125,6 +150,7 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
           <UpgradePageContent
             key={plansRefreshKey}
             onClose={onClose}
+            currentPlanId={currentPlanId}
             onSelectPlan={(planId, cycle, tier, name) =>
               handleSelectPlan(planId, cycle, tier, name)
             }

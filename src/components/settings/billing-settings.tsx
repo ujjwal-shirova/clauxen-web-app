@@ -30,6 +30,7 @@ import {
   type CheckoutAddressState,
 } from "@/components/checkout-billing-address";
 import { AddPaymentMethodDialog } from "@/components/settings/add-payment-method-dialog";
+import { ManagePlanDialog } from "@/components/settings/manage-plan-dialog";
 import {
   SettingsFieldBlock,
   SettingsPanelTitle,
@@ -138,6 +139,7 @@ export function BillingSettings({
   const [addressError, setAddressError] = useState<string | null>(null);
   const [invoiceView, setInvoiceView] = useState<InvoiceData | null>(null);
   const [addMethodOpen, setAddMethodOpen] = useState(false);
+  const [managePlanOpen, setManagePlanOpen] = useState(false);
 
   const planCard = useMemo(() => resolvePlanCard(planId), [planId]);
   const planTitle = formatPlanTitle(planCard, planId);
@@ -184,6 +186,16 @@ export function BillingSettings({
 
   useEffect(() => {
     void reload();
+  }, [reload]);
+
+  useEffect(() => {
+    const onBillingUpdated = () => {
+      void reload();
+    };
+    window.addEventListener("clauxen:billing-updated", onBillingUpdated);
+    return () => {
+      window.removeEventListener("clauxen:billing-updated", onBillingUpdated);
+    };
   }, [reload]);
 
   const showUpgrade =
@@ -274,7 +286,13 @@ export function BillingSettings({
             </div>
           </div>
           <SettingsPillButton
-            onClick={onUpgradeClick}
+            onClick={() => {
+              if (showUpgrade) {
+                onUpgradeClick?.();
+                return;
+              }
+              setManagePlanOpen(true);
+            }}
             className="min-w-[140px] !border-zinc-900 !bg-zinc-900 !text-white hover:!bg-zinc-800"
           >
             {showUpgrade ? "Upgrade plan" : "Manage plan"}
@@ -325,7 +343,7 @@ export function BillingSettings({
                 <button
                   type="button"
                   onClick={() => void viewInvoice(inv.id)}
-                  className="justify-self-start text-[14px] underline underline-offset-2 hover:text-zinc-600 sm:justify-self-end"
+                  className="label-hover-bold justify-self-start text-[14px] font-medium text-zinc-700 hover:text-zinc-950 sm:justify-self-end"
                 >
                   View
                 </button>
@@ -522,6 +540,20 @@ export function BillingSettings({
           </div>
         </FullscreenPortal>
       )}
+
+      <ManagePlanDialog
+        open={managePlanOpen}
+        planName={planTitle}
+        periodEnd={periodEnd}
+        cancelAtPeriodEnd={cancelAtEnd}
+        onClose={() => setManagePlanOpen(false)}
+        onUpdated={(next) => {
+          setCancelAtEnd(next.cancelAtPeriodEnd);
+          setPeriodEnd(next.periodEnd);
+          window.dispatchEvent(new CustomEvent("clauxen:billing-updated"));
+        }}
+        onUpgradeClick={onUpgradeClick}
+      />
     </div>
   );
 }

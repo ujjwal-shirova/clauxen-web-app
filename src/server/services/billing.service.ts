@@ -806,6 +806,62 @@ export async function cancelSubscription(userId: string) {
   return { subscription };
 }
 
+export async function resumeSubscription(userId: string) {
+  const subscription = await billingRepo.resumeActiveSubscription(userId);
+  if (!subscription) {
+    throw notFound("No active subscription to update.");
+  }
+  return { subscription };
+}
+
+/**
+ * Ensure an invoice PDF exists in R2 for a payment. Regenerates on demand when
+ * the async post-payment enqueue failed or was skipped (e.g. manual recovery).
+ */
+export async function ensureInvoicePdfForUser(input: {
+  userId: string;
+  paymentId: string;
+}) {
+  const payment = await billingRepo.getBillingPaymentById(input.paymentId);
+  if (!payment || payment.user_id !== input.userId) {
+    throw notFound("Invoice not found.");
+  }
+  if (!payment.order_id) {
+    throw notFound("Invoice order not found.");
+  }
+
+  const existing = await fetchInvoicePdfFromWorker({
+    paymentId: input.paymentId,
+    userId: input.userId,
+  });
+  if (existing?.ok) return existing;
+
+  const generated = await enqueueInvoiceGeneration(
+    payment.order_id,
+    payment.id,
+  );
+  if (!generated) {
+    throw new AppError(
+      "Could not generate invoice PDF.",
+      502,
+      "invoice_pdf_error",
+    );
+  }
+
+  const regenerated = await fetchInvoicePdfFromWorker({
+    paymentId: input.paymentId,
+    userId: input.userId,
+  });
+  if (!regenerated?.ok) {
+    throw new AppError(
+      "Could not generate invoice PDF.",
+      502,
+      "invoice_pdf_error",
+    );
+  }
+  return regenerated;
+}
+
 /**
  * Server-side verification of Razorpay Standard Checkout success.
  *
@@ -977,21 +1033,21 @@ export async function verifyCheckoutPayment(input: {
 async function enqueueInvoiceGeneration(
   razorpayOrderId: string,
   paymentId: string,
-) {
+): Promise<boolean> {
   try {
     const order = await billingRepo.getBillingOrderDetailsByRazorpayId(
       razorpayOrderId,
     );
-    if (!order) return;
+    if (!order) return false;
     const payment = await billingRepo.getBillingPaymentById(paymentId);
-    if (!payment) return;
+    if (!payment) return false;
 
     const payload = buildInvoicePayloadFromOrder({
       order,
       payment,
     });
     const generated = await generateInvoiceOnWorker(payload);
-    if (!generated?.r2Key) return;
+    if (!generated?.r2Key) return false;
 
     let razorpayDocumentId = generated.razorpayDocumentId ?? null;
     let razorpayDocumentPurpose = generated.razorpayDocumentPurpose ?? null;
@@ -1053,8 +1109,10 @@ async function enqueueInvoiceGeneration(
         console.warn("[billing] invoice email failed", emailErr);
       }
     }
+    return true;
   } catch (err) {
     console.error("[billing] invoice enqueue failed", err);
+    return false;
   }
 }
 
@@ -1073,12 +1131,25 @@ export async function getInvoiceForUser(input: {
     throw notFound("Invoice not found.");
   }
 
+  let pdfKey =
+    (payment.provider_payload as { invoicePdfKey?: string } | null)
+      ?.invoicePdfKey ?? null;
+
+  // Backfill PDF + email when post-payment generation was skipped/failed.
+  if (!pdfKey && payment.order_id) {
+    const ok = await enqueueInvoiceGeneration(payment.order_id, payment.id);
+    if (ok) {
+      const refreshed = await billingRepo.getBillingPaymentById(input.paymentId);
+      pdfKey =
+        (refreshed?.provider_payload as { invoicePdfKey?: string } | null)
+          ?.invoicePdfKey ?? pdfKey;
+    }
+  }
+
   const payload = buildInvoicePayloadFromOrder({ order, payment });
   return {
     invoice: invoicePayloadToViewData(payload),
-    pdfKey:
-      (payment.provider_payload as { invoicePdfKey?: string } | null)
-        ?.invoicePdfKey ?? null,
+    pdfKey,
   };
 }
 

@@ -209,7 +209,6 @@ export function AddPaymentMethodDialog({
                 <CheckoutMobileField
                   value={paymentMobile}
                   onChange={setPaymentMobile}
-                  hint="Required by Razorpay to authorize UPI Autopay."
                 />
                 <input
                   type="text"

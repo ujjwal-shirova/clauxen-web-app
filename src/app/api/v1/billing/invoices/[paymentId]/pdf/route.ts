@@ -1,9 +1,6 @@
 import { withApiRouteParams } from "@/server/http/route-params";
 import { requireSession } from "@/server/auth/require-session";
 import { AppError } from "@/server/db/errors";
-import {
-  fetchInvoicePdfFromWorker,
-} from "@/server/billing/billing-worker";
 import * as billingService from "@/server/services/billing.service";
 
 export const runtime = "nodejs";
@@ -16,34 +13,11 @@ export const GET = withApiRouteParams<{ paymentId: string }>(
       throw new AppError("Invalid payment id.", 400, "bad_request");
     }
 
-    // Ownership check before proxying to Cloudflare.
-    await billingService.getInvoiceForUser({
+    // Ownership check + generate PDF on demand when missing from R2.
+    const pdfRes = await billingService.ensureInvoicePdfForUser({
       userId: user.id,
       paymentId: params.paymentId,
     });
-
-    const pdfRes = await fetchInvoicePdfFromWorker({
-      paymentId: params.paymentId,
-      userId: user.id,
-    });
-
-    if (!pdfRes) {
-      throw new AppError(
-        "Invoice PDF service is not configured yet.",
-        503,
-        "billing_unavailable",
-      );
-    }
-
-    if (!pdfRes.ok) {
-      throw new AppError(
-        pdfRes.status === 404
-          ? "Invoice PDF not ready yet. Try again shortly."
-          : "Failed to fetch invoice PDF.",
-        pdfRes.status === 404 ? 404 : 502,
-        "invoice_pdf_error",
-      );
-    }
 
     return new Response(pdfRes.body, {
       status: 200,

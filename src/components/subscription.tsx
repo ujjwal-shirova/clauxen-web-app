@@ -34,6 +34,24 @@ interface UpgradePageContentProps {
     maxTier?: MaxTier,
     planDisplayName?: string,
   ) => void;
+  /** Active subscription plan id (e.g. go, plus). Drives "Current plan" CTAs. */
+  currentPlanId?: string | null;
+}
+
+const PLAN_RANK: Record<string, number> = {
+  free: 0,
+  go: 1,
+  plus: 2,
+  pro: 3,
+  max: 4,
+};
+
+function normalizePlanId(planId: string | null | undefined): string {
+  if (!planId) return "free";
+  const normalized = planId.replace(/_/g, "").toLowerCase();
+  if (normalized in PLAN_RANK) return normalized;
+  const known = Object.keys(PLAN_RANK).find((id) => normalized.startsWith(id));
+  return known ?? "free";
 }
 
 const CARD_SHADOW =
@@ -117,6 +135,7 @@ function PlanCarouselCard({
   onSelect,
   ctaLabel,
   forceSelectable = false,
+  currentPlanId = "free",
 }: {
   plan: PlanCard;
   billingCycle: BillingCycle;
@@ -126,10 +145,16 @@ function PlanCarouselCard({
   ctaLabel?: string;
   /** When true, treat isCurrent plans as selectable (onboarding Free). */
   forceSelectable?: boolean;
+  currentPlanId?: string;
 }) {
   const features = resolvePlanFeatures(plan, { maxTier });
   const price = getPriceDisplay(plan, billingCycle, maxTier);
-  const isCurrent = plan.isCurrent && !forceSelectable;
+  const activeId = normalizePlanId(currentPlanId);
+  const isCurrent =
+    !forceSelectable && normalizePlanId(plan.id) === activeId;
+  const isLowerThanCurrent =
+    !forceSelectable &&
+    (PLAN_RANK[normalizePlanId(plan.id)] ?? 0) < (PLAN_RANK[activeId] ?? 0);
   const isMax = plan.id === "max";
 
   return (
@@ -211,11 +236,13 @@ function PlanCarouselCard({
             <button
               type="button"
               disabled
-              className="flex h-9 w-full cursor-default items-center justify-center rounded-[10px] border-2 border-black/10 text-[14px] font-medium text-zinc-300"
+              className="flex h-9 w-full cursor-default items-center justify-center rounded-[10px] border-2 border-black/10 bg-zinc-100 text-[14px] font-medium text-zinc-400"
             >
               <Check className="mr-1.5 h-[18px] w-[18px]" />
               Current plan
             </button>
+          ) : isLowerThanCurrent ? (
+            <div className="h-9 w-full" aria-hidden />
           ) : (
             <button
               type="button"
@@ -520,6 +547,8 @@ export type PlansCarouselSectionProps = {
   onCtaClick?: () => void;
   /** Plan ids that stay selectable even when marked `isCurrent` (e.g. Free in onboarding). */
   selectableCurrentPlanIds?: string[];
+  /** Active subscription plan id for Current plan / hide lower-tier CTAs. */
+  currentPlanId?: string | null;
   className?: string;
 };
 
@@ -530,6 +559,7 @@ export function PlansCarouselSection({
   onOrganizationPlanSelect,
   onCtaClick,
   selectableCurrentPlanIds,
+  currentPlanId = "free",
   className,
 }: PlansCarouselSectionProps) {
   const [activeTab, setActiveTab] = React.useState<"individual" | "team">(
@@ -695,6 +725,7 @@ export function PlansCarouselSection({
                   onSelect={() => handlePersonalSelect(plan)}
                   ctaLabel={ctaLabel}
                   forceSelectable={selectableCurrentPlanIds?.includes(plan.id)}
+                  currentPlanId={normalizePlanId(currentPlanId)}
                 />
               ))
             : null}
@@ -730,13 +761,20 @@ export function PlansCarouselSection({
 export default function UpgradePageContent({
   onClose,
   onSelectPlan,
+  currentPlanId = "free",
 }: UpgradePageContentProps) {
+  const activePlanId = normalizePlanId(currentPlanId);
+
   const handlePersonalPlanSelection = (
     plan: PlanCard,
     cycle: BillingCycle,
     tier?: MaxTier,
   ) => {
-    if (plan.isCurrent || !CHECKOUT_PLAN_IDS.has(plan.id)) return;
+    if (!CHECKOUT_PLAN_IDS.has(plan.id)) return;
+    if (normalizePlanId(plan.id) === activePlanId) return;
+    if ((PLAN_RANK[normalizePlanId(plan.id)] ?? 0) < (PLAN_RANK[activePlanId] ?? 0)) {
+      return;
+    }
     onSelectPlan(plan.id, cycle, tier, plan.name);
   };
 
@@ -772,6 +810,7 @@ export default function UpgradePageContent({
       <main className="mobile-page-inset mx-auto flex w-full max-w-[1152px] flex-col gap-5 py-5 pb-24 sm:gap-6 sm:py-6 lg:px-6">
         <PlansCarouselSection
           layout="tabs"
+          currentPlanId={activePlanId}
           onPersonalPlanSelect={handlePersonalPlanSelection}
           onOrganizationPlanSelect={handleOrganizationPlanSelection}
         />

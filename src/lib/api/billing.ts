@@ -256,6 +256,18 @@ export async function cancelBillingSubscription() {
   }>("/api/v1/billing/subscription/cancel", { method: "POST" });
 }
 
+export async function resumeBillingSubscription() {
+  return apiFetch<{
+    subscription: {
+      id: string;
+      plan_id: string | null;
+      status: string;
+      cancel_at_period_end: boolean;
+      current_period_end: string | null;
+    };
+  }>("/api/v1/billing/subscription/resume", { method: "POST" });
+}
+
 export async function listInvoices() {
   return apiFetch<{ invoices: unknown[] }>("/api/v1/billing/invoices");
 }

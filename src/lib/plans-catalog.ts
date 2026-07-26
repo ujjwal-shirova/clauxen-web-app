@@ -374,8 +374,8 @@ export const PERSONAL_PLANS: PlanCard[] = [
     monthlyPriceInr: PLAN_MONTHLY_PRICES_INR.free,
     yearlySupported: false,
     giftable: false,
-    isCurrent: true,
-    buttonLabel: "Your current plan",
+    isCurrent: false,
+    buttonLabel: "Upgrade to Free",
     features: [
       "Core models for everyday chat",
       "Limited messages and uploads",

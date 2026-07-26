@@ -71,9 +71,6 @@ export function InvoiceView({
               <div className="text-[19px] font-semibold tracking-[-0.3px] text-zinc-950">
                 Shirova
               </div>
-              <div className="mt-[-2px] text-[11px] text-zinc-500">
-                Premium AI Workspace
-              </div>
             </div>
           </div>
 
@@ -208,20 +205,16 @@ export function InvoiceView({
           <div>
             Payment processed securely via{" "}
             <span className="font-medium text-zinc-700">Razorpay</span>.
-            <br />
-            Auto-renew subscription — cancel anytime in Billing settings.
           </div>
           <div className="sm:text-right">
-            {data.paymentMethod && (
+            {data.paymentMethod ? (
               <>
                 Method:{" "}
                 <span className="font-medium text-zinc-700">
                   {data.paymentMethod}
                 </span>
-                <br />
               </>
-            )}
-            Thank you for supporting Shirova.
+            ) : null}
           </div>
         </div>
 

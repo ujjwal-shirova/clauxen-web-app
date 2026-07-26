@@ -93,7 +93,7 @@ export function buildInvoicePayloadFromOrder(input: {
   const items: BillingInvoicePayload["items"] = [
     {
       label: order.plan_name || order.plan_id,
-      sublabel: `${tierLabel} · ${cycleLabel} · auto-renew`,
+      sublabel: `${tierLabel} · ${cycleLabel}`,
       quantity: "1",
       unitAmountPaise: order.subtotal_paise,
       taxPaise: order.tax_paise > 0 ? order.tax_paise : undefined,
@@ -161,7 +161,7 @@ export function buildInvoicePayloadFromOrder(input: {
     amountPaidPaise: order.amount_paise,
     paymentMethod: payment.method ?? undefined,
     razorpayPaymentId: payment.id,
-    autoRenew: true,
+    autoRenew: false,
   };
 }
 

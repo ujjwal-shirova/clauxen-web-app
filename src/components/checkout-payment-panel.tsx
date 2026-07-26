@@ -118,7 +118,6 @@ function NetbankingBankPanel({
       <CheckoutMobileField
         value={paymentMobile}
         onChange={(value) => onPaymentMobileChange?.(value)}
-        hint="Required by your bank for payment authentication."
       />
 
       <div className="relative">
@@ -314,7 +313,6 @@ export function CheckoutPaymentPanel({
       <CheckoutMobileField
         value={paymentMobile}
         onChange={(value) => onPaymentMobileChange?.(value)}
-        hint="Used to secure your UPI payment with Razorpay."
       />
     );
   }
@@ -334,7 +332,6 @@ export function CheckoutPaymentPanel({
       <CheckoutMobileField
         value={paymentMobile}
         onChange={(value) => onPaymentMobileChange?.(value)}
-        hint="Required by Razorpay for card OTP / 3DS."
       />
       <div>
         <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
