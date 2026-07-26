@@ -48,6 +48,8 @@ export type CheckoutFormProps = {
   hideUpi?: boolean;
   hideNetbanking?: boolean;
   onExpressCheckout?: () => void;
+  paymentMobile?: string;
+  onPaymentMobileChange?: (value: string) => void;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
   onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
   billingAddress: CheckoutAddressState;
@@ -82,6 +84,8 @@ export function CheckoutForm({
   hideUpi = false,
   hideNetbanking = false,
   onExpressCheckout,
+  paymentMobile,
+  onPaymentMobileChange,
   onCardFieldsChange,
   onNetbankingChange,
   billingAddress,
@@ -108,6 +112,8 @@ export function CheckoutForm({
           hideUpi={hideUpi}
           hideNetbanking={hideNetbanking}
           onExpressCheckout={onExpressCheckout}
+          paymentMobile={paymentMobile}
+          onPaymentMobileChange={onPaymentMobileChange}
           onCardFieldsChange={onCardFieldsChange}
           onNetbankingChange={onNetbankingChange}
         />

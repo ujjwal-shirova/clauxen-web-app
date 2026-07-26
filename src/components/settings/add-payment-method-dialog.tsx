@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { CreditCard, Smartphone } from "lucide-react";
 import { FullscreenPortal } from "@/components/fullscreen-portal";
 import {
+  CheckoutMobileField,
   CheckoutPaymentPanel,
   type CheckoutCardFieldState,
 } from "@/components/checkout-payment-panel";
@@ -12,7 +13,10 @@ import {
   startPaymentMethodSetup,
   verifyPaymentMethodSetup,
 } from "@/lib/api/billing";
-import { chargeCardWithRazorpayCustom } from "@/lib/razorpay-custom-checkout";
+import {
+  chargeCardWithRazorpayCustom,
+  normalizeIndianMobileContact,
+} from "@/lib/razorpay-custom-checkout";
 import { openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import { useAuth } from "@/hooks/use-auth";
 import { checkoutUi } from "@/lib/checkout-ui";
@@ -31,6 +35,7 @@ export function AddPaymentMethodDialog({
 }) {
   const auth = useAuth();
   const [kind, setKind] = useState<MethodKind>("card");
+  const [paymentMobile, setPaymentMobile] = useState("");
   const [cardFields, setCardFields] = useState<CheckoutCardFieldState>({
     cardNumber: "",
     cardExpiry: "",
@@ -47,7 +52,15 @@ export function AddPaymentMethodDialog({
     setError(null);
     setBusy(true);
     try {
-      const { setup } = await startPaymentMethodSetup(kind);
+      const contact = normalizeIndianMobileContact(paymentMobile);
+      if (!contact) {
+        throw new Error("Enter a valid 10-digit Indian mobile number.");
+      }
+
+      const { setup } = await startPaymentMethodSetup({
+        method: kind,
+        contact,
+      });
 
       if (kind === "card") {
         if (!cardFields.isComplete) {
@@ -63,6 +76,7 @@ export function AddPaymentMethodDialog({
           customerId: setup.customerId,
           saveInstrument: true,
           email: auth.user?.email ?? undefined,
+          contact,
           description: "Securely save payment method · ₹0 authorization",
           card: {
             number: cardFields.cardNumber,
@@ -107,6 +121,7 @@ export function AddPaymentMethodDialog({
         prefill: {
           email: auth.user?.email ?? undefined,
           name: auth.user?.displayName ?? undefined,
+          contact,
         },
         onSuccess: async (payment) => {
           await verifyPaymentMethodSetup({
@@ -180,24 +195,33 @@ export function AddPaymentMethodDialog({
             </button>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 flex flex-col gap-3">
             {kind === "card" ? (
               <CheckoutPaymentPanel
                 tab="card"
                 savedMethod={null}
+                paymentMobile={paymentMobile}
+                onPaymentMobileChange={setPaymentMobile}
                 onCardFieldsChange={setCardFields}
               />
             ) : (
-              <input
-                type="text"
-                inputMode="email"
-                autoComplete="off"
-                placeholder="yourname@upi"
-                value={upiVpa}
-                onChange={(e) => setUpiVpa(e.target.value)}
-                className={checkoutUi.field}
-                aria-label="UPI ID"
-              />
+              <>
+                <CheckoutMobileField
+                  value={paymentMobile}
+                  onChange={setPaymentMobile}
+                  hint="Required by Razorpay to authorize UPI Autopay."
+                />
+                <input
+                  type="text"
+                  inputMode="email"
+                  autoComplete="off"
+                  placeholder="yourname@upi"
+                  value={upiVpa}
+                  onChange={(e) => setUpiVpa(e.target.value)}
+                  className={checkoutUi.field}
+                  aria-label="UPI ID"
+                />
+              </>
             )}
           </div>
 
@@ -219,7 +243,7 @@ export function AddPaymentMethodDialog({
               type="button"
               disabled={busy}
               onClick={onClose}
-              className="text-[13px] text-zinc-500 underline-offset-2 hover:underline"
+              className="text-[13px] font-medium text-zinc-500 hover:text-zinc-800"
             >
               Cancel
             </button>

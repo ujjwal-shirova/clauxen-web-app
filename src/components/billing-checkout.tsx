@@ -210,12 +210,18 @@ export function BillingCheckout({
     cardCvc: "",
     isComplete: false,
   });
+  /** Shared Razorpay `contact` for card / netbanking / UPI (+91…). */
+  const [paymentMobile, setPaymentMobile] = useState("");
   const [netbankingFields, setNetbankingFields] =
     useState<CheckoutNetbankingFieldState>({
       bankCode: null,
       mobile: "",
       isComplete: false,
     });
+  const paymentContact = useMemo(
+    () => normalizeIndianMobileContact(paymentMobile),
+    [paymentMobile],
+  );
   /**
    * Prefetched Razorpay order for card + netbanking so Pay can call
    * createPayment in the same click turn (required for 3DS / bank OTP).
@@ -917,6 +923,7 @@ export function BillingCheckout({
 
   const paymentFieldsValid =
     billingAddress.isComplete &&
+    Boolean(paymentContact) &&
     ((paymentTab === "upi" && billingAddress.isComplete) ||
       (paymentTab === "saved" && hasSavedPaymentMethod) ||
       (paymentTab === "netbanking" &&
@@ -941,12 +948,12 @@ export function BillingCheckout({
     if (!checkoutSessionId) return "Securing your checkout…";
     const addressReason = getCheckoutAddressIncompleteReason(billingAddress);
     if (addressReason) return addressReason;
+    if (!paymentContact) {
+      return "Enter a valid 10-digit mobile number.";
+    }
     if (paymentTab === "netbanking") {
       if (!netbankingFields.bankCode) {
         return "Select your bank to continue.";
-      }
-      if (!normalizeIndianMobileContact(netbankingFields.mobile)) {
-        return "Enter a valid 10-digit mobile number.";
       }
       if (prefetchedOrderError) {
         return prefetchedOrderError;
@@ -972,6 +979,9 @@ export function BillingCheckout({
       }
       return null;
     }
+    if (paymentTab === "upi") {
+      return null;
+    }
     if (!seatsValid || !bundleSeatsValid) {
       return "Adjust seat count to continue.";
     }
@@ -984,9 +994,9 @@ export function BillingCheckout({
     checkoutSessionId,
     paymentTab,
     billingAddress,
+    paymentContact,
     netbankingFields.isComplete,
     netbankingFields.bankCode,
-    netbankingFields.mobile,
     prefetchedOrderReady,
     prefetchedOrderError,
     razorpayScriptReady,
@@ -1018,13 +1028,13 @@ export function BillingCheckout({
     const tab = paymentTabOverride ?? paymentTab;
         const fieldsValid =
       billingAddress.isComplete &&
+      Boolean(paymentContact) &&
       (options?.walletExpress ||
         tab === "upi" ||
         (tab === "saved" && hasSavedPaymentMethod) ||
         (tab === "netbanking" &&
           Boolean(netbankingFields.bankCode) &&
           isActivatedNetbankingBank(netbankingFields.bankCode!) &&
-          Boolean(normalizeIndianMobileContact(netbankingFields.mobile)) &&
           Boolean(prefetchedOrderRef.current) &&
           razorpayScriptReady &&
           isRazorpayCustomScriptReady()) ||
@@ -1089,6 +1099,9 @@ export function BillingCheckout({
 
     try {
       if (tab === "upi") {
+        if (!paymentContact) {
+          throw new Error("Enter a valid 10-digit mobile number.");
+        }
         // Always use our custom QR modal — never Razorpay hosted Checkout.
         setUpiQrImageUrl(null);
         setUpiCloseBy(null);
@@ -1097,6 +1110,7 @@ export function BillingCheckout({
         const checkout = await createUpiBillingPayment({
           checkoutSessionId,
           billingDetails: minimalBillingDetails,
+          customerContact: paymentContact,
           ...(isTeamPlan ? { seatBreakdown: seatCounts } : {}),
           ...(isBusinessWorkspace
             ? { organizationSeatCount: bundleSeatCount }
@@ -1125,7 +1139,7 @@ export function BillingCheckout({
       if (tab === "netbanking") {
         const bank = netbankingFields.bankCode;
         const prefetched = prefetchedOrderRef.current;
-        const contact = normalizeIndianMobileContact(netbankingFields.mobile);
+        const contact = paymentContact;
         const email = auth.user?.email?.trim();
         if (!bank || !isActivatedNetbankingBank(bank)) {
           throw new Error("Select a supported bank to continue.");
@@ -1239,6 +1253,9 @@ export function BillingCheckout({
       if (!email) {
         throw new Error("Email is required to complete card payment.");
       }
+      if (!paymentContact) {
+        throw new Error("Enter a valid 10-digit mobile number.");
+      }
 
       const orderSnapshot = prefetched;
       prefetchedOrderRef.current = null;
@@ -1251,6 +1268,7 @@ export function BillingCheckout({
         amount: orderSnapshot.amount,
         currency: orderSnapshot.currency,
         email,
+        contact: paymentContact,
         description: details.name,
         card: {
           number: cardFields.cardNumber,
@@ -1893,6 +1911,8 @@ export function BillingCheckout({
                   });
                 }
               }}
+              paymentMobile={paymentMobile}
+              onPaymentMobileChange={setPaymentMobile}
               onCardFieldsChange={handleCardFieldsChange}
               onNetbankingChange={handleNetbankingFieldsChange}
               billingAddress={billingAddress}

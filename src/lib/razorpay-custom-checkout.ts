@@ -363,6 +363,12 @@ function buildCardCreatePaymentPayload(
     throw new Error("Email is required to complete card payment.");
   }
 
+  // Live Custom Checkout rejects createPayment when contact is blank.
+  const contact = normalizeIndianMobileContact(input.contact ?? "");
+  if (!contact) {
+    throw new Error("Enter a valid 10-digit Indian mobile number.");
+  }
+
   if (input.saveInstrument && !input.customerId) {
     throw new Error("Customer id is required to save a payment method.");
   }
@@ -372,7 +378,7 @@ function buildCardCreatePaymentPayload(
     currency: input.currency,
     order_id: input.orderId,
     email,
-    ...(input.contact ? { contact: input.contact } : {}),
+    contact,
     ...(input.customerId ? { customer_id: input.customerId } : {}),
     // Only for mandate/setup — never on one-off plan checkout.
     ...(input.saveInstrument ? { save: 1 } : {}),

@@ -24,6 +24,8 @@ export function CheckoutPayWithSection({
   savedMethod,
   showExpressCheckout,
   onExpressCheckout,
+  paymentMobile,
+  onPaymentMobileChange,
   onCardFieldsChange,
   onNetbankingChange,
   hideUpi = false,
@@ -36,6 +38,8 @@ export function CheckoutPayWithSection({
   hideUpi?: boolean;
   hideNetbanking?: boolean;
   onExpressCheckout?: () => void;
+  paymentMobile?: string;
+  onPaymentMobileChange?: (value: string) => void;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
   onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
 }) {
@@ -123,6 +127,8 @@ export function CheckoutPayWithSection({
       <CheckoutPaymentPanel
         tab={paymentTab}
         savedMethod={savedMethod}
+        paymentMobile={paymentMobile}
+        onPaymentMobileChange={onPaymentMobileChange}
         onCardFieldsChange={onCardFieldsChange}
         onNetbankingChange={onNetbankingChange}
       />

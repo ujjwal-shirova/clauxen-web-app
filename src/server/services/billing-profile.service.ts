@@ -244,6 +244,7 @@ export async function startPaymentMethodSetup(input: {
   userId: string;
   email: string;
   name?: string | null;
+  contact?: string | null;
   method: "card" | "upi";
 }) {
   if (!isPaymentMethodEncryptionConfigured()) {
@@ -258,6 +259,7 @@ export async function startPaymentMethodSetup(input: {
     userId: input.userId,
     email: input.email,
     name: input.name,
+    contact: input.contact,
   });
 
   const order = await createMandateSetupOrder({

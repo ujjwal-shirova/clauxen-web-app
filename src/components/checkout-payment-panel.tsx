@@ -45,25 +45,64 @@ function formatIndianMobileInput(raw: string): string {
   return raw.replace(/\D/g, "").slice(0, 10);
 }
 
+export function CheckoutMobileField({
+  value,
+  onChange,
+  hint,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
+        Mobile number
+      </div>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-zinc-500">
+          +91
+        </span>
+        <input
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          placeholder="98765 43210"
+          value={value}
+          onChange={(e) => onChange(formatIndianMobileInput(e.target.value))}
+          className={cn(checkoutUi.field, "pl-12")}
+          aria-label="Mobile number"
+        />
+      </div>
+      {hint ? (
+        <p className="mt-1.5 px-1 text-[12px] leading-4 text-zinc-500">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
 function NetbankingBankPanel({
+  paymentMobile,
+  onPaymentMobileChange,
   onNetbankingChange,
 }: {
+  paymentMobile: string;
+  onPaymentMobileChange?: (value: string) => void;
   onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
 }) {
   const [query, setQuery] = useState("");
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
-  const [mobile, setMobile] = useState("");
   const popular = useMemo(() => listPopularNetbankingBanks(), []);
   const banks = useMemo(() => filterNetbankingBanks(query), [query]);
 
   React.useEffect(() => {
-    const mobileOk = /^[6-9]\d{9}$/.test(mobile);
+    const mobileOk = /^[6-9]\d{9}$/.test(paymentMobile);
     onNetbankingChange?.({
       bankCode: selectedCode,
-      mobile,
+      mobile: paymentMobile,
       isComplete: Boolean(selectedCode) && mobileOk,
     });
-  }, [selectedCode, mobile, onNetbankingChange]);
+  }, [selectedCode, paymentMobile, onNetbankingChange]);
 
   const selectBank = (code: string) => {
     setSelectedCode(code);
@@ -76,26 +115,11 @@ function NetbankingBankPanel({
         we never see your netbanking password.
       </p>
 
-      <div>
-        <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
-          Mobile number
-        </div>
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-zinc-500">
-            +91
-          </span>
-          <input
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel-national"
-            placeholder="98765 43210"
-            value={mobile}
-            onChange={(e) => setMobile(formatIndianMobileInput(e.target.value))}
-            className={cn(checkoutUi.field, "pl-12")}
-            aria-label="Mobile number"
-          />
-        </div>
-      </div>
+      <CheckoutMobileField
+        value={paymentMobile}
+        onChange={(value) => onPaymentMobileChange?.(value)}
+        hint="Required by your bank for payment authentication."
+      />
 
       <div className="relative">
         <Search
@@ -190,11 +214,16 @@ function NetbankingBankPanel({
 export function CheckoutPaymentPanel({
   tab,
   savedMethod,
+  paymentMobile = "",
+  onPaymentMobileChange,
   onCardFieldsChange,
   onNetbankingChange,
 }: {
   tab: CheckoutPaymentTab;
   savedMethod: SavedPaymentMethod | null;
+  /** Shared +91 mobile used by card, netbanking, and UPI (Razorpay requires contact). */
+  paymentMobile?: string;
+  onPaymentMobileChange?: (value: string) => void;
   onCardFieldsChange?: (state: CheckoutCardFieldState) => void;
   onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
 }) {
@@ -281,16 +310,32 @@ export function CheckoutPaymentPanel({
   }
 
   if (tab === "upi") {
-    // Name + QR hint live in CheckoutForm for progressive billing address UX.
-    return null;
+    return (
+      <CheckoutMobileField
+        value={paymentMobile}
+        onChange={(value) => onPaymentMobileChange?.(value)}
+        hint="Used to secure your UPI payment with Razorpay."
+      />
+    );
   }
 
   if (tab === "netbanking") {
-    return <NetbankingBankPanel onNetbankingChange={onNetbankingChange} />;
+    return (
+      <NetbankingBankPanel
+        paymentMobile={paymentMobile}
+        onPaymentMobileChange={onPaymentMobileChange}
+        onNetbankingChange={onNetbankingChange}
+      />
+    );
   }
 
   return (
     <div className="flex flex-col gap-3">
+      <CheckoutMobileField
+        value={paymentMobile}
+        onChange={(value) => onPaymentMobileChange?.(value)}
+        hint="Required by Razorpay for card OTP / 3DS."
+      />
       <div>
         <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
           Card number

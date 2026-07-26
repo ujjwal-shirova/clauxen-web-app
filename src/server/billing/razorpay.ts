@@ -417,6 +417,7 @@ export async function createRazorpayUpiPaymentLink(input: {
   description: string;
   customerName?: string;
   customerEmail?: string;
+  customerContact?: string;
   notes?: Record<string, string>;
   expireBySeconds?: number;
 }): Promise<RazorpayPaymentLinkEntity> {
@@ -441,6 +442,9 @@ export async function createRazorpayUpiPaymentLink(input: {
       ...(input.customerName ? { name: input.customerName.slice(0, 100) } : {}),
       ...(input.customerEmail
         ? { email: input.customerEmail.slice(0, 100) }
+        : {}),
+      ...(input.customerContact
+        ? { contact: input.customerContact.slice(0, 20) }
         : {}),
     },
   });

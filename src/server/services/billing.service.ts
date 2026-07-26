@@ -191,6 +191,8 @@ export async function createUpiCheckoutPayment(input: {
   userEmail: string;
   sessionId: string;
   billingDetails: CheckoutBillingDetails;
+  /** Razorpay customer contact (+91…) for payment-link fallback. */
+  customerContact?: string;
   planId: string;
   planName: string;
   billingCycle: "monthly" | "yearly";
@@ -322,6 +324,7 @@ export async function createUpiCheckoutPayment(input: {
       customerName:
         input.billingDetails.fullName || input.billingDetails.billToName,
       customerEmail: input.userEmail,
+      customerContact: input.customerContact,
       expireBySeconds,
       notes: {
         ...qrNotes,

@@ -162,6 +162,8 @@ export async function createBillingOrder(input: {
 export async function createUpiBillingPayment(input: {
   checkoutSessionId: string;
   billingDetails: MinimalBillingDetailsInput;
+  /** Razorpay contact `+91XXXXXXXXXX` — required for payment-link fallback. */
+  customerContact?: string;
   seatBreakdown?: Record<string, number>;
   organizationSeatCount?: number;
 }) {
@@ -345,7 +347,10 @@ export async function deletePaymentMethod(id: string) {
   );
 }
 
-export async function startPaymentMethodSetup(method: "card" | "upi") {
+export async function startPaymentMethodSetup(input: {
+  method: "card" | "upi";
+  contact?: string;
+}) {
   return apiFetch<{
     setup: {
       orderId: string;
@@ -358,7 +363,7 @@ export async function startPaymentMethodSetup(method: "card" | "upi") {
     };
   }>("/api/v1/billing/payment-methods/setup", {
     method: "POST",
-    body: JSON.stringify({ method }),
+    body: JSON.stringify(input),
   });
 }
 

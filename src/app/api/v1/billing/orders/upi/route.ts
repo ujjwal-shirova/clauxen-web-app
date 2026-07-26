@@ -23,6 +23,7 @@ export const POST = withApiHandler(
     const body = (await request.json()) as {
       checkoutSessionId?: string;
       billingDetails?: unknown;
+      customerContact?: string;
       seatBreakdown?: Record<string, number>;
       organizationSeatCount?: number;
     };
@@ -70,11 +71,17 @@ export const POST = withApiHandler(
       checkoutCurrency,
     );
 
+    const customerContact =
+      typeof body.customerContact === "string"
+        ? body.customerContact.trim()
+        : "";
+
     const checkout = await billingService.createUpiCheckoutPayment({
       userId: user.id,
       userEmail: user.email ?? "",
       sessionId: body.checkoutSessionId,
       billingDetails,
+      customerContact: customerContact || undefined,
       planId: plan.id,
       planName: claims.planName,
       billingCycle: claims.billingCycle,
