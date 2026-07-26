@@ -81,8 +81,8 @@ export const MODEL_CONFIG = {
       requiresUpgrade: false,
     },
     virgil: {
-      label: "Virgil",
-      shortLabel: "Virgil",
+      label: "Virgil 1.1",
+      shortLabel: "Virgil 1.1",
       description: "Autonomous chat and tool orchestration",
       available: true,
       requiresUpgrade: false,

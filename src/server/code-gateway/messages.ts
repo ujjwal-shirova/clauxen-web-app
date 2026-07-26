@@ -68,10 +68,9 @@ export async function handleCodeMessagesPost(request: NextRequest) {
     const anthropicBase = requireAnthropicBaseUrl().replace(/\/+$/, "");
     const upstreamUrl = `${anthropicBase}/v1/messages`;
 
-    const model =
-      (typeof body.model === "string" && body.model.trim()) ||
-      env.defaultModel ||
-      env.virgilModel;
+    // Clauxen Code CLI sends product ids (virgil-1.1, legacy clauxen-code, sonnet…).
+    // Always resolve to Provider_Model_Clauxen_V1 — never forward raw CLI aliases to Novita.
+    const model = env.defaultModel || env.virgilModel;
     const stream = body.stream === true;
 
     const upstream = await novitaFetch(upstreamUrl, {
