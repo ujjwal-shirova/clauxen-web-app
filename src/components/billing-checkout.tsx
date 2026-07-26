@@ -835,31 +835,57 @@ export function BillingCheckout({
   useEffect(() => {
     if (!upiPoll || !upiModalOpen) return;
 
-    const interval = window.setInterval(() => {
-      void (async () => {
-        try {
-          const result = await pollUpiBillingPayment(upiPoll);
-          if (result.status === "paid") {
-            window.clearInterval(interval);
-            setUpiModalOpen(false);
-            setUpiPoll(null);
-            setPaying(false);
-            onPaymentSuccess?.({
-              razorpayPaymentId: result.fulfillment?.payment_id,
-              razorpayOrderId: result.fulfillment?.order_id,
-            });
-          }
-        } catch {
-          window.clearInterval(interval);
+    let cancelled = false;
+    let inFlight = false;
+    let consecutiveErrors = 0;
+
+    const tick = async () => {
+      if (cancelled || inFlight) return;
+      inFlight = true;
+      try {
+        const result = await pollUpiBillingPayment(upiPoll);
+        consecutiveErrors = 0;
+        if (result.status === "paid") {
+          cancelled = true;
           setUpiModalOpen(false);
           setUpiPoll(null);
           setPaying(false);
-          setPayError(PAYMENT_FAILED_MESSAGE);
+          onPaymentSuccess?.({
+            razorpayPaymentId: result.fulfillment?.payment_id,
+            razorpayOrderId: result.fulfillment?.order_id,
+          });
         }
-      })();
+      } catch (error) {
+        consecutiveErrors += 1;
+        // Transient network/5xx: keep polling. Hard failures after retries stop.
+        const status = error instanceof ApiError ? error.status : 0;
+        const hardFail =
+          status === 400 ||
+          status === 404 ||
+          consecutiveErrors >= 8;
+        if (hardFail) {
+          cancelled = true;
+          setUpiModalOpen(false);
+          setUpiPoll(null);
+          setPaying(false);
+          setPayError(
+            error instanceof Error ? error.message : PAYMENT_FAILED_MESSAGE,
+          );
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void tick();
+    const interval = window.setInterval(() => {
+      void tick();
     }, 2000);
 
-    return () => window.clearInterval(interval);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
   }, [upiPoll, upiModalOpen, onPaymentSuccess]);
 
   const subtotal = useMemo(() => {

@@ -93,7 +93,20 @@ function ChatViewBody({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") !== "success") return;
+    let fromUrl = params.get("checkout") === "success";
+    let fromStorage = false;
+    try {
+      fromStorage =
+        window.sessionStorage.getItem("clauxen:checkout-success") === "1";
+      if (fromStorage) {
+        window.sessionStorage.removeItem("clauxen:checkout-success");
+      }
+    } catch {
+      fromStorage = false;
+    }
+
+    if (!fromUrl && !fromStorage) return;
+
     setShowPaymentSuccess(true);
     void getBillingSubscription()
       .then((overview) => {
@@ -104,9 +117,11 @@ function ChatViewBody({
       })
       .catch(() => undefined);
 
-    const url = new URL(window.location.href);
-    url.searchParams.delete("checkout");
-    window.history.replaceState(null, "", url.pathname + url.search);
+    if (fromUrl) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("checkout");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
   }, [pathname]);
 
   const homerReasoningEffort =

@@ -32,6 +32,12 @@ export function CheckoutPageView({
       needsSessionRemint={needsSessionRemint}
       onPaymentSuccess={() => {
         if (typeof window !== "undefined") {
+          // Persist across remounts — URL param alone can be stripped before the dialog paints.
+          try {
+            window.sessionStorage.setItem("clauxen:checkout-success", "1");
+          } catch {
+            /* ignore */
+          }
           const base = returnPath || "/new";
           const sep = base.includes("?") ? "&" : "?";
           window.location.href = `${base}${sep}checkout=success`;

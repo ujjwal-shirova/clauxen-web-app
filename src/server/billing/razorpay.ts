@@ -848,8 +848,9 @@ export async function fetchRazorpayQrPayments(qrId: string) {
         id: string;
         amount: number;
         status: string;
+        captured?: boolean;
         method?: string;
-        order_id?: string;
+        order_id?: string | null;
       }>;
     }>(`/v1/payments/qr_codes/${qrId}/payments?count=5`);
   }
@@ -859,8 +860,9 @@ export async function fetchRazorpayQrPayments(qrId: string) {
       id: string;
       amount: number;
       status: string;
+      captured?: boolean;
       method?: string;
-      order_id?: string;
+      order_id?: string | null;
     }>;
   }>(`/v1/payments/qr_codes/${qrId}/payments?count=5`);
 }

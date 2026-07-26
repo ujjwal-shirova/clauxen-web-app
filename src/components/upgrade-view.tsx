@@ -89,6 +89,11 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
   const handleSuccessContinue = () => {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("clauxen:billing-updated"));
+      try {
+        window.sessionStorage.setItem("clauxen:checkout-success", "1");
+      } catch {
+        /* ignore */
+      }
       onClose();
       window.location.href = "/new?checkout=success";
       return;
