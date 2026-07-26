@@ -129,7 +129,6 @@ Inventory of `src/components` (top-level and key subfolders).
 - `auth/login-demo/demo-composer.tsx`
 - `auth/login-demo/demo-files.ts`
 - `auth/login-demo/demo-finder.tsx`
-- `auth/login-demo/demo-scene-label.tsx`
 - `auth/login-demo/demo-script.check.ts`
 - `auth/login-demo/demo-sticky.ts`
 - `auth/login-demo/index.ts`

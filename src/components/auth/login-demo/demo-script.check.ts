@@ -4,7 +4,6 @@ import {
   DEMO_AGENT_TURN,
   DEMO_CHAT_TURNS,
   DEMO_FILES_TURN,
-  DEMO_SCENES,
   applyAgentDemoKeyframe,
   buildStreamingAgentAssistant,
 } from "./chat-script";
@@ -17,8 +16,6 @@ assert.equal(DEMO_CHAT_TURNS.length, 1, "agent scene is a single turn");
 assert.equal(DEMO_CHAT_TURNS[0]?.id, DEMO_AGENT_TURN.id);
 assert.ok(DEMO_AGENT_TURN.prompt.length > 40);
 assert.ok(DEMO_FILES_TURN.prompt.length > 10);
-assert.ok(DEMO_SCENES.agent.label.includes("Clauxen"));
-assert.ok(DEMO_SCENES.files.label.includes("docs"));
 assert.ok(DEMO_AGENT_KEYFRAMES.length >= 8);
 
 const kinds = DEMO_AGENT_KEYFRAMES.map((b) => b.frame.kind);

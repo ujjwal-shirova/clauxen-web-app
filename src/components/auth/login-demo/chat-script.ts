@@ -10,23 +10,6 @@ export type DemoTurn = {
   reply: string;
 };
 
-export type DemoSceneMeta = {
-  id: string;
-  label: string;
-};
-
-/** Scene title cards between chat windows (product-demo chapters). */
-export const DEMO_SCENES = {
-  agent: {
-    id: "agent",
-    label: "Watch Clauxen research, use tools, and ship work",
-  },
-  files: {
-    id: "files",
-    label: "Drop in your docs — Clauxen reads them with you",
-  },
-} as const satisfies Record<string, DemoSceneMeta>;
-
 /**
  * Agentic product-demo turn — search the web, fetch sources, create a file.
  * Short enough to type on camera; rich enough to look like a real Clauxen run.

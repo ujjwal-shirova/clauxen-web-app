@@ -8,7 +8,6 @@ import {
   DEMO_AGENT_KEYFRAMES,
   DEMO_AGENT_TURN,
   DEMO_FILES_TURN,
-  DEMO_SCENES,
   applyAgentDemoKeyframe,
   buildStreamingAgentAssistant,
   buildAssistantMessage,
@@ -21,7 +20,6 @@ import {
   type DemoAttachment,
 } from "./demo-files";
 import { DemoDragGhost, DemoFinder } from "./demo-finder";
-import { DemoSceneLabel } from "./demo-scene-label";
 import { MacCursor } from "./mac-cursor";
 import {
   findPromptShell,
@@ -31,23 +29,26 @@ import {
 import { syncDemoStickyPins } from "./demo-sticky";
 import { magnetCursorToSend } from "./send-magnet";
 
-const IDLE_MS = 700;
+const IDLE_MS = 480;
 const MOVE_MS = 1100;
 const CLICK_DOWN_MS = 140;
 const CLICK_HOLD_MS = 160;
 const CLICK_UP_MS = 180;
-const SLIDE_MS = 720;
-const LABEL_HOLD_MS = 2400;
-const LOOP_PAUSE_MS = 2000;
+/** Soft dissolve out (blur + scale) — Anthropic-style calm exit. */
+const DISSOLVE_MS = 680;
+/** Brief luminous breath on the wallpaper between chapters. */
+const BREATH_MS = 520;
+/** Soft settle in (rise + unblur) — OpenAI product-reel entrance. */
+const SETTLE_MS = 780;
+const LOOP_PAUSE_MS = 1600;
 const GROW_MS = 780;
-const HOLD_AFTER_AGENT_MS = 2800;
-const HOLD_AFTER_FILES_MS = 2200;
+const HOLD_AFTER_AGENT_MS = 2600;
+const HOLD_AFTER_FILES_MS = 2000;
 
-type Scene =
-  | "label-agent"
-  | "chat-agent"
-  | "label-files"
-  | "chat-files";
+type Scene = "chat-agent" | "chat-files";
+
+/** Frame motion phase — never a title card, never a left slide. */
+type FrameMotion = "hidden" | "settle" | "live" | "dissolve";
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -102,10 +103,22 @@ function streamThinkingText(
 function noop() {}
 async function noopAsync() {}
 
+function frameMotionClass(motion: FrameMotion): string {
+  switch (motion) {
+    case "dissolve":
+      return "login-demo-dissolve-out";
+    case "settle":
+      return "login-demo-settle-in";
+    case "live":
+      return "login-demo-frame-live";
+    default:
+      return "login-demo-frame-hidden";
+  }
+}
+
 /**
- * Login product demo — OpenAI/Anthropic-style capability reel:
- * agentic research + tools + file deliverable, then docs/files.
- * Isolated from real PromptInput so main-app typing is never affected.
+ * Login product demo — continuous chat window with cinematic dissolve /
+ * breath / settle between chapters (no title cards, no left slides).
  */
 export function LoginDemoPlayer() {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -115,10 +128,11 @@ export function LoginDemoPlayer() {
   const cursorPosRef = useRef({ x: 90, y: 160 });
   const messagesRef = useRef<Message[]>([]);
 
-  const [scene, setScene] = useState<Scene>("label-agent");
+  const [scene, setScene] = useState<Scene>("chat-agent");
   const [frameTall, setFrameTall] = useState(false);
-  const [slideOut, setSlideOut] = useState(false);
-  const [slideIn, setSlideIn] = useState(true);
+  const [frameMotion, setFrameMotion] = useState<FrameMotion>("hidden");
+  const [stageBreath, setStageBreath] = useState(false);
+  const [veil, setVeil] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -148,11 +162,6 @@ export function LoginDemoPlayer() {
 
   const isConversationStarted = messages.length > 0;
   const hasPromptDraft = draft.trim().length > 0;
-  const showChat = scene === "chat-agent" || scene === "chat-files";
-  const labelText =
-    scene === "label-files"
-      ? DEMO_SCENES.files.label
-      : DEMO_SCENES.agent.label;
 
   const resolveViewport = useCallback(() => {
     return scrollAreaRef.current?.querySelector<HTMLElement>(
@@ -282,7 +291,7 @@ export function LoginDemoPlayer() {
       mo.disconnect();
       ro.disconnect();
     };
-  }, [resolveViewport, isConversationStarted, lastMessageKey, showChat]);
+  }, [resolveViewport, isConversationStarted, lastMessageKey, scene]);
 
   useEffect(() => {
     let cancelled = false;
@@ -402,24 +411,50 @@ export function LoginDemoPlayer() {
       if (viewport) viewport.scrollTop = 0;
     };
 
-    /** Slide current card left out, swap scene, slide new card in. */
-    const transitionTo = async (
+    /**
+     * Cinematic chapter change — dissolve → wallpaper breath → soft settle.
+     * Inspired by OpenAI / Anthropic product reels (no title cards, no slide).
+     */
+    const morphTo = async (
       next: Scene,
-      opts?: { tall?: boolean },
+      opts?: { tall?: boolean; first?: boolean },
     ) => {
-      setSlideOut(true);
-      setSlideIn(false);
-      await wait(SLIDE_MS);
-      if (cancelled) return;
+      if (!opts?.first) {
+        setVeil(true);
+        setFrameMotion("dissolve");
+        await wait(DISSOLVE_MS);
+        if (cancelled) return;
+      }
 
+      setFrameMotion("hidden");
       resetChat();
       setScene(next);
       if (opts?.tall != null) setFrameTall(opts.tall);
-      setSlideOut(false);
-      await wait(40);
+
+      setStageBreath(true);
+      await wait(BREATH_MS);
       if (cancelled) return;
-      setSlideIn(true);
-      await wait(SLIDE_MS);
+
+      setVeil(false);
+      setFrameMotion("settle");
+      await wait(SETTLE_MS);
+      if (cancelled) return;
+
+      setFrameMotion("live");
+      setStageBreath(false);
+    };
+
+    const softExit = async () => {
+      setVeil(true);
+      setFrameMotion("dissolve");
+      await wait(DISSOLVE_MS);
+      if (cancelled) return;
+      setFrameMotion("hidden");
+      setStageBreath(true);
+      await wait(BREATH_MS * 0.7);
+      setStageBreath(false);
+      setVeil(false);
+      resetChat();
     };
 
     const growFrame = async () => {
@@ -466,7 +501,6 @@ export function LoginDemoPlayer() {
       setMessages(merged);
     };
 
-    /** Full agentic product demo: thinking → search → fetch → create_file → answer. */
     const playAgentTurn = async () => {
       const turn = DEMO_AGENT_TURN;
       await clickComposerAndType(turn.prompt);
@@ -516,7 +550,6 @@ export function LoginDemoPlayer() {
         }
 
         if (beat.frame.kind === "tool_args" && beat.frame.fileContent) {
-          // Reveal file contents in chunks so create_file looks live.
           const full = beat.frame.fileContent;
           let i = 0;
           while (i < full.length) {
@@ -742,45 +775,35 @@ export function LoginDemoPlayer() {
 
     const run = async () => {
       while (!cancelled) {
-        // 1) Agentic chapter title
-        resetChat();
-        setScene("label-agent");
-        setFrameTall(false);
-        setSlideOut(false);
-        setSlideIn(true);
+        // Chapter 1 — agentic research reel (soft settle onto empty composer)
+        await morphTo("chat-agent", { tall: false, first: true });
+        if (cancelled) return;
         await wait(IDLE_MS);
-        if (cancelled) return;
-        await wait(LABEL_HOLD_MS);
-        if (cancelled) return;
-
-        // 2) Agent product demo (search → tools → file)
-        await transitionTo("chat-agent", { tall: false });
         if (cancelled) return;
         await growFrame();
         if (cancelled) return;
-        await wait(420);
+        await wait(360);
         if (cancelled) return;
         await playAgentTurn();
         if (cancelled) return;
         await wait(HOLD_AFTER_AGENT_MS);
         if (cancelled) return;
 
-        // 3) Files chapter title
-        await transitionTo("label-files", { tall: false });
+        // Chapter 2 — files (dissolve → breath → settle, same window)
+        await morphTo("chat-files", { tall: false });
         if (cancelled) return;
-        await wait(LABEL_HOLD_MS);
-        if (cancelled) return;
-
-        // 4) Drop docs + prioritize reply
-        await transitionTo("chat-files", { tall: false });
+        await wait(IDLE_MS);
         if (cancelled) return;
         await growFrame();
         if (cancelled) return;
-        await wait(500);
+        await wait(400);
         if (cancelled) return;
         await playFilesScene();
         if (cancelled) return;
         await wait(HOLD_AFTER_FILES_MS);
+        if (cancelled) return;
+
+        await softExit();
         if (cancelled) return;
         await wait(LOOP_PAUSE_MS);
       }
@@ -817,60 +840,64 @@ export function LoginDemoPlayer() {
   return (
     <div
       ref={stageRef}
-      className="login-demo-stage relative flex h-full min-h-0 w-full items-center justify-center"
+      className={`login-demo-stage relative flex h-full min-h-0 w-full items-center justify-center ${
+        stageBreath ? "login-demo-stage--breath" : ""
+      }`}
       aria-hidden
     >
+      {/* Soft luminosity veil — product-reel breath between chapters */}
+      <div
+        className={`login-demo-bloom pointer-events-none absolute inset-0 ${
+          stageBreath ? "login-demo-bloom--on" : ""
+        }`}
+      />
+      <div
+        className={`login-demo-veil pointer-events-none absolute inset-0 ${
+          veil ? "login-demo-veil--on" : ""
+        }`}
+      />
+
       <div
         ref={frameRef}
         data-demo-frame
-        className={`login-demo-stage-frame relative flex min-h-0 flex-col overflow-hidden rounded-[12px] border border-black/10 bg-white shadow-[0_18px_50px_-20px_rgba(15,23,42,0.45),0_0_0_1px_rgba(255,255,255,0.35)_inset] transition-[height,width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${frameClass} ${
-          slideOut
-            ? "login-demo-slide-out"
-            : slideIn
-              ? "login-demo-slide-in"
-              : "opacity-0 translate-x-8"
-        }`}
+        className={`login-demo-stage-frame relative z-[1] flex min-h-0 flex-col overflow-hidden rounded-[12px] border border-black/10 bg-white shadow-[0_18px_50px_-20px_rgba(15,23,42,0.45),0_0_0_1px_rgba(255,255,255,0.35)_inset] transition-[height,width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${frameClass} ${frameMotionClass(frameMotion)}`}
       >
-        {showChat ? (
-          <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden">
-            <div className="flex shrink-0 items-center gap-1.5 px-3 py-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#FF5F57]/90" />
-              <span className="h-2 w-2 rounded-full bg-[#FEBC2E]/90" />
-              <span className="h-2 w-2 rounded-full bg-[#28C840]/90" />
-            </div>
-
-            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-              <ChatViewPane
-                className="flex min-h-0 flex-1 flex-col bg-white"
-                hasConversation={isConversationStarted}
-                isGenerating={isGenerating}
-                hasPromptDraft={hasPromptDraft || attachments.length > 0}
-                isAddMenuOpen={addMenuOpen}
-                activeChip={activeChip}
-                onActiveChipChange={setActiveChip}
-                onSendMessage={noop}
-                welcomeVariant="composer-only"
-                scrollAreaRef={scrollAreaRef}
-                conversation={
-                  <ConversationThread
-                    messages={messages}
-                    conversationKey="login-demo-chat"
-                    isFastScrolling={false}
-                    isGenerating={isGenerating}
-                    onSaveEditedMessage={noopAsync}
-                    onRetryUserMessage={noop}
-                    onRetryAssistant={noop}
-                    onSwitchBranch={noop}
-                    scrollAreaRef={scrollAreaRef}
-                  />
-                }
-                promptInput={promptInput}
-              />
-            </div>
+        <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden">
+          <div className="flex shrink-0 items-center gap-1.5 px-3 py-1.5">
+            <span className="h-2 w-2 rounded-full bg-[#FF5F57]/90" />
+            <span className="h-2 w-2 rounded-full bg-[#FEBC2E]/90" />
+            <span className="h-2 w-2 rounded-full bg-[#28C840]/90" />
           </div>
-        ) : (
-          <DemoSceneLabel label={labelText} />
-        )}
+
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ChatViewPane
+              className="flex min-h-0 flex-1 flex-col bg-white"
+              hasConversation={isConversationStarted}
+              isGenerating={isGenerating}
+              hasPromptDraft={hasPromptDraft || attachments.length > 0}
+              isAddMenuOpen={addMenuOpen}
+              activeChip={activeChip}
+              onActiveChipChange={setActiveChip}
+              onSendMessage={noop}
+              welcomeVariant="composer-only"
+              scrollAreaRef={scrollAreaRef}
+              conversation={
+                <ConversationThread
+                  messages={messages}
+                  conversationKey={`login-demo-${scene}`}
+                  isFastScrolling={false}
+                  isGenerating={isGenerating}
+                  onSaveEditedMessage={noopAsync}
+                  onRetryUserMessage={noop}
+                  onRetryAssistant={noop}
+                  onSwitchBranch={noop}
+                  scrollAreaRef={scrollAreaRef}
+                />
+              }
+              promptInput={promptInput}
+            />
+          </div>
+        </div>
       </div>
 
       {finderOpen ? (

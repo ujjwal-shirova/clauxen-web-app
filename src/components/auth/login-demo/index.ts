@@ -5,7 +5,6 @@ export {
   DEMO_DAILY_TURN,
   DEMO_AGENT_TURN,
   DEMO_FILES_TURN,
-  DEMO_SCENES,
 } from "./chat-script";
 export { magnetCursorToSend } from "./send-magnet";
 export { DemoComposer } from "./demo-composer";

@@ -924,47 +924,150 @@ button.user-message-card__body:not(:disabled):hover,
 
 .login-demo-stage-frame {
   background: #ffffff;
+  will-change: transform, opacity, filter;
 }
 
 .login-demo-stage {
   background: transparent;
 }
 
-/* Scene card enter / exit — slide left out, settle from the right. */
-.login-demo-slide-out {
-  animation: login-demo-slide-out 720ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+/* Soft luminosity bloom on the wallpaper between chapters. */
+.login-demo-bloom {
+  z-index: 0;
+  opacity: 0;
+  background:
+    radial-gradient(
+      ellipse 55% 45% at 50% 48%,
+      rgba(255, 255, 255, 0.42) 0%,
+      rgba(255, 255, 255, 0.12) 42%,
+      transparent 72%
+    );
+  transition: opacity 520ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.login-demo-slide-in {
-  animation: login-demo-slide-in 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+.login-demo-bloom--on {
+  opacity: 1;
+  animation: login-demo-bloom-pulse 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes login-demo-slide-out {
-  from {
+.login-demo-stage--breath {
+  filter: saturate(1.06) brightness(1.03);
+  transition: filter 520ms ease;
+}
+
+/* Thin light veil that lifts as the frame dissolves. */
+.login-demo-veil {
+  z-index: 2;
+  opacity: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.04) 48%,
+    rgba(255, 255, 255, 0.14) 100%
+  );
+  transition: opacity 420ms cubic-bezier(0.4, 0, 0.2, 1);
+  mix-blend-mode: soft-light;
+}
+
+.login-demo-veil--on {
+  opacity: 1;
+}
+
+.login-demo-frame-hidden {
+  opacity: 0;
+  transform: scale(0.94) translateY(14px);
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+.login-demo-frame-live {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  filter: blur(0);
+}
+
+/* Calm dissolve out — scale + blur + fade (no lateral slide). */
+.login-demo-dissolve-out {
+  animation: login-demo-dissolve-out 680ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Soft settle in — rise from below with unblur (product-reel entrance). */
+.login-demo-settle-in {
+  animation: login-demo-settle-in 780ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes login-demo-dissolve-out {
+  0% {
     opacity: 1;
-    transform: translateX(0);
+    transform: scale(1) translateY(0);
+    filter: blur(0);
   }
-  to {
+  55% {
+    opacity: 0.35;
+    transform: scale(0.975) translateY(4px);
+    filter: blur(4px);
+  }
+  100% {
     opacity: 0;
-    transform: translateX(-48%);
+    transform: scale(0.94) translateY(12px);
+    filter: blur(10px);
   }
 }
 
-@keyframes login-demo-slide-in {
-  from {
+@keyframes login-demo-settle-in {
+  0% {
     opacity: 0;
-    transform: translateX(36%);
+    transform: scale(0.93) translateY(18px);
+    filter: blur(12px);
   }
-  to {
+  60% {
     opacity: 1;
-    transform: translateX(0);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes login-demo-bloom-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.55;
+    transform: scale(1.04);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-demo-slide-out,
-  .login-demo-slide-in {
+  .login-demo-dissolve-out,
+  .login-demo-settle-in,
+  .login-demo-bloom--on {
     animation: none;
+  }
+
+  .login-demo-frame-hidden,
+  .login-demo-frame-live,
+  .login-demo-dissolve-out,
+  .login-demo-settle-in {
+    filter: none;
+    transform: none;
+  }
+
+  .login-demo-frame-hidden {
+    opacity: 0;
+  }
+
+  .login-demo-frame-live,
+  .login-demo-settle-in {
+    opacity: 1;
   }
 }
 
