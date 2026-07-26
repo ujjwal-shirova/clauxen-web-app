@@ -125,19 +125,7 @@ Inventory of `src/components` (top-level and key subfolders).
 - `auth/auth-dialog.tsx`
 - `auth/auth-shared.tsx`
 - `auth/auth-shell.tsx`
-- `auth/login-demo/chat-script.ts`
-- `auth/login-demo/demo-composer.tsx`
-- `auth/login-demo/demo-files.ts`
-- `auth/login-demo/demo-finder.tsx`
-- `auth/login-demo/demo-script.check.ts`
-- `auth/login-demo/demo-sticky.ts`
-- `auth/login-demo/index.ts`
-- `auth/login-demo/login-demo-player.tsx`
-- `auth/login-demo/mac-cursor.tsx`
-- `auth/login-demo/prompt-dom.ts`
-- `auth/login-demo/send-magnet.ts`
 - `auth/login-page.tsx`
-- `auth/login-product-demo.tsx`
 - `auth/signup-otp-dialog.tsx`
 - `auth/signup-page.tsx`
 

@@ -3,12 +3,11 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { AgentTraceBlock } from "./agent-trace";
-import { useAgentTurnStreaming } from "./agent-turn-streaming";
 
 /**
  * Compact tool action block. Collapsed by default. Optional leading chips
- * (search favicons) + chevron in the header. No status dots — shimmer alone
- * signals a live turn (tool running or assistant turn still streaming).
+ * (search favicons) + chevron in the header. Shimmer only while this tool
+ * is running — stops as soon as the tool completes.
  */
 export function AgentToolCard({
   label,
@@ -27,8 +26,7 @@ export function AgentToolCard({
   defaultExpanded?: boolean;
   className?: string;
 }) {
-  const turnStreaming = useAgentTurnStreaming();
-  const live = Boolean(isRunning) || turnStreaming;
+  const live = Boolean(isRunning);
 
   return (
     <AgentTraceBlock

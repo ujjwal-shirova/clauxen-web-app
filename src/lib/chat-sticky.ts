@@ -12,7 +12,7 @@
 export function readHeaderHeightPx(from?: Element | null): number {
   const scope =
     from?.closest(
-      "[data-chat-active], [data-chat-streaming], .login-demo-stage",
+      "[data-chat-active], [data-chat-streaming]",
     ) ?? document.documentElement;
   const raw = getComputedStyle(scope).getPropertyValue("--header-height");
   const parsed = parseFloat(raw);

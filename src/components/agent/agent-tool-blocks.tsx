@@ -41,15 +41,9 @@ import { AgentFileBlock, PresentFilesBlock } from "./agent-file-block";
 import { HighlightCode } from "@/lib/syntax-highlight";
 import { StreamingTextFade } from "@/lib/streaming-text-fade";
 
-/** Keep tool header shimmer alive until the whole assistant turn finishes. */
-function toolLiveChrome(
-  tool: AgentToolSegment,
-  turnStreaming?: boolean,
-): boolean {
-  return (
-    tool.status === "running" ||
-    (turnStreaming === true && tool.status === "done")
-  );
+/** Shimmer / live label only while this specific tool is running. */
+function toolIsLive(tool: AgentToolSegment): boolean {
+  return tool.status === "running";
 }
 
 function SearchResultFavicon({
@@ -122,10 +116,8 @@ function SearchResultRow({
 
 export function AgentWebSearchBlock({
   tool,
-  turnStreaming,
 }: {
   tool: AgentToolSegment;
-  turnStreaming?: boolean;
 }) {
   const query =
     tool.searchQuery ??
@@ -136,7 +128,7 @@ export function AgentWebSearchBlock({
         : tool.name.replace(/_/g, " "));
   const results = tool.searchResults ?? [];
   const isRunning = tool.status === "running";
-  const isLive = toolLiveChrome(tool, turnStreaming);
+  const isLive = toolIsLive(tool);
   const [visibleCount, setVisibleCount] = useState(() =>
     tool.status === "running" ? 0 : results.length,
   );
@@ -243,10 +235,8 @@ function useAutoScrollToBottom(dep: unknown) {
 
 export function AgentBashToolBlock({
   tool,
-  turnStreaming,
 }: {
   tool: AgentToolSegment;
-  turnStreaming?: boolean;
 }) {
   const command =
     typeof tool.args?.command === "string" ? tool.args.command : "";
@@ -258,7 +248,7 @@ export function AgentBashToolBlock({
   const stdout = tool.stdout ?? "";
   const stderr = tool.stderr ?? "";
   const isRunning = tool.status === "running";
-  const isLive = toolLiveChrome(tool, turnStreaming);
+  const isLive = toolIsLive(tool);
   // Two sub-phases while status is "running": the model is still typing the
   // command (argsComplete === false, sandbox not touched yet), or the full
   // command is finalized and it has actually been sent to the sandbox. Only
@@ -332,15 +322,13 @@ export function AgentBashToolBlock({
 
 export function AgentGenericToolBlock({
   tool,
-  turnStreaming,
 }: {
   tool: AgentToolSegment;
-  turnStreaming?: boolean;
 }) {
   const label =
     tool.description ??
     tool.name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  const isLive = toolLiveChrome(tool, turnStreaming);
+  const isLive = toolIsLive(tool);
 
   return (
     <AgentToolCard label={label} isRunning={isLive}>
@@ -359,12 +347,10 @@ export function AgentGenericToolBlock({
 
 export function AskUserInputBlock({
   tool,
-  turnStreaming,
 }: {
   tool: AgentToolSegment;
-  turnStreaming?: boolean;
 }) {
-  const isLive = toolLiveChrome(tool, turnStreaming);
+  const isLive = toolIsLive(tool);
 
   // Interactive questionnaire renders in the composer slot — not inside the
   // agentic activity frame.
@@ -378,14 +364,12 @@ export function AskUserInputBlock({
 
 export function SportsDataBlock({
   tool,
-  turnStreaming,
 }: {
   tool: AgentToolSegment;
-  turnStreaming?: boolean;
 }) {
   const result = tool.result ? JSON.parse(tool.result) : null;
   const isRunning = tool.status === "running";
-  const isLive = toolLiveChrome(tool, turnStreaming);
+  const isLive = toolIsLive(tool);
 
   return (
     <AgentToolCard
@@ -444,13 +428,11 @@ type ImageSearchResult = {
 
 export function ImageSearchBlock({
   tool,
-  turnStreaming,
 }: {
   tool: AgentToolSegment;
-  turnStreaming?: boolean;
 }) {
   const isRunning = tool.status === "running";
-  const isLive = toolLiveChrome(tool, turnStreaming);
+  const isLive = toolIsLive(tool);
   const query = typeof tool.args?.query === "string" ? tool.args.query : "";
 
   const parsed = useMemo(() => {

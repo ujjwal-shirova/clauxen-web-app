@@ -3,12 +3,11 @@
 import type { ReactNode } from "react";
 import type { AgentFoldSummary } from "@/lib/agent-fold-groups";
 import { AgentTraceBlock, AgentShimmerText } from "./agent-trace";
-import { useAgentTurnStreaming } from "./agent-turn-streaming";
 
 /**
- * Activity fold — expanded while live (`isActive`), auto-collapses when done.
- * Nested web-search stays collapsed via its own defaultExpanded={false}.
- * Shimmer stays on until the whole assistant turn finishes.
+ * Activity fold — expanded while its own work is live (`isActive`).
+ * Shimmer stops when this fold’s tools/thinking finish — not when the
+ * whole assistant turn ends.
  */
 export function AgentFoldGroup({
   summary,
@@ -21,13 +20,10 @@ export function AgentFoldGroup({
   useChrome?: boolean;
   children: ReactNode;
 }) {
-  const turnStreaming = useAgentTurnStreaming();
-  const live = isActive || turnStreaming;
-
   return (
     <AgentTraceBlock
       title={
-        live ? (
+        isActive ? (
           <AgentShimmerText key={`fold-live-${summary.verb}`} active>
             {summary.label}
           </AgentShimmerText>
@@ -35,7 +31,7 @@ export function AgentFoldGroup({
           summary.label
         )
       }
-      isActive={live}
+      isActive={isActive}
       defaultExpanded={useChrome ? isActive : true}
       showChevron={useChrome}
       hideHeader={!useChrome}
