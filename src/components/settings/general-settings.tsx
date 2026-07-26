@@ -37,20 +37,14 @@ const MAX_CUSTOM_INSTRUCTIONS = 1500;
 const inputClass =
   "h-9 w-full max-w-[20rem] rounded-lg border border-zinc-200 bg-white px-3 text-[14px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500";
 
-function syncColorMode(preset: string): string {
-  if (preset === "Light") return "Light";
-  if (preset === "Dark") return "Dark";
-  return "Auto";
-}
-
 interface GeneralSettingsProps {
   personalization: PersonalizationSettings;
   onPersonalizationChange: (patch: Partial<PersonalizationSettings>) => void;
   avatarUrl?: string | null;
   onAvatarUpdated?: (profile: UserProfile) => void;
   appearancePreset: string;
-  setAppearancePreset: (value: string) => void;
-  setColorMode: (value: string) => void;
+  /** Single optimistic update — UI theme applies before DB persist. */
+  onAppearanceChange: (preset: string) => void;
   chatFont: string;
   setChatFont: (value: string) => void;
   motion: string;
@@ -65,8 +59,7 @@ export function GeneralSettings({
   avatarUrl,
   onAvatarUpdated,
   appearancePreset,
-  setAppearancePreset,
-  setColorMode,
+  onAppearanceChange,
   chatFont,
   setChatFont,
   motion,
@@ -105,11 +98,6 @@ export function GeneralSettings({
   }, [p.occupation]);
 
   const workValue = p.occupation?.trim() ? p.occupation : "Select";
-
-  const handleAppearance = (preset: string) => {
-    setAppearancePreset(preset);
-    setColorMode(syncColorMode(preset));
-  };
 
   const chatFontOptions: SettingsOptionItem[] = useMemo(
     () =>
@@ -219,7 +207,7 @@ export function GeneralSettings({
                   type="button"
                   aria-label={label}
                   aria-pressed={active}
-                  onClick={() => handleAppearance(value)}
+                  onClick={() => onAppearanceChange(value)}
                   className={segmentedOptionClass(active, "icon")}
                 >
                   <Icon className="h-4 w-4" strokeWidth={1.75} />

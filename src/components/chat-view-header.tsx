@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
+import { AppHref } from "@/components/app-href";
 
 interface ChatViewHeaderProps {
   isConversationStarted: boolean;
@@ -44,6 +45,7 @@ interface ChatViewHeaderProps {
   className?: string;
   projectBreadcrumb?: {
     label: string;
+    href?: string;
     onClick?: () => void;
   };
   /** Desktop artifacts rail owns Artifacts + Share; hide duplicates in header. */
@@ -150,13 +152,23 @@ export function ChatViewHeader({
                       className="h-5 w-5 object-cover"
                     />
                   </span>
-                  <button
-                    type="button"
-                    onClick={projectBreadcrumb.onClick}
-                    className="max-w-[min(28vw,180px)] truncate transition-colors hover:text-zinc-950"
-                  >
-                    {projectBreadcrumb.label}
-                  </button>
+                  {projectBreadcrumb.href ? (
+                    <AppHref
+                      href={projectBreadcrumb.href}
+                      onClick={projectBreadcrumb.onClick}
+                      className="max-w-[min(28vw,180px)] truncate transition-colors hover:text-zinc-950"
+                    >
+                      {projectBreadcrumb.label}
+                    </AppHref>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={projectBreadcrumb.onClick}
+                      className="max-w-[min(28vw,180px)] truncate transition-colors hover:text-zinc-950"
+                    >
+                      {projectBreadcrumb.label}
+                    </button>
+                  )}
                   <span className="shrink-0 text-zinc-400" aria-hidden>
                     ›
                   </span>

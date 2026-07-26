@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ChatArea } from "@/components/chat-area";
 import { PaymentSuccessDialog } from "@/components/payment-success-dialog";
 import { useOptionalChatSession } from "@/contexts/chat-session-context";
@@ -34,7 +34,8 @@ interface ChatViewProps {
   apiEnabled?: boolean;
   projectBreadcrumb?: {
     label: string;
-    onClick: () => void;
+    href?: string;
+    onClick?: () => void;
   };
 }
 
@@ -67,7 +68,6 @@ function ChatViewBody({
   projectId?: string | null;
   projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const instantNavigate = useInstantNavigate();
   const overlays = useAppOverlays();
@@ -238,7 +238,7 @@ function ChatViewBody({
     if (!showChrome) return undefined;
     return {
       label: resolvedProjectName,
-      onClick: () => instantNavigate(APP_ROUTES.project(bindProjectId)),
+      href: APP_ROUTES.project(bindProjectId),
     };
   }, [
     projectBreadcrumb,
@@ -247,7 +247,6 @@ function ChatViewBody({
     enterMethod,
     activeChat?.projectId,
     projectId,
-    instantNavigate,
   ]);
 
   const openChatRoute = useCallback(
@@ -371,7 +370,6 @@ function ChatViewBody({
         onPinChat={handlePinChat}
         onDeleteChat={handleDeleteChatAndLeave}
         onOpenSettings={() => overlays.openSettings("General")}
-        onMoveToProject={() => router.push(APP_ROUTES.projects)}
         homerReasoningEffort={homerReasoningEffort}
         onHomerReasoningEffortChange={setHomerReasoningEffort}
         chatModel={chatModel}

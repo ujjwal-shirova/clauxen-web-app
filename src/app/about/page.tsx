@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "About Clauxen",
@@ -11,7 +10,7 @@ export default function AboutPage() {
   return (
     <main className="min-h-[100dvh] bg-[var(--app-shell-bg)] px-5 py-10 text-zinc-900 sm:px-8">
       <div className="mx-auto w-full max-w-2xl">
-        <Link
+        <a
           href="/login"
           className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900"
         >
@@ -23,7 +22,7 @@ export default function AboutPage() {
             className="h-5 w-5 object-contain"
           />
           Clauxen
-        </Link>
+        </a>
 
         <h1 className="mt-8 text-3xl font-semibold tracking-tight">
           About Clauxen
@@ -67,38 +66,38 @@ export default function AboutPage() {
           <section className="space-y-2">
             <h2 className="text-lg font-semibold text-zinc-900">Get started</h2>
             <p>
-              <Link
+              <a
                 href="/login"
                 className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900"
               >
                 Sign in
-              </Link>{" "}
+              </a>{" "}
               or{" "}
-              <Link
+              <a
                 href="/login"
                 className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900"
               >
                 create an account
-              </Link>{" "}
+              </a>{" "}
               to use Clauxen.
             </p>
           </section>
         </div>
 
         <p className="mt-10 text-sm text-zinc-500">
-          <Link
+          <a
             href="/legal/privacy"
             className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900"
           >
             Privacy Policy
-          </Link>
+          </a>
           {" - "}
-          <Link
+          <a
             href="/legal/terms"
             className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900"
           >
             Terms of Service
-          </Link>
+          </a>
           {" - "}
           <a
             href="mailto:support@clauxen.com"

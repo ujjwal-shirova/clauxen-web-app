@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { FOOTER_COLUMNS, SITE } from "@/marketing/lib/site";
 
 const SOCIAL_LINKS = [
@@ -35,7 +34,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-1">
-            <Link
+            <a
               href="/overview"
               className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50"
             >
@@ -48,7 +47,7 @@ export function SiteFooter() {
                 className="h-[22px] w-[22px] object-contain"
               />
               {SITE.brand}
-            </Link>
+            </a>
             <p className="mt-3 max-w-[220px] text-sm leading-relaxed text-zinc-500">
               An AI workspace by {SITE.company}.
             </p>
@@ -61,12 +60,12 @@ export function SiteFooter() {
               <ul className="mt-3 space-y-2">
                 {col.links.map((link) => (
                   <li key={link.href}>
-                    <Link
+                    <a
                       href={link.href}
                       className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                     >
                       {link.label}
-                    </Link>
+                    </a>
                   </li>
                 ))}
               </ul>
@@ -95,18 +94,18 @@ export function SiteFooter() {
               ))}
             </div>
             <div className="flex gap-4">
-              <Link
+              <a
                 href="/legal/privacy"
                 className="hover:text-zinc-800 dark:hover:text-zinc-200"
               >
                 Privacy
-              </Link>
-              <Link
+              </a>
+              <a
                 href="/legal/terms"
                 className="hover:text-zinc-800 dark:hover:text-zinc-200"
               >
                 Terms
-              </Link>
+              </a>
               <a
                 href={`mailto:${SITE.supportEmail}`}
                 className="hover:text-zinc-800 dark:hover:text-zinc-200"

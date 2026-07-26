@@ -7,25 +7,35 @@ import { SkillsView } from "./customize/skills/view";
 import { ConnectorsView } from "./customize/connectors/view";
 import { useAppLayout } from "@/components/app-layout-context";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
-import { useInstantNavigate } from "@/hooks/use-instant-navigate";
+import { AppHref } from "@/components/app-href";
+import { APP_ROUTES } from "@/lib/app-routes";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 interface CustomizePageProps {
-  onClose: () => void;
+  closeHref: string;
   initialTab?: "skills" | "connectors" | null;
 }
 
 const TAB_OPTIONS = [
   // sidebar/mobile tab metadata — id, label, icon mapping
-  { id: "skills" as const, label: "Skills", icon: BookOpen },
-  { id: "connectors" as const, label: "Connectors", icon: Boxes },
+  {
+    id: "skills" as const,
+    label: "Skills",
+    icon: BookOpen,
+    href: `${APP_ROUTES.customize}/skills`,
+  },
+  {
+    id: "connectors" as const,
+    label: "Connectors",
+    icon: Boxes,
+    href: `${APP_ROUTES.customize}/connectors`,
+  },
 ];
 
 export function CustomizePage({
-  onClose,
+  closeHref,
   initialTab = null,
 }: CustomizePageProps) {
-  const instantNavigate = useInstantNavigate();
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
   const [activeTab, setActiveTab] = useState<"skills" | "connectors" | null>(
     initialTab,
@@ -41,13 +51,6 @@ export function CustomizePage({
   useEffect(() => {
     setMobileInDetail(false);
   }, [activeTab]);
-
-  const openTab = (tab: "skills" | "connectors") => {
-    setActiveTab(tab);
-    instantNavigate(
-      tab === "skills" ? "/customize/skills" : "/customize/connectors",
-    );
-  };
 
   const ToolboxIcon = () => (
     // inline SVG illustration — landing hero toolbox graphic
@@ -86,25 +89,25 @@ export function CustomizePage({
     <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-white font-sans md:flex-row">
       <aside className="hidden w-[240px] shrink-0 flex-col border-r border-zinc-100 bg-white md:flex md:h-full">
         <div className="flex items-center gap-2 p-4 pb-3">
-          <button
-            type="button"
-            onClick={onClose}
+          <AppHref
+            href={closeHref}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-800 transition-all hover:bg-zinc-100"
             aria-label="Back"
           >
             <ArrowLeft className="icon-xl" />
-          </button>
+          </AppHref>
           <span className="text-[16px] font-semibold text-zinc-900">
             Customize
           </span>
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
-          {TAB_OPTIONS.map(({ id, label, icon: Icon }) => (
-            <button
+          {TAB_OPTIONS.map(({ id, label, href, icon: Icon }) => (
+            <AppHref
               key={id}
-              type="button"
-              onClick={() => openTab(id)}
+              href={href}
+              onClick={() => setActiveTab(id)}
+              aria-current={activeTab === id ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-4 py-2 text-left text-[14px] transition-all duration-150",
                 activeTab === id
@@ -114,7 +117,7 @@ export function CustomizePage({
             >
               <Icon className="icon-xl opacity-70" />
               <span>{label}</span>
-            </button>
+            </AppHref>
           ))}
         </nav>
       </aside>
@@ -132,25 +135,25 @@ export function CustomizePage({
               aria-controls="app-primary-nav"
               aria-expanded={!isSidebarCollapsed}
             />
-            <button
-              type="button"
-              onClick={onClose}
+            <AppHref
+              href={closeHref}
               className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-800 transition-all hover:bg-zinc-100"
               aria-label="Back"
             >
               <ArrowLeft className="h-5 w-5" />
-            </button>
+            </AppHref>
             <span className="min-w-0 flex-1 truncate text-[16px] font-semibold text-zinc-900">
               Customize
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-            {TAB_OPTIONS.map(({ id, label, icon: Icon }) => (
-              <button
+            {TAB_OPTIONS.map(({ id, label, href, icon: Icon }) => (
+              <AppHref
                 key={id}
-                type="button"
-                onClick={() => openTab(id)}
+                href={href}
+                onClick={() => setActiveTab(id)}
+                aria-current={activeTab === id ? "page" : undefined}
                 className={cn(
                   "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors",
                   activeTab === id
@@ -160,7 +163,7 @@ export function CustomizePage({
               >
                 <Icon className="h-4 w-4 shrink-0 opacity-80" />
                 <span>{label}</span>
-              </button>
+              </AppHref>
             ))}
           </div>
         </div>
@@ -178,9 +181,9 @@ export function CustomizePage({
                 </div>
 
                 <div className="flex w-full flex-col gap-1">
-                  <button
-                    type="button"
-                    onClick={() => openTab("connectors")}
+                  <AppHref
+                    href={`${APP_ROUTES.customize}/connectors`}
+                    onClick={() => setActiveTab("connectors")}
                     className="group flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all hover:bg-black/[0.02] sm:gap-4"
                   >
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 transition-transform group-hover:scale-105 sm:h-12 sm:w-12">
@@ -195,13 +198,13 @@ export function CustomizePage({
                       </span>
                     </div>
                     <ChevronRight className="icon-xl icon-muted shrink-0 opacity-60 sm:opacity-0 sm:transition-all sm:group-hover:opacity-100" />
-                  </button>
+                  </AppHref>
 
                   <div className="mx-3 h-px bg-black/[0.06]" />
 
-                  <button
-                    type="button"
-                    onClick={() => openTab("skills")}
+                  <AppHref
+                    href={`${APP_ROUTES.customize}/skills`}
+                    onClick={() => setActiveTab("skills")}
                     className="group flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all hover:bg-black/[0.02] sm:gap-4"
                   >
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 transition-transform group-hover:scale-105 sm:h-12 sm:w-12">
@@ -216,7 +219,7 @@ export function CustomizePage({
                       </span>
                     </div>
                     <ChevronRight className="icon-xl icon-muted shrink-0 opacity-60 sm:opacity-0 sm:transition-all sm:group-hover:opacity-100" />
-                  </button>
+                  </AppHref>
                 </div>
               </div>
             </div>

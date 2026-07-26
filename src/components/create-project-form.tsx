@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { appBtn } from "@/lib/app-buttons";
+import { AppHref } from "@/components/app-href";
 
 export type CreateProjectFormValues = {
   name: string;
@@ -11,6 +12,8 @@ export type CreateProjectFormValues = {
 
 type CreateProjectFormProps = {
   onSubmit: (data: CreateProjectFormValues) => void | Promise<void>;
+  /** Plain href cancel — preferred over onCancel for real `<a href>`. */
+  cancelHref?: string;
   onCancel?: () => void;
   isSubmitting?: boolean;
   className?: string;
@@ -27,6 +30,7 @@ type CreateProjectFormProps = {
  */
 export function CreateProjectForm({
   onSubmit,
+  cancelHref,
   onCancel,
   isSubmitting = false,
   className,
@@ -116,7 +120,18 @@ export function CreateProjectForm({
         </div>
 
         <div className="flex justify-end gap-3">
-          {onCancel ? (
+          {cancelHref ? (
+            <AppHref
+              href={cancelHref}
+              aria-disabled={isSubmitting || undefined}
+              className={cn(
+                appBtn.secondary,
+                isSubmitting && "pointer-events-none opacity-50",
+              )}
+            >
+              Cancel
+            </AppHref>
+          ) : onCancel ? (
             <button
               type="button"
               onClick={onCancel}

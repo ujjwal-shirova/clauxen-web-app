@@ -64,6 +64,22 @@ export function greetingFirstName(input: {
   return first || null;
 }
 
+/**
+ * Sidebar / account label when a real identity is known.
+ * Returns null while auth/profile is still resolving — callers should skeleton.
+ */
+export function sidebarDisplayNameOrNull(input: {
+  fullName?: string | null;
+  preferredName?: string | null;
+  email?: string | null;
+}): string | null {
+  return (
+    trimProfileName(input.fullName) ??
+    trimProfileName(input.preferredName) ??
+    trimProfileName(input.email?.split("@")[0] ?? null)
+  );
+}
+
 /** Sidebar / account label — full name, else preferred, else email local-part. */
 export function sidebarDisplayName(input: {
   fullName?: string | null;
@@ -73,9 +89,7 @@ export function sidebarDisplayName(input: {
   authenticated?: boolean;
 }): string {
   return (
-    trimProfileName(input.fullName) ??
-    trimProfileName(input.preferredName) ??
-    trimProfileName(input.email?.split("@")[0] ?? null) ??
+    sidebarDisplayNameOrNull(input) ??
     (input.authenticated ? "Account" : "Guest")
   );
 }

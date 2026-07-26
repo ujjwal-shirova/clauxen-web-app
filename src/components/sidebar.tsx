@@ -34,8 +34,11 @@ import {
 } from "./icons";
 import { cn } from "@/lib/utils";
 import { useIsClient } from "@/hooks/use-is-client";
-import { sidebarDisplayName } from "@/lib/profile-names";
+import { usePathname } from "next/navigation";
+import { AppHref, isPlainLeftClick } from "@/components/app-href";
+import { APP_ROUTES, buildOverlayLocation } from "@/lib/app-routes";
 import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -222,7 +225,9 @@ interface SidebarProps {
   onNewProjectClick?: () => void;
   onSelectProject?: (project: ApiProject) => void;
   onPinProject?: (projectId: string, pinned: boolean) => void;
-  userDisplayName?: string;
+  userDisplayName?: string | null;
+  /** True while auth identity is resolving — show skeletons, not mock labels. */
+  accountLoading?: boolean;
   userAvatarUrl?: string | null;
   userEmail?: string;
   onLogoutClick?: () => void;
@@ -268,12 +273,14 @@ export function Sidebar({
   onNewProjectClick,
   onSelectProject,
   onPinProject,
-  userDisplayName = "Guest",
+  userDisplayName = null,
+  accountLoading = false,
   userAvatarUrl,
   userEmail = "",
   onLogoutClick,
   showAccountMenu = true,
 }: SidebarProps) {
+  const pathname = usePathname() || APP_ROUTES.newChat;
   const isClient = useIsClient();
   const isApplePlatform =
     isClient &&
@@ -289,7 +296,8 @@ export function Sidebar({
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [recentsExpanded, setRecentsExpanded] = useState(true);
   const [moreExpanded, setMoreExpanded] = useState(false);
-  const [planLabel, setPlanLabel] = useState("Free plan");
+  const [planLabel, setPlanLabel] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -311,9 +319,12 @@ export function Sidebar({
     let cancelled = false;
     const loadPlan = async () => {
       if (!userEmail) {
-        setPlanLabel("Free plan");
+        setPlanLabel(null);
+        setPlanLoading(false);
         return;
       }
+      setPlanLoading(true);
+      setPlanLabel(null);
       try {
         const { getBillingSubscription } = await import("@/lib/api/billing");
         const overview = await getBillingSubscription();
@@ -325,9 +336,13 @@ export function Sidebar({
         }
         const match = overview.plans?.find((p) => p.id === planId);
         const name = match?.display_name || planId;
-        setPlanLabel(name.toLowerCase().includes("plan") ? name : `${name} plan`);
+        setPlanLabel(
+          name.toLowerCase().includes("plan") ? name : `${name} plan`,
+        );
       } catch {
         if (!cancelled) setPlanLabel("Free plan");
+      } finally {
+        if (!cancelled) setPlanLoading(false);
       }
     };
     void loadPlan();
@@ -380,9 +395,13 @@ export function Sidebar({
     [unpinnedChats, chatGroupBy],
   );
 
+  const overlayHref = (overlay: Parameters<typeof buildOverlayLocation>[0]) =>
+    buildOverlayLocation(overlay, pathname);
+
   const renderProjectRow = (project: ApiProject, opts?: { pinned?: boolean }) => {
     const isActive = activeProjectId === project.id;
     const showUnpin = Boolean(opts?.pinned);
+    const projectHref = APP_ROUTES.project(project.id);
     return (
       <div
         key={`project-${project.id}`}
@@ -393,13 +412,13 @@ export function Sidebar({
           isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
         )}
       >
-        <button
-          type="button"
+        <AppHref
+          href={projectHref}
           onClick={(event) => {
             event.stopPropagation();
-            runNavAction(() => {
-              onSelectProject?.(project);
-            });
+            if (!isPlainLeftClick(event)) return;
+            onSelectProject?.(project);
+            if (isMobileLayout) onNavigate?.();
           }}
           className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
         >
@@ -409,7 +428,7 @@ export function Sidebar({
           <span className="min-w-0 flex-1 truncate">
             {project.name || "Untitled project"}
           </span>
-        </button>
+        </AppHref>
         {onPinProject ? (
           <button
             type="button"
@@ -468,27 +487,23 @@ export function Sidebar({
   const renderNavButton = ({
     label,
     icon,
+    href,
     onClick,
     active = false,
     muted = false,
     trailing,
+    replace = false,
   }: {
     label: string;
     icon: React.ReactNode;
-    onClick: () => void;
+    href?: string;
+    onClick?: () => void;
     active?: boolean;
     muted?: boolean;
     trailing?: React.ReactNode;
-  }) => (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      aria-label={label}
-      className={navButtonClass(active, muted)}
-    >
+    replace?: boolean;
+  }) => {
+    const body = (
       <div
         className={cn("flex min-w-0 items-center gap-2", !isCollapsed && "w-full")}
       >
@@ -501,19 +516,48 @@ export function Sidebar({
           {icon}
         </div>
         {!isCollapsed && (
-          <span
-            className={cn(
-              "truncate",
-              muted && "text-zinc-400",
-            )}
-          >
+          <span className={cn("truncate", muted && "text-zinc-400")}>
             {label}
           </span>
         )}
         {!isCollapsed && trailing}
       </div>
-    </button>
-  );
+    );
+
+    if (href) {
+      return (
+        <AppHref
+          href={href}
+          replace={replace}
+          aria-label={label}
+          aria-current={active ? "page" : undefined}
+          className={navButtonClass(active, muted)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isPlainLeftClick(e)) return;
+            onClick?.();
+            if (isMobileLayout) onNavigate?.();
+          }}
+        >
+          {body}
+        </AppHref>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick?.();
+        }}
+        aria-label={label}
+        className={navButtonClass(active, muted)}
+      >
+        {body}
+      </button>
+    );
+  };
 
   const generatingSet = useMemo(() => {
     if (!generatingChatIds) return new Set<string>();
@@ -525,6 +569,9 @@ export function Sidebar({
   const renderChatRow = (chat: RecentChat) => {
     const isGeneratingChat = generatingSet.has(chat.id);
     const isActive = activeChatId === chat.id;
+    const chatHref = chat.projectId
+      ? APP_ROUTES.projectChat(chat.id)
+      : APP_ROUTES.chat(chat.id);
     // Spinner only when another chat is generating in the background.
     // Never on the active chat, never while creating/starting a new chat.
     const showSidebarSpinner =
@@ -545,9 +592,13 @@ export function Sidebar({
           isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
         )}
       >
-        <button
-          type="button"
-          onClick={() => onSelectChat(chat)}
+        <AppHref
+          href={chatHref}
+          onClick={(event) => {
+            if (!isPlainLeftClick(event)) return;
+            onSelectChat(chat);
+            if (isMobileLayout) onNavigate?.();
+          }}
           className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
         >
           <span className="min-w-0 flex-1 truncate">
@@ -561,7 +612,7 @@ export function Sidebar({
             )}
           </span>
           {chat.isTitleStreaming ? <TypingDots className="mr-0.5 shrink-0" /> : null}
-        </button>
+        </AppHref>
         <div className="ml-1 flex shrink-0 items-center gap-0.5">
           {showSidebarSpinner ? (
             <span
@@ -604,7 +655,11 @@ export function Sidebar({
                   side="right"
                   isPinned={!!chat.pinned}
                   onRename={() => setRenameChatId(chat.id)}
-                  onMoveToProject={() => runNavAction(onProjectsClick)}
+                  moveToProjectHref={APP_ROUTES.projects}
+                  onMoveToProject={() => {
+                    // Side-effects only — AppHref owns the route change.
+                    runNavAction(onProjectsClick);
+                  }}
                   onPin={() => onPinChat?.(chat.id, true)}
                   onUnpin={() => onPinChat?.(chat.id, false)}
                   onDelete={() => setDeleteChatId(chat.id)}
@@ -730,22 +785,28 @@ export function Sidebar({
         >
           <div className={cn(isCollapsed ? "px-0" : "px-1")}>
             {isCollapsed ? (
-              <button
-                type="button"
+              <AppHref
+                href={APP_ROUTES.newChat}
+                replace
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (!isPlainLeftClick(e)) return;
+                  e.preventDefault();
                   handleNewChat();
                 }}
                 aria-label="New chat"
                 className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
               >
                 <NewChatBubbleIcon className="h-[17px] w-[17px]" />
-              </button>
+              </AppHref>
             ) : (
-              <button
-                type="button"
+              <AppHref
+                href={APP_ROUTES.newChat}
+                replace
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (!isPlainLeftClick(e)) return;
+                  e.preventDefault();
                   handleNewChat();
                 }}
                 aria-label="New chat"
@@ -759,7 +820,7 @@ export function Sidebar({
                   <ShortcutKey>{isApplePlatform ? "⌘" : "Ctrl"}</ShortcutKey>
                   <ShortcutKey>K</ShortcutKey>
                 </span>
-              </button>
+              </AppHref>
             )}
           </div>
         </div>
@@ -769,10 +830,10 @@ export function Sidebar({
           {renderNavButton({
             label: "My Clauxen",
             icon: <UserRound className="h-[18px] w-[18px]" strokeWidth={1.75} />,
-            onClick: () =>
-              runNavAction(() => {
-                (onMyClauxenClick ?? onPersonalizationClick ?? onCustomizeClick)?.();
-              }),
+            href: APP_ROUTES.myClauxen,
+            onClick: () => {
+              (onMyClauxenClick ?? onPersonalizationClick ?? onCustomizeClick)?.();
+            },
             active: activeView === "my-clauxen",
           })}
 
@@ -789,7 +850,8 @@ export function Sidebar({
           {renderNavButton({
             label: "Library",
             icon: <Library className="h-[18px] w-[18px]" />,
-            onClick: () => runNavAction(onLibraryClick),
+            href: APP_ROUTES.library,
+            onClick: onLibraryClick,
             active: activeView === "library",
           })}
 
@@ -798,10 +860,8 @@ export function Sidebar({
             icon: (
               <CalendarClock className="h-[18px] w-[18px]" strokeWidth={1.75} />
             ),
-            onClick: () =>
-              runNavAction(() => {
-                onScheduledTasksClick?.();
-              }),
+            href: APP_ROUTES.scheduledTasks,
+            onClick: () => onScheduledTasksClick?.(),
             active: activeView === "scheduled-tasks",
           })}
 
@@ -813,10 +873,8 @@ export function Sidebar({
                 strokeWidth={1.75}
               />
             ),
-            onClick: () =>
-              runNavAction(() => {
-                onCustomizeClick?.();
-              }),
+            href: APP_ROUTES.customize,
+            onClick: () => onCustomizeClick?.(),
             active: activeView === "customize",
           })}
 
@@ -906,13 +964,13 @@ export function Sidebar({
                 onToggle={() => toggleSection("projects")}
               />
               <SidebarSectionBody expanded={projectsExpanded} className="mt-1 space-y-0.5">
-                <button
-                  type="button"
+                <AppHref
+                  href={APP_ROUTES.projects}
                   onClick={(event) => {
                     event.stopPropagation();
-                    runNavAction(() => {
-                      onNewProjectClick?.();
-                    });
+                    if (!isPlainLeftClick(event)) return;
+                    onNewProjectClick?.();
+                    if (isMobileLayout) onNavigate?.();
                   }}
                   className="group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100"
                 >
@@ -921,7 +979,7 @@ export function Sidebar({
                     strokeWidth={1.75}
                   />
                   <span className="truncate">New Project</span>
-                </button>
+                </AppHref>
                 {unpinnedProjects.map((project) => renderProjectRow(project))}
               </SidebarSectionBody>
             </div>
@@ -991,7 +1049,7 @@ export function Sidebar({
                   )}
                 >
                   <UserAvatarDisplay
-                    name={userDisplayName}
+                    name={userDisplayName || "?"}
                     avatarUrl={userAvatarUrl}
                     size={isCollapsed ? "sm" : "md"}
                     className={isCollapsed ? "h-8 w-8" : "h-9 w-9"}
@@ -1002,12 +1060,20 @@ export function Sidebar({
                       isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100",
                     )}
                   >
-                    <p className="truncate text-[12.5px] font-medium leading-4 text-zinc-800">
-                      {userDisplayName}
-                    </p>
-                    <p className="text-[11px] leading-3.5 text-zinc-500">
-                      {planLabel}
-                    </p>
+                    {accountLoading || !userDisplayName ? (
+                      <Skeleton className="mb-1 h-3.5 w-[7.5rem] max-w-full" variant="text" />
+                    ) : (
+                      <p className="truncate text-[12.5px] font-medium leading-4 text-zinc-800">
+                        {userDisplayName}
+                      </p>
+                    )}
+                    {accountLoading || (Boolean(userEmail) && (planLoading || !planLabel)) ? (
+                      <Skeleton className="h-3 w-[4.75rem]" variant="text" />
+                    ) : planLabel ? (
+                      <p className="text-[11px] leading-3.5 text-zinc-500">
+                        {planLabel}
+                      </p>
+                    ) : null}
                   </div>
                   {!isCollapsed && (
                     <ProfileMenuChevron className="shrink-0 opacity-80" />
@@ -1025,26 +1091,40 @@ export function Sidebar({
               <DropdownMenuLabel className="px-2 py-1 text-[12px] font-[430] text-zinc-500 truncate">
                 {userEmail || "Not signed in"}
               </DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => runNavAction(onSettingsClick)}
-                className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-zinc-800" />
-                  <span>Settings</span>
-                </div>
-                <span className="text-[12px] text-zinc-500">⇧⌘,</span>
+              <DropdownMenuItem asChild>
+                <AppHref
+                  href={overlayHref({ type: "settings", tab: "General" })}
+                  onClick={(e) => {
+                    if (!isPlainLeftClick(e)) return;
+                    e.preventDefault();
+                    runNavAction(onSettingsClick);
+                  }}
+                  className="flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 hover:bg-zinc-100"
+                >
+                  <div className="flex items-center gap-2">
+                    <Settings className="h-5 w-5 text-zinc-800" />
+                    <span>Settings</span>
+                  </div>
+                  <span className="text-[12px] text-zinc-500">⇧⌘,</span>
+                </AppHref>
               </DropdownMenuItem>
               {onPersonalizationClick && (
-                <DropdownMenuItem
-                  onClick={() => {
-                    if (onPersonalizationClick)
+                <DropdownMenuItem asChild>
+                  <AppHref
+                    href={overlayHref({
+                      type: "settings",
+                      tab: "Personalization",
+                    })}
+                    onClick={(e) => {
+                      if (!isPlainLeftClick(e)) return;
+                      e.preventDefault();
                       runNavAction(onPersonalizationClick);
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
-                >
-                  <Sparkles className="w-5 h-5 text-zinc-800" />
-                  <span>Personalization</span>
+                    }}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-100"
+                  >
+                    <Sparkles className="h-5 w-5 text-zinc-800" />
+                    <span>Personalization</span>
+                  </AppHref>
                 </DropdownMenuItem>
               )}
               <DropdownMenuSub>
@@ -1070,26 +1150,47 @@ export function Sidebar({
                 <HelpCircle className="w-5 h-5 text-zinc-800" />
                 <span>Get help</span>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => runNavAction(onUpgradeClick)}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
-              >
-                <ArrowUpCircle className="w-5 h-5 text-zinc-800" />
-                <span>Upgrade plan</span>
+              <DropdownMenuItem asChild>
+                <AppHref
+                  href={overlayHref({ type: "pricing" })}
+                  onClick={(e) => {
+                    if (!isPlainLeftClick(e)) return;
+                    e.preventDefault();
+                    runNavAction(onUpgradeClick);
+                  }}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-100"
+                >
+                  <ArrowUpCircle className="h-5 w-5 text-zinc-800" />
+                  <span>Upgrade plan</span>
+                </AppHref>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => runNavAction(onAppsExtensionsClick)}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
-              >
-                <LayoutGrid className="w-5 h-5 text-zinc-800" />
-                <span>Apps and extensions</span>
+              <DropdownMenuItem asChild>
+                <AppHref
+                  href={overlayHref({ type: "apps" })}
+                  onClick={(e) => {
+                    if (!isPlainLeftClick(e)) return;
+                    e.preventDefault();
+                    runNavAction(onAppsExtensionsClick);
+                  }}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-100"
+                >
+                  <LayoutGrid className="h-5 w-5 text-zinc-800" />
+                  <span>Apps and extensions</span>
+                </AppHref>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => runNavAction(onGiftClick)}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer"
-              >
-                <Gift className="w-5 h-5 text-zinc-800" />
-                <span>Gift Clauxen</span>
+              <DropdownMenuItem asChild>
+                <AppHref
+                  href={overlayHref({ type: "gift" })}
+                  onClick={(e) => {
+                    if (!isPlainLeftClick(e)) return;
+                    e.preventDefault();
+                    runNavAction(onGiftClick);
+                  }}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-100"
+                >
+                  <Gift className="h-5 w-5 text-zinc-800" />
+                  <span>Gift Clauxen</span>
+                </AppHref>
               </DropdownMenuItem>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 rounded-lg data-[state=open]:bg-black/5 cursor-pointer">

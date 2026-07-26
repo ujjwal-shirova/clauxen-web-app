@@ -26,7 +26,7 @@ const playfair = Playfair_Display({
 });
 
 /** Avoid FOUC for theme + chat font before React hydrates. */
-const preferenceBootScript = `(function(){try{var a=localStorage.getItem("clauxen.appearance");var t=localStorage.getItem("theme");var mode=t==="dark"||t==="light"?t:a==="Dark"?"dark":a==="Light"?"light":null;if(!mode)mode=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";var r=document.documentElement;if(mode==="dark")r.classList.add("dark");else r.classList.remove("dark");var f=localStorage.getItem("clauxen.chatFont");if(f)r.setAttribute("data-chat-font",f);if(localStorage.getItem("clauxen.motion")==="Reduced")r.setAttribute("data-reduce-motion","1");var s=localStorage.getItem("clauxen.followUpSuggestions");if(s==="0"||s==="1")r.setAttribute("data-follow-up-suggestions",s);}catch(e){}})();`;
+const preferenceBootScript = `(function(){try{var a=localStorage.getItem("clauxen.appearance");var t=localStorage.getItem("theme");var mode=t==="dark"||t==="light"?t:a==="Dark"?"dark":a==="Light"?"light":null;if(!mode)mode=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";var r=document.documentElement;if(mode==="dark")r.classList.add("dark");else r.classList.remove("dark");var f=localStorage.getItem("clauxen.chatFont");if(f)r.setAttribute("data-chat-font",f);var m=localStorage.getItem("clauxen.motion");var reduce=m==="Reduced"||((!m||m==="System")&&window.matchMedia("(prefers-reduced-motion: reduce)").matches);if(reduce)r.setAttribute("data-reduce-motion","1");else r.removeAttribute("data-reduce-motion");var s=localStorage.getItem("clauxen.followUpSuggestions");if(s==="0"||s==="1")r.setAttribute("data-follow-up-suggestions",s);}catch(e){}})();`;
 
 export const metadata: Metadata = {
   title: {

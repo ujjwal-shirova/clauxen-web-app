@@ -4,7 +4,7 @@ import React, { useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { SoftErrorBoundary } from "@/components/soft-error-boundary";
 import { useAuth } from "@/hooks/use-auth";
-import { sidebarDisplayName } from "@/lib/profile-names";
+import { sidebarDisplayNameOrNull } from "@/lib/profile-names";
 import { useProjects } from "@/hooks/use-projects";
 import { useSidebarState } from "@/hooks/use-sidebar-state";
 import {
@@ -118,41 +118,33 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     instantNavigate(APP_ROUTES.newChat, { replace: true });
   }, [startNewChat, closeMobileNav, overlays, instantNavigate]);
 
+  /** Side-effects only — route changes come from AppHref / plain href. */
   const goToLibrary = useCallback(() => {
-    instantNavigate(APP_ROUTES.library);
     closeMobileNav();
-  }, [instantNavigate, closeMobileNav]);
+  }, [closeMobileNav]);
 
   const goToScheduledTasks = useCallback(() => {
-    instantNavigate(APP_ROUTES.scheduledTasks);
     closeMobileNav();
-  }, [instantNavigate, closeMobileNav]);
+  }, [closeMobileNav]);
 
   const goToProjects = useCallback(() => {
-    instantNavigate(APP_ROUTES.projects);
     closeMobileNav();
-  }, [instantNavigate, closeMobileNav]);
+  }, [closeMobileNav]);
 
   const goToCustomize = useCallback(() => {
-    instantNavigate(APP_ROUTES.customize);
     closeMobileNav();
-  }, [instantNavigate, closeMobileNav]);
+  }, [closeMobileNav]);
 
   const goToMyClauxen = useCallback(() => {
-    instantNavigate(APP_ROUTES.myClauxen);
     closeMobileNav();
-  }, [instantNavigate, closeMobileNav]);
+  }, [closeMobileNav]);
 
   const onSelectChatFromSidebar = useCallback(
     (chatEntry: RecentChat) => {
       handleSelectChat(chatEntry.id);
-      const target = chatEntry.projectId
-        ? APP_ROUTES.projectChat(chatEntry.id)
-        : APP_ROUTES.chat(chatEntry.id);
-      instantNavigate(target);
       closeMobileNav();
     },
-    [handleSelectChat, instantNavigate, closeMobileNav],
+    [handleSelectChat, closeMobileNav],
   );
 
   const onDeleteChatFromSidebar = useCallback(
@@ -204,12 +196,14 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, [overlays, closeMobileNav]);
 
   const goToCreateProject = useCallback(() => {
-    instantNavigate(APP_ROUTES.projects);
     closeMobileNav();
-  }, [instantNavigate, closeMobileNav]);
+  }, [closeMobileNav]);
 
   React.useEffect(() => {
-    const onOpenCreate = () => goToCreateProject();
+    const onOpenCreate = () => {
+      instantNavigate(APP_ROUTES.projects);
+      closeMobileNav();
+    };
     window.addEventListener(CLAUXEN_OPEN_CREATE_PROJECT_EVENT, onOpenCreate);
     return () => {
       window.removeEventListener(
@@ -217,14 +211,13 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onOpenCreate,
       );
     };
-  }, [goToCreateProject]);
+  }, [instantNavigate, closeMobileNav]);
 
   const openProjectDetail = useCallback(
-    (project: ApiProject) => {
-      instantNavigate(APP_ROUTES.project(project.id));
+    (_project: ApiProject) => {
       closeMobileNav();
     },
-    [instantNavigate, closeMobileNav],
+    [closeMobileNav],
   );
 
   const activeProjectId = React.useMemo(() => {
@@ -330,12 +323,18 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         onNewProjectClick={goToCreateProject}
         onSelectProject={openProjectDetail}
         onPinProject={projects.pinProject}
-        userDisplayName={sidebarDisplayName({
-          fullName: auth.user?.displayName,
-          preferredName: auth.user?.preferredName,
-          email: auth.user?.email,
-          authenticated: Boolean(auth.user?.id) || auth.loading,
-        })}
+        userDisplayName={
+          auth.loading && !auth.user
+            ? null
+            : auth.user
+              ? sidebarDisplayNameOrNull({
+                  fullName: auth.user.displayName,
+                  preferredName: auth.user.preferredName,
+                  email: auth.user.email,
+                })
+              : "Guest"
+        }
+        accountLoading={auth.loading && !auth.user}
         userAvatarUrl={auth.user?.avatarUrl}
         userEmail={auth.user?.email ?? ""}
         onLogoutClick={() => void auth.logout()}

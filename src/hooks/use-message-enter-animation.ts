@@ -23,13 +23,21 @@ export function useMessageEnterAnimation(
     setEntered(true);
   }, [messageId]);
 
-  const shouldAnimate = enabled && !entered;
+  const motionReduced =
+    typeof document !== "undefined" &&
+    document.documentElement.getAttribute("data-reduce-motion") === "1";
+  const shouldAnimate = enabled && !entered && !motionReduced;
 
   useEffect(() => {
+    if (!enabled || entered) return;
+    if (motionReduced) {
+      markEntered();
+      return;
+    }
     if (!shouldAnimate) return;
     const timer = window.setTimeout(markEntered, 220);
     return () => window.clearTimeout(timer);
-  }, [shouldAnimate, markEntered]);
+  }, [shouldAnimate, markEntered, enabled, entered, motionReduced]);
 
   return {
     shouldAnimate,

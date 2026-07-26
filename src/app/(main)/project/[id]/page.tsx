@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { ProjectHomeView } from "@/components/project-home-view";
 import { useAuth } from "@/hooks/use-auth";
 import { useProjects } from "@/hooks/use-projects";
@@ -12,6 +12,7 @@ import type { ApiProject } from "@/lib/api/projects";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { isProjectPinned } from "@/lib/pinned-projects";
+import { AppHref } from "@/components/app-href";
 
 export default function ProjectHomeRoutePage() {
   return (
@@ -34,7 +35,6 @@ function ProjectHomeGate() {
 function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
-  const router = useRouter();
   const instantNavigate = useInstantNavigate();
   const projectsHook = useProjects(apiEnabled);
   const session = useOptionalChatSession();
@@ -114,13 +114,12 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-white text-zinc-500">
         <p>Project not found.</p>
-        <button
-          type="button"
+        <AppHref
+          href={APP_ROUTES.projects}
           className="text-sm text-zinc-800 underline"
-          onClick={() => router.push(APP_ROUTES.projects)}
         >
           New project
-        </button>
+        </AppHref>
       </div>
     );
   }

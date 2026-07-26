@@ -23,8 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAppLayout } from "@/components/app-layout-context";
 import { ProjectsMobileHeader } from "@/components/projects/projects-mobile-header";
-import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { APP_ROUTES } from "@/lib/app-routes";
+import { AppHref } from "@/components/app-href";
 import {
   NewScheduledTaskModal,
   type NewScheduledTaskPayload,
@@ -100,7 +100,6 @@ async function readApiError(res: Response): Promise<string> {
 export function ScheduledTasksView() {
   const isMobile = useIsMobile();
   const { openMobileNav } = useAppLayout();
-  const instantNavigate = useInstantNavigate();
   const { toast } = useToast();
 
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
@@ -135,10 +134,7 @@ export function ScheduledTasksView() {
     void load();
   }, [load]);
 
-  const goCreateViaChat = useCallback(() => {
-    stashScheduleChatDraft();
-    instantNavigate(`${APP_ROUTES.newChat}?intent=schedule`);
-  }, [instantNavigate]);
+  const scheduleViaChatHref = `${APP_ROUTES.newChat}?intent=schedule`;
 
   const handleCreate = async (payload: NewScheduledTaskPayload) => {
     setSaving(true);
@@ -215,15 +211,20 @@ export function ScheduledTasksView() {
           <Pencil className="h-4 w-4 text-zinc-500" strokeWidth={1.75} />
           Create manually
         </DropdownMenuItem>
-        <DropdownMenuItem
-          className="cursor-pointer gap-2.5 rounded-lg px-2.5 py-2 text-[14px]"
-          onSelect={() => goCreateViaChat()}
-        >
-          <MessageSquarePlus
-            className="h-4 w-4 text-zinc-500"
-            strokeWidth={1.75}
-          />
-          Create via chat
+        <DropdownMenuItem asChild>
+          <AppHref
+            href={scheduleViaChatHref}
+            onClick={() => {
+              stashScheduleChatDraft();
+            }}
+            className="cursor-pointer gap-2.5 rounded-lg px-2.5 py-2 text-[14px]"
+          >
+            <MessageSquarePlus
+              className="h-4 w-4 text-zinc-500"
+              strokeWidth={1.75}
+            />
+            Create via chat
+          </AppHref>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -254,14 +255,13 @@ export function ScheduledTasksView() {
             </div>
             <div className="hidden shrink-0 items-center gap-2 sm:flex">
               {CreateMenu}
-              <button
-                type="button"
+              <AppHref
+                href={APP_ROUTES.newChat}
                 aria-label="Close"
-                onClick={() => instantNavigate(APP_ROUTES.newChat)}
                 className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
               >
                 <X className="h-5 w-5" strokeWidth={1.75} />
-              </button>
+              </AppHref>
             </div>
           </div>
 
@@ -291,13 +291,15 @@ export function ScheduledTasksView() {
                   Add manually
                 </button>
                 <span className="text-zinc-300">or</span>
-                <button
-                  type="button"
-                  onClick={() => goCreateViaChat()}
+                <AppHref
+                  href={scheduleViaChatHref}
+                  onClick={() => {
+                    stashScheduleChatDraft();
+                  }}
                   className="font-medium text-blue-600 transition-colors hover:text-blue-700"
                 >
                   Create via chat
-                </button>
+                </AppHref>
               </div>
             </div>
           ) : (
@@ -345,14 +347,10 @@ export function ScheduledTasksView() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44 rounded-xl">
                       {task.last_chat_id ? (
-                        <DropdownMenuItem
-                          onSelect={() =>
-                            instantNavigate(
-                              APP_ROUTES.chat(task.last_chat_id!),
-                            )
-                          }
-                        >
-                          Open last run
+                        <DropdownMenuItem asChild>
+                          <AppHref href={APP_ROUTES.chat(task.last_chat_id)}>
+                            Open last run
+                          </AppHref>
                         </DropdownMenuItem>
                       ) : null}
                       {task.status === "active" ? (

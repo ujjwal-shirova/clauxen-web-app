@@ -31,6 +31,7 @@ import {
 } from "@/components/checkout-billing-address";
 import { AddPaymentMethodDialog } from "@/components/settings/add-payment-method-dialog";
 import { ManagePlanDialog } from "@/components/settings/manage-plan-dialog";
+import { SettingsBillingSkeleton } from "@/components/settings/settings-page-skeleton";
 import {
   SettingsFieldBlock,
   SettingsPanelTitle,
@@ -264,24 +265,26 @@ export function BillingSettings({
     }
   };
 
+  if (loading) {
+    return <SettingsBillingSkeleton />;
+  }
+
   return (
-    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900 dark:text-zinc-100">
       <SettingsPanelTitle>Billing</SettingsPanelTitle>
 
-      <section className="border-b border-zinc-200 pb-6">
+      <section className="border-b border-zinc-200 pb-6 dark:border-white/10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50">
-              <Sparkles className="h-4 w-4 text-zinc-700" aria-hidden />
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 dark:border-white/10 dark:bg-zinc-900">
+              <Sparkles className="h-4 w-4 text-zinc-700 dark:text-zinc-200" aria-hidden />
             </div>
             <div className="min-w-0">
               <h3 className="text-[18px] font-medium leading-7">{planTitle}</h3>
               <p className="mt-1 text-[14px] leading-5 text-zinc-500">
-                {loading
-                  ? "Loading subscription…"
-                  : cancelAtEnd && periodEnd
-                    ? `Your plan will be canceled on ${formatDate(periodEnd)}`
-                    : planSubtitle}
+                {cancelAtEnd && periodEnd
+                  ? `Your plan will be canceled on ${formatDate(periodEnd)}`
+                  : planSubtitle}
               </p>
             </div>
           </div>

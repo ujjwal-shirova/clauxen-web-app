@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { PageSection } from "@/marketing/lib/types";
 
 type Cta = Extract<PageSection, { type: "cta" }>;
@@ -16,19 +15,19 @@ export function CtaBandSection({ section }: { section: Cta }) {
           </p>
         ) : null}
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link
+          <a
             href={section.primaryCta.href}
             className="inline-flex rounded-full bg-white px-5 py-2.5 text-sm font-medium text-zinc-900 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
           >
             {section.primaryCta.label}
-          </Link>
+          </a>
           {section.secondaryCta ? (
-            <Link
+            <a
               href={section.secondaryCta.href}
               className="inline-flex rounded-full border border-white/30 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/10 dark:border-zinc-400 dark:text-zinc-900 dark:hover:bg-zinc-200/60"
             >
               {section.secondaryCta.label}
-            </Link>
+            </a>
           ) : null}
         </div>
       </div>

@@ -23,6 +23,8 @@ import {
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { AppHref } from "@/components/app-href";
+import { APP_ROUTES } from "@/lib/app-routes";
 
 export const chatRowMenuItemClass =
   "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100 focus:bg-zinc-100";
@@ -37,7 +39,9 @@ type ChatRowMenuContentProps = {
   onShare?: () => void;
   onStartGroupChat?: () => void;
   onRename?: () => void;
+  /** Side-effects only when href is used; navigation comes from AppHref. */
   onMoveToProject?: () => void;
+  moveToProjectHref?: string;
   onPin?: () => void;
   onUnpin?: () => void;
   onArchive?: () => void;
@@ -56,6 +60,7 @@ export function ChatRowMenuContent({
   onStartGroupChat,
   onRename,
   onMoveToProject,
+  moveToProjectHref = APP_ROUTES.projects,
   onPin,
   onUnpin,
   onArchive,
@@ -114,15 +119,17 @@ export function ChatRowMenuContent({
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent className="z-50 min-w-[200px] rounded-xl border border-black/[0.08] bg-white p-1.5 shadow-[0_8px_28px_rgba(26,23,18,0.12)]">
-              <DropdownMenuItem
-                className={chatRowMenuItemClass}
-                onSelect={(event) => {
-                  event.preventDefault();
-                  onMoveToProject?.();
-                }}
-              >
-                <Plus className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
-                Start a new project
+              <DropdownMenuItem asChild>
+                <AppHref
+                  href={moveToProjectHref}
+                  className={chatRowMenuItemClass}
+                  onClick={() => {
+                    onMoveToProject?.();
+                  }}
+                >
+                  <Plus className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+                  Start a new project
+                </AppHref>
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuPortal>

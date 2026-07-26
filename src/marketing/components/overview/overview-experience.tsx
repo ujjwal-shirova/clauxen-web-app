@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useEffect,
   useRef,
@@ -225,19 +224,19 @@ export function OverviewExperience() {
             switching tools.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-            <Link
+            <a
               href={SITE.login}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-zinc-950 px-6 text-sm font-medium text-white transition hover:bg-zinc-800"
             >
               Start free
-            </Link>
-            <Link
+            </a>
+            <a
               href="/download"
               className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-zinc-800 transition hover:bg-zinc-100"
             >
               Download the app
               <i className="bi bi-box-arrow-up-right text-[12px]" aria-hidden />
-            </Link>
+            </a>
           </div>
 
           {/* Large app window under CTAs */}
@@ -387,13 +386,13 @@ export function OverviewExperience() {
               controls.
             </p>
           </div>
-          <Link
+          <a
             href={SITE.plans}
             className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-zinc-950 px-5 text-sm font-medium text-white hover:bg-zinc-800"
           >
             See plans
             <i className="bi bi-arrow-right text-[14px]" aria-hidden />
-          </Link>
+          </a>
         </div>
       </section>
 
@@ -415,12 +414,12 @@ export function OverviewExperience() {
               Choose what is remembered, what is shared, and how long history
               stays available in your account.
             </p>
-            <Link
+            <a
               href="/legal/privacy"
               className="mt-5 inline-flex min-h-9 items-center rounded-full bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800"
             >
               Privacy overview
-            </Link>
+            </a>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white p-6">
             <h3 className="text-lg font-medium">Safer by default</h3>
@@ -428,12 +427,12 @@ export function OverviewExperience() {
               Workspace safeguards and clear policies help teams and families
               use Clauxen with confidence.
             </p>
-            <Link
+            <a
               href="/solutions/education"
               className="mt-5 inline-flex min-h-9 items-center rounded-full bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800"
             >
               Learn more
-            </Link>
+            </a>
           </div>
         </div>
       </section>
@@ -444,13 +443,13 @@ export function OverviewExperience() {
           <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">
             Try Clauxen today
           </h2>
-          <Link
+          <a
             href="/download"
             className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-zinc-950 px-5 text-sm font-medium text-white hover:bg-zinc-800"
           >
             Download app
             <i className="bi bi-arrow-right text-[14px]" aria-hidden />
-          </Link>
+          </a>
         </div>
       </section>
     </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CreateProjectForm } from "@/components/create-project-form";
 import { useProjects } from "@/hooks/use-projects";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,7 +17,6 @@ export default function ProjectCreateRoutePage() {
 }
 
 function ProjectCreateContent() {
-  const router = useRouter();
   const instantNavigate = useInstantNavigate();
   const auth = useAuth();
   const { toast } = useToast();
@@ -63,7 +61,7 @@ function ProjectCreateContent() {
       <div className="mx-auto flex w-full max-w-[720px] flex-1 flex-col items-center justify-center px-4 py-10 sm:px-6">
         <CreateProjectForm
           onSubmit={handleCreate}
-          onCancel={() => router.push(APP_ROUTES.newChat)}
+          cancelHref={APP_ROUTES.newChat}
           isSubmitting={isCreating}
         />
       </div>

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { PageSection } from "@/marketing/lib/types";
 import { SectionShell } from "@/marketing/components/ui";
 
@@ -12,9 +11,11 @@ export function LinkGridSection({ section }: { section: LinkGrid }) {
           {section.title}
         </h2>
       ) : null}
-      <div className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-3 ${section.title ? "mt-8" : ""}`}>
+      <div
+        className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-3 ${section.title ? "mt-8" : ""}`}
+      >
         {section.items.map((item) => (
-          <Link
+          <a
             key={item.href}
             href={item.href}
             className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
@@ -25,7 +26,7 @@ export function LinkGridSection({ section }: { section: LinkGrid }) {
             <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
               {item.body}
             </p>
-          </Link>
+          </a>
         ))}
       </div>
     </SectionShell>

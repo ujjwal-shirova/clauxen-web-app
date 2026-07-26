@@ -18,6 +18,11 @@ import type { SessionUser } from "@/lib/api/auth";
 import { useAuth } from "@/hooks/use-auth";
 import { useAppPreferences } from "@/contexts/app-preferences-context";
 import { GeneralSettings } from "@/components/settings/general-settings";
+import {
+  SettingsBillingSkeleton,
+  SettingsContentSkeleton,
+} from "@/components/settings/settings-page-skeleton";
+import { preloadChatFontCatalog } from "@/components/chat-font-loader";
 import { PersonalizationSettingsPanel } from "@/components/settings/personalization-settings";
 import { NotificationsSettings } from "@/components/settings/notifications-settings";
 import { AccountSettings } from "@/components/settings/account-settings";
@@ -69,6 +74,7 @@ export function SettingsModal({
   const settingsEnabled = Boolean(user?.id);
   const {
     settings,
+    ready: settingsReady,
     updateGeneral,
     updatePrivacy,
     updateCapabilities,
@@ -79,6 +85,8 @@ export function SettingsModal({
     updateSafety,
     refresh: refreshSettings,
   } = useSettings(settingsEnabled);
+  /** Skeleton only on first settings hydrate — never on recent chats. */
+  const contentLoading = settingsEnabled && !settingsReady;
 
   const safeInitial = isSettingsTab(initialTab) ? initialTab : "General";
   const [activeTab, setActiveTab] = useState<SettingsTab>(safeInitial);
@@ -93,9 +101,10 @@ export function SettingsModal({
   useEffect(() => {
     if (open) {
       setActiveTab(isSettingsTab(initialTab) ? initialTab : "General");
+      preloadChatFontCatalog();
       if (settingsEnabled) {
         void refreshSettings();
-        void refreshPreferences();
+        void refreshPreferences({ quiet: true });
       }
     }
   }, [initialTab, open, settingsEnabled, refreshSettings, refreshPreferences]);
@@ -155,10 +164,17 @@ export function SettingsModal({
               void refreshAuth({ quiet: true });
             }}
             appearancePreset={appearanceGeneral.appearancePreset}
-            setAppearancePreset={(v) =>
-              updatePreferenceGeneral({ appearancePreset: v })
+            onAppearanceChange={(preset) =>
+              updatePreferenceGeneral({
+                appearancePreset: preset,
+                colorMode:
+                  preset === "Light"
+                    ? "Light"
+                    : preset === "Dark"
+                      ? "Dark"
+                      : "Auto",
+              })
             }
-            setColorMode={(v) => updatePreferenceGeneral({ colorMode: v })}
             chatFont={appearanceGeneral.chatFont}
             setChatFont={(v) => updatePreferenceGeneral({ chatFont: v })}
             motion={appearanceGeneral.motion ?? "System"}
@@ -436,7 +452,15 @@ export function SettingsModal({
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12">
               <SettingsTabErrorBoundary tabLabel={activeTab}>
-                {renderActiveTab()}
+                {contentLoading ? (
+                  activeTab === "Billing" ? (
+                    <SettingsBillingSkeleton />
+                  ) : (
+                    <SettingsContentSkeleton />
+                  )
+                ) : (
+                  renderActiveTab()
+                )}
               </SettingsTabErrorBoundary>
             </div>
           </div>

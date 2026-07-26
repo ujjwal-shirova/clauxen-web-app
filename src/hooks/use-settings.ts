@@ -73,21 +73,26 @@ function mergePatches(a: SettingsPatch, b: SettingsPatch): SettingsPatch {
 export function useSettings(enabled: boolean) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [loading, setLoading] = useState(enabled);
+  const [ready, setReady] = useState(!enabled);
   const [saving, setSaving] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPatchRef = useRef<SettingsPatch>({});
   const settingsRef = useRef(settings);
   const dirtyRef = useRef(false);
+  const readyRef = useRef(ready);
   settingsRef.current = settings;
+  readyRef.current = ready;
 
   const refresh = useCallback(async () => {
     if (!enabled) {
       setSettings(DEFAULT_APP_SETTINGS);
       setLoading(false);
+      setReady(true);
       return;
     }
 
-    setLoading(true);
+    // Only show skeletons on the first load — reopen/refresh stays quiet.
+    if (!readyRef.current) setLoading(true);
     try {
       const data = await settingsApi.getSettings();
       // Never clobber in-flight optimistic edits with a stale GET.
@@ -100,6 +105,7 @@ export function useSettings(enabled: boolean) {
       setSettings((prev) => normalizeAppSettings(prev));
     } finally {
       setLoading(false);
+      setReady(true);
     }
   }, [enabled]);
 
@@ -107,6 +113,7 @@ export function useSettings(enabled: boolean) {
     if (!enabled) {
       setSettings(DEFAULT_APP_SETTINGS);
       setLoading(false);
+      setReady(true);
       return;
     }
     void refresh();
@@ -256,6 +263,7 @@ export function useSettings(enabled: boolean) {
   return {
     settings,
     loading,
+    ready,
     saving,
     refresh,
     updateGeneral,

@@ -21,6 +21,7 @@ import {
   parseOverlayPath,
   type AppOverlayPath,
 } from "@/lib/app-routes";
+import { CLAUXEN_NAVIGATE_EVENT } from "@/hooks/use-document-title";
 
 export type Overlay = AppOverlayPath;
 export type OverlayType = Overlay["type"];
@@ -131,16 +132,18 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
     });
   }, [pathname, router]);
 
-  /** Sync overlay state from hash (popstate / hashchange / soft nav). */
+  /** Sync overlay state from hash (popstate / hashchange / AppHref soft nav). */
   useEffect(() => {
     const sync = () => {
       setOverlay(readOverlayFromLocation());
     };
     window.addEventListener("popstate", sync);
     window.addEventListener("hashchange", sync);
+    window.addEventListener(CLAUXEN_NAVIGATE_EVENT, sync);
     return () => {
       window.removeEventListener("popstate", sync);
       window.removeEventListener("hashchange", sync);
+      window.removeEventListener(CLAUXEN_NAVIGATE_EVENT, sync);
     };
   }, []);
 

@@ -6,7 +6,7 @@ import { SettingsErrorBoundary } from "@/components/settings/settings-error-boun
 import { useAppOverlays } from "@/hooks/use-app-overlays";
 import { useAuth } from "@/hooks/use-auth";
 import { APP_ROUTES } from "@/lib/app-routes";
-import { useRouter } from "next/navigation";
+import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { isSettingsTab } from "@/components/settings/constants";
 
 const UpgradeView = dynamic(
@@ -39,7 +39,7 @@ const SettingsModal = dynamic(
 export function AppOverlayHost() {
   const overlays = useAppOverlays();
   const auth = useAuth();
-  const router = useRouter();
+  const instantNavigate = useInstantNavigate();
 
   if (!overlays.currentOverlay) return null;
 
@@ -87,9 +87,9 @@ export function AppOverlayHost() {
           onTabChange={(next) => overlays.openSettings(next)}
           onGoToCustomize={(section) => {
             overlays.closeOverlay();
-            router.push(
+            instantNavigate(
               section === "connectors"
-                ? "/customize/connectors"
+                ? `${APP_ROUTES.customize}/connectors`
                 : APP_ROUTES.customize,
             );
           }}

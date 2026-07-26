@@ -19,6 +19,8 @@ const config = [
       "import/no-anonymous-default-export": "off",
       "@next/next/no-img-element": "off",
       "@next/next/no-page-custom-font": "off",
+      // App uses traditional <a href> navigation instead of next/link.
+      "@next/next/no-html-link-for-pages": "off",
       "react/no-unescaped-entities": "off",
       "react/no-danger": "error",
       "no-eval": "error",

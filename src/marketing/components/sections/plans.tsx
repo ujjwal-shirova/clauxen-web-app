@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { PageSection } from "@/marketing/lib/types";
 import { SectionShell } from "@/marketing/components/ui";
 
@@ -37,7 +36,7 @@ export function PlansSection({ section }: { section: Plans }) {
                 <li key={f}>{f}</li>
               ))}
             </ul>
-            <Link
+            <a
               href={plan.cta.href}
               className={`mt-6 inline-flex justify-center rounded-full px-4 py-2 text-sm font-medium ${
                 plan.highlight
@@ -46,7 +45,7 @@ export function PlansSection({ section }: { section: Plans }) {
               }`}
             >
               {plan.cta.label}
-            </Link>
+            </a>
           </div>
         ))}
       </div>
