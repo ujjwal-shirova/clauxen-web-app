@@ -6,7 +6,11 @@ import {
   requireAnthropicBaseUrl,
 } from "@/server/config/env";
 import { getSessionFromRequest } from "@/server/auth/session";
-import { getUserBalance, debitUserTokens } from "@/server/repositories/billing.repository";
+import {
+  getUserBalance,
+  debitUserTokens,
+} from "@/server/repositories/billing.repository";
+import { novitaFetch } from "@/server/inference/novita-fetch";
 
 function anthropicError(status: number, type: string, message: string) {
   return NextResponse.json(
@@ -30,14 +34,21 @@ async function assertUserCanInfer(userId: string): Promise<string | null> {
 }
 
 /**
- * User-authenticated Anthropic Messages proxy for Clauxen Code CLI.
- * Novita/provider keys never leave the server.
+ * Clauxen Code CLI → Vercel gateway → Novita Anthropic Messages API.
+ *
+ * Auth: Supabase-backed Clauxen account via OAuth access token (`cla_at_…`)
+ * or Settings API key (`clx_…`). Provider_API_Key never leaves the server
+ * (Vercel env). Wire format stays Anthropic `/v1/messages`.
  */
 export async function handleCodeMessagesPost(request: NextRequest) {
   try {
     const session = await getSessionFromRequest(request);
     if (!session) {
-      return anthropicError(401, "authentication_error", "Unauthorized.");
+      return anthropicError(
+        401,
+        "authentication_error",
+        "Sign in with your Clauxen account or provide a clx_ API key.",
+      );
     }
 
     const balanceError = await assertUserCanInfer(session.id);
@@ -52,20 +63,24 @@ export async function handleCodeMessagesPost(request: NextRequest) {
       return anthropicError(400, "invalid_request_error", "Invalid JSON body.");
     }
 
+    // Server-only credentials from Vercel / .env (Provider_API_Key + Provider_BASE_URL → /anthropic)
+    const providerApiKey = requireProviderApiKey();
+    const anthropicBase = requireAnthropicBaseUrl().replace(/\/+$/, "");
+    const upstreamUrl = `${anthropicBase}/v1/messages`;
+
     const model =
       (typeof body.model === "string" && body.model.trim()) ||
       env.defaultModel ||
       env.virgilModel;
     const stream = body.stream === true;
 
-    const apiKey = requireProviderApiKey();
-    const baseUrl = requireAnthropicBaseUrl().replace(/\/+$/, "");
-    const upstreamUrl = `${baseUrl}/v1/messages`;
-
-    const upstream = await fetch(upstreamUrl, {
+    const upstream = await novitaFetch(upstreamUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        // Novita Anthropic-compatible gateway accepts Bearer; also set x-api-key
+        // for Anthropic SDK wire compatibility.
+        Authorization: `Bearer ${providerApiKey}`,
+        "x-api-key": providerApiKey,
         "Content-Type": "application/json",
         "anthropic-version":
           request.headers.get("anthropic-version") || "2023-06-01",
@@ -77,24 +92,29 @@ export async function handleCodeMessagesPost(request: NextRequest) {
         ...body,
         model,
       }),
-      cache: "no-store",
     });
 
     if (!upstream.ok) {
       const text = await upstream.text().catch(() => "");
-      return new Response(text || JSON.stringify({
-        type: "error",
-        error: { type: "api_error", message: "Upstream inference failed." },
-      }), {
-        status: upstream.status,
-        headers: {
-          "Content-Type":
-            upstream.headers.get("content-type") || "application/json",
+      return new Response(
+        text ||
+          JSON.stringify({
+            type: "error",
+            error: {
+              type: "api_error",
+              message: "Upstream Novita Messages request failed.",
+            },
+          }),
+        {
+          status: upstream.status,
+          headers: {
+            "Content-Type":
+              upstream.headers.get("content-type") || "application/json",
+          },
         },
-      });
+      );
     }
 
-    // Rough debit: prefer usage from non-stream JSON; for streams debit a minimum.
     if (!stream) {
       const cloned = upstream.clone();
       try {
@@ -109,7 +129,10 @@ export async function handleCodeMessagesPost(request: NextRequest) {
           amount,
           modelId: String(model),
           source: "clauxen_code",
-          metadata: { path: "/api/v1/code/v1/messages" },
+          metadata: {
+            path: "/api/v1/code/v1/messages",
+            upstream: "novita_anthropic",
+          },
         }).catch((err) => {
           console.warn("[code-gateway] debit failed:", err);
         });
@@ -126,13 +149,16 @@ export async function handleCodeMessagesPost(request: NextRequest) {
       });
     }
 
-    // Streaming: debit a small reservation; detailed metering can refine later.
     void debitUserTokens({
       userId: session.id,
       amount: 1,
       modelId: String(model),
       source: "clauxen_code_stream",
-      metadata: { path: "/api/v1/code/v1/messages", stream: true },
+      metadata: {
+        path: "/api/v1/code/v1/messages",
+        stream: true,
+        upstream: "novita_anthropic",
+      },
     }).catch((err) => {
       console.warn("[code-gateway] stream debit failed:", err);
     });
