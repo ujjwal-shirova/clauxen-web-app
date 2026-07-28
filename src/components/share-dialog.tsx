@@ -1,8 +1,17 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Check, Copy, Globe, Link2, Loader2, Lock, X } from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Check,
+  Copy,
+  Globe,
+  Link2,
+  Loader2,
+  Lock,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as shareApi from "@/lib/api/share";
 
@@ -14,13 +23,11 @@ interface ShareDialogProps {
   chatId?: string | null;
 }
 
-const EASE = [0.32, 0.72, 0, 1] as const;
-
 /**
  * ChatGPT-style share popup: private vs public link snapshot.
- * Renders as a lightweight framer-motion popup container (not a heavy centered
- * modal) so it can animate in/out cleanly and grow smoothly when the public
- * link section is revealed. Wired to `/api/v1/chats/[chatId]/share`.
+ * Wired to `/api/v1/chats/[chatId]/share`.
+ *
+ * Renders via portal on document.body with framer-motion animations.
  */
 export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
   const [mode, setMode] = useState<ShareMode>("private");
@@ -29,19 +36,13 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
-
-  // Reset transient UI state whenever the popup is (re)opened.
   useEffect(() => {
-    if (!isOpen) return;
-    setCopied(false);
-    setError(null);
-    previouslyFocused.current = document.activeElement as HTMLElement | null;
-  }, [isOpen]);
+    setMounted(true);
+  }, []);
 
-  // Load current share state when opened with a chat id.
+  // Reset and load share state when the dialog opens.
   useEffect(() => {
     if (!isOpen || !chatId) return;
     let cancelled = false;
@@ -71,35 +72,18 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
     };
   }, [isOpen, chatId]);
 
-  // Escape to close + click-outside to close + focus restore.
+  // Close on Escape key.
   useEffect(() => {
     if (!isOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
         onClose();
       }
     };
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (panelRef.current && target && !panelRef.current.contains(target)) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown, true);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown, true);
-    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [isOpen, onClose]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      previouslyFocused.current?.focus?.();
-      previouslyFocused.current = null;
-    }
-  }, [isOpen]);
 
   const handleSelectPrivate = useCallback(async () => {
     if (!chatId || busy) return;
@@ -155,9 +139,11 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
     }
   }, [shareUrl]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
-      {isOpen ? (
+      {isOpen && (
         <>
           {/* Backdrop */}
           <motion.div
@@ -165,35 +151,39 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: EASE }}
-            className="fixed inset-0 z-[200] bg-[#1a1712]/25 backdrop-blur-[2px]"
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="fixed inset-0 z-50 bg-black/15 backdrop-blur-[1px]"
+            onClick={onClose}
             aria-hidden
           />
 
-          {/* Popup container */}
-          <div className="pointer-events-none fixed inset-0 z-[201] flex items-start justify-center overflow-y-auto pt-[12vh]">
-            <motion.div
-              key="share-popup"
-              ref={panelRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Share chat"
-              initial={{ opacity: 0, y: -12, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.98 }}
-              transition={{ duration: 0.26, ease: EASE }}
+          {/* Popup */}
+          <motion.div
+            key="share-popup"
+            initial={{ opacity: 0, scale: 0.95, y: -8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+            className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2"
+          >
+            <div
               className={cn(
-                "pointer-events-auto relative w-[min(420px,calc(100vw-24px))] overflow-hidden",
-                "rounded-[20px] border border-[#E8E8E4] bg-[#F7F7F5]",
+                "w-[min(400px,calc(100vw-24px))] overflow-hidden rounded-[20px]",
+                "border border-[#E8E8E4] bg-[#F7F7F5]",
                 "shadow-[0_16px_48px_rgba(0,0,0,0.14)]",
               )}
             >
               {/* Header */}
               <div className="px-5 pb-0 pt-5">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-[18px] font-semibold leading-none tracking-[-0.02em] text-[#1A1A1A]">
-                    Share chat
-                  </h2>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-[18px] font-semibold leading-none tracking-[-0.02em] text-[#1A1A1A]">
+                      Share chat
+                    </h2>
+                    <p className="mt-2.5 pr-10 text-[13.5px] leading-[1.45] text-[#6B6B6B]">
+                      Create a link to share a read-only snapshot of this chat.
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={onClose}
@@ -208,14 +198,10 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                     <X className="h-[15px] w-[15px]" strokeWidth={2.25} />
                   </button>
                 </div>
-                <p className="mt-2.5 pr-10 text-[13.5px] leading-[1.45] text-[#6B6B6B]">
-                  Create a link to share a read-only snapshot of this chat.
-                </p>
               </div>
 
               <div className="mx-5 mb-5 mt-4 h-px bg-[#E8E8E4]" />
 
-              {/* Body — reflows smoothly when the link section is revealed */}
               <div className="px-5 pb-5">
                 {!chatId ? (
                   <p className="py-2 text-[13.5px] text-[#6B6B6B]">
@@ -228,7 +214,9 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3.5">
+                    {/* Options card */}
                     <div className="overflow-hidden rounded-[14px] border border-[#E4E4E0] bg-white">
+                      {/* Keep private option */}
                       <button
                         type="button"
                         disabled={busy}
@@ -263,6 +251,7 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
 
                       <div className="h-px bg-[#E8E8E4]" />
 
+                      {/* Create public link option */}
                       <button
                         type="button"
                         disabled={busy}
@@ -298,32 +287,29 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                       </button>
                     </div>
 
-                    {/* Public link section — recreates the container with a
-                        smooth height + slide/fade transition when the user
-                        clicks "Create public link". */}
-                    <AnimatePresence initial={false}>
+                    {/* Share URL section — animated in/out */}
+                    <AnimatePresence mode="wait">
                       {mode === "link" && shareUrl ? (
                         <motion.div
-                          key="share-link-section"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.32, ease: EASE }}
-                          className="overflow-hidden"
+                          key="share-url-section"
+                          initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                          transition={{
+                            duration: 0.25,
+                            ease: [0.32, 0.72, 0, 1],
+                          }}
                         >
-                          <motion.div
-                            initial={{ opacity: 0, y: -6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -6 }}
-                            transition={{ duration: 0.3, ease: EASE }}
-                            className="flex flex-col gap-2.5"
-                          >
+                          <div className="flex flex-col gap-2.5">
+                            {/* URL display */}
                             <div className="flex items-center gap-2 rounded-[12px] border border-[#E4E4E0] bg-white px-3 py-2.5">
                               <Link2 className="h-4 w-4 shrink-0 text-[#9A9A9A]" />
                               <p className="min-w-0 flex-1 truncate text-[13px] text-[#3A3A3A]">
                                 {shareUrl}
                               </p>
                             </div>
+
+                            {/* Copy button */}
                             <button
                               type="button"
                               onClick={() => void handleCopy()}
@@ -345,27 +331,41 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                                 </>
                               )}
                             </button>
+
+                            {/* Footnote */}
                             <p className="text-[12px] leading-snug text-[#7A7A7A]">
-                              Future messages aren&rsquo;t included until you
+                              Future messages aren&apos;t included until you
                               create a new link.
                             </p>
-                          </motion.div>
+                          </div>
                         </motion.div>
                       ) : null}
                     </AnimatePresence>
 
-                    {error ? (
-                      <p className="text-[12.5px] text-red-600" role="alert">
-                        {error}
-                      </p>
-                    ) : null}
+                    {/* Error message */}
+                    <AnimatePresence mode="wait">
+                      {error ? (
+                        <motion.p
+                          key="share-error"
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.15 }}
+                          className="text-[12.5px] text-red-600"
+                          role="alert"
+                        >
+                          {error}
+                        </motion.p>
+                      ) : null}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
         </>
-      ) : null}
-    </AnimatePresence>
+      )}
+    </AnimatePresence>,
+    document.body,
   );
 }
