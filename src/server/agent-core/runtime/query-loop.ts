@@ -226,9 +226,10 @@ export type AgentStreamOptions = {
 function resolveThinkingBudget(
   options: AgentStreamOptions,
 ): number {
-  if (options.thinkingEnabled === false) return 0;
+  // Composer Thinking toggle is authoritative (default off).
   const thinking = resolveAutonomousThinkingParams({
     chatModel: options.chatModelId ?? DEFAULT_CHAT_MODEL_ID,
+    thinkingEnabled: options.thinkingEnabled === true,
     homerReasoningEffort: options.homerReasoningEffort,
   });
   if (!thinking.enable_thinking) return 0;
@@ -356,6 +357,8 @@ export async function runAutonomousAgent(
         temperature: temperature ?? 0.6,
         max_tokens: maxTokens ?? 8192,
         thinkingBudgetTokens: thinkingBudget,
+        // Maps composer Thinking On|Off → upstream `enable_thinking`.
+        enableThinking: thinkingBudget > 0,
         signal,
       });
 

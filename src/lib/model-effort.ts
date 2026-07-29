@@ -38,8 +38,9 @@ export type NovitaThinkingParams = {
 };
 
 /**
- * Build Novita thinking controls for chat/completions.
+ * Build Novita / OpenAI-compat thinking controls for chat/completions.
  * Always sets enable_thinking explicitly so models do not think by default.
+ * Composer Thinking toggle maps here: On → true, Off → false.
  */
 export function resolveNovitaThinkingParams(input: {
   chatModel: ConfiguredModelId;
@@ -61,30 +62,22 @@ export function resolveNovitaThinkingParams(input: {
 }
 
 /**
- * Resolve thinking controls for the single autonomous agent.
+ * Resolve thinking controls for the autonomous agent.
  *
- * Thinking is a model capability, NOT a user-selected mode. Capable models
- * (legacy Homer/Helios and current Virgil) reason automatically on every turn — the model itself
- * decides how deeply to think based on the task. Other models stream plain
- * completions. The Homer effort dial (high/max) is the single quality knob.
+ * User preference (composer Thinking On|Off) is authoritative and defaults
+ * off. Capable models only receive extended thinking when the user opts in.
+ * The Homer effort dial (high/max) remains the quality knob when On.
  */
 export function resolveAutonomousThinkingParams(input: {
   chatModel: ConfiguredModelId;
+  thinkingEnabled?: boolean;
   homerReasoningEffort?: HomerReasoningEffort;
 }): NovitaThinkingParams {
-  const supportsThinking =
-    input.chatModel === "homer" ||
-    input.chatModel === "helios" ||
-    input.chatModel === "virgil";
-  if (!supportsThinking) return { enable_thinking: false };
-  if (input.chatModel === "homer") {
-    return {
-      enable_thinking: true,
-      reasoning_effort:
-        input.homerReasoningEffort ?? DEFAULT_HOMER_REASONING_EFFORT,
-    };
-  }
-  return { enable_thinking: true };
+  return resolveNovitaThinkingParams({
+    chatModel: input.chatModel,
+    thinkingEnabled: input.thinkingEnabled === true,
+    homerReasoningEffort: input.homerReasoningEffort,
+  });
 }
 
 /** @deprecated Legacy effort type — no longer shown in UI. */

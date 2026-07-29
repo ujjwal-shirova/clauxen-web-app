@@ -232,6 +232,7 @@ function PlanCarouselCard({
             </div>
           </div>
 
+          {/* No CTA spacer for lower-than-current plans — features sit under the price. */}
           {isCurrent ? (
             <button
               type="button"
@@ -241,9 +242,7 @@ function PlanCarouselCard({
               <Check className="mr-1.5 h-[18px] w-[18px]" />
               Current plan
             </button>
-          ) : isLowerThanCurrent ? (
-            <div className="h-9 w-full" aria-hidden />
-          ) : (
+          ) : isLowerThanCurrent ? null : (
             <button
               type="button"
               onClick={onSelect}

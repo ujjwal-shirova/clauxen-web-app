@@ -59,6 +59,12 @@ export type AnthropicCompletionOptions = {
   signal?: AbortSignal;
   /** Extended thinking budget tokens (0 = off). */
   thinkingBudgetTokens?: number;
+  /**
+   * OpenAI-compat / Moonshot-style flag. When set, also sent as
+   * `enable_thinking` for gateways that honor both Anthropic thinking and
+   * the OpenAI body field.
+   */
+  enableThinking?: boolean;
 };
 
 function createClient(): Anthropic {
@@ -87,31 +93,39 @@ export async function* streamAnthropicMessages(
         }))
       : undefined;
 
-  const thinking =
-    options.thinkingBudgetTokens && options.thinkingBudgetTokens > 0
-      ? ({
-          type: "enabled" as const,
-          budget_tokens: options.thinkingBudgetTokens,
-        } as const)
-      : ({ type: "disabled" as const } as const);
+  const thinkingEnabled =
+    options.enableThinking === true ||
+    (options.thinkingBudgetTokens != null && options.thinkingBudgetTokens > 0);
+  const thinking = thinkingEnabled
+    ? ({
+        type: "enabled" as const,
+        budget_tokens: Math.max(1, options.thinkingBudgetTokens ?? 10_240),
+      } as const)
+    : ({ type: "disabled" as const } as const);
 
   let stream: ReturnType<typeof client.messages.stream>;
   try {
+    // Some Provider gateways (Moonshot-style) also honor OpenAI's
+    // `enable_thinking` alongside Anthropic `thinking`. Always send both so
+    // the composer Thinking toggle maps to the upstream body field.
+    const requestBody = {
+      model: options.model,
+      max_tokens: maxTokens,
+      system: options.system,
+      messages: options.messages as Anthropic.MessageParam[],
+      tools,
+      thinking,
+      enable_thinking: thinking.type === "enabled",
+      // Anthropic does not allow temperature changes with extended thinking.
+      ...(thinking.type === "enabled" && typeof options.temperature === "number"
+        ? {}
+        : typeof options.temperature === "number"
+          ? { temperature: options.temperature }
+          : {}),
+    };
+
     stream = client.messages.stream(
-      {
-        model: options.model,
-        max_tokens: maxTokens,
-        system: options.system,
-        messages: options.messages as Anthropic.MessageParam[],
-        tools,
-        thinking,
-        // Anthropic does not allow temperature changes with extended thinking.
-        ...(thinking.type === "enabled" && typeof options.temperature === "number"
-          ? {}
-          : typeof options.temperature === "number"
-            ? { temperature: options.temperature }
-            : {}),
-      },
+      requestBody as Anthropic.MessageStreamParams,
       {
         signal: options.signal,
         ...(thinking.type === "enabled"

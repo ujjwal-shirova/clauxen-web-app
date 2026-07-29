@@ -54,6 +54,7 @@ export async function generateOpenAiTitle(
     messages: titleMessages,
     temperature: 0.3,
     max_tokens: 48,
+    enable_thinking: false,
     signal,
   });
 
