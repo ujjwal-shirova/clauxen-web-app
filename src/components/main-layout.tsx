@@ -2,6 +2,7 @@
 
 import React, { useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useAppPathname } from "@/hooks/use-app-pathname";
 import { SoftErrorBoundary } from "@/components/soft-error-boundary";
 import { useAuth } from "@/hooks/use-auth";
 import { sidebarDisplayNameOrNull } from "@/lib/profile-names";
@@ -30,8 +31,13 @@ import {
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { APP_ROUTES, isIncognitoPath } from "@/lib/app-routes";
+import {
+  APP_ROUTES,
+  isIncognitoPath,
+  isNewChatPath,
+} from "@/lib/app-routes";
 import { Sidebar } from "@/components/sidebar";
+import { ChatView } from "@/components/chat-view";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
@@ -50,9 +56,18 @@ function shouldMobileFullBleed(pathname: string | null): boolean {
   );
 }
 
+function isChatSurface(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  if (isNewChatPath(pathname) || isIncognitoPath(pathname)) return true;
+  return (
+    /^\/c\/[^/]+/.test(pathname) || /\/conversations\/[^/]+/.test(pathname)
+  );
+}
+
 function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
+  const nextPathname = usePathname() || "";
   const instantNavigate = useInstantNavigate();
   const auth = useAuth();
   const {
@@ -63,6 +78,12 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   } = useSidebarState();
 
   useDocumentTitle();
+
+  // Soft-nav updates the URL before Next swaps RSC children. When the live
+  // path is already a chat surface but Next is still on library/projects/etc.,
+  // paint ChatView immediately so New Chat / chat clicks feel instant.
+  const paintOptimisticChat =
+    isChatSurface(pathname) && !isChatSurface(nextPathname);
 
   // Client auth gate — middleware is primary; this catches JWT-less shells.
   React.useEffect(() => {
@@ -369,7 +390,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         >
           <div className="flex min-h-0 h-full w-full max-w-full flex-1 flex-col overflow-hidden items-stretch">
             <AppLayoutProvider value={layoutValue}>
-              <SoftErrorBoundary name="main-panel">{children}</SoftErrorBoundary>
+              <SoftErrorBoundary name="main-panel">
+                {paintOptimisticChat ? <ChatView /> : children}
+              </SoftErrorBoundary>
             </AppLayoutProvider>
           </div>
         </div>

@@ -1,12 +1,16 @@
 "use client";
 
-import { startTransition, useCallback } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { CLAUXEN_NAVIGATE_EVENT } from "@/hooks/use-document-title";
 
 /**
  * Near-instant in-app navigation: update the URL bar immediately, then soft-sync Next.
  * Supports optional `#hash` (overlays) — Next receives path only; hash is restored.
+ *
+ * Important: do NOT wrap the Next sync in `startTransition` — that deferred the
+ * RSC swap so the URL changed while the panel stayed on the previous page
+ * (New Chat / library / projects felt broken).
  */
 export function useInstantNavigate() {
   const router = useRouter();
@@ -26,13 +30,11 @@ export function useInstantNavigate() {
         new CustomEvent(CLAUXEN_NAVIGATE_EVENT, { detail: { path: full } }),
       );
 
-      startTransition(() => {
-        if (options?.replace) {
-          router.replace(pathOnly, { scroll: false });
-        } else {
-          router.push(pathOnly, { scroll: false });
-        }
-      });
+      if (options?.replace) {
+        router.replace(pathOnly, { scroll: false });
+      } else {
+        router.push(pathOnly, { scroll: false });
+      }
 
       if (hash) {
         queueMicrotask(() => {

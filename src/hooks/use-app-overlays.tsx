@@ -10,7 +10,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useAppPathname } from "@/hooks/use-app-pathname";
 import type { SettingsTab } from "@/components/settings/constants";
 import {
   APP_ROUTES,
@@ -75,7 +76,7 @@ function parentLocationParts(): { path: string; search: string } {
 }
 
 export function AppOverlaysProvider({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const router = useRouter();
   const [overlay, setOverlay] = useState<AppOverlayPath | null>(() =>
     readOverlayFromLocation(),

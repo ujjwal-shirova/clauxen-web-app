@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useAppPathname } from "@/hooks/use-app-pathname";
 import { ChatArea } from "@/components/chat-area";
 import { PaymentSuccessDialog } from "@/components/payment-success-dialog";
 import { useOptionalChatSession } from "@/contexts/chat-session-context";
@@ -76,7 +76,7 @@ function ChatViewBody({
   projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
   incognito?: boolean;
 }) {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const instantNavigate = useInstantNavigate();
   const overlays = useAppOverlays();
   const { isMobile, isSidebarCollapsed, openMobileNav } = useAppLayout();

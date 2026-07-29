@@ -421,6 +421,35 @@ const MessageRow = React.memo(
                 ) : null}
               </>
             )}
+            {message.isStreaming && messageSources.length > 0 ? (
+              <div className="relative mt-2 flex flex-wrap items-center gap-0.5 font-sans text-zinc-500">
+                <HintTooltip content="Sources" side="bottom">
+                  <button
+                    type="button"
+                    onClick={() => onOpenSources?.(message.id)}
+                    className="inline-flex h-7 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2 text-[12px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50"
+                  >
+                    <span className="flex -space-x-1">
+                      {messageSources.slice(0, 3).map((source) => (
+                        <img
+                          key={source.id}
+                          src={
+                            source.favicon ||
+                            `https://www.google.com/s2/favicons?domain=${encodeURIComponent(source.domain)}&sz=32`
+                          }
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="h-4 w-4 rounded-full border border-white bg-white"
+                        />
+                      ))}
+                    </span>
+                    <Search className="h-3.5 w-3.5" />
+                    <span>Sources</span>
+                  </button>
+                </HintTooltip>
+              </div>
+            ) : null}
             {(shouldUseAgentMessageLayout(message) ||
               message.content.trim().length > 0) &&
             !message.isStreaming &&

@@ -34,7 +34,7 @@ import {
 } from "./icons";
 import { cn } from "@/lib/utils";
 import { useIsClient } from "@/hooks/use-is-client";
-import { usePathname } from "next/navigation";
+import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
 import { APP_ROUTES, buildOverlayLocation } from "@/lib/app-routes";
 import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
@@ -280,7 +280,7 @@ export function Sidebar({
   onLogoutClick,
   showAccountMenu = true,
 }: SidebarProps) {
-  const pathname = usePathname() || APP_ROUTES.newChat;
+  const pathname = useAppPathname() || APP_ROUTES.newChat;
   const isClient = useIsClient();
   const isApplePlatform =
     isClient &&

@@ -1,13 +1,20 @@
 "use client";
 
-/** Plain text during lightweight streams — no fade animation. */
+import { StreamingTokenReveal } from "@/lib/streaming-token-reveal";
+
+/** Lightweight stream text with rate-adaptive fade on new chunks. */
 export function StreamingTextFade({
   content,
+  streamKey = "stream",
   className = "markdown-content whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-zinc-800",
 }: {
   content: string;
   streamKey?: string;
   className?: string;
 }) {
-  return <div className={className}>{content}</div>;
+  return (
+    <div className={className} data-streaming>
+      <StreamingTokenReveal text={content} sessionKey={streamKey} enabled />
+    </div>
+  );
 }
