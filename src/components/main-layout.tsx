@@ -30,7 +30,7 @@ import {
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { APP_ROUTES } from "@/lib/app-routes";
+import { APP_ROUTES, isIncognitoPath } from "@/lib/app-routes";
 import { Sidebar } from "@/components/sidebar";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
@@ -40,6 +40,7 @@ const MOBILE_FULL_BLEED_PREFIXES = [
   "/my-clauxen",
   "/project",
   "/projects",
+  "/incognito",
 ] as const;
 
 function shouldMobileFullBleed(pathname: string | null): boolean {
@@ -232,6 +233,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, [closeMobileNav]);
 
   const isMobileFullBleed = isMobile && shouldMobileFullBleed(pathname);
+  const isIncognito = isIncognitoPath(pathname);
 
   const sidebarActiveChatId = React.useMemo(() => {
     const routeId = getRouteChatIdForSidebar(pathname);
@@ -241,6 +243,8 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     if (
       p === "/" ||
       p === "/new" ||
+      p === "/incognito" ||
+      p.startsWith("/incognito/") ||
       p === "/library" ||
       p === "/scheduled" ||
       p.startsWith("/scheduled/") ||
@@ -258,16 +262,19 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const layoutValue = React.useMemo(
     () => ({
       isMobile,
-      isSidebarCollapsed,
-      openMobileNav: () => setIsSidebarCollapsed(false),
+      isSidebarCollapsed: isIncognito ? true : isSidebarCollapsed,
+      openMobileNav: () => {
+        if (isIncognito) return;
+        setIsSidebarCollapsed(false);
+      },
       setSidebarCollapsed: setIsSidebarCollapsed,
     }),
-    [isMobile, isSidebarCollapsed, setIsSidebarCollapsed],
+    [isMobile, isSidebarCollapsed, isIncognito, setIsSidebarCollapsed],
   );
 
   return (
     <div className={appShellRootClassName(isMobile)}>
-      {isMobile ? (
+      {!isIncognito && isMobile ? (
         <div
           role="presentation"
           aria-hidden={isSidebarCollapsed}
@@ -281,6 +288,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         />
       ) : null}
 
+      {!isIncognito ? (
       <Sidebar
         id="app-primary-nav"
         handleNewChat={handleNewChat}
@@ -339,14 +347,16 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
         userEmail={auth.user?.email ?? ""}
         onLogoutClick={() => void auth.logout()}
       />
+      ) : null}
 
       <main
         data-sidebar-collapsed={
-          !isMobile && isSidebarCollapsed ? "true" : undefined
+          isIncognito || (!isMobile && isSidebarCollapsed) ? "true" : undefined
         }
+        data-incognito={isIncognito || undefined}
         className={appMainShellClassName({
           isMobile,
-          fullBleed: isMobileFullBleed,
+          fullBleed: isIncognito || isMobileFullBleed,
         })}
       >
         <div
@@ -354,7 +364,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           data-layout="panel"
           className={appAgentPanelClassName({
             isMobile,
-            fullBleed: isMobileFullBleed,
+            fullBleed: isIncognito || isMobileFullBleed,
           })}
         >
           <div className="flex min-h-0 h-full w-full max-w-full flex-1 flex-col overflow-hidden items-stretch">

@@ -12,6 +12,8 @@ import { useAppLayout } from "@/components/app-layout-context";
 import {
   APP_ROUTES,
   CHAT_ENTER_METHOD_PROJECT,
+  isIncognitoPath,
+  isIncognitoSessionId,
   isNewChatPath,
   isProjectHomePath,
 } from "@/lib/app-routes";
@@ -32,6 +34,8 @@ import {
 interface ChatViewProps {
   projectId?: string | null;
   apiEnabled?: boolean;
+  /** Full-screen ephemeral chat — no history, files, or sidebar. */
+  incognito?: boolean;
   projectBreadcrumb?: {
     label: string;
     href?: string;
@@ -65,10 +69,12 @@ function ChatViewBody({
   chat,
   projectId = null,
   projectBreadcrumb,
+  incognito = false,
 }: {
   chat: ChatController;
   projectId?: string | null;
   projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
+  incognito?: boolean;
 }) {
   const pathname = usePathname();
   const instantNavigate = useInstantNavigate();
@@ -76,6 +82,7 @@ function ChatViewBody({
   const { isMobile, isSidebarCollapsed, openMobileNav } = useAppLayout();
   const auth = useAuth();
   const projects = useProjects(Boolean(auth.user?.id));
+  const isIncognito = incognito || isIncognitoPath(pathname);
 
   const [localEffort, setLocalEffort] = useState<HomerReasoningEffort>(
     DEFAULT_HOMER_REASONING_EFFORT,
@@ -181,12 +188,17 @@ function ChatViewBody({
 
   // Keep showing the live conversation as soon as a chat id / messages exist,
   // even before Next finishes soft-navigating off /new or /project/:id.
-  const blankNewChatComposer = isProjectHome
-    ? !routeChatId && !creatingChatPending && messages.length === 0
-    : isNewChatPath(pathname) &&
-      !activeChatId &&
+  // Incognito stays on /incognito for the whole ephemeral session.
+  const blankNewChatComposer = isIncognito
+    ? !isIncognitoSessionId(activeChatId) &&
       messages.length === 0 &&
-      !creatingChatPending;
+      !creatingChatPending
+    : isProjectHome
+      ? !routeChatId && !creatingChatPending && messages.length === 0
+      : isNewChatPath(pathname) &&
+        !activeChatId &&
+        messages.length === 0 &&
+        !creatingChatPending;
 
   const handleSelectChatRef = useRef(handleSelectChat);
   handleSelectChatRef.current = handleSelectChat;
@@ -194,6 +206,13 @@ function ChatViewBody({
   startNewChatRef.current = startNewChat;
 
   useEffect(() => {
+    if (isIncognito) {
+      // Entering Incognito: clear any durable active chat so we don't hydrate.
+      if (activeChatId && !isIncognitoSessionId(activeChatId)) {
+        startNewChatRef.current();
+      }
+      return;
+    }
     if (routeChatId) {
       void handleSelectChatRef.current(routeChatId);
       return;
@@ -201,7 +220,13 @@ function ChatViewBody({
     if (isProjectHome || blankNewChatComposer) {
       startNewChatRef.current();
     }
-  }, [routeChatId, isProjectHome, blankNewChatComposer]);
+  }, [
+    isIncognito,
+    activeChatId,
+    routeChatId,
+    isProjectHome,
+    blankNewChatComposer,
+  ]);
 
   // Resolve project name for breadcrumb when opened via /c?chat_enter_method=project.
   useEffect(() => {
@@ -271,6 +296,16 @@ function ChatViewBody({
       prompt: string,
       options?: import("@/lib/composer-attachments").SendMessageOptions,
     ) => {
+      if (isIncognito) {
+        await handleSendMessage(prompt, {
+          forceNewChat: !isIncognitoSessionId(activeChatId),
+          attachments: undefined,
+          bypassQueue: options?.bypassQueue,
+          ephemeral: true,
+        });
+        return;
+      }
+
       const forceNew =
         isProjectHome ||
         (!activeChatId && (blankNewChatComposer || isNewChatPath(pathname)));
@@ -310,9 +345,20 @@ function ChatViewBody({
       bindProjectId,
       pathname,
       isProjectHome,
+      isIncognito,
       openChatRoute,
     ],
   );
+
+  const handleCloseIncognito = useCallback(() => {
+    startNewChat();
+    instantNavigate(APP_ROUTES.newChat, { replace: true });
+  }, [instantNavigate, startNewChat]);
+
+  const handleOpenIncognito = useCallback(() => {
+    startNewChat();
+    instantNavigate(APP_ROUTES.incognito);
+  }, [instantNavigate, startNewChat]);
 
   const handleDeleteChatAndLeave = useCallback(
     async (chatId: string) => {
@@ -340,9 +386,11 @@ function ChatViewBody({
       /^new chat$/i.test(displayActiveChat.name.trim()));
 
   useDocumentTitle(
-    blankNewChatComposer
-      ? resolvedProjectName ?? "Project"
-      : displayActiveChat?.name ?? null,
+    isIncognito
+      ? "Incognito"
+      : blankNewChatComposer
+        ? resolvedProjectName ?? "Project"
+        : displayActiveChat?.name ?? null,
     {
       brandOnly: brandOnlyTab,
     },
@@ -376,16 +424,19 @@ function ChatViewBody({
         onPinChat={handlePinChat}
         onDeleteChat={handleDeleteChatAndLeave}
         onOpenSettings={() => overlays.openSettings("General")}
+        onOpenMobileNav={openMobileNav}
+        showMobileMenu={isMobile && isSidebarCollapsed}
+        chatModel={chatModel}
+        onChatModelChange={setChatModel}
         homerReasoningEffort={homerReasoningEffort}
         onHomerReasoningEffortChange={setHomerReasoningEffort}
         extendedThinking={extendedThinking}
         onExtendedThinkingChange={setExtendedThinking}
-        chatModel={chatModel}
-        onChatModelChange={setChatModel}
-        onOpenMobileNav={openMobileNav}
-        showMobileMenu={isMobile && isSidebarCollapsed}
         projectBreadcrumb={effectiveBreadcrumb}
         lockedProjectId={projectId ?? bindProjectId}
+        incognito={isIncognito}
+        onCloseIncognito={handleCloseIncognito}
+        onOpenIncognito={handleOpenIncognito}
       />
       <PaymentSuccessDialog
         open={showPaymentSuccess}
@@ -395,13 +446,13 @@ function ChatViewBody({
     </>
   );
 }
-
 /**
  * Prefer the shell ChatSessionProvider so project → `/c` keeps the live stream.
  */
 export function ChatView({
   projectId = null,
   apiEnabled,
+  incognito = false,
   projectBreadcrumb,
 }: ChatViewProps) {
   const auth = useAuth();
@@ -413,6 +464,7 @@ export function ChatView({
         chat={session}
         projectId={projectId}
         projectBreadcrumb={projectBreadcrumb}
+        incognito={incognito}
       />
     );
   }
@@ -423,10 +475,11 @@ export function ChatView({
 
   return (
     <ChatViewStandalone
-      key={`${auth.user?.id ?? "anon"}:${projectId ?? "home"}`}
+      key={`${auth.user?.id ?? "anon"}:${projectId ?? "home"}:${incognito ? "incognito" : "chat"}`}
       projectId={projectId}
       apiEnabled={apiEnabled ?? Boolean(auth.user)}
       projectBreadcrumb={projectBreadcrumb}
+      incognito={incognito}
     />
   );
 }
@@ -435,10 +488,12 @@ function ChatViewStandalone({
   projectId,
   apiEnabled,
   projectBreadcrumb,
+  incognito = false,
 }: {
   projectId?: string | null;
   apiEnabled: boolean;
   projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
+  incognito?: boolean;
 }) {
   const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
   const [homerReasoningEffort, setHomerReasoningEffort] =
@@ -462,6 +517,7 @@ function ChatViewStandalone({
       }}
       projectId={projectId}
       projectBreadcrumb={projectBreadcrumb}
+      incognito={incognito}
     />
   );
 }

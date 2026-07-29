@@ -68,6 +68,8 @@ export const APP_ROUTES = {
   root: "/",
   newChat: "/new",
   home: "/new",
+  /** Ephemeral chat — not saved to history, files, or memory. */
+  incognito: "/incognito",
   library: "/library",
   /** Scheduled automations (run prompts on a cadence). */
   scheduledTasks: "/scheduled",
@@ -201,6 +203,16 @@ export function isNewChatPath(pathname: string | null): boolean {
   return pathname === "/new" || pathname === "/" || pathname === "";
 }
 
+/** True when this path is the Incognito (ephemeral) chat surface. */
+export function isIncognitoPath(pathname: string | null): boolean {
+  return pathname === "/incognito" || pathname?.startsWith("/incognito/") === true;
+}
+
+/** Local session ids for Incognito — never hit Postgres chat rows. */
+export function isIncognitoSessionId(chatId: string | null | undefined): boolean {
+  return Boolean(chatId && chatId.startsWith("incognito-"));
+}
+
 /** True when pathname is a real main surface (not a legacy overlay path). */
 export function isMainAppPath(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -208,6 +220,8 @@ export function isMainAppPath(pathname: string | null): boolean {
   return (
     pathname === "/" ||
     pathname === "/new" ||
+    pathname === "/incognito" ||
+    pathname.startsWith("/incognito/") ||
     pathname.startsWith("/c/") ||
     pathname === "/library" ||
     pathname.startsWith("/library/") ||

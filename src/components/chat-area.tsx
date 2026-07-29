@@ -7,6 +7,7 @@ import type { Message } from "@/lib/types";
 import { ConversationThread } from "./conversation-thread";
 import { ShareDialog } from "./share-dialog";
 import { ChatViewHeader } from "./chat-view-header";
+import { IncognitoChatHeader } from "./incognito-chat-header";
 import { ChatViewPane } from "./chat-view-pane";
 import { ChatArtifactsPanel } from "./chat-artifacts-panel";
 import { ChatRightRailControls } from "./chat-right-rail-controls";
@@ -88,6 +89,10 @@ interface ChatAreaProps {
   };
   /** When the chat already belongs to a project, lock the composer strip. */
   lockedProjectId?: string | null;
+  /** Full-screen Incognito mode — no history chrome / attachments. */
+  incognito?: boolean;
+  onCloseIncognito?: () => void;
+  onOpenIncognito?: () => void;
 }
 
 const ARTIFACTS_LIST_PANEL_WIDTH = 384;
@@ -131,6 +136,9 @@ function ChatAreaLayout({
   showMobileMenu = false,
   projectBreadcrumb,
   lockedProjectId = null,
+  incognito = false,
+  onCloseIncognito,
+  onOpenIncognito,
 }: ChatAreaProps) {
   const { isViewerOpen, activeArtifact, closeViewer, clearViewer } =
     useArtifactViewer();
@@ -144,7 +152,6 @@ function ChatAreaLayout({
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
   const [isArtifactsPanelOpen, setIsArtifactsPanelOpen] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
-  const [temporaryChat, setTemporaryChat] = useState(false);
   const [isSourcesPanelOpen, setIsSourcesPanelOpen] = useState(false);
   const [sourcesMessageId, setSourcesMessageId] = useState<string | null>(null);
   const [, startTransition] = React.useTransition();
@@ -218,7 +225,6 @@ function ChatAreaLayout({
   React.useEffect(() => {
     setHasPromptDraft(false);
     setIsAddMenuOpen(false);
-    setTemporaryChat(false);
   }, [activeChatId]);
 
   React.useEffect(() => {
@@ -396,7 +402,7 @@ function ChatAreaLayout({
       onRemoveQueuedMessage={onRemoveQueuedMessage}
       onPromptChange={handlePromptDraftChange}
       onAddMenuOpenChange={setIsAddMenuOpen}
-      focusKey={activeChatId ?? "new"}
+      focusKey={activeChatId ?? (incognito ? "incognito" : "new")}
       onUpgradeClick={onUpgradeClick}
       homerReasoningEffort={homerReasoningEffort}
       onHomerReasoningEffortChange={onHomerReasoningEffortChange}
@@ -404,13 +410,27 @@ function ChatAreaLayout({
       onExtendedThinkingChange={onExtendedThinkingChange}
       chatModel={chatModel}
       onChatModelChange={onChatModelChange}
-      lockedProjectId={lockedProjectId}
-      showProjectStrip={!isConversationStarted}
+      lockedProjectId={incognito ? null : lockedProjectId}
+      showProjectStrip={!incognito && !isConversationStarted}
+      allowAttachments={!incognito}
+      placeholder={
+        incognito ? "How can I help you today?" : undefined
+      }
+      composerVariant={incognito ? "incognito" : "default"}
     />
   );
 
   return (
-    <div className="glass-agent-drop-target relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[inherit] bg-white">
+    <div
+      className={cn(
+        "glass-agent-drop-target relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-white",
+        incognito ? "rounded-none" : "rounded-[inherit]",
+      )}
+      data-incognito={incognito || undefined}
+    >
+      {incognito && onCloseIncognito ? (
+        <IncognitoChatHeader onClose={onCloseIncognito} className="relative z-30" />
+      ) : null}
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <div
           className={cn(
@@ -419,7 +439,7 @@ function ChatAreaLayout({
               (isArtifactsPanelOpen ? "lg:pr-[392px]" : "lg:pr-28"),
           )}
         >
-          {!isConversationStarted && !showMessageSkeleton ? (
+          {!incognito && !isConversationStarted && !showMessageSkeleton ? (
             <ChatViewHeader
               isConversationStarted={false}
               isGenerating={isGenerating}
@@ -434,8 +454,7 @@ function ChatAreaLayout({
               onOpenSettings={onOpenSettings}
               onOpenMobileNav={onOpenMobileNav}
               showMobileMenu={showMobileMenu}
-              temporaryChat={temporaryChat}
-              onTemporaryChatChange={setTemporaryChat}
+              onOpenIncognito={onOpenIncognito}
               className="relative z-20 shrink-0"
             />
           ) : null}
@@ -451,6 +470,8 @@ function ChatAreaLayout({
             onActiveChipChange={setActiveChip}
             onSendMessage={handleSendMessageAndScroll}
             scrollAreaRef={scrollAreaRef}
+            welcomeVariant={incognito ? "incognito" : "default"}
+            onUpgradeClick={onUpgradeClick}
             conversation={
               showMessageLoadError ? (
                 <div className="flex w-full flex-col items-start gap-3 px-4 py-10 sm:px-6">
@@ -496,7 +517,7 @@ function ChatAreaLayout({
             }
             promptInput={promptInput}
           />
-          {showChatOptionsHeader ? (
+          {!incognito && showChatOptionsHeader ? (
             <ChatViewHeader
               isConversationStarted
               isGenerating={isGenerating}

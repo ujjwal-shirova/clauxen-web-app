@@ -91,6 +91,10 @@ interface PromptInputProps {
   showProjectStrip?: boolean;
   /** Override the default “Ask anything” placeholder. */
   placeholder?: string;
+  /** When false, hide file attach / drag-drop (Incognito). */
+  allowAttachments?: boolean;
+  /** Visual variant — Incognito uses a dashed border shell. */
+  composerVariant?: "default" | "incognito";
 }
 
 const COMPOSE_ACTION_META: Record<
@@ -158,6 +162,8 @@ export function PromptInput({
   lockedProjectId = null,
   showProjectStrip = true,
   placeholder = "Ask anything",
+  allowAttachments = true,
+  composerVariant = "default",
 }: PromptInputProps) {
   /** Uncontrolled input — draft lives in the DOM ref, not React state (zero parent re-renders). */
   const [hasDraft, setHasDraft] = useState(false);
@@ -706,6 +712,7 @@ export function PromptInput({
   }, [addAttachment, isCapturingScreenshot]);
 
   useEffect(() => {
+    if (!allowAttachments) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "u") {
         return;
@@ -725,11 +732,11 @@ export function PromptInput({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [openFilePicker]);
+  }, [allowAttachments, openFilePicker]);
 
   useEffect(() => {
     const shell = promptShellRef.current;
-    if (!shell) return;
+    if (!shell || !allowAttachments) return;
 
     const onDragEnter = (event: DragEvent) => {
       if (!event.dataTransfer?.types?.includes("Files")) return;
@@ -766,7 +773,7 @@ export function PromptInput({
       shell.removeEventListener("dragover", onDragOver);
       shell.removeEventListener("drop", onDrop);
     };
-  }, [ingestFiles]);
+  }, [allowAttachments, ingestFiles]);
 
   useEffect(() => {
     const onPaste = (event: ClipboardEvent) => {
@@ -1035,6 +1042,8 @@ export function PromptInput({
     "relative w-full max-w-full bg-white transition-[min-height,border-color,background-color] duration-200 ease-out",
     withProjectStrip && "composer-shell--with-project-strip",
     showComposeControls && "min-h-[96px]",
+    composerVariant === "incognito" &&
+      "rounded-[22px] border border-dashed border-zinc-300/90 shadow-none",
   );
 
   const renderMicButton = () => (
@@ -1166,7 +1175,7 @@ export function PromptInput({
         anchorRef={addMenuTriggerRef}
         panelRef={addMenuPanelRef}
         onClose={() => setAddMenuOpen(false)}
-        onAddFiles={openFilePicker}
+        onAddFiles={allowAttachments ? openFilePicker : undefined}
         webSearchMode={webSearchMode}
         onWebSearchModeChange={handleWebSearchModeChange}
         thinkingMode={thinkingMode}

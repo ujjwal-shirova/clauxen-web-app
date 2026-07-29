@@ -306,15 +306,19 @@ export function PromptAddMenuPanel({
   );
 
   const items: PromptAddMenuItem[] = [
-    {
-      id: "files",
-      label: "Add files & photos",
-      icon: Paperclip,
-      onSelect: () => {
-        onClose();
-        onAddFiles?.();
-      },
-    },
+    ...(onAddFiles
+      ? [
+          {
+            id: "files" as const,
+            label: "Add files & photos",
+            icon: Paperclip,
+            onSelect: () => {
+              onClose();
+              onAddFiles();
+            },
+          },
+        ]
+      : []),
     {
       id: "plugins",
       label: "Plugins",

@@ -31,6 +31,8 @@ export type ChatStreamOptions = {
   homerReasoningEffort?: HomerReasoningEffort;
   /** Composer Thinking toggle — when false, upstream gets enable_thinking: false. */
   extendedThinking?: boolean;
+  /** Incognito: no durable chat/history; strip memory references from the prompt. */
+  incognito?: boolean;
   signal?: AbortSignal;
   onPauseForUser?: () => void | Promise<void>;
   onModelTurn?: AgentStreamOptions["onModelTurn"];
@@ -64,7 +66,28 @@ export async function createChatStream(
     ? buildFollowUpSystemInstruction()
     : "";
 
-  const append = [personalizationAppend, titleInstr, followUpInstr]
+  const personalizationForPrompt = options.incognito
+    ? personalizationAppend
+        .replace(/<memory_and_tools>[\s\S]*?<\/memory_and_tools>/g, "")
+        .trim()
+    : personalizationAppend;
+
+  const incognitoInstr = options.incognito
+    ? [
+        "<incognito_mode>",
+        "This is an Incognito conversation. It is not saved to history, memory, or training.",
+        "Do not reference saved memories or prior chats outside this session.",
+        "Treat the user as having no durable history beyond the messages in this request.",
+        "</incognito_mode>",
+      ].join("\n")
+    : "";
+
+  const append = [
+    personalizationForPrompt,
+    incognitoInstr,
+    titleInstr,
+    followUpInstr,
+  ]
     .map((part) => part.trim())
     .filter(Boolean)
     .join("\n\n");

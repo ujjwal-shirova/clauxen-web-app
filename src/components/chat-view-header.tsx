@@ -39,9 +39,8 @@ interface ChatViewHeaderProps {
   onMoveToProject?: () => void;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
-  /** Temporary / ghost chat toggle (new-chat header). */
-  temporaryChat?: boolean;
-  onTemporaryChatChange?: (enabled: boolean) => void;
+  /** Opens the Incognito chat surface from the new-chat header ghost button. */
+  onOpenIncognito?: () => void;
   className?: string;
   projectBreadcrumb?: {
     label: string;
@@ -75,8 +74,7 @@ export function ChatViewHeader({
   onMoveToProject,
   onOpenMobileNav,
   showMobileMenu = false,
-  temporaryChat = false,
-  onTemporaryChatChange,
+  onOpenIncognito,
   className,
   projectBreadcrumb,
   hideTrailingRailControlsOnDesktop = false,
@@ -350,25 +348,12 @@ export function ChatViewHeader({
   );
 
   const ghostButton = (
-    <HintTooltip
-      content={
-        temporaryChat
-          ? "Temporary chat on — this chat won’t appear in history"
-          : "Temporary chat"
-      }
-      side="bottom"
-      align="end"
-      sideOffset={8}
-    >
+    <HintTooltip content="Incognito" side="bottom" align="end" sideOffset={8}>
       <button
         type="button"
-        onClick={() => onTemporaryChatChange?.(!temporaryChat)}
-        aria-label="Temporary chat"
-        aria-pressed={temporaryChat}
-        className={cn(
-          "inline-flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-800",
-          temporaryChat && "bg-black/[0.05] text-zinc-900",
-        )}
+        onClick={() => onOpenIncognito?.()}
+        aria-label="Incognito"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
       >
         <GhostChatIcon className="h-[15px] w-[15px]" />
       </button>
@@ -392,14 +377,6 @@ export function ChatViewHeader({
         {modelSwitcher}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        {temporaryChat ? (
-          <span
-            className="hidden max-w-[9.5rem] truncate rounded-full border border-zinc-200/90 bg-white px-2 py-0.5 text-[11px] font-medium leading-5 text-zinc-600 sm:inline-flex"
-            title="Temporary chat on — this chat won’t appear in history"
-          >
-            Temporary chat
-          </span>
-        ) : null}
         {upgradeButton}
         {ghostButton}
       </div>

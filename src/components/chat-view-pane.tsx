@@ -35,11 +35,13 @@ interface ChatViewPaneProps {
   /**
    * Welcome empty-state mode.
    * `composer-only` — centered greeting + prompt + chips. Used by login demo.
+   * `incognito` — You're incognito greeting, no chips, privacy footer.
    */
-  welcomeVariant?: "default" | "composer-only";
+  welcomeVariant?: "default" | "composer-only" | "incognito";
   /** Optional override; defaults to preferred name from session. */
   userPreferredName?: string | null;
-}
+  onUpgradeClick?: () => void;
+};
 
 const allChips = [
   { icon: PenTool, label: "Write or edit" },
@@ -148,9 +150,11 @@ export function ChatViewPane({
   className,
   welcomeVariant = "default",
   userPreferredName,
+  onUpgradeClick,
 }: ChatViewPaneProps) {
   const { user } = useAuth();
   const composerOnlyWelcome = welcomeVariant === "composer-only";
+  const incognitoWelcome = welcomeVariant === "incognito";
   const [greeting, setGreeting] = useState<string | null>(null);
   const firstName = welcomeFirstName({
     preferredName: userPreferredName ?? user?.preferredName,
@@ -293,27 +297,69 @@ export function ChatViewPane({
                     "gap-3 sm:gap-5",
                   )}
                 >
+                  {incognitoWelcome ? (
+                    <button
+                      type="button"
+                      onClick={onUpgradeClick}
+                      className="inline-flex items-center rounded-full border border-zinc-200/90 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
+                    >
+                      Free plan · Upgrade
+                    </button>
+                  ) : null}
+
                   <h2
                     className={cn(
-                      "select-none text-center font-handwriting tracking-tight text-zinc-800",
-                      composerOnlyWelcome
-                        ? "text-[22px] leading-[30px] sm:text-[32px] sm:leading-[40px]"
-                        : "text-[24px] leading-[32px] sm:text-[38px] sm:leading-[48px]",
+                      "select-none text-center tracking-tight text-zinc-800",
+                      incognitoWelcome
+                        ? "font-handwriting text-[26px] leading-[34px] sm:text-[38px] sm:leading-[48px]"
+                        : "font-handwriting",
+                      !incognitoWelcome &&
+                        (composerOnlyWelcome
+                          ? "text-[22px] leading-[30px] sm:text-[32px] sm:leading-[40px]"
+                          : "text-[24px] leading-[32px] sm:text-[38px] sm:leading-[48px]"),
                     )}
                     suppressHydrationWarning
                   >
-                    {composerOnlyWelcome
-                      ? "What can I help with?"
-                      : greeting
-                        ? firstName
-                          ? `${greeting}, ${firstName}`
-                          : greeting
-                        : "\u00a0"}
+                    {incognitoWelcome ? (
+                      <span className="inline-flex items-center gap-2.5">
+                        <span
+                          className="inline-flex h-7 w-7 items-center justify-center text-[22px] leading-none text-[#e8a03c] sm:h-8 sm:w-8 sm:text-[26px]"
+                          aria-hidden
+                        >
+                          ✦
+                        </span>
+                        You&apos;re incognito
+                      </span>
+                    ) : composerOnlyWelcome ? (
+                      "What can I help with?"
+                    ) : greeting ? (
+                      firstName ? (
+                        `${greeting}, ${firstName}`
+                      ) : (
+                        greeting
+                      )
+                    ) : (
+                      "\u00a0"
+                    )}
                   </h2>
 
                   <div className="w-full">{promptInput}</div>
 
-                  {/* Welcome action chips — same strip as main-app new chat. */}
+                  {incognitoWelcome ? (
+                    <div className="mt-1 flex w-full max-w-[var(--chat-column-max-width,768px)] flex-col items-center gap-1.5 px-4 text-center">
+                      <p className="text-[12.5px] leading-5 text-zinc-500">
+                        Incognito chats aren&apos;t saved, added to memory, or
+                        used to train models.
+                      </p>
+                      <a
+                        href="/legal/privacy"
+                        className="text-[12.5px] leading-5 text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition-colors hover:text-zinc-700"
+                      >
+                        Learn more about how your data is used.
+                      </a>
+                    </div>
+                  ) : (
+                  /* Welcome action chips — same strip as main-app new chat. */
                   <div
                     className={cn(
                       "flex w-full max-w-[var(--chat-column-max-width,768px)] flex-col items-center justify-start transition-[min-height] duration-200 ease-out min-h-[96px]",
@@ -370,6 +416,7 @@ export function ChatViewPane({
                       ) : null}
                     </AnimatePresence>
                   </div>
+                  )}
                 </div>
               </div>
             )}

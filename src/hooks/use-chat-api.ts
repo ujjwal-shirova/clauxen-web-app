@@ -996,10 +996,13 @@ export function useChatApi(
     if (!gen) return;
 
     // Explicit server stop — tab close alone must not cancel durable generation.
-    void fetch(`/api/v1/chats/${chatId}/generate/stop`, {
-      method: "POST",
-      credentials: "include",
-    }).catch(() => {});
+    // Incognito sessions have no DO lease / chat row.
+    if (!chatId.startsWith("incognito-")) {
+      void fetch(`/api/v1/chats/${chatId}/generate/stop`, {
+        method: "POST",
+        credentials: "include",
+      }).catch(() => {});
+    }
 
     gen.request.abort();
     setGeneration(chatId, null);
@@ -1191,7 +1194,9 @@ export function useChatApi(
         userClientId: string;
         assistantClientId: string;
       },
+      options?: { ephemeral?: boolean },
     ) => {
+      const ephemeral = options?.ephemeral === true;
       const controller = new AbortController();
       const assistantIdLocal =
         overrideAssistantId ?? turn?.assistantClientId ?? randomUUID();
@@ -1295,7 +1300,7 @@ export function useChatApi(
           // Keep title generation off the hot response path; it runs after the
           // answer completes so first-token rendering is not blocked.
           generateChatTitle: false,
-          ...(turn
+          ...(!ephemeral && turn
             ? {
                 turn: {
                   content: turn.content,
@@ -1312,20 +1317,20 @@ export function useChatApi(
         // released the DO a few ms after the client became idle.
         let response: Response | null = null;
         let lastDetail = "Generation failed";
+        const generateUrl = ephemeral
+          ? "/api/v1/incognito/generate"
+          : `/api/v1/chats/${chatId}/generate`;
         for (let attempt = 0; attempt < 6; attempt += 1) {
-          const attemptResponse = await fetch(
-            `/api/v1/chats/${chatId}/generate`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "text/event-stream",
-              },
-              credentials: "include",
-              body: generateBody,
-              signal: controller.signal,
+          const attemptResponse = await fetch(generateUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "text/event-stream",
             },
-          );
+            credentials: "include",
+            body: generateBody,
+            signal: controller.signal,
+          });
 
           // Cloudflare/Vercel challenge HTML on /generate — brief retry instead
           // of ending the turn with "Connection was interrupted".
@@ -1640,12 +1645,14 @@ export function useChatApi(
           ),
         }));
 
-        scheduleBranchPersist(chatId);
-        if (titleUserContent && completedAnswer.trim()) {
-          void maybeGenerateChatTitle(chatId, {
-            userContent: titleUserContent,
-            assistantContent: completedAnswer,
-          });
+        if (!ephemeral) {
+          scheduleBranchPersist(chatId);
+          if (titleUserContent && completedAnswer.trim()) {
+            void maybeGenerateChatTitle(chatId, {
+              userContent: titleUserContent,
+              assistantContent: completedAnswer,
+            });
+          }
         }
       } catch (error) {
         // Aborts come from stopGeneration, which already finalized the
@@ -1738,12 +1745,17 @@ export function useChatApi(
         projectId?: string | null;
         /** Fires the moment a brand-new chat has a durable id (before persist/stream). */
         onChatCreated?: (chatId: string) => void;
+        /** Incognito: in-memory only — no DB chat, files, or history. */
+        ephemeral?: boolean;
       },
     ): Promise<string | null> => {
       const trimmed = prompt.trim();
       const pendingAttachments = options?.attachments ?? [];
+      const ephemeral = options?.ephemeral === true;
       if (!trimmed && pendingAttachments.length === 0) return null;
-      if (creatingChatPending && !options?.chatIdOverride) return null;
+      if (creatingChatPending && !options?.chatIdOverride && !ephemeral) {
+        return null;
+      }
 
       const bindProjectId =
         options?.projectId !== undefined
@@ -1792,33 +1804,40 @@ export function useChatApi(
         role: "user",
         content: trimmed,
         attachments:
-          pendingAttachments.length > 0
+          !ephemeral && pendingAttachments.length > 0
             ? toMessageAttachments(pendingAttachments)
             : undefined,
       };
 
       // Optimistic pending id — paint chat-view + sidebar immediately.
+      // Incognito uses a local session id and never touches Recents.
       let pendingChatId: string | null = null;
       if (!chatId) {
-        pendingChatId = `pending-${randomUUID()}`;
+        pendingChatId = ephemeral
+          ? `incognito-${randomUUID()}`
+          : `pending-${randomUUID()}`;
         chatId = pendingChatId;
-        setCreatingChatPending(true);
+        if (!ephemeral) {
+          setCreatingChatPending(true);
+        }
         setActiveChatId(pendingChatId);
-        setRecentChats((prev) => {
-          const next = [
-            {
-              id: pendingChatId!,
-              name: "New chat",
-              titleGenerated: false,
-              isCreating: true,
-              projectId: bindProjectId ?? undefined,
-              updatedAt: Date.now(),
-            },
-            ...prev.filter((c) => c.id !== pendingChatId),
-          ];
-          recentChatsRef.current = next;
-          return next;
-        });
+        if (!ephemeral) {
+          setRecentChats((prev) => {
+            const next = [
+              {
+                id: pendingChatId!,
+                name: "New chat",
+                titleGenerated: false,
+                isCreating: true,
+                projectId: bindProjectId ?? undefined,
+                updatedAt: Date.now(),
+              },
+              ...prev.filter((c) => c.id !== pendingChatId),
+            ];
+            recentChatsRef.current = next;
+            return next;
+          });
+        }
         setAllChats((prev) => ({
           ...prev,
           [pendingChatId!]: [optimisticUser],
@@ -1831,26 +1850,28 @@ export function useChatApi(
           [chatId!]: [...(prev[chatId!] ?? []), optimisticUser],
         }));
         // Touch Recents so this chat stays at the top (ChatGPT/Claude).
-        setRecentChats((prev) => {
-          const touchedAt = Date.now();
-          const next = [
-            ...prev
-              .filter((c) => c.id === chatId)
-              .map((c) => ({ ...c, updatedAt: touchedAt })),
-            ...prev.filter((c) => c.id !== chatId),
-          ].sort((a, b) => {
-            if (Boolean(a.pinned) !== Boolean(b.pinned)) {
-              return a.pinned ? -1 : 1;
-            }
-            return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+        if (!ephemeral) {
+          setRecentChats((prev) => {
+            const touchedAt = Date.now();
+            const next = [
+              ...prev
+                .filter((c) => c.id === chatId)
+                .map((c) => ({ ...c, updatedAt: touchedAt })),
+              ...prev.filter((c) => c.id !== chatId),
+            ].sort((a, b) => {
+              if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+                return a.pinned ? -1 : 1;
+              }
+              return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+            });
+            recentChatsRef.current = next;
+            return next;
           });
-          recentChatsRef.current = next;
-          return next;
-        });
+        }
       }
 
       try {
-        if (pendingChatId) {
+        if (pendingChatId && !ephemeral) {
           const { chat } = await chatsApi.createChat({
             title: "New chat",
             projectId: bindProjectId ?? undefined,
@@ -1887,12 +1908,15 @@ export function useChatApi(
           // Mark generating before navigation so /c/[id] select treats this as
           // a live turn and never kicks off a wiping hydrate/shimmer.
           useChatStore.getState().setChatGenerating(realId, true);
+        } else if (pendingChatId && ephemeral) {
+          useChatStore.getState().setChatGenerating(pendingChatId, true);
         }
 
         // Upload attachments in parallel; failures mark chips but still stream text.
+        // Incognito never persists files — skip uploads entirely.
         const fileIds: string[] = [];
         let uploadFailures = 0;
-        if (pendingAttachments.length > 0) {
+        if (!ephemeral && pendingAttachments.length > 0) {
           const uploaded = await Promise.all(
             pendingAttachments.map(async (attachment) => {
               if (attachment.fileId) return attachment.fileId;
@@ -1975,18 +1999,21 @@ export function useChatApi(
         void streamAssistantResponse(
           chatId!,
           conversation,
-          isNewChat ? trimmed || "New chat" : undefined,
+          !ephemeral && isNewChat ? trimmed || "New chat" : undefined,
           assistantClientId,
-          {
-            content: userContent,
-            modelContent: modelUserContent || userContent,
-            fileIds: fileIds.length ? fileIds : undefined,
-            userClientId: tempUserId,
-            assistantClientId,
-          },
+          ephemeral
+            ? undefined
+            : {
+                content: userContent,
+                modelContent: modelUserContent || userContent,
+                fileIds: fileIds.length ? fileIds : undefined,
+                userClientId: tempUserId,
+                assistantClientId,
+              },
+          { ephemeral },
         );
 
-        if (pendingChatId) {
+        if (pendingChatId && !ephemeral) {
           try {
             options?.onChatCreated?.(chatId!);
           } catch {
@@ -1998,11 +2025,13 @@ export function useChatApi(
       } catch (error) {
         if (pendingChatId) {
           setCreatingChatPending(false);
-          setRecentChats((prev) => {
-            const next = prev.filter((c) => c.id !== pendingChatId);
-            recentChatsRef.current = next;
-            return next;
-          });
+          if (!ephemeral) {
+            setRecentChats((prev) => {
+              const next = prev.filter((c) => c.id !== pendingChatId);
+              recentChatsRef.current = next;
+              return next;
+            });
+          }
           useChatStore.getState().removeChat(pendingChatId);
           if (useChatStore.getState().activeChatId === pendingChatId) {
             setActiveChatId(null);
@@ -2012,7 +2041,7 @@ export function useChatApi(
         console.warn("[chat] send failed:", error);
         return null;
       } finally {
-        if (isNewChat) setCreatingChatPending(false);
+        if (isNewChat && !ephemeral) setCreatingChatPending(false);
       }
     },
     [
