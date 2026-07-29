@@ -62,6 +62,8 @@ export type PromptAddMenuPanelProps = {
 };
 
 const MENU_GAP_PX = 8;
+/** Flyout sits just outside the main menu border (matches Claude-style nested menus). */
+const SUBMENU_GAP_PX = 4;
 
 function PromptAddMenuRow({
   item,
@@ -207,22 +209,35 @@ function useAnchoredMenuPosition(
     const menu = menuRef.current;
     if (!anchor || !menu) return;
 
+    // Measure the primary panel only — ignore the flyout so opening a submenu
+    // does not re-anchor or jump the main menu.
+    const panel =
+      menu.querySelector<HTMLElement>("[data-prompt-add-menu]") ?? menu;
     const anchorRect = anchor.getBoundingClientRect();
-    const menuRect = menu.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
     const viewportPadding = 12;
 
-    let top =
-      placement === "above"
-        ? anchorRect.top - menuRect.height - MENU_GAP_PX
-        : anchorRect.bottom + MENU_GAP_PX;
-
     let left = anchorRect.left;
-
-    const maxLeft = window.innerWidth - menuRect.width - viewportPadding;
+    const maxLeft = window.innerWidth - panelRect.width - viewportPadding;
     left = Math.max(viewportPadding, Math.min(left, maxLeft));
 
-    const maxTop = window.innerHeight - menuRect.height - viewportPadding;
-    top = Math.max(viewportPadding, Math.min(top, maxTop));
+    let top: number;
+    if (placement === "above") {
+      // Always stay above the + trigger so welcome chips under the composer
+      // remain visible. Prefer clipping at the viewport top over covering chips.
+      const preferredTop = anchorRect.top - panelRect.height - MENU_GAP_PX;
+      if (preferredTop >= viewportPadding) {
+        top = preferredTop;
+      } else if (preferredTop + panelRect.height + MENU_GAP_PX <= anchorRect.top) {
+        top = preferredTop;
+      } else {
+        top = Math.max(4, preferredTop);
+      }
+    } else {
+      top = anchorRect.bottom + MENU_GAP_PX;
+      const maxTop = window.innerHeight - panelRect.height - viewportPadding;
+      top = Math.max(viewportPadding, Math.min(top, maxTop));
+    }
 
     setPosition({
       position: "fixed",
@@ -281,6 +296,7 @@ export function PromptAddMenuPanel({
   );
   const [activeSubmenu, setActiveSubmenu] = useState<SubmenuId | null>(null);
   const [submenuTopPx, setSubmenuTopPx] = useState(0);
+  const [submenuSide, setSubmenuSide] = useState<"right" | "left">("right");
 
   const menuPosition = useAnchoredMenuPosition(
     open,
@@ -329,13 +345,19 @@ export function PromptAddMenuPanel({
     },
   ];
 
-  const syncSubmenuTop = useCallback(
+  const syncSubmenuPlacement = useCallback(
     (submenu: SubmenuId | null) => {
       if (!submenu) return;
       const menu = resolvedRef.current;
       const row = rowRefs.current[submenu];
       if (!menu || !row) return;
       setSubmenuTopPx(row.offsetTop);
+
+      const menuRect = menu.getBoundingClientRect();
+      const estimatedSubmenuWidth = 236;
+      const spaceRight =
+        window.innerWidth - menuRect.right - SUBMENU_GAP_PX - 12;
+      setSubmenuSide(spaceRight >= estimatedSubmenuWidth ? "right" : "left");
     },
     [resolvedRef],
   );
@@ -363,8 +385,8 @@ export function PromptAddMenuPanel({
   }, [open, onClose, activeSubmenu]);
 
   useLayoutEffect(() => {
-    syncSubmenuTop(activeSubmenu);
-  }, [activeSubmenu, syncSubmenuTop, open]);
+    syncSubmenuPlacement(activeSubmenu);
+  }, [activeSubmenu, syncSubmenuPlacement, open]);
 
   if (!open || !isClient) return null;
 
@@ -399,7 +421,7 @@ export function PromptAddMenuPanel({
               onHover={() => {
                 if (item.hasSubmenu) {
                   setActiveSubmenu(item.id as SubmenuId);
-                  syncSubmenuTop(item.id as SubmenuId);
+                  syncSubmenuPlacement(item.id as SubmenuId);
                 } else {
                   setActiveSubmenu(null);
                 }
@@ -414,13 +436,25 @@ export function PromptAddMenuPanel({
         <motion.div
           key={`prompt-add-submenu-${activeSubmenu}`}
           data-prompt-add-submenu={activeSubmenu}
-          initial={{ opacity: 0, x: -4, scale: 0.98 }}
+          initial={{
+            opacity: 0,
+            x: submenuSide === "right" ? -4 : 4,
+            scale: 0.98,
+          }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
-          exit={{ opacity: 0, x: -2, scale: 0.98 }}
+          exit={{
+            opacity: 0,
+            x: submenuSide === "right" ? -2 : 2,
+            scale: 0.98,
+          }}
           transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
           style={{ top: submenuTopPx }}
           className={cn(
-            "absolute left-[calc(100%+6px)] z-10 overflow-hidden rounded-[16px] border border-zinc-200/90 bg-white shadow-[0_12px_40px_-18px_rgba(24,24,27,0.45)]",
+            "absolute z-10 overflow-hidden rounded-[16px] border border-zinc-200/90 bg-white shadow-[0_12px_40px_-18px_rgba(24,24,27,0.45)]",
+            submenuSide === "right"
+              ? "left-[calc(100%+4px)]"
+              : "right-[calc(100%+4px)]",
+            // Narrow viewports: stack the flyout under the main menu instead.
             "max-sm:left-0 max-sm:right-0 max-sm:top-[calc(100%+6px)] max-sm:bottom-auto",
           )}
           onMouseEnter={() => setActiveSubmenu(activeSubmenu)}
