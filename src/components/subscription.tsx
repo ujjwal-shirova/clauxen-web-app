@@ -156,7 +156,6 @@ function PlanCarouselCard({
     !forceSelectable &&
     (PLAN_RANK[normalizePlanId(plan.id)] ?? 0) < (PLAN_RANK[activeId] ?? 0);
   const isMax = plan.id === "max";
-  const showPlanCta = isCurrent || !isLowerThanCurrent;
 
   return (
     <div
@@ -165,12 +164,7 @@ function PlanCarouselCard({
         CARD_SHADOW,
       )}
     >
-      <div
-        className={cn(
-          "relative z-[2] rounded-t-xl bg-white px-5 pt-[26px]",
-          showPlanCta ? "pb-5" : "pb-3",
-        )}
-      >
+      <div className="relative z-[2] rounded-t-xl bg-white px-5 pb-5 pt-[26px]">
         {plan.isPopular && <PlanBadge label="Popular" variant="popular" />}
         {plan.isSpecialOffer && (
           <PlanBadge label="Special Offer" variant="special" />
@@ -247,7 +241,9 @@ function PlanCarouselCard({
               <Check className="mr-1.5 h-[18px] w-[18px]" />
               Current plan
             </button>
-          ) : isLowerThanCurrent ? null : (
+          ) : isLowerThanCurrent ? (
+            <div className="h-9 w-full" aria-hidden />
+          ) : (
             <button
               type="button"
               onClick={onSelect}
