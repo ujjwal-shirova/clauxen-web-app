@@ -22,6 +22,7 @@ import { AgentWorkGroupView } from "./agent-work-group";
 import { AgentThinkingPhase } from "./agent-thinking-phase";
 import { AgentNarrationNote } from "./agent-narration-note";
 import { AgentToolBlock } from "./agent-tool-blocks";
+import { AgentPlanningNextMoves } from "./agent-planning-label";
 import type {
   AgentSegment,
   AgentThinkingSegment,
@@ -76,10 +77,19 @@ function previousFileContent(
   return undefined;
 }
 
+function hasVisibleWork(segments: AgentSegment[]): boolean {
+  return segments.some((segment) => {
+    if (segment.kind === "thinking" || segment.kind === "tool") return true;
+    if (segment.kind === "narration" || segment.kind === "text") {
+      return Boolean(segment.content.trim()) || Boolean(segment.isStreaming);
+    }
+    return false;
+  });
+}
+
 /**
- * Clauxen agent transcript — collapsible work groups with shimmering,
- * narration-derived headers; standalone narration prose between groups;
- * the promoted final answer as ordinary markdown below the activity.
+ * Agent transcript: planning label → timeline work groups → final answer.
+ * Orb sits at the bottom only while generating and before answer tokens.
  */
 export function AgentOrchestrationView({
   message,
@@ -101,26 +111,19 @@ export function AgentOrchestrationView({
     answer.length > 0 && agentAnswerDuplicatesInterim(message);
 
   const workFrames = frames.filter((frame) =>
-    traceSegments(frame.segments).some(
-      (segment) =>
-        segment.kind === "thinking" ||
-        segment.kind === "tool" ||
-        ((segment.kind === "narration" || segment.kind === "text") &&
-          (segment.content.trim().length > 0 || segment.isStreaming)),
-    ),
+    hasVisibleWork(traceSegments(frame.segments)),
   );
+  const hasWork = workFrames.length > 0;
 
-  if (workFrames.length === 0 && !answer) {
-    return showOrb ? (
-      <div className="flex items-center py-1">
-        <StreamingOrbCursor />
-      </div>
-    ) : null;
+  // Fresh turn: shimmer planning label + bottom orb until tools/thinking/answer.
+  if (!hasWork && !answer) {
+    if (!streaming) return null;
+    return <AgentPlanningNextMoves showOrb={showOrb} />;
   }
 
   return (
     <div
-      className="flex w-full min-w-0 flex-col gap-3.5"
+      className="flex w-full min-w-0 flex-col gap-3"
       data-message-id={message.id}
       data-assistant-content="true"
       data-agent-transcript-root="true"
@@ -195,7 +198,10 @@ export function AgentOrchestrationView({
       })}
 
       {answer && !suppressDuplicateAnswer ? (
-        <div data-agent-block="answer">
+        <div
+          data-agent-block="answer"
+          className="animate-in fade-in slide-in-from-bottom-1 duration-200"
+        >
           {isAssistantGenerationError(message) ? (
             <p
               data-assistant-error="true"
@@ -225,7 +231,10 @@ export function AgentOrchestrationView({
       ) : null}
 
       {showOrb ? (
-        <div className="flex items-center py-1" data-streaming-orb="bottom">
+        <div
+          className="flex items-center py-1 animate-in fade-in duration-200"
+          data-streaming-orb="bottom"
+        >
           <StreamingOrbCursor />
         </div>
       ) : null}

@@ -1,13 +1,13 @@
 /**
  * Bottom streaming-orb visibility for assistant messages.
  *
- * Show the orb while the assistant turn is still running, including during
- * thinking / tool timelines. Hide once answer markdown is actively streaming
- * (the text caret replaces the waiting orb).
+ * Show the orb while the assistant turn is still running and answer markdown
+ * has not started yet (planning / thinking / tools). Hide once answer tokens
+ * stream — the markdown reveal replaces the waiting orb. Never show when idle.
  */
 export function shouldShowAssistantStreamingOrb(input: {
   isStreaming: boolean;
   answerStreaming: boolean;
 }): boolean {
-  return input.isStreaming && !input.answerStreaming;
+  return input.isStreaming === true && input.answerStreaming !== true;
 }

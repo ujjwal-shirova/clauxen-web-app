@@ -15,6 +15,7 @@ import { AssistantContentRenderer } from "./assistant-content-renderer";
 import { ThinkingBlock } from "./thinking-block";
 import { AgentMessageContent } from "./agent/agent-message-content";
 import { StreamingOrbCursor } from "./ui/streaming-orb-cursor";
+import { AgentPlanningNextMoves } from "./agent/agent-planning-label";
 import { HintTooltip } from "./ui/hint-tooltip";
 import type { Message } from "@/lib/types";
 import { agentSegmentsVisuallyEqual } from "@/lib/agent-segments";
@@ -397,11 +398,22 @@ const MessageRow = React.memo(
                     className="mb-4"
                   />
                 )}
-                {message.isStreaming && message.content.length === 0 && (
+                {message.isStreaming &&
+                message.content.length === 0 &&
+                !(
+                  message.hasThinking ||
+                  (message.thinkingContent?.trim().length ?? 0) > 0
+                ) ? (
+                  <AgentPlanningNextMoves />
+                ) : null}
+                {message.isStreaming &&
+                message.content.length === 0 &&
+                (message.hasThinking ||
+                  (message.thinkingContent?.trim().length ?? 0) > 0) ? (
                   <div className="flex items-center py-1.5">
                     <StreamingOrbCursor />
                   </div>
-                )}
+                ) : null}
                 {message.content.length > 0 ? (
                   <div
                     data-message-id={message.id}

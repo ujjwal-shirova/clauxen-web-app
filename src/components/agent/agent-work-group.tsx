@@ -5,10 +5,8 @@ import type { AgentWorkGroup } from "@/lib/agent-work-groups";
 import { AgentTraceBlock, AgentShimmerText } from "./agent-trace";
 
 /**
- * One step of the agent's work. The header is derived from the narration
- * that announced the step ("Checking the latest pricing…") and shimmers
- * while any member runs; the group auto-collapses to the past-tense header
- * ("Checked the latest pricing") once everything inside completes.
+ * Collapsible agent step with a left timeline rail. Header is derived from
+ * narration (gerund while live → past tense when done) and auto-collapses.
  */
 export function AgentWorkGroupView({
   group,
@@ -38,7 +36,7 @@ export function AgentWorkGroupView({
       contentClassName="agent-work-group__body"
     >
       <div
-        className="flex w-full min-w-0 flex-col gap-3 border-l border-zinc-200/80 pl-3.5 ml-[3px]"
+        className="relative flex w-full min-w-0 flex-col gap-2.5 border-l border-zinc-200/90 pl-3.5 ml-[2px]"
         data-agent-work-group-body="true"
         data-has-narration={hasNarration || undefined}
       >

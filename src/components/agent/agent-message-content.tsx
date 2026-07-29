@@ -9,7 +9,9 @@ import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
 import { shouldUseAgentMessageLayout } from "@/lib/agent-frames";
 import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
 import { AgentOrchestrationView } from "./agent-orchestration";
+import { AgentPlanningNextMoves } from "./agent-planning-label";
 import { collectMessageSources } from "@/lib/chat-sources";
+import { SourcesInlineStrip } from "@/components/chat-sources";
 
 export function AgentMessageContent({
   message,
@@ -21,17 +23,25 @@ export function AgentMessageContent({
   const hasAgentUi = shouldUseAgentMessageLayout(message);
 
   if (!hasAgentUi) {
-    const answerStreaming =
-      message.isStreaming === true && message.content.trim().length > 0;
+    const streaming = message.isStreaming === true;
+    const hasThinking =
+      message.hasThinking ||
+      (message.thinkingContent?.trim().length ?? 0) > 0;
+    const answerStreaming = streaming && message.content.trim().length > 0;
     const showOrb = shouldShowAssistantStreamingOrb({
-      isStreaming: message.isStreaming === true,
+      isStreaming: streaming,
       answerStreaming,
     });
+    const sources = collectMessageSources(message);
+
+    // Fresh turn before any tokens — planning label + bottom orb.
+    if (streaming && !message.content.trim() && !hasThinking) {
+      return <AgentPlanningNextMoves showOrb={showOrb} />;
+    }
 
     return (
       <>
-        {(message.hasThinking ||
-          (message.thinkingContent?.trim().length ?? 0) > 0) && (
+        {hasThinking ? (
           <ThinkingBlock
             content={message.thinkingContent}
             isStreaming={!!message.isThinkingStreaming}
@@ -39,26 +49,32 @@ export function AgentMessageContent({
             thinkingStartedAtMs={message.thinkingStartedAtMs}
             className="mb-4"
           />
-        )}
+        ) : null}
         {message.content.length > 0 ? (
           <div
             data-message-id={message.id}
             data-assistant-content="true"
-            className="min-w-0"
+            className="min-w-0 animate-in fade-in duration-200"
           >
             <AssistantContentRenderer
               content={message.content}
               messageId={message.id}
-              isStreaming={!!message.isStreaming}
+              isStreaming={streaming}
               streamKey={messageUiKey(message)}
               detailLevel={detailLevel}
               agentArtifacts={message.agentArtifacts}
-              {...({ sources: collectMessageSources(message) } as any)}
+              {...({ sources } as any)}
             />
           </div>
         ) : null}
+        {sources.length > 0 ? (
+          <SourcesInlineStrip sources={sources} compact={streaming} />
+        ) : null}
         {showOrb ? (
-          <div className="flex items-center py-1" data-streaming-orb="bottom">
+          <div
+            className="flex items-center py-1 animate-in fade-in duration-200"
+            data-streaming-orb="bottom"
+          >
             <StreamingOrbCursor />
           </div>
         ) : null}

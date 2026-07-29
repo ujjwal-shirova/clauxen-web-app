@@ -1119,7 +1119,7 @@ function useLocalChat(
       isStreaming: true,
       isThinkingStreaming: false,
       hasThinking: false,
-      agentMode: false,
+      agentMode: true,
       agentFrameComplete: false,
       createdAt: now + 1,
     };

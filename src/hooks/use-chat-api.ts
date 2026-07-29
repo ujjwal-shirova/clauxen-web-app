@@ -1287,7 +1287,7 @@ export function useChatApi(
               role: "assistant",
               content: "",
               isStreaming: true,
-              agentMode: false,
+              agentMode: true,
               agentFrameComplete: false,
             },
           ],

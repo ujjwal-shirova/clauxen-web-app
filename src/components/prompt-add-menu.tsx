@@ -239,12 +239,23 @@ function useAnchoredMenuPosition(
       top = Math.max(viewportPadding, Math.min(top, maxTop));
     }
 
-    setPosition({
-      position: "fixed",
-      top,
-      left,
-      zIndex: 80,
-      visibility: "visible",
+    setPosition((prev) => {
+      if (
+        prev.visibility === "visible" &&
+        prev.position === "fixed" &&
+        prev.top === top &&
+        prev.left === left &&
+        prev.zIndex === 80
+      ) {
+        return prev;
+      }
+      return {
+        position: "fixed",
+        top,
+        left,
+        zIndex: 80,
+        visibility: "visible",
+      };
     });
   }, [anchorRef, menuRef, placement]);
 
@@ -265,10 +276,12 @@ function useAnchoredMenuPosition(
     };
   }, [open, updatePosition]);
 
+  // One extra measure after paint so the portal has real dimensions.
   useLayoutEffect(() => {
     if (!open) return;
-    updatePosition();
-  });
+    const frame = requestAnimationFrame(() => updatePosition());
+    return () => cancelAnimationFrame(frame);
+  }, [open, updatePosition]);
 
   return position;
 }

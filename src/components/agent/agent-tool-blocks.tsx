@@ -396,161 +396,133 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
     "";
   const results = useMemo(() => tool.searchResults ?? [], [tool.searchResults]);
   const favicons = useMemo(() => extractFavicons(results), [results]);
-  const staggerSeconds = 0.03;
   const resultCount = results.length;
-  const faviconCount = Math.min(favicons.length, 6);
-  const totalStaggerMs = resultCount * staggerSeconds * 1000;
-  const [visibleCount, setVisibleCount] = useState(resultCount);
-  const animationKey = useMemo(
-    () =>
-      results
-        .slice(0, 5)
-        .map((row) => row.url)
-        .join("|"),
-    [results],
-  );
-  const lastAnimationKeyRef = useRef(animationKey);
+  const faviconCount = Math.min(favicons.length, 4);
+  const [expanded, setExpanded] = useState(false);
 
-  useEffect(() => {
-    if (resultCount === 0) {
-      setVisibleCount(0);
-      lastAnimationKeyRef.current = animationKey;
-      return;
-    }
-    if (lastAnimationKeyRef.current === animationKey) {
-      setVisibleCount(resultCount);
-      return;
-    }
-    lastAnimationKeyRef.current = animationKey;
-    setVisibleCount(0);
-    const timers: number[] = [];
-    for (let index = 0; index < resultCount; index += 1) {
-      const timeout = window.setTimeout(
-        () => setVisibleCount((count) => Math.max(count, index + 1)),
-        index * staggerSeconds * 1000,
-      );
-      timers.push(timeout);
-    }
-    return () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
-    };
-  }, [animationKey, resultCount]);
-
-  const header =
-    isRunning && resultCount === 0 ? (
-      <AgentShimmerText key={`ws-live-${tool.toolCallId}`} active>
-        {query ? `Searching "${query}"…` : "Searching the web…"}
-      </AgentShimmerText>
-    ) : query ? (
-      `Searched "${query}"`
-    ) : (
-      "Searched the web"
+  // Compact summary row (Claude-style): query · favicon stack · "N results >"
+  if (isRunning && resultCount === 0) {
+    return (
+      <div
+        className="flex min-w-0 items-center gap-1.5 text-[13px] font-[430] leading-5 text-zinc-400"
+        data-agent-web-search="running"
+      >
+        <AgentShimmerText key={`ws-live-${tool.toolCallId}`} active>
+          {query ? `Searching "${query}"…` : "Searching the web…"}
+        </AgentShimmerText>
+      </div>
     );
+  }
 
   return (
-    <div className="w-full min-w-0">
-      <AgentTraceBlock
-        title={header}
-        trailing={
-          resultCount > 0 ? (
-            <span className="flex shrink-0 items-center gap-1.5">
-              <span className="flex -space-x-1">
-                {favicons.slice(0, faviconCount).map((favicon, index) => (
-                  <span
-                    key={`${favicon}-${index}`}
-                    className="relative inline-flex h-4 w-4 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-zinc-200"
-                    style={{
-                      zIndex: faviconCount - index,
-                      transitionDelay: `${Math.min(index * 40, 240)}ms`,
+    <div className="w-full min-w-0" data-agent-web-search="done">
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        className="group flex w-full min-w-0 items-center gap-2 rounded-md py-0.5 text-left transition-colors hover:bg-zinc-50/80"
+        aria-expanded={expanded}
+      >
+        <span className="min-w-0 truncate text-[13px] font-[430] leading-5 text-zinc-500">
+          {query ? (
+            <>
+              Searched{" "}
+              <span className="text-zinc-600">&quot;{query}&quot;</span>
+            </>
+          ) : (
+            "Searched the web"
+          )}
+        </span>
+        {resultCount > 0 ? (
+          <span className="flex shrink-0 items-center gap-1.5">
+            <span className="flex -space-x-1">
+              {favicons.slice(0, faviconCount).map((favicon, index) => (
+                <span
+                  key={`${favicon}-${index}`}
+                  className="relative inline-flex h-4 w-4 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-zinc-200"
+                  style={{ zIndex: faviconCount - index }}
+                >
+                  <img
+                    src={favicon}
+                    alt=""
+                    className="h-3 w-3 object-contain"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    onError={(event) => {
+                      (event.target as HTMLImageElement).style.display = "none";
                     }}
-                  >
-                    {}
-                    <img
-                      src={favicon}
-                      alt=""
-                      className="h-3 w-3 object-contain"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                      onError={(event) => {
-                        (event.target as HTMLImageElement).style.display =
-                          "none";
-                      }}
+                  />
+                </span>
+              ))}
+            </span>
+            <span className="inline-flex items-center gap-0.5 text-[12px] tabular-nums text-zinc-400 group-hover:text-zinc-500">
+              {resultCount} result{resultCount === 1 ? "" : "s"}
+              <ChevronRight
+                className={cn(
+                  "h-3.5 w-3.5 transition-transform duration-150",
+                  expanded && "rotate-90",
+                )}
+                aria-hidden
+              />
+            </span>
+          </span>
+        ) : (
+          <span className="text-[12px] text-zinc-400">No results</span>
+        )}
+      </button>
+
+      {expanded && resultCount > 0 ? (
+        <ul className="mt-1.5 flex w-full flex-col overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)] animate-in fade-in slide-in-from-top-1 duration-150">
+          {results.map((row, index) => {
+            const domain = resultDomain(row);
+            const published = row.publishedDate?.slice(0, 10);
+            return (
+              <li
+                key={row.url || index}
+                className={cn(
+                  "agent-web-search__row",
+                  index > 0 && "border-t border-zinc-100",
+                )}
+              >
+                <a
+                  href={isValidHttpUrl(row.url) ? row.url : undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group/row flex min-w-0 items-start gap-2.5 px-3 py-2.5 transition-colors hover:bg-zinc-50/80"
+                >
+                  <span className="mt-0.5 shrink-0">
+                    <SearchResultFavicon
+                      favicon={row.favicon}
+                      title={row.title}
+                      size={16}
                     />
                   </span>
-                ))}
-              </span>
-              <span className="text-[11px] text-zinc-400 tabular-nums">
-                {resultCount} result{resultCount === 1 ? "" : "s"}
-              </span>
-            </span>
-          ) : undefined
-        }
-        isActive={isRunning}
-        defaultExpanded={isRunning}
-        showChevron
-        className="agent-web-search"
-        headerClassName="agent-web-search__header"
-        contentClassName="agent-web-search__body"
-      >
-        {resultCount > 0 ? (
-          <ul className="flex w-full flex-col overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
-            {results.slice(0, visibleCount).map((row, index) => {
-              const domain = resultDomain(row);
-              const published = row.publishedDate?.slice(0, 10);
-              return (
-                <li
-                  key={row.url || index}
-                  className={cn(
-                    "agent-web-search__row",
-                    index > 0 && "border-t border-zinc-100",
-                  )}
-                  style={{ animationDelay: `${index * staggerSeconds}s` }}
-                >
-                  <a
-                    href={isValidHttpUrl(row.url) ? row.url : undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex min-w-0 items-start gap-2.5 px-3 py-2.5 transition-colors hover:bg-zinc-50/80"
-                  >
-                    <span className="mt-0.5 shrink-0">
-                      <SearchResultFavicon
-                        favicon={row.favicon}
-                        title={row.title}
-                        size={16}
-                      />
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="truncate text-[13px] font-medium leading-5 text-zinc-800 group-hover/row:underline underline-offset-2">
+                      {row.title || row.url}
                     </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-[13px] font-medium leading-5 text-zinc-800 group-hover:text-zinc-950 group-hover:underline underline-offset-2">
-                        {row.title || row.url}
+                    {row.snippet ? (
+                      <span className="line-clamp-2 text-[12px] leading-4.5 text-zinc-500">
+                        {row.snippet}
                       </span>
-                      {row.snippet ? (
-                        <span className="line-clamp-2 text-[12px] leading-4.5 text-zinc-500">
-                          {row.snippet}
-                        </span>
+                    ) : null}
+                    <span className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+                      <span className="truncate">{domain}</span>
+                      {published ? (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="shrink-0 tabular-nums">
+                            {published}
+                          </span>
+                        </>
                       ) : null}
-                      <span className="flex items-center gap-1.5 text-[11px] text-zinc-400">
-                        <span className="truncate">{domain}</span>
-                        {published ? (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span className="shrink-0 tabular-nums">
-                              {published}
-                            </span>
-                          </>
-                        ) : null}
-                      </span>
                     </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="text-[12.5px] italic text-zinc-400">
-            {isRunning ? "Fetching results…" : "No results found."}
-          </p>
-        )}
-      </AgentTraceBlock>
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </div>
   );
 }
