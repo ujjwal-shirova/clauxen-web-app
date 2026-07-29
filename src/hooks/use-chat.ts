@@ -44,6 +44,8 @@ import {
   extractChatTitleFromText,
   finalizeChatTitleStrippedAnswer,
   normalizeChatTitle,
+  resolveFinalStreamedAnswer,
+  seedChatTitleAnswerAccumulator,
   stripTitleSourceText,
 } from "@/lib/chat-title";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
@@ -57,6 +59,7 @@ import { createStreamEventBatcher } from "@/lib/stream-event-batcher";
 import { filterStartedRecentChats } from "@/lib/started-recent-chats";
 import type { ChatModelId } from "@/lib/chat-models";
 import { DEFAULT_CHAT_MODEL_ID } from "@/lib/chat-models";
+import { EMPTY_ASSISTANT_RESPONSE_FALLBACK, hasUsefulAssistantProgress } from "@/lib/assistant-generation-error";
 import {
   DEFAULT_HOMER_REASONING_EFFORT,
   type HomerReasoningEffort,
@@ -748,6 +751,48 @@ function useLocalChat(
             return;
           }
 
+          if (event.type === "answer_finalize") {
+            if (!answerStarted) {
+              answerStarted = true;
+              finalizeThinkingTimer(chatId, assistantMessageId);
+            }
+            const finalized = finalizeChatTitleStrippedAnswer(event.text);
+            if (answerAccumulator) {
+              seedChatTitleAnswerAccumulator(answerAccumulator, event.text);
+              const extractedTitle = extractChatTitleFromText(
+                answerAccumulator.raw,
+              );
+              if (extractedTitle) {
+                maybeApplyInlineTitle(extractedTitle);
+              }
+            }
+            completedAnswer = finalized;
+            applyAssistantPatch((message) =>
+              applyAgentStreamEvent(message, event),
+            );
+            return;
+          }
+
+          if (event.type === "narration_delta") {
+            const visibleDelta = sanitizeAssistantStreamDelta(event.delta);
+            if (answerAccumulator && visibleDelta) {
+              appendChatTitleAnswerDelta(answerAccumulator, visibleDelta);
+              const extractedTitle = extractChatTitleFromText(
+                answerAccumulator.raw,
+              );
+              if (extractedTitle) {
+                maybeApplyInlineTitle(extractedTitle);
+              }
+            }
+            applyAssistantPatch((message) =>
+              applyAgentStreamEvent(message, {
+                ...event,
+                delta: visibleDelta || event.delta,
+              }),
+            );
+            return;
+          }
+
           if (event.type === "tool_output_delta") {
             applyAssistantPatch((message) =>
               patchToolOutputDelta(message, event),
@@ -802,7 +847,11 @@ function useLocalChat(
         });
 
         const handleEvent = (event: StreamEvent) => {
-          if (event.type === "error" || event.type === "done") {
+          if (
+            event.type === "error" ||
+            event.type === "done" ||
+            event.type === "answer_finalize"
+          ) {
             streamBatcher.flush();
             handleEventImmediate(event);
             return;
@@ -821,12 +870,11 @@ function useLocalChat(
           const finalized = finalizeChatTitleStrippedAnswer(
             answerAccumulator.raw,
           );
-          if (finalized !== answerAccumulator.visible) {
+          if (!completedAnswer.trim() && finalized.trim()) {
             const trailingDelta = finalized.slice(
               answerAccumulator.visible.length,
             );
             if (trailingDelta) {
-              completedAnswer = finalized;
               applyAssistantPatch((message) =>
                 applyAgentStreamEvent(message, {
                   type: "answer_delta",
@@ -834,9 +882,9 @@ function useLocalChat(
                 }),
               );
             }
+            completedAnswer = finalized;
           }
           answerAccumulator.visible = finalized;
-          completedAnswer = finalized;
           const extractedTitle = extractChatTitleFromText(
             answerAccumulator.raw,
           );
@@ -851,6 +899,7 @@ function useLocalChat(
             content: message.content || streamError || "Generation failed.",
             isThinkingStreaming: false,
             isStreaming: false,
+            generationFailed: !hasUsefulAssistantProgress(message),
           }));
           finalizeThinkingTimer(chatId, assistantMessageId);
           sharedGeneration.request = null;
@@ -862,20 +911,25 @@ function useLocalChat(
         if (sharedGeneration.request !== requestController) return;
 
         applyAssistantPatch((message) => {
-          const finalizedContent = answerAccumulator
-            ? finalizeChatTitleStrippedAnswer(answerAccumulator.raw)
-            : finalizeChatTitleStrippedAnswer(message.content);
+          const finalizedContent = resolveFinalStreamedAnswer({
+            completedAnswer,
+            accumulatorRaw: answerAccumulator?.raw,
+            messageContent: message.content,
+          });
           const nextContent = agentAnswerDuplicatesInterim({
             ...message,
             content: finalizedContent,
           })
             ? message.content
-            : finalizedContent;
+            : finalizedContent || EMPTY_ASSISTANT_RESPONSE_FALLBACK;
           const nextMessage: Message = {
             ...message,
             content: nextContent,
             isThinkingStreaming: false,
             isStreaming: false,
+            generationFailed:
+              !finalizedContent.trim() &&
+              nextContent === EMPTY_ASSISTANT_RESPONSE_FALLBACK,
           };
           if (nextMessage.activeBranchIndex !== undefined) {
             const versions = ensureBranchVersions(nextMessage);

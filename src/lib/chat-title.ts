@@ -286,6 +286,41 @@ export function appendChatTitleAnswerDelta(
   return incremental;
 }
 
+/**
+ * Seed/replace the title accumulator from a wholesale text event
+ * (`answer_finalize` or a recovered message.content). Prefer this over
+ * empty `raw` when the agent loop promotes via answer_finalize instead of
+ * legacy answer_delta chunks.
+ */
+export function seedChatTitleAnswerAccumulator(
+  acc: ChatTitleAnswerAccumulator,
+  text: string,
+): void {
+  acc.raw = text;
+  acc.visible = stripChatTitleTags(text);
+}
+
+/**
+ * Prefer the loop-promoted answer (completedAnswer / message.content) over an
+ * unused title accumulator. Never let an empty or narration-polluted
+ * accumulator wipe a good answer_finalize payload.
+ */
+export function resolveFinalStreamedAnswer(options: {
+  completedAnswer?: string | null;
+  accumulatorRaw?: string | null;
+  messageContent?: string | null;
+}): string {
+  const fromCompleted = options.completedAnswer?.trim()
+    ? finalizeChatTitleStrippedAnswer(options.completedAnswer)
+    : "";
+  if (fromCompleted) return fromCompleted;
+  const fromMsg = finalizeChatTitleStrippedAnswer(options.messageContent ?? "");
+  if (fromMsg) return fromMsg;
+  return options.accumulatorRaw?.trim()
+    ? finalizeChatTitleStrippedAnswer(options.accumulatorRaw)
+    : "";
+}
+
 export function resolveDisplayChatTitle(
   chatTitle?: string,
   isStreaming = false,

@@ -359,21 +359,13 @@ const MessageRow = React.memo(
           <div
             className={cn(
               "assistant-message group w-full min-w-0 max-w-full leading-[1.68]",
-              isAssistantGenerationError(message)
+              isAssistantGenerationError(message) &&
+                !shouldUseAgentMessageLayout(message)
                 ? "text-red-600"
                 : "text-gray-800",
             )}
           >
-            {isAssistantGenerationError(message) ? (
-              <p
-                data-message-id={message.id}
-                data-assistant-error="true"
-                className="min-w-0 text-[15px] font-[430] leading-[1.55] text-red-600"
-                role="alert"
-              >
-                {toUserFacingChatError(message.content)}
-              </p>
-            ) : shouldUseAgentMessageLayout(message) ? (
+            {shouldUseAgentMessageLayout(message) ? (
               <div
                 data-message-id={message.id}
                 data-assistant-content="true"
@@ -384,6 +376,15 @@ const MessageRow = React.memo(
                   detailLevel={renderDetailLevel}
                 />
               </div>
+            ) : isAssistantGenerationError(message) ? (
+              <p
+                data-message-id={message.id}
+                data-assistant-error="true"
+                className="min-w-0 text-[15px] font-[430] leading-[1.55] text-red-600"
+                role="alert"
+              >
+                {toUserFacingChatError(message.content)}
+              </p>
             ) : (
               <>
                 {(message.hasThinking ||

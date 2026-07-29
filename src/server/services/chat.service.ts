@@ -36,7 +36,7 @@ import {
   buildPromptMessagesFromDbRows,
   mergePromptHistories,
 } from "@/server/inference/build-chat-prompt-messages";
-import { toUserFacingChatError } from "@/lib/assistant-generation-error";
+import { toUserFacingChatError, EMPTY_ASSISTANT_RESPONSE_FALLBACK } from "@/lib/assistant-generation-error";
 
 /** Training JSONL user mirror disabled — see persistAssistantTranscriptTurn. */
 async function persistUserTranscriptLine(_input: {
@@ -561,7 +561,7 @@ export async function streamChatGeneration(input: {
           ? generatedAnswer
           : pausedForUserInput
             ? ""
-            : "I couldn't produce a response for that message. Please try again.";
+            : EMPTY_ASSISTANT_RESPONSE_FALLBACK;
       const completedAtMs = Date.now();
       const wasCancelled = input.signal?.aborted === true;
       const failed =

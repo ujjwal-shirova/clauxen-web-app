@@ -12,6 +12,10 @@ import { AssistantContentRenderer } from "@/components/assistant-content-rendere
 import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
 import { collectMessageSources } from "@/lib/chat-sources";
 import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
+import {
+  isAssistantGenerationError,
+  toUserFacingChatError,
+} from "@/lib/assistant-generation-error";
 import { AgentTrace } from "./agent-trace";
 import { AgentWorkGroupView } from "./agent-work-group";
 import { AgentThinkingPhase } from "./agent-thinking-phase";
@@ -191,15 +195,25 @@ export function AgentOrchestrationView({
 
       {answer && !suppressDuplicateAnswer ? (
         <div data-agent-block="answer">
-          <AssistantContentRenderer
-            content={message.content}
-            messageId={message.id}
-            isStreaming={streaming}
-            streamKey={`${message.id}-answer`}
-            detailLevel={detailLevel}
-            agentArtifacts={message.agentArtifacts}
-            {...({ sources } as any)}
-          />
+          {isAssistantGenerationError(message) ? (
+            <p
+              data-assistant-error="true"
+              className="min-w-0 text-[15px] font-[430] leading-[1.55] text-red-600"
+              role="alert"
+            >
+              {toUserFacingChatError(message.content)}
+            </p>
+          ) : (
+            <AssistantContentRenderer
+              content={message.content}
+              messageId={message.id}
+              isStreaming={streaming}
+              streamKey={`${message.id}-answer`}
+              detailLevel={detailLevel}
+              agentArtifacts={message.agentArtifacts}
+              {...({ sources } as any)}
+            />
+          )}
         </div>
       ) : null}
 

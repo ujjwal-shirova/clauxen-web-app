@@ -5,6 +5,7 @@ import type { StreamEvent } from "@/lib/chat-stream";
 import { applyAgentStreamEvent } from "@/lib/agent-stream-reducer";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
 import {
+  EMPTY_ASSISTANT_RESPONSE_FALLBACK,
   hasUsefulAssistantProgress,
   toUserFacingChatError,
 } from "@/lib/assistant-generation-error";
@@ -62,6 +63,8 @@ import {
   finalizeChatTitleStrippedAnswer,
   normalizeChatTitle,
   normalizeInlineChatTitle,
+  resolveFinalStreamedAnswer,
+  seedChatTitleAnswerAccumulator,
   stripTitleSourceText,
 } from "@/lib/chat-title";
 import { DEFAULT_CHAT_MODEL_ID, type ChatModelId } from "@/lib/chat-models";
@@ -1510,6 +1513,46 @@ export function useChatApi(
             }
             return;
           }
+          if (event.type === "answer_finalize") {
+            // Agent loop promotes the final-round narration wholesale.
+            // Seed the title accumulator so post-stream finalize cannot
+            // overwrite a good answer with an unused empty accumulator.
+            const finalized = finalizeChatTitleStrippedAnswer(event.text);
+            if (answerAccumulator) {
+              seedChatTitleAnswerAccumulator(answerAccumulator, event.text);
+              const extractedTitle = extractChatTitleFromText(
+                answerAccumulator.raw,
+              );
+              if (extractedTitle) {
+                void applyInlineChatTitle(extractedTitle);
+              }
+            }
+            completedAnswer = finalized;
+            patchAssistantMessage(chatId, targetAssistantId, (message) =>
+              applyAgentStreamEvent(message, event),
+            );
+            return;
+          }
+          if (event.type === "narration_delta") {
+            // Title tags may arrive inside narration on the first turn.
+            const visibleDelta = sanitizeAssistantStreamDelta(event.delta);
+            if (answerAccumulator && visibleDelta) {
+              appendChatTitleAnswerDelta(answerAccumulator, visibleDelta);
+              const extractedTitle = extractChatTitleFromText(
+                answerAccumulator.raw,
+              );
+              if (extractedTitle) {
+                void applyInlineChatTitle(extractedTitle);
+              }
+            }
+            patchAssistantMessage(chatId, targetAssistantId, (message) =>
+              applyAgentStreamEvent(message, {
+                ...event,
+                delta: visibleDelta || event.delta,
+              }),
+            );
+            return;
+          }
           if (event.type === "tool_output_delta") {
             patchAssistantMessage(chatId, targetAssistantId, (message) =>
               patchToolOutputDelta(message, event),
@@ -1558,7 +1601,8 @@ export function useChatApi(
             event.type === "done" ||
             event.type === "tool_end" ||
             event.type === "thinking_end" ||
-            event.type === "segment_end"
+            event.type === "segment_end" ||
+            event.type === "answer_finalize"
           ) {
             streamBatcher.flush();
             handleStreamEventImmediate(event);
@@ -1579,17 +1623,21 @@ export function useChatApi(
             answerAccumulator.raw,
           );
           answerAccumulator.visible = finalized;
-          completedAnswer = finalized;
+          if (!completedAnswer.trim() && finalized.trim()) {
+            completedAnswer = finalized;
+          }
           const extractedTitle = extractChatTitleFromText(
             answerAccumulator.raw,
           );
           if (extractedTitle) {
             void applyInlineChatTitle(extractedTitle);
           }
-          patchAssistantMessage(chatId, resolveAssistantId(), (message) => ({
-            ...message,
-            content: finalized,
-          }));
+          if (finalized.trim() && !completedAnswer.trim()) {
+            patchAssistantMessage(chatId, resolveAssistantId(), (message) => ({
+              ...message,
+              content: finalized,
+            }));
+          }
         }
 
         if (getGeneration(chatId)?.request !== controller) return;
@@ -1602,36 +1650,56 @@ export function useChatApi(
               ? {
                   ...m,
                   content: (() => {
-                    const finalized = answerAccumulator
-                      ? finalizeChatTitleStrippedAnswer(answerAccumulator.raw)
-                      : finalizeChatTitleStrippedAnswer(m.content);
-                  const visible = agentAnswerDuplicatesInterim({
+                    const finalized = resolveFinalStreamedAnswer({
+                      completedAnswer,
+                      accumulatorRaw: answerAccumulator?.raw,
+                      messageContent: m.content,
+                    });
+                    const visible = agentAnswerDuplicatesInterim({
                       ...m,
                       content: finalized,
                     })
                       ? m.content
                       : finalized;
-                  // The backend persists the same fallback, but paint one
-                  // immediately when a model closes its SSE turn without text.
-                  // A completed blank assistant is never a valid UI state —
-                  // except ask_user_input pauses, which intentionally wait.
-                  if (visible.trim()) return visible;
-                  const hasPendingAsk = (m.agentFrames ?? [])
-                    .flatMap((frame) => frame.segments)
-                    .concat(m.agentSegments ?? [])
-                    .some(
-                      (segment) =>
-                        segment.kind === "tool" &&
-                        segment.name === "ask_user_input_v0" &&
-                        segment.status === "done",
-                    );
-                  return hasPendingAsk
-                    ? ""
-                    : "I couldn't produce a response for that message. Please try again.";
+                    // The backend persists the same fallback, but paint one
+                    // immediately when a model closes its SSE turn without text.
+                    // A completed blank assistant is never a valid UI state —
+                    // except ask_user_input pauses, which intentionally wait.
+                    if (visible.trim()) return visible;
+                    const hasPendingAsk = (m.agentFrames ?? [])
+                      .flatMap((frame) => frame.segments)
+                      .concat(m.agentSegments ?? [])
+                      .some(
+                        (segment) =>
+                          segment.kind === "tool" &&
+                          segment.name === "ask_user_input_v0" &&
+                          segment.status === "done",
+                      );
+                    return hasPendingAsk
+                      ? ""
+                      : EMPTY_ASSISTANT_RESPONSE_FALLBACK;
                   })(),
                   isStreaming: false,
                   isThinkingStreaming: false,
                   agentFrameComplete: true,
+                  generationFailed: (() => {
+                    const finalized = resolveFinalStreamedAnswer({
+                      completedAnswer,
+                      accumulatorRaw: answerAccumulator?.raw,
+                      messageContent: m.content,
+                    });
+                    if (finalized.trim()) return false;
+                    const hasPendingAsk = (m.agentFrames ?? [])
+                      .flatMap((frame) => frame.segments)
+                      .concat(m.agentSegments ?? [])
+                      .some(
+                        (segment) =>
+                          segment.kind === "tool" &&
+                          segment.name === "ask_user_input_v0" &&
+                          segment.status === "done",
+                      );
+                    return !hasPendingAsk;
+                  })(),
                   thinkingDurationSeconds:
                     m.thinkingDurationSeconds ??
                     (m.thinkingStartedAtMs

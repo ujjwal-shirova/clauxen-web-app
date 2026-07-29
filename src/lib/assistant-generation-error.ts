@@ -4,9 +4,15 @@ import type { Message } from "@/lib/types";
 export const USER_FACING_CHAT_ERROR =
   "Something unexpected happened. Please try again.";
 
+/** Persisted when the model closes a turn with no visible answer text. */
+export const EMPTY_ASSISTANT_RESPONSE_FALLBACK =
+  "I couldn't produce a response for that message. Please try again.";
+
 const GENERATION_ERROR_PREFIXES = [
   USER_FACING_CHAT_ERROR,
+  EMPTY_ASSISTANT_RESPONSE_FALLBACK,
   "Something unexpected happened",
+  "I couldn't produce a response",
   "We couldn't complete that reply",
   "Connection lost while generating",
   "Connection was interrupted",

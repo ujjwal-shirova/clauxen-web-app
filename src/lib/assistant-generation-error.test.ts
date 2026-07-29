@@ -90,5 +90,14 @@ describe("isAssistantGenerationError", () => {
       }),
       true,
     );
+    assert.equal(
+      isAssistantGenerationError({
+        role: "assistant",
+        content:
+          "I couldn't produce a response for that message. Please try again.",
+        generationFailed: false,
+      }),
+      true,
+    );
   });
 });
