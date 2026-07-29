@@ -182,7 +182,6 @@ function useLocalChat(
     });
   }, []);
 
-
   useEffect(() => {
     recentChatsRef.current = recentChats;
   }, [recentChats]);
@@ -196,16 +195,18 @@ function useLocalChat(
           const migrated = await migrateLegacyLocalStorage();
           if (migrated) {
             const hydratedChats = Object.fromEntries(
-              Object.entries(migrated.allChats).map(([chatId, chatMessages]) => [
-                chatId,
-                chatMessages.map((message) =>
-                  compactMessageBranchData({
-                    ...message,
-                    isStreaming: false,
-                    isThinkingStreaming: false,
-                  }),
-                ),
-              ]),
+              Object.entries(migrated.allChats).map(
+                ([chatId, chatMessages]) => [
+                  chatId,
+                  chatMessages.map((message) =>
+                    compactMessageBranchData({
+                      ...message,
+                      isStreaming: false,
+                      isThinkingStreaming: false,
+                    }),
+                  ),
+                ],
+              ),
             );
             const startedMeta = filterStartedRecentChats(
               migrated.meta?.recentChats ?? [],
@@ -213,7 +214,9 @@ function useLocalChat(
             );
             const restoredActiveId = preferRouteActiveChatId(
               migrated.meta?.activeChatId &&
-              startedMeta.some((chat) => chat.id === migrated.meta?.activeChatId)
+                startedMeta.some(
+                  (chat) => chat.id === migrated.meta?.activeChatId,
+                )
                 ? migrated.meta.activeChatId
                 : (startedMeta[0]?.id ?? null),
             );
@@ -245,16 +248,18 @@ function useLocalChat(
             };
             if (parsed.allChats) {
               const hydratedChats = Object.fromEntries(
-                Object.entries(parsed.allChats).map(([chatId, chatMessages]) => [
-                  chatId,
-                  chatMessages.map((message) =>
-                    compactMessageBranchData({
-                      ...message,
-                      isStreaming: false,
-                      isThinkingStreaming: false,
-                    }),
-                  ),
-                ]),
+                Object.entries(parsed.allChats).map(
+                  ([chatId, chatMessages]) => [
+                    chatId,
+                    chatMessages.map((message) =>
+                      compactMessageBranchData({
+                        ...message,
+                        isStreaming: false,
+                        isThinkingStreaming: false,
+                      }),
+                    ),
+                  ],
+                ),
               );
               const startedMeta = filterStartedRecentChats(
                 parsed.recentChats ?? [],
@@ -262,7 +267,7 @@ function useLocalChat(
               );
               const restoredActiveId = preferRouteActiveChatId(
                 parsed.activeChatId &&
-                startedMeta.some((chat) => chat.id === parsed.activeChatId)
+                  startedMeta.some((chat) => chat.id === parsed.activeChatId)
                   ? parsed.activeChatId
                   : (startedMeta[0]?.id ?? null),
               );
@@ -301,10 +306,13 @@ function useLocalChat(
             }
           }
 
-          const startedMeta = filterStartedRecentChats(meta.recentChats, allChats);
+          const startedMeta = filterStartedRecentChats(
+            meta.recentChats,
+            allChats,
+          );
           const restoredActiveId = preferRouteActiveChatId(
             meta.activeChatId &&
-            startedMeta.some((chat) => chat.id === meta.activeChatId)
+              startedMeta.some((chat) => chat.id === meta.activeChatId)
               ? meta.activeChatId
               : (startedMeta[0]?.id ?? null),
           );
@@ -424,10 +432,7 @@ function useLocalChat(
 
     activeRequest.abort();
     sharedGeneration.request = null;
-    finalizeAssistantMessage(
-      generation.chatId,
-      generation.assistantMessageId,
-    );
+    finalizeAssistantMessage(generation.chatId, generation.assistantMessageId);
     sharedGeneration.context = null;
     setIsGenerating(false);
   }, [finalizeAssistantMessage, setIsGenerating]);
@@ -658,18 +663,17 @@ function useLocalChat(
 
           if (event.type === "thinking_delta") {
             if (!event.segmentId && event.delta) {
-              useChatStore.getState().patchMessage(
-                chatId,
-                assistantMessageId,
-                (message) => ({
+              useChatStore
+                .getState()
+                .patchMessage(chatId, assistantMessageId, (message) => ({
                   ...message,
                   thinkingContent: `${message.thinkingContent ?? ""}${event.delta}`,
                   hasThinking: true,
                   isThinkingStreaming: true,
-                  thinkingStartedAtMs: message.thinkingStartedAtMs ?? Date.now(),
+                  thinkingStartedAtMs:
+                    message.thinkingStartedAtMs ?? Date.now(),
                   isStreaming: true,
-                }),
-              );
+                }));
               return;
             }
 
@@ -721,22 +725,33 @@ function useLocalChat(
 
             if (!visibleDelta) return;
 
-            const msg = useChatStore.getState().messagesById[assistantMessageId];
+            const msg =
+              useChatStore.getState().messagesById[assistantMessageId];
 
             if (canFastAppendAnswer(msg)) {
               useChatStore
                 .getState()
-                .appendMessageField(chatId, assistantMessageId, "content", visibleDelta);
+                .appendMessageField(
+                  chatId,
+                  assistantMessageId,
+                  "content",
+                  visibleDelta,
+                );
             } else {
               applyAssistantPatch((message) =>
-                applyAgentStreamEvent(message, { ...event, delta: visibleDelta }),
+                applyAgentStreamEvent(message, {
+                  ...event,
+                  delta: visibleDelta,
+                }),
               );
             }
             return;
           }
 
           if (event.type === "tool_output_delta") {
-            applyAssistantPatch((message) => patchToolOutputDelta(message, event));
+            applyAssistantPatch((message) =>
+              patchToolOutputDelta(message, event),
+            );
             return;
           }
 
@@ -807,7 +822,9 @@ function useLocalChat(
             answerAccumulator.raw,
           );
           if (finalized !== answerAccumulator.visible) {
-            const trailingDelta = finalized.slice(answerAccumulator.visible.length);
+            const trailingDelta = finalized.slice(
+              answerAccumulator.visible.length,
+            );
             if (trailingDelta) {
               completedAnswer = finalized;
               applyAssistantPatch((message) =>
@@ -820,7 +837,9 @@ function useLocalChat(
           }
           answerAccumulator.visible = finalized;
           completedAnswer = finalized;
-          const extractedTitle = extractChatTitleFromText(answerAccumulator.raw);
+          const extractedTitle = extractChatTitleFromText(
+            answerAccumulator.raw,
+          );
           if (extractedTitle) {
             maybeApplyInlineTitle(extractedTitle);
           }
@@ -955,7 +974,7 @@ function useLocalChat(
 
     let currentChatId = activeChatId;
     const existingMessages = currentChatId
-      ? allChatsRef.current[currentChatId] ?? []
+      ? (allChatsRef.current[currentChatId] ?? [])
       : [];
     const forceNew =
       (options?.forceNewChat ?? false) &&
@@ -1033,7 +1052,10 @@ function useLocalChat(
             }))
           : undefined,
     };
-    const conversationForApi = buildChatConversation([...messages, userMessage]);
+    const conversationForApi = buildChatConversation([
+      ...messages,
+      userMessage,
+    ]);
 
     const assistantMessage: Message = {
       id: (now + 1).toString(),
@@ -1056,7 +1078,6 @@ function useLocalChat(
         assistantMessage,
       ],
     }));
-
 
     void streamAssistantResponse({
       chatId: currentChatId!,
@@ -1098,7 +1119,9 @@ function useLocalChat(
       chatId: string,
       messageId: string,
       newContent: string,
-      options?: { attachments?: import("@/lib/composer-attachments").ComposerAttachment[] },
+      options?: {
+        attachments?: import("@/lib/composer-attachments").ComposerAttachment[];
+      },
     ) => {
       const trimmed = newContent.trim();
       const pendingAttachments = options?.attachments ?? [];
@@ -1136,9 +1159,7 @@ function useLocalChat(
         [chatId]: nextChat,
       }));
 
-      const conversationForApi = buildChatConversation(
-        nextChat.slice(0, -1),
-      );
+      const conversationForApi = buildChatConversation(nextChat.slice(0, -1));
 
       await streamAssistantResponse({
         chatId,
@@ -1200,9 +1221,7 @@ function useLocalChat(
         [chatId]: nextChat,
       }));
 
-      const conversationForApi = buildChatConversation(
-        nextChat.slice(0, -1),
-      );
+      const conversationForApi = buildChatConversation(nextChat.slice(0, -1));
 
       await streamAssistantResponse({
         chatId,
@@ -1263,9 +1282,7 @@ function useLocalChat(
         [chatId]: nextChat,
       }));
 
-      const conversationForApi = buildChatConversation(
-        nextChat.slice(0, -1),
-      );
+      const conversationForApi = buildChatConversation(nextChat.slice(0, -1));
 
       await streamAssistantResponse({
         chatId,
@@ -1379,9 +1396,7 @@ function useLocalChat(
 
   const handlePinChat = useCallback((chatId: string, pinned: boolean) => {
     setRecentChats((prev) =>
-      prev.map((chat) =>
-        chat.id === chatId ? { ...chat, pinned } : chat,
-      ),
+      prev.map((chat) => (chat.id === chatId ? { ...chat, pinned } : chat)),
     );
   }, []);
 
@@ -1429,11 +1444,16 @@ export function useChat(options: UseChatOptions = {}) {
   }
 
   if (modeRef.current === "api") {
+    // The mode is locked by the ref above for the lifetime of this component
+    // instance (callers remount with a new key on auth change), so the hook
+    // order is stable across renders of any given instance.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useChatApi(
       options.projectId ?? null,
       options.chatModel,
       options.homerReasoningEffort,
     );
   }
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   return useLocalChat(options);
 }

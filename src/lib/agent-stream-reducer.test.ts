@@ -13,7 +13,7 @@ function assistant(): Message {
 }
 
 describe("agent stream reducer transcript channels", () => {
-  it("keeps thinking headings and narration in distinct ordered segments", () => {
+  it("keeps thinking and narration in distinct ordered segments", () => {
     let message = applyAgentStreamEvent(assistant(), {
       type: "agent_frame_start",
       frameId: "frame-1",
@@ -22,11 +22,6 @@ describe("agent stream reducer transcript channels", () => {
       type: "segment_start",
       segmentId: "thinking-1",
       kind: "thinking",
-    });
-    message = applyAgentStreamEvent(message, {
-      type: "thinking_heading",
-      segmentId: "thinking-1",
-      heading: "Comparing official sources",
     });
     message = applyAgentStreamEvent(message, {
       type: "thinking_delta",
@@ -50,8 +45,8 @@ describe("agent stream reducer transcript channels", () => {
       ["thinking", "narration"],
     );
     assert.equal(
-      segments[0]?.kind === "thinking" ? segments[0].heading : undefined,
-      "Comparing official sources",
+      segments[0]?.kind === "thinking" ? segments[0].content : undefined,
+      "The two contracts differ.",
     );
     assert.equal(
       segments[1]?.kind === "narration" ? segments[1].content : undefined,
@@ -59,7 +54,7 @@ describe("agent stream reducer transcript channels", () => {
     );
   });
 
-  it("removes promoted narration and records tool failures", () => {
+  it("promotes the final-round narration to the durable answer in place", () => {
     let message = applyAgentStreamEvent(assistant(), {
       type: "segment_start",
       segmentId: "narration-1",
@@ -71,8 +66,30 @@ describe("agent stream reducer transcript channels", () => {
       delta: "This became the final answer.",
     });
     message = applyAgentStreamEvent(message, {
-      type: "segment_remove",
+      type: "answer_finalize",
       segmentId: "narration-1",
+      text: "This became the final answer.",
+    });
+
+    const segments = message.agentFrames?.[0]?.segments ?? [];
+    const promoted = segments.find((segment) => segment.id === "narration-1");
+    assert.equal(promoted?.kind, "narration");
+    if (promoted?.kind !== "narration") return;
+    assert.equal(promoted.isFinal, true);
+    assert.equal(promoted.isStreaming, false);
+    assert.equal(message.content, "This became the final answer.");
+  });
+
+  it("records tool failures without dropping the narration", () => {
+    let message = applyAgentStreamEvent(assistant(), {
+      type: "segment_start",
+      segmentId: "narration-1",
+      kind: "narration",
+    });
+    message = applyAgentStreamEvent(message, {
+      type: "narration_delta",
+      segmentId: "narration-1",
+      delta: "Fetching the docs.",
     });
     message = applyAgentStreamEvent(message, {
       type: "tool_start",
@@ -91,7 +108,7 @@ describe("agent stream reducer transcript channels", () => {
     const segments = message.agentFrames?.[0]?.segments ?? [];
     assert.equal(
       segments.some((segment) => segment.id === "narration-1"),
-      false,
+      true,
     );
     const tool = segments.find((segment) => segment.kind === "tool");
     assert.equal(tool?.kind === "tool" ? tool.status : undefined, "error");

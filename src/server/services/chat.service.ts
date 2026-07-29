@@ -486,6 +486,11 @@ export async function streamChatGeneration(input: {
         onAnswerDelta: (delta) => {
           answer += delta;
         },
+        onAnswerFinalize: (text) => {
+          // The loop promotes the final-round text wholesale — replace, never
+          // append (narration prose from earlier rounds is not the answer).
+          answer = text;
+        },
         onAnswerClear: () => {
           answer = "";
         },

@@ -8,10 +8,6 @@ export type AgentFrame = {
   complete: boolean;
   startedAtMs: number;
   completedAtMs?: number;
-  /** Short acknowledgement emitted before tools in this frame (e.g. "Got it — searching the web"). */
-  introNarrative?: string;
-  /** Model text emitted after this frame closed and before the next frame opened. */
-  interimOutput?: string;
 };
 
 export function uniqueAgentFrameId(
@@ -20,9 +16,7 @@ export function uniqueAgentFrameId(
   ignoreIndex?: number,
 ): string {
   const used = new Set(
-    frames
-      .filter((_, index) => index !== ignoreIndex)
-      .map((frame) => frame.id),
+    frames.filter((_, index) => index !== ignoreIndex).map((frame) => frame.id),
   );
   if (!used.has(preferredId)) return preferredId;
 
@@ -89,8 +83,7 @@ export function resolveAgentFrames(message: Message): AgentFrame[] {
       segments,
       complete: message.agentFrameComplete === true,
       startedAtMs: stamp,
-      completedAtMs:
-        message.agentFrameComplete === true ? stamp : undefined,
+      completedAtMs: message.agentFrameComplete === true ? stamp : undefined,
     }),
   ];
 }
@@ -114,7 +107,10 @@ function clampFrameDuration(frame: AgentFrame): AgentFrame {
   return { ...frame, completedAtMs: completed };
 }
 
-export function activeFrameIndex(message: Message, frames: AgentFrame[]): number {
+export function activeFrameIndex(
+  message: Message,
+  frames: AgentFrame[],
+): number {
   if (typeof message.activeAgentFrameIndex === "number") {
     return Math.min(
       Math.max(message.activeAgentFrameIndex, 0),
@@ -126,7 +122,10 @@ export function activeFrameIndex(message: Message, frames: AgentFrame[]): number
   return openIndex >= 0 ? openIndex : frames.length - 1;
 }
 
-export function hasActiveFrameWork(frames: AgentFrame[], index: number): boolean {
+export function hasActiveFrameWork(
+  frames: AgentFrame[],
+  index: number,
+): boolean {
   const frame = frames[index];
   if (!frame || frame.complete) return false;
   return frame.segments.some(
@@ -142,21 +141,6 @@ export function hasActiveFrameWork(frames: AgentFrame[], index: number): boolean
 export function allFramesComplete(frames: AgentFrame[]): boolean {
   return frames.length > 0 && frames.every((frame) => frame.complete);
 }
-
-export type OrchestrationBlock =
-  | {
-      kind: "timeline";
-      frame: AgentFrame;
-      isActive: boolean;
-      /** Current accumulating model narrative (progress text) to show live inside the open frame. */
-      liveNarrative?: string;
-    }
-  | {
-      kind: "markdown";
-      blockId: string;
-      content: string;
-      isStreaming: boolean;
-    };
 
 function frameHasWorkSegments(segments: AgentSegment[]): boolean {
   return segments.some(
@@ -181,35 +165,29 @@ export function shouldUseAgentMessageLayout(message: Message): boolean {
   );
 }
 
-/** True when trailing content is an *exact* copy of a captured interim progress note.
- * We only suppress promotion of final answer in that narrow case so the real final output is not lost. */
+/**
+ * True when trailing content is an *exact* copy of a progress narration note
+ * (legacy duplication). The promoted final segment (isFinal) IS the answer —
+ * it must never suppress the answer render.
+ */
 export function agentAnswerDuplicatesInterim(message: Message): boolean {
   const trailing = message.content.trim();
   if (!trailing) return false;
-  // Only exact full match counts as "this is just the old progress note".
-  // Partial overlaps or the model naturally reusing a phrase should still show as final.
-  return resolveAgentFrames(message).some((frame) => {
-    if (
-      (frame.interimOutput && frame.interimOutput.trim() === trailing) ||
-      (frame.introNarrative && frame.introNarrative.trim() === trailing)
-    ) {
-      return true;
-    }
-    // Pre-tool prose is moved into narration segments when tools start; after
-    // hydrate it can also linger in message.content — suppress the duplicate.
-    return frame.segments.some(
+  return resolveAgentFrames(message).some((frame) =>
+    frame.segments.some(
       (segment) =>
         (segment.kind === "narration" || segment.kind === "text") &&
+        !(segment.kind === "narration" && segment.isFinal) &&
         segment.content.trim() === trailing,
-    );
-  });
+    ),
+  );
 }
 
 /**
  * Collapse multi-step agent frames into one activity panel.
  *
- * Older streams opened a new "Brewed/Churned for …" frame per tool round.
- * The product UI is a single agentic activity for the whole assistant turn.
+ * Older streams opened a new frame per tool round; the UI is a single
+ * agentic activity for the whole assistant turn.
  */
 export function mergeAgentFramesForDisplay(frames: AgentFrame[]): AgentFrame[] {
   if (frames.length <= 1) return frames;
@@ -221,89 +199,21 @@ export function mergeAgentFramesForDisplay(frames: AgentFrame[]): AgentFrame[] {
 
   const first = withWork[0]!;
   const last = withWork[withWork.length - 1]!;
-  const segments = withWork.flatMap((frame) => frame.segments);
-  const introParts = withWork
-    .map((frame) => frame.introNarrative?.trim())
-    .filter(Boolean) as string[];
-  const interimParts = withWork
-    .map((frame) => frame.interimOutput?.trim())
-    .filter(Boolean) as string[];
 
   const merged: AgentFrame = {
     id: first.id,
-    segments,
+    segments: withWork.flatMap((frame) => frame.segments),
     complete: withWork.every((frame) => frame.complete),
-    startedAtMs: Math.min(...withWork.map((frame) => frame.startedAtMs || Date.now())),
+    startedAtMs: Math.min(
+      ...withWork.map((frame) => frame.startedAtMs || Date.now()),
+    ),
     completedAtMs: last.completedAtMs ?? first.completedAtMs,
-    introNarrative: introParts[0],
-    interimOutput: interimParts.join("\n\n") || undefined,
   };
 
-  // Preserve non-work frames (shouldn't exist) after the merged activity.
   const leftovers = frames.filter(
     (frame) => !frameHasWorkSegments(frame.segments),
   );
   return [merged, ...leftovers];
-}
-
-/** Flat render sequence — one activity panel, then the final answer. */
-export function resolveOrchestrationBlocks(
-  message: Message,
-): OrchestrationBlock[] {
-  const frames = mergeAgentFramesForDisplay(resolveAgentFrames(message));
-  const streaming = message.isStreaming === true;
-  const blocks: OrchestrationBlock[] = [];
-
-  let lastInterimNarrative: string | undefined;
-  let introShown = false;
-
-  for (let index = 0; index < frames.length; index += 1) {
-    const frame = frames[index];
-    const isActive =
-      streaming && index === frames.length - 1 && !frame.complete;
-
-    if (frame.interimOutput?.trim()) {
-      lastInterimNarrative = frame.interimOutput.trim();
-    }
-
-    const introNarrative = frame.introNarrative?.trim();
-
-    // Show at most one intro whisper above the activity panel.
-    if (introNarrative && !introShown) {
-      introShown = true;
-      blocks.push({
-        kind: "markdown",
-        blockId: `${frame.id}-intro`,
-        content: introNarrative,
-        isStreaming: false,
-      });
-    }
-
-    if (frameHasWorkSegments(frame.segments)) {
-      blocks.push({
-        kind: "timeline",
-        frame,
-        isActive,
-        liveNarrative: isActive ? lastInterimNarrative : undefined,
-      });
-    }
-  }
-
-  const trailingContent = message.content.trim();
-  // Final answer stays below activity — never inside the collapsible panel.
-  if (
-    trailingContent &&
-    !agentAnswerDuplicatesInterim(message)
-  ) {
-    blocks.push({
-      kind: "markdown",
-      blockId: `${message.id}-answer`,
-      content: message.content,
-      isStreaming: streaming,
-    });
-  }
-
-  return blocks;
 }
 
 export function agentFramesVisuallyEqual(
@@ -319,8 +229,6 @@ export function agentFramesVisuallyEqual(
       frame.complete === other.complete &&
       frame.startedAtMs === other.startedAtMs &&
       frame.completedAtMs === other.completedAtMs &&
-      frame.introNarrative === other.introNarrative &&
-      frame.interimOutput === other.interimOutput &&
       agentSegmentsVisuallyEqual(frame.segments, other.segments)
     );
   });

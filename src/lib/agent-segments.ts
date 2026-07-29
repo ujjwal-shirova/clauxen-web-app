@@ -10,8 +10,6 @@ export type WebSearchResult = {
 export type AgentThinkingSegment = {
   kind: "thinking";
   id: string;
-  /** Model-authored task-specific label parsed from <agent_heading>. */
-  heading?: string;
   content: string;
   isStreaming?: boolean;
   durationSeconds?: number;
@@ -23,6 +21,10 @@ export type AgentNarrationSegment = {
   id: string;
   content: string;
   isStreaming?: boolean;
+  /** True once the loop promotes this segment to the durable final answer
+   * (answer_finalize). Final segments render as the answer prose below the
+   * work groups — not inside the collapsible activity. */
+  isFinal?: boolean;
 };
 
 /** @deprecated Persisted v1 transcripts used `text` for narration. */
@@ -101,7 +103,6 @@ export function agentSegmentsVisuallyEqual(
     if (a.kind === "thinking" && b.kind === "thinking") {
       if (
         a.content !== b.content ||
-        a.heading !== b.heading ||
         a.isStreaming !== b.isStreaming ||
         a.durationSeconds !== b.durationSeconds ||
         a.startedAtMs !== b.startedAtMs
@@ -148,7 +149,11 @@ export function agentSegmentsVisuallyEqual(
       }
       const aResults = a.searchResults ?? [];
       const bResults = b.searchResults ?? [];
-      for (let resultIndex = 0; resultIndex < aResults.length; resultIndex += 1) {
+      for (
+        let resultIndex = 0;
+        resultIndex < aResults.length;
+        resultIndex += 1
+      ) {
         if (aResults[resultIndex]?.url !== bResults[resultIndex]?.url) {
           return false;
         }

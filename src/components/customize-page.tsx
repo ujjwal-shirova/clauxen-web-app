@@ -32,28 +32,8 @@ const TAB_OPTIONS = [
   },
 ];
 
-export function CustomizePage({
-  closeHref,
-  initialTab = null,
-}: CustomizePageProps) {
-  const { openMobileNav, isSidebarCollapsed } = useAppLayout();
-  const [activeTab, setActiveTab] = useState<"skills" | "connectors" | null>(
-    initialTab,
-  ); // null = landing; skills/connectors = child view
-  const [mobileInDetail, setMobileInDetail] = useState(false);
-
-  useDocumentTitle();
-
-  useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
-
-  useEffect(() => {
-    setMobileInDetail(false);
-  }, [activeTab]);
-
-  const ToolboxIcon = () => (
-    // inline SVG illustration — landing hero toolbox graphic
+function ToolboxIcon() {
+  return (
     <svg
       width="72"
       height="72"
@@ -84,6 +64,27 @@ export function CustomizePage({
       />
     </svg>
   );
+}
+
+export function CustomizePage({
+  closeHref,
+  initialTab = null,
+}: CustomizePageProps) {
+  const { openMobileNav, isSidebarCollapsed } = useAppLayout();
+  const [activeTab, setActiveTab] = useState<"skills" | "connectors" | null>(
+    initialTab,
+  ); // null = landing; skills/connectors = child view
+  const [mobileInDetail, setMobileInDetail] = useState(false);
+
+  useDocumentTitle();
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    setMobileInDetail(false);
+  }, [activeTab]);
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-white font-sans md:flex-row">
@@ -224,10 +225,7 @@ export function CustomizePage({
               </div>
             </div>
           ) : activeTab === "skills" ? (
-            <SkillsView
-              key="skills"
-              onMobileDetailChange={setMobileInDetail}
-            />
+            <SkillsView key="skills" onMobileDetailChange={setMobileInDetail} />
           ) : (
             <ConnectorsView
               key="connectors"

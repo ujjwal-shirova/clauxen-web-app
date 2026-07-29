@@ -157,8 +157,7 @@ export function VoiceSettingsSidebar({
                     <p className="font-medium text-zinc-900">Integrations</p>
                     <p className="text-[14px] text-zinc-500">
                       Extend the agent's capabilities.
-                    </p>{" "}
-                    // JSX UI element render
+                    </p>
                   </div>
                   <button
                     type="button"

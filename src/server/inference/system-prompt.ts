@@ -1,19 +1,13 @@
 /**
- * Single source of truth for all Clauxen system prompts.
+ * System prompts for Clauxen inference.
  *
- * Consolidates:
- * - Identity + narrow-path prompts (chat, agent, thinking, title)
- * - Platform UI streaming contracts (`<create_file>`, bash_tool display)
- * - Model-authored base prompts (virgil.md and successors)
- * - Exa web-search system prompt
- *
- * Novita prompt-cache: keep static content first via buildModelSystemPrompt().
+ * The agent base prompt lives in src/prompts/clauxen.md and is loaded through
+ * buildModelSystemPrompt(). Keep the static content first for prompt caching.
  */
 
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "node:url";
-import { buildInlineChatTitleSystemInstruction } from "@/lib/chat-title";
 import type { ConfiguredModelId } from "@/lib/model-config";
 
 // ─── Paths ───────────────────────────────────────────────────────────────────
@@ -34,102 +28,7 @@ function resolveModelPromptsDir(): string {
 
 export const MODEL_SYSTEM_PROMPTS_DIR = resolveModelPromptsDir();
 
-// ─── Identity ────────────────────────────────────────────────────────────────
-
-/** Minimal identity anchor shared by narrow (non-.md) paths. */
-export const CLAUXEN_IDENTITY =
-  "You are Clauxen, a helpful AI assistant developed by Shirova AI, an Indian Based AI research lab focused on building autonomous agents and LLMs including safe and ethical AI models which can be beneficial for the society ";
-
-// ─── Platform UI streaming (Clauxen web app) ─────────────────────────────────
-
-/**
- * Appended after the model .md base prompt. Documents UI-visible streaming
- * tags and tool presentation — not part of the upstream Virgil clone.
- */
-export const CLAUXEN_PLATFORM_UI_APPENDIX = `<clauxen_platform_ui>
-
-<conversation_continuity>
-The messages array is the full prior conversation. Treat every earlier user and assistant turn as already said and known.
-- Do NOT re-introduce yourself (name, creator, "I'm here to help…") unless the user asks who you are in the latest message.
-- Do NOT re-answer or paraphrase a previous user message you already handled.
-- Do NOT repeat paragraphs, greetings, or tool findings from your earlier assistant turns unless the user asks you to repeat them.
-- Answer ONLY the latest user message, using prior turns as context.
-</conversation_continuity>
-
-<response_channels>
-Use native Anthropic content blocks only:
-1. THINKING — private reasoning (thinking blocks). No custom XML tags.
-2. Brief progress prose — optional one short sentence before a tool call, as normal text.
-3. FINAL ANSWER — normal untagged markdown after tool work is done.
-
-Never emit custom UI tags such as \`<agent_heading>\`, \`<agent_narration>\`, \`<function_calls>\`, \`<cite>\`, or any \`sntml:\`/\`antml:\` tags. They do not render and look broken.
-</response_channels>
-
-<file_creation>
-When the user should receive a downloadable/viewable file, use the structured \`create_file\` function tool (NOT XML tags, NOT bash, NOT a separate file_write tool).
-
-Sequence:
-1. Call \`create_file\` once with \`path\`, full \`content\`, and optional \`description\` (timeline label).
-2. Stop — the platform automatically presents the file as a downloadable card. Do NOT call \`present_files\` (removed).
-
-Rules:
-- Prefer simple relative paths like \`outputs/short-story.md\`. Parent directories are created automatically.
-- Do NOT emit \`<create_file>...</create_file>\` tags in your reply — they conflict with the tool and will not persist correctly.
-- Do NOT use bash/mkdir/echo to write the same deliverable. One create_file call per deliverable.
-- To revise a file, call \`create_file\` again with the full updated content for the same path.
-- Do NOT add generator footers inside files.
-</file_creation>
-
-<table_title_tags>
-When a markdown table benefits from a caption (e.g. "Quarterly Revenue by Region"), put a \`<table_title>\` tag directly before the table, with no blank content inside it:
-
-<table_title title="Quarterly Revenue by Region"></table_title>
-| Region | Q1 | Q2 |
-|---|---|---|
-| APAC | 12.4M | 14.1M |
-| EMEA | 9.8M | 10.2M |
-
-Rules:
-- The tag must be immediately followed by the table (only whitespace/newlines in between) — text or other content between the tag and the table will break the caption.
-- \`title\` is the only attribute; keep it short (a few words), like a table caption.
-- The UI renders this as a header bar above the table with a download menu (Markdown/CSV/JSON/JSONL) — do not also restate the title as a heading or bold line right above the table.
-- Optional — plain markdown tables without this tag render normally. Use it when a table's subject isn't already obvious from the surrounding prose.
-</table_title_tags>
-
-<bash_tool_ui>
-When running shell commands, call \`bash_tool\` with \`command\` and \`description\`. The UI shows the command and live stdout/stderr in a bash execution block — do not paste duplicate command output in prose unless summarizing.
-</bash_tool_ui>
-
-<free_data_tools_ui>
-\`weather_fetch\`, \`places_search\`, and \`image_search\` all pull from free, keyless sources (Open-Meteo, OpenStreetMap Nominatim, Openverse respectively — no Google, no paid key) and already render as a rich card directly under the tool call. Do not restate their full result as a wall of numbers/links back to the user — give a short natural-language summary and let the card carry the detail.
-- \`weather_fetch\`: needs only a place name, geocodes and fetches live current + forecast data itself. Pass \`units: "imperial"\` for US locations/users, \`"metric"\` otherwise, unless the user asks for a specific unit.
-- \`places_search\`: returns name/address/coordinates only — no ratings, reviews, or photos. If the user wants opinions/reviews about a place, use \`web_search\` too.
-- \`image_search\`: returns openly-licensed (Creative Commons) illustrative photos, not authoritative/branded product photography — do not present results as official images of a specific person, product, or brand.
-</free_data_tools_ui>
-
-<tool_calling_mechanism>
-All tools are invoked through native structured function-calling only — never by writing XML/JSON tool-call markup in your visible reply.
-</tool_calling_mechanism>
-
-<citation_format>
-When citing web_search results, use this exact inline form after the claim: ([Title or Domain][N])
-- N is the 1-based \`index\` field on each result (or its position in the results array).
-- Prefer real result titles/domains from the tool payload; never invent indexes.
-- Do NOT append markdown reference-definition lines (e.g. [1]: https://…).
-</citation_format>
-
-</clauxen_platform_ui>`;
-
-// ─── Thinking / interleaved-reasoning agent ──────────────────────────────────
-
-export const THINKING_AGENT_GUIDANCE = `You are Clauxen, an autonomous AI agent with interleaved reasoning.
-
-Operate with maximum autonomy:
-- Plan multi-step workflows and chain tools proactively to fully address the user's request.
-- Emit a brief one-sentence progress note in natural prose before each tool call so the user can follow your work.
-- Prefer acting over asking. Only pause for clarification when a material assumption would change the outcome.
-- After tool results, decide yourself whether the information is sufficient or whether another step is needed.
-- When you have gathered enough information, produce a complete, well-structured final answer.`;
+const AGENT_PROMPT_FILENAME = "clauxen.md";
 
 // ─── Exa web search ──────────────────────────────────────────────────────────
 
@@ -149,100 +48,42 @@ export function buildTitleGenerationSystemPrompt(): string {
   ].join("\n");
 }
 
-// ─── Chat (plain, no tools) ──────────────────────────────────────────────────
+// ─── Agent base prompt (src/prompts/clauxen.md) ─────────────────────────────
 
-export function buildChatSystemPrompt(
-  opts: { generateChatTitle?: boolean } = {},
-): string {
-  const parts: string[] = [CLAUXEN_IDENTITY];
-  if (opts.generateChatTitle) {
-    parts.push(buildInlineChatTitleSystemInstruction());
-  }
-  return parts.join("\n\n");
-}
-
-// ─── Tool-capable / agent paths (minimal — full spec lives in model .md) ─────
-
-export function buildAgentSystemPrompt(
-  opts: { generateChatTitle?: boolean } = {},
-): string {
-  const parts: string[] = [CLAUXEN_IDENTITY];
-  if (opts.generateChatTitle) {
-    parts.push(buildInlineChatTitleSystemInstruction());
-  }
-  return parts.join("\n\n");
-}
-
-export function buildThinkingAgentSystemPrompt(): string | null {
-  return THINKING_AGENT_GUIDANCE;
-}
-
-// ─── Model .md base prompts ──────────────────────────────────────────────────
-
-const loadedModelPrompts = new Map<string, string>();
-
-function filenameForModel(model: ConfiguredModelId | string): string {
-  const key = (model || "").toLowerCase();
-  if (key === "virgil") return "virgil.md";
-  return "virgil.md";
-}
+let cachedAgentPrompt: string | null = null;
 
 function stripSystemPrefix(raw: string): string {
   return raw.replace(/^\s*System:\s*\n+/i, "").trimStart();
 }
 
-/**
- * Load the full model-specific system prompt from src/prompts/*.md.
- * Memoized for the process lifetime (static content).
- */
+/** Load the agent system prompt. Memoized for the process lifetime. */
 export function getModelSystemPrompt(
-  model: ConfiguredModelId | string,
+   
+  _model: ConfiguredModelId | string = "clauxen",
 ): string {
-  const filename = filenameForModel(model);
-  if (loadedModelPrompts.has(filename)) {
-    return loadedModelPrompts.get(filename)!;
-  }
-  const fullPath = path.join(MODEL_SYSTEM_PROMPTS_DIR, filename);
+  if (cachedAgentPrompt) return cachedAgentPrompt;
+  const fullPath = path.join(MODEL_SYSTEM_PROMPTS_DIR, AGENT_PROMPT_FILENAME);
   const raw = fs.readFileSync(fullPath, "utf8");
-  const content = stripSystemPrefix(raw);
-  loadedModelPrompts.set(filename, content);
-  return content;
+  cachedAgentPrompt = stripSystemPrefix(raw);
+  return cachedAgentPrompt;
 }
 
 /**
  * Primary system prompt for chat/agent inference.
- * Order: model .md base → platform UI appendix → optional dynamic suffix (title, etc.).
- * Keeps the large static prefix stable for Novita prompt caching.
+ * Order: agent .md base → optional dynamic suffix (title instruction, etc.).
+ * Keeps the large static prefix stable for prompt caching.
  */
 export function buildModelSystemPrompt(opts: {
   model?: ConfiguredModelId | string;
   append?: string;
-  includePlatformUi?: boolean;
 } = {}): string {
-  const includePlatformUi = opts.includePlatformUi !== false;
-  const parts: string[] = [getModelSystemPrompt(opts.model ?? "virgil")];
-
-  if (includePlatformUi) {
-    parts.push(CLAUXEN_PLATFORM_UI_APPENDIX);
-  }
+  const parts: string[] = [getModelSystemPrompt(opts.model ?? "clauxen")];
 
   if (opts.append?.trim()) {
     parts.push(opts.append.trim());
   }
 
   return parts.join("\n\n");
-}
-
-/** Prefix-cache ordering: [staticModelSystem, ...rest]. */
-export function withModelSystemPrefix<
-  T extends { role: string; content?: unknown },
->(modelSystem: string, rest: T[]): T[] {
-  const sys = { role: "system", content: modelSystem } as T;
-  if (rest.length > 0 && rest[0]?.role === "system") {
-    const [, ...tail] = rest;
-    return [sys, ...tail];
-  }
-  return [sys, ...rest];
 }
 
 // ─── Project-scoped assembly (instructions + RAG) ──────────────────────────

@@ -53,7 +53,7 @@ export function PaymentSuccessDialog({
         >
           <div className="flex flex-col items-center text-center">
             <div className="relative mb-5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {}
               <img
                 src={CLAUXEN_LOGO_SRC}
                 alt="Clauxen"
@@ -77,8 +77,8 @@ export function PaymentSuccessDialog({
               You&apos;re on {planLabel}
             </h2>
             <p className="mt-2 max-w-[32ch] text-[14px] leading-5 text-zinc-500">
-              Your plan is active. Get started with the power of Clauxen — open a
-              new chat and put your upgrade to work.
+              Your plan is active. Get started with the power of Clauxen — open
+              a new chat and put your upgrade to work.
             </p>
 
             <button

@@ -59,7 +59,12 @@ export async function createChatStream(
     ]);
 
   const titleInstr = options.generateChatTitle
-    ? "When the conversation has a clear topic, output a short title (3-6 words) for the sidebar."
+    ? [
+        "<chat_title_instruction>",
+        "EXCEPTION to the no-tags rule: when the conversation has a clear topic, begin your FIRST response of this conversation with exactly one line: <chat_title>3-6 word sidebar title</chat_title>",
+        "Then continue normally. Never emit this tag again and never mention it.",
+        "</chat_title_instruction>",
+      ].join("\n")
     : "";
 
   const followUpInstr = followUpsEnabled

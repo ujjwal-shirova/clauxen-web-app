@@ -1,8 +1,4 @@
-import {
-  createClauxenUiMessageStream,
-  encodeUiMessageStreamToBytes,
-  tapUiMessageSseStream,
-} from "@/server/inference/clauxen-ui-stream";
+import { tapUiMessageSseStream } from "@/server/inference/clauxen-ui-stream";
 import {
   buildTitlePromptPayload,
   deriveTitleFromExchange,
@@ -32,11 +28,9 @@ export type ChatStreamEvent =
   | { type: "start"; agentMode?: boolean }
   | { type: "thinking_start" }
   | { type: "thinking_delta"; delta: string; segmentId?: string }
-  | { type: "thinking_heading"; heading: string; segmentId: string }
   | { type: "thinking_end"; segmentId?: string }
   | { type: "segment_start"; segmentId: string; kind: AgentSegmentKind }
   | { type: "segment_end"; segmentId: string; kind: AgentSegmentKind }
-  | { type: "segment_remove"; segmentId: string }
   | { type: "narration_delta"; delta: string; segmentId: string }
   | { type: "answer_delta"; delta: string; segmentId?: string }
   | {
@@ -71,7 +65,7 @@ export type ChatStreamEvent =
     }
   | { type: "agent_frame_start"; frameId: string }
   | { type: "agent_frame_complete"; frameId?: string }
-  | { type: "answer_clear" }
+  | { type: "answer_finalize"; segmentId?: string; text: string }
   | { type: "chat_title"; title: string }
   | { type: "done" }
   | { type: "error"; message: string };
@@ -146,6 +140,7 @@ export function tapChatSseStream(
   source: ReadableStream<Uint8Array>,
   callbacks: {
     onAnswerDelta?: (delta: string) => void;
+    onAnswerFinalize?: (text: string) => void;
     onAnswerClear?: () => void;
     onThinkingStart?: () => void;
     onThinkingDelta?: (delta: string) => void;

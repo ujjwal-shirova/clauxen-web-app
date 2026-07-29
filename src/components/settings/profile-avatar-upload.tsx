@@ -38,7 +38,6 @@ export function UserAvatarDisplay({
       aria-hidden
     >
       {avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={avatarUrl}
           alt=""
@@ -112,7 +111,6 @@ export function ProfileAvatarUpload({
         )}
       >
         {shownUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={shownUrl}
             alt=""
@@ -130,7 +128,10 @@ export function ProfileAvatarUpload({
           )}
         >
           <Upload
-            className={cn(iconSize, "opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100")}
+            className={cn(
+              iconSize,
+              "opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100",
+            )}
             strokeWidth={2}
             aria-hidden
           />

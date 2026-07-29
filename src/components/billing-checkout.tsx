@@ -29,9 +29,7 @@ import {
 import { CheckoutBootstrapping } from "@/components/checkout-bootstrapping";
 import { CheckoutUpiQrModal } from "@/components/checkout-upi-qr-modal";
 import { canUseApplePay } from "@/lib/apple-pay";
-import {
-  openRazorpayCheckout,
-} from "@/lib/razorpay-checkout";
+import { openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import {
   isRazorpayCustomScriptReady,
   loadRazorpayCustomScript,
@@ -67,14 +65,20 @@ import {
   type SeatAssignablePlanId,
   type SeatCounts,
 } from "@/lib/plans-catalog";
-import { computeCheckoutTaxInr, type CheckoutBillingDetails } from "@/lib/checkout-tax";
+import {
+  computeCheckoutTaxInr,
+  type CheckoutBillingDetails,
+} from "@/lib/checkout-tax";
 import { isValidIndianGstin, normalizeGstin } from "@/lib/gstin";
 
 export type { MaxTier };
 
 interface BillingCheckoutProps {
   onBack: () => void;
-  onPaymentSuccess?: (details?: { razorpayPaymentId?: string; razorpayOrderId?: string }) => void;
+  onPaymentSuccess?: (details?: {
+    razorpayPaymentId?: string;
+    razorpayOrderId?: string;
+  }) => void;
   planId: string | null;
   initialBillingCycle?: BillingCycle;
   initialMaxTier?: MaxTier;
@@ -108,8 +112,7 @@ function getRenewalDate(billingCycle: BillingCycle) {
   });
 }
 
-const PAYMENT_FAILED_MESSAGE =
-  "Payment was not completed. Please try again.";
+const PAYMENT_FAILED_MESSAGE = "Payment was not completed. Please try again.";
 
 function SeatStepper({
   count,
@@ -234,9 +237,9 @@ export function BillingCheckout({
     currency: string;
   } | null>(null);
   const [prefetchedOrderReady, setPrefetchedOrderReady] = useState(false);
-  const [prefetchedOrderError, setPrefetchedOrderError] = useState<string | null>(
-    null,
-  );
+  const [prefetchedOrderError, setPrefetchedOrderError] = useState<
+    string | null
+  >(null);
   /** Bump to force a fresh prefetched order after a cancelled/failed attempt. */
   const [orderPrepKey, setOrderPrepKey] = useState(0);
   const [razorpayScriptReady, setRazorpayScriptReady] = useState(false);
@@ -372,7 +375,10 @@ export function BillingCheckout({
   ]);
 
   useEffect(() => {
-    if (initialCheckoutSessionId?.startsWith("cs_live_") && !needsSessionRemint) {
+    if (
+      initialCheckoutSessionId?.startsWith("cs_live_") &&
+      !needsSessionRemint
+    ) {
       syncCheckoutUrl(`/checkout/shirova/${initialCheckoutSessionId}`);
     }
   }, [initialCheckoutSessionId, needsSessionRemint, syncCheckoutUrl]);
@@ -441,9 +447,12 @@ export function BillingCheckout({
     syncCheckoutUrl,
   ]);
 
-  const handleCardFieldsChange = useCallback((state: CheckoutCardFieldState) => {
-    setCardFields(state);
-  }, []);
+  const handleCardFieldsChange = useCallback(
+    (state: CheckoutCardFieldState) => {
+      setCardFields(state);
+    },
+    [],
+  );
 
   const handleNetbankingFieldsChange = useCallback(
     (state: CheckoutNetbankingFieldState) => {
@@ -660,7 +669,8 @@ export function BillingCheckout({
       try {
         if (publicKey) {
           void warmRazorpayCustomCheckout(publicKey).then((ok) => {
-            if (ok || isRazorpayCustomScriptReady()) setRazorpayScriptReady(true);
+            if (ok || isRazorpayCustomScriptReady())
+              setRazorpayScriptReady(true);
           });
         } else {
           void loadRazorpayCustomScript().then((ok) => {
@@ -810,7 +820,6 @@ export function BillingCheckout({
       cancelled = true;
     };
     // checkoutSessionId intentionally omitted — fingerprint + lastSessionFingerprint gate remints.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
   }, [
     sessionFingerprint,
     activePlanId,
@@ -860,9 +869,7 @@ export function BillingCheckout({
         // Transient network/5xx: keep polling. Hard failures after retries stop.
         const status = error instanceof ApiError ? error.status : 0;
         const hardFail =
-          status === 400 ||
-          status === 404 ||
-          consecutiveErrors >= 8;
+          status === 400 || status === 404 || consecutiveErrors >= 8;
         if (hardFail) {
           cancelled = true;
           setUpiModalOpen(false);
@@ -939,7 +946,9 @@ export function BillingCheckout({
 
   const tax = taxResult.taxInr;
   const total = subtotal + tax;
-  const renewalDate = getRenewalDate(isMaxPlan ? "monthly" : effectiveBillingCycle);
+  const renewalDate = getRenewalDate(
+    isMaxPlan ? "monthly" : effectiveBillingCycle,
+  );
 
   const billingFormValid =
     (!purchasingAsBusiness ||
@@ -984,7 +993,11 @@ export function BillingCheckout({
       if (prefetchedOrderError) {
         return prefetchedOrderError;
       }
-      if (!prefetchedOrderReady || !razorpayScriptReady || !isRazorpayCustomScriptReady()) {
+      if (
+        !prefetchedOrderReady ||
+        !razorpayScriptReady ||
+        !isRazorpayCustomScriptReady()
+      ) {
         return "Preparing secure bank payment…";
       }
       return null;
@@ -1037,10 +1050,7 @@ export function BillingCheckout({
       ? "/month"
       : "/year";
 
-  const handleSeatChange = (
-    seatId: SeatAssignablePlanId,
-    delta: 1 | -1,
-  ) => {
+  const handleSeatChange = (seatId: SeatAssignablePlanId, delta: 1 | -1) => {
     setSeatCounts((prev) => {
       const next = { ...prev, [seatId]: Math.max(0, prev[seatId] + delta) };
       return next;
@@ -1052,7 +1062,7 @@ export function BillingCheckout({
     options?: { walletExpress?: boolean },
   ) => {
     const tab = paymentTabOverride ?? paymentTab;
-        const fieldsValid =
+    const fieldsValid =
       billingAddress.isComplete &&
       Boolean(paymentContact) &&
       (options?.walletExpress ||
@@ -1087,11 +1097,14 @@ export function BillingCheckout({
     /** Keep Pay spinner up through 3DS / bank OTP when createPayment is sync. */
     let releasePayingInFinally = true;
 
-    const verifyAndActivate = async (payment: {
-      razorpay_order_id: string;
-      razorpay_payment_id: string;
-      razorpay_signature: string;
-    }, cardFirst4?: string) => {
+    const verifyAndActivate = async (
+      payment: {
+        razorpay_order_id: string;
+        razorpay_payment_id: string;
+        razorpay_signature: string;
+      },
+      cardFirst4?: string,
+    ) => {
       let lastError: unknown;
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
@@ -1147,8 +1160,7 @@ export function BillingCheckout({
           throw new Error("UPI QR could not be generated.");
         }
         setUpiCloseBy(
-          checkout.upi.closeBy ??
-            Math.floor(Date.now() / 1000) + 20 * 60,
+          checkout.upi.closeBy ?? Math.floor(Date.now() / 1000) + 20 * 60,
         );
         // Prefer inline clean PNG (upi://) — skip branded Razorpay image_url card.
         setUpiQrImageUrl(
@@ -1419,7 +1431,9 @@ export function BillingCheckout({
           effectiveBillingCycle === "yearly"
             ? "border-zinc-900 bg-zinc-900 text-white"
             : "border-zinc-200 bg-[var(--app-panel-bg)] hover:border-zinc-300",
-          orgPlan && !orgPlan.yearlySupported && "cursor-not-allowed opacity-50",
+          orgPlan &&
+            !orgPlan.yearlySupported &&
+            "cursor-not-allowed opacity-50",
         )}
       >
         <div className="mb-3 flex w-full items-center justify-between">
@@ -1607,7 +1621,8 @@ export function BillingCheckout({
             )}
             {(() => {
               const display = getOrganizationSeatDisplayPrice(
-                orgPlan.bundleSeatMonthlyInr ?? BUSINESS_WORKSPACE_SEAT_MONTHLY_INR,
+                orgPlan.bundleSeatMonthlyInr ??
+                  BUSINESS_WORKSPACE_SEAT_MONTHLY_INR,
                 effectiveBillingCycle,
                 orgPlan.yearlySupported,
               );
@@ -1629,11 +1644,11 @@ export function BillingCheckout({
           count={bundleSeatCount}
           canDecrement={bundleSeatCount > minSeats}
           canIncrement={bundleSeatCount < (orgPlan.maxSeats ?? 500)}
-          onDecrement={() => setBundleSeatCount((n) => Math.max(minSeats, n - 1))}
+          onDecrement={() =>
+            setBundleSeatCount((n) => Math.max(minSeats, n - 1))
+          }
           onIncrement={() =>
-            setBundleSeatCount((n) =>
-              Math.min(orgPlan.maxSeats ?? 500, n + 1),
-            )
+            setBundleSeatCount((n) => Math.min(orgPlan.maxSeats ?? 500, n + 1))
           }
         />
       </div>
@@ -1728,10 +1743,7 @@ export function BillingCheckout({
   ]);
 
   const checkoutReady =
-    !auth.loading &&
-    sessionReminted &&
-    Boolean(checkoutSessionId) &&
-    ready;
+    !auth.loading && sessionReminted && Boolean(checkoutSessionId) && ready;
 
   if (!checkoutReady) {
     const bootMessage = auth.loading
@@ -1831,9 +1843,7 @@ export function BillingCheckout({
                 <div className="flex items-center justify-between font-semibold text-zinc-900">
                   <span>Total due today</span>
                   <span>
-                    {isVariableCheckoutPlan
-                      ? formatInr(0)
-                      : formatInr(total)}
+                    {isVariableCheckoutPlan ? formatInr(0) : formatInr(total)}
                   </span>
                 </div>
               </div>

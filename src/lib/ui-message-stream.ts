@@ -1,8 +1,28 @@
-import type {
-  ClauxenToolStreamOutput,
-  ClauxenUIDataParts,
-} from "@/lib/clauxen-ui-message";
 import type { StreamEvent } from "@/lib/chat-stream";
+
+/** Preliminary bash stdout/stderr frame carried on tool-output-available. */
+type ClauxenToolStreamOutput = {
+  clauxenStream: "stdout" | "stderr";
+  delta: string;
+};
+
+/** Custom data-* payload shapes the legacy UI-message adapter understands. */
+type ClauxenUIDataParts = {
+  "agent-mode": { enabled: boolean };
+  artifact: {
+    artifactId: string;
+    path: string;
+    content: string;
+    language?: string;
+    description?: string;
+  };
+  "tool-data": { toolCallId: string; data: Record<string, unknown> };
+  "step-done": { label?: string };
+  "agent-frame": { complete: boolean; frameId?: string };
+  "agent-interim": { text: string };
+  "chat-title": { title: string };
+  "answer-clear": Record<string, never>;
+};
 
 /**
  * Minimal local replacement for the Vercel AI SDK's `UIMessageChunk` type.
@@ -14,10 +34,26 @@ type UIMessageChunk =
   | { type: "reasoning-delta"; delta: string }
   | { type: "reasoning-end"; id: string }
   | { type: "text-delta"; delta: string }
-  | { type: "tool-input-start"; toolCallId: string; toolName: string; title?: string }
+  | {
+      type: "tool-input-start";
+      toolCallId: string;
+      toolName: string;
+      title?: string;
+    }
   | { type: "tool-input-delta"; toolCallId: string; inputTextDelta: string }
-  | { type: "tool-input-available"; toolCallId: string; toolName: string; input?: unknown; title?: string }
-  | { type: "tool-output-available"; toolCallId: string; output?: unknown; preliminary?: boolean }
+  | {
+      type: "tool-input-available";
+      toolCallId: string;
+      toolName: string;
+      input?: unknown;
+      title?: string;
+    }
+  | {
+      type: "tool-output-available";
+      toolCallId: string;
+      output?: unknown;
+      preliminary?: boolean;
+    }
   | { type: "error"; errorText: string }
   | { type: "finish" };
 
@@ -86,9 +122,7 @@ export function uiMessageChunkToStreamEvents(
       ];
     case "reasoning-end":
       state.reasoningOpen = false;
-      return [
-        { type: "thinking_end", segmentId: chunk.id },
-      ];
+      return [{ type: "thinking_end", segmentId: chunk.id }];
     case "text-delta":
       return [{ type: "answer_delta", delta: chunk.delta }];
     case "tool-input-start":
@@ -210,16 +244,10 @@ export function uiMessageChunkToStreamEvents(
       }
       return [];
     }
-    case "data-agent-interim": {
-      const data = chunk.data as ClauxenUIDataParts["agent-interim"];
-      return [{ type: "agent_interim", text: data.text }];
-    }
     case "data-chat-title": {
       const data = chunk.data as ClauxenUIDataParts["chat-title"];
       return [{ type: "chat_title", title: data.title }];
     }
-    case "data-answer-clear":
-      return [{ type: "answer_clear" }];
     case "error":
       return [{ type: "error", message: chunk.errorText }];
     case "finish":
@@ -276,9 +304,9 @@ export async function consumeClauxenStreamResponse(
       reader.releaseLock();
     }
     if (!streamComplete && !signal?.aborted) {
-      // Soft-complete on premature close (proxy idle cuts) instead of wiping
-      // a live answer with a hard connection-lost error.
-      onEvent({ type: "done" });
+      // Premature close (proxy idle cut) must surface as an error — silently
+      // emitting `done` would present a truncated answer as complete.
+      throw new Error("Stream ended before completion");
     }
     return;
   }

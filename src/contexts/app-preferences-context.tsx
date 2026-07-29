@@ -91,7 +91,6 @@ function PreferencesInner({ children }: { children: ReactNode }) {
     const local = buildGeneralFromLocal();
     setGeneral(local);
     applyGeneralToDom(local);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only hydrate
   }, []);
 
   // Keep System motion in sync with OS preference changes.
@@ -151,7 +150,7 @@ function PreferencesInner({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (authLoading) return;
     void refresh({ quiet: ready });
-  }, [authLoading, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional first-load + user change
+  }, [authLoading, user?.id]);
 
   const updateGeneral = useCallback(
     (patch: Partial<GeneralSettings>) => {

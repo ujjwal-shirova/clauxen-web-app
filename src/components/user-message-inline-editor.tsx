@@ -29,9 +29,7 @@ function messageToComposerAttachments(
     kind: item.kind,
     previewUrl:
       item.previewUrl ||
-      (item.fileId
-        ? `/api/v1/files/${item.fileId}/url?redirect=1`
-        : ""),
+      (item.fileId ? `/api/v1/files/${item.fileId}/url?redirect=1` : ""),
     fileId: item.fileId,
     textPreview: item.textPreview,
     uploadStatus: item.fileId ? "ready" : "local",
@@ -78,8 +76,7 @@ export function UserMessageInlineEditor({
   const chunksRef = React.useRef<Blob[]>([]);
 
   const maxHeightPx = MAX_EDIT_LINES * EDIT_LINE_HEIGHT_PX;
-  const canSubmit =
-    Boolean(value.trim()) || attachments.length > 0;
+  const canSubmit = Boolean(value.trim()) || attachments.length > 0;
 
   const resizeTextarea = React.useCallback(() => {
     const textarea = textareaRef.current;
@@ -121,7 +118,6 @@ export function UserMessageInlineEditor({
       }
     };
     // Only on unmount — intentional.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const maybeCancelIfEmpty = React.useCallback(
@@ -155,7 +151,9 @@ export function UserMessageInlineEditor({
     for (const file of files) {
       const kind = classifyComposerFile(file);
       if (!kind) {
-        setAttachmentError(`"${file.name}" is not a supported attachment type.`);
+        setAttachmentError(
+          `"${file.name}" is not a supported attachment type.`,
+        );
         continue;
       }
       const id = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -265,7 +263,10 @@ export function UserMessageInlineEditor({
     if (disabled || isSubmitting || !canSubmit) return;
     setIsSubmitting(true);
     try {
-      await onSubmit(value, attachments.map((item) => ({ ...item })));
+      await onSubmit(
+        value,
+        attachments.map((item) => ({ ...item })),
+      );
     } finally {
       setIsSubmitting(false);
     }

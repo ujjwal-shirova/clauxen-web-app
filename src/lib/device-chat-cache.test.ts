@@ -36,7 +36,7 @@ describe("device-chat-cache", () => {
     };
     const prevWindow = g.window;
     const prevStorage = g.localStorage;
-    g.window = g;
+    g.window = g as unknown as Window & typeof globalThis;
     g.localStorage = {
       getItem: (k: string) => store.get(k) ?? null,
       setItem: (k: string, v: string) => {

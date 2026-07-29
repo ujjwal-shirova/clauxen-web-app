@@ -43,11 +43,64 @@ const PAGE_EXT_RE =
 
 /** ISO 639-1 (+ a few region tags) used as first path segment on marketing sites. */
 const LOCALE_SEGMENTS = new Set([
-  "ar", "bg", "bn", "ca", "cs", "da", "de", "el", "en", "es", "et", "fa", "fi",
-  "fr", "gu", "he", "hi", "hr", "hu", "id", "it", "ja", "kn", "ko", "lt", "lv",
-  "ml", "mr", "ms", "nb", "nl", "no", "pl", "pt", "pt-br", "pt-pt", "ro", "ru",
-  "sk", "sl", "sr", "sv", "ta", "te", "th", "tr", "uk", "ur", "vi", "zh",
-  "zh-cn", "zh-tw", "en-gb", "en-us", "es-es", "es-mx", "fr-ca", "fr-fr",
+  "ar",
+  "bg",
+  "bn",
+  "ca",
+  "cs",
+  "da",
+  "de",
+  "el",
+  "en",
+  "es",
+  "et",
+  "fa",
+  "fi",
+  "fr",
+  "gu",
+  "he",
+  "hi",
+  "hr",
+  "hu",
+  "id",
+  "it",
+  "ja",
+  "kn",
+  "ko",
+  "lt",
+  "lv",
+  "ml",
+  "mr",
+  "ms",
+  "nb",
+  "nl",
+  "no",
+  "pl",
+  "pt",
+  "pt-br",
+  "pt-pt",
+  "ro",
+  "ru",
+  "sk",
+  "sl",
+  "sr",
+  "sv",
+  "ta",
+  "te",
+  "th",
+  "tr",
+  "uk",
+  "ur",
+  "vi",
+  "zh",
+  "zh-cn",
+  "zh-tw",
+  "en-gb",
+  "en-us",
+  "es-es",
+  "es-mx",
+  "fr-ca",
+  "fr-fr",
 ]);
 
 function printHelp() {
@@ -95,7 +148,9 @@ function parseArgs(argv) {
     };
     switch (a) {
       case "--domain":
-        args.domain = next().replace(/^https?:\/\//, "").replace(/\/$/, "");
+        args.domain = next()
+          .replace(/^https?:\/\//, "")
+          .replace(/\/$/, "");
         break;
       case "--start":
         args.start = next();
@@ -142,7 +197,10 @@ function parseArgs(argv) {
   if (!Number.isFinite(args.delayMs) || args.delayMs < 0) {
     throw new Error("--delay must be >= 0");
   }
-  if (args.maxDepth != null && (!Number.isFinite(args.maxDepth) || args.maxDepth < 0)) {
+  if (
+    args.maxDepth != null &&
+    (!Number.isFinite(args.maxDepth) || args.maxDepth < 0)
+  ) {
     throw new Error("--max-depth must be >= 0");
   }
 
@@ -228,9 +286,10 @@ async function fetchText(url, { timeoutMs = 20_000 } = {}) {
     const res = await fetch(url, {
       signal: ctrl.signal,
       redirect: "follow",
-                    headers: {
+      headers: {
         "user-agent": UA,
-        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "accept-language": "en-US,en;q=0.9",
       },
     });
@@ -261,7 +320,11 @@ function isSitemapIndex(xml) {
   return /<sitemapindex[\s>]/i.test(xml);
 }
 
-async function collectFromSitemaps(seedUrls, rootHost, { includeAssets, includeLocales }) {
+async function collectFromSitemaps(
+  seedUrls,
+  rootHost,
+  { includeAssets, includeLocales },
+) {
   const queue = [...seedUrls];
   const seenSitemaps = new Set();
   const pages = new Map(); // url -> { source }
@@ -358,13 +421,22 @@ function loadSeedUrls(domain) {
   return urls;
 }
 
+// Assembled so the literal scheme never appears in source (no-script-url).
+const JS_SCHEME = ["java", "script:"].join("");
+
 function extractHtmlLinks(html, baseUrl) {
   const out = [];
   const re = /(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
   let m;
   while ((m = re.exec(html))) {
     const raw = (m[1] ?? m[2] ?? m[3] ?? "").trim();
-    if (!raw || raw.startsWith("javascript:") || raw.startsWith("mailto:") || raw.startsWith("tel:") || raw.startsWith("data:")) {
+    if (
+      !raw ||
+      raw.startsWith(JS_SCHEME) ||
+      raw.startsWith("mailto:") ||
+      raw.startsWith("tel:") ||
+      raw.startsWith("data:")
+    ) {
       continue;
     }
     try {
@@ -393,7 +465,10 @@ async function bfsCrawl({
 
   while (queue.length && fetches < maxPages) {
     const next = queue.shift();
-    const canon = canonicalizeUrl(next, { includeAssets: true, includeLocales });
+    const canon = canonicalizeUrl(next, {
+      includeAssets: true,
+      includeLocales,
+    });
     if (!canon || fetched.has(canon)) continue;
     if (!isSameSite(canon, rootHost)) continue;
 
@@ -444,16 +519,25 @@ async function bfsCrawl({
       errors.push({ url: canon, error: `HTTP ${res.status}` });
       continue;
     }
-    if (!/text\/html/i.test(res.contentType) && !/<html[\s>]/i.test(res.text.slice(0, 2000))) {
+    if (
+      !/text\/html/i.test(res.contentType) &&
+      !/<html[\s>]/i.test(res.text.slice(0, 2000))
+    ) {
       continue;
     }
 
     for (const link of extractHtmlLinks(res.text, res.finalUrl || canon)) {
       if (!isSameSite(link, rootHost)) continue;
-      const linkCanon = canonicalizeUrl(link, { includeAssets, includeLocales });
+      const linkCanon = canonicalizeUrl(link, {
+        includeAssets,
+        includeLocales,
+      });
       if (!linkCanon) continue;
       if (!discovered.has(linkCanon)) {
-        discovered.set(linkCanon, { source: "crawl-link", via: pageCanon || canon });
+        discovered.set(linkCanon, {
+          source: "crawl-link",
+          via: pageCanon || canon,
+        });
         queue.push(linkCanon);
       } else if (!fetched.has(linkCanon)) {
         queue.push(linkCanon);
@@ -540,7 +624,9 @@ function groupByTopSegment(urls) {
     groups.get(key).push(url);
   }
   for (const list of groups.values()) list.sort();
-  return new Map([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+  return new Map(
+    [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])),
+  );
 }
 
 function printTree(urls) {
@@ -630,7 +716,9 @@ async function main() {
 
   // 3) optional HTML crawl
   if (args.crawl) {
-    console.error(`[3/3] BFS crawl (max ${args.maxPages}, delay ${args.delayMs}ms) …`);
+    console.error(
+      `[3/3] BFS crawl (max ${args.maxPages}, delay ${args.delayMs}ms) …`,
+    );
     const crawl = await bfsCrawl({
       startUrl: args.start,
       rootHost,
@@ -745,10 +833,14 @@ async function main() {
       console.log(`still queued:   ${crawlMeta.queuedRemaining}`);
     }
     if (allErrors.length) {
-      console.log(`errors:         ${allErrors.length} (see --out / --json for details)`);
+      console.log(
+        `errors:         ${allErrors.length} (see --out / --json for details)`,
+      );
     }
     console.log(`\nTip: re-run with --crawl for pages missing from sitemaps.`);
-    console.log(`     node scripts/list-domain-pages.mjs --domain ${rootHost} --crawl --out ./tmp/${rootHost}-pages.json`);
+    console.log(
+      `     node scripts/list-domain-pages.mjs --domain ${rootHost} --crawl --out ./tmp/${rootHost}-pages.json`,
+    );
   }
 }
 

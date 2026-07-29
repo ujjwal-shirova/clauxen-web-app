@@ -1,1031 +1,1163 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
-import React from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  LoaderCircle,
-  Check,
-  Copy,
-  ExternalLink,
-  ArrowUp,
-  Plus,
-  Calendar,
+  ChevronRight,
   MapPin,
-  Star,
-  Sparkles,
-  Sun,
-  Moon,
-  Cloud,
-  CloudSun,
-  CloudMoon,
-  CloudFog,
-  CloudDrizzle,
-  CloudRain,
-  CloudSnow,
-  CloudLightning,
-  Droplets,
-  Wind,
-  Compass,
-  ShieldAlert,
-  Award,
-  Image as ImageIcon,
+  Terminal,
+  FileCode2,
+  BookOpen,
+  FileText,
+  Plug,
 } from "lucide-react";
+import type { AgentToolSegment, WebSearchResult } from "@/lib/agent-segments";
+import { domainFromUrl } from "@/lib/agent-segments";
 import { cn } from "@/lib/utils";
-import {
-  domainFromUrl,
-  type AgentToolSegment,
-  type WebSearchResult,
-} from "@/lib/agent-segments";
-import { AgentToolCard } from "./agent-tool-card";
-import { AgentFileBlock, PresentFilesBlock } from "./agent-file-block";
-import { HighlightCode } from "@/lib/syntax-highlight";
-import { StreamingTextFade } from "@/lib/streaming-text-fade";
+import { AgentFileBlock } from "./agent-file-block";
+import { AgentTraceBlock, AgentShimmerText } from "./agent-trace";
 
-/** Shimmer / live label only while this specific tool is running. */
-function toolIsLive(tool: AgentToolSegment): boolean {
-  return tool.status === "running";
+function CodePane({
+  children,
+  tone = "default",
+}: {
+  children: string;
+  tone?: "default" | "error";
+}) {
+  return (
+    <pre
+      className={cn(
+        "max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md border px-2.5 py-2 font-mono text-[11.5px] leading-5",
+        tone === "error"
+          ? "border-rose-200/80 bg-rose-50/60 text-rose-600"
+          : "border-zinc-200/80 bg-zinc-50/80 text-zinc-700",
+      )}
+    >
+      {children}
+    </pre>
+  );
 }
 
-function SearchResultFavicon({
-  url,
-  size = "sm",
-}: {
-  url: string;
-  size?: "sm" | "md";
-}) {
-  const [failed, setFailed] = useState(false);
-  const domain = domainFromUrl(url);
-  const dim = size === "md" ? "h-5 w-5" : "h-4 w-4";
-  const text = size === "md" ? "text-[10px]" : "text-[9px]";
+function formatCountdown(expiryIso: string | undefined): string {
+  if (!expiryIso) return "";
+  const ms = new Date(expiryIso).getTime() - Date.now();
+  if (ms <= 0) return "expired";
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m left`;
+  if (minutes > 0) return `${minutes}m ${seconds}s left`;
+  return `${seconds}s left`;
+}
 
-  if (failed) {
-    return (
-      <div
+function addMinutesToTime(timeIso: string, minutes: number): string {
+  const d = new Date(timeIso);
+  d.setMinutes(d.getMinutes() + minutes);
+  return d.toISOString();
+}
+
+function tryParseJson(text: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/** A labelled sub-panel inside a tool body — the input/output division. */
+function ToolArea({
+  label,
+  error,
+  children,
+  defaultOpen = false,
+  mono = false,
+}: {
+  label: string;
+  error?: boolean;
+  children: ReactNode;
+  defaultOpen?: boolean;
+  mono?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className={cn("border-t border-zinc-200/70 first:border-t-0")}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-full bg-zinc-100 font-semibold uppercase text-zinc-500",
-          dim,
-          text,
+          "flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-[10.5px] font-medium uppercase tracking-[0.06em]",
+          error ? "text-rose-500" : "text-zinc-400",
+          "hover:text-zinc-600 transition-colors",
         )}
       >
-        {domain.slice(0, 1)}
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`}
-      alt=""
-      className={cn(
-        "shrink-0 rounded-full bg-zinc-100 object-cover ring-1 ring-white",
-        dim,
-      )}
-      onError={() => setFailed(true)}
-      loading="lazy"
-      decoding="async"
-    />
-  );
-}
-
-function SearchResultRow({
-  result,
-  index,
-}: {
-  result: WebSearchResult;
-  index: number;
-}) {
-  const domain = domainFromUrl(result.url);
-  return (
-    <a
-      href={result.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-2.5 py-1.5 transition-colors hover:bg-transparent animate-in fade-in duration-200"
-      style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
-    >
-      <SearchResultFavicon url={result.url} />
-      <span className="min-w-0 flex-1 truncate text-[13px] font-[430] leading-5 text-zinc-800">
-        {result.title || result.url}
-      </span>
-      <span className="max-w-[40%] shrink-0 truncate text-right text-[12px] leading-5 text-zinc-400">
-        {domain}
-      </span>
-    </a>
-  );
-}
-
-export function AgentWebSearchBlock({
-  tool,
-}: {
-  tool: AgentToolSegment;
-}) {
-  const query =
-    tool.searchQuery ??
-    (typeof tool.args?.query === "string"
-      ? tool.args.query
-      : typeof tool.args?.url === "string"
-        ? tool.args.url
-        : tool.name.replace(/_/g, " "));
-  const results = tool.searchResults ?? [];
-  const isRunning = tool.status === "running";
-  const isLive = toolIsLive(tool);
-  const [visibleCount, setVisibleCount] = useState(() =>
-    tool.status === "running" ? 0 : results.length,
-  );
-  const prevLengthRef = useRef(results.length);
-
-  useEffect(() => {
-    if (results.length === 0) {
-      setVisibleCount(0);
-      prevLengthRef.current = 0;
-      return;
-    }
-
-    if (results.length < prevLengthRef.current) {
-      setVisibleCount(results.length);
-      prevLengthRef.current = results.length;
-      return;
-    }
-
-    if (visibleCount >= results.length) {
-      prevLengthRef.current = results.length;
-      return;
-    }
-
-    const delay = visibleCount === 0 ? 0 : 90;
-    const timer = window.setTimeout(() => {
-      setVisibleCount((count) => Math.min(count + 1, results.length));
-    }, delay);
-
-    return () => window.clearTimeout(timer);
-  }, [results.length, visibleCount, results]);
-
-  useEffect(() => {
-    if (!isRunning && results.length > 0) {
-      setVisibleCount(results.length);
-    }
-  }, [isRunning, results.length]);
-
-  const visibleResults = results.slice(0, visibleCount);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const showResultsContainer = isRunning || visibleResults.length > 0;
-  const previewIcons = results.slice(0, 3);
-
-  return (
-    <AgentToolCard
-      label={
-        isLive
-          ? query || "Searching the web"
-          : results.length > 0
-            ? `${query} ${results.length} results`
-            : query || "Searched the web"
-      }
-      leading={
-        previewIcons.length > 0 ? (
-          <span className="inline-flex items-center -space-x-1.5 pr-0.5">
-            {previewIcons.map((result) => (
-              <SearchResultFavicon
-                key={result.url}
-                url={result.url}
-                size="md"
-              />
-            ))}
-          </span>
-        ) : null
-      }
-      isRunning={isLive}
-      defaultExpanded={false}
-    >
-      {showResultsContainer ? (
+        <ChevronRight
+          className={cn(
+            "h-3 w-3 shrink-0 transition-transform duration-200",
+            open && "rotate-90",
+          )}
+        />
+        {label}
+      </button>
+      {open ? (
         <div
-          ref={scrollRef}
-          className="agent-thinking__card app-scrollbar flex max-h-[16rem] min-h-0 flex-col overflow-y-auto overscroll-y-contain rounded-2xl border border-zinc-200/80 bg-white px-3.5 py-2"
+          className={cn(
+            "max-h-72 overflow-y-auto px-3 pb-2.5",
+            mono && "font-mono text-[11.5px] leading-5",
+          )}
         >
-          {visibleResults.slice(0, 10).map((result, index) => (
-            <SearchResultRow
-              key={result.url}
-              result={result}
-              index={index}
-            />
-          ))}
-          {isRunning && visibleResults.length === 0 ? (
-            <div
-              className="py-2 text-[12px] text-zinc-400 shimmer-text"
-              data-shimmer-active="true"
-            >
-              Searching…
-            </div>
-          ) : null}
+          {children}
         </div>
       ) : null}
-    </AgentToolCard>
+    </div>
   );
 }
 
-/** Autoscrolls a growing <pre>/code area to its latest line, same pattern as
- * AgentThinkingPhase / AgentWebSearchBlock's result list. */
-function useAutoScrollToBottom(dep: unknown) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!ref.current) return;
-    ref.current.scrollTop = ref.current.scrollHeight;
-  }, [dep]);
-  return ref;
+function ToolBody({ children }: { children: ReactNode }) {
+  return (
+    <div className="w-full overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
+      {children}
+    </div>
+  );
 }
 
-export function AgentBashToolBlock({
-  tool,
-}: {
-  tool: AgentToolSegment;
-}) {
+/* ─────────────────────────── bash_tool ─────────────────────────── */
+
+function extractExitCode(tool: AgentToolSegment): {
+  code: number | null;
+  stderr: string;
+} {
+  const parsed = tool.result ? tryParseJson(tool.result) : null;
+  const code =
+    parsed && typeof parsed.exitCode === "number"
+      ? parsed.exitCode
+      : parsed && typeof parsed.exit_code === "number"
+        ? parsed.exit_code
+        : null;
+  const stderr =
+    tool.stderr ??
+    (parsed && typeof parsed.stderr === "string" ? parsed.stderr : "");
+  return { code, stderr };
+}
+
+export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const isError = tool.status === "error";
   const command =
     typeof tool.args?.command === "string" ? tool.args.command : "";
   const description =
-    tool.description ??
-    (typeof tool.args?.description === "string"
-      ? tool.args.description
-      : "Running a command");
+    typeof tool.args?.description === "string" ? tool.args.description : "";
+  const { code, stderr } = extractExitCode(tool);
+  const stdout = tool.stdout ?? "";
+  const hasOutput = Boolean(stdout.trim() || stderr.trim());
+  const failed = isError || (code !== null && code !== 0);
+
+  const headerText = description.trim()
+    ? description.trim()
+    : isRunning
+      ? "Running command…"
+      : "Ran command";
+
+  return (
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title={
+          isRunning ? (
+            <AgentShimmerText key={`bash-live-${tool.toolCallId}`} active>
+              {headerText}
+            </AgentShimmerText>
+          ) : failed ? (
+            <span className="text-rose-500">{headerText}</span>
+          ) : (
+            headerText
+          )
+        }
+        trailing={
+          !isRunning && code !== null ? (
+            <span
+              className={cn(
+                "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
+                failed
+                  ? "border-rose-200 bg-rose-50 text-rose-600"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-500",
+              )}
+            >
+              exit {code}
+            </span>
+          ) : undefined
+        }
+        isActive={isRunning}
+        defaultExpanded
+        showChevron
+        className="agent-bash-block"
+        headerClassName="agent-bash-block__header"
+        contentClassName="agent-bash-block__body"
+      >
+        <ToolBody>
+          <div className="px-3 pt-2.5 pb-1">
+            <div className="flex items-center gap-1.5 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400">
+              <Terminal className="h-3 w-3" />
+              Command
+            </div>
+            <CodePane>{command}</CodePane>
+          </div>
+          {hasOutput || isRunning ? (
+            <div className="px-3 pb-2.5">
+              <div className="flex items-center gap-1.5 pt-1 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400">
+                <ChevronRight className="h-3 w-3" />
+                Output
+              </div>
+              {stdout.trim() ? <CodePane>{stdout}</CodePane> : null}
+              {stderr.trim() ? (
+                <div className="mt-1.5">
+                  <CodePane tone="error">{stderr}</CodePane>
+                </div>
+              ) : null}
+              {isRunning && !stdout.trim() && !stderr.trim() ? (
+                <p className="text-[11.5px] italic text-zinc-400">
+                  Waiting for output…
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </ToolBody>
+      </AgentTraceBlock>
+    </div>
+  );
+}
+
+/* ─────────────────────────── execute_code ──────────────────────── */
+
+export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const isError = tool.status === "error";
+  const code = typeof tool.args?.code === "string" ? tool.args.code : "";
+  const description =
+    typeof tool.args?.description === "string" ? tool.args.description : "";
   const stdout = tool.stdout ?? "";
   const stderr = tool.stderr ?? "";
-  const isRunning = tool.status === "running";
-  const isLive = toolIsLive(tool);
-  // Two sub-phases while status is "running": the model is still typing the
-  // command (argsComplete === false, sandbox not touched yet), or the full
-  // command is finalized and it has actually been sent to the sandbox. Only
-  // the second phase shows the Output panel — matches the reference flow of
-  // "write the command, then run it, then show the result".
-  const isTyping = isRunning && tool.argsComplete === false;
-  const isExecuting = isRunning && !isTyping;
-  const output =
-    stdout || stderr || (tool.status === "done" ? tool.result ?? "" : "");
+  const parsed = tool.result ? tryParseJson(tool.result) : null;
+  const resultStdout =
+    stdout ||
+    (parsed && typeof parsed.stdout === "string" ? parsed.stdout : "");
+  const resultStderr =
+    stderr ||
+    (parsed && typeof parsed.stderr === "string" ? parsed.stderr : "");
+  const hasOutput = Boolean(resultStdout.trim() || resultStderr.trim());
 
-  const commandScrollRef = useAutoScrollToBottom(command);
-  const outputScrollRef = useAutoScrollToBottom(output);
+  const headerText = description.trim()
+    ? description.trim()
+    : isRunning
+      ? "Running code…"
+      : "Ran code";
 
   return (
-    <AgentToolCard
-      label={
-        isLive
-          ? isTyping
-            ? description || "Writing command"
-            : description || "Running command"
-          : description || "Ran command"
-      }
-      isRunning={isRunning}
-      defaultExpanded={false}
-    >
-      <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.03)]">
-        <div className="border-b border-zinc-100 bg-[#f4f4f5] px-3 py-2.5">
-          <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-            bash
-          </div>
-          <div ref={commandScrollRef} className="max-h-40 overflow-auto">
-            <HighlightCode
-              code={command}
-              language="bash"
-              showLineNumbers={false}
-            />
-          </div>
-        </div>
-        {isExecuting || tool.status === "done" || tool.status === "error" ? (
-          <div className="bg-[#f4f4f5] px-3 py-2.5">
-            <div className="mb-1.5 text-[12px] font-semibold text-zinc-700">
-              Output
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title={
+          isRunning ? (
+            <AgentShimmerText key={`exec-live-${tool.toolCallId}`} active>
+              {headerText}
+            </AgentShimmerText>
+          ) : isError ? (
+            <span className="text-rose-500">{headerText}</span>
+          ) : (
+            headerText
+          )
+        }
+        isActive={isRunning}
+        defaultExpanded
+        showChevron
+        className="agent-execute-code-block"
+        headerClassName="agent-execute-code-block__header"
+        contentClassName="agent-execute-code-block__body"
+      >
+        <ToolBody>
+          {code ? (
+            <div className="px-3 pt-2.5 pb-1">
+              <div className="flex items-center gap-1.5 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400">
+                <FileCode2 className="h-3 w-3" />
+                Code
+              </div>
+              <CodePane>{code}</CodePane>
             </div>
-            {isExecuting && !output ? (
-              <div className="flex items-center gap-2 text-[12px] text-zinc-500">
-                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                Running…
+          ) : null}
+          {hasOutput || isRunning ? (
+            <div className="px-3 pb-2.5">
+              <div className="flex items-center gap-1.5 pt-1 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400">
+                <ChevronRight className="h-3 w-3" />
+                Output
               </div>
-            ) : (
-              <div
-                ref={outputScrollRef}
-                className="max-h-56 overflow-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5 text-zinc-900"
-              >
-                {isExecuting ? (
-                  <StreamingTextFade
-                    content={output}
-                    streamKey={tool.toolCallId}
-                    className=""
-                  />
-                ) : (
-                  output
-                )}
-              </div>
-            )}
-          </div>
-        ) : null}
-      </div>
-    </AgentToolCard>
-  );
-}
-
-export function AgentGenericToolBlock({
-  tool,
-}: {
-  tool: AgentToolSegment;
-}) {
-  const label =
-    tool.description ??
-    tool.name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  const isLive = toolIsLive(tool);
-
-  return (
-    <AgentToolCard label={label} isRunning={isLive}>
-      {tool.args && Object.keys(tool.args).length > 0 ? (
-        <div className="overflow-hidden rounded-[12px] border border-zinc-200 bg-white px-3 py-2.5">
-          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-[12px] leading-5 text-zinc-700">
-            {JSON.stringify(tool.args, null, 2)}
-          </pre>
-        </div>
-      ) : null}
-    </AgentToolCard>
-  );
-}
-
-// ─── Interactive Tool Components ───────────────────────────────────────────
-
-export function AskUserInputBlock({
-  tool,
-}: {
-  tool: AgentToolSegment;
-}) {
-  const isLive = toolIsLive(tool);
-
-  // Interactive questionnaire renders in the composer slot — not inside the
-  // agentic activity frame.
-  return (
-    <AgentToolCard
-      label={isLive ? "Asking questions" : "Asked questions"}
-      isRunning={isLive}
-    />
-  );
-}
-
-export function SportsDataBlock({
-  tool,
-}: {
-  tool: AgentToolSegment;
-}) {
-  const result = tool.result ? JSON.parse(tool.result) : null;
-  const isRunning = tool.status === "running";
-  const isLive = toolIsLive(tool);
-
-  return (
-    <AgentToolCard
-      label={isLive ? "Fetching sports data" : "Fetched sports data"}
-      isRunning={isLive}
-    >
-      {isRunning ? (
-        <div className="text-[13px] text-zinc-500">Fetching live sports data...</div>
-      ) : result ? (
-        <div className="flex flex-col gap-3 max-w-md">
-          {result.games?.map((game: any) => (
-            <div key={game.id} className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
-              <div className="bg-zinc-50 px-3 py-1.5 flex justify-between items-center border-b border-zinc-100">
-                <span className="text-[11px] font-bold text-zinc-500 tracking-wider uppercase">{result.league}</span>
-                <span className="text-[11px] font-semibold text-zinc-600">{game.status}</span>
-              </div>
-              <div className="p-4 flex flex-col gap-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-[14px] font-medium text-zinc-800">{game.awayTeam}</span>
-                  <span className="text-[18px] font-bold text-zinc-900">{game.awayScore}</span>
+              {resultStdout.trim() ? <CodePane>{resultStdout}</CodePane> : null}
+              {resultStderr.trim() ? (
+                <div className="mt-1.5">
+                  <CodePane tone="error">{resultStderr}</CodePane>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[14px] font-medium text-zinc-800">{game.homeTeam}</span>
-                  <span className="text-[18px] font-bold text-zinc-900">{game.homeScore}</span>
+              ) : null}
+              {isError && !resultStderr.trim() && tool.result ? (
+                <div className="mt-1.5">
+                  <CodePane tone="error">{tool.result.slice(0, 2000)}</CodePane>
                 </div>
-              </div>
+              ) : null}
+              {isRunning && !hasOutput ? (
+                <p className="text-[11.5px] italic text-zinc-400">
+                  Waiting for output…
+                </p>
+              ) : null}
             </div>
-          ))}
-          {result.standings && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <h4 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider mb-3">Standings</h4>
-              <div className="flex flex-col gap-2">
-                {result.standings.map((team: any) => (
-                  <div key={team.team} className="flex justify-between text-[13px] text-zinc-700">
-                    <span>{team.rank}. {team.team}</span>
-                    <span className="font-semibold">{team.wins}W - {team.losses}L</span>
+          ) : null}
+        </ToolBody>
+      </AgentTraceBlock>
+    </div>
+  );
+}
+
+/* ─────────────────────────── web_search ────────────────────────── */
+
+const isValidHttpUrl = (value: string | null | undefined): value is string =>
+  Boolean(value && /^https?:\/\//i.test(value));
+
+const extractFavicons = (results: WebSearchResult[]) =>
+  Array.from(
+    new Set(
+      results
+        .map((row) => row.favicon)
+        .filter(
+          (icon): icon is string => typeof icon === "string" && Boolean(icon),
+        ),
+    ),
+  );
+
+function SearchResultFavicon({
+  favicon,
+  title,
+  size = 14,
+}: {
+  favicon?: string | null;
+  title?: string;
+  size?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [favicon]);
+
+  const shouldShowFallback = !favicon || failed;
+  const dimension = `${size}px`;
+
+  return (
+    <span
+      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/70"
+      style={{ width: dimension, height: dimension }}
+    >
+      {shouldShowFallback ? (
+        <span
+          aria-hidden="true"
+          className="bg-zinc-400/70"
+          style={{
+            WebkitMaskImage: "url(/icons/web.svg)",
+            maskImage: "url(/icons/web.svg)",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            width: `${Math.max(10, size - 4)}px`,
+            height: `${Math.max(10, size - 4)}px`,
+            display: "inline-block",
+          }}
+        />
+      ) : (
+        <img
+          src={favicon!}
+          alt={title ?? ""}
+          width={size}
+          height={size}
+          className="h-full w-full object-contain"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </span>
+  );
+}
+
+function resultDomain(row: WebSearchResult): string {
+  return domainFromUrl(row.url);
+}
+
+export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const query =
+    tool.searchQuery ||
+    (typeof tool.args?.query === "string" ? tool.args.query : "") ||
+    "";
+  const results = useMemo(() => tool.searchResults ?? [], [tool.searchResults]);
+  const favicons = useMemo(() => extractFavicons(results), [results]);
+  const staggerSeconds = 0.03;
+  const resultCount = results.length;
+  const faviconCount = Math.min(favicons.length, 6);
+  const totalStaggerMs = resultCount * staggerSeconds * 1000;
+  const [visibleCount, setVisibleCount] = useState(resultCount);
+  const animationKey = useMemo(
+    () =>
+      results
+        .slice(0, 5)
+        .map((row) => row.url)
+        .join("|"),
+    [results],
+  );
+  const lastAnimationKeyRef = useRef(animationKey);
+
+  useEffect(() => {
+    if (resultCount === 0) {
+      setVisibleCount(0);
+      lastAnimationKeyRef.current = animationKey;
+      return;
+    }
+    if (lastAnimationKeyRef.current === animationKey) {
+      setVisibleCount(resultCount);
+      return;
+    }
+    lastAnimationKeyRef.current = animationKey;
+    setVisibleCount(0);
+    const timers: number[] = [];
+    for (let index = 0; index < resultCount; index += 1) {
+      const timeout = window.setTimeout(
+        () => setVisibleCount((count) => Math.max(count, index + 1)),
+        index * staggerSeconds * 1000,
+      );
+      timers.push(timeout);
+    }
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [animationKey, resultCount]);
+
+  const header =
+    isRunning && resultCount === 0 ? (
+      <AgentShimmerText key={`ws-live-${tool.toolCallId}`} active>
+        {query ? `Searching "${query}"…` : "Searching the web…"}
+      </AgentShimmerText>
+    ) : query ? (
+      `Searched "${query}"`
+    ) : (
+      "Searched the web"
+    );
+
+  return (
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title={header}
+        trailing={
+          resultCount > 0 ? (
+            <span className="flex shrink-0 items-center gap-1.5">
+              <span className="flex -space-x-1">
+                {favicons.slice(0, faviconCount).map((favicon, index) => (
+                  <span
+                    key={`${favicon}-${index}`}
+                    className="relative inline-flex h-4 w-4 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-zinc-200"
+                    style={{
+                      zIndex: faviconCount - index,
+                      transitionDelay: `${Math.min(index * 40, 240)}ms`,
+                    }}
+                  >
+                    {}
+                    <img
+                      src={favicon}
+                      alt=""
+                      className="h-3 w-3 object-contain"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={(event) => {
+                        (event.target as HTMLImageElement).style.display =
+                          "none";
+                      }}
+                    />
+                  </span>
+                ))}
+              </span>
+              <span className="text-[11px] text-zinc-400 tabular-nums">
+                {resultCount} result{resultCount === 1 ? "" : "s"}
+              </span>
+            </span>
+          ) : undefined
+        }
+        isActive={isRunning}
+        defaultExpanded={isRunning}
+        showChevron
+        className="agent-web-search"
+        headerClassName="agent-web-search__header"
+        contentClassName="agent-web-search__body"
+      >
+        {resultCount > 0 ? (
+          <ul className="flex w-full flex-col overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
+            {results.slice(0, visibleCount).map((row, index) => {
+              const domain = resultDomain(row);
+              const published = row.publishedDate?.slice(0, 10);
+              return (
+                <li
+                  key={row.url || index}
+                  className={cn(
+                    "agent-web-search__row",
+                    index > 0 && "border-t border-zinc-100",
+                  )}
+                  style={{ animationDelay: `${index * staggerSeconds}s` }}
+                >
+                  <a
+                    href={isValidHttpUrl(row.url) ? row.url : undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex min-w-0 items-start gap-2.5 px-3 py-2.5 transition-colors hover:bg-zinc-50/80"
+                  >
+                    <span className="mt-0.5 shrink-0">
+                      <SearchResultFavicon
+                        favicon={row.favicon}
+                        title={row.title}
+                        size={16}
+                      />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate text-[13px] font-medium leading-5 text-zinc-800 group-hover:text-zinc-950 group-hover:underline underline-offset-2">
+                        {row.title || row.url}
+                      </span>
+                      {row.snippet ? (
+                        <span className="line-clamp-2 text-[12px] leading-4.5 text-zinc-500">
+                          {row.snippet}
+                        </span>
+                      ) : null}
+                      <span className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+                        <span className="truncate">{domain}</span>
+                        {published ? (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="shrink-0 tabular-nums">
+                              {published}
+                            </span>
+                          </>
+                        ) : null}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-[12.5px] italic text-zinc-400">
+            {isRunning ? "Fetching results…" : "No results found."}
+          </p>
+        )}
+      </AgentTraceBlock>
+    </div>
+  );
+}
+
+/* ─────────────────────────── file_read ─────────────────────────── */
+
+function baseName(path: string): string {
+  const parts = path.split("/");
+  return parts[parts.length - 1] || path;
+}
+
+export function AgentFileReadBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const path = typeof tool.args?.path === "string" ? tool.args.path : "";
+  const name = path ? baseName(path) : "file";
+  const parsed = tool.result ? tryParseJson(tool.result) : null;
+  const content =
+    parsed && typeof parsed.content === "string"
+      ? parsed.content
+      : typeof tool.result === "string" && tool.status === "done"
+        ? tool.result
+        : "";
+  const truncated =
+    parsed && typeof parsed.truncated === "boolean" ? parsed.truncated : false;
+
+  return (
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title={
+          isRunning ? (
+            <AgentShimmerText key={`fr-live-${tool.toolCallId}`} active>
+              Reading {name}…
+            </AgentShimmerText>
+          ) : tool.status === "error" ? (
+            <span className="text-rose-500">Failed to read {name}</span>
+          ) : (
+            `Read ${name}`
+          )
+        }
+        trailing={
+          path ? (
+            <span className="max-w-[45%] truncate text-[11px] text-zinc-400">
+              {path}
+            </span>
+          ) : undefined
+        }
+        isActive={isRunning}
+        defaultExpanded={false}
+        showChevron
+        className="agent-file-read"
+        headerClassName="agent-file-read__header"
+        contentClassName="agent-file-read__body"
+      >
+        {content ? (
+          <ToolBody>
+            <div className="px-3 pt-2.5 pb-2.5">
+              <div className="flex items-center gap-1.5 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400">
+                <FileText className="h-3 w-3" />
+                Content
+                {truncated ? (
+                  <span className="normal-case tracking-normal text-amber-500">
+                    (truncated)
+                  </span>
+                ) : null}
+              </div>
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-md border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2 font-mono text-[11.5px] leading-5 text-zinc-700">
+                {content.slice(0, 12000)}
+              </pre>
+            </div>
+          </ToolBody>
+        ) : (
+          <p className="text-[12.5px] italic text-zinc-400">
+            {isRunning ? "Reading file…" : "No content returned."}
+          </p>
+        )}
+      </AgentTraceBlock>
+    </div>
+  );
+}
+
+/* ─────────────────────────── read_skill ────────────────────────── */
+
+export function AgentReadSkillBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const skillId = typeof tool.args?.id === "string" ? tool.args.id : "";
+  const parsed = tool.result ? tryParseJson(tool.result) : null;
+  const name =
+    parsed && typeof parsed.name === "string" ? parsed.name : skillId;
+  const doc =
+    parsed && typeof parsed.skill === "string"
+      ? parsed.skill
+      : (tool.result ?? "");
+
+  return (
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title={
+          isRunning ? (
+            <AgentShimmerText key={`rs-live-${tool.toolCallId}`} active>
+              Loading skill{name ? ` · ${name}` : ""}…
+            </AgentShimmerText>
+          ) : tool.status === "error" ? (
+            <span className="text-rose-500">
+              Failed to load skill{name ? ` · ${name}` : ""}
+            </span>
+          ) : (
+            `Loaded skill${name ? ` · ${name}` : ""}`
+          )
+        }
+        trailing={<BookOpen className="h-3.5 w-3.5 shrink-0 text-zinc-300" />}
+        isActive={isRunning}
+        defaultExpanded={false}
+        showChevron
+        className="agent-read-skill"
+        headerClassName="agent-read-skill__header"
+        contentClassName="agent-read-skill__body"
+      >
+        {doc ? (
+          <ToolBody>
+            <div className="px-3 py-2.5">
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-[11.5px] leading-5 text-zinc-600">
+                {doc.slice(0, 8000)}
+              </pre>
+            </div>
+          </ToolBody>
+        ) : (
+          <p className="text-[12.5px] italic text-zinc-400">
+            {isRunning ? "Reading skill definition…" : "Skill not found."}
+          </p>
+        )}
+      </AgentTraceBlock>
+    </div>
+  );
+}
+
+/* ─────────────────────────── MCP tools ─────────────────────────── */
+
+function humanizeToolName(raw: string): string {
+  return raw
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function parseMcpName(name: string): { server: string; tool: string } {
+  const parts = name.split("__");
+  if (parts.length >= 3) {
+    return { server: parts[1], tool: parts.slice(2).join("__") };
+  }
+  return { server: "", tool: name };
+}
+
+function prettyJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+export function AgentMcpToolBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const isError = tool.status === "error";
+  const { server, tool: toolName } = parseMcpName(tool.name);
+  const label = server
+    ? `${humanizeToolName(server)} · ${humanizeToolName(toolName)}`
+    : humanizeToolName(toolName);
+  const hasArgs = tool.args && Object.keys(tool.args).length > 0;
+  const resultText = tool.result ?? "";
+
+  return (
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title={
+          isRunning ? (
+            <AgentShimmerText key={`mcp-live-${tool.toolCallId}`} active>
+              Calling {label}…
+            </AgentShimmerText>
+          ) : isError ? (
+            <span className="text-rose-500">{label} failed</span>
+          ) : (
+            label
+          )
+        }
+        trailing={<Plug className="h-3.5 w-3.5 shrink-0 text-zinc-300" />}
+        isActive={isRunning}
+        defaultExpanded={isRunning}
+        showChevron
+        className="agent-mcp-tool"
+        headerClassName="agent-mcp-tool__header"
+        contentClassName="agent-mcp-tool__body"
+      >
+        <ToolBody>
+          {hasArgs ? (
+            <ToolArea label="Input" defaultOpen={isRunning} mono>
+              <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2 text-zinc-700">
+                {prettyJson(tool.args)}
+              </pre>
+            </ToolArea>
+          ) : null}
+          {resultText || isRunning ? (
+            <ToolArea label="Output" error={isError} defaultOpen={isError} mono>
+              {resultText ? (
+                <pre
+                  className={cn(
+                    "overflow-x-auto whitespace-pre-wrap break-words rounded-md border px-2.5 py-2",
+                    isError
+                      ? "border-rose-200/80 bg-rose-50/60 text-rose-600"
+                      : "border-zinc-200/80 bg-zinc-50/80 text-zinc-700",
+                  )}
+                >
+                  {resultText.slice(0, 12000)}
+                </pre>
+              ) : (
+                <p className="text-[11.5px] italic text-zinc-400">
+                  Waiting for the server…
+                </p>
+              )}
+            </ToolArea>
+          ) : null}
+        </ToolBody>
+      </AgentTraceBlock>
+    </div>
+  );
+}
+
+/* ─────────────────────────── weather ───────────────────────────── */
+
+export function AgentWeatherBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const location =
+    typeof tool.args?.location === "string" ? tool.args.location : "";
+  const data = tool.result ? tryParseJson(tool.result) : null;
+  const weather = (data?.weather ?? data) as Record<string, unknown> | null;
+  const current = weather?.current as Record<string, unknown> | undefined;
+  const forecast = weather?.forecast as
+    | Array<Record<string, unknown>>
+    | undefined;
+
+  return (
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title={
+          isRunning ? (
+            <AgentShimmerText key={`wx-live-${tool.toolCallId}`} active>
+              Checking the weather{location ? ` in ${location}` : ""}…
+            </AgentShimmerText>
+          ) : (
+            `Weather${location ? ` · ${location}` : ""}`
+          )
+        }
+        isActive={isRunning}
+        defaultExpanded={isRunning}
+        showChevron
+        className="agent-weather"
+        headerClassName="agent-weather__header"
+        contentClassName="agent-weather__body"
+      >
+        {current ? (
+          <ToolBody>
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <span className="text-2xl font-semibold tabular-nums text-zinc-900">
+                {String(current.temperature ?? "—")}
+                {typeof current.temperature === "number" ? "°" : ""}
+              </span>
+              <span className="flex flex-col text-[12px] leading-4.5 text-zinc-500">
+                <span className="font-medium text-zinc-700">
+                  {String(current.condition ?? current.summary ?? "")}
+                </span>
+                {typeof current.feels_like !== "undefined" ? (
+                  <span>Feels like {String(current.feels_like)}°</span>
+                ) : null}
+              </span>
+            </div>
+            {forecast && forecast.length > 0 ? (
+              <div className="flex gap-2 overflow-x-auto border-t border-zinc-200/70 px-3 py-2">
+                {forecast.slice(0, 7).map((day, index) => (
+                  <div
+                    key={index}
+                    className="flex min-w-14 flex-col items-center gap-0.5 text-[11px] text-zinc-500"
+                  >
+                    <span className="font-medium text-zinc-600">
+                      {String(day.day ?? day.label ?? index)}
+                    </span>
+                    <span className="tabular-nums">
+                      {String(day.high ?? day.temp ?? "—")}°
+                    </span>
+                    <span className="tabular-nums text-zinc-400">
+                      {String(day.low ?? "—")}°
+                    </span>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      ) : null}
-    </AgentToolCard>
-  );
-}
-
-type ImageSearchResult = {
-  url: string;
-  thumbnail: string;
-  alt: string;
-  landingUrl: string;
-  creator?: string;
-  license?: string;
-};
-
-export function ImageSearchBlock({
-  tool,
-}: {
-  tool: AgentToolSegment;
-}) {
-  const isRunning = tool.status === "running";
-  const isLive = toolIsLive(tool);
-  const query = typeof tool.args?.query === "string" ? tool.args.query : "";
-
-  const parsed = useMemo(() => {
-    if (!tool.result) return null;
-    try {
-      return JSON.parse(tool.result) as {
-        images?: ImageSearchResult[];
-        error?: string;
-      };
-    } catch {
-      return null;
-    }
-  }, [tool.result]);
-
-  const images = parsed?.images ?? [];
-
-  return (
-    <AgentToolCard
-      label={
-        isLive
-          ? query
-            ? `Searching images: ${query}`
-            : "Searching images"
-          : images.length > 0
-            ? `${query || "Images"} ${images.length} images`
-            : query || "Searched images"
-      }
-      isRunning={isRunning}
-    >
-      {isRunning ? (
-        <div className="flex items-center gap-2 text-[12px] text-zinc-500">
-          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-          Searching…
-        </div>
-      ) : parsed?.error ? (
-        <div className="text-[13px] text-red-600">{parsed.error}</div>
-      ) : images.length === 0 ? (
-        <div className="text-[13px] text-zinc-500">No images found.</div>
-      ) : (
-        <div className="grid max-w-md grid-cols-3 gap-2">
-          {images.map((img, i) => (
-            <a
-              key={`${img.url}-${i}`}
-              href={img.landingUrl || img.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50"
-              title={img.creator ? `By ${img.creator}${img.license ? ` (${img.license})` : ""}` : img.alt}
-            >
-              <img
-                src={img.thumbnail || img.url}
-                alt={img.alt}
-                loading="lazy"
-                className="h-full w-full object-cover"
-              />
-              {img.creator ? (
-                <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1.5 py-0.5 text-[9px] text-white opacity-0 transition-opacity group-hover:opacity-100">
-                  {img.creator}
-                </span>
-              ) : null}
-            </a>
-          )          )}
-        </div>
-      )}
-    </AgentToolCard>
-  );
-}
-
-export function MessageComposeBlock({ tool }: { tool: AgentToolSegment }) {
-  const variants = (tool.args?.variants as any[]) ?? [];
-  const [selected, setSelected] = useState(0);
-  const [copied, setCopied] = useState(false);
-
-  const current = variants[selected];
-
-  const handleCopy = async () => {
-    if (!current) return;
-    const text = tool.args?.kind === "email" && current.subject
-      ? `Subject: ${current.subject}\n\n${current.body}`
-      : current.body;
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <AgentToolCard
-      label={tool.status === "running" ? "Drafting message" : "Drafted message"}
-      isRunning={tool.status === "running"}
-    >
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
-        {tool.args?.summary_title && (
-          <div className="bg-zinc-50 px-4 py-2 border-b border-zinc-100 text-[13px] font-semibold text-zinc-700">
-            {String(tool.args.summary_title)}
-          </div>
+            ) : null}
+          </ToolBody>
+        ) : (
+          <p className="text-[12.5px] italic text-zinc-400">
+            {isRunning
+              ? "Fetching forecast…"
+              : (tool.result ?? "No weather data.")}
+          </p>
         )}
-        {variants.length > 1 && (
-          <div className="flex border-b border-zinc-100 overflow-x-auto">
-            {variants.map((v, i) => (
-              <button
-                key={i}
-                onClick={() => setSelected(i)}
+      </AgentTraceBlock>
+    </div>
+  );
+}
+
+/* ─────────────────────────── places_search ─────────────────────── */
+
+export function AgentPlacesSearchBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const query = typeof tool.args?.query === "string" ? tool.args.query : "";
+  const data = tool.result ? tryParseJson(tool.result) : null;
+  const places = Array.isArray(data?.places)
+    ? (data.places as Array<Record<string, unknown>>)
+    : Array.isArray(data?.results)
+      ? (data.results as Array<Record<string, unknown>>)
+      : [];
+
+  return (
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title={
+          isRunning ? (
+            <AgentShimmerText key={`places-live-${tool.toolCallId}`} active>
+              {query ? `Finding ${query}…` : "Searching places…"}
+            </AgentShimmerText>
+          ) : query ? (
+            `Places · ${query}`
+          ) : (
+            "Places"
+          )
+        }
+        trailing={
+          places.length > 0 ? (
+            <span className="text-[11px] text-zinc-400 tabular-nums">
+              {places.length} place{places.length === 1 ? "" : "s"}
+            </span>
+          ) : undefined
+        }
+        isActive={isRunning}
+        defaultExpanded={isRunning}
+        showChevron
+        className="agent-places"
+        headerClassName="agent-places__header"
+        contentClassName="agent-places__body"
+      >
+        {places.length > 0 ? (
+          <ul className="flex w-full flex-col overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
+            {places.map((place, index) => (
+              <li
+                key={index}
                 className={cn(
-                  "flex-1 px-4 py-2 text-[12px] font-medium border-b-2 transition-all whitespace-nowrap",
-                  selected === i
-                    ? "border-zinc-900 text-zinc-900 font-semibold"
-                    : "border-transparent text-zinc-500 hover:text-zinc-700"
+                  "flex min-w-0 items-start gap-2.5 px-3 py-2.5",
+                  index > 0 && "border-t border-zinc-100",
                 )}
               >
-                {v.label}
-              </button>
-            ))}
-          </div>
-        )}
-        {current && (
-          <div className="p-4">
-            {tool.args?.kind === "email" && current.subject && (
-              <div className="mb-3">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Subject</span>
-                <p className="text-[13px] font-semibold text-zinc-800">{current.subject}</p>
-              </div>
-            )}
-            <div className="rounded-lg bg-zinc-50 p-3 font-mono text-[12px] text-zinc-800 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
-              {current.body}
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={handleCopy}
-                className="rounded-lg border border-zinc-200 bg-white text-zinc-700 text-[12px] font-semibold px-3 py-1.5 hover:bg-zinc-50 flex items-center gap-1.5"
-              >
-                {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? "Copied" : "Copy"}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </AgentToolCard>
-  );
-}
-
-export function MapDisplayBlock({ tool }: { tool: AgentToolSegment }) {
-  const locations = (tool.args?.locations as any[]) ?? [];
-  const [selected, setSelected] = useState<number | null>(null);
-  const narrative = tool.args?.narrative ? String(tool.args.narrative) : undefined;
-
-  return (
-    <AgentToolCard
-      label={String(tool.args?.title ?? (tool.status === "running" ? "Building map" : "Map"))}
-      isRunning={tool.status === "running"}
-    >
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
-        {narrative && (
-          <div className="p-4 border-b border-zinc-100 text-[13px] text-zinc-600 leading-relaxed">
-            {narrative}
-          </div>
-        )}
-        <div className="bg-zinc-50 h-32 flex items-center justify-center text-[12px] text-zinc-400 border-b border-zinc-100">
-          Interactive Map Display ({locations.length} points)
-        </div>
-        <div className="divide-y divide-zinc-100 max-h-48 overflow-y-auto">
-          {locations.map((loc, i) => (
-            <div
-              key={i}
-              onClick={() => setSelected(selected === i ? null : i)}
-              className={cn(
-                "p-3 cursor-pointer transition-colors flex flex-col gap-1",
-                selected === i ? "bg-zinc-50" : "hover:bg-zinc-50/50"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span className="h-5 w-5 rounded-full bg-zinc-900 text-white text-[10px] font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                <span className="text-[13px] font-semibold text-zinc-800">{loc.name}</span>
-              </div>
-              {selected === i && loc.notes && (
-                <p className="pl-7 text-[12px] text-zinc-500 italic leading-relaxed">{loc.notes}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </AgentToolCard>
-  );
-}
-
-type WeatherIconKind = typeof Sun;
-
-/** WMO weather interpretation codes -> icon. Mirrors the label mapping the
- * backend computes in open-meteo.ts (kept separate; icon choice is a
- * frontend-only concern, no need to share the module across the boundary). */
-function weatherIconFor(code: number, isDay = true): WeatherIconKind {
-  if (code === 0) return isDay ? Sun : Moon;
-  if (code === 1 || code === 2) return isDay ? CloudSun : CloudMoon;
-  if (code === 3) return Cloud;
-  if (code === 45 || code === 48) return CloudFog;
-  if ([51, 53, 55, 56, 57].includes(code)) return CloudDrizzle;
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return CloudRain;
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return CloudSnow;
-  if ([95, 96, 99].includes(code)) return CloudLightning;
-  return Cloud;
-}
-
-function formatHourLabel(iso: string): string {
-  const hour = parseInt(iso.split("T")[1]?.slice(0, 2) ?? "0", 10);
-  const period = hour >= 12 ? "PM" : "AM";
-  const display = hour % 12 === 0 ? 12 : hour % 12;
-  return `${display} ${period}`;
-}
-
-function formatDayLabel(isoDate: string): string {
-  return new Date(`${isoDate}T00:00:00`).toLocaleDateString(undefined, {
-    weekday: "short",
-  });
-}
-
-type WeatherForecastData = {
-  place: { name: string; admin1?: string; country?: string };
-  units: "metric" | "imperial";
-  current: {
-    temperature: number;
-    feelsLike: number;
-    humidity: number;
-    isDay: boolean;
-    weatherCode: number;
-    condition: string;
-    windSpeed: number;
-  };
-  hourly: Array<{
-    time: string;
-    temperature: number;
-    precipitationProbability: number;
-    weatherCode: number;
-  }>;
-  daily: Array<{
-    date: string;
-    weatherCode: number;
-    condition: string;
-    tempMax: number;
-    tempMin: number;
-    precipitationProbability: number;
-  }>;
-};
-
-export function WeatherBlock({ tool }: { tool: AgentToolSegment }) {
-  const isRunning = tool.status === "running";
-  const locationName =
-    typeof tool.args?.location_name === "string" ? tool.args.location_name : "";
-
-  const parsed = useMemo(() => {
-    if (!tool.result) return null;
-    try {
-      const data = JSON.parse(tool.result) as
-        | WeatherForecastData
-        | { error: string };
-      return data;
-    } catch {
-      return null;
-    }
-  }, [tool.result]);
-
-  if (isRunning || !parsed) {
-    return (
-      <AgentToolCard
-        label={
-          isRunning
-            ? `Checking weather${locationName ? ` in ${locationName}` : ""}`
-            : "Weather"
-        }
-        isRunning={isRunning}
-      >
-        {isRunning ? (
-          <div className="flex items-center gap-2 text-[12px] text-zinc-500">
-            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-            Fetching forecast…
-          </div>
-        ) : null}
-      </AgentToolCard>
-    );
-  }
-
-  if ("error" in parsed) {
-    return (
-      <AgentToolCard label="Weather">
-        <div className="text-[13px] text-red-600">{parsed.error}</div>
-      </AgentToolCard>
-    );
-  }
-
-  const { place, current, hourly, daily, units } = parsed;
-  const tempUnit = units === "imperial" ? "°F" : "°C";
-  const windUnit = units === "imperial" ? "mph" : "km/h";
-  const placeLabel = [place.name, place.admin1, place.country]
-    .filter(Boolean)
-    .join(", ");
-  const CurrentIcon = weatherIconFor(current.weatherCode, current.isDay);
-
-  return (
-    <AgentToolCard label={placeLabel || locationName || "Weather"}>
-      <div className="w-full max-w-md overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between bg-gradient-to-br from-sky-50 to-white p-4">
-          <div className="flex items-center gap-3">
-            <CurrentIcon className="h-10 w-10 shrink-0 text-sky-600" strokeWidth={1.5} />
-            <div>
-              <div className="text-[32px] font-semibold leading-none text-zinc-900">
-                {Math.round(current.temperature)}
-                {tempUnit}
-              </div>
-              <div className="text-[13px] text-zinc-500">
-                {current.condition} · Feels like {Math.round(current.feelsLike)}
-                {tempUnit}
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-1 text-[12px] text-zinc-500">
-            <span className="flex items-center gap-1">
-              <Droplets className="h-3.5 w-3.5" /> {Math.round(current.humidity)}%
-            </span>
-            <span className="flex items-center gap-1">
-              <Wind className="h-3.5 w-3.5" /> {Math.round(current.windSpeed)} {windUnit}
-            </span>
-          </div>
-        </div>
-
-        {hourly.length > 0 ? (
-          <div className="flex gap-4 overflow-x-auto border-t border-zinc-100 px-4 py-3">
-            {hourly.slice(0, 12).map((hour) => {
-              const HourIcon = weatherIconFor(hour.weatherCode);
-              return (
-                <div
-                  key={hour.time}
-                  className="flex shrink-0 flex-col items-center gap-1 text-[11px] text-zinc-500"
-                >
-                  <span>{formatHourLabel(hour.time)}</span>
-                  <HourIcon className="h-4 w-4 text-zinc-600" strokeWidth={1.5} />
-                  <span className="font-semibold text-zinc-800">
-                    {Math.round(hour.temperature)}°
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="truncate text-[13px] font-medium text-zinc-800">
+                    {String(place.name ?? "Place")}
                   </span>
-                </div>
+                  {place.address ? (
+                    <span className="truncate text-[12px] text-zinc-500">
+                      {String(place.address)}
+                    </span>
+                  ) : null}
+                </span>
+                {place.rating ? (
+                  <span className="shrink-0 text-[11.5px] tabular-nums text-zinc-500">
+                    ★ {String(place.rating)}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[12.5px] italic text-zinc-400">
+            {isRunning ? "Searching…" : "No places found."}
+          </p>
+        )}
+      </AgentTraceBlock>
+    </div>
+  );
+}
+
+/* ─────────────────────────── image_search ──────────────────────── */
+
+export function AgentImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const query = typeof tool.args?.query === "string" ? tool.args.query : "";
+  const data = tool.result ? tryParseJson(tool.result) : null;
+  const images = Array.isArray(data?.images)
+    ? (data.images as Array<Record<string, unknown>>)
+    : Array.isArray(data?.results)
+      ? (data.results as Array<Record<string, unknown>>)
+      : [];
+
+  return (
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title={
+          isRunning ? (
+            <AgentShimmerText key={`img-live-${tool.toolCallId}`} active>
+              {query ? `Finding images of ${query}…` : "Searching images…"}
+            </AgentShimmerText>
+          ) : query ? (
+            `Images · ${query}`
+          ) : (
+            "Images"
+          )
+        }
+        trailing={
+          images.length > 0 ? (
+            <span className="text-[11px] text-zinc-400 tabular-nums">
+              {images.length} image{images.length === 1 ? "" : "s"}
+            </span>
+          ) : undefined
+        }
+        isActive={isRunning}
+        defaultExpanded={isRunning}
+        showChevron
+        className="agent-image-search"
+        headerClassName="agent-image-search__header"
+        contentClassName="agent-image-search__body"
+      >
+        {images.length > 0 ? (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {images.slice(0, 8).map((image, index) => {
+              const src =
+                typeof image.url === "string"
+                  ? image.url
+                  : typeof image.thumbnail === "string"
+                    ? image.thumbnail
+                    : null;
+              if (!src || !isValidHttpUrl(src)) return null;
+              return (
+                <a
+                  key={index}
+                  href={typeof image.source === "string" ? image.source : src}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square overflow-hidden rounded-lg border border-zinc-200/80 bg-zinc-100"
+                >
+                  {}
+                  <img
+                    src={src}
+                    alt={typeof image.title === "string" ? image.title : ""}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                </a>
               );
             })}
           </div>
-        ) : null}
-
-        <div className="divide-y divide-zinc-100 border-t border-zinc-100">
-          {daily.map((day) => {
-            const DayIcon = weatherIconFor(day.weatherCode);
-            return (
-              <div
-                key={day.date}
-                className="flex items-center justify-between gap-2 px-4 py-2 text-[13px]"
-              >
-                <span className="w-10 shrink-0 text-zinc-600">
-                  {formatDayLabel(day.date)}
-                </span>
-                <DayIcon className="h-4 w-4 shrink-0 text-zinc-500" strokeWidth={1.5} />
-                <span className="flex-1 text-right text-[12px] text-zinc-400">
-                  {Math.round(day.precipitationProbability)}%
-                </span>
-                <span className="w-8 shrink-0 text-right font-medium text-zinc-800">
-                  {Math.round(day.tempMax)}°
-                </span>
-                <span className="w-8 shrink-0 text-right text-zinc-400">
-                  {Math.round(day.tempMin)}°
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </AgentToolCard>
-  );
-}
-
-type PlaceSearchResult = {
-  name: string;
-  displayName: string;
-  latitude: number;
-  longitude: number;
-  category?: string;
-  type?: string;
-  address?: { road?: string; city?: string; state?: string; country?: string };
-};
-
-function osmLink(lat: number, lon: number): string {
-  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`;
-}
-
-export function PlacesSearchBlock({ tool }: { tool: AgentToolSegment }) {
-  const isRunning = tool.status === "running";
-  const query =
-    typeof tool.args?.query === "string" ? tool.args.query : "";
-
-  const parsed = useMemo(() => {
-    if (!tool.result) return null;
-    try {
-      return JSON.parse(tool.result) as {
-        results?: PlaceSearchResult[];
-        error?: string;
-      };
-    } catch {
-      return null;
-    }
-  }, [tool.result]);
-
-  const results = parsed?.results ?? [];
-
-  return (
-    <AgentToolCard
-      label={
-        isRunning
-          ? query
-            ? `Searching places: ${query}`
-            : "Searching places"
-          : results.length > 0
-            ? `${query} ${results.length} results`
-            : query || "Searched places"
-      }
-      isRunning={isRunning}
-    >
-      {isRunning ? (
-        <div className="flex items-center gap-2 text-[12px] text-zinc-500">
-          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-          Searching…
-        </div>
-      ) : parsed?.error ? (
-        <div className="text-[13px] text-red-600">{parsed.error}</div>
-      ) : results.length === 0 ? (
-        <div className="text-[13px] text-zinc-500">No places found.</div>
-      ) : (
-        <div className="flex max-w-md flex-col gap-2">
-          {results.map((place, index) => (
-            <a
-              key={`${place.latitude}-${place.longitude}-${index}`}
-              href={osmLink(place.latitude, place.longitude)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-start gap-2.5 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-colors hover:bg-zinc-50"
-            >
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-semibold text-zinc-800">
-                  {place.name}
-                </div>
-                <div className="truncate text-[12px] text-zinc-500">
-                  {place.displayName}
-                </div>
-              </div>
-              <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-300" />
-            </a>
-          ))}
-        </div>
-      )}
-    </AgentToolCard>
-  );
-}
-
-export function RecipeDisplayBlock({ tool }: { tool: AgentToolSegment }) {
-  const ingredients = (tool.args?.ingredients as any[]) ?? [];
-  const steps = (tool.args?.steps as any[]) ?? [];
-  const [servings, setServings] = useState(Number(tool.args?.base_servings ?? 4));
-  const baseServings = Number(tool.args?.base_servings ?? 4);
-  const multiplier = servings / baseServings;
-  const description = tool.args?.description ? String(tool.args.description) : undefined;
-
-  return (
-    <AgentToolCard
-      label={String(tool.args?.title ?? "Recipe")}
-      isRunning={tool.status === "running"}
-    >
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm max-w-md">
-        {description && (
-          <div className="p-4 border-b border-zinc-100 text-[13px] text-zinc-600">
-            {description}
-          </div>
+        ) : (
+          <p className="text-[12.5px] italic text-zinc-400">
+            {isRunning ? "Searching…" : "No images found."}
+          </p>
         )}
-        <div className="bg-zinc-50 px-4 py-3 border-b border-zinc-100 flex items-center justify-between">
-          <span className="text-[12px] font-semibold text-zinc-700">Servings</span>
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setServings(Math.max(1, servings - 1))}
-              className="h-6 w-6 rounded-full border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 flex items-center justify-center font-bold text-[14px]"
-            >
-              -
-            </button>
-            <span className="text-[14px] font-bold text-zinc-800 min-w-[20px] text-center">{servings}</span>
-            <button
-              onClick={() => setServings(servings + 1)}
-              className="h-6 w-6 rounded-full border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 flex items-center justify-center font-bold text-[14px]"
-            >
-              +
-            </button>
-          </div>
-        </div>
-        <div className="p-4 flex flex-col gap-4">
-          <div>
-            <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ingredients</h4>
-            <ul className="flex flex-col gap-1.5">
-              {ingredients.map((ing) => (
-                <li key={ing.id} className="flex justify-between text-[13px] text-zinc-700">
-                  <span>{ing.name}</span>
-                  <span className="font-semibold text-zinc-900">
-                    {((ing.amount * multiplier) || 0).toFixed(1).replace(/\.0$/, "")} {ing.unit || ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Steps</h4>
-            <ol className="flex flex-col gap-3">
-              {steps.map((step, idx) => (
-                <li key={step.id} className="flex gap-2.5">
-                  <span className="h-5 w-5 rounded-full bg-zinc-100 text-zinc-600 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
-                    {idx + 1}
-                  </span>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[13px] font-semibold text-zinc-800">{step.title}</span>
-                    <span className="text-[12px] text-zinc-600 leading-relaxed">{step.content}</span>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </div>
-      </div>
-    </AgentToolCard>
+      </AgentTraceBlock>
+    </div>
   );
 }
 
-export function RecommendClaudeAppsBlock({ tool }: { tool: AgentToolSegment }) {
-  const appIds = (tool.args?.app_ids as string[]) ?? [];
-  
-  const appNames: Record<string, string> = {
-    desktop: "Clauxen Desktop",
-    ios: "Clauxen iOS App",
-    android: "Clauxen Android App",
-    claude_code_terminal: "Clauxen Code CLI",
-    claude_code_vscode: "VS Code Extension",
-    claude_code_jetbrains: "JetBrains Extension",
-    claude_code_slack: "Slack Integration",
-    excel: "Excel Add-in",
-    powerpoint: "PowerPoint Add-in",
-    chrome: "Chrome Extension",
-  };
+/* ─────────────────────────── ask_user_input_v0 ─────────────────── */
+
+export function AgentAskUserInputBlock({ tool }: { tool: AgentToolSegment }) {
+  const data = tool.result ? tryParseJson(tool.result) : null;
+  const questions = Array.isArray(data?.questions)
+    ? (data.questions as Array<Record<string, unknown>>)
+    : [];
 
   return (
-    <AgentToolCard
-      label={tool.status === "running" ? "Recommending apps" : "Recommended apps"}
-      isRunning={tool.status === "running"}
-    >
-      <div className="flex flex-col gap-2 max-w-md">
-        {appIds.map((id) => (
-          <div key={id} className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm flex justify-between items-center">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[13px] font-semibold text-zinc-800">{appNames[id] || id}</span>
-              <span className="text-[11px] text-zinc-400">Official ecosystem integration</span>
-            </div>
-            <button className="rounded-lg border border-zinc-200 text-zinc-700 text-[12px] font-semibold px-3 py-1.5 hover:bg-zinc-50">
-              Get App
-            </button>
-          </div>
-        ))}
-      </div>
-    </AgentToolCard>
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title="Asked for your input"
+        defaultExpanded
+        showChevron
+        className="agent-ask-user"
+        headerClassName="agent-ask-user__header"
+        contentClassName="agent-ask-user__body"
+      >
+        {questions.length > 0 ? (
+          <ul className="flex w-full flex-col overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
+            {questions.map((question, index) => {
+              const choices = Array.isArray(question.choices)
+                ? (question.choices as string[])
+                : [];
+              const answer =
+                typeof question.answer === "string" ? question.answer : null;
+              return (
+                <li
+                  key={index}
+                  className={cn(
+                    "flex min-w-0 flex-col gap-1 px-3 py-2.5",
+                    index > 0 && "border-t border-zinc-100",
+                  )}
+                >
+                  <span className="text-[13px] font-medium text-zinc-800">
+                    {String(question.question ?? `Question ${index + 1}`)}
+                  </span>
+                  {choices.length > 0 ? (
+                    <span className="flex flex-wrap gap-1.5">
+                      {choices.map((choice, choiceIndex) => (
+                        <span
+                          key={choiceIndex}
+                          className={cn(
+                            "rounded-full border px-2 py-0.5 text-[11.5px]",
+                            answer === choice
+                              ? "border-zinc-900 bg-zinc-900 text-white"
+                              : "border-zinc-200 bg-zinc-50 text-zinc-600",
+                          )}
+                        >
+                          {choice}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                  {answer && !choices.includes(answer) ? (
+                    <span className="text-[12px] text-zinc-600">
+                      Answer: {answer}
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-[12.5px] italic text-zinc-400">
+            Waiting for your answer…
+          </p>
+        )}
+      </AgentTraceBlock>
+    </div>
   );
 }
 
-export function SuggestConnectorsBlock({ tool }: { tool: AgentToolSegment }) {
-  const uuids = (tool.args?.uuids as string[]) ?? [];
+/* ─────────────────────────── generic fallback ──────────────────── */
+
+export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
+  const isRunning = tool.status === "running";
+  const isError = tool.status === "error";
+  const label =
+    tool.description?.trim() || humanizeToolName(tool.name.replace(/_/g, " "));
+  const hasArgs = tool.args && Object.keys(tool.args).length > 0;
+  const resultText = tool.result ?? "";
 
   return (
-    <AgentToolCard
-      label={tool.status === "running" ? "Suggesting connectors" : "Suggested connectors"}
-      isRunning={tool.status === "running"}
-    >
-      <div className="flex flex-col gap-2 max-w-md">
-        {uuids.map((uuid) => (
-          <div key={uuid} className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm flex justify-between items-center">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[13px] font-semibold text-zinc-800">{uuid.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
-              <span className="text-[11px] text-zinc-400">MCP Connector</span>
-            </div>
-            <button className="rounded-lg bg-zinc-900 text-white text-[12px] font-semibold px-3 py-1.5 hover:bg-zinc-800">
-              Connect
-            </button>
-          </div>
-        ))}
-      </div>
-    </AgentToolCard>
+    <div className="w-full min-w-0">
+      <AgentTraceBlock
+        title={
+          isRunning ? (
+            <AgentShimmerText key={`gen-live-${tool.toolCallId}`} active>
+              {label}…
+            </AgentShimmerText>
+          ) : isError ? (
+            <span className="text-rose-500">{label} failed</span>
+          ) : (
+            label
+          )
+        }
+        isActive={isRunning}
+        defaultExpanded={isRunning}
+        showChevron
+        className="agent-generic-tool"
+        headerClassName="agent-generic-tool__header"
+        contentClassName="agent-generic-tool__body"
+      >
+        {hasArgs || resultText ? (
+          <ToolBody>
+            {hasArgs ? (
+              <ToolArea label="Input" mono>
+                <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2 text-zinc-700">
+                  {prettyJson(tool.args)}
+                </pre>
+              </ToolArea>
+            ) : null}
+            {resultText ? (
+              <ToolArea
+                label="Output"
+                error={isError}
+                defaultOpen={isError}
+                mono
+              >
+                <pre
+                  className={cn(
+                    "overflow-x-auto whitespace-pre-wrap break-words rounded-md border px-2.5 py-2",
+                    isError
+                      ? "border-rose-200/80 bg-rose-50/60 text-rose-600"
+                      : "border-zinc-200/80 bg-zinc-50/80 text-zinc-700",
+                  )}
+                >
+                  {resultText.slice(0, 12000)}
+                </pre>
+              </ToolArea>
+            ) : null}
+          </ToolBody>
+        ) : null}
+      </AgentTraceBlock>
+    </div>
   );
 }
+
+/* ─────────────────────────── dispatcher ────────────────────────── */
 
 export function AgentToolBlock({
   tool,
@@ -1034,49 +1166,35 @@ export function AgentToolBlock({
   tool: AgentToolSegment;
   previousFileContent?: string;
 }) {
-  if (tool.name === "web_search" || tool.name === "web_fetch") {
-    return <AgentWebSearchBlock tool={tool} />;
+  switch (tool.name) {
+    case "create_file":
+    case "file_write":
+    case "present_files":
+      return (
+        <AgentFileBlock tool={tool} previousContent={previousFileContent} />
+      );
+    case "bash_tool":
+      return <AgentBashToolBlock tool={tool} />;
+    case "execute_code":
+      return <AgentExecuteCodeBlock tool={tool} />;
+    case "web_search":
+      return <AgentWebSearchBlock tool={tool} />;
+    case "file_read":
+      return <AgentFileReadBlock tool={tool} />;
+    case "read_skill":
+      return <AgentReadSkillBlock tool={tool} />;
+    case "weather":
+      return <AgentWeatherBlock tool={tool} />;
+    case "places_search":
+      return <AgentPlacesSearchBlock tool={tool} />;
+    case "image_search":
+      return <AgentImageSearchBlock tool={tool} />;
+    case "ask_user_input_v0":
+      return <AgentAskUserInputBlock tool={tool} />;
+    default:
+      if (tool.name.startsWith("mcp__")) {
+        return <AgentMcpToolBlock tool={tool} />;
+      }
+      return <AgentGenericToolBlock tool={tool} />;
   }
-  if (tool.name === "create_file" || tool.name === "file_write") {
-    return (
-      <AgentFileBlock tool={tool} previousContent={previousFileContent} />
-    );
-  }
-  if (tool.name === "present_files") {
-    return <PresentFilesBlock tool={tool} />;
-  }
-  if (tool.name === "bash_tool" || tool.name === "run_code_interpreter") {
-    return <AgentBashToolBlock tool={tool} />;
-  }
-  if (tool.name === "ask_user_input_v0") {
-    return <AskUserInputBlock tool={tool} />;
-  }
-  if (tool.name === "weather_fetch") {
-    return <WeatherBlock tool={tool} />;
-  }
-  if (tool.name === "places_search") {
-    return <PlacesSearchBlock tool={tool} />;
-  }
-  if (tool.name === "fetch_sports_data") {
-    return <SportsDataBlock tool={tool} />;
-  }
-  if (tool.name === "image_search") {
-    return <ImageSearchBlock tool={tool} />;
-  }
-  if (tool.name === "message_compose_v1") {
-    return <MessageComposeBlock tool={tool} />;
-  }
-  if (tool.name === "places_map_display_v0") {
-    return <MapDisplayBlock tool={tool} />;
-  }
-  if (tool.name === "recipe_display_v0") {
-    return <RecipeDisplayBlock tool={tool} />;
-  }
-  if (tool.name === "recommend_clauxen_apps" || tool.name === "recommend_claude_apps") {
-    return <RecommendClaudeAppsBlock tool={tool} />;
-  }
-  if (tool.name === "suggest_connectors") {
-    return <SuggestConnectorsBlock tool={tool} />;
-  }
-  return <AgentGenericToolBlock tool={tool} />;
 }

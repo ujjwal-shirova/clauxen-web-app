@@ -1,33 +1,22 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { SITE } from "@/marketing/lib/site";
 
 type ModeId = "chat" | "work" | "codex";
 
-const MODE_COLORS: Record<
-  ModeId,
-  { letters: string[]; underline: string }
-> = {
+const MODE_COLORS: Record<ModeId, { letters: string[]; underline: string }> = {
   chat: {
     letters: ["#10a0e8", "#fcd448", "#fc6c28", "#fcc0cc"],
-    underline:
-      "linear-gradient(90deg, #10a0e8, #fcd448, #fc6c28, #fcc0cc)",
+    underline: "linear-gradient(90deg, #10a0e8, #fcd448, #fc6c28, #fcc0cc)",
   },
   work: {
     letters: ["#04b84c", "#10a0e8", "#fcd448", "#fc6c28"],
-    underline:
-      "linear-gradient(90deg, #04b84c, #10a0e8, #fcd448, #fc6c28)",
+    underline: "linear-gradient(90deg, #04b84c, #10a0e8, #fcd448, #fc6c28)",
   },
   codex: {
     letters: ["#ceb0fb", "#10a0e8", "#04b84c", "#fcd448"],
-    underline:
-      "linear-gradient(90deg, #ceb0fb, #10a0e8, #04b84c, #fcd448)",
+    underline: "linear-gradient(90deg, #ceb0fb, #10a0e8, #04b84c, #fcd448)",
   },
 };
 
@@ -112,9 +101,7 @@ function RainbowWord({
       <span
         aria-hidden
         className={`pointer-events-none absolute left-[2%] right-[2%] -bottom-[0.08em] h-[0.035em] origin-left rounded-full transition-transform duration-300 ${
-          lit
-            ? "scale-x-100"
-            : "scale-x-0 group-hover/word:scale-x-100"
+          lit ? "scale-x-100" : "scale-x-0 group-hover/word:scale-x-100"
         }`}
         style={{ backgroundImage: palette.underline }}
       />
@@ -153,7 +140,7 @@ function ProductWindow({
           </span>
         </div>
       ) : null}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {}
       <img
         src={src}
         alt={alt}
@@ -308,7 +295,9 @@ export function OverviewExperience() {
             {MODES.map((m) => (
               <div
                 key={m.id}
-                className={m.id === mode ? "relative z-10" : "absolute inset-0 z-0"}
+                className={
+                  m.id === mode ? "relative z-10" : "absolute inset-0 z-0"
+                }
                 aria-hidden={m.id !== mode}
               >
                 <ProductWindow

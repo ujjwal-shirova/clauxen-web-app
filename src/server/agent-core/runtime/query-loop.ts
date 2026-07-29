@@ -1,8 +1,16 @@
 /**
- * Claude Code–style query loop for Clauxen Web (Provider / Novita only).
+ * Clauxen autonomous agent loop (Provider / Novita, Anthropic Messages API).
  *
- * Stream → tools → tool_result → repeat. Wired through @/server/agent-core.
- * DOM transcript: ClauxenSseStream → src/components/agent/*.
+ * Round lifecycle:
+ *   1. Stream one model round: thinking → narration prose → tool_use blocks.
+ *   2. Every text delta streams live as a narration segment — visible progress.
+ *   3. Tool calls close the round's text segment; tools execute sequentially.
+ *   4. tool_result blocks go back; next round starts.
+ *   5. A round with no tool calls ends the turn: its text is promoted to the
+ *      durable answer via answer_finalize (in place — no answer teleporting).
+ *
+ * No tag parsing anywhere: narration vs answer is decided structurally by
+ * whether the round made tool calls.
  */
 
 import {
@@ -24,7 +32,7 @@ import {
   autonomousAgentTools,
 } from "@/server/agent-core/tools";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
-import { inferLanguage } from "@/server/inference/platform-tools";
+import { inferLanguage } from "@/server/inference/language";
 import { parse as parsePartialJson, Allow } from "partial-json";
 import { z } from "zod";
 import type { ConfiguredModelId } from "@/lib/model-config";
@@ -40,15 +48,23 @@ import {
   toolResultPart,
   type TranscriptAgentModelTurn,
 } from "@/server/training/transcript-format";
-import {
-  parseAgentTextMarkup,
-  parseThinkingMarkup,
-} from "@/lib/agent-transcript-markup";
+import { McpConnectorHarness } from "@/server/mcp/registry";
 
 /** Single autonomous step budget. The model decides how many steps it needs. */
 const MAX_STEPS = 24;
 
-// ── Zod schemas for autonomous tools (for self-healing validation) ─────────
+/** Sidebar title tags must never reach the visible answer. */
+const CHAT_TITLE_BLOCK_RE = /<chat_title>[\s\S]*?<\/chat_title>/gi;
+const CHAT_TITLE_TAG_RE = /<\/?chat_title>/gi;
+
+function stripChatTitleMarkup(text: string): string {
+  return text
+    .replace(CHAT_TITLE_BLOCK_RE, "")
+    .replace(CHAT_TITLE_TAG_RE, "")
+    .trimStart();
+}
+
+// ── Zod schemas for autonomous tools (self-healing validation) ──────────────
 
 const autonomousZodByName: Record<string, z.ZodTypeAny> = {
   read_skill: z.object({
@@ -79,9 +95,6 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
     query: z.string(),
     max_results: z.number().optional(),
   }),
-  present_files: z.object({
-    paths: z.array(z.string()).min(1),
-  }),
   file_read: z.object({
     path: z.string(),
   }),
@@ -96,15 +109,18 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
     description: z.string().optional(),
   }),
   ask_user_input_v0: z.object({
-    questions: z.array(
-      z.object({
-        question: z.string(),
-        options: z.array(z.string()).min(2).max(4),
-        type: z
-          .enum(["single_select", "multi_select", "rank_priorities"])
-          .optional(),
-      }),
-    ).min(1).max(3),
+    questions: z
+      .array(
+        z.object({
+          question: z.string(),
+          options: z.array(z.string()).min(2).max(4),
+          type: z
+            .enum(["single_select", "multi_select", "rank_priorities"])
+            .optional(),
+        }),
+      )
+      .min(1)
+      .max(3),
   }),
   create_scheduled_task: z.object({
     name: z.string(),
@@ -125,7 +141,7 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
   }),
 };
 
-/** create_file auto-presents — emit downloadable artifact immediately. */
+/** create_file auto-presents — emit the downloadable artifact immediately. */
 function emitCreatedFileArtifact(
   sse: ClauxenSseStream,
   output: unknown,
@@ -157,24 +173,11 @@ function emitCreatedFileArtifact(
   );
 }
 
-/** Build Anthropic tool definitions from our autonomous tool catalog. */
-function buildAnthropicTools() {
-  return toAnthropicTools(
-    autonomousAgentTools
-      // present_files removed — create_file auto-presents to the user.
-      .filter((tool) => tool.name !== "present_files")
-      .map((tool) => ({
-        name: tool.name,
-        description: tool.description ?? tool.name,
-        parameters: (tool.parameters ?? {
-          type: "object",
-          properties: {},
-        }) as Record<string, unknown>,
-      })),
-  );
+function isMcpToolName(name: string): boolean {
+  return name.startsWith("mcp__");
 }
 
-/** Build self-healing tool definitions with Zod schemas. */
+/** Build self-healing tool definitions for built-in autonomous tools. */
 function buildHealingTools(): Map<string, ToolDefinition> {
   const map = new Map<string, ToolDefinition>();
   for (const def of autonomousAgentTools) {
@@ -223,9 +226,7 @@ export type AgentStreamOptions = {
   deps?: QueryDeps;
 };
 
-function resolveThinkingBudget(
-  options: AgentStreamOptions,
-): number {
+function resolveThinkingBudget(options: AgentStreamOptions): number {
   // Composer Thinking toggle is authoritative (default off).
   const thinking = resolveAutonomousThinkingParams({
     chatModel: options.chatModelId ?? DEFAULT_CHAT_MODEL_ID,
@@ -233,7 +234,6 @@ function resolveThinkingBudget(
     homerReasoningEffort: options.homerReasoningEffort,
   });
   if (!thinking.enable_thinking) return 0;
-  // Map effort → Anthropic thinking budget (Clauxen Code style).
   const effort = String(thinking.reasoning_effort ?? "high");
   switch (effort) {
     case "low":
@@ -241,21 +241,20 @@ function resolveThinkingBudget(
     case "medium":
       return 5_120;
     case "max":
-      return 10_240;
     case "high":
     default:
       return 10_240;
   }
 }
 
+type PendingToolCall = {
+  id: string;
+  name: string;
+  arguments: string;
+};
+
 /**
- * Run the autonomous agent loop (Anthropic Messages), streaming to the UI.
- *
- * Loop (from Clauxen Code query.ts):
- *  1. Stream model response (thinking + text + tool_use).
- *  2. Execute tools (parallel when safe).
- *  3. Append tool_result blocks; call model again.
- *  4. Repeat until no more tool_use.
+ * Run the autonomous agent loop, streaming protocol events to the UI.
  */
 export async function runAutonomousAgent(
   sse: ClauxenSseStream,
@@ -275,11 +274,38 @@ export async function runAutonomousAgent(
 
   const deps = options.deps ?? productionDeps();
   const healingTools = buildHealingTools();
-  const anthropicTools = buildAnthropicTools();
   const thinkingBudget = resolveThinkingBudget(options);
 
+  // MCP connectors: discover tools once per turn; failures never sink the turn.
+  const mcp = new McpConnectorHarness();
+  let mcpTools: Awaited<ReturnType<McpConnectorHarness["discover"]>> = [];
+  try {
+    mcpTools = await mcp.discover();
+  } catch {
+    mcpTools = [];
+  }
+
+  const anthropicTools = toAnthropicTools([
+    ...autonomousAgentTools
+      // present_files removed — create_file auto-presents to the user.
+      .filter((tool) => tool.name !== "present_files")
+      .map((tool) => ({
+        name: tool.name,
+        description: tool.description ?? tool.name,
+        parameters: (tool.parameters ?? {
+          type: "object",
+          properties: {},
+        }) as Record<string, unknown>,
+      })),
+    ...mcpTools.map((tool) => ({
+      name: tool.qualifiedName,
+      description: tool.description,
+      parameters: tool.inputSchema,
+    })),
+  ]);
+
   // Anthropic: system is separate; history is user/assistant only.
-  let conversation: AnthropicChatMessage[] = rawMessages
+  const conversation: AnthropicChatMessage[] = rawMessages
     .filter((m) => m.role === "user" || m.role === "assistant")
     .map((m) => ({
       role: m.role as "user" | "assistant",
@@ -288,13 +314,13 @@ export async function runAutonomousAgent(
 
   sse.writeStart(true);
 
-  // One activity frame for the entire assistant turn (Clauxen Code–style).
+  // One activity frame for the entire assistant turn.
   const frameId = "agent-frame-1";
   let frameOpen = false;
-  let narrationSegmentCounter = 0;
-  let thinkingSegmentCounter = 0;
-  let activeNarrationSegmentId: string | null = null;
-  let activeThinkingSegmentId: string | null = null;
+  let narrationCounter = 0;
+  let thinkingCounter = 0;
+  let activeNarrationId: string | null = null;
+  let activeThinkingId: string | null = null;
 
   const openFrame = () => {
     if (frameOpen) return;
@@ -302,17 +328,44 @@ export async function runAutonomousAgent(
     frameOpen = true;
   };
 
-  const closeActiveNarrationSegment = () => {
-    if (!activeNarrationSegmentId) return;
-    sse.writeSegmentEnd(activeNarrationSegmentId, "narration");
-    activeNarrationSegmentId = null;
+  const closeNarration = () => {
+    if (!activeNarrationId) return;
+    sse.writeSegmentEnd(activeNarrationId, "narration");
+    activeNarrationId = null;
+  };
+
+  const closeThinking = () => {
+    if (!activeThinkingId) return;
+    sse.writeThinkingEnd(activeThinkingId);
+    sse.writeSegmentEnd(activeThinkingId, "thinking");
+    activeThinkingId = null;
   };
 
   const closeFrame = () => {
-    closeActiveNarrationSegment();
+    closeNarration();
+    closeThinking();
     if (!frameOpen) return;
     sse.writeFrameComplete(frameId);
     frameOpen = false;
+  };
+
+  const ensureNarration = (): string => {
+    if (activeNarrationId) return activeNarrationId;
+    narrationCounter += 1;
+    activeNarrationId = `${frameId}-narration-${narrationCounter}`;
+    openFrame();
+    sse.writeSegmentStart(activeNarrationId, "narration");
+    return activeNarrationId;
+  };
+
+  const ensureThinking = (): string => {
+    if (activeThinkingId) return activeThinkingId;
+    thinkingCounter += 1;
+    activeThinkingId = `${frameId}-thinking-${thinkingCounter}`;
+    openFrame();
+    sse.writeSegmentStart(activeThinkingId, "thinking");
+    sse.writeThinkingStart();
+    return activeThinkingId;
   };
 
   try {
@@ -324,30 +377,16 @@ export async function runAutonomousAgent(
       }
 
       const modelTurnStartedAtMs = Date.now();
-      let sawToolCall = false;
-      let thinkingOpen = false;
-      let thinkingSegmentId: string | null = null;
-      const pendingToolCalls: Array<{
-        id: string;
-        name: string;
-        arguments: string;
-      }> = [];
+      const pendingToolCalls: PendingToolCall[] = [];
       const toolCallBuffers = new Map<
         string,
         { name: string; argsBuffer: string }
       >();
-      let rawText = "";
-      let rawReasoning = "";
-      let emittedAnswerText = "";
-      let emittedNarration = "";
-      let visibleTextAtFirstTool = "";
-      let emittedPostToolNarration = "";
-      let emittedThinking = "";
-      let parsedText = parseAgentTextMarkup("");
+      let roundText = "";
+      let roundNarrationId: string | null = null;
       let finished:
         | { reason: string; content: Anthropic.ContentBlock[] }
         | undefined;
-      const turnNarrationSegmentIds: string[] = [];
 
       const stream = deps.callModel({
         model: options.model,
@@ -357,63 +396,16 @@ export async function runAutonomousAgent(
         temperature: temperature ?? 0.6,
         max_tokens: maxTokens ?? 8192,
         thinkingBudgetTokens: thinkingBudget,
-        // Maps composer Thinking On|Off → upstream `enable_thinking`.
         enableThinking: thinkingBudget > 0,
         signal,
       });
 
-      const ensureThinkingOpen = () => {
-        if (thinkingOpen) return;
-        thinkingSegmentCounter += 1;
-        activeThinkingSegmentId = `${frameId}-thinking-${thinkingSegmentCounter}`;
-        thinkingSegmentId = activeThinkingSegmentId;
-        openFrame();
-        sse.writeSegmentStart(activeThinkingSegmentId, "thinking");
-        sse.writeThinkingStart();
-        thinkingOpen = true;
-      };
-
-      const closeThinking = () => {
-        if (!thinkingOpen) return;
-        const segmentId = activeThinkingSegmentId ?? undefined;
-        sse.writeThinkingEnd(segmentId);
-        if (segmentId) {
-          sse.writeSegmentEnd(segmentId, "thinking");
-        }
-        thinkingOpen = false;
-        activeThinkingSegmentId = null;
-      };
-
-      const ensureNarrationOpen = () => {
-        if (activeNarrationSegmentId) return activeNarrationSegmentId;
-        narrationSegmentCounter += 1;
-        activeNarrationSegmentId = `${frameId}-narration-${narrationSegmentCounter}`;
-        turnNarrationSegmentIds.push(activeNarrationSegmentId);
-        openFrame();
-        sse.writeSegmentStart(activeNarrationSegmentId, "narration");
-        return activeNarrationSegmentId;
-      };
-
       for await (const part of stream) {
         switch (part.type) {
           case "reasoning-delta": {
-            openFrame();
-            ensureThinkingOpen();
-            rawReasoning += part.delta;
-            const parsed = parseThinkingMarkup(rawReasoning);
-            if (parsed.heading && thinkingSegmentId) {
-              sse.writeThinkingHeading(thinkingSegmentId, parsed.heading);
-            }
-            if (parsed.body.startsWith(emittedThinking)) {
-              const delta = parsed.body.slice(emittedThinking.length);
-              if (delta) {
-                sse.writeThinkingDelta(
-                  delta,
-                  activeThinkingSegmentId ?? undefined,
-                );
-                emittedThinking = parsed.body;
-              }
-            }
+            if (!part.delta) break;
+            const segmentId = ensureThinking();
+            sse.writeThinkingDelta(part.delta, segmentId);
             break;
           }
 
@@ -421,72 +413,18 @@ export async function runAutonomousAgent(
             const visible = sanitizeAssistantStreamDelta(part.delta);
             if (!visible) break;
             closeThinking();
-            rawText += visible;
-            parsedText = parseAgentTextMarkup(rawText);
-
-            if (parsedText.heading && thinkingSegmentId) {
-              sse.writeThinkingHeading(thinkingSegmentId, parsedText.heading);
-            }
-
-            if (parsedText.narration.startsWith(emittedNarration)) {
-              const narrationDelta = parsedText.narration.slice(
-                emittedNarration.length,
-              );
-              if (narrationDelta) {
-                const segmentId = ensureNarrationOpen();
-                sse.writeNarrationDelta(segmentId, narrationDelta);
-                emittedNarration = parsedText.narration;
-              }
-            }
-
-            if (
-              !sawToolCall &&
-              parsedText.visibleText.startsWith(emittedAnswerText)
-            ) {
-              const answerDelta = parsedText.visibleText.slice(
-                emittedAnswerText.length,
-              );
-              if (answerDelta) {
-                sse.writeAnswerDelta(answerDelta);
-                emittedAnswerText = parsedText.visibleText;
-              }
-            } else if (
-              sawToolCall &&
-              parsedText.visibleText.startsWith(visibleTextAtFirstTool)
-            ) {
-              const postToolNarration = parsedText.visibleText.slice(
-                visibleTextAtFirstTool.length,
-              );
-              if (postToolNarration.startsWith(emittedPostToolNarration)) {
-                const narrationDelta = postToolNarration.slice(
-                  emittedPostToolNarration.length,
-                );
-                if (narrationDelta) {
-                  const segmentId = ensureNarrationOpen();
-                  sse.writeNarrationDelta(segmentId, narrationDelta);
-                  emittedPostToolNarration = postToolNarration;
-                }
-              }
-            }
+            const segmentId = ensureNarration();
+            roundNarrationId = segmentId;
+            roundText += visible;
+            sse.writeNarrationDelta(segmentId, visible);
             break;
           }
 
           case "tool-call-start":
             openFrame();
             closeThinking();
-            if (!sawToolCall) {
-              sawToolCall = true;
-              visibleTextAtFirstTool = emittedAnswerText;
-              if (emittedAnswerText.trim()) {
-                sse.writeAnswerClear();
-                closeActiveNarrationSegment();
-                const segmentId = ensureNarrationOpen();
-                sse.writeNarrationDelta(segmentId, emittedAnswerText.trim());
-                // Pre-tool prose is progress, not the durable final answer.
-                emittedAnswerText = "";
-              }
-            }
-            closeActiveNarrationSegment();
+            // Pre-tool prose stays as narration — close it before the tool row.
+            closeNarration();
             sse.writeToolStart(
               part.toolCallId,
               part.toolName,
@@ -533,10 +471,7 @@ export async function runAutonomousAgent(
             break;
 
           case "finish":
-            finished = {
-              reason: part.reason,
-              content: part.content,
-            };
+            finished = { reason: part.reason, content: part.content };
             break;
 
           case "error":
@@ -551,24 +486,15 @@ export async function runAutonomousAgent(
         }
       }
 
-      closeActiveNarrationSegment();
       closeThinking();
+      closeNarration();
       const assistantCompletedAtMs = Date.now();
 
+      // ── Final round: no tool calls → promote the text to the answer. ──
       if (pendingToolCalls.length === 0) {
-        // Flush final prose into the durable answer channel when nothing was
-        // emitted as answer yet (e.g. only narration, or post-tool text held
-        // as narration). Follow-up turns replay this persisted answer.
-        if (!emittedAnswerText.trim()) {
-          const finalAnswer =
-            parsedText.visibleText.trim() || parsedText.narration.trim();
-          if (finalAnswer) {
-            for (const segmentId of turnNarrationSegmentIds) {
-              sse.writeSegmentRemove(segmentId);
-            }
-            sse.writeAnswerDelta(finalAnswer);
-            emittedAnswerText = finalAnswer;
-          }
+        const finalText = stripChatTitleMarkup(roundText).trim();
+        if (finalText) {
+          sse.writeAnswerFinalize(roundNarrationId ?? undefined, finalText);
         }
         if (finished) {
           try {
@@ -583,10 +509,10 @@ export async function runAutonomousAgent(
             // Transcript capture must never break the visible response.
           }
         }
-        closeFrame();
         break;
       }
 
+      // ── Tool round: the round's text stays as narration; execute tools. ──
       if (!finished || finished.content.length === 0) {
         throw new Error(
           "The model requested a tool without a replayable assistant message.",
@@ -594,128 +520,79 @@ export async function runAutonomousAgent(
       }
 
       // Replay the exact API response, including signed/redacted thinking.
-      // Rebuilding or filtering these blocks breaks Anthropic reasoning
-      // continuity and can produce a 400 on the next tool-result request.
+      // Rebuilding or filtering these blocks breaks reasoning continuity.
       conversation.push({
         role: "assistant",
         content: finished.content as unknown as Anthropic.ContentBlockParam[],
       });
 
+      let pauseForUser = false;
+      const toolResults: Array<{
+        toolCallId: string;
+        name: string;
+        result: string;
+        isError: boolean;
+      }> = [];
+
+      // Sequential execution: the sandbox is stateful and the UI reads top-down.
       for (const tc of pendingToolCalls) {
-        const args = safeParseJson(tc.arguments);
+        if (signal?.aborted) break;
+        const rawArgs = safeParseJson(tc.arguments);
         sse.writeToolStart(
           tc.id,
           tc.name,
-          args,
-          typeof args.description === "string" ? args.description : undefined,
+          rawArgs,
+          typeof rawArgs.description === "string"
+            ? rawArgs.description
+            : undefined,
           true,
         );
-      }
 
-      let pauseForUser = false;
-      const toolResults = await Promise.all(
-        pendingToolCalls.map(async (tc) => {
-          const healingTool = healingTools.get(tc.name);
-          const rawArgs = safeParseJson(tc.arguments);
+        // MCP connector tools route to their server over streamable HTTP.
+        if (isMcpToolName(tc.name)) {
+          const outcome = await mcp.call(tc.name, rawArgs);
+          const isError = outcome.isError;
+          sse.writeToolEnd(tc.id, tc.name, outcome.text, isError);
+          toolResults.push({
+            toolCallId: tc.id,
+            name: tc.name,
+            result: outcome.text,
+            isError,
+          });
+          continue;
+        }
 
-          if (healingTool) {
-            const ctx: ToolExecutionContext = {
-              userId,
-              conversationId: conversationId ?? "chat",
-              userCountryCode,
-              toolCallId: tc.id,
-              onProgress: (data) => {
-                if (tc.name === "web_search") {
-                  sse.writeToolData(tc.id, {
-                    ...data,
-                    tool_call_id: tc.id,
-                  });
-                } else if (
-                  tc.name === "bash_tool" &&
-                  (data.kind === "stdout" || data.kind === "stderr") &&
-                  typeof data.delta === "string"
-                ) {
-                  sse.writeToolOutputDelta(tc.id, data.kind, data.delta);
-                }
-              },
-            };
+        const healingTool = healingTools.get(tc.name);
+        let outcomeOutput: unknown;
+        let outcomePause = false;
 
-            const healed = healToolArgs(rawArgs, healingTool.inputSchema);
-            const result = await executeToolSafely(
-              healingTool,
-              healed ?? rawArgs,
-              ctx,
-            );
-
-            if (
-              tc.name === "web_search" &&
-              result.output &&
-              typeof result.output === "object"
-            ) {
-              const output = result.output as Record<string, unknown>;
-              if (Array.isArray(output.results)) {
-                sse.writeToolData(tc.id, {
-                  tool_call_id: tc.id,
-                  query: output.query,
-                  results: output.results,
-                });
+        if (healingTool) {
+          const ctx: ToolExecutionContext = {
+            userId,
+            conversationId: conversationId ?? "chat",
+            userCountryCode,
+            toolCallId: tc.id,
+            onProgress: (data) => {
+              if (tc.name === "web_search") {
+                sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
+              } else if (
+                tc.name === "bash_tool" &&
+                (data.kind === "stdout" || data.kind === "stderr") &&
+                typeof data.delta === "string"
+              ) {
+                sse.writeToolOutputDelta(tc.id, data.kind, data.delta);
               }
-            }
-
-            if (
-              (tc.name === "create_file" || tc.name === "file_write") &&
-              result.output &&
-              typeof result.output === "object"
-            ) {
-              emitCreatedFileArtifact(
-                sse,
-                result.output,
-                typeof rawArgs.path === "string" ? rawArgs.path : undefined,
-                typeof rawArgs.content === "string" ? rawArgs.content : undefined,
-                typeof rawArgs.description === "string"
-                  ? rawArgs.description
-                  : undefined,
-              );
-            }
-
-            if (
-              tc.name === "present_files" &&
-              result.output &&
-              typeof result.output === "object"
-            ) {
-              const output = result.output as {
-                files?: Array<{ path: string; content: string }>;
-              };
-              for (const file of output.files ?? []) {
-                sse.writeArtifact(
-                  file.path,
-                  file.path,
-                  file.content,
-                  inferLanguage(file.path),
-                );
-              }
-            }
-
-            const resultStr =
-              typeof result.output === "string"
-                ? result.output
-                : JSON.stringify(result.output ?? {});
-            const isError = isToolErrorOutput(result.output);
-
-            if (result.pauseForUser || tc.name === "ask_user_input_v0") {
-              pauseForUser = true;
-            }
-
-            sse.writeToolEnd(tc.id, tc.name, resultStr, isError);
-
-            return {
-              toolCallId: tc.id,
-              name: tc.name,
-              result: resultStr,
-              isError,
-            };
-          }
-
+            },
+          };
+          const healed = healToolArgs(rawArgs, healingTool.inputSchema);
+          const result = await executeToolSafely(
+            healingTool,
+            healed ?? rawArgs,
+            ctx,
+          );
+          outcomeOutput = result.output;
+          outcomePause = result.pauseForUser === true;
+        } else {
           try {
             const outcome = await executeAutonomousTool(tc.name, rawArgs, {
               conversationId: conversationId ?? "chat",
@@ -724,82 +601,70 @@ export async function runAutonomousAgent(
               toolCallId: tc.id,
               onToolProgress: (data) => {
                 if (tc.name === "web_search") {
-                  sse.writeToolData(tc.id, {
-                    ...data,
-                    tool_call_id: tc.id,
-                  });
+                  sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
                 }
               },
             });
-            const resultStr =
-              typeof outcome.output === "string"
-                ? outcome.output
-                : JSON.stringify(outcome.output ?? {});
-            const isError = isToolErrorOutput(outcome.output);
-
-            if (
-              (tc.name === "create_file" || tc.name === "file_write") &&
-              outcome.output &&
-              typeof outcome.output === "object"
-            ) {
-              emitCreatedFileArtifact(
-                sse,
-                outcome.output,
-                typeof rawArgs.path === "string" ? rawArgs.path : undefined,
-                typeof rawArgs.content === "string" ? rawArgs.content : undefined,
-                typeof rawArgs.description === "string"
-                  ? rawArgs.description
-                  : undefined,
-              );
-            }
-
-            if (
-              tc.name === "present_files" &&
-              outcome.output &&
-              typeof outcome.output === "object"
-            ) {
-              const output = outcome.output as {
-                files?: Array<{ path: string; content: string }>;
-              };
-              for (const file of output.files ?? []) {
-                sse.writeArtifact(
-                  file.path,
-                  file.path,
-                  file.content,
-                  inferLanguage(file.path),
-                );
-              }
-            }
-
-            if (outcome.pauseForUser || tc.name === "ask_user_input_v0") {
-              pauseForUser = true;
-            }
-
-            sse.writeToolEnd(tc.id, tc.name, resultStr, isError);
-            return {
-              toolCallId: tc.id,
-              name: tc.name,
-              result: resultStr,
-              isError,
-            };
+            outcomeOutput = outcome.output;
+            outcomePause = outcome.pauseForUser === true;
           } catch (error) {
-            const errMsg =
-              error instanceof Error ? error.message : String(error);
-            sse.writeToolEnd(
-              tc.id,
-              tc.name,
-              JSON.stringify({ error: errMsg }),
-              true,
-            );
-            return {
-              toolCallId: tc.id,
-              name: tc.name,
-              result: JSON.stringify({ error: errMsg }),
-              isError: true,
+            outcomeOutput = {
+              error: error instanceof Error ? error.message : String(error),
             };
           }
-        }),
-      );
+        }
+
+        // Streamed search hits for the results card.
+        if (
+          tc.name === "web_search" &&
+          outcomeOutput &&
+          typeof outcomeOutput === "object"
+        ) {
+          const output = outcomeOutput as Record<string, unknown>;
+          if (Array.isArray(output.results)) {
+            sse.writeToolData(tc.id, {
+              tool_call_id: tc.id,
+              query: output.query,
+              results: output.results,
+            });
+          }
+        }
+
+        // create_file auto-presents as a downloadable artifact card.
+        if (
+          (tc.name === "create_file" || tc.name === "file_write") &&
+          outcomeOutput &&
+          typeof outcomeOutput === "object"
+        ) {
+          emitCreatedFileArtifact(
+            sse,
+            outcomeOutput,
+            typeof rawArgs.path === "string" ? rawArgs.path : undefined,
+            typeof rawArgs.content === "string" ? rawArgs.content : undefined,
+            typeof rawArgs.description === "string"
+              ? rawArgs.description
+              : undefined,
+          );
+        }
+
+        const resultStr =
+          typeof outcomeOutput === "string"
+            ? outcomeOutput
+            : JSON.stringify(outcomeOutput ?? {});
+        const isError = isToolErrorOutput(outcomeOutput);
+
+        if (outcomePause || tc.name === "ask_user_input_v0") {
+          pauseForUser = true;
+        }
+
+        sse.writeToolEnd(tc.id, tc.name, resultStr, isError);
+        toolResults.push({
+          toolCallId: tc.id,
+          name: tc.name,
+          result: resultStr,
+          isError,
+        });
+      }
 
       // Anthropic: tool results are a user message with tool_result blocks.
       conversation.push({
@@ -820,19 +685,13 @@ export async function runAutonomousAgent(
           completedAtMs: Date.now(),
           assistant: captureAnthropicContentBlocks(finished.content),
           toolResults: toolResults.map((result) =>
-            toolResultPart(
-              result.toolCallId,
-              result.result,
-              result.isError,
-            ),
+            toolResultPart(result.toolCallId, result.result, result.isError),
           ),
         });
       } catch {
         // Transcript capture must never break the visible response.
       }
 
-      // Keep a single activity frame across tool rounds — closing here used
-      // to spawn stacked "Brewed for 3s / Churned for 21s" chips.
       if (pauseForUser) {
         closeFrame();
         try {
@@ -864,10 +723,11 @@ export async function runAutonomousAgent(
     closeFrame();
     sse.writeDone();
     sse.finalize();
+    await mcp.close().catch(() => {});
   }
 }
 
-/** Generate a chat title using a non-streaming Anthropic completion. */
+/** Generate a chat title using a non-streaming completion. */
 export async function generateChatTitle(
   messages: Array<{ role: string; content: string }>,
   signal?: AbortSignal,
@@ -940,7 +800,7 @@ function isToolErrorOutput(output: unknown): boolean {
   );
 }
 
-/** Best-effort parse of a still-streaming tool-call arguments buffer (may be invalid/incomplete JSON). */
+/** Best-effort parse of a still-streaming tool-call arguments buffer. */
 function previewToolArgs(buffer: string): Record<string, unknown> {
   if (!buffer.trim()) return {};
   try {

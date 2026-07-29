@@ -1,15 +1,21 @@
 /**
- * Clauxen SSE Stream — lightweight server-side event emitter.
+ * Clauxen SSE Stream — server-side event emitter for the agent protocol.
  *
- * Replaces Vercel AI SDK's createUIMessageStream / UIMessageStreamWriter.
- * Produces a ReadableStream<Uint8Array> of SSE-formatted bytes that the
- * frontend consumeClauxenStreamResponse() parser already understands.
+ * Wire format (one JSON object per SSE data frame):
+ *   data: {"type":"narration_delta","segmentId":"...","delta":"..."}\n\n
  *
- * The wire format is the same legacy SSE protocol the frontend already uses:
- *   data: {"type":"answer_delta","delta":"..."}\n\n
- *   data: {"type":"done"}\n\n
- *
- * This means the frontend's existing StreamEvent reducer works unchanged.
+ * Protocol (emitted by the agent loop, consumed by use-chat.ts +
+ * agent-stream-reducer):
+ *   start                      — turn begins (agentMode)
+ *   agent_frame_start/complete — single work frame per turn
+ *   segment_start/end          — thinking | narration segments
+ *   thinking_delta/end         — extended-thinking stream
+ *   narration_delta            — visible progress prose + the final answer
+ *                                (streams as a segment, promoted at the end)
+ *   answer_finalize            — promotes the final text segment to the answer
+ *   tool_start/output_delta/data/end — tool lifecycle
+ *   artifact_upsert            — create_file deliverable cards
+ *   chat_title / error / done
  */
 
 import type { StreamEvent } from "@/lib/chat-stream";
@@ -54,7 +60,6 @@ export class ClauxenSseStream {
     this.controller.enqueue(this.encoder.encode(payload));
   }
 
-  /** Convenience helpers for the most common event types. */
   writeStart(agentMode = false): void {
     this.write({ type: "start", agentMode });
   }
@@ -72,11 +77,6 @@ export class ClauxenSseStream {
     );
   }
 
-  writeThinkingHeading(segmentId: string, heading: string): void {
-    if (!heading.trim()) return;
-    this.write({ type: "thinking_heading", segmentId, heading: heading.trim() });
-  }
-
   writeThinkingEnd(segmentId?: string): void {
     this.write(
       segmentId
@@ -90,8 +90,10 @@ export class ClauxenSseStream {
     this.write({ type: "answer_delta", delta });
   }
 
-  writeAnswerClear(): void {
-    this.write({ type: "answer_clear" });
+  /** Promote a narration segment to the durable final answer. */
+  writeAnswerFinalize(segmentId: string | undefined, text: string): void {
+    if (!text.trim()) return;
+    this.write({ type: "answer_finalize", segmentId, text });
   }
 
   writeFrameStart(frameId: string): void {
@@ -102,25 +104,6 @@ export class ClauxenSseStream {
     this.write({ type: "agent_frame_complete", frameId });
   }
 
-  writeInterim(text: string): void {
-    if (!text.trim()) return;
-    this.write({ type: "agent_interim", text });
-  }
-
-  /** Short whisper shown above the collapsible work timeline (pre-tool narration). */
-  writeIntroNarrative(text: string): void {
-    if (!text.trim()) return;
-    this.write({ type: "agent_intro_narrative", text });
-  }
-
-  writeIntroNarrativeDelta(delta: string): void {
-    if (!delta) return;
-    this.write({ type: "agent_intro_narrative_delta", delta });
-  }
-
-  /** Persistent narrative-note segment (the small clock-icon rows between tool
-   * calls in the vertical work timeline) — distinct from the ephemeral
-   * agent_interim preview, these survive after the frame completes. */
   writeSegmentStart(
     segmentId: string,
     kind: "thinking" | "narration" | "text" | "tool",
@@ -133,15 +116,6 @@ export class ClauxenSseStream {
     kind: "thinking" | "narration" | "text" | "tool",
   ): void {
     this.write({ type: "segment_end", segmentId, kind });
-  }
-
-  writeSegmentRemove(segmentId: string): void {
-    this.write({ type: "segment_remove", segmentId });
-  }
-
-  writeTextDelta(segmentId: string, delta: string): void {
-    if (!delta) return;
-    this.write({ type: "text_delta", segmentId, delta });
   }
 
   writeNarrationDelta(segmentId: string, delta: string): void {
@@ -188,10 +162,6 @@ export class ClauxenSseStream {
     isError?: boolean,
   ): void {
     this.write({ type: "tool_end", toolCallId, name, result, isError });
-  }
-
-  writeStepDone(label?: string): void {
-    this.write({ type: "step_done", label });
   }
 
   writeArtifact(

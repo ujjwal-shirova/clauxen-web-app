@@ -175,7 +175,6 @@ export function CheckoutUpiQrModal({
                 ) : null}
 
                 {imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- clean square PNG / data URL
                   <img
                     src={imageUrl}
                     alt="UPI QR code"

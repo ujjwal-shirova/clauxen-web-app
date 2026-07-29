@@ -143,7 +143,7 @@ export function ChatViewHeader({
                     className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2f6fed]"
                     aria-hidden
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    { }
                     <img
                       src="/assets/icons/clauxen-icon.png"
                       alt=""

@@ -1,9 +1,6 @@
 import type { Message } from "@/lib/types";
 import type { AgentFrame } from "@/lib/agent-frames";
-import type {
-  AgentSegment,
-  WebSearchResult,
-} from "@/lib/agent-segments";
+import type { AgentSegment, WebSearchResult } from "@/lib/agent-segments";
 import type { ChatArtifact } from "@/lib/chat-artifacts";
 
 const MAX_BRANCH_MESSAGES = 500;
@@ -23,16 +20,18 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
   const row = asRecord(value);
   if (!row) return null;
   const kind = asString(row.kind);
-  const id = asString(row.id) ?? `seg-${Math.random().toString(36).slice(2, 10)}`;
+  const id =
+    asString(row.id) ?? `seg-${Math.random().toString(36).slice(2, 10)}`;
   if (kind === "thinking") {
     return {
       kind: "thinking",
       id,
-      heading: asString(row.heading, 80),
       content: asString(row.content) ?? "",
       isStreaming: Boolean(row.isStreaming),
       durationSeconds:
-        typeof row.durationSeconds === "number" ? row.durationSeconds : undefined,
+        typeof row.durationSeconds === "number"
+          ? row.durationSeconds
+          : undefined,
       startedAtMs:
         typeof row.startedAtMs === "number" ? row.startedAtMs : undefined,
     };
@@ -43,6 +42,9 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
       id,
       content: asString(row.content) ?? "",
       isStreaming: Boolean(row.isStreaming),
+      ...(kind === "narration" && row.isFinal === true
+        ? { isFinal: true as const }
+        : {}),
     };
   }
   if (kind === "tool") {
@@ -70,7 +72,9 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
               ...(highlights && highlights.length > 0 ? { highlights } : {}),
             };
           })
-          .filter((item): item is WebSearchResult => item !== null) as WebSearchResult[])
+          .filter(
+            (item): item is WebSearchResult => item !== null,
+          ) as WebSearchResult[])
       : undefined;
     return {
       kind: "tool",
@@ -78,7 +82,9 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
       toolCallId: asString(row.toolCallId) ?? id,
       name: asString(row.name) ?? "tool",
       status:
-        row.status === "running" || row.status === "error" ? row.status : "done",
+        row.status === "running" || row.status === "error"
+          ? row.status
+          : "done",
       description: asString(row.description),
       args: asRecord(row.args) ?? undefined,
       argsComplete:
@@ -139,8 +145,6 @@ function sanitizeAgentFrame(value: unknown): AgentFrame | null {
     complete: Boolean(row.complete),
     startedAtMs,
     completedAtMs,
-    introNarrative: asString(row.introNarrative),
-    interimOutput: asString(row.interimOutput),
   };
 }
 

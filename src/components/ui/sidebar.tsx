@@ -7,7 +7,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { VariantProps, cva } from "class-variance-authority";
 import { PanelLeft } from "lucide-react";
 
-import { useIsMobile } from "@/hooks/use-mobile"; // mobile breakpoint detect hook (Hindi: mobile breakpoint detect hook)
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,12 +21,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"; // scope/component block end
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state"; // sidebar layout constant (Hindi: sidebar layout constant)
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // sidebar layout constant (Hindi: sidebar layout constant)
-const SIDEBAR_WIDTH = "16rem"; // sidebar layout constant (Hindi: sidebar layout constant)
-const SIDEBAR_WIDTH_MOBILE = "18rem"; // sidebar layout constant (Hindi: sidebar layout constant)
-const SIDEBAR_WIDTH_ICON = "3rem"; // sidebar layout constant (Hindi: sidebar layout constant)
-const SIDEBAR_KEYBOARD_SHORTCUT = "b"; // sidebar layout constant (Hindi: sidebar layout constant)
+const SIDEBAR_COOKIE_NAME = "sidebar_state";
+const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+const SIDEBAR_WIDTH = "16rem";
+const SIDEBAR_WIDTH_MOBILE = "18rem";
+const SIDEBAR_WIDTH_ICON = "3rem";
+const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 function writeSidebarStateCookie(openState: boolean) {
   // SameSite/Secure — non-HttpOnly UI preference cookie
@@ -38,20 +38,19 @@ function writeSidebarStateCookie(openState: boolean) {
 }
 
 type SidebarContext = {
-  // sidebar React context — open/collapsed/mobile state (Hindi: sidebar React context)
   state: "expanded" | "collapsed";
   open: boolean;
   setOpen: (open: boolean) => void;
   openMobile: boolean;
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
-  toggleSidebar: () => void; // sidebar expand/collapse toggle function (Hindi: sidebar expand/collapse toggle function)
+  toggleSidebar: () => void;
 }; // scope/component block end
 
-const SidebarContext = React.createContext<SidebarContext | null>(null); // sidebar React context — open/collapsed/mobile state (Hindi: sidebar React context)
+const SidebarContext = React.createContext<SidebarContext | null>(null);
 
 function useSidebar() {
-  const context = React.useContext(SidebarContext); // sidebar React context — open/collapsed/mobile state (Hindi: sidebar React context)
+  const context = React.useContext(SidebarContext);
   if (!context) {
     throw new Error("useSidebar must be used within a SidebarProvider.");
   } // scope/component block end
@@ -79,7 +78,7 @@ const SidebarProvider = React.forwardRef<
     }, // scope/component block end
     ref,
   ) => {
-    const isMobile = useIsMobile(); // mobile breakpoint detect hook (Hindi: mobile breakpoint detect hook)
+    const isMobile = useIsMobile();
     const [openMobile, setOpenMobile] = React.useState(false);
 
     // This is the internal state of the sidebar.
@@ -104,7 +103,6 @@ const SidebarProvider = React.forwardRef<
 
     // Helper to toggle the sidebar.
     const toggleSidebar = React.useCallback(() => {
-      // sidebar expand/collapse toggle function (Hindi: sidebar expand/collapse toggle function)
       return isMobile // JSX/value return
         ? setOpenMobile((open) => !open)
         : setOpen((open) => !open);
@@ -114,23 +112,23 @@ const SidebarProvider = React.forwardRef<
     React.useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
         if (
-          event.key === SIDEBAR_KEYBOARD_SHORTCUT && // sidebar layout constant (Hindi: sidebar layout constant)
+          event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
           (event.metaKey || event.ctrlKey)
         ) {
           event.preventDefault();
-          toggleSidebar(); // sidebar expand/collapse toggle function (Hindi: sidebar expand/collapse toggle function)
+          toggleSidebar();
         } // scope/component block end
       }; // scope/component block end
 
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown); // JSX/value return
-    }, [toggleSidebar]); // sidebar expand/collapse toggle function (Hindi: sidebar expand/collapse toggle function)
+    }, [toggleSidebar]);
 
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? "expanded" : "collapsed";
 
-    const contextValue = React.useMemo<SidebarContext>( // sidebar React context — open/collapsed/mobile state (Hindi: sidebar React context)
+    const contextValue = React.useMemo<SidebarContext>(
       () => ({
         state,
         open,
@@ -138,7 +136,7 @@ const SidebarProvider = React.forwardRef<
         isMobile,
         openMobile,
         setOpenMobile,
-        toggleSidebar, // sidebar expand/collapse toggle function (Hindi: sidebar expand/collapse toggle function)
+        toggleSidebar,
       }), // scope/component block end
       [
         state,
@@ -148,26 +146,21 @@ const SidebarProvider = React.forwardRef<
         openMobile,
         setOpenMobile,
         toggleSidebar,
-      ], // sidebar expand/collapse toggle function (Hindi: sidebar expand/collapse toggle function)
+      ],
     );
 
     return (
-      // JSX/value return
       <SidebarContext.Provider value={contextValue}>
-        {" "}
-        // sidebar React context — open/collapsed/mobile state (Hindi: sidebar
-        React context)
         <TooltipProvider delayDuration={0}>
           <div
             style={
               {
-                "--sidebar-width": SIDEBAR_WIDTH, // sidebar layout constant (Hindi: sidebar layout constant)
-                "--sidebar-width-icon": SIDEBAR_WIDTH_ICON, // sidebar layout constant (Hindi: sidebar layout constant)
+                "--sidebar-width": SIDEBAR_WIDTH,
+                "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
                 ...style,
               } as React.CSSProperties // scope/component block end
             } // scope/component block end
             className={cn(
-              // Tailwind classes merge — cn() utility
               "group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar",
               className,
             )}
@@ -177,11 +170,11 @@ const SidebarProvider = React.forwardRef<
             {children}
           </div>
         </TooltipProvider>
-      </SidebarContext.Provider> // sidebar React context — open/collapsed/mobile state (Hindi: sidebar React context)
+      </SidebarContext.Provider>
     );
   }, // scope/component block end
 );
-SidebarProvider.displayName = "SidebarProvider"; // React DevTools displayName assign
+SidebarProvider.displayName = "SidebarProvider";
 
 const Sidebar = React.forwardRef<
   HTMLDivElement,
@@ -209,7 +202,6 @@ const Sidebar = React.forwardRef<
         // JSX/value return
         <div
           className={cn(
-            // Tailwind classes merge — cn() utility
             "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
             className,
           )}
@@ -231,7 +223,7 @@ const Sidebar = React.forwardRef<
             className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             style={
               {
-                "--sidebar-width": SIDEBAR_WIDTH_MOBILE, // sidebar layout constant (Hindi: sidebar layout constant)
+                "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
               } as React.CSSProperties // scope/component block end
             } // scope/component block end
             side={side}
@@ -255,7 +247,6 @@ const Sidebar = React.forwardRef<
         {/* This is what handles the sidebar gap on desktop */}
         <div
           className={cn(
-            // Tailwind classes merge — cn() utility
             "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
@@ -266,7 +257,6 @@ const Sidebar = React.forwardRef<
         />
         <div
           className={cn(
-            // Tailwind classes merge — cn() utility
             "duration-200 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex",
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
@@ -290,7 +280,7 @@ const Sidebar = React.forwardRef<
     );
   }, // scope/component block end
 );
-Sidebar.displayName = "Sidebar"; // React DevTools displayName assign
+Sidebar.displayName = "Sidebar";
 
 const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
@@ -305,10 +295,10 @@ const SidebarTrigger = React.forwardRef<
       data-sidebar="trigger"
       variant="ghost"
       size="icon"
-      className={cn("h-7 w-7", className)} // Tailwind classes merge — cn() utility
+      className={cn("h-7 w-7", className)}
       onClick={(event) => {
         onClick?.(event);
-        toggleSidebar(); // sidebar expand/collapse toggle function (Hindi: sidebar expand/collapse toggle function)
+        toggleSidebar();
       }} // scope/component block end
       {...props}
     >
@@ -316,7 +306,7 @@ const SidebarTrigger = React.forwardRef<
     </Button>
   );
 }); // scope/component block end
-SidebarTrigger.displayName = "SidebarTrigger"; // React DevTools displayName assign
+SidebarTrigger.displayName = "SidebarTrigger";
 
 const SidebarRail = React.forwardRef<
   HTMLButtonElement,
@@ -331,10 +321,9 @@ const SidebarRail = React.forwardRef<
       data-sidebar="rail"
       aria-label="Toggle Sidebar"
       tabIndex={-1}
-      onClick={toggleSidebar} // sidebar expand/collapse toggle function (Hindi: sidebar expand/collapse toggle function)
+      onClick={toggleSidebar}
       title="Toggle Sidebar"
       className={cn(
-        // Tailwind classes merge — cn() utility
         "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border group-data-[side=left]:-right-4 group-data-[side=right]:left-0 sm:flex",
         "[[data-side=left]_&]:cursor-w-resize [[data-side=right]_&]:cursor-e-resize",
         "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
@@ -347,7 +336,7 @@ const SidebarRail = React.forwardRef<
     />
   );
 }); // scope/component block end
-SidebarRail.displayName = "SidebarRail"; // React DevTools displayName assign
+SidebarRail.displayName = "SidebarRail";
 
 const SidebarInset = React.forwardRef<
   HTMLDivElement,
@@ -358,7 +347,6 @@ const SidebarInset = React.forwardRef<
     <main
       ref={ref}
       className={cn(
-        // Tailwind classes merge — cn() utility
         "relative flex min-h-svh flex-1 flex-col bg-background",
         "peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
         className,
@@ -367,7 +355,7 @@ const SidebarInset = React.forwardRef<
     />
   );
 }); // scope/component block end
-SidebarInset.displayName = "SidebarInset"; // React DevTools displayName assign
+SidebarInset.displayName = "SidebarInset";
 
 const SidebarInput = React.forwardRef<
   React.ElementRef<typeof Input>,
@@ -379,7 +367,6 @@ const SidebarInput = React.forwardRef<
       ref={ref}
       data-sidebar="input"
       className={cn(
-        // Tailwind classes merge — cn() utility
         "h-8 w-full bg-background shadow-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
         className,
       )}
@@ -387,7 +374,7 @@ const SidebarInput = React.forwardRef<
     />
   );
 }); // scope/component block end
-SidebarInput.displayName = "SidebarInput"; // React DevTools displayName assign
+SidebarInput.displayName = "SidebarInput";
 
 const SidebarHeader = React.forwardRef<
   HTMLDivElement,
@@ -398,12 +385,12 @@ const SidebarHeader = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="header"
-      className={cn("flex flex-col gap-2 p-2", className)} // Tailwind classes merge — cn() utility
+      className={cn("flex flex-col gap-2 p-2", className)}
       {...props}
     />
   );
 }); // scope/component block end
-SidebarHeader.displayName = "SidebarHeader"; // React DevTools displayName assign
+SidebarHeader.displayName = "SidebarHeader";
 
 const SidebarFooter = React.forwardRef<
   HTMLDivElement,
@@ -414,12 +401,12 @@ const SidebarFooter = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="footer"
-      className={cn("flex flex-col gap-2 p-2", className)} // Tailwind classes merge — cn() utility
+      className={cn("flex flex-col gap-2 p-2", className)}
       {...props}
     />
   );
 }); // scope/component block end
-SidebarFooter.displayName = "SidebarFooter"; // React DevTools displayName assign
+SidebarFooter.displayName = "SidebarFooter";
 
 const SidebarSeparator = React.forwardRef<
   React.ElementRef<typeof Separator>,
@@ -430,12 +417,12 @@ const SidebarSeparator = React.forwardRef<
     <Separator
       ref={ref}
       data-sidebar="separator"
-      className={cn("mx-2 w-auto bg-sidebar-border", className)} // Tailwind classes merge — cn() utility
+      className={cn("mx-2 w-auto bg-sidebar-border", className)}
       {...props}
     />
   );
 }); // scope/component block end
-SidebarSeparator.displayName = "SidebarSeparator"; // React DevTools displayName assign
+SidebarSeparator.displayName = "SidebarSeparator";
 
 const SidebarContent = React.forwardRef<
   HTMLDivElement,
@@ -447,7 +434,6 @@ const SidebarContent = React.forwardRef<
       ref={ref}
       data-sidebar="content"
       className={cn(
-        // Tailwind classes merge — cn() utility
         "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
         className,
       )}
@@ -455,7 +441,7 @@ const SidebarContent = React.forwardRef<
     />
   );
 }); // scope/component block end
-SidebarContent.displayName = "SidebarContent"; // React DevTools displayName assign
+SidebarContent.displayName = "SidebarContent";
 
 const SidebarGroup = React.forwardRef<
   HTMLDivElement,
@@ -466,12 +452,12 @@ const SidebarGroup = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="group"
-      className={cn("relative flex w-full min-w-0 flex-col p-2", className)} // Tailwind classes merge — cn() utility
+      className={cn("relative flex w-full min-w-0 flex-col p-2", className)}
       {...props}
     />
   );
 }); // scope/component block end
-SidebarGroup.displayName = "SidebarGroup"; // React DevTools displayName assign
+SidebarGroup.displayName = "SidebarGroup";
 
 const SidebarGroupLabel = React.forwardRef<
   HTMLDivElement,
@@ -485,7 +471,6 @@ const SidebarGroupLabel = React.forwardRef<
       ref={ref}
       data-sidebar="group-label"
       className={cn(
-        // Tailwind classes merge — cn() utility
         "duration-200 flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 outline-none ring-sidebar-ring transition-[margin,opa] ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
         "group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
         className,
@@ -494,7 +479,7 @@ const SidebarGroupLabel = React.forwardRef<
     />
   );
 }); // scope/component block end
-SidebarGroupLabel.displayName = "SidebarGroupLabel"; // React DevTools displayName assign
+SidebarGroupLabel.displayName = "SidebarGroupLabel";
 
 const SidebarGroupAction = React.forwardRef<
   HTMLButtonElement,
@@ -508,7 +493,6 @@ const SidebarGroupAction = React.forwardRef<
       ref={ref}
       data-sidebar="group-action"
       className={cn(
-        // Tailwind classes merge — cn() utility
         "absolute right-3 top-3.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-none ring-sidebar-ring transition-transform hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
         // Increases the hit area of the button on mobile.
         "after:absolute after:-inset-2 after:md:hidden",
@@ -519,7 +503,7 @@ const SidebarGroupAction = React.forwardRef<
     />
   );
 }); // scope/component block end
-SidebarGroupAction.displayName = "SidebarGroupAction"; // React DevTools displayName assign
+SidebarGroupAction.displayName = "SidebarGroupAction";
 
 const SidebarGroupContent = React.forwardRef<
   HTMLDivElement,
@@ -528,11 +512,11 @@ const SidebarGroupContent = React.forwardRef<
   <div
     ref={ref}
     data-sidebar="group-content"
-    className={cn("w-full text-sm", className)} // Tailwind classes merge — cn() utility
+    className={cn("w-full text-sm", className)}
     {...props}
   />
 ));
-SidebarGroupContent.displayName = "SidebarGroupContent"; // React DevTools displayName assign
+SidebarGroupContent.displayName = "SidebarGroupContent";
 
 const SidebarMenu = React.forwardRef<
   HTMLUListElement,
@@ -541,11 +525,11 @@ const SidebarMenu = React.forwardRef<
   <ul
     ref={ref}
     data-sidebar="menu"
-    className={cn("flex w-full min-w-0 flex-col gap-1", className)} // Tailwind classes merge — cn() utility
+    className={cn("flex w-full min-w-0 flex-col gap-1", className)}
     {...props}
   />
 ));
-SidebarMenu.displayName = "SidebarMenu"; // React DevTools displayName assign
+SidebarMenu.displayName = "SidebarMenu";
 
 const SidebarMenuItem = React.forwardRef<
   HTMLLIElement,
@@ -554,14 +538,14 @@ const SidebarMenuItem = React.forwardRef<
   <li
     ref={ref}
     data-sidebar="menu-item"
-    className={cn("group/menu-item relative", className)} // Tailwind classes merge — cn() utility
+    className={cn("group/menu-item relative", className)}
     {...props}
   />
 ));
-SidebarMenuItem.displayName = "SidebarMenuItem"; // React DevTools displayName assign
+SidebarMenuItem.displayName = "SidebarMenuItem";
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0", // Radix open state — animation classes trigger (Hindi: Radix open state)
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -612,7 +596,7 @@ const SidebarMenuButton = React.forwardRef<
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
-        className={cn(sidebarMenuButtonVariants({ variant, size }), className)} // Tailwind classes merge — cn() utility
+        className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
         {...props}
       >
         {children}
@@ -643,7 +627,7 @@ const SidebarMenuButton = React.forwardRef<
     );
   }, // scope/component block end
 );
-SidebarMenuButton.displayName = "SidebarMenuButton"; // React DevTools displayName assign
+SidebarMenuButton.displayName = "SidebarMenuButton";
 
 const SidebarMenuAction = React.forwardRef<
   HTMLButtonElement,
@@ -660,7 +644,6 @@ const SidebarMenuAction = React.forwardRef<
       ref={ref}
       data-sidebar="menu-action"
       className={cn(
-        // Tailwind classes merge — cn() utility
         "absolute right-1 top-1.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-none ring-sidebar-ring transition-transform hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 peer-hover/menu-button:text-sidebar-accent-foreground [&>svg]:size-4 [&>svg]:shrink-0",
         // Increases the hit area of the button on mobile.
         "after:absolute after:-inset-2 after:md:hidden",
@@ -669,14 +652,14 @@ const SidebarMenuAction = React.forwardRef<
         "peer-data-[size=lg]/menu-button:top-2.5",
         "group-data-[collapsible=icon]:hidden",
         showOnHover &&
-          "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0", // Radix open state — animation classes trigger (Hindi: Radix open state)
+          "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0",
         className,
       )}
       {...props}
     />
   );
 }); // scope/component block end
-SidebarMenuAction.displayName = "SidebarMenuAction"; // React DevTools displayName assign
+SidebarMenuAction.displayName = "SidebarMenuAction";
 
 const SidebarMenuBadge = React.forwardRef<
   HTMLDivElement,
@@ -686,7 +669,6 @@ const SidebarMenuBadge = React.forwardRef<
     ref={ref}
     data-sidebar="menu-badge"
     className={cn(
-      // Tailwind classes merge — cn() utility
       "absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium tabular-nums text-sidebar-foreground select-none pointer-events-none",
       "peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[active=true]/menu-button:text-sidebar-accent-foreground",
       "peer-data-[size=sm]/menu-button:top-1",
@@ -698,7 +680,7 @@ const SidebarMenuBadge = React.forwardRef<
     {...props}
   />
 ));
-SidebarMenuBadge.displayName = "SidebarMenuBadge"; // React DevTools displayName assign
+SidebarMenuBadge.displayName = "SidebarMenuBadge";
 
 const SidebarMenuSkeleton = React.forwardRef<
   HTMLDivElement,
@@ -716,7 +698,7 @@ const SidebarMenuSkeleton = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="menu-skeleton"
-      className={cn("rounded-md h-8 flex gap-2 px-2 items-center", className)} // Tailwind classes merge — cn() utility
+      className={cn("rounded-md h-8 flex gap-2 px-2 items-center", className)}
       {...props}
     >
       {showIcon && (
@@ -737,7 +719,7 @@ const SidebarMenuSkeleton = React.forwardRef<
     </div>
   );
 }); // scope/component block end
-SidebarMenuSkeleton.displayName = "SidebarMenuSkeleton"; // React DevTools displayName assign
+SidebarMenuSkeleton.displayName = "SidebarMenuSkeleton";
 
 const SidebarMenuSub = React.forwardRef<
   HTMLUListElement,
@@ -747,7 +729,6 @@ const SidebarMenuSub = React.forwardRef<
     ref={ref}
     data-sidebar="menu-sub"
     className={cn(
-      // Tailwind classes merge — cn() utility
       "mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5",
       "group-data-[collapsible=icon]:hidden",
       className,
@@ -755,13 +736,13 @@ const SidebarMenuSub = React.forwardRef<
     {...props}
   />
 ));
-SidebarMenuSub.displayName = "SidebarMenuSub"; // React DevTools displayName assign
+SidebarMenuSub.displayName = "SidebarMenuSub";
 
 const SidebarMenuSubItem = React.forwardRef<
   HTMLLIElement,
   React.ComponentProps<"li">
 >(({ ...props }, ref) => <li ref={ref} {...props} />);
-SidebarMenuSubItem.displayName = "SidebarMenuSubItem"; // React DevTools displayName assign
+SidebarMenuSubItem.displayName = "SidebarMenuSubItem";
 
 const SidebarMenuSubButton = React.forwardRef<
   HTMLAnchorElement,
@@ -781,7 +762,6 @@ const SidebarMenuSubButton = React.forwardRef<
       data-size={size}
       data-active={isActive}
       className={cn(
-        // Tailwind classes merge — cn() utility
         "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
         "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
         size === "sm" && "text-xs",
@@ -793,10 +773,9 @@ const SidebarMenuSubButton = React.forwardRef<
     />
   );
 }); // scope/component block end
-SidebarMenuSubButton.displayName = "SidebarMenuSubButton"; // React DevTools displayName assign
+SidebarMenuSubButton.displayName = "SidebarMenuSubButton";
 
 export {
-  // named exports block (Hindi: named exports block)
   Sidebar,
   SidebarContent,
   SidebarFooter,

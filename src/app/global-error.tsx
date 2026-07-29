@@ -25,7 +25,10 @@ export default function GlobalError({
         <title>Clauxen</title>
       </head>
       <body style={{ margin: 0, background: "#fff", minHeight: "100dvh" }}>
+        {/* Constant recovery script — must run before hydration, so it cannot
+            be an external chunk. Static string, no user input. */}
         <script
+          // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var k='clx_gerr_n';var n=Number(sessionStorage.getItem(k)||'0');if(n<2){sessionStorage.setItem(k,String(n+1));location.reload();return;}sessionStorage.removeItem(k);location.replace('/');}catch(e){location.replace('/');}})();`,
           }}

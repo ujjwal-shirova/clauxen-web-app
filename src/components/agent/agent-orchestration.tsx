@@ -2,15 +2,18 @@
 
 import type { Message } from "@/lib/types";
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
-import { resolveOrchestrationBlocks } from "@/lib/agent-frames";
-import { groupAgentTraceItems } from "@/lib/agent-fold-groups";
+import {
+  agentAnswerDuplicatesInterim,
+  mergeAgentFramesForDisplay,
+  resolveAgentFrames,
+} from "@/lib/agent-frames";
+import { groupAgentWorkItems } from "@/lib/agent-work-groups";
 import { AssistantContentRenderer } from "@/components/assistant-content-renderer";
 import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
 import { collectMessageSources } from "@/lib/chat-sources";
 import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
-import { cn } from "@/lib/utils";
 import { AgentTrace } from "./agent-trace";
-import { AgentFoldGroup } from "./agent-fold-group";
+import { AgentWorkGroupView } from "./agent-work-group";
 import { AgentThinkingPhase } from "./agent-thinking-phase";
 import { AgentNarrationNote } from "./agent-narration-note";
 import { AgentToolBlock } from "./agent-tool-blocks";
@@ -68,38 +71,10 @@ function previousFileContent(
   return undefined;
 }
 
-function renderFoldMember(
-  segment: AgentThinkingSegment | AgentToolSegment,
-  allSegments: AgentSegment[],
-  indexInAll: number,
-) {
-  if (isThinkingSegment(segment)) {
-    return <AgentThinkingPhase key={segment.id} segment={segment} />;
-  }
-  if (isToolSegment(segment)) {
-    const path =
-      segment.filePath ??
-      (typeof segment.args?.path === "string" ? segment.args.path : "");
-    const prior =
-      segment.name === "create_file" || segment.name === "file_write"
-        ? previousFileContent(allSegments, indexInAll, path)
-        : undefined;
-    return (
-      <div
-        key={segment.id}
-        className="min-w-0"
-        data-agent-tool-group={segment.name}
-      >
-        <AgentToolBlock tool={segment} previousFileContent={prior} />
-      </div>
-    );
-  }
-  return null;
-}
-
 /**
- * Clauxen agent transcript — fold groups for thinking+tools (Explored N…),
- * narration between folds, then ordinary final-answer markdown.
+ * Clauxen agent transcript — collapsible work groups with shimmering,
+ * narration-derived headers; standalone narration prose between groups;
+ * the promoted final answer as ordinary markdown below the activity.
  */
 export function AgentOrchestrationView({
   message,
@@ -108,21 +83,29 @@ export function AgentOrchestrationView({
   message: Message;
   detailLevel: MessageDetailLevel;
 }) {
-  const blocks = resolveOrchestrationBlocks(message);
+  const frames = mergeAgentFramesForDisplay(resolveAgentFrames(message));
   const sources = collectMessageSources(message);
   const streaming = message.isStreaming === true;
-  const answerStreaming = blocks.some(
-    (block) =>
-      block.kind === "markdown" &&
-      block.isStreaming &&
-      block.content.trim().length > 0,
-  );
+  const answer = message.content.trim();
+  const answerStreaming = streaming && answer.length > 0;
   const showOrb = shouldShowAssistantStreamingOrb({
     isStreaming: streaming,
     answerStreaming,
   });
+  const suppressDuplicateAnswer =
+    answer.length > 0 && agentAnswerDuplicatesInterim(message);
 
-  if (blocks.length === 0) {
+  const workFrames = frames.filter((frame) =>
+    traceSegments(frame.segments).some(
+      (segment) =>
+        segment.kind === "thinking" ||
+        segment.kind === "tool" ||
+        ((segment.kind === "narration" || segment.kind === "text") &&
+          (segment.content.trim().length > 0 || segment.isStreaming)),
+    ),
+  );
+
+  if (workFrames.length === 0 && !answer) {
     return showOrb ? (
       <div className="flex items-center py-1">
         <StreamingOrbCursor />
@@ -137,75 +120,88 @@ export function AgentOrchestrationView({
       data-assistant-content="true"
       data-agent-transcript-root="true"
     >
-      {blocks.map((block) => {
-        if (block.kind === "timeline") {
-          const segments = traceSegments(block.frame.segments);
-          if (segments.length === 0) return null;
-          const items = groupAgentTraceItems(segments);
-          const indexById = new Map(
-            segments.map((segment, index) => [segment.id, index]),
-          );
-
-          return (
-            <AgentTrace key={block.frame.id}>
-              {items.map((item) => {
-                if (item.kind === "narration") {
-                  return (
-                    <AgentNarrationNote
-                      key={item.segment.id}
-                      segment={item.segment}
-                    />
-                  );
-                }
-
-                return (
-                  <AgentFoldGroup
-                    key={item.id}
-                    summary={item.summary}
-                    isActive={item.isActive}
-                    useChrome={item.useChrome}
-                  >
-                    {item.segments.map((segment) =>
-                      renderFoldMember(
-                        segment,
-                        segments,
-                        indexById.get(segment.id) ?? 0,
-                      ),
-                    )}
-                  </AgentFoldGroup>
-                );
-              })}
-            </AgentTrace>
-          );
-        }
-
-        const isIntro = block.blockId.endsWith("-intro");
-        const isInterim = block.blockId.endsWith("-interim");
-        const isNarrationVoice = isIntro || isInterim;
+      {workFrames.map((frame) => {
+        const segments = traceSegments(frame.segments);
+        const items = groupAgentWorkItems(segments);
+        if (items.length === 0) return null;
+        const indexById = new Map(
+          segments.map((segment, index) => [segment.id, index]),
+        );
 
         return (
-          <div
-            key={block.blockId}
-            className={cn(
-              isNarrationVoice &&
-                "text-[14px] font-[430] leading-[1.55] tracking-[-0.01em] text-zinc-700",
-            )}
-            data-agent-block={
-              isIntro ? "intro" : isInterim ? "interim" : "answer"
-            }
-          >
-            <AssistantContentRenderer
-              content={block.content}
-              messageId={message.id}
-              isStreaming={block.isStreaming}
-              streamKey={block.blockId}
-              detailLevel={detailLevel}
-              agentArtifacts={message.agentArtifacts}
-              {...({ sources } as any)}
-            />
-          </div>
+          <AgentTrace key={frame.id}>
+            {items.map((item) => {
+              if (item.kind === "narration") {
+                return (
+                  <AgentNarrationNote
+                    key={item.segment.id}
+                    segment={item.segment}
+                  />
+                );
+              }
+
+              const { group } = item;
+              return (
+                <AgentWorkGroupView key={group.id} group={group}>
+                  {group.narration ? (
+                    <AgentNarrationNote segment={group.narration} />
+                  ) : null}
+                  {group.segments.map((segment) => {
+                    if (isThinkingSegment(segment)) {
+                      return (
+                        <AgentThinkingPhase
+                          key={segment.id}
+                          segment={segment}
+                        />
+                      );
+                    }
+                    const path =
+                      segment.filePath ??
+                      (typeof segment.args?.path === "string"
+                        ? segment.args.path
+                        : "");
+                    const prior =
+                      segment.name === "create_file" ||
+                      segment.name === "file_write"
+                        ? previousFileContent(
+                            segments,
+                            indexById.get(segment.id) ?? 0,
+                            path,
+                          )
+                        : undefined;
+                    return (
+                      <div
+                        key={segment.id}
+                        className="min-w-0"
+                        data-agent-tool-group={segment.name}
+                      >
+                        <AgentToolBlock
+                          tool={segment}
+                          previousFileContent={prior}
+                        />
+                      </div>
+                    );
+                  })}
+                </AgentWorkGroupView>
+              );
+            })}
+          </AgentTrace>
         );
       })}
+
+      {answer && !suppressDuplicateAnswer ? (
+        <div data-agent-block="answer">
+          <AssistantContentRenderer
+            content={message.content}
+            messageId={message.id}
+            isStreaming={streaming}
+            streamKey={`${message.id}-answer`}
+            detailLevel={detailLevel}
+            agentArtifacts={message.agentArtifacts}
+            {...({ sources } as any)}
+          />
+        </div>
+      ) : null}
 
       {showOrb ? (
         <div className="flex items-center py-1" data-streaming-orb="bottom">

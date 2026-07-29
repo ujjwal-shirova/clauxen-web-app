@@ -13,7 +13,7 @@ export function SiteHeader() {
           href="/overview"
           className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {}
           <img
             src="/assets/icons/clauxen-icon.png"
             alt="Clauxen"

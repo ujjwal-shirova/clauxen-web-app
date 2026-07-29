@@ -16,14 +16,17 @@ import type { AgentFrame } from "@/lib/agent-frames";
 import {
   activeFrameIndex,
   createAgentFrame,
-  frameHasWorkSegments,
-  frameHasToolSegments,
-  hasActiveFrameWork,
   resolveAgentFrames,
   uniqueAgentFrameId,
 } from "@/lib/agent-frames";
 import type { Message } from "@/lib/types";
 import { toUserFacingChatError } from "@/lib/assistant-generation-error";
+
+/**
+ * Agent stream reducer — folds SSE protocol events into the Message's agent
+ * frames/segments. One open work frame per turn; narration segments carry the
+ * progress prose; answer_finalize promotes the final segment in place.
+ */
 
 type FrameReducerState = {
   message: Message;
@@ -96,54 +99,6 @@ function withSegments(
   return { ...opened, frames };
 }
 
-function hasActiveAgentWork(state: FrameReducerState): boolean {
-  return hasActiveFrameWork(state.frames, state.frameIdx);
-}
-
-function attachIntroNarrativeToFrame(
-  frames: AgentFrame[],
-  text: string,
-  append = false,
-): AgentFrame[] {
-  if (!text.trim() || frames.length === 0) return frames;
-  const next = [...frames];
-  const lastIdx = next.length - 1;
-  const last = next[lastIdx];
-  const prior = last.introNarrative ?? "";
-  next[lastIdx] = {
-    ...last,
-    introNarrative: append && prior ? `${prior}${text}` : text,
-  };
-  return next;
-}
-
-function attachInterimToLastFrame(
-  frames: AgentFrame[],
-  content: string,
-): AgentFrame[] {
-  if (!content.trim() || frames.length === 0) return frames;
-  const next = [...frames];
-  const lastIdx = next.length - 1;
-  const last = next[lastIdx];
-  const prior = last.interimOutput ?? "";
-
-  // If the new content is a superset of the prior (streaming accumulation),
-  // replace in place rather than appending with a separator. This keeps the
-  // live narrative clean as post-tool text deltas arrive.
-  const isAccumulation =
-    prior.length > 0 && content.startsWith(prior.trim());
-
-  next[lastIdx] = {
-    ...last,
-    interimOutput: isAccumulation
-      ? content
-      : prior.trim()
-        ? `${prior.trim()}\n\n${content}`
-        : content,
-  };
-  return next;
-}
-
 function upsertSegment(
   segments: AgentSegment[],
   segment: AgentSegment,
@@ -192,17 +147,6 @@ function finalizeStreamingSegments(segments: AgentSegment[]): AgentSegment[] {
     }
     return segment;
   });
-}
-
-function parsePartialToolInput(input: unknown): Record<string, unknown> {
-  if (typeof input !== "string" || !input.trim()) return {};
-  try {
-    return JSON.parse(input) as Record<string, unknown>;
-  } catch {
-    const queryMatch = input.match(/"query"\s*:\s*"([^"]*)"/);
-    if (queryMatch) return { query: queryMatch[1] };
-    return {};
-  }
 }
 
 function upsertArtifact(
@@ -261,32 +205,21 @@ export function applyAgentStreamEvent(
         (frame) => frame.id === event.frameId && !frame.complete,
       );
       if (existingIndex >= 0) {
-        state = {
-          ...state,
-          frames,
-          frameIdx: existingIndex,
-        };
+        state = { ...state, frames, frameIdx: existingIndex };
         return syncFrameState(state, {
           agentMode: true,
           agentFrameComplete: false,
           isStreaming: true,
         });
       }
-
       if (frames.length > 0) {
         const lastIdx = frames.length - 1;
         const last = frames[lastIdx];
-        if (!last.complete) {
-          frames[lastIdx] = finalizeFrame(last);
-        }
+        if (!last.complete) frames[lastIdx] = finalizeFrame(last);
       }
       const frameId = uniqueAgentFrameId(frames, event.frameId);
       frames.push(createAgentFrame(frameId));
-      state = {
-        ...state,
-        frames,
-        frameIdx: frames.length - 1,
-      };
+      state = { ...state, frames, frameIdx: frames.length - 1 };
       return syncFrameState(state, {
         agentMode: true,
         agentFrameComplete: false,
@@ -318,7 +251,6 @@ export function applyAgentStreamEvent(
       }
       if (event.kind === "narration" || event.kind === "text") {
         const narrationKind = event.kind;
-        agentMode = true;
         state = withSegments(state, (segments) =>
           upsertSegment(segments, {
             kind: narrationKind,
@@ -330,22 +262,6 @@ export function applyAgentStreamEvent(
         return syncFrameState(state, { agentMode, isStreaming: true });
       }
       return message;
-
-    case "thinking_heading": {
-      agentMode = true;
-      state = withSegments(state, (segments) => {
-        const existing = segments.find(
-          (segment): segment is Extract<AgentSegment, { kind: "thinking" }> =>
-            segment.id === event.segmentId && segment.kind === "thinking",
-        );
-        if (!existing) return segments;
-        return upsertSegment(segments, {
-          ...existing,
-          heading: event.heading,
-        });
-      });
-      return syncFrameState(state, { agentMode, isStreaming: true });
-    }
 
     case "thinking_start":
       hasThinking = true;
@@ -371,7 +287,6 @@ export function applyAgentStreamEvent(
           return upsertSegment(segments, {
             kind: "thinking",
             id: segmentId,
-            heading: existing?.heading,
             content: `${existing?.content ?? ""}${event.delta}`,
             isStreaming: true,
             startedAtMs: existing?.startedAtMs ?? Date.now(),
@@ -383,24 +298,6 @@ export function applyAgentStreamEvent(
           hasThinking,
           isThinkingStreaming: true,
           isStreaming: true,
-        });
-      }
-      if (state.frames.length > 0) {
-        state = withSegments(state, (segments) => {
-          const frame = state.frames[state.frameIdx];
-          const segmentId = `${frame?.id ?? "frame"}-thinking`;
-          const existing = segments.find(
-            (segment): segment is Extract<AgentSegment, { kind: "thinking" }> =>
-              segment.id === segmentId && segment.kind === "thinking",
-          );
-          return upsertSegment(segments, {
-            kind: "thinking",
-            id: segmentId,
-            heading: existing?.heading,
-            content: `${existing?.content ?? ""}${event.delta}`,
-            isStreaming: true,
-            startedAtMs: existing?.startedAtMs ?? Date.now(),
-          });
         });
       }
       return syncFrameState(state, {
@@ -433,9 +330,52 @@ export function applyAgentStreamEvent(
           id: event.segmentId,
           content: `${existing?.content ?? ""}${event.delta}`,
           isStreaming: true,
+          isFinal: existing?.kind === "narration" ? existing.isFinal : undefined,
         });
       });
       return syncFrameState(state, { agentMode, isStreaming: true });
+    }
+
+    case "answer_finalize": {
+      // Promote the final-round narration segment to the durable answer.
+      agentMode = true;
+      content = event.text;
+      if (event.segmentId) {
+        const segmentId = event.segmentId;
+        state = withSegments(state, (segments) => {
+          const existing = segments.find(
+            (
+              segment,
+            ): segment is Extract<
+              AgentSegment,
+              { kind: "narration" | "text" }
+            > =>
+              segment.id === segmentId &&
+              (segment.kind === "narration" || segment.kind === "text"),
+          );
+          if (!existing) return segments;
+          return upsertSegment(segments, {
+            ...existing,
+            kind: "narration",
+            content: event.text,
+            isStreaming: false,
+            isFinal: true,
+          });
+        });
+      }
+      if (message.id) {
+        agentArtifacts = mergeChatArtifacts(
+          agentArtifacts,
+          collectCreateFileArtifacts(content, message.id),
+        );
+      }
+      return syncFrameState(state, {
+        agentMode,
+        content,
+        agentArtifacts,
+        isThinkingStreaming: false,
+        isStreaming: true,
+      });
     }
 
     case "thinking_end":
@@ -500,16 +440,7 @@ export function applyAgentStreamEvent(
             thinkingDurationSeconds: longestDurationSeconds,
           });
         }
-        const plainDurationSeconds = state.message.thinkingStartedAtMs
-          ? Math.max(
-              1,
-              Math.round((Date.now() - state.message.thinkingStartedAtMs) / 1000),
-            )
-          : state.message.thinkingDurationSeconds;
-        return syncFrameState(state, {
-          isThinkingStreaming: false,
-          thinkingDurationSeconds: plainDurationSeconds,
-        });
+        return syncFrameState(state, { isThinkingStreaming: false });
       }
       if (
         event.type === "segment_end" &&
@@ -538,22 +469,8 @@ export function applyAgentStreamEvent(
       return message;
     }
 
-    case "segment_remove": {
-      if (state.frames.length === 0) return message;
-      state = withSegments(state, (segments) =>
-        segments.filter((segment) => segment.id !== event.segmentId),
-      );
-      return syncFrameState(state);
-    }
-
-    case "answer_clear":
-      return syncFrameState(state, {
-        content: "",
-        agentFrameComplete: false,
-        isStreaming: true,
-      });
-
     case "answer_delta": {
+      // Legacy/plain-path event — the agent loop promotes via answer_finalize.
       content += event.delta;
       isThinkingStreaming = false;
       if (message.id) {
@@ -713,55 +630,6 @@ export function applyAgentStreamEvent(
       return syncFrameState(state, { agentArtifacts, isStreaming: true });
     }
 
-    case "step_done":
-      state = withSegments(state, (segments) =>
-        upsertSegment(segments, {
-          kind: "step_done",
-          id: `step-done-${Date.now()}`,
-          label: event.label,
-        }),
-      );
-      return syncFrameState(state, { isStreaming: true });
-
-    case "agent_interim": {
-      const frames = attachInterimToLastFrame(state.frames, event.text);
-      state = { ...state, frames };
-      return syncFrameState(state, {
-        agentMode: true,
-        isStreaming: true,
-      });
-    }
-
-    case "agent_intro_narrative_delta": {
-      agentMode = true;
-      state = ensureOpenFrame(state);
-      const frames = attachIntroNarrativeToFrame(
-        state.frames,
-        event.delta,
-        true,
-      );
-      state = { ...state, frames };
-      return syncFrameState(state, {
-        agentMode,
-        isStreaming: true,
-      });
-    }
-
-    case "agent_intro_narrative": {
-      agentMode = true;
-      state = ensureOpenFrame(state);
-      const frames = attachIntroNarrativeToFrame(
-        state.frames,
-        event.text,
-        false,
-      );
-      state = { ...state, frames };
-      return syncFrameState(state, {
-        agentMode,
-        isStreaming: true,
-      });
-    }
-
     case "agent_frame_complete": {
       state = ensureOpenFrame(state);
       const frames = [...state.frames];
@@ -771,14 +639,8 @@ export function applyAgentStreamEvent(
         const frameId = event.frameId
           ? uniqueAgentFrameId(frames, event.frameId, idx)
           : frame.id;
-        frames[idx] = finalizeFrame({
-          ...frame,
-          id: frameId,
-        });
-        state = {
-          ...state,
-          frames,
-        };
+        frames[idx] = finalizeFrame({ ...frame, id: frameId });
+        state = { ...state, frames };
       }
       return syncFrameState(state, {
         agentMode: true,
@@ -845,49 +707,4 @@ export function applyAgentStreamEvent(
     default:
       return message;
   }
-}
-
-/** Handle early tool streaming events from the agent bridge. */
-export function applyToolStreamingEvent(
-  message: Message,
-  payload: {
-    tool_calls?: Array<{
-      id?: string;
-      name?: string;
-      input?: string;
-    }>;
-  },
-): Message {
-  const tool = payload.tool_calls?.[0];
-  const toolId = tool?.id;
-  const toolName = tool?.name;
-  if (!toolId || !toolName) return message;
-
-  const args = parsePartialToolInput(tool.input);
-  let state = initFrameState(message);
-  state = withSegments(state, (segments) => {
-    const existing = segments.find(
-      (segment): segment is AgentToolSegment =>
-        segment.kind === "tool" && segment.toolCallId === toolId,
-    );
-    const toolSegment: AgentToolSegment = {
-      kind: "tool",
-      id: existing?.id ?? `tool-${toolId}`,
-      toolCallId: toolId,
-      name: toolName,
-      status: existing?.status ?? "running",
-      args: { ...existing?.args, ...args },
-      searchQuery:
-        tool.name === "web_search" && typeof args.query === "string"
-          ? args.query
-          : existing?.searchQuery,
-      startedAtMs: existing?.startedAtMs ?? Date.now(),
-    };
-    return upsertToolSegment(segments, toolSegment);
-  });
-
-  return syncFrameState(state, {
-    agentMode: true,
-    isStreaming: true,
-  });
 }

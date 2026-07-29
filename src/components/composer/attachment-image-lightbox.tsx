@@ -28,7 +28,9 @@ async function copyImageToClipboard(previewUrl: string): Promise<void> {
       const pngBlob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (result) =>
-            result ? resolve(result) : reject(new Error("Could not encode PNG.")),
+            result
+              ? resolve(result)
+              : reject(new Error("Could not encode PNG.")),
           "image/png",
         );
       });
@@ -135,7 +137,7 @@ export function AttachmentImageLightbox({
           </button>
         </div>
 
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {}
         <img
           src={previewUrl}
           alt={name}

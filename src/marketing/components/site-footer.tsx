@@ -38,7 +38,7 @@ export function SiteFooter() {
               href="/overview"
               className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {}
               <img
                 src="/assets/icons/clauxen-icon.png"
                 alt=""

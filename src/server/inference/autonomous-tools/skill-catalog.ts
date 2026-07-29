@@ -1,6 +1,7 @@
+import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 
 export type SkillRecord = {
   id: string;
@@ -9,11 +10,39 @@ export type SkillRecord = {
   description: string;
 };
 
-const SKILL_ROOTS = [
-  path.join(homedir(), ".cursor", "skills"),
-  path.join(homedir(), ".cursor", "skills-cursor"),
-  path.join(homedir(), ".codex", "skills"),
-];
+/**
+ * Skills are bundled with the app (skills-pack/) so they work in production —
+ * no dependency on developer-machine dotdirectories. Optional extra packs can
+ * be layered in via CLAUXEN_SKILLS_DIRS (colon-separated absolute paths).
+ */
+
+function bundledSkillsDir(): string {
+  const fromModule = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "skills-pack",
+  );
+  const fromCwd = path.join(
+    process.cwd(),
+    "src",
+    "server",
+    "inference",
+    "autonomous-tools",
+    "skills-pack",
+  );
+  for (const candidate of [fromModule, fromCwd]) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return fromCwd;
+}
+
+function skillRoots(): string[] {
+  const roots = [bundledSkillsDir()];
+  const extra = process.env.CLAUXEN_SKILLS_DIRS?.trim();
+  if (extra) {
+    roots.push(...extra.split(":").map((p) => p.trim()).filter(Boolean));
+  }
+  return roots;
+}
 
 async function collectSkillFiles(dir: string): Promise<string[]> {
   const found: string[] = [];
@@ -27,8 +56,7 @@ async function collectSkillFiles(dir: string): Promise<string[]> {
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      const nested = await collectSkillFiles(full);
-      found.push(...nested);
+      found.push(...(await collectSkillFiles(full)));
       continue;
     }
     if (entry.isFile() && entry.name.endsWith("SKILL.md")) {
@@ -40,7 +68,7 @@ async function collectSkillFiles(dir: string): Promise<string[]> {
 
 function skillIdFromPath(filePath: string): string {
   const parent = path.basename(path.dirname(filePath));
-  if (parent && parent !== "skills" && parent !== "skills-cursor") {
+  if (parent && parent !== "skills-pack" && parent !== "skills") {
     return parent;
   }
   return path.basename(filePath, ".md").toLowerCase();
@@ -55,7 +83,7 @@ function parseSkillDescription(content: string): string {
 export async function listAvailableSkills(): Promise<SkillRecord[]> {
   const byId = new Map<string, SkillRecord>();
 
-  for (const root of SKILL_ROOTS) {
+  for (const root of skillRoots()) {
     const files = await collectSkillFiles(root);
     for (const filePath of files) {
       const id = skillIdFromPath(filePath);

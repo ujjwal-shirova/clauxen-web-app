@@ -14,6 +14,16 @@ import {
   parseThinkingMarkup,
 } from "@/lib/agent-transcript-markup";
 
+const CHAT_TITLE_BLOCK_RE = /<chat_title>[\s\S]*?<\/chat_title>/gi;
+const CHAT_TITLE_TAG_RE = /<\/?chat_title>/gi;
+
+function stripChatTitleMarkup(text: string): string {
+  return text
+    .replace(CHAT_TITLE_BLOCK_RE, "")
+    .replace(CHAT_TITLE_TAG_RE, "")
+    .trim();
+}
+
 function segmentsFromModelTurns(input: {
   messageId: string;
   turns: TranscriptAgentModelTurn[];
@@ -31,8 +41,7 @@ function segmentsFromModelTurns(input: {
       : undefined;
   const thinkingPartCount = input.turns.reduce(
     (count, turn) =>
-      count +
-      turn.assistant.filter((part) => part.type === "thinking").length,
+      count + turn.assistant.filter((part) => part.type === "thinking").length,
     0,
   );
 
@@ -54,7 +63,7 @@ function segmentsFromModelTurns(input: {
     for (const part of turn.assistant) {
       if (part.type === "thinking") {
         const parsed = parseThinkingMarkup(part.thinking);
-        if (!parsed.body.trim() && !parsed.heading) continue;
+        if (!parsed.body.trim()) continue;
         thinkingIndex += 1;
         // Prefer the accurately measured total when this turn only had one
         // thinking phase; otherwise fall back to per-turn assistant wall time
@@ -66,7 +75,6 @@ function segmentsFromModelTurns(input: {
         segments.push({
           kind: "thinking",
           id: `thinking-${input.messageId}-${thinkingIndex}`,
-          heading: parsed.heading,
           content: parsed.body.trim(),
           isStreaming: false,
           durationSeconds,
@@ -77,17 +85,22 @@ function segmentsFromModelTurns(input: {
 
       if (part.type === "text") {
         const parsed = parseAgentTextMarkup(part.text);
-        const narrationParts = [
-          parsed.narration.trim(),
-          hasToolUse ? parsed.visibleText.trim() : "",
-        ].filter(Boolean);
-        if (narrationParts.length > 0) {
+        // No-tool rounds produced the durable answer → isFinal. Rounds with
+        // tool_use produced progress prose → plain narration.
+        const text = hasToolUse
+          ? [parsed.narration.trim(), parsed.visibleText.trim()]
+              .filter(Boolean)
+              .join("\n\n")
+          : parsed.visibleText.trim() || parsed.narration.trim();
+        const cleaned = stripChatTitleMarkup(text);
+        if (cleaned) {
           narrationIndex += 1;
           segments.push({
             kind: "narration",
             id: `narration-${input.messageId}-${narrationIndex}`,
-            content: narrationParts.join("\n\n"),
+            content: cleaned,
             isStreaming: false,
+            ...(hasToolUse ? {} : { isFinal: true }),
           });
         }
         continue;
@@ -184,8 +197,7 @@ export function hydrateMessageFromContentJson(
       const action = persistedActions.find((candidate) => candidate?.id === id);
       const resultPart = parts.find(
         (candidate) =>
-          candidate?.type === "tool_result" &&
-          candidate.tool_use_id === id,
+          candidate?.type === "tool_result" && candidate.tool_use_id === id,
       );
       tools.push(
         enrichPersistedToolSegment({
@@ -197,7 +209,7 @@ export function hydrateMessageFromContentJson(
           args:
             part.input && typeof part.input === "object"
               ? (part.input as Record<string, unknown>)
-              : action?.input ?? {},
+              : (action?.input ?? {}),
           result:
             action?.result ??
             (resultPart && resultPart.type === "tool_result"
@@ -235,9 +247,10 @@ export function hydrateMessageFromContentJson(
         })
       : [];
 
-  // Prefer durable row content; fall back to transcript text parts. When every
-  // text part was promoted into narration (tool turns), keep content empty so
-  // the same sentence is not shown above and below "Asked questions".
+  // Prefer durable row content; fall back to transcript text parts. Progress
+  // narration (non-final) that also lingers in content gets blanked so the
+  // same sentence isn't shown twice — but the promoted final segment IS the
+  // answer, so it must never blank content.
   const narrationTexts = new Set(
     modelSegments
       .filter(
@@ -245,6 +258,7 @@ export function hydrateMessageFromContentJson(
           segment,
         ): segment is Extract<AgentSegment, { kind: "narration" | "text" }> =>
           (segment.kind === "narration" || segment.kind === "text") &&
+          !(segment.kind === "narration" && segment.isFinal) &&
           Boolean(segment.content.trim()),
       )
       .map((segment) => segment.content.trim()),
@@ -282,8 +296,7 @@ export function hydrateMessageFromContentJson(
           ? 1
           : undefined;
   const completedAtMs =
-    typeof agentUi?.completedAtMs === "number" &&
-    agentUi.completedAtMs >= stamp
+    typeof agentUi?.completedAtMs === "number" && agentUi.completedAtMs >= stamp
       ? agentUi.completedAtMs
       : stamp +
         Math.max(1000, (thinkingDuration ?? 1) * 1000 + (hasTools ? 2000 : 0));
@@ -306,25 +319,25 @@ export function hydrateMessageFromContentJson(
   const persistedSegments =
     modelSegments.length > 0 ? modelSegments : legacySegments;
 
-  const frames: AgentFrame[] | undefined = persistedSegments.length > 0
-    ? [
-        {
-          id: `hydrated-${base.id}`,
-          complete: true,
-          startedAtMs: stamp,
-          completedAtMs,
-          segments: persistedSegments,
-        },
-      ]
-    : undefined;
+  const frames: AgentFrame[] | undefined =
+    persistedSegments.length > 0
+      ? [
+          {
+            id: `hydrated-${base.id}`,
+            complete: true,
+            startedAtMs: stamp,
+            completedAtMs,
+            segments: persistedSegments,
+          },
+        ]
+      : undefined;
 
   return enrichMessageAgentUi({
     ...base,
     content,
     thinkingContent: hasThinking ? thinking : base.thinkingContent,
     hasThinking: hasThinking || base.hasThinking,
-    thinkingDurationSeconds:
-      thinkingDuration ?? base.thinkingDurationSeconds,
+    thinkingDurationSeconds: thinkingDuration ?? base.thinkingDurationSeconds,
     agentMode: hasAgentSegments || base.agentMode,
     agentFrameComplete: frames ? true : base.agentFrameComplete,
     agentFrames: frames ?? base.agentFrames,
@@ -348,7 +361,10 @@ export function overlayBranchMessagesOnPage(input: {
   branchMessages: unknown;
 }): Message[] {
   const page = input.pageMessages.map(enrichMessageAgentUi);
-  if (!Array.isArray(input.branchMessages) || input.branchMessages.length === 0) {
+  if (
+    !Array.isArray(input.branchMessages) ||
+    input.branchMessages.length === 0
+  ) {
     return page;
   }
 

@@ -2,16 +2,13 @@
 
 import { FileText } from "lucide-react";
 import type { AgentToolSegment } from "@/lib/agent-segments";
-import {
-  fileNameFromPath,
-  type ChatArtifact,
-} from "@/lib/chat-artifacts";
+import { fileNameFromPath, type ChatArtifact } from "@/lib/chat-artifacts";
 import {
   artifactMetaLabel,
   artifactSupportsPreview,
   inferLanguageFromPath,
 } from "@/lib/create-file-tags";
-import { countContentLineDiff } from "@/lib/agent-fold-groups";
+import { countContentLineDiff } from "@/lib/agent-work-groups";
 import { cn } from "@/lib/utils";
 import { useOptionalArtifactViewer } from "@/contexts/artifact-viewer-context";
 import { AgentToolCard } from "./agent-tool-card";
@@ -57,7 +54,10 @@ export function AgentFileBlock({
 
   if (isRunning) {
     return (
-      <div className="flex w-full min-w-0 flex-col" data-agent-file-block="writing">
+      <div
+        className="flex w-full min-w-0 flex-col"
+        data-agent-file-block="writing"
+      >
         <AgentToolCard
           label={description || `Creating ${fileName || "file"}`}
           isRunning
@@ -88,8 +88,7 @@ export function AgentFileBlock({
     fileName: fileName || "file",
     content,
     language,
-    description:
-      typeof description === "string" ? description : undefined,
+    description: typeof description === "string" ? description : undefined,
     createdAtMs: tool.completedAtMs ?? Date.now(),
   };
 

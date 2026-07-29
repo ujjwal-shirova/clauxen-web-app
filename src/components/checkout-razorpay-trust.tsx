@@ -27,7 +27,7 @@ export function CheckoutRazorpayTrust({ className }: { className?: string }) {
         className="inline-flex items-center rounded-sm opacity-90 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2"
         aria-label="Razorpay (opens in a new tab)"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {}
         <img
           src={RAZORPAY_LOGO_SRC}
           alt="Razorpay"

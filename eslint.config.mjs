@@ -8,6 +8,7 @@ const config = [
       "node_modules/**",
       ".playwright-cli/**",
       ".autonomous-agent-files/**",
+      ".venv*/**",
       "vendor/**",
       "output/**",
       ".tools/**",

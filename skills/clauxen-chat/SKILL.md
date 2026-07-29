@@ -14,19 +14,36 @@ description: >-
 
 ## Key files
 
-| Concern | Path |
-|---------|------|
-| Client API | `src/hooks/use-chat-api.ts` |
-| Session | `src/contexts/chat-session-context.tsx` |
-| Generate | `src/app/api/v1/chats/[chatId]/generate/route.ts` |
-| Stop | `.../generate/stop/route.ts` |
-| Service | `src/server/services/chat.service.ts` |
-| Lease | `src/server/chat/generation-registry.ts`, `chat-coord-client.ts` |
-| Dedupe | `src/lib/dedupe-chat-messages.ts` |
-| Hydrate | `src/lib/hydrate-chat-messages.ts` |
-| Device cache | `src/lib/device-chat-cache.ts` |
-| Branch sanitize | `src/server/chat/sanitize-branch-messages.ts` |
-| Follow-ups | `src/lib/follow-up-tags.ts` |
+| Concern         | Path                                                                                                                        |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Client API      | `src/hooks/use-chat-api.ts`                                                                                                 |
+| Session         | `src/contexts/chat-session-context.tsx`                                                                                     |
+| Generate        | `src/app/api/v1/chats/[chatId]/generate/route.ts`                                                                           |
+| Stop            | `.../generate/stop/route.ts`                                                                                                |
+| Service         | `src/server/services/chat.service.ts`                                                                                       |
+| Agent loop      | `src/server/agent-core/runtime/query-loop.ts`                                                                               |
+| Agent prompt    | `src/prompts/clauxen.md`                                                                                                    |
+| SSE writer      | `src/server/inference/clauxen-sse-stream.ts`                                                                                |
+| MCP harness     | `src/server/mcp/{types,client,registry}.ts`                                                                                 |
+| Skills catalog  | `src/server/inference/autonomous-tools/skill-catalog.ts` + `skills-pack/`                                                   |
+| Stream reducer  | `src/lib/agent-stream-reducer.ts`                                                                                           |
+| Work groups     | `src/lib/agent-work-groups.ts` + `src/lib/agent-activity-labels.ts`                                                         |
+| Agent UI        | `src/components/agent/agent-orchestration.tsx`, `agent-work-group.tsx`, `agent-tool-blocks.tsx`, `agent-thinking-phase.tsx` |
+| Lease           | `src/server/chat/generation-registry.ts`, `chat-coord-client.ts`                                                            |
+| Dedupe          | `src/lib/dedupe-chat-messages.ts`                                                                                           |
+| Hydrate         | `src/lib/hydrate-chat-messages.ts`                                                                                          |
+| Device cache    | `src/lib/device-chat-cache.ts`                                                                                              |
+| Branch sanitize | `src/server/chat/sanitize-branch-messages.ts`                                                                               |
+| Follow-ups      | `src/lib/follow-up-tags.ts`                                                                                                 |
+
+## Agent transcript architecture (2026-07-29 rebuild)
+
+- Per-round model text **before** tool calls streams as `narration` segments; a round with **no tool calls** is promoted to the durable answer via SSE `answer_finalize` (reducer marks the segment `isFinal` and sets `message.content` — restyle in place, never teleport).
+- No model-authored XML protocol (deleted `<agent_heading>`/`<agent_narration>`/`answer_clear`/intro+interim narratives). Sole exception: first-turn `<chat_title>` for the sidebar, stripped client-side.
+- Work-group headers are **derived** from narration prose (`deriveActivityLabel` — gerund while active, past tense when done); declarative narration renders as standalone prose rows between groups.
+- Group headers shimmer while any member runs and auto-collapse on completion; thinking shows `Thought for Ns`; the final answer renders as ordinary markdown below the activity.
+- MCP servers come from env `CLAUXEN_MCP_SERVERS` (JSON array of `{id,url,headers?}`); tools appear as `mcp__<serverId>__<toolName>`.
+- Skills load from the bundled `skills-pack/` directory only — never developer-homedir paths.
 
 ## Hard rules
 

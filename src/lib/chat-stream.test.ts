@@ -4,14 +4,14 @@ import { createSseParser } from "@/lib/chat-stream";
 import { consumeClauxenStreamResponse } from "@/lib/ui-message-stream";
 
 describe("chat stream terminal states", () => {
-  it("parses semantic heading, narration, and failed-tool events", () => {
+  it("parses narration, answer-finalize, and failed-tool events", () => {
     const events: unknown[] = [];
     const parser = createSseParser((event) => events.push(event));
 
     parser(
       [
-        'data: {"type":"thinking_heading","segmentId":"think-1","heading":"Checking source contracts"}',
         'data: {"type":"narration_delta","segmentId":"note-1","delta":"I’ll verify the docs."}',
+        'data: {"type":"answer_finalize","segmentId":"note-1","text":"I’ll verify the docs."}',
         'data: {"type":"tool_end","toolCallId":"tool-1","name":"web_fetch","result":"{\\"error\\":\\"timeout\\"}","isError":true}',
         "",
       ].join("\n\n"),
@@ -19,14 +19,14 @@ describe("chat stream terminal states", () => {
 
     assert.deepEqual(events, [
       {
-        type: "thinking_heading",
-        segmentId: "think-1",
-        heading: "Checking source contracts",
-      },
-      {
         type: "narration_delta",
         segmentId: "note-1",
         delta: "I’ll verify the docs.",
+      },
+      {
+        type: "answer_finalize",
+        segmentId: "note-1",
+        text: "I’ll verify the docs.",
       },
       {
         type: "tool_end",

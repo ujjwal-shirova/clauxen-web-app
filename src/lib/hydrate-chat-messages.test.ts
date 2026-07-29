@@ -238,16 +238,23 @@ describe("hydrate-chat-messages", () => {
     const segments = hydrated.agentFrames?.[0]?.segments ?? [];
     assert.deepEqual(
       segments.map((segment) => segment.kind),
-      ["thinking", "narration", "tool"],
+      ["thinking", "narration", "tool", "narration"],
     );
     assert.equal(
-      segments[0]?.kind === "thinking" ? segments[0].heading : undefined,
-      "Checking official docs",
+      segments[0]?.kind === "thinking" ? segments[0].content : undefined,
+      "Compare the contracts.",
     );
     assert.equal(
       segments[1]?.kind === "narration" ? segments[1].content : undefined,
       "I’ll read the official reference.",
     );
+    // The no-tool end_turn round is the promoted final answer.
+    const final = segments[3];
+    assert.equal(final?.kind, "narration");
+    if (final?.kind === "narration") {
+      assert.equal(final.content, "Final answer");
+      assert.equal(final.isFinal, true);
+    }
     assert.equal(hydrated.content, "Final answer");
   });
 });

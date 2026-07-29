@@ -25,15 +25,18 @@ export function AttachmentChip({
   size?: "sm" | "md" | "lg";
 }) {
   const isImage = file.kind === "image";
-  const uploading =
-    "uploadStatus" in file && file.uploadStatus === "uploading";
+  const uploading = "uploadStatus" in file && file.uploadStatus === "uploading";
   const errored = "uploadStatus" in file && file.uploadStatus === "error";
   const previewSrc =
     file.previewUrl ||
     (file.fileId ? `/api/v1/files/${file.fileId}/url?redirect=1` : undefined);
 
   const imageSize =
-    size === "lg" ? "h-16 w-16 sm:h-[72px] sm:w-[72px]" : size === "sm" ? "h-10 w-10" : "h-12 w-12";
+    size === "lg"
+      ? "h-16 w-16 sm:h-[72px] sm:w-[72px]"
+      : size === "sm"
+        ? "h-10 w-10"
+        : "h-12 w-12";
   const docSize =
     size === "lg"
       ? "flex h-16 max-w-[200px] items-center gap-2 px-2 pr-2.5 sm:h-[72px]"
@@ -60,7 +63,6 @@ export function AttachmentChip({
     >
       {isImage ? (
         previewSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={previewSrc}
             alt={file.name}
@@ -81,7 +83,6 @@ export function AttachmentChip({
             )}
           >
             {file.previewUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={file.previewUrl}
                 alt=""
