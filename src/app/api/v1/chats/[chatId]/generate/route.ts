@@ -46,6 +46,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       generateChatTitle?: boolean;
       chatModel?: string;
       homerReasoningEffort?: string;
+      extendedThinking?: boolean;
     };
     const messages = sanitizeMessages(body.messages);
     if (!messages.length) {
@@ -124,6 +125,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           homerReasoningEffort: parseHomerReasoningEffort(
             body.homerReasoningEffort,
           ),
+          extendedThinking: body.extendedThinking === true,
           onPauseForUser: async () => {
             // Free the DO/local lease as soon as ask_user_input pauses so the
             // user's questionnaire answers can start a new turn without 409.

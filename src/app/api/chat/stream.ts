@@ -29,6 +29,8 @@ export type ChatStreamOptions = {
   userCountryCode?: string;
   generateChatTitle?: boolean;
   homerReasoningEffort?: HomerReasoningEffort;
+  /** Composer Thinking toggle — when false, upstream gets enable_thinking: false. */
+  extendedThinking?: boolean;
   signal?: AbortSignal;
   onPauseForUser?: () => void | Promise<void>;
   onModelTurn?: AgentStreamOptions["onModelTurn"];
@@ -74,6 +76,9 @@ export async function createChatStream(
 
   const sse = new ClauxenSseStream();
 
+  const thinkingEnabled =
+    options.extendedThinking ?? userPersonalization?.extendedThinking ?? false;
+
   const agentOptions: AgentStreamOptions = {
     messages:
       options.modelMessages ??
@@ -81,7 +86,7 @@ export async function createChatStream(
     model: runtime.modelSlug,
     chatModelId,
     homerReasoningEffort: parseHomerReasoningEffort(options.homerReasoningEffort),
-    thinkingEnabled: userPersonalization?.extendedThinking ?? false,
+    thinkingEnabled,
     userId: options.userId,
     conversationId: options.conversationId,
     userCountryCode: options.userCountryCode,

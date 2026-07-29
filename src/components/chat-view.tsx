@@ -44,6 +44,8 @@ type ChatController = ReturnType<typeof useChat> & {
   setChatModel?: (model: ChatModelId) => void;
   homerReasoningEffort?: HomerReasoningEffort;
   setHomerReasoningEffort?: (effort: HomerReasoningEffort) => void;
+  extendedThinking?: boolean;
+  setExtendedThinking?: (enabled: boolean) => void;
 };
 
 function getRouteChatId(pathname: string): string | null {
@@ -79,6 +81,7 @@ function ChatViewBody({
     DEFAULT_HOMER_REASONING_EFFORT,
   );
   const [localModel, setLocalModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
+  const [localExtendedThinking, setLocalExtendedThinking] = useState(false);
   const [resolvedProjectName, setResolvedProjectName] = useState<string | null>(
     projectBreadcrumb?.label ?? null,
   );
@@ -130,6 +133,9 @@ function ChatViewBody({
     chat.setHomerReasoningEffort ?? setLocalEffort;
   const chatModel = chat.chatModel ?? localModel;
   const setChatModel = chat.setChatModel ?? setLocalModel;
+  const extendedThinking = chat.extendedThinking ?? localExtendedThinking;
+  const setExtendedThinking =
+    chat.setExtendedThinking ?? setLocalExtendedThinking;
 
   const {
     messages,
@@ -372,6 +378,8 @@ function ChatViewBody({
         onOpenSettings={() => overlays.openSettings("General")}
         homerReasoningEffort={homerReasoningEffort}
         onHomerReasoningEffortChange={setHomerReasoningEffort}
+        extendedThinking={extendedThinking}
+        onExtendedThinkingChange={setExtendedThinking}
         chatModel={chatModel}
         onChatModelChange={setChatModel}
         onOpenMobileNav={openMobileNav}

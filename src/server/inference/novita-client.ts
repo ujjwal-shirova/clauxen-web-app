@@ -158,6 +158,7 @@ export async function* streamChatCompletion(
     stream: true,
     temperature: options.temperature ?? 0.6,
     max_tokens: options.max_tokens ?? 8192,
+    enable_thinking: options.enable_thinking ?? false,
   };
 
   if (options.tools && options.tools.length > 0) {
@@ -166,9 +167,6 @@ export async function* streamChatCompletion(
   }
   if (options.parallel_tool_calls !== undefined) {
     body.parallel_tool_calls = options.parallel_tool_calls;
-  }
-  if (options.enable_thinking !== undefined) {
-    body.enable_thinking = options.enable_thinking;
   }
   if (options.reasoning_effort) {
     body.reasoning_effort = options.reasoning_effort;

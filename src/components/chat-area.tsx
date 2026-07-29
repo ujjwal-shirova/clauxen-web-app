@@ -76,6 +76,8 @@ interface ChatAreaProps {
   onHomerReasoningEffortChange: (
     effort: import("@/lib/model-effort").HomerReasoningEffort,
   ) => void;
+  extendedThinking?: boolean;
+  onExtendedThinkingChange?: (enabled: boolean) => void;
   chatModel: import("@/lib/chat-models").ChatModelId;
   onChatModelChange: (model: import("@/lib/chat-models").ChatModelId) => void;
   onOpenMobileNav?: () => void;
@@ -121,6 +123,8 @@ function ChatAreaLayout({
   onMoveToProject,
   homerReasoningEffort,
   onHomerReasoningEffortChange,
+  extendedThinking = false,
+  onExtendedThinkingChange,
   chatModel,
   onChatModelChange,
   onOpenMobileNav,
@@ -396,6 +400,8 @@ function ChatAreaLayout({
       onUpgradeClick={onUpgradeClick}
       homerReasoningEffort={homerReasoningEffort}
       onHomerReasoningEffortChange={onHomerReasoningEffortChange}
+      extendedThinking={extendedThinking}
+      onExtendedThinkingChange={onExtendedThinkingChange}
       chatModel={chatModel}
       onChatModelChange={onChatModelChange}
       lockedProjectId={lockedProjectId}

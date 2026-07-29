@@ -54,6 +54,7 @@ export async function handleChatPost(request: Request) {
       chatModel?: string;
       conversationId?: string;
       homerReasoningEffort?: string;
+      extendedThinking?: boolean;
     };
     messages = sanitizeMessages(body?.messages);
     const conversationId = body?.conversationId;
@@ -98,7 +99,9 @@ export async function handleChatPost(request: Request) {
       model: runtime.modelSlug,
       chatModelId,
       homerReasoningEffort,
-      thinkingEnabled: userPersonalization?.extendedThinking ?? false,
+      thinkingEnabled:
+        body.extendedThinking === true ||
+        userPersonalization?.extendedThinking === true,
       userId: auth.session?.id,
       conversationId,
       userCountryCode: resolveRequestCountryCode(request.headers),

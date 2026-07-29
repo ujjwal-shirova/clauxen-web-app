@@ -21,6 +21,8 @@ type ChatSessionValue = ReturnType<typeof useChatApi> & {
   setChatModel: (model: ChatModelId) => void;
   homerReasoningEffort: HomerReasoningEffort;
   setHomerReasoningEffort: (effort: HomerReasoningEffort) => void;
+  extendedThinking: boolean;
+  setExtendedThinking: (enabled: boolean) => void;
 };
 
 const ChatSessionContext = createContext<ChatSessionValue | null>(null);
@@ -42,8 +44,14 @@ export function ChatSessionProvider({
   const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
   const [homerReasoningEffort, setHomerReasoningEffort] =
     useState<HomerReasoningEffort>(DEFAULT_HOMER_REASONING_EFFORT);
+  const [extendedThinking, setExtendedThinking] = useState(false);
 
-  const chat = useChatApi(projectId, chatModel, homerReasoningEffort);
+  const chat = useChatApi(
+    projectId,
+    chatModel,
+    homerReasoningEffort,
+    extendedThinking,
+  );
 
   // Keep a stable context object identity for method refs; only bump when
   // observable chat fields change.
@@ -54,6 +62,8 @@ export function ChatSessionProvider({
       setChatModel,
       homerReasoningEffort,
       setHomerReasoningEffort,
+      extendedThinking,
+      setExtendedThinking,
     }),
     [
       chat.messages,
@@ -83,6 +93,7 @@ export function ChatSessionProvider({
       chat.switchMessageBranch,
       chatModel,
       homerReasoningEffort,
+      extendedThinking,
     ],
   );
 

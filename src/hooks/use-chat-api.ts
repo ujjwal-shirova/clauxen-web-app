@@ -169,6 +169,7 @@ export function useChatApi(
   projectIdFilter: string | null,
   chatModel: ChatModelId = DEFAULT_CHAT_MODEL_ID,
   homerReasoningEffort: HomerReasoningEffort = DEFAULT_HOMER_REASONING_EFFORT,
+  extendedThinking = false,
 ) {
   const { streamFromResponse } = useAiStream();
   const { user } = useAuth();
@@ -1290,6 +1291,7 @@ export function useChatApi(
           messages: conversation,
           homerReasoningEffort,
           chatModel,
+          extendedThinking,
           // Keep title generation off the hot response path; it runs after the
           // answer completes so first-token rendering is not blocked.
           generateChatTitle: false,
@@ -1720,6 +1722,7 @@ export function useChatApi(
       streamFromResponse,
       homerReasoningEffort,
       chatModel,
+      extendedThinking,
     ],
   );
 

@@ -286,6 +286,7 @@ export async function streamChatGeneration(input: {
   generateChatTitle?: boolean;
   chatModel?: string;
   homerReasoningEffort?: HomerReasoningEffort;
+  extendedThinking?: boolean;
   onPauseForUser?: () => void | Promise<void>;
 }) {
   const chat = await chatsRepo.getChatForUser(input.chatId, input.userId);
@@ -472,6 +473,7 @@ export async function streamChatGeneration(input: {
       generateChatTitle,
       signal: input.signal,
       homerReasoningEffort: input.homerReasoningEffort,
+      extendedThinking: input.extendedThinking,
       onPauseForUser: input.onPauseForUser,
       modelMessages: conversationForAgent,
       onModelTurn: (turn) => {

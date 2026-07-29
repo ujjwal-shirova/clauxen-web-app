@@ -78,6 +78,9 @@ interface PromptInputProps {
   onUpgradeClick?: () => void;
   homerReasoningEffort?: HomerReasoningEffort;
   onHomerReasoningEffortChange?: (effort: HomerReasoningEffort) => void;
+  /** Live Thinking toggle — forwarded to /generate as extendedThinking. */
+  extendedThinking?: boolean;
+  onExtendedThinkingChange?: (enabled: boolean) => void;
   /** Hide model selector in the toolbar (e.g. when shown in the welcome header). */
   showModelSelector?: boolean;
   chatModel?: ChatModelId;
@@ -148,6 +151,10 @@ export function PromptInput({
   onPromptChange,
   focusKey,
   onAddMenuOpenChange,
+  homerReasoningEffort,
+  onHomerReasoningEffortChange,
+  extendedThinking: extendedThinkingProp,
+  onExtendedThinkingChange,
   lockedProjectId = null,
   showProjectStrip = true,
   placeholder = "Ask anything",
@@ -168,7 +175,9 @@ export function PromptInput({
   const [activeInlineMode, setActiveInlineMode] =
     useState<PromptInlineMode | null>(null);
   const [webSearchMode, setWebSearchMode] = useState<WebSearchMode>("auto");
-  const [thinkingMode, setThinkingMode] = useState<ThinkingMode>("off");
+  const [thinkingMode, setThinkingMode] = useState<ThinkingMode>(
+    extendedThinkingProp ? "on" : "off",
+  );
   const [composeChipHovered, setComposeChipHovered] = useState(false);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const [previewAttachment, setPreviewAttachment] =
@@ -830,6 +839,9 @@ export function PromptInput({
         setThinkingMode(
           settings.personalization?.extendedThinking === true ? "on" : "off",
         );
+        onExtendedThinkingChange?.(
+          settings.personalization?.extendedThinking === true,
+        );
       })
       .catch(() => {
         // Keep optimistic default when settings are unavailable.
@@ -852,6 +864,7 @@ export function PromptInput({
 
   const handleThinkingModeChange = useCallback((mode: ThinkingMode) => {
     setThinkingMode(mode);
+    onExtendedThinkingChange?.(mode === "on");
     void settingsApi
       .updateSettings({
         personalization: { extendedThinking: mode === "on" },
@@ -859,7 +872,12 @@ export function PromptInput({
       .catch((error) => {
         console.warn("[composer] thinking preference failed:", error);
       });
-  }, []);
+  }, [onExtendedThinkingChange]);
+
+  useEffect(() => {
+    if (extendedThinkingProp == null) return;
+    setThinkingMode(extendedThinkingProp ? "on" : "off");
+  }, [extendedThinkingProp]);
 
   const handleComposeActionRemove = () => {
     setActiveComposeAction(null);

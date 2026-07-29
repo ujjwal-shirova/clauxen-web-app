@@ -93,7 +93,7 @@ export async function* streamAnthropicMessages(
           type: "enabled" as const,
           budget_tokens: options.thinkingBudgetTokens,
         } as const)
-      : undefined;
+      : ({ type: "disabled" as const } as const);
 
   let stream: ReturnType<typeof client.messages.stream>;
   try {
@@ -104,15 +104,17 @@ export async function* streamAnthropicMessages(
         system: options.system,
         messages: options.messages as Anthropic.MessageParam[],
         tools,
-        ...(thinking ? { thinking } : {}),
+        thinking,
         // Anthropic does not allow temperature changes with extended thinking.
-        ...(!thinking && typeof options.temperature === "number"
-          ? { temperature: options.temperature }
-          : {}),
+        ...(thinking.type === "enabled" && typeof options.temperature === "number"
+          ? {}
+          : typeof options.temperature === "number"
+            ? { temperature: options.temperature }
+            : {}),
       },
       {
         signal: options.signal,
-        ...(thinking
+        ...(thinking.type === "enabled"
           ? {
               headers: {
                 "anthropic-beta": "interleaved-thinking-2025-05-14",
