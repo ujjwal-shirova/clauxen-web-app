@@ -21,9 +21,9 @@ import { PromptSuggestions } from "./prompt-suggestions";
 interface ChatViewPaneProps {
   hasConversation: boolean;
   isGenerating?: boolean;
-  /** When true, quick action chips stay hidden (reserved space) so the welcome block does not shift. */
+  /** When true, quick action chips stay hidden while the user is typing a draft. */
   hasPromptDraft: boolean;
-  /** When true, the + menu is open — welcome chips hide with transition. */
+  /** @deprecated Menu no longer hides welcome chips — kept for composer resize deps. */
   isAddMenuOpen?: boolean;
   activeChip: string | null;
   onActiveChipChange: (chip: string | null) => void;
@@ -316,13 +316,12 @@ export function ChatViewPane({
                   {/* Welcome action chips — same strip as main-app new chat. */}
                   <div
                     className={cn(
-                      "flex w-full max-w-[var(--chat-column-max-width,768px)] flex-col items-center justify-start transition-[min-height] duration-200 ease-out",
-                      !isAddMenuOpen && "min-h-[96px]",
+                      "flex w-full max-w-[var(--chat-column-max-width,768px)] flex-col items-center justify-start transition-[min-height] duration-200 ease-out min-h-[96px]",
                       composerOnlyWelcome && "min-h-0",
                     )}
                   >
                     <AnimatePresence mode="wait" initial={false}>
-                      {!hasPromptDraft && !isAddMenuOpen && activeChip ? (
+                      {!hasPromptDraft && activeChip ? (
                         <motion.div
                           key={`suggestions-${activeChip}`}
                           initial={{ opacity: 0, y: 10 }}
@@ -340,7 +339,7 @@ export function ChatViewPane({
                             }}
                           />
                         </motion.div>
-                      ) : !hasPromptDraft && !isAddMenuOpen ? (
+                      ) : !hasPromptDraft ? (
                         <motion.div
                           key="chips"
                           initial={{ opacity: 0, y: 10 }}

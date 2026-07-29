@@ -30,6 +30,7 @@ export type UserPersonalization = {
   referenceSavedMemories: boolean;
   referenceChatHistory: boolean;
   webSearch: boolean;
+  extendedThinking: boolean;
 };
 
 function asTrimmedString(value: unknown, maxLen: number): string | null {
@@ -113,6 +114,7 @@ export async function loadUserPersonalization(
       personalization?.webSearch ?? capabilities?.networkEgress,
       true,
     ),
+    extendedThinking: asBool(personalization?.extendedThinking, false),
   };
 }
 

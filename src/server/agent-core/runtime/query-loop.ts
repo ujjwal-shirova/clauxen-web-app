@@ -206,6 +206,8 @@ export type AgentStreamOptions = {
   model: string;
   chatModelId?: ConfiguredModelId;
   homerReasoningEffort?: HomerReasoningEffort;
+  /** User preference from composer + menu; when false, extended thinking is off. */
+  thinkingEnabled?: boolean;
   userId?: string;
   conversationId?: string;
   userCountryCode?: string;
@@ -224,6 +226,7 @@ export type AgentStreamOptions = {
 function resolveThinkingBudget(
   options: AgentStreamOptions,
 ): number {
+  if (options.thinkingEnabled === false) return 0;
   const thinking = resolveAutonomousThinkingParams({
     chatModel: options.chatModelId ?? DEFAULT_CHAT_MODEL_ID,
     homerReasoningEffort: options.homerReasoningEffort,

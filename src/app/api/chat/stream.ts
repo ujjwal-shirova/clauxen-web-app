@@ -10,7 +10,10 @@ import {
 import { ClauxenSseStream } from "@/server/inference/clauxen-sse-stream";
 import type { IncomingMessage } from "@/server/inference/novita";
 import { buildModelSystemPrompt } from "@/server/inference/system-prompt";
-import { buildUserPersonalizationAppend } from "@/server/services/user-personalization.service";
+import {
+  buildUserPersonalizationAppend,
+  loadUserPersonalization,
+} from "@/server/services/user-personalization.service";
 import { loadFollowUpSuggestionsEnabled } from "@/server/services/follow-up-settings.service";
 import { buildFollowUpSystemInstruction } from "@/lib/follow-up-prompt";
 import { resolveModelRuntime, parseChatModelId, modelCatalogEnvFromProcess } from "@/lib/model-catalog";
@@ -42,10 +45,14 @@ export async function createChatStream(
   const chatModelId = parseChatModelId(options.chatModel);
   const runtime = resolveModelRuntime(chatModelId, catalogEnv);
 
-  const [personalizationAppend, followUpsEnabled] = await Promise.all([
-    buildUserPersonalizationAppend(options.userId),
-    loadFollowUpSuggestionsEnabled(options.userId),
-  ]);
+  const [personalizationAppend, followUpsEnabled, userPersonalization] =
+    await Promise.all([
+      buildUserPersonalizationAppend(options.userId),
+      loadFollowUpSuggestionsEnabled(options.userId),
+      options.userId
+        ? loadUserPersonalization(options.userId)
+        : Promise.resolve(null),
+    ]);
 
   const titleInstr = options.generateChatTitle
     ? "When the conversation has a clear topic, output a short title (3-6 words) for the sidebar."
@@ -74,6 +81,7 @@ export async function createChatStream(
     model: runtime.modelSlug,
     chatModelId,
     homerReasoningEffort: parseHomerReasoningEffort(options.homerReasoningEffort),
+    thinkingEnabled: userPersonalization?.extendedThinking ?? false,
     userId: options.userId,
     conversationId: options.conversationId,
     userCountryCode: options.userCountryCode,

@@ -35,6 +35,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     referenceChatHistory: true,
     referenceRecordHistory: true,
     webSearch: true,
+    extendedThinking: false,
   },
   notifications: {
     desktopAlerts: true,

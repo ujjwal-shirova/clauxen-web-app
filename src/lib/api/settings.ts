@@ -35,6 +35,8 @@ export type PersonalizationSettings = {
   referenceRecordHistory: boolean;
   /** Advanced: allow automatic web search during chats. */
   webSearch: boolean;
+  /** Extended reasoning (thinking blocks) before answers. Default off. */
+  extendedThinking: boolean;
 };
 
 export type NotificationSettings = {

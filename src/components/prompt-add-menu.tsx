@@ -1,13 +1,18 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import {
+  Brain,
   Check,
   ChevronRight,
   Globe,
@@ -17,11 +22,20 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsClient } from "@/hooks/use-is-client";
 
 export type PromptComposeAction = "deep-research";
 export type WebSearchMode = "auto" | "off";
+export type ThinkingMode = "on" | "off";
 
-type PromptAddMenuItemId = "files" | "plugins" | "skills" | "web-search";
+type PromptAddMenuItemId =
+  | "files"
+  | "plugins"
+  | "skills"
+  | "web-search"
+  | "thinking";
+
+type SubmenuId = "plugins" | "skills" | "web-search" | "thinking";
 
 type PromptAddMenuItem = {
   id: PromptAddMenuItemId;
@@ -34,31 +48,39 @@ type PromptAddMenuItem = {
 export type PromptAddMenuPanelProps = {
   open: boolean;
   placement: "above" | "below";
+  anchorRef: RefObject<HTMLElement | null>;
   onClose: () => void;
   panelRef?: RefObject<HTMLDivElement | null>;
   onAddFiles?: () => void;
   webSearchMode?: WebSearchMode;
   onWebSearchModeChange?: (mode: WebSearchMode) => void;
+  thinkingMode?: ThinkingMode;
+  onThinkingModeChange?: (mode: ThinkingMode) => void;
   onOpenPlugins?: () => void;
   onOpenSkills?: () => void;
   className?: string;
 };
+
+const MENU_GAP_PX = 8;
 
 function PromptAddMenuRow({
   item,
   active,
   onSelect,
   onHover,
+  rowRef,
 }: {
   item: PromptAddMenuItem;
   active?: boolean;
   onSelect: () => void;
   onHover?: () => void;
+  rowRef?: (node: HTMLButtonElement | null) => void;
 }) {
   const Icon = item.icon;
 
   return (
     <button
+      ref={rowRef}
       type="button"
       onClick={onSelect}
       onMouseEnter={onHover}
@@ -87,30 +109,19 @@ function PromptAddMenuRow({
   );
 }
 
-function WebSearchSubmenu({
+function ToggleSubmenu<T extends string>({
+  options,
   mode,
   onSelect,
 }: {
-  mode: WebSearchMode;
-  onSelect: (mode: WebSearchMode) => void;
-}) {
-  const options: Array<{
-    id: WebSearchMode;
+  options: Array<{
+    id: T;
     label: string;
     description: string;
-  }> = [
-    {
-      id: "auto",
-      label: "Auto",
-      description: "Browses the web when needed",
-    },
-    {
-      id: "off",
-      label: "Off",
-      description: "No web access",
-    },
-  ];
-
+  }>;
+  mode: T;
+  onSelect: (mode: T) => void;
+}) {
   return (
     <div className="flex min-w-[220px] flex-col gap-0.5 p-1.5">
       {options.map((option) => {
@@ -181,23 +192,102 @@ function PlaceholderSubmenu({
   );
 }
 
+function useAnchoredMenuPosition(
+  open: boolean,
+  anchorRef: RefObject<HTMLElement | null>,
+  menuRef: RefObject<HTMLDivElement | null>,
+  placement: "above" | "below",
+) {
+  const [position, setPosition] = useState<CSSProperties>({
+    visibility: "hidden",
+  });
+
+  const updatePosition = useCallback(() => {
+    const anchor = anchorRef.current;
+    const menu = menuRef.current;
+    if (!anchor || !menu) return;
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const viewportPadding = 12;
+
+    let top =
+      placement === "above"
+        ? anchorRect.top - menuRect.height - MENU_GAP_PX
+        : anchorRect.bottom + MENU_GAP_PX;
+
+    let left = anchorRect.left;
+
+    const maxLeft = window.innerWidth - menuRect.width - viewportPadding;
+    left = Math.max(viewportPadding, Math.min(left, maxLeft));
+
+    const maxTop = window.innerHeight - menuRect.height - viewportPadding;
+    top = Math.max(viewportPadding, Math.min(top, maxTop));
+
+    setPosition({
+      position: "fixed",
+      top,
+      left,
+      zIndex: 80,
+      visibility: "visible",
+    });
+  }, [anchorRef, menuRef, placement]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPosition({ visibility: "hidden" });
+      return;
+    }
+
+    updatePosition();
+
+    const onScrollOrResize = () => updatePosition();
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [open, updatePosition]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+  });
+
+  return position;
+}
+
 export function PromptAddMenuPanel({
   open,
   placement,
+  anchorRef,
   onClose,
   panelRef,
   onAddFiles,
   webSearchMode = "auto",
   onWebSearchModeChange,
+  thinkingMode = "off",
+  onThinkingModeChange,
   onOpenPlugins,
   onOpenSkills,
   className,
 }: PromptAddMenuPanelProps) {
+  const isClient = useIsClient();
   const internalRef = useRef<HTMLDivElement>(null);
   const resolvedRef = panelRef ?? internalRef;
-  const [activeSubmenu, setActiveSubmenu] = useState<
-    null | "plugins" | "skills" | "web-search"
-  >(null);
+  const rowRefs = useRef<Partial<Record<SubmenuId, HTMLButtonElement | null>>>(
+    {},
+  );
+  const [activeSubmenu, setActiveSubmenu] = useState<SubmenuId | null>(null);
+  const [submenuTopPx, setSubmenuTopPx] = useState(0);
+
+  const menuPosition = useAnchoredMenuPosition(
+    open,
+    anchorRef,
+    resolvedRef,
+    placement,
+  );
 
   const items: PromptAddMenuItem[] = [
     {
@@ -230,7 +320,25 @@ export function PromptAddMenuPanel({
       hasSubmenu: true,
       onSelect: () => setActiveSubmenu("web-search"),
     },
+    {
+      id: "thinking",
+      label: "Thinking",
+      icon: Brain,
+      hasSubmenu: true,
+      onSelect: () => setActiveSubmenu("thinking"),
+    },
   ];
+
+  const syncSubmenuTop = useCallback(
+    (submenu: SubmenuId | null) => {
+      if (!submenu) return;
+      const menu = resolvedRef.current;
+      const row = rowRefs.current[submenu];
+      if (!menu || !row) return;
+      setSubmenuTopPx(row.offsetTop);
+    },
+    [resolvedRef],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -254,15 +362,17 @@ export function PromptAddMenuPanel({
     };
   }, [open, onClose, activeSubmenu]);
 
-  if (!open) return null;
+  useLayoutEffect(() => {
+    syncSubmenuTop(activeSubmenu);
+  }, [activeSubmenu, syncSubmenuTop, open]);
 
-  return (
+  if (!open || !isClient) return null;
+
+  const menu = (
     <div
       ref={resolvedRef}
-      className={cn(
-        "relative w-max max-w-[min(100%,320px)]",
-        className,
-      )}
+      style={menuPosition}
+      className={cn("relative w-max max-w-[min(100vw-24px,320px)]", className)}
       data-prompt-add-menu-root
     >
       <motion.div
@@ -281,11 +391,15 @@ export function PromptAddMenuPanel({
               key={item.id}
               item={item}
               active={activeSubmenu === item.id}
+              rowRef={(node) => {
+                if (item.hasSubmenu) {
+                  rowRefs.current[item.id as SubmenuId] = node;
+                }
+              }}
               onHover={() => {
                 if (item.hasSubmenu) {
-                  setActiveSubmenu(
-                    item.id as "plugins" | "skills" | "web-search",
-                  );
+                  setActiveSubmenu(item.id as SubmenuId);
+                  syncSubmenuTop(item.id as SubmenuId);
                 } else {
                   setActiveSubmenu(null);
                 }
@@ -304,19 +418,51 @@ export function PromptAddMenuPanel({
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: -2, scale: 0.98 }}
           transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
+          style={{ top: submenuTopPx }}
           className={cn(
             "absolute left-[calc(100%+6px)] z-10 overflow-hidden rounded-[16px] border border-zinc-200/90 bg-white shadow-[0_12px_40px_-18px_rgba(24,24,27,0.45)]",
-            placement === "below" ? "top-0" : "bottom-0",
-            // Keep submenu on-screen on narrow viewports by flipping below the row.
             "max-sm:left-0 max-sm:right-0 max-sm:top-[calc(100%+6px)] max-sm:bottom-auto",
           )}
           onMouseEnter={() => setActiveSubmenu(activeSubmenu)}
         >
           {activeSubmenu === "web-search" ? (
-            <WebSearchSubmenu
+            <ToggleSubmenu
               mode={webSearchMode}
+              options={[
+                {
+                  id: "auto" as const,
+                  label: "Auto",
+                  description: "Browses the web when needed",
+                },
+                {
+                  id: "off" as const,
+                  label: "Off",
+                  description: "No web access",
+                },
+              ]}
               onSelect={(mode) => {
                 onWebSearchModeChange?.(mode);
+                onClose();
+              }}
+            />
+          ) : null}
+          {activeSubmenu === "thinking" ? (
+            <ToggleSubmenu
+              mode={thinkingMode}
+              options={[
+                {
+                  id: "on" as const,
+                  label: "On",
+                  description: "Extended reasoning before answering",
+                },
+                {
+                  id: "off" as const,
+                  label: "Off",
+                  description: "Answer without extended reasoning",
+                },
+              ]}
+              onSelect={(mode) => {
+                onThinkingModeChange?.(mode);
                 onClose();
               }}
             />
@@ -347,4 +493,6 @@ export function PromptAddMenuPanel({
       ) : null}
     </div>
   );
+
+  return createPortal(menu, document.body);
 }

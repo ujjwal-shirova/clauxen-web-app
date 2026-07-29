@@ -21,6 +21,7 @@ import {
 import {
   PromptAddMenuPanel,
   type PromptComposeAction,
+  type ThinkingMode,
   type WebSearchMode,
 } from "./prompt-add-menu";
 import { ComposerProjectStrip } from "./composer-project-strip";
@@ -70,7 +71,7 @@ interface PromptInputProps {
   onRemoveQueuedMessage?: (id: string) => void;
   /** Fires on every draft change so parent layouts can react without lifting full state. */
   onPromptChange?: (value: string) => void;
-  /** Fires when the + menu opens or closes (welcome chips hide while open). */
+  /** Fires when the + menu opens or closes (legacy hook for composer resize). */
   onAddMenuOpenChange?: (open: boolean) => void;
   /** When this value changes (e.g. new chat), the textarea is focused again. */
   focusKey?: string;
@@ -167,6 +168,7 @@ export function PromptInput({
   const [activeInlineMode, setActiveInlineMode] =
     useState<PromptInlineMode | null>(null);
   const [webSearchMode, setWebSearchMode] = useState<WebSearchMode>("auto");
+  const [thinkingMode, setThinkingMode] = useState<ThinkingMode>("off");
   const [composeChipHovered, setComposeChipHovered] = useState(false);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const [previewAttachment, setPreviewAttachment] =
@@ -825,6 +827,9 @@ export function PromptInput({
         setWebSearchMode(
           settings.personalization?.webSearch === false ? "off" : "auto",
         );
+        setThinkingMode(
+          settings.personalization?.extendedThinking === true ? "on" : "off",
+        );
       })
       .catch(() => {
         // Keep optimistic default when settings are unavailable.
@@ -842,6 +847,17 @@ export function PromptInput({
       })
       .catch((error) => {
         console.warn("[composer] web search preference failed:", error);
+      });
+  }, []);
+
+  const handleThinkingModeChange = useCallback((mode: ThinkingMode) => {
+    setThinkingMode(mode);
+    void settingsApi
+      .updateSettings({
+        personalization: { extendedThinking: mode === "on" },
+      })
+      .catch((error) => {
+        console.warn("[composer] thinking preference failed:", error);
       });
   }, []);
 
@@ -1126,25 +1142,22 @@ export function PromptInput({
           strokeWidth={1.75}
         />
       </button>
-      <AnimatePresence initial={false}>
-        {isAddMenuOpen ? (
-          <div className="absolute bottom-full left-0 z-50 mb-2">
-            <PromptAddMenuPanel
-              open={isAddMenuOpen}
-              placement="above"
-              panelRef={addMenuPanelRef}
-              onClose={() => setAddMenuOpen(false)}
-              onAddFiles={openFilePicker}
-              webSearchMode={webSearchMode}
-              onWebSearchModeChange={handleWebSearchModeChange}
-              onOpenPlugins={() => openOverlayHash({ type: "apps" })}
-              onOpenSkills={() =>
-                openOverlayHash({ type: "settings", tab: "Skills" })
-              }
-            />
-          </div>
-        ) : null}
-      </AnimatePresence>
+      <PromptAddMenuPanel
+        open={isAddMenuOpen}
+        placement="above"
+        anchorRef={addMenuTriggerRef}
+        panelRef={addMenuPanelRef}
+        onClose={() => setAddMenuOpen(false)}
+        onAddFiles={openFilePicker}
+        webSearchMode={webSearchMode}
+        onWebSearchModeChange={handleWebSearchModeChange}
+        thinkingMode={thinkingMode}
+        onThinkingModeChange={handleThinkingModeChange}
+        onOpenPlugins={() => openOverlayHash({ type: "apps" })}
+        onOpenSkills={() =>
+          openOverlayHash({ type: "settings", tab: "Skills" })
+        }
+      />
     </div>
   );
 

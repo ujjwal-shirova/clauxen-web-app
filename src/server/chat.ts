@@ -20,7 +20,10 @@ import {
   CLAUXEN_STREAM_HEADERS,
 } from "@/server/inference/clauxen-sse-stream";
 import { buildModelSystemPrompt } from "@/server/inference/system-prompt";
-import { buildUserPersonalizationAppend } from "@/server/services/user-personalization.service";
+import {
+  buildUserPersonalizationAppend,
+  loadUserPersonalization,
+} from "@/server/services/user-personalization.service";
 import { loadFollowUpSuggestionsEnabled } from "@/server/services/follow-up-settings.service";
 import { buildFollowUpSystemInstruction } from "@/lib/follow-up-prompt";
 
@@ -71,10 +74,12 @@ export async function handleChatPost(request: Request) {
 
     // Build the system prompt from the model's .md file + user personalization.
     const userId = auth.session?.id;
-    const [personalizationAppend, followUpsEnabled] = await Promise.all([
-      buildUserPersonalizationAppend(userId),
-      loadFollowUpSuggestionsEnabled(userId),
-    ]);
+    const [personalizationAppend, followUpsEnabled, userPersonalization] =
+      await Promise.all([
+        buildUserPersonalizationAppend(userId),
+        loadFollowUpSuggestionsEnabled(userId),
+        userId ? loadUserPersonalization(userId) : Promise.resolve(null),
+      ]);
     const followUpInstr = followUpsEnabled
       ? buildFollowUpSystemInstruction()
       : "";
@@ -93,6 +98,7 @@ export async function handleChatPost(request: Request) {
       model: runtime.modelSlug,
       chatModelId,
       homerReasoningEffort,
+      thinkingEnabled: userPersonalization?.extendedThinking ?? false,
       userId: auth.session?.id,
       conversationId,
       userCountryCode: resolveRequestCountryCode(request.headers),

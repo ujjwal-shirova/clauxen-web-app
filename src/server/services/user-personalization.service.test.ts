@@ -19,6 +19,7 @@ describe("formatPersonalizationAppend", () => {
       referenceSavedMemories: true,
       referenceChatHistory: true,
       webSearch: true,
+      extendedThinking: false,
     });
 
     assert.match(out, /<user_profile>/);
@@ -53,6 +54,7 @@ describe("formatPersonalizationAppend", () => {
       referenceSavedMemories: false,
       referenceChatHistory: false,
       webSearch: false,
+      extendedThinking: false,
     });
     assert.match(out, /<response_style>/);
     assert.match(out, /<base_style_and_tone>/);

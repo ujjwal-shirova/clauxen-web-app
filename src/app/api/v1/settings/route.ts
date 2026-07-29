@@ -50,6 +50,7 @@ const defaultPersonalization = {
   referenceChatHistory: true,
   referenceRecordHistory: true,
   webSearch: true,
+  extendedThinking: false,
 };
 
 const defaultNotifications = {
