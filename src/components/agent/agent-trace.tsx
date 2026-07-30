@@ -147,8 +147,8 @@ export function AgentTraceBlock({
       {hasBody ? (
         <div
           className={cn(
-            "agent-trace__collapse grid transition-[grid-template-rows] duration-200 ease-out",
-            showBody ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            "agent-trace__collapse grid transition-[grid-template-rows,opacity] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            showBody ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-90",
             contentClassName,
           )}
           aria-hidden={!showBody}

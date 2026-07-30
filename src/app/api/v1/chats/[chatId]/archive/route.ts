@@ -4,23 +4,30 @@ import { requireSession } from "@/server/auth/require-session";
 import * as chatsRepo from "@/server/repositories/chats.repository";
 import { notFound } from "@/server/db/errors";
 import { requireChatIdParam } from "@/server/http/chat-id";
-import { archiveChatSnapshot } from "@/server/chat/chat-archive";
+import {
+  archiveChatSnapshot,
+  purgeChatMessagesAfterArchive,
+} from "@/server/chat/chat-archive";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Archive: snapshot the chat to R2, then mark the row archived. */
+/** Archive: snapshot the chat to R2, mark archived, then purge live messages. */
 export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, params }) => {
     const user = requireSession(session);
     requireChatIdParam(params.chatId);
-    await archiveChatSnapshot({
+    const { snapshotted } = await archiveChatSnapshot({
       chatId: params.chatId,
       userId: user.id,
       reason: "archived",
     });
     const archived = await chatsRepo.archiveChat(params.chatId, user.id);
     if (!archived) throw notFound("Chat not found.");
+    await purgeChatMessagesAfterArchive({
+      chatId: params.chatId,
+      snapshotted,
+    });
     const { invalidateChatHistoryCache } = await import(
       "@/server/chat/warm-history-cache"
     );

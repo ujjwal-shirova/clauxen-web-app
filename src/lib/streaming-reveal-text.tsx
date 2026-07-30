@@ -1,11 +1,11 @@
 "use client";
 
-import { useId } from "react";
 import { StreamingTokenReveal } from "@/lib/streaming-token-reveal";
 
 /**
- * Per text-node streaming reveal with a stable session id (one per markdown
- * text block). Used by Streamdown component overrides during live streaming.
+ * Per text-node streaming reveal. Session identity comes only from `streamKey`
+ * (and paint-group common-prefix recovery) — never `useId()`, which remounts
+ * with Streamdown AST reshuffles and re-fades the entire settled text (gray flicker).
  */
 export function StreamingRevealText({
   text,
@@ -18,13 +18,12 @@ export function StreamingRevealText({
   showCursor?: boolean;
   enabled?: boolean;
 }) {
-  const segmentId = useId();
   void showCursor;
 
   return (
     <StreamingTokenReveal
       text={text}
-      sessionKey={`${streamKey}${segmentId}`}
+      sessionKey={streamKey}
       enabled={enabled}
     />
   );

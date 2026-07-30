@@ -112,6 +112,48 @@ describe("groupAgentWorkItems", () => {
     if (item.kind !== "group") return;
     assert.equal(item.group.label, "Ran 1 command");
   });
+  it("seals completed tools so a later running tool does not keep shimmering", () => {
+    const items = groupAgentWorkItems([
+      narration("n1", "I'll search the web."),
+      tool("t1", "web_search", "done"),
+      narration("n2", "Found some sources — checking one more."),
+      tool("t2", "web_search", "running"),
+    ]);
+
+    assert.deepEqual(
+      items.map((item) => item.kind),
+      ["narration", "group", "narration", "group"],
+    );
+    const firstGroup = items[1];
+    const secondGroup = items[3];
+    assert.equal(firstGroup?.kind, "group");
+    assert.equal(secondGroup?.kind, "group");
+    if (firstGroup?.kind !== "group" || secondGroup?.kind !== "group") return;
+    assert.equal(firstGroup.group.isActive, false);
+    assert.equal(secondGroup.group.isActive, true);
+  });
+
+  it("splits done + running tools in the same buffer without narration", () => {
+    const items = groupAgentWorkItems([
+      tool("t1", "web_search", "done"),
+      tool("t2", "web_search", "running"),
+    ]);
+
+    assert.equal(items.length, 2);
+    assert.equal(items[0]?.kind, "group");
+    assert.equal(items[1]?.kind, "group");
+    if (items[0]?.kind !== "group" || items[1]?.kind !== "group") return;
+    assert.equal(items[0].group.isActive, false);
+    assert.equal(items[1].group.isActive, true);
+    assert.deepEqual(
+      items[0].group.segments.map((segment) => segment.id),
+      ["tool-t1"],
+    );
+    assert.deepEqual(
+      items[1].group.segments.map((segment) => segment.id),
+      ["tool-t2"],
+    );
+  });
 });
 
 describe("countContentLineDiff", () => {

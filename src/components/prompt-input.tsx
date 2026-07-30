@@ -1120,16 +1120,31 @@ export function PromptInput({
         {renderModelSelector()}
         {renderMicButton()}
         {isGenerating ? (
-          <HintTooltip content="Stop generating">
-            <button
-              type="button"
-              onClick={onStopGeneration}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-white transition-all duration-200 hover:bg-zinc-900 data-app-button"
-              data-app-button
-            >
-              <Square className="icon-md fill-current" />
-            </button>
-          </HintTooltip>
+          hasDraft || attachments.length > 0 ? (
+            <HintTooltip content="Send (queue while generating)">
+              <button
+                type="button"
+                onClick={handleSubmit}
+                aria-label="Send queued message"
+                className="no-hover-overlay flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white transition-all duration-200 hover:bg-zinc-800 data-app-button"
+                data-app-button
+              >
+                <ArrowUp className="icon-lg" />
+              </button>
+            </HintTooltip>
+          ) : (
+            <HintTooltip content="Stop generating">
+              <button
+                type="button"
+                onClick={onStopGeneration}
+                aria-label="Stop generating"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-white transition-all duration-200 hover:bg-zinc-900 data-app-button"
+                data-app-button
+              >
+                <Square className="icon-md fill-current" />
+              </button>
+            </HintTooltip>
+          )
         ) : hasDraft || attachments.length > 0 ? (
           <HintTooltip content="Send">
             <button

@@ -5,7 +5,7 @@ import * as chatsRepo from "@/server/repositories/chats.repository"; // PATCH/DE
 import * as chatService from "@/server/services/chat.service";
 import { notFound } from "@/server/db/errors";
 import { requireChatIdParam } from "@/server/http/chat-id";
-import { archiveChatSnapshot } from "@/server/chat/chat-archive";
+import { archiveChatSnapshot, purgeChatMessagesAfterArchive } from "@/server/chat/chat-archive";
 
 const MAX_CHAT_TITLE_LENGTH = 200;
 
@@ -57,12 +57,16 @@ export const DELETE = withApiRouteParams<{ chatId: string }>(
     const user = requireSession(session);
     requireChatIdParam(params.chatId);
     // Tombstone to R2 first so the chat is recoverable after soft-delete.
-    await archiveChatSnapshot({
+    const { snapshotted } = await archiveChatSnapshot({
       chatId: params.chatId,
       userId: user.id,
       reason: "deleted",
     });
     await chatsRepo.deleteChat(params.chatId, user.id);
+    await purgeChatMessagesAfterArchive({
+      chatId: params.chatId,
+      snapshotted,
+    });
     const { invalidateChatHistoryCache } = await import(
       "@/server/chat/warm-history-cache"
     );

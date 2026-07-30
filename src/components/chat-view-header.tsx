@@ -209,7 +209,7 @@ export function ChatViewHeader({
                         <StreamingChatTitle
                           title={displayTitle}
                           isStreaming={isTitleStreaming}
-                          className="min-w-0 whitespace-nowrap"
+                          className="w-auto max-w-full whitespace-nowrap"
                         />
                         {isTitleStreaming ? <TypingDots className="ml-1 shrink-0" /> : null}
                       </button>

@@ -167,8 +167,9 @@ function ChatAreaLayout({
 
   const isConversationStarted = messages.length > 0;
   // Route chat hydrating — blank pane (no welcome), no skeleton copy.
+  // Load errors take priority so the blank pane never swallows failure UI.
   const blankRouteHydration = Boolean(
-    blankPaneChatId && !isConversationStarted,
+    blankPaneChatId && !isConversationStarted && !messagesLoadError,
   );
   const showMessageSkeleton =
     messagesLoading &&

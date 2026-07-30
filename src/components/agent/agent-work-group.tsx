@@ -20,32 +20,38 @@ export function AgentWorkGroupView({
   children: ReactNode;
 }) {
   return (
-    <AgentTraceBlock
-      title={
-        group.isActive ? (
-          <AgentShimmerText key={`wg-live-${group.id}`} active>
-            {group.label}
-          </AgentShimmerText>
-        ) : (
-          // Past-tense label never shimmers — done steps must not keep the
-          // sweeping highlight when the agent starts the next step.
-          <span>{group.label}</span>
-        )
-      }
-      trailing={trailing}
-      isActive={group.isActive}
-      defaultExpanded={group.isActive}
-      showChevron
-      className="agent-work-group"
-      headerClassName="agent-work-group__header"
-      contentClassName="agent-work-group__body"
+    <div
+      className="agent-work-group-enter"
+      data-agent-work-group="true"
+      data-active={group.isActive || undefined}
     >
-      <div
-        className="relative flex w-full min-w-0 flex-col gap-2.5 border-l border-zinc-200/90 pl-3.5 ml-[2px]"
-        data-agent-work-group-body="true"
+      <AgentTraceBlock
+        title={
+          group.isActive ? (
+            <AgentShimmerText key={`wg-live-${group.id}`} active>
+              {group.label}
+            </AgentShimmerText>
+          ) : (
+            // Past-tense label never shimmers — done steps must not keep the
+            // sweeping highlight when the agent starts the next step.
+            <span key={`wg-done-${group.id}`}>{group.label}</span>
+          )
+        }
+        trailing={trailing}
+        isActive={group.isActive}
+        defaultExpanded={group.isActive}
+        showChevron
+        className="agent-work-group"
+        headerClassName="agent-work-group__header"
+        contentClassName="agent-work-group__body"
       >
-        {children}
-      </div>
-    </AgentTraceBlock>
+        <div
+          className="relative flex w-full min-w-0 flex-col gap-2.5 border-l border-zinc-200/90 pl-3.5 ml-[2px]"
+          data-agent-work-group-body="true"
+        >
+          {children}
+        </div>
+      </AgentTraceBlock>
+    </div>
   );
 }

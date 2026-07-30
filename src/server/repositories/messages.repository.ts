@@ -362,6 +362,93 @@ export async function updateMessageContent(
   ); // composite key — message UUID alone insufficient; prevents cross-chat IDOR
 }
 
+/** Purge all messages for a chat after an R2 archive/delete snapshot. */
+export async function deleteMessagesForChat(chatId: string): Promise<number> {
+  const rows = await query<{ id: string }>(
+    `with deleted as (
+       delete from public.chat_messages
+       where chat_id = $1
+       returning id
+     )
+     select id from deleted`,
+    [chatId],
+  );
+  return rows.length;
+}
+
+/**
+ * Replace live messages with an R2 archive snapshot (unarchive path).
+ * Deletes any residual rows first, then reinserts with original ids/timestamps.
+ */
+export async function replaceMessagesFromSnapshot(input: {
+  chatId: string;
+  userId: string;
+  messages: Array<Record<string, unknown>>;
+}): Promise<number> {
+  await deleteMessagesForChat(input.chatId);
+  if (!input.messages.length) return 0;
+
+  let inserted = 0;
+  for (const raw of input.messages) {
+    const id = typeof raw.id === "string" ? raw.id : null;
+    const role = typeof raw.role === "string" ? raw.role : null;
+    if (!id || !role) continue;
+    const content =
+      typeof raw.content === "string"
+        ? raw.content
+        : raw.content == null
+          ? ""
+          : String(raw.content);
+    const status =
+      typeof raw.status === "string" && raw.status.trim()
+        ? raw.status
+        : "complete";
+    const metadata =
+      raw.metadata && typeof raw.metadata === "object"
+        ? (raw.metadata as Record<string, unknown>)
+        : {};
+    const contentJson =
+      raw.content_json && typeof raw.content_json === "object"
+        ? (raw.content_json as Record<string, unknown>)
+        : {};
+    const clientId =
+      typeof raw.client_id === "string" ? raw.client_id : null;
+    const createdAt =
+      typeof raw.created_at === "string" ? raw.created_at : null;
+
+    await queryOne(
+      `insert into public.chat_messages (
+         id, chat_id, user_id, role, content, status, metadata, content_json,
+         client_id, created_at
+       )
+       values (
+         $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9,
+         coalesce($10::timestamptz, now())
+       )
+       on conflict (id) do update set
+         content = excluded.content,
+         status = excluded.status,
+         metadata = excluded.metadata,
+         content_json = excluded.content_json,
+         client_id = coalesce(excluded.client_id, public.chat_messages.client_id)`,
+      [
+        id,
+        input.chatId,
+        input.userId,
+        role,
+        content,
+        status,
+        JSON.stringify(metadata),
+        JSON.stringify(contentJson),
+        clientId,
+        createdAt,
+      ],
+    );
+    inserted += 1;
+  }
+  return inserted;
+}
+
 /** Mark abandoned streaming rows so reloads don't show empty ghosts. */
 export async function finalizeStaleStreamingMessages(
   chatId: string,

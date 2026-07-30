@@ -89,28 +89,43 @@ function summarizeToolResult(
   const trimmed = result.trim();
   try {
     const parsed = JSON.parse(trimmed) as {
-      results?: Array<{ title?: string; url?: string }>;
+      results?: Array<{
+        title?: string;
+        url?: string;
+        snippet?: string;
+        text?: string;
+      }>;
       status?: string;
       error?: string;
+      content?: string;
+      ok?: boolean;
     };
     if (typeof parsed.error === "string" && parsed.error.trim()) {
-      return `${name} error: ${parsed.error.trim().slice(0, 160)}`;
+      return `${name} error: ${parsed.error.trim().slice(0, 240)}`;
     }
     if (parsed.status === "pending_user_input") {
       return `${name}: waiting for user answers`;
     }
     if (Array.isArray(parsed.results) && parsed.results.length > 0) {
-      const hits = parsed.results
-        .slice(0, 4)
-        .map((item) => item.title?.trim() || item.url?.trim() || "")
-        .filter(Boolean);
-      if (hits.length > 0) return `${name} results: ${hits.join(" | ")}`;
+      const hits = parsed.results.slice(0, 8).map((item) => {
+        const title = item.title?.trim() || item.url?.trim() || "";
+        const snippet = (item.snippet ?? item.text)?.trim().slice(0, 180) ?? "";
+        if (title && snippet) return `${title} — ${snippet}`;
+        return title || snippet;
+      }).filter(Boolean);
+      if (hits.length > 0) {
+        return `${name} results (${parsed.results.length}):\n${hits.map((h) => `- ${h}`).join("\n")}`;
+      }
+    }
+    if (typeof parsed.content === "string" && parsed.content.trim()) {
+      const flat = parsed.content.trim().replace(/\s+/g, " ");
+      return `${name} result: ${flat.slice(0, 1200)}${flat.length > 1200 ? "…" : ""}`;
     }
   } catch {
     // plain string result
   }
   const flat = trimmed.replace(/\s+/g, " ");
-  return `${name} result: ${flat.slice(0, 220)}${flat.length > 220 ? "…" : ""}`;
+  return `${name} result: ${flat.slice(0, 1200)}${flat.length > 1200 ? "…" : ""}`;
 }
 
 function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
@@ -119,7 +134,7 @@ function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
   const results: string[] = [];
 
   if (actions.length > 0) {
-    for (const action of actions.slice(0, 12)) {
+    for (const action of actions.slice(0, 20)) {
       const name = action.name || "tool";
       if (name === "ask_user_input_v0") {
         names.push(summarizeAskUserQuestions(action.input));
@@ -172,9 +187,9 @@ function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
   if (names.length === 0 && results.length === 0) return "";
   const lines = [
     names.length > 0
-      ? `[Prior tools this turn: ${[...new Set(names)].slice(0, 12).join("; ")}]`
+      ? `[Prior tools this turn: ${[...new Set(names)].slice(0, 16).join("; ")}]`
       : "",
-    ...results.slice(0, 8).map((line) => `[${line}]`),
+    ...results.slice(0, 16).map((line) => `[${line}]`),
   ].filter(Boolean);
   return lines.join("\n");
 }

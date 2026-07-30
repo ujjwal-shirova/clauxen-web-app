@@ -1,9 +1,15 @@
 /**
- * Snapshot a chat (row + full transcript) to R2 before soft-delete/archive,
+ * Snapshot a chat (row + full transcript) to R2 before delete/archive,
  * and restore it on unarchive. Buckets stay user-scoped under the
  * chat-archives bucket with `deleted/` vs `archived/` prefixes.
+ *
+ * Flow:
+ * - delete: R2 `deleted/` tombstone → soft-delete chat → purge messages
+ * - archive: R2 `archived/` snapshot → soft-archive chat → purge messages
+ * - unarchive: fetch `archived/` → restore messages into Supabase → reactivate
  */
 
+import { AppError } from "@/server/db/errors";
 import * as chatsRepo from "@/server/repositories/chats.repository";
 import * as messagesRepo from "@/server/repositories/messages.repository";
 import {
@@ -38,7 +44,7 @@ async function writeSnapshot(input: {
   chatId: string;
   userId: string;
   reason: ChatArchiveReason;
-}): Promise<void> {
+}): Promise<ChatSnapshot> {
   const chat = (await chatsRepo.getChatForUserIncludingDeleted(
     input.chatId,
     input.userId,
@@ -55,6 +61,14 @@ async function writeSnapshot(input: {
     messages: messages ?? [],
   };
 
+  if (!isR2Configured()) {
+    throw new AppError(
+      "Chat archive storage is not configured.",
+      503,
+      "archive_storage_unavailable",
+    );
+  }
+
   await putObject({
     purpose: "chat-archives",
     key: keyForReason(input.reason, input.userId, input.chatId),
@@ -66,42 +80,94 @@ async function writeSnapshot(input: {
       reason: input.reason,
     },
   });
+
+  return snapshot;
 }
 
-/** Best-effort R2 tombstone before soft-delete. Never blocks the delete. */
+/**
+ * Write the R2 tombstone/snapshot BEFORE status change.
+ * Does not purge messages — callers purge after soft-delete/archive succeeds.
+ */
 export async function archiveChatSnapshot(input: {
   chatId: string;
   userId: string;
   reason: ChatArchiveReason;
-}): Promise<void> {
-  try {
+}): Promise<{ snapshotted: boolean }> {
+  if (input.reason === "archived") {
+    if (!isR2Configured()) {
+      console.warn(
+        "[chat-archive] R2 not configured — soft-archive without snapshot",
+      );
+      return { snapshotted: false };
+    }
     await writeSnapshot(input);
+    return { snapshotted: true };
+  }
+
+  // Deleted: prefer durable tombstone, but never block the user delete.
+  try {
+    if (!isR2Configured()) {
+      console.warn(
+        "[chat-archive] R2 not configured — soft-delete without tombstone",
+      );
+      return { snapshotted: false };
+    }
+    await writeSnapshot(input);
+    return { snapshotted: true };
   } catch (error) {
-    console.warn("[chat-archive] snapshot failed", error);
+    console.warn("[chat-archive] deleted snapshot failed", error);
+    return { snapshotted: false };
   }
 }
 
-/** Restore a soft-archived chat from its R2 snapshot, then reactivate. */
+/** Purge live messages after a successful snapshot + status change. */
+export async function purgeChatMessagesAfterArchive(input: {
+  chatId: string;
+  snapshotted: boolean;
+}): Promise<void> {
+  if (!input.snapshotted) return;
+  try {
+    await messagesRepo.deleteMessagesForChat(input.chatId);
+  } catch (error) {
+    console.warn("[chat-archive] message purge failed", error);
+  }
+}
+
+/** Restore an archived chat from its R2 snapshot, reinsert messages, reactivate. */
 export async function restoreChatFromArchive(input: {
   chatId: string;
   userId: string;
 }): Promise<boolean> {
   try {
-    const raw = await getObject(
-      "chat-archives",
-      buildChatUserArchiveKey(input.userId, input.chatId),
-    );
-    const snapshot = JSON.parse(raw.toString("utf8")) as ChatSnapshot;
-    const chat = snapshot.chat as { id?: string; title?: string };
-    if (!chat?.id || chat.id !== input.chatId) return false;
-    await chatsRepo.restoreChat(input.chatId, input.userId, {
-      title: typeof chat.title === "string" ? chat.title : undefined,
-    });
-    return true;
-  } catch (error) {
     if (isR2Configured()) {
-      console.warn("[chat-archive] restore failed", error);
+      const raw = await getObject(
+        "chat-archives",
+        buildChatUserArchiveKey(input.userId, input.chatId),
+      );
+      const snapshot = JSON.parse(raw.toString("utf8")) as ChatSnapshot;
+      const chat = snapshot.chat as { id?: string; title?: string };
+      if (!chat?.id || chat.id !== input.chatId) return false;
+
+      await messagesRepo.replaceMessagesFromSnapshot({
+        chatId: input.chatId,
+        userId: input.userId,
+        messages: snapshot.messages ?? [],
+      });
+
+      await chatsRepo.restoreChat(input.chatId, input.userId, {
+        title: typeof chat.title === "string" ? chat.title : undefined,
+      });
+      return true;
     }
+  } catch (error) {
+    console.warn("[chat-archive] restore from R2 failed", error);
+  }
+
+  // Fallback: messages never purged (local/dev) — just reactivate the row.
+  try {
+    const restored = await chatsRepo.restoreChat(input.chatId, input.userId);
+    return Boolean(restored);
+  } catch {
     return false;
   }
 }

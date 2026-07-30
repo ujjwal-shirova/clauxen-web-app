@@ -168,11 +168,22 @@ export function StreamingTokenReveal({
     const deltaLength = Math.max(0, text.length - prefixLen);
     const elapsed = session.lastAt > 0 ? now - session.lastAt : 0;
 
-    session.duration =
-      durationMs ??
-      computeStreamTokenDurationMs(isGrowth ? elapsed : 0, deltaLength);
-    session.settled = text.slice(0, prefixLen);
-    session.delta = text.slice(prefixLen);
+    // Large non-growth rewrites (citation reshuffle / AST remount) must not
+    // re-animate the whole body — that is the gray↔white flicker.
+    const settleWithoutFade =
+      !isGrowth && (prefixLen === 0 || deltaLength > 48 || previous.length > 0);
+
+    if (settleWithoutFade) {
+      session.settled = text;
+      session.delta = "";
+      session.duration = 0;
+    } else {
+      session.duration =
+        durationMs ??
+        computeStreamTokenDurationMs(isGrowth ? elapsed : 0, deltaLength);
+      session.settled = text.slice(0, prefixLen);
+      session.delta = text.slice(prefixLen);
+    }
     session.lastAt = now;
     session.prev = text;
     versionRef.current += 1;

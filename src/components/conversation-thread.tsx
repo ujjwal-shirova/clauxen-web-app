@@ -83,15 +83,24 @@ type ConversationTurnGroup = {
 function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
   const groups: ConversationTurnGroup[] = [];
   const deduped = dedupeChatMessages(messages);
-  deduped.forEach((msg) => {
+  for (const msg of deduped) {
     if (msg.role === "user") {
+      // Each user message opens a new turn so bubbles stay chronologically paired.
       groups.push({ userMessage: msg, assistantMessages: [] });
-    } else if (groups.length === 0) {
-      groups.push({ userMessage: null, assistantMessages: [msg] });
-    } else {
-      groups[groups.length - 1].assistantMessages.push(msg);
+      continue;
     }
-  });
+    if (msg.role !== "assistant" && msg.role !== "system") continue;
+
+    const last = groups[groups.length - 1];
+    // Prefer appending to the open turn; never invent a stray user bubble.
+    if (last && last.userMessage) {
+      last.assistantMessages.push(msg);
+    } else if (last && !last.userMessage) {
+      last.assistantMessages.push(msg);
+    } else {
+      groups.push({ userMessage: null, assistantMessages: [msg] });
+    }
+  }
   return groups;
 }
 

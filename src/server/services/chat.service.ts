@@ -28,7 +28,11 @@ import {
 } from "@/lib/chat-title";
 import {
   buildAssistantTranscriptRecord,
+  buildToolResultUserRecord,
+  buildTurnEndedRecord,
   buildUserTranscriptRecord,
+  messagesToTranscriptRecords,
+  recordsToJsonl,
   type CapturedToolCall,
   type TranscriptAgentModelTurn,
 } from "@/server/training/transcript-format";
@@ -38,24 +42,32 @@ import {
 } from "@/server/inference/build-chat-prompt-messages";
 import { toUserFacingChatError, EMPTY_ASSISTANT_RESPONSE_FALLBACK } from "@/lib/assistant-generation-error";
 
-/** Training JSONL user mirror disabled — see persistAssistantTranscriptTurn. */
-async function persistUserTranscriptLine(_input: {
+/** Training JSONL user mirror — export/training only; never used for hydrate. */
+async function persistUserTranscriptLine(input: {
   chatId: string;
   userId: string;
   messageId?: string | null;
   content: string;
 }): Promise<void> {
-  // no-op
+  try {
+    await transcriptRepo.appendTranscriptLine({
+      chatId: input.chatId,
+      userId: input.userId,
+      messageId: input.messageId,
+      role: "user",
+      record: buildUserTranscriptRecord(input.content),
+    });
+  } catch (error) {
+    console.warn("[transcript] user line append failed", error);
+  }
 }
 
 /**
- * Training JSONL mirror is disabled. Chat history of truth is
- * `chat_messages.content` + `content_json.agent_ui` (modelTurns/actions) in
- * Supabase — that path still hydrates the agent UI and prompt history.
- * Dual-writing synthetic user tool_result lines into transcript tables caused
- * conflicting history; do not re-enable without isolating export from hydrate.
+ * Append Anthropic-shaped JSONL lines for export/training.
+ * Chat UI hydrate + prompt history still use `chat_messages.content_json`
+ * exclusively — never read these lines back into the live conversation.
  */
-async function persistAssistantTranscriptTurn(_input: {
+async function persistAssistantTranscriptTurn(input: {
   chatId: string;
   userId: string;
   messageId?: string | null;
@@ -65,7 +77,62 @@ async function persistAssistantTranscriptTurn(_input: {
   modelTurns?: TranscriptAgentModelTurn[];
   status: "success" | "error" | "cancelled";
 }): Promise<void> {
-  // no-op
+  try {
+    const assistant = buildAssistantTranscriptRecord({
+      answer: input.answer,
+      thinking: input.thinking,
+      tools: input.tools,
+      agentUi: input.modelTurns
+        ? {
+            modelTurns: input.modelTurns,
+            actions: input.tools.map((tool) => ({
+              id: tool.id,
+              name: tool.name,
+              input: tool.input ?? {},
+              result: tool.result,
+              isError: tool.isError,
+              description: tool.description,
+              startedAtMs: tool.startedAtMs,
+              completedAtMs: tool.completedAtMs,
+            })),
+          }
+        : undefined,
+    });
+    await transcriptRepo.appendTranscriptLine({
+      chatId: input.chatId,
+      userId: input.userId,
+      messageId: input.messageId,
+      role: "assistant",
+      record: assistant,
+    });
+
+    const toolResults = buildToolResultUserRecord(input.tools);
+    if (toolResults) {
+      await transcriptRepo.appendTranscriptLine({
+        chatId: input.chatId,
+        userId: input.userId,
+        messageId: input.messageId,
+        role: "user",
+        record: toolResults,
+      });
+    }
+
+    await transcriptRepo.appendTranscriptLine({
+      chatId: input.chatId,
+      userId: input.userId,
+      messageId: input.messageId,
+      role: "meta",
+      record: buildTurnEndedRecord(
+        input.status === "success"
+          ? "success"
+          : input.status === "cancelled"
+            ? "cancelled"
+            : "error",
+      ),
+    });
+  } catch (error) {
+    console.warn("[transcript] assistant turn append failed", error);
+  }
 }
 
 export async function listRecentChats(userId: string, projectId?: string) {
@@ -821,16 +888,65 @@ export async function getChatTranscript(chatId: string, userId: string) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
   const aggregated = await transcriptRepo.getChatTranscriptJsonl(chatId, userId);
-  if (aggregated?.jsonl) return aggregated;
+  if (aggregated?.jsonl?.trim()) return aggregated;
 
   const lines = await transcriptRepo.listTranscriptLines(chatId, userId);
+  if (lines.length > 0) {
+    return {
+      chat_id: chatId,
+      user_id: userId,
+      chat_title: chat.title,
+      line_count: lines.length,
+      training_eligible: lines.every((line) => line.training_eligible),
+      jsonl: lines.map((line) => JSON.stringify(line.record)).join("\n"),
+    };
+  }
+
+  // Fallback: rebuild JSONL from durable content_json when export table is empty.
+  const messages = await messagesRepo.listMessagesForChat(chatId);
+  const rebuilt = messagesToTranscriptRecords(
+    messages.map((row) => {
+      const agentUi = (
+        row.content_json as {
+          agent_ui?: {
+            actions?: Array<{
+              id: string;
+              name: string;
+              input?: Record<string, unknown>;
+              result?: string;
+              isError?: boolean;
+            }>;
+          };
+        }
+      )?.agent_ui;
+      return {
+        id: row.id,
+        role: row.role,
+        content: row.content ?? "",
+        agentFrames: agentUi?.actions?.length
+          ? [
+              {
+                segments: agentUi.actions.map((action) => ({
+                  kind: "tool",
+                  toolCallId: action.id,
+                  name: action.name,
+                  args: action.input ?? {},
+                  result: action.result,
+                  status: action.isError ? "error" : "done",
+                })),
+              },
+            ]
+          : undefined,
+      };
+    }),
+  );
   return {
     chat_id: chatId,
     user_id: userId,
     chat_title: chat.title,
-    line_count: lines.length,
-    training_eligible: lines.every((line) => line.training_eligible),
-    jsonl: lines.map((line) => JSON.stringify(line.record)).join("\n"),
+    line_count: rebuilt.length,
+    training_eligible: true,
+    jsonl: recordsToJsonl(rebuilt.map((line) => line.record)),
   };
 }
 

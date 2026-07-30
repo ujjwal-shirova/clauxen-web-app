@@ -124,14 +124,91 @@ export function summarizeGroupSegments(
     : `${verb} ${parts.join(", ")}`;
 }
 
+function memberIsLive(
+  segment: AgentThinkingSegment | AgentToolSegment,
+): boolean {
+  return (
+    (segment.kind === "thinking" && segment.isStreaming) ||
+    (segment.kind === "tool" && segment.status === "running")
+  );
+}
+
 function groupIsActive(
   segments: Array<AgentThinkingSegment | AgentToolSegment>,
 ): boolean {
-  return segments.some(
+  return segments.some(memberIsLive);
+}
+
+/**
+ * Emit one or more work groups from a buffer.
+ *
+ * Completed members are sealed into their own past-tense (no-shimmer) group so
+ * a later running tool cannot keep earlier steps shimmering. Only the trailing
+ * live members stay in an active group.
+ */
+function emitBufferedGroups(
+  buffer: Array<AgentThinkingSegment | AgentToolSegment>,
+  labelSource: string | undefined,
+  groupCounterStart: number,
+): { items: AgentTraceItem[]; nextCounter: number } {
+  const filtered = buffer.filter(
     (segment) =>
-      (segment.kind === "thinking" && segment.isStreaming) ||
-      (segment.kind === "tool" && segment.status === "running"),
+      segment.kind === "thinking" ||
+      (segment.kind === "tool" && segment.name !== "present_files"),
   );
+  if (filtered.length === 0) {
+    return { items: [], nextCounter: groupCounterStart };
+  }
+
+  const items: AgentTraceItem[] = [];
+  let groupCounter = groupCounterStart;
+  let cursor = 0;
+
+  while (cursor < filtered.length) {
+    const head = filtered[cursor]!;
+    if (!memberIsLive(head)) {
+      // Pack consecutive completed members into one done group.
+      let end = cursor + 1;
+      while (end < filtered.length && !memberIsLive(filtered[end]!)) {
+        end += 1;
+      }
+      const chunk = filtered.slice(cursor, end);
+      groupCounter += 1;
+      const useLabel = cursor === 0 ? labelSource : undefined;
+      items.push({
+        kind: "group",
+        group: {
+          id: `work-group-${chunk[0]!.id}-${groupCounter}`,
+          label:
+            (useLabel ? deriveActivityLabel(useLabel, "done") : undefined) ??
+            summarizeGroupSegments(chunk, "done"),
+          isActive: false,
+          segments: chunk,
+        },
+      });
+      cursor = end;
+      continue;
+    }
+
+    // Trailing live members — single active group.
+    const chunk = filtered.slice(cursor);
+    groupCounter += 1;
+    const useLabel = cursor === 0 ? labelSource : undefined;
+    items.push({
+      kind: "group",
+      group: {
+        id: `work-group-${chunk[0]!.id}-${groupCounter}`,
+        label:
+          (useLabel ? deriveActivityLabel(useLabel, "active") : undefined) ??
+          summarizeGroupSegments(chunk, "active"),
+        isActive: true,
+        segments: chunk,
+      },
+    });
+    break;
+  }
+
+  return { items, nextCounter: groupCounter };
 }
 
 /**
@@ -147,44 +224,15 @@ export function groupAgentWorkItems(
   let labelSource: string | undefined;
   let groupCounter = 0;
 
-  const flush = (streamEnded: boolean) => {
+  const flush = () => {
     if (buffer.length === 0) return;
-    const filtered = buffer.filter(
-      (segment) =>
-        segment.kind === "thinking" ||
-        (segment.kind === "tool" && segment.name !== "present_files"),
-    );
+    const emitted = emitBufferedGroups(buffer, labelSource, groupCounter);
     buffer = [];
-    if (filtered.length === 0) return;
-
-    const active = groupIsActive(filtered) && !streamEnded;
-    const state = active ? "active" : "done";
-    const label =
-      (labelSource ? deriveActivityLabel(labelSource, state) : undefined) ??
-      summarizeGroupSegments(filtered, state);
-    groupCounter += 1;
-    items.push({
-      kind: "group",
-      group: {
-        id: `work-group-${filtered[0]!.id}-${groupCounter}`,
-        label,
-        isActive: active,
-        segments: filtered,
-      },
-    });
+    groupCounter = emitted.nextCounter;
+    items.push(...emitted.items);
     // Label applies to the next tool batch only once.
     labelSource = undefined;
   };
-
-  const streamEnded = segments.every(
-    (segment) =>
-      !(
-        (segment.kind === "thinking" && segment.isStreaming) ||
-        ((segment.kind === "narration" || segment.kind === "text") &&
-          segment.isStreaming) ||
-        (segment.kind === "tool" && segment.status === "running")
-      ),
-  );
 
   for (const segment of segments) {
     if (isNarration(segment)) {
@@ -192,7 +240,7 @@ export function groupAgentWorkItems(
       if (!segment.content.trim() && !segment.isStreaming) continue;
 
       // Close any open tool group before the next prose row.
-      flush(streamEnded);
+      flush();
       items.push({ kind: "narration", segment });
       // Remember this sentence so the following tool group can borrow a label.
       if (segment.content.trim()) {
@@ -201,10 +249,19 @@ export function groupAgentWorkItems(
       continue;
     }
     if (isGroupMember(segment)) {
+      // When a new live tool arrives after completed ones, seal the done
+      // batch immediately so its header stops shimmering.
+      if (
+        buffer.length > 0 &&
+        memberIsLive(segment) &&
+        buffer.every((member) => !memberIsLive(member))
+      ) {
+        flush();
+      }
       buffer.push(segment);
     }
   }
-  flush(streamEnded);
+  flush();
   return items;
 }
 
