@@ -80,7 +80,9 @@ export function hasUsefulAssistantProgress(
       segment.kind === "narration" ||
       segment.kind === "text"
     ) {
-      return Boolean(segment.content?.trim());
+      return (
+        Boolean(segment.content?.trim()) || Boolean(segment.isStreaming)
+      );
     }
     return false;
   });

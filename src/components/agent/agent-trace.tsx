@@ -7,7 +7,7 @@ import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 
 /**
  * Clauxen agent action stack — chronological interleaved thinking, narration,
- * and tool results. No vertical timeline rail. Sequence by spacing alone.
+ * and tool results. Sequence by spacing; work groups own their own left rail.
  */
 export function AgentTrace({
   children,
@@ -18,7 +18,7 @@ export function AgentTrace({
 }) {
   return (
     <div
-      className={cn("agent-trace flex w-full min-w-0 flex-col gap-4", className)}
+      className={cn("agent-trace flex w-full min-w-0 flex-col gap-3.5", className)}
       data-agent-trace="true"
     >
       {children}
@@ -28,8 +28,8 @@ export function AgentTrace({
 
 /**
  * Collapsible action block.
- * Header: leading chips · label · chevron (beside the label).
- * Instant expand/collapse (no height transition) so chat scroll stays stable.
+ * Header: label (left) · trailing chips (right, near chevron) · chevron.
+ * Smooth grid-row expand/collapse keeps chat scroll stable.
  */
 export function AgentTraceBlock({
   title,
@@ -87,25 +87,23 @@ export function AgentTraceBlock({
           {leading}
         </span>
       ) : null}
-      <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-        <span className="min-w-0 truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-400">
-          {title}
-        </span>
-        {trailing ? (
-          <span className="shrink-0 text-[12px] tabular-nums text-zinc-400">
-            {trailing}
-          </span>
-        ) : null}
-        {showChevron && canCollapse ? (
-          <ChevronRight
-            className={cn(
-              "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200",
-              expanded && "rotate-90",
-            )}
-            aria-hidden
-          />
-        ) : null}
+      <span className="min-w-0 flex-1 truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-400">
+        {title}
       </span>
+      {trailing ? (
+        <span className="agent-trace__trailing ml-auto inline-flex shrink-0 items-center gap-1.5">
+          {trailing}
+        </span>
+      ) : null}
+      {showChevron && canCollapse ? (
+        <ChevronRight
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200 ease-out",
+            expanded && "rotate-90",
+          )}
+          aria-hidden
+        />
+      ) : null}
     </>
   );
 
@@ -145,9 +143,18 @@ export function AgentTraceBlock({
         )
       ) : null}
 
-      {showBody ? (
-        <div className={cn(contentClassName)}>
-          <div className={cn(!hideHeader && "pt-2")}>{children}</div>
+      {hasBody ? (
+        <div
+          className={cn(
+            "agent-trace__collapse grid transition-[grid-template-rows] duration-200 ease-out",
+            showBody ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            contentClassName,
+          )}
+          aria-hidden={!showBody}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className={cn(!hideHeader && "pt-2")}>{children}</div>
+          </div>
         </div>
       ) : null}
     </div>

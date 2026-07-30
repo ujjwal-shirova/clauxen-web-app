@@ -23,6 +23,7 @@ import { AgentThinkingPhase } from "./agent-thinking-phase";
 import { AgentNarrationNote } from "./agent-narration-note";
 import { AgentToolBlock } from "./agent-tool-blocks";
 import { AgentPlanningNextMoves } from "./agent-planning-label";
+import { AgentFaviconStack } from "./agent-favicon-stack";
 import type {
   AgentSegment,
   AgentThinkingSegment,
@@ -87,8 +88,23 @@ function hasVisibleWork(segments: AgentSegment[]): boolean {
   });
 }
 
+/** Source URLs for favicon chips on a work-group header (web search). */
+function groupSearchSourceUrls(
+  segments: Array<AgentThinkingSegment | AgentToolSegment>,
+): string[] {
+  const urls: string[] = [];
+  for (const segment of segments) {
+    if (segment.kind !== "tool") continue;
+    if (segment.name !== "web_search" && segment.name !== "web_fetch") continue;
+    for (const row of segment.searchResults ?? []) {
+      if (row.url) urls.push(row.url);
+    }
+  }
+  return urls;
+}
+
 /**
- * Agent transcript: planning label → timeline work groups → final answer.
+ * Agent transcript: planning → narration outside timeline → tool groups → answer.
  * Orb sits at the bottom only while generating and before answer tokens.
  */
 export function AgentOrchestrationView({
@@ -149,11 +165,17 @@ export function AgentOrchestrationView({
               }
 
               const { group } = item;
+              const searchUrls = groupSearchSourceUrls(group.segments);
               return (
-                <AgentWorkGroupView key={group.id} group={group}>
-                  {group.narration ? (
-                    <AgentNarrationNote segment={group.narration} />
-                  ) : null}
+                <AgentWorkGroupView
+                  key={group.id}
+                  group={group}
+                  trailing={
+                    searchUrls.length > 0 ? (
+                      <AgentFaviconStack urls={searchUrls} />
+                    ) : undefined
+                  }
+                >
                   {group.segments.map((segment) => {
                     if (isThinkingSegment(segment)) {
                       return (

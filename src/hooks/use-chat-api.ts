@@ -1675,9 +1675,11 @@ export function useChatApi(
                           segment.name === "ask_user_input_v0" &&
                           segment.status === "done",
                       );
-                    return hasPendingAsk
-                      ? ""
-                      : EMPTY_ASSISTANT_RESPONSE_FALLBACK;
+                    if (hasPendingAsk) return "";
+                    // Premature SSE close after tools/narration: keep the turn
+                    // usable instead of forcing the empty-response failure.
+                    if (hasUsefulAssistantProgress(m)) return m.content ?? "";
+                    return EMPTY_ASSISTANT_RESPONSE_FALLBACK;
                   })(),
                   isStreaming: false,
                   isThinkingStreaming: false,
@@ -1698,7 +1700,9 @@ export function useChatApi(
                           segment.name === "ask_user_input_v0" &&
                           segment.status === "done",
                       );
-                    return !hasPendingAsk;
+                    if (hasPendingAsk) return false;
+                    if (hasUsefulAssistantProgress(m)) return false;
+                    return true;
                   })(),
                   thinkingDurationSeconds:
                     m.thinkingDurationSeconds ??

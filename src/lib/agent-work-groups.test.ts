@@ -30,21 +30,28 @@ function tool(
 }
 
 describe("groupAgentWorkItems", () => {
-  it("anchors a group on narration and derives its header", () => {
+  it("keeps narration outside and labels the following tool group", () => {
     const items = groupAgentWorkItems([
       narration("n1", "I'll check the latest pricing."),
       tool("t1", "web_search"),
     ]);
 
-    assert.equal(items.length, 1);
-    const item = items[0];
-    assert.equal(item.kind, "group");
-    if (item.kind !== "group") return;
-    assert.equal(item.group.label, "Checked the latest pricing");
-    assert.equal(item.group.isActive, false);
-    assert.equal(item.group.narration?.id, "n1");
     assert.deepEqual(
-      item.group.segments.map((segment) => segment.id),
+      items.map((item) => item.kind),
+      ["narration", "group"],
+    );
+    const [narrationItem, groupItem] = items;
+    assert.equal(narrationItem?.kind, "narration");
+    if (narrationItem?.kind !== "narration") return;
+    assert.equal(narrationItem.segment.id, "n1");
+
+    assert.equal(groupItem?.kind, "group");
+    if (groupItem?.kind !== "group") return;
+    assert.equal(groupItem.group.label, "Checked the latest pricing");
+    assert.equal(groupItem.group.isActive, false);
+    assert.equal(groupItem.group.narration, undefined);
+    assert.deepEqual(
+      groupItem.group.segments.map((segment) => segment.id),
       ["tool-t1"],
     );
   });
@@ -55,11 +62,15 @@ describe("groupAgentWorkItems", () => {
       tool("t1", "bash_tool", "running"),
     ]);
 
-    const item = items[0];
-    assert.equal(item.kind, "group");
-    if (item.kind !== "group") return;
-    assert.equal(item.group.isActive, true);
-    assert.equal(item.group.label, "Running the tests…");
+    assert.deepEqual(
+      items.map((item) => item.kind),
+      ["narration", "group"],
+    );
+    const groupItem = items[1];
+    assert.equal(groupItem?.kind, "group");
+    if (groupItem?.kind !== "group") return;
+    assert.equal(groupItem.group.isActive, true);
+    assert.equal(groupItem.group.label, "Running the tests…");
   });
 
   it("renders trailing standalone narration outside groups", () => {
@@ -81,12 +92,15 @@ describe("groupAgentWorkItems", () => {
       narration("n2", "Here is the full answer.", { isFinal: true }),
     ]);
 
-    assert.equal(items.length, 1);
-    const item = items[0];
-    assert.equal(item.kind, "group");
-    if (item.kind !== "group") return;
+    assert.deepEqual(
+      items.map((item) => item.kind),
+      ["narration", "group"],
+    );
     assert.ok(
-      item.group.segments.every((segment) => segment.id !== "n2"),
+      items.every(
+        (item) =>
+          item.kind !== "narration" || item.segment.id !== "n2",
+      ),
       "final segment must not leak into the activity trace",
     );
   });

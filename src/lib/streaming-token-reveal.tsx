@@ -2,10 +2,10 @@
 
 import { useRef } from "react";
 
-/** Visible ink-fade — long enough to read, short enough to track live tokens. */
-const MIN_DURATION_MS = 120;
-const MAX_DURATION_MS = 420;
-const FAST_GAP_MS = 28;
+/** Visible ink-fade — tracks token rate; starts immediately on first paint. */
+const MIN_DURATION_MS = 70;
+const MAX_DURATION_MS = 360;
+const FAST_GAP_MS = 24;
 
 /**
  * Duration scales with inter-chunk gap so animation speed tracks the model's
@@ -18,20 +18,21 @@ export function computeStreamTokenDurationMs(
   let duration: number;
 
   if (elapsedSinceLastChunk <= 0) {
-    duration = 220;
+    // First chunk / gap unknown — snap in quickly so streaming feels instant.
+    duration = 110;
   } else if (elapsedSinceLastChunk < FAST_GAP_MS) {
     duration = Math.max(
       MIN_DURATION_MS,
-      Math.min(280, 90 + elapsedSinceLastChunk * 4.5),
+      Math.min(220, 60 + elapsedSinceLastChunk * 4),
     );
   } else {
     duration = Math.min(
       MAX_DURATION_MS,
-      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.5),
+      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.45),
     );
   }
 
-  const sizeBoost = Math.min(36, Math.sqrt(Math.max(0, chunkLength)) * 4);
+  const sizeBoost = Math.min(28, Math.sqrt(Math.max(0, chunkLength)) * 3.5);
   return Math.round(
     Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, duration + sizeBoost)),
   );

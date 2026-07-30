@@ -381,7 +381,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 
 @keyframes stream-token-fade {
   from {
-    opacity: 0;
+    opacity: 0.35;
   }
   to {
     opacity: 1;
@@ -393,7 +393,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: stream-token-fade;
-  animation-duration: 420ms;
+  animation-duration: 180ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
   will-change: opacity;
@@ -1127,12 +1127,23 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /* ─── Clauxen agent action stack ───────────────────────────────────────────
-   Floating cards + muted headers. No vertical timeline rail, no left accent
-   line, no dots. Order is established by spacing alone. */
+   Work-group headers + left rail on expanded bodies. Narration sits outside. */
 
 .agent-trace {
   width: 100%;
   min-width: 0;
+}
+
+.agent-trace__collapse {
+  transition-property: grid-template-rows;
+}
+
+.agent-work-group__header {
+  max-width: 100%;
+}
+
+.agent-web-search__header {
+  max-width: 100%;
 }
 
 .agent-thinking__card {

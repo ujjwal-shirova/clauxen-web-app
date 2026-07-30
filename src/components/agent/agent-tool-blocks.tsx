@@ -388,6 +388,37 @@ function resultDomain(row: WebSearchResult): string {
   return domainFromUrl(row.url);
 }
 
+function WebSearchFaviconStack({ favicons }: { favicons: string[] }) {
+  const shown = favicons.slice(0, 4);
+  if (shown.length === 0) return null;
+  return (
+    <span
+      className="flex -space-x-1.5"
+      aria-hidden
+      data-agent-web-search-favicons="true"
+    >
+      {shown.map((favicon, index) => (
+        <span
+          key={`${favicon}-${index}`}
+          className="relative inline-flex h-4 w-4 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white shadow-[0_0_0_1px_rgba(228,228,231,0.9)]"
+          style={{ zIndex: shown.length - index }}
+        >
+          <img
+            src={favicon}
+            alt=""
+            className="h-full w-full object-contain"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={(event) => {
+              (event.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   const isRunning = tool.status === "running";
   const query =
@@ -397,10 +428,8 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   const results = useMemo(() => tool.searchResults ?? [], [tool.searchResults]);
   const favicons = useMemo(() => extractFavicons(results), [results]);
   const resultCount = results.length;
-  const faviconCount = Math.min(favicons.length, 4);
-  const [expanded, setExpanded] = useState(false);
 
-  // Compact summary row (Claude-style): query · favicon stack · "N results >"
+  // Live search with no rows yet — shimmer only (no expandable chrome).
   if (isRunning && resultCount === 0) {
     return (
       <div
@@ -414,64 +443,35 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
     );
   }
 
-  return (
-    <div className="w-full min-w-0" data-agent-web-search="done">
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className="group flex w-full min-w-0 items-center gap-2 rounded-md py-0.5 text-left transition-colors hover:bg-zinc-50/80"
-        aria-expanded={expanded}
-      >
-        <span className="min-w-0 truncate text-[13px] font-[430] leading-5 text-zinc-500">
-          {query ? (
-            <>
-              Searched{" "}
-              <span className="text-zinc-600">&quot;{query}&quot;</span>
-            </>
-          ) : (
-            "Searched the web"
-          )}
-        </span>
-        {resultCount > 0 ? (
-          <span className="flex shrink-0 items-center gap-1.5">
-            <span className="flex -space-x-1">
-              {favicons.slice(0, faviconCount).map((favicon, index) => (
-                <span
-                  key={`${favicon}-${index}`}
-                  className="relative inline-flex h-4 w-4 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-zinc-200"
-                  style={{ zIndex: faviconCount - index }}
-                >
-                  <img
-                    src={favicon}
-                    alt=""
-                    className="h-3 w-3 object-contain"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    onError={(event) => {
-                      (event.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                </span>
-              ))}
-            </span>
-            <span className="inline-flex items-center gap-0.5 text-[12px] tabular-nums text-zinc-400 group-hover:text-zinc-500">
-              {resultCount} result{resultCount === 1 ? "" : "s"}
-              <ChevronRight
-                className={cn(
-                  "h-3.5 w-3.5 transition-transform duration-150",
-                  expanded && "rotate-90",
-                )}
-                aria-hidden
-              />
-            </span>
-          </span>
-        ) : (
-          <span className="text-[12px] text-zinc-400">No results</span>
-        )}
-      </button>
+  const title = isRunning ? (
+    <AgentShimmerText key={`ws-live-${tool.toolCallId}`} active>
+      {query ? `Searching "${query}"…` : "Searching the web…"}
+    </AgentShimmerText>
+  ) : query ? (
+    <>
+      Searched <span className="text-zinc-500">&quot;{query}&quot;</span>
+    </>
+  ) : (
+    "Searched the web"
+  );
 
-      {expanded && resultCount > 0 ? (
-        <ul className="mt-1.5 flex w-full flex-col overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)] animate-in fade-in slide-in-from-top-1 duration-150">
+  // Stay collapsed: only round source icons show on the right near the chevron.
+  return (
+    <AgentTraceBlock
+      title={title}
+      trailing={<WebSearchFaviconStack favicons={favicons} />}
+      isActive={isRunning}
+      defaultExpanded={false}
+      showChevron={resultCount > 0}
+      className="agent-web-search"
+      headerClassName="agent-web-search__header"
+      contentClassName="agent-web-search__body"
+    >
+      {resultCount > 0 ? (
+        <ul
+          className="flex w-full flex-col overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]"
+          data-agent-web-search="results"
+        >
           {results.map((row, index) => {
             const domain = resultDomain(row);
             const published = row.publishedDate?.slice(0, 10);
@@ -523,7 +523,7 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
           })}
         </ul>
       ) : null}
-    </div>
+    </AgentTraceBlock>
   );
 }
 

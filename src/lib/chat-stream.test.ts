@@ -52,7 +52,8 @@ describe("chat stream terminal states", () => {
     );
   });
 
-  it("rejects an incomplete legacy stream rather than marking it done", async () => {
+  it("soft-completes an incomplete legacy stream instead of throwing", async () => {
+    const events: Array<{ type: string }> = [];
     const response = new Response(
       new ReadableStream<Uint8Array>({
         start(controller) {
@@ -67,9 +68,13 @@ describe("chat stream terminal states", () => {
       { headers: { "content-type": "text/event-stream" } },
     );
 
-    await assert.rejects(
-      () => consumeClauxenStreamResponse(response, () => {}),
-      /ended before completion/,
+    await consumeClauxenStreamResponse(response, (event) => {
+      events.push({ type: event.type });
+    });
+
+    assert.deepEqual(
+      events.map((event) => event.type),
+      ["answer_delta", "done"],
     );
   });
 });

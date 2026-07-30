@@ -155,7 +155,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
 
       // Proxies (Cloudflare / load balancers) idle-cut SSE when no bytes flow
       // during long tool calls. Emit comment heartbeats so the pipe stays open.
-      const HEARTBEAT_INTERVAL_MS = 12_000;
+      const HEARTBEAT_INTERVAL_MS = 5_000;
       const heartbeatEncoder = new TextEncoder();
 
       const wrapped = new ReadableStream<Uint8Array>({

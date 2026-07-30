@@ -59,7 +59,7 @@ import { createStreamEventBatcher } from "@/lib/stream-event-batcher";
 import { filterStartedRecentChats } from "@/lib/started-recent-chats";
 import type { ChatModelId } from "@/lib/chat-models";
 import { DEFAULT_CHAT_MODEL_ID } from "@/lib/chat-models";
-import { EMPTY_ASSISTANT_RESPONSE_FALLBACK, hasUsefulAssistantProgress } from "@/lib/assistant-generation-error";
+import { EMPTY_ASSISTANT_RESPONSE_FALLBACK, hasUsefulAssistantProgress, toUserFacingChatError } from "@/lib/assistant-generation-error";
 import {
   DEFAULT_HOMER_REASONING_EFFORT,
   type HomerReasoningEffort,
@@ -916,12 +916,17 @@ function useLocalChat(
             accumulatorRaw: answerAccumulator?.raw,
             messageContent: message.content,
           });
-          const nextContent = agentAnswerDuplicatesInterim({
+          let nextContent = agentAnswerDuplicatesInterim({
             ...message,
             content: finalizedContent,
           })
             ? message.content
-            : finalizedContent || EMPTY_ASSISTANT_RESPONSE_FALLBACK;
+            : finalizedContent;
+          if (!nextContent.trim()) {
+            nextContent = hasUsefulAssistantProgress(message)
+              ? message.content || ""
+              : EMPTY_ASSISTANT_RESPONSE_FALLBACK;
+          }
           const nextMessage: Message = {
             ...message,
             content: nextContent,
@@ -929,6 +934,7 @@ function useLocalChat(
             isStreaming: false,
             generationFailed:
               !finalizedContent.trim() &&
+              !hasUsefulAssistantProgress(message) &&
               nextContent === EMPTY_ASSISTANT_RESPONSE_FALLBACK,
           };
           if (nextMessage.activeBranchIndex !== undefined) {
@@ -981,20 +987,29 @@ function useLocalChat(
         }
 
         console.error("Error generating response:", error);
-        const errorMessage = "Sorry, I encountered an error. Please try again.";
+        const friendly = toUserFacingChatError(error);
         setAllChats((prev) => {
           const currentMessages = prev[chatId] || [];
-          const updatedMessages = currentMessages.map((msg) =>
-            msg.id === assistantMessageId
-              ? {
-                  ...msg,
-                  content: errorMessage,
-                  thinkingContent: "",
-                  isStreaming: false,
-                  hasThinking: false,
-                }
-              : msg,
-          );
+          const updatedMessages = currentMessages.map((msg) => {
+            if (msg.id !== assistantMessageId) return msg;
+            if (hasUsefulAssistantProgress(msg)) {
+              return {
+                ...msg,
+                isStreaming: false,
+                isThinkingStreaming: false,
+                agentFrameComplete: true,
+                generationFailed: false,
+              };
+            }
+            return {
+              ...msg,
+              content: friendly,
+              thinkingContent: "",
+              isStreaming: false,
+              hasThinking: false,
+              generationFailed: true,
+            };
+          });
           return { ...prev, [chatId]: updatedMessages };
         });
         setIsGenerating(false);

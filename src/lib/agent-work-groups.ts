@@ -9,24 +9,24 @@ import { deriveActivityLabel } from "@/lib/agent-activity-labels";
 import { fileNameFromPath } from "@/lib/chat-artifacts";
 
 /**
- * Work groups — the collapsible "steps" of an agent turn.
+ * Work groups — collapsible tool/thinking steps.
  *
- * Grouping rule:
- *  - A narration segment whose prose derives a step label opens a new group
- *    (its sentence becomes the shimmering header).
- *  - Thinking/tool segments join the currently open group.
- *  - Narration that doesn't gerund-ize (declaratives) renders as a standalone
- *    prose row between groups.
- *  - The final narration segment (isFinal) is the answer — never grouped.
+ * Narration is ALWAYS a standalone row outside the timeline. When the model
+ * announces a step and then runs tools, the label is derived from that
+ * preceding narration, but the prose itself stays outside the rail.
+ *
+ *  narration (outside)
+ *  ⌄ work group header (past/gerund)
+ *    | thinking / tools
  */
 
 export type AgentWorkGroup = {
   id: string;
-  /** Header derived from the opening narration (or a tool-mix fallback). */
+  /** Header derived from the preceding narration (or a tool-mix fallback). */
   label: string;
   /** True while any member is streaming/running — header shimmers. */
   isActive: boolean;
-  /** The narration prose that opened this group (rendered inside, expanded). */
+  /** @deprecated Narration renders outside groups — kept optional for compat. */
   narration?: AgentNarrationSegment | AgentTextSegment;
   segments: Array<AgentThinkingSegment | AgentToolSegment>;
 };
@@ -135,39 +135,32 @@ function groupIsActive(
 }
 
 /**
- * Fold a frame's segments into work groups + standalone narration rows.
- * present_files (deprecated) is dropped from display.
+ * Fold a frame's segments into standalone narration rows + tool/thinking groups.
+ * Narration never nests inside a group body.
  */
 export function groupAgentWorkItems(
   segments: AgentSegment[],
 ): AgentTraceItem[] {
   const items: AgentTraceItem[] = [];
   let buffer: Array<AgentThinkingSegment | AgentToolSegment> = [];
-  let pendingNarration: AgentNarrationSegment | AgentTextSegment | undefined;
-  let pendingLabel: string | undefined;
+  /** Label source from the most recent narration — not rendered inside the group. */
+  let labelSource: string | undefined;
   let groupCounter = 0;
 
   const flush = (streamEnded: boolean) => {
-    if (buffer.length === 0) {
-      pendingNarration = undefined;
-      pendingLabel = undefined;
-      return;
-    }
+    if (buffer.length === 0) return;
     const filtered = buffer.filter(
       (segment) =>
         segment.kind === "thinking" ||
         (segment.kind === "tool" && segment.name !== "present_files"),
     );
     buffer = [];
-    if (filtered.length === 0) {
-      pendingNarration = undefined;
-      pendingLabel = undefined;
-      return;
-    }
+    if (filtered.length === 0) return;
+
     const active = groupIsActive(filtered) && !streamEnded;
     const state = active ? "active" : "done";
     const label =
-      (pendingLabel ? deriveActivityLabel(pendingLabel, state) : undefined) ??
+      (labelSource ? deriveActivityLabel(labelSource, state) : undefined) ??
       summarizeGroupSegments(filtered, state);
     groupCounter += 1;
     items.push({
@@ -176,12 +169,11 @@ export function groupAgentWorkItems(
         id: `work-group-${filtered[0]!.id}-${groupCounter}`,
         label,
         isActive: active,
-        narration: pendingNarration,
         segments: filtered,
       },
     });
-    pendingNarration = undefined;
-    pendingLabel = undefined;
+    // Label applies to the next tool batch only once.
+    labelSource = undefined;
   };
 
   const streamEnded = segments.every(
@@ -196,23 +188,16 @@ export function groupAgentWorkItems(
 
   for (const segment of segments) {
     if (isNarration(segment)) {
-      // The promoted final answer renders below the groups, never inside.
       if (segment.kind === "narration" && segment.isFinal) continue;
       if (!segment.content.trim() && !segment.isStreaming) continue;
-      const labelSource = segment.content.trim();
-      const derived = labelSource
-        ? deriveActivityLabel(labelSource, "active")
-        : undefined;
-      if (derived) {
-        // This sentence announces the next step — open its group.
-        flush(streamEnded);
-        pendingNarration = segment;
-        pendingLabel = labelSource;
-        continue;
-      }
-      // Declarative prose — standalone row between groups.
+
+      // Close any open tool group before the next prose row.
       flush(streamEnded);
       items.push({ kind: "narration", segment });
+      // Remember this sentence so the following tool group can borrow a label.
+      if (segment.content.trim()) {
+        labelSource = segment.content.trim();
+      }
       continue;
     }
     if (isGroupMember(segment)) {

@@ -40,8 +40,10 @@ description: >-
 
 - Per-round model text **before** tool calls streams as `narration` segments; a round with **no tool calls** is promoted to the durable answer via SSE `answer_finalize` (reducer marks the segment `isFinal` and sets `message.content` — restyle in place, never teleport).
 - No model-authored XML protocol (deleted `<agent_heading>`/`<agent_narration>`/`answer_clear`/intro+interim narratives). Sole exception: first-turn `<chat_title>` for the sidebar, stripped client-side.
-- Work-group headers are **derived** from narration prose (`deriveActivityLabel` — gerund while active, past tense when done); declarative narration renders as standalone prose rows between groups.
-- Group headers shimmer while any member runs and auto-collapse on completion; thinking shows `Thought for Ns`; the final answer renders as ordinary markdown below the activity.
+- Work-group headers are **derived** from preceding narration prose (`deriveActivityLabel` — gerund while active, past tense when done); narration **always** renders as standalone prose **outside** the timeline rail — never nested inside a group body.
+- Group headers shimmer while any member runs and auto-collapse on completion (smooth grid-row animation); thinking shows `Thought for Ns`; the final answer renders as ordinary markdown below the activity.
+- Web search stays collapsed by default; round favicon chips sit on the right of the header near the chevron (and on the parent work-group header when search results exist).
+- Premature SSE close soft-completes (legacy + UI-message paths); generate keepalives every 5s; do not paint "Connection was interrupted" when useful tokens/tools already rendered.
 - MCP servers come from env `CLAUXEN_MCP_SERVERS` (JSON array of `{id,url,headers?}`); tools appear as `mcp__<serverId>__<toolName>`.
 - Skills load from the bundled `skills-pack/` directory only — never developer-homedir paths.
 

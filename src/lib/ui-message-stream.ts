@@ -304,9 +304,9 @@ export async function consumeClauxenStreamResponse(
       reader.releaseLock();
     }
     if (!streamComplete && !signal?.aborted) {
-      // Premature close (proxy idle cut) must surface as an error — silently
-      // emitting `done` would present a truncated answer as complete.
-      throw new Error("Stream ended before completion");
+      // Proxies idle-cut SSE mid-turn. Soft-complete so ChatGPT/Claude-style
+      // continues: keep painted tokens instead of "Connection was interrupted".
+      onEvent({ type: "done" });
     }
     return;
   }
