@@ -181,7 +181,6 @@ export function StreamdownStreamingMarkdown({
 
   return (
     <Streamdown
-      key={streamKey}
       mode={isStreaming ? "streaming" : "static"}
       isAnimating={isStreaming}
       animated={false}

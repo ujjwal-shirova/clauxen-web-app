@@ -388,33 +388,50 @@ function resultDomain(row: WebSearchResult): string {
   return domainFromUrl(row.url);
 }
 
-function WebSearchFaviconStack({ favicons }: { favicons: string[] }) {
+function WebSearchFaviconStack({
+  favicons,
+  count,
+}: {
+  favicons: string[];
+  count: number;
+}) {
   const shown = favicons.slice(0, 4);
-  if (shown.length === 0) return null;
   return (
     <span
-      className="flex -space-x-1.5"
-      aria-hidden
-      data-agent-web-search-favicons="true"
+      className="inline-flex items-center gap-1.5"
+      data-agent-web-search-meta="true"
     >
-      {shown.map((favicon, index) => (
+      {shown.length > 0 ? (
         <span
-          key={`${favicon}-${index}`}
-          className="relative inline-flex h-4 w-4 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white shadow-[0_0_0_1px_rgba(228,228,231,0.9)]"
-          style={{ zIndex: shown.length - index }}
+          className="flex -space-x-1.5"
+          aria-hidden
+          data-agent-web-search-favicons="true"
         >
-          <img
-            src={favicon}
-            alt=""
-            className="h-full w-full object-contain"
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            onError={(event) => {
-              (event.target as HTMLImageElement).style.display = "none";
-            }}
-          />
+          {shown.map((favicon, index) => (
+            <span
+              key={`${favicon}-${index}`}
+              className="relative inline-flex h-4 w-4 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white shadow-[0_0_0_1px_rgba(228,228,231,0.9)]"
+              style={{ zIndex: shown.length - index }}
+            >
+              <img
+                src={favicon}
+                alt=""
+                className="h-full w-full object-contain"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={(event) => {
+                  (event.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            </span>
+          ))}
         </span>
-      ))}
+      ) : null}
+      {count > 0 ? (
+        <span className="shrink-0 text-[12px] font-[430] tabular-nums leading-none text-zinc-400">
+          {count} {count === 1 ? "source" : "sources"}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -455,11 +472,15 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
     "Searched the web"
   );
 
-  // Stay collapsed: only round source icons show on the right near the chevron.
+  // Collapsed by default: favicons + "N sources" sit immediately after the label.
   return (
     <AgentTraceBlock
       title={title}
-      trailing={<WebSearchFaviconStack favicons={favicons} />}
+      trailing={
+        resultCount > 0 ? (
+          <WebSearchFaviconStack favicons={favicons} count={resultCount} />
+        ) : undefined
+      }
       isActive={isRunning}
       defaultExpanded={false}
       showChevron={resultCount > 0}

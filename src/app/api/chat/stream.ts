@@ -9,7 +9,7 @@ import {
 } from "@/server/agent-core";
 import { ClauxenSseStream } from "@/server/inference/clauxen-sse-stream";
 import type { IncomingMessage } from "@/server/inference/novita";
-import { buildModelSystemPrompt } from "@/server/inference/system-prompt";
+import { buildModelSystemPrompt, buildTemporalContextAppend } from "@/server/inference/system-prompt";
 import {
   buildUserPersonalizationAppend,
   loadUserPersonalization,
@@ -27,6 +27,8 @@ export type ChatStreamOptions = {
   userId?: string;
   conversationId?: string;
   userCountryCode?: string;
+  /** IANA timezone from the client (e.g. Asia/Kolkata). */
+  clientTimezone?: string;
   generateChatTitle?: boolean;
   homerReasoningEffort?: HomerReasoningEffort;
   /** Composer Thinking toggle — when false, upstream gets enable_thinking: false. */
@@ -87,7 +89,12 @@ export async function createChatStream(
       ].join("\n")
     : "";
 
+  const temporalInstr = buildTemporalContextAppend({
+    timezone: options.clientTimezone,
+  });
+
   const append = [
+    temporalInstr,
     personalizationForPrompt,
     incognitoInstr,
     titleInstr,

@@ -172,7 +172,10 @@ export function AgentOrchestrationView({
                   group={group}
                   trailing={
                     searchUrls.length > 0 ? (
-                      <AgentFaviconStack urls={searchUrls} />
+                      <AgentFaviconStack
+                        urls={searchUrls}
+                        count={searchUrls.length}
+                      />
                     ) : undefined
                   }
                 >
@@ -246,9 +249,9 @@ export function AgentOrchestrationView({
         </div>
       ) : null}
 
-      {sources.length > 0 ? (
+      {sources.length > 0 && !streaming ? (
         <div data-agent-block="sources">
-          <SourcesInlineStrip sources={sources} compact={streaming} />
+          <SourcesInlineStrip sources={sources} />
         </div>
       ) : null}
 

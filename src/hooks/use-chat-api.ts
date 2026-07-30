@@ -1300,6 +1300,10 @@ export function useChatApi(
           homerReasoningEffort,
           chatModel,
           extendedThinking,
+          clientTimezone:
+            typeof Intl !== "undefined"
+              ? Intl.DateTimeFormat().resolvedOptions().timeZone
+              : undefined,
           // Keep title generation off the hot response path; it runs after the
           // answer completes so first-token rendering is not blocked.
           generateChatTitle: false,

@@ -17,11 +17,11 @@ function FaviconCircle({ url, className }: { url: string; className?: string }) 
     return (
       <span
         className={cn(
-          "flex h-5 w-5 items-center justify-center rounded-full border border-white bg-zinc-100 text-zinc-500",
+          "flex h-4 w-4 items-center justify-center rounded-full border border-white bg-zinc-100 text-zinc-500",
           className,
         )}
       >
-        <Globe className="h-3 w-3" strokeWidth={1.75} />
+        <Globe className="h-2.5 w-2.5" strokeWidth={1.75} />
       </span>
     );
   }
@@ -31,7 +31,7 @@ function FaviconCircle({ url, className }: { url: string; className?: string }) 
       src={faviconUrl(url)}
       alt=""
       className={cn(
-        "h-5 w-5 rounded-full border border-white bg-white object-cover",
+        "h-4 w-4 rounded-full border border-white bg-white object-cover",
         className,
       )}
       onError={() => setFailed(true)}
@@ -41,19 +41,38 @@ function FaviconCircle({ url, className }: { url: string; className?: string }) 
   );
 }
 
-export function AgentFaviconStack({ urls }: { urls: string[] }) {
-  const unique = [...new Set(urls.filter(Boolean))].slice(0, 3);
-  if (unique.length === 0) return null;
+/** Compact favicon cluster + optional "N sources" count beside a step label. */
+export function AgentFaviconStack({
+  urls,
+  count,
+}: {
+  urls: string[];
+  /** Override display count (defaults to unique url length). */
+  count?: number;
+}) {
+  const unique = [...new Set(urls.filter(Boolean))];
+  const shown = unique.slice(0, 4);
+  const total = count ?? unique.length;
+  if (shown.length === 0 && total <= 0) return null;
 
   return (
-    <span className="inline-flex items-center pr-1">
-      {unique.map((url, index) => (
-        <FaviconCircle
-          key={url}
-          url={url}
-          className={index > 0 ? "-ml-2" : undefined}
-        />
-      ))}
+    <span className="inline-flex items-center gap-1.5">
+      {shown.length > 0 ? (
+        <span className="inline-flex items-center">
+          {shown.map((url, index) => (
+            <FaviconCircle
+              key={url}
+              url={url}
+              className={index > 0 ? "-ml-1.5" : undefined}
+            />
+          ))}
+        </span>
+      ) : null}
+      {total > 0 ? (
+        <span className="shrink-0 text-[12px] font-[430] tabular-nums leading-none text-zinc-400">
+          {total} {total === 1 ? "source" : "sources"}
+        </span>
+      ) : null}
     </span>
   );
 }

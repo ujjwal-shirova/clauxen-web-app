@@ -283,6 +283,8 @@ export async function streamChatGeneration(input: {
   };
   signal?: AbortSignal;
   userCountryCode?: string;
+  /** IANA timezone from the browser (for prompt temporal context). */
+  clientTimezone?: string;
   generateChatTitle?: boolean;
   chatModel?: string;
   homerReasoningEffort?: HomerReasoningEffort;
@@ -470,6 +472,7 @@ export async function streamChatGeneration(input: {
       userId: input.userId,
       conversationId: input.chatId,
       userCountryCode: input.userCountryCode,
+      clientTimezone: input.clientTimezone,
       generateChatTitle,
       signal: input.signal,
       homerReasoningEffort: input.homerReasoningEffort,

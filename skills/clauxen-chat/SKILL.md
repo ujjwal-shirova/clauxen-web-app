@@ -42,8 +42,11 @@ description: >-
 - No model-authored XML protocol (deleted `<agent_heading>`/`<agent_narration>`/`answer_clear`/intro+interim narratives). Sole exception: first-turn `<chat_title>` for the sidebar, stripped client-side.
 - Work-group headers are **derived** from preceding narration prose (`deriveActivityLabel` — gerund while active, past tense when done); narration **always** renders as standalone prose **outside** the timeline rail — never nested inside a group body.
 - Group headers shimmer while any member runs and auto-collapse on completion (smooth grid-row animation); thinking shows `Thought for Ns`; the final answer renders as ordinary markdown below the activity.
-- Web search stays collapsed by default; round favicon chips sit on the right of the header near the chevron (and on the parent work-group header when search results exist).
+- Web search stays collapsed by default; favicon chips + **"N sources"** sit immediately after the step label (not flush-right); chevron is **hover-only**.
+- Expand/collapse scroll-anchors through the CSS transition so the body grows **downward** (user bubble does not jump up).
+- Citation chips render **inline while streaming**; the bottom source strip appears only after the turn settles.
 - Premature SSE close soft-completes (legacy + UI-message paths); generate keepalives every 5s; do not paint "Connection was interrupted" when useful tokens/tools already rendered.
+- Every generate injects `<current_datetime>` (client IANA timezone + server clock) so the model knows today's day/date/year for web search.
 - MCP servers come from env `CLAUXEN_MCP_SERVERS` (JSON array of `{id,url,headers?}`); tools appear as `mcp__<serverId>__<toolName>`.
 - Skills load from the bundled `skills-pack/` directory only — never developer-homedir paths.
 

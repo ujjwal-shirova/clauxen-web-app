@@ -371,7 +371,11 @@ export function createCitationLink(sources: ChatSource[]) {
     if (href) {
       const hit = byUrl.get(normalizeUrl(href));
       if (hit) {
-        return <SourceChip source={hit.source} compact />;
+        return (
+          <span className="inline-flex animate-in fade-in duration-150">
+            <SourceChip source={hit.source} index={hit.index} compact />
+          </span>
+        );
       }
     }
     return (

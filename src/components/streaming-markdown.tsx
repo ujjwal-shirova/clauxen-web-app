@@ -54,7 +54,6 @@ export function StreamingMarkdown({
 
   return (
     <div
-      key={streamKey}
       className="markdown-content min-w-0 max-w-full text-[14px] leading-[1.55] text-zinc-800"
       data-streaming={isStreaming || undefined}
     >

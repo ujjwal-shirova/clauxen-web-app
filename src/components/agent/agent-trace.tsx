@@ -28,8 +28,8 @@ export function AgentTrace({
 
 /**
  * Collapsible action block.
- * Header: label (left) · trailing chips (right, near chevron) · chevron.
- * Smooth grid-row expand/collapse keeps chat scroll stable.
+ * Header chrome sits tight to the label: title · source chips · count · chevron.
+ * Chevron is hover-only. Expand grows downward via scroll-anchor lock.
  */
 export function AgentTraceBlock({
   title,
@@ -87,18 +87,19 @@ export function AgentTraceBlock({
           {leading}
         </span>
       ) : null}
-      <span className="min-w-0 flex-1 truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-400">
+      <span className="min-w-0 max-w-[min(100%,36rem)] truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-400">
         {title}
       </span>
       {trailing ? (
-        <span className="agent-trace__trailing ml-auto inline-flex shrink-0 items-center gap-1.5">
+        <span className="agent-trace__trailing inline-flex shrink-0 items-center gap-1.5">
           {trailing}
         </span>
       ) : null}
       {showChevron && canCollapse ? (
         <ChevronRight
           className={cn(
-            "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200 ease-out",
+            "agent-trace__chevron h-3.5 w-3.5 shrink-0 text-zinc-400 transition-[opacity,transform] duration-150 ease-out",
+            "opacity-0 group-hover/trace-header:opacity-100 group-focus-visible/trace-header:opacity-100",
             expanded && "rotate-90",
           )}
           aria-hidden
@@ -124,7 +125,7 @@ export function AgentTraceBlock({
             type="button"
             onClick={toggle}
             className={cn(
-              "agent-trace__header no-hover no-hover-overlay flex w-full max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0",
+              "agent-trace__header group/trace-header no-hover no-hover-overlay inline-flex max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0",
               headerClassName,
             )}
             aria-expanded={expanded}
@@ -134,7 +135,7 @@ export function AgentTraceBlock({
         ) : (
           <div
             className={cn(
-              "flex w-full max-w-full items-center gap-1.5",
+              "inline-flex max-w-full items-center gap-1.5",
               headerClassName,
             )}
           >

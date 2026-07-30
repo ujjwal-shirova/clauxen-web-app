@@ -38,6 +38,7 @@ export const POST = withApiRoute(async ({ session, request }) => {
     chatModel?: string;
     homerReasoningEffort?: string;
     extendedThinking?: boolean;
+    clientTimezone?: string;
   };
 
   const messages = sanitizeMessages(body.messages).filter(
@@ -62,6 +63,10 @@ export const POST = withApiRoute(async ({ session, request }) => {
     // No conversationId — tools that key off durable chat history stay scoped
     // to this request only.
     userCountryCode: resolveRequestCountryCode(request.headers),
+    clientTimezone:
+      typeof body.clientTimezone === "string"
+        ? body.clientTimezone.trim().slice(0, 64)
+        : undefined,
     generateChatTitle: false,
     homerReasoningEffort: parseHomerReasoningEffort(body.homerReasoningEffort),
     extendedThinking: body.extendedThinking === true,
