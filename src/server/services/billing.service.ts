@@ -121,6 +121,10 @@ export function createCheckoutSession(input: {
   seatBreakdown?: Record<string, number> | null;
   organizationSeatCount?: number | null;
   returnPath?: string | null;
+  orderKind?: "subscription" | "gift" | null;
+  giftId?: string | null;
+  giftMonths?: number | null;
+  giftDeliveryMethod?: "email" | "link" | null;
 }) {
   const returnPath = normalizeCheckoutReturnPath(input.returnPath);
 
@@ -135,6 +139,14 @@ export function createCheckoutSession(input: {
     ...(input.seatBreakdown ? { seatBreakdown: input.seatBreakdown } : {}),
     ...(input.organizationSeatCount != null
       ? { organizationSeatCount: input.organizationSeatCount }
+      : {}),
+    ...(input.orderKind === "gift"
+      ? {
+          orderKind: "gift" as const,
+          giftId: input.giftId?.trim() || undefined,
+          giftMonths: input.giftMonths ?? undefined,
+          giftDeliveryMethod: input.giftDeliveryMethod ?? undefined,
+        }
       : {}),
   });
 
@@ -183,6 +195,10 @@ export function refreshCheckoutSession(input: {
     seatBreakdown: inspected.claims.seatBreakdown ?? null,
     organizationSeatCount: inspected.claims.organizationSeatCount ?? null,
     returnPath: inspected.claims.returnPath ?? null,
+    orderKind: inspected.claims.orderKind ?? null,
+    giftId: inspected.claims.giftId ?? null,
+    giftMonths: inspected.claims.giftMonths ?? null,
+    giftDeliveryMethod: inspected.claims.giftDeliveryMethod ?? null,
   });
 }
 
@@ -403,6 +419,119 @@ export async function createUpiCheckoutPayment(input: {
       imageUrl: null as string | null,
       closeBy,
     },
+  };
+}
+
+/** UPI QR against a pre-created gift billing order (no second Razorpay order). */
+export async function createGiftUpiCheckoutPayment(input: {
+  userId: string;
+  userEmail: string;
+  giftId: string;
+  sessionId: string;
+  customerContact?: string;
+  planName: string;
+}) {
+  if (!isRazorpayConfigured()) {
+    throw new AppError(
+      "Razorpay keys are not configured.",
+      503,
+      "billing_unavailable",
+    );
+  }
+
+  const { getGiftCheckoutOrderForUser } = await import(
+    "@/server/services/gift.service"
+  );
+  const giftCheckout = await getGiftCheckoutOrderForUser(
+    input.userId,
+    input.giftId,
+  );
+  const totalInrPaise = giftCheckout.pricing.amountPaise;
+  const preferDirect = Boolean(
+    env.razorpayKeyId?.trim() && env.razorpayKeySecret?.trim(),
+  );
+
+  const qrNotes = {
+    billing_order_id: giftCheckout.order.id,
+    user_id: input.userId,
+    gift_id: input.giftId,
+    checkout_session: input.sessionId.slice(0, 120),
+    order_kind: "gift",
+  };
+
+  let qrId: string;
+  let closeBy: number | null = null;
+  let imageDataUrl: string | null = null;
+  let upiIntentPromise: Promise<string> | null = null;
+  let channel: "upi_qr" | "upi_payment_link" = "upi_qr";
+
+  try {
+    const qr = await createRazorpayUpiQr({
+      amountPaise: totalInrPaise,
+      description: input.planName,
+      preferDirect,
+      notes: qrNotes,
+    });
+    qrId = qr.id;
+    closeBy = qr.close_by ?? null;
+    upiIntentPromise = resolveUpiQrIntent({
+      ...qr,
+      payment_amount: qr.payment_amount > 0 ? qr.payment_amount : totalInrPaise,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const unavailable =
+      /not found on the server|not enabled|BAD_REQUEST_ERROR/i.test(message);
+    if (!unavailable) throw err;
+
+    const expireBySeconds = 20 * 60;
+    const link = await createRazorpayUpiPaymentLink({
+      amountPaise: totalInrPaise,
+      description: input.planName,
+      customerEmail: input.userEmail,
+      customerContact: input.customerContact,
+      expireBySeconds,
+      notes: {
+        ...qrNotes,
+        razorpay_order_id: giftCheckout.order.razorpay_order_id,
+      },
+    });
+    qrId = link.id;
+    channel = "upi_payment_link";
+    closeBy = Math.floor(Date.now() / 1000) + expireBySeconds;
+    if (link.short_url) {
+      upiIntentPromise = Promise.resolve(link.short_url);
+    }
+  }
+
+  await billingRepo.mergeBillingOrderMetadataById(giftCheckout.order.id, {
+    channel,
+    upiQrId: qrId,
+    orderKind: "gift",
+  });
+
+  if (upiIntentPromise) {
+    const resolvedIntent = await upiIntentPromise;
+    imageDataUrl = await renderCleanUpiQrDataUrl(resolvedIntent);
+    void billingRepo
+      .mergeBillingOrderMetadataByUpiQrId(qrId, { upiIntent: resolvedIntent })
+      .catch(() => undefined);
+  }
+
+  return {
+    order: {
+      id: giftCheckout.order.id,
+      razorpay_order_id: giftCheckout.order.razorpay_order_id,
+    },
+    razorpay: giftCheckout.razorpay,
+    upi: {
+      mode: "qr" as const,
+      qrId,
+      imageDataUrl,
+      imageUrl: null as string | null,
+      closeBy,
+    },
+    pricing: giftCheckout.pricing,
   };
 }
 
@@ -1025,6 +1154,29 @@ export async function verifyCheckoutPayment(input: {
     );
   } catch (err) {
     console.warn("[billing] invoice enqueue failed after fulfill", err);
+  }
+
+  // Gift delivery email (recipient or purchaser share-link).
+  try {
+    const giftId =
+      order && "gift_id" in order
+        ? (order as { gift_id?: string | null }).gift_id
+        : null;
+    const orderKind =
+      order && "order_kind" in order
+        ? (order as { order_kind?: string }).order_kind
+        : null;
+    const resolvedGiftId =
+      giftId ||
+      (await billingRepo.getGiftIdForRazorpayOrder(input.razorpayOrderId));
+    if (resolvedGiftId && (orderKind === "gift" || resolvedGiftId)) {
+      const { deliverPurchasedGift } = await import(
+        "@/server/services/gift.service"
+      );
+      await deliverPurchasedGift(resolvedGiftId);
+    }
+  } catch (err) {
+    console.warn("[billing] gift delivery failed after fulfill", err);
   }
 
   return result;

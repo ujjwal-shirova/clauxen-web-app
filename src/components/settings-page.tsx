@@ -450,6 +450,7 @@ export function SettingsModal({
             </button>
 
             <div
+              data-scroll-region=""
               className={cn(
                 "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12",
                 contentHydrating && "opacity-95",

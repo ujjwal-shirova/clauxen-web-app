@@ -2149,23 +2149,59 @@ export function useChatApi(
         return { queuedMessagesByChatId: queued };
       });
 
-      await chatsApi.deleteChat(chatId);
+      // Optimistic: remove from sidebar / local state immediately, persist later.
+      const previousRecent = recentChatsRef.current;
+      const previousMessages = allChatsRef.current[chatId];
+      const wasActive = activeChatId === chatId;
+
       setAllChats((prev) => {
         const next = { ...prev };
         delete next[chatId];
         return next;
       });
+      useChatStore.getState().removeChat(chatId);
       hydratedChatIdsRef.current.delete(chatId);
       void forgetDeviceChat(chatId);
-      const remaining = recentChats.filter((c) => c.id !== chatId);
+      const remaining = previousRecent.filter((c) => c.id !== chatId);
       setRecentChats(remaining);
       recentChatsRef.current = remaining;
-      // Leave navigation to the caller (sidebar / chat header → /new).
-      if (activeChatId === chatId) {
+      if (wasActive) {
         setActiveChatId(null);
       }
+      if (userId) {
+        void persistDeviceRecentChatsNow(
+          userId,
+          remaining,
+          wasActive ? null : useChatStore.getState().activeChatId,
+        );
+      }
+
+      try {
+        await chatsApi.deleteChat(chatId);
+      } catch (error) {
+        console.error("Failed to delete chat:", error);
+        // Roll back sidebar + messages so the user can retry.
+        setRecentChats(previousRecent);
+        recentChatsRef.current = previousRecent;
+        if (previousMessages) {
+          setAllChats((prev) => ({
+            ...prev,
+            [chatId]: previousMessages,
+          }));
+        }
+        if (wasActive) {
+          setActiveChatId(chatId);
+        }
+        if (userId) {
+          void persistDeviceRecentChatsNow(
+            userId,
+            previousRecent,
+            wasActive ? chatId : useChatStore.getState().activeChatId,
+          );
+        }
+      }
     },
-    [activeChatId, recentChats],
+    [activeChatId, userId],
   );
 
   const handleRenameChat = useCallback(

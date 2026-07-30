@@ -88,6 +88,9 @@ interface BillingCheckoutProps {
   returnPath?: string | null;
   /** Expired signed session — remint for the same logged-in user (no 404). */
   needsSessionRemint?: boolean;
+  /** Gift checkout — multi-month prepaid, no auto-renew. */
+  giftMonths?: number | null;
+  isGiftCheckout?: boolean;
 }
 
 const SEAT_ASSIGNABLE_IDS = Object.keys(
@@ -178,6 +181,8 @@ export function BillingCheckout({
   initialCheckoutSessionId,
   returnPath = null,
   needsSessionRemint = false,
+  giftMonths = null,
+  isGiftCheckout = false,
 }: BillingCheckoutProps) {
   const auth = useAuth();
   const { currency, formatInr, isUsd, ready } = useCheckoutCurrency();
@@ -560,16 +565,19 @@ export function BillingCheckout({
     () =>
       JSON.stringify({
         plan: resolveApiPlanId(activePlanId, maxTier),
-        cycle: isMaxPlan ? "monthly" : effectiveBillingCycle,
+        cycle: isMaxPlan || isGiftCheckout ? "monthly" : effectiveBillingCycle,
         currency,
         maxTier: isMaxPlan ? maxTier : null,
         seats: isTeamPlan ? seatCounts : null,
         bundle: isBusinessWorkspace ? bundleSeatCount : null,
+        gift: isGiftCheckout ? { months: giftMonths } : null,
       }),
     [
       activePlanId,
       maxTier,
       isMaxPlan,
+      isGiftCheckout,
+      giftMonths,
       effectiveBillingCycle,
       currency,
       isTeamPlan,
@@ -896,6 +904,10 @@ export function BillingCheckout({
   }, [upiPoll, upiModalOpen, onPaymentSuccess]);
 
   const subtotal = useMemo(() => {
+    if (isGiftCheckout && giftMonths && giftMonths > 0) {
+      const monthly = isMaxPlan ? maxDetails.monthlyPriceInr : details.monthly;
+      return monthly * giftMonths;
+    }
     if (isMaxPlan) return maxDetails.monthlyPriceInr;
     if (isVariableCheckoutPlan) return 0;
     if (isTeamPlan && orgPlan) {
@@ -917,6 +929,8 @@ export function BillingCheckout({
       ? details.monthly
       : details.yearly;
   }, [
+    isGiftCheckout,
+    giftMonths,
     isMaxPlan,
     isVariableCheckoutPlan,
     isTeamPlan,
@@ -1381,7 +1395,8 @@ export function BillingCheckout({
     [],
   );
 
-  const billingCycleToggle = !isMaxPlan && !isVariableCheckoutPlan && (
+  const billingCycleToggle =
+    !isMaxPlan && !isVariableCheckoutPlan && !isGiftCheckout && (
     <div className="grid grid-cols-2 gap-2 sm:gap-4">
       <button
         type="button"
@@ -1851,7 +1866,26 @@ export function BillingCheckout({
               <div className="flex gap-3 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] p-4">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
                 <p className="text-[13px] leading-relaxed text-zinc-600">
-                  {isVariableCheckoutPlan ? (
+                  {isGiftCheckout ? (
+                    <>
+                      Gift subscription for{" "}
+                      <span className="font-semibold">
+                        {giftMonths === 1
+                          ? "1 month"
+                          : `${giftMonths ?? 0} months`}
+                      </span>{" "}
+                      of {details.name.replace(/ plan$/i, "")}. It will not
+                      auto-renew. Unredeemed gifts expire one year after
+                      purchase. You will be charged{" "}
+                      <span className="font-semibold">
+                        {formatInr(total)} today
+                        {taxResult.showTaxRow && !taxResult.isGstExempt
+                          ? " including applicable tax"
+                          : ""}
+                      </span>
+                      .
+                    </>
+                  ) : isVariableCheckoutPlan ? (
                     <>
                       No automatic renewal charge applies until a fixed price or
                       usage schedule is agreed. Use the form on the right so we

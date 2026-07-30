@@ -9,6 +9,7 @@ export function CheckoutSessionClient({
   initialCheckoutSessionId,
   returnPath = "/new",
   needsSessionRemint = false,
+  giftCheckout = null,
 }: {
   planId: string | null;
   initialBillingCycle: "monthly" | "yearly";
@@ -16,6 +17,11 @@ export function CheckoutSessionClient({
   initialCheckoutSessionId: string;
   returnPath?: string;
   needsSessionRemint?: boolean;
+  giftCheckout?: {
+    giftId: string | null;
+    giftMonths: number;
+    deliveryMethod: "email" | "link" | null;
+  } | null;
 }) {
   return (
     <CheckoutPageView
@@ -25,6 +31,7 @@ export function CheckoutSessionClient({
       initialCheckoutSessionId={initialCheckoutSessionId}
       returnPath={returnPath}
       needsSessionRemint={needsSessionRemint}
+      giftCheckout={giftCheckout}
     />
   );
 }

@@ -43,6 +43,15 @@ export default async function CheckoutSessionPage({
         initialCheckoutSessionId={sessionId}
         returnPath={returnPath}
         needsSessionRemint={inspected.status === "expired"}
+        giftCheckout={
+          claims.orderKind === "gift"
+            ? {
+                giftId: claims.giftId ?? null,
+                giftMonths: claims.giftMonths ?? 1,
+                deliveryMethod: claims.giftDeliveryMethod ?? null,
+              }
+            : null
+        }
       />
     </div>
   );

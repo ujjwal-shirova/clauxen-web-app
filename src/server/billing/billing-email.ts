@@ -4,7 +4,9 @@ import { isBillingWorkerConfigured } from "@/server/billing/billing-worker";
 export type BillingEmailKind =
   | "invoice_paid"
   | "billing_address_saved"
-  | "billing_address_updated";
+  | "billing_address_updated"
+  | "gift_received"
+  | "gift_share_link";
 
 type InvoiceEmailPayload = {
   to: string;
@@ -26,11 +28,23 @@ type AddressEmailPayload = {
   summary: string;
 };
 
-export type BillingEmailPayload = InvoiceEmailPayload | AddressEmailPayload;
+type GiftEmailPayload = {
+  to: string;
+  kind: "gift_received" | "gift_share_link";
+  planName: string;
+  monthsLabel: string;
+  senderName: string;
+  message?: string | null;
+  claimUrl: string;
+};
+
+export type BillingEmailPayload =
+  | InvoiceEmailPayload
+  | AddressEmailPayload
+  | GiftEmailPayload;
 
 async function postBillingEmail(payload: BillingEmailPayload): Promise<boolean> {
   if (!isBillingWorkerConfigured()) {
-    // Fallback: auth-email worker if it exposes a generic notify route later.
     if (!env.authEmailWorkerUrl || !env.authEmailInternalToken) {
       console.warn("[billing-email] No email worker configured — skip send");
       return false;
@@ -72,4 +86,12 @@ export async function sendBillingNotificationEmail(payload: BillingEmailPayload)
 
 export async function sendInvoicePaidEmail(input: Omit<InvoiceEmailPayload, "kind">) {
   return postBillingEmail({ ...input, kind: "invoice_paid" });
+}
+
+export async function sendGiftNotificationEmail(
+  input: Omit<GiftEmailPayload, "kind"> & {
+    kind: "gift_received" | "gift_share_link";
+  },
+) {
+  return postBillingEmail(input);
 }

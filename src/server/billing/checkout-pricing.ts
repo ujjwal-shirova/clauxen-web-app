@@ -211,11 +211,15 @@ export function resolveCheckoutSubtotalPaise(
   }
 
   const subtotalPaise =
-    claims.billingCycle === "yearly" && plan.yearly_supported
-      ? plan.price_paise_yearly > 0
-        ? plan.price_paise_yearly
-        : plan.price_paise_monthly * 12
-      : plan.price_paise_monthly;
+    claims.orderKind === "gift" &&
+    typeof claims.giftMonths === "number" &&
+    claims.giftMonths >= 1
+      ? plan.price_paise_monthly * claims.giftMonths
+      : claims.billingCycle === "yearly" && plan.yearly_supported
+        ? plan.price_paise_yearly > 0
+          ? plan.price_paise_yearly
+          : plan.price_paise_monthly * 12
+        : plan.price_paise_monthly;
 
   return {
     subtotalPaise,

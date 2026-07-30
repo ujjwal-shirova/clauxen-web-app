@@ -361,9 +361,10 @@ function ChatViewBody({
   }, [instantNavigate, startNewChat]);
 
   const handleDeleteChatAndLeave = useCallback(
-    async (chatId: string) => {
+    (chatId: string) => {
       const wasActive = activeChatId === chatId;
-      await handleDeleteChat(chatId);
+      // Optimistic delete updates UI sync; navigate away without waiting on API.
+      void handleDeleteChat(chatId);
       if (!wasActive) return;
       const target = projectId || bindProjectId
         ? APP_ROUTES.project(projectId || bindProjectId!)

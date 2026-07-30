@@ -43,11 +43,15 @@ export function useInstantNavigate() {
             window.location.hash !== hash
           ) {
             window.history.replaceState(
-              window.history.state,
+              { ...(window.history.state as object), __clxNav: pathOnly },
               "",
               `${pathOnly}${window.location.search}${hash}`,
             );
           }
+          // replaceState does not fire hashchange — re-broadcast so overlays sync.
+          window.dispatchEvent(
+            new CustomEvent(CLAUXEN_NAVIGATE_EVENT, { detail: { path: full } }),
+          );
         });
       }
     },

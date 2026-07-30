@@ -24,6 +24,7 @@ import {
 } from "@/contexts/chat-session-context";
 import { CLAUXEN_OPEN_CREATE_PROJECT_EVENT } from "@/components/composer-project-strip";
 import { AppOverlayHost } from "@/components/app-overlay-host";
+import { HoverScrollEnabler } from "@/components/hover-scroll-enabler";
 import {
   AppOverlaysProvider,
   useAppOverlays,
@@ -170,11 +171,13 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   );
 
   const onDeleteChatFromSidebar = useCallback(
-    async (chatId: string) => {
+    (chatId: string) => {
       const wasActive =
         activeChatId === chatId ||
         getRouteChatIdForSidebar(pathname) === chatId;
-      await handleDeleteChat(chatId);
+      // Optimistic delete updates the sidebar synchronously; navigate away
+      // immediately when the open chat was removed.
+      void handleDeleteChat(chatId);
       if (wasActive) {
         instantNavigate(APP_ROUTES.newChat, { replace: true });
       }
@@ -399,6 +402,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <AppOverlayHost />
+      <HoverScrollEnabler />
     </div>
   );
 }

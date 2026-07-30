@@ -19,6 +19,11 @@ export type CheckoutSessionClaims = {
   organizationSeatCount?: number;
   /** Soft-nav path after successful payment (e.g. /new or /c/…). */
   returnPath?: string;
+  /** Gift checkout — reuse precreated gift billing order. */
+  orderKind?: "subscription" | "gift";
+  giftId?: string;
+  giftMonths?: number;
+  giftDeliveryMethod?: "email" | "link";
   iat: number;
   exp: number;
 };
@@ -79,12 +84,21 @@ export type CheckoutSessionInspect =
   | { status: "invalid" };
 
 function claimsShapeOk(claims: CheckoutSessionClaims): boolean {
+  const giftOk =
+    claims.orderKind !== "gift" ||
+    (typeof claims.giftId === "string" &&
+      claims.giftId.length > 0 &&
+      typeof claims.giftMonths === "number" &&
+      Number.isInteger(claims.giftMonths) &&
+      claims.giftMonths >= 1 &&
+      claims.giftMonths <= 12);
   return Boolean(
     claims.uid &&
       claims.planId &&
       claims.planName &&
       (claims.billingCycle === "monthly" || claims.billingCycle === "yearly") &&
-      (claims.currency == null || isCheckoutCurrency(claims.currency)),
+      (claims.currency == null || isCheckoutCurrency(claims.currency)) &&
+      giftOk,
   );
 }
 

@@ -144,18 +144,28 @@ export function StreamingTokenReveal({
   const versionRef = useRef(0);
 
   useEffect(() => {
-    if (!enabled) {
+    if (enabled) return;
+    // Defer cleanup so the settled span stays mounted through the stream→done flip.
+    const timer = window.setTimeout(() => {
       clearStreamPaintSessions(streamGroupKey(sessionKey));
-    }
+    }, 400);
+    return () => window.clearTimeout(timer);
   }, [enabled, sessionKey]);
-
-  if (!enabled) {
-    return text ? <>{text}</> : null;
-  }
 
   if (!text) return null;
 
   const session = resolvePaintSession(sessionKey, text);
+
+  // Settled: collapse into one stable span using the same element type as the
+  // streaming paint path — never swap to a bare text node (that blinks).
+  if (!enabled) {
+    if (session.prev !== text || session.delta) {
+      session.settled = text;
+      session.delta = "";
+      session.prev = text;
+    }
+    return <span className="stream-token-stable">{session.settled || text}</span>;
+  }
 
   if (text !== session.prev) {
     const previous = session.prev;
@@ -189,21 +199,25 @@ export function StreamingTokenReveal({
     versionRef.current += 1;
   }
 
+  // Prefer a single stable span once the delta has landed — avoids a
+  // fragment remount when streaming ends mid-paint.
+  if (!session.delta) {
+    return <span className="stream-token-stable">{session.settled || text}</span>;
+  }
+
   return (
     <>
       {session.settled ? (
         <span className="stream-token-stable">{session.settled}</span>
       ) : null}
-      {session.delta ? (
-        <span
-          className="stream-token-enter"
-          style={{
-            animationDuration: `${session.duration}ms`,
-          }}
-        >
-          {session.delta}
-        </span>
-      ) : null}
+      <span
+        className="stream-token-enter"
+        style={{
+          animationDuration: `${session.duration}ms`,
+        }}
+      >
+        {session.delta}
+      </span>
     </>
   );
 }

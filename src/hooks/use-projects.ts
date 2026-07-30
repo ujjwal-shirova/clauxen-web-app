@@ -225,22 +225,28 @@ export function useProjects(apiEnabled: boolean) {
 
   const deleteProject = useCallback(
     async (projectId: string) => {
+      // Optimistic: remove from UI immediately, then persist.
+      const previous = projects;
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      if (pinnedIds.includes(projectId)) {
+        setPinnedIds(setProjectPinned(projectId, false));
+      }
+
       if (apiEnabled && !projectId.startsWith("local-")) {
         try {
           await projectsApi.deleteProject(projectId);
+          return true;
         } catch {
+          setProjects(previous);
           return false;
         }
-        setProjects((prev) => prev.filter((p) => p.id !== projectId));
-        return true;
       }
 
       const next = loadLocalProjects().filter((p) => p.id !== projectId);
       saveLocalProjects(next);
-      setProjects(next);
       return true;
     },
-    [apiEnabled],
+    [apiEnabled, pinnedIds, projects],
   );
 
   const pinProject = useCallback((projectId: string, pinned: boolean) => {

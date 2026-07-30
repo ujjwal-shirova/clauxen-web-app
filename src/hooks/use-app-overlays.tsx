@@ -55,11 +55,22 @@ const PREFETCH_PATHS = [
   APP_ROUTES.myClauxen,
 ] as const;
 
+function readOverlayFromHistoryState(): AppOverlayPath | null {
+  if (typeof window === "undefined") return null;
+  const stateHash = (
+    window.history.state as { __clxOverlay?: string | null } | null
+  )?.__clxOverlay;
+  if (typeof stateHash !== "string" || !stateHash) return null;
+  const normalized = stateHash.startsWith("#") ? stateHash : `#${stateHash}`;
+  return parseOverlayHash(normalized);
+}
+
 function readOverlayFromLocation(): AppOverlayPath | null {
   if (typeof window === "undefined") return null;
   return (
     parseOverlayHash(window.location.hash) ??
-    parseOverlayPath(window.location.pathname)
+    parseOverlayPath(window.location.pathname) ??
+    readOverlayFromHistoryState()
   );
 }
 
@@ -121,23 +132,32 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
     startTransition(() => {
       router.replace(targetPath, { scroll: false });
     });
-    // Restore hash if Next stripped it during soft nav.
+    // Restore hash if Next stripped it during soft nav, then re-sync overlay.
     queueMicrotask(() => {
-      if (window.location.pathname === targetPath && !window.location.hash) {
+      if (
+        window.location.pathname === targetPath &&
+        window.location.hash !== hash
+      ) {
         window.history.replaceState(
-          window.history.state,
+          { __clxOverlay: hash, __clxNav: targetPath },
           "",
           `${targetPath}${hash}`,
         );
       }
+      window.dispatchEvent(
+        new CustomEvent(CLAUXEN_NAVIGATE_EVENT, {
+          detail: { path: `${targetPath}${hash}` },
+        }),
+      );
     });
   }, [pathname, router]);
 
-  /** Sync overlay state from hash (popstate / hashchange / AppHref soft nav). */
+  /** Sync overlay state from hash (mount + popstate / hashchange / soft nav). */
   useEffect(() => {
     const sync = () => {
       setOverlay(readOverlayFromLocation());
     };
+    sync();
     window.addEventListener("popstate", sync);
     window.addEventListener("hashchange", sync);
     window.addEventListener(CLAUXEN_NAVIGATE_EVENT, sync);
@@ -148,11 +168,35 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  /** When pathname changes to a main page, re-read hash (deep link on /c/…). */
+  /** After hosted gift checkout, reopen the gift overlay for the success card. */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("giftPurchased") !== "1") return;
+
+    setOverlay({ type: "gift" });
+    const { path } = parentLocationParts();
+    params.delete("giftPurchased");
+    const nextSearch = params.toString();
+    const hash = overlayToHash({ type: "gift" });
+    window.history.replaceState(
+      { __clxOverlay: hash },
+      "",
+      `${path}${nextSearch ? `?${nextSearch}` : ""}${hash}`,
+    );
+  }, []);
+
+  /**
+   * When pathname changes to a main page, re-read hash after soft-nav microtasks
+   * so a briefly-empty hash does not wipe an open settings/pricing overlay.
+   */
   useEffect(() => {
     if (!isMainAppPath(pathname)) return;
     if (typeof window === "undefined") return;
-    setOverlay(parseOverlayHash(window.location.hash));
+    queueMicrotask(() => {
+      const next = readOverlayFromLocation();
+      setOverlay(next);
+    });
   }, [pathname]);
 
   const writeOverlayUrl = useCallback(
@@ -169,6 +213,9 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
         { __clxOverlay: next ? overlayToHash(next) : null },
         "",
         url,
+      );
+      window.dispatchEvent(
+        new CustomEvent(CLAUXEN_NAVIGATE_EVENT, { detail: { path: url } }),
       );
     },
     [],

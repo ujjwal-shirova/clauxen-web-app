@@ -45,7 +45,7 @@ export class SettingsErrorBoundary extends React.Component<
         hasError: false,
         generation: s.generation + 1,
       }));
-      this.props.onReload?.();
+      // Remount only — never close the overlay from a recoverable render error.
     }, 0);
   }
 
@@ -53,7 +53,7 @@ export class SettingsErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <div
-          className="fixed inset-0 z-[101] bg-[rgba(244,244,245,0.4)]"
+          className="fixed inset-0 z-[200] bg-[rgba(244,244,245,0.84)]"
           aria-busy="true"
         />
       );

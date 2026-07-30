@@ -311,6 +311,24 @@ export function getCheckoutPlanDetails(
     };
   }
 
+  if (planId === "max5x") {
+    const tier = MAX_TIER_OPTIONS["5x"];
+    return {
+      name: tier.checkoutName,
+      monthly: tier.monthlyPriceInr,
+      yearly: tier.monthlyPriceInr,
+    };
+  }
+
+  if (planId === "max20x") {
+    const tier = MAX_TIER_OPTIONS["20x"];
+    return {
+      name: tier.checkoutName,
+      monthly: tier.monthlyPriceInr,
+      yearly: tier.monthlyPriceInr,
+    };
+  }
+
   if (planId === "business-workspace") {
     return {
       name: "Business Clauxen & Collabry",

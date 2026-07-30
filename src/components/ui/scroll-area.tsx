@@ -24,7 +24,9 @@ const ScrollArea = React.forwardRef<
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
-        className="app-scrollbar chat-scroll-viewport relative z-0 size-full min-h-0 rounded-[inherit] scroll-auto [overflow-anchor:none] [&>div]:!block"
+        tabIndex={0}
+        data-scroll-region=""
+        className="app-scrollbar chat-scroll-viewport relative z-0 size-full min-h-0 rounded-[inherit] scroll-auto outline-none [overflow-anchor:none] [&>div]:!block"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

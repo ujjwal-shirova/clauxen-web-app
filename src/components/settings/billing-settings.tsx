@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, MoreHorizontal, Sparkles } from "lucide-react";
+import { Check, Copy, MoreHorizontal, Sparkles } from "lucide-react";
 import {
   billingInvoicePdfUrl,
   deletePaymentMethod,
@@ -15,6 +15,10 @@ import {
   type BillingAddressDto,
   type PaymentMethodDto,
 } from "@/lib/api/billing";
+import {
+  listPurchasedGifts,
+  type PurchasedGiftRow,
+} from "@/lib/api/gifts";
 import { useAuth } from "@/hooks/use-auth";
 import {
   CARD_BRAND_ICONS,
@@ -130,6 +134,8 @@ export function BillingSettings({
   const [cancelAtEnd, setCancelAtEnd] = useState(false);
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [purchasedGifts, setPurchasedGifts] = useState<PurchasedGiftRow[]>([]);
+  const [copiedGiftId, setCopiedGiftId] = useState<string | null>(null);
   const [address, setAddress] = useState<BillingAddressDto | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodDto[]>([]);
   const [editingAddress, setEditingAddress] = useState(false);
@@ -163,11 +169,12 @@ export function BillingSettings({
     }
     setLoading(true);
     try {
-      const [overview, inv, addr, methods] = await Promise.all([
+      const [overview, inv, addr, methods, gifts] = await Promise.all([
         getBillingSubscription(),
         listInvoices(),
         getBillingAddress(),
         listPaymentMethods(),
+        listPurchasedGifts().catch(() => ({ gifts: [] as PurchasedGiftRow[] })),
       ]);
       const sub = overview.subscription;
       setPlanId(sub?.plan_id ?? null);
@@ -176,6 +183,7 @@ export function BillingSettings({
       setInvoices(
         (inv.invoices as InvoiceRow[])?.filter((row) => row?.id) ?? [],
       );
+      setPurchasedGifts(gifts.gifts ?? []);
       setAddress(addr.address);
       setPaymentMethods(methods.paymentMethods ?? []);
     } catch {
@@ -352,6 +360,103 @@ export function BillingSettings({
                 </button>
               </li>
             ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="border-b border-zinc-200 pb-6">
+        <SettingsSectionHeading>Gifts you purchased</SettingsSectionHeading>
+        {purchasedGifts.length === 0 ? (
+          <p className="py-4 text-[14px] text-zinc-400">
+            You have not purchased any gifts yet.
+          </p>
+        ) : (
+          <ul className="mt-2">
+            {purchasedGifts.map((gift) => {
+              const monthsLabel =
+                gift.months === 12
+                  ? "1 year"
+                  : gift.months === 1
+                    ? "1 month"
+                    : `${gift.months} months`;
+              const statusLabel =
+                gift.status === "purchased"
+                  ? "Ready to claim"
+                  : gift.status === "redeemed"
+                    ? "Claimed"
+                    : gift.status.charAt(0).toUpperCase() + gift.status.slice(1);
+              return (
+                <li
+                  key={gift.id}
+                  className="border-b border-zinc-100 py-3 last:border-b-0"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-medium text-zinc-900">
+                        {monthsLabel} of Clauxen {gift.plan_name}
+                      </p>
+                      <p className="mt-0.5 text-[13px] text-zinc-500">
+                        {formatDate(gift.purchased_at) ?? "Purchased"}
+                        {" · "}
+                        {gift.delivery_method === "email"
+                          ? gift.recipient_email
+                            ? `Emailed to ${gift.recipient_email}`
+                            : "Sent by email"
+                          : "Shareable link"}
+                        {" · "}
+                        ₹{(gift.amount_paise / 100).toFixed(2)}
+                      </p>
+                      <p className="mt-0.5 text-[12px] text-zinc-400">
+                        Code {gift.code_prefix}…{gift.code_last4}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <SettingsStatusBadge
+                        tone={
+                          gift.status === "purchased"
+                            ? "info"
+                            : gift.status === "redeemed"
+                              ? "success"
+                              : "info"
+                        }
+                      >
+                        {statusLabel}
+                      </SettingsStatusBadge>
+                      {gift.claim_url && gift.status === "purchased" ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(gift.claim_url!);
+                              setCopiedGiftId(gift.id);
+                              window.setTimeout(
+                                () => setCopiedGiftId(null),
+                                2000,
+                              );
+                            } catch {
+                              /* ignore */
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                        >
+                          {copiedGiftId === gift.id ? (
+                            <>
+                              <Check className="h-3.5 w-3.5" />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5" />
+                              Copy link
+                            </>
+                          )}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

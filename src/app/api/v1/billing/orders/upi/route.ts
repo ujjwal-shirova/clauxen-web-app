@@ -47,6 +47,34 @@ export const POST = withApiHandler(
       throw notFound("Plan not found.");
     }
 
+    if (claims.orderKind === "gift" && claims.giftId) {
+      const checkout = await billingService.createGiftUpiCheckoutPayment({
+        userId: user.id,
+        userEmail: user.email ?? "",
+        giftId: claims.giftId,
+        sessionId: body.checkoutSessionId,
+        customerContact:
+          typeof body.customerContact === "string"
+            ? body.customerContact.trim() || undefined
+            : undefined,
+        planName: claims.planName,
+      });
+      return jsonData(
+        {
+          ...checkout,
+          pricing: {
+            subtotalPaise: checkout.pricing.subtotalPaise,
+            taxPaise: checkout.pricing.taxPaise,
+            totalPaise: checkout.pricing.amountPaise,
+            taxLabel:
+              checkout.pricing.taxPaise > 0 ? "Tax (18% GST)" : null,
+            gstExempt: checkout.pricing.taxPaise === 0,
+          },
+        },
+        201,
+      );
+    }
+
     const { subtotalPaise, seatBreakdown, organizationSeatCount } =
       resolveCheckoutSubtotalPaise(claims, plan);
 

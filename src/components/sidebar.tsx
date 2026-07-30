@@ -776,7 +776,7 @@ export function Sidebar({
         )}
       </div>
 
-      <div className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+      <div className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain" data-scroll-region="">
         <div
           className={cn(
             "sticky top-0 z-10 bg-[var(--app-shell-bg)] pl-2 pr-1.5 pb-2 pt-1.5",

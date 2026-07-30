@@ -96,6 +96,10 @@ export async function createCheckoutSession(input: {
   seatBreakdown?: Record<string, number>;
   organizationSeatCount?: number;
   returnPath?: string;
+  orderKind?: "subscription" | "gift";
+  giftId?: string;
+  giftMonths?: number;
+  giftDeliveryMethod?: "email" | "link";
 }) {
   assertBillingOrderInput(input);
   return apiFetch<{

@@ -20,6 +20,10 @@ export const POST = withApiHandler(
       organizationSeatCount?: number;
       currency?: string;
       returnPath?: string;
+      orderKind?: "subscription" | "gift";
+      giftId?: string;
+      giftMonths?: number;
+      giftDeliveryMethod?: "email" | "link";
     };
 
     if (typeof body.planId !== "string" || !body.planId.trim()) {
@@ -37,6 +41,21 @@ export const POST = withApiHandler(
     const currency =
       body.currency && isCheckoutCurrency(body.currency) ? body.currency : "INR";
 
+    const orderKind = body.orderKind === "gift" ? "gift" : null;
+    if (orderKind === "gift") {
+      if (typeof body.giftId !== "string" || !body.giftId.trim()) {
+        throw new AppError("giftId is required for gift checkout.", 400);
+      }
+      if (
+        typeof body.giftMonths !== "number" ||
+        !Number.isInteger(body.giftMonths) ||
+        body.giftMonths < 1 ||
+        body.giftMonths > 12
+      ) {
+        throw new AppError("giftMonths must be 1–12.", 400);
+      }
+    }
+
     const checkoutSession = billingService.createCheckoutSession({
       userId: user.id,
       planId: body.planId.trim(),
@@ -48,6 +67,15 @@ export const POST = withApiHandler(
       organizationSeatCount: body.organizationSeatCount ?? null,
       returnPath:
         typeof body.returnPath === "string" ? body.returnPath : null,
+      orderKind,
+      giftId: orderKind === "gift" ? body.giftId!.trim() : null,
+      giftMonths: orderKind === "gift" ? body.giftMonths! : null,
+      giftDeliveryMethod:
+        orderKind === "gift" &&
+        (body.giftDeliveryMethod === "email" ||
+          body.giftDeliveryMethod === "link")
+          ? body.giftDeliveryMethod
+          : null,
     });
 
     return jsonData(checkoutSession, 201);

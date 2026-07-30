@@ -9,6 +9,7 @@ export function CheckoutPageView({
   initialCheckoutSessionId,
   returnPath = "/new",
   needsSessionRemint = false,
+  giftCheckout = null,
 }: {
   planId: string | null;
   initialBillingCycle: "monthly" | "yearly";
@@ -16,12 +17,19 @@ export function CheckoutPageView({
   initialCheckoutSessionId: string;
   returnPath?: string;
   needsSessionRemint?: boolean;
+  giftCheckout?: {
+    giftId: string | null;
+    giftMonths: number;
+    deliveryMethod: "email" | "link" | null;
+  } | null;
 }) {
   return (
     <BillingCheckout
       onBack={() => {
         if (typeof window !== "undefined") {
-          window.location.href = returnPath || "/new";
+          window.location.href = giftCheckout
+            ? "/new#gift"
+            : returnPath || "/new";
         }
       }}
       planId={planId}
@@ -30,9 +38,23 @@ export function CheckoutPageView({
       initialCheckoutSessionId={initialCheckoutSessionId}
       returnPath={returnPath}
       needsSessionRemint={needsSessionRemint}
+      giftMonths={giftCheckout?.giftMonths ?? null}
+      isGiftCheckout={Boolean(giftCheckout)}
       onPaymentSuccess={() => {
         if (typeof window !== "undefined") {
-          // Persist across remounts — URL param alone can be stripped before the dialog paints.
+          // Gift checkout: return to gift success UI (copy link / email sent).
+          // Do not append checkout=success — that opens the subscription "You're on {plan}" dialog.
+          if (giftCheckout) {
+            try {
+              window.sessionStorage.setItem("clauxen:gift-just-paid", "1");
+              window.sessionStorage.removeItem("clauxen:checkout-success");
+            } catch {
+              /* ignore */
+            }
+            window.location.href = returnPath || "/new?giftPurchased=1";
+            return;
+          }
+
           try {
             window.sessionStorage.setItem("clauxen:checkout-success", "1");
           } catch {

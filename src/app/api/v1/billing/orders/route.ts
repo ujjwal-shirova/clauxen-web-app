@@ -61,6 +61,38 @@ export const POST = withApiHandler(
       throw notFound("Plan not found.");
     }
 
+    // Gift checkout reuses the Razorpay order created at purchase time.
+    if (
+      sessionClaims.orderKind === "gift" &&
+      typeof sessionClaims.giftId === "string" &&
+      sessionClaims.giftId
+    ) {
+      const { getGiftCheckoutOrderForUser } = await import(
+        "@/server/services/gift.service"
+      );
+      const giftCheckout = await getGiftCheckoutOrderForUser(
+        user.id,
+        sessionClaims.giftId,
+      );
+      return jsonData(
+        {
+          order: {
+            id: giftCheckout.order.id,
+            razorpay_order_id: giftCheckout.order.razorpay_order_id,
+          },
+          razorpay: giftCheckout.razorpay,
+          pricing: {
+            subtotalPaise: giftCheckout.pricing.subtotalPaise,
+            taxPaise: giftCheckout.pricing.taxPaise,
+            totalPaise: giftCheckout.pricing.amountPaise,
+            taxLabel: giftCheckout.pricing.taxPaise > 0 ? "Tax (18% GST)" : null,
+            gstExempt: giftCheckout.pricing.taxPaise === 0,
+          },
+        },
+        201,
+      );
+    }
+
     const { subtotalPaise, seatBreakdown, organizationSeatCount } =
       resolveCheckoutSubtotalPaise(sessionClaims, plan);
 

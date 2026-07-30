@@ -35,16 +35,18 @@ export function StreamingMarkdown({
 
   const { markdown, prompts } = useMemo(() => {
     let text = stripReferenceDefinitions(normalizeLatexDelimiters(content));
+    // Always use the streaming strip path for the markdown body so flipping
+    // `isStreaming` does not rewrite the answer text (end-of-stream blink).
     const prepared = prepareFollowUpContent(text, {
       enabled: followUpsEnabled,
-      isStreaming,
+      isStreaming: true,
     });
     let nextMarkdown = prepared.markdown;
     if (sources.length > 0) {
       nextMarkdown = convertCitationReferencesToLinks(nextMarkdown, sources);
     }
     return { markdown: nextMarkdown, prompts: prepared.prompts };
-  }, [content, sources, followUpsEnabled, isStreaming]);
+  }, [content, sources, followUpsEnabled]);
 
   const showPrompts =
     followUpsEnabled &&

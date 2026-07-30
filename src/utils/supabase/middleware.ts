@@ -26,6 +26,7 @@ const PUBLIC_PREFIXES = [
   "/signup",
   "/auth/",
   "/share/",
+  "/gift/",
   "/legal/",
   "/about",
 ] as const;

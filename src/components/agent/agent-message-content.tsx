@@ -34,7 +34,7 @@ export function AgentMessageContent({
     });
     const sources = collectMessageSources(message);
 
-    // Fresh turn before any tokens — planning label + bottom orb.
+    // Fresh turn before any tokens — orb only (no planning label).
     if (streaming && !message.content.trim() && !hasThinking) {
       return <AgentPlanningNextMoves showOrb={showOrb} />;
     }
@@ -54,7 +54,7 @@ export function AgentMessageContent({
           <div
             data-message-id={message.id}
             data-assistant-content="true"
-            className="min-w-0 animate-in fade-in duration-200"
+            className="min-w-0"
           >
             <AssistantContentRenderer
               content={message.content}

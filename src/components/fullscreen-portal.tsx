@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -11,10 +11,11 @@ import { createPortal } from "react-dom";
 export function FullscreenPortal({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
+  // useLayoutEffect so overlays (settings) paint in the same frame as open.
+  useLayoutEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || typeof document === "undefined") return null;
   return createPortal(children, document.body);
 }

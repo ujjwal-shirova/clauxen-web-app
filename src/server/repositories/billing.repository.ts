@@ -45,13 +45,24 @@ export async function getBillingOrderByRazorpayId(razorpayOrderId: string) {
     amount_paise: number;
     currency: string;
     status: string;
+    order_kind: string;
+    gift_id: string | null;
   }>(
-    `select id, user_id, razorpay_order_id, amount_paise, currency, status
+    `select id, user_id, razorpay_order_id, amount_paise, currency, status,
+            order_kind, gift_id
      from public.billing_orders
      where razorpay_order_id = $1
      limit 1`,
     [razorpayOrderId],
   );
+}
+
+export async function getGiftIdForRazorpayOrder(razorpayOrderId: string) {
+  const row = await queryOne<{ gift_id: string | null }>(
+    `select gift_id from public.billing_orders where razorpay_order_id = $1 limit 1`,
+    [razorpayOrderId],
+  );
+  return row?.gift_id ?? null;
 }
 
 /** UPI QR / payment-link checkout — look up order by metadata.upiQrId (qr_* or plink_*). */
@@ -72,6 +83,22 @@ export async function getBillingOrderByUpiQrId(upiQrId: string) {
      order by created_at desc
      limit 1`,
     [upiQrId],
+  );
+}
+
+/** Merge JSON into billing_orders.metadata by internal order id. */
+export async function mergeBillingOrderMetadataById(
+  orderId: string,
+  patch: Record<string, unknown>,
+) {
+  assertNonEmpty(orderId, "order id");
+  return queryOne<{ id: string }>(
+    `update public.billing_orders
+     set metadata = coalesce(metadata, '{}'::jsonb) || $2::jsonb,
+         updated_at = now()
+     where id = $1
+     returning id`,
+    [orderId, JSON.stringify(patch)],
   );
 }
 

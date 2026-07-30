@@ -131,7 +131,7 @@ export function AgentOrchestrationView({
   );
   const hasWork = workFrames.length > 0;
 
-  // Fresh turn: shimmer planning label + bottom orb until tools/thinking/answer.
+  // Fresh turn: bottom orb only until tools/thinking/answer paint.
   if (!hasWork && !answer) {
     if (!streaming) return null;
     return <AgentPlanningNextMoves showOrb={showOrb} />;
@@ -223,10 +223,7 @@ export function AgentOrchestrationView({
       })}
 
       {answer && !suppressDuplicateAnswer ? (
-        <div
-          data-agent-block="answer"
-          className="animate-in fade-in slide-in-from-bottom-1 duration-200"
-        >
+        <div data-agent-block="answer">
           {isAssistantGenerationError(message) ? (
             <p
               data-assistant-error="true"

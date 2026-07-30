@@ -257,6 +257,7 @@ export function SettingsNavSidebar({
 
         <div
           ref={scrollRef}
+          data-scroll-region=""
           className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pb-1 [scrollbar-width:thin]"
         >
           <div className="flex flex-col gap-4">

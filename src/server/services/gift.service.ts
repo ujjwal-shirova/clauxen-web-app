@@ -1,7 +1,5 @@
 import * as billingRepo from "@/server/repositories/billing.repository";
-// gifts repository — gift_codes table: generate, create, link order, redeem
 import * as giftsRepo from "@/server/repositories/gifts.repository";
-// Razorpay client helpers — configured check, order id/receipt, hosted checkout order
 import {
   createRazorpayOrder,
   isRazorpayConfigured,
@@ -15,11 +13,20 @@ import {
   toRazorpayChargeAmount,
   type CheckoutCurrency,
 } from "@/lib/checkout-currency";
+import { sendGiftNotificationEmail } from "@/server/billing/billing-email";
 
 const GIFT_PLAN_ALIASES: Record<string, string> = {
-  max5x: "max5x", // Max tier 5x multiplier alias
-  max20x: "max20x", // Max tier 20x multiplier alias
+  max5x: "max5x",
+  max20x: "max20x",
 };
+
+function appOrigin(): string {
+  return (env.appUrl || "https://www.clauxen.com").replace(/\/$/, "");
+}
+
+export function giftClaimUrl(claimToken: string): string {
+  return `${appOrigin()}/gift/claim/${encodeURIComponent(claimToken)}`;
+}
 
 export async function purchaseGift(input: {
   userId: string;
@@ -70,8 +77,10 @@ export async function purchaseGift(input: {
   const tokenGrant = plan.token_grant * input.months;
 
   const plainCode = await giftsRepo.generateGiftCodePlaintext();
+  const claimToken = giftsRepo.generateClaimToken();
   const gift = await giftsRepo.createGiftCode({
     plainCode,
+    claimToken,
     purchaserUserId: input.userId,
     purchaserEmail: input.userEmail,
     recipientEmail: input.recipientEmail ?? null,
@@ -90,7 +99,6 @@ export async function purchaseGift(input: {
     amountPaise,
   });
 
-  // insert failure guard — rare DB error; 500 without leaking internals
   if (!gift) throw new AppError("Failed to create gift.", 500);
 
   const orderId = newOrderId();
@@ -120,7 +128,7 @@ export async function purchaseGift(input: {
     subtotalPaise,
     taxPaise,
     amountPaise,
-    tokens: 1,
+    tokens: 0,
     receipt,
     orderKind: "gift",
     giftId: gift.id,
@@ -134,6 +142,10 @@ export async function purchaseGift(input: {
       code: plainCode,
       codePrefix: gift.code_prefix,
       codeLast4: gift.code_last4,
+      claimToken: gift.claim_token,
+      claimUrl: giftClaimUrl(gift.claim_token),
+      months: input.months,
+      planName: plan.display_name,
     },
     order,
     razorpay: {
@@ -146,6 +158,77 @@ export async function purchaseGift(input: {
   };
 }
 
+export async function listPurchasedGifts(userId: string) {
+  const rows = await giftsRepo.listPurchasedGiftsForUser(userId);
+  return rows.map((row) => ({
+    id: row.id,
+    plan_name: row.plan_name,
+    plan_id: row.plan_id,
+    months: row.months,
+    status: row.status,
+    delivery_method: row.delivery_method,
+    recipient_email: row.recipient_email,
+    claim_token: row.status === "purchased" ? row.claim_token : null,
+    claim_url:
+      row.status === "purchased" && row.claim_token
+        ? giftClaimUrl(row.claim_token)
+        : null,
+    code_prefix: row.code_prefix,
+    code_last4: row.code_last4,
+    amount_paise: row.amount_paise,
+    purchased_at: row.purchased_at,
+    expires_at: row.expires_at,
+  }));
+}
+
+export async function getClaimPreview(claimToken: string) {
+  const gift = await giftsRepo.getGiftByClaimToken(claimToken);
+  if (gift.status === "pending_payment") {
+    throw new AppError(
+      "This gift is not ready yet.",
+      400,
+      "gift_not_ready",
+    );
+  }
+  if (gift.status === "expired" || new Date(gift.expires_at) <= new Date()) {
+    throw new AppError("This gift has expired.", 400, "gift_expired");
+  }
+  if (gift.status === "redeemed") {
+    throw new AppError(
+      "This gift has already been claimed.",
+      400,
+      "gift_already_redeemed",
+    );
+  }
+  if (gift.status !== "purchased") {
+    throw new AppError(
+      "Gift is not redeemable.",
+      400,
+      "gift_not_redeemable",
+    );
+  }
+
+  return {
+    plan_name: gift.plan_name,
+    plan_id: gift.plan_id,
+    months: gift.months,
+    sender_name: gift.sender_name,
+    message: gift.message,
+    theme_color: gift.theme_color,
+    status: gift.status,
+    expires_at: gift.expires_at,
+  };
+}
+
+export async function claimGiftByToken(userId: string, claimToken: string) {
+  try {
+    return await giftsRepo.redeemGiftByClaimToken(userId, claimToken);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError("Redemption failed.", 400, "gift_redeem_failed");
+  }
+}
+
 export async function redeemGift(userId: string, code: string) {
   const trimmed = code.trim();
   if (!trimmed) throw new AppError("Gift code is required.", 400);
@@ -155,4 +238,97 @@ export async function redeemGift(userId: string, code: string) {
     if (error instanceof AppError) throw error;
     throw new AppError("Redemption failed.", 400, "gift_redeem_failed");
   }
+}
+
+/** After payment fulfill — email recipient (or purchaser for share-link). */
+export async function deliverPurchasedGift(giftId: string): Promise<boolean> {
+  const gift = await giftsRepo.getPurchasedGiftForDelivery(giftId);
+  if (!gift || gift.status !== "purchased" || !gift.claim_token) {
+    return false;
+  }
+
+  try {
+    await giftsRepo.queueGiftDelivery(giftId);
+  } catch (err) {
+    console.warn("[gift] queue_gift_delivery failed", err);
+  }
+
+  const claimUrl = giftClaimUrl(gift.claim_token);
+  const monthsLabel =
+    gift.months === 1 ? "1 month" : `${gift.months} months`;
+
+  if (gift.delivery_method === "email") {
+    const to = gift.recipient_email?.trim();
+    if (!to) {
+      console.warn("[gift] email delivery missing recipient", giftId);
+      return false;
+    }
+    const ok = await sendGiftNotificationEmail({
+      kind: "gift_received",
+      to,
+      planName: gift.plan_name,
+      monthsLabel,
+      senderName: gift.sender_name,
+      message: gift.message,
+      claimUrl,
+    });
+    if (ok) await giftsRepo.markGiftDeliverySent(giftId);
+    return ok;
+  }
+
+  // Share-link: email the claim link to the purchaser so they can share it.
+  const to = gift.purchaser_email?.trim();
+  if (!to) return false;
+  const ok = await sendGiftNotificationEmail({
+    kind: "gift_share_link",
+    to,
+    planName: gift.plan_name,
+    monthsLabel,
+    senderName: gift.sender_name,
+    message: gift.message,
+    claimUrl,
+  });
+  if (ok) await giftsRepo.markGiftDeliverySent(giftId);
+  return ok;
+}
+
+export async function getGiftCheckoutOrderForUser(
+  userId: string,
+  giftId: string,
+) {
+  const gift = await giftsRepo.getGiftByIdForPurchaser(giftId, userId);
+  if (!gift) throw new AppError("Gift not found.", 404, "not_found");
+  if (gift.status !== "pending_payment") {
+    throw new AppError(
+      "Gift is not awaiting payment.",
+      400,
+      "gift_not_payable",
+    );
+  }
+  if (!gift.billing_order_id) {
+    throw new AppError("Gift order is missing.", 400, "gift_order_missing");
+  }
+
+  const order = await billingRepo.getBillingOrderByRazorpayId(
+    gift.billing_order_id,
+  );
+  if (!order || order.user_id !== userId) {
+    throw new AppError("Order not found.", 404, "not_found");
+  }
+
+  return {
+    gift,
+    order,
+    razorpay: {
+      orderId: order.razorpay_order_id,
+      amount: order.amount_paise,
+      currency: order.currency,
+      keyId: env.publicRazorpayKeyId || env.razorpayKeyId,
+    },
+    pricing: {
+      subtotalPaise: gift.subtotal_paise,
+      taxPaise: gift.tax_paise,
+      amountPaise: gift.amount_paise,
+    },
+  };
 }
