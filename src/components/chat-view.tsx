@@ -379,6 +379,13 @@ function ChatViewBody({
   const displayMessagesLoading =
     !blankNewChatComposer && Boolean(messagesLoading);
 
+  // Switching between existing chats: keep the pane blank (never the
+  // New-chat landing) until the route chat hydrates.
+  const isChatRoute = Boolean(routeChatId) && !isIncognito;
+  const awaitingRouteHydration =
+    isChatRoute && !blankNewChatComposer && displayMessages.length === 0;
+  const blankPaneChatId = awaitingRouteHydration ? routeChatId : null;
+
   const brandOnlyTab =
     !blankNewChatComposer &&
     isGenerating &&
@@ -413,6 +420,7 @@ function ChatViewBody({
         retryAssistantWithBranch={retryAssistantWithBranch}
         switchMessageBranch={switchMessageBranch}
         activeChatId={displayActiveChatId}
+        blankPaneChatId={blankPaneChatId}
         messagesLoading={displayMessagesLoading}
         messagesLoadError={messagesLoadError}
         onRetryMessages={retryLoadMessages}

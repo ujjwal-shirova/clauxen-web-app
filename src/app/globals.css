@@ -381,12 +381,10 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 
 @keyframes stream-token-fade {
   from {
-    opacity: 0.55;
-    filter: brightness(1.35);
+    opacity: 0.65;
   }
   to {
     opacity: 1;
-    filter: brightness(1);
   }
 }
 
@@ -395,10 +393,10 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: stream-token-fade;
-  animation-duration: 140ms;
+  animation-duration: 120ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
-  will-change: opacity, filter;
+  will-change: opacity;
   backface-visibility: hidden;
 }
 

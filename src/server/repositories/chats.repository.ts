@@ -77,6 +77,18 @@ export async function getChatForUser(chatId: string, userId: string) {
   );
 }
 
+/** Owner-scoped read that still sees deleted rows (archive snapshot / restore). */
+export async function getChatForUserIncludingDeleted(
+  chatId: string,
+  userId: string,
+) {
+  return queryOne<ChatRow>(
+    `select id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at
+     from public.chats where id = $1 and user_id = $2`,
+    [chatId, userId],
+  );
+}
+
 export async function createChat(input: {
   userId: string;
   title?: string;
@@ -163,5 +175,32 @@ export async function deleteChat(chatId: string, userId: string) {
     `update public.chats set status = 'deleted', updated_at = now()
      where id = $1 and user_id = $2 returning id`,
     [chatId, userId], // owner mismatch → zero rows, id undefined
+  );
+}
+
+/** Soft-archive (user action). Row stays queryable for restore; sidebar filters it. */
+export async function archiveChat(chatId: string, userId: string) {
+  return queryOne<{ id: string }>(
+    `update public.chats set status = 'archived', archived_at = coalesce(archived_at, now()), updated_at = now()
+     where id = $1 and user_id = $2 and status != 'deleted' returning id`,
+    [chatId, userId],
+  );
+}
+
+/** Reactivate an archived chat after a successful R2 restore (or best-effort). */
+export async function restoreChat(
+  chatId: string,
+  userId: string,
+  patch?: { title?: string },
+) {
+  return queryOne<ChatRow>(
+    `update public.chats set
+       status = 'active',
+       archived_at = null,
+       title = coalesce($3, title),
+       updated_at = now()
+     where id = $1 and user_id = $2 and status = 'archived'
+     returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
+    [chatId, userId, patch?.title ?? null],
   );
 }

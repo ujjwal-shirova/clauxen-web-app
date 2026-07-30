@@ -27,7 +27,9 @@ export function AgentWorkGroupView({
             {group.label}
           </AgentShimmerText>
         ) : (
-          group.label
+          // Past-tense label never shimmers — done steps must not keep the
+          // sweeping highlight when the agent starts the next step.
+          <span>{group.label}</span>
         )
       }
       trailing={trailing}

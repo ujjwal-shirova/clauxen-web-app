@@ -2,9 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
-/** Visible ink-fade — tracks token rate; starts immediately on first paint. */
-const MIN_DURATION_MS = 70;
-const MAX_DURATION_MS = 320;
+/** Soften first-token paint: settle sooner once any chunk lands. */
+const MIN_DURATION_MS = 60;
+const MAX_DURATION_MS = 240;
 const FAST_GAP_MS = 24;
 
 /**
@@ -18,20 +18,20 @@ export function computeStreamTokenDurationMs(
   let duration: number;
 
   if (elapsedSinceLastChunk <= 0) {
-    duration = 90;
+    duration = 80;
   } else if (elapsedSinceLastChunk < FAST_GAP_MS) {
     duration = Math.max(
       MIN_DURATION_MS,
-      Math.min(180, 50 + elapsedSinceLastChunk * 3.5),
+      Math.min(150, 45 + elapsedSinceLastChunk * 3),
     );
   } else {
     duration = Math.min(
       MAX_DURATION_MS,
-      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.4),
+      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.35),
     );
   }
 
-  const sizeBoost = Math.min(24, Math.sqrt(Math.max(0, chunkLength)) * 3);
+  const sizeBoost = Math.min(20, Math.sqrt(Math.max(0, chunkLength)) * 2.5);
   return Math.round(
     Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, duration + sizeBoost)),
   );
@@ -121,7 +121,7 @@ export type StreamFadeConfig = {
 
 export const DEFAULT_STREAM_FADE: StreamFadeConfig = {
   animation: "stream-token-fade",
-  animationDuration: "140ms",
+  animationDuration: "120ms",
   animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
 };
 

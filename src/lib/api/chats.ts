@@ -238,6 +238,22 @@ export async function deleteChat(chatId: string) {
   );
 }
 
+/** Soft-archive: snapshot to R2 then mark archived. */
+export async function archiveChat(chatId: string) {
+  return apiFetch<{ ok: boolean }>(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/archive`,
+    { method: "POST" },
+  );
+}
+
+/** Unarchive: restore from the R2 archive bucket back into Supabase. */
+export async function unarchiveChat(chatId: string) {
+  return apiFetch<{ ok: boolean }>(
+    `/api/v1/chats/${encodeURIComponent(chatId)}/unarchive`,
+    { method: "POST" },
+  );
+}
+
 export async function pinChat(chatId: string) {
   return apiFetch<{ pinned: unknown }>(
     `/api/v1/chats/${encodeURIComponent(chatId)}/pin`,

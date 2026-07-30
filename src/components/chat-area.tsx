@@ -58,6 +58,8 @@ interface ChatAreaProps {
     direction: "prev" | "next",
   ) => void;
   activeChatId: string | null;
+  /** Route chat that is still hydrating — blank the pane instead of the New-chat landing. */
+  blankPaneChatId?: string | null;
   /** True while hydrating messages for the active /c/[id] route. */
   messagesLoading?: boolean;
   /** Non-fatal hydrate failure for the active chat. */
@@ -114,6 +116,7 @@ function ChatAreaLayout({
   retryAssistantWithBranch,
   switchMessageBranch,
   activeChatId,
+  blankPaneChatId = null,
   messagesLoading = false,
   messagesLoadError = null,
   onRetryMessages,
@@ -163,10 +166,15 @@ function ChatAreaLayout({
   const chatSources = React.useMemo(() => collectChatSources(messages), [messages]);
 
   const isConversationStarted = messages.length > 0;
+  // Route chat hydrating — blank pane (no welcome), no skeleton copy.
+  const blankRouteHydration = Boolean(
+    blankPaneChatId && !isConversationStarted,
+  );
   const showMessageSkeleton =
     messagesLoading &&
     !isConversationStarted &&
     Boolean(activeChatId) &&
+    !blankRouteHydration &&
     !isGenerating;
   const showMessageLoadError =
     !isConversationStarted &&
@@ -439,7 +447,10 @@ function ChatAreaLayout({
               (isArtifactsPanelOpen ? "lg:pr-[392px]" : "lg:pr-28"),
           )}
         >
-          {!incognito && !isConversationStarted && !showMessageSkeleton ? (
+          {!incognito &&
+          !isConversationStarted &&
+          !showMessageSkeleton &&
+          !blankRouteHydration ? (
             <ChatViewHeader
               isConversationStarted={false}
               isGenerating={isGenerating}
@@ -461,7 +472,10 @@ function ChatAreaLayout({
           <ChatViewPane
             className="flex min-h-0 flex-1 flex-col"
             hasConversation={
-              isConversationStarted || showMessageSkeleton || showMessageLoadError
+              isConversationStarted ||
+              showMessageSkeleton ||
+              showMessageLoadError ||
+              blankRouteHydration
             }
             isGenerating={isGenerating}
             hasPromptDraft={hasPromptDraft}
@@ -473,7 +487,13 @@ function ChatAreaLayout({
             welcomeVariant={incognito ? "incognito" : "default"}
             onUpgradeClick={onUpgradeClick}
             conversation={
-              showMessageLoadError ? (
+              blankRouteHydration ? (
+                <div
+                  className="flex w-full min-w-0 max-w-full flex-1"
+                  aria-busy="true"
+                  aria-label="Loading conversation"
+                />
+              ) : showMessageLoadError ? (
                 <div className="flex w-full flex-col items-start gap-3 px-4 py-10 sm:px-6">
                   <p className="text-sm text-zinc-600">
                     {messagesLoadError || "Could not load this conversation."}

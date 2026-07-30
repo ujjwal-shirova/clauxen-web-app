@@ -18,7 +18,9 @@ export function StreamingChatTitle({
   return (
     <span
       className={cn(
-        "truncate",
+        // Width tracks content (no hard truncation) so the header button
+        // auto-sizes to the actual title length.
+        "inline-block min-w-0 max-w-full",
         isStreaming && "animate-in fade-in duration-150",
         className,
       )}

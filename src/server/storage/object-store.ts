@@ -168,6 +168,16 @@ export function buildChatArchiveKey(userId: string, chatId: string) {
   return `users/${userId}/chats/${chatId}/archive.json`;
 }
 
+/** Soft-delete tombstone — full chat snapshot under a dedicated "deleted" prefix. */
+export function buildChatDeletedArchiveKey(userId: string, chatId: string) {
+  return `deleted/users/${userId}/chats/${chatId}/archive.json`;
+}
+
+/** User-archive snapshot — kept under a separate "archived" prefix. */
+export function buildChatUserArchiveKey(userId: string, chatId: string) {
+  return `archived/users/${userId}/chats/${chatId}/archive.json`;
+}
+
 export function buildArtifactKey(
   userId: string,
   artifactId: string,
