@@ -31,7 +31,7 @@ export function ChatRightRailControls({
             aria-label="Toggle artifacts panel"
             aria-pressed={isArtifactsPanelOpen}
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-[10px] border transition-all",
+              "ui-icon-button rounded-[10px] border transition-all",
               suppressArtifactsHover && "no-hover no-hover-overlay",
               isArtifactsPanelOpen
                 ? "border-zinc-200 bg-zinc-100 text-zinc-800"
@@ -49,8 +49,9 @@ export function ChatRightRailControls({
           <button
             type="button"
             onClick={onShareClick}
+            aria-label="Share chat"
             className={cn(
-              "inline-flex h-8 min-w-[56px] items-center justify-center rounded-[10px] border border-zinc-200 bg-white px-3 text-[12px] font-medium text-zinc-800 transition-all hover:bg-zinc-50",
+              "inline-flex h-9 min-w-[56px] items-center justify-center rounded-[10px] border border-zinc-200 bg-white px-3 text-[14px] font-medium text-zinc-800 transition-all hover:bg-zinc-50",
               shareClassName,
             )}
           >

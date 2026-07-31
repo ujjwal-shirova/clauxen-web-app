@@ -125,7 +125,7 @@ export function ChatViewHeader({
       <>
         <header
           className={cn(
-            "content-pane-top-bar pointer-events-none absolute inset-x-0 top-0 flex h-[35px] items-center bg-white font-sans",
+            "content-pane-top-bar pointer-events-none absolute inset-x-0 top-0 flex items-center bg-white font-sans",
             className,
           )}
         >
@@ -174,7 +174,7 @@ export function ChatViewHeader({
               ) : null}
               {!isClient || headerControlsLoading ? (
                 <div className="inline-flex max-w-full items-center rounded-lg border border-transparent">
-                  <span className="px-1.5 py-1 text-[13px] font-medium text-zinc-800 sm:px-2">
+                  <span className="ui-chrome-text-btn px-2 text-zinc-800">
                     {displayTitle}
                   </span>
                 </div>
@@ -196,7 +196,7 @@ export function ChatViewHeader({
                             setIsEditingTitle(false);
                           }
                         }}
-                        className="h-7 w-auto min-w-[4ch] max-w-[min(70vw,420px)] rounded-l-lg border-0 bg-zinc-100 px-1.5 text-[13px] font-medium text-zinc-800 outline-none ring-0 sm:px-2"
+                        className="ui-chrome-text-btn w-auto min-w-[4ch] max-w-[min(70vw,420px)] rounded-l-lg border-0 bg-zinc-100 text-zinc-800 outline-none ring-0"
                         style={{ width: `${Math.max(editTitleValue.length, 4)}ch` }}
                         aria-label="Edit chat title"
                       />
@@ -204,7 +204,7 @@ export function ChatViewHeader({
                       <button
                         type="button"
                         onClick={startInlineEdit}
-                        className="inline-flex h-7 w-fit max-w-[min(70vw,420px)] items-center gap-1 rounded-l-lg px-1.5 text-[13px] font-medium text-zinc-800 transition-all hover:bg-zinc-100 sm:px-2"
+                        className="ui-chrome-text-btn w-fit max-w-[min(70vw,420px)] rounded-l-lg text-zinc-800 transition-all hover:bg-zinc-100"
                       >
                         <StreamingChatTitle
                           title={displayTitle}
@@ -214,12 +214,12 @@ export function ChatViewHeader({
                         {isTitleStreaming ? <TypingDots className="ml-1 shrink-0" /> : null}
                       </button>
                     )}
-                    <div className="h-7 w-px shrink-0 self-center bg-black/10" />
+                    <div className="h-5 w-px shrink-0 self-center bg-black/10" />
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
                         aria-label="Chat options"
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-r-lg text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/5"
+                        className="ui-icon-button rounded-r-lg text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/5"
                       >
                         <ChevronDown className="size-5 opacity-70" />
                       </button>
@@ -279,17 +279,17 @@ export function ChatViewHeader({
     );
   }
 
-  // Match conversation header chrome: h-7, 13px medium — not enlarged.
+  // Header chrome uses shared ui-chrome-text-btn / ui-icon-button tokens.
   const modelSwitcher = (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-7 items-center gap-0.5 rounded-lg px-1.5 text-[13px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100 data-[state=open]:bg-black/5"
+          className="ui-chrome-text-btn text-zinc-800 transition-colors hover:bg-zinc-100 data-[state=open]:bg-black/5"
           aria-label="Choose Clauxen plan"
         >
           <span>Clauxen</span>
-          <ChevronDown className="h-3 w-3 opacity-70" strokeWidth={2} />
+          <ChevronDown className="size-5 opacity-70" strokeWidth={2} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -300,32 +300,32 @@ export function ChatViewHeader({
         <button
           type="button"
           onClick={onUpgradeClick}
-          className="flex w-full items-center gap-2 rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-zinc-50"
+          className="flex w-full items-center gap-1.5 rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-zinc-50"
         >
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center text-zinc-800">
+          <span className="ui-nav-icon text-zinc-800">
             <Sparkles className="size-5" strokeWidth={1.75} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[12.5px] font-medium text-zinc-900">
+            <span className="block text-[14px] font-medium text-zinc-900">
               Clauxen Plus
             </span>
-            <span className="block text-[11px] text-zinc-500">
+            <span className="block text-[12px] text-zinc-500">
               Our smartest model & more
             </span>
           </span>
-          <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-zinc-200 bg-white px-2 text-[11.5px] font-medium text-zinc-800">
+          <span className="inline-flex h-[34px] shrink-0 items-center rounded-full border border-zinc-200 bg-white px-3 text-[12px] font-medium text-zinc-800">
             Upgrade
           </span>
         </button>
-        <div className="flex w-full items-center gap-2 rounded-[10px] px-2 py-1.5">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-[9px] font-semibold text-zinc-700">
+        <div className="flex w-full items-center gap-1.5 rounded-[10px] px-2 py-1.5">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-[9px] font-semibold text-zinc-700">
             C
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[12.5px] font-medium text-zinc-900">
+            <span className="block text-[14px] font-medium text-zinc-900">
               Clauxen
             </span>
-            <span className="block text-[11px] text-zinc-500">
+            <span className="block text-[12px] text-zinc-500">
               Great for everyday tasks
             </span>
           </span>
@@ -339,10 +339,10 @@ export function ChatViewHeader({
     <button
       type="button"
       onClick={onUpgradeClick}
-      className="inline-flex h-7 items-center gap-1 rounded-lg px-1.5 text-[13px] font-medium text-[#2f6fed] transition-colors hover:bg-[#2f6fed]/08 active:bg-[#2f6fed]/12"
+      className="ui-chrome-text-btn text-[#2f6fed] transition-colors hover:bg-[#2f6fed]/08 active:bg-[#2f6fed]/12"
       aria-label="Upgrade plan"
     >
-      <Sparkles className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+      <Sparkles className="size-5 shrink-0" strokeWidth={1.75} />
       <span>Upgrade</span>
     </button>
   );
@@ -353,7 +353,7 @@ export function ChatViewHeader({
         type="button"
         onClick={() => onOpenIncognito?.()}
         aria-label="Incognito"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+        className="ui-icon-button text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
       >
         <GhostChatIcon className="size-5" />
       </button>
@@ -363,7 +363,7 @@ export function ChatViewHeader({
   return (
     <div
       className={cn(
-        "content-pane-top-bar relative sticky top-0 z-20 flex h-[35px] w-full shrink-0 items-center justify-between gap-1 overflow-visible bg-[var(--app-panel-bg)] px-3 font-sans sm:px-4",
+        "content-pane-top-bar relative sticky top-0 z-20 flex w-full shrink-0 items-center justify-between gap-1 overflow-visible bg-[var(--app-panel-bg)] px-3 font-sans sm:px-4",
         className,
       )}
     >

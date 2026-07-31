@@ -169,12 +169,12 @@ function ShortcutKey({ children }: { children: React.ReactNode }) {
 const ProfileMenuChevron = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="14"
-    height="14"
+    width="20"
+    height="20"
     fill="currentColor"
     viewBox="0 0 256 256"
     aria-hidden="true"
-    className={cn("shrink-0 text-zinc-500", className)}
+    className={cn("size-5 shrink-0 text-zinc-500", className)}
   >
     <path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z" />
   </svg>
@@ -1048,38 +1048,38 @@ export function Sidebar({
                     "menu-trigger-active glass-sidebar-footer-account-trigger flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-black/5",
                     isCollapsed
                       ? "ui-icon-button shrink-0 items-center justify-center gap-0 rounded-full !p-0"
-                      : "h-[34px] min-w-0 flex-1 justify-start gap-1.5 rounded-md px-1.5",
+                      : "ui-nav-row--loose h-auto min-h-10 w-full justify-start gap-1.5 rounded-lg px-2.5 py-1.5",
                   )}
                 >
                   <UserAvatarDisplay
                     name={userDisplayName || "?"}
                     avatarUrl={userAvatarUrl}
                     size={isCollapsed ? "sm" : "md"}
-                    className={isCollapsed ? "h-7 w-7" : "h-7 w-7"}
+                    className="h-7 w-7 shrink-0"
                   />
                   <div
                     className={cn(
-                      "flex-1 text-left min-w-0 flex flex-col transition-opacity duration-200",
-                      isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100",
+                      "flex min-w-0 flex-1 flex-col text-left transition-opacity duration-200",
+                      isCollapsed ? "hidden w-0 opacity-0" : "opacity-100",
                     )}
                   >
                     {accountLoading || !userDisplayName ? (
                       <Skeleton className="mb-1 h-3.5 w-[7.5rem] max-w-full" variant="text" />
                     ) : (
-                      <p className="truncate text-[12.5px] font-medium leading-4 text-zinc-800">
+                      <p className="truncate text-[14px] font-medium leading-5 text-zinc-800">
                         {userDisplayName}
                       </p>
                     )}
                     {accountLoading || (Boolean(userEmail) && (planLoading || !planLabel)) ? (
                       <Skeleton className="h-3 w-[4.75rem]" variant="text" />
                     ) : planLabel ? (
-                      <p className="text-[11px] leading-3.5 text-zinc-500">
+                      <p className="text-[12px] font-medium leading-4 text-zinc-500">
                         {planLabel}
                       </p>
                     ) : null}
                   </div>
                   {!isCollapsed && (
-                    <ProfileMenuChevron className="shrink-0 opacity-80" />
+                    <ProfileMenuChevron className="opacity-80" />
                   )}
                 </button>
               </DropdownMenuTrigger>

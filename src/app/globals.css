@@ -36,6 +36,11 @@
     --nav-row-height: 34px;
     --nav-gap-tight: 3px;
     --nav-gap-loose: 6px;
+    --chat-header-height: 36px;
+    --chat-title-size: 14px;
+    --chat-user-font-size: 14px;
+    --chat-assistant-font-size: 15px;
+    --chat-message-line-height: 1.65;
     --icon-color: #18181b;
     --icon-muted: #71717a;
     --icon-subtle: #a1a1aa;
@@ -520,6 +525,31 @@ svg.lucide.icon-2xl {
   flex-shrink: 0;
 }
 
+/* Nested scroll hosts must never show focus rings (blue edge lines). */
+.sidebar-scrollable,
+.sidebar-hover-area,
+[data-scroll-region],
+[data-scroll-ready],
+[data-radix-scroll-area-viewport],
+.app-scrollbar {
+  outline: none !important;
+  box-shadow: none;
+}
+
+.sidebar-scrollable:focus,
+.sidebar-scrollable:focus-visible,
+.sidebar-hover-area:focus,
+.sidebar-hover-area:focus-visible,
+[data-scroll-region]:focus,
+[data-scroll-region]:focus-visible,
+[data-scroll-ready]:focus,
+[data-scroll-ready]:focus-visible,
+[data-radix-scroll-area-viewport]:focus,
+[data-radix-scroll-area-viewport]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Stroke scaling */
 svg.lucide:not(.lucide-custom-stroke):not([class*="stroke-["]) {
   stroke-width: var(--icon-stroke);
@@ -886,6 +916,8 @@ button.user-message-card__body:not(:disabled):hover,
   border-bottom: 0 !important;
   background: #ffffff !important;
   box-shadow: none !important;
+  height: var(--chat-header-height) !important;
+  min-height: var(--chat-header-height) !important;
 }
 
 .agent-panel .content-pane-top-bar {
@@ -893,9 +925,42 @@ button.user-message-card__body:not(:disabled):hover,
   border-top-right-radius: inherit;
 }
 
+/* Universal header chrome: icon-only = 36×36, text+icon = 34px */
 .content-pane-top-bar .ui-icon-button,
-.content-pane-top-bar .ui-button {
-  border-radius: 7px;
+.content-pane-top-bar button[aria-label="Incognito"],
+.content-pane-top-bar button[aria-label="Chat options"],
+.content-pane-top-bar button[aria-label="Toggle artifacts panel"],
+.content-pane-top-bar button[aria-label="Open navigation menu"],
+.content-pane-top-bar button[aria-label="Share chat"] {
+  box-sizing: border-box;
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  min-width: var(--icon-btn-size);
+  min-height: var(--icon-btn-size);
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.content-pane-top-bar button[aria-label="Share chat"] {
+  width: auto;
+  min-width: 56px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.content-pane-top-bar .ui-chrome-text-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: var(--nav-row-height);
+  min-height: var(--nav-row-height);
+  gap: var(--nav-gap-tight);
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 8px;
+  font-size: var(--chat-title-size);
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .content-pane-top-bar__trailing-wrap {
@@ -1296,6 +1361,10 @@ button.user-message-card__body:not(:disabled):hover,
   border-radius: 8px;
 }
 
+.glass-sidebar-docked .glass-sidebar-footer-account-trigger:not(.ui-icon-button) {
+  min-height: 40px;
+}
+
 .glass-sidebar-docked .ui-sidebar-menu-button-label,
 .glass-sidebar-docked .ui-text {
   letter-spacing: -0.006em;
@@ -1357,7 +1426,7 @@ button.user-message-card__body:not(:disabled):hover,
 
 .prose p,
 .markdown-content p {
-  line-height: 1.58 !important;
+  line-height: var(--chat-message-line-height) !important;
   letter-spacing: -0.002em;
   color: #27272a;
 }
@@ -1383,8 +1452,33 @@ button.user-message-card__body:not(:disabled):hover,
 .assistant-message {
   min-width: 0;
   max-width: 100%;
-  font-size: 14px;
+  font-size: var(--chat-assistant-font-size);
+  line-height: var(--chat-message-line-height);
+  font-weight: 400;
+  letter-spacing: -0.011em;
   overflow-anchor: none;
+}
+
+.user-message-card__body p {
+  font-size: var(--chat-user-font-size) !important;
+  font-weight: 500 !important;
+  line-height: 1.55 !important;
+  letter-spacing: -0.01em;
+}
+
+/* Message action icon buttons — same 36×36 chrome */
+.assistant-message button[aria-label="Copy message"],
+.assistant-message button[aria-label="Retry"],
+.assistant-message button[aria-label="Positive feedback"],
+.assistant-message button[aria-label="Negative feedback"],
+.assistant-message button[aria-label="Share message"],
+.assistant-message button[aria-label="More actions"] {
+  width: var(--icon-btn-size) !important;
+  height: var(--icon-btn-size) !important;
+  min-width: var(--icon-btn-size);
+  min-height: var(--icon-btn-size);
+  padding: 8px;
+  border-radius: 8px !important;
 }
 
 .markdown-content > *:first-child,

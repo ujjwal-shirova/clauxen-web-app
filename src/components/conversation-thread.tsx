@@ -293,7 +293,7 @@ const MessageRow = React.memo(
                   ) : null}
                   {message.content.trim() ? (
                     <p
-                      className="overflow-hidden whitespace-pre-wrap text-[13.5px] font-[430] leading-[1.55] text-zinc-900 sm:text-[14px] sm:leading-[1.58]"
+                      className="overflow-hidden whitespace-pre-wrap text-zinc-900"
                       style={{
                         display: "-webkit-box",
                         WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
@@ -368,7 +368,7 @@ const MessageRow = React.memo(
         ) : (
           <div
             className={cn(
-              "assistant-message group w-full min-w-0 max-w-full leading-[1.68]",
+              "assistant-message group w-full min-w-0 max-w-full",
               isAssistantGenerationError(message) &&
                 !shouldUseAgentMessageLayout(message)
                 ? "text-red-600"
@@ -390,7 +390,7 @@ const MessageRow = React.memo(
               <p
                 data-message-id={message.id}
                 data-assistant-error="true"
-                className="min-w-0 text-[15px] font-[430] leading-[1.55] text-red-600"
+                className="min-w-0 text-[15px] font-medium leading-[1.55] text-red-600"
                 role="alert"
               >
                 {toUserFacingChatError(message.content)}
@@ -482,7 +482,7 @@ const MessageRow = React.memo(
                           type="button"
                           aria-label="Copy message"
                           onClick={() => onCopy(message.id, message.content)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-zinc-100"
+                          className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                         >
                           {copiedId === message.id ? (
                             <Check className="h-4 w-4 text-emerald-600" />
@@ -495,7 +495,7 @@ const MessageRow = React.memo(
                         <button
                           type="button"
                           aria-label="Positive feedback"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-zinc-100"
+                          className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                         >
                           <ThumbsUpIcon />
                         </button>
@@ -504,7 +504,7 @@ const MessageRow = React.memo(
                         <button
                           type="button"
                           aria-label="Negative feedback"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-zinc-100"
+                          className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                         >
                           <ThumbsDownIcon />
                         </button>
@@ -514,7 +514,7 @@ const MessageRow = React.memo(
                           type="button"
                           aria-label="Retry"
                           onClick={() => onRetryAssistant(message.id)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-zinc-100"
+                          className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                         >
                           <RetryIcon />
                         </button>
@@ -536,7 +536,7 @@ const MessageRow = React.memo(
                             }
                             await navigator.clipboard.writeText(text);
                           }}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-zinc-100"
+                          className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                         >
                           <Share2 className="h-4 w-4" />
                         </button>
@@ -551,7 +551,7 @@ const MessageRow = React.memo(
                               const rect = event.currentTarget.getBoundingClientRect();
                               onToggleMoreMenu?.(message.id, rect);
                             }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
+                            className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                           >
                             <MoreHorizontal className="h-4 w-4" />
                           </button>

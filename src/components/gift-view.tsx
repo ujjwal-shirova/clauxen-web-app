@@ -259,7 +259,6 @@ export function GiftView({ onClose }: GiftViewProps) {
         <div
           className="app-scrollbar relative min-h-0 flex-[1.6] overflow-y-auto border-b border-black/5 bg-[var(--app-shell-bg)] lg:border-b-0 lg:border-r lg:border-black/5"
           data-scroll-region=""
-          tabIndex={0}
         >
           <div className="mobile-page-inset mx-auto flex min-h-full max-w-[512px] flex-col justify-center pb-8 pt-14 sm:px-8 sm:py-24 lg:pt-16">
             {step === 1 && (
