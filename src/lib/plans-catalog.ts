@@ -111,7 +111,7 @@ export const MAX_TIER_OPTIONS: Record<
 
 export const PLAN_MONTHLY_PRICES_INR = {
   free: 0,
-  go: 99,
+  go: 399,
   plus: 1_999,
   pro: 4_999,
 } as const;

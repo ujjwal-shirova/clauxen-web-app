@@ -270,6 +270,8 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     [isMobile, isSidebarCollapsed, isIncognito, setIsSidebarCollapsed],
   );
 
+  const overlayOpen = Boolean(overlays.currentOverlay);
+
   return (
     <div className={appShellRootClassName(isMobile)}>
       {!isIncognito && isMobile ? (
@@ -287,6 +289,11 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       ) : null}
 
       {!isIncognito ? (
+        <div
+          className={cn(overlayOpen && "pointer-events-none")}
+          inert={overlayOpen || undefined}
+          aria-hidden={overlayOpen || undefined}
+        >
         <Sidebar
           id="app-primary-nav"
           handleNewChat={handleNewChat}
@@ -342,17 +349,26 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           userEmail={auth.user?.email ?? ""}
           onLogoutClick={() => void auth.logout()}
         />
+        </div>
       ) : null}
 
       <main
+        data-app-main-surface=""
+        tabIndex={-1}
         data-sidebar-collapsed={
           isIncognito || (!isMobile && isSidebarCollapsed) ? "true" : undefined
         }
         data-incognito={isIncognito || undefined}
-        className={appMainShellClassName({
-          isMobile,
-          fullBleed: isIncognito || isMobileFullBleed,
-        })}
+        className={cn(
+          appMainShellClassName({
+            isMobile,
+            fullBleed: isIncognito || isMobileFullBleed,
+          }),
+          "outline-none",
+          overlayOpen && "pointer-events-none",
+        )}
+        inert={overlayOpen || undefined}
+        aria-hidden={overlayOpen || undefined}
       >
         <div
           data-component="agent-panel"

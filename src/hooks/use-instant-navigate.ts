@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { CLAUXEN_NAVIGATE_EVENT } from "@/hooks/use-document-title";
+import { focusAppSurface } from "@/lib/surface-focus";
 
 /**
  * Near-instant in-app navigation: update the URL bar immediately, then soft-sync Next.
@@ -36,6 +37,12 @@ export function useInstantNavigate() {
         router.push(pathOnly, { scroll: false });
       }
 
+      // Hand focus to the destination so wheel/hover aren't stuck on the
+      // previous sidebar control / page until the user clicks again.
+      requestAnimationFrame(() => {
+        focusAppSurface();
+      });
+
       if (hash) {
         queueMicrotask(() => {
           if (
@@ -52,6 +59,9 @@ export function useInstantNavigate() {
           window.dispatchEvent(
             new CustomEvent(CLAUXEN_NAVIGATE_EVENT, { detail: { path: full } }),
           );
+          requestAnimationFrame(() => {
+            focusAppSurface();
+          });
         });
       }
     },

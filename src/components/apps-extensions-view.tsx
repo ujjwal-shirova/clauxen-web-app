@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { ArrowLeft, Smartphone, Laptop, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { appBtn } from "@/lib/app-buttons";
 import { FullscreenPortal } from "@/components/fullscreen-portal";
+import { useOverlaySurfaceFocus } from "@/lib/surface-focus";
 
 interface AppsExtensionsViewProps {
   onClose: () => void; // back button / overlay dismiss callback
@@ -16,9 +17,11 @@ export function AppsExtensionsView({
   onClose,
   onUpgradeClick,
 }: AppsExtensionsViewProps) {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useOverlaySurfaceFocus(surfaceRef);
   return (
     <FullscreenPortal>
-    <div className="fixed inset-0 z-[200] flex min-h-0 flex-col overflow-hidden bg-zinc-50 pt-[env(safe-area-inset-top)]">
+    <div ref={surfaceRef} data-app-overlay-surface="" tabIndex={-1} className="fixed inset-0 z-[200] flex min-h-0 flex-col overflow-hidden bg-zinc-50 pt-[env(safe-area-inset-top)] outline-none">
       {/* header — centered layout with absolute-positioned back button */}
       <header className="relative z-20 flex w-full shrink-0 items-center justify-center bg-zinc-50/80 px-4 py-3.5 backdrop-blur-md sm:py-5">
         {/* back button — absolute left; onClose parent callback */}

@@ -23,6 +23,7 @@ import {
   type AppOverlayPath,
 } from "@/lib/app-routes";
 import { CLAUXEN_NAVIGATE_EVENT } from "@/hooks/use-document-title";
+import { focusAppSurface } from "@/lib/surface-focus";
 
 export type Overlay = AppOverlayPath;
 export type OverlayType = Overlay["type"];
@@ -251,6 +252,9 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
         current?.type === "settings" && next.type === "settings";
       setOverlay(next);
       writeOverlayUrl(next, tabSwitchOnly ? "replace" : "push");
+      requestAnimationFrame(() => {
+        focusAppSurface();
+      });
     },
     [pathname, writeOverlayUrl],
   );

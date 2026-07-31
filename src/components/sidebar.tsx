@@ -35,6 +35,7 @@ import { AppHref, isPlainLeftClick } from "@/components/app-href";
 import { APP_ROUTES, buildOverlayLocation } from "@/lib/app-routes";
 import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
 import { Skeleton } from "@/components/ui/skeleton";
+import { focusAppSurface } from "@/lib/surface-focus";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -284,6 +285,7 @@ export function Sidebar({
   const [recentsExpanded, setRecentsExpanded] = useState(true);
   const [planLabel, setPlanLabel] = useState<string | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -452,6 +454,17 @@ export function Sidebar({
   const runNavAction = (action: () => void) => {
     action();
     if (isMobileLayout) onNavigate?.();
+  };
+
+  const runAccountOverlayAction = (action: () => void) => {
+    setAccountMenuOpen(false);
+    // Let the menu unmount before the overlay takes focus.
+    queueMicrotask(() => {
+      runNavAction(action);
+      requestAnimationFrame(() => {
+        focusAppSurface();
+      });
+    });
   };
 
   const navButtonClass = (active = false, muted = false) =>
@@ -944,27 +957,29 @@ export function Sidebar({
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <DropdownMenu modal={!isMobileLayout}>
+              <DropdownMenu
+                modal={false}
+                open={accountMenuOpen}
+                onOpenChange={setAccountMenuOpen}
+              >
                 <DropdownMenuTrigger asChild>
                   <button
                     onClick={(e) => e.stopPropagation()}
                     onPointerDown={(e) => e.stopPropagation()}
+                    aria-label="Account menu"
                     className={cn(
-                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-zinc-100",
+                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100",
+                      accountMenuOpen && "invisible pointer-events-none",
                       isCollapsed
-                        ? "ui-icon-button shrink-0 items-center justify-center gap-0 rounded-full !p-0"
-                        : "ui-nav-row--loose h-auto min-h-10 w-full justify-start gap-2 rounded-lg px-2.5 py-1.5",
+                        ? "h-10 w-10 shrink-0 items-center justify-center rounded-full !p-0"
+                        : "h-auto min-h-[44px] w-full justify-start gap-2.5 rounded-xl px-2.5 py-2",
                     )}
                   >
                     <UserAvatarDisplay
                       name={userDisplayName || "?"}
                       avatarUrl={userAvatarUrl}
                       size="sm"
-                      className={
-                        isCollapsed
-                          ? "h-[22px] w-[22px] text-[10px]"
-                          : "h-5 w-5 shrink-0 text-[10px] leading-none"
-                      }
+                      className="h-8 w-8 shrink-0 text-[11px] leading-none"
                     />
                     <div
                       className={cn(
@@ -978,7 +993,7 @@ export function Sidebar({
                           variant="text"
                         />
                       ) : (
-                        <p className="truncate text-[13.5px] font-medium leading-4 text-zinc-800">
+                        <p className="truncate text-[14px] font-medium leading-5 text-zinc-800">
                           {userDisplayName}
                         </p>
                       )}
@@ -992,14 +1007,14 @@ export function Sidebar({
                       ) : null}
                     </div>
                     {!isCollapsed && (
-                      <ProfileMenuChevron className="opacity-80" />
+                      <ProfileMenuChevron className="size-4 opacity-80" />
                     )}
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   side="top"
-                  align={isCollapsed ? "center" : "end"}
-                  sideOffset={6}
+                  align={isCollapsed ? "center" : "start"}
+                  sideOffset={8}
                   collisionPadding={12}
                   onCloseAutoFocus={(e) => e.preventDefault()}
                   className="z-[60] w-[min(252px,calc(100vw-2rem))] rounded-xl border border-zinc-300 bg-white/85 p-1.5 font-sans shadow-lg backdrop-blur-3xl"
@@ -1013,7 +1028,7 @@ export function Sidebar({
                       onClick={(e) => {
                         if (!isPlainLeftClick(e)) return;
                         e.preventDefault();
-                        runNavAction(onSettingsClick);
+                        runAccountOverlayAction(onSettingsClick);
                       }}
                       className="ui-menu-row no-hover-overlay cursor-pointer justify-between"
                     >
@@ -1034,7 +1049,7 @@ export function Sidebar({
                         onClick={(e) => {
                           if (!isPlainLeftClick(e)) return;
                           e.preventDefault();
-                          runNavAction(onPersonalizationClick);
+                          runAccountOverlayAction(onPersonalizationClick);
                         }}
                         className="ui-menu-row no-hover-overlay cursor-pointer"
                       >
@@ -1072,7 +1087,7 @@ export function Sidebar({
                       onClick={(e) => {
                         if (!isPlainLeftClick(e)) return;
                         e.preventDefault();
-                        runNavAction(onUpgradeClick);
+                        runAccountOverlayAction(onUpgradeClick);
                       }}
                       className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
@@ -1086,7 +1101,7 @@ export function Sidebar({
                       onClick={(e) => {
                         if (!isPlainLeftClick(e)) return;
                         e.preventDefault();
-                        runNavAction(onAppsExtensionsClick);
+                        runAccountOverlayAction(onAppsExtensionsClick);
                       }}
                       className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
@@ -1100,7 +1115,7 @@ export function Sidebar({
                       onClick={(e) => {
                         if (!isPlainLeftClick(e)) return;
                         e.preventDefault();
-                        runNavAction(onGiftClick);
+                        runAccountOverlayAction(onGiftClick);
                       }}
                       className="ui-menu-row no-hover-overlay cursor-pointer"
                     >

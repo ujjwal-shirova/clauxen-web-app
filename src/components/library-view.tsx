@@ -351,7 +351,7 @@ export function LibraryView() {
         </div>
       </div>
 
-      <main className="app-scrollbar min-h-0 flex-1 overflow-y-auto">
+      <main className="app-scrollbar min-h-0 flex-1 overflow-y-auto" data-scroll-region="">
         <div className="mobile-page-inset mx-auto w-full max-w-[1120px] px-4 pb-24 pt-3 sm:px-8">
           {selected.size > 0 ? (
             <div className="mb-3 flex min-h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 dark:border-white/10 dark:bg-white/5">

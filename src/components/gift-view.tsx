@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, Link as LinkIcon, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,7 @@ import {
 } from "@/lib/plans-catalog";
 import { useCheckoutCurrency } from "@/hooks/use-checkout-currency";
 import { formatCheckoutAmountFromPaise } from "@/lib/checkout-currency";
+import { useOverlaySurfaceFocus } from "@/lib/surface-focus";
 
 interface GiftViewProps {
   onClose: () => void;
@@ -81,6 +82,8 @@ type SuccessState = {
 };
 
 export function GiftView({ onClose }: GiftViewProps) {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useOverlaySurfaceFocus(surfaceRef);
   const auth = useAuth();
   const { currency, usdInrRate } = useCheckoutCurrency();
   const [step, setStep] = useState<1 | 2>(1);
@@ -245,7 +248,7 @@ export function GiftView({ onClose }: GiftViewProps) {
 
   return (
     <FullscreenPortal>
-      <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)] font-sans lg:flex-row lg:pt-0">
+      <div ref={surfaceRef} data-app-overlay-surface="" tabIndex={-1} className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)] font-sans outline-none lg:flex-row lg:pt-0">
         <button
           type="button"
           onClick={handleBack}

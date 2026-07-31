@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import UpgradePageContent from "./subscription";
 import type { MaxTier } from "./billing-checkout";
 import { BillingCheckout } from "./billing-checkout";
@@ -12,6 +12,7 @@ import {
   getBillingInvoice,
   getBillingSubscription,
 } from "@/lib/api/billing";
+import { useOverlaySurfaceFocus } from "@/lib/surface-focus";
 
 interface UpgradeViewProps {
   onClose: () => void;
@@ -21,6 +22,8 @@ type BillingCycle = "monthly" | "yearly";
 type ViewState = "plans" | "checkout" | "invoice" | "success";
 
 export function UpgradeView({ onClose }: UpgradeViewProps) {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useOverlaySurfaceFocus(surfaceRef);
   const [currentView, setCurrentView] = useState<ViewState>("plans");
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedPlanName, setSelectedPlanName] = useState<string | null>(null);
@@ -145,7 +148,13 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
 
   return (
     <FullscreenPortal>
-      <div className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)] [scrollbar-gutter:stable]" data-scroll-region="">
+      <div
+        ref={surfaceRef}
+        data-app-overlay-surface=""
+        tabIndex={-1}
+        className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)] outline-none [scrollbar-gutter:stable]"
+        data-scroll-region=""
+      >
         {currentView === "plans" && (
           <UpgradePageContent
             key={plansRefreshKey}

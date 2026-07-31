@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import {
   isSettingsTab,
@@ -17,6 +17,7 @@ import { FullscreenPortal } from "@/components/fullscreen-portal";
 import type { SessionUser } from "@/lib/api/auth";
 import { useAuth } from "@/hooks/use-auth";
 import { useAppPreferences } from "@/contexts/app-preferences-context";
+import { focusSurface } from "@/lib/surface-focus";
 import { GeneralSettings } from "@/components/settings/general-settings";
 import { preloadChatFontCatalog } from "@/components/chat-font-loader";
 import { PersonalizationSettingsPanel } from "@/components/settings/personalization-settings";
@@ -61,6 +62,7 @@ export function SettingsModal({
   initialTab = "General",
   onTabChange,
 }: SettingsModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
   const { refresh: refreshAuth } = useAuth();
   const {
     general: preferenceGeneral,
@@ -91,6 +93,11 @@ export function SettingsModal({
   const [activeTab, setActiveTab] = useState<SettingsTab>(safeInitial);
   const [copied, setCopied] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    focusSurface(dialogRef.current);
+  }, [open]);
 
   const handleTabChange = (tab: SettingsTab) => {
     setActiveTab(tab);
@@ -376,9 +383,12 @@ export function SettingsModal({
         />
 
         <div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
+          data-app-overlay-surface=""
+          tabIndex={-1}
           className={cn(
             "fixed z-[201] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none dark:text-zinc-100",
             "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",

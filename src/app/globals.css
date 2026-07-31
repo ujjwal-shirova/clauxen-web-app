@@ -1790,7 +1790,7 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .glass-sidebar-docked .glass-sidebar-footer-account-trigger:not(.ui-icon-button) {
-  min-height: 40px;
+  min-height: 44px;
   height: auto;
 }
 
