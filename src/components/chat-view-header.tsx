@@ -219,9 +219,9 @@ export function ChatViewHeader({
                       <button
                         type="button"
                         aria-label="Chat options"
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-r-lg text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/5"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-r-lg text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/5"
                       >
-                        <ChevronDown className="icon-md opacity-70" />
+                        <ChevronDown className="size-5 opacity-70" />
                       </button>
                     </DropdownMenuTrigger>
                   </div>
@@ -303,7 +303,7 @@ export function ChatViewHeader({
           className="flex w-full items-center gap-2 rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-zinc-50"
         >
           <span className="flex h-6 w-6 shrink-0 items-center justify-center text-zinc-800">
-            <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <Sparkles className="size-5" strokeWidth={1.75} />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[12.5px] font-medium text-zinc-900">
@@ -329,7 +329,7 @@ export function ChatViewHeader({
               Great for everyday tasks
             </span>
           </span>
-          <Check className="h-3.5 w-3.5 shrink-0 text-zinc-900" strokeWidth={2.25} />
+          <Check className="size-5 shrink-0 text-zinc-900" strokeWidth={2.25} />
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -353,9 +353,9 @@ export function ChatViewHeader({
         type="button"
         onClick={() => onOpenIncognito?.()}
         aria-label="Incognito"
-        className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
       >
-        <GhostChatIcon className="h-[15px] w-[15px]" />
+        <GhostChatIcon className="size-5" />
       </button>
     </HintTooltip>
   );

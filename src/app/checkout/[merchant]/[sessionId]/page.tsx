@@ -34,6 +34,7 @@ export default async function CheckoutSessionPage({
   return (
     <div
       data-checkout-scroll=""
+      data-scroll-region=""
       className="fixed inset-0 overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)] [scrollbar-gutter:stable]"
     >
       <CheckoutSessionClient

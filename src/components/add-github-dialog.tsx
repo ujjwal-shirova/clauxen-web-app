@@ -121,17 +121,17 @@ export function AddGitHubDialog({
               className="flex min-w-0 max-w-[280px] items-center gap-1 truncate rounded-md border border-zinc-200 px-2 py-1 text-left text-[14px] font-[430] text-zinc-700 hover:bg-black/[0.02]"
             >
               <span className="truncate">{MOCK_REPO}</span>
-              <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+              <ChevronDown className="size-5 shrink-0 opacity-60" />
             </button>
             <button
               type="button"
-              className={cn(appBtn.ghostIcon, "h-8 w-8 text-zinc-700")}
+              className={cn(appBtn.ghostIcon, "text-zinc-700")}
               aria-label="Paste GitHub URL"
             >
-              <Link2 className="h-4 w-4" />
+              <Link2 className="size-5" />
             </button>
             <div className="relative min-w-[120px] flex-1">
-              <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[#898781]" />
+              <Search className="absolute left-2 top-1/2 size-5 -translate-y-1/2 text-[#898781]" />
               <input
                 type="search"
                 placeholder="Search files"
@@ -155,7 +155,7 @@ export function AddGitHubDialog({
                       setSelected(new Set());
                     }
                   }}
-                  className="h-4 w-4 rounded border border-zinc-200 accent-zinc-900"
+                  className="size-5 rounded border border-zinc-200 accent-zinc-900"
                 />
                 Select directory
               </label>
@@ -173,7 +173,7 @@ export function AddGitHubDialog({
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggle(file.name)}
-                      className="h-4 w-4 shrink-0 rounded border border-zinc-200 accent-zinc-900"
+                      className="size-5 shrink-0 rounded border border-zinc-200 accent-zinc-900"
                     />
                     <span className="min-w-0 flex-1 truncate text-[14px] text-zinc-700">
                       {file.name}

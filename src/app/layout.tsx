@@ -6,6 +6,7 @@ import { SavedNotificationHost } from "@/components/saved-notification";
 import { ClientTelemetry } from "@/components/client-telemetry";
 import { ChunkLoadRecovery } from "@/components/chunk-load-recovery";
 import { ChatFontLoader } from "@/components/chat-font-loader";
+import { HoverScrollEnabler } from "@/components/hover-scroll-enabler";
 import { AppNotificationsProvider } from "@/hooks/use-app-notifications";
 import { AppNotificationHost } from "@/components/app-notifications/app-notification-host";
 import { AuthProvider } from "@/contexts/auth-context";
@@ -121,6 +122,7 @@ export default function RootLayout({
             <AppNotificationsProvider>
               <ChunkLoadRecovery />
               <ChatFontLoader />
+              <HoverScrollEnabler />
               {children}
               <ClientToaster />
               <SavedNotificationHost />

@@ -29,8 +29,13 @@
     --ring: 240 5.9% 10%;
     --panel-edge: 240 5.9% 90%;
     --radius: 8px;
-    --icon-size: 16px;
+    /* App chrome icon/button scale (ChatGPT-like) */
+    --icon-size: 20px;
     --icon-stroke: 1.75;
+    --icon-btn-size: 36px;
+    --nav-row-height: 34px;
+    --nav-gap-tight: 3px;
+    --nav-gap-loose: 6px;
     --icon-color: #18181b;
     --icon-muted: #71717a;
     --icon-subtle: #a1a1aa;
@@ -439,7 +444,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   will-change: opacity, transform;
 }
 
-/* Lucide icon system — crisp, professional scale */
+/* Lucide icon system — crisp, professional 20px default */
 svg.lucide {
   width: var(--icon-size);
   height: var(--icon-size);
@@ -475,6 +480,44 @@ svg.lucide.icon-xl {
 svg.lucide.icon-2xl {
   width: 24px;
   height: 24px;
+}
+
+/* App chrome: icon-only control = 36×36 with 8px pad around 20px icon */
+.ui-icon-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  min-width: var(--icon-btn-size);
+  min-height: var(--icon-btn-size);
+  padding: 8px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+/* Text + icon nav row */
+.ui-nav-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: var(--nav-row-height);
+  min-height: var(--nav-row-height);
+  gap: var(--nav-gap-tight);
+}
+
+.ui-nav-row--loose {
+  gap: var(--nav-gap-loose);
+}
+
+.ui-nav-icon {
+  display: inline-flex;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Stroke scaling */
@@ -528,7 +571,7 @@ nav.sidebar-hover-area {
 .sidebar-scrollable [role="button"] {
   border-radius: 8px !important;
   color: #27272a !important;
-  font-weight: 430 !important;
+  font-weight: 500 !important;
 }
 
 .sidebar-scrollable button:hover,
@@ -563,7 +606,7 @@ nav.sidebar-hover-area {
 [role="menuitem"],
 .dropdown-menu-item {
   border-radius: 8px !important;
-  font-weight: 430 !important;
+  font-weight: 500 !important;
   transition: background-color 0.15s ease !important;
 }
 
@@ -1200,16 +1243,22 @@ button.user-message-card__body:not(:disabled):hover,
 
 .glass-sidebar-docked .ui-icon-button,
 .glass-sidebar-docked button[aria-label="Toggle sidebar"],
-.glass-sidebar-docked button[aria-label="Hide Sidebar"] {
-  min-width: 28px;
-  min-height: 28px;
-  border-radius: 7px;
+.glass-sidebar-docked button[aria-label="Hide Sidebar"],
+.glass-sidebar-docked button[aria-label="Expand sidebar"],
+.glass-sidebar-docked button[aria-label="Close menu"] {
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  min-width: var(--icon-btn-size);
+  min-height: var(--icon-btn-size);
+  padding: 8px;
+  border-radius: 8px;
 }
 
 .glass-sidebar-docked .ui-sidebar-menu-button,
 .glass-sidebar-docked .glass-sidebar-agent-menu-btn {
-  min-height: 28px;
-  border-radius: 7px;
+  min-height: var(--nav-row-height);
+  height: var(--nav-row-height);
+  border-radius: 8px;
 }
 
 .glass-sidebar-docked .ui-sidebar-menu-button:hover,
@@ -1255,16 +1304,20 @@ button.user-message-card__body:not(:disabled):hover,
 .sidebar-scrollable,
 .code-scrollbars,
 [data-radix-scroll-area-viewport],
+[data-scroll-region],
 .overflow-y-auto,
 .overflow-x-auto,
 .overflow-auto {
   scrollbar-width: thin;
   scrollbar-color: rgba(24, 24, 27, 0.22) transparent;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sidebar-scrollable::-webkit-scrollbar,
 .code-scrollbars::-webkit-scrollbar,
 [data-radix-scroll-area-viewport]::-webkit-scrollbar,
+[data-scroll-region]::-webkit-scrollbar,
 .overflow-y-auto::-webkit-scrollbar,
 .overflow-x-auto::-webkit-scrollbar,
 .overflow-auto::-webkit-scrollbar {
@@ -1275,6 +1328,7 @@ button.user-message-card__body:not(:disabled):hover,
 .sidebar-scrollable::-webkit-scrollbar-track,
 .code-scrollbars::-webkit-scrollbar-track,
 [data-radix-scroll-area-viewport]::-webkit-scrollbar-track,
+[data-scroll-region]::-webkit-scrollbar-track,
 .overflow-y-auto::-webkit-scrollbar-track,
 .overflow-x-auto::-webkit-scrollbar-track,
 .overflow-auto::-webkit-scrollbar-track {
@@ -1284,6 +1338,7 @@ button.user-message-card__body:not(:disabled):hover,
 .sidebar-scrollable::-webkit-scrollbar-thumb,
 .code-scrollbars::-webkit-scrollbar-thumb,
 [data-radix-scroll-area-viewport]::-webkit-scrollbar-thumb,
+[data-scroll-region]::-webkit-scrollbar-thumb,
 .overflow-y-auto::-webkit-scrollbar-thumb,
 .overflow-x-auto::-webkit-scrollbar-thumb,
 .overflow-auto::-webkit-scrollbar-thumb {

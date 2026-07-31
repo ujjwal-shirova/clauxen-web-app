@@ -113,16 +113,16 @@ export function ProjectsViewMobile({
             type="button"
             onClick={onNewProject}
             aria-label="New project"
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-white shadow-sm active:scale-95"
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-900 text-white shadow-sm active:scale-95"
           >
-            <Plus className="h-4 w-4" strokeWidth={2.25} />
+            <Plus className="size-5" strokeWidth={2.25} />
           </button>
         }
       />
 
       <div className="shrink-0 border-b border-zinc-100 bg-white px-3 pb-3 pt-1 sm:px-4">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-zinc-400" />
           <input
             type="search"
             value={query}

@@ -631,7 +631,7 @@ export function BillingSettings({
 
       {invoiceView && (
         <FullscreenPortal>
-          <div className="fixed inset-0 z-[210] overflow-y-auto bg-[var(--app-shell-bg)]">
+          <div className="fixed inset-0 z-[210] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)]" data-scroll-region="">
             <InvoiceView
               data={invoiceView}
               onClose={() => setInvoiceView(null)}

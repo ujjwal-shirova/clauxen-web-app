@@ -122,7 +122,7 @@ export function ProjectCard({
                 type="button"
                 aria-label={`More options for ${project.name}`}
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/40"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/40"
               >
                 <MoreHorizontal className="h-5 w-5" strokeWidth={1.5} />
               </button>

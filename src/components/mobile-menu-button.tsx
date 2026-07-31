@@ -24,11 +24,11 @@ export function MobileMenuButton({
       aria-controls={ariaControls}
       onClick={onClick}
       className={cn(
-        "flex h-8 w-8 shrink-0 touch-manipulation items-center justify-center rounded-lg border border-zinc-200/70 bg-white text-zinc-600 shadow-[0_1px_2px_rgba(24,24,27,0.03)] transition-colors hover:border-zinc-300/80 hover:bg-zinc-50 lg:hidden",
+        "ui-icon-button shrink-0 touch-manipulation border border-zinc-200/70 bg-white text-zinc-600 shadow-[0_1px_2px_rgba(24,24,27,0.03)] transition-colors hover:border-zinc-300/80 hover:bg-zinc-50 lg:hidden",
         className,
       )}
     >
-      <Menu className="h-[15px] w-[15px] stroke-[2.25]" aria-hidden />
+      <Menu className="size-5 stroke-[1.75]" aria-hidden />
     </button>
   );
 }

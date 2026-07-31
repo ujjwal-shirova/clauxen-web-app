@@ -266,3 +266,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 - 2026-07-19: Deleted former guest billing test user `test-razorpay@clauxen.com` (uid `396021a9-ba81-4e17-adad-cae2514136df`) from Supabase Auth + related public rows; login no longer possible.
 
 | 2026-07-30 | Gift flow: claim_token + hosted gift checkout (no Razorpay Standard) + CF gift emails + /gift/claim popup | Complete gift purchase → pay → email → claim product |
+
+| 2026-07-31 | Gift recipient email shows purchaser note (HTML + plaintext via clauxen-billing); HoverScrollEnabler lives in root layout and primes scroll hosts on mount so nested overflow works without a prior click. | Gift note must appear in sent email; body overflow:hidden needs proactive wheel routing. |
+
+| 2026-07-31 | App chrome icon/button scale: icons 20×20; icon-only buttons 36×36 (8px pad); text+icon rows 34px with 3px gap (primary) or 6px gap (secondary). Tokens in globals (--icon-size, --icon-btn-size, --nav-row-height, --nav-gap-*). | Match ChatGPT-like sidebar density and consistency across pages. |

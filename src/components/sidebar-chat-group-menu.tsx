@@ -44,7 +44,7 @@ export function SidebarChatGroupMenu({
           onClick={onClick}
           className={sidebarGroupTriggerClass}
         >
-          <SlidersVertical className="h-4 w-4 shrink-0 opacity-80" strokeWidth={1.75} />
+          <SlidersVertical className="size-5 shrink-0 opacity-80" strokeWidth={1.75} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

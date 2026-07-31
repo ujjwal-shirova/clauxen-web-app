@@ -57,6 +57,32 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Preserve line breaks from the gift note textarea in HTML email. */
+function escapeHtmlMultiline(value: string): string {
+  return escapeHtml(value).replace(/\r\n|\r|\n/g, "<br>");
+}
+
+function giftNoteHtml(senderName: string, message: string | null | undefined): string {
+  const note = message?.trim();
+  if (!note) return "";
+  const label = senderName.trim()
+    ? `Note from ${escapeHtml(senderName.trim())}`
+    : "Gift note";
+  return `<div style="margin:16px 0;padding:14px 16px;background:#fafafa;border:1px solid #e4e4e7;border-radius:12px;">
+    <div style="margin:0 0 8px;font-size:12px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;color:#71717a;">${label}</div>
+    <p style="margin:0;font-size:15px;line-height:1.55;color:#3f3f46;white-space:pre-wrap;">${escapeHtmlMultiline(note)}</p>
+  </div>`;
+}
+
+function giftNoteText(senderName: string, message: string | null | undefined): string {
+  const note = message?.trim();
+  if (!note) return "";
+  const label = senderName.trim()
+    ? `Note from ${senderName.trim()}`
+    : "Gift note";
+  return `\n\n${label}:\n${note}\n`;
+}
+
 function appOrigin(env: BillingEmailEnv): string {
   const raw = (env.APP_ORIGIN || "https://www.clauxen.com").trim().replace(/\/$/, "");
   try {
@@ -136,9 +162,8 @@ export async function sendBillingEmail(
     const title = isShare
       ? `Share your ${payload.planName} gift`
       : `You are gifted ${payload.planName} of Clauxen`;
-    const note = payload.message?.trim()
-      ? `<p style="margin:12px 0;font-size:14px;color:#52525b;padding:12px 14px;background:#fafafa;border-radius:12px;">${escapeHtml(payload.message.trim())}</p>`
-      : "";
+    const noteHtml = giftNoteHtml(payload.senderName, payload.message);
+    const noteText = giftNoteText(payload.senderName, payload.message);
     html = wrapEmail(
       title,
       `<p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3f3f46;">
@@ -148,13 +173,13 @@ export async function sendBillingEmail(
             : `${escapeHtml(payload.senderName)} gifted you <strong>${escapeHtml(payload.monthsLabel)}</strong> of <strong>${escapeHtml(payload.planName)}</strong> on Clauxen. Claim it to activate your plan. Gifts do not auto-renew.`
         }
       </p>
-      ${note}
+      ${noteHtml}
       ${claimButton(payload.claimUrl)}`,
       "This gift email was sent by Clauxen. If you were not expecting it, you can ignore this message.",
     );
     text = isShare
-      ? `Share your Clauxen gift (${payload.planName}, ${payload.monthsLabel}): ${payload.claimUrl}`
-      : `You are gifted ${payload.planName} of Clauxen (${payload.monthsLabel}) from ${payload.senderName}. Claim: ${payload.claimUrl}`;
+      ? `Share your Clauxen gift (${payload.planName}, ${payload.monthsLabel}): ${payload.claimUrl}${noteText}`
+      : `You are gifted ${payload.planName} of Clauxen (${payload.monthsLabel}) from ${payload.senderName}.${noteText}Claim: ${payload.claimUrl}`;
   } else {
     const updated = payload.kind === "billing_address_updated";
     subject = updated

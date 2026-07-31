@@ -182,7 +182,7 @@ function ConnectorListItem({
       <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-zinc-800">
         {item.name}
       </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-500 md:hidden" />
+      <ChevronRight className="size-5 shrink-0 text-zinc-500 md:hidden" />
     </button>
   );
 }
@@ -272,17 +272,17 @@ export function ConnectorsView({ onMobileDetailChange }: ConnectorsViewProps) {
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
             aria-label="Search connectors"
           >
-            <Search className="h-4 w-4" />
+            <Search className="size-5" />
           </button>
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-100"
             aria-label="Add connector"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="size-5" />
           </button>
         </div>
       </div>
@@ -370,7 +370,7 @@ export function ConnectorsView({ onMobileDetailChange }: ConnectorsViewProps) {
                   disabled={connecting || !auth.isAuthenticated}
                   className={cn(appBtn.primaryLgAuto, "max-w-xs sm:px-8")}
                 >
-                  {connecting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {connecting && <Loader2 className="size-5 animate-spin" />}
                   {isConnected
                     ? "Disconnect"
                     : `Connect ${currentConnector.name}`}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Check, Link as LinkIcon, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -105,16 +105,6 @@ export function GiftView({ onClose }: GiftViewProps) {
   const currentDuration =
     durations.find((d) => d.id === selectedDuration) || durations[2];
   const total = currentPlan.monthlyPrice * currentDuration.months;
-
-  const previewTints = useMemo(() => {
-    const base = selectedColor.value;
-    return {
-      waveA: `color-mix(in srgb, ${base} 88%, white)`,
-      waveB: `color-mix(in srgb, ${base} 62%, white)`,
-      waveC: `color-mix(in srgb, ${base} 45%, black)`,
-      glow: `color-mix(in srgb, ${base} 35%, transparent)`,
-    };
-  }, [selectedColor.value]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -260,10 +250,10 @@ export function GiftView({ onClose }: GiftViewProps) {
         <button
           type="button"
           onClick={handleBack}
-          className="absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[110] rounded-lg p-2 transition-all hover:bg-zinc-100/80 sm:left-6 sm:top-6"
+          className="ui-icon-button absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[110] text-zinc-800 transition-all hover:bg-zinc-100/80 sm:left-6 sm:top-6"
           aria-label="Back"
         >
-          <ArrowLeft className="h-5 w-5 text-zinc-800" />
+          <ArrowLeft className="size-5" />
         </button>
 
         <div
@@ -547,80 +537,61 @@ export function GiftView({ onClose }: GiftViewProps) {
         </div>
 
         <div className="flex shrink-0 flex-col items-center justify-center bg-zinc-100/80 p-5 sm:p-8 lg:sticky lg:top-0 lg:h-full lg:flex-1">
-          <div className="relative flex scale-[0.92] flex-col items-center gap-4 transition-all duration-500 animate-in zoom-in-95 sm:scale-100 lg:scale-[1.25]">
-            <div className="relative w-[min(100%,240px)] sm:w-[288px]">
+          <div className="relative flex scale-[0.92] flex-col items-center gap-4 transition-all duration-500 animate-in zoom-in-95 sm:scale-100 lg:scale-[1.2]">
+            <div className="relative w-[min(100%,248px)] sm:w-[300px]">
               <div
                 className="relative overflow-hidden transition-colors duration-500"
                 style={{
                   aspectRatio: "3 / 2",
                   backgroundColor: selectedColor.value,
-                  borderRadius: "16px",
+                  borderRadius: "18px",
                   boxShadow:
-                    "inset 0 0 0 1px rgba(255,255,255,0.28), 0 14px 28px -8px rgba(0,0,0,0.22)",
+                    "0 18px 40px -16px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.18)",
                 }}
               >
+                {/* Soft horizontal wave bands — follow selected color */}
                 <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                  <div
-                    className="absolute -left-14 top-0 h-28 w-72 rounded-[999px] opacity-80 blur-2xl"
-                    style={{
-                      background: `linear-gradient(90deg, ${previewTints.waveA} 0%, ${previewTints.waveB} 55%, ${previewTints.glow} 100%)`,
-                      transform: "rotate(-14deg)",
-                    }}
-                  />
-                  <div
-                    className="absolute -right-16 top-10 h-24 w-72 rounded-[999px] opacity-70 blur-2xl"
-                    style={{
-                      background: `linear-gradient(90deg, ${previewTints.glow} 0%, ${previewTints.waveA} 52%, ${previewTints.waveB} 100%)`,
-                      transform: "rotate(18deg)",
-                    }}
-                  />
-                  <div
-                    className="absolute -left-16 bottom-6 h-24 w-80 rounded-[999px] opacity-65 blur-2xl"
-                    style={{
-                      background: `linear-gradient(90deg, ${previewTints.waveB} 0%, ${previewTints.waveC} 50%, ${previewTints.waveA} 100%)`,
-                      transform: "rotate(6deg)",
-                    }}
-                  />
                   <svg
-                    viewBox="0 0 288 192"
+                    viewBox="0 0 300 200"
                     aria-hidden="true"
-                    className="absolute inset-0 h-full w-full opacity-75"
+                    className="absolute inset-0 h-full w-full"
                     preserveAspectRatio="none"
                   >
                     <path
-                      d="M-18 58C18 32 58 28 104 42C150 56 194 64 238 46C266 34 286 30 316 40"
+                      d="M-20 52C40 28 90 34 150 52C210 70 250 58 320 40"
                       fill="none"
-                      stroke="rgba(255,255,255,0.55)"
-                      strokeWidth="14"
+                      stroke="rgba(255,248,240,0.55)"
+                      strokeWidth="18"
                       strokeLinecap="round"
                     />
                     <path
-                      d="M-24 92C14 68 52 66 96 80C144 96 190 104 234 88C262 78 286 74 316 82"
+                      d="M-20 88C50 64 110 70 170 88C230 106 270 94 320 78"
                       fill="none"
-                      stroke="rgba(255,255,255,0.35)"
-                      strokeWidth="10"
+                      stroke="rgba(255,255,255,0.42)"
+                      strokeWidth="16"
                       strokeLinecap="round"
                     />
                     <path
-                      d="M-18 132C26 112 70 114 116 126C164 140 208 144 250 128C278 118 298 114 320 120"
+                      d="M-20 124C45 104 105 110 165 126C225 142 265 132 320 118"
                       fill="none"
-                      stroke="rgba(0,0,0,0.08)"
-                      strokeWidth="12"
+                      stroke="rgba(255,245,235,0.48)"
+                      strokeWidth="15"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M-20 158C55 140 115 146 175 160C235 174 270 166 320 152"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.32)"
+                      strokeWidth="13"
                       strokeLinecap="round"
                     />
                   </svg>
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background: `radial-gradient(circle at 50% 36%, ${previewTints.glow}, transparent 42%)`,
-                    }}
-                  />
                 </div>
 
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center">
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 px-4">
                   <GiftAnimation />
-                  <div className="mt-[6px] text-center">
-                    <div className="text-[12px] font-semibold leading-[16.8px] text-zinc-900 drop-shadow-sm">
+                  <div className="text-center">
+                    <div className="text-[13px] font-semibold leading-5 tracking-[-0.01em] text-zinc-900">
                       {currentDuration.label} of Clauxen {currentPlan.name}
                     </div>
                   </div>

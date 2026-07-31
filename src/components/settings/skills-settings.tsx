@@ -25,10 +25,10 @@ export function SkillsSettings({ onBrowse, onAdd }: SkillsSettingsProps) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100"
             aria-label="Search skills"
           >
-            <Search className="h-4 w-4" />
+            <Search className="size-5" />
           </button>
           <SettingsPillButton onClick={onBrowse}>Browse</SettingsPillButton>
           <SettingsPillButton onClick={onAdd}>

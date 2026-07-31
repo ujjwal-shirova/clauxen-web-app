@@ -115,7 +115,7 @@ function SidebarSectionLabel({
           onToggle();
         }}
         aria-expanded={expanded}
-        className="label-hover-bold no-hover-overlay group/section flex min-w-0 items-center gap-0.5 bg-transparent p-0 text-left text-[11px] font-medium tracking-[-0.002em] text-zinc-500/90 hover:text-zinc-800"
+        className="label-hover-bold no-hover-overlay group/section flex min-w-0 items-center gap-0.5 bg-transparent p-0 text-left text-[13px] font-semibold tracking-[-0.01em] text-zinc-800 hover:text-zinc-950"
       >
         <span className="truncate">{label}</span>
         <ChevronRight
@@ -408,7 +408,7 @@ export function Sidebar({
         data-active={isActive ? "true" : undefined}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors",
+          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-lg px-2.5 text-[14px] font-medium text-zinc-800 transition-colors",
           isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
         )}
       >
@@ -422,8 +422,8 @@ export function Sidebar({
           }}
           className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
         >
-          <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-zinc-500">
-            <NavProjectsIcon className="h-[18px] w-[18px]" />
+          <span className="ui-nav-icon text-zinc-500">
+            <NavProjectsIcon className="size-5" />
           </span>
           <span className="min-w-0 flex-1 truncate">
             {project.name || "Untitled project"}
@@ -474,13 +474,13 @@ export function Sidebar({
 
   const navButtonClass = (active = false, muted = false) =>
     cn(
-      "ui-sidebar-menu-button mb-0 flex h-9 w-full items-center rounded-lg text-[13px] font-[430] leading-[18px] transition-all duration-75 hover:bg-zinc-100",
+      "ui-sidebar-menu-button mb-0 w-full rounded-lg text-[14px] font-medium leading-5 transition-all duration-75 hover:bg-zinc-100",
       muted
         ? "text-zinc-400 hover:text-zinc-500"
         : "text-zinc-800",
       isCollapsed
-        ? "mx-auto h-9 w-9 justify-center"
-        : "justify-start px-2.5",
+        ? "ui-icon-button mx-auto justify-center gap-0 px-0"
+        : "ui-nav-row justify-start px-2.5",
       active && "bg-black/[0.06]",
     );
 
@@ -493,6 +493,7 @@ export function Sidebar({
     muted = false,
     trailing,
     replace = false,
+    looseGap = false,
   }: {
     label: string;
     icon: React.ReactNode;
@@ -502,19 +503,18 @@ export function Sidebar({
     muted?: boolean;
     trailing?: React.ReactNode;
     replace?: boolean;
+    /** Block 2 (submenu / secondary) uses 6px icon–label gap */
+    looseGap?: boolean;
   }) => {
     const body = (
       <div
-        className={cn("flex min-w-0 items-center gap-2", !isCollapsed && "w-full")}
+        className={cn(
+          "flex min-w-0 items-center",
+          looseGap ? "gap-1.5" : "gap-[3px]",
+          !isCollapsed && "w-full",
+        )}
       >
-        <div
-          className={cn(
-            "flex h-[18px] w-[18px] shrink-0 items-center justify-center",
-            muted && "opacity-60",
-          )}
-        >
-          {icon}
-        </div>
+        <div className={cn("ui-nav-icon", muted && "opacity-60")}>{icon}</div>
         {!isCollapsed && (
           <span className={cn("truncate", muted && "text-zinc-400")}>
             {label}
@@ -586,7 +586,7 @@ export function Sidebar({
         data-active={isActive ? "true" : undefined}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors",
+          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-lg px-2.5 text-[14px] font-medium text-zinc-800 transition-colors",
           // One continuous row highlight — never nest hover/selection on
           // the title button or pin/menu actions.
           isActive ? "bg-black/[0.06]" : "hover:bg-zinc-100",
@@ -725,7 +725,7 @@ export function Sidebar({
         </div>
 
         {isCollapsed && !isMobileLayout ? (
-          <div className="group/sidebar-logo absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+          <div className="group/sidebar-logo absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
             <img
               src={CLAUXEN_LOGO_SRC}
               alt="Clauxen"
@@ -743,11 +743,11 @@ export function Sidebar({
               disabled={isCustomizeActive}
               aria-label="Expand sidebar"
               className={cn(
-                "absolute inset-0 inline-flex items-center justify-center rounded-md p-1.5 text-zinc-500 opacity-0 transition-all duration-200 hover:bg-zinc-100 group-hover/sidebar-logo:opacity-100",
+                "ui-icon-button absolute inset-0 text-zinc-500 opacity-0 transition-all duration-200 hover:bg-zinc-100 group-hover/sidebar-logo:opacity-100",
                 isCustomizeActive && "cursor-not-allowed opacity-0",
               )}
             >
-              <SidebarOpenIcon className="h-[18px] w-[18px]" />
+              <SidebarOpenIcon className="size-5" />
             </button>
           </div>
         ) : (
@@ -761,16 +761,16 @@ export function Sidebar({
               isMobileLayout && !isCollapsed ? "Close menu" : "Toggle sidebar"
             }
             className={cn(
-              "ui-icon-button rounded-md p-1.5 text-zinc-500 transition-all duration-200 hover:bg-zinc-100",
+              "ui-icon-button text-zinc-500 transition-all duration-200 hover:bg-zinc-100",
               isCustomizeActive && "cursor-not-allowed opacity-30",
             )}
           >
             {isMobileLayout && !isCollapsed ? (
-              <X className="h-[18px] w-[18px]" />
+              <X className="size-5" />
             ) : isCollapsed ? (
-              <SidebarOpenIcon className="h-[18px] w-[18px]" />
+              <SidebarOpenIcon className="size-5" />
             ) : (
-              <SidebarToggleIcon className="h-[18px] w-[18px]" />
+              <SidebarToggleIcon className="size-5" />
             )}
           </button>
         )}
@@ -797,7 +797,7 @@ export function Sidebar({
                 aria-label="New chat"
                 className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
               >
-                <NewChatBubbleIcon className="h-[17px] w-[17px]" />
+                <NewChatBubbleIcon className="size-5" />
               </AppHref>
             ) : (
               <AppHref
@@ -810,10 +810,10 @@ export function Sidebar({
                   handleNewChat();
                 }}
                 aria-label="New chat"
-                className="group flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/90 bg-white px-2.5 text-[13px] font-[450] text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
+                className="group flex h-[34px] w-full items-center justify-between gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-2.5 text-[14px] font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
               >
-                <span className="flex min-w-0 items-center gap-2">
-                  <NewChatBubbleIcon className="h-[17px] w-[17px] shrink-0 text-zinc-800" />
+                <span className="flex min-w-0 items-center gap-[3px]">
+                  <NewChatBubbleIcon className="size-5 shrink-0 text-zinc-800" />
                   <span className="truncate">New Chat</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-1">
@@ -829,7 +829,7 @@ export function Sidebar({
           {/* New Chat pill is above — nav order: My Clauxen → Image → Library → Scheduled → Customize */}
           {renderNavButton({
             label: "My Clauxen",
-            icon: <UserRound className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+            icon: <UserRound className="size-5" strokeWidth={1.75} />,
             href: APP_ROUTES.myClauxen,
             onClick: () => {
               (onMyClauxenClick ?? onPersonalizationClick ?? onCustomizeClick)?.();
@@ -839,7 +839,7 @@ export function Sidebar({
 
           {renderNavButton({
             label: "Image",
-            icon: <ImageIcon className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+            icon: <ImageIcon className="size-5" strokeWidth={1.75} />,
             onClick: () =>
               runNavAction(() => {
                 onImageClick?.();
@@ -849,7 +849,7 @@ export function Sidebar({
 
           {renderNavButton({
             label: "Library",
-            icon: <Library className="h-[18px] w-[18px]" />,
+            icon: <Library className="size-5" />,
             href: APP_ROUTES.library,
             onClick: onLibraryClick,
             active: activeView === "library",
@@ -858,7 +858,7 @@ export function Sidebar({
           {renderNavButton({
             label: "Scheduled Task",
             icon: (
-              <CalendarClock className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              <CalendarClock className="size-5" strokeWidth={1.75} />
             ),
             href: APP_ROUTES.scheduledTasks,
             onClick: () => onScheduledTasksClick?.(),
@@ -869,7 +869,7 @@ export function Sidebar({
             label: "Customize",
             icon: (
               <SlidersHorizontal
-                className="h-[18px] w-[18px]"
+                className="size-5"
                 strokeWidth={1.75}
               />
             ),
@@ -880,7 +880,7 @@ export function Sidebar({
 
           {renderNavButton({
             label: moreExpanded ? "Collapse" : "More",
-            icon: <Ellipsis className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+            icon: <Ellipsis className="size-5" strokeWidth={1.75} />,
             muted: moreExpanded,
             onClick: () => {
               if (isCollapsed) {
@@ -909,32 +909,35 @@ export function Sidebar({
             >
               {renderNavButton({
                 label: "Clauxen Code",
-                icon: <Code2 className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+                icon: <Code2 className="size-5" strokeWidth={1.75} />,
                 onClick: () =>
                   runNavAction(() => {
                     onClauxenCodeClick?.();
                   }),
                 active: activeView === "clauxen-code",
+                looseGap: true,
               })}
               {renderNavButton({
                 label: "Clauxen Work",
                 icon: (
-                  <Briefcase className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  <Briefcase className="size-5" strokeWidth={1.75} />
                 ),
                 onClick: () =>
                   runNavAction(() => {
                     onClauxenWorkClick?.();
                   }),
                 active: activeView === "clauxen-work",
+                looseGap: true,
               })}
               {renderNavButton({
                 label: "Clauxen Claw",
-                icon: <Bot className="h-[18px] w-[18px]" strokeWidth={1.75} />,
+                icon: <Bot className="size-5" strokeWidth={1.75} />,
                 onClick: () =>
                   runNavAction(() => {
                     onClauxenClawClick?.();
                   }),
                 active: activeView === "clauxen-claw",
+                looseGap: true,
               })}
             </SidebarSectionBody>
           ) : null}
@@ -972,10 +975,10 @@ export function Sidebar({
                     onNewProjectClick?.();
                     if (isMobileLayout) onNavigate?.();
                   }}
-                  className="group/chat glass-sidebar-agent-menu-btn flex h-8 w-full items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100"
+                  className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-lg px-2.5 text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100"
                 >
                   <Plus
-                    className="h-[18px] w-[18px] shrink-0 text-zinc-500"
+                    className="size-5 shrink-0 text-zinc-500"
                     strokeWidth={1.75}
                   />
                   <span className="truncate">New Project</span>
@@ -1044,15 +1047,15 @@ export function Sidebar({
                   className={cn(
                     "menu-trigger-active glass-sidebar-footer-account-trigger flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-black/5",
                     isCollapsed
-                      ? "h-8 w-8 shrink-0 items-center justify-center gap-0 rounded-full p-0"
-                      : "min-w-0 flex-1 justify-start gap-2 rounded-md p-1.5",
+                      ? "ui-icon-button shrink-0 items-center justify-center gap-0 rounded-full !p-0"
+                      : "h-[34px] min-w-0 flex-1 justify-start gap-1.5 rounded-md px-1.5",
                   )}
                 >
                   <UserAvatarDisplay
                     name={userDisplayName || "?"}
                     avatarUrl={userAvatarUrl}
                     size={isCollapsed ? "sm" : "md"}
-                    className={isCollapsed ? "h-8 w-8" : "h-9 w-9"}
+                    className={isCollapsed ? "h-7 w-7" : "h-7 w-7"}
                   />
                   <div
                     className={cn(

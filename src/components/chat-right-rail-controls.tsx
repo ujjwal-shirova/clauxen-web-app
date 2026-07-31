@@ -31,7 +31,7 @@ export function ChatRightRailControls({
             aria-label="Toggle artifacts panel"
             aria-pressed={isArtifactsPanelOpen}
             className={cn(
-              "inline-flex h-8 w-8 items-center justify-center rounded-[10px] border transition-all",
+              "inline-flex h-9 w-9 items-center justify-center rounded-[10px] border transition-all",
               suppressArtifactsHover && "no-hover no-hover-overlay",
               isArtifactsPanelOpen
                 ? "border-zinc-200 bg-zinc-100 text-zinc-800"
@@ -40,7 +40,7 @@ export function ChatRightRailControls({
                   : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-zinc-100",
             )}
           >
-            <Files className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            <Files className="size-5" strokeWidth={1.75} />
           </button>
         </HintTooltip>
       ) : null}

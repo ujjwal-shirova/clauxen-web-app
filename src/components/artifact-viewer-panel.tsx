@@ -153,7 +153,7 @@ export function ArtifactViewerPanel({
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-zinc-200/90 bg-zinc-50">
               <FileText
-                className="h-4 w-4 text-zinc-500"
+                className="size-5 text-zinc-500"
                 strokeWidth={1.7}
                 aria-hidden
               />
@@ -182,9 +182,9 @@ export function ArtifactViewerPanel({
               type="button"
               aria-label="Close file viewer"
               onClick={onClose}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
             >
-              <X className="h-4 w-4" strokeWidth={1.75} />
+              <X className="size-5" strokeWidth={1.75} />
             </button>
           </div>
         </div>

@@ -197,7 +197,7 @@ export function ScheduledTasksView() {
           className="inline-flex h-9 items-center gap-1.5 rounded-full bg-zinc-900 px-4 text-[14px] font-medium text-white transition-colors hover:bg-zinc-800"
         >
           Create
-          <ChevronDown className="h-4 w-4 opacity-90" strokeWidth={2} />
+          <ChevronDown className="size-5 opacity-90" strokeWidth={2} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -208,7 +208,7 @@ export function ScheduledTasksView() {
           className="cursor-pointer gap-2.5 rounded-lg px-2.5 py-2 text-[14px]"
           onSelect={() => setModalOpen(true)}
         >
-          <Pencil className="h-4 w-4 text-zinc-500" strokeWidth={1.75} />
+          <Pencil className="size-5 text-zinc-500" strokeWidth={1.75} />
           Create manually
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
@@ -220,7 +220,7 @@ export function ScheduledTasksView() {
             className="cursor-pointer gap-2.5 rounded-lg px-2.5 py-2 text-[14px]"
           >
             <MessageSquarePlus
-              className="h-4 w-4 text-zinc-500"
+              className="size-5 text-zinc-500"
               strokeWidth={1.75}
             />
             Create via chat
@@ -340,9 +340,9 @@ export function ScheduledTasksView() {
                       <button
                         type="button"
                         aria-label="Task actions"
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
                       >
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreHorizontal className="size-5" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44 rounded-xl">
@@ -357,14 +357,14 @@ export function ScheduledTasksView() {
                         <DropdownMenuItem
                           onSelect={() => void patchStatus(task.id, "paused")}
                         >
-                          <Pause className="mr-2 h-4 w-4" />
+                          <Pause className="mr-2 size-5" />
                           Pause
                         </DropdownMenuItem>
                       ) : task.status === "paused" ? (
                         <DropdownMenuItem
                           onSelect={() => void patchStatus(task.id, "active")}
                         >
-                          <Play className="mr-2 h-4 w-4" />
+                          <Play className="mr-2 size-5" />
                           Resume
                         </DropdownMenuItem>
                       ) : null}
@@ -373,7 +373,7 @@ export function ScheduledTasksView() {
                         className="text-red-600 focus:text-red-600"
                         onSelect={() => void removeTask(task.id)}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" />
+                        <Trash2 className="mr-2 size-5" />
                         Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>

@@ -92,10 +92,10 @@ export function CustomizePage({
         <div className="flex items-center gap-2 p-4 pb-3">
           <AppHref
             href={closeHref}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-800 transition-all hover:bg-zinc-100"
+            className="ui-icon-button text-zinc-800 transition-all hover:bg-zinc-100"
             aria-label="Back"
           >
-            <ArrowLeft className="icon-xl" />
+            <ArrowLeft className="size-5" />
           </AppHref>
           <span className="text-[16px] font-semibold text-zinc-900">
             Customize
@@ -110,13 +110,13 @@ export function CustomizePage({
               onClick={() => setActiveTab(id)}
               aria-current={activeTab === id ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-4 py-2 text-left text-[14px] transition-all duration-150",
+                "ui-nav-row rounded-lg px-3 text-left text-[14px] transition-all duration-150",
                 activeTab === id
                   ? "bg-zinc-100 font-semibold text-zinc-900"
-                  : "font-[430] text-zinc-500 hover:bg-zinc-100",
+                  : "font-medium text-zinc-600 hover:bg-zinc-100",
               )}
             >
-              <Icon className="icon-xl opacity-70" />
+              <Icon className="size-5 opacity-80" />
               <span>{label}</span>
             </AppHref>
           ))}
@@ -138,10 +138,10 @@ export function CustomizePage({
             />
             <AppHref
               href={closeHref}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-800 transition-all hover:bg-zinc-100"
+              className="ui-icon-button text-zinc-800 transition-all hover:bg-zinc-100"
               aria-label="Back"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="size-5" />
             </AppHref>
             <span className="min-w-0 flex-1 truncate text-[16px] font-semibold text-zinc-900">
               Customize
@@ -156,13 +156,13 @@ export function CustomizePage({
                 onClick={() => setActiveTab(id)}
                 aria-current={activeTab === id ? "page" : undefined}
                 className={cn(
-                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors",
+                  "flex h-[34px] items-center justify-center gap-1.5 rounded-xl px-3 text-[14px] font-medium transition-colors",
                   activeTab === id
                     ? "bg-zinc-100 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(31,30,29,0.08)]"
                     : "text-zinc-500 hover:bg-zinc-100",
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0 opacity-80" />
+                <Icon className="size-5 shrink-0 opacity-80" />
                 <span>{label}</span>
               </AppHref>
             ))}

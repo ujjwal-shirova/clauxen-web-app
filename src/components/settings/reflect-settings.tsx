@@ -44,10 +44,10 @@ export function ReflectSettings({
           <button
             type="button"
             onClick={onRefresh}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100"
             aria-label="Refresh reflect"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className="size-5" />
           </button>
         </div>
       </div>
