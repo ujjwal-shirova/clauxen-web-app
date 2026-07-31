@@ -12,7 +12,6 @@ import { AgentOrchestrationView } from "./agent-orchestration";
 import { AgentPlanningNextMoves } from "./agent-planning-label";
 import { collectMessageSources } from "@/lib/chat-sources";
 import { SourcesInlineStrip } from "@/components/chat-sources";
-import { hasCompletedAssistantOutput } from "@/lib/assistant-output-state";
 
 export function AgentMessageContent({
   message,
@@ -34,7 +33,6 @@ export function AgentMessageContent({
       answerStreaming,
     });
     const sources = collectMessageSources(message);
-    const outputComplete = hasCompletedAssistantOutput(message);
 
     // Fresh turn before any tokens — orb only (no planning label).
     if (streaming && !message.content.trim() && !hasThinking) {
@@ -69,8 +67,12 @@ export function AgentMessageContent({
             />
           </div>
         ) : null}
-        {sources.length > 0 && outputComplete ? (
-          <div data-agent-block="sources" className="overflow-anchor-none">
+        {sources.length > 0 && message.content.trim() ? (
+          <div
+            data-agent-block="sources"
+            data-sources-live={streaming || undefined}
+            className="overflow-anchor-none"
+          >
             <SourcesInlineStrip sources={sources} />
           </div>
         ) : null}

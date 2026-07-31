@@ -82,7 +82,27 @@ type ConversationTurnGroup = {
 
 function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
   const groups: ConversationTurnGroup[] = [];
-  const deduped = dedupeChatMessages(messages);
+  // Realtime hydration can deliver a durable user row after its optimistic
+  // assistant placeholder. Heal that arrival-order race before pairing turns:
+  // a user always opens the turn that following assistant rows belong to.
+  const deduped = dedupeChatMessages(messages)
+    .map((message, index) => ({ message, index }))
+    .sort((a, b) => {
+      const aTime = a.message.createdAt;
+      const bTime = b.message.createdAt;
+      if (typeof aTime === "number" && typeof bTime === "number" && aTime !== bTime) {
+        return aTime - bTime;
+      }
+      if (typeof aTime === "number" && typeof bTime !== "number") return -1;
+      if (typeof bTime === "number" && typeof aTime !== "number") return 1;
+      // Identical timestamps occur in persisted imports: user must precede
+      // assistant, while the original index remains the stable final tie-break.
+      if (a.message.role !== b.message.role) {
+        return a.message.role === "user" ? -1 : 1;
+      }
+      return a.index - b.index;
+    })
+    .map(({ message }) => message);
   for (const msg of deduped) {
     if (msg.role === "user") {
       // Each user message opens a new turn so bubbles stay chronologically paired.
@@ -1469,4 +1489,3 @@ export function ConversationThread({
     </FollowUpPromptProvider>
   );
 }
-

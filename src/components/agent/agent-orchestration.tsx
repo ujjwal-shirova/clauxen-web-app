@@ -28,7 +28,6 @@ import type {
   AgentThinkingSegment,
   AgentToolSegment,
 } from "@/lib/agent-segments";
-import { hasCompletedAssistantOutput } from "@/lib/assistant-output-state";
 
 function isThinkingSegment(
   segment: AgentSegment,
@@ -137,7 +136,6 @@ export function AgentOrchestrationView({
 }) {
   const frames = mergeAgentFramesForDisplay(resolveAgentFrames(message));
   const sources = collectMessageSources(message);
-  const outputComplete = hasCompletedAssistantOutput(message);
   const streaming = message.isStreaming === true;
   const answer = message.content.trim();
   const answerStreaming = streaming && answer.length > 0;
@@ -241,8 +239,12 @@ export function AgentOrchestrationView({
         </div>
       ) : null}
 
-      {sources.length > 0 && outputComplete ? (
-        <div data-agent-block="sources" className="overflow-anchor-none">
+      {sources.length > 0 && answer ? (
+        <div
+          data-agent-block="sources"
+          data-sources-live={streaming || undefined}
+          className="overflow-anchor-none"
+        >
           <SourcesInlineStrip sources={sources} />
         </div>
       ) : null}
