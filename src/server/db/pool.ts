@@ -5,6 +5,29 @@ import { AppError, mapPgError } from "@/server/db/errors";
 
 let pool: Pool | null = null;
 
+const CONNECT_RETRY_DELAYS_MS = [125, 350] as const;
+
+function isConnectionAcquisitionError(error: unknown): boolean {
+  const candidate = error as { code?: string; message?: string };
+  const message = candidate?.message ?? "";
+  return (
+    candidate?.code === "ETIMEDOUT" ||
+    candidate?.code === "ECONNREFUSED" ||
+    /timeout exceeded when trying to connect/i.test(message) ||
+    /connection terminated due to connection timeout/i.test(message)
+  );
+}
+
+function retirePool(failedPool: Pool): void {
+  if (pool === failedPool) pool = null;
+  // Do not await a pool that is already failing to acquire a connection.
+  void failedPool.end().catch(() => undefined);
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function normalizeDatabaseUrl(url: string): string {
   try {
     const parsed = new URL(url);
@@ -45,7 +68,9 @@ export function getPool(): Pool {
     pool = new Pool({
       connectionString,
       max: resolvePoolMax(),
-      idleTimeoutMillis: env.isVercel ? 5_000 : 30_000,
+      // Reusing a warm transaction-pooler socket avoids a new TLS handshake on
+      // every request while allowExitOnIdle still lets a Vercel isolate finish.
+      idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
       allowExitOnIdle: env.isVercel,
       ssl: connectionString.includes("localhost")
@@ -61,11 +86,19 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params: unknown[] = [],
 ): Promise<T[]> {
-  try {
-    const result = await getPool().query<T>(text, params);
-    return result.rows;
-  } catch (error) {
-    throw mapPgError(error, "pool.query");
+  for (let attempt = 0; ; attempt += 1) {
+    const activePool = getPool();
+    try {
+      const result = await activePool.query<T>(text, params);
+      return result.rows;
+    } catch (error) {
+      const delay = CONNECT_RETRY_DELAYS_MS[attempt];
+      if (!isConnectionAcquisitionError(error) || delay === undefined) {
+        throw mapPgError(error, "pool.query");
+      }
+      retirePool(activePool);
+      await wait(delay);
+    }
   }
 }
 
@@ -82,7 +115,20 @@ export async function withTransaction<T>(
 ): Promise<T> {
   let client: PoolClient | null = null;
   try {
-    client = await getPool().connect();
+    for (let attempt = 0; ; attempt += 1) {
+      const activePool = getPool();
+      try {
+        client = await activePool.connect();
+        break;
+      } catch (error) {
+        const delay = CONNECT_RETRY_DELAYS_MS[attempt];
+        if (!isConnectionAcquisitionError(error) || delay === undefined) {
+          throw error;
+        }
+        retirePool(activePool);
+        await wait(delay);
+      }
+    }
     await client.query("BEGIN");
     const value = await fn(client);
     await client.query("COMMIT");

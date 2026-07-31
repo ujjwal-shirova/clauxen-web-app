@@ -37,7 +37,10 @@ export async function assertDurableRateLimit(options: {
       );
     }
   } catch (error) {
-    if (error instanceof AppError) throw error;
+    // Only a counter that actually exceeded the limit is authoritative. DB
+    // AppErrors (including connection timeouts mapped by the pool) must use
+    // the documented process-local fallback instead of blocking generation.
+    if (error instanceof AppError && error.code === "rate_limited") throw error;
     // Fail open to process-local so generate never hard-dies on DB blips.
     assertRateLimit(options);
   }

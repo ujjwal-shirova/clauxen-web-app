@@ -1,10 +1,10 @@
-import {
-  query,
-  queryOne,
-  withTransaction,
-} from "@/server/db/pool";
+import { query, queryOne, withTransaction } from "@/server/db/pool";
 import { AppError, notFound } from "@/server/db/errors";
 import type { PoolClient } from "pg";
+import {
+  TRANSCRIPT_SCHEMA_VERSION,
+  type TranscriptRecord,
+} from "@/server/training/transcript-format";
 
 export type MessageRow = {
   id: string;
@@ -80,9 +80,7 @@ export async function listMessagesPage(input: {
   const hasMore = rows.some((row) => row.has_more) || false;
   const oldest = messages[0];
   const nextCursor =
-    hasMore && oldest
-      ? { id: oldest.id, createdAt: oldest.created_at }
-      : null;
+    hasMore && oldest ? { id: oldest.id, createdAt: oldest.created_at } : null;
 
   return { messages, nextCursor, hasMore };
 }
@@ -149,6 +147,74 @@ export async function createMessage(input: {
 
 type InsertedMessageRow = MessageRow & { inserted: boolean };
 
+export type MessageTranscriptLine = {
+  role: "user" | "assistant" | "system" | "tool" | "meta";
+  record: TranscriptRecord;
+  trainingEligible?: boolean;
+};
+
+export type DurableToolCall = {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+  result?: string;
+  isError?: boolean;
+  startedAtMs?: number;
+  completedAtMs?: number;
+};
+
+async function upsertMessageTranscriptLines(
+  client: PoolClient,
+  input: {
+    chatId: string;
+    userId: string;
+    messageId: string;
+    lines: MessageTranscriptLine[];
+  },
+): Promise<void> {
+  if (input.lines.length === 0) return;
+  const payload = input.lines.map((line) => ({
+    role: line.role,
+    record: line.record,
+    schema_version: TRANSCRIPT_SCHEMA_VERSION,
+    training_eligible: line.trainingEligible ?? true,
+  }));
+  await client.query(
+    `with next_seq as (
+       select coalesce(max(seq), 0) as base
+       from public.chat_transcript_lines
+       where chat_id = $1
+     )
+     insert into public.chat_transcript_lines (
+       chat_id, user_id, message_id, seq, role, record, schema_version,
+       training_eligible
+     )
+     select
+       $1,
+       $2::uuid,
+       $3::uuid,
+       next_seq.base + line.ordinality::integer,
+       line.value->>'role',
+       line.value->'record',
+       coalesce(nullif(line.value->>'schema_version', ''), $5),
+       coalesce((line.value->>'training_eligible')::boolean, true)
+     from jsonb_array_elements($4::jsonb) with ordinality as line(value, ordinality)
+     cross join next_seq
+     on conflict (message_id, role) where message_id is not null
+     do update set
+       record = excluded.record,
+       schema_version = excluded.schema_version,
+       training_eligible = excluded.training_eligible`,
+    [
+      input.chatId,
+      input.userId,
+      input.messageId,
+      JSON.stringify(payload),
+      TRANSCRIPT_SCHEMA_VERSION,
+    ],
+  );
+}
+
 async function insertIdempotentMessage(
   client: PoolClient,
   input: {
@@ -184,7 +250,11 @@ async function insertIdempotentMessage(
   );
   const row = result.rows[0];
   if (!row) {
-    throw new AppError("Could not start the chat turn.", 500, "chat_turn_failed");
+    throw new AppError(
+      "Could not start the chat turn.",
+      500,
+      "chat_turn_failed",
+    );
   }
   if (row.role !== input.role) {
     throw new AppError(
@@ -263,7 +333,7 @@ export async function beginChatTurn(input: {
       );
     }
 
-    const assistant = await insertIdempotentMessage(client, {
+    let assistant = await insertIdempotentMessage(client, {
       chatId: input.chatId,
       userId: input.userId,
       role: "assistant",
@@ -271,6 +341,45 @@ export async function beginChatTurn(input: {
       status: "streaming",
       contentJson: input.assistantContentJson,
       clientId: input.assistantClientId,
+    });
+
+    // The global generation lease is acquired before this transaction. If the
+    // same client turn exists but is not complete, its prior holder is gone and
+    // this request may safely resume the durable assistant row in place.
+    if (!assistant.inserted && assistant.status !== "complete") {
+      const recovered = await client.query<InsertedMessageRow>(
+        `update public.chat_messages
+         set content = '',
+             status = 'streaming',
+             content_json = $3::jsonb,
+             updated_at = now()
+         where id = $1 and chat_id = $2 and role = 'assistant'
+         returning id, chat_id, role, content, status, metadata, content_json,
+                   created_at, client_id, true as inserted`,
+        [
+          assistant.id,
+          input.chatId,
+          JSON.stringify(input.assistantContentJson ?? {}),
+        ],
+      );
+      if (recovered.rows[0]) assistant = recovered.rows[0];
+    }
+
+    // The user row and its training/export line commit together. Repeating a
+    // client turn repairs a missing line through the message/role unique key.
+    await upsertMessageTranscriptLines(client, {
+      chatId: input.chatId,
+      userId: input.userId,
+      messageId: user.id,
+      lines: [
+        {
+          role: "user",
+          record: (input.userContentJson as TranscriptRecord | undefined) ?? {
+            role: "user",
+            message: { content: [{ type: "text", text: input.userContent }] },
+          },
+        },
+      ],
     });
 
     if (user.inserted || assistant.inserted) {
@@ -283,6 +392,186 @@ export async function beginChatTurn(input: {
     }
 
     return { user, assistant };
+  });
+}
+
+/** Create a standalone user message and transcript line in one transaction. */
+export async function createUserMessageWithTranscript(input: {
+  chatId: string;
+  userId: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  contentJson: TranscriptRecord;
+  fileIds?: string[];
+}) {
+  return withTransaction(async (client) => {
+    const ownedChat = await client.query<{ id: string }>(
+      `select id from public.chats
+       where id = $1 and user_id = $2 and status != 'deleted'
+       for update`,
+      [input.chatId, input.userId],
+    );
+    if (!ownedChat.rows[0]) throw notFound("Chat not found.");
+
+    const inserted = await client.query<MessageRow>(
+      `insert into public.chat_messages (
+         chat_id, user_id, role, content, status, metadata, content_json
+       ) values ($1, $2, 'user', $3, 'complete', $4::jsonb, $5::jsonb)
+       returning id, chat_id, role, content, status, metadata, content_json,
+                 created_at, client_id`,
+      [
+        input.chatId,
+        input.userId,
+        input.content,
+        JSON.stringify(input.metadata ?? {}),
+        JSON.stringify(input.contentJson),
+      ],
+    );
+    const message = inserted.rows[0];
+    if (!message) {
+      throw new AppError(
+        "Could not save the user message.",
+        500,
+        "message_failed",
+      );
+    }
+    await attachFilePartsInTransaction(
+      client,
+      message.id,
+      input.fileIds ?? [],
+      input.userId,
+    );
+    await upsertMessageTranscriptLines(client, {
+      chatId: input.chatId,
+      userId: input.userId,
+      messageId: message.id,
+      lines: [{ role: "user", record: input.contentJson }],
+    });
+    await client.query(
+      `update public.chats set updated_at = now() where id = $1`,
+      [input.chatId],
+    );
+    return message;
+  });
+}
+
+/** Final assistant payload + complete agent timeline + JSONL lines, atomically. */
+export async function finalizeAssistantTurn(input: {
+  messageId: string;
+  chatId: string;
+  userId: string;
+  content: string;
+  status: "complete" | "failed" | "cancelled";
+  contentJson: TranscriptRecord;
+  transcriptLines: MessageTranscriptLine[];
+  tools?: DurableToolCall[];
+}) {
+  return withTransaction(async (client) => {
+    const ownedChat = await client.query<{ id: string }>(
+      `select id from public.chats
+       where id = $1 and user_id = $2 and status != 'deleted'
+       for update`,
+      [input.chatId, input.userId],
+    );
+    if (!ownedChat.rows[0]) throw notFound("Chat not found.");
+
+    const updated = await client.query<MessageRow>(
+      `update public.chat_messages
+       set content = $4,
+           status = $5,
+           content_json = $6::jsonb,
+           updated_at = now()
+       where id = $1 and chat_id = $2 and user_id = $3 and role = 'assistant'
+       returning id, chat_id, role, content, status, metadata, content_json,
+                 created_at, client_id`,
+      [
+        input.messageId,
+        input.chatId,
+        input.userId,
+        input.content,
+        input.status,
+        JSON.stringify(input.contentJson),
+      ],
+    );
+    const message = updated.rows[0];
+    if (!message) throw notFound("Assistant message not found.");
+
+    await upsertMessageTranscriptLines(client, {
+      chatId: input.chatId,
+      userId: input.userId,
+      messageId: input.messageId,
+      lines: input.transcriptLines,
+    });
+    if (input.tools?.length) {
+      const toolPayload = input.tools.map((tool) => ({
+        provider_call_id: tool.id,
+        tool_name: tool.name,
+        input: tool.input ?? {},
+        output: tool.result === undefined ? null : { content: tool.result },
+        status:
+          input.status === "cancelled" && tool.result === undefined
+            ? "cancelled"
+            : tool.isError
+              ? "failed"
+              : tool.result === undefined
+                ? "failed"
+                : "complete",
+        error: tool.isError ? { message: tool.result ?? "Tool failed." } : null,
+        latency_ms:
+          typeof tool.startedAtMs === "number" &&
+          typeof tool.completedAtMs === "number"
+            ? Math.max(0, tool.completedAtMs - tool.startedAtMs)
+            : null,
+        started_at_ms: tool.startedAtMs ?? null,
+      }));
+      await client.query(
+        `insert into public.tool_calls (
+           user_id, workspace_id, chat_id, message_id, provider_call_id,
+           tool_name, provider, input, output, status, error, latency_ms,
+           created_at
+         )
+         select
+           $1::uuid,
+           c.workspace_id,
+           $2,
+           $3::uuid,
+           tool.value->>'provider_call_id',
+           tool.value->>'tool_name',
+           'clauxen-agent',
+           coalesce(tool.value->'input', '{}'::jsonb),
+           tool.value->'output',
+           tool.value->>'status',
+           tool.value->'error',
+           nullif(tool.value->>'latency_ms', '')::integer,
+           coalesce(
+             to_timestamp(nullif(tool.value->>'started_at_ms', '')::double precision / 1000),
+             now()
+           )
+         from public.chats c
+         cross join jsonb_array_elements($4::jsonb) as tool(value)
+         where c.id = $2 and c.user_id = $1
+         on conflict (message_id, provider_call_id)
+           where message_id is not null and provider_call_id is not null
+         do update set
+           tool_name = excluded.tool_name,
+           input = excluded.input,
+           output = excluded.output,
+           status = excluded.status,
+           error = excluded.error,
+           latency_ms = excluded.latency_ms`,
+        [
+          input.userId,
+          input.chatId,
+          input.messageId,
+          JSON.stringify(toolPayload),
+        ],
+      );
+    }
+    await client.query(
+      `update public.chats set updated_at = now() where id = $1`,
+      [input.chatId],
+    );
+    return message;
   });
 }
 
@@ -411,8 +700,7 @@ export async function replaceMessagesFromSnapshot(input: {
       raw.content_json && typeof raw.content_json === "object"
         ? (raw.content_json as Record<string, unknown>)
         : {};
-    const clientId =
-      typeof raw.client_id === "string" ? raw.client_id : null;
+    const clientId = typeof raw.client_id === "string" ? raw.client_id : null;
     const createdAt =
       typeof raw.created_at === "string" ? raw.created_at : null;
 

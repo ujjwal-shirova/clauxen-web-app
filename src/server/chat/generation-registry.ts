@@ -9,12 +9,15 @@ import {
   releaseChatCoordLease,
   requestChatCoordStop,
   getChatCoordStatus,
+  renewChatCoordLease,
 } from "@/server/chat/chat-coord-client";
 
 type GenerationEntry = {
   controller: AbortController;
   startedAt: number;
   leaseId: string;
+  poll: ReturnType<typeof setInterval> | null;
+  heartbeat: ReturnType<typeof setInterval> | null;
 };
 
 const generations = new Map<string, GenerationEntry>();
@@ -33,21 +36,47 @@ export async function beginChatGeneration(
   }
 
   const controller = new AbortController();
-  generations.set(chatId, { controller, startedAt: Date.now(), leaseId });
+  const generationEntry: GenerationEntry = {
+    controller,
+    startedAt: Date.now(),
+    leaseId,
+    poll: null,
+    heartbeat: null,
+  };
+  generations.set(chatId, generationEntry);
 
   // Poll Durable Object stop flag so a stop hit on another isolate still cancels.
   const poll = setInterval(() => {
-    void getChatCoordStatus(chatId).then((status) => {
-      if (!status?.stopRequested) return;
-      const entry = generations.get(chatId);
-      if (!entry || entry.leaseId !== leaseId) return;
-      entry.controller.abort();
-    });
-  }, 750);
+    void getChatCoordStatus(chatId)
+      .then((status) => {
+        if (!status?.stopRequested) return;
+        const entry = generations.get(chatId);
+        if (!entry || entry.leaseId !== leaseId) return;
+        entry.controller.abort();
+      })
+      .catch(() => undefined);
+  }, 2_000);
+  const heartbeat = setInterval(() => {
+    void renewChatCoordLease(chatId, leaseId)
+      .then((result) => {
+        if (result !== "lost") return;
+        const entry = generations.get(chatId);
+        if (!entry || entry.leaseId !== leaseId) return;
+        // Another holder reclaimed this lease; stop this isolate to preserve
+        // the single-writer invariant for the assistant turn.
+        entry.controller.abort();
+      })
+      .catch(() => undefined);
+  }, 20_000);
+  generationEntry.poll = poll;
+  generationEntry.heartbeat = heartbeat;
   controller.signal.addEventListener(
     "abort",
     () => {
       clearInterval(poll);
+      clearInterval(heartbeat);
+      generationEntry.poll = null;
+      generationEntry.heartbeat = null;
     },
     { once: true },
   );
@@ -76,6 +105,8 @@ export async function endChatGeneration(
   const entry = generations.get(chatId);
   if (entry?.controller === controller) {
     generations.delete(chatId);
+    if (entry.poll) clearInterval(entry.poll);
+    if (entry.heartbeat) clearInterval(entry.heartbeat);
     // Must await: fire-and-forget left the DO lease active and the next
     // generate (immediate follow-up / ask-user answer) hit 409.
     await releaseChatCoordLease(chatId, entry.leaseId);

@@ -8,8 +8,11 @@ export interface Env {
 type LeaseState = {
   leaseId: string;
   startedAt: number;
+  expiresAt: number;
   stopRequested: boolean;
 };
+
+const LEASE_TTL_MS = 60_000;
 
 export class ChatCoord extends DurableObject<Env> {
   private async readState(): Promise<LeaseState | null> {
@@ -24,22 +27,49 @@ export class ChatCoord extends DurableObject<Env> {
     await this.ctx.storage.put("lease", state);
   }
 
-  async acquire(leaseId: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+  private async clearState(): Promise<void> {
+    await this.writeState(null);
+    await this.ctx.storage.deleteAlarm();
+  }
+
+  async acquire(
+    leaseId: string,
+  ): Promise<{ ok: true } | { ok: false; reason: string }> {
     const current = await this.readState();
     if (current && current.leaseId !== leaseId && !current.stopRequested) {
-      // Stale leases older than 35 minutes are reclaimable (maxDuration + buffer).
-      if (Date.now() - current.startedAt < 35 * 60_000) {
+      // Holders renew while alive. A crashed/timed-out Vercel invocation is
+      // reclaimable within one minute instead of blocking the chat for 35m.
+      const expiresAt = current.expiresAt ?? current.startedAt + LEASE_TTL_MS;
+      if (Date.now() < expiresAt) {
         return { ok: false, reason: "generation_in_progress" };
       }
     }
+    const now = Date.now();
     await this.writeState({
       leaseId,
-      startedAt: Date.now(),
+      startedAt: now,
+      expiresAt: now + LEASE_TTL_MS,
       stopRequested: false,
     });
     // Auto-release if the holder never calls release (crash / timeout).
-    await this.ctx.storage.setAlarm(Date.now() + 35 * 60_000);
+    await this.ctx.storage.setAlarm(now + LEASE_TTL_MS);
     return { ok: true };
+  }
+
+  async heartbeat(
+    leaseId: string,
+  ): Promise<{ renewed: boolean; reason?: string }> {
+    const current = await this.readState();
+    if (!current || current.leaseId !== leaseId) {
+      return { renewed: false, reason: "generation_lease_lost" };
+    }
+    if (current.stopRequested) {
+      return { renewed: false, reason: "generation_stop_requested" };
+    }
+    const expiresAt = Date.now() + LEASE_TTL_MS;
+    await this.writeState({ ...current, expiresAt });
+    await this.ctx.storage.setAlarm(expiresAt);
+    return { renewed: true };
   }
 
   async release(leaseId: string): Promise<{ released: boolean }> {
@@ -47,8 +77,7 @@ export class ChatCoord extends DurableObject<Env> {
     if (!current || current.leaseId !== leaseId) {
       return { released: false };
     }
-    await this.writeState(null);
-    await this.ctx.storage.deleteAlarm();
+    await this.clearState();
     return { released: true };
   }
 
@@ -68,7 +97,11 @@ export class ChatCoord extends DurableObject<Env> {
     startedAt: number | null;
   }> {
     const current = await this.readState();
-    if (!current) {
+    const expiresAt = current
+      ? (current.expiresAt ?? current.startedAt + LEASE_TTL_MS)
+      : 0;
+    if (!current || Date.now() >= expiresAt) {
+      if (current) await this.clearState();
       return {
         active: false,
         stopRequested: false,
@@ -85,7 +118,14 @@ export class ChatCoord extends DurableObject<Env> {
   }
 
   async alarm(): Promise<void> {
-    await this.writeState(null);
+    const current = await this.readState();
+    if (!current) return;
+    const expiresAt = current.expiresAt ?? current.startedAt + LEASE_TTL_MS;
+    if (Date.now() < expiresAt) {
+      await this.ctx.storage.setAlarm(expiresAt);
+      return;
+    }
+    await this.clearState();
   }
 }
 
@@ -163,6 +203,16 @@ export default {
       if (!leaseId) return json({ error: "invalid_lease_id" }, 400);
       const result = await stub.release(leaseId);
       return json(result);
+    }
+
+    if (url.pathname === "/heartbeat") {
+      const leaseId =
+        typeof body.leaseId === "string" ? body.leaseId.trim() : "";
+      if (!leaseId) return json({ error: "invalid_lease_id" }, 400);
+      const result = await stub.heartbeat(leaseId);
+      return result.renewed
+        ? json({ ok: true, renewed: true })
+        : json({ ok: false, error: result.reason }, 409);
     }
 
     if (url.pathname === "/stop") {

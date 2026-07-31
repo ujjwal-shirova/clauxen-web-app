@@ -8,6 +8,7 @@ type CoordResponse = {
   stopRequested?: boolean;
   hadLease?: boolean;
   active?: boolean;
+  renewed?: boolean;
   startedAt?: number | null;
 };
 
@@ -72,6 +73,20 @@ export async function releaseChatCoordLease(
 ): Promise<void> {
   if (!isChatCoordConfigured()) return;
   await coordFetch("/release", { chatId, leaseId });
+}
+
+/** Keep a live lease renewable while allowing crashed holders to expire fast. */
+export async function renewChatCoordLease(
+  chatId: string,
+  leaseId: string,
+): Promise<"renewed" | "lost" | "skipped"> {
+  if (!isChatCoordConfigured()) return "skipped";
+  const { status, data } = await coordFetch("/heartbeat", { chatId, leaseId });
+  if (status >= 200 && status < 300 && data.renewed) return "renewed";
+  if (status === 409) return "lost";
+  // A temporary Worker/network outage must not terminate healthy inference.
+  console.warn("[chat-coord] heartbeat failed open:", status, data.error);
+  return "skipped";
 }
 
 export async function requestChatCoordStop(chatId: string): Promise<boolean> {

@@ -1,8 +1,8 @@
 import { AppError, notFound } from "@/server/db/errors";
 import * as chatsRepo from "@/server/repositories/chats.repository";
 import * as pinnedChatsRepo from "@/server/repositories/pinned-chats.repository";
-import * as messagePartsRepo from "@/server/repositories/chat-message-parts.repository";
 import * as messagesRepo from "@/server/repositories/messages.repository";
+import type { MessageTranscriptLine } from "@/server/repositories/messages.repository";
 import * as branchesRepo from "@/server/repositories/branches.repository";
 import * as transcriptRepo from "@/server/repositories/transcript.repository";
 import { createChatStream } from "@/app/api/chat/stream";
@@ -40,99 +40,39 @@ import {
   buildPromptMessagesFromDbRows,
   mergePromptHistories,
 } from "@/server/inference/build-chat-prompt-messages";
-import { toUserFacingChatError, EMPTY_ASSISTANT_RESPONSE_FALLBACK } from "@/lib/assistant-generation-error";
-
-/** Training JSONL user mirror — export/training only; never used for hydrate. */
-async function persistUserTranscriptLine(input: {
-  chatId: string;
-  userId: string;
-  messageId?: string | null;
-  content: string;
-}): Promise<void> {
-  try {
-    await transcriptRepo.appendTranscriptLine({
-      chatId: input.chatId,
-      userId: input.userId,
-      messageId: input.messageId,
-      role: "user",
-      record: buildUserTranscriptRecord(input.content),
-    });
-  } catch (error) {
-    console.warn("[transcript] user line append failed", error);
-  }
-}
+import {
+  toUserFacingChatError,
+  EMPTY_ASSISTANT_RESPONSE_FALLBACK,
+} from "@/lib/assistant-generation-error";
 
 /**
- * Append Anthropic-shaped JSONL lines for export/training.
- * Chat UI hydrate + prompt history still use `chat_messages.content_json`
- * exclusively — never read these lines back into the live conversation.
+ * Build all export/training lines for one assistant turn. The repository
+ * commits these beside chat_messages.content_json in one transaction.
  */
-async function persistAssistantTranscriptTurn(input: {
-  chatId: string;
-  userId: string;
-  messageId?: string | null;
-  answer: string;
-  thinking?: string;
+function buildAssistantTranscriptLines(input: {
+  assistantRecord: ReturnType<typeof buildAssistantTranscriptRecord>;
   tools: CapturedToolCall[];
-  modelTurns?: TranscriptAgentModelTurn[];
   status: "success" | "error" | "cancelled";
-}): Promise<void> {
-  try {
-    const assistant = buildAssistantTranscriptRecord({
-      answer: input.answer,
-      thinking: input.thinking,
-      tools: input.tools,
-      agentUi: input.modelTurns
-        ? {
-            modelTurns: input.modelTurns,
-            actions: input.tools.map((tool) => ({
-              id: tool.id,
-              name: tool.name,
-              input: tool.input ?? {},
-              result: tool.result,
-              isError: tool.isError,
-              description: tool.description,
-              startedAtMs: tool.startedAtMs,
-              completedAtMs: tool.completedAtMs,
-            })),
-          }
-        : undefined,
-    });
-    await transcriptRepo.appendTranscriptLine({
-      chatId: input.chatId,
-      userId: input.userId,
-      messageId: input.messageId,
+}): MessageTranscriptLine[] {
+  const lines: MessageTranscriptLine[] = [
+    {
       role: "assistant",
-      record: assistant,
-    });
-
-    const toolResults = buildToolResultUserRecord(input.tools);
-    if (toolResults) {
-      await transcriptRepo.appendTranscriptLine({
-        chatId: input.chatId,
-        userId: input.userId,
-        messageId: input.messageId,
-        role: "user",
-        record: toolResults,
-      });
-    }
-
-    await transcriptRepo.appendTranscriptLine({
-      chatId: input.chatId,
-      userId: input.userId,
-      messageId: input.messageId,
-      role: "meta",
-      record: buildTurnEndedRecord(
-        input.status === "success"
-          ? "success"
-          : input.status === "cancelled"
-            ? "cancelled"
-            : "error",
-      ),
-    });
-  } catch (error) {
-    console.warn("[transcript] assistant turn append failed", error);
-  }
+      record: input.assistantRecord,
+    },
+  ];
+  const toolResults = buildToolResultUserRecord(input.tools);
+  if (toolResults) lines.push({ role: "user", record: toolResults });
+  lines.push({
+    role: "meta",
+    record: buildTurnEndedRecord(
+      input.status === "success"
+        ? "success"
+        : input.status === "cancelled"
+          ? "cancelled"
+          : "error",
+    ),
+  });
+  return lines;
 }
 
 export async function listRecentChats(userId: string, projectId?: string) {
@@ -176,9 +116,8 @@ export async function getChatMessagesPage(
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
   await messagesRepo.finalizeStaleStreamingMessages(chatId).catch(() => 0);
-  const { listMessagesPagePreferEdge } = await import(
-    "@/server/chat/list-messages-page"
-  );
+  const { listMessagesPagePreferEdge } =
+    await import("@/server/chat/list-messages-page");
   const page = await listMessagesPagePreferEdge({
     chatId,
     userId,
@@ -212,9 +151,8 @@ export async function createChatForUser(
     projectId: input?.projectId,
   });
   if (chat) {
-    const { invalidateChatHistoryCache } = await import(
-      "@/server/chat/warm-history-cache"
-    );
+    const { invalidateChatHistoryCache } =
+      await import("@/server/chat/warm-history-cache");
     await invalidateChatHistoryCache({ userId, listsOnly: true });
   }
   return chat;
@@ -253,7 +191,9 @@ async function resolveUserAttachmentMeta(
       id: file.id,
       name: file.original_name,
       mimeType: mime,
-      kind: mime.startsWith("image/") ? ("image" as const) : ("document" as const),
+      kind: mime.startsWith("image/")
+        ? ("image" as const)
+        : ("document" as const),
       fileId: file.id,
     };
   });
@@ -285,16 +225,12 @@ export async function appendUserMessage(
   fileIds?: string[],
   options?: { clientId?: string; modelContent?: string },
 ) {
-  const chat = await chatsRepo.getChatForUser(chatId, userId);
-  if (!chat) throw notFound("Chat not found.");
-
   const attachmentsMeta = await resolveUserAttachmentMeta(userId, fileIds);
 
   const contentJson = buildUserTranscriptRecord(content);
-  const message = await messagesRepo.createMessage({
+  const message = await messagesRepo.createUserMessageWithTranscript({
     chatId,
     userId,
-    role: "user",
     content,
     contentJson,
     metadata: userMessageMetadata({
@@ -302,28 +238,13 @@ export async function appendUserMessage(
       modelContent: options?.modelContent,
       content,
     }),
-    clientId: options?.clientId,
+    fileIds,
   });
-  if (message?.id && fileIds?.length) {
-    await messagePartsRepo.attachFilePartsToMessage(
-      message.id,
-      fileIds,
-      userId,
-    );
-  }
-  await persistUserTranscriptLine({
-    chatId,
-    userId,
-    messageId: message?.id ?? null,
-    content,
-  });
-  const { invalidateChatHistoryCache } = await import(
-    "@/server/chat/warm-history-cache"
-  );
+  const { invalidateChatHistoryCache } =
+    await import("@/server/chat/warm-history-cache");
   await invalidateChatHistoryCache({ userId, chatId });
   return message;
 }
-
 
 export async function linkChatToProject(
   chatId: string,
@@ -403,15 +324,6 @@ export async function streamChatGeneration(input: {
     assistant = turn.assistant;
     userMessageId = turn.user.id;
 
-    if (turn.user.inserted) {
-      await persistUserTranscriptLine({
-        chatId: input.chatId,
-        userId: input.userId,
-        messageId: turn.user.id,
-        content: input.turn.content,
-      });
-    }
-
     // A turn is durable before inference begins. Invalidate edge caches in the
     // background — awaiting Worker RTT here delayed first token and let the
     // client paint a blank streaming orb while generation had not started.
@@ -456,11 +368,12 @@ export async function streamChatGeneration(input: {
     40,
   );
   const promptFromDb = buildPromptMessagesFromDbRows(dbRecent);
-  const clientAsPrompt: AgentStreamOptions["messages"] =
-    clientConversation.map((message) => ({
+  const clientAsPrompt: AgentStreamOptions["messages"] = clientConversation.map(
+    (message) => ({
       role: message.role,
       content: message.content,
-    }));
+    }),
+  );
   let conversationForAgent = mergePromptHistories(
     promptFromDb.structured,
     clientAsPrompt,
@@ -669,28 +582,25 @@ export async function streamChatGeneration(input: {
         },
       });
       if (assistantRow?.id) {
-        await messagesRepo.updateMessageContent(
-          assistantRow.id,
-          input.chatId,
-          cleanedAnswer,
-          completionStatus,
+        await messagesRepo.finalizeAssistantTurn({
+          messageId: assistantRow.id,
+          chatId: input.chatId,
+          userId: input.userId,
+          content: cleanedAnswer,
+          status: completionStatus,
           contentJson,
-        );
+          tools,
+          transcriptLines: buildAssistantTranscriptLines({
+            assistantRecord: contentJson,
+            tools,
+            status: wasCancelled ? "cancelled" : failed ? "error" : "success",
+          }),
+        });
         if (!wasCancelled && generatedTitle) {
           await chatsRepo.updateChat(input.chatId, input.userId, {
             title: generatedTitle,
           });
         }
-        await persistAssistantTranscriptTurn({
-          chatId: input.chatId,
-          userId: input.userId,
-          messageId: assistantRow.id,
-          answer: cleanedAnswer,
-          thinking,
-          tools,
-          modelTurns,
-          status: wasCancelled || failed ? "error" : "success",
-        });
       }
       const latencyMs = Date.now() - started;
       await logInferenceTelemetry({
@@ -737,18 +647,16 @@ export async function streamChatGeneration(input: {
             { resolveActiveStoragePlanId },
             { warmLimitsForPlanId },
           ]) =>
-            billingRepo
-              .getUserSubscription(input.userId)
-              .then((sub) => {
-                const planId = resolveActiveStoragePlanId(sub);
-                return warmChatHistoryCache({
-                  userId: input.userId,
-                  chatId: input.chatId,
-                  planId,
-                  limits: warmLimitsForPlanId(planId),
-                  async: true,
-                });
-              }),
+            billingRepo.getUserSubscription(input.userId).then((sub) => {
+              const planId = resolveActiveStoragePlanId(sub);
+              return warmChatHistoryCache({
+                userId: input.userId,
+                chatId: input.chatId,
+                planId,
+                limits: warmLimitsForPlanId(planId),
+                async: true,
+              });
+            }),
         )
         .catch(() => {});
 
@@ -793,22 +701,19 @@ export async function streamChatGeneration(input: {
           actions: tools,
         },
       });
-      await messagesRepo.updateMessageContent(
-        assistantRow.id,
-        input.chatId,
-        failedContent,
-        "failed",
-        contentJson,
-      );
-      await persistAssistantTranscriptTurn({
+      await messagesRepo.finalizeAssistantTurn({
+        messageId: assistantRow.id,
         chatId: input.chatId,
         userId: input.userId,
-        messageId: assistantRow.id,
-        answer: failedContent,
-        thinking,
+        content: failedContent,
+        status: "failed",
+        contentJson,
         tools,
-        modelTurns,
-        status: "error",
+        transcriptLines: buildAssistantTranscriptLines({
+          assistantRecord: contentJson,
+          tools,
+          status: "error",
+        }),
       });
     }
     await logInferenceTelemetry({
@@ -854,9 +759,8 @@ export async function generateChatTitle(
     messages.find((m) => m.role === "user")?.content ?? "",
   );
   await chatsRepo.updateChat(chatId, userId, { title: normalized });
-  const { invalidateChatHistoryCache } = await import(
-    "@/server/chat/warm-history-cache"
-  );
+  const { invalidateChatHistoryCache } =
+    await import("@/server/chat/warm-history-cache");
   await invalidateChatHistoryCache({ userId, chatId });
   return normalized;
 }
@@ -887,7 +791,10 @@ export async function getBranchState(chatId: string, userId: string) {
 export async function getChatTranscript(chatId: string, userId: string) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
-  const aggregated = await transcriptRepo.getChatTranscriptJsonl(chatId, userId);
+  const aggregated = await transcriptRepo.getChatTranscriptJsonl(
+    chatId,
+    userId,
+  );
   if (aggregated?.jsonl?.trim()) return aggregated;
 
   const lines = await transcriptRepo.listTranscriptLines(chatId, userId);

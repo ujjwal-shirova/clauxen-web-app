@@ -4839,6 +4839,7 @@ export type Database = {
           message_id: string | null
           output: Json | null
           provider: string | null
+          provider_call_id: string | null
           status: string
           tool_name: string
           user_id: string | null
@@ -4854,6 +4855,7 @@ export type Database = {
           message_id?: string | null
           output?: Json | null
           provider?: string | null
+          provider_call_id?: string | null
           status?: string
           tool_name: string
           user_id?: string | null
@@ -4869,6 +4871,7 @@ export type Database = {
           message_id?: string | null
           output?: Json | null
           provider?: string | null
+          provider_call_id?: string | null
           status?: string
           tool_name?: string
           user_id?: string | null

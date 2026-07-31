@@ -62,6 +62,19 @@ export function mapPgError(error: unknown, scope = "query"): AppError {
       "database_busy",
     );
   }
+  if (
+    pg.code === "ETIMEDOUT" ||
+    pg.code === "ECONNREFUSED" ||
+    /timeout exceeded when trying to connect|connection terminated due to connection timeout/i.test(
+      pg.message ?? "",
+    )
+  ) {
+    return new AppError(
+      "The database is temporarily unavailable. Please retry in a moment.",
+      503,
+      "database_unavailable",
+    );
+  }
   // Undefined column / missing relation — surface in non-prod for faster fixes.
   if (
     !isProduction &&
@@ -71,7 +84,9 @@ export function mapPgError(error: unknown, scope = "query"): AppError {
     return new AppError(pg.message, 500, "database_error");
   }
   return new AppError(
-    isProduction ? "A database error occurred." : pg.message || "Database error.",
+    isProduction
+      ? "A database error occurred."
+      : pg.message || "Database error.",
     500,
     "database_error",
   );
