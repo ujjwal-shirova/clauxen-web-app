@@ -35,8 +35,7 @@ export function ConnectorsSettings({
       <section className="flex flex-col gap-6 text-zinc-800">
         <div className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
           <p className="text-[14px] leading-snug">
-            Connectors have moved to Customize. Head to the new Customize page
-            to manage your skills and connectors.
+            Manage connectors from the Connectors tab in Settings.
           </p>
 
           <Button
@@ -44,7 +43,7 @@ export function ConnectorsSettings({
             onClick={() => onGoToCustomize("connectors")}
             className={cn(appBtn.secondarySm, "h-8 shrink-0 px-3 text-[12px]")}
           >
-            Go to Customize
+            Go to Connectors
           </Button>
         </div>
 

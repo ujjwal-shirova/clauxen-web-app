@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { ArrowRight, ChevronDown, Loader2, Search } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import * as customizeApi from "@/lib/api/customize";
@@ -10,6 +11,14 @@ import {
   SettingsPanelTitle,
   SettingsPillButton,
 } from "@/components/settings/settings-ui";
+
+const SkillDirectoryDialog = dynamic(
+  () =>
+    import("@/components/customize/skills/directory").then(
+      (mod) => mod.SkillDirectoryDialog,
+    ),
+  { ssr: false },
+);
 
 const FILTERS = ["All", "Connected", "Not connected"] as const;
 
@@ -191,10 +200,22 @@ interface PluginsSettingsProps {
 }
 
 export function PluginsSettings({ onBrowse, onAdd }: PluginsSettingsProps) {
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+
   return (
     <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
       <SettingsPanelTitle>Plugins</SettingsPanelTitle>
-      <CatalogHeader title="Plugins" onBrowse={onBrowse} onAdd={onAdd} />
+      <CatalogHeader
+        title="Plugins"
+        onBrowse={() => {
+          if (onBrowse) {
+            onBrowse();
+            return;
+          }
+          setDirectoryOpen(true);
+        }}
+        onAdd={onAdd ?? (() => setDirectoryOpen(true))}
+      />
 
       <div className="overflow-hidden rounded-xl border border-zinc-200">
         <table className="w-full text-left text-[13px]">
@@ -220,6 +241,10 @@ export function PluginsSettings({ onBrowse, onAdd }: PluginsSettingsProps) {
           </tbody>
         </table>
       </div>
+
+      {directoryOpen ? (
+        <SkillDirectoryDialog onClose={() => setDirectoryOpen(false)} />
+      ) : null}
     </div>
   );
 }

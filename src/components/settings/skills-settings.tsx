@@ -1,21 +1,37 @@
 "use client";
 
+import { useState } from "react";
+import dynamic from "next/dynamic";
 import { ChevronDown, Search } from "lucide-react";
 import {
   SettingsPanelTitle,
   SettingsPillButton,
 } from "@/components/settings/settings-ui";
 
+const SkillDirectoryDialog = dynamic(
+  () =>
+    import("@/components/customize/skills/directory").then(
+      (mod) => mod.SkillDirectoryDialog,
+    ),
+  { ssr: false },
+);
+
+const UploadSkillDialog = dynamic(
+  () =>
+    import("@/components/customize/skills/upload-dialog").then(
+      (mod) => mod.UploadSkillDialog,
+    ),
+  { ssr: false },
+);
+
 const DEMO_SKILLS = [
   { name: "skill-creator", updated: "7/10/26", author: "Clauxen" },
 ];
 
-interface SkillsSettingsProps {
-  onBrowse?: () => void;
-  onAdd?: () => void;
-}
+export function SkillsSettings() {
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
-export function SkillsSettings({ onBrowse, onAdd }: SkillsSettingsProps) {
   return (
     <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
       <SettingsPanelTitle>Skills</SettingsPanelTitle>
@@ -30,8 +46,10 @@ export function SkillsSettings({ onBrowse, onAdd }: SkillsSettingsProps) {
           >
             <Search className="size-5" />
           </button>
-          <SettingsPillButton onClick={onBrowse}>Browse</SettingsPillButton>
-          <SettingsPillButton onClick={onAdd}>
+          <SettingsPillButton onClick={() => setDirectoryOpen(true)}>
+            Browse
+          </SettingsPillButton>
+          <SettingsPillButton onClick={() => setUploadOpen(true)}>
             Add
             <ChevronDown className="ml-1 h-3.5 w-3.5" />
           </SettingsPillButton>
@@ -60,6 +78,11 @@ export function SkillsSettings({ onBrowse, onAdd }: SkillsSettingsProps) {
           </tbody>
         </table>
       </div>
+
+      {directoryOpen ? (
+        <SkillDirectoryDialog onClose={() => setDirectoryOpen(false)} />
+      ) : null}
+      <UploadSkillDialog open={uploadOpen} onOpenChange={setUploadOpen} />
     </div>
   );
 }

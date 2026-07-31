@@ -169,7 +169,7 @@ export function checkoutSessionPath(
 }
 
 const SAFE_RETURN_PATH =
-  /^\/(?:new|onboarding|c\/[A-Za-z0-9_-]+|library|scheduled|projects(?:\/[A-Za-z0-9_-]+)?|customize)?\/?$/;
+  /^\/(?:new|onboarding|c\/[A-Za-z0-9_-]+|library|scheduled|projects(?:\/[A-Za-z0-9_-]+)?|my-clauxen)?\/?$/;
 
 /** Sanitize client-provided return path; fall back to /new. */
 export function normalizeCheckoutReturnPath(

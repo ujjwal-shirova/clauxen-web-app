@@ -304,58 +304,72 @@ export function LibraryView() {
 
       {isMobile ? <ProjectsMobileHeader title="Library" onOpenMobileNav={openMobileNav} isNavOpen={!isSidebarCollapsed} trailing={newMenu} /> : null}
 
-      <header className="border-b border-zinc-200/70 dark:border-white/10">
-        <div className="mobile-page-inset mx-auto flex w-full max-w-[1120px] items-center gap-4 px-4 py-5 sm:px-8 sm:py-7">
-          <div className="min-w-0 flex-1">
+      <header>
+        <div className="mobile-page-inset mx-auto flex w-full max-w-[1120px] flex-wrap items-center gap-3 px-4 py-5 sm:px-8 sm:py-7">
+          <div className="min-w-0 flex-1 basis-full sm:basis-auto">
             <h1 className="hidden font-serif text-[30px] font-medium tracking-[-0.035em] text-zinc-950 dark:text-zinc-50 sm:block">Library</h1>
             <p className="mt-1 hidden text-[13px] text-zinc-500 sm:block">Your uploads, generated files, images, and saved text.</p>
           </div>
-          <label className="relative flex h-10 w-full max-w-[360px] items-center sm:w-[320px]">
-            <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-zinc-400" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this folder" className="h-full w-full rounded-full border border-zinc-200 bg-white pl-10 pr-4 text-[14px] outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-900" />
-          </label>
-          {!isMobile ? newMenu : null}
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:flex-none">
+            <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-zinc-100 p-1 dark:bg-white/10">
+              {(["all", "images", "files"] as Filter[]).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => { setFilter(value); setSelected(new Set()); }}
+                  className={cn(
+                    "no-hover-overlay rounded-full px-3 py-1 text-[12.5px] capitalize transition",
+                    filter === value
+                      ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-white"
+                      : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200",
+                  )}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+            <label className="relative flex h-10 w-full max-w-[280px] items-center sm:w-[240px]">
+              <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-zinc-400" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this folder" className="h-full w-full rounded-full border border-zinc-200 bg-white pl-10 pr-4 text-[14px] outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-900" />
+            </label>
+            {!isMobile ? newMenu : null}
+          </div>
         </div>
       </header>
 
-      <div className="border-b border-zinc-200/70 dark:border-white/10">
-        <div className="mobile-page-inset mx-auto flex min-h-14 w-full max-w-[1120px] flex-wrap items-center gap-3 px-4 sm:px-8">
+      <div>
+        <div className="mobile-page-inset mx-auto flex min-h-10 w-full max-w-[1120px] flex-wrap items-center gap-3 px-4 sm:px-8">
           <nav className="flex items-center gap-1 text-[13px] text-zinc-500">
-            <button onClick={() => void load(null)} className="rounded-md px-2 py-1 font-medium hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white">Library</button>
+            <button type="button" onClick={() => void load(null)} className="no-hover-overlay rounded-md px-2 py-1 font-medium hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white">Library</button>
             {listing?.breadcrumbs.map((crumb) => (
               <React.Fragment key={crumb.id}>
                 <ChevronRight className="h-3.5 w-3.5 text-zinc-300" />
-                <button onClick={() => void load(crumb.id)} className="max-w-36 truncate rounded-md px-2 py-1 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white">{crumb.name}</button>
+                <button type="button" onClick={() => void load(crumb.id)} className="no-hover-overlay max-w-36 truncate rounded-md px-2 py-1 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white">{crumb.name}</button>
               </React.Fragment>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-1 rounded-full bg-zinc-100 p-1 dark:bg-white/10">
-            {(["all", "images", "files"] as Filter[]).map((value) => (
-              <button key={value} onClick={() => { setFilter(value); setSelected(new Set()); }} className={cn("rounded-full px-3 py-1 text-[12.5px] capitalize transition", filter === value ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-white" : "text-zinc-500")}>{value}</button>
-            ))}
-          </div>
         </div>
       </div>
 
       <main className="app-scrollbar min-h-0 flex-1 overflow-y-auto">
-        <div className="mobile-page-inset mx-auto w-full max-w-[1120px] px-4 pb-24 pt-5 sm:px-8">
+        <div className="mobile-page-inset mx-auto w-full max-w-[1120px] px-4 pb-24 pt-3 sm:px-8">
           {selected.size > 0 ? (
             <div className="mb-3 flex min-h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 dark:border-white/10 dark:bg-white/5">
               <span className="text-[13px] font-medium">{selected.size} selected</span>
               <Button variant="ghost" size="sm" onClick={() => setMoveOpen(true)} className="ml-auto h-8 gap-1.5"><FolderInput className="h-4 w-4" /> Move</Button>
               <Button variant="ghost" size="sm" onClick={() => void remove(selectedRefs)} className="h-8 gap-1.5 text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" /> Delete</Button>
-              <button onClick={() => setSelected(new Set())} aria-label="Clear selection" className="grid h-8 w-8 place-items-center rounded-md hover:bg-zinc-200 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={() => setSelected(new Set())} aria-label="Clear selection" className="no-hover-overlay grid h-8 w-8 place-items-center rounded-md hover:bg-zinc-200 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
             </div>
           ) : null}
 
-          <div className="grid grid-cols-[32px_minmax(0,1fr)_150px_90px_44px] items-center border-b border-zinc-200 pb-2 text-[12px] font-medium text-zinc-500 dark:border-white/10 max-sm:grid-cols-[28px_minmax(0,1fr)_44px]">
+          <div className="grid grid-cols-[32px_minmax(0,1fr)_150px_90px_44px] items-center pb-2 text-[12px] font-medium text-zinc-500 max-sm:grid-cols-[28px_minmax(0,1fr)_44px]">
             <input type="checkbox" aria-label="Select all" checked={entries.length > 0 && entries.every((entry) => selected.has(entryKey(entry)))} onChange={() => {
               if (entries.every((entry) => selected.has(entryKey(entry)))) setSelected(new Set());
               else setSelected(new Set(entries.map(entryKey)));
             }} className="h-4 w-4 rounded accent-zinc-950" />
-            <button onClick={() => toggleSort("name")} className="text-left">Name</button>
-            <button onClick={() => toggleSort("modified")} className="text-left max-sm:hidden">Modified</button>
-            <button onClick={() => toggleSort("size")} className="text-right max-sm:hidden">Size</button>
+            <button type="button" onClick={() => toggleSort("name")} className="no-hover-overlay text-left">Name</button>
+            <button type="button" onClick={() => toggleSort("modified")} className="no-hover-overlay text-left max-sm:hidden">Modified</button>
+            <button type="button" onClick={() => toggleSort("size")} className="no-hover-overlay text-right max-sm:hidden">Size</button>
             <span />
           </div>
 
@@ -369,7 +383,7 @@ export function LibraryView() {
               {!query ? <Button onClick={() => uploadInputRef.current?.click()} variant="outline" className="mt-5 h-9 rounded-full"><Upload className="mr-2 h-4 w-4" /> Upload files</Button> : null}
             </div>
           ) : (
-            <div className="divide-y divide-zinc-100 dark:divide-white/5">
+            <div>
               {entries.map((entry) => {
                 const Icon = iconFor(entry);
                 const key = entryKey(entry);
@@ -392,21 +406,45 @@ export function LibraryView() {
                       void move(JSON.parse(payload) as LibraryEntryRef[], entry.id);
                     } : undefined}
                     onDoubleClick={() => openEntry(entry)}
-                    className={cn("group grid min-h-[62px] grid-cols-[32px_minmax(0,1fr)_150px_90px_44px] items-center rounded-xl px-0 transition hover:bg-zinc-50 dark:hover:bg-white/5 max-sm:grid-cols-[28px_minmax(0,1fr)_44px]", checked && "bg-zinc-100 dark:bg-white/10")}
+                    className={cn(
+                      "group grid min-h-[52px] grid-cols-[32px_minmax(0,1fr)_150px_90px_44px] items-center rounded-xl px-0 transition-colors hover:bg-zinc-50 dark:hover:bg-white/5 max-sm:grid-cols-[28px_minmax(0,1fr)_44px]",
+                      checked && "bg-zinc-100 dark:bg-white/10",
+                    )}
                   >
                     <input type="checkbox" checked={checked} onChange={() => setSelected((current) => {
                       const next = new Set(current);
                       if (next.has(key)) next.delete(key); else next.add(key);
                       return next;
                     })} aria-label={`Select ${entry.name}`} className="h-4 w-4 rounded accent-zinc-950" />
-                    <button onClick={() => openEntry(entry)} className="flex min-w-0 items-center gap-3 text-left">
-                      <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl border", entry.kind === "folder" ? "border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-400/20 dark:bg-amber-400/10" : "border-zinc-200 bg-white text-zinc-500 dark:border-white/10 dark:bg-zinc-900")}><Icon className="h-[18px] w-[18px]" /></span>
+                    <button
+                      type="button"
+                      onClick={() => openEntry(entry)}
+                      className="no-hover-overlay flex min-w-0 items-center gap-3 text-left"
+                    >
+                      <span
+                        className={cn(
+                          "grid h-8 w-8 shrink-0 place-items-center rounded-lg",
+                          entry.kind === "folder"
+                            ? "bg-amber-50 text-amber-600 dark:bg-amber-400/10"
+                            : "bg-zinc-100 text-zinc-500 dark:bg-white/10",
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
                       <span className="truncate text-[14px] font-medium text-zinc-800 dark:text-zinc-200">{entry.name}</span>
                     </button>
                     <span className="text-[13px] text-zinc-500 max-sm:hidden">{formatDate(entry.updatedAt)}</span>
                     <span className="text-right text-[13px] tabular-nums text-zinc-500 max-sm:hidden">{entry.kind === "file" ? formatSize(entry.size) : "—"}</span>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild><button aria-label={`Actions for ${entry.name}`} className="grid h-8 w-8 place-items-center rounded-lg text-zinc-400 opacity-0 hover:bg-zinc-200 group-hover:opacity-100 data-[state=open]:opacity-100 dark:hover:bg-white/10"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={`Actions for ${entry.name}`}
+                          className="no-hover-overlay grid h-8 w-8 place-items-center rounded-lg text-zinc-400 opacity-0 hover:bg-zinc-200 group-hover:opacity-100 data-[state=open]:opacity-100 dark:hover:bg-white/10"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44 rounded-xl p-1">
                         <DropdownMenuItem onClick={() => openEntry(entry)} className="gap-2 rounded-lg"><Grid2X2 className="h-4 w-4" /> Open</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => rename(entry)} className="gap-2 rounded-lg"><Pencil className="h-4 w-4" /> Rename</DropdownMenuItem>

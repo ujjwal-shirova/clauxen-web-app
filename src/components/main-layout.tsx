@@ -35,7 +35,6 @@ import { ChatView } from "@/components/chat-view";
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
   "/scheduled",
-  "/customize",
   "/my-clauxen",
   "/project",
   "/projects",
@@ -149,10 +148,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     closeMobileNav();
   }, [overlays, closeMobileNav]);
 
-  const goToMyClauxen = useCallback(() => {
-    closeMobileNav();
-  }, [closeMobileNav]);
-
   const onSelectChatFromSidebar = useCallback(
     (chatEntry: RecentChat) => {
       handleSelectChat(chatEntry.id);
@@ -236,11 +231,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     return match?.[1] ?? null;
   }, [pathname]);
 
-  /** Quiet no-op for unfinished surfaces — never toast placeholder cards. */
-  const deferUnbuiltSurface = useCallback(() => {
-    closeMobileNav();
-  }, [closeMobileNav]);
-
   const isMobileFullBleed = isMobile && shouldMobileFullBleed(pathname);
   const isIncognito = isIncognitoPath(pathname);
 
@@ -259,7 +249,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p.startsWith("/scheduled/") ||
       p === "/project" ||
       p === "/projects" ||
-      p.startsWith("/customize") ||
       (p.startsWith("/project/") && !p.includes("/conversations/")) ||
       (p.startsWith("/projects") && !p.includes("/conversations/"))
     ) {
@@ -314,11 +303,8 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           onProjectsClick={goToProjects}
           onLibraryClick={goToLibrary}
           onCustomizeClick={goToCustomize}
-          onMyClauxenClick={goToMyClauxen}
           onScheduledTasksClick={goToScheduledTasks}
           onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
-          onClauxenWorkClick={deferUnbuiltSurface}
-          onClauxenClawClick={deferUnbuiltSurface}
           activeView={computeActiveView(
             pathname,
             overlays.currentOverlay?.type ?? null,
@@ -424,6 +410,9 @@ function computeActiveView(
   if (overlayType === "settings" && settingsTab === "Connectors") {
     return "connectors";
   }
+  if (overlayType === "settings" && settingsTab === "Clauxen Code") {
+    return "clauxen-code";
+  }
   if (!pathname) return "chat";
   if (pathname.startsWith("/my-clauxen")) return "my-clauxen";
   if (pathname.startsWith("/project") || pathname.startsWith("/projects")) {
@@ -431,7 +420,6 @@ function computeActiveView(
   }
   if (pathname.startsWith("/library")) return "library";
   if (pathname.startsWith("/scheduled")) return "scheduled-tasks";
-  if (pathname.startsWith("/customize")) return "customize";
   if (pathname === "/new" || pathname === "/") return "chat";
   return "chat";
 }

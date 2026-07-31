@@ -7,8 +7,6 @@ import { SettingsPageSkeleton } from "@/components/settings/settings-page-skelet
 import { FullscreenPortal } from "@/components/fullscreen-portal";
 import { useAppOverlays } from "@/hooks/use-app-overlays";
 import { useAuth } from "@/hooks/use-auth";
-import { APP_ROUTES } from "@/lib/app-routes";
-import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { isSettingsTab } from "@/components/settings/constants";
 
 function SettingsLoadingShell() {
@@ -61,7 +59,6 @@ const SettingsModal = dynamic(
 export function AppOverlayHost() {
   const overlays = useAppOverlays();
   const auth = useAuth();
-  const instantNavigate = useInstantNavigate();
 
   if (!overlays.currentOverlay) return null;
 
@@ -109,8 +106,7 @@ export function AppOverlayHost() {
               overlays.openSettings("Connectors");
               return;
             }
-            overlays.closeOverlay();
-            instantNavigate(APP_ROUTES.customize);
+            overlays.openSettings("Skills");
           }}
           onUpgradeClick={() => overlays.openPricing()}
           user={auth.user}

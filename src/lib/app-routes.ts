@@ -75,6 +75,7 @@ export const APP_ROUTES = {
   scheduledTasks: "/scheduled",
   /** Create-project surface (inline form, not a gallery). */
   projects: "/project",
+  /** @deprecated Removed — Customize nav opens settings Connectors. Kept for redirects. */
   customize: "/customize",
   myClauxen: "/my-clauxen",
 
@@ -231,8 +232,6 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname.startsWith("/project/") ||
     pathname === "/projects" ||
     pathname.startsWith("/projects/") ||
-    pathname === "/customize" ||
-    pathname.startsWith("/customize/") ||
     pathname === "/my-clauxen" ||
     pathname.startsWith("/my-clauxen/")
   );

@@ -51,7 +51,6 @@ const PREFETCH_PATHS = [
   APP_ROUTES.newChat,
   APP_ROUTES.library,
   APP_ROUTES.projects,
-  APP_ROUTES.customize,
   APP_ROUTES.myClauxen,
 ] as const;
 

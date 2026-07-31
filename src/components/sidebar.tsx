@@ -5,12 +5,9 @@ import {
   Settings,
   ArrowUpCircle,
   ArrowUpRight,
-  Briefcase,
-  Bot,
   CalendarClock,
   ChevronRight,
   Code2,
-  Ellipsis,
   Gift,
   HelpCircle,
   LogOut,
@@ -22,7 +19,6 @@ import {
   Sparkles,
   Library,
   SlidersHorizontal,
-  UserRound,
   X,
   LayoutGrid,
 } from "lucide-react";
@@ -69,7 +65,7 @@ const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
 const SECTION_STORAGE_PREFIX = "clauxen_sidebar_section_";
 const CLAUXEN_LOGO_SRC = "/assets/icons/clauxen-icon.png";
 
-type SidebarSectionKey = "pinned" | "projects" | "recents" | "more";
+type SidebarSectionKey = "pinned" | "projects" | "recents";
 
 function readSectionExpanded(key: SidebarSectionKey, fallback: boolean) {
   if (typeof window === "undefined") return fallback;
@@ -174,7 +170,7 @@ const ProfileMenuChevron = ({ className }: { className?: string }) => (
     fill="currentColor"
     viewBox="0 0 256 256"
     aria-hidden="true"
-    className={cn("size-4 shrink-0 text-zinc-500", className)}
+    className={cn("size-3.5 shrink-0 text-zinc-500", className)}
   >
     <path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z" />
   </svg>
@@ -199,11 +195,8 @@ interface SidebarProps {
   onLibraryClick: () => void;
   onGiftClick: () => void;
   onProjectsClick: () => void;
-  onMyClauxenClick?: () => void;
   onScheduledTasksClick?: () => void;
   onClauxenCodeClick?: () => void;
-  onClauxenWorkClick?: () => void;
-  onClauxenClawClick?: () => void;
   activeView?: string;
   recentChats: RecentChat[];
   activeChatId: string | null;
@@ -249,11 +242,8 @@ export function Sidebar({
   onLibraryClick,
   onGiftClick,
   onProjectsClick,
-  onMyClauxenClick,
   onScheduledTasksClick,
   onClauxenCodeClick,
-  onClauxenWorkClick,
-  onClauxenClawClick,
   activeView,
   recentChats,
   activeChatId,
@@ -286,14 +276,14 @@ export function Sidebar({
     /Mac|iPhone|iPad|iPod/i.test(
       `${navigator.platform ?? ""} ${navigator.userAgent ?? ""}`,
     );
-  const isCustomizeActive = activeView === "customize";
   const [chatGroupBy, setChatGroupBy] = useState<ChatGroupBy>("none");
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
   const [pinnedExpanded, setPinnedExpanded] = useState(true);
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [recentsExpanded, setRecentsExpanded] = useState(true);
-  const [moreExpanded, setMoreExpanded] = useState(false);
+  const [planLabel, setPlanLabel] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -308,8 +298,46 @@ export function Sidebar({
     setPinnedExpanded(readSectionExpanded("pinned", true));
     setProjectsExpanded(readSectionExpanded("projects", true));
     setRecentsExpanded(readSectionExpanded("recents", true));
-    setMoreExpanded(readSectionExpanded("more", false));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPlan = async () => {
+      if (!userEmail) {
+        setPlanLabel(null);
+        setPlanLoading(false);
+        return;
+      }
+      setPlanLoading(true);
+      setPlanLabel(null);
+      try {
+        const { getBillingSubscription } = await import("@/lib/api/billing");
+        const overview = await getBillingSubscription();
+        if (cancelled) return;
+        const planId = overview.subscription?.plan_id;
+        if (!planId) {
+          setPlanLabel("Free plan");
+          return;
+        }
+        const match = overview.plans?.find((p) => p.id === planId);
+        const name = match?.display_name || planId;
+        setPlanLabel(
+          name.toLowerCase().includes("plan") ? name : `${name} plan`,
+        );
+      } catch {
+        if (!cancelled) setPlanLabel("Free plan");
+      } finally {
+        if (!cancelled) setPlanLoading(false);
+      }
+    };
+    void loadPlan();
+    const onBillingUpdated = () => void loadPlan();
+    window.addEventListener("clauxen:billing-updated", onBillingUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("clauxen:billing-updated", onBillingUpdated);
+    };
+  }, [userEmail]);
 
   const toggleSection = (key: SidebarSectionKey) => {
     const setters: Record<
@@ -319,7 +347,6 @@ export function Sidebar({
       pinned: setPinnedExpanded,
       projects: setProjectsExpanded,
       recents: setRecentsExpanded,
-      more: setMoreExpanded,
     };
     setters[key]((prev) => {
       const next = !prev;
@@ -429,7 +456,7 @@ export function Sidebar({
 
   const navButtonClass = (active = false, muted = false) =>
     cn(
-      "ui-sidebar-menu-button mb-0 w-full rounded-lg text-[14px] font-medium leading-5 transition-all duration-75 hover:bg-zinc-100",
+      "ui-sidebar-menu-button no-hover-overlay mb-0 w-full rounded-lg text-[14px] font-medium leading-5 transition-all duration-75 hover:bg-zinc-100",
       muted ? "text-zinc-400 hover:text-zinc-500" : "text-zinc-800",
       isCollapsed
         ? "ui-icon-button mx-auto justify-center gap-0 px-0"
@@ -630,10 +657,7 @@ export function Sidebar({
         id={id}
         data-skip-global-prompt-focus
         onClick={() =>
-          !isMobileLayout &&
-          isCollapsed &&
-          !isCustomizeActive &&
-          setIsCollapsed(false)
+          !isMobileLayout && isCollapsed && setIsCollapsed(false)
         }
         className={cn(
           "sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)]",
@@ -685,14 +709,10 @@ export function Sidebar({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!isCustomizeActive) setIsCollapsed(false);
+                  setIsCollapsed(false);
                 }}
-                disabled={isCustomizeActive}
                 aria-label="Expand sidebar"
-                className={cn(
-                  "ui-icon-button absolute inset-0 text-zinc-500 opacity-0 transition-all duration-200 hover:bg-zinc-100 group-hover/sidebar-logo:opacity-100",
-                  isCustomizeActive && "cursor-not-allowed opacity-0",
-                )}
+                className="ui-icon-button absolute inset-0 text-zinc-500 opacity-0 transition-all duration-200 hover:bg-zinc-100 group-hover/sidebar-logo:opacity-100"
               >
                 <SidebarOpenIcon className="size-[18px]" />
               </button>
@@ -701,16 +721,12 @@ export function Sidebar({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (!isCustomizeActive) setIsCollapsed(!isCollapsed);
+                setIsCollapsed(!isCollapsed);
               }}
-              disabled={isCustomizeActive}
               aria-label={
                 isMobileLayout && !isCollapsed ? "Close menu" : "Toggle sidebar"
               }
-              className={cn(
-                "ui-icon-button text-zinc-500 transition-all duration-200 hover:bg-zinc-100",
-                isCustomizeActive && "cursor-not-allowed opacity-30",
-              )}
+              className="ui-icon-button text-zinc-500 transition-all duration-200 hover:bg-zinc-100"
             >
               {isMobileLayout && !isCollapsed ? (
                 <X className="size-[18px]" />
@@ -776,21 +792,7 @@ export function Sidebar({
           </div>
 
           <div className="space-y-0.5 pl-2 pr-1.5">
-            {/* New Chat pill is above — nav order: My Clauxen → Library → Scheduled → Customize */}
-            {renderNavButton({
-              label: "My Clauxen",
-              icon: <UserRound className="size-[18px]" strokeWidth={1.75} />,
-              href: APP_ROUTES.myClauxen,
-              onClick: () => {
-                (
-                  onMyClauxenClick ??
-                  onPersonalizationClick ??
-                  onCustomizeClick
-                )?.();
-              },
-              active: activeView === "my-clauxen",
-            })}
-
+            {/* Nav: Library → Scheduled → Customize → Clauxen Code */}
             {renderNavButton({
               label: "Library",
               icon: <Library className="size-[18px]" />,
@@ -820,82 +822,21 @@ export function Sidebar({
             })}
 
             {renderNavButton({
-              label: moreExpanded ? "Collapse" : "More",
-              icon: <Ellipsis className="size-[18px]" strokeWidth={1.75} />,
-              muted: moreExpanded,
-              onClick: () => {
-                if (isCollapsed) {
-                  setIsCollapsed(false);
-                  if (!moreExpanded) toggleSection("more");
-                  return;
-                }
-                toggleSection("more");
-              },
+              label: "Clauxen Code",
+              icon: <Code2 className="size-[18px]" strokeWidth={1.75} />,
+              onClick: () =>
+                runNavAction(() => {
+                  onClauxenCodeClick?.();
+                }),
+              active: activeView === "clauxen-code",
               trailing: !isCollapsed ? (
-                <ChevronRight
-                  className={cn(
-                    "sidebar-section-chevron ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400 transition-[opacity,transform] duration-200",
-                    moreExpanded && "rotate-90",
-                  )}
-                  strokeWidth={2}
+                <ArrowUpRight
+                  className="ml-auto size-4 shrink-0 text-zinc-400"
+                  strokeWidth={1.75}
                   aria-hidden
                 />
               ) : undefined,
             })}
-
-            {!isCollapsed ? (
-              <SidebarSectionBody
-                expanded={moreExpanded}
-                className="mb-0.5 space-y-0.5 pl-2"
-              >
-                {renderNavButton({
-                  label: "Clauxen Code",
-                  icon: <Code2 className="size-[18px]" strokeWidth={1.75} />,
-                  onClick: () =>
-                    runNavAction(() => {
-                      onClauxenCodeClick?.();
-                    }),
-                  active: activeView === "clauxen-code",
-                  looseGap: true,
-                  trailing: !isCollapsed ? (
-                    <ArrowUpRight
-                      className="ml-auto size-4 shrink-0 text-zinc-400"
-                      strokeWidth={1.75}
-                      aria-hidden
-                    />
-                  ) : undefined,
-                })}
-                {renderNavButton({
-                  label: "Clauxen Collabry",
-                  icon: (
-                    <Briefcase className="size-[18px]" strokeWidth={1.75} />
-                  ),
-                  onClick: () =>
-                    runNavAction(() => {
-                      onClauxenWorkClick?.();
-                    }),
-                  active: activeView === "clauxen-work",
-                  looseGap: true,
-                  trailing: !isCollapsed ? (
-                    <ArrowUpRight
-                      className="ml-auto size-4 shrink-0 text-zinc-400"
-                      strokeWidth={1.75}
-                      aria-hidden
-                    />
-                  ) : undefined,
-                })}
-                {renderNavButton({
-                  label: "Clauxen Claw",
-                  icon: <Bot className="size-[18px]" strokeWidth={1.75} />,
-                  onClick: () =>
-                    runNavAction(() => {
-                      onClauxenClawClick?.();
-                    }),
-                  active: activeView === "clauxen-claw",
-                  looseGap: true,
-                })}
-              </SidebarSectionBody>
-            ) : null}
 
             {/* Order: Pinned (chats + projects) → Projects → Recent */}
             {!isCollapsed && hasPinnedSection ? (
@@ -1009,21 +950,25 @@ export function Sidebar({
                     onClick={(e) => e.stopPropagation()}
                     onPointerDown={(e) => e.stopPropagation()}
                     className={cn(
-                      "menu-trigger-active glass-sidebar-footer-account-trigger flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-black/5",
+                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-zinc-100",
                       isCollapsed
                         ? "ui-icon-button shrink-0 items-center justify-center gap-0 rounded-full !p-0"
-                        : "ui-nav-row h-8 min-h-8 w-full justify-start gap-[3px] rounded-lg px-2.5 py-0",
+                        : "ui-nav-row--loose h-auto min-h-10 w-full justify-start gap-2 rounded-lg px-2.5 py-1.5",
                     )}
                   >
                     <UserAvatarDisplay
                       name={userDisplayName || "?"}
                       avatarUrl={userAvatarUrl}
                       size="sm"
-                      className="h-[18px] w-[18px] shrink-0 text-[10px]"
+                      className={
+                        isCollapsed
+                          ? "h-[22px] w-[22px] text-[10px]"
+                          : "h-5 w-5 shrink-0 text-[10px] leading-none"
+                      }
                     />
                     <div
                       className={cn(
-                        "flex min-w-0 flex-1 text-left transition-opacity duration-200",
+                        "flex min-w-0 flex-1 flex-col items-stretch justify-center gap-0.5 text-left transition-opacity duration-200",
                         isCollapsed ? "hidden w-0 opacity-0" : "opacity-100",
                       )}
                     >
@@ -1033,10 +978,18 @@ export function Sidebar({
                           variant="text"
                         />
                       ) : (
-                        <p className="truncate text-[14px] font-medium leading-5 text-zinc-800">
+                        <p className="truncate text-[13.5px] font-medium leading-4 text-zinc-800">
                           {userDisplayName}
                         </p>
                       )}
+                      {accountLoading ||
+                      (Boolean(userEmail) && (planLoading || !planLabel)) ? (
+                        <Skeleton className="h-3 w-[4.75rem]" variant="text" />
+                      ) : planLabel ? (
+                        <p className="truncate text-[12px] font-medium leading-4 text-zinc-500">
+                          {planLabel}
+                        </p>
+                      ) : null}
                     </div>
                     {!isCollapsed && (
                       <ProfileMenuChevron className="opacity-80" />
@@ -1062,7 +1015,7 @@ export function Sidebar({
                         e.preventDefault();
                         runNavAction(onSettingsClick);
                       }}
-                      className="ui-menu-row cursor-pointer justify-between"
+                      className="ui-menu-row no-hover-overlay cursor-pointer justify-between"
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
                         <Settings className="size-4 text-zinc-800" />
@@ -1083,7 +1036,7 @@ export function Sidebar({
                           e.preventDefault();
                           runNavAction(onPersonalizationClick);
                         }}
-                        className="ui-menu-row cursor-pointer"
+                        className="ui-menu-row no-hover-overlay cursor-pointer"
                       >
                         <Sparkles className="size-4 text-zinc-800" />
                         <span>Personalization</span>
@@ -1091,25 +1044,25 @@ export function Sidebar({
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="ui-menu-row cursor-pointer">
+                    <DropdownMenuSubTrigger className="ui-menu-row no-hover-overlay cursor-pointer">
                       <Languages className="size-4 text-zinc-800" />
                       <span>Language</span>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
-                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
                           English
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
                           Hindi
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
                           Tamil
                         </DropdownMenuItem>
                       </DropdownMenuSubContent>
                     </DropdownMenuPortal>
                   </DropdownMenuSub>
-                  <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                  <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
                     <HelpCircle className="size-4 text-zinc-800" />
                     <span>Get help</span>
                   </DropdownMenuItem>
@@ -1121,7 +1074,7 @@ export function Sidebar({
                         e.preventDefault();
                         runNavAction(onUpgradeClick);
                       }}
-                      className="ui-menu-row cursor-pointer"
+                      className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
                       <ArrowUpCircle className="size-4 text-zinc-800" />
                       <span>Upgrade plan</span>
@@ -1135,7 +1088,7 @@ export function Sidebar({
                         e.preventDefault();
                         runNavAction(onAppsExtensionsClick);
                       }}
-                      className="ui-menu-row cursor-pointer"
+                      className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
                       <LayoutGrid className="size-4 text-zinc-800" />
                       <span>Apps and extensions</span>
@@ -1149,26 +1102,26 @@ export function Sidebar({
                         e.preventDefault();
                         runNavAction(onGiftClick);
                       }}
-                      className="ui-menu-row cursor-pointer"
+                      className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
                       <Gift className="size-4 text-zinc-800" />
                       <span>Gift Clauxen</span>
                     </AppHref>
                   </DropdownMenuItem>
                   <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="ui-menu-row cursor-pointer">
+                    <DropdownMenuSubTrigger className="ui-menu-row no-hover-overlay cursor-pointer">
                       <HelpCircle className="size-4 text-zinc-800" />
                       <span>Learn more</span>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
-                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
                           Release notes
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
                           Documentation
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                        <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
                           Community
                         </DropdownMenuItem>
                       </DropdownMenuSubContent>
@@ -1177,7 +1130,7 @@ export function Sidebar({
                   <DropdownMenuSeparator className="my-1.5 bg-zinc-900/10" />
                   <DropdownMenuItem
                     onClick={() => onLogoutClick?.()}
-                    className="ui-menu-row cursor-pointer text-destructive"
+                    className="ui-menu-row no-hover-overlay cursor-pointer text-destructive"
                   >
                     <LogOut className="size-4" />
                     <span>Log out</span>

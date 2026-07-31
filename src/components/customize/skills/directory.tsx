@@ -73,12 +73,18 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
   }, [query]);
 
   const dialog = (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-zinc-900/20 p-3 backdrop-blur-[2px] sm:p-4">
+    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-zinc-900/20 p-3 backdrop-blur-[2px] sm:p-4">
+      <button
+        type="button"
+        aria-label="Close directory"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="skill-directory-title"
-        className="flex max-h-[min(673px,calc(100dvh-1.5rem))] w-full max-w-[min(1024px,calc(100vw-1.5rem))] flex-col rounded-xl bg-zinc-50 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1),0_4px_8px_rgba(11,11,11,0.08),0_12px_28px_-2px_rgba(11,11,11,0.08)] backdrop-blur-xl duration-200 animate-in fade-in zoom-in-95"
+        className="relative flex max-h-[min(673px,calc(100dvh-1.5rem))] w-full max-w-[min(1024px,calc(100vw-1.5rem))] flex-col rounded-xl bg-zinc-50 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1),0_4px_8px_rgba(11,11,11,0.08),0_12px_28px_-2px_rgba(11,11,11,0.08)] backdrop-blur-xl duration-200 animate-in fade-in zoom-in-95"
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-auto rounded-xl p-5 sm:p-6">
           <div className="mb-3 flex items-start gap-2">

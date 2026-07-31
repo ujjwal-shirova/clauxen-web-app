@@ -230,21 +230,21 @@ export function CapabilitiesSettings({
 
       <SettingsSection title="Skills">
         <p className="py-3 text-[13px] leading-4 text-zinc-600">
-          Skills have moved to{" "}
+          Skills live in the{" "}
           {onGoToCustomize ? (
             <button
               type="button"
               onClick={() => onGoToCustomize("skills")}
               className={linkClass}
             >
-              Customize
+              Skills
             </button>
           ) : (
             <a href="/new#settings/Skills" className={linkClass}>
-              Customize
+              Skills
             </a>
-          )}
-          .
+          )}{" "}
+          settings tab.
         </p>
       </SettingsSection>
     </div>

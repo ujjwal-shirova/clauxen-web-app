@@ -343,12 +343,7 @@ export function SettingsModal({
       case "Keyboard":
         return <KeyboardSettings />;
       case "Skills":
-        return (
-          <SkillsSettings
-            onBrowse={() => onGoToCustomize("skills")}
-            onAdd={() => onGoToCustomize("skills")}
-          />
-        );
+        return <SkillsSettings />;
       case "Connectors":
         return (
           <ConnectorsCatalogSettings onAdd={() => handleTabChange("Plugins")} />

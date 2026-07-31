@@ -201,6 +201,9 @@
   .glass-sidebar-agent-menu-btn button:hover,
   .glass-sidebar-agent-menu-btn [role="button"]:hover,
   .group\/chat button:hover,
+  .ui-sidebar-menu-button:hover,
+  .ui-menu-row:hover,
+  .glass-sidebar-footer-account-trigger:hover,
   .follow-up-prompt:hover,
   .label-hover-bold:hover {
     box-shadow: none !important;
@@ -1788,6 +1791,7 @@ button.user-message-card__body:not(:disabled):hover,
 
 .glass-sidebar-docked .glass-sidebar-footer-account-trigger:not(.ui-icon-button) {
   min-height: 40px;
+  height: auto;
 }
 
 .glass-sidebar-docked .ui-sidebar-menu-button-label,
