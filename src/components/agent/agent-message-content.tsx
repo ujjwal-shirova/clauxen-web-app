@@ -67,8 +67,10 @@ export function AgentMessageContent({
             />
           </div>
         ) : null}
-        {sources.length > 0 ? (
-          <SourcesInlineStrip sources={sources} />
+        {sources.length > 0 && !streaming ? (
+          <div data-agent-block="sources" className="overflow-anchor-none">
+            <SourcesInlineStrip sources={sources} />
+          </div>
         ) : null}
         {showOrb ? (
           <div
