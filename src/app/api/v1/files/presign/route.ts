@@ -15,6 +15,7 @@ export const POST = withApiHandler(
       sizeBytes?: number;
       workspaceId?: string | null;
       projectId?: string | null;
+      folderId?: string | null;
       purpose?: "avatar" | "library";
     };
 
@@ -24,6 +25,7 @@ export const POST = withApiHandler(
       sizeBytes: body.sizeBytes,
       workspaceId: body.workspaceId,
       projectId: body.projectId,
+      folderId: body.folderId,
       purpose: body.purpose,
     });
 

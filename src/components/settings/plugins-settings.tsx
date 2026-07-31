@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, ChevronDown, Loader2, Search } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import * as customizeApi from "@/lib/api/customize";
+import type { ApiConnector } from "@/lib/api/customize";
 import { cn } from "@/lib/utils";
 import {
   SettingsPanelTitle,
@@ -11,16 +14,17 @@ import {
 const FILTERS = ["All", "Connected", "Not connected"] as const;
 
 const DEMO_CONNECTORS = [
-  { name: "GitHub", type: "Web", status: "Connect" as const },
-  { name: "Gmail", type: "Web", status: "Connect" as const },
-  { name: "Google Calendar", type: "Web", status: "Connect" as const },
-  { name: "Google Drive", type: "Web", status: "Connect" as const },
+  { id: "github", name: "GitHub", type: "Web" },
+  { id: "gmail", name: "Gmail", type: "Web" },
+  { id: "calendar", name: "Google Calendar", type: "Web" },
+  { id: "drive", name: "Google Drive", type: "Web" },
 ];
 
 interface PluginsOrConnectorsHeaderProps {
   title: string;
   onBrowse?: () => void;
   onAdd?: () => void;
+  addLabel?: string;
   showBrowse?: boolean;
 }
 
@@ -28,6 +32,7 @@ function CatalogHeader({
   title,
   onBrowse,
   onAdd,
+  addLabel = "Add",
   showBrowse = true,
 }: PluginsOrConnectorsHeaderProps) {
   return (
@@ -45,8 +50,12 @@ function CatalogHeader({
           <SettingsPillButton onClick={onBrowse}>Browse</SettingsPillButton>
         ) : null}
         <SettingsPillButton onClick={onAdd}>
-          Add
-          <ChevronDown className="ml-1 h-3.5 w-3.5" />
+          {addLabel}
+          {addLabel === "Add plugin" ? (
+            <ArrowRight className="ml-1 h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="ml-1 h-3.5 w-3.5" />
+          )}
         </SettingsPillButton>
       </div>
     </div>
@@ -55,14 +64,51 @@ function CatalogHeader({
 
 interface ConnectorsCatalogSettingsProps {
   onAdd?: () => void;
-  onGoToCustomize?: () => void;
 }
 
 export function ConnectorsCatalogSettings({
   onAdd,
-  onGoToCustomize,
 }: ConnectorsCatalogSettingsProps) {
+  const auth = useAuth();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
+  const [installed, setInstalled] = useState<ApiConnector[]>([]);
+  const [pendingConnector, setPendingConnector] = useState<string | null>(null);
+  const connected = new Set(installed.map((item) => item.connectorId));
+
+  useEffect(() => {
+    if (!auth.isAuthenticated) return;
+    let cancelled = false;
+    void customizeApi
+      .listConnectors()
+      .then(({ connectors }) => {
+        if (!cancelled) setInstalled(connectors);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.isAuthenticated]);
+
+  const visibleConnectors = DEMO_CONNECTORS.filter((connector) => {
+    if (filter === "Connected") return connected.has(connector.id);
+    if (filter === "Not connected") return !connected.has(connector.id);
+    return true;
+  });
+
+  const toggleConnector = async (connectorId: string) => {
+    if (!auth.isAuthenticated || pendingConnector) return;
+    setPendingConnector(connectorId);
+    try {
+      const result = connected.has(connectorId)
+        ? await customizeApi.disconnectConnector(connectorId)
+        : await customizeApi.connectConnector(connectorId);
+      setInstalled(result.connectors);
+    } catch {
+      // Keep the last server-confirmed state when an install request fails.
+    } finally {
+      setPendingConnector(null);
+    }
+  };
 
   return (
     <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
@@ -70,7 +116,8 @@ export function ConnectorsCatalogSettings({
       <CatalogHeader
         title="Connectors"
         showBrowse={false}
-        onAdd={onAdd ?? onGoToCustomize}
+        onAdd={onAdd}
+        addLabel="Add plugin"
       />
 
       <div className="mb-4 flex gap-1 rounded-[10px] bg-zinc-100/80 p-0.5 w-fit">
@@ -101,14 +148,24 @@ export function ConnectorsCatalogSettings({
             </tr>
           </thead>
           <tbody>
-            {DEMO_CONNECTORS.map((row) => (
+            {visibleConnectors.map((row) => (
               <tr key={row.name} className="border-t border-zinc-100">
                 <td className="px-4 py-3 font-medium text-zinc-900">
                   {row.name}
                 </td>
                 <td className="px-4 py-3 text-zinc-600">{row.type}</td>
                 <td className="px-4 py-3">
-                  <SettingsPillButton>{row.status}</SettingsPillButton>
+                  <SettingsPillButton
+                    onClick={() => void toggleConnector(row.id)}
+                  >
+                    {pendingConnector === row.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : connected.has(row.id) ? (
+                      "Connected"
+                    ) : (
+                      "Connect"
+                    )}
+                  </SettingsPillButton>
                 </td>
               </tr>
             ))}

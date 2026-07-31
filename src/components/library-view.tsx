@@ -1,19 +1,33 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search,
-  Plus,
-  FileText,
-  Image as FileImage,
-  MoreHorizontal,
-  Trash2,
+  ChevronRight,
   Download,
-  Edit2,
-  FolderOpen,
+  File as FileIcon,
+  FileImage,
+  FileText,
+  Folder,
+  FolderInput,
+  Grid2X2,
+  List,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,624 +35,416 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ProjectsMobileHeader } from "@/components/projects/projects-mobile-header";
+import { useAppLayout } from "@/components/app-layout-context";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAppLayout } from "@/components/app-layout-context";
-import { ProjectsMobileHeader } from "@/components/projects/projects-mobile-header";
+import { uploadUserFile } from "@/lib/api/files";
+import {
+  createLibraryFolder,
+  deleteLibraryEntries,
+  getLibrary,
+  moveLibraryEntries,
+  renameLibraryEntry,
+  type LibraryEntryRef,
+  type LibraryFile,
+  type LibraryFolder,
+  type LibraryListing,
+} from "@/lib/api/library";
+import { cn } from "@/lib/utils";
 
-interface LibraryItem {
-  id: string;
-  name: string;
-  type: "file" | "image";
-  modified: string; // display label e.g. "Today"
-  modifiedTs: number; // for sorting
-  size: string; // display e.g. "109 KB"
-  sizeBytes: number;
+type LibraryEntry =
+  | { kind: "folder"; id: string; name: string; updatedAt: string; folder: LibraryFolder }
+  | { kind: "file"; id: string; name: string; updatedAt: string; size: number; mime: string; file: LibraryFile };
+
+type Filter = "all" | "images" | "files";
+type SortKey = "name" | "modified" | "size";
+
+function entryKey(entry: Pick<LibraryEntry, "kind" | "id">) {
+  return `${entry.kind}:${entry.id}`;
 }
 
-const initialItems: LibraryItem[] = [
-  {
-    id: "i1",
-    name: "Pasted markdown(3).md",
-    type: "file",
-    modified: "Today",
-    modifiedTs: Date.now() - 1000 * 60 * 30,
-    size: "109 KB",
-    sizeBytes: 111616,
-  },
-  {
-    id: "i2",
-    name: "Pasted text(37).txt",
-    type: "file",
-    modified: "Yesterday",
-    modifiedTs: Date.now() - 1000 * 60 * 60 * 26,
-    size: "12.5 KB",
-    sizeBytes: 12800,
-  },
-  {
-    id: "i3",
-    name: "vacation-photo.jpg",
-    type: "image",
-    modified: "May 25",
-    modifiedTs: Date.now() - 1000 * 60 * 60 * 24 * 3,
-    size: "2.4 MB",
-    sizeBytes: 2516582,
-  },
-  {
-    id: "i4",
-    name: "research-notes.pdf",
-    type: "file",
-    modified: "May 20",
-    modifiedTs: Date.now() - 1000 * 60 * 60 * 24 * 8,
-    size: "450 KB",
-    sizeBytes: 460800,
-  },
-  {
-    id: "i5",
-    name: "diagram.png",
-    type: "image",
-    modified: "May 18",
-    modifiedTs: Date.now() - 1000 * 60 * 60 * 24 * 10,
-    size: "890 KB",
-    sizeBytes: 911360,
-  },
-  {
-    id: "i6",
-    name: "meeting-transcript.txt",
-    type: "file",
-    modified: "May 12",
-    modifiedTs: Date.now() - 1000 * 60 * 60 * 24 * 16,
-    size: "28 KB",
-    sizeBytes: 28672,
-  },
-  {
-    id: "i7",
-    name: "brand-assets.zip",
-    type: "file",
-    modified: "Apr 30",
-    modifiedTs: Date.now() - 1000 * 60 * 60 * 24 * 28,
-    size: "4.1 MB",
-    sizeBytes: 4299162,
-  },
-];
+function formatSize(bytes: number) {
+  if (bytes < 1024) return bytes ? `${bytes} B` : "—";
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
+}
 
-type Tab = "all" | "images" | "files";
-type SortKey = "name" | "modified" | "size";
+function formatDate(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) return "Today";
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
+  }).format(date);
+}
+
+function iconFor(entry: LibraryEntry) {
+  if (entry.kind === "folder") return Folder;
+  if (entry.mime.startsWith("image/")) return FileImage;
+  if (entry.mime.startsWith("text/") || /\.(md|txt|json|csv)$/i.test(entry.name)) return FileText;
+  return FileIcon;
+}
 
 export function LibraryView() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const [listing, setListing] = useState<LibraryListing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [draggingOver, setDraggingOver] = useState(false);
   const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<Tab>("all");
+  const [filter, setFilter] = useState<Filter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("modified");
-  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
-  const [items, setItems] = useState<LibraryItem[]>(initialItems);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [folderOpen, setFolderOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [pasteName, setPasteName] = useState("untitled.txt");
+  const [pasteContent, setPasteContent] = useState("");
+  const [folderName, setFolderName] = useState("");
 
-  const filteredSorted = useMemo(() => {
-    let result = [...items];
-
-    // Tab filter
-    if (activeTab === "images") {
-      result = result.filter((i) => i.type === "image");
-    } else if (activeTab === "files") {
-      result = result.filter((i) => i.type === "file");
-    }
-
-    // Search
-    if (query.trim()) {
-      const q = query.toLowerCase().trim();
-      result = result.filter((i) => i.name.toLowerCase().includes(q));
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === "name") {
-        cmp = a.name.localeCompare(b.name);
-      } else if (sortKey === "modified") {
-        cmp = a.modifiedTs - b.modifiedTs;
-      } else if (sortKey === "size") {
-        cmp = a.sizeBytes - b.sizeBytes;
-      }
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-
-    return result;
-  }, [items, query, activeTab, sortKey, sortDir]);
-
-  const allVisibleSelected =
-    filteredSorted.length > 0 &&
-    filteredSorted.every((i) => selected.has(i.id));
-
-  const toggleSelectAll = () => {
-    if (allVisibleSelected) {
-      const next = new Set(selected);
-      filteredSorted.forEach((i) => next.delete(i.id));
-      setSelected(next);
-    } else {
-      const next = new Set(selected);
-      filteredSorted.forEach((i) => next.add(i.id));
-      setSelected(next);
-    }
-  };
-
-  const toggleSelect = (id: string) => {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelected(next);
-  };
-
-  const clearSelection = () => setSelected(new Set());
-
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      setSortDir(key === "modified" ? "desc" : "asc");
-    }
-  };
-
-  const deleteItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    setSelected((prev) => {
-      const n = new Set(prev);
-      n.delete(id);
-      return n;
-    });
-    toast({ title: "Deleted", description: "Item removed from library." });
-  };
-
-  const deleteSelected = () => {
-    if (selected.size === 0) return;
-    setItems((prev) => prev.filter((i) => !selected.has(i.id)));
-    const count = selected.size;
-    setSelected(new Set());
-    toast({
-      title: `${count} item${count > 1 ? "s" : ""} deleted`,
-      description: "Removed from your library.",
-    });
-  };
-
-  const handleNewAction = (action: string) => {
-    if (action === "paste") {
-      const name = window.prompt("Name for text note", "untitled-note.txt");
-      if (!name?.trim()) return;
-      const newItem: LibraryItem = {
-        id: `local-${Date.now()}`,
-        name: name.trim(),
-        type: "file",
-        modified: "Today",
-        modifiedTs: Date.now(),
-        size: "0 KB",
-        sizeBytes: 0,
-      };
-      setItems((p) => [newItem, ...p]);
-      toast({ title: "Added", description: "Text note created in library." });
-    } else if (action === "upload") {
-      const name = window.prompt(
-        "Simulate upload — enter filename",
-        "uploaded-file.pdf",
-      );
-      if (!name?.trim()) return;
-      const isImg = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(name);
-      const newItem: LibraryItem = {
-        id: `local-${Date.now()}`,
-        name: name.trim(),
-        type: isImg ? "image" : "file",
-        modified: "Today",
-        modifiedTs: Date.now(),
-        size: "256 KB",
-        sizeBytes: 262144,
-      };
-      setItems((p) => [newItem, ...p]);
+  const load = useCallback(async (folderId?: string | null) => {
+    setLoading(true);
+    try {
+      const next = await getLibrary(folderId);
+      setListing(next);
+      setSelected(new Set());
+    } catch (error) {
       toast({
-        title: "Uploaded",
-        description: "File added to library (demo).",
+        title: "Library unavailable",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
       });
-    } else if (action === "folder") {
-      const name = window.prompt("Folder name", "New folder");
-      if (!name?.trim()) return;
-      const newItem: LibraryItem = {
-        id: `local-${Date.now()}`,
-        name: name.trim(),
-        type: "file",
-        modified: "Today",
-        modifiedTs: Date.now(),
-        size: "—",
-        sizeBytes: 0,
-      };
-      setItems((p) => [newItem, ...p]);
-      toast({ title: "Folder created", description: "Empty folder added." });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    void load(null);
+  }, [load]);
+
+  const entries = useMemo<LibraryEntry[]>(() => {
+    if (!listing) return [];
+    const folders: LibraryEntry[] = listing.folders.map((folder) => ({
+      kind: "folder",
+      id: folder.id,
+      name: folder.name,
+      updatedAt: folder.updated_at,
+      folder,
+    }));
+    const files: LibraryEntry[] = listing.files.map((file) => ({
+      kind: "file",
+      id: file.id,
+      name: file.original_name,
+      updatedAt: file.updated_at,
+      size: Number(file.size_bytes || 0),
+      mime: file.mime_type || "application/octet-stream",
+      file,
+    }));
+    const normalizedQuery = query.trim().toLowerCase();
+    return [...folders, ...files]
+      .filter((entry) => {
+        if (normalizedQuery && !entry.name.toLowerCase().includes(normalizedQuery)) return false;
+        if (filter === "images") return entry.kind === "file" && entry.mime.startsWith("image/");
+        if (filter === "files") return entry.kind === "file" && !entry.mime.startsWith("image/");
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1;
+        let result = 0;
+        if (sortKey === "name") result = a.name.localeCompare(b.name);
+        if (sortKey === "modified") result = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+        if (sortKey === "size") result = (a.kind === "file" ? a.size : 0) - (b.kind === "file" ? b.size : 0);
+        return sortDirection === "asc" ? result : -result;
+      });
+  }, [filter, listing, query, sortDirection, sortKey]);
+
+  const selectedRefs = useMemo<LibraryEntryRef[]>(() => entries
+    .filter((entry) => selected.has(entryKey(entry)))
+    .map(({ id, kind }) => ({ id, kind })), [entries, selected]);
+
+  const withBusy = useCallback(async (action: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await action();
+    } catch (error) {
+      toast({
+        title: "Could not complete that action",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, [toast]);
+
+  const uploadFiles = useCallback((files: FileList | File[]) => withBusy(async () => {
+    const rows = Array.from(files);
+    await Promise.all(rows.map((file) => uploadUserFile(file, { folderId: listing?.folderId })));
+    await load(listing?.folderId);
+    toast({ title: rows.length === 1 ? "File uploaded" : `${rows.length} files uploaded` });
+  }), [listing?.folderId, load, toast, withBusy]);
+
+  const createPastedFile = () => withBusy(async () => {
+    const name = pasteName.trim();
+    if (!name || !pasteContent.trim()) throw new Error("Enter a file name and some text.");
+    const type = name.toLowerCase().endsWith(".md") ? "text/markdown" : name.toLowerCase().endsWith(".json") ? "application/json" : "text/plain";
+    await uploadUserFile(new File([pasteContent], name, { type }), { folderId: listing?.folderId });
+    setPasteOpen(false);
+    setPasteContent("");
+    setPasteName("untitled.txt");
+    await load(listing?.folderId);
+  });
+
+  const createFolder = () => withBusy(async () => {
+    await createLibraryFolder({ name: folderName, parentId: listing?.folderId });
+    setFolderName("");
+    setFolderOpen(false);
+    await load(listing?.folderId);
+  });
+
+  const move = (items: LibraryEntryRef[], folderId: string | null) => withBusy(async () => {
+    if (!items.length) return;
+    await moveLibraryEntries(items, folderId);
+    setMoveOpen(false);
+    await load(listing?.folderId);
+  });
+
+  const remove = (items: LibraryEntryRef[]) => withBusy(async () => {
+    if (!items.length) return;
+    await deleteLibraryEntries(items);
+    await load(listing?.folderId);
+  });
+
+  const openEntry = (entry: LibraryEntry) => {
+    if (entry.kind === "folder") {
+      void load(entry.id);
+      return;
+    }
+    window.location.assign(`/api/v1/files/${encodeURIComponent(entry.id)}/content`);
+  };
+
+  const rename = (entry: LibraryEntry) => {
+    const name = window.prompt("Rename", entry.name)?.trim();
+    if (!name || name === entry.name) return;
+    void withBusy(async () => {
+      await renameLibraryEntry({ id: entry.id, kind: entry.kind, name });
+      await load(listing?.folderId);
+    });
+  };
+
+  const toggleSort = (next: SortKey) => {
+    if (sortKey === next) setSortDirection((value) => value === "asc" ? "desc" : "asc");
+    else {
+      setSortKey(next);
+      setSortDirection(next === "modified" ? "desc" : "asc");
     }
   };
 
-  const openItem = (item: LibraryItem) => {
-    toast({
-      title: "Opened",
-      description: `Previewing “${item.name}” (demo — content not stored).`,
-    });
-  };
-
-  const renameItem = (item: LibraryItem) => {
-    const newName = window.prompt("Rename item", item.name);
-    if (!newName || newName === item.name) return;
-    setItems((prev) =>
-      prev.map((i) => (i.id === item.id ? { ...i, name: newName.trim() } : i)),
-    );
-  };
-
-  const downloadItem = (item: LibraryItem) => {
-    toast({
-      title: "Download started",
-      description: `Simulating download of ${item.name}`,
-    });
-  };
-
-  const newMenuButton = (
+  const newMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          className="h-8 w-8 rounded-lg bg-zinc-900 p-0 hover:bg-zinc-800 no-hover-overlay text-white shadow-sm active:scale-95 sm:h-9 sm:w-auto sm:rounded-full sm:px-4 sm:gap-1.5"
-          aria-haspopup="menu"
-          aria-label="New library item"
-        >
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline text-[14px] font-medium">New</span>
+        <Button disabled={busy} className="h-9 rounded-full bg-zinc-950 px-4 text-white shadow-sm hover:bg-zinc-800">
+          <Plus className="mr-1.5 h-4 w-4" /> New
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="w-48 rounded-xl border border-black/10 bg-white p-1 shadow-xl"
-      >
-        <DropdownMenuItem
-          onClick={() => handleNewAction("upload")}
-          className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] cursor-pointer"
-        >
-          <Download className="h-4 w-4" /> Upload files
+      <DropdownMenuContent align="end" className="w-48 rounded-xl p-1">
+        <DropdownMenuItem onClick={() => uploadInputRef.current?.click()} className="gap-2 rounded-lg py-2">
+          <Upload className="h-4 w-4" /> Upload files
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => handleNewAction("paste")}
-          className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] cursor-pointer"
-        >
+        <DropdownMenuItem onClick={() => setPasteOpen(true)} className="gap-2 rounded-lg py-2">
           <FileText className="h-4 w-4" /> Paste text
         </DropdownMenuItem>
-        <DropdownMenuSeparator className="my-1 bg-black/5" />
-        <DropdownMenuItem
-          onClick={() => handleNewAction("folder")}
-          className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] cursor-pointer"
-        >
-          <FolderOpen className="h-4 w-4" /> New folder
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setFolderOpen(true)} className="gap-2 rounded-lg py-2">
+          <Folder className="h-4 w-4" /> New folder
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 
   return (
-    <div className="flex h-full w-full flex-1 flex-col overflow-hidden bg-white font-sans">
-      {isMobile ? (
-        <ProjectsMobileHeader
-          title="Library"
-          onOpenMobileNav={openMobileNav}
-          isNavOpen={!isSidebarCollapsed}
-          trailing={newMenuButton}
-        />
-      ) : null}
+    <div
+      className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-white font-sans dark:bg-zinc-950"
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes("Files")) {
+          event.preventDefault();
+          setDraggingOver(true);
+        }
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) setDraggingOver(false);
+      }}
+      onDrop={(event) => {
+        if (!event.dataTransfer.files.length) return;
+        event.preventDefault();
+        setDraggingOver(false);
+        void uploadFiles(event.dataTransfer.files);
+      }}
+    >
+      <input ref={uploadInputRef} type="file" multiple className="hidden" onChange={(event) => {
+        if (event.target.files?.length) void uploadFiles(event.target.files);
+        event.currentTarget.value = "";
+      }} />
 
-      {/* Top header: title + search + New */}
-      <div className="w-full border-b border-zinc-100">
-        <div className="mobile-page-inset mx-auto w-full max-w-[800px] px-3 pb-3 pt-2 sm:px-6 sm:pb-4 sm:pt-6 lg:pt-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-3">
-            <h1 className="hidden flex-1 font-serif text-[24px] font-medium leading-[1.25] tracking-[-0.2px] text-zinc-800 sm:block sm:text-[28px] sm:leading-[34px]">
-              Library
-            </h1>
+      {isMobile ? <ProjectsMobileHeader title="Library" onOpenMobileNav={openMobileNav} isNavOpen={!isSidebarCollapsed} trailing={newMenu} /> : null}
 
-            <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-3">
-              {/* Search */}
-              <div className="relative flex-1 sm:w-[240px]">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search library"
-                  aria-label="Search library"
-                  autoComplete="off"
-                  className="w-full h-9 rounded-full bg-white border border-zinc-200 text-[14px] pl-9 pr-3.5 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-300 transition-colors"
-                />
-              </div>
+      <header className="border-b border-zinc-200/70 dark:border-white/10">
+        <div className="mobile-page-inset mx-auto flex w-full max-w-[1120px] items-center gap-4 px-4 py-5 sm:px-8 sm:py-7">
+          <div className="min-w-0 flex-1">
+            <h1 className="hidden font-serif text-[30px] font-medium tracking-[-0.035em] text-zinc-950 dark:text-zinc-50 sm:block">Library</h1>
+            <p className="mt-1 hidden text-[13px] text-zinc-500 sm:block">Your uploads, generated files, images, and saved text.</p>
+          </div>
+          <label className="relative flex h-10 w-full max-w-[360px] items-center sm:w-[320px]">
+            <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-zinc-400" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this folder" className="h-full w-full rounded-full border border-zinc-200 bg-white pl-10 pr-4 text-[14px] outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-900" />
+          </label>
+          {!isMobile ? newMenu : null}
+        </div>
+      </header>
 
-              {!isMobile ? newMenuButton : null}
-            </div>
+      <div className="border-b border-zinc-200/70 dark:border-white/10">
+        <div className="mobile-page-inset mx-auto flex min-h-14 w-full max-w-[1120px] flex-wrap items-center gap-3 px-4 sm:px-8">
+          <nav className="flex items-center gap-1 text-[13px] text-zinc-500">
+            <button onClick={() => void load(null)} className="rounded-md px-2 py-1 font-medium hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white">Library</button>
+            {listing?.breadcrumbs.map((crumb) => (
+              <React.Fragment key={crumb.id}>
+                <ChevronRight className="h-3.5 w-3.5 text-zinc-300" />
+                <button onClick={() => void load(crumb.id)} className="max-w-36 truncate rounded-md px-2 py-1 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white">{crumb.name}</button>
+              </React.Fragment>
+            ))}
+          </nav>
+          <div className="ml-auto flex items-center gap-1 rounded-full bg-zinc-100 p-1 dark:bg-white/10">
+            {(["all", "images", "files"] as Filter[]).map((value) => (
+              <button key={value} onClick={() => { setFilter(value); setSelected(new Set()); }} className={cn("rounded-full px-3 py-1 text-[12.5px] capitalize transition", filter === value ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-white" : "text-zinc-500")}>{value}</button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Sticky filter bar */}
-      <div className="sticky top-0 z-30 bg-white border-b border-zinc-100">
-        <div className="mobile-page-inset mx-auto w-full max-w-[800px] sm:px-6">
-          <div className="flex min-h-[48px] flex-wrap items-center justify-between gap-2 py-1.5 sm:min-h-[52px] sm:gap-3">
-            {/* Tabs */}
-            <div className="flex items-center gap-1">
-              {(
-                [
-                  { key: "all" as const, label: "All" },
-                  { key: "images" as const, label: "Images" },
-                  { key: "files" as const, label: "Files" },
-                ] as const
-              ).map((t) => {
-                const isActive = activeTab === t.key;
-                return (
-                  <button
-                    key={t.key}
-                    onClick={() => {
-                      setActiveTab(t.key);
-                      clearSelection();
-                    }}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "h-8 px-4 rounded-full text-[13.5px] font-medium transition-all active:scale-[0.985]",
-                      isActive
-                        ? "bg-zinc-100 text-zinc-900 shadow-sm border border-zinc-200"
-                        : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50",
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                );
-              })}
+      <main className="app-scrollbar min-h-0 flex-1 overflow-y-auto">
+        <div className="mobile-page-inset mx-auto w-full max-w-[1120px] px-4 pb-24 pt-5 sm:px-8">
+          {selected.size > 0 ? (
+            <div className="mb-3 flex min-h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 dark:border-white/10 dark:bg-white/5">
+              <span className="text-[13px] font-medium">{selected.size} selected</span>
+              <Button variant="ghost" size="sm" onClick={() => setMoveOpen(true)} className="ml-auto h-8 gap-1.5"><FolderInput className="h-4 w-4" /> Move</Button>
+              <Button variant="ghost" size="sm" onClick={() => void remove(selectedRefs)} className="h-8 gap-1.5 text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" /> Delete</Button>
+              <button onClick={() => setSelected(new Set())} aria-label="Clear selection" className="grid h-8 w-8 place-items-center rounded-md hover:bg-zinc-200 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
             </div>
+          ) : null}
 
-            <div className="flex items-center gap-2 ml-auto">
-              {/* Selection summary / bulk actions */}
-              {selected.size > 0 && (
-                <div className="flex items-center gap-2 text-[12.5px] text-zinc-500 pr-1">
-                  <span>{selected.size} selected</span>
-                  <button
-                    onClick={deleteSelected}
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-red-600 hover:bg-red-50 active:bg-red-100 transition"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
-                  </button>
-                  <button
-                    onClick={clearSelection}
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 hover:bg-zinc-100 active:bg-zinc-200 transition"
-                  >
-                    Clear
-                  </button>
-                </div>
-              )}
-
-              {/* Filters button (visual + placeholder) */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    aria-label="Open filters"
-                    className="h-8 w-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 transition"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M3 6h18M6 12h12M9 18h6" />
-                    </svg>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44 rounded-xl">
-                  <DropdownMenuItem
-                    disabled
-                    className="text-[12.5px] opacity-60"
-                  >
-                    Date range (soon)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled
-                    className="text-[12.5px] opacity-60"
-                  >
-                    Size filter (soon)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* List area */}
-      <div className="app-scrollbar flex-1 overflow-y-auto">
-        <div className="mobile-page-inset mx-auto w-full max-w-[800px] pb-20 pt-1 sm:px-6">
-          {/* Column headers */}
-          <div
-            className="grid items-center text-[12.5px] text-zinc-500 select-none border-b border-zinc-100"
-            style={{
-              gridTemplateColumns: "28px minmax(0, 1fr) 148px 78px 52px",
-            }}
-          >
-            {/* Select all */}
-            <div className="flex items-center justify-center">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={toggleSelectAll}
-                aria-label="Select all visible"
-                className="h-3.5 w-3.5 accent-zinc-900 cursor-pointer rounded border-zinc-300"
-              />
-            </div>
-
-            <button
-              onClick={() => handleSort("name")}
-              className="flex items-center gap-1 text-left font-medium hover:text-zinc-800 transition py-2.5"
-            >
-              Name
-              {sortKey === "name" && (
-                <span className="text-[10px] opacity-70">
-                  {sortDir === "asc" ? "↑" : "↓"}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => handleSort("modified")}
-              className="flex items-center gap-1 font-medium hover:text-zinc-800 transition py-2.5"
-            >
-              Modified
-              {sortKey === "modified" && (
-                <span className="text-[10px] opacity-70">
-                  {sortDir === "asc" ? "↑" : "↓"}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => handleSort("size")}
-              className="flex items-center gap-1 font-medium hover:text-zinc-800 transition py-2.5 text-right justify-end pr-1"
-            >
-              Size
-              {sortKey === "size" && (
-                <span className="text-[10px] opacity-70">
-                  {sortDir === "asc" ? "↑" : "↓"}
-                </span>
-              )}
-            </button>
-
-            <div />
+          <div className="grid grid-cols-[32px_minmax(0,1fr)_150px_90px_44px] items-center border-b border-zinc-200 pb-2 text-[12px] font-medium text-zinc-500 dark:border-white/10 max-sm:grid-cols-[28px_minmax(0,1fr)_44px]">
+            <input type="checkbox" aria-label="Select all" checked={entries.length > 0 && entries.every((entry) => selected.has(entryKey(entry)))} onChange={() => {
+              if (entries.every((entry) => selected.has(entryKey(entry)))) setSelected(new Set());
+              else setSelected(new Set(entries.map(entryKey)));
+            }} className="h-4 w-4 rounded accent-zinc-950" />
+            <button onClick={() => toggleSort("name")} className="text-left">Name</button>
+            <button onClick={() => toggleSort("modified")} className="text-left max-sm:hidden">Modified</button>
+            <button onClick={() => toggleSort("size")} className="text-right max-sm:hidden">Size</button>
+            <span />
           </div>
 
-          {/* Rows */}
-          {filteredSorted.length === 0 ? (
-            <div className="py-12 text-center text-zinc-400 text-[14px]">
-              No items match your search or filters.
+          {loading ? (
+            <div className="grid place-items-center py-24 text-[13px] text-zinc-400">Loading your library…</div>
+          ) : entries.length === 0 ? (
+            <div className="mx-auto flex max-w-md flex-col items-center py-24 text-center">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-zinc-100 text-zinc-500 dark:bg-white/10"><Folder className="h-6 w-6" /></div>
+              <h2 className="mt-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{query ? "Nothing found" : "This folder is empty"}</h2>
+              <p className="mt-1 text-[13px] leading-5 text-zinc-500">Upload files, paste text, or create a folder. Files created by the assistant also appear here.</p>
+              {!query ? <Button onClick={() => uploadInputRef.current?.click()} variant="outline" className="mt-5 h-9 rounded-full"><Upload className="mr-2 h-4 w-4" /> Upload files</Button> : null}
             </div>
           ) : (
-            <div className="divide-y divide-zinc-100">
-              {filteredSorted.map((item) => {
-                const isSelected = selected.has(item.id);
-                const Icon = item.type === "image" ? FileImage : FileText;
-
+            <div className="divide-y divide-zinc-100 dark:divide-white/5">
+              {entries.map((entry) => {
+                const Icon = iconFor(entry);
+                const key = entryKey(entry);
+                const checked = selected.has(key);
                 return (
                   <div
-                    key={item.id}
-                    role="row"
-                    tabIndex={0}
-                    onClick={() => openItem(item)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") openItem(item);
-                      if (e.key === " ") {
-                        e.preventDefault();
-                        toggleSelect(item.id);
-                      }
+                    key={key}
+                    draggable
+                    onDragStart={(event) => {
+                      const refs = checked && selectedRefs.length ? selectedRefs : [{ id: entry.id, kind: entry.kind }];
+                      event.dataTransfer.setData("application/x-clauxen-library", JSON.stringify(refs));
+                      event.dataTransfer.effectAllowed = "move";
                     }}
-                    className={cn(
-                      "group grid items-center gap-2 py-[13px] text-[14px] text-zinc-700 cursor-pointer hover:bg-zinc-50 rounded-md -mx-1 px-1 transition-colors",
-                      isSelected && "bg-zinc-100",
-                    )}
-                    style={{
-                      gridTemplateColumns:
-                        "28px minmax(0, 1fr) 148px 78px 52px",
-                    }}
+                    onDragOver={entry.kind === "folder" ? (event) => { if (event.dataTransfer.types.includes("application/x-clauxen-library")) event.preventDefault(); } : undefined}
+                    onDrop={entry.kind === "folder" ? (event) => {
+                      const payload = event.dataTransfer.getData("application/x-clauxen-library");
+                      if (!payload) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void move(JSON.parse(payload) as LibraryEntryRef[], entry.id);
+                    } : undefined}
+                    onDoubleClick={() => openEntry(entry)}
+                    className={cn("group grid min-h-[62px] grid-cols-[32px_minmax(0,1fr)_150px_90px_44px] items-center rounded-xl px-0 transition hover:bg-zinc-50 dark:hover:bg-white/5 max-sm:grid-cols-[28px_minmax(0,1fr)_44px]", checked && "bg-zinc-100 dark:bg-white/10")}
                   >
-                    {/* Checkbox */}
-                    <div
-                      className="flex items-center justify-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelect(item.id)}
-                        aria-label={`Select ${item.name}`}
-                        className="h-3.5 w-3.5 accent-zinc-900 cursor-pointer rounded border-zinc-300 opacity-70 group-hover:opacity-100 transition"
-                      />
-                    </div>
-
-                    {/* Name + icon */}
-                    <div className="flex items-center gap-3 min-w-0 pr-2">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500">
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <span className="truncate font-[450] tracking-[-0.1px]">
-                        {item.name}
-                      </span>
-                    </div>
-
-                    {/* Modified */}
-                    <div className="text-zinc-500 text-[13.5px] tabular-nums">
-                      {item.modified}
-                    </div>
-
-                    {/* Size */}
-                    <div className="text-zinc-500 text-[13.5px] text-right pr-2 tabular-nums">
-                      {item.size}
-                    </div>
-
-                    {/* Actions */}
-                    <div
-                      className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            aria-label={`Actions for ${item.name}`}
-                            className="h-8 w-8 flex items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-800 active:bg-zinc-200"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="w-40 rounded-xl"
-                        >
-                          <DropdownMenuItem
-                            onClick={() => openItem(item)}
-                            className="flex items-center gap-2 text-[13px]"
-                          >
-                            <FolderOpen className="h-4 w-4" /> Open
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => renameItem(item)}
-                            className="flex items-center gap-2 text-[13px]"
-                          >
-                            <Edit2 className="h-4 w-4" /> Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => downloadItem(item)}
-                            className="flex items-center gap-2 text-[13px]"
-                          >
-                            <Download className="h-4 w-4" /> Download
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator className="my-1 bg-black/5" />
-                          <DropdownMenuItem
-                            onClick={() => deleteItem(item.id)}
-                            className="flex items-center gap-2 text-[13px] text-[#c94c4c] focus:text-[#c94c4c]"
-                          >
-                            <Trash2 className="h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                    <input type="checkbox" checked={checked} onChange={() => setSelected((current) => {
+                      const next = new Set(current);
+                      if (next.has(key)) next.delete(key); else next.add(key);
+                      return next;
+                    })} aria-label={`Select ${entry.name}`} className="h-4 w-4 rounded accent-zinc-950" />
+                    <button onClick={() => openEntry(entry)} className="flex min-w-0 items-center gap-3 text-left">
+                      <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl border", entry.kind === "folder" ? "border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-400/20 dark:bg-amber-400/10" : "border-zinc-200 bg-white text-zinc-500 dark:border-white/10 dark:bg-zinc-900")}><Icon className="h-[18px] w-[18px]" /></span>
+                      <span className="truncate text-[14px] font-medium text-zinc-800 dark:text-zinc-200">{entry.name}</span>
+                    </button>
+                    <span className="text-[13px] text-zinc-500 max-sm:hidden">{formatDate(entry.updatedAt)}</span>
+                    <span className="text-right text-[13px] tabular-nums text-zinc-500 max-sm:hidden">{entry.kind === "file" ? formatSize(entry.size) : "—"}</span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><button aria-label={`Actions for ${entry.name}`} className="grid h-8 w-8 place-items-center rounded-lg text-zinc-400 opacity-0 hover:bg-zinc-200 group-hover:opacity-100 data-[state=open]:opacity-100 dark:hover:bg-white/10"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44 rounded-xl p-1">
+                        <DropdownMenuItem onClick={() => openEntry(entry)} className="gap-2 rounded-lg"><Grid2X2 className="h-4 w-4" /> Open</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => rename(entry)} className="gap-2 rounded-lg"><Pencil className="h-4 w-4" /> Rename</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setSelected(new Set([key])); setMoveOpen(true); }} className="gap-2 rounded-lg"><FolderInput className="h-4 w-4" /> Move to…</DropdownMenuItem>
+                        {entry.kind === "file" ? <DropdownMenuItem onClick={() => openEntry(entry)} className="gap-2 rounded-lg"><Download className="h-4 w-4" /> Download</DropdownMenuItem> : null}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => void remove([{ id: entry.id, kind: entry.kind }])} className="gap-2 rounded-lg text-red-600 focus:text-red-600"><Trash2 className="h-4 w-4" /> Delete</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 );
               })}
             </div>
           )}
-
-          {/* Footer hint */}
-          <div className="mt-8 text-[11.5px] text-zinc-400/70 text-center">
-            Files you upload or paste in chats appear here. (Demo data)
-          </div>
         </div>
-      </div>
+      </main>
+
+      {draggingOver ? <div className="pointer-events-none absolute inset-4 z-50 grid place-items-center rounded-3xl border-2 border-dashed border-zinc-400 bg-white/90 text-center backdrop-blur dark:bg-zinc-950/90"><div><Upload className="mx-auto h-7 w-7" /><p className="mt-3 text-[15px] font-semibold">Drop files to upload</p><p className="mt-1 text-[13px] text-zinc-500">They’ll be saved in this folder.</p></div></div> : null}
+
+      <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
+        <DialogContent className="gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[560px]">
+          <DialogHeader className="border-b px-5 py-4 text-left"><DialogTitle className="text-[16px]">Create text file</DialogTitle><DialogDescription>Paste text and choose the filename and extension to store in your Library.</DialogDescription></DialogHeader>
+          <div className="space-y-4 px-5 py-5">
+            <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-zinc-600">File name</span><input value={pasteName} onChange={(event) => setPasteName(event.target.value)} placeholder="notes.txt" className="h-10 w-full rounded-xl border border-zinc-200 px-3 text-[14px] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-900" /></label>
+            <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-zinc-600">Content</span><textarea value={pasteContent} onChange={(event) => setPasteContent(event.target.value)} placeholder="Paste or type text here…" rows={10} className="w-full resize-y rounded-xl border border-zinc-200 p-3 font-mono text-[13px] leading-5 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-900" /></label>
+          </div>
+          <DialogFooter className="border-t bg-zinc-50 px-5 py-3 dark:bg-white/5"><Button variant="ghost" onClick={() => setPasteOpen(false)}>Cancel</Button><Button disabled={busy || !pasteName.trim() || !pasteContent.trim()} onClick={() => void createPastedFile()} className="bg-zinc-950 text-white hover:bg-zinc-800">Create file</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={folderOpen} onOpenChange={setFolderOpen}>
+        <DialogContent className="rounded-2xl sm:max-w-[420px]"><DialogHeader><DialogTitle>New folder</DialogTitle><DialogDescription>Create a folder inside the current location.</DialogDescription></DialogHeader><input autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void createFolder(); }} placeholder="Folder name" className="h-10 rounded-xl border border-zinc-200 px-3 text-[14px] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-900" /><DialogFooter><Button variant="ghost" onClick={() => setFolderOpen(false)}>Cancel</Button><Button disabled={busy || !folderName.trim()} onClick={() => void createFolder()} className="bg-zinc-950 text-white hover:bg-zinc-800">Create folder</Button></DialogFooter></DialogContent>
+      </Dialog>
+
+      <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
+        <DialogContent className="rounded-2xl sm:max-w-[460px]"><DialogHeader><DialogTitle>Move {selected.size || 1} item{(selected.size || 1) === 1 ? "" : "s"}</DialogTitle><DialogDescription>Choose a destination folder.</DialogDescription></DialogHeader><div className="max-h-72 space-y-1 overflow-y-auto"><button onClick={() => void move(selectedRefs, null)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="h-4 w-4 text-amber-500" /><span className="text-[14px] font-medium">Library root</span></button>{listing?.allFolders.filter((folder) => !selected.has(`folder:${folder.id}`)).map((folder) => <button key={folder.id} onClick={() => void move(selectedRefs, folder.id)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="h-4 w-4 text-amber-500" /><span className="truncate text-[14px]">{folder.name}</span></button>)}</div><DialogFooter><Button variant="ghost" onClick={() => setMoveOpen(false)}>Cancel</Button></DialogFooter></DialogContent>
+      </Dialog>
     </div>
   );
 }

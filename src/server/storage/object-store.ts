@@ -1,4 +1,5 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
@@ -144,6 +145,39 @@ export async function deleteObject(
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
+export async function moveObject(input: {
+  purpose: StoragePurpose;
+  sourceKey: string;
+  destinationKey: string;
+  bucketOverride?: string;
+  contentType?: string | null;
+}) {
+  const bucket = input.bucketOverride ?? bucketForPurpose(input.purpose);
+  const client = getR2Client();
+  if (!client) {
+    const body = await getObject(input.purpose, input.sourceKey, bucket);
+    const { writeLocalObject, deleteLocalObject } = await import(
+      "@/server/storage/local-fallback"
+    );
+    await writeLocalObject(bucket, input.destinationKey, body);
+    await deleteLocalObject(bucket, input.sourceKey);
+    return;
+  }
+
+  await client.send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      Key: input.destinationKey,
+      CopySource: `${bucket}/${encodeURIComponent(input.sourceKey).replace(/%2F/g, "/")}`,
+      ContentType: input.contentType ?? undefined,
+      MetadataDirective: input.contentType ? "REPLACE" : "COPY",
+    }),
+  );
+  await client.send(
+    new DeleteObjectCommand({ Bucket: bucket, Key: input.sourceKey }),
+  );
+}
+
 export function buildProjectFileKey(
   userId: string,
   projectId: string,
@@ -154,14 +188,24 @@ export function buildProjectFileKey(
   return `users/${userId}/projects/${projectId}/${ts}-${safe}`;
 }
 
-export function buildUserLibraryKey(userId: string, filename: string) {
+export function buildUserLibraryKey(
+  userId: string,
+  filename: string,
+  folderId?: string | null,
+) {
   const safe = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  return `users/${userId}/library/${Date.now()}-${safe}`;
+  const folder = folderId || "root";
+  return `users/${userId}/library/${folder}/${Date.now()}-${safe}`;
 }
 
-export function buildImageKey(userId: string, filename: string) {
+export function buildImageKey(
+  userId: string,
+  filename: string,
+  folderId?: string | null,
+) {
   const safe = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  return `users/${userId}/images/${Date.now()}-${safe}`;
+  const folder = folderId || "root";
+  return `users/${userId}/images/${folder}/${Date.now()}-${safe}`;
 }
 
 export function buildChatArchiveKey(userId: string, chatId: string) {

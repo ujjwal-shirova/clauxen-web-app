@@ -2,9 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, BookOpen, Boxes, ChevronRight } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight } from "lucide-react";
 import { SkillsView } from "./customize/skills/view";
-import { ConnectorsView } from "./customize/connectors/view";
 import { useAppLayout } from "@/components/app-layout-context";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
 import { AppHref } from "@/components/app-href";
@@ -13,7 +12,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 
 interface CustomizePageProps {
   closeHref: string;
-  initialTab?: "skills" | "connectors" | null;
+  initialTab?: "skills" | null;
 }
 
 const TAB_OPTIONS = [
@@ -23,12 +22,6 @@ const TAB_OPTIONS = [
     label: "Skills",
     icon: BookOpen,
     href: `${APP_ROUTES.customize}/skills`,
-  },
-  {
-    id: "connectors" as const,
-    label: "Connectors",
-    icon: Boxes,
-    href: `${APP_ROUTES.customize}/connectors`,
   },
 ];
 
@@ -71,9 +64,7 @@ export function CustomizePage({
   initialTab = null,
 }: CustomizePageProps) {
   const { openMobileNav, isSidebarCollapsed } = useAppLayout();
-  const [activeTab, setActiveTab] = useState<"skills" | "connectors" | null>(
-    initialTab,
-  ); // null = landing; skills/connectors = child view
+  const [activeTab, setActiveTab] = useState<"skills" | null>(initialTab); // null = landing; skills = child view
   const [mobileInDetail, setMobileInDetail] = useState(false);
 
   useDocumentTitle();
@@ -148,7 +139,7 @@ export function CustomizePage({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+          <div className="grid grid-cols-1 gap-2 px-4 pb-4">
             {TAB_OPTIONS.map(({ id, label, href, icon: Icon }) => (
               <AppHref
                 key={id}
@@ -183,27 +174,6 @@ export function CustomizePage({
 
                 <div className="flex w-full flex-col gap-1">
                   <AppHref
-                    href={`${APP_ROUTES.customize}/connectors`}
-                    onClick={() => setActiveTab("connectors")}
-                    className="group flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all hover:bg-black/[0.02] sm:gap-4"
-                  >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 transition-transform group-hover:scale-105 sm:h-12 sm:w-12">
-                      <Boxes className="icon-2xl icon-primary" />
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="text-[15px] font-semibold text-zinc-900 sm:text-[16px]">
-                        Connect your tools
-                      </span>
-                      <span className="text-[13px] text-zinc-500 sm:text-[14px]">
-                        Integrate with the tools you use to complete your tasks
-                      </span>
-                    </div>
-                    <ChevronRight className="icon-xl icon-muted shrink-0 opacity-60 sm:opacity-0 sm:transition-all sm:group-hover:opacity-100" />
-                  </AppHref>
-
-                  <div className="mx-3 h-px bg-black/[0.06]" />
-
-                  <AppHref
                     href={`${APP_ROUTES.customize}/skills`}
                     onClick={() => setActiveTab("skills")}
                     className="group flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all hover:bg-black/[0.02] sm:gap-4"
@@ -224,13 +194,8 @@ export function CustomizePage({
                 </div>
               </div>
             </div>
-          ) : activeTab === "skills" ? (
-            <SkillsView key="skills" onMobileDetailChange={setMobileInDetail} />
           ) : (
-            <ConnectorsView
-              key="connectors"
-              onMobileDetailChange={setMobileInDetail}
-            />
+            <SkillsView key="skills" onMobileDetailChange={setMobileInDetail} />
           )}
         </div>
       </div>

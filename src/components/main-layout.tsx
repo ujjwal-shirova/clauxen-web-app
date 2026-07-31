@@ -24,18 +24,11 @@ import {
 } from "@/contexts/chat-session-context";
 import { CLAUXEN_OPEN_CREATE_PROJECT_EVENT } from "@/components/composer-project-strip";
 import { AppOverlayHost } from "@/components/app-overlay-host";
-import {
-  AppOverlaysProvider,
-  useAppOverlays,
-} from "@/hooks/use-app-overlays";
+import { AppOverlaysProvider, useAppOverlays } from "@/hooks/use-app-overlays";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import {
-  APP_ROUTES,
-  isIncognitoPath,
-  isNewChatPath,
-} from "@/lib/app-routes";
+import { APP_ROUTES, isIncognitoPath, isNewChatPath } from "@/lib/app-routes";
 import { Sidebar } from "@/components/sidebar";
 import { ChatView } from "@/components/chat-view";
 
@@ -89,8 +82,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (auth.loading) return;
     if (auth.user?.id) return;
-    const search =
-      typeof window !== "undefined" ? window.location.search : "";
+    const search = typeof window !== "undefined" ? window.location.search : "";
     const hash = typeof window !== "undefined" ? window.location.hash : "";
     const redirectTo = `${pathname ?? "/"}${search}${hash}`;
     router.replace(`/login?redirectTo=${encodeURIComponent(redirectTo)}`);
@@ -100,8 +92,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (pathname !== "/") return;
     if (!auth.user?.id) return;
-    const hash =
-      typeof window !== "undefined" ? window.location.hash : "";
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
     instantNavigate(`${APP_ROUTES.newChat}${hash}`, { replace: true });
   }, [pathname, auth.user?.id, instantNavigate]);
 
@@ -154,8 +145,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, [closeMobileNav]);
 
   const goToCustomize = useCallback(() => {
+    overlays.openSettings("Connectors");
     closeMobileNav();
-  }, [closeMobileNav]);
+  }, [overlays, closeMobileNav]);
 
   const goToMyClauxen = useCallback(() => {
     closeMobileNav();
@@ -182,13 +174,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       }
       closeMobileNav();
     },
-    [
-      activeChatId,
-      closeMobileNav,
-      handleDeleteChat,
-      instantNavigate,
-      pathname,
-    ],
+    [activeChatId, closeMobileNav, handleDeleteChat, instantNavigate, pathname],
   );
 
   const onUpgradeClick = useCallback(() => {
@@ -312,64 +298,64 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       ) : null}
 
       {!isIncognito ? (
-      <Sidebar
-        id="app-primary-nav"
-        handleNewChat={handleNewChat}
-        isCollapsed={isSidebarCollapsed}
-        setIsCollapsed={setIsSidebarCollapsed}
-        isMobileLayout={isMobile}
-        sidebarReady={sidebarHydrated}
-        onNavigate={closeMobileNav}
-        onUpgradeClick={onUpgradeClick}
-        onSettingsClick={() => onSettingsClick("General")}
-        onPersonalizationClick={onPersonalizationClick}
-        onAppsExtensionsClick={onAppsExtensionsClick}
-        onGiftClick={onGiftClick}
-        onProjectsClick={goToProjects}
-        onLibraryClick={goToLibrary}
-        onCustomizeClick={goToCustomize}
-        onMyClauxenClick={goToMyClauxen}
-        onImageClick={deferUnbuiltSurface}
-        onScheduledTasksClick={goToScheduledTasks}
-        onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
-        onClauxenWorkClick={deferUnbuiltSurface}
-        onClauxenClawClick={deferUnbuiltSurface}
-        activeView={computeActiveView(
-          pathname,
-          overlays.currentOverlay?.type ?? null,
-        )}
-        recentChats={startedRecentChats}
-        activeChatId={sidebarActiveChatId}
-        chatsLoading={chatsLoading}
-        creatingChatPending={creatingChatPending}
-        onSelectChat={onSelectChatFromSidebar}
-        onDeleteChat={onDeleteChatFromSidebar}
-        onRenameChat={handleRenameChat}
-        onPinChat={handlePinChat}
-        generatingChatIds={generatingChatIds}
-        projects={projects.projects}
-        pinnedProjects={projects.pinnedProjects}
-        projectsLoading={projects.loading}
-        activeProjectId={activeProjectId}
-        onNewProjectClick={goToCreateProject}
-        onSelectProject={openProjectDetail}
-        onPinProject={projects.pinProject}
-        userDisplayName={
-          auth.loading && !auth.user
-            ? null
-            : auth.user
-              ? sidebarDisplayNameOrNull({
-                  fullName: auth.user.displayName,
-                  preferredName: auth.user.preferredName,
-                  email: auth.user.email,
-                })
-              : "Guest"
-        }
-        accountLoading={auth.loading && !auth.user}
-        userAvatarUrl={auth.user?.avatarUrl}
-        userEmail={auth.user?.email ?? ""}
-        onLogoutClick={() => void auth.logout()}
-      />
+        <Sidebar
+          id="app-primary-nav"
+          handleNewChat={handleNewChat}
+          isCollapsed={isSidebarCollapsed}
+          setIsCollapsed={setIsSidebarCollapsed}
+          isMobileLayout={isMobile}
+          sidebarReady={sidebarHydrated}
+          onNavigate={closeMobileNav}
+          onUpgradeClick={onUpgradeClick}
+          onSettingsClick={() => onSettingsClick("General")}
+          onPersonalizationClick={onPersonalizationClick}
+          onAppsExtensionsClick={onAppsExtensionsClick}
+          onGiftClick={onGiftClick}
+          onProjectsClick={goToProjects}
+          onLibraryClick={goToLibrary}
+          onCustomizeClick={goToCustomize}
+          onMyClauxenClick={goToMyClauxen}
+          onScheduledTasksClick={goToScheduledTasks}
+          onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
+          onClauxenWorkClick={deferUnbuiltSurface}
+          onClauxenClawClick={deferUnbuiltSurface}
+          activeView={computeActiveView(
+            pathname,
+            overlays.currentOverlay?.type ?? null,
+            overlays.settingsTab,
+          )}
+          recentChats={startedRecentChats}
+          activeChatId={sidebarActiveChatId}
+          chatsLoading={chatsLoading}
+          creatingChatPending={creatingChatPending}
+          onSelectChat={onSelectChatFromSidebar}
+          onDeleteChat={onDeleteChatFromSidebar}
+          onRenameChat={handleRenameChat}
+          onPinChat={handlePinChat}
+          generatingChatIds={generatingChatIds}
+          projects={projects.projects}
+          pinnedProjects={projects.pinnedProjects}
+          projectsLoading={projects.loading}
+          activeProjectId={activeProjectId}
+          onNewProjectClick={goToCreateProject}
+          onSelectProject={openProjectDetail}
+          onPinProject={projects.pinProject}
+          userDisplayName={
+            auth.loading && !auth.user
+              ? null
+              : auth.user
+                ? sidebarDisplayNameOrNull({
+                    fullName: auth.user.displayName,
+                    preferredName: auth.user.preferredName,
+                    email: auth.user.email,
+                  })
+                : "Guest"
+          }
+          accountLoading={auth.loading && !auth.user}
+          userAvatarUrl={auth.user?.avatarUrl}
+          userEmail={auth.user?.email ?? ""}
+          onLogoutClick={() => void auth.logout()}
+        />
       ) : null}
 
       <main
@@ -414,9 +400,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   // Stable key from identity hint so late auth.user.id does not remount
   // the chat tree and wipe sync-painted sidebar / in-RAM messages.
   const hintId =
-    typeof window !== "undefined"
-      ? readIdentityHintFromDocument()?.id
-      : null;
+    typeof window !== "undefined" ? readIdentityHintFromDocument()?.id : null;
   const sessionKey = auth.user?.id ?? hintId ?? "session";
   const apiEnabled = Boolean(auth.user?.id ?? hintId);
 
@@ -432,10 +416,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 function computeActiveView(
   pathname: string | null,
   overlayType: string | null,
+  settingsTab: SettingsTab | null,
 ): string {
   if (overlayType === "pricing") return "upgrade";
   if (overlayType === "gift") return "gift";
   if (overlayType === "apps") return "apps";
+  if (overlayType === "settings" && settingsTab === "Connectors") {
+    return "connectors";
+  }
   if (!pathname) return "chat";
   if (pathname.startsWith("/my-clauxen")) return "my-clauxen";
   if (pathname.startsWith("/project") || pathname.startsWith("/projects")) {

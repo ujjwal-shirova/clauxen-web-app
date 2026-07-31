@@ -37,10 +37,15 @@ function purposeForMime(mimeType?: string | null): StoragePurpose {
   return mimeType?.startsWith("image/") ? "images" : "documents";
 }
 
-function buildStorageKey(userId: string, filename: string, mimeType?: string | null) {
+function buildStorageKey(
+  userId: string,
+  filename: string,
+  mimeType?: string | null,
+  folderId?: string | null,
+) {
   return mimeType?.startsWith("image/")
-    ? buildImageKey(userId, filename)
-    : buildUserLibraryKey(userId, filename);
+    ? buildImageKey(userId, filename, folderId)
+    : buildUserLibraryKey(userId, filename, folderId);
 }
 
 /**
@@ -167,12 +172,18 @@ export async function presignUserFileUpload(
     sizeBytes?: number;
     workspaceId?: string | null;
     projectId?: string | null;
+    folderId?: string | null;
     purpose?: "avatar" | "library";
   },
 ) {
   const originalName = input.originalName.trim();
   if (!originalName) {
     throw new AppError("originalName is required.", 400);
+  }
+
+  if (input.folderId) {
+    const folder = await userFilesRepo.getLibraryFolder(input.folderId, userId);
+    if (!folder) throw notFound("Folder not found.");
   }
 
   const isAvatar = input.purpose === "avatar";
@@ -196,12 +207,13 @@ export async function presignUserFileUpload(
   const bucket = bucketForPurpose(purpose);
   const storagePath = isAvatar
     ? buildAvatarKey(userId, originalName)
-    : buildStorageKey(userId, originalName, input.mimeType);
+    : buildStorageKey(userId, originalName, input.mimeType, input.folderId);
 
   const file = await userFilesRepo.createUserFile({
     userId,
     workspaceId: input.workspaceId,
     projectId: input.projectId,
+    folderId: input.folderId,
     originalName,
     mimeType: input.mimeType,
     sizeBytes: input.sizeBytes ?? 0,

@@ -160,9 +160,12 @@ export { frameHasWorkSegments, frameHasToolSegments };
 
 /** Agent orchestration UI — reasoning and tools in the same collapsible work frame. */
 export function shouldUseAgentMessageLayout(message: Message): boolean {
-  if (message.agentMode === true && message.isStreaming === true) return true;
+  // Narration/final text alone is ordinary assistant output. Only explicit
+  // thinking or an actual tool call earns activity-timeline chrome.
   return resolveAgentFrames(message).some((frame) =>
-    frameHasWorkSegments(frame.segments),
+    frame.segments.some(
+      (segment) => segment.kind === "thinking" || segment.kind === "tool",
+    ),
   );
 }
 

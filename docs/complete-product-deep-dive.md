@@ -24,37 +24,37 @@ When those boundaries blur (e.g., caching HTML shells at CF, or putting vectors 
 
 ## Part B — Glossary
 
-| Term | Meaning |
-|---|---|
-| **Triple-stack** | Vercel + Cloudflare + Supabase ownership split |
-| **Device cache** | Per-user IndexedDB mirror of chat list + bodies |
-| **Seed race** | ≤120ms SSR attempt to seed `/c/[id]` without shimmer |
-| **clientId** | Stable client message id for React keys / stream association |
-| **Lease** | Durable Object lock preventing concurrent generates per chat |
-| **Hash overlay** | `#settings/…` UI on top of parent route |
-| **Soft-nav** | pushState + Next soft sync via `useInstantNavigate` |
-| **Quiet session** | `GET /session?quiet=1` — fast FCP without profile sync |
-| **Worker ladder** | Cache API → KV → R2 → Hyperdrive |
-| **Fail closed** | Missing provider/tool secrets → error, not silent degrade to hardcoded keys |
-| **sanitizeBranchMessages** | Branch PUT sanitizer that preserves ids/frames |
-| **agent_ui** | content_json timing for Thought/Worked labels |
-| **Follow-up tags** | `<prompt>…</prompt>` extracted to buttons |
-| **pgmq** | Postgres message queue for background chat jobs |
-| **clx_ key** | Programmatic API key prefix |
-| **AUTH_DEV_BYPASS** | Local cookie session path |
-| **Managed Challenge** | CF bot challenge; may POST to documents |
-| **Verified commits** | GitHub SSH-signed commits required by Vercel |
-| **Sensitive env** | Vercel env type for prod/preview secrets |
-| **Encrypted env** | Vercel env type required for Development secrets |
-| **Hyperdrive** | CF Postgres acceleration / pooling to Supabase |
-| **r2-gateway** | Auth-gated Worker for R2 PUT/GET |
-| **chat-history** | Edge read Worker for chats/messages |
-| **chat-coord** | DO Worker for generation leases |
-| **auth-email** | OTP/magic Worker via Email Sending |
-| **Virgil** | Default persona system prompt card |
-| **Personalization modules** | Modular `.md` style instructions |
-| **RAG** | Retrieval-augmented generation via pgvector |
-| **Transcript JSONL** | Training export format in chat_transcript_lines |
+| Term                        | Meaning                                                                     |
+| --------------------------- | --------------------------------------------------------------------------- |
+| **Triple-stack**            | Vercel + Cloudflare + Supabase ownership split                              |
+| **Device cache**            | Per-user IndexedDB mirror of chat list + bodies                             |
+| **Seed race**               | ≤120ms SSR attempt to seed `/c/[id]` without shimmer                        |
+| **clientId**                | Stable client message id for React keys / stream association                |
+| **Lease**                   | Durable Object lock preventing concurrent generates per chat                |
+| **Hash overlay**            | `#settings/…` UI on top of parent route                                     |
+| **Soft-nav**                | pushState + Next soft sync via `useInstantNavigate`                         |
+| **Quiet session**           | `GET /session?quiet=1` — fast FCP without profile sync                      |
+| **Worker ladder**           | Cache API → KV → R2 → Hyperdrive                                            |
+| **Fail closed**             | Missing provider/tool secrets → error, not silent degrade to hardcoded keys |
+| **sanitizeBranchMessages**  | Branch PUT sanitizer that preserves ids/frames                              |
+| **agent_ui**                | content_json timing for Thought/Worked labels                               |
+| **Follow-up tags**          | `<prompt>…</prompt>` extracted to buttons                                   |
+| **pgmq**                    | Postgres message queue for background chat jobs                             |
+| **clx\_ key**               | Programmatic API key prefix                                                 |
+| **AUTH_DEV_BYPASS**         | Local cookie session path                                                   |
+| **Managed Challenge**       | CF bot challenge; may POST to documents                                     |
+| **Verified commits**        | GitHub SSH-signed commits required by Vercel                                |
+| **Sensitive env**           | Vercel env type for prod/preview secrets                                    |
+| **Encrypted env**           | Vercel env type required for Development secrets                            |
+| **Hyperdrive**              | CF Postgres acceleration / pooling to Supabase                              |
+| **r2-gateway**              | Auth-gated Worker for R2 PUT/GET                                            |
+| **chat-history**            | Edge read Worker for chats/messages                                         |
+| **chat-coord**              | DO Worker for generation leases                                             |
+| **auth-email**              | OTP/magic Worker via Email Sending                                          |
+| **Virgil**                  | Default persona system prompt card                                          |
+| **Personalization modules** | Modular `.md` style instructions                                            |
+| **RAG**                     | Retrieval-augmented generation via pgvector                                 |
+| **Transcript JSONL**        | Training export format in chat_transcript_lines                             |
 
 ---
 
@@ -198,7 +198,7 @@ Continue with Email checks existence then password login or create+OTP via auth-
 
 #### Auth OTP via Worker
 
-Production signup OTP uses clauxen-auth-email + Cloudflare Email Sending from no-reply@clauxen.com with Vercel AUTH_EMAIL_*.
+Production signup OTP uses clauxen-auth-email + Cloudflare Email Sending from no-reply@clauxen.com with Vercel AUTH*EMAIL*\*.
 
 #### Magic link signup
 
@@ -252,13 +252,13 @@ chats.id is text with generateChatId long-form ids verified unique; requireChatI
 
 Hydrate via Worker listAllChatMessages limit 500; no scroll-up pagination UI.
 
-#### Provider_* naming
+#### Provider\_\* naming
 
 Inference uses Provider_API_Key / Provider_BASE_URL / Provider_Model_Clauxen_V1 server-only Sensitive.
 
 #### Proxy skips /api session
 
-Edge proxy skips updateSession for /api/* to cut stacked TTFB on /c cold loads.
+Edge proxy skips updateSession for /api/\* to cut stacked TTFB on /c cold loads.
 
 #### CF challenge POST→GET
 
@@ -368,21 +368,21 @@ Headers: `x-clauxen-internal: …`
 
 ## Part F — Module responsibility matrix
 
-| Concern | Frontend | Backend | Worker | DB |
-|---|---|---|---|---|
-| Render chat | ChatView | — | — | — |
-| Send message | use-chat-api | chat.service | — | chat_messages |
-| Stream tokens | SSE consumer | inference/* | — | streaming status |
-| Stop | stop button | stop route | chat-coord | — |
-| Hydrate | device cache | seed loader | chat-history | fetch RPC |
-| List sidebar | sidebar | chats list API | chat-history list | chats |
-| Upload | composer | files.service | r2-gateway | user_files |
-| OTP | login UI | auth-email service | auth-email | auth.users |
-| Title | title UI | after()/title API | invalidate | chats.title |
-| Pin | optimistic UI | pin route | list invalidate | pinned_chats |
-| RAG | project UI | project-rag | — | embeddings |
-| Billing | checkout UI | billing.service | — | subscriptions |
-| Flags | — | readEdgeFlags | — | Edge Config |
+| Concern       | Frontend      | Backend            | Worker            | DB               |
+| ------------- | ------------- | ------------------ | ----------------- | ---------------- |
+| Render chat   | ChatView      | —                  | —                 | —                |
+| Send message  | use-chat-api  | chat.service       | —                 | chat_messages    |
+| Stream tokens | SSE consumer  | inference/\*       | —                 | streaming status |
+| Stop          | stop button   | stop route         | chat-coord        | —                |
+| Hydrate       | device cache  | seed loader        | chat-history      | fetch RPC        |
+| List sidebar  | sidebar       | chats list API     | chat-history list | chats            |
+| Upload        | composer      | files.service      | r2-gateway        | user_files       |
+| OTP           | login UI      | auth-email service | auth-email        | auth.users       |
+| Title         | title UI      | after()/title API  | invalidate        | chats.title      |
+| Pin           | optimistic UI | pin route          | list invalidate   | pinned_chats     |
+| RAG           | project UI    | project-rag        | —                 | embeddings       |
+| Billing       | checkout UI   | billing.service    | —                 | subscriptions    |
+| Flags         | —             | readEdgeFlags      | —                 | Edge Config      |
 
 ---
 
@@ -471,43 +471,43 @@ Anti-patterns:
 
 ## Part L — File type matrix
 
-| Type | Composer | Project ingest | Vision | Text extract |
-|---|---|---|---|---|
-| PNG/JPEG/WebP | yes | yes | yes | n/a |
-| PDF | yes | yes | limited | pdf-parse |
-| DOCX | text path | yes | no | mammoth |
-| TXT/MD/CSV | yes | yes | no | direct |
-| Skill zip | customize upload | n/a | n/a | skill catalog |
+| Type          | Composer         | Project ingest | Vision  | Text extract  |
+| ------------- | ---------------- | -------------- | ------- | ------------- |
+| PNG/JPEG/WebP | yes              | yes            | yes     | n/a           |
+| PDF           | yes              | yes            | limited | pdf-parse     |
+| DOCX          | text path        | yes            | no      | mammoth       |
+| TXT/MD/CSV    | yes              | yes            | no      | direct        |
+| Skill zip     | customize upload | n/a            | n/a     | skill catalog |
 
 ---
 
 ## Part M — HTTP status conventions
 
-| Code | Typical meaning |
-|---|---|
-| 200 | OK / SSE open |
-| 303 | CF challenge POST converted to GET |
-| 400 | Validation (`invalid_turn`, bad body) |
-| 401 | Missing/invalid session |
-| 403 | Forbidden (RLS / ownership) |
-| 404 | Not found |
-| 409 | `generation_in_progress` lease conflict |
-| 503 | `auth_unavailable`, `maintenance_mode` |
+| Code | Typical meaning                         |
+| ---- | --------------------------------------- |
+| 200  | OK / SSE open                           |
+| 303  | CF challenge POST converted to GET      |
+| 400  | Validation (`invalid_turn`, bad body)   |
+| 401  | Missing/invalid session                 |
+| 403  | Forbidden (RLS / ownership)             |
+| 404  | Not found                               |
+| 409  | `generation_in_progress` lease conflict |
+| 503  | `auth_unavailable`, `maintenance_mode`  |
 
 ---
 
 ## Part N — Local vs production matrix
 
-| Concern | Local | Production |
-|---|---|---|
-| Auth | AUTH_DEV_BYPASS cookie OK | GoTrue only |
-| Storage | disk fallback possible | R2 + WORKER_URL required |
-| History Worker | optional | required for scale |
-| Coord Worker | optional (single isolate) | required multi-isolate |
-| Auth email | AUTH_DEV_BYPASS simulate | Worker + Email Sending |
-| Redis | optional inline | recommended for ingest |
-| Env secrets | .env.local | Vercel sensitive/encrypted |
-| Commits | — | must be Verified |
+| Concern        | Local                     | Production                 |
+| -------------- | ------------------------- | -------------------------- |
+| Auth           | AUTH_DEV_BYPASS cookie OK | GoTrue only                |
+| Storage        | disk fallback possible    | R2 + WORKER_URL required   |
+| History Worker | optional                  | required for scale         |
+| Coord Worker   | optional (single isolate) | required multi-isolate     |
+| Auth email     | AUTH_DEV_BYPASS simulate  | Worker + Email Sending     |
+| Redis          | optional inline           | recommended for ingest     |
+| Env secrets    | .env.local                | Vercel sensitive/encrypted |
+| Commits        | —                         | must be Verified           |
 
 ---
 
@@ -626,37 +626,35 @@ When reviewing a PR, ask:
 
 ## Part U — Surface inventory (pages)
 
-| Path | Purpose |
-|---|---|
-| `/` | Main boot → /new |
-| `/new` | Blank chat |
-| `/c/[chatId]` | Chat by id |
-| `/library` | Library |
-| `/projects` | Projects list |
-| `/projects/[id]` | Project detail |
-| `/projects/[id]/conversations/[convId]` | Project conversation |
-| `/customize` | Customize hub |
-| `/customize/skills` | Skills |
-| `/customize/connectors` | Connectors |
-| `/settings` | Legacy settings → hash |
-| `/settings/[tab]` | Legacy settings tab → hash |
-| `/upgrade` | Legacy pricing → hash |
-| `/pricing` | Legacy pricing |
-| `/gift` | Legacy gift → hash |
-| `/apps` | Legacy apps → hash |
-| `/login` | Unified login |
-| `/signup` | Redirect login |
-| `/onboarding` | Onboarding |
-| `/auth/callback` | OAuth callback |
-| `/auth/confirm` | Email confirm |
-| `/auth/magic` | Magic set-password |
-| `/auth/reset-password` | Reset password |
-| `/share/[token]` | Public share |
-| `/checkout/[merchant]/[sessionId]` | Checkout |
-| `/about` | About |
-| `/legal/privacy` | Privacy |
-| `/legal/terms` | Terms |
-
+| Path                                    | Purpose                    |
+| --------------------------------------- | -------------------------- |
+| `/`                                     | Main boot → /new           |
+| `/new`                                  | Blank chat                 |
+| `/c/[chatId]`                           | Chat by id                 |
+| `/library`                              | Library                    |
+| `/projects`                             | Projects list              |
+| `/projects/[id]`                        | Project detail             |
+| `/projects/[id]/conversations/[convId]` | Project conversation       |
+| `/customize`                            | Customize hub              |
+| `/customize/skills`                     | Skills                     |
+| `/settings`                             | Legacy settings → hash     |
+| `/settings/[tab]`                       | Legacy settings tab → hash |
+| `/upgrade`                              | Legacy pricing → hash      |
+| `/pricing`                              | Legacy pricing             |
+| `/gift`                                 | Legacy gift → hash         |
+| `/apps`                                 | Legacy apps → hash         |
+| `/login`                                | Unified login              |
+| `/signup`                               | Redirect login             |
+| `/onboarding`                           | Onboarding                 |
+| `/auth/callback`                        | OAuth callback             |
+| `/auth/confirm`                         | Email confirm              |
+| `/auth/magic`                           | Magic set-password         |
+| `/auth/reset-password`                  | Reset password             |
+| `/share/[token]`                        | Public share               |
+| `/checkout/[merchant]/[sessionId]`      | Checkout                   |
+| `/about`                                | About                      |
+| `/legal/privacy`                        | Privacy                    |
+| `/legal/terms`                          | Terms                      |
 
 ---
 
@@ -679,22 +677,26 @@ Full narrative: [`reference/database-schema.md`](./reference/database-schema.md)
 ## Part X — Worker endpoint cheat sheet
 
 ### chat-history
+
 GET `/v1/chats`, GET `/v1/chats/:id/messages`, POST `/internal/warm`, POST `/internal/invalidate`, GET `/health`
 
 ### r2-gateway
+
 PUT/GET object paths per binding; auth Bearer Supabase JWT; GET `/health` if exposed
 
 ### chat-coord
+
 POST `/lease|release|stop|status`, GET `/health`
 
 ### auth-email
+
 POST `/v1/otp/send|verify|consume-ticket`, POST `/v1/magic/*`, GET `/health`
 
 ---
 
 ## Part Y — Env group cheat sheet
 
-App public · App server · Supabase · R2 · Workers · Inference Provider_* · Tools · Billing · Redis/JWT · Edge Config · Sandbox optional
+App public · App server · Supabase · R2 · Workers · Inference Provider\_\* · Tools · Billing · Redis/JWT · Edge Config · Sandbox optional
 
 Full: [`reference/environment-variables.md`](./reference/environment-variables.md).
 
@@ -716,27 +718,26 @@ If a behavior is not documented here or in the linked system docs, treat `brain/
 - [Workers](./systems/cloudflare-workers.md)
 - [Ops runbook](./ops/operations-runbook.md)
 
-
 ---
 
 ## Appendix AA — Chat message field encyclopedia
 
 Common fields on client message objects (conceptual; see types in frontend lib):
 
-| Field | Description |
-|---|---|
-| `id` | Durable server id when known |
-| `clientId` | Stable client key |
-| `role` | `user` \| `assistant` \| `system` \| tool roles |
-| `content` | Primary markdown/text |
-| `status` | streaming/completed/error/cancelled |
-| `content_json` | Structured extras (attachments, agent_ui, tools) |
-| `createdAt` | Ordering |
-| `branchId` / parent refs | Branch graph |
-| `thinking` / reasoning | Hidden or collapsible thinking text |
-| `frames` / segments | Agent timeline segments |
-| `sources` | Citations |
-| `errorText` | Visible failure |
+| Field                    | Description                                      |
+| ------------------------ | ------------------------------------------------ |
+| `id`                     | Durable server id when known                     |
+| `clientId`               | Stable client key                                |
+| `role`                   | `user` \| `assistant` \| `system` \| tool roles  |
+| `content`                | Primary markdown/text                            |
+| `status`                 | streaming/completed/error/cancelled              |
+| `content_json`           | Structured extras (attachments, agent_ui, tools) |
+| `createdAt`              | Ordering                                         |
+| `branchId` / parent refs | Branch graph                                     |
+| `thinking` / reasoning   | Hidden or collapsible thinking text              |
+| `frames` / segments      | Agent timeline segments                          |
+| `sources`                | Citations                                        |
+| `errorText`              | Visible failure                                  |
 
 Dedupe identity typically considers clientId, server id, role, and content fingerprints.
 
@@ -878,22 +879,22 @@ Transient network blips → toast. Terminal generation failure → inline assist
 
 ## Appendix AQ — Agent event mapping to UI
 
-| Normalized event | UI effect |
-|---|---|
-| RunStarted | Show orb / frame start |
-| Reasoning* | Thinking text + Thought timing |
-| ToolCall* | Tool label in frame |
-| ToolCallProgress | Partial search progress |
-| ToolCallResult | Attach result / sources |
-| TextMessage* | Stream answer markdown; hide orb when answer streams |
-| StepDone | Step boundary |
-| RunFinished | Finalize timings; persist agent_ui |
+| Normalized event | UI effect                                            |
+| ---------------- | ---------------------------------------------------- |
+| RunStarted       | Show orb / frame start                               |
+| Reasoning\*      | Thinking text + Thought timing                       |
+| ToolCall\*       | Tool label in frame                                  |
+| ToolCallProgress | Partial search progress                              |
+| ToolCallResult   | Attach result / sources                              |
+| TextMessage\*    | Stream answer markdown; hide orb when answer streams |
+| StepDone         | Step boundary                                        |
+| RunFinished      | Finalize timings; persist agent_ui                   |
 
 ---
 
 ## Appendix AR — Index of docs for searchability
 
-architecture-overview, perf-architecture, perf-metrics, backend, backend-audit, auth-migration, vercel-deployment, vercel-production-setup, systems/chat-system, systems/frontend-architecture, systems/authentication, systems/cloudflare-workers, systems/inference-and-models, systems/billing-and-checkout, systems/projects-and-rag, systems/settings-and-personalization, systems/storage-and-files, systems/autonomous-agent, systems/workspaces-enterprise, systems/routing-and-navigation, systems/realtime-and-caching, systems/onboarding, systems/sharing-and-library, reference/api-reference, reference/database-schema, reference/environment-variables, reference/repository-map, reference/scripts-catalog, reference/ui-component-catalog, guides/development-guide, guides/testing-guide, guides/contributing, ops/security, ops/operations-runbook, ops/cloudflare-zone-hardening, complete-product-deep-dive (this file), research/*.
+architecture-overview, perf-architecture, perf-metrics, backend, backend-audit, auth-migration, vercel-deployment, vercel-production-setup, systems/chat-system, systems/frontend-architecture, systems/authentication, systems/cloudflare-workers, systems/inference-and-models, systems/billing-and-checkout, systems/projects-and-rag, systems/settings-and-personalization, systems/storage-and-files, systems/autonomous-agent, systems/workspaces-enterprise, systems/routing-and-navigation, systems/realtime-and-caching, systems/onboarding, systems/sharing-and-library, reference/api-reference, reference/database-schema, reference/environment-variables, reference/repository-map, reference/scripts-catalog, reference/ui-component-catalog, guides/development-guide, guides/testing-guide, guides/contributing, ops/security, ops/operations-runbook, ops/cloudflare-zone-hardening, complete-product-deep-dive (this file), research/\*.
 
 ---
 

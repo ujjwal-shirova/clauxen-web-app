@@ -13,7 +13,6 @@ import {
   Ellipsis,
   Gift,
   HelpCircle,
-  ImageIcon,
   LogOut,
   MoreVertical,
   Pin,
@@ -201,7 +200,6 @@ interface SidebarProps {
   onGiftClick: () => void;
   onProjectsClick: () => void;
   onMyClauxenClick?: () => void;
-  onImageClick?: () => void;
   onScheduledTasksClick?: () => void;
   onClauxenCodeClick?: () => void;
   onClauxenWorkClick?: () => void;
@@ -252,7 +250,6 @@ export function Sidebar({
   onGiftClick,
   onProjectsClick,
   onMyClauxenClick,
-  onImageClick,
   onScheduledTasksClick,
   onClauxenCodeClick,
   onClauxenWorkClick,
@@ -297,8 +294,6 @@ export function Sidebar({
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [recentsExpanded, setRecentsExpanded] = useState(true);
   const [moreExpanded, setMoreExpanded] = useState(false);
-  const [planLabel, setPlanLabel] = useState<string | null>(null);
-  const [planLoading, setPlanLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -315,45 +310,6 @@ export function Sidebar({
     setRecentsExpanded(readSectionExpanded("recents", true));
     setMoreExpanded(readSectionExpanded("more", false));
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadPlan = async () => {
-      if (!userEmail) {
-        setPlanLabel(null);
-        setPlanLoading(false);
-        return;
-      }
-      setPlanLoading(true);
-      setPlanLabel(null);
-      try {
-        const { getBillingSubscription } = await import("@/lib/api/billing");
-        const overview = await getBillingSubscription();
-        if (cancelled) return;
-        const planId = overview.subscription?.plan_id;
-        if (!planId) {
-          setPlanLabel("Free plan");
-          return;
-        }
-        const match = overview.plans?.find((p) => p.id === planId);
-        const name = match?.display_name || planId;
-        setPlanLabel(
-          name.toLowerCase().includes("plan") ? name : `${name} plan`,
-        );
-      } catch {
-        if (!cancelled) setPlanLabel("Free plan");
-      } finally {
-        if (!cancelled) setPlanLoading(false);
-      }
-    };
-    void loadPlan();
-    const onBillingUpdated = () => void loadPlan();
-    window.addEventListener("clauxen:billing-updated", onBillingUpdated);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("clauxen:billing-updated", onBillingUpdated);
-    };
-  }, [userEmail]);
 
   const toggleSection = (key: SidebarSectionKey) => {
     const setters: Record<
@@ -389,8 +345,7 @@ export function Sidebar({
     () => projects.filter((p) => !pinnedProjectIdSet.has(p.id)),
     [projects, pinnedProjectIdSet],
   );
-  const hasPinnedSection =
-    pinnedChats.length > 0 || pinnedProjects.length > 0;
+  const hasPinnedSection = pinnedChats.length > 0 || pinnedProjects.length > 0;
   const groupedChats = useMemo(
     () => groupChats(unpinnedChats, chatGroupBy),
     [unpinnedChats, chatGroupBy],
@@ -399,7 +354,10 @@ export function Sidebar({
   const overlayHref = (overlay: Parameters<typeof buildOverlayLocation>[0]) =>
     buildOverlayLocation(overlay, pathname);
 
-  const renderProjectRow = (project: ApiProject, opts?: { pinned?: boolean }) => {
+  const renderProjectRow = (
+    project: ApiProject,
+    opts?: { pinned?: boolean },
+  ) => {
     const isActive = activeProjectId === project.id;
     const showUnpin = Boolean(opts?.pinned);
     const projectHref = APP_ROUTES.project(project.id);
@@ -440,11 +398,7 @@ export function Sidebar({
             }}
             className="ui-row-icon-button ml-1 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 focus-visible:opacity-100"
           >
-            {showUnpin ? (
-              <PinOff strokeWidth={2} />
-            ) : (
-              <Pin strokeWidth={2} />
-            )}
+            {showUnpin ? <PinOff strokeWidth={2} /> : <Pin strokeWidth={2} />}
           </button>
         ) : null}
       </div>
@@ -476,9 +430,7 @@ export function Sidebar({
   const navButtonClass = (active = false, muted = false) =>
     cn(
       "ui-sidebar-menu-button mb-0 w-full rounded-lg text-[14px] font-medium leading-5 transition-all duration-75 hover:bg-zinc-100",
-      muted
-        ? "text-zinc-400 hover:text-zinc-500"
-        : "text-zinc-800",
+      muted ? "text-zinc-400 hover:text-zinc-500" : "text-zinc-800",
       isCollapsed
         ? "ui-icon-button mx-auto justify-center gap-0 px-0"
         : "ui-nav-row justify-start px-2.5",
@@ -604,15 +556,14 @@ export function Sidebar({
         >
           <span className="min-w-0 flex-1 truncate">
             {chat.isTitleStreaming ? (
-              <StreamingChatTitle
-                title={chat.name || "New Chat"}
-                isStreaming
-              />
+              <StreamingChatTitle title={chat.name || "New Chat"} isStreaming />
             ) : (
               chat.name || "New Chat"
             )}
           </span>
-          {chat.isTitleStreaming ? <TypingDots className="mr-0.5 shrink-0" /> : null}
+          {chat.isTitleStreaming ? (
+            <TypingDots className="mr-0.5 shrink-0" />
+          ) : null}
         </AppHref>
         <div className="ml-1 flex shrink-0 items-center gap-0.5">
           {showSidebarSpinner ? (
@@ -675,595 +626,589 @@ export function Sidebar({
 
   return (
     <>
-    <nav
-      id={id}
-      data-skip-global-prompt-focus
-      onClick={() =>
-        !isMobileLayout &&
-        isCollapsed &&
-        !isCustomizeActive &&
-        setIsCollapsed(false)
-      }
-      className={cn(
-        "sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)]",
-        isMobileLayout &&
-          "fixed left-0 top-0 z-30 will-change-transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-        !isMobileLayout &&
-          "relative z-20 shrink-0",
-        !isMobileLayout &&
-          sidebarReady &&
-          "transition-[width] duration-300 ease-in-out",
-        !isMobileLayout && !sidebarReady && "transition-none",
-        isMobileLayout &&
+      <nav
+        id={id}
+        data-skip-global-prompt-focus
+        onClick={() =>
+          !isMobileLayout &&
           isCollapsed &&
-          "pointer-events-none w-[min(88vw,280px)] -translate-x-full shadow-none",
-        isMobileLayout &&
-          !isCollapsed &&
-          "z-40 w-[min(88vw,280px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[env(safe-area-inset-bottom)]",
-        !isMobileLayout &&
-          isCollapsed &&
-          "w-[48px] cursor-pointer",
-        !isMobileLayout &&
-          !isCollapsed &&
-          "w-[min(86vw,256px)] lg:w-[256px]",
-      )}
-    >
-      <div className="ui-sidebar-top-bar relative flex h-11 shrink-0 items-center justify-between pl-2 pr-1">
-        <div
-          className={cn(
-            "flex items-center pl-1.5 transition-opacity duration-300",
-            isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100",
-          )}
-        >
-          <img
-            src={CLAUXEN_LOGO_SRC}
-            alt="Clauxen"
-            width={24}
-            height={24}
-            className="h-6 w-6 shrink-0 rounded-[6px] object-contain"
-            draggable={false}
-          />
-        </div>
-
-        {isCollapsed && !isMobileLayout ? (
-          <div className="group/sidebar-logo absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+          !isCustomizeActive &&
+          setIsCollapsed(false)
+        }
+        className={cn(
+          "sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)]",
+          isMobileLayout &&
+            "fixed left-0 top-0 z-30 will-change-transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+          !isMobileLayout && "relative z-20 shrink-0",
+          !isMobileLayout &&
+            sidebarReady &&
+            "transition-[width] duration-300 ease-in-out",
+          !isMobileLayout && !sidebarReady && "transition-none",
+          isMobileLayout &&
+            isCollapsed &&
+            "pointer-events-none w-[min(88vw,280px)] -translate-x-full shadow-none",
+          isMobileLayout &&
+            !isCollapsed &&
+            "z-40 w-[min(88vw,280px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[env(safe-area-inset-bottom)]",
+          !isMobileLayout && isCollapsed && "w-[48px] cursor-pointer",
+          !isMobileLayout && !isCollapsed && "w-[min(86vw,256px)] lg:w-[256px]",
+        )}
+      >
+        <div className="ui-sidebar-top-bar relative flex h-11 shrink-0 items-center justify-between pl-2 pr-1">
+          <div
+            className={cn(
+              "flex items-center pl-1.5 transition-opacity duration-300",
+              isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100",
+            )}
+          >
             <img
               src={CLAUXEN_LOGO_SRC}
               alt="Clauxen"
               width={24}
               height={24}
-              className="h-6 w-6 shrink-0 rounded-[6px] object-contain transition-opacity duration-200 group-hover/sidebar-logo:opacity-0"
+              className="h-6 w-6 shrink-0 rounded-[6px] object-contain"
               draggable={false}
             />
+          </div>
+
+          {isCollapsed && !isMobileLayout ? (
+            <div className="group/sidebar-logo absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+              <img
+                src={CLAUXEN_LOGO_SRC}
+                alt="Clauxen"
+                width={24}
+                height={24}
+                className="h-6 w-6 shrink-0 rounded-[6px] object-contain transition-opacity duration-200 group-hover/sidebar-logo:opacity-0"
+                draggable={false}
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!isCustomizeActive) setIsCollapsed(false);
+                }}
+                disabled={isCustomizeActive}
+                aria-label="Expand sidebar"
+                className={cn(
+                  "ui-icon-button absolute inset-0 text-zinc-500 opacity-0 transition-all duration-200 hover:bg-zinc-100 group-hover/sidebar-logo:opacity-100",
+                  isCustomizeActive && "cursor-not-allowed opacity-0",
+                )}
+              >
+                <SidebarOpenIcon className="size-[18px]" />
+              </button>
+            </div>
+          ) : (
             <button
-              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (!isCustomizeActive) setIsCollapsed(false);
+                if (!isCustomizeActive) setIsCollapsed(!isCollapsed);
               }}
               disabled={isCustomizeActive}
-              aria-label="Expand sidebar"
+              aria-label={
+                isMobileLayout && !isCollapsed ? "Close menu" : "Toggle sidebar"
+              }
               className={cn(
-                "ui-icon-button absolute inset-0 text-zinc-500 opacity-0 transition-all duration-200 hover:bg-zinc-100 group-hover/sidebar-logo:opacity-100",
-                isCustomizeActive && "cursor-not-allowed opacity-0",
+                "ui-icon-button text-zinc-500 transition-all duration-200 hover:bg-zinc-100",
+                isCustomizeActive && "cursor-not-allowed opacity-30",
               )}
             >
-              <SidebarOpenIcon className="size-[18px]" />
+              {isMobileLayout && !isCollapsed ? (
+                <X className="size-[18px]" />
+              ) : isCollapsed ? (
+                <SidebarOpenIcon className="size-[18px]" />
+              ) : (
+                <SidebarToggleIcon className="size-[18px]" />
+              )}
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isCustomizeActive) setIsCollapsed(!isCollapsed);
-            }}
-            disabled={isCustomizeActive}
-            aria-label={
-              isMobileLayout && !isCollapsed ? "Close menu" : "Toggle sidebar"
-            }
-            className={cn(
-              "ui-icon-button text-zinc-500 transition-all duration-200 hover:bg-zinc-100",
-              isCustomizeActive && "cursor-not-allowed opacity-30",
-            )}
-          >
-            {isMobileLayout && !isCollapsed ? (
-              <X className="size-[18px]" />
-            ) : isCollapsed ? (
-              <SidebarOpenIcon className="size-[18px]" />
-            ) : (
-              <SidebarToggleIcon className="size-[18px]" />
-            )}
-          </button>
-        )}
-      </div>
-
-      <div className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain" data-scroll-region="">
-        <div
-          className={cn(
-            "sticky top-0 z-10 bg-[var(--app-shell-bg)] pl-2 pr-1.5 pb-2 pt-1.5",
-            isCollapsed && "px-0",
-          )}
-        >
-          <div className={cn(isCollapsed ? "px-0" : "px-1")}>
-            {isCollapsed ? (
-              <AppHref
-                href={APP_ROUTES.newChat}
-                replace
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!isPlainLeftClick(e)) return;
-                  e.preventDefault();
-                  handleNewChat();
-                }}
-                aria-label="New chat"
-                className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
-              >
-                <NewChatBubbleIcon className="size-[18px]" />
-              </AppHref>
-            ) : (
-              <AppHref
-                href={APP_ROUTES.newChat}
-                replace
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!isPlainLeftClick(e)) return;
-                  e.preventDefault();
-                  handleNewChat();
-                }}
-                aria-label="New chat"
-                className="group flex h-[34px] w-full items-center justify-between gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-2.5 text-[14px] font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
-              >
-                <span className="flex min-w-0 items-center gap-[3px]">
-                  <NewChatBubbleIcon className="size-[18px] shrink-0 text-zinc-800" />
-                  <span className="truncate">New Chat</span>
-                </span>
-                <span className="flex shrink-0 items-center gap-1">
-                  <ShortcutKey>{isApplePlatform ? "⌘" : "Ctrl"}</ShortcutKey>
-                  <ShortcutKey>K</ShortcutKey>
-                </span>
-              </AppHref>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-0.5 pl-2 pr-1.5">
-          {/* New Chat pill is above — nav order: My Clauxen → Image → Library → Scheduled → Customize */}
-          {renderNavButton({
-            label: "My Clauxen",
-            icon: <UserRound className="size-[18px]" strokeWidth={1.75} />,
-            href: APP_ROUTES.myClauxen,
-            onClick: () => {
-              (onMyClauxenClick ?? onPersonalizationClick ?? onCustomizeClick)?.();
-            },
-            active: activeView === "my-clauxen",
-          })}
-
-          {renderNavButton({
-            label: "Image",
-            icon: <ImageIcon className="size-[18px]" strokeWidth={1.75} />,
-            onClick: () =>
-              runNavAction(() => {
-                onImageClick?.();
-              }),
-            active: activeView === "image",
-          })}
-
-          {renderNavButton({
-            label: "Library",
-            icon: <Library className="size-[18px]" />,
-            href: APP_ROUTES.library,
-            onClick: onLibraryClick,
-            active: activeView === "library",
-          })}
-
-          {renderNavButton({
-            label: "Scheduled Task",
-            icon: (
-              <CalendarClock className="size-[18px]" strokeWidth={1.75} />
-            ),
-            href: APP_ROUTES.scheduledTasks,
-            onClick: () => onScheduledTasksClick?.(),
-            active: activeView === "scheduled-tasks",
-          })}
-
-          {renderNavButton({
-            label: "Customize",
-            icon: (
-              <SlidersHorizontal
-                className="size-[18px]"
-                strokeWidth={1.75}
-              />
-            ),
-            href: APP_ROUTES.customize,
-            onClick: () => onCustomizeClick?.(),
-            active: activeView === "customize",
-          })}
-
-          {renderNavButton({
-            label: moreExpanded ? "Collapse" : "More",
-            icon: <Ellipsis className="size-[18px]" strokeWidth={1.75} />,
-            muted: moreExpanded,
-            onClick: () => {
-              if (isCollapsed) {
-                setIsCollapsed(false);
-                if (!moreExpanded) toggleSection("more");
-                return;
-              }
-              toggleSection("more");
-            },
-            trailing: !isCollapsed ? (
-              <ChevronRight
-                className={cn(
-                  "sidebar-section-chevron ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400 transition-[opacity,transform] duration-200",
-                  moreExpanded && "rotate-90",
-                )}
-                strokeWidth={2}
-                aria-hidden
-              />
-            ) : undefined,
-          })}
-
-          {!isCollapsed ? (
-            <SidebarSectionBody
-              expanded={moreExpanded}
-              className="mb-0.5 space-y-0.5 pl-2"
-            >
-              {renderNavButton({
-                label: "Clauxen Code",
-                icon: <Code2 className="size-[18px]" strokeWidth={1.75} />,
-                onClick: () =>
-                  runNavAction(() => {
-                    onClauxenCodeClick?.();
-                  }),
-                active: activeView === "clauxen-code",
-                looseGap: true,
-                trailing: !isCollapsed ? (
-                  <ArrowUpRight
-                    className="ml-auto size-4 shrink-0 text-zinc-400"
-                    strokeWidth={1.75}
-                    aria-hidden
-                  />
-                ) : undefined,
-              })}
-              {renderNavButton({
-                label: "Clauxen Collabry",
-                icon: (
-                  <Briefcase className="size-[18px]" strokeWidth={1.75} />
-                ),
-                onClick: () =>
-                  runNavAction(() => {
-                    onClauxenWorkClick?.();
-                  }),
-                active: activeView === "clauxen-work",
-                looseGap: true,
-                trailing: !isCollapsed ? (
-                  <ArrowUpRight
-                    className="ml-auto size-4 shrink-0 text-zinc-400"
-                    strokeWidth={1.75}
-                    aria-hidden
-                  />
-                ) : undefined,
-              })}
-              {renderNavButton({
-                label: "Clauxen Claw",
-                icon: <Bot className="size-[18px]" strokeWidth={1.75} />,
-                onClick: () =>
-                  runNavAction(() => {
-                    onClauxenClawClick?.();
-                  }),
-                active: activeView === "clauxen-claw",
-                looseGap: true,
-              })}
-            </SidebarSectionBody>
-          ) : null}
-
-          {/* Order: Pinned (chats + projects) → Projects → Recent */}
-          {!isCollapsed && hasPinnedSection ? (
-            <div className="mt-3 mb-1.5 px-0.5">
-              <SidebarSectionLabel
-                label="Pinned"
-                expanded={pinnedExpanded}
-                onToggle={() => toggleSection("pinned")}
-              />
-              <SidebarSectionBody expanded={pinnedExpanded} className="mt-1 space-y-0.5">
-                {pinnedProjects.map((project) =>
-                  renderProjectRow(project, { pinned: true }),
-                )}
-                {pinnedChats.map((chat) => renderChatRow(chat))}
-              </SidebarSectionBody>
-            </div>
-          ) : null}
-
-          {!isCollapsed ? (
-            <div className="mt-2 mb-1.5 px-0.5">
-              <SidebarSectionLabel
-                label="Projects"
-                expanded={projectsExpanded}
-                onToggle={() => toggleSection("projects")}
-              />
-              <SidebarSectionBody expanded={projectsExpanded} className="mt-1 space-y-0.5">
-                <AppHref
-                  href={APP_ROUTES.projects}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (!isPlainLeftClick(event)) return;
-                    onNewProjectClick?.();
-                    if (isMobileLayout) onNavigate?.();
-                  }}
-                  className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-lg px-2.5 text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100"
-                >
-                  <Plus
-                    className="size-[18px] shrink-0 text-zinc-500"
-                    strokeWidth={1.75}
-                  />
-                  <span className="truncate">New Project</span>
-                </AppHref>
-                {unpinnedProjects.map((project) => renderProjectRow(project))}
-              </SidebarSectionBody>
-            </div>
-          ) : null}
-
-          {!isCollapsed && (
-            <div className="relative mb-3 px-0.5">
-              <SidebarSectionLabel
-                label="Recent chats"
-                expanded={recentsExpanded}
-                onToggle={() => toggleSection("recents")}
-                trailing={
-                  <SidebarChatGroupMenu
-                    value={chatGroupBy}
-                    onChange={handleChatGroupChange}
-                    projectGroupingEnabled={projectGroupingEnabled}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                }
-              />
-              <SidebarSectionBody expanded={recentsExpanded} className="mt-1 space-y-2">
-                {groupedChats.map((group) => (
-                  <div key={group.label || "all"}>
-                    {group.label ? (
-                      <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
-                        {group.label}
-                      </p>
-                    ) : null}
-                    <div className="space-y-0.5">
-                      {group.chats.map((chat) => renderChatRow(chat))}
-                    </div>
-                  </div>
-                ))}
-              </SidebarSectionBody>
-            </div>
           )}
         </div>
-      </div>
 
-      {showAccountMenu && (
         <div
-          className={cn(
-            "mt-auto shrink-0 flex flex-col bg-[var(--app-shell-bg)]",
-            isCollapsed
-              ? "items-center gap-2 px-0 pb-2.5 pt-1"
-              : "items-stretch gap-1 py-2 pl-2 pr-1.5",
-          )}
+          className="sidebar-scrollable app-scrollbar ui-sidebar-content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+          data-scroll-region=""
         >
           <div
             className={cn(
-              "flex items-center",
-              isCollapsed ? "justify-center" : "gap-1",
+              "sticky top-0 z-10 bg-[var(--app-shell-bg)] pl-2 pr-1.5 pb-2 pt-1.5",
+              isCollapsed && "px-0",
             )}
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
           >
-            <DropdownMenu modal={!isMobileLayout}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  onClick={(e) => e.stopPropagation()}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className={cn(
-                    "menu-trigger-active glass-sidebar-footer-account-trigger flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-black/5",
-                    isCollapsed
-                      ? "ui-icon-button shrink-0 items-center justify-center gap-0 rounded-full !p-0"
-                      : "ui-nav-row--loose h-auto min-h-10 w-full justify-start gap-1.5 rounded-lg px-2.5 py-1.5",
-                  )}
-                >
-                  <UserAvatarDisplay
-                    name={userDisplayName || "?"}
-                    avatarUrl={userAvatarUrl}
-                    size={isCollapsed ? "sm" : "md"}
-                    className="h-7 w-7 shrink-0"
-                  />
-                  <div
-                    className={cn(
-                      "flex min-w-0 flex-1 flex-col text-left transition-opacity duration-200",
-                      isCollapsed ? "hidden w-0 opacity-0" : "opacity-100",
-                    )}
-                  >
-                    {accountLoading || !userDisplayName ? (
-                      <Skeleton className="mb-1 h-3.5 w-[7.5rem] max-w-full" variant="text" />
-                    ) : (
-                      <p className="truncate text-[14px] font-medium leading-5 text-zinc-800">
-                        {userDisplayName}
-                      </p>
-                    )}
-                    {accountLoading || (Boolean(userEmail) && (planLoading || !planLabel)) ? (
-                      <Skeleton className="h-3 w-[4.75rem]" variant="text" />
-                    ) : planLabel ? (
-                      <p className="text-[12px] font-medium leading-4 text-zinc-500">
-                        {planLabel}
-                      </p>
-                    ) : null}
-                  </div>
-                  {!isCollapsed && (
-                    <ProfileMenuChevron className="opacity-80" />
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side="top"
-              align={isCollapsed ? "center" : "end"}
-              sideOffset={6}
-              collisionPadding={12}
-              onCloseAutoFocus={(e) => e.preventDefault()}
-              className="z-[60] w-[min(252px,calc(100vw-2rem))] rounded-xl border border-zinc-300 bg-white/85 p-1.5 font-sans shadow-lg backdrop-blur-3xl"
-            >
-              <DropdownMenuLabel className="px-2.5 py-1.5 text-[12px] font-medium text-zinc-500 truncate">
-                {userEmail || "Not signed in"}
-              </DropdownMenuLabel>
-              <DropdownMenuItem asChild>
+            <div className={cn(isCollapsed ? "px-0" : "px-1")}>
+              {isCollapsed ? (
                 <AppHref
-                  href={overlayHref({ type: "settings", tab: "General" })}
+                  href={APP_ROUTES.newChat}
+                  replace
                   onClick={(e) => {
+                    e.stopPropagation();
                     if (!isPlainLeftClick(e)) return;
                     e.preventDefault();
-                    runNavAction(onSettingsClick);
+                    handleNewChat();
                   }}
-                  className="ui-menu-row cursor-pointer justify-between"
+                  aria-label="New chat"
+                  className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
                 >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <Settings className="size-4 text-zinc-800" />
-                    <span>Settings</span>
-                  </div>
-                  <span className="text-[12px] text-zinc-500">⇧⌘,</span>
+                  <NewChatBubbleIcon className="size-[18px]" />
                 </AppHref>
-              </DropdownMenuItem>
-              {onPersonalizationClick && (
-                <DropdownMenuItem asChild>
-                  <AppHref
-                    href={overlayHref({
-                      type: "settings",
-                      tab: "Personalization",
-                    })}
-                    onClick={(e) => {
-                      if (!isPlainLeftClick(e)) return;
-                      e.preventDefault();
-                      runNavAction(onPersonalizationClick);
-                    }}
-                    className="ui-menu-row cursor-pointer"
-                  >
-                    <Sparkles className="size-4 text-zinc-800" />
-                    <span>Personalization</span>
-                  </AppHref>
-                </DropdownMenuItem>
+              ) : (
+                <AppHref
+                  href={APP_ROUTES.newChat}
+                  replace
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isPlainLeftClick(e)) return;
+                    e.preventDefault();
+                    handleNewChat();
+                  }}
+                  aria-label="New chat"
+                  className="group flex h-[34px] w-full items-center justify-between gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-2.5 text-[14px] font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
+                >
+                  <span className="flex min-w-0 items-center gap-[3px]">
+                    <NewChatBubbleIcon className="size-[18px] shrink-0 text-zinc-800" />
+                    <span className="truncate">New Chat</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    <ShortcutKey>{isApplePlatform ? "⌘" : "Ctrl"}</ShortcutKey>
+                    <ShortcutKey>K</ShortcutKey>
+                  </span>
+                </AppHref>
               )}
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="ui-menu-row cursor-pointer">
-                  <Languages className="size-4 text-zinc-800" />
-                  <span>Language</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
-                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
-                      English
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
-                      Hindi
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
-                      Tamil
-                    </DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
-              <DropdownMenuItem className="ui-menu-row cursor-pointer">
-                <HelpCircle className="size-4 text-zinc-800" />
-                <span>Get help</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <AppHref
-                  href={overlayHref({ type: "pricing" })}
-                  onClick={(e) => {
-                    if (!isPlainLeftClick(e)) return;
-                    e.preventDefault();
-                    runNavAction(onUpgradeClick);
-                  }}
-                  className="ui-menu-row cursor-pointer"
-                >
-                  <ArrowUpCircle className="size-4 text-zinc-800" />
-                  <span>Upgrade plan</span>
-                </AppHref>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <AppHref
-                  href={overlayHref({ type: "apps" })}
-                  onClick={(e) => {
-                    if (!isPlainLeftClick(e)) return;
-                    e.preventDefault();
-                    runNavAction(onAppsExtensionsClick);
-                  }}
-                  className="ui-menu-row cursor-pointer"
-                >
-                  <LayoutGrid className="size-4 text-zinc-800" />
-                  <span>Apps and extensions</span>
-                </AppHref>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <AppHref
-                  href={overlayHref({ type: "gift" })}
-                  onClick={(e) => {
-                    if (!isPlainLeftClick(e)) return;
-                    e.preventDefault();
-                    runNavAction(onGiftClick);
-                  }}
-                  className="ui-menu-row cursor-pointer"
-                >
-                  <Gift className="size-4 text-zinc-800" />
-                  <span>Gift Clauxen</span>
-                </AppHref>
-              </DropdownMenuItem>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="ui-menu-row cursor-pointer">
-                  <HelpCircle className="size-4 text-zinc-800" />
-                  <span>Learn more</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
-                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
-                      Release notes
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
-                      Documentation
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
-                      Community
-                    </DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
-              <DropdownMenuSeparator className="my-1.5 bg-zinc-900/10" />
-              <DropdownMenuItem
-                onClick={() => onLogoutClick?.()}
-                className="ui-menu-row cursor-pointer text-destructive"
+            </div>
+          </div>
+
+          <div className="space-y-0.5 pl-2 pr-1.5">
+            {/* New Chat pill is above — nav order: My Clauxen → Library → Scheduled → Customize */}
+            {renderNavButton({
+              label: "My Clauxen",
+              icon: <UserRound className="size-[18px]" strokeWidth={1.75} />,
+              href: APP_ROUTES.myClauxen,
+              onClick: () => {
+                (
+                  onMyClauxenClick ??
+                  onPersonalizationClick ??
+                  onCustomizeClick
+                )?.();
+              },
+              active: activeView === "my-clauxen",
+            })}
+
+            {renderNavButton({
+              label: "Library",
+              icon: <Library className="size-[18px]" />,
+              href: APP_ROUTES.library,
+              onClick: onLibraryClick,
+              active: activeView === "library",
+            })}
+
+            {renderNavButton({
+              label: "Scheduled Task",
+              icon: (
+                <CalendarClock className="size-[18px]" strokeWidth={1.75} />
+              ),
+              href: APP_ROUTES.scheduledTasks,
+              onClick: () => onScheduledTasksClick?.(),
+              active: activeView === "scheduled-tasks",
+            })}
+
+            {renderNavButton({
+              label: "Customize",
+              icon: (
+                <SlidersHorizontal className="size-[18px]" strokeWidth={1.75} />
+              ),
+              href: overlayHref({ type: "settings", tab: "Connectors" }),
+              onClick: () => onCustomizeClick?.(),
+              active: activeView === "connectors",
+            })}
+
+            {renderNavButton({
+              label: moreExpanded ? "Collapse" : "More",
+              icon: <Ellipsis className="size-[18px]" strokeWidth={1.75} />,
+              muted: moreExpanded,
+              onClick: () => {
+                if (isCollapsed) {
+                  setIsCollapsed(false);
+                  if (!moreExpanded) toggleSection("more");
+                  return;
+                }
+                toggleSection("more");
+              },
+              trailing: !isCollapsed ? (
+                <ChevronRight
+                  className={cn(
+                    "sidebar-section-chevron ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400 transition-[opacity,transform] duration-200",
+                    moreExpanded && "rotate-90",
+                  )}
+                  strokeWidth={2}
+                  aria-hidden
+                />
+              ) : undefined,
+            })}
+
+            {!isCollapsed ? (
+              <SidebarSectionBody
+                expanded={moreExpanded}
+                className="mb-0.5 space-y-0.5 pl-2"
               >
-                <LogOut className="size-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-            </DropdownMenu>
+                {renderNavButton({
+                  label: "Clauxen Code",
+                  icon: <Code2 className="size-[18px]" strokeWidth={1.75} />,
+                  onClick: () =>
+                    runNavAction(() => {
+                      onClauxenCodeClick?.();
+                    }),
+                  active: activeView === "clauxen-code",
+                  looseGap: true,
+                  trailing: !isCollapsed ? (
+                    <ArrowUpRight
+                      className="ml-auto size-4 shrink-0 text-zinc-400"
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                  ) : undefined,
+                })}
+                {renderNavButton({
+                  label: "Clauxen Collabry",
+                  icon: (
+                    <Briefcase className="size-[18px]" strokeWidth={1.75} />
+                  ),
+                  onClick: () =>
+                    runNavAction(() => {
+                      onClauxenWorkClick?.();
+                    }),
+                  active: activeView === "clauxen-work",
+                  looseGap: true,
+                  trailing: !isCollapsed ? (
+                    <ArrowUpRight
+                      className="ml-auto size-4 shrink-0 text-zinc-400"
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                  ) : undefined,
+                })}
+                {renderNavButton({
+                  label: "Clauxen Claw",
+                  icon: <Bot className="size-[18px]" strokeWidth={1.75} />,
+                  onClick: () =>
+                    runNavAction(() => {
+                      onClauxenClawClick?.();
+                    }),
+                  active: activeView === "clauxen-claw",
+                  looseGap: true,
+                })}
+              </SidebarSectionBody>
+            ) : null}
+
+            {/* Order: Pinned (chats + projects) → Projects → Recent */}
+            {!isCollapsed && hasPinnedSection ? (
+              <div className="mt-3 mb-1.5 px-0.5">
+                <SidebarSectionLabel
+                  label="Pinned"
+                  expanded={pinnedExpanded}
+                  onToggle={() => toggleSection("pinned")}
+                />
+                <SidebarSectionBody
+                  expanded={pinnedExpanded}
+                  className="mt-1 space-y-0.5"
+                >
+                  {pinnedProjects.map((project) =>
+                    renderProjectRow(project, { pinned: true }),
+                  )}
+                  {pinnedChats.map((chat) => renderChatRow(chat))}
+                </SidebarSectionBody>
+              </div>
+            ) : null}
+
+            {!isCollapsed ? (
+              <div className="mt-2 mb-1.5 px-0.5">
+                <SidebarSectionLabel
+                  label="Projects"
+                  expanded={projectsExpanded}
+                  onToggle={() => toggleSection("projects")}
+                />
+                <SidebarSectionBody
+                  expanded={projectsExpanded}
+                  className="mt-1 space-y-0.5"
+                >
+                  <AppHref
+                    href={APP_ROUTES.projects}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!isPlainLeftClick(event)) return;
+                      onNewProjectClick?.();
+                      if (isMobileLayout) onNavigate?.();
+                    }}
+                    className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-lg px-2.5 text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100"
+                  >
+                    <Plus
+                      className="size-[18px] shrink-0 text-zinc-500"
+                      strokeWidth={1.75}
+                    />
+                    <span className="truncate">New Project</span>
+                  </AppHref>
+                  {unpinnedProjects.map((project) => renderProjectRow(project))}
+                </SidebarSectionBody>
+              </div>
+            ) : null}
+
+            {!isCollapsed && (
+              <div className="relative mb-3 px-0.5">
+                <SidebarSectionLabel
+                  label="Recent chats"
+                  expanded={recentsExpanded}
+                  onToggle={() => toggleSection("recents")}
+                  trailing={
+                    <SidebarChatGroupMenu
+                      value={chatGroupBy}
+                      onChange={handleChatGroupChange}
+                      projectGroupingEnabled={projectGroupingEnabled}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  }
+                />
+                <SidebarSectionBody
+                  expanded={recentsExpanded}
+                  className="mt-1 space-y-2"
+                >
+                  {groupedChats.map((group) => (
+                    <div key={group.label || "all"}>
+                      {group.label ? (
+                        <p className="px-2 py-1 text-[11px] font-medium text-zinc-500">
+                          {group.label}
+                        </p>
+                      ) : null}
+                      <div className="space-y-0.5">
+                        {group.chats.map((chat) => renderChatRow(chat))}
+                      </div>
+                    </div>
+                  ))}
+                </SidebarSectionBody>
+              </div>
+            )}
           </div>
         </div>
-      )}
-    </nav>
-    <RenameChatDialog
-      open={renameChatId != null}
-      onOpenChange={(open) => {
-        if (!open) setRenameChatId(null);
-      }}
-      chatTitle={renameChat?.name ?? "New Chat"}
-      onConfirm={(title) => {
-        if (renameChatId) onRenameChat?.(renameChatId, title);
-      }}
-    />
-    <DeleteChatDialog
-      open={deleteChatId != null}
-      onOpenChange={(open) => {
-        if (!open) setDeleteChatId(null);
-      }}
-      chatTitle={deleteChat?.name ?? "New Chat"}
-      onConfirm={() => {
-        if (deleteChatId) onDeleteChat?.(deleteChatId);
-      }}
-      onOpenSettings={onSettingsClick}
-    />
+
+        {showAccountMenu && (
+          <div
+            className={cn(
+              "mt-auto shrink-0 flex flex-col bg-[var(--app-shell-bg)]",
+              isCollapsed
+                ? "items-center gap-2 px-0 pb-2.5 pt-1"
+                : "items-stretch gap-1 py-2 pl-2 pr-1.5",
+            )}
+          >
+            <div
+              className={cn(
+                "flex items-center",
+                isCollapsed ? "justify-center" : "gap-1",
+              )}
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <DropdownMenu modal={!isMobileLayout}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className={cn(
+                      "menu-trigger-active glass-sidebar-footer-account-trigger flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-black/5",
+                      isCollapsed
+                        ? "ui-icon-button shrink-0 items-center justify-center gap-0 rounded-full !p-0"
+                        : "ui-nav-row h-8 min-h-8 w-full justify-start gap-[3px] rounded-lg px-2.5 py-0",
+                    )}
+                  >
+                    <UserAvatarDisplay
+                      name={userDisplayName || "?"}
+                      avatarUrl={userAvatarUrl}
+                      size="sm"
+                      className="h-[18px] w-[18px] shrink-0 text-[10px]"
+                    />
+                    <div
+                      className={cn(
+                        "flex min-w-0 flex-1 text-left transition-opacity duration-200",
+                        isCollapsed ? "hidden w-0 opacity-0" : "opacity-100",
+                      )}
+                    >
+                      {accountLoading || !userDisplayName ? (
+                        <Skeleton
+                          className="h-3.5 w-[7.5rem] max-w-full"
+                          variant="text"
+                        />
+                      ) : (
+                        <p className="truncate text-[14px] font-medium leading-5 text-zinc-800">
+                          {userDisplayName}
+                        </p>
+                      )}
+                    </div>
+                    {!isCollapsed && (
+                      <ProfileMenuChevron className="opacity-80" />
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  side="top"
+                  align={isCollapsed ? "center" : "end"}
+                  sideOffset={6}
+                  collisionPadding={12}
+                  onCloseAutoFocus={(e) => e.preventDefault()}
+                  className="z-[60] w-[min(252px,calc(100vw-2rem))] rounded-xl border border-zinc-300 bg-white/85 p-1.5 font-sans shadow-lg backdrop-blur-3xl"
+                >
+                  <DropdownMenuLabel className="px-2.5 py-1.5 text-[12px] font-medium text-zinc-500 truncate">
+                    {userEmail || "Not signed in"}
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem asChild>
+                    <AppHref
+                      href={overlayHref({ type: "settings", tab: "General" })}
+                      onClick={(e) => {
+                        if (!isPlainLeftClick(e)) return;
+                        e.preventDefault();
+                        runNavAction(onSettingsClick);
+                      }}
+                      className="ui-menu-row cursor-pointer justify-between"
+                    >
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <Settings className="size-4 text-zinc-800" />
+                        <span>Settings</span>
+                      </div>
+                      <span className="text-[12px] text-zinc-500">⇧⌘,</span>
+                    </AppHref>
+                  </DropdownMenuItem>
+                  {onPersonalizationClick && (
+                    <DropdownMenuItem asChild>
+                      <AppHref
+                        href={overlayHref({
+                          type: "settings",
+                          tab: "Personalization",
+                        })}
+                        onClick={(e) => {
+                          if (!isPlainLeftClick(e)) return;
+                          e.preventDefault();
+                          runNavAction(onPersonalizationClick);
+                        }}
+                        className="ui-menu-row cursor-pointer"
+                      >
+                        <Sparkles className="size-4 text-zinc-800" />
+                        <span>Personalization</span>
+                      </AppHref>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="ui-menu-row cursor-pointer">
+                      <Languages className="size-4 text-zinc-800" />
+                      <span>Language</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
+                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                          English
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                          Hindi
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                          Tamil
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                  <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                    <HelpCircle className="size-4 text-zinc-800" />
+                    <span>Get help</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <AppHref
+                      href={overlayHref({ type: "pricing" })}
+                      onClick={(e) => {
+                        if (!isPlainLeftClick(e)) return;
+                        e.preventDefault();
+                        runNavAction(onUpgradeClick);
+                      }}
+                      className="ui-menu-row cursor-pointer"
+                    >
+                      <ArrowUpCircle className="size-4 text-zinc-800" />
+                      <span>Upgrade plan</span>
+                    </AppHref>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <AppHref
+                      href={overlayHref({ type: "apps" })}
+                      onClick={(e) => {
+                        if (!isPlainLeftClick(e)) return;
+                        e.preventDefault();
+                        runNavAction(onAppsExtensionsClick);
+                      }}
+                      className="ui-menu-row cursor-pointer"
+                    >
+                      <LayoutGrid className="size-4 text-zinc-800" />
+                      <span>Apps and extensions</span>
+                    </AppHref>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <AppHref
+                      href={overlayHref({ type: "gift" })}
+                      onClick={(e) => {
+                        if (!isPlainLeftClick(e)) return;
+                        e.preventDefault();
+                        runNavAction(onGiftClick);
+                      }}
+                      className="ui-menu-row cursor-pointer"
+                    >
+                      <Gift className="size-4 text-zinc-800" />
+                      <span>Gift Clauxen</span>
+                    </AppHref>
+                  </DropdownMenuItem>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="ui-menu-row cursor-pointer">
+                      <HelpCircle className="size-4 text-zinc-800" />
+                      <span>Learn more</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
+                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                          Release notes
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                          Documentation
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                          Community
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                  <DropdownMenuSeparator className="my-1.5 bg-zinc-900/10" />
+                  <DropdownMenuItem
+                    onClick={() => onLogoutClick?.()}
+                    className="ui-menu-row cursor-pointer text-destructive"
+                  >
+                    <LogOut className="size-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        )}
+      </nav>
+      <RenameChatDialog
+        open={renameChatId != null}
+        onOpenChange={(open) => {
+          if (!open) setRenameChatId(null);
+        }}
+        chatTitle={renameChat?.name ?? "New Chat"}
+        onConfirm={(title) => {
+          if (renameChatId) onRenameChat?.(renameChatId, title);
+        }}
+      />
+      <DeleteChatDialog
+        open={deleteChatId != null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteChatId(null);
+        }}
+        chatTitle={deleteChat?.name ?? "New Chat"}
+        onConfirm={() => {
+          if (deleteChatId) onDeleteChat?.(deleteChatId);
+        }}
+        onOpenSettings={onSettingsClick}
+      />
     </>
   );
 }

@@ -137,7 +137,6 @@ Inventory of `src/components` (top-level and key subfolders).
 
 ## `customize/`
 
-- `customize/connectors/view.tsx`
 - `customize/customize-mobile-header.tsx`
 - `customize/skills/directory.tsx`
 - `customize/skills/instructions-dialog.tsx`
@@ -151,7 +150,6 @@ Inventory of `src/components` (top-level and key subfolders).
 - `icons/logo.tsx`
 
 ## `mascot/`
-
 
 ## `onboarding/`
 

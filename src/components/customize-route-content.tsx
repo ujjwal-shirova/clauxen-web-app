@@ -8,7 +8,7 @@ import { useMemo } from "react";
 export function CustomizeRouteContent({
   initialTab = null,
 }: {
-  initialTab?: "skills" | "connectors" | null;
+  initialTab?: "skills" | null;
 }) {
   const closeHref = useMemo(() => {
     const state = useChatStore.getState();
@@ -20,7 +20,5 @@ export function CustomizeRouteContent({
       : APP_ROUTES.chat(chatId);
   }, []);
 
-  return (
-    <CustomizePage initialTab={initialTab} closeHref={closeHref} />
-  );
+  return <CustomizePage initialTab={initialTab} closeHref={closeHref} />;
 }

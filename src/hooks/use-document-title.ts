@@ -12,8 +12,7 @@ export const CLAUXEN_NAVIGATE_EVENT = "clauxen:navigate";
 function isChatPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
   return (
-    /^\/c\/[^/]+/.test(pathname) ||
-    /\/conversations\/[^/]+/.test(pathname)
+    /^\/c\/[^/]+/.test(pathname) || /\/conversations\/[^/]+/.test(pathname)
   );
 }
 
@@ -64,9 +63,6 @@ function titleForPath(
   if (pathname.startsWith("/scheduled")) return `Scheduled Tasks - ${BRAND}`;
   if (pathname.startsWith("/my-clauxen")) return `My Clauxen - ${BRAND}`;
   if (pathname.startsWith("/customize/skills")) return `Skills - ${BRAND}`;
-  if (pathname.startsWith("/customize/connectors")) {
-    return `Connectors - ${BRAND}`;
-  }
   if (pathname.startsWith("/customize")) return `Customize - ${BRAND}`;
 
   return BRAND;
@@ -98,8 +94,7 @@ export function useDocumentTitle(
 
       const livePath =
         typeof window !== "undefined" ? window.location.pathname : pathname;
-      const hash =
-        typeof window !== "undefined" ? window.location.hash : "";
+      const hash = typeof window !== "undefined" ? window.location.hash : "";
 
       // Layout / non-chat owners: never overwrite a ChatView-owned tab title.
       if (!ownsChatTitle && isChatPath(livePath)) {

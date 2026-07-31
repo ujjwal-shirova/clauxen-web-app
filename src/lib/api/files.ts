@@ -6,6 +6,7 @@ export async function presignUpload(input: {
   mimeType: string;
   sizeBytes: number;
   projectId?: string;
+  folderId?: string | null;
   purpose?: "avatar" | "library";
 }) {
   return apiFetch<{
@@ -31,11 +32,15 @@ export async function completeUpload(input: {
 }
 
 /** Upload a browser File via presign → PUT → complete. */
-export async function uploadUserFile(file: File) {
+export async function uploadUserFile(
+  file: File,
+  options?: { folderId?: string | null },
+) {
   const { fileId, uploadUrl, method, stub, worker } = await presignUpload({
     originalName: file.name,
     mimeType: file.type || "application/octet-stream",
     sizeBytes: file.size,
+    folderId: options?.folderId,
   });
 
   if (!stub) {

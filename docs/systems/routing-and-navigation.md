@@ -6,27 +6,27 @@ Defined in `src/lib/app-routes.ts`.
 
 ### Main (real Next routes — keep mounted)
 
-| Path | Surface |
-|---|---|
-| `/` | Boot → soft-replace `/new` (hash preserved) |
-| `/new` | Blank chat |
-| `/c/[chatId]` | Existing chat |
-| `/library` | Library |
-| `/projects`, `/projects/[id]`, `…/conversations/[convId]` | Projects |
-| `/customize`, `/customize/skills`, `/customize/connectors` | Customize |
+| Path                                                      | Surface                                     |
+| --------------------------------------------------------- | ------------------------------------------- |
+| `/`                                                       | Boot → soft-replace `/new` (hash preserved) |
+| `/new`                                                    | Blank chat                                  |
+| `/c/[chatId]`                                             | Existing chat                               |
+| `/library`                                                | Library                                     |
+| `/projects`, `/projects/[id]`, `…/conversations/[convId]` | Projects                                    |
+| `/customize`, `/customize/skills`                         | Customize skills                            |
 
 ### Auth / marketing / legal
 
-| Path | Surface |
-|---|---|
-| `/login` | Unified login |
-| `/signup` | Redirect → login |
-| `/onboarding` | First-run |
+| Path                                                                     | Surface             |
+| ------------------------------------------------------------------------ | ------------------- |
+| `/login`                                                                 | Unified login       |
+| `/signup`                                                                | Redirect → login    |
+| `/onboarding`                                                            | First-run           |
 | `/auth/callback`, `/auth/confirm`, `/auth/magic`, `/auth/reset-password` | Auth handlers/pages |
-| `/about` | About |
-| `/legal/privacy`, `/legal/terms` | Legal |
-| `/share/[token]` | Public share |
-| `/checkout/[merchant]/[sessionId]` | Hosted checkout |
+| `/about`                                                                 | About               |
+| `/legal/privacy`, `/legal/terms`                                         | Legal               |
+| `/share/[token]`                                                         | Public share        |
+| `/checkout/[merchant]/[sessionId]`                                       | Hosted checkout     |
 
 ### Legacy overlay paths (redirect to hash)
 
@@ -38,13 +38,14 @@ Defined in `src/lib/app-routes.ts`.
 
 Overlays are **fragments**, not Next navigations:
 
-| Hash | Overlay |
-|---|---|
-| `#settings` | Settings General |
-| `#settings/Personalization` | Settings tab |
-| `#pricing` / `#upgrade` | Pricing |
-| `#gift` | Gift |
-| `#apps` | Apps |
+| Hash                        | Overlay                         |
+| --------------------------- | ------------------------------- |
+| `#settings`                 | Settings General                |
+| `#settings/Personalization` | Settings tab                    |
+| `#settings/Connectors`      | Connector and plugin management |
+| `#pricing` / `#upgrade`     | Pricing                         |
+| `#gift`                     | Gift                            |
+| `#apps`                     | Apps                            |
 
 Helpers:
 

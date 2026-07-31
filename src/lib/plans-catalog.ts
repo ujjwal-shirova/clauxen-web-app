@@ -190,12 +190,18 @@ export function getYearlyPricePaise(monthlyPaise: number): number {
   return Math.round(monthlyPaise * 12 * (1 - YEARLY_DISCOUNT));
 }
 
-export function formatInr(rupees: number, options?: { suffix?: string }): string {
+export function formatInr(
+  rupees: number,
+  options?: { suffix?: string },
+): string {
   const formatted = `₹${rupees.toLocaleString("en-IN")}`;
   return options?.suffix ? `${formatted}${options.suffix}` : formatted;
 }
 
-export function formatInrFromPaise(paise: number, options?: { suffix?: string }): string {
+export function formatInrFromPaise(
+  paise: number,
+  options?: { suffix?: string },
+): string {
   return formatInr(Math.round(paise / 100), options);
 }
 
@@ -270,7 +276,10 @@ export function computeBundleSeatSubtotalInr(
   return unit * seatCount;
 }
 
-export function resolveApiPlanId(planId: string, maxTier: MaxTier = "5x"): string {
+export function resolveApiPlanId(
+  planId: string,
+  maxTier: MaxTier = "5x",
+): string {
   if (planId === "max") {
     return MAX_TIER_OPTIONS[maxTier].apiPlanId;
   }
@@ -375,8 +384,10 @@ function maxFeatures(maxTier: MaxTier): string[] {
     "Maximum access to Clauxen Code and Collabry",
     "Maximum deep research",
     "Unlimited core chat (subject to fair use guardrails)",
-    "Unlimited and faster image creation",
-    "Maximum memory and context",
+    "Maximum agent credits and parallel task capacity",
+    "Up to 1 million tokens of context for ultra-long conversations",
+    "Swarm mode for coordinated multi-agent work",
+    "One-click deployment for your Clauxen Claw",
     "Early access to experimental features",
     "Priority access at high traffic times",
     "Recommended for Clauxen Code and Collabry power users",
@@ -396,8 +407,9 @@ export const PERSONAL_PLANS: PlanCard[] = [
     buttonLabel: "Upgrade to Free",
     features: [
       "Core models for everyday chat",
-      "Limited messages and uploads",
-      "Limited image creation",
+      "Starter agent credits for everyday tasks",
+      "Work with documents, spreadsheets, and presentations",
+      "Preview deep research with cited results",
       "Limited memory and context",
       "Chat on web, iOS, Android, and desktop",
       "Generate code and visualize data",
@@ -417,8 +429,14 @@ export const PERSONAL_PLANS: PlanCard[] = [
     buttonLabel: "Upgrade to Go",
     features: [
       "Core models tuned for everyday tasks",
-      "More messages and uploads",
-      "More image creation",
+      "More messages, uploads, and agent credits",
+      "Work across documents, spreadsheets, and presentations",
+      "Expanded deep research",
+      "Build and publish websites with database support",
+      "Agent multitasking with a task dashboard",
+      "Scheduled tasks that run automatically and post results",
+      "Clauxen Code access",
+      "Plugin access",
       "Longer memory",
       "Expanded voice mode",
     ],
@@ -436,12 +454,11 @@ export const PERSONAL_PLANS: PlanCard[] = [
     buttonLabel: "Upgrade to Plus",
     features: [
       "Advanced models",
-      "Even more messages and uploads",
-      "Advanced image creation with extended thinking",
-      "Expanded memory across chats",
+      "Even more messages, uploads, and agent credits",
       "Clauxen Code directly in your codebase",
       "Expanded deep research and analysis",
-      "Projects and custom assistants",
+      "Goal mode: agents work autonomously until completion",
+      "Plugins and expanded connector access",
       "Memory that carries across conversations",
     ],
   },
@@ -456,13 +473,16 @@ export const PERSONAL_PLANS: PlanCard[] = [
     highlight: "Everything in Plus, plus:",
     buttonLabel: "Upgrade to Pro",
     features: [
-      "Much higher usage limits across chat, uploads, and creation",
-      "Frontier models for complex reasoning, coding, and creation",
+      "Much higher usage limits and agent credits",
+      "Frontier models for complex reasoning and coding",
+      "Up to 1 million tokens of context for ultra-long conversations",
       "Clauxen Code and Collabry with expanded access",
       "Deep research and analysis at Pro depth",
-      "Agent multi-tasking and higher upload capacity",
+      "Swarm mode for coordinated multi-agent work",
+      "Professional financial and economic data sources",
+      "One-click deployment for your Clauxen Claw",
       "Priority access during peak hours with faster premium inference",
-      "Expanded project, artifact, and workflow capacity",
+      "Expanded website, database, project, and workflow capacity",
       "Generated content eligible for commercial use",
     ],
   },
@@ -657,7 +677,9 @@ export function resolvePlanFeatures(
   plan: PlanCard,
   ctx: { maxTier?: MaxTier } = {},
 ): string[] {
-  return typeof plan.features === "function" ? plan.features(ctx) : plan.features;
+  return typeof plan.features === "function"
+    ? plan.features(ctx)
+    : plan.features;
 }
 
 /** Rotating copy for checkout preparing — only real plan capabilities, no payment fluff. */
@@ -741,8 +763,9 @@ export function getOnboardingPlanCards(): Array<{
   cta: string;
   yearlySupported: boolean;
 }> {
-  return PERSONAL_PLANS.filter((plan): plan is PlanCard & { id: OnboardingPlanId } =>
-    (ONBOARDING_PLAN_IDS as readonly string[]).includes(plan.id),
+  return PERSONAL_PLANS.filter(
+    (plan): plan is PlanCard & { id: OnboardingPlanId } =>
+      (ONBOARDING_PLAN_IDS as readonly string[]).includes(plan.id),
   ).map((plan) => ({
     id: plan.id as OnboardingPlanId,
     name: plan.name,

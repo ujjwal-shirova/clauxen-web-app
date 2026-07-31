@@ -242,9 +242,7 @@ export function SettingsModal({
               updateNotifications({ recommendationsChannel: v })
             }
             setUsageChannel={(v) => updateNotifications({ usageChannel: v })}
-            setDesktopAlerts={(v) =>
-              updateNotifications({ desktopAlerts: v })
-            }
+            setDesktopAlerts={(v) => updateNotifications({ desktopAlerts: v })}
             setSoundEffects={(v) => updateNotifications({ soundEffects: v })}
           />
         );
@@ -341,9 +339,7 @@ export function SettingsModal({
       case "Trusted contact":
         return <TrustedContactSettings />;
       case "Clauxen Code":
-        return (
-          <ClauxenCodeSettings isAuthenticated={Boolean(user?.id)} />
-        );
+        return <ClauxenCodeSettings isAuthenticated={Boolean(user?.id)} />;
       case "Keyboard":
         return <KeyboardSettings />;
       case "Skills":
@@ -355,10 +351,7 @@ export function SettingsModal({
         );
       case "Connectors":
         return (
-          <ConnectorsCatalogSettings
-            onGoToCustomize={() => onGoToCustomize("connectors")}
-            onAdd={() => onGoToCustomize("connectors")}
-          />
+          <ConnectorsCatalogSettings onAdd={() => handleTabChange("Plugins")} />
         );
       case "Plugins":
         return <PluginsSettings />;
@@ -375,96 +368,96 @@ export function SettingsModal({
 
   return (
     <FullscreenPortal>
-    <div className="fixed inset-0 z-[200]" role="presentation">
-      {/*
+      <div className="fixed inset-0 z-[200]" role="presentation">
+        {/*
         Div (not button): global button:hover forces background-color to near-transparent
         and washed out the settings backdrop on hover outside the dialog.
       */}
-      <div
-        aria-hidden
-        data-settings-washout
-        className="absolute inset-0 cursor-default bg-[rgba(244,244,245,0.84)] max-md:bg-[rgba(244,244,245,0.92)] dark:bg-black/70 max-md:dark:bg-black/80"
-        onClick={onClose}
-      />
+        <div
+          aria-hidden
+          data-settings-washout
+          className="absolute inset-0 cursor-default bg-[rgba(244,244,245,0.84)] max-md:bg-[rgba(244,244,245,0.92)] dark:bg-black/70 max-md:dark:bg-black/80"
+          onClick={onClose}
+        />
 
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-modal-title"
-        className={cn(
-          "fixed z-[201] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none dark:text-zinc-100",
-          "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",
-          "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
-          "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)] md:pt-0 md:pb-0 dark:md:border-white/10 dark:md:shadow-[0_24px_80px_-16px_rgba(0,0,0,0.65)]",
-        )}
-      >
-        <h1 id="settings-modal-title" className="sr-only">
-          Settings
-        </h1>
-        <p className="sr-only">
-          Manage your Clauxen account and application preferences.
-        </p>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-modal-title"
+          className={cn(
+            "fixed z-[201] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none dark:text-zinc-100",
+            "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",
+            "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+            "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)] md:pt-0 md:pb-0 dark:md:border-white/10 dark:md:shadow-[0_24px_80px_-16px_rgba(0,0,0,0.65)]",
+          )}
+        >
+          <h1 id="settings-modal-title" className="sr-only">
+            Settings
+          </h1>
+          <p className="sr-only">
+            Manage your Clauxen account and application preferences.
+          </p>
 
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch">
-          <div className="shrink-0 border-b border-[rgba(11,11,11,0.1)] bg-[var(--app-shell-bg)] px-4 py-3 md:hidden">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[12px] leading-[14px] text-zinc-500">
-                  Settings
-                </p>
-                <h2 className="truncate text-[15px] font-semibold leading-5 text-zinc-900">
-                  {activeTab}
-                </h2>
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch">
+            <div className="shrink-0 border-b border-[rgba(11,11,11,0.1)] bg-[var(--app-shell-bg)] px-4 py-3 md:hidden">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[12px] leading-[14px] text-zinc-500">
+                    Settings
+                  </p>
+                  <h2 className="truncate text-[15px] font-semibold leading-5 text-zinc-900">
+                    {activeTab}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="ui-icon-button shrink-0 text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)]"
+                  aria-label="Close settings"
+                >
+                  <X className="size-[18px]" strokeWidth={1.75} />
+                </button>
               </div>
+              <SettingsNavSidebar
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+                variant="mobile-toolbar"
+              />
+            </div>
+
+            <aside className="hidden min-h-0 shrink-0 bg-[var(--app-shell-bg)] md:flex md:w-[192px] md:flex-col md:border-r md:border-[rgba(11,11,11,0.1)] md:p-3">
+              <SettingsNavSidebar
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+              />
+            </aside>
+
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--app-panel-bg)]">
               <button
                 type="button"
                 onClick={onClose}
-                className="ui-icon-button shrink-0 text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)]"
+                className="ui-icon-button absolute right-3 top-3 z-10 hidden text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)] md:inline-flex"
                 aria-label="Close settings"
               >
                 <X className="size-[18px]" strokeWidth={1.75} />
               </button>
-            </div>
-            <SettingsNavSidebar
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-              variant="mobile-toolbar"
-            />
-          </div>
 
-          <aside className="hidden min-h-0 shrink-0 bg-[var(--app-shell-bg)] md:flex md:w-[192px] md:flex-col md:border-r md:border-[rgba(11,11,11,0.1)] md:p-3">
-            <SettingsNavSidebar
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-            />
-          </aside>
-
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--app-panel-bg)]">
-            <button
-              type="button"
-              onClick={onClose}
-              className="ui-icon-button absolute right-3 top-3 z-10 hidden text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)] md:inline-flex"
-              aria-label="Close settings"
-            >
-              <X className="size-[18px]" strokeWidth={1.75} />
-            </button>
-
-            <div
-              data-scroll-region=""
-              className={cn(
-                "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12",
-                contentHydrating && "opacity-95",
-              )}
-              aria-busy={contentHydrating || undefined}
-            >
-              <SettingsTabErrorBoundary tabLabel={activeTab}>
-                {renderActiveTab()}
-              </SettingsTabErrorBoundary>
+              <div
+                data-scroll-region=""
+                className={cn(
+                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12",
+                  contentHydrating && "opacity-95",
+                )}
+                aria-busy={contentHydrating || undefined}
+              >
+                <SettingsTabErrorBoundary tabLabel={activeTab}>
+                  {renderActiveTab()}
+                </SettingsTabErrorBoundary>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
     </FullscreenPortal>
   );
 }

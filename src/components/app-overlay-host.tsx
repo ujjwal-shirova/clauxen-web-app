@@ -34,8 +34,7 @@ function SettingsLoadingShell() {
 }
 
 const UpgradeView = dynamic(
-  () =>
-    import("@/components/upgrade-view").then((m) => m.UpgradeView),
+  () => import("@/components/upgrade-view").then((m) => m.UpgradeView),
   { ssr: false },
 );
 const GiftView = dynamic(
@@ -50,8 +49,7 @@ const AppsExtensionsView = dynamic(
   { ssr: false },
 );
 const SettingsModal = dynamic(
-  () =>
-    import("@/components/settings-page").then((m) => m.SettingsModal),
+  () => import("@/components/settings-page").then((m) => m.SettingsModal),
   { ssr: false, loading: () => <SettingsLoadingShell /> },
 );
 
@@ -107,12 +105,12 @@ export function AppOverlayHost() {
           initialTab={tab}
           onTabChange={(next) => overlays.openSettings(next)}
           onGoToCustomize={(section) => {
+            if (section === "connectors") {
+              overlays.openSettings("Connectors");
+              return;
+            }
             overlays.closeOverlay();
-            instantNavigate(
-              section === "connectors"
-                ? `${APP_ROUTES.customize}/connectors`
-                : APP_ROUTES.customize,
-            );
+            instantNavigate(APP_ROUTES.customize);
           }}
           onUpgradeClick={() => overlays.openPricing()}
           user={auth.user}

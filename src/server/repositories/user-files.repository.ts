@@ -5,6 +5,7 @@ export type UserFileRow = {
   user_id: string;
   workspace_id: string | null;
   project_id: string | null;
+  folder_id: string | null;
   original_name: string;
   mime_type: string | null;
   size_bytes: number;
@@ -17,6 +18,19 @@ export type UserFileRow = {
   updated_at: string;
 };
 
+export type LibraryFolderRow = {
+  id: string;
+  user_id: string;
+  parent_id: string | null;
+  name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+const USER_FILE_COLUMNS = `id, user_id, workspace_id, project_id, folder_id,
+  original_name, mime_type, size_bytes, storage_bucket, storage_path,
+  content_hash, status, metadata, created_at, updated_at`;
+
 export type UserFileStorageStats = {
   total_bytes: number;
   file_count: number;
@@ -28,25 +42,89 @@ export type UserFileStorageStats = {
 
 export async function getUserFile(fileId: string, userId: string) {
   return queryOne<UserFileRow>(
-    `select id, user_id, workspace_id, project_id, original_name, mime_type,
-            size_bytes, storage_bucket, storage_path, content_hash, status,
-            metadata, created_at, updated_at
+    `select ${USER_FILE_COLUMNS}
      from public.user_files
      where id = $1 and user_id = $2 and status != 'deleted'`,
     [fileId, userId],
   );
 }
 
-export async function listUserFiles(userId: string, limit = 100) {
+export async function listUserFiles(
+  userId: string,
+  folderId: string | null = null,
+  limit = 500,
+) {
   return query<UserFileRow>(
-    `select id, user_id, workspace_id, project_id, original_name, mime_type,
-            size_bytes, storage_bucket, storage_path, content_hash, status,
-            metadata, created_at, updated_at
+    `select ${USER_FILE_COLUMNS}
      from public.user_files
-     where user_id = $1 and status != 'deleted'
-     order by created_at desc
-     limit $2`,
-    [userId, limit],
+     where user_id = $1
+       and folder_id is not distinct from $2::uuid
+       and status not in ('deleted', 'failed')
+     order by updated_at desc
+     limit $3`,
+    [userId, folderId, limit],
+  );
+}
+
+export async function listLibraryFolders(
+  userId: string,
+  parentId: string | null = null,
+) {
+  return query<LibraryFolderRow>(
+    `select id, user_id, parent_id, name, created_at, updated_at
+     from public.library_folders
+     where user_id = $1 and parent_id is not distinct from $2::uuid
+     order by lower(name), created_at`,
+    [userId, parentId],
+  );
+}
+
+export async function listAllLibraryFolders(userId: string) {
+  return query<LibraryFolderRow>(
+    `select id, user_id, parent_id, name, created_at, updated_at
+     from public.library_folders
+     where user_id = $1
+     order by lower(name), created_at`,
+    [userId],
+  );
+}
+
+export async function getLibraryFolder(folderId: string, userId: string) {
+  return queryOne<LibraryFolderRow>(
+    `select id, user_id, parent_id, name, created_at, updated_at
+     from public.library_folders
+     where id = $1 and user_id = $2`,
+    [folderId, userId],
+  );
+}
+
+export async function createLibraryFolder(input: {
+  userId: string;
+  parentId?: string | null;
+  name: string;
+}) {
+  return queryOne<LibraryFolderRow>(
+    `insert into public.library_folders (user_id, parent_id, name)
+     values ($1, $2, $3)
+     returning id, user_id, parent_id, name, created_at, updated_at`,
+    [input.userId, input.parentId ?? null, input.name],
+  );
+}
+
+export async function getFolderBreadcrumbs(folderId: string, userId: string) {
+  return query<LibraryFolderRow>(
+    `with recursive ancestors as (
+       select id, user_id, parent_id, name, created_at, updated_at, 0 as depth
+       from public.library_folders where id = $1 and user_id = $2
+       union all
+       select f.id, f.user_id, f.parent_id, f.name, f.created_at, f.updated_at,
+              a.depth + 1
+       from public.library_folders f
+       join ancestors a on a.parent_id = f.id and a.user_id = f.user_id
+     )
+     select id, user_id, parent_id, name, created_at, updated_at
+     from ancestors order by depth desc`,
+    [folderId, userId],
   );
 }
 
@@ -54,6 +132,7 @@ export async function createUserFile(input: {
   userId: string;
   workspaceId?: string | null;
   projectId?: string | null;
+  folderId?: string | null;
   originalName: string;
   mimeType?: string | null;
   sizeBytes?: number;
@@ -64,16 +143,15 @@ export async function createUserFile(input: {
 }) {
   return queryOne<UserFileRow>(
     `insert into public.user_files (
-       user_id, workspace_id, project_id, original_name, mime_type, size_bytes,
-       storage_bucket, storage_path, status, metadata
-     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
-     returning id, user_id, workspace_id, project_id, original_name, mime_type,
-               size_bytes, storage_bucket, storage_path, content_hash, status,
-               metadata, created_at, updated_at`,
+       user_id, workspace_id, project_id, folder_id, original_name, mime_type,
+       size_bytes, storage_bucket, storage_path, status, metadata
+     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
+     returning ${USER_FILE_COLUMNS}`,
     [
       input.userId,
       input.workspaceId ?? null,
       input.projectId ?? null,
+      input.folderId ?? null,
       input.originalName,
       input.mimeType ?? null,
       input.sizeBytes ?? 0,
@@ -103,9 +181,7 @@ export async function updateUserFile(
        metadata = coalesce($6::jsonb, metadata),
        updated_at = now()
      where id = $1 and user_id = $2 and status != 'deleted'
-     returning id, user_id, workspace_id, project_id, original_name, mime_type,
-               size_bytes, storage_bucket, storage_path, content_hash, status,
-               metadata, created_at, updated_at`,
+     returning ${USER_FILE_COLUMNS}`,
     [
       fileId,
       userId,
@@ -114,6 +190,101 @@ export async function updateUserFile(
       patch.contentHash ?? null,
       patch.metadata ? JSON.stringify(patch.metadata) : null,
     ],
+  );
+}
+
+export async function updateLibraryFileLocation(input: {
+  fileId: string;
+  userId: string;
+  folderId?: string | null;
+  originalName?: string;
+  storagePath?: string;
+}) {
+  return queryOne<UserFileRow>(
+    `update public.user_files set
+       folder_id = coalesce($3::uuid, folder_id),
+       original_name = coalesce($4, original_name),
+       storage_path = coalesce($5, storage_path),
+       updated_at = now()
+     where id = $1 and user_id = $2 and status != 'deleted'
+     returning ${USER_FILE_COLUMNS}`,
+    [
+      input.fileId,
+      input.userId,
+      input.folderId === undefined ? null : input.folderId,
+      input.originalName ?? null,
+      input.storagePath ?? null,
+    ],
+  );
+}
+
+export async function moveLibraryFileToRoot(input: {
+  fileId: string;
+  userId: string;
+  originalName?: string;
+  storagePath?: string;
+}) {
+  return queryOne<UserFileRow>(
+    `update public.user_files set
+       folder_id = null,
+       original_name = coalesce($3, original_name),
+       storage_path = coalesce($4, storage_path),
+       updated_at = now()
+     where id = $1 and user_id = $2 and status != 'deleted'
+     returning ${USER_FILE_COLUMNS}`,
+    [input.fileId, input.userId, input.originalName ?? null, input.storagePath ?? null],
+  );
+}
+
+export async function renameLibraryFolder(
+  folderId: string,
+  userId: string,
+  name: string,
+) {
+  return queryOne<LibraryFolderRow>(
+    `update public.library_folders set name = $3, updated_at = now()
+     where id = $1 and user_id = $2
+     returning id, user_id, parent_id, name, created_at, updated_at`,
+    [folderId, userId, name],
+  );
+}
+
+export async function moveLibraryFolder(
+  folderId: string,
+  userId: string,
+  parentId: string | null,
+) {
+  return queryOne<LibraryFolderRow>(
+    `update public.library_folders set parent_id = $3, updated_at = now()
+     where id = $1 and user_id = $2
+       and not exists (
+         with recursive descendants as (
+           select id from public.library_folders where id = $1 and user_id = $2
+           union all
+           select f.id from public.library_folders f
+           join descendants d on f.parent_id = d.id
+           where f.user_id = $2
+         )
+         select 1 from descendants where id = $3
+       )
+     returning id, user_id, parent_id, name, created_at, updated_at`,
+    [folderId, userId, parentId],
+  );
+}
+
+export async function deleteLibraryFolder(folderId: string, userId: string) {
+  return queryOne<{ id: string }>(
+    `delete from public.library_folders
+     where id = $1 and user_id = $2
+       and not exists (
+         select 1 from public.library_folders where parent_id = $1 and user_id = $2
+       )
+       and not exists (
+         select 1 from public.user_files
+         where folder_id = $1 and user_id = $2 and status != 'deleted'
+       )
+     returning id`,
+    [folderId, userId],
   );
 }
 

@@ -135,13 +135,21 @@ export default {
         return json({ error: "Forbidden key" }, 403);
       }
 
-      await r2.put(key, request.body ?? "", {
+      // Browser File/Blob uploads are capped by the app at 100 MB. Buffering
+      // preserves a deterministic length for R2 and avoids unknown-length
+      // stream truncation while keeping the object private and attributable.
+      const body = await request.arrayBuffer();
+      await r2.put(key, body, {
         httpMetadata: {
           contentType:
             request.headers.get("content-type") ?? "application/octet-stream",
         },
+        customMetadata: {
+          userId: user.sub,
+          uploadedAt: new Date().toISOString(),
+        },
       });
-      return new Response(JSON.stringify({ ok: true, key }), {
+      return new Response(JSON.stringify({ ok: true, key, size: body.byteLength }), {
         status: 200,
         headers: {
           "content-type": "application/json",
