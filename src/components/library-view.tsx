@@ -10,7 +10,6 @@ import {
   Folder,
   FolderInput,
   Grid2X2,
-  List,
   MoreHorizontal,
   Pencil,
   Plus,
