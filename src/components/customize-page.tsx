@@ -95,7 +95,7 @@ export function CustomizePage({
             className="ui-icon-button text-zinc-800 transition-all hover:bg-zinc-100"
             aria-label="Back"
           >
-            <ArrowLeft className="size-5" />
+            <ArrowLeft className="size-[18px]" />
           </AppHref>
           <span className="text-[16px] font-semibold text-zinc-900">
             Customize
@@ -116,7 +116,7 @@ export function CustomizePage({
                   : "font-medium text-zinc-600 hover:bg-zinc-100",
               )}
             >
-              <Icon className="size-5 opacity-80" />
+              <Icon className="size-[18px] opacity-80" />
               <span>{label}</span>
             </AppHref>
           ))}
@@ -141,7 +141,7 @@ export function CustomizePage({
               className="ui-icon-button text-zinc-800 transition-all hover:bg-zinc-100"
               aria-label="Back"
             >
-              <ArrowLeft className="size-5" />
+              <ArrowLeft className="size-[18px]" />
             </AppHref>
             <span className="min-w-0 flex-1 truncate text-[16px] font-semibold text-zinc-900">
               Customize
@@ -162,7 +162,7 @@ export function CustomizePage({
                     : "text-zinc-500 hover:bg-zinc-100",
                 )}
               >
-                <Icon className="size-5 shrink-0 opacity-80" />
+                <Icon className="size-[18px] shrink-0 opacity-80" />
                 <span>{label}</span>
               </AppHref>
             ))}

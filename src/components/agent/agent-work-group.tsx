@@ -2,12 +2,13 @@
 
 import type { ReactNode } from "react";
 import type { AgentWorkGroup } from "@/lib/agent-work-groups";
-import { AgentTraceBlock, AgentShimmerText } from "./agent-trace";
+import { AgentTraceBlock } from "./agent-trace";
+import { AgentActivitySummaryLabel } from "./agent-activity-summary";
 
 /**
- * Collapsible agent step with a left timeline rail. Header is derived from
- * preceding narration (gerund while live → past tense when done). Narration
- * itself always renders outside this block.
+ * Collapsible agent step — Cursor-style flat timeline.
+ * Header has no chevron; children sit flush left (no tree rail).
+ * Narration always renders outside this block.
  */
 export function AgentWorkGroupView({
   group,
@@ -15,7 +16,7 @@ export function AgentWorkGroupView({
   children,
 }: {
   group: AgentWorkGroup;
-  /** Optional right-side chips (e.g. web-search favicons). */
+  /** Optional right-side chips (legacy — prefer per-tool trailing). */
   trailing?: ReactNode;
   children: ReactNode;
 }) {
@@ -27,26 +28,23 @@ export function AgentWorkGroupView({
     >
       <AgentTraceBlock
         title={
-          group.isActive ? (
-            <AgentShimmerText key={`wg-live-${group.id}`} active>
-              {group.label}
-            </AgentShimmerText>
-          ) : (
-            // Past-tense label never shimmers — done steps must not keep the
-            // sweeping highlight when the agent starts the next step.
-            <span key={`wg-done-${group.id}`}>{group.label}</span>
-          )
+          <AgentActivitySummaryLabel
+            segments={group.segments}
+            isActive={group.isActive}
+            fallback={group.label}
+          />
         }
         trailing={trailing}
         isActive={group.isActive}
         defaultExpanded={group.isActive}
-        showChevron
+        chevronMode="never"
         className="agent-work-group"
         headerClassName="agent-work-group__header"
         contentClassName="agent-work-group__body"
+        titleClassName="text-inherit"
       >
         <div
-          className="relative flex w-full min-w-0 flex-col gap-2.5 border-l border-zinc-200/90 pl-3.5 ml-[2px]"
+          className="relative flex w-full min-w-0 flex-col gap-1"
           data-agent-work-group-body="true"
         >
           {children}

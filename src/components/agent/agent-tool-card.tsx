@@ -32,6 +32,7 @@ export function AgentToolCard({
     <AgentTraceBlock
       isActive={live}
       defaultExpanded={defaultExpanded}
+      chevronMode="hover"
       title={
         <span
           key={live ? `tool-run-${String(label)}` : `tool-done-${String(label)}`}
@@ -44,6 +45,7 @@ export function AgentToolCard({
       leading={leading}
       trailing={trailing}
       className={className}
+      titleClassName="text-inherit"
     >
       {children}
     </AgentTraceBlock>

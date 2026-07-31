@@ -7,7 +7,7 @@ import {
   mergeAgentFramesForDisplay,
   resolveAgentFrames,
 } from "@/lib/agent-frames";
-import { groupAgentWorkItems } from "@/lib/agent-work-groups";
+import { groupAgentWorkItems, groupNeedsFoldChrome } from "@/lib/agent-work-groups";
 import { AssistantContentRenderer } from "@/components/assistant-content-renderer";
 import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
 import { collectMessageSources } from "@/lib/chat-sources";
@@ -23,7 +23,6 @@ import { AgentThinkingPhase } from "./agent-thinking-phase";
 import { AgentNarrationNote } from "./agent-narration-note";
 import { AgentToolBlock } from "./agent-tool-blocks";
 import { AgentPlanningNextMoves } from "./agent-planning-label";
-import { AgentFaviconStack } from "./agent-favicon-stack";
 import type {
   AgentSegment,
   AgentThinkingSegment,
@@ -88,19 +87,38 @@ function hasVisibleWork(segments: AgentSegment[]): boolean {
   });
 }
 
-/** Source URLs for favicon chips on a work-group header (web search). */
-function groupSearchSourceUrls(
-  segments: Array<AgentThinkingSegment | AgentToolSegment>,
-): string[] {
-  const urls: string[] = [];
-  for (const segment of segments) {
-    if (segment.kind !== "tool") continue;
-    if (segment.name !== "web_search" && segment.name !== "web_fetch") continue;
-    for (const row of segment.searchResults ?? []) {
-      if (row.url) urls.push(row.url);
+function renderGroupMembers(
+  group: {
+    segments: Array<AgentThinkingSegment | AgentToolSegment>;
+  },
+  segments: AgentSegment[],
+  indexById: Map<string, number>,
+) {
+  return group.segments.map((segment) => {
+    if (isThinkingSegment(segment)) {
+      return <AgentThinkingPhase key={segment.id} segment={segment} />;
     }
-  }
-  return urls;
+    const path =
+      segment.filePath ??
+      (typeof segment.args?.path === "string" ? segment.args.path : "");
+    const prior =
+      segment.name === "create_file" || segment.name === "file_write"
+        ? previousFileContent(
+            segments,
+            indexById.get(segment.id) ?? 0,
+            path,
+          )
+        : undefined;
+    return (
+      <div
+        key={segment.id}
+        className="min-w-0"
+        data-agent-tool-group={segment.name}
+      >
+        <AgentToolBlock tool={segment} previousFileContent={prior} />
+      </div>
+    );
+  });
 }
 
 /**
@@ -165,56 +183,25 @@ export function AgentOrchestrationView({
               }
 
               const { group } = item;
-              const searchUrls = groupSearchSourceUrls(group.segments);
+              const members = renderGroupMembers(group, segments, indexById);
+
+              // Lone Thought/tool: bare row (no fold header). Multi-step: Cursor fold.
+              if (!groupNeedsFoldChrome(group.segments)) {
+                return (
+                  <div
+                    key={group.id}
+                    className="agent-work-group-enter flex w-full min-w-0 flex-col gap-1"
+                    data-agent-work-group="bare"
+                    data-active={group.isActive || undefined}
+                  >
+                    {members}
+                  </div>
+                );
+              }
+
               return (
-                <AgentWorkGroupView
-                  key={group.id}
-                  group={group}
-                  trailing={
-                    searchUrls.length > 0 ? (
-                      <AgentFaviconStack
-                        urls={searchUrls}
-                        count={searchUrls.length}
-                      />
-                    ) : undefined
-                  }
-                >
-                  {group.segments.map((segment) => {
-                    if (isThinkingSegment(segment)) {
-                      return (
-                        <AgentThinkingPhase
-                          key={segment.id}
-                          segment={segment}
-                        />
-                      );
-                    }
-                    const path =
-                      segment.filePath ??
-                      (typeof segment.args?.path === "string"
-                        ? segment.args.path
-                        : "");
-                    const prior =
-                      segment.name === "create_file" ||
-                      segment.name === "file_write"
-                        ? previousFileContent(
-                            segments,
-                            indexById.get(segment.id) ?? 0,
-                            path,
-                          )
-                        : undefined;
-                    return (
-                      <div
-                        key={segment.id}
-                        className="min-w-0"
-                        data-agent-tool-group={segment.name}
-                      >
-                        <AgentToolBlock
-                          tool={segment}
-                          previousFileContent={prior}
-                        />
-                      </div>
-                    );
-                  })}
+                <AgentWorkGroupView key={group.id} group={group}>
+                  {members}
                 </AgentWorkGroupView>
               );
             })}
@@ -246,8 +233,8 @@ export function AgentOrchestrationView({
         </div>
       ) : null}
 
-      {sources.length > 0 && !streaming ? (
-        <div data-agent-block="sources">
+      {sources.length > 0 ? (
+        <div data-agent-block="sources" className="overflow-anchor-none">
           <SourcesInlineStrip sources={sources} />
         </div>
       ) : null}

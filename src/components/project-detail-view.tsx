@@ -3,7 +3,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import { ArrowLeft, MoreVertical, Plus, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { appBtn } from "@/lib/app-buttons";
 import type { ApiProject } from "@/lib/api/projects";
 import type { RecentChat } from "@/lib/types";
 import { DEFAULT_CHAT_MODEL_ID } from "@/lib/chat-models";
@@ -69,8 +68,7 @@ function ProjectIconButton({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        appBtn.ghost,
-        "h-7 w-7 min-w-7 rounded-[7px] p-0 text-zinc-700",
+        "ui-icon-button text-zinc-700 transition-colors hover:bg-zinc-100",
         className,
       )}
     >
@@ -286,7 +284,7 @@ export function ProjectDetailView({
           </h1>
           <div className="flex shrink-0 items-center gap-1 pt-1">
             <ProjectIconButton label={`More options for ${project.name}`}>
-              <MoreVertical className="h-5 w-5" strokeWidth={1.5} />
+              <MoreVertical className="size-[18px]" strokeWidth={1.75} />
             </ProjectIconButton>
             <ProjectIconButton
               label={starred ? "Unstar project" : "Star project"}
@@ -294,8 +292,8 @@ export function ProjectDetailView({
               className={starred ? "text-amber-600" : undefined}
             >
               <Star
-                className={cn("h-5 w-5", starred && "fill-current")}
-                strokeWidth={1.5}
+                className={cn("size-[18px]", starred && "fill-current")}
+                strokeWidth={1.75}
               />
             </ProjectIconButton>
             <button
@@ -375,7 +373,7 @@ export function ProjectDetailView({
                   onClick={() => setInstructionsOpen(true)}
                   className="-mr-1"
                 >
-                  <Plus className="h-5 w-5" strokeWidth={1.75} />
+                  <Plus className="size-[18px]" strokeWidth={1.75} />
                 </ProjectIconButton>
               </div>
               {instructions ? (

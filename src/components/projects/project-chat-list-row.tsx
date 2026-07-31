@@ -76,13 +76,13 @@ export function ProjectChatListRow({
               aria-label={`Options for ${title}`}
               onClick={(e) => e.stopPropagation()}
               className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-all",
-                "opacity-0 hover:bg-zinc-100 group-hover/project-chat:opacity-100",
+                "ui-row-icon-button text-zinc-500",
+                "opacity-0 group-hover/project-chat:opacity-100",
                 "data-[state=open]:bg-zinc-100 data-[state=open]:opacity-100",
                 "max-lg:opacity-100",
               )}
             >
-              <MoreVertical className="h-4 w-4" strokeWidth={1.75} />
+              <MoreVertical className="size-4" strokeWidth={1.75} />
             </button>
           </DropdownMenuTrigger>
           <ChatRowMenuContent

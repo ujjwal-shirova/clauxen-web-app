@@ -152,11 +152,11 @@
   }
 
   .app-btn-icon {
-    height: var(--icon-btn-size, 36px);
-    width: var(--icon-btn-size, 36px);
-    min-height: var(--icon-btn-size, 36px);
-    min-width: var(--icon-btn-size, 36px);
-    padding: 8px;
+    height: var(--icon-btn-size, 32px);
+    width: var(--icon-btn-size, 32px);
+    min-height: var(--icon-btn-size, 32px);
+    min-width: var(--icon-btn-size, 32px);
+    padding: 7px;
     border-radius: 0.5rem;
     gap: 0;
   }

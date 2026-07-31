@@ -26,8 +26,7 @@ import { cn } from "@/lib/utils";
 import { AppHref } from "@/components/app-href";
 import { APP_ROUTES } from "@/lib/app-routes";
 
-export const chatRowMenuItemClass =
-  "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100 focus:bg-zinc-100";
+export const chatRowMenuItemClass = "ui-menu-row cursor-pointer";
 
 type ChatRowMenuContentProps = {
   isPinned?: boolean;
@@ -85,7 +84,7 @@ export function ChatRowMenuContent({
           onShare?.();
         }}
       >
-        <Share className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+        <Share className="size-4 shrink-0 text-zinc-800" />
         Share
       </DropdownMenuItem>
       <DropdownMenuItem
@@ -95,7 +94,7 @@ export function ChatRowMenuContent({
           onStartGroupChat?.();
         }}
       >
-        <UserPlus className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+        <UserPlus className="size-4 shrink-0 text-zinc-800" />
         Start a group chat
       </DropdownMenuItem>
       <DropdownMenuItem
@@ -105,7 +104,7 @@ export function ChatRowMenuContent({
           onRename?.();
         }}
       >
-        <Pencil className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+        <Pencil className="size-4 shrink-0 text-zinc-800" />
         Rename
       </DropdownMenuItem>
       {showMoveToProject ? (
@@ -113,9 +112,9 @@ export function ChatRowMenuContent({
           <DropdownMenuSubTrigger
             className={cn(chatRowMenuItemClass, "data-[state=open]:bg-zinc-100")}
           >
-            <Folder className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+            <Folder className="size-4 shrink-0 text-zinc-800" />
             <span className="flex-1 text-left">Move to project</span>
-            <ChevronRight className="ml-auto h-4 w-4 text-zinc-400" />
+            <ChevronRight className="ml-auto size-3.5 text-zinc-400" />
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent className="z-50 min-w-[200px] rounded-xl border border-black/[0.08] bg-white p-1.5 shadow-[0_8px_28px_rgba(26,23,18,0.12)]">
@@ -127,7 +126,7 @@ export function ChatRowMenuContent({
                     onMoveToProject?.();
                   }}
                 >
-                  <Plus className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+                  <Plus className="size-4 shrink-0 text-zinc-800" />
                   Start a new project
                 </AppHref>
               </DropdownMenuItem>
@@ -148,9 +147,9 @@ export function ChatRowMenuContent({
         }}
       >
         {isPinned ? (
-          <PinOff className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+          <PinOff className="size-4 shrink-0 text-zinc-800" />
         ) : (
-          <Pin className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+          <Pin className="size-4 shrink-0 text-zinc-800" />
         )}
         {isPinned ? "Unpin chat" : "Pin chat"}
       </DropdownMenuItem>
@@ -161,17 +160,17 @@ export function ChatRowMenuContent({
           onArchive?.();
         }}
       >
-        <Archive className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+        <Archive className="size-4 shrink-0 text-zinc-800" />
         Archive
       </DropdownMenuItem>
       <DropdownMenuItem
-        className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-[#8a2424] transition-colors hover:bg-[#8a2424]/10 focus:bg-[#8a2424]/10"
+        className="ui-menu-row cursor-pointer text-[#8a2424] hover:bg-[#8a2424]/10 focus:bg-[#8a2424]/10"
         onSelect={(event) => {
           event.preventDefault();
           onDelete?.();
         }}
       >
-        <Trash2 className="h-[18px] w-[18px] shrink-0 text-[#8a2424]" />
+        <Trash2 className="size-4 shrink-0 text-[#8a2424]" />
         Delete
       </DropdownMenuItem>
     </DropdownMenuContent>

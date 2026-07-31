@@ -221,7 +221,7 @@ export function ChatViewHeader({
                         aria-label="Chat options"
                         className="ui-icon-button rounded-r-lg text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/5"
                       >
-                        <ChevronDown className="size-5 opacity-70" />
+                        <ChevronDown className="size-[18px] opacity-70" />
                       </button>
                     </DropdownMenuTrigger>
                   </div>
@@ -289,7 +289,7 @@ export function ChatViewHeader({
           aria-label="Choose Clauxen plan"
         >
           <span>Clauxen</span>
-          <ChevronDown className="size-5 opacity-70" strokeWidth={2} />
+          <ChevronDown className="size-[18px] opacity-70" strokeWidth={2} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -303,7 +303,7 @@ export function ChatViewHeader({
           className="flex w-full items-center gap-1.5 rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-zinc-50"
         >
           <span className="ui-nav-icon text-zinc-800">
-            <Sparkles className="size-5" strokeWidth={1.75} />
+            <Sparkles className="size-[18px]" strokeWidth={1.75} />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[14px] font-medium text-zinc-900">
@@ -329,7 +329,7 @@ export function ChatViewHeader({
               Great for everyday tasks
             </span>
           </span>
-          <Check className="size-5 shrink-0 text-zinc-900" strokeWidth={2.25} />
+          <Check className="size-[18px] shrink-0 text-zinc-900" strokeWidth={2.25} />
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -342,7 +342,7 @@ export function ChatViewHeader({
       className="ui-chrome-text-btn text-[#2f6fed] transition-colors hover:bg-[#2f6fed]/08 active:bg-[#2f6fed]/12"
       aria-label="Upgrade plan"
     >
-      <Sparkles className="size-5 shrink-0" strokeWidth={1.75} />
+      <Sparkles className="size-[18px] shrink-0" strokeWidth={1.75} />
       <span>Upgrade</span>
     </button>
   );
@@ -355,7 +355,7 @@ export function ChatViewHeader({
         aria-label="Incognito"
         className="ui-icon-button text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
       >
-        <GhostChatIcon className="size-5" />
+        <GhostChatIcon className="size-[18px]" />
       </button>
     </HintTooltip>
   );

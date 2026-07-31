@@ -253,7 +253,7 @@ export function GiftView({ onClose }: GiftViewProps) {
           className="ui-icon-button absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[110] text-zinc-800 transition-all hover:bg-zinc-100/80 sm:left-6 sm:top-6"
           aria-label="Back"
         >
-          <ArrowLeft className="size-5" />
+          <ArrowLeft className="size-[18px]" />
         </button>
 
         <div

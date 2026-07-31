@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Settings,
   ArrowUpCircle,
+  ArrowUpRight,
   Briefcase,
   Bot,
   CalendarClock,
@@ -169,12 +170,12 @@ function ShortcutKey({ children }: { children: React.ReactNode }) {
 const ProfileMenuChevron = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
+    width="16"
+    height="16"
     fill="currentColor"
     viewBox="0 0 256 256"
     aria-hidden="true"
-    className={cn("size-5 shrink-0 text-zinc-500", className)}
+    className={cn("size-4 shrink-0 text-zinc-500", className)}
   >
     <path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z" />
   </svg>
@@ -423,7 +424,7 @@ export function Sidebar({
           className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
         >
           <span className="ui-nav-icon text-zinc-500">
-            <NavProjectsIcon className="size-5" />
+            <NavProjectsIcon className="size-[18px]" />
           </span>
           <span className="min-w-0 flex-1 truncate">
             {project.name || "Untitled project"}
@@ -437,12 +438,12 @@ export function Sidebar({
               event.stopPropagation();
               onPinProject(project.id, !showUnpin);
             }}
-            className="no-hover-overlay ml-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-transparent text-zinc-500 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 hover:text-zinc-800 focus-visible:opacity-100"
+            className="ui-row-icon-button ml-1 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 focus-visible:opacity-100"
           >
             {showUnpin ? (
-              <PinOff className="h-3.5 w-3.5" strokeWidth={2} />
+              <PinOff strokeWidth={2} />
             ) : (
-              <Pin className="h-3.5 w-3.5" strokeWidth={2} />
+              <Pin strokeWidth={2} />
             )}
           </button>
         ) : null}
@@ -632,12 +633,12 @@ export function Sidebar({
                   event.stopPropagation();
                   onPinChat?.(chat.id, !chat.pinned);
                 }}
-                className="no-hover-overlay flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-zinc-500 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 hover:bg-transparent hover:text-zinc-800 focus-visible:opacity-100 focus-visible:outline-none"
+                className="ui-row-icon-button opacity-0 group-hover/chat:opacity-100 focus-visible:opacity-100"
               >
                 {chat.pinned ? (
-                  <PinOff className="h-3.5 w-3.5" strokeWidth={2} />
+                  <PinOff strokeWidth={2} />
                 ) : (
-                  <Pin className="h-3.5 w-3.5" strokeWidth={2} />
+                  <Pin strokeWidth={2} />
                 )}
               </button>
               <DropdownMenu modal={false}>
@@ -645,9 +646,9 @@ export function Sidebar({
                   <button
                     type="button"
                     aria-label={`Chat options for ${chat.name || "New Chat"}`}
-                    className="no-hover-overlay flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-zinc-500 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 hover:bg-transparent hover:text-zinc-800 data-[state=open]:bg-transparent data-[state=open]:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+                    className="ui-row-icon-button opacity-0 group-hover/chat:opacity-100 data-[state=open]:opacity-100 focus-visible:opacity-100"
                   >
-                    <MoreVertical className="icon-md icon-muted" />
+                    <MoreVertical className="icon-md" />
                   </button>
                 </DropdownMenuTrigger>
                 <ChatRowMenuContent
@@ -747,7 +748,7 @@ export function Sidebar({
                 isCustomizeActive && "cursor-not-allowed opacity-0",
               )}
             >
-              <SidebarOpenIcon className="size-5" />
+              <SidebarOpenIcon className="size-[18px]" />
             </button>
           </div>
         ) : (
@@ -766,11 +767,11 @@ export function Sidebar({
             )}
           >
             {isMobileLayout && !isCollapsed ? (
-              <X className="size-5" />
+              <X className="size-[18px]" />
             ) : isCollapsed ? (
-              <SidebarOpenIcon className="size-5" />
+              <SidebarOpenIcon className="size-[18px]" />
             ) : (
-              <SidebarToggleIcon className="size-5" />
+              <SidebarToggleIcon className="size-[18px]" />
             )}
           </button>
         )}
@@ -797,7 +798,7 @@ export function Sidebar({
                 aria-label="New chat"
                 className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
               >
-                <NewChatBubbleIcon className="size-5" />
+                <NewChatBubbleIcon className="size-[18px]" />
               </AppHref>
             ) : (
               <AppHref
@@ -813,7 +814,7 @@ export function Sidebar({
                 className="group flex h-[34px] w-full items-center justify-between gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-2.5 text-[14px] font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
               >
                 <span className="flex min-w-0 items-center gap-[3px]">
-                  <NewChatBubbleIcon className="size-5 shrink-0 text-zinc-800" />
+                  <NewChatBubbleIcon className="size-[18px] shrink-0 text-zinc-800" />
                   <span className="truncate">New Chat</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-1">
@@ -829,7 +830,7 @@ export function Sidebar({
           {/* New Chat pill is above — nav order: My Clauxen → Image → Library → Scheduled → Customize */}
           {renderNavButton({
             label: "My Clauxen",
-            icon: <UserRound className="size-5" strokeWidth={1.75} />,
+            icon: <UserRound className="size-[18px]" strokeWidth={1.75} />,
             href: APP_ROUTES.myClauxen,
             onClick: () => {
               (onMyClauxenClick ?? onPersonalizationClick ?? onCustomizeClick)?.();
@@ -839,7 +840,7 @@ export function Sidebar({
 
           {renderNavButton({
             label: "Image",
-            icon: <ImageIcon className="size-5" strokeWidth={1.75} />,
+            icon: <ImageIcon className="size-[18px]" strokeWidth={1.75} />,
             onClick: () =>
               runNavAction(() => {
                 onImageClick?.();
@@ -849,7 +850,7 @@ export function Sidebar({
 
           {renderNavButton({
             label: "Library",
-            icon: <Library className="size-5" />,
+            icon: <Library className="size-[18px]" />,
             href: APP_ROUTES.library,
             onClick: onLibraryClick,
             active: activeView === "library",
@@ -858,7 +859,7 @@ export function Sidebar({
           {renderNavButton({
             label: "Scheduled Task",
             icon: (
-              <CalendarClock className="size-5" strokeWidth={1.75} />
+              <CalendarClock className="size-[18px]" strokeWidth={1.75} />
             ),
             href: APP_ROUTES.scheduledTasks,
             onClick: () => onScheduledTasksClick?.(),
@@ -869,7 +870,7 @@ export function Sidebar({
             label: "Customize",
             icon: (
               <SlidersHorizontal
-                className="size-5"
+                className="size-[18px]"
                 strokeWidth={1.75}
               />
             ),
@@ -880,7 +881,7 @@ export function Sidebar({
 
           {renderNavButton({
             label: moreExpanded ? "Collapse" : "More",
-            icon: <Ellipsis className="size-5" strokeWidth={1.75} />,
+            icon: <Ellipsis className="size-[18px]" strokeWidth={1.75} />,
             muted: moreExpanded,
             onClick: () => {
               if (isCollapsed) {
@@ -909,18 +910,25 @@ export function Sidebar({
             >
               {renderNavButton({
                 label: "Clauxen Code",
-                icon: <Code2 className="size-5" strokeWidth={1.75} />,
+                icon: <Code2 className="size-[18px]" strokeWidth={1.75} />,
                 onClick: () =>
                   runNavAction(() => {
                     onClauxenCodeClick?.();
                   }),
                 active: activeView === "clauxen-code",
                 looseGap: true,
+                trailing: !isCollapsed ? (
+                  <ArrowUpRight
+                    className="ml-auto size-4 shrink-0 text-zinc-400"
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                ) : undefined,
               })}
               {renderNavButton({
-                label: "Clauxen Work",
+                label: "Clauxen Collabry",
                 icon: (
-                  <Briefcase className="size-5" strokeWidth={1.75} />
+                  <Briefcase className="size-[18px]" strokeWidth={1.75} />
                 ),
                 onClick: () =>
                   runNavAction(() => {
@@ -928,10 +936,17 @@ export function Sidebar({
                   }),
                 active: activeView === "clauxen-work",
                 looseGap: true,
+                trailing: !isCollapsed ? (
+                  <ArrowUpRight
+                    className="ml-auto size-4 shrink-0 text-zinc-400"
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                ) : undefined,
               })}
               {renderNavButton({
                 label: "Clauxen Claw",
-                icon: <Bot className="size-5" strokeWidth={1.75} />,
+                icon: <Bot className="size-[18px]" strokeWidth={1.75} />,
                 onClick: () =>
                   runNavAction(() => {
                     onClauxenClawClick?.();
@@ -978,7 +993,7 @@ export function Sidebar({
                   className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-lg px-2.5 text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100"
                 >
                   <Plus
-                    className="size-5 shrink-0 text-zinc-500"
+                    className="size-[18px] shrink-0 text-zinc-500"
                     strokeWidth={1.75}
                   />
                   <span className="truncate">New Project</span>
@@ -1091,7 +1106,7 @@ export function Sidebar({
               onCloseAutoFocus={(e) => e.preventDefault()}
               className="z-[60] w-[min(252px,calc(100vw-2rem))] rounded-xl border border-zinc-300 bg-white/85 p-1.5 font-sans shadow-lg backdrop-blur-3xl"
             >
-              <DropdownMenuLabel className="px-2 py-1 text-[12px] font-[430] text-zinc-500 truncate">
+              <DropdownMenuLabel className="px-2.5 py-1.5 text-[12px] font-medium text-zinc-500 truncate">
                 {userEmail || "Not signed in"}
               </DropdownMenuLabel>
               <DropdownMenuItem asChild>
@@ -1102,10 +1117,10 @@ export function Sidebar({
                     e.preventDefault();
                     runNavAction(onSettingsClick);
                   }}
-                  className="flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 hover:bg-zinc-100"
+                  className="ui-menu-row cursor-pointer justify-between"
                 >
-                  <div className="flex items-center gap-2">
-                    <Settings className="h-5 w-5 text-zinc-800" />
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Settings className="size-4 text-zinc-800" />
                     <span>Settings</span>
                   </div>
                   <span className="text-[12px] text-zinc-500">⇧⌘,</span>
@@ -1123,34 +1138,34 @@ export function Sidebar({
                       e.preventDefault();
                       runNavAction(onPersonalizationClick);
                     }}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-100"
+                    className="ui-menu-row cursor-pointer"
                   >
-                    <Sparkles className="h-5 w-5 text-zinc-800" />
+                    <Sparkles className="size-4 text-zinc-800" />
                     <span>Personalization</span>
                   </AppHref>
                 </DropdownMenuItem>
               )}
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 rounded-lg data-[state=open]:bg-black/5 cursor-pointer">
-                  <Languages className="w-5 h-5 text-zinc-800" />
+                <DropdownMenuSubTrigger className="ui-menu-row cursor-pointer">
+                  <Languages className="size-4 text-zinc-800" />
                   <span>Language</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
-                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
                       English
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
                       Hindi
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
                       Tamil
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>
-              <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
-                <HelpCircle className="w-5 h-5 text-zinc-800" />
+              <DropdownMenuItem className="ui-menu-row cursor-pointer">
+                <HelpCircle className="size-4 text-zinc-800" />
                 <span>Get help</span>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
@@ -1161,9 +1176,9 @@ export function Sidebar({
                     e.preventDefault();
                     runNavAction(onUpgradeClick);
                   }}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-100"
+                  className="ui-menu-row cursor-pointer"
                 >
-                  <ArrowUpCircle className="h-5 w-5 text-zinc-800" />
+                  <ArrowUpCircle className="size-4 text-zinc-800" />
                   <span>Upgrade plan</span>
                 </AppHref>
               </DropdownMenuItem>
@@ -1175,9 +1190,9 @@ export function Sidebar({
                     e.preventDefault();
                     runNavAction(onAppsExtensionsClick);
                   }}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-100"
+                  className="ui-menu-row cursor-pointer"
                 >
-                  <LayoutGrid className="h-5 w-5 text-zinc-800" />
+                  <LayoutGrid className="size-4 text-zinc-800" />
                   <span>Apps and extensions</span>
                 </AppHref>
               </DropdownMenuItem>
@@ -1189,26 +1204,26 @@ export function Sidebar({
                     e.preventDefault();
                     runNavAction(onGiftClick);
                   }}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-100"
+                  className="ui-menu-row cursor-pointer"
                 >
-                  <Gift className="h-5 w-5 text-zinc-800" />
+                  <Gift className="size-4 text-zinc-800" />
                   <span>Gift Clauxen</span>
                 </AppHref>
               </DropdownMenuItem>
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="flex items-center gap-2 px-2 py-1.5 rounded-lg data-[state=open]:bg-black/5 cursor-pointer">
-                  <HelpCircle className="w-5 h-5 text-zinc-800" />
+                <DropdownMenuSubTrigger className="ui-menu-row cursor-pointer">
+                  <HelpCircle className="size-4 text-zinc-800" />
                   <span>Learn more</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
-                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
                       Release notes
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
                       Documentation
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer">
+                    <DropdownMenuItem className="ui-menu-row cursor-pointer">
                       Community
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
@@ -1217,9 +1232,9 @@ export function Sidebar({
               <DropdownMenuSeparator className="my-1.5 bg-zinc-900/10" />
               <DropdownMenuItem
                 onClick={() => onLogoutClick?.()}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 cursor-pointer text-destructive"
+                className="ui-menu-row cursor-pointer text-destructive"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="size-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>

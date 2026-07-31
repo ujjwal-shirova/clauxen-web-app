@@ -40,7 +40,7 @@ export function ChatRightRailControls({
                   : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-zinc-100",
             )}
           >
-            <Files className="size-5" strokeWidth={1.75} />
+            <Files className="size-[18px]" strokeWidth={1.75} />
           </button>
         </HintTooltip>
       ) : null}

@@ -171,6 +171,10 @@ function ChatAreaLayout({
   const blankRouteHydration = Boolean(
     blankPaneChatId && !isConversationStarted && !messagesLoadError,
   );
+  // Composer + dock must look like a conversation immediately while hydrating
+  // an existing chat (never flash the new-chat expanded prompt).
+  const composerAsConversation =
+    isConversationStarted || blankRouteHydration || Boolean(activeChatId);
   const showMessageSkeleton =
     messagesLoading &&
     !isConversationStarted &&
@@ -403,7 +407,7 @@ function ChatAreaLayout({
       onStopGeneration={onStopGeneration}
       onScrollToBottom={scrollToBottom}
       showScrollToBottomButton={showScrollToBottom}
-      isConversationStarted={isConversationStarted}
+      isConversationStarted={composerAsConversation}
       isGenerating={isGenerating}
       queuedMessages={queuedMessages}
       onEditQueuedMessage={onEditQueuedMessage}
@@ -420,7 +424,7 @@ function ChatAreaLayout({
       chatModel={chatModel}
       onChatModelChange={onChatModelChange}
       lockedProjectId={incognito ? null : lockedProjectId}
-      showProjectStrip={!incognito && !isConversationStarted}
+      showProjectStrip={!incognito && !composerAsConversation}
       allowAttachments={!incognito}
       placeholder={
         incognito ? "How can I help you today?" : undefined
@@ -449,7 +453,7 @@ function ChatAreaLayout({
           )}
         >
           {!incognito &&
-          !isConversationStarted &&
+          !composerAsConversation &&
           !showMessageSkeleton &&
           !blankRouteHydration ? (
             <ChatViewHeader
@@ -473,7 +477,7 @@ function ChatAreaLayout({
           <ChatViewPane
             className="flex min-h-0 flex-1 flex-col"
             hasConversation={
-              isConversationStarted ||
+              composerAsConversation ||
               showMessageSkeleton ||
               showMessageLoadError ||
               blankRouteHydration

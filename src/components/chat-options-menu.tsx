@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-const itemClass =
-  "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-100 focus:bg-zinc-100";
+const itemClass = "ui-menu-row cursor-pointer";
 
 type ChatOptionsMenuContentProps = {
   isPinned?: boolean;
@@ -55,7 +54,7 @@ export function ChatOptionsMenuContent({
           onRename?.();
         }}
       >
-        <Pencil className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+        <Pencil className="size-4 shrink-0 text-zinc-800" />
         Rename
       </DropdownMenuItem>
       <DropdownMenuItem
@@ -70,25 +69,25 @@ export function ChatOptionsMenuContent({
         }}
       >
         {isPinned ? (
-          <PinOff className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+          <PinOff className="size-4 shrink-0 text-zinc-800" />
         ) : (
-          <Pin className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+          <Pin className="size-4 shrink-0 text-zinc-800" />
         )}
         {isPinned ? "Unpin chat" : "Pin chat"}
       </DropdownMenuItem>
       <DropdownMenuItem className={itemClass} onSelect={() => onAddToProject?.()}>
-        <FolderPlus className="h-[18px] w-[18px] shrink-0 text-zinc-800" />
+        <FolderPlus className="size-4 shrink-0 text-zinc-800" />
         Add to project
       </DropdownMenuItem>
       <DropdownMenuSeparator className="my-1 bg-zinc-900/10" />
       <DropdownMenuItem
-        className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-[430] text-[#8a2424] transition-colors hover:bg-[#8a2424]/10 focus:bg-[#8a2424]/10"
+        className="ui-menu-row cursor-pointer text-[#8a2424] hover:bg-[#8a2424]/10 focus:bg-[#8a2424]/10"
         onSelect={(event) => {
           event.preventDefault();
           onDelete?.();
         }}
       >
-        <Trash2 className="h-[18px] w-[18px] shrink-0 text-[#8a2424]" />
+        <Trash2 className="size-4 shrink-0 text-[#8a2424]" />
         Delete
       </DropdownMenuItem>
     </DropdownMenuContent>

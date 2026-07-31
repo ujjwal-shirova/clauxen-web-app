@@ -381,11 +381,19 @@ function ChatViewBody({
     !blankNewChatComposer && Boolean(messagesLoading);
 
   // Switching between existing chats: keep the pane blank (never the
-  // New-chat landing) until the route chat hydrates.
+  // New-chat landing) until the route chat hydrates. Also treat sidebar
+  // selection (activeChatId before pathname updates) as hydrating so the
+  // collapsed dock composer never flashes as the welcome composer.
   const isChatRoute = Boolean(routeChatId) && !isIncognito;
+  const hydratingChatId =
+    routeChatId ??
+    (activeChatId && !isIncognitoSessionId(activeChatId) ? activeChatId : null);
   const awaitingRouteHydration =
-    isChatRoute && !blankNewChatComposer && displayMessages.length === 0;
-  const blankPaneChatId = awaitingRouteHydration ? routeChatId : null;
+    !blankNewChatComposer &&
+    displayMessages.length === 0 &&
+    Boolean(hydratingChatId) &&
+    (isChatRoute || Boolean(hydratingChatId));
+  const blankPaneChatId = awaitingRouteHydration ? hydratingChatId : null;
 
   const brandOnlyTab =
     !blankNewChatComposer &&

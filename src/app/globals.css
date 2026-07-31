@@ -29,10 +29,10 @@
     --ring: 240 5.9% 10%;
     --panel-edge: 240 5.9% 90%;
     --radius: 8px;
-    /* App chrome icon/button scale (ChatGPT-like) */
-    --icon-size: 20px;
+    /* App chrome icon/button scale */
+    --icon-size: 18px;
     --icon-stroke: 1.75;
-    --icon-btn-size: 36px;
+    --icon-btn-size: 32px;
     --nav-row-height: 34px;
     --nav-gap-tight: 3px;
     --nav-gap-loose: 6px;
@@ -41,6 +41,8 @@
     --chat-user-font-size: 14px;
     --chat-assistant-font-size: 15px;
     --chat-message-line-height: 1.65;
+    --menu-icon-size: 16px;
+    --menu-row-height: 34px;
     --icon-color: #18181b;
     --icon-muted: #71717a;
     --icon-subtle: #a1a1aa;
@@ -404,10 +406,10 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: stream-token-fade;
-  animation-duration: 120ms;
+  animation-duration: 80ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
-  will-change: opacity;
+  /* Avoid will-change thrash during long tool→answer streams */
   backface-visibility: hidden;
 }
 
@@ -449,7 +451,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   will-change: opacity, transform;
 }
 
-/* Lucide icon system — crisp, professional 20px default */
+/* Lucide icon system — crisp 18px default (chrome); menus use --menu-icon-size */
 svg.lucide {
   width: var(--icon-size);
   height: var(--icon-size);
@@ -487,7 +489,7 @@ svg.lucide.icon-2xl {
   height: 24px;
 }
 
-/* App chrome: icon-only control = 36×36 with 8px pad around 20px icon */
+/* App chrome: icon-only control — default 32×32 with pad around 18px icon */
 .ui-icon-button {
   box-sizing: border-box;
   display: inline-flex;
@@ -497,8 +499,86 @@ svg.lucide.icon-2xl {
   height: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 8px;
+  padding: 7px;
   border-radius: 8px;
+  flex-shrink: 0;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.ui-icon-button:hover:not(:disabled),
+.ui-icon-button[data-state="open"] {
+  background-color: rgba(24, 24, 27, 0.08);
+  color: #18181b;
+}
+
+.ui-icon-button svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+/* Dense row actions (sidebar chat pin/more) — 28×28, visible hover */
+.ui-row-icon-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  color: #71717a;
+  background: transparent;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.ui-row-icon-button:hover:not(:disabled),
+.ui-row-icon-button[data-state="open"] {
+  background-color: rgba(24, 24, 27, 0.08) !important;
+  color: #18181b !important;
+}
+
+.ui-row-icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Dropdown / profile menu rows */
+.ui-menu-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--menu-row-height);
+  height: auto;
+  padding: 6px 10px !important;
+  border-radius: 8px;
+  font-size: 13.5px !important;
+  font-weight: 500;
+  line-height: 1.25;
+  color: #27272a;
+  transition: background-color 0.12s ease;
+}
+
+.ui-menu-row:hover,
+.ui-menu-row[data-highlighted],
+.ui-menu-row[data-state="open"],
+.ui-menu-row:focus {
+  background-color: rgba(24, 24, 27, 0.05) !important;
+}
+
+.ui-menu-row svg.lucide,
+.ui-menu-row .ui-menu-icon,
+.ui-menu-row > svg {
+  width: var(--menu-icon-size) !important;
+  height: var(--menu-icon-size) !important;
   flex-shrink: 0;
 }
 
@@ -609,11 +689,11 @@ nav.sidebar-hover-area {
   background-color: rgba(24, 24, 27, 0.04) !important;
 }
 
-/* Chat rows own the hover pill — never paint nested action buttons. */
-.sidebar-scrollable .glass-sidebar-agent-menu-btn button:hover,
-.sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:hover,
-.sidebar-scrollable .glass-sidebar-agent-menu-btn button:focus,
-.sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:focus {
+/* Chat rows own the hover pill — nested title buttons stay clear; row icon actions may hover. */
+.sidebar-scrollable .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):hover,
+.sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):hover,
+.sidebar-scrollable .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):focus,
+.sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):focus {
   background-color: transparent !important;
 }
 
@@ -786,9 +866,9 @@ button.user-message-card__body:not(:disabled):hover,
   transform: translateY(-0.5px);
 }
 
-.group\/chat button:not(.no-hover-overlay):not(.no-hover):hover,
-.glass-sidebar-agent-menu-btn button:hover,
-.glass-sidebar-agent-menu-btn [role="button"]:hover,
+.group\/chat button:not(.no-hover-overlay):not(.no-hover):not(.ui-row-icon-button):hover,
+.glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):hover,
+.glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):hover,
 .assistant-message .follow-up-prompt:hover,
 .assistant-message .label-hover-bold:hover {
   background-color: transparent !important;
@@ -841,7 +921,7 @@ button.user-message-card__body:not(:disabled):hover,
 
 [data-chat-active],
 [data-chat-streaming] {
-  --header-height: 35px;
+  --header-height: var(--chat-header-height, 36px);
 }
 
 .agent-panel {
@@ -925,7 +1005,7 @@ button.user-message-card__body:not(:disabled):hover,
   border-top-right-radius: inherit;
 }
 
-/* Universal header chrome: icon-only = 36×36, text+icon = 34px */
+/* Universal header chrome: icon-only = 32×32, text+icon = 34px */
 .content-pane-top-bar .ui-icon-button,
 .content-pane-top-bar button[aria-label="Incognito"],
 .content-pane-top-bar button[aria-label="Chat options"],
@@ -937,7 +1017,7 @@ button.user-message-card__body:not(:disabled):hover,
   height: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 8px;
+  padding: 7px;
   border-radius: 8px;
 }
 
@@ -1085,24 +1165,30 @@ button.user-message-card__body:not(:disabled):hover,
 
 .sticky-user-msg-host {
   position: sticky;
-  top: var(--header-height, 44px);
+  top: var(--header-height, 36px);
   z-index: 2;
   width: 100%;
   max-width: 100%;
   flex-shrink: 0;
   align-self: stretch;
   background-color: #ffffff;
+  overflow: visible;
   overflow-anchor: none;
-  /* No extra pad under the bubble — padding + stuck white bar looked like a strip. */
-  padding-top: 0;
+  /* Always inset the card under the absolute header so the rounded top
+     edge + border stay fully visible when docked (no clipped “smashed” top).
+     Negative margin cancels the padding in document flow so unscrolled
+     layout stays tight; padding stays constant when stuck to avoid
+     --turn-user-msg-height jumps. */
+  padding-top: 8px;
   padding-bottom: 0;
+  margin-top: -8px;
 }
 
 /* Expanded inline editor uses the same sticky host path as the collapsed
    preview — do not introduce overflow/contain that would trap sticky release. */
 .sticky-user-msg-host[data-user-msg-editing="true"] {
   position: sticky;
-  top: var(--header-height, 44px);
+  top: var(--header-height, 36px);
   overflow: visible;
   contain: none;
 }
@@ -1119,14 +1205,39 @@ button.user-message-card__body:not(:disabled):hover,
   padding-top: 0.35rem;
 }
 
-/* Turns vary wildly in height (a one-line reply vs. a report with tables/code),
-   and a fixed contain-intrinsic-size estimate doesn't match reality — that
-   mismatch is what caused the hard-cut jump when scrolling up into
-   previously-offscreen turns. If very long conversations ever need this
-   render-skip optimization back, it needs a per-turn measured size (e.g. a
-   ResizeObserver writing a CSS var) instead of one fixed guess. */
-[data-conversation-turn] {
+.overflow-anchor-none {
   overflow-anchor: none;
+}
+
+/* Claude-style transcript: user cards and assistant share one column edge */
+.user-message-card {
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+}
+
+.user-message-card__body {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+[data-conversation-turn] {
+  width: 100%;
+  max-width: 100%;
+}
+
+[data-conversation-turn] > .sticky-user-msg-host,
+[data-conversation-turn] > .assistant-message,
+[data-conversation-turn] .assistant-message {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Source chip groups must not steal scroll anchoring (causes jump when scrolling up) */
+[data-agent-block="sources"],
+.assistant-message .overflow-anchor-none {
+  overflow-anchor: none;
+  contain: layout style;
 }
 
 [data-fast-scrolling] [data-conversation-turn] {
@@ -1152,9 +1263,37 @@ button.user-message-card__body:not(:disabled):hover,
   z-index: 25;
   isolation: isolate;
   background-color: #ffffff;
-  /* No solid white bar / soft drop shadow — those rendered as a gray strip
-     under the rounded user bubble when docked. */
+  padding-top: 8px;
+  padding-bottom: 10px;
+  margin-top: -8px;
   box-shadow: none;
+}
+
+.sticky-user-msg--stuck .user-message-card__body {
+  /* Keep the card edge crisp while sticky — avoid parent paint clipping. */
+  transform: translateZ(0);
+  border-color: rgba(24, 24, 27, 0.1) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba(24, 24, 27, 0.05),
+    0 0 0 1px rgba(24, 24, 27, 0.08) !important;
+}
+
+/* Soft wash under the docked bubble so content scrolling beneath doesn’t
+   visually collide with the sticky card’s bottom edge. */
+.sticky-user-msg--stuck::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: 14px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 1),
+    rgba(255, 255, 255, 0)
+  );
 }
 
 [data-conversation-turn][data-sticky-active="true"] .sticky-user-msg-host {
@@ -1236,7 +1375,8 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /* ─── Clauxen agent action stack ───────────────────────────────────────────
-   Work-group headers + left rail on expanded bodies. Narration sits outside. */
+   Cursor-style flat timeline: muted verbs, brighter counts, green/red diffs.
+   No left tree rail. Work-group headers have no chevron. */
 
 .agent-trace {
   width: 100%;
@@ -1249,6 +1389,46 @@ button.user-message-card__body:not(:disabled):hover,
 
 .agent-work-group__header {
   max-width: 100%;
+}
+
+.agent-activity-label--muted {
+  color: #71717a; /* zinc-500 — primary verb / label */
+}
+
+.agent-activity-label--emphasis {
+  color: #3f3f46; /* zinc-700 — counts / key numbers */
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-activity-label--subtle {
+  color: #a1a1aa; /* zinc-400 — filenames, durations, queries */
+}
+
+.agent-activity-diff--add {
+  color: #059669; /* emerald-600 */
+}
+
+.agent-activity-diff--del {
+  color: #e11d48; /* rose-600 */
+}
+
+.agent-thinking-body .markdown-content p {
+  margin: 0 0 0.45em;
+  line-height: 1.55 !important;
+  color: #71717a;
+}
+
+.agent-thinking-body .markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.agent-thinking-body .markdown-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  background: rgba(24, 24, 27, 0.06);
+  border-radius: 5px;
+  padding: 0.1em 0.35em;
+  color: #52525b;
 }
 
 .agent-web-search__header {
@@ -1315,7 +1495,7 @@ button.user-message-card__body:not(:disabled):hover,
   height: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 8px;
+  padding: 7px;
   border-radius: 8px;
 }
 
@@ -1338,18 +1518,24 @@ button.user-message-card__body:not(:disabled):hover,
   box-shadow: inset 0 0 0 1px rgba(24, 24, 27, 0.025);
 }
 
-/* Row owns selection/hover — never paint nested pills on title or action buttons. */
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:hover,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:focus,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:focus-visible,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button[aria-current="page"],
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button[data-state="open"],
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"],
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:hover,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:focus {
+/* Row owns selection/hover — nested title links stay clear; pin/more may hover. */
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button),
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):hover,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):focus,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):focus-visible,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button)[aria-current="page"],
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button)[data-state="open"],
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button),
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):hover,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):focus {
   background: transparent !important;
   box-shadow: none !important;
+}
+
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn .ui-row-icon-button:hover,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn .ui-row-icon-button[data-state="open"] {
+  background-color: rgba(24, 24, 27, 0.08) !important;
+  color: #18181b !important;
 }
 
 .glass-sidebar-docked .ui-sidebar-content {
@@ -1466,7 +1652,7 @@ button.user-message-card__body:not(:disabled):hover,
   letter-spacing: -0.01em;
 }
 
-/* Message action icon buttons — same 36×36 chrome */
+/* Message action icon buttons — compact 32×32 chrome with hover */
 .assistant-message button[aria-label="Copy message"],
 .assistant-message button[aria-label="Retry"],
 .assistant-message button[aria-label="Positive feedback"],
@@ -1477,8 +1663,18 @@ button.user-message-card__body:not(:disabled):hover,
   height: var(--icon-btn-size) !important;
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 8px;
+  padding: 7px;
   border-radius: 8px !important;
+}
+
+.assistant-message button[aria-label="Copy message"]:hover,
+.assistant-message button[aria-label="Retry"]:hover,
+.assistant-message button[aria-label="Positive feedback"]:hover,
+.assistant-message button[aria-label="Negative feedback"]:hover,
+.assistant-message button[aria-label="Share message"]:hover,
+.assistant-message button[aria-label="More actions"]:hover {
+  background-color: rgba(24, 24, 27, 0.06) !important;
+  color: #18181b !important;
 }
 
 .markdown-content > *:first-child,

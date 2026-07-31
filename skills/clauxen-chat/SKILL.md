@@ -40,9 +40,10 @@ description: >-
 
 - Per-round model text **before** tool calls streams as `narration` segments; a round with **no tool calls** is promoted to the durable answer via SSE `answer_finalize` (reducer marks the segment `isFinal` and sets `message.content` — restyle in place, never teleport).
 - No model-authored XML protocol (deleted `<agent_heading>`/`<agent_narration>`/`answer_clear`/intro+interim narratives). Sole exception: first-turn `<chat_title>` for the sidebar, stripped client-side.
-- Work-group headers are **derived** from preceding narration prose (`deriveActivityLabel` — gerund while active, past tense when done); narration **always** renders as standalone prose **outside** the timeline rail — never nested inside a group body.
-- Group headers shimmer while any member runs and auto-collapse on completion (smooth grid-row animation); thinking shows `Thought for Ns`; the final answer renders as ordinary markdown below the activity.
-- Web search stays collapsed by default; favicon chips + **"N sources"** sit immediately after the step label (not flush-right); chevron is **hover-only**.
+- Work-group headers are **Cursor-style tool-mix summaries** for multi-step work (`Edited N files, 1 search, ran 1 command` with muted verbs + brighter counts + green/red diffs); single-step groups may still use narration-derived labels. Narration **always** renders as standalone prose **outside** the timeline — never nested inside a group body.
+- Group headers have **no chevron**; children are flush-left (no tree rail). Thinking uses muted `Thought for Ns` with chevron **hover-only** (stays visible while expanded); body is plain text (no card).
+- Web search stays as a single row; favicon chips + **"N sources"** open a **hover popover** (scrollable sources) — no expanded results list in the timeline.
+- Fold chrome only for thinking+tool(s) or 2+ tools; lone Thought/tool stay bare. Group headers shimmer while any member runs and auto-collapse on completion.
 - Expand/collapse scroll-anchors through the CSS transition so the body grows **downward** (user bubble does not jump up).
 - Citation chips render **inline while streaming**; the bottom source strip appears only after the turn settles.
 - Premature SSE close soft-completes (legacy + UI-message paths); generate keepalives every 5s; do not paint "Connection was interrupted" when useful tokens/tools already rendered.

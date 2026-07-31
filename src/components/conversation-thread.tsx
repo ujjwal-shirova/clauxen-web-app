@@ -106,8 +106,8 @@ function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
 
 const RetryIcon = () => (
   <svg
-    width="20"
-    height="20"
+    width="18"
+    height="18"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -118,8 +118,8 @@ const RetryIcon = () => (
 
 const CustomCopyIcon = () => (
   <svg
-    width="20"
-    height="20"
+    width="18"
+    height="18"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -130,8 +130,8 @@ const CustomCopyIcon = () => (
 
 const ThumbsUpIcon = () => (
   <svg
-    width="20"
-    height="20"
+    width="18"
+    height="18"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -142,8 +142,8 @@ const ThumbsUpIcon = () => (
 
 const ThumbsDownIcon = () => (
   <svg
-    width="20"
-    height="20"
+    width="18"
+    height="18"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -233,7 +233,7 @@ const MessageRow = React.memo(
         className={cn(
           "group flex w-full max-w-full flex-col",
           shouldAnimate && "animate-in fade-in duration-500",
-          message.role === "user" ? "items-stretch" : "items-start",
+          message.role === "user" ? "w-full items-stretch" : "w-full items-stretch",
         )}
         onAnimationEnd={(event) => {
           if (event.currentTarget !== event.target) return;
@@ -330,8 +330,8 @@ const MessageRow = React.memo(
                         className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
                       >
                         <svg
-                          width="20"
-                          height="20"
+                          width="18"
+                          height="18"
                           viewBox="0 0 20 20"
                           fill="currentColor"
                           aria-hidden="true"
@@ -351,8 +351,8 @@ const MessageRow = React.memo(
                         className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
                       >
                         <svg
-                          width="20"
-                          height="20"
+                          width="18"
+                          height="18"
                           viewBox="0 0 20 20"
                           fill="currentColor"
                           aria-hidden="true"
@@ -443,12 +443,12 @@ const MessageRow = React.memo(
               </>
             )}
             {message.isStreaming && messageSources.length > 0 ? (
-              <div className="relative mt-2 flex flex-wrap items-center gap-0.5 font-sans text-zinc-500">
+              <div className="relative mt-2 flex flex-wrap items-center gap-0.5 overflow-anchor-none font-sans text-zinc-500">
                 <HintTooltip content="Sources" side="bottom">
                   <button
                     type="button"
                     onClick={() => onOpenSources?.(message.id)}
-                    className="inline-flex h-7 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2 text-[12px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2.5 text-[13px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50"
                   >
                     <span className="flex -space-x-1">
                       {messageSources.slice(0, 3).map((source) => (
@@ -461,11 +461,11 @@ const MessageRow = React.memo(
                           alt=""
                           loading="lazy"
                           decoding="async"
-                          className="h-4 w-4 rounded-full border border-white bg-white"
+                          className="size-5 rounded-full border border-white bg-white"
                         />
                       ))}
                     </span>
-                    <Search className="h-3.5 w-3.5" />
+                    <Search className="size-[18px]" />
                     <span>Sources</span>
                   </button>
                 </HintTooltip>
@@ -476,7 +476,7 @@ const MessageRow = React.memo(
             !message.isStreaming &&
             !isAssistantGenerationError(message) ? (
               <>
-                  <div className="relative mt-2 flex flex-wrap items-center gap-0.5 font-sans text-zinc-500 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
+                  <div className="relative mt-2 flex flex-wrap items-center gap-0.5 overflow-anchor-none font-sans text-zinc-500">
                       <HintTooltip content="Copy" side="bottom" align="start">
                         <button
                           type="button"
@@ -562,7 +562,7 @@ const MessageRow = React.memo(
                           <button
                             type="button"
                             onClick={() => onOpenSources?.(message.id)}
-                            className="inline-flex h-7 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2 text-[12px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50"
+                            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2.5 text-[13px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50"
                           >
                             <span className="flex -space-x-1">
                               {messageSources.slice(0, 3).map((source) => (
@@ -575,11 +575,11 @@ const MessageRow = React.memo(
                                   alt=""
                                   loading="lazy"
                                   decoding="async"
-                                  className="h-4 w-4 rounded-full border border-white bg-white"
+                                  className="size-5 rounded-full border border-white bg-white"
                                 />
                               ))}
                             </span>
-                            <Search className="h-3.5 w-3.5" />
+                            <Search className="size-[18px]" />
                             <span>Sources</span>
                           </button>
                         </HintTooltip>
@@ -594,8 +594,8 @@ const MessageRow = React.memo(
                               className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
                             >
                               <svg
-                                width="20"
-                                height="20"
+                                width="18"
+                                height="18"
                                 viewBox="0 0 20 20"
                                 fill="currentColor"
                                 aria-hidden="true"
@@ -615,8 +615,8 @@ const MessageRow = React.memo(
                               className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
                             >
                               <svg
-                                width="20"
-                                height="20"
+                                width="18"
+                                height="18"
                                 viewBox="0 0 20 20"
                                 fill="currentColor"
                                 aria-hidden="true"

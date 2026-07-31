@@ -1,10 +1,8 @@
 "use client";
 
-import { FileText } from "lucide-react";
 import type { AgentToolSegment } from "@/lib/agent-segments";
 import { fileNameFromPath, type ChatArtifact } from "@/lib/chat-artifacts";
 import {
-  artifactMetaLabel,
   artifactSupportsPreview,
   inferLanguageFromPath,
 } from "@/lib/create-file-tags";
@@ -12,13 +10,13 @@ import { countContentLineDiff } from "@/lib/agent-work-groups";
 import { cn } from "@/lib/utils";
 import { useOptionalArtifactViewer } from "@/contexts/artifact-viewer-context";
 import { AgentToolCard } from "./agent-tool-card";
+import { AgentShimmerText } from "./agent-trace";
 import { CreateFileStreamBlock } from "./create-file-stream-block";
 
 /**
- * create_file / file_write
- * - While writing: expanded live stream
- * - When done: only a clickable collapsed chip (opens the file viewer).
- * create_file auto-presents — no present_files step.
+ * create_file / file_write — Cursor-style timeline row when done:
+ * "Edited filename +N −M" (click opens the file viewer).
+ * While writing: expanded live stream under a shimmering header.
  */
 export function AgentFileBlock({
   tool,
@@ -51,6 +49,8 @@ export function AgentFileBlock({
       : tool.description;
   const diff = countContentLineDiff(content, previousContent);
   const showDiff = !isRunning && (diff.insertions > 0 || diff.deletions > 0);
+  const isEdit = Boolean(previousContent && previousContent.length > 0);
+  const verb = isEdit ? "Edited" : "Created";
 
   if (isRunning) {
     return (
@@ -59,7 +59,14 @@ export function AgentFileBlock({
         data-agent-file-block="writing"
       >
         <AgentToolCard
-          label={description || `Creating ${fileName || "file"}`}
+          label={
+            <AgentShimmerText active>
+              <span className="agent-activity-label--muted">
+                {description || `Writing ${fileName || "file"}`}
+              </span>
+              <span className="agent-activity-label--subtle">…</span>
+            </AgentShimmerText>
+          }
           isRunning
           defaultExpanded
         >
@@ -100,49 +107,33 @@ export function AgentFileBlock({
     viewer?.openArtifact(artifact, mode);
   };
 
-  const title =
-    artifact.description || artifact.fileName.replace(/\.[^.]+$/, "");
-  const meta = artifactMetaLabel(artifact.path, language || "text");
-
   return (
     <button
       type="button"
       onClick={openFile}
       disabled={!content}
       className={cn(
-        "group/file-chip no-hover-overlay flex w-full max-w-md items-center gap-2.5 rounded-[12px] border border-zinc-200/90 bg-zinc-50/90 px-2.5 py-2 text-left transition-colors duration-150",
-        "hover:border-zinc-300 hover:bg-zinc-100/90",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200/90",
+        "group/file-row no-hover-overlay inline-flex max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] shadow-none",
+        "hover:bg-transparent focus-visible:outline-none focus-visible:ring-0",
         !content && "cursor-default opacity-70",
       )}
       data-agent-file-block="done"
-      aria-label={content ? `Open ${title}` : title}
+      aria-label={content ? `Open ${fileName}` : fileName}
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] border border-zinc-200/90 bg-white">
-        <FileText
-          className="h-[18px] w-[18px] text-zinc-500"
-          strokeWidth={1.6}
-          aria-hidden
-        />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13.5px] font-semibold tracking-[-0.01em] text-zinc-900">
-          {fileName}
-        </p>
-        <p className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[12px] font-[430] text-zinc-500">
-          <span className="truncate">{meta}</span>
-          {showDiff ? (
-            <span className="inline-flex shrink-0 items-center gap-1 tabular-nums">
-              {diff.insertions > 0 ? (
-                <span className="text-emerald-600">+{diff.insertions}</span>
-              ) : null}
-              {diff.deletions > 0 ? (
-                <span className="text-rose-500">−{diff.deletions}</span>
-              ) : null}
-            </span>
+      <span className="agent-activity-label--muted shrink-0">{verb}</span>
+      <span className="agent-activity-label--subtle min-w-0 truncate">
+        {fileName}
+      </span>
+      {showDiff ? (
+        <span className="agent-activity-diff inline-flex shrink-0 items-center gap-1 tabular-nums">
+          {diff.insertions > 0 ? (
+            <span className="agent-activity-diff--add">+{diff.insertions}</span>
           ) : null}
-        </p>
-      </div>
+          {diff.deletions > 0 ? (
+            <span className="agent-activity-diff--del">−{diff.deletions}</span>
+          ) : null}
+        </span>
+      ) : null}
     </button>
   );
 }

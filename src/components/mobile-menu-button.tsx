@@ -28,7 +28,7 @@ export function MobileMenuButton({
         className,
       )}
     >
-      <Menu className="size-5 stroke-[1.75]" aria-hidden />
+      <Menu className="size-[18px] stroke-[1.75]" aria-hidden />
     </button>
   );
 }

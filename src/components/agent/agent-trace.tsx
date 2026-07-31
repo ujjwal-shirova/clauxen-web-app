@@ -7,7 +7,7 @@ import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 
 /**
  * Clauxen agent action stack — chronological interleaved thinking, narration,
- * and tool results. Sequence by spacing; work groups own their own left rail.
+ * and tool results. Sequence by spacing; rows stay flush-left (no tree indent).
  */
 export function AgentTrace({
   children,
@@ -18,7 +18,10 @@ export function AgentTrace({
 }) {
   return (
     <div
-      className={cn("agent-trace flex w-full min-w-0 flex-col gap-3.5", className)}
+      className={cn(
+        "agent-trace flex w-full min-w-0 flex-col gap-1.5",
+        className,
+      )}
       data-agent-trace="true"
     >
       {children}
@@ -26,16 +29,23 @@ export function AgentTrace({
   );
 }
 
+export type AgentTraceChevronMode =
+  | "never"
+  | "hover"
+  | "hover-collapsed"
+  | "always";
+
 /**
  * Collapsible action block.
- * Header chrome sits tight to the label: title · source chips · count · chevron.
- * Chevron is hover-only. Expand grows downward via scroll-anchor lock.
+ * Header chrome: title · trailing · optional chevron.
+ * Expand grows downward via scroll-anchor lock.
  */
 export function AgentTraceBlock({
   title,
   trailing,
   leading,
   showChevron = true,
+  chevronMode,
   hideHeader = false,
   isActive = false,
   defaultExpanded = false,
@@ -43,11 +53,14 @@ export function AgentTraceBlock({
   className,
   contentClassName,
   headerClassName,
+  titleClassName,
 }: {
   title: ReactNode;
   trailing?: ReactNode;
   leading?: ReactNode;
+  /** @deprecated Prefer chevronMode. */
   showChevron?: boolean;
+  chevronMode?: AgentTraceChevronMode;
   hideHeader?: boolean;
   isActive?: boolean;
   defaultExpanded?: boolean;
@@ -55,9 +68,12 @@ export function AgentTraceBlock({
   className?: string;
   contentClassName?: string;
   headerClassName?: string;
+  titleClassName?: string;
 }) {
   const hasBody = children != null && children !== false;
   const canCollapse = hasBody && !hideHeader;
+  const mode: AgentTraceChevronMode =
+    chevronMode ?? (showChevron ? "hover" : "never");
   const [expanded, setExpanded] = useState(hideHeader ? true : defaultExpanded);
   const userToggledRef = useRef(false);
   const headerRef = useRef<HTMLButtonElement | null>(null);
@@ -80,6 +96,18 @@ export function AgentTraceBlock({
     });
   };
 
+  const showChevronIcon = mode !== "never" && canCollapse;
+  const chevronVisibleClass =
+    mode === "always"
+      ? "opacity-100"
+      : mode === "hover-collapsed"
+        ? cn(
+            "opacity-0 group-hover/trace-header:opacity-100 group-focus-visible/trace-header:opacity-100",
+            expanded && "opacity-100",
+          )
+        : // hover
+          "opacity-0 group-hover/trace-header:opacity-100 group-focus-visible/trace-header:opacity-100";
+
   const headerInner = (
     <>
       {leading ? (
@@ -87,7 +115,12 @@ export function AgentTraceBlock({
           {leading}
         </span>
       ) : null}
-      <span className="min-w-0 max-w-[min(100%,36rem)] truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-400">
+      <span
+        className={cn(
+          "agent-trace__title min-w-0 max-w-[min(100%,42rem)] truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em]",
+          titleClassName ?? "text-zinc-500",
+        )}
+      >
         {title}
       </span>
       {trailing ? (
@@ -95,11 +128,11 @@ export function AgentTraceBlock({
           {trailing}
         </span>
       ) : null}
-      {showChevron && canCollapse ? (
+      {showChevronIcon ? (
         <ChevronRight
           className={cn(
             "agent-trace__chevron h-3.5 w-3.5 shrink-0 text-zinc-400 transition-[opacity,transform] duration-150 ease-out",
-            "opacity-0 group-hover/trace-header:opacity-100 group-focus-visible/trace-header:opacity-100",
+            chevronVisibleClass,
             expanded && "rotate-90",
           )}
           aria-hidden
@@ -148,13 +181,15 @@ export function AgentTraceBlock({
         <div
           className={cn(
             "agent-trace__collapse grid transition-[grid-template-rows,opacity] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]",
-            showBody ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-90",
+            showBody
+              ? "grid-rows-[1fr] opacity-100"
+              : "grid-rows-[0fr] opacity-90",
             contentClassName,
           )}
           aria-hidden={!showBody}
         >
           <div className="min-h-0 overflow-hidden">
-            <div className={cn(!hideHeader && "pt-2")}>{children}</div>
+            <div className={cn(!hideHeader && "pt-1")}>{children}</div>
           </div>
         </div>
       ) : null}

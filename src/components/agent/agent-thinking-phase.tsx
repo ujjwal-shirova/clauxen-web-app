@@ -14,9 +14,9 @@ function stripItalicWrapper(text: string): string {
 }
 
 /**
- * A reasoning phase inside a work group. Collapsed to a single muted line
- * ("Thought for 4s") once finished, shimmering "Thinking…" while live. The
- * prose carries the summary — no heading markup.
+ * Reasoning phase — Cursor-style muted "Thought for Ns" row.
+ * Chevron appears on hover; stays visible while expanded.
+ * Body is plain low-intensity text (no card chrome).
  */
 export function AgentThinkingPhase({
   segment,
@@ -32,12 +32,19 @@ export function AgentThinkingPhase({
   const title =
     segment.isStreaming === true ? (
       <AgentShimmerText key={`think-live-${segment.id}`} active>
-        Thinking…
+        <span className="agent-activity-label--muted">Thinking</span>
+        <span className="agent-activity-label--subtle">…</span>
       </AgentShimmerText>
     ) : duration ? (
-      `Thought for ${duration} second${duration === 1 ? "" : "s"}`
+      <>
+        <span className="agent-activity-label--muted">Thought</span>
+        <span className="agent-activity-label--subtle">
+          {" "}
+          for {duration}s
+        </span>
+      </>
     ) : (
-      "Thought"
+      <span className="agent-activity-label--muted">Thought</span>
     );
 
   const content = body.length > 0 ? body : null;
@@ -45,14 +52,15 @@ export function AgentThinkingPhase({
   return (
     <AgentTraceBlock
       title={title}
-      showChevron
+      chevronMode="hover-collapsed"
       isActive={segment.isStreaming === true}
       className="agent-thinking-phase"
       headerClassName="agent-thinking-phase__header"
       contentClassName="agent-thinking-phase__body"
+      titleClassName="text-inherit"
     >
       {content ? (
-        <div className="thinking-block max-w-none text-[13px] leading-5.5 text-zinc-600">
+        <div className="agent-thinking-body max-w-none text-[13px] leading-[1.55] text-zinc-500">
           <AssistantContentRenderer
             content={content}
             isStreaming={false}

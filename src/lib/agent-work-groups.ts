@@ -6,23 +6,30 @@ import type {
   AgentToolSegment,
 } from "@/lib/agent-segments";
 import { deriveActivityLabel } from "@/lib/agent-activity-labels";
+import {
+  summarizeActivityPlain,
+  SEARCH_TOOLS,
+  EDIT_TOOLS,
+  SHELL_TOOLS,
+} from "@/lib/agent-activity-summary";
 import { fileNameFromPath } from "@/lib/chat-artifacts";
 
 /**
  * Work groups — collapsible tool/thinking steps.
  *
  * Narration is ALWAYS a standalone row outside the timeline. When the model
- * announces a step and then runs tools, the label is derived from that
- * preceding narration, but the prose itself stays outside the rail.
+ * announces a step and then runs tools, a narration-derived label is used for
+ * simple single-tool steps; multi-step mixes use Cursor-style summaries.
+ * The prose itself stays outside the rail.
  *
  *  narration (outside)
- *  ⌄ work group header (past/gerund)
- *    | thinking / tools
+ *  work group header (Cursor summary — no chevron)
+ *  thinking / tools (flush left, no tree indent)
  */
 
 export type AgentWorkGroup = {
   id: string;
-  /** Header derived from the preceding narration (or a tool-mix fallback). */
+  /** Header derived from tool mix (Cursor) or preceding narration. */
   label: string;
   /** True while any member is streaming/running — header shimmers. */
   isActive: boolean;
@@ -38,10 +45,6 @@ export type AgentTraceItem =
       segment: AgentNarrationSegment | AgentTextSegment;
     };
 
-const SEARCH_TOOLS = new Set(["web_search", "web_fetch", "image_search"]);
-const FILE_TOOLS = new Set(["create_file", "file_write"]);
-const SHELL_TOOLS = new Set(["bash_tool", "execute_code"]);
-
 function isNarration(
   segment: AgentSegment,
 ): segment is AgentNarrationSegment | AgentTextSegment {
@@ -54,74 +57,46 @@ function isGroupMember(
   return segment.kind === "thinking" || segment.kind === "tool";
 }
 
-function pluralize(count: number, singular: string, plural: string): string {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
-
-/** Fallback header for groups with no narration lead-in (tool-mix summary). */
+/** Fallback / primary Cursor-style header for a tool mix. */
 export function summarizeGroupSegments(
   segments: Array<AgentThinkingSegment | AgentToolSegment>,
   state: "active" | "done",
 ): string {
-  let fileCount = 0;
-  let searchCount = 0;
-  let shellCount = 0;
-  let mcpCount = 0;
-  let toolCount = 0;
-  let thinking = false;
-  let runningTool: AgentToolSegment | undefined;
+  return summarizeActivityPlain(segments, state);
+}
 
-  for (const segment of segments) {
-    if (segment.kind === "thinking") {
-      thinking = true;
-      continue;
-    }
-    if (SEARCH_TOOLS.has(segment.name)) searchCount += 1;
-    else if (FILE_TOOLS.has(segment.name)) fileCount += 1;
-    else if (SHELL_TOOLS.has(segment.name)) shellCount += 1;
-    else if (segment.name.startsWith("mcp__")) mcpCount += 1;
-    else toolCount += 1;
-    if (segment.status === "running") runningTool = segment;
+/**
+ * Prefer narration-derived labels for a single coherent step; otherwise use
+ * the Cursor tool-mix summary (Edited N files, 1 search, …).
+ */
+export function resolveGroupLabel(
+  segments: Array<AgentThinkingSegment | AgentToolSegment>,
+  state: "active" | "done",
+  labelSource?: string,
+): string {
+  const toolCount = segments.filter((s) => s.kind === "tool").length;
+  const thinkingCount = segments.filter((s) => s.kind === "thinking").length;
+  // Multi-step mixes always get Cursor summaries so the header lists counts.
+  if (toolCount + thinkingCount >= 2 || toolCount >= 2) {
+    return summarizeActivityPlain(segments, state);
   }
+  if (labelSource) {
+    const derived = deriveActivityLabel(labelSource, state);
+    if (derived) return derived;
+  }
+  return summarizeActivityPlain(segments, state);
+}
 
-  const parts: string[] = [];
-  if (searchCount > 0) parts.push(pluralize(searchCount, "search", "searches"));
-  if (fileCount > 0) parts.push(pluralize(fileCount, "file", "files"));
-  if (shellCount > 0) parts.push(pluralize(shellCount, "command", "commands"));
-  if (mcpCount > 0)
-    parts.push(pluralize(mcpCount, "connector call", "connector calls"));
-  if (toolCount > 0) parts.push(pluralize(toolCount, "tool", "tools"));
-
-  const active = state === "active";
-  let verb: string;
-  if (active) {
-    if (runningTool) {
-      if (SEARCH_TOOLS.has(runningTool.name)) verb = "Searching";
-      else if (FILE_TOOLS.has(runningTool.name)) verb = "Writing";
-      else if (SHELL_TOOLS.has(runningTool.name)) verb = "Running";
-      else verb = "Working";
-    } else if (searchCount > 0) verb = "Searching";
-    else if (fileCount > 0) verb = "Writing";
-    else if (shellCount > 0) verb = "Running";
-    else if (toolCount > 0 || mcpCount > 0) verb = "Working";
-    else verb = "Thinking";
-  } else {
-    if (searchCount > 0 && parts.length === 1) verb = "Searched the web";
-    else if (fileCount > 0 && parts.length === 1) verb = "Wrote";
-    else if (shellCount > 0 && parts.length === 1) verb = "Ran";
-    else if (parts.length > 0) verb = "Used";
-    else verb = thinking ? "Thought" : "Worked";
-  }
-
-  if (parts.length === 0) {
-    return active ? `${verb}…` : verb;
-  }
-  if (verb === "Searched the web") {
-    return active ? `Searching ${parts.join(", ")}…` : verb;
-  }
-  return active
-    ? `${verb} ${parts.join(", ")}…`
-    : `${verb} ${parts.join(", ")}`;
+/** Fold chrome only for multi-step work; lone Thought/tool stay bare. */
+export function groupNeedsFoldChrome(
+  segments: Array<AgentThinkingSegment | AgentToolSegment>,
+): boolean {
+  const thinking = segments.filter((s) => s.kind === "thinking").length;
+  const tools = segments.filter((s) => s.kind === "tool").length;
+  if (thinking > 0 && tools > 0) return true;
+  if (tools >= 2) return true;
+  if (thinking >= 2) return true;
+  return false;
 }
 
 function memberIsLive(
@@ -131,12 +106,6 @@ function memberIsLive(
     (segment.kind === "thinking" && segment.isStreaming) ||
     (segment.kind === "tool" && segment.status === "running")
   );
-}
-
-function groupIsActive(
-  segments: Array<AgentThinkingSegment | AgentToolSegment>,
-): boolean {
-  return segments.some(memberIsLive);
 }
 
 /**
@@ -167,7 +136,6 @@ function emitBufferedGroups(
   while (cursor < filtered.length) {
     const head = filtered[cursor]!;
     if (!memberIsLive(head)) {
-      // Pack consecutive completed members into one done group.
       let end = cursor + 1;
       while (end < filtered.length && !memberIsLive(filtered[end]!)) {
         end += 1;
@@ -179,9 +147,7 @@ function emitBufferedGroups(
         kind: "group",
         group: {
           id: `work-group-${chunk[0]!.id}-${groupCounter}`,
-          label:
-            (useLabel ? deriveActivityLabel(useLabel, "done") : undefined) ??
-            summarizeGroupSegments(chunk, "done"),
+          label: resolveGroupLabel(chunk, "done", useLabel),
           isActive: false,
           segments: chunk,
         },
@@ -190,7 +156,6 @@ function emitBufferedGroups(
       continue;
     }
 
-    // Trailing live members — single active group.
     const chunk = filtered.slice(cursor);
     groupCounter += 1;
     const useLabel = cursor === 0 ? labelSource : undefined;
@@ -198,9 +163,7 @@ function emitBufferedGroups(
       kind: "group",
       group: {
         id: `work-group-${chunk[0]!.id}-${groupCounter}`,
-        label:
-          (useLabel ? deriveActivityLabel(useLabel, "active") : undefined) ??
-          summarizeGroupSegments(chunk, "active"),
+        label: resolveGroupLabel(chunk, "active", useLabel),
         isActive: true,
         segments: chunk,
       },
@@ -220,7 +183,6 @@ export function groupAgentWorkItems(
 ): AgentTraceItem[] {
   const items: AgentTraceItem[] = [];
   let buffer: Array<AgentThinkingSegment | AgentToolSegment> = [];
-  /** Label source from the most recent narration — not rendered inside the group. */
   let labelSource: string | undefined;
   let groupCounter = 0;
 
@@ -230,7 +192,6 @@ export function groupAgentWorkItems(
     buffer = [];
     groupCounter = emitted.nextCounter;
     items.push(...emitted.items);
-    // Label applies to the next tool batch only once.
     labelSource = undefined;
   };
 
@@ -239,18 +200,14 @@ export function groupAgentWorkItems(
       if (segment.kind === "narration" && segment.isFinal) continue;
       if (!segment.content.trim() && !segment.isStreaming) continue;
 
-      // Close any open tool group before the next prose row.
       flush();
       items.push({ kind: "narration", segment });
-      // Remember this sentence so the following tool group can borrow a label.
       if (segment.content.trim()) {
         labelSource = segment.content.trim();
       }
       continue;
     }
     if (isGroupMember(segment)) {
-      // When a new live tool arrives after completed ones, seal the done
-      // batch immediately so its header stops shimmering.
       if (
         buffer.length > 0 &&
         memberIsLive(segment) &&
@@ -282,4 +239,4 @@ export function countContentLineDiff(
   return { insertions, deletions };
 }
 
-export { fileNameFromPath };
+export { fileNameFromPath, SEARCH_TOOLS, EDIT_TOOLS, SHELL_TOOLS };

@@ -67,7 +67,7 @@ export function AgentMessageContent({
             />
           </div>
         ) : null}
-        {sources.length > 0 && !streaming ? (
+        {sources.length > 0 ? (
           <SourcesInlineStrip sources={sources} />
         ) : null}
         {showOrb ? (

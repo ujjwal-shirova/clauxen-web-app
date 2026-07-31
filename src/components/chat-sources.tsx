@@ -257,7 +257,7 @@ export function SourcesInlineStrip({
   if (sources.length === 0) return null;
 
   return (
-    <div className={cn("mt-2 flex flex-wrap items-center gap-1.5", compact && "mt-1 gap-1")}>
+    <div className={cn("mt-2 flex flex-wrap items-center gap-1.5 overflow-anchor-none", compact && "mt-1 gap-1")}>
       {sources.slice(0, compact ? 6 : 5).map((source, index) => (
         <SourceChip key={source.id} source={source} index={index} compact={compact} />
       ))}

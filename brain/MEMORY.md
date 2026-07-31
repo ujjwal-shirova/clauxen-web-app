@@ -269,6 +269,8 @@ Full target surface — **remember only; implement only when user asks for a sli
 
 | 2026-07-31 | Gift recipient email shows purchaser note (HTML + plaintext via clauxen-billing); HoverScrollEnabler lives in root layout and primes scroll hosts on mount so nested overflow works without a prior click. | Gift note must appear in sent email; body overflow:hidden needs proactive wheel routing. |
 
-| 2026-07-31 | App chrome icon/button scale: icons 20×20; icon-only buttons 36×36 (8px pad); text+icon rows 34px with 3px gap (primary) or 6px gap (secondary). Tokens in globals (--icon-size, --icon-btn-size, --nav-row-height, --nav-gap-*). | Match ChatGPT-like sidebar density and consistency across pages. |
+| 2026-07-31 | Agent timeframe redesigned Cursor-style: flat flush-left rows (no tree rail); fold headers are tool-mix summaries with muted verbs / brighter counts / green-red diffs and **no chevron**; thinking is muted text with hover-only chevron (stays when expanded); web search sources open in a hover scroll popover (no expanded list in the timeline). | Match Cursor activity timeline screenshots |
 
 | 2026-07-31 | Scroll hosts must not be focused (HoverScrollEnabler) — focusing caused blue focus-ring edges on the sidebar. Chrome sizing tokens also cover chat header height, title size, and user/assistant message type. | Blue sidebar edge lines + universal sizing gaps |
+
+| 2026-07-31 | Clauxen Work renamed to Clauxen Collabry in sidebar (Code/Collabry get ArrowUpRight). Chat composer uses composerAsConversation so existing chats never flash the new-chat prompt. Source strips + Sources action render as soon as sources exist (not only after stream end); stream token fade snaps after long tool gaps. | Sidebar naming + chat UX polish without commit |

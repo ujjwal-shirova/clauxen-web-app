@@ -422,7 +422,7 @@ export function SettingsModal({
                 className="ui-icon-button shrink-0 text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)]"
                 aria-label="Close settings"
               >
-                <X className="size-5" strokeWidth={1.75} />
+                <X className="size-[18px]" strokeWidth={1.75} />
               </button>
             </div>
             <SettingsNavSidebar
@@ -446,7 +446,7 @@ export function SettingsModal({
               className="ui-icon-button absolute right-3 top-3 z-10 hidden text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)] md:inline-flex"
               aria-label="Close settings"
             >
-              <X className="size-5" strokeWidth={1.75} />
+              <X className="size-[18px]" strokeWidth={1.75} />
             </button>
 
             <div

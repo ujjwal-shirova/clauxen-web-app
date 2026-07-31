@@ -10,11 +10,17 @@ import {
   FileText,
   Plug,
 } from "lucide-react";
+import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
 import type { AgentToolSegment, WebSearchResult } from "@/lib/agent-segments";
 import { domainFromUrl } from "@/lib/agent-segments";
 import { cn } from "@/lib/utils";
 import { AgentFileBlock } from "./agent-file-block";
 import { AgentTraceBlock, AgentShimmerText } from "./agent-trace";
+
+const HoverCard = HoverCardPrimitive.Root;
+const HoverCardTrigger = HoverCardPrimitive.Trigger;
+const HoverCardPortal = HoverCardPrimitive.Portal;
+const HoverCardContent = HoverCardPrimitive.Content;
 
 function CodePane({
   children,
@@ -154,7 +160,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
   const headerText = description.trim()
     ? description.trim()
     : isRunning
-      ? "Running command…"
+      ? "Running command"
       : "Ran command";
 
   return (
@@ -163,22 +169,39 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
         title={
           isRunning ? (
             <AgentShimmerText key={`bash-live-${tool.toolCallId}`} active>
-              {headerText}
+              <span className="agent-activity-label--muted">{headerText}</span>
+              <span className="agent-activity-label--subtle">…</span>
             </AgentShimmerText>
           ) : failed ? (
             <span className="text-rose-500">{headerText}</span>
           ) : (
-            headerText
+            <>
+              <span className="agent-activity-label--muted">
+                {description.trim() ? "Ran" : "Ran command"}
+              </span>
+              {description.trim() ? (
+                <span className="agent-activity-label--subtle">
+                  {" "}
+                  {description.trim()}
+                </span>
+              ) : null}
+              {command && !description.trim() ? (
+                <span className="agent-activity-label--subtle">
+                  {" "}
+                  <span className="font-mono text-[12px]">
+                    {command.length > 48 ? `${command.slice(0, 48)}…` : command}
+                  </span>
+                </span>
+              ) : null}
+            </>
           )
         }
         trailing={
           !isRunning && code !== null ? (
             <span
               className={cn(
-                "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
-                failed
-                  ? "border-rose-200 bg-rose-50 text-rose-600"
-                  : "border-zinc-200 bg-zinc-50 text-zinc-500",
+                "shrink-0 text-[11px] font-medium tabular-nums",
+                failed ? "text-rose-500" : "agent-activity-label--subtle",
               )}
             >
               exit {code}
@@ -186,11 +209,12 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
           ) : undefined
         }
         isActive={isRunning}
-        defaultExpanded
-        showChevron
+        defaultExpanded={false}
+        chevronMode="hover"
         className="agent-bash-block"
         headerClassName="agent-bash-block__header"
         contentClassName="agent-bash-block__body"
+        titleClassName="text-inherit"
       >
         <ToolBody>
           <div className="px-3 pt-2.5 pb-1">
@@ -388,7 +412,7 @@ function resultDomain(row: WebSearchResult): string {
   return domainFromUrl(row.url);
 }
 
-function WebSearchFaviconStack({
+function WebSearchSourcesMeta({
   favicons,
   count,
 }: {
@@ -428,11 +452,91 @@ function WebSearchFaviconStack({
         </span>
       ) : null}
       {count > 0 ? (
-        <span className="shrink-0 text-[12px] font-[430] tabular-nums leading-none text-zinc-400">
+        <span className="agent-activity-label--subtle shrink-0 text-[12px] font-[430] tabular-nums leading-none">
           {count} {count === 1 ? "source" : "sources"}
         </span>
       ) : null}
     </span>
+  );
+}
+
+/** Hover near the searched label → scrollable sources popup (no expanded list). */
+function WebSearchSourcesHover({
+  results,
+  favicons,
+}: {
+  results: WebSearchResult[];
+  favicons: string[];
+}) {
+  const count = results.length;
+  if (count === 0) return null;
+
+  return (
+    <HoverCard openDelay={120} closeDelay={160}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          className="no-hover no-hover-overlay inline-flex cursor-default items-center border-0 bg-transparent p-0 shadow-none"
+          aria-label={`${count} sources`}
+          onClick={(event) => event.preventDefault()}
+        >
+          <WebSearchSourcesMeta favicons={favicons} count={count} />
+        </button>
+      </HoverCardTrigger>
+      <HoverCardPortal>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={6}
+          className="agent-web-search-popover z-[80] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-zinc-200/90 bg-white p-0 shadow-[0_12px_32px_-12px_rgba(24,24,27,0.28)]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <ul
+            className="app-scrollbar max-h-[min(280px,50vh)] overflow-y-auto overscroll-contain py-1"
+            data-agent-web-search="popover-results"
+          >
+            {results.map((row, index) => {
+              const domain = resultDomain(row);
+              const href = isValidHttpUrl(row.url) ? row.url : undefined;
+              return (
+                <li key={row.url || index}>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      "flex min-w-0 items-start gap-2.5 px-3 py-2 transition-colors",
+                      href ? "hover:bg-zinc-50" : "pointer-events-none",
+                    )}
+                  >
+                    <span className="mt-0.5 shrink-0">
+                      <SearchResultFavicon
+                        favicon={row.favicon}
+                        title={row.title}
+                        size={16}
+                      />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate text-[13px] font-medium leading-5 text-zinc-800">
+                        {row.title || row.url}
+                      </span>
+                      {row.snippet ? (
+                        <span className="line-clamp-2 text-[12px] leading-4.5 text-zinc-500">
+                          {row.snippet}
+                        </span>
+                      ) : null}
+                      <span className="truncate text-[11px] text-zinc-400">
+                        {domain}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </HoverCardContent>
+      </HoverCardPortal>
+    </HoverCard>
   );
 }
 
@@ -443,18 +547,20 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
     (typeof tool.args?.query === "string" ? tool.args.query : "") ||
     "";
   const results = useMemo(() => tool.searchResults ?? [], [tool.searchResults]);
-  const favicons = useMemo(() => extractFavicons(results), [results]);
+  const favicons = useMemo(() => extractFavicons(results), [tool.searchResults]);
   const resultCount = results.length;
 
-  // Live search with no rows yet — shimmer only (no expandable chrome).
   if (isRunning && resultCount === 0) {
     return (
       <div
-        className="flex min-w-0 items-center gap-1.5 text-[13px] font-[430] leading-5 text-zinc-400"
+        className="flex min-w-0 items-center gap-1.5 text-[13px] font-[430] leading-5"
         data-agent-web-search="running"
       >
         <AgentShimmerText key={`ws-live-${tool.toolCallId}`} active>
-          {query ? `Searching "${query}"…` : "Searching the web…"}
+          <span className="agent-activity-label--muted">
+            {query ? `Searching "${query}"` : "Searching the web"}
+          </span>
+          <span className="agent-activity-label--subtle">…</span>
         </AgentShimmerText>
       </div>
     );
@@ -462,91 +568,35 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
 
   const title = isRunning ? (
     <AgentShimmerText key={`ws-live-${tool.toolCallId}`} active>
-      {query ? `Searching "${query}"…` : "Searching the web…"}
+      <span className="agent-activity-label--muted">
+        {query ? `Searching "${query}"` : "Searching the web"}
+      </span>
+      <span className="agent-activity-label--subtle">…</span>
     </AgentShimmerText>
   ) : query ? (
     <>
-      Searched <span className="text-zinc-500">&quot;{query}&quot;</span>
+      <span className="agent-activity-label--muted">Searched </span>
+      <span className="agent-activity-label--subtle">&quot;{query}&quot;</span>
     </>
   ) : (
-    "Searched the web"
+    <span className="agent-activity-label--muted">Searched the web</span>
   );
 
-  // Collapsed by default: favicons + "N sources" sit immediately after the label.
   return (
-    <AgentTraceBlock
-      title={title}
-      trailing={
-        resultCount > 0 ? (
-          <WebSearchFaviconStack favicons={favicons} count={resultCount} />
-        ) : undefined
-      }
-      isActive={isRunning}
-      defaultExpanded={false}
-      showChevron={resultCount > 0}
-      className="agent-web-search"
-      headerClassName="agent-web-search__header"
-      contentClassName="agent-web-search__body"
+    <div
+      className="agent-web-search inline-flex max-w-full min-w-0 flex-wrap items-center gap-1.5"
+      data-agent-web-search="row"
     >
+      <span className="agent-trace__title min-w-0 max-w-[min(100%,36rem)] truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]">
+        {title}
+      </span>
       {resultCount > 0 ? (
-        <ul
-          className="flex w-full flex-col overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]"
-          data-agent-web-search="results"
-        >
-          {results.map((row, index) => {
-            const domain = resultDomain(row);
-            const published = row.publishedDate?.slice(0, 10);
-            return (
-              <li
-                key={row.url || index}
-                className={cn(
-                  "agent-web-search__row",
-                  index > 0 && "border-t border-zinc-100",
-                )}
-              >
-                <a
-                  href={isValidHttpUrl(row.url) ? row.url : undefined}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group/row flex min-w-0 items-start gap-2.5 px-3 py-2.5 transition-colors hover:bg-zinc-50/80"
-                >
-                  <span className="mt-0.5 shrink-0">
-                    <SearchResultFavicon
-                      favicon={row.favicon}
-                      title={row.title}
-                      size={16}
-                    />
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="truncate text-[13px] font-medium leading-5 text-zinc-800 group-hover/row:underline underline-offset-2">
-                      {row.title || row.url}
-                    </span>
-                    {row.snippet ? (
-                      <span className="line-clamp-2 text-[12px] leading-4.5 text-zinc-500">
-                        {row.snippet}
-                      </span>
-                    ) : null}
-                    <span className="flex items-center gap-1.5 text-[11px] text-zinc-400">
-                      <span className="truncate">{domain}</span>
-                      {published ? (
-                        <>
-                          <span aria-hidden="true">·</span>
-                          <span className="shrink-0 tabular-nums">
-                            {published}
-                          </span>
-                        </>
-                      ) : null}
-                    </span>
-                  </span>
-                </a>
-              </li>
-            );
-          })}
-        </ul>
+        <WebSearchSourcesHover results={results} favicons={favicons} />
       ) : null}
-    </AgentTraceBlock>
+    </div>
   );
 }
+
 
 /* ─────────────────────────── file_read ─────────────────────────── */
 
@@ -575,27 +625,26 @@ export function AgentFileReadBlock({ tool }: { tool: AgentToolSegment }) {
         title={
           isRunning ? (
             <AgentShimmerText key={`fr-live-${tool.toolCallId}`} active>
-              Reading {name}…
+              <span className="agent-activity-label--muted">Reading</span>
+              <span className="agent-activity-label--subtle"> {name}…</span>
             </AgentShimmerText>
           ) : tool.status === "error" ? (
             <span className="text-rose-500">Failed to read {name}</span>
           ) : (
-            `Read ${name}`
+            <>
+              <span className="agent-activity-label--muted">Read</span>
+              <span className="agent-activity-label--subtle"> {name}</span>
+            </>
           )
         }
-        trailing={
-          path ? (
-            <span className="max-w-[45%] truncate text-[11px] text-zinc-400">
-              {path}
-            </span>
-          ) : undefined
-        }
+        trailing={undefined}
         isActive={isRunning}
         defaultExpanded={false}
-        showChevron
+        chevronMode="hover"
         className="agent-file-read"
         headerClassName="agent-file-read__header"
         contentClassName="agent-file-read__body"
+        titleClassName="text-inherit"
       >
         {content ? (
           <ToolBody>
