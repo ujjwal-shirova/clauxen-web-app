@@ -45,7 +45,7 @@ description: >-
 - Web search stays as a single row; favicon chips + **"N sources"** open a **hover popover** (scrollable sources) — no expanded results list in the timeline.
 - Fold chrome only for thinking+tool(s) or 2+ tools; lone Thought/tool stay bare. Group headers shimmer while any member runs and auto-collapse on completion.
 - Expand/collapse scroll-anchors through the CSS transition so the body grows **downward** (user bubble does not jump up).
-- Citation chips render **inline while streaming**; the bottom source strip appears only after the turn settles.
+- Citation chips render **inline while streaming**; the bottom source strip + Sources action button appear only **after the turn finishes** (`!isStreaming`).
 - Premature SSE close soft-completes (legacy + UI-message paths); generate keepalives every 5s; do not paint "Connection was interrupted" when useful tokens/tools already rendered.
 - Every generate injects `<current_datetime>` (client IANA timezone + server clock) so the model knows today's day/date/year for web search.
 - MCP servers come from env `CLAUXEN_MCP_SERVERS` (JSON array of `{id,url,headers?}`); tools appear as `mcp__<serverId>__<toolName>`.

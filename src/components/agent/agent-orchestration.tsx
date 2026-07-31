@@ -233,7 +233,7 @@ export function AgentOrchestrationView({
         </div>
       ) : null}
 
-      {sources.length > 0 ? (
+      {sources.length > 0 && !streaming ? (
         <div data-agent-block="sources" className="overflow-anchor-none">
           <SourcesInlineStrip sources={sources} />
         </div>

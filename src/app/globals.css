@@ -391,6 +391,38 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   color: #f4f4f5;
 }
 
+/* Thinking vs main answer — keep reasoning visibly muted in dark theme too */
+.dark .agent-thinking-body,
+.dark .agent-thinking-body .markdown-content p {
+  color: #8b8b93 !important;
+}
+
+.dark .agent-activity-label--muted {
+  color: #9d9da7;
+}
+
+.dark .agent-activity-label--subtle {
+  color: #71717a;
+}
+
+.dark .agent-activity-label--emphasis {
+  color: #e4e4e7;
+}
+
+.dark .shimmer-text {
+  background: linear-gradient(
+    100deg,
+    rgb(113, 113, 122) 0%,
+    rgb(113, 113, 122) 35%,
+    rgba(255, 255, 255, 0.92) 50%,
+    rgb(113, 113, 122) 65%,
+    rgb(113, 113, 122) 100%
+  );
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
 @keyframes stream-token-fade {
   from {
     /* Soft ink-in only — never dip low enough to read as gray flicker. */
@@ -1412,10 +1444,14 @@ button.user-message-card__body:not(:disabled):hover,
   color: #e11d48; /* rose-600 */
 }
 
+.agent-thinking-body {
+  color: #71717a;
+}
+
 .agent-thinking-body .markdown-content p {
   margin: 0 0 0.45em;
   line-height: 1.55 !important;
-  color: #71717a;
+  color: inherit;
 }
 
 .agent-thinking-body .markdown-content p:last-child {
@@ -1428,7 +1464,7 @@ button.user-message-card__body:not(:disabled):hover,
   background: rgba(24, 24, 27, 0.06);
   border-radius: 5px;
   padding: 0.1em 0.35em;
-  color: #52525b;
+  color: inherit;
 }
 
 .agent-web-search__header {

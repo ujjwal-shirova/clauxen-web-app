@@ -269,7 +269,7 @@ Full target surface — **remember only; implement only when user asks for a sli
 
 | 2026-07-31 | Gift recipient email shows purchaser note (HTML + plaintext via clauxen-billing); HoverScrollEnabler lives in root layout and primes scroll hosts on mount so nested overflow works without a prior click. | Gift note must appear in sent email; body overflow:hidden needs proactive wheel routing. |
 
-| 2026-07-31 | Agent timeframe redesigned Cursor-style: flat flush-left rows (no tree rail); fold headers are tool-mix summaries with muted verbs / brighter counts / green-red diffs and **no chevron**; thinking is muted text with hover-only chevron (stays when expanded); web search sources open in a hover scroll popover (no expanded list in the timeline). | Match Cursor activity timeline screenshots |
+| 2026-07-31 | Agent/UI polish PR (branch agent-ui-polish): thinking prose stays muted vs brighter answer text (dark theme enforced); share/more/copy icon buttons normalized to 18px; activity labels shimmer only while tools/thinking run and settle to past tense; inline source cards + Sources action render only after the turn finishes streaming. | Thinking/output contrast, calmer sources, proper shimmer lifecycle |
 
 | 2026-07-31 | Scroll hosts must not be focused (HoverScrollEnabler) — focusing caused blue focus-ring edges on the sidebar. Chrome sizing tokens also cover chat header height, title size, and user/assistant message type. | Blue sidebar edge lines + universal sizing gaps |
 

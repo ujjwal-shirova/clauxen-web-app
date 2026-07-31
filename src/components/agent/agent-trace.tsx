@@ -97,7 +97,7 @@ export function AgentTraceBlock({
   };
 
   const showChevronIcon = mode !== "never" && canCollapse;
-  const chevronVisibleClass =
+  const hoverClass =
     mode === "always"
       ? "opacity-100"
       : mode === "hover-collapsed"
@@ -132,7 +132,7 @@ export function AgentTraceBlock({
         <ChevronRight
           className={cn(
             "agent-trace__chevron h-3.5 w-3.5 shrink-0 text-zinc-400 transition-[opacity,transform] duration-150 ease-out",
-            chevronVisibleClass,
+            hoverClass,
             expanded && "rotate-90",
           )}
           aria-hidden
