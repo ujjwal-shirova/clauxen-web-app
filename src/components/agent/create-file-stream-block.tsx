@@ -39,6 +39,7 @@ export function CreateFileStreamBlock({
                 "truncate text-[13px] font-semibold text-zinc-800",
                 isStreaming && "shimmer-text",
               )}
+              data-shimmer-active={isStreaming || undefined}
             >
               {isStreaming ? `Creating ${block.title}` : block.title}
             </p>

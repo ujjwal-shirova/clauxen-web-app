@@ -402,9 +402,11 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 }
 
 /* Answer prose stays the brightest text in the turn. */
-.dark [data-agent-block="answer"] .markdown-content,
-.dark [data-agent-block="answer"] .markdown-content p,
-.dark [data-agent-block="answer"] .markdown-content li {
+.dark .agent-answer-body,
+.dark .agent-answer-body .markdown-content,
+.dark .agent-answer-body .markdown-content p,
+.dark .agent-answer-body .markdown-content li,
+.dark .agent-answer-body .markdown-content strong {
   color: #ececf1 !important;
 }
 
@@ -1753,6 +1755,14 @@ button.user-message-card__body:not(:disabled):hover,
   min-height: var(--icon-btn-size);
   padding: 7px;
   border-radius: 8px !important;
+}
+
+.assistant-message-actions {
+  min-height: var(--icon-btn-size);
+}
+
+.assistant-message-actions > [data-more-trigger] {
+  display: inline-flex;
 }
 
 .assistant-message button[aria-label="Copy message"]:hover,

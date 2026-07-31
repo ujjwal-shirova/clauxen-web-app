@@ -4,6 +4,7 @@ import {
   hostCanConsume,
   resolveWheelIntent,
   scrollHostAxes,
+  wheelDeltaInPixels,
   type OverflowStyle,
 } from "@/lib/nested-scroll";
 
@@ -106,5 +107,19 @@ describe("resolveWheelIntent", () => {
 
   it("ignores empty gestures", () => {
     assert.equal(resolveWheelIntent({ deltaX: 0, deltaY: 0 }), null);
+  });
+});
+
+describe("wheelDeltaInPixels", () => {
+  it("keeps pixel deltas unchanged", () => {
+    assert.equal(wheelDeltaInPixels(12, 0, 600), 12);
+  });
+
+  it("converts line deltas for manual nested-scroll routing", () => {
+    assert.equal(wheelDeltaInPixels(-3, 1, 600), -48);
+  });
+
+  it("converts page deltas using the target viewport size", () => {
+    assert.equal(wheelDeltaInPixels(1, 2, 720), 720);
   });
 });

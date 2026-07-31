@@ -29,7 +29,10 @@ export function TitledMarkdownTable({
     if (!isStreaming) return null;
     return (
       <div className="composer-message-table my-4 flex min-h-[38px] w-full items-center rounded-[13px] border border-zinc-200/85 bg-white px-4 py-2 shadow-[0_1px_2px_rgba(24,24,27,0.025)]">
-        <span className="shimmer-text truncate text-[13px] font-semibold text-zinc-800">
+        <span
+          className="shimmer-text truncate text-[13px] font-semibold text-zinc-800"
+          data-shimmer-active="true"
+        >
           {title}
         </span>
       </div>

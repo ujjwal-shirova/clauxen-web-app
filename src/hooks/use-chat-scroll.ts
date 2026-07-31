@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isChatScrollAnchorLockActive } from "@/lib/chat-scroll-anchor";
+import { resolveWheelIntent } from "@/lib/nested-scroll";
 
 type UseChatScrollOptions = {
   /** Radix ScrollArea root ref (we resolve the viewport from it). */
@@ -119,14 +120,25 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     programmaticScrollUntilRef.current = 0;
     cancelFollow();
 
-    // Unpin synchronously on the gesture — do not wait for the scroll RAF.
-    // Otherwise a follow tick in the same frame can yank back toward bottom
-    // (or a sticky remount can feel like a jump to the message top).
-    const viewport = resolveViewport();
-    if (viewport) {
-      syncPinnedFromViewport(viewport);
-    }
-  }, [cancelFollow, resolveViewport, syncPinnedFromViewport]);
+  }, [cancelFollow]);
+
+  const handleUserWheel = useCallback(
+    (event: WheelEvent) => {
+      const intent = resolveWheelIntent(event);
+      // Horizontal gestures inside code/table blocks must not affect vertical
+      // stream-follow state.
+      if (!intent || intent.axis !== "y") return;
+
+      markUserInput();
+      // Scrolling upward is an explicit request to read earlier content. Unpin
+      // immediately even when the gesture begins inside the 96px repin zone;
+      // otherwise auto-follow resumes after the cooldown and fights the user.
+      if (intent.delta < 0) {
+        pinnedRef.current = false;
+      }
+    },
+    [markUserInput],
+  );
 
   const isUserInputActive = useCallback(() => {
     return performance.now() < userInputUntilRef.current;
@@ -244,22 +256,11 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
         return;
       }
 
-      // While reading earlier content, growth/collapse elsewhere (LOD restore,
-      // fold headers, tool cards) must not yank the lines in view. Preserve
-      // distance-from-bottom for both positive and negative deltas.
-      if (!pinnedRef.current && !isUserInputActive()) {
-        const distance = Math.max(
-          0,
-          prevScrollHeight - viewport.clientHeight - viewport.scrollTop,
-        );
-        const nextTop = Math.max(
-          0,
-          nextScrollHeight - viewport.clientHeight - distance,
-        );
-        if (Math.abs(nextTop - viewport.scrollTop) > 0.5) {
-          markProgrammaticScroll();
-          viewport.scrollTop = nextTop;
-        }
+      // Never rewrite scrollTop while the user is reading earlier content.
+      // Most stream growth happens below the viewport, so preserving the old
+      // distance-from-bottom visibly moved the current line by every height
+      // delta. Explicit expand/collapse operations own their local anchor.
+      if (!pinnedRef.current) {
         return;
       }
 
@@ -272,7 +273,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     viewport.addEventListener("scroll", handleScroll, { passive: true });
     // Capture phase so nested tool/thinking overflow scrollers still unpin
     // stream-follow when the user wheels away from the bottom.
-    viewport.addEventListener("wheel", markUserInput, {
+    viewport.addEventListener("wheel", handleUserWheel, {
       passive: true,
       capture: true,
     });
@@ -290,7 +291,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     return () => {
       resizeObserver.disconnect();
       viewport.removeEventListener("scroll", handleScroll);
-      viewport.removeEventListener("wheel", markUserInput, true);
+      viewport.removeEventListener("wheel", handleUserWheel, true);
       viewport.removeEventListener("touchstart", markUserInput, true);
       viewport.removeEventListener("touchmove", markUserInput, true);
       cancelFollow();
@@ -304,6 +305,7 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     resolveViewport,
     scheduleStickToBottom,
     markUserInput,
+    handleUserWheel,
     markProgrammaticScroll,
     isUserInputActive,
     syncPinnedFromViewport,

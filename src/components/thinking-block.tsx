@@ -99,12 +99,9 @@ export function ThinkingBlock({
     return null;
   }
 
-  // Collapsed label is just the duration — no "Thought for" prefix. The
-  // shimmering heading during streaming already tells the user this is
-  // reasoning; the collapsed state is a quiet one-line summary.
   const displayLabel = isStreaming
     ? label
-    : `${elapsedSeconds}s`;
+    : `Thought for ${elapsedSeconds}s`;
 
   return (
     <div

@@ -43,6 +43,7 @@ import { useAppPreferencesOptional } from "@/contexts/app-preferences-context";
 import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
 import { dedupeChatMessages } from "@/lib/dedupe-chat-messages";
 import { syncStickyUserMessages } from "@/lib/chat-sticky";
+import { hasCompletedAssistantOutput } from "@/lib/assistant-output-state";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
@@ -239,6 +240,7 @@ const MessageRow = React.memo(
       () => (message.role === "assistant" ? collectMessageSources(message) : []),
       [message],
     );
+    const outputComplete = hasCompletedAssistantOutput(message);
 
     return (
       <div
@@ -440,7 +442,7 @@ const MessageRow = React.memo(
                   <div
                     data-message-id={message.id}
                     data-assistant-content="true"
-                    className="min-w-0"
+                    className="agent-answer-body min-w-0"
                   >
                     <AssistantContentRenderer
                       content={message.content}
@@ -455,12 +457,10 @@ const MessageRow = React.memo(
                 ) : null}
               </>
             )}
-            {(shouldUseAgentMessageLayout(message) ||
-              message.content.trim().length > 0) &&
-            !message.isStreaming &&
+            {outputComplete &&
             !isAssistantGenerationError(message) ? (
               <>
-                <div className="relative mt-2 flex flex-wrap items-center gap-0.5 overflow-anchor-none font-sans text-zinc-500">
+                <div className="assistant-message-actions relative mt-2 flex flex-wrap items-center gap-0.5 overflow-anchor-none font-sans text-zinc-500">
                       <HintTooltip content="Copy" side="bottom" align="start">
                         <button
                           type="button"
@@ -546,7 +546,7 @@ const MessageRow = React.memo(
                           <button
                             type="button"
                             onClick={() => onOpenSources?.(message.id)}
-                            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2.5 text-[13px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2.5 text-[12.5px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50"
                           >
                             <span className="flex -space-x-1">
                               {messageSources.slice(0, 3).map((source) => (
@@ -559,11 +559,11 @@ const MessageRow = React.memo(
                                   alt=""
                                   loading="lazy"
                                   decoding="async"
-                                  className="size-5 rounded-full border border-white bg-white"
+                                  className="size-4 rounded-full border border-white bg-white"
                                 />
                               ))}
                             </span>
-                            <Search className="size-[18px]" />
+                            <Search className="size-4" />
                             <span>Sources</span>
                           </button>
                         </HintTooltip>
@@ -1469,5 +1469,4 @@ export function ConversationThread({
     </FollowUpPromptProvider>
   );
 }
-
 

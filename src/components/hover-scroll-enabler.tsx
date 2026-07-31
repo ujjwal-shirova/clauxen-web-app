@@ -5,6 +5,7 @@ import {
   markScrollHostPrepared,
   resolveWheelScrollTarget,
   scrollHostAxes,
+  wheelDeltaInPixels,
 } from "@/lib/nested-scroll";
 
 /**
@@ -17,7 +18,6 @@ import {
  */
 
 function prepareScrollHost(el: HTMLElement) {
-  if (el.dataset.scrollReady === "1") return;
   const axes = scrollHostAxes(el, window.getComputedStyle(el));
   markScrollHostPrepared(el);
   el.style.setProperty("-webkit-overflow-scrolling", "touch");
@@ -76,12 +76,18 @@ export function HoverScrollEnabler() {
       });
       if (!resolved) return;
 
-      const { host, axis, delta, mustTakeOver } = resolved;
+      const { host, axis, mustTakeOver } = resolved;
       prepareScrollHost(host);
 
       // Native scrolling keeps trackpad inertia, so only intervene when an
       // intermediate scroller would trap the delta.
       if (!mustTakeOver) return;
+
+      const delta = wheelDeltaInPixels(
+        resolved.delta,
+        event.deltaMode,
+        axis === "y" ? host.clientHeight : host.clientWidth,
+      );
 
       if (axis === "y") {
         const max = host.scrollHeight - host.clientHeight;

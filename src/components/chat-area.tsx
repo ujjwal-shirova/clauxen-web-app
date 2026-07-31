@@ -448,8 +448,7 @@ function ChatAreaLayout({
         <div
           className={cn(
             "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0 pb-1.5 transition-[padding-right] duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] sm:pb-1.5",
-            showDesktopArtifactsRail &&
-              (isArtifactsPanelOpen ? "lg:pr-[392px]" : "lg:pr-28"),
+            showDesktopArtifactsRail && isArtifactsPanelOpen && "lg:pr-[392px]",
           )}
         >
           {!incognito &&
