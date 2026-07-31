@@ -36,6 +36,7 @@ import {
 import { AddPaymentMethodDialog } from "@/components/settings/add-payment-method-dialog";
 import { ManagePlanDialog } from "@/components/settings/manage-plan-dialog";
 import { SettingsBillingSkeleton } from "@/components/settings/settings-page-skeleton";
+import { writeCachedBillingPlan } from "@/lib/billing-plan-cache";
 import {
   SettingsFieldBlock,
   SettingsPanelTitle,
@@ -177,6 +178,9 @@ export function BillingSettings({
         listPurchasedGifts().catch(() => ({ gifts: [] as PurchasedGiftRow[] })),
       ]);
       const sub = overview.subscription;
+      const nextPlanId = sub?.plan_id ?? "free";
+      const match = overview.plans?.find((p) => p.id === nextPlanId);
+      writeCachedBillingPlan(nextPlanId, match?.display_name || nextPlanId);
       setPlanId(sub?.plan_id ?? null);
       setCancelAtEnd(!!sub?.cancel_at_period_end);
       setPeriodEnd(sub?.current_period_end ?? null);

@@ -37,6 +37,10 @@ import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
 import { Skeleton } from "@/components/ui/skeleton";
 import { focusAppSurface } from "@/lib/surface-focus";
 import {
+  readCachedBillingPlan,
+  writeCachedBillingPlan,
+} from "@/lib/billing-plan-cache";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -283,8 +287,11 @@ export function Sidebar({
   const [pinnedExpanded, setPinnedExpanded] = useState(true);
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [recentsExpanded, setRecentsExpanded] = useState(true);
-  const [planLabel, setPlanLabel] = useState<string | null>(null);
-  const [planLoading, setPlanLoading] = useState(false);
+  const cachedPlan = readCachedBillingPlan();
+  const [planLabel, setPlanLabel] = useState<string | null>(
+    () => cachedPlan?.planLabel ?? null,
+  );
+  const [planLoading, setPlanLoading] = useState(() => !cachedPlan);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -310,24 +317,24 @@ export function Sidebar({
         setPlanLoading(false);
         return;
       }
-      setPlanLoading(true);
-      setPlanLabel(null);
+      const hasCached = Boolean(readCachedBillingPlan());
+      if (!hasCached) setPlanLoading(true);
       try {
         const { getBillingSubscription } = await import("@/lib/api/billing");
         const overview = await getBillingSubscription();
         if (cancelled) return;
-        const planId = overview.subscription?.plan_id;
-        if (!planId) {
-          setPlanLabel("Free plan");
-          return;
-        }
+        const planId = overview.subscription?.plan_id ?? "free";
         const match = overview.plans?.find((p) => p.id === planId);
-        const name = match?.display_name || planId;
-        setPlanLabel(
-          name.toLowerCase().includes("plan") ? name : `${name} plan`,
+        const cached = writeCachedBillingPlan(
+          planId,
+          match?.display_name || planId,
         );
+        setPlanLabel(cached.planLabel);
       } catch {
-        if (!cancelled) setPlanLabel("Free plan");
+        if (!cancelled) {
+          const fallback = writeCachedBillingPlan("free");
+          setPlanLabel(fallback.planLabel);
+        }
       } finally {
         if (!cancelled) setPlanLoading(false);
       }
@@ -968,8 +975,7 @@ export function Sidebar({
                     onPointerDown={(e) => e.stopPropagation()}
                     aria-label="Account menu"
                     className={cn(
-                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100",
-                      accountMenuOpen && "invisible pointer-events-none",
+                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center outline-none transition-colors duration-200 hover:bg-zinc-100 data-[state=open]:bg-zinc-100",
                       isCollapsed
                         ? "h-10 w-10 shrink-0 items-center justify-center rounded-full !p-0"
                         : "h-auto min-h-[44px] w-full justify-start gap-2.5 rounded-xl px-2.5 py-2",

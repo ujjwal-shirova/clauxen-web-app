@@ -13,6 +13,10 @@ import {
   getBillingSubscription,
 } from "@/lib/api/billing";
 import { useOverlaySurfaceFocus } from "@/lib/surface-focus";
+import {
+  readCachedPlanId,
+  writeCachedBillingPlan,
+} from "@/lib/billing-plan-cache";
 
 interface UpgradeViewProps {
   onClose: () => void;
@@ -31,16 +35,24 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
     useState<BillingCycle>("monthly");
   const [selectedMaxTier, setSelectedMaxTier] = useState<MaxTier>("5x");
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
-  const [currentPlanId, setCurrentPlanId] = useState<string>("free");
+  const [currentPlanId, setCurrentPlanId] = useState<string>(() =>
+    readCachedPlanId("free"),
+  );
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [lastPaymentId, setLastPaymentId] = useState<string | null>(null);
 
   const refreshCurrentPlan = useCallback(async () => {
     try {
       const overview = await getBillingSubscription();
-      setCurrentPlanId(overview.subscription?.plan_id ?? "free");
+      const planId = overview.subscription?.plan_id ?? "free";
+      const match = overview.plans?.find((p) => p.id === planId);
+      const cached = writeCachedBillingPlan(
+        planId,
+        match?.display_name || planId,
+      );
+      setCurrentPlanId(cached.planId);
     } catch {
-      /* keep previous */
+      /* keep cached / previous */
     }
   }, []);
 

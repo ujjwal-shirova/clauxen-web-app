@@ -22,6 +22,7 @@ import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { useProjects } from "@/hooks/use-projects";
 import * as projectsApi from "@/lib/api/projects";
 import { getBillingSubscription } from "@/lib/api/billing";
+import { writeCachedBillingPlan } from "@/lib/billing-plan-cache";
 import {
   DEFAULT_CHAT_MODEL_ID,
   type ChatModelId,
@@ -120,8 +121,9 @@ function ChatViewBody({
     setShowPaymentSuccess(true);
     void getBillingSubscription()
       .then((overview) => {
-        const planId = overview.subscription?.plan_id;
+        const planId = overview.subscription?.plan_id ?? "free";
         const match = overview.plans?.find((p) => p.id === planId);
+        writeCachedBillingPlan(planId, match?.display_name || planId);
         setSuccessPlanName(match?.display_name || planId || null);
         window.dispatchEvent(new CustomEvent("clauxen:billing-updated"));
       })
