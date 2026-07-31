@@ -22,7 +22,7 @@ export function AgentWorkGroupView({
 }) {
   return (
     <div
-      className="agent-work-group-enter"
+      className="agent-timeline-event agent-work-group-enter"
       data-agent-work-group="true"
       data-active={group.isActive || undefined}
     >

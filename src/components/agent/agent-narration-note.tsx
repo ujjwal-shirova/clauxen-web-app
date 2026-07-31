@@ -23,10 +23,11 @@ export function AgentNarrationNote({
   return (
     <div
       className={cn(
-        "agent-narration min-w-0 animate-in fade-in duration-200 text-[14px] font-[430] leading-[1.55] tracking-[-0.01em] text-zinc-800",
+        "agent-narration min-w-0 animate-in fade-in duration-200 text-[14px] font-[430] leading-[1.6] tracking-[-0.01em] text-zinc-700",
         segment.isStreaming && "text-zinc-900",
       )}
       data-agent-segment="narration"
+      data-agent-narration="true"
       data-streaming={segment.isStreaming || undefined}
     >
       <MarkdownRenderer

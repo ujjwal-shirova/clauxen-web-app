@@ -123,7 +123,9 @@ function renderGroupMembers(
 }
 
 /**
- * Agent transcript: planning → narration outside timeline → tool groups → answer.
+ * Agent transcript: a deliberately subdued Cursor-style activity timeline,
+ * narration outside that timeline, then the readable final answer. These are
+ * separate surfaces so progress text never competes with the answer.
  * Orb sits at the bottom only while generating and before answer tokens.
  */
 export function AgentOrchestrationView({
@@ -173,7 +175,7 @@ export function AgentOrchestrationView({
         );
 
         return (
-          <AgentTrace key={frame.id}>
+          <AgentTrace key={frame.id} className="agent-activity-timeline">
             {items.map((item) => {
               if (item.kind === "narration") {
                 return (
@@ -192,7 +194,7 @@ export function AgentOrchestrationView({
                 return (
                   <div
                     key={group.id}
-                    className="agent-work-group-enter flex w-full min-w-0 flex-col gap-1"
+                    className="agent-timeline-event agent-work-group-enter flex w-full min-w-0 flex-col gap-1"
                     data-agent-work-group="bare"
                     data-active={group.isActive || undefined}
                   >
@@ -212,7 +214,11 @@ export function AgentOrchestrationView({
       })}
 
       {answer && !suppressDuplicateAnswer ? (
-        <div data-agent-block="answer" className="agent-answer-body">
+        <div
+          data-agent-block="answer"
+          className="agent-answer-body"
+          data-assistant-final-answer="true"
+        >
           {isAssistantGenerationError(message) ? (
             <p
               data-assistant-error="true"

@@ -54,7 +54,7 @@ export function AgentThinkingPhase({
       title={title}
       chevronMode="hover-collapsed"
       isActive={segment.isStreaming === true}
-      className="agent-thinking-phase"
+      className="agent-timeline-event agent-thinking-phase"
       headerClassName="agent-thinking-phase__header"
       contentClassName="agent-thinking-phase__body"
       titleClassName="text-inherit"

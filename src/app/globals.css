@@ -422,6 +422,31 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   color: #e4e4e7;
 }
 
+/* Keep the same three-level hierarchy in dark mode. The old treatment let
+   activity prose collapse into the answer because both were near-white. */
+.dark .agent-activity-timeline::before {
+  background: #3f3f46;
+}
+
+.dark .agent-timeline-event::before {
+  border-color: #71717a;
+  background: #18181b;
+}
+
+.dark .agent-timeline-event[data-active="true"]::before,
+.dark .agent-thinking-phase[data-active="true"]::before {
+  border-color: #a1a1aa;
+  background: #a1a1aa;
+  box-shadow: 0 0 0 3px rgba(161, 161, 170, 0.14);
+}
+
+.dark .agent-narration,
+.dark .agent-narration .markdown-content,
+.dark .agent-narration .markdown-content p,
+.dark .agent-narration .markdown-content li {
+  color: #b4b4bd !important;
+}
+
 .dark .shimmer-text {
   background: linear-gradient(
     100deg,
@@ -1420,12 +1445,56 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /* ─── Clauxen agent action stack ───────────────────────────────────────────
-   Cursor-style flat timeline: muted verbs, brighter counts, green/red diffs.
-   No left tree rail. Work-group headers have no chevron. */
+   Cursor-style activity is intentionally a separate visual language from
+   narration and the final answer: quiet metadata, a precise timeline rail,
+   and compact tool surfaces. It must never look like answer prose. */
 
 .agent-trace {
   width: 100%;
   min-width: 0;
+}
+
+.agent-activity-timeline {
+  position: relative;
+  gap: 0.5rem;
+  padding: 0.15rem 0 0.15rem 1.05rem;
+}
+
+/* A restrained, continuous Cursor-like rail keeps a long run of activity
+   scannable without turning every action into a card. */
+.agent-activity-timeline::before {
+  position: absolute;
+  top: 0.52rem;
+  bottom: 0.52rem;
+  left: 0.23rem;
+  width: 1px;
+  content: "";
+  background: #e4e4e7;
+}
+
+.agent-timeline-event {
+  position: relative;
+}
+
+.agent-timeline-event::before {
+  position: absolute;
+  top: 0.48rem;
+  left: -0.99rem;
+  z-index: 1;
+  width: 0.48rem;
+  height: 0.48rem;
+  box-sizing: border-box;
+  content: "";
+  border: 1.5px solid #a1a1aa;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.agent-timeline-event[data-active="true"]::before,
+.agent-thinking-phase[data-active="true"]::before {
+  border-color: #71717a;
+  background: #71717a;
+  box-shadow: 0 0 0 3px rgba(113, 113, 122, 0.12);
 }
 
 .agent-trace__collapse {
@@ -1434,6 +1503,14 @@ button.user-message-card__body:not(:disabled):hover,
 
 .agent-work-group__header {
   max-width: 100%;
+}
+
+.agent-work-group__body {
+  padding-bottom: 0.15rem;
+}
+
+.agent-trace__header {
+  min-height: 1.35rem;
 }
 
 .agent-activity-label--muted {
@@ -1484,6 +1561,40 @@ button.user-message-card__body:not(:disabled):hover,
   border-radius: 5px;
   padding: 0.1em 0.35em;
   color: inherit;
+}
+
+/* Narration is a progress note, not an activity event and not the answer. */
+.agent-narration {
+  margin: 0.15rem 0 0.25rem;
+  padding-left: 0.15rem;
+  color: #52525b;
+}
+
+.agent-narration .markdown-content,
+.agent-narration .markdown-content p,
+.agent-narration .markdown-content li {
+  color: inherit !important;
+}
+
+/* Final output gets a clear reset after the subdued action timeline. */
+.agent-answer-body {
+  margin-top: 0.2rem;
+  color: #18181b;
+}
+
+.agent-answer-body .markdown-content,
+.agent-answer-body .markdown-content p,
+.agent-answer-body .markdown-content li,
+.agent-answer-body .markdown-content strong {
+  color: inherit;
+}
+
+.agent-answer-body > .markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.agent-answer-body > .markdown-content > :last-child {
+  margin-bottom: 0;
 }
 
 .agent-web-search__header {
