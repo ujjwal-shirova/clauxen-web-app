@@ -14,6 +14,7 @@ description: >-
 
 ## Key files
 
+
 | Concern         | Path                                                                                                                        |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Client API      | `src/hooks/use-chat-api.ts`                                                                                                 |
@@ -36,6 +37,9 @@ description: >-
 | Branch sanitize | `src/server/chat/sanitize-branch-messages.ts`                                                                               |
 | Follow-ups      | `src/lib/follow-up-tags.ts`                                                                                                 |
 
+
+
+
 ## Agent transcript architecture (2026-07-29 rebuild)
 
 - Per-round model text **before** tool calls streams as `narration` segments; a round with **no tool calls** is promoted to the durable answer via SSE `answer_finalize` (reducer marks the segment `isFinal` and sets `message.content` — restyle in place, never teleport).
@@ -46,15 +50,19 @@ description: >-
 - Fold chrome only for thinking+tool(s) or 2+ tools; lone Thought/tool stay bare. Group headers shimmer while any member runs and auto-collapse on completion.
 - Expand/collapse scroll-anchors through the CSS transition so the body grows **downward** (user bubble does not jump up).
 - Citation chips render **inline while streaming**; the bottom source strip + Sources action button appear only **after the turn finishes** (`!isStreaming`).
+- Activity labels shimmer **only while that step runs**; descendants of `.shimmer-text[data-shimmer-active]` are forced transparent so tone classes don't paint over the gradient (that made labels look flat).
+- Nested scrolling is axis-aware (`src/lib/nested-scroll.ts`): x-only code/table blocks must never swallow vertical deltas; JS only preventDefaults when an intermediate scroller is pinned at its end.
 - Premature SSE close soft-completes (legacy + UI-message paths); generate keepalives every 5s; do not paint "Connection was interrupted" when useful tokens/tools already rendered.
 - Every generate injects `<current_datetime>` (client IANA timezone + server clock) so the model knows today's day/date/year for web search.
 - MCP servers come from env `CLAUXEN_MCP_SERVERS` (JSON array of `{id,url,headers?}`); tools appear as `mcp__<serverId>__<toolName>`.
 - Skills load from the bundled `skills-pack/` directory only — never developer-homedir paths.
 
+
+
 ## Hard rules
 
 1. **clientId** for React keys / stream — DB id remaps must not remount.
-2. **No `loading.tsx`** on `/new` or `/c/[chatId]`.
+2. **No** `loading.tsx` on `/new` or `/c/[chatId]`.
 3. Navigate to `/c/{id}` **as soon as** durable chat id exists.
 4. While this tab owns SSE: **mute** `chat_messages` Realtime except id remaps.
 5. Live streaming assistant **wins** over empty cold snapshots in dedupe.
@@ -66,6 +74,8 @@ description: >-
 11. Single agent activity frame per turn; persist `agent_ui` on `content_json`.
 12. Lease via chat-coord DO; 409 if already generating — never force second lease.
 
+
+
 ## Checklist when changing chat
 
 - [ ] Optimistic + clientId stable
@@ -75,7 +85,10 @@ description: >-
 - [ ] Device cache + Worker invalidate/warm
 - [ ] Tests under `src/lib/*.test.ts` if lib logic changed
 
+
+
 ## Additional resources
 
 - [reference.md](reference.md)
 - [examples.md](examples.md)
+

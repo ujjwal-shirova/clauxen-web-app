@@ -1,76 +1,48 @@
 "use client";
 
 import { useEffect } from "react";
+import {
+  markScrollHostPrepared,
+  resolveWheelScrollTarget,
+  scrollHostAxes,
+} from "@/lib/nested-scroll";
 
 /**
  * App-wide nested scrolling under html/body { overflow: hidden }.
- * Primes overflow hosts on mount and routes wheel/trackpad deltas to the
- * nearest scrollable ancestor — without focusing hosts (avoids blue focus rings).
+ *
+ * Routes wheel/trackpad deltas to the nearest ancestor that can actually
+ * consume them **on that axis, in that direction**. Horizontal-only hosts
+ * (code blocks, tables) therefore never swallow a vertical page scroll, which
+ * is what produced the stalls and jumps when the cursor sat inside a block.
  */
-
-function overflowAllowsScroll(value: string): boolean {
-  return value === "auto" || value === "scroll" || value === "overlay";
-}
-
-function isScrollableHost(el: HTMLElement): boolean {
-  const style = window.getComputedStyle(el);
-  const canY =
-    overflowAllowsScroll(style.overflowY) &&
-    el.scrollHeight > el.clientHeight + 1;
-  const canX =
-    overflowAllowsScroll(style.overflowX) &&
-    el.scrollWidth > el.clientWidth + 1;
-  return canY || canX;
-}
 
 function prepareScrollHost(el: HTMLElement) {
   if (el.dataset.scrollReady === "1") return;
-  el.dataset.scrollReady = "1";
-  el.style.setProperty("overscroll-behavior", "contain");
+  const axes = scrollHostAxes(el, window.getComputedStyle(el));
+  markScrollHostPrepared(el);
   el.style.setProperty("-webkit-overflow-scrolling", "touch");
   el.style.setProperty("outline", "none");
+  // Only trap the axis this host actually scrolls. Trapping both axes on an
+  // x-only host blocks vertical chaining to the transcript viewport.
+  el.style.setProperty("overscroll-behavior-x", axes.x ? "contain" : "auto");
+  el.style.setProperty("overscroll-behavior-y", axes.y ? "contain" : "auto");
 }
 
-function findScrollHost(start: EventTarget | null): HTMLElement | null {
-  if (!(start instanceof Element)) return null;
-  let node: Element | null = start;
-  while (node && node !== document.documentElement) {
-    if (node instanceof HTMLElement) {
-      const viewport = node.matches("[data-radix-scroll-area-viewport]")
-        ? node
-        : node.querySelector<HTMLElement>(
-            ":scope > [data-radix-scroll-area-viewport]",
-          );
-      if (viewport && isScrollableHost(viewport)) {
-        prepareScrollHost(viewport);
-        return viewport;
-      }
-      if (isScrollableHost(node)) {
-        prepareScrollHost(node);
-        return node;
-      }
-    }
-    node = node.parentElement;
-  }
-  return null;
-}
+const HOST_SELECTOR = [
+  "[data-scroll-region]",
+  "[data-radix-scroll-area-viewport]",
+  ".overflow-y-auto",
+  ".overflow-x-auto",
+  ".overflow-auto",
+  ".app-scrollbar",
+  ".sidebar-scrollable",
+  ".markdown-code-scroll",
+  ".markdown-table-scroll",
+].join(",");
 
 function scanAndPrepareScrollHosts(root: ParentNode = document) {
-  const candidates = root.querySelectorAll<HTMLElement>(
-    [
-      "[data-scroll-region]",
-      "[data-radix-scroll-area-viewport]",
-      ".overflow-y-auto",
-      ".overflow-x-auto",
-      ".overflow-auto",
-      ".app-scrollbar",
-      ".sidebar-scrollable",
-    ].join(","),
-  );
-  for (const el of candidates) {
-    if (isScrollableHost(el) || el.hasAttribute("data-scroll-region")) {
-      prepareScrollHost(el);
-    }
+  for (const el of root.querySelectorAll<HTMLElement>(HOST_SELECTOR)) {
+    prepareScrollHost(el);
   }
 }
 
@@ -82,13 +54,7 @@ export function HoverScrollEnabler() {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
           if (!(node instanceof HTMLElement)) continue;
-          if (
-            node.matches?.(
-              "[data-scroll-region], .overflow-y-auto, .overflow-auto, .sidebar-scrollable, [data-radix-scroll-area-viewport]",
-            )
-          ) {
-            prepareScrollHost(node);
-          }
+          if (node.matches?.(HOST_SELECTOR)) prepareScrollHost(node);
           scanAndPrepareScrollHosts(node);
         }
       }
@@ -101,32 +67,37 @@ export function HoverScrollEnabler() {
 
     const onWheel = (event: WheelEvent) => {
       if (event.defaultPrevented || event.ctrlKey) return;
-      const host = findScrollHost(event.target);
-      if (!host) return;
 
-      const { deltaX, deltaY } = event;
-      if (deltaX === 0 && deltaY === 0) return;
+      const resolved = resolveWheelScrollTarget(event.target, {
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+        shiftKey: event.shiftKey,
+        getStyle: (el) => window.getComputedStyle(el),
+      });
+      if (!resolved) return;
 
-      let applied = false;
-      if (Math.abs(deltaY) >= Math.abs(deltaX)) {
-        const before = host.scrollTop;
+      const { host, axis, delta, mustTakeOver } = resolved;
+      prepareScrollHost(host);
+
+      // Native scrolling keeps trackpad inertia, so only intervene when an
+      // intermediate scroller would trap the delta.
+      if (!mustTakeOver) return;
+
+      if (axis === "y") {
         const max = host.scrollHeight - host.clientHeight;
-        const next = Math.max(0, Math.min(max, before + deltaY));
-        if (next !== before) {
-          host.scrollTop = next;
-          applied = true;
-        }
+        const next = Math.max(0, Math.min(max, host.scrollTop + delta));
+        if (next === host.scrollTop) return;
+        host.scrollTop = next;
       } else {
-        const before = host.scrollLeft;
         const max = host.scrollWidth - host.clientWidth;
-        const next = Math.max(0, Math.min(max, before + deltaX));
-        if (next !== before) {
-          host.scrollLeft = next;
-          applied = true;
-        }
+        const next = Math.max(0, Math.min(max, host.scrollLeft + delta));
+        if (next === host.scrollLeft) return;
+        host.scrollLeft = next;
       }
 
-      if (applied) event.preventDefault();
+      // We own this gesture now — stop native chaining so the transcript
+      // cannot double-apply the delta (that was the visible "jump").
+      event.preventDefault();
     };
 
     document.addEventListener("wheel", onWheel, {

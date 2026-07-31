@@ -7,7 +7,6 @@ import {
   GitBranch,
   MoreHorizontal,
   Search,
-  Share2,
   Sparkles,
   Volume2,
 } from "lucide-react";
@@ -113,6 +112,20 @@ const RetryIcon = () => (
     xmlns="http://www.w3.org/2000/svg"
   >
     <path d="M10.3857 2.50977C14.3486 2.71054 17.5 5.98724 17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 7.54619 3.67878 5.3677 5.49902 4H3C2.72386 4 2.5 3.77614 2.5 3.5C2.5 3.22386 2.72386 3 3 3H6.5C6.63261 3 6.75975 3.05272 6.85352 3.14648C6.92392 3.21689 6.97106 3.30611 6.99023 3.40234L7 3.5V7C7 7.27614 6.77614 7.5 6.5 7.5C6.22386 7.5 6 7.27614 6 7V4.87891C4.4782 6.06926 3.5 7.91979 3.5 10C3.5 13.5899 6.41015 16.5 10 16.5C13.5899 16.5 16.5 13.5899 16.5 10C16.5 6.5225 13.7691 3.68312 10.335 3.50879L10 3.5L9.89941 3.49023C9.67145 3.44371 9.5 3.24171 9.5 3C9.5 2.72386 9.72386 2.5 10 2.5L10.3857 2.50977Z" />
+  </svg>
+);
+
+/** Share glyph matching the filled 20-grid set (the lucide node graph read odd). */
+const ShareIcon = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <path d="M10 2.5c.133 0 .26.053.354.146l3 3a.5.5 0 0 1-.708.708L10.5 3.707V12.5a.5.5 0 0 1-1 0V3.707L7.354 6.354a.5.5 0 1 1-.708-.708l3-3A.5.5 0 0 1 10 2.5ZM4.5 8.5h2a.5.5 0 0 1 0 1H5a.5.5 0 0 0-.5.5v6a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5V10a.5.5 0 0 0-.5-.5h-1.5a.5.5 0 0 1 0-1H15A1.5 1.5 0 0 1 16.5 10v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 16v-6A1.5 1.5 0 0 1 5 8.5h-.5Z" />
   </svg>
 );
 
@@ -509,7 +522,7 @@ const MessageRow = React.memo(
                           }}
                           className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                         >
-                          <Share2 className="size-[18px]" strokeWidth={1.75} />
+                          <ShareIcon />
                         </button>
                       </HintTooltip>
                       <div className="relative" data-more-trigger>
