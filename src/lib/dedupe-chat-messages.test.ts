@@ -4,7 +4,11 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { dedupeChatMessages, mergeMessagePreferRich } from "@/lib/dedupe-chat-messages";
+import {
+  dedupeChatMessages,
+  healChatMessageOrder,
+  mergeMessagePreferRich,
+} from "@/lib/dedupe-chat-messages";
 import type { Message } from "@/lib/types";
 
 function msg(
@@ -84,5 +88,96 @@ describe("dedupeChatMessages", () => {
     );
     assert.equal(merged.isStreaming, true);
     assert.equal(merged.content, "Hello");
+  });
+
+  it("collapses non-consecutive duplicate user bubbles across an assistant row", () => {
+    const stamp = Date.now();
+    const result = dedupeChatMessages([
+      msg({ id: "u-temp", role: "user", content: "tell me about Thinking" }),
+      msg({
+        id: "a-1",
+        role: "assistant",
+        content: "Working…",
+        isStreaming: true,
+      }),
+      msg({
+        id: "u-durable",
+        role: "user",
+        content: "tell me about Thinking",
+        createdAt: stamp,
+      }),
+    ]);
+    assert.equal(result.filter((m) => m.role === "user").length, 1);
+    // Durable id wins so React keys stabilize on the server row.
+    assert.equal(result[0]?.id, "u-durable");
+  });
+
+  it("keeps a genuine re-send of identical text minutes later", () => {
+    const t0 = 1_700_000_000_000;
+    const result = dedupeChatMessages([
+      msg({ id: "u1", role: "user", content: "yes", createdAt: t0 }),
+      msg({
+        id: "a1",
+        role: "assistant",
+        content: "Great!",
+        createdAt: t0,
+      }),
+      msg({
+        id: "u2",
+        role: "user",
+        content: "yes",
+        createdAt: t0 + 10 * 60 * 1000,
+      }),
+    ]);
+    assert.equal(result.filter((m) => m.role === "user").length, 2);
+  });
+
+  it("heals a durable user row appended after its assistant pair", () => {
+    const stamp = 1_700_000_000_000;
+    const healed = healChatMessageOrder([
+      msg({ id: "a1", role: "assistant", content: "Answer", createdAt: stamp }),
+      msg({ id: "u1", role: "user", content: "Question", createdAt: stamp }),
+    ]);
+    assert.deepEqual(
+      healed.map((m) => m.id),
+      ["u1", "a1"],
+    );
+  });
+
+  it("keeps dated rows before undated optimistic rows", () => {
+    const stamp = 1_700_000_000_000;
+    const healed = healChatMessageOrder([
+      msg({ id: "a-old", role: "assistant", content: "Old", createdAt: stamp }),
+      msg({ id: "temp-u", role: "user", content: "New question" }),
+      msg({ id: "temp-a", role: "assistant", content: "", isStreaming: true }),
+    ]);
+    assert.deepEqual(
+      healed.map((m) => m.id),
+      ["a-old", "temp-u", "temp-a"],
+    );
+  });
+
+  it("orders full broken transcripts: user below assistant moves back up", () => {
+    const stamp = 1_700_000_000_000;
+    const result = dedupeChatMessages([
+      msg({
+        id: "a1",
+        role: "assistant",
+        content: "Here you go",
+        createdAt: stamp,
+      }),
+      msg({ id: "u1", role: "user", content: "first", createdAt: stamp }),
+      msg({
+        id: "a2",
+        role: "assistant",
+        content: "Next answer",
+        createdAt: stamp + 60_000,
+      }),
+      msg({ id: "u2", role: "user", content: "second", createdAt: stamp + 60_000 }),
+    ]);
+    assert.deepEqual(
+      result.map((m) => m.id),
+      ["u1", "a1", "u2", "a2"],
+    );
   });
 });

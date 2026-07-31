@@ -231,12 +231,12 @@ Inactive chat eviction omits `messageIds` keys (not `[]`) so Recents filter does
 
 ## 10. Agent activity transcript / orb
 
-- One minimal chronological trace per assistant turn: `thinking → narration → tool → thinking … → final answer`.
-- Thinking is a native Anthropic thinking block. Its model-authored `<agent_heading>` becomes the shimmering live label; the reasoning viewport auto-scrolls while open.
-- Narration is tagged `<agent_narration>` text: concise user-visible progress, never final-answer content and never hidden reasoning.
-- Tool rows use streamed structured input/output and rich result surfaces; failed tools persist `is_error`.
-- The final answer is ordinary untagged assistant markdown outside the activity trace.
+- One unified timeline per assistant turn (`AgentMainTimeline` in `src/components/agent/agent-orchestration.tsx`): a round-dot fold header over chronological rows — `narration → thinking → tool (search/file/shell/MCP) → …` — then the final answer below the timeline.
+- Mid-turn model text streams as `narration` segments (user-visible progress prose on the rail); thinking renders as muted `Thought for Ns` rows (hover-only chevron). Neither is model-tagged XML — the old `<agent_heading>`/`<agent_narration>` protocol is deleted.
+- A tool-free round's text is promoted to the durable answer via SSE `answer_finalize` (`isFinal` on the segment; never re-rendered inside the timeline).
+- While any step runs, the header shimmers the live step label and stays expanded; on completion it collapses to `N steps · Ns`. Source chips render in real time once search results land; the action-bar Sources button stays completion-gated.
 - Streaming orb stays visible during activity-only phases and hides once final answer markdown streams.
+- Turn pairing self-heals in `dedupeChatMessages`: duplicate user rows collapse at any distance, and createdAt ordering (user-before-assistant on equal persisted timestamps) keeps a user bubble above its own answer.
 - `content_json.agent_ui.modelTurns` persists exact ordered Messages API rounds (including thinking signatures and tool-result users) so reload does not flatten the transcript.
 
 Renderer: `assistant-content-renderer.tsx` + agent components under `components/agent/`.

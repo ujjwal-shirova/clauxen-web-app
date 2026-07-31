@@ -26,6 +26,29 @@ export type PreparedFollowUpMarkdown = {
 };
 
 /**
+ * Follow-ups are things the USER might say next. When the model echoes its
+ * own mid-turn narration ("Let me read the full file", "I'll search for…")
+ * into prompt tags, the chips read as agent monologue — drop those openers.
+ */
+const NARRATION_ECHO_RE =
+  /^(?:let me|let's|let us|i'll|i will|i'm going to|i am going to|going to|allow me to|i need to|i should|i can|i'll now|i will now|time to)\b/i;
+
+/** Deduped, narration-free prompt list. */
+function sanitizeFollowUpPrompts(prompts: string[]): string[] {
+  const seen = new Set<string>();
+  const clean: string[] = [];
+  for (const raw of prompts) {
+    const prompt = raw.trim();
+    if (!prompt || NARRATION_ECHO_RE.test(prompt)) continue;
+    const key = prompt.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    clean.push(prompt);
+  }
+  return clean;
+}
+
+/**
  * Prepare assistant markdown for display:
  * - Extract `<prompt>…</prompt>` into a clean list (rendered as buttons)
  * - Strip tags from the markdown body so rehype never sees custom protocols
@@ -82,10 +105,7 @@ export function prepareFollowUpContent(
 
   return {
     markdown: text,
-    prompts: options.isStreaming
-      ? // While streaming, only expose complete prompts.
-        prompts
-      : prompts,
+    prompts: sanitizeFollowUpPrompts(prompts),
   };
 }
 

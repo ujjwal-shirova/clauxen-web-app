@@ -387,8 +387,36 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   color: #bfdbfe;
 }
 .dark .user-message-card__body {
-  background: #1c1c1f;
+  background: #1c1c1f !important;
   color: #f4f4f5;
+  /* One border token for every state — dark bubbles match light-mode logic:
+     sticky position never changes the card's visual treatment. */
+  border-color: rgba(255, 255, 255, 0.07) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 1px 2px rgba(0, 0, 0, 0.28) !important;
+}
+.dark .user-message-card__body:hover,
+.dark .user-message-card__body:focus-visible,
+.dark .user-message-card__body[role="button"]:hover,
+.dark .user-message-card__body[role="button"]:focus-visible {
+  background: #222226 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.28) !important;
+}
+.dark .sticky-user-msg--stuck {
+  background-color: hsl(var(--background));
+}
+.dark .sticky-user-msg-host[data-user-msg-editing="true"].sticky-user-msg--stuck {
+  background-color: hsl(var(--background));
+}
+.dark .sticky-user-msg--stuck::after {
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--background) / 1),
+    hsl(var(--background) / 0)
+  );
 }
 
 /* Thinking vs main answer — keep reasoning visibly muted in dark theme too */
@@ -1340,13 +1368,13 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .sticky-user-msg--stuck .user-message-card__body {
-  /* Keep the card edge crisp while sticky — avoid parent paint clipping. */
+  /* Sticky changes position only — identical border/shadow tokens as the
+     resting card so every user bubble reads the same while scrolling. */
   transform: translateZ(0);
-  border-color: rgba(24, 24, 27, 0.1) !important;
+  border-color: rgba(24, 24, 27, 0.075) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    0 1px 2px rgba(24, 24, 27, 0.05),
-    0 0 0 1px rgba(24, 24, 27, 0.08) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(24, 24, 27, 0.025) !important;
 }
 
 /* Soft wash under the docked bubble so content scrolling beneath doesn’t
@@ -1501,12 +1529,57 @@ button.user-message-card__body:not(:disabled):hover,
   transition-property: grid-template-rows;
 }
 
-.agent-work-group__header {
-  max-width: 100%;
+/* ─── Unified agent timeline — one round-dotted fold per assistant turn ───
+   The header dot mirrors the per-event dots on the rail below it: hollow at
+   rest, filled + glowing while the turn is live. */
+.agent-main-timeline {
+  position: relative;
+  width: 100%;
+  min-width: 0;
 }
 
-.agent-work-group__body {
-  padding-bottom: 0.15rem;
+.agent-main-timeline__dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  box-sizing: border-box;
+  border: 1.5px solid #a1a1aa;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.agent-main-timeline[data-active="true"] .agent-main-timeline__dot {
+  border-color: #71717a;
+  background: #71717a;
+  box-shadow: 0 0 0 3px rgba(113, 113, 122, 0.12);
+}
+
+.dark .agent-main-timeline__dot {
+  border-color: #71717a;
+  background: #18181b;
+}
+
+.dark .agent-main-timeline[data-active="true"] .agent-main-timeline__dot {
+  border-color: #a1a1aa;
+  background: #a1a1aa;
+  box-shadow: 0 0 0 3px rgba(161, 161, 170, 0.14);
+}
+
+/* Narration rows sit on the rail like every other event; the prose itself
+   keeps its quiet styling — only spacing is owned here. */
+.agent-narration-event > .agent-narration {
+  padding-left: 0.1rem;
+}
+
+/* Sources resolve in real time as searches finish — gentle enter, never a
+   teleport above the answer. */
+[data-agent-block="sources"][data-sources-live="true"] {
+  animation: agent-work-group-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-agent-block="sources"][data-sources-live="true"] {
+    animation: none !important;
+  }
 }
 
 .agent-trace__header {

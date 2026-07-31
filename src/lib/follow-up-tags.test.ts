@@ -50,6 +50,19 @@ describe("prepareFollowUpContent", () => {
     assert.ok(!prepared.markdown.includes("Tell me more"));
     assert.ok(prepared.markdown.includes("Hi"));
   });
+
+  it("drops agent narration echoes and duplicate prompts", () => {
+    const input = `Answer text
+
+<prompt>Let me read the full file</prompt>
+<prompt>I'll search for more sources</prompt>
+<prompt>Compare the two approaches</prompt>
+<prompt>Compare the two approaches</prompt>
+<prompt>let us dig into the logs</prompt>
+`;
+    const prepared = prepareFollowUpContent(input, { enabled: true });
+    assert.deepEqual(prepared.prompts, ["Compare the two approaches"]);
+  });
 });
 
 describe("parseClauxenPromptHref", () => {

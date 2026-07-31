@@ -6,7 +6,7 @@ import {
   artifactSupportsPreview,
   inferLanguageFromPath,
 } from "@/lib/create-file-tags";
-import { countContentLineDiff } from "@/lib/agent-work-groups";
+import { countContentLineDiff } from "@/lib/agent-activity-summary";
 import { cn } from "@/lib/utils";
 import { useOptionalArtifactViewer } from "@/contexts/artifact-viewer-context";
 import { AgentToolCard } from "./agent-tool-card";

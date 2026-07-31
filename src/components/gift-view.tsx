@@ -157,7 +157,6 @@ export function GiftView({ onClose }: GiftViewProps) {
 
     window.dispatchEvent(new CustomEvent("clauxen:billing-updated"));
     // currentDuration is only used as fallback months for older pending payloads
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleBack = () => {

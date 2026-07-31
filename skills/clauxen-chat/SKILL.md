@@ -40,21 +40,20 @@ description: >-
 
 
 
-## Agent transcript architecture (2026-07-29 rebuild)
+## Agent transcript architecture (2026-07-31 unified timeline)
 
 - Per-round model text **before** tool calls streams as `narration` segments; a round with **no tool calls** is promoted to the durable answer via SSE `answer_finalize` (reducer marks the segment `isFinal` and sets `message.content` — restyle in place, never teleport).
 - No model-authored XML protocol (deleted `<agent_heading>`/`<agent_narration>`/`answer_clear`/intro+interim narratives). Sole exception: first-turn `<chat_title>` for the sidebar, stripped client-side.
-- Work-group headers are **Cursor-style tool-mix summaries** for multi-step work (`Edited N files, 1 search, ran 1 command` with muted verbs + brighter counts + green/red diffs); single-step groups may still use narration-derived labels. Narration **always** renders as standalone prose **outside** the timeline — never nested inside a group body.
-- Group headers have **no chevron**; children are flush-left (no tree rail). Thinking uses muted `Thought for Ns` with chevron **hover-only** (stays visible while expanded); body is plain text (no card).
-- Web search stays as a single row; favicon chips + **"N sources"** open a **hover popover** (scrollable sources) — no expanded results list in the timeline.
-- Fold chrome only for thinking+tool(s) or 2+ tools; lone Thought/tool stay bare. Group headers shimmer while any member runs and auto-collapse on completion.
-- Expand/collapse scroll-anchors through the CSS transition so the body grows **downward** (user bubble does not jump up).
-- Citation chips render **inline while streaming**; the bottom source strip + Sources action button appear only **after the turn finishes** (`!isStreaming`).
-- Activity labels shimmer **only while that step runs**; descendants of `.shimmer-text[data-shimmer-active]` are forced transparent so tone classes don't paint over the gradient (that made labels look flat).
+- **ONE main timeline per assistant turn** (`AgentMainTimeline` in `agent-orchestration.tsx`): a round-dot fold header that holds narration prose, thinking phases, searches, tool calls, and MCP connector calls as chronological rows on the rail. While any step runs, the header shimmers the live step label (`deriveLiveActivityLabel`) and stays expanded; once the answer takes over it collapses to `N steps · Ns` (hover chevron; user toggles stick).
+- Narration is its own transcript row (quiet prose with a rail dot) — separate from interleaved thinking (`Thought for Ns`, muted, hover-only chevron) and from the final answer, which always renders **below** the timeline. The promoted `isFinal` narration never duplicates inside the timeline.
+- Web search rows show favicons + **"N sources"** hover popover; the bottom **source chip strip renders in real time** as soon as search results land (no completion gate) with `data-sources-live` enter animation. The assistant action bar's Sources button stays completion-gated.
+- Follow-up `<prompt>` chips are sanitized (`follow-up-tags.ts`): agent narration echoes (`Let me…`, `I'll…`) and dupes never render as suggestions.
+- Turn pairing self-heals in `dedupeChatMessages` (store bridge + thread): duplicate user bubbles collapse at any distance (temp/durable + clientId + 2-min timestamp window), and order is healed by createdAt with user-before-assistant on equal persisted timestamps so a user bubble can never land below its own answer.
+- Activity labels shimmer **only while that step runs**; descendants of `.shimmer-text[data-shimmer-active]` are forced transparent so tone classes don't paint over the gradient.
 - Nested scrolling is axis-aware (`src/lib/nested-scroll.ts`): x-only code/table blocks must never swallow vertical deltas; JS only preventDefaults when an intermediate scroller is pinned at its end.
 - Premature SSE close soft-completes (legacy + UI-message paths); generate keepalives every 5s; do not paint "Connection was interrupted" when useful tokens/tools already rendered.
 - Every generate injects `<current_datetime>` (client IANA timezone + server clock) so the model knows today's day/date/year for web search.
-- MCP servers come from env `CLAUXEN_MCP_SERVERS` (JSON array of `{id,url,headers?}`); tools appear as `mcp__<serverId>__<toolName>`.
+- MCP servers come from env `CLAUXEN_MCP_SERVERS` (JSON array of `{id,url,headers?}`); tools appear as `mcp__<serverId>__<toolName>` and render via `AgentMcpToolBlock` inside the same timeline.
 - Skills load from the bundled `skills-pack/` directory only — never developer-homedir paths.
 
 

@@ -2,13 +2,19 @@ import type { Message } from "@/lib/types";
 
 /**
  * Collapse duplicate chat rows that can appear from optimistic + realtime +
- * persist races (temp-* → server id, INSERT while streaming, etc.).
+ * persist races (temp-* → server id, INSERT while streaming, etc.) and heal
+ * arrival-order glitches so a user bubble never lands below its own answer.
  *
  * Rules:
  * 1. Prefer durable (non-temp) ids over temp-* / pending-* when content matches.
  * 2. Never let an empty/cold server snapshot kill a live streaming orb.
- * 3. Drop consecutive same-role same-content duplicates.
- * 4. Keep first occurrence order.
+ * 3. Drop same-message user duplicates even when an assistant row sits
+ *    between them (realtime append race) — same content + ephemeral id /
+ *    client id link / near-identical timestamps.
+ * 4. Heal ordering: sort by createdAt (undated last), and for rows sharing a
+ *    persisted timestamp (user + assistant are written in one transaction)
+ *    the user always leads its turn. Original index is the final tie-break
+ *    so the comparator stays a valid total order.
  */
 export function dedupeChatMessages(messages: readonly Message[]): Message[] {
   if (messages.length <= 1) return [...messages];
@@ -29,8 +35,14 @@ export function dedupeChatMessages(messages: readonly Message[]): Message[] {
 
   let list = order.map((id) => byId.get(id)!);
 
-  // Collapse temp user + durable user with identical content.
+  // Collapse temp user + durable user with identical content (any position).
   list = collapseTempServerPairs(list);
+
+  // Collapse remaining same-turn user duplicates (durable + durable races).
+  list = collapseDuplicateUserMessages(list);
+
+  // Heal arrival order before the consecutive sweep so pairing is stable.
+  list = healChatMessageOrder(list);
 
   // Collapse consecutive identical user/assistant bubbles.
   list = collapseConsecutiveDuplicates(list);
@@ -185,6 +197,111 @@ function collapseTempServerPairs(messages: Message[]): Message[] {
   }
 
   return result;
+}
+
+/** Two durable user rows written within this window are one logical message. */
+const SAME_USER_MESSAGE_WINDOW_MS = 2 * 60 * 1000;
+
+function normalizeUserContent(content: string | undefined): string {
+  return (content ?? "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * True when two user rows are the same logical message despite distinct ids:
+ * an optimistic/temp copy, a client-id link, or persisted rows stamped within
+ * a tight window (a genuine re-send of identical text minutes later must
+ * survive — it is a separate turn).
+ */
+function isSameLogicalUserMessage(a: Message, b: Message): boolean {
+  if (a.role !== "user" || b.role !== "user") return false;
+  if (normalizeUserContent(a.content) !== normalizeUserContent(b.content)) {
+    return false;
+  }
+  if (isEphemeralId(a.id) || isEphemeralId(b.id)) return true;
+  if (
+    a.clientId &&
+    (a.clientId === b.id || a.clientId === b.clientId || b.id === a.id)
+  ) {
+    return true;
+  }
+  if (
+    b.clientId &&
+    (b.clientId === a.id || b.clientId === a.clientId || a.id === b.id)
+  ) {
+    return true;
+  }
+  const aTime = a.createdAt;
+  const bTime = b.createdAt;
+  if (typeof aTime === "number" && typeof bTime === "number") {
+    return Math.abs(aTime - bTime) <= SAME_USER_MESSAGE_WINDOW_MS;
+  }
+  return false;
+}
+
+/**
+ * Collapse duplicate user bubbles at ANY distance. The realtime/hydrate race
+ * appends a durable user row after the streaming assistant, so the temp and
+ * durable copies are not always consecutive. Keeps the earliest position.
+ */
+function collapseDuplicateUserMessages(messages: Message[]): Message[] {
+  const result: Message[] = [];
+  const consumed = new Set<number>();
+
+  for (let i = 0; i < messages.length; i += 1) {
+    if (consumed.has(i)) continue;
+    const message = messages[i]!;
+
+    if (message.role === "user") {
+      const matchIndex = messages.findIndex(
+        (candidate, index) =>
+          index > i &&
+          !consumed.has(index) &&
+          candidate.role === "user" &&
+          candidate.id !== message.id &&
+          isSameLogicalUserMessage(message, candidate),
+      );
+      if (matchIndex >= 0) {
+        consumed.add(matchIndex);
+        result.push(
+          mergeMessagePreferRich(message, messages[matchIndex]!),
+        );
+        continue;
+      }
+    }
+
+    result.push(message);
+  }
+
+  return result;
+}
+
+/**
+ * Heal arrival-order glitches (realtime INSERT / hydrate appends) so turns
+ * pair chronologically. Total order: dated rows first by createdAt; rows
+ * sharing a persisted timestamp put the user before its assistant (they are
+ * written in one DB transaction); undated rows keep insertion order last.
+ */
+export function healChatMessageOrder(
+  messages: readonly Message[],
+): Message[] {
+  if (messages.length <= 1) return [...messages];
+  return messages
+    .map((message, index) => ({ message, index }))
+    .sort((a, b) => {
+      const aTime = a.message.createdAt;
+      const bTime = b.message.createdAt;
+      const aDated = typeof aTime === "number";
+      const bDated = typeof bTime === "number";
+      if (aDated && bDated && aTime !== bTime) {
+        return (aTime as number) - (bTime as number);
+      }
+      if (aDated !== bDated) return aDated ? -1 : 1;
+      if (aDated && bDated && a.message.role !== b.message.role) {
+        return a.message.role === "user" ? -1 : 1;
+      }
+      return a.index - b.index;
+    })
+    .map(({ message }) => message);
 }
 
 function collapseConsecutiveDuplicates(messages: Message[]): Message[] {
