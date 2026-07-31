@@ -124,9 +124,10 @@ export function ThinkingBlock({
             >
               <span
                 className={cn(
-                  "truncate font-medium",
+                  "agent-activity-label--muted truncate font-medium",
                   isStreaming && "shimmer-text",
                 )}
+                data-shimmer-active={isStreaming || undefined}
               >
                 {displayLabel}
               </span>
@@ -149,10 +150,10 @@ export function ThinkingBlock({
             aria-hidden={!isVisible}
           >
             <div className="overflow-hidden pt-0.5">
-              <div className="grid gap-3 rounded-[12px] border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-[14px] font-[430] leading-[1.4] text-zinc-700">
+              <div className="agent-thinking-body grid gap-3 rounded-[12px] border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-[13.5px] font-[430] leading-[1.4]">
                 <div
                   ref={scrollRef}
-                  className="app-scrollbar max-h-[20.5rem] overflow-y-auto pr-1 text-[14px] leading-[1.55] text-zinc-700"
+                  className="app-scrollbar max-h-[20.5rem] overflow-y-auto pr-1 text-[13.5px] leading-[1.55]"
                 >
                   <div className="thinking-markdown">
                     <MarkdownRenderer

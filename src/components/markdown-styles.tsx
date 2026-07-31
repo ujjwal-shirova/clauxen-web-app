@@ -358,7 +358,9 @@ export const CodeBlockFrame = ({
         </div>
       </div>
 
-      <div className="markdown-code-scroll code-scrollbars ui-code-block-content w-full max-w-full overflow-x-auto overscroll-x-contain rounded-b-[13px] bg-zinc-50 [-webkit-overflow-scrolling:touch]">
+      {/* overflow-y must be explicit: with only overflow-x set, CSS computes
+          overflow-y to auto and paints a phantom vertical scrollbar. */}
+      <div className="markdown-code-scroll code-scrollbars ui-code-block-content w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-[13px] bg-zinc-50 [-webkit-overflow-scrolling:touch]">
         {children}
       </div>
     </div>

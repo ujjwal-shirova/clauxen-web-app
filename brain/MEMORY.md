@@ -269,7 +269,9 @@ Full target surface — **remember only; implement only when user asks for a sli
 
 | 2026-07-31 | Gift recipient email shows purchaser note (HTML + plaintext via clauxen-billing); HoverScrollEnabler lives in root layout and primes scroll hosts on mount so nested overflow works without a prior click. | Gift note must appear in sent email; body overflow:hidden needs proactive wheel routing. |
 
-| 2026-07-31 | Agent/UI polish PR (branch agent-ui-polish): thinking prose stays muted vs brighter answer text (dark theme enforced); share/more/copy icon buttons normalized to 18px; activity labels shimmer only while tools/thinking run and settle to past tense; inline source cards + Sources action render only after the turn finishes streaming. | Thinking/output contrast, calmer sources, proper shimmer lifecycle |
+| 2026-07-31 | Agent/UI polish PR (branch agent-ui-polish): thinking prose stays muted vs brighter answer text (dark theme enforced); share/more/copy icon buttons normalized to 18px with a filled share glyph; activity labels shimmer only while tools/thinking run and settle to past tense; inline source cards + Sources action render only after the turn finishes streaming. | Thinking/output contrast, calmer sources, proper shimmer lifecycle |
+
+| 2026-07-31 | Nested scroll rewritten in `src/lib/nested-scroll.ts` (+ HoverScrollEnabler): wheel routing is axis- and direction-aware, and JS only takes over (preventDefault) when an intermediate scroller is pinned at its end — native inertia otherwise. `overscroll-behavior` is per-axis so x-only code/table blocks chain vertical deltas to the transcript. Code/table scrollers force `overflow-y: hidden` (overflow-x alone computes overflow-y to auto → phantom vertical bar). ScrollArea hides the native bar and pins one overlay scrollbar at `right-0`. | Cursor-inside-code-block scroll stalls/jumps + stray floating scrollbar |
 
 | 2026-07-31 | Scroll hosts must not be focused (HoverScrollEnabler) — focusing caused blue focus-ring edges on the sidebar. Chrome sizing tokens also cover chat header height, title size, and user/assistant message type. | Blue sidebar edge lines + universal sizing gaps |
 

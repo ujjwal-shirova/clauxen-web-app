@@ -393,8 +393,19 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 
 /* Thinking vs main answer — keep reasoning visibly muted in dark theme too */
 .dark .agent-thinking-body,
-.dark .agent-thinking-body .markdown-content p {
-  color: #8b8b93 !important;
+.dark .agent-thinking-body .thinking-markdown,
+.dark .agent-thinking-body .markdown-content,
+.dark .agent-thinking-body .markdown-content p,
+.dark .agent-thinking-body .markdown-content li,
+.dark .agent-thinking-body .markdown-content strong {
+  color: #8a8a94 !important;
+}
+
+/* Answer prose stays the brightest text in the turn. */
+.dark [data-agent-block="answer"] .markdown-content,
+.dark [data-agent-block="answer"] .markdown-content p,
+.dark [data-agent-block="answer"] .markdown-content li {
+  color: #ececf1 !important;
 }
 
 .dark .agent-activity-label--muted {
@@ -1444,14 +1455,20 @@ button.user-message-card__body:not(:disabled):hover,
   color: #e11d48; /* rose-600 */
 }
 
-.agent-thinking-body {
-  color: #71717a;
+/* Reasoning prose must always read as secondary to the answer. */
+.agent-thinking-body,
+.agent-thinking-body .thinking-markdown,
+.agent-thinking-body .markdown-content,
+.agent-thinking-body .markdown-content li,
+.agent-thinking-body .markdown-content strong {
+  color: #7c7c86 !important;
+  font-weight: 400;
 }
 
 .agent-thinking-body .markdown-content p {
   margin: 0 0 0.45em;
   line-height: 1.55 !important;
-  color: inherit;
+  color: #7c7c86 !important;
 }
 
 .agent-thinking-body .markdown-content p:last-child {
@@ -1601,8 +1618,43 @@ button.user-message-card__body:not(:disabled):hover,
 .overflow-auto {
   scrollbar-width: thin;
   scrollbar-color: rgba(24, 24, 27, 0.22) transparent;
-  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Trap only the axis a host actually scrolls. Blanket `overscroll-behavior:
+   contain` on x-only hosts (code blocks, tables) swallowed vertical wheel
+   deltas instead of chaining them to the transcript viewport. */
+.sidebar-scrollable,
+[data-radix-scroll-area-viewport],
+[data-scroll-region],
+.overflow-y-auto,
+.overflow-auto {
+  overscroll-behavior: contain;
+}
+
+.markdown-code-scroll,
+.markdown-table-scroll,
+.overflow-x-auto:not(.overflow-y-auto):not(.overflow-auto) {
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+}
+
+/* Horizontal-only blocks must never paint a vertical scrollbar. */
+.markdown-code-scroll,
+.markdown-table-scroll {
+  overflow-y: hidden;
+}
+
+/* Hide the native bar where an overlay scrollbar owns the affordance. */
+.scrollbar-none {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 
 .sidebar-scrollable::-webkit-scrollbar,
@@ -1989,6 +2041,17 @@ html[data-reduce-motion="1"] .orb-cursor-core {
   animation: shimmer-loop 2.4s ease-in-out infinite;
 }
 
+/*
+  Descendants of a shimmering label must not paint their own color, otherwise
+  the solid child text covers the clipped gradient and the label reads flat.
+  Tone classes come back the moment the shimmer flag drops.
+*/
+.shimmer-text[data-shimmer-active="true"] * {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: none !important;
+}
+
 /* Instantly kill residual shimmer when the active attribute drops. */
 .shimmer-text:not([data-shimmer-active="true"]) {
   animation: none !important;
@@ -1996,6 +2059,11 @@ html[data-reduce-motion="1"] .orb-cursor-core {
   -webkit-background-clip: unset !important;
   background-clip: unset !important;
   color: inherit !important;
+}
+
+.shimmer-text:not([data-shimmer-active="true"]) * {
+  color: revert-layer;
+  -webkit-text-fill-color: currentColor;
 }
 
 @keyframes agent-work-group-enter {
