@@ -29,6 +29,27 @@ export type WheelScrollTarget = {
   mustTakeOver: boolean;
 };
 
+/** DOM_DELTA_* values used by WheelEvent.deltaMode. */
+const DOM_DELTA_PIXEL = 0;
+const DOM_DELTA_LINE = 1;
+const DOM_DELTA_PAGE = 2;
+const DEFAULT_LINE_HEIGHT_PX = 16;
+
+/**
+ * Convert a wheel delta to pixels before we manually route it. Native wheel
+ * scrolling performs this conversion for us; takeover paths must do it too or
+ * a mouse wheel reporting line units moves only a few pixels at a time.
+ */
+export function wheelDeltaInPixels(
+  delta: number,
+  deltaMode: number,
+  pageSize: number,
+): number {
+  if (deltaMode === DOM_DELTA_LINE) return delta * DEFAULT_LINE_HEIGHT_PX;
+  if (deltaMode === DOM_DELTA_PAGE) return delta * Math.max(1, pageSize);
+  return delta;
+}
+
 export type OverflowStyle = Pick<CSSStyleDeclaration, "overflowX" | "overflowY">;
 
 /** Overflow values that permit scrolling. */
@@ -129,6 +150,7 @@ export function resolveWheelScrollTarget(
 
   let node: Element | null = start;
   let skippedPinnedHost = false;
+  let skippedCrossAxisHost = false;
   let axisHostAtEnd: HTMLElement | null = null;
 
   while (node && node !== root) {
@@ -137,11 +159,21 @@ export function resolveWheelScrollTarget(
       const axes = scrollHostAxes(candidate, getStyle(candidate));
       if (axes[axis]) {
         if (hostCanConsume(candidate, axis, delta)) {
-          return { host: candidate, axis, delta, mustTakeOver: skippedPinnedHost };
+          return {
+            host: candidate,
+            axis,
+            delta,
+            // Explicitly route a vertical gesture that started over an x-only
+            // code/table host. WebKit and Chromium can otherwise retain the
+            // gesture on that inner overflow node instead of chaining it.
+            mustTakeOver: skippedPinnedHost || skippedCrossAxisHost,
+          };
         }
         // Pinned at its end — native chaining out of it is unreliable.
         skippedPinnedHost = true;
         axisHostAtEnd ??= candidate;
+      } else if (axes.x || axes.y) {
+        skippedCrossAxisHost = true;
       }
     }
     node = node.parentElement;

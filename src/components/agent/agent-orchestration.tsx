@@ -28,6 +28,7 @@ import type {
   AgentThinkingSegment,
   AgentToolSegment,
 } from "@/lib/agent-segments";
+import { hasCompletedAssistantOutput } from "@/lib/assistant-output-state";
 
 function isThinkingSegment(
   segment: AgentSegment,
@@ -134,6 +135,7 @@ export function AgentOrchestrationView({
 }) {
   const frames = mergeAgentFramesForDisplay(resolveAgentFrames(message));
   const sources = collectMessageSources(message);
+  const outputComplete = hasCompletedAssistantOutput(message);
   const streaming = message.isStreaming === true;
   const answer = message.content.trim();
   const answerStreaming = streaming && answer.length > 0;
@@ -210,7 +212,7 @@ export function AgentOrchestrationView({
       })}
 
       {answer && !suppressDuplicateAnswer ? (
-        <div data-agent-block="answer">
+        <div data-agent-block="answer" className="agent-answer-body">
           {isAssistantGenerationError(message) ? (
             <p
               data-assistant-error="true"
@@ -233,7 +235,7 @@ export function AgentOrchestrationView({
         </div>
       ) : null}
 
-      {sources.length > 0 && !streaming ? (
+      {sources.length > 0 && outputComplete ? (
         <div data-agent-block="sources" className="overflow-anchor-none">
           <SourcesInlineStrip sources={sources} />
         </div>
