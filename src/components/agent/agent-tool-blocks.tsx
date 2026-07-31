@@ -1064,70 +1064,88 @@ export function AgentImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
 
 export function AgentAskUserInputBlock({ tool }: { tool: AgentToolSegment }) {
   const data = tool.result ? tryParseJson(tool.result) : null;
-  const questions = Array.isArray(data?.questions)
+  const fromResult = Array.isArray(data?.questions)
     ? (data.questions as Array<Record<string, unknown>>)
     : [];
+  const fromArgs = Array.isArray(tool.args?.questions)
+    ? (tool.args.questions as Array<Record<string, unknown>>)
+    : [];
+  const questions = fromResult.length > 0 ? fromResult : fromArgs;
+  const hasAnswers = questions.some(
+    (question) => typeof question.answer === "string" && question.answer.trim(),
+  );
+
+  // Pending turns: compact timeline status only. The interactive questionnaire
+  // replaces the composer (AskUserInputCard) — never nest that UI here.
+  if (!hasAnswers) {
+    return (
+      <div className="w-full min-w-0">
+        <AgentTraceBlock
+          title="Asked for your input"
+          chevronMode="never"
+          className="agent-ask-user"
+          headerClassName="agent-ask-user__header"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-w-0">
       <AgentTraceBlock
         title="Asked for your input"
-        defaultExpanded
-        showChevron
+        defaultExpanded={false}
+        chevronMode="hover"
         className="agent-ask-user"
         headerClassName="agent-ask-user__header"
         contentClassName="agent-ask-user__body"
       >
-        {questions.length > 0 ? (
-          <ul className="flex w-full flex-col overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
-            {questions.map((question, index) => {
-              const choices = Array.isArray(question.choices)
-                ? (question.choices as string[])
+        <ul className="flex w-full flex-col overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
+          {questions.map((question, index) => {
+            const choices = Array.isArray(question.choices)
+              ? (question.choices as string[])
+              : Array.isArray(question.options)
+                ? (question.options as string[])
                 : [];
-              const answer =
-                typeof question.answer === "string" ? question.answer : null;
-              return (
-                <li
-                  key={index}
-                  className={cn(
-                    "flex min-w-0 flex-col gap-1 px-3 py-2.5",
-                    index > 0 && "border-t border-zinc-100",
-                  )}
-                >
-                  <span className="text-[13px] font-medium text-zinc-800">
-                    {String(question.question ?? `Question ${index + 1}`)}
+            const answer =
+              typeof question.answer === "string" ? question.answer : null;
+            return (
+              <li
+                key={index}
+                className={cn(
+                  "flex min-w-0 flex-col gap-1 px-3 py-2.5",
+                  index > 0 && "border-t border-zinc-100",
+                )}
+              >
+                <span className="text-[13px] font-medium text-zinc-800">
+                  {String(question.question ?? `Question ${index + 1}`)}
+                </span>
+                {choices.length > 0 ? (
+                  <span className="flex flex-wrap gap-1.5">
+                    {choices.map((choice, choiceIndex) => (
+                      <span
+                        key={choiceIndex}
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[11.5px]",
+                          answer === choice
+                            ? "border-zinc-900 bg-zinc-900 text-white"
+                            : "border-zinc-200 bg-zinc-50 text-zinc-600",
+                        )}
+                      >
+                        {choice}
+                      </span>
+                    ))}
                   </span>
-                  {choices.length > 0 ? (
-                    <span className="flex flex-wrap gap-1.5">
-                      {choices.map((choice, choiceIndex) => (
-                        <span
-                          key={choiceIndex}
-                          className={cn(
-                            "rounded-full border px-2 py-0.5 text-[11.5px]",
-                            answer === choice
-                              ? "border-zinc-900 bg-zinc-900 text-white"
-                              : "border-zinc-200 bg-zinc-50 text-zinc-600",
-                          )}
-                        >
-                          {choice}
-                        </span>
-                      ))}
-                    </span>
-                  ) : null}
-                  {answer && !choices.includes(answer) ? (
-                    <span className="text-[12px] text-zinc-600">
-                      Answer: {answer}
-                    </span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="text-[12.5px] italic text-zinc-400">
-            Waiting for your answer…
-          </p>
-        )}
+                ) : null}
+                {answer && !choices.includes(answer) ? (
+                  <span className="text-[12px] text-zinc-600">
+                    Answer: {answer}
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
       </AgentTraceBlock>
     </div>
   );

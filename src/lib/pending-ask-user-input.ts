@@ -17,16 +17,55 @@ function collectTools(message: Message): AgentToolSegment[] {
   );
 }
 
+function coerceQuestionList(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 function questionsFromTool(tool: AgentToolSegment): AskUserQuestion[] {
-  const questions = tool.args?.questions;
-  if (!Array.isArray(questions) || questions.length === 0) return [];
-  return questions.filter(
-    (item): item is AskUserQuestion =>
-      Boolean(item) &&
-      typeof item === "object" &&
-      typeof (item as AskUserQuestion).question === "string" &&
-      Array.isArray((item as AskUserQuestion).options),
-  );
+  const questions = coerceQuestionList(tool.args?.questions);
+  if (questions.length === 0) return [];
+  return questions.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const question =
+      typeof record.question === "string" ? record.question.trim() : "";
+    if (!question) return [];
+    const optionsRaw = Array.isArray(record.options)
+      ? record.options
+      : Array.isArray(record.choices)
+        ? record.choices
+        : [];
+    const options = optionsRaw
+      .filter((option): option is string => typeof option === "string")
+      .map((option) => option.trim())
+      .filter(Boolean);
+    if (options.length === 0) return [];
+    const type =
+      record.type === "multi_select" ||
+      record.type === "rank_priorities" ||
+      record.type === "single_select"
+        ? record.type
+        : undefined;
+    return [{ question, options, ...(type ? { type } : {}) }];
+  });
+}
+
+function isPendingAskTool(tool: AgentToolSegment): boolean {
+  if (tool.name !== "ask_user_input_v0") return false;
+  if (tool.status === "error") return false;
+  // Accept done (normal pause) and running (args landed, tool_end in flight).
+  if (tool.status !== "done" && tool.status !== "running") return false;
+  if (tool.result?.includes('"error"')) return false;
+  return true;
 }
 
 /** Latest unanswered ask_user_input_v0 questionnaire for the active chat. */
@@ -37,19 +76,18 @@ export function findPendingAskUserInput(
 
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index]!;
+    // A newer user message means the questionnaire was already answered
+    // (or the turn moved on).
     if (message.role === "user") return null;
     if (message.role !== "assistant") continue;
 
-    const askTools = collectTools(message).filter(
-      (tool) =>
-        tool.name === "ask_user_input_v0" &&
-        tool.status === "done" &&
-        !tool.result?.includes('"error"'),
-    );
+    const askTools = collectTools(message).filter(isPendingAskTool);
     if (askTools.length === 0) continue;
 
     const questions = questionsFromTool(askTools[askTools.length - 1]!);
-    return questions.length > 0 ? questions : null;
+    // Args may still be streaming in — keep scanning rather than giving up.
+    if (questions.length === 0) continue;
+    return questions;
   }
 
   return null;

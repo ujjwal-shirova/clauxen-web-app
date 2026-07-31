@@ -231,10 +231,11 @@ Inactive chat eviction omits `messageIds` keys (not `[]`) so Recents filter does
 
 ## 10. Agent activity transcript / orb
 
-- One unified timeline per assistant turn (`AgentMainTimeline` in `src/components/agent/agent-orchestration.tsx`): a round-dot fold header over chronological rows — `narration → thinking → tool (search/file/shell/MCP) → …` — then the final answer below the timeline.
-- Mid-turn model text streams as `narration` segments (user-visible progress prose on the rail); thinking renders as muted `Thought for Ns` rows (hover-only chevron). Neither is model-tagged XML — the old `<agent_heading>`/`<agent_narration>` protocol is deleted.
-- A tool-free round's text is promoted to the durable answer via SSE `answer_finalize` (`isFinal` on the segment; never re-rendered inside the timeline).
-- While any step runs, the header shimmers the live step label and stays expanded; on completion it collapses to `N steps · Ns`. Source chips render in real time once search results land; the action-bar Sources button stays completion-gated.
+- Work-group timeline (`groupAgentWorkItems` + `AgentWorkGroupView` in `src/components/agent/agent-orchestration.tsx`): thinking + tools fold under Cursor-style headers (fold chrome only for multi-step mixes; lone Thought/tool stay bare on the rail).
+- Mid-turn model text streams as `narration` segments — quiet prose **outside** the activity folds (never nested under a timeline header). Thinking renders as muted `Thought for Ns` rows. Neither is model-tagged XML — the old `<agent_heading>`/`<agent_narration>` protocol is deleted.
+- A tool-free round's text is promoted to the durable answer via SSE `answer_finalize` (`isFinal` on the segment; never re-rendered as mid-turn narration).
+- `ask_user_input_v0` shows compact "Asked for your input" on the rail; the interactive questionnaire (`AskUserInputCard`) replaces the composer via `findPendingAskUserInput`.
+- Source chips render in real time once search results land; the action-bar Sources button stays completion-gated.
 - Streaming orb stays visible during activity-only phases and hides once final answer markdown streams.
 - Turn pairing self-heals in `dedupeChatMessages`: duplicate user rows collapse at any distance, and createdAt ordering (user-before-assistant on equal persisted timestamps) keeps a user bubble above its own answer.
 - `content_json.agent_ui.modelTurns` persists exact ordered Messages API rounds (including thinking signatures and tool-result users) so reload does not flatten the transcript.

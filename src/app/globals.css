@@ -1532,45 +1532,14 @@ button.user-message-card__body:not(:disabled):hover,
   transition-property: grid-template-rows;
 }
 
-/* ─── Unified agent timeline — one round-dotted fold per assistant turn ───
-   The header dot mirrors the per-event dots on the rail below it: hollow at
-   rest, filled + glowing while the turn is live. */
-.agent-main-timeline {
-  position: relative;
-  width: 100%;
-  min-width: 0;
+/* Work-group fold headers — Cursor-style activity chrome (tools/thinking).
+   Narration prose renders outside these folds, not under the header. */
+.agent-work-group__header {
+  max-width: 100%;
 }
 
-.agent-main-timeline__dot {
-  width: 0.55rem;
-  height: 0.55rem;
-  box-sizing: border-box;
-  border: 1.5px solid #a1a1aa;
-  border-radius: 999px;
-  background: #fff;
-}
-
-.agent-main-timeline[data-active="true"] .agent-main-timeline__dot {
-  border-color: #71717a;
-  background: #71717a;
-  box-shadow: 0 0 0 3px rgba(113, 113, 122, 0.12);
-}
-
-.dark .agent-main-timeline__dot {
-  border-color: #71717a;
-  background: #18181b;
-}
-
-.dark .agent-main-timeline[data-active="true"] .agent-main-timeline__dot {
-  border-color: #a1a1aa;
-  background: #a1a1aa;
-  box-shadow: 0 0 0 3px rgba(161, 161, 170, 0.14);
-}
-
-/* Narration rows sit on the rail like every other event; the prose itself
-   keeps its quiet styling — only spacing is owned here. */
-.agent-narration-event > .agent-narration {
-  padding-left: 0.1rem;
+.agent-work-group__body {
+  padding-bottom: 0.15rem;
 }
 
 /* Sources resolve in real time as searches finish — gentle enter, never a
