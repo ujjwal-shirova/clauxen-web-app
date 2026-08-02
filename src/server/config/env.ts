@@ -2,7 +2,10 @@ import {
   resolveDatabaseUrl,
   resolveSupabaseServiceRoleKey,
 } from "../../lib/vercel-env";
-import { MODEL_CONFIG, normalizeUpstreamModelSlug } from "../../lib/model-config";
+import {
+  MODEL_CONFIG,
+  normalizeUpstreamModelSlug,
+} from "../../lib/model-config";
 
 function optional(name: string, fallback = ""): string {
   return process.env[name]?.trim() || fallback;
@@ -39,11 +42,8 @@ const providerModelClauxenV1 = normalizeUpstreamModelSlug(
 );
 
 const providerOpenAiBaseUrl = normalizeBaseUrl(
-  firstOptional(
-    PROVIDER.baseUrl,
-    "NOVITA_OPENAI_BASE_URL",
-    "LLM_BASE_URL",
-  ) || MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
+  firstOptional(PROVIDER.baseUrl, "NOVITA_OPENAI_BASE_URL", "LLM_BASE_URL") ||
+    MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
 );
 
 /**
@@ -73,7 +73,9 @@ function resolveAnthropicBaseUrl(): string {
 
   // Provider_BASE_URL is often `https://…/openai` — map to Messages path.
   if (/\/openai\/?$/i.test(providerBase)) {
-    return normalizeBaseUrl(providerBase.replace(/\/openai\/?$/i, "/anthropic"));
+    return normalizeBaseUrl(
+      providerBase.replace(/\/openai\/?$/i, "/anthropic"),
+    );
   }
 
   // Host-only or other path — append /anthropic.
@@ -142,6 +144,15 @@ export const env = {
   parallelApiKey: optional("PARALLEL_API_KEY"),
   googlePlacesApiKey: optional("GOOGLE_PLACES_API_KEY"),
   openAiApiKey: optional("OPENAI_API_KEY"),
+  /** AssemblyAI Streaming v3 key. Exact Vercel name requested by the app owner. */
+  assemblyAiApiKey: firstOptional(
+    "Assembly_Provider_Key",
+    "ASSEMBLYAI_API_KEY",
+  ),
+  assemblyAiStreamingHost: optional(
+    "ASSEMBLYAI_STREAMING_HOST",
+    "streaming.assemblyai.com",
+  ),
   /** Kimi thinking: enabled | disabled -> Anthropic extended thinking. */
   thinkingType:
     optional("SHIROVA_THINKING_TYPE", "disabled") === "enabled"
@@ -198,7 +209,8 @@ export const env = {
   workerUrl: optional("WORKER_URL"),
   /** Cloudflare chat-history Worker (keyset pages via Hyperdrive). */
   chatHistoryWorkerUrl: normalizeBaseUrl(
-    optional("CHAT_HISTORY_WORKER_URL") || optional("NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL"),
+    optional("CHAT_HISTORY_WORKER_URL") ||
+      optional("NEXT_PUBLIC_CHAT_HISTORY_WORKER_URL"),
   ),
   /** Shared secret for Worker /internal/warm write-through. */
   chatHistoryInternalToken: optional("CHAT_HISTORY_INTERNAL_TOKEN"),
@@ -240,6 +252,11 @@ export const env = {
     "R2_CHAT_ARCHIVES_BUCKET",
     "clauxen-chat-archives",
   ),
+  /** Private dictation audio. Falls back to the existing documents bucket. */
+  r2AudioRecordingsBucket: optional(
+    "R2_AUDIO_RECORDINGS_BUCKET",
+    optional("R2_DOCUMENTS_BUCKET", "clauxen-documents"),
+  ),
   /** @deprecated Use R2_DOCUMENTS_BUCKET */
   r2UserFilesBucket: optional(
     "R2_USER_FILES_BUCKET",
@@ -270,9 +287,7 @@ export function requireProviderApiKey(): string {
   }
   const key = env.providerApiKey;
   if (!key) {
-    throw new Error(
-      `${PROVIDER.apiKey} is not configured on the server.`,
-    );
+    throw new Error(`${PROVIDER.apiKey} is not configured on the server.`);
   }
   return key;
 }
@@ -288,9 +303,7 @@ export function requireProviderBaseUrl(): string {
   }
   const url = env.providerBaseUrl;
   if (!url) {
-    throw new Error(
-      `${PROVIDER.baseUrl} is not configured on the server.`,
-    );
+    throw new Error(`${PROVIDER.baseUrl} is not configured on the server.`);
   }
   return url;
 }
@@ -321,6 +334,17 @@ export function requireExaApiKey(): string {
   return key;
 }
 
+/** Server-only AssemblyAI credential used solely to mint single-use tokens. */
+export function requireAssemblyAiApiKey(): string {
+  if (typeof window !== "undefined") {
+    throw new Error("AssemblyAI credentials are server-only.");
+  }
+  if (!env.assemblyAiApiKey) {
+    throw new Error("Assembly_Provider_Key is not configured on the server.");
+  }
+  return env.assemblyAiApiKey;
+}
+
 export function isDatabaseConfigured(): boolean {
   return Boolean(env.databaseUrl);
 }
@@ -328,8 +352,8 @@ export function isDatabaseConfigured(): boolean {
 export function isR2Configured(): boolean {
   return Boolean(
     env.r2AccessKeyId &&
-      env.r2SecretAccessKey &&
-      (env.r2S3Endpoint || env.r2AccountId),
+    env.r2SecretAccessKey &&
+    (env.r2S3Endpoint || env.r2AccountId),
   );
 }
 

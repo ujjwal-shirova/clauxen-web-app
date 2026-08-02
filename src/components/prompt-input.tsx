@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDown,
   ArrowUp,
-  Check,
-  LoaderCircle,
   Mic,
   Plus,
   Square,
@@ -47,10 +51,10 @@ import { AttachmentImageLightbox } from "@/components/composer/attachment-image-
 import { AttachmentDocumentPreview } from "@/components/composer/attachment-document-preview";
 import * as settingsApi from "@/lib/api/settings";
 import { overlayToHash } from "@/lib/app-routes";
+import { useStreamingDictation } from "@/features/dictation/use-streaming-dictation";
+import { StreamingDictationText } from "@/components/composer/streaming-dictation-text";
 
-function openOverlayHash(
-  overlay: Parameters<typeof overlayToHash>[0],
-) {
+function openOverlayHash(overlay: Parameters<typeof overlayToHash>[0]) {
   const hash = overlayToHash(overlay);
   if (typeof window === "undefined") return;
   const url = `${window.location.pathname}${window.location.search}${hash}`;
@@ -115,7 +119,6 @@ const COMPOSE_ACTION_META: Record<
 const addMenuTriggerClass =
   "menu-trigger-active flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
 
-const WAVE_DOT_COUNT = 36;
 /** Fallback single-line height when measurement is not ready yet. */
 const COLLAPSED_TEXTAREA_HEIGHT_PX = 20;
 const MAX_PROMPT_LINES = 7;
@@ -171,8 +174,6 @@ export function PromptInput({
   const draftNotifyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const [isDictating, setIsDictating] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
   const [selectedQuickActions, setSelectedQuickActions] = useState<
     Array<"video" | "music">
   >([]);
@@ -192,9 +193,6 @@ export function PromptInput({
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const dragDepthRef = useRef(0);
-  const [waveLevels, setWaveLevels] = useState<number[]>(() =>
-    Array.from({ length: WAVE_DOT_COUNT }, () => 0.12),
-  );
   const [isMultiline, setIsMultiline] = useState(false);
   const singleLineHeightRef = useRef(COLLAPSED_TEXTAREA_HEIGHT_PX);
   const isMultilineRef = useRef(false);
@@ -207,18 +205,24 @@ export function PromptInput({
   const addMenuPanelRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const shouldSubmitRecordingRef = useRef(false);
+  const syncDraftImmediateRef = useRef<(value: string) => void>(() => {});
+  const readDraftForDictation = useCallback(
+    () => textareaRef.current?.value ?? draftValueRef.current,
+    [],
+  );
+  const applyDictationDraft = useCallback((value: string) => {
+    syncDraftImmediateRef.current(value);
+  }, []);
+  const dictation = useStreamingDictation({
+    readDraft: readDraftForDictation,
+    onDraftChange: applyDictationDraft,
+  });
   const showComposeControls =
     activeComposeAction != null && !isConversationStarted;
   const composeMeta = activeComposeAction
     ? COMPOSE_ACTION_META[activeComposeAction]
     : null;
-  const showDictationSurface = isDictating || isTranscribing;
+  const showDictationSurface = dictation.isActive;
   const hasPromptAddons =
     selectedQuickActions.length > 0 ||
     attachments.length > 0 ||
@@ -396,8 +400,7 @@ export function PromptInput({
     // the user deletes back to a single line / empty draft.
     const scrollHeight = measureTextareaScrollHeight(textarea);
     const fitsSingleLine =
-      isEmpty ||
-      (!hasExplicitNewline && scrollHeight <= singleLineHeight + 1);
+      isEmpty || (!hasExplicitNewline && scrollHeight <= singleLineHeight + 1);
 
     if (fitsSingleLine) {
       if (isMultilineRef.current) {
@@ -449,8 +452,6 @@ export function PromptInput({
     },
     [scheduleResizeTextarea],
   );
-
-  const syncDraftImmediateRef = useRef(syncDraftImmediate);
 
   useEffect(() => {
     syncDraftImmediateRef.current = syncDraftImmediate;
@@ -505,15 +506,17 @@ export function PromptInput({
     singleLineHeightRef.current = COLLAPSED_TEXTAREA_HEIGHT_PX;
     requestAnimationFrame(() => {
       // Prefer a stashed “Create via chat” schedule draft over an empty box.
-      void import("@/lib/schedule-chat-draft").then(({ consumeScheduleChatDraft }) => {
-        const draft = consumeScheduleChatDraft();
-        if (draft) {
-          syncDraftImmediate(draft);
-          setIsMultiline(draft.includes("\n") || draft.length > 80);
-        }
-        scheduleResizeTextarea();
-        textareaRef.current?.focus({ preventScroll: true });
-      });
+      void import("@/lib/schedule-chat-draft").then(
+        ({ consumeScheduleChatDraft }) => {
+          const draft = consumeScheduleChatDraft();
+          if (draft) {
+            syncDraftImmediate(draft);
+            setIsMultiline(draft.includes("\n") || draft.length > 80);
+          }
+          scheduleResizeTextarea();
+          textareaRef.current?.focus({ preventScroll: true });
+        },
+      );
     });
   }, [focusKey, syncDraftImmediate, scheduleResizeTextarea]);
 
@@ -714,7 +717,10 @@ export function PromptInput({
   useEffect(() => {
     if (!allowAttachments) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "u") {
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        event.key.toLowerCase() !== "u"
+      ) {
         return;
       }
       const target = event.target as HTMLElement | null;
@@ -869,17 +875,20 @@ export function PromptInput({
       });
   }, []);
 
-  const handleThinkingModeChange = useCallback((mode: ThinkingMode) => {
-    setThinkingMode(mode);
-    onExtendedThinkingChange?.(mode === "on");
-    void settingsApi
-      .updateSettings({
-        personalization: { extendedThinking: mode === "on" },
-      })
-      .catch((error) => {
-        console.warn("[composer] thinking preference failed:", error);
-      });
-  }, [onExtendedThinkingChange]);
+  const handleThinkingModeChange = useCallback(
+    (mode: ThinkingMode) => {
+      setThinkingMode(mode);
+      onExtendedThinkingChange?.(mode === "on");
+      void settingsApi
+        .updateSettings({
+          personalization: { extendedThinking: mode === "on" },
+        })
+        .catch((error) => {
+          console.warn("[composer] thinking preference failed:", error);
+        });
+    },
+    [onExtendedThinkingChange],
+  );
 
   useEffect(() => {
     if (extendedThinkingProp == null) return;
@@ -890,149 +899,6 @@ export function PromptInput({
     setActiveComposeAction(null);
     scheduleResizeTextarea();
   };
-
-  const releaseRecordingResources = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    analyserRef.current = null;
-    if (audioContextRef.current) {
-      void audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (recorderRef.current?.state === "recording") {
-        recorderRef.current.stop();
-      }
-      recorderRef.current = null;
-      releaseRecordingResources();
-    };
-  }, [releaseRecordingResources]);
-
-  useEffect(() => {
-    if (!isDictating) {
-      setWaveLevels(Array.from({ length: WAVE_DOT_COUNT }, () => 0.12));
-      return;
-    }
-
-    let frameId = 0;
-    const tick = () => {
-      const analyser = analyserRef.current;
-      if (analyser) {
-        const data = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(data);
-        let sum = 0;
-        const bins = Math.min(24, data.length);
-        for (let index = 0; index < bins; index += 1) {
-          sum += data[index] ?? 0;
-        }
-        const level = Math.min(1, (sum / (bins * 255)) * 3.2);
-        setWaveLevels((prev) => [...prev.slice(1), Math.max(0.12, level)]);
-      }
-      frameId = window.requestAnimationFrame(tick);
-    };
-
-    frameId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [isDictating]);
-
-  const cancelDictation = useCallback(() => {
-    shouldSubmitRecordingRef.current = false;
-    if (recorderRef.current?.state === "recording") {
-      recorderRef.current.stop();
-    } else {
-      releaseRecordingResources();
-    }
-    setIsDictating(false);
-  }, [releaseRecordingResources]);
-
-  const submitDictation = useCallback(() => {
-    shouldSubmitRecordingRef.current = true;
-    if (recorderRef.current?.state === "recording") {
-      recorderRef.current.stop();
-    }
-  }, []);
-
-  const startDictation = useCallback(async () => {
-    if (
-      !navigator.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === "undefined"
-    ) {
-      return;
-    }
-
-    if (isDictating) {
-      cancelDictation();
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioContext = new AudioContext();
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048;
-      audioContext.createMediaStreamSource(stream).connect(analyser);
-
-      streamRef.current = stream;
-      audioContextRef.current = audioContext;
-      analyserRef.current = analyser;
-      const recorder = new MediaRecorder(stream);
-      recorderRef.current = recorder;
-      chunksRef.current = [];
-      shouldSubmitRecordingRef.current = false;
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-      recorder.onstop = async () => {
-        const audio = new Blob(chunksRef.current, {
-          type: recorder.mimeType || "audio/webm",
-        });
-        const shouldSubmit = shouldSubmitRecordingRef.current;
-        recorderRef.current = null;
-        releaseRecordingResources();
-        setIsDictating(false);
-        if (!shouldSubmit || audio.size === 0) return;
-
-        setIsTranscribing(true);
-        try {
-          const body = new FormData();
-          body.append("audio", audio, "dictation.webm");
-          const response = await fetch("/api/v1/audio/transcriptions", {
-            method: "POST",
-            body,
-          });
-          if (!response.ok) return;
-          const result = (await response.json()) as {
-            text?: string;
-            transcript?: string;
-          };
-          const transcript = (result.text ?? result.transcript ?? "").trim();
-          if (transcript) {
-            const previous = readDraft();
-            const next =
-              previous && !/\s$/.test(previous)
-                ? `${previous} ${transcript}`
-                : previous + transcript;
-            syncDraftImmediate(next);
-          }
-        } catch {
-          // The transcription endpoint is supplied by the server integration.
-        } finally {
-          setIsTranscribing(false);
-        }
-      };
-      recorder.start(100);
-      setIsDictating(true);
-    } catch {
-      setIsDictating(false);
-      releaseRecordingResources();
-    }
-  }, [cancelDictation, isDictating, releaseRecordingResources]);
 
   const micButtonClass =
     "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
@@ -1050,8 +916,8 @@ export function PromptInput({
     <HintTooltip content="Dictate">
       <button
         type="button"
-        onClick={startDictation}
-        aria-pressed={isDictating}
+        onClick={() => void dictation.start()}
+        aria-pressed={dictation.isActive}
         className={micButtonClass}
         data-app-button
       >
@@ -1080,12 +946,13 @@ export function PromptInput({
           <HintTooltip content="Cancel dictation">
             <button
               type="button"
-              onClick={cancelDictation}
-              disabled={isTranscribing}
+              onClick={() => void dictation.cancel()}
+              disabled={dictation.status === "stopping"}
               aria-label="Cancel dictation"
               className={cn(
                 "flex h-9 w-9 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100",
-                isTranscribing && "cursor-not-allowed opacity-40",
+                dictation.status === "stopping" &&
+                  "cursor-not-allowed opacity-40",
               )}
             >
               <X className="icon-xl" />
@@ -1094,20 +961,20 @@ export function PromptInput({
           <HintTooltip content="Submit dictation">
             <button
               type="button"
-              onClick={submitDictation}
-              disabled={isTranscribing}
+              onClick={() => void dictation.submit()}
+              disabled={dictation.status === "stopping"}
               aria-label="Submit dictation"
               className={cn(
                 "flex h-9 w-9 items-center justify-center rounded-full transition-colors",
-                isTranscribing
+                dictation.status === "stopping"
                   ? "cursor-wait bg-zinc-900 text-white"
                   : "text-zinc-600 hover:bg-zinc-100",
               )}
             >
-              {isTranscribing ? (
-                <LoaderCircle className="icon-md animate-spin" />
+              {dictation.status === "stopping" ? (
+                <Square className="icon-md animate-pulse" />
               ) : (
-                <Check className="icon-xl" />
+                <Square className="icon-md fill-current" />
               )}
             </button>
           </HintTooltip>
@@ -1217,30 +1084,35 @@ export function PromptInput({
     </div>
   );
 
-
   const renderPromptBody = (placeholder: string, centerSlot?: ReactNode) => {
     return (
       <div
         className={cn(
           "prompt-body-grid w-full flex flex-col",
-          useCompactPromptLayout && "prompt-body-grid--compact flex-row items-center gap-2 px-2.5 py-2 sm:px-3 min-h-[56px]"
+          useCompactPromptLayout &&
+            "prompt-body-grid--compact flex-row items-center gap-2 px-2.5 py-2 sm:px-3 min-h-[56px]",
         )}
         data-prompt-layout={useCompactPromptLayout ? "compact" : "stacked"}
       >
         <div
           className={cn(
             "prompt-editor-area min-w-0",
-            useCompactPromptLayout ? "order-2 flex-1" : "w-full px-2.5 pt-1.5 pb-0 sm:px-3",
+            useCompactPromptLayout
+              ? "order-2 flex-1"
+              : "w-full px-2.5 pt-1.5 pb-0 sm:px-3",
           )}
           data-prompt-editor
         >
-          {renderTextareaField(placeholder, useCompactPromptLayout ? "py-0" : undefined)}
+          {renderTextareaField(
+            placeholder,
+            useCompactPromptLayout ? "py-0" : undefined,
+          )}
         </div>
 
         <div
           className={cn(
             "prompt-toolbar-area flex items-center gap-1 px-2 py-1.5 sm:gap-1.5 sm:px-2.5 sm:py-2",
-            useCompactPromptLayout && "contents"
+            useCompactPromptLayout && "contents",
           )}
         >
           <div className={cn(useCompactPromptLayout && "order-1")}>
@@ -1249,8 +1121,18 @@ export function PromptInput({
           <div className={cn(useCompactPromptLayout && "hidden")}>
             {centerSlot}
           </div>
-          <div className={cn("prompt-toolbar-spacer min-w-0 flex-1", useCompactPromptLayout && "hidden")} />
-          <div className={cn("prompt-trailing-actions flex shrink-0 items-center gap-1", useCompactPromptLayout && "order-3")}>
+          <div
+            className={cn(
+              "prompt-toolbar-spacer min-w-0 flex-1",
+              useCompactPromptLayout && "hidden",
+            )}
+          />
+          <div
+            className={cn(
+              "prompt-trailing-actions flex shrink-0 items-center gap-1",
+              useCompactPromptLayout && "order-3",
+            )}
+          >
             {renderTrailingActions()}
           </div>
         </div>
@@ -1260,26 +1142,11 @@ export function PromptInput({
 
   const renderTextareaField = (placeholder: string, className?: string) =>
     showDictationSurface ? (
-      <div className="flex h-9 min-w-0 items-center overflow-hidden">
-        {isTranscribing ? (
-          <div className="flex w-full items-center gap-2 text-[13px] text-zinc-500">
-            <LoaderCircle className="icon-md animate-spin" />
-            <span>Transcribing...</span>
-          </div>
-        ) : (
-          <div
-            className="flex h-9 w-full items-center justify-end gap-[3px] overflow-hidden px-0.5"
-            aria-label="Voice recording waveform"
-          >
-            {waveLevels.map((level, index) => (
-              <span
-                key={index}
-                className="w-[3px] shrink-0 rounded-full bg-zinc-400/90 transition-[height] duration-75 ease-out"
-                style={{ height: `${6 + level * 22}px` }}
-              />
-            ))}
-          </div>
-        )}
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <StreamingDictationText
+          text={dictation.displayText}
+          status={dictation.status}
+        />
       </div>
     ) : (
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-0">
@@ -1356,32 +1223,32 @@ export function PromptInput({
             data-composer-stack={withProjectStrip ? "with-project" : "solo"}
             data-add-menu-open={isAddMenuOpen || undefined}
           >
-          <div
-            className={cn(
-              promptShellClass,
-              isDraggingFiles && "ring-2 ring-[#2c84db]/35",
-            )}
-            ref={promptShellRef}
-            data-prompt-shell
-            data-compose-mode={showComposeControls || undefined}
-            data-drop-active={isDraggingFiles || undefined}
-            data-add-menu-open={isAddMenuOpen || undefined}
-          >
-            {isDraggingFiles ? (
-              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-[#2c84db]/50 bg-[#e9f3ff]/70 text-[13px] font-medium text-[#2c84db]">
-                Drop files to attach
-              </div>
-            ) : null}
-            <AnimatePresence initial={false} mode="popLayout">
-              {selectedQuickActions.length > 0 ? (
-                <motion.div
-                  key="other-compose-controls"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center gap-1.5 overflow-hidden px-3 pt-2 pb-0"
-                >
-                  {selectedQuickActions.map((action) => (
+            <div
+              className={cn(
+                promptShellClass,
+                isDraggingFiles && "ring-2 ring-[#2c84db]/35",
+              )}
+              ref={promptShellRef}
+              data-prompt-shell
+              data-compose-mode={showComposeControls || undefined}
+              data-drop-active={isDraggingFiles || undefined}
+              data-add-menu-open={isAddMenuOpen || undefined}
+            >
+              {isDraggingFiles ? (
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-[#2c84db]/50 bg-[#e9f3ff]/70 text-[13px] font-medium text-[#2c84db]">
+                  Drop files to attach
+                </div>
+              ) : null}
+              <AnimatePresence initial={false} mode="popLayout">
+                {selectedQuickActions.length > 0 ? (
+                  <motion.div
+                    key="other-compose-controls"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-1.5 overflow-hidden px-3 pt-2 pb-0"
+                  >
+                    {selectedQuickActions.map((action) => (
                       <button
                         key={action}
                         type="button"
@@ -1392,72 +1259,79 @@ export function PromptInput({
                         <X className="icon-sm" />
                       </button>
                     ))}
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
 
-            <AnimatePresence initial={false} mode="popLayout">
-              {attachments.length > 0 ? (
-                <motion.div
-                  key="prompt-attachments"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex flex-wrap gap-1.5 overflow-hidden px-2 pt-2 sm:px-2.5"
+              <AnimatePresence initial={false} mode="popLayout">
+                {attachments.length > 0 ? (
+                  <motion.div
+                    key="prompt-attachments"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex flex-wrap gap-1.5 overflow-hidden px-2 pt-2 sm:px-2.5"
+                  >
+                    {attachments.map((attachment) => (
+                      <AttachmentChip
+                        key={attachment.id}
+                        file={attachment}
+                        onRemove={() => removeAttachment(attachment.id)}
+                        onOpen={() => setPreviewAttachment(attachment)}
+                      />
+                    ))}
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+
+              {attachmentError ? (
+                <p className="px-2.5 pt-1 text-[11px] text-red-600 sm:px-3">
+                  {attachmentError}
+                </p>
+              ) : null}
+
+              {dictation.error ? (
+                <p
+                  className="px-2.5 pt-1 text-[11px] text-red-600 sm:px-3"
+                  role="alert"
                 >
-                  {attachments.map((attachment) => (
-                    <AttachmentChip
-                      key={attachment.id}
-                      file={attachment}
-                      onRemove={() => removeAttachment(attachment.id)}
-                      onOpen={() => setPreviewAttachment(attachment)}
-                    />
-                  ))}
-                </motion.div>
+                  {dictation.error}
+                </p>
               ) : null}
-            </AnimatePresence>
 
-            {attachmentError ? (
-              <p className="px-2.5 pt-1 text-[11px] text-red-600 sm:px-3">
-                {attachmentError}
-              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={COMPOSER_FILE_ACCEPT}
+                multiple
+                className="hidden"
+                onChange={(event) => void handleFileInputChange(event)}
+              />
+
+              {showComposeControls && composeMeta
+                ? renderPromptBody(
+                    composeMeta.placeholder,
+                    <button
+                      type="button"
+                      aria-label={`Close ${composeMeta.label} mode`}
+                      onMouseEnter={() => setComposeChipHovered(true)}
+                      onMouseLeave={() => setComposeChipHovered(false)}
+                      onClick={handleComposeActionRemove}
+                      className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[#2c84db]/15 bg-[#e9f3ff] px-2.5 text-[12px] font-medium text-[#2c84db] transition-colors hover:bg-[#ddebff]"
+                    >
+                      {composeChipHovered ? (
+                        <X className="icon-xl" />
+                      ) : (
+                        <composeMeta.icon className="icon-xl" />
+                      )}
+                      <span>{composeMeta.label}</span>
+                    </button>,
+                  )
+                : renderPromptBody(placeholder)}
+            </div>
+            {withProjectStrip ? (
+              <ComposerProjectStrip lockedProjectId={lockedProjectId} />
             ) : null}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={COMPOSER_FILE_ACCEPT}
-              multiple
-              className="hidden"
-              onChange={(event) => void handleFileInputChange(event)}
-            />
-
-            {showComposeControls && composeMeta ? (
-              renderPromptBody(
-                composeMeta.placeholder,
-                <button
-                  type="button"
-                  aria-label={`Close ${composeMeta.label} mode`}
-                  onMouseEnter={() => setComposeChipHovered(true)}
-                  onMouseLeave={() => setComposeChipHovered(false)}
-                  onClick={handleComposeActionRemove}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[#2c84db]/15 bg-[#e9f3ff] px-2.5 text-[12px] font-medium text-[#2c84db] transition-colors hover:bg-[#ddebff]"
-                >
-                  {composeChipHovered ? (
-                    <X className="icon-xl" />
-                  ) : (
-                    <composeMeta.icon className="icon-xl" />
-                  )}
-                  <span>{composeMeta.label}</span>
-                </button>,
-              )
-            ) : (
-              renderPromptBody(placeholder)
-            )}
-          </div>
-          {withProjectStrip ? (
-            <ComposerProjectStrip lockedProjectId={lockedProjectId} />
-          ) : null}
           </div>
         </div>
       </div>

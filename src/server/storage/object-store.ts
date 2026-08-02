@@ -19,7 +19,8 @@ export type StoragePurpose =
   | "documents"
   | "artifacts"
   | "skills"
-  | "chat-archives";
+  | "chat-archives"
+  | "audio-recordings";
 
 export type StoredObjectRef = {
   purpose: StoragePurpose;
@@ -34,6 +35,7 @@ const PURPOSE_BUCKET: Record<StoragePurpose, () => string> = {
   artifacts: () => env.r2ArtifactsBucket,
   skills: () => env.r2SkillsBucket,
   "chat-archives": () => env.r2ChatArchivesBucket,
+  "audio-recordings": () => env.r2AudioRecordingsBucket,
 };
 
 export function bucketForPurpose(purpose: StoragePurpose): string {
@@ -82,7 +84,8 @@ export async function putObject(input: {
   const contentHash = hashBuffer(body);
 
   if (!client) {
-    const { writeLocalObject } = await import("@/server/storage/local-fallback");
+    const { writeLocalObject } =
+      await import("@/server/storage/local-fallback");
     await writeLocalObject(bucket, input.key, body);
     return {
       purpose: input.purpose,
@@ -138,7 +141,8 @@ export async function deleteObject(
   const bucket = bucketOverride ?? bucketForPurpose(purpose);
   const client = getR2Client();
   if (!client) {
-    const { deleteLocalObject } = await import("@/server/storage/local-fallback");
+    const { deleteLocalObject } =
+      await import("@/server/storage/local-fallback");
     await deleteLocalObject(bucket, key);
     return;
   }
@@ -156,9 +160,8 @@ export async function moveObject(input: {
   const client = getR2Client();
   if (!client) {
     const body = await getObject(input.purpose, input.sourceKey, bucket);
-    const { writeLocalObject, deleteLocalObject } = await import(
-      "@/server/storage/local-fallback"
-    );
+    const { writeLocalObject, deleteLocalObject } =
+      await import("@/server/storage/local-fallback");
     await writeLocalObject(bucket, input.destinationKey, body);
     await deleteLocalObject(bucket, input.sourceKey);
     return;
@@ -252,7 +255,12 @@ export async function createPresignedPutUrl(input: {
   contentType?: string;
   expiresInSeconds?: number;
   bucketOverride?: string;
-}): Promise<{ uploadUrl: string; bucket: string; key: string; expiresAt: string } | null> {
+}): Promise<{
+  uploadUrl: string;
+  bucket: string;
+  key: string;
+  expiresAt: string;
+} | null> {
   const client = getR2Client();
   if (!client) return null;
   const bucket = input.bucketOverride ?? bucketForPurpose(input.purpose);

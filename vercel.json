@@ -73,7 +73,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=()"
+          "value": "camera=(), microphone=(self), geolocation=()"
         },
         {
           "key": "X-DNS-Prefetch-Control",
@@ -147,6 +147,9 @@
       "maxDuration": 300
     },
     "src/app/api/projects/**/files/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/v1/audio/dictation/**/route.ts": {
       "maxDuration": 60
     },
     "src/app/api/v1/customize/skills/upload/route.ts": {

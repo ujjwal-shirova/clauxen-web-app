@@ -30,7 +30,9 @@ function getAllowedDevOrigins(): string[] {
   return [...new Set([...fromEnv, ...getLocalNetworkHosts()])];
 }
 
-function r2ImagePatterns(): NonNullable<NextConfig["images"]>["remotePatterns"] {
+function r2ImagePatterns(): NonNullable<
+  NextConfig["images"]
+>["remotePatterns"] {
   const patterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
     {
       protocol: "https",
@@ -90,7 +92,7 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=()",
+    value: "camera=(), microphone=(self), geolocation=()",
   },
   { key: "X-DNS-Prefetch-Control", value: "off" },
   {
@@ -107,7 +109,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https: https://*.razorpay.com https://*.rzp.io",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com https://*.razorpay.com https://checkout.razorpay.com https://*.r2.dev https://*.cloudflarestorage.com https://*.workers.dev https://va.vercel-scripts.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss://streaming.assemblyai.com wss://streaming.us.assemblyai.com wss://streaming.eu.assemblyai.com https://api.razorpay.com https://*.razorpay.com https://checkout.razorpay.com https://*.r2.dev https://*.cloudflarestorage.com https://*.workers.dev https://va.vercel-scripts.com",
       "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://*.rzp.io",
       "child-src 'self' https://checkout.razorpay.com https://*.razorpay.com https://*.rzp.io",
       "object-src 'none'",
@@ -155,10 +157,7 @@ const nextConfig: NextConfig = {
       "./src/prompts/**/*",
       "./src/server/email-verifier/disposable.txt",
     ],
-    "/*": [
-      "./src/prompts/**/*",
-      "./src/server/email-verifier/disposable.txt",
-    ],
+    "/*": ["./src/prompts/**/*", "./src/server/email-verifier/disposable.txt"],
   },
   // Keep heavy server-only libs out of the client graph / slim function traces.
   serverExternalPackages: [
