@@ -155,6 +155,22 @@ export function resolveWheelScrollTarget(
 
   while (node && node !== root) {
     if (node instanceof HTMLElement) {
+      // Agent tool chrome that must never own vertical chat scrolling.
+      // Only force a takeover when the marked node is actually a scroll host
+      // on some axis — overflow-hidden wrappers (ToolBody) must not kill
+      // trackpad inertia on the transcript.
+      if (
+        axis === "y" &&
+        (node.hasAttribute("data-chat-scroll-passthrough") ||
+          node.classList.contains("agent-terminal-pane"))
+      ) {
+        const axes = scrollHostAxes(node, getStyle(node));
+        if (axes.x || axes.y) {
+          skippedCrossAxisHost = true;
+        }
+        node = node.parentElement;
+        continue;
+      }
       const candidate = viewportFor(node) ?? node;
       const axes = scrollHostAxes(candidate, getStyle(candidate));
       if (axes[axis]) {

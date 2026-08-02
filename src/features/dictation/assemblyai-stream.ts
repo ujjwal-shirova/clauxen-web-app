@@ -10,6 +10,8 @@ type StreamConfig = {
 
 type ServerEvent = Record<string, unknown> & { type?: string; error?: string };
 
+const CONNECT_TIMEOUT_MS = 12_000;
+
 function isTurnEvent(
   message: ServerEvent,
 ): message is ServerEvent & AssemblyTurnEvent {
@@ -43,12 +45,40 @@ export class AssemblyAiStreamingConnection {
     url.searchParams.set("mode", this.config.mode);
 
     return new Promise((resolve, reject) => {
+      let settled = false;
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeoutId);
+        fn();
+      };
+
       const socket = new WebSocket(url);
       socket.binaryType = "arraybuffer";
       this.socket = socket;
-      socket.onopen = () => resolve();
+
+      const timeoutId = window.setTimeout(() => {
+        settle(() => {
+          try {
+            socket.close();
+          } catch {
+            /* ignore */
+          }
+          reject(new Error("Dictation connection timed out."));
+        });
+      }, CONNECT_TIMEOUT_MS);
+
+      socket.onopen = () => settle(() => resolve());
       socket.onerror = () =>
-        reject(new Error("Could not connect to dictation."));
+        settle(() => reject(new Error("Could not connect to dictation.")));
+      socket.onclose = () => {
+        if (!settled) {
+          settle(() =>
+            reject(new Error("Dictation connection closed before ready.")),
+          );
+        }
+        if (!this.terminated) this.terminationResolve?.();
+      };
       socket.onmessage = (event) => {
         if (typeof event.data !== "string") return;
         let message: ServerEvent;
@@ -63,9 +93,6 @@ export class AssemblyAiStreamingConnection {
           this.terminationResolve?.();
         }
         if (message.error) this.onError(message.error);
-      };
-      socket.onclose = () => {
-        if (!this.terminated) this.terminationResolve?.();
       };
     });
   }

@@ -13,26 +13,29 @@ export function AgentThinkingPhase({
   const duration = segment.durationSeconds;
   const title =
     segment.isStreaming === true ? (
-      <AgentShimmerText key={`think-live-${segment.id}`} active>
-        <span className="agent-activity-label--muted">Thinking</span>
+      <>
+        <AgentShimmerText key={`think-live-${segment.id}`} active>
+          <span className="agent-activity-label--primary">Thinking</span>
+        </AgentShimmerText>
         <span className="agent-activity-label--subtle">…</span>
-      </AgentShimmerText>
+      </>
     ) : duration ? (
       <>
-        <span className="agent-activity-label--muted">Thought</span>
+        <span className="agent-activity-label--primary">Thought</span>
         <span className="agent-activity-label--subtle">
           {" "}
           for {duration}s
         </span>
       </>
     ) : (
-      <span className="agent-activity-label--muted">Thought</span>
+      <span className="agent-activity-label--primary">Thought</span>
     );
 
   return (
     <div
       className="agent-thinking-phase inline-flex min-h-[1.35rem] max-w-full items-center text-[13px] font-[430] leading-5 tracking-[-0.01em]"
       data-active={segment.isStreaming === true || undefined}
+      data-agent-step="thinking"
     >
       {title}
     </div>

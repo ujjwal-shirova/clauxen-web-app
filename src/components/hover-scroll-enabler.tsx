@@ -15,6 +15,11 @@ import {
  * consume them **on that axis, in that direction**. Horizontal-only hosts
  * (code blocks, tables) therefore never swallow a vertical page scroll, which
  * is what produced the stalls and jumps when the cursor sat inside a block.
+ *
+ * Chat transcript vertical scrolling is owned solely by the Radix viewport
+ * (`[data-scroll-region]`). Agent tool panes marked
+ * `[data-chat-scroll-passthrough]` force vertical deltas through to that
+ * viewport.
  */
 
 function prepareScrollHost(el: HTMLElement) {
@@ -26,6 +31,9 @@ function prepareScrollHost(el: HTMLElement) {
   // x-only host blocks vertical chaining to the transcript viewport.
   el.style.setProperty("overscroll-behavior-x", axes.x ? "contain" : "auto");
   el.style.setProperty("overscroll-behavior-y", axes.y ? "contain" : "auto");
+  if (el.hasAttribute("data-chat-scroll-passthrough")) {
+    el.style.setProperty("overscroll-behavior-y", "auto");
+  }
 }
 
 const HOST_SELECTOR = [

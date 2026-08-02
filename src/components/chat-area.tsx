@@ -217,10 +217,17 @@ function ChatAreaLayout({
   const sourceCountRef = React.useRef(chatSources.length);
 
   React.useEffect(() => {
-    // Do not auto-open the artifacts sidebar when new artifacts arrive.
-    // Keep the ref updated so we don't re-trigger logic on the same count.
+    // Auto-open the artifacts rail when a new file appears (ChatGPT-style).
+    if (
+      chatArtifacts.length > artifactCountRef.current &&
+      chatArtifacts.length > 0 &&
+      !isViewerOpen &&
+      !isSourcesPanelOpen
+    ) {
+      setIsArtifactsPanelOpen(true);
+    }
     artifactCountRef.current = chatArtifacts.length;
-  }, [chatArtifacts.length]);
+  }, [chatArtifacts.length, isViewerOpen, isSourcesPanelOpen]);
 
   React.useEffect(() => {
     if (chatSources.length > sourceCountRef.current) {

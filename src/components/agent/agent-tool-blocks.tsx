@@ -32,11 +32,12 @@ function CodePane({
   return (
     <pre
       className={cn(
-        "overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words rounded-md border px-2.5 py-2 font-mono text-[11.5px] leading-5 [overscroll-behavior-inline:contain]",
+        "agent-terminal-pane overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words rounded-md border px-2.5 py-2 font-mono text-[11.5px] leading-5 [overscroll-behavior-x:contain] [overscroll-behavior-y:auto]",
         tone === "error"
-          ? "border-rose-200/80 bg-rose-50/60 text-rose-600"
-          : "border-zinc-200/80 bg-zinc-50/80 text-zinc-700",
+          ? "border-rose-200/80 bg-rose-50/60 text-rose-600 dark:border-rose-500/30 dark:bg-rose-950/40 dark:text-rose-300"
+          : "border-zinc-200/80 bg-zinc-50/90 text-zinc-700 dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:text-zinc-300",
       )}
+      data-chat-scroll-passthrough=""
     >
       {children}
     </pre>
@@ -86,14 +87,14 @@ function ToolArea({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className={cn("border-t border-zinc-200/70 first:border-t-0")}>
+    <div className={cn("border-t border-zinc-200/70 first:border-t-0 dark:border-zinc-700/70")}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-[10.5px] font-medium uppercase tracking-[0.06em]",
-          error ? "text-rose-500" : "text-zinc-400",
-          "hover:text-zinc-600 transition-colors",
+          error ? "text-rose-500 dark:text-rose-400" : "text-zinc-400 dark:text-zinc-500",
+          "hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors",
         )}
       >
         <ChevronRight
@@ -107,9 +108,10 @@ function ToolArea({
       {open ? (
         <div
           className={cn(
-            "min-w-0 overflow-x-auto overflow-y-hidden px-3 pb-2.5 [overscroll-behavior-inline:contain]",
+            "min-w-0 overflow-x-auto overflow-y-hidden px-3 pb-2.5 [overscroll-behavior-x:contain] [overscroll-behavior-y:auto]",
             mono && "font-mono text-[11.5px] leading-5",
           )}
+          data-chat-scroll-passthrough=""
         >
           {children}
         </div>
@@ -120,9 +122,49 @@ function ToolArea({
 
 function ToolBody({ children }: { children: ReactNode }) {
   return (
-    <div className="w-full overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
+    <div
+      className="agent-analyzing-terminal w-full overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)] dark:border-zinc-700/80 dark:bg-zinc-950 dark:shadow-none"
+      data-chat-scroll-passthrough=""
+    >
       {children}
     </div>
+  );
+}
+
+/** Shared activity-row title: dark verb (shimmers live) + light-gray detail. */
+function AgentStepTitle({
+  verb,
+  detail,
+  streaming = false,
+  failed = false,
+  streamKey,
+}: {
+  verb: string;
+  detail?: string;
+  streaming?: boolean;
+  failed?: boolean;
+  streamKey?: string;
+}) {
+  const verbNode = failed ? (
+    <span className="text-rose-500 dark:text-rose-400">{verb}</span>
+  ) : streaming ? (
+    <AgentShimmerText key={streamKey} active>
+      <span className="agent-activity-label--primary">{verb}</span>
+    </AgentShimmerText>
+  ) : (
+    <span className="agent-activity-label--primary">{verb}</span>
+  );
+
+  return (
+    <>
+      {verbNode}
+      {detail ? (
+        <span className="agent-activity-label--subtle"> {detail}</span>
+      ) : null}
+      {streaming ? (
+        <span className="agent-activity-label--subtle">…</span>
+      ) : null}
+    </>
   );
 }
 
@@ -160,32 +202,25 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
   const headerText = description.trim() || "Using the Linux workspace";
 
   return (
-    <div className="w-full min-w-0">
+    <div className="w-full min-w-0" data-agent-step="analyzing">
       <AgentTraceBlock
         title={
-          isRunning ? (
-            <AgentShimmerText key={`bash-live-${tool.toolCallId}`} active>
-              <span className="agent-activity-label--primary">Analyzing</span>
-              <span className="agent-activity-label--subtle"> {headerText}</span>
-            </AgentShimmerText>
-          ) : failed ? (
-            <>
-              <span className="text-rose-500">Analysis failed</span>
-              <span className="agent-activity-label--subtle"> {headerText}</span>
-            </>
-          ) : (
-            <>
-              <span className="agent-activity-label--primary">Analyzed</span>
-              <span className="agent-activity-label--subtle"> {headerText}</span>
-            </>
-          )
+          <AgentStepTitle
+            verb={isRunning ? "Analyzing" : failed ? "Analysis failed" : "Analyzed"}
+            detail={headerText}
+            streaming={isRunning}
+            failed={failed}
+            streamKey={`bash-live-${tool.toolCallId}`}
+          />
         }
         trailing={
           !isRunning && code !== null ? (
             <span
               className={cn(
                 "shrink-0 text-[11px] font-medium tabular-nums",
-                failed ? "text-rose-500" : "agent-activity-label--subtle",
+                failed
+                  ? "text-rose-500 dark:text-rose-400"
+                  : "agent-activity-label--subtle",
               )}
             >
               exit {code}
@@ -202,7 +237,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
       >
         <ToolBody>
           <div className="px-3 pt-2.5 pb-1">
-            <div className="flex items-center gap-1.5 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400">
+            <div className="flex items-center gap-1.5 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
               <Terminal className="h-3 w-3" />
               Command
             </div>
@@ -210,7 +245,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
           </div>
           {hasOutput || isRunning ? (
             <div className="px-3 pb-2.5">
-              <div className="flex items-center gap-1.5 pt-1 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400">
+              <div className="flex items-center gap-1.5 pt-1 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
                 <ChevronRight className="h-3 w-3" />
                 Output
               </div>
@@ -221,7 +256,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
                 </div>
               ) : null}
               {isRunning && !stdout.trim() && !stderr.trim() ? (
-                <p className="text-[11.5px] italic text-zinc-400">
+                <p className="text-[11.5px] italic text-zinc-400 dark:text-zinc-500">
                   Waiting for output…
                 </p>
               ) : null}
@@ -255,25 +290,16 @@ export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolSegment }) {
   const headerText = description.trim() || "Working with Python";
 
   return (
-    <div className="w-full min-w-0">
+    <div className="w-full min-w-0" data-agent-step="analyzing">
       <AgentTraceBlock
         title={
-          isRunning ? (
-            <AgentShimmerText key={`exec-live-${tool.toolCallId}`} active>
-              <span className="agent-activity-label--primary">Analyzing</span>
-              <span className="agent-activity-label--subtle"> {headerText}</span>
-            </AgentShimmerText>
-          ) : isError ? (
-            <>
-              <span className="text-rose-500">Analysis failed</span>
-              <span className="agent-activity-label--subtle"> {headerText}</span>
-            </>
-          ) : (
-            <>
-              <span className="agent-activity-label--primary">Analyzed</span>
-              <span className="agent-activity-label--subtle"> {headerText}</span>
-            </>
-          )
+          <AgentStepTitle
+            verb={isRunning ? "Analyzing" : isError ? "Analysis failed" : "Analyzed"}
+            detail={headerText}
+            streaming={isRunning}
+            failed={isError}
+            streamKey={`exec-live-${tool.toolCallId}`}
+          />
         }
         isActive={isRunning}
         defaultExpanded={false}
@@ -285,7 +311,7 @@ export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolSegment }) {
         <ToolBody>
           {code ? (
             <div className="px-3 pt-2.5 pb-1">
-              <div className="flex items-center gap-1.5 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400">
+              <div className="flex items-center gap-1.5 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
                 <FileCode2 className="h-3 w-3" />
                 Code
               </div>
@@ -294,7 +320,7 @@ export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolSegment }) {
           ) : null}
           {hasOutput || isRunning ? (
             <div className="px-3 pb-2.5">
-              <div className="flex items-center gap-1.5 pt-1 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400">
+              <div className="flex items-center gap-1.5 pt-1 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
                 <ChevronRight className="h-3 w-3" />
                 Output
               </div>
@@ -310,7 +336,7 @@ export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolSegment }) {
                 </div>
               ) : null}
               {isRunning && !hasOutput ? (
-                <p className="text-[11.5px] italic text-zinc-400">
+                <p className="text-[11.5px] italic text-zinc-400 dark:text-zinc-500">
                   Waiting for output…
                 </p>
               ) : null}
@@ -475,7 +501,7 @@ function WebSearchSourcesHover({
           side="bottom"
           align="start"
           sideOffset={6}
-          className="agent-web-search-popover z-[80] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-zinc-200/90 bg-white p-0 shadow-[0_12px_32px_-12px_rgba(24,24,27,0.28)]"
+          className="agent-web-search-popover z-[80] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-zinc-200/90 bg-white p-0 shadow-[0_12px_32px_-12px_rgba(24,24,27,0.28)] dark:border-zinc-700/80 dark:bg-zinc-950 dark:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.55)]"
           onClick={(event) => event.stopPropagation()}
         >
           <ul
@@ -493,7 +519,9 @@ function WebSearchSourcesHover({
                     rel="noopener noreferrer"
                     className={cn(
                       "flex min-w-0 items-start gap-2.5 px-3 py-2 transition-colors",
-                      href ? "hover:bg-zinc-50" : "pointer-events-none",
+                      href
+                        ? "hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                        : "pointer-events-none",
                     )}
                   >
                     <span className="mt-0.5 shrink-0">
@@ -504,15 +532,15 @@ function WebSearchSourcesHover({
                       />
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-[13px] font-medium leading-5 text-zinc-800">
+                      <span className="truncate text-[13px] font-medium leading-5 text-zinc-800 dark:text-zinc-100">
                         {row.title || row.url}
                       </span>
                       {row.snippet ? (
-                        <span className="line-clamp-2 text-[12px] leading-4.5 text-zinc-500">
+                        <span className="line-clamp-2 text-[12px] leading-4.5 text-zinc-500 dark:text-zinc-400">
                           {row.snippet}
                         </span>
                       ) : null}
-                      <span className="truncate text-[11px] text-zinc-400">
+                      <span className="truncate text-[11px] text-zinc-400 dark:text-zinc-500">
                         {domain}
                       </span>
                     </span>
@@ -537,44 +565,32 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   const favicons = useMemo(() => extractFavicons(results), [tool.searchResults]);
   const resultCount = results.length;
 
+  const title = (
+    <AgentStepTitle
+      verb={isRunning ? "Searching the web" : "Searched the web"}
+      detail={query || undefined}
+      streaming={isRunning}
+      streamKey={`ws-live-${tool.toolCallId}`}
+    />
+  );
+
   if (isRunning && resultCount === 0) {
     return (
       <div
-        className="flex min-w-0 items-center gap-1.5 text-[13px] font-[430] leading-5"
+        className="agent-web-search flex min-w-0 items-center gap-1.5 text-[13px] font-[430] leading-5 tracking-[-0.01em]"
         data-agent-web-search="running"
+        data-agent-step="web_search"
       >
-        <AgentShimmerText key={`ws-live-${tool.toolCallId}`} active>
-          <span className="agent-activity-label--primary">Searching the web</span>
-          {query ? (
-            <span className="agent-activity-label--subtle"> {query}</span>
-          ) : null}
-          <span className="agent-activity-label--subtle">…</span>
-        </AgentShimmerText>
+        {title}
       </div>
     );
   }
-
-  const title = isRunning ? (
-    <AgentShimmerText key={`ws-live-${tool.toolCallId}`} active>
-      <span className="agent-activity-label--primary">Searching the web</span>
-      {query ? (
-        <span className="agent-activity-label--subtle"> {query}</span>
-      ) : null}
-      <span className="agent-activity-label--subtle">…</span>
-    </AgentShimmerText>
-  ) : query ? (
-    <>
-      <span className="agent-activity-label--primary">Searched the web</span>
-      <span className="agent-activity-label--subtle"> {query}</span>
-    </>
-  ) : (
-    <span className="agent-activity-label--primary">Searched the web</span>
-  );
 
   return (
     <div
       className="agent-web-search inline-flex max-w-full min-w-0 flex-wrap items-center gap-1.5"
       data-agent-web-search="row"
+      data-agent-step="web_search"
     >
       <span className="agent-trace__title min-w-0 max-w-[min(100%,36rem)] truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]">
         {title}
@@ -647,7 +663,9 @@ export function AgentFileReadBlock({ tool }: { tool: AgentToolSegment }) {
                   </span>
                 ) : null}
               </div>
-              <pre className="overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words rounded-md border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2 font-mono text-[11.5px] leading-5 text-zinc-700 [overscroll-behavior-inline:contain]">
+              <pre className="agent-terminal-pane overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words rounded-md border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2 font-mono text-[11.5px] leading-5 text-zinc-700 dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:text-zinc-300 [overscroll-behavior-x:contain] [overscroll-behavior-y:auto]"
+                data-chat-scroll-passthrough=""
+              >
                 {content.slice(0, 12000)}
               </pre>
             </div>
@@ -666,14 +684,23 @@ export function AgentFileReadBlock({ tool }: { tool: AgentToolSegment }) {
 
 export function AgentReadSkillBlock({ tool }: { tool: AgentToolSegment }) {
   const isRunning = tool.status === "running";
-  const skillId = typeof tool.args?.id === "string" ? tool.args.id : "";
+  const skillId =
+    typeof tool.args?.skill_id === "string"
+      ? tool.args.skill_id
+      : typeof tool.args?.id === "string"
+        ? tool.args.id
+        : typeof tool.args?.name === "string"
+          ? tool.args.name
+          : "";
   const parsed = tool.result ? tryParseJson(tool.result) : null;
   const name =
-    parsed && typeof parsed.name === "string" ? parsed.name : skillId;
+    (parsed && typeof parsed.id === "string" && parsed.id) ||
+    (parsed && typeof parsed.name === "string" && parsed.name) ||
+    skillId;
   const doc =
-    parsed && typeof parsed.skill === "string"
-      ? parsed.skill
-      : (tool.result ?? "");
+    (parsed && typeof parsed.content === "string" && parsed.content) ||
+    (parsed && typeof parsed.skill === "string" && parsed.skill) ||
+    (typeof tool.result === "string" ? tool.result : "");
 
   return (
     <div className="w-full min-w-0">
@@ -681,20 +708,29 @@ export function AgentReadSkillBlock({ tool }: { tool: AgentToolSegment }) {
         title={
           isRunning ? (
             <AgentShimmerText key={`rs-live-${tool.toolCallId}`} active>
-              Loading skill{name ? ` · ${name}` : ""}…
+              <span className="agent-activity-label--primary">Loading skill</span>
+              {name ? (
+                <span className="agent-activity-label--subtle"> {name}</span>
+              ) : null}
+              <span className="agent-activity-label--subtle">…</span>
             </AgentShimmerText>
           ) : tool.status === "error" ? (
             <span className="text-rose-500">
               Failed to load skill{name ? ` · ${name}` : ""}
             </span>
           ) : (
-            `Loaded skill${name ? ` · ${name}` : ""}`
+            <>
+              <span className="agent-activity-label--primary">Loaded skill</span>
+              {name ? (
+                <span className="agent-activity-label--subtle"> {name}</span>
+              ) : null}
+            </>
           )
         }
         trailing={<BookOpen className="h-3.5 w-3.5 shrink-0 text-zinc-300" />}
         isActive={isRunning}
         defaultExpanded={false}
-        showChevron
+        chevronMode="hover"
         className="agent-read-skill"
         headerClassName="agent-read-skill__header"
         contentClassName="agent-read-skill__body"
@@ -702,7 +738,7 @@ export function AgentReadSkillBlock({ tool }: { tool: AgentToolSegment }) {
         {doc ? (
           <ToolBody>
             <div className="px-3 py-2.5">
-              <pre className="overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words font-mono text-[11.5px] leading-5 text-zinc-600 [overscroll-behavior-inline:contain]">
+              <pre className="overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words font-mono text-[11.5px] leading-5 text-zinc-600 dark:text-zinc-400 [overscroll-behavior-x:contain] [overscroll-behavior-y:auto]">
                 {doc.slice(0, 8000)}
               </pre>
             </div>
@@ -1233,6 +1269,7 @@ export function AgentToolBlock({
     case "read_skill":
       return <AgentReadSkillBlock tool={tool} />;
     case "weather":
+    case "weather_fetch":
       return <AgentWeatherBlock tool={tool} />;
     case "places_search":
       return <AgentPlacesSearchBlock tool={tool} />;

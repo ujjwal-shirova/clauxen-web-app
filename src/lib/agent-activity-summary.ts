@@ -289,11 +289,19 @@ export function liveToolActivityLabel(tool: AgentToolSegment): string {
           ? tool.args.description
           : "");
       return description
-        ? truncateLabel(description, 48)
-        : "Running command";
+        ? `Analyzing ${truncateLabel(description, 42)}`
+        : "Analyzing";
     }
-    case "execute_code":
-      return "Running code";
+    case "execute_code": {
+      const description =
+        tool.description ??
+        (typeof tool.args?.description === "string"
+          ? tool.args.description
+          : "");
+      return description
+        ? `Analyzing ${truncateLabel(description, 42)}`
+        : "Analyzing";
+    }
     case "read_skill":
       return "Loading skill";
     case "places_search":
@@ -301,6 +309,7 @@ export function liveToolActivityLabel(tool: AgentToolSegment): string {
     case "image_search":
       return "Searching images";
     case "weather":
+    case "weather_fetch":
       return "Checking the weather";
     default:
       if (tool.name.startsWith("mcp__")) {

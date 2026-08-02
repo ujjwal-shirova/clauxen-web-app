@@ -15,16 +15,15 @@ import {
 import { fileNameFromPath } from "@/lib/chat-artifacts";
 
 /**
- * Work groups — collapsible tool/thinking steps.
+ * Work groups — chronological tool/thinking steps for the flat agent ledger.
  *
- * Narration is ALWAYS a standalone row outside the timeline. When the model
- * announces a step and then runs tools, a narration-derived label is used for
- * simple single-tool steps; multi-step mixes use Cursor-style summaries.
- * The prose itself stays outside the rail.
+ * Narration is ALWAYS a standalone row outside activity steps. When the model
+ * announces a step and then runs tools, a narration-derived label can label a
+ * simple single-tool step; multi-step mixes keep Cursor-style summaries for
+ * metadata, but the chat UI renders every member flush-left (no aggregate fold).
  *
  *  narration (outside)
- *  work group header (Cursor summary — no chevron)
- *  thinking / tools (flush left, no tree indent)
+ *  thinking / tools (flush left, no tree indent, no rail/dots)
  */
 
 export type AgentWorkGroup = {
@@ -87,15 +86,13 @@ export function resolveGroupLabel(
   return summarizeActivityPlain(segments, state);
 }
 
-/** Fold chrome only for multi-step work; lone Thought/tool stay bare. */
+/**
+ * Fold chrome is retired — the transcript is a flat Cursor/Claude ledger.
+ * Kept as a predicate for tests/callers; always false.
+ */
 export function groupNeedsFoldChrome(
-  segments: Array<AgentThinkingSegment | AgentToolSegment>,
+  _segments: Array<AgentThinkingSegment | AgentToolSegment>,
 ): boolean {
-  const thinking = segments.filter((s) => s.kind === "thinking").length;
-  const tools = segments.filter((s) => s.kind === "tool").length;
-  if (thinking > 0 && tools > 0) return true;
-  if (tools >= 2) return true;
-  if (thinking >= 2) return true;
   return false;
 }
 

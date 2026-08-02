@@ -45,14 +45,14 @@ description: >-
 
 - Per-round model text **before** tool calls streams as `narration` segments; a round with **no tool calls** is promoted to the durable answer via SSE `answer_finalize` (reducer marks the segment `isFinal` and sets `message.content` — restyle in place, never teleport).
 - No model-authored XML protocol (deleted `<agent_heading>`/`<agent_narration>`/`answer_clear`/intro+interim narratives). Sole exception: first-turn `<chat_title>` for the sidebar, stripped client-side.
-- **Work-group folds** (`groupAgentWorkItems` + `AgentWorkGroupView`): thinking + tools group under Cursor-style headers; fold chrome only for multi-step mixes; lone Thought/tool stay bare on the rail.
-- **Narration stays outside the activity folds** — quiet prose between groups, never nested under a timeline header / rail node. Final answer always renders below the activity stack. The promoted `isFinal` narration never duplicates as mid-turn prose.
+- **Flat agent ledger** (`groupAgentWorkItems`): narration outside; every thinking/tool step renders bare flush-left (no aggregate fold / rail / dots). Live rows use dark verb shimmer + light-gray detail; Analyzing expands via hover chevron into a theme-aware terminal.
+- **Narration stays outside activity steps** — quiet prose between tools, never nested under a timeline header. Final answer always renders below the activity stack. The promoted `isFinal` narration never duplicates as mid-turn prose.
 - **`ask_user_input_v0`**: timeline shows compact "Asked for your input"; the interactive `AskUserInputCard` **replaces the composer** via `findPendingAskUserInput` (reads `tool.args.questions`).
 - Web search rows show favicons + **"N sources"** hover popover; the bottom **source chip strip renders in real time** as soon as search results land (no completion gate) with `data-sources-live` enter animation. The assistant action bar's Sources button stays completion-gated.
 - Follow-up `<prompt>` chips are sanitized (`follow-up-tags.ts`): agent narration echoes (`Let me…`, `I'll…`) and dupes never render as suggestions.
 - Turn pairing self-heals in `dedupeChatMessages` (store bridge + thread): duplicate user bubbles collapse at any distance (temp/durable + clientId + 2-min timestamp window), and order is healed by createdAt with user-before-assistant on equal persisted timestamps so a user bubble can never land below its own answer.
-- Activity labels shimmer **only while that step runs**; descendants of `.shimmer-text[data-shimmer-active]` are forced transparent so tone classes don't paint over the gradient.
-- Nested scrolling is axis-aware (`src/lib/nested-scroll.ts`): x-only code/table blocks must never swallow vertical deltas; JS only preventDefaults when an intermediate scroller is pinned at its end.
+- Activity **verbs** shimmer only while that step runs (detail stays light gray outside `.shimmer-text`); descendants of `.shimmer-text[data-shimmer-active]` are forced transparent so tone classes don't paint over the gradient.
+- Nested scrolling is axis-aware (`src/lib/nested-scroll.ts`): chat viewport owns vertical scroll; x-only / passthrough agent chrome never swallows vertical deltas; only the create-file stream pane is an intentional nested y-scroller.
 - Premature SSE close soft-completes (legacy + UI-message paths); generate keepalives every 5s; do not paint "Connection was interrupted" when useful tokens/tools already rendered.
 - Every generate injects `<current_datetime>` (client IANA timezone + server clock) so the model knows today's day/date/year for web search.
 - MCP servers come from env `CLAUXEN_MCP_SERVERS` (JSON array of `{id,url,headers?}`); tools appear as `mcp__<serverId>__<toolName>` and render via `AgentMcpToolBlock` inside work-group timeline rows.

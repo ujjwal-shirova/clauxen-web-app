@@ -146,11 +146,12 @@ export const autonomousAgentTools: FunctionTool[] = [
     type: "function",
     name: "bash_tool",
     description: [
-      "Run a shell command in an isolated Linux sandbox (Ubuntu). USE for file/directory operations, installing packages, running builds or scripts, git, and anything a terminal command does more naturally than Python.",
+      "Run a shell command in an isolated Linux sandbox (Ubuntu). The UI presents this as Analyzing.",
+      "USE for file/directory operations, installing packages, running builds or scripts, git, and anything a terminal command does more naturally than Python.",
       "PREFER execute_code instead when the task is really computation, data analysis, or generating a chart/file from Python — bash_tool is for shell-level operations.",
-      "Before calling, say a short one-line description of what the command does — the UI shows this as the block's title while the command streams in.",
+      "Before calling, say a short one-line description of what the command does — the UI shows Analyzing + this description while the command streams.",
       "The sandbox and working directory persist across calls in this conversation, so installed packages and created files remain available to bash_tool, execute_code, file_read, and create_file.",
-      "When the command creates a user deliverable, save it below outputs/ and include every created path in output_paths. Those paths are uploaded and presented to the user automatically.",
+      "When the command creates a user deliverable, save it under outputs/ (relative to the workspace cwd) and include every created path in output_paths exactly as written. Those paths are uploaded to cloud storage and presented in the artifacts pane automatically.",
     ].join(" "),
     parameters: {
       type: "object",
@@ -168,7 +169,7 @@ export const autonomousAgentTools: FunctionTool[] = [
           type: "array",
           items: { type: "string" },
           description:
-            "Exact workspace-relative paths created for the user, such as outputs/report.pdf. Leave empty when no deliverable is produced.",
+            "Exact workspace-relative paths created for the user, such as outputs/report.pdf. Never use absolute /tmp or /home paths here — copy into outputs/ first. Leave empty when no deliverable is produced.",
         },
       },
       required: ["description", "command", "output_paths"],
@@ -205,7 +206,7 @@ export const autonomousAgentTools: FunctionTool[] = [
           type: "array",
           items: { type: "string" },
           description:
-            "Exact workspace-relative output files to upload and present. Leave empty when the analysis creates no deliverable.",
+            "Exact workspace-relative output files to upload and present (e.g. outputs/chart.png). Never absolute /tmp paths — write under outputs/. Leave empty when the analysis creates no deliverable.",
         },
       },
       required: ["description", "code", "output_paths"],

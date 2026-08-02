@@ -9,7 +9,8 @@ import { MarkdownRenderer } from "@/components/markdown-renderer";
 
 /**
  * Mid-turn narration — quiet prose between tools. Not private thinking,
- * not the final answer. Plain readable text with no card chrome.
+ * not the final answer. Plain readable text with no card chrome — the
+ * Cursor/Claude-style progress note the user follows while work runs.
  */
 export function AgentNarrationNote({
   segment,
@@ -23,8 +24,8 @@ export function AgentNarrationNote({
   return (
     <div
       className={cn(
-        "agent-narration min-w-0 animate-in fade-in duration-200 text-[14px] font-[430] leading-[1.6] tracking-[-0.01em] text-zinc-700",
-        segment.isStreaming && "text-zinc-900",
+        "agent-narration min-w-0 animate-in fade-in duration-200 text-[14px] font-[430] leading-[1.65] tracking-[-0.01em] text-zinc-600 dark:text-zinc-400",
+        segment.isStreaming && "text-zinc-800 dark:text-zinc-200",
       )}
       data-agent-segment="narration"
       data-agent-narration="true"

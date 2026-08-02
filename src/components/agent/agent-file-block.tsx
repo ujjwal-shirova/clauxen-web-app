@@ -81,12 +81,16 @@ export function AgentFileBlock({
       >
         <AgentToolCard
           label={
-            <AgentShimmerText active>
-              <span className="agent-activity-label--muted">
-                {description || `Writing ${fileName || "file"}`}
+            <>
+              <AgentShimmerText active>
+                <span className="agent-activity-label--primary">Writing</span>
+              </AgentShimmerText>
+              <span className="agent-activity-label--subtle">
+                {" "}
+                {description || fileName || "file"}
               </span>
               <span className="agent-activity-label--subtle">…</span>
-            </AgentShimmerText>
+            </>
           }
           isRunning
           defaultExpanded

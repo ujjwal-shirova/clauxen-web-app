@@ -16,6 +16,18 @@ export async function createAssemblyStreamingToken(): Promise<{
   expiresInSeconds: number;
   streamingHost: string;
 }> {
+  // Validate config before fetch so a missing key is not masked as an outage.
+  let apiKey: string;
+  try {
+    apiKey = requireAssemblyAiApiKey();
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Assembly_Provider_Key is not configured on the server.";
+    throw new AppError(message, 503, "dictation_unavailable");
+  }
+
   const host = env.assemblyAiStreamingHost;
   const url = new URL(`https://${host}/v3/token`);
   url.searchParams.set("expires_in_seconds", String(TOKEN_REDEMPTION_SECONDS));
@@ -28,11 +40,12 @@ export async function createAssemblyStreamingToken(): Promise<{
   try {
     response = await fetch(url, {
       method: "GET",
-      headers: { Authorization: requireAssemblyAiApiKey() },
+      headers: { Authorization: apiKey },
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),
     });
-  } catch {
+  } catch (error) {
+    console.error("[assemblyai] token request network failure:", error);
     throw new AppError(
       "The dictation service is temporarily unavailable.",
       503,

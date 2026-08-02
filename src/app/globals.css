@@ -1495,7 +1495,8 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /* ─── Clauxen agent activity stream ────────────────────────────────────────
-   Flat chronological ledger: no rail, tree indentation, or status dots. */
+   Flat chronological ledger: no rail, tree indentation, or status dots.
+   Sequence by spacing. Tool rows use dark verb + light-gray detail. */
 
 .agent-trace {
   width: 100%;
@@ -1503,13 +1504,20 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .agent-activity-stream {
-  gap: 0.55rem;
-  padding-block: 0.1rem;
+  gap: 0.45rem;
+  padding-block: 0.05rem;
 }
 
 .agent-activity-entry {
   min-width: 0;
-  padding-block: 0.08rem;
+  padding-block: 0.04rem;
+}
+
+/* Nested tool chrome must never steal the chat's vertical wheel. */
+[data-chat-scroll-passthrough],
+.agent-terminal-pane,
+.agent-analyzing-terminal {
+  overscroll-behavior-y: auto;
 }
 
 .agent-trace__collapse {
@@ -1789,8 +1797,17 @@ button.user-message-card__body:not(:disabled):hover,
 
 /* Horizontal-only blocks must never paint a vertical scrollbar. */
 .markdown-code-scroll,
-.markdown-table-scroll {
+.markdown-table-scroll,
+.agent-terminal-pane {
   overflow-y: hidden;
+}
+
+/* File-writing stream is the sole intentional nested y-scroller in the
+   transcript — contain vertical overscroll so the chat viewport stays owner
+   once the pane is pinned at an end. */
+.create-file-stream-scroll {
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: contain;
 }
 
 /* Hide the native bar where an overlay scrollbar owns the affordance. */

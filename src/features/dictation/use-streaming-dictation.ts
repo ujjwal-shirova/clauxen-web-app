@@ -146,9 +146,27 @@ export function useStreamingDictation({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mimeType: getPreferredRecordingMimeType() }),
       });
-      if (!response.ok) throw new Error("Dictation could not start.");
+      if (!response.ok) {
+        let message = "Dictation could not start.";
+        try {
+          const payload = (await response.json()) as {
+            error?: { message?: string; code?: string };
+          };
+          if (payload.error?.message?.trim()) {
+            message = payload.error.message.trim();
+          } else if (response.status === 401) {
+            message = "Sign in to use dictation.";
+          }
+        } catch {
+          /* keep generic */
+        }
+        throw new Error(message);
+      }
       const { data } =
         (await response.json()) as ApiEnvelope<DictationSessionResponse>;
+      if (!data?.token || !data?.sessionId) {
+        throw new Error("Dictation session was incomplete.");
+      }
 
       const uploader = new DictationRecordingUploader(data.sessionId);
       uploaderRef.current = uploader;

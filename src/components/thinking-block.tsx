@@ -150,7 +150,8 @@ export function ThinkingBlock({
               <div className="agent-thinking-body grid gap-3 rounded-[12px] border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-[13.5px] font-[430] leading-[1.4]">
                 <div
                   ref={scrollRef}
-                  className="app-scrollbar max-h-[20.5rem] overflow-y-auto pr-1 text-[13.5px] leading-[1.55]"
+                  className="pr-1 text-[13.5px] leading-[1.55]"
+                  data-chat-scroll-passthrough=""
                 >
                   <div className="thinking-markdown">
                     <MarkdownRenderer
