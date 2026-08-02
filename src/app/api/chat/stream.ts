@@ -87,10 +87,18 @@ export async function createChatStream(
     try {
       // Prefer starting after the consumer is attached so the first frames
       // flush without sitting in the pending queue longer than needed.
-      await Promise.race([
-        sse.ready,
-        new Promise<void>((resolve) => setTimeout(resolve, 50)),
-      ]);
+      // When personalization is already loaded, skip the wait — TTFT matters more.
+      if (!options.personalization) {
+        await Promise.race([
+          sse.ready,
+          new Promise<void>((resolve) => setTimeout(resolve, 50)),
+        ]);
+      } else {
+        await Promise.race([
+          sse.ready,
+          new Promise<void>((resolve) => setTimeout(resolve, 0)),
+        ]);
+      }
 
       const personalization =
         options.personalization ??

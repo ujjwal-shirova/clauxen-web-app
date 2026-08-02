@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 
 /** Soften first-token paint: settle sooner once any chunk lands. */
-const MIN_DURATION_MS = 90;
-const MAX_DURATION_MS = 190;
-const FAST_GAP_MS = 32;
+const MIN_DURATION_MS = 55;
+const MAX_DURATION_MS = 130;
+const FAST_GAP_MS = 28;
 
 /**
  * Duration scales with inter-chunk gap so animation speed tracks the model's
@@ -20,24 +20,24 @@ export function computeStreamTokenDurationMs(
   // After a long pause (tools / thinking), catch up instantly — long fades
   // after tool rounds feel laggy and unresponsive.
   if (elapsedSinceLastChunk > 400) {
-    return 110;
+    return 70;
   }
 
   if (elapsedSinceLastChunk <= 0) {
-    duration = 125;
+    duration = 80;
   } else if (elapsedSinceLastChunk < FAST_GAP_MS) {
     duration = Math.max(
       MIN_DURATION_MS,
-      Math.min(150, 75 + elapsedSinceLastChunk * 2.25),
+      Math.min(110, 55 + elapsedSinceLastChunk * 1.75),
     );
   } else {
     duration = Math.min(
       MAX_DURATION_MS,
-      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.28),
+      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.22),
     );
   }
 
-  const sizeBoost = Math.min(12, Math.sqrt(Math.max(0, chunkLength)) * 1.8);
+  const sizeBoost = Math.min(8, Math.sqrt(Math.max(0, chunkLength)) * 1.2);
   return Math.round(
     Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, duration + sizeBoost)),
   );
@@ -127,7 +127,7 @@ export type StreamFadeConfig = {
 
 export const DEFAULT_STREAM_FADE: StreamFadeConfig = {
   animation: "stream-token-fade",
-  animationDuration: "80ms",
+  animationDuration: "55ms",
   animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
 };
 

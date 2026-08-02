@@ -6,7 +6,7 @@ import { StreamingTokenReveal } from "@/lib/streaming-token-reveal";
 export function StreamingTextFade({
   content,
   streamKey = "stream",
-  className = "markdown-content whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-zinc-800",
+  className = "markdown-content whitespace-pre-wrap break-words text-[13px] leading-[18px] text-zinc-800",
 }: {
   content: string;
   streamKey?: string;

@@ -228,7 +228,7 @@ export function StreamdownStreamingMarkdown({
       isAnimating={false}
       animated={false}
       parseIncompleteMarkdown
-      className="markdown-content min-w-0 max-w-full text-[14px] leading-[1.55] text-zinc-800"
+      className="markdown-content min-w-0 max-w-full text-[13px] leading-[18px] text-zinc-800"
       plugins={{ math: streamdownMath }}
       components={components}
       lineNumbers={false}

@@ -24,8 +24,10 @@ export function AgentNarrationNote({
   return (
     <div
       className={cn(
-        "agent-narration min-w-0 animate-in fade-in duration-200 text-[14px] font-[430] leading-[1.65] tracking-[-0.01em] text-zinc-600 dark:text-zinc-400",
-        segment.isStreaming && "text-zinc-800 dark:text-zinc-200",
+        "agent-narration min-w-0 text-[13px] font-[430] leading-[18px] tracking-[-0.01em] text-zinc-600 dark:text-zinc-400",
+        segment.isStreaming
+          ? "text-zinc-800 dark:text-zinc-200"
+          : "animate-in fade-in duration-150",
       )}
       data-agent-segment="narration"
       data-agent-narration="true"

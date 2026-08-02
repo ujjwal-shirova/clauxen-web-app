@@ -23,7 +23,8 @@ describe("commonPrefixLength", () => {
 
 describe("computeStreamTokenDurationMs", () => {
   it("snaps first chunks in quickly", () => {
-    assert.ok(computeStreamTokenDurationMs(0, 8) <= 160);
+    assert.ok(computeStreamTokenDurationMs(0, 8) <= 120);
+    assert.ok(computeStreamTokenDurationMs(500, 4) <= 90);
   });
 });
 

@@ -22,18 +22,20 @@ export const maxDuration = 300;
 export const POST = withApiRouteParams<{ chatId: string }>(
   async ({ session, request, params }) => {
     const user = requireSession(session);
-    await assertDurableRateLimit({
-      key: `generate:user:${user.id}`,
-      limit: 45,
-      windowMs: 60_000,
-      message: "Too many generations. Please wait a moment and try again.",
-    });
-    await assertDurableRateLimit({
-      key: `generate:ip:${clientIp(request) ?? "unknown"}`,
-      limit: 90,
-      windowMs: 60_000,
-      message: "Too many generations from this network. Try again shortly.",
-    });
+    await Promise.all([
+      assertDurableRateLimit({
+        key: `generate:user:${user.id}`,
+        limit: 45,
+        windowMs: 60_000,
+        message: "Too many generations. Please wait a moment and try again.",
+      }),
+      assertDurableRateLimit({
+        key: `generate:ip:${clientIp(request) ?? "unknown"}`,
+        limit: 90,
+        windowMs: 60_000,
+        message: "Too many generations from this network. Try again shortly.",
+      }),
+    ]);
     const body = (await request.json()) as {
       messages?: unknown;
       turn?: {

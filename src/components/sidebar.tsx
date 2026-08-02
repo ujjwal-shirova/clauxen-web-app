@@ -708,7 +708,10 @@ export function Sidebar({
         >
           {!isCollapsed ? (
             <div className="flex min-w-0 items-center px-1">
-              <span className="truncate text-[15px] font-semibold tracking-[-0.02em] text-zinc-900">
+              <span
+                className="clauxen-wordmark truncate text-[17px] font-medium leading-none tracking-[-0.03em] text-zinc-950"
+                aria-label="Clauxen"
+              >
                 Clauxen
               </span>
             </div>

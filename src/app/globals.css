@@ -56,10 +56,10 @@
     --chat-header-icon-btn: 28px;
     --chat-title-size: 13px;
     --chat-user-font-size: 13px;
-    --chat-assistant-font-size: 14px;
-    --chat-message-line-height: 1.55;
+    --chat-assistant-font-size: 13px;
+    --chat-message-line-height: 1.4;
     --chat-user-line-height: 18px;
-    --chat-assistant-line-height: 22px;
+    --chat-assistant-line-height: 18px;
     --menu-icon-size: 16px;
     --menu-row-height: 32px;
     --icon-color: #18181b;
@@ -323,6 +323,14 @@
   font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
 }
 
+/* Sidebar / chrome brand wordmark — Playfair display, not UI Inter. */
+.clauxen-wordmark {
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  font-optical-sizing: auto;
+  font-feature-settings: "kern" 1, "liga" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
 .font-sans {
   font-family: var(--font-inter), Inter, system-ui, sans-serif;
   letter-spacing: -0.005em;
@@ -472,8 +480,10 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 .dark .user-message-card__preview-fade {
   background: linear-gradient(
     to top,
-    var(--chat-user-card-bg, #1c1c1f),
-    rgba(0, 0, 0, 0)
+    var(--chat-user-card-bg, #1c1c1f) 0%,
+    color-mix(in srgb, var(--chat-user-card-bg, #1c1c1f) 78%, transparent) 42%,
+    color-mix(in srgb, var(--chat-user-card-bg, #1c1c1f) 28%, transparent) 72%,
+    transparent 100%
   );
 }
 .dark .sticky-user-msg-host {
@@ -542,8 +552,8 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 
 @keyframes stream-token-fade {
   from {
-    opacity: 0.38;
-    filter: blur(0.7px);
+    opacity: 0.62;
+    filter: blur(0.35px);
   }
   to {
     opacity: 1;
@@ -556,7 +566,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: stream-token-fade;
-  animation-duration: 140ms;
+  animation-duration: 90ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
   /* Avoid will-change thrash during long tool→answer streams */
@@ -1039,13 +1049,27 @@ button.user-message-card__body:not(:disabled):hover,
   left: 0;
   right: 0;
   bottom: 0;
-  height: 18px;
+  height: 28px;
   pointer-events: none;
+  z-index: 1;
   background: linear-gradient(
     to top,
-    var(--chat-user-card-bg, #fcfcfc),
-    rgba(0, 0, 0, 0)
+    var(--chat-user-card-bg, #fcfcfc) 0%,
+    color-mix(in srgb, var(--chat-user-card-bg, #fcfcfc) 78%, transparent) 42%,
+    color-mix(in srgb, var(--chat-user-card-bg, #fcfcfc) 28%, transparent) 72%,
+    transparent 100%
   );
+}
+
+@supports not (background: color-mix(in srgb, white 50%, transparent)) {
+  .user-message-card__preview-fade {
+    background: linear-gradient(
+      to top,
+      var(--chat-user-card-bg, #fcfcfc) 0%,
+      rgba(252, 252, 252, 0.72) 45%,
+      rgba(252, 252, 252, 0) 100%
+    );
+  }
 }
 
 /* Hover edit affordance — pinned top-right inside the card */
@@ -1147,6 +1171,10 @@ button.user-message-card__body:not(:disabled):hover,
 .agent-panel {
   min-width: 0;
   background-color: var(--glass-chat-surface-background) !important;
+  /* Kill residual bottom hairline against the shell inset (border-b-0 is not
+     always enough when combined with rounded clip + subpixel antialias). */
+  border-bottom-color: transparent !important;
+  border-bottom-width: 0 !important;
 }
 
 .agent-panel > .glass-agent-drop-target {
@@ -2370,16 +2398,16 @@ button.user-message-card__body:not(:disabled):hover,
 
 @media (max-width: 640px) {
   .markdown-content {
-    font-size: 13.5px;
+    font-size: 13px;
   }
 
   .markdown-content p {
-    line-height: 1.62 !important;
+    line-height: 18px !important;
   }
 
   .assistant-message {
-    font-size: 13.5px;
-    line-height: 1.62;
+    font-size: 13px;
+    line-height: 18px;
   }
 
   .markdown-code-scroll,

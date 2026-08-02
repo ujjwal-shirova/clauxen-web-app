@@ -88,7 +88,7 @@ export const MarkdownMessage = ({
 
   if (detailLevel === "placeholder") {
     return (
-      <div className="min-h-[48px] whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-zinc-600">
+      <div className="min-h-[48px] whitespace-pre-wrap break-words text-[13px] leading-[18px] text-zinc-600">
         {content.slice(0, 280)}
         {content.length > 280 ? "…" : ""}
       </div>
@@ -97,7 +97,7 @@ export const MarkdownMessage = ({
 
   if (detailLevel === "plain" && !isStreaming) {
     return (
-      <div className="whitespace-pre-wrap break-words text-[14px] leading-[1.55] text-zinc-800">
+      <div className="whitespace-pre-wrap break-words text-[13px] leading-[18px] text-zinc-800">
         {content}
       </div>
     );

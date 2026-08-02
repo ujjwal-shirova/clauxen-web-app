@@ -20,18 +20,20 @@ export const maxDuration = 300;
  */
 export const POST = withApiRoute(async ({ session, request }) => {
   const user = requireSession(session);
-  await assertDurableRateLimit({
-    key: `incognito-generate:user:${user.id}`,
-    limit: 45,
-    windowMs: 60_000,
-    message: "Too many generations. Please wait a moment and try again.",
-  });
-  await assertDurableRateLimit({
-    key: `incognito-generate:ip:${clientIp(request) ?? "unknown"}`,
-    limit: 90,
-    windowMs: 60_000,
-    message: "Too many generations from this network. Try again shortly.",
-  });
+  await Promise.all([
+    assertDurableRateLimit({
+      key: `incognito-generate:user:${user.id}`,
+      limit: 45,
+      windowMs: 60_000,
+      message: "Too many generations. Please wait a moment and try again.",
+    }),
+    assertDurableRateLimit({
+      key: `incognito-generate:ip:${clientIp(request) ?? "unknown"}`,
+      limit: 90,
+      windowMs: 60_000,
+      message: "Too many generations from this network. Try again shortly.",
+    }),
+  ]);
 
   const body = (await request.json()) as {
     messages?: unknown;

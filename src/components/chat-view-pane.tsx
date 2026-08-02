@@ -80,7 +80,7 @@ function welcomeFirstName(input: {
 const MIN_CHAT_COMPOSER_RESERVE_PX = 84;
 const MIN_CHAT_COMPOSER_RESERVE_PX_DESKTOP = 96;
 const CHAT_COMPOSER_RESERVE_BUFFER_PX = 8;
-const CHAT_FROSTED_EDGE_EXTRA_PX = 16;
+const CHAT_FROSTED_EDGE_EXTRA_PX = 28;
 /** Ignore sub-pixel / 1px thrash from font metrics while typing. */
 const COMPOSER_RESERVE_EPSILON_PX = 2;
 

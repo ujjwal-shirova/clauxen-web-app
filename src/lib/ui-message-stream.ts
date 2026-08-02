@@ -1,4 +1,5 @@
 import type { StreamEvent } from "@/lib/chat-stream";
+import { createSseParser } from "@/lib/chat-stream";
 
 /** Preliminary bash stdout/stderr frame carried on tool-output-available. */
 type ClauxenToolStreamOutput = {
@@ -284,7 +285,6 @@ export async function consumeClauxenStreamResponse(
     response.headers.get("x-vercel-ai-ui-message-stream") === "v1";
 
   if (!isUiMessageStream) {
-    const { createSseParser } = await import("@/lib/chat-stream");
     let streamComplete = false;
     const parseChunk = createSseParser((event) => {
       onEvent(event);

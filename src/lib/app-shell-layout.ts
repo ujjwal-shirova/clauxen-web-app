@@ -42,7 +42,7 @@ export function appAgentPanelClassName(options: {
   if (isMobile) {
     return cn(
       "app-agent-panel agent-panel relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] min-h-[100dvh] [transform:translateZ(0)]",
-      "rounded-[var(--radius-lg)] border border-zinc-200/80 shadow-[var(--panel-shadow)]",
+      "rounded-[var(--radius-lg)] border border-b-0 border-zinc-200/80 shadow-[var(--panel-shadow)]",
     );
   }
 
@@ -50,7 +50,7 @@ export function appAgentPanelClassName(options: {
     "app-agent-panel agent-panel relative flex h-full min-h-0 max-h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] [transform:translateZ(0)]",
     fullBleed
       ? "min-h-[100dvh] rounded-none border-0 shadow-none"
-      : "rounded-[12px] border border-zinc-200/70 shadow-none sm:rounded-[14px]",
+      : "rounded-[12px] border border-b-0 border-zinc-200/70 shadow-none sm:rounded-[14px]",
   );
 }
 

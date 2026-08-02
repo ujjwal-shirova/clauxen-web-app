@@ -16,13 +16,13 @@ import {
 } from "@/lib/table-export";
 
 const bodyTextClass =
-  "font-sans text-[14px] leading-[1.58] tracking-[-0.004em] text-zinc-800";
+  "font-sans text-[13px] leading-[18px] tracking-[-0.006em] text-zinc-800";
 const subtleTextClass =
-  "font-sans text-[13px] leading-[1.55] tracking-[-0.003em] text-zinc-500";
+  "font-sans text-[12.5px] leading-[17px] tracking-[-0.004em] text-zinc-500";
 
 export const StyledH1 = ({ children, hasCursor, Cursor }: any) => (
-  <div className="mb-3 mt-6">
-    <h1 className="font-sans text-[24px] font-semibold leading-[1.22] tracking-[-0.025em] text-zinc-950 sm:text-[28px]">
+  <div className="mb-2 mt-4">
+    <h1 className="font-sans text-[16px] font-semibold leading-[22px] tracking-[-0.02em] text-zinc-950">
       {children}
 
       {hasCursor && <Cursor />}
@@ -31,8 +31,8 @@ export const StyledH1 = ({ children, hasCursor, Cursor }: any) => (
 );
 
 export const StyledH2 = ({ children, hasCursor, Cursor }: any) => (
-  <div className="mb-2 mt-5">
-    <h2 className="font-sans text-[20px] font-semibold leading-[1.28] tracking-[-0.018em] text-zinc-950 sm:text-[22px]">
+  <div className="mb-1.5 mt-3.5">
+    <h2 className="font-sans text-[15px] font-semibold leading-[20px] tracking-[-0.016em] text-zinc-950">
       {children}
 
       {hasCursor && <Cursor />}
@@ -41,8 +41,8 @@ export const StyledH2 = ({ children, hasCursor, Cursor }: any) => (
 );
 
 export const StyledH3 = ({ children, hasCursor, Cursor }: any) => (
-  <div className="mb-2 mt-4">
-    <h3 className="font-sans text-[16px] font-semibold leading-[1.35] tracking-[-0.01em] text-zinc-900 sm:text-[17px]">
+  <div className="mb-1.5 mt-3">
+    <h3 className="font-sans text-[13.5px] font-semibold leading-[18px] tracking-[-0.012em] text-zinc-900">
       {children}
 
       {hasCursor && <Cursor />}
@@ -51,7 +51,7 @@ export const StyledH3 = ({ children, hasCursor, Cursor }: any) => (
 );
 
 export const StyledParagraph = ({ children, hasCursor, Cursor }: any) => (
-  <div className={`${bodyTextClass} mb-3`}>
+  <div className={`${bodyTextClass} mb-2`}>
     {children}
 
     {hasCursor && <Cursor />}
@@ -77,7 +77,7 @@ export const StyledInlineCode = ({
 );
 
 export const StyledHorizontalRule = () => (
-  <hr className="my-5 border-0 border-t border-zinc-200/80" />
+  <hr className="my-3.5 border-0 border-t border-zinc-200/80" />
 );
 
 export const StyledDetails = ({ children }: { children: React.ReactNode }) => (
@@ -110,12 +110,12 @@ export const StyledList = ({
   Cursor,
 }: any) => {
   return (
-    <div className="my-1.5 flex items-start pl-0.5">
+    <div className="my-0.5 flex items-start pl-0.5">
       <span
-        className={`mr-2.5 mt-[3px] flex shrink-0 items-center justify-center ${
+        className={`mr-2 mt-[2px] flex shrink-0 items-center justify-center ${
           isOrdered
-            ? "h-5 w-5 rounded-full border border-zinc-200 bg-zinc-100 text-[10px] font-semibold text-zinc-600"
-            : "h-5 w-5"
+            ? "h-4 w-4 rounded-full border border-zinc-200 bg-zinc-100 text-[9.5px] font-semibold text-zinc-600"
+            : "h-4 w-4"
         }`}
       >
         {isOrdered ? (
@@ -191,11 +191,11 @@ export const StyledTableContainer = ({
   // CodeBlockFrame's header/content split.
   return (
     <div
-      className="composer-message-table my-4 w-full min-w-0 max-w-full rounded-[13px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-4"
+      className="composer-message-table my-3 w-full min-w-0 max-w-full rounded-[12px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)]"
       data-has-table-title={titleCtx ? "true" : undefined}
     >
-      <div className="ui-table-title-header table-title-header-sticky sticky z-20 flex min-h-[42px] items-center justify-between gap-2 rounded-t-[12px] border-b border-zinc-200/80 bg-white px-4 py-2">
-        <span className="min-w-0 truncate text-[13px] font-semibold text-zinc-900">
+      <div className="ui-table-title-header table-title-header-sticky sticky z-20 flex min-h-[36px] items-center justify-between gap-2 rounded-t-[11px] border-b border-zinc-200/80 bg-white px-3 py-1.5">
+        <span className="min-w-0 truncate text-[12.5px] font-semibold text-zinc-900">
           {tableTitle}
         </span>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -235,10 +235,10 @@ export const StyledTableContainer = ({
           </DropdownMenu>
         </div>
       </div>
-      <div className="markdown-table-scroll overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-[13px] [-webkit-overflow-scrolling:touch]">
+      <div className="markdown-table-scroll overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-[12px] [-webkit-overflow-scrolling:touch]">
         <table
           ref={tableRef}
-          className="w-full min-w-[min(100%,460px)] border-collapse text-left font-sans text-[13px] text-zinc-800 sm:min-w-[500px]"
+          className="w-full min-w-[min(100%,460px)] border-collapse text-left font-sans text-[12.5px] text-zinc-800 sm:min-w-[500px]"
         >
           {children}
         </table>
@@ -262,7 +262,7 @@ export const StyledTableHeadCell = ({
 }: {
   children: React.ReactNode;
 }) => (
-  <th className="whitespace-nowrap border-b border-zinc-200/90 px-3 py-2 text-[12px] font-semibold tracking-[-0.002em] text-zinc-600">
+  <th className="whitespace-nowrap border-b border-zinc-200/90 px-3 py-1.5 text-[11.5px] font-semibold tracking-[-0.002em] text-zinc-600">
     {children}
   </th>
 );
@@ -287,11 +287,11 @@ export const StyledTableCell = ({
   isLastRow,
 }: any) => (
   <td
-    className={`border-b border-zinc-200/80 px-3 py-2 align-top text-[13px] leading-[1.5] text-zinc-700 ${
+    className={`border-b border-zinc-200/80 px-3 py-1.5 align-top text-[12.5px] leading-[17px] text-zinc-700 ${
       isLastRow ? "border-b-0" : ""
     }`}
   >
-    <div className="md-table-cell-content break-words [&>code]:text-[12px]">
+    <div className="md-table-cell-content break-words [&>code]:text-[11.5px]">
       {children}
       {isLast && hasCursor && <Cursor />}
     </div>
@@ -327,9 +327,9 @@ export const CodeBlockFrame = ({
   const safeLanguage = sanitizeCodeBlockLanguage(language);
 
   return (
-    <div className="composer-message-codeblock relative my-2 w-full min-w-0 max-w-full rounded-[13px] border border-zinc-200/85 bg-zinc-50 shadow-[0_1px_2px_rgba(24,24,27,0.025)] sm:my-3">
-      <div className="ui-code-block code-block-header-sticky sticky z-10 flex min-h-[38px] items-center justify-between rounded-t-[12px] border-b border-zinc-200/80 bg-white px-4 py-2 sm:px-4">
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
+    <div className="composer-message-codeblock relative my-2 w-full min-w-0 max-w-full rounded-[12px] border border-zinc-200/85 bg-zinc-50 shadow-[0_1px_2px_rgba(24,24,27,0.025)]">
+      <div className="ui-code-block code-block-header-sticky sticky z-10 flex min-h-[34px] items-center justify-between rounded-t-[11px] border-b border-zinc-200/80 bg-white px-3 py-1.5">
+        <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
           {safeLanguage}
         </span>
         <div className="-mr-0.5 flex items-center gap-1">
@@ -360,7 +360,7 @@ export const CodeBlockFrame = ({
 
       {/* overflow-y must be explicit: with only overflow-x set, CSS computes
           overflow-y to auto and paints a phantom vertical scrollbar. */}
-      <div className="markdown-code-scroll code-scrollbars ui-code-block-content w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-[13px] bg-zinc-50 [-webkit-overflow-scrolling:touch]">
+      <div className="markdown-code-scroll code-scrollbars ui-code-block-content w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-[12px] bg-zinc-50 [-webkit-overflow-scrolling:touch]">
         {children}
       </div>
     </div>

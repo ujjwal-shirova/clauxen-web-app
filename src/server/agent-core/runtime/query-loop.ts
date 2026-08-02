@@ -49,6 +49,10 @@ import {
   type TranscriptAgentModelTurn,
 } from "@/server/training/transcript-format";
 import { McpConnectorHarness } from "@/server/mcp/registry";
+import { listMcpServers } from "@/server/mcp/types";
+
+/** Cap MCP discovery so a hung connector cannot delay first token. */
+const MCP_DISCOVER_BUDGET_MS = 450;
 
 /** Single autonomous step budget. The model decides how many steps it needs. */
 const MAX_STEPS = 24;
@@ -322,13 +326,24 @@ export async function runAutonomousAgent(
   const healingTools = buildHealingTools();
   const thinkingBudget = resolveThinkingBudget(options);
 
-  // MCP connectors: discover tools once per turn; failures never sink the turn.
+  // Signal the client immediately — do not wait on MCP discovery for UI start.
+  sse.writeStart(true);
+
+  // MCP connectors: discover with a hard budget so unreachable servers never
+  // sit on the TTFT critical path (listTools defaults to a 20s fetch timeout).
   const mcp = new McpConnectorHarness();
   let mcpTools: Awaited<ReturnType<McpConnectorHarness["discover"]>> = [];
-  try {
-    mcpTools = await mcp.discover();
-  } catch {
-    mcpTools = [];
+  if (listMcpServers().length > 0) {
+    try {
+      mcpTools = await Promise.race([
+        mcp.discover(),
+        new Promise<typeof mcpTools>((resolve) => {
+          setTimeout(() => resolve([]), MCP_DISCOVER_BUDGET_MS);
+        }),
+      ]);
+    } catch {
+      mcpTools = [];
+    }
   }
 
   const anthropicTools = toAnthropicTools([
@@ -357,8 +372,6 @@ export async function runAutonomousAgent(
       role: m.role as "user" | "assistant",
       content: m.content,
     }));
-
-  sse.writeStart(true);
 
   // One activity frame for the entire assistant turn.
   const frameId = "agent-frame-1";

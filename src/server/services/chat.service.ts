@@ -280,6 +280,13 @@ export async function streamChatGeneration(input: {
   extendedThinking?: boolean;
   onPauseForUser?: () => void | Promise<void>;
 }) {
+  // Kick personalization + history before ownership check so DB RTTs overlap.
+  const personalizationPromise = loadChatStreamPersonalization(input.userId);
+  const historyPromise = messagesRepo.listRecentMessagesForChat(
+    input.chatId,
+    40,
+  );
+
   const chat = await chatsRepo.getChatForUser(input.chatId, input.userId);
   if (!chat) throw notFound("Chat not found.");
 
@@ -303,14 +310,11 @@ export async function streamChatGeneration(input: {
   let assistant: Awaited<ReturnType<typeof messagesRepo.createMessage>> | null =
     null;
 
-  // Kick personalization off immediately so it overlaps turn insert + history.
-  const personalizationPromise = loadChatStreamPersonalization(input.userId);
-
   if (input.turn) {
-    const attachments = await resolveUserAttachmentMeta(
-      input.userId,
-      input.turn.fileIds,
-    );
+    const attachments =
+      input.turn.fileIds && input.turn.fileIds.length > 0
+        ? await resolveUserAttachmentMeta(input.userId, input.turn.fileIds)
+        : [];
     const turn = await messagesRepo.beginChatTurn({
       chatId: input.chatId,
       userId: input.userId,
@@ -368,9 +372,9 @@ export async function streamChatGeneration(input: {
   // Prompt context from DB recent turns so partial client pages cannot starve
   // the model. Merge with client history so prior assistant answers are never
   // dropped when a row is mid-persist or content_json is incomplete.
-  // Overlap history fetch with personalization (already in flight).
+  // History + personalization were already in flight alongside the turn insert.
   const [dbRecent, personalization] = await Promise.all([
-    messagesRepo.listRecentMessagesForChat(input.chatId, 40),
+    historyPromise,
     personalizationPromise,
   ]);
   const promptFromDb = buildPromptMessagesFromDbRows(dbRecent);

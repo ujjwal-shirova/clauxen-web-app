@@ -11,6 +11,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDown,
   ArrowUp,
+  Check,
   Mic,
   Plus,
   Square,
@@ -924,8 +925,6 @@ export function PromptInput({
     scheduleResizeTextarea();
   };
 
-  const micButtonClass = promptFilledControlClass;
-
   const withProjectStrip = showProjectStrip;
   const promptIsExpanded =
     isMultiline || showComposeControls || hasPromptAddons;
@@ -943,7 +942,7 @@ export function PromptInput({
         type="button"
         onClick={() => void dictation.start()}
         aria-pressed={dictation.isActive}
-        className={micButtonClass}
+        className="no-hover-overlay prompt-control-ghost shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
         data-app-button
       >
         <Mic className="icon-sm shrink-0" strokeWidth={1.75} />
@@ -990,16 +989,12 @@ export function PromptInput({
               disabled={dictation.status === "stopping"}
               aria-label="Submit dictation"
               className={cn(
-                dictation.status === "stopping"
-                  ? cn(promptFilledControlClass, "cursor-wait")
-                  : "no-hover-overlay prompt-control-ghost",
+                promptFilledControlClass,
+                dictation.status === "stopping" && "cursor-wait opacity-70",
               )}
+              data-app-button
             >
-              {dictation.status === "stopping" ? (
-                <Square className="icon-sm animate-pulse" />
-              ) : (
-                <Square className="icon-sm fill-current" />
-              )}
+              <Check className="icon-sm" strokeWidth={2.25} />
             </button>
           </HintTooltip>
         </>
