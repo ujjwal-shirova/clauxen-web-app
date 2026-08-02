@@ -676,11 +676,9 @@ export function Sidebar({
       <nav
         id={id}
         data-skip-global-prompt-focus
-        onClick={() =>
-          !isMobileLayout && isCollapsed && setIsCollapsed(false)
-        }
+        onClick={() => !isMobileLayout && isCollapsed && setIsCollapsed(false)}
         className={cn(
-          "sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)]",
+          "clauxen-sidebar sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-sidebar-bg)] pt-[env(safe-area-inset-top)]",
           isMobileLayout &&
             "fixed left-0 top-0 z-30 will-change-transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           !isMobileLayout && "relative z-20 shrink-0",
@@ -694,8 +692,8 @@ export function Sidebar({
           isMobileLayout &&
             !isCollapsed &&
             "z-40 w-[min(88vw,280px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[env(safe-area-inset-bottom)]",
-          !isMobileLayout && isCollapsed && "w-[48px] cursor-pointer",
-          !isMobileLayout && !isCollapsed && "w-[min(86vw,256px)] lg:w-[256px]",
+          !isMobileLayout && isCollapsed && "w-[56px] cursor-pointer",
+          !isMobileLayout && !isCollapsed && "w-[min(88vw,272px)] lg:w-[272px]",
         )}
       >
         <div className="ui-sidebar-top-bar relative flex h-11 shrink-0 items-center justify-between pl-2 pr-1">
@@ -765,7 +763,7 @@ export function Sidebar({
         >
           <div
             className={cn(
-              "sticky top-0 z-10 bg-[var(--app-shell-bg)] pl-2 pr-1.5 pb-2 pt-1.5",
+              "sticky top-0 z-10 bg-[var(--app-sidebar-bg)] pl-2.5 pr-2 pb-2.5 pt-1.5",
               isCollapsed && "px-0",
             )}
           >
@@ -781,7 +779,7 @@ export function Sidebar({
                     handleNewChat();
                   }}
                   aria-label="New chat"
-                  className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
+                  className="clauxen-new-chat mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-[hsl(var(--brand))] text-white shadow-[0_4px_12px_hsl(var(--brand)/0.20)] transition-colors hover:bg-[hsl(var(--brand-strong))]"
                 >
                   <NewChatBubbleIcon className="size-[18px]" />
                 </AppHref>
@@ -796,10 +794,10 @@ export function Sidebar({
                     handleNewChat();
                   }}
                   aria-label="New chat"
-                  className="group flex h-[34px] w-full items-center justify-between gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-2.5 text-[14px] font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
+                  className="clauxen-new-chat group flex h-10 w-full items-center justify-between gap-2 rounded-xl bg-[hsl(var(--brand))] px-3 text-[14px] font-semibold text-white shadow-[0_4px_14px_hsl(var(--brand)/0.20)] transition-colors hover:bg-[hsl(var(--brand-strong))]"
                 >
                   <span className="flex min-w-0 items-center gap-[3px]">
-                    <NewChatBubbleIcon className="size-[18px] shrink-0 text-zinc-800" />
+                    <NewChatBubbleIcon className="size-[17px] shrink-0 text-white" />
                     <span className="truncate">New Chat</span>
                   </span>
                   <span className="flex shrink-0 items-center gap-1">
@@ -811,7 +809,7 @@ export function Sidebar({
             </div>
           </div>
 
-          <div className="space-y-0.5 pl-2 pr-1.5">
+          <div className="space-y-1 px-2.5">
             {/* Nav: Library → Scheduled → Customize → Clauxen Code */}
             {renderNavButton({
               label: "Library",
@@ -950,7 +948,7 @@ export function Sidebar({
         {showAccountMenu && (
           <div
             className={cn(
-              "mt-auto shrink-0 flex flex-col bg-[var(--app-shell-bg)]",
+              "mt-auto shrink-0 flex flex-col bg-[var(--app-sidebar-bg)]",
               isCollapsed
                 ? "items-center gap-2 px-0 pb-2.5 pt-1"
                 : "items-stretch gap-1 py-2 pl-2 pr-1.5",

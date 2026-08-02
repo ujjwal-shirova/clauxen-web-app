@@ -194,7 +194,7 @@ export function ScheduledTasksView() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-zinc-900 px-4 text-[14px] font-medium text-white transition-colors hover:bg-zinc-800"
+          className="inline-flex h-10 items-center gap-2 rounded-xl bg-[hsl(var(--brand))] px-4 text-[14px] font-semibold text-white shadow-[0_4px_12px_hsl(var(--brand)/0.18)] transition-colors hover:bg-[hsl(var(--brand-strong))]"
         >
           Create
           <ChevronDown className="size-5 opacity-90" strokeWidth={2} />
@@ -231,7 +231,7 @@ export function ScheduledTasksView() {
   );
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-white font-sans">
+    <div className="app-page-surface flex h-full min-h-0 w-full flex-col bg-[var(--app-panel-bg)] font-sans">
       {isMobile ? (
         <ProjectsMobileHeader
           title="Scheduled Tasks"
@@ -245,7 +245,7 @@ export function ScheduledTasksView() {
           {/* Header */}
           <div className="mb-8 flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="text-[24px] font-semibold tracking-tight text-zinc-900 sm:text-[28px]">
+              <h1 className="text-[25px] font-semibold tracking-[-0.035em] text-zinc-900 sm:text-[30px]">
                 Scheduled Tasks
               </h1>
               <p className="mt-1.5 max-w-xl text-[14px] leading-5 text-zinc-500">
@@ -345,7 +345,10 @@ export function ScheduledTasksView() {
                         <MoreHorizontal className="size-5" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44 rounded-xl">
+                    <DropdownMenuContent
+                      align="end"
+                      className="w-44 rounded-xl"
+                    >
                       {task.last_chat_id ? (
                         <DropdownMenuItem asChild>
                           <AppHref href={APP_ROUTES.chat(task.last_chat_id)}>

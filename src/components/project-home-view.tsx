@@ -80,7 +80,15 @@ function InstructionsIllustration({ className }: { className?: string }) {
       className={className}
       aria-hidden
     >
-      <rect x="24" y="16" width="56" height="48" rx="8" fill="#f4f4f5" stroke="#e4e4e7" />
+      <rect
+        x="24"
+        y="16"
+        width="56"
+        height="48"
+        rx="8"
+        fill="#f4f4f5"
+        stroke="#e4e4e7"
+      />
       <rect x="34" y="28" width="36" height="4" rx="2" fill="#d4d4d8" />
       <rect x="34" y="38" width="28" height="4" rx="2" fill="#e4e4e7" />
       <rect x="34" y="48" width="32" height="4" rx="2" fill="#e4e4e7" />
@@ -103,8 +111,24 @@ function FilesIllustration({ className }: { className?: string }) {
       className={className}
       aria-hidden
     >
-      <rect x="30" y="20" width="36" height="44" rx="6" fill="#f4f4f5" stroke="#e4e4e7" />
-      <rect x="48" y="28" width="36" height="44" rx="6" fill="#fafafa" stroke="#d4d4d8" />
+      <rect
+        x="30"
+        y="20"
+        width="36"
+        height="44"
+        rx="6"
+        fill="#f4f4f5"
+        stroke="#e4e4e7"
+      />
+      <rect
+        x="48"
+        y="28"
+        width="36"
+        height="44"
+        rx="6"
+        fill="#fafafa"
+        stroke="#d4d4d8"
+      />
       <rect x="56" y="40" width="20" height="3" rx="1.5" fill="#d4d4d8" />
       <rect x="56" y="48" width="16" height="3" rx="1.5" fill="#e4e4e7" />
       <rect x="56" y="56" width="18" height="3" rx="1.5" fill="#e4e4e7" />
@@ -157,7 +181,7 @@ export function ProjectHomeView({
   );
 
   return (
-    <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-white font-sans text-zinc-900">
+    <div className="app-page-surface relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900">
       <header className="flex h-11 shrink-0 items-center gap-2 px-3 sm:px-5">
         {showMobileMenu && onOpenMobileNav ? (
           <MobileMenuButton
@@ -165,7 +189,7 @@ export function ProjectHomeView({
             aria-controls="app-primary-nav"
           />
         ) : null}
-        <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
+        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[hsl(var(--brand)/0.1)] text-[hsl(var(--brand))]">
           <Folder className="h-4 w-4" strokeWidth={1.75} />
           <span
             className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#2f6fed]"
@@ -186,9 +210,7 @@ export function ProjectHomeView({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="z-[100] w-44">
-            <DropdownMenuItem
-              onSelect={() => onPinChange?.(!pinned)}
-            >
+            <DropdownMenuItem onSelect={() => onPinChange?.(!pinned)}>
               {pinned ? "Unpin project" : "Pin project"}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setInstructionsOpen(true)}>
@@ -215,7 +237,7 @@ export function ProjectHomeView({
             <button
               type="button"
               onClick={() => setInstructionsOpen(true)}
-              className="group flex flex-col rounded-2xl border border-zinc-200/90 bg-white p-4 text-left transition-colors hover:border-zinc-300 hover:bg-zinc-50/60"
+              className="app-feature-card group flex flex-col rounded-2xl border border-zinc-200/80 bg-white p-4 text-left shadow-[0_1px_2px_rgba(20,22,36,0.03)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-[hsl(var(--brand)/0.25)] hover:shadow-[0_12px_30px_-20px_hsl(var(--brand)/0.35)]"
             >
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-[13.5px] font-medium text-zinc-900">
@@ -236,7 +258,7 @@ export function ProjectHomeView({
             <button
               type="button"
               onClick={() => setFilesOpen(true)}
-              className="group flex flex-col rounded-2xl border border-zinc-200/90 bg-white p-4 text-left transition-colors hover:border-zinc-300 hover:bg-zinc-50/60"
+              className="app-feature-card group flex flex-col rounded-2xl border border-zinc-200/80 bg-white p-4 text-left shadow-[0_1px_2px_rgba(20,22,36,0.03)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-[hsl(var(--brand)/0.25)] hover:shadow-[0_12px_30px_-20px_hsl(var(--brand)/0.35)]"
             >
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-[13.5px] font-medium text-zinc-900">
@@ -257,10 +279,7 @@ export function ProjectHomeView({
         </div>
       </div>
 
-      <div
-        className="shrink-0 px-3 pb-4 pt-1 sm:px-5"
-        data-composer-dock
-      >
+      <div className="shrink-0 px-3 pb-4 pt-1 sm:px-5" data-composer-dock>
         <div className="mx-auto w-full max-w-[768px]">
           <PromptInput
             onSendMessage={onSendMessage}
@@ -323,9 +342,7 @@ export function ProjectHomeView({
         open={textDialogOpen}
         onOpenChange={setTextDialogOpen}
         projectId={project.id}
-        onAdded={(file) =>
-          persistFiles([...getProjectFiles(project.id), file])
-        }
+        onAdded={(file) => persistFiles([...getProjectFiles(project.id), file])}
       />
       <AddGitHubDialog
         open={githubDialogOpen}

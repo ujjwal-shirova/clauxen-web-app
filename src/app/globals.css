@@ -7,61 +7,63 @@
 
 @layer base {
   :root {
-    /* Highly polished modern minimalist palette - pure white and crisp neutral greys */
-    --background: 0 0% 100%; /* Pure White */
-    --foreground: 240 10% 3.9%; /* Near Black */
+    /* Clauxen product palette — quiet cool neutrals with a focused indigo accent. */
+    --background: 225 25% 98%;
+    --foreground: 229 24% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 229 24% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%; /* Crisp dark charcoal/black */
+    --popover-foreground: 229 24% 13%;
+    --primary: 242 67% 59%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%; /* Crisp light grey */
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%; /* Zinc-500 */
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --secondary: 228 24% 96%;
+    --secondary-foreground: 229 24% 18%;
+    --muted: 228 24% 96%;
+    --muted-foreground: 225 10% 43%;
+    --accent: 242 55% 96%;
+    --accent-foreground: 242 48% 42%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%; /* Clean hairline border */
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --panel-edge: 240 5.9% 90%;
-    --radius: 8px;
+    --border: 228 20% 90%;
+    --input: 228 20% 88%;
+    --ring: 242 67% 59%;
+    --panel-edge: 228 20% 89%;
+    --brand: 242 67% 59%;
+    --brand-strong: 242 57% 51%;
+    --brand-soft: 242 70% 97%;
+    --radius: 12px;
     /* App chrome icon/button scale */
-    --icon-size: 18px;
-    --icon-stroke: 1.75;
-    --icon-btn-size: 32px;
-    --nav-row-height: 34px;
-    --nav-gap-tight: 3px;
-    --nav-gap-loose: 6px;
-    --chat-header-height: 36px;
+    --icon-size: 17px;
+    --icon-stroke: 1.8;
+    --icon-btn-size: 36px;
+    --nav-row-height: 38px;
+    --nav-gap-tight: 6px;
+    --nav-gap-loose: 9px;
+    --chat-header-height: 48px;
     --chat-title-size: 14px;
     --chat-user-font-size: 14px;
     --chat-assistant-font-size: 15px;
     --chat-message-line-height: 1.65;
     --menu-icon-size: 16px;
     --menu-row-height: 34px;
-    --icon-color: #18181b;
-    --icon-muted: #71717a;
-    --icon-subtle: #a1a1aa;
-    /* App shell — warm canvas behind pure white panels */
-    --app-shell-bg: #fcf9f8;
-    --app-panel-bg: #ffffff;
+    --icon-color: #25263a;
+    --icon-muted: #6f7284;
+    --icon-subtle: #a1a4b2;
+    --app-shell-bg: #f1f2f6;
+    --app-panel-bg: #fbfbfd;
+    --app-sidebar-bg: #f5f5f8;
     /* Shared chat / composer column breadth */
     --chat-column-max-width: 768px;
-    --glass-chat-surface-background: #ffffff;
+    --glass-chat-surface-background: #fbfbfd;
     --cursor-menu-bg: rgba(255, 255, 255, 0.94);
     --cursor-menu-border: rgba(24, 24, 27, 0.1);
     --cursor-menu-shadow:
-      0 14px 38px -18px rgba(24, 24, 27, 0.28),
-      0 2px 8px rgba(24, 24, 27, 0.08);
+      0 14px 38px -18px rgba(24, 24, 27, 0.28), 0 2px 8px rgba(24, 24, 27, 0.08);
     --cursor-radius-lg: 10px;
     --cursor-radius-xl: 13px;
     /* Prompt composer */
-    --prompt-radius: 18px;
-    --prompt-radius-lg: 26px;
+    --prompt-radius: 16px;
+    --prompt-radius-lg: 20px;
     --prompt-shadow:
       0 0 0 1px rgba(24, 24, 27, 0.045), 0 1px 2px rgba(24, 24, 27, 0.02),
       0 6px 20px -10px rgba(24, 24, 27, 0.06);
@@ -91,8 +93,8 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 5% 10%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 6% 10%;
+    --primary: 241 80% 72%;
+    --primary-foreground: 240 20% 10%;
     --secondary: 240 4% 16%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 4% 16%;
@@ -103,19 +105,22 @@
     --destructive-foreground: 0 0% 98%;
     --border: 240 4% 18%;
     --input: 240 4% 18%;
-    --ring: 240 5% 64%;
+    --ring: 241 80% 72%;
     --panel-edge: 240 4% 18%;
     --icon-color: #f4f4f5;
     --icon-muted: #a1a1aa;
     --icon-subtle: #71717a;
-    --app-shell-bg: #0c0c0e;
-    --app-panel-bg: #141416;
-    --glass-chat-surface-background: #141416;
+    --brand: 241 80% 72%;
+    --brand-strong: 241 75% 66%;
+    --brand-soft: 242 28% 17%;
+    --app-shell-bg: #0d0e13;
+    --app-panel-bg: #14151c;
+    --app-sidebar-bg: #111219;
+    --glass-chat-surface-background: #14151c;
     --cursor-menu-bg: rgba(24, 24, 27, 0.94);
     --cursor-menu-border: rgba(255, 255, 255, 0.1);
     --cursor-menu-shadow:
-      0 14px 38px -18px rgba(0, 0, 0, 0.55),
-      0 2px 8px rgba(0, 0, 0, 0.35);
+      0 14px 38px -18px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
     --prompt-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.2),
       0 6px 20px -10px rgba(0, 0, 0, 0.45);
@@ -265,7 +270,6 @@
   .app-btn-primary:not(:disabled):hover {
     box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.08) !important;
   }
-
 }
 
 .font-serif {
@@ -328,8 +332,8 @@ html[data-chat-font="Merriweather"] {
   --chat-font-family: "Merriweather", Georgia, serif;
 }
 html[data-chat-font="System"] {
-  --chat-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  --chat-font-family:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 [data-assistant-content] .markdown-content,
@@ -411,7 +415,8 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 .dark .sticky-user-msg--stuck {
   background-color: hsl(var(--background));
 }
-.dark .sticky-user-msg-host[data-user-msg-editing="true"].sticky-user-msg--stuck {
+.dark
+  .sticky-user-msg-host[data-user-msg-editing="true"].sticky-user-msg--stuck {
   background-color: hsl(var(--background));
 }
 .dark .sticky-user-msg--stuck::after {
@@ -791,10 +796,18 @@ nav.sidebar-hover-area {
 }
 
 /* Chat rows own the hover pill — nested title buttons stay clear; row icon actions may hover. */
-.sidebar-scrollable .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):hover,
-.sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):hover,
-.sidebar-scrollable .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):focus,
-.sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):focus {
+.sidebar-scrollable
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button):hover,
+.sidebar-scrollable
+  .glass-sidebar-agent-menu-btn
+  [role="button"]:not(.ui-row-icon-button):hover,
+.sidebar-scrollable
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button):focus,
+.sidebar-scrollable
+  .glass-sidebar-agent-menu-btn
+  [role="button"]:not(.ui-row-icon-button):focus {
   background-color: transparent !important;
 }
 
@@ -847,7 +860,8 @@ nav.sidebar-hover-area {
   isolation: isolate;
 }
 
-[data-prompt-root] [data-composer-stack="with-project"][data-add-menu-open="true"] {
+[data-prompt-root]
+  [data-composer-stack="with-project"][data-add-menu-open="true"] {
   overflow: visible;
 }
 
@@ -859,7 +873,9 @@ nav.sidebar-hover-area {
   overflow: visible;
 }
 
-[data-prompt-root] [data-composer-stack="with-project"] [data-composer-project-strip] {
+[data-prompt-root]
+  [data-composer-stack="with-project"]
+  [data-composer-project-strip] {
   border-radius: 0;
   border-top: 1px solid #ececee;
 }
@@ -874,21 +890,35 @@ nav.sidebar-hover-area {
   box-shadow: 0 1px 2px rgba(24, 24, 27, 0.05) !important;
 }
 
-[data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell]:focus-within {
+[data-prompt-root]
+  [data-composer-stack="with-project"]
+  [data-prompt-shell]:focus-within {
   border-color: transparent !important;
   box-shadow: none !important;
 }
 
 /* Legacy outer wrappers only — never [data-composer-stack] / [data-prompt-shell]
    (those own the single hairline). Matching the stack caused a double border. */
-[data-prompt-root] > div > div:not([data-prompt-shell]):not([data-composer-stack]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):not([data-ask-user-input-composer]) {
+[data-prompt-root]
+  > div
+  > div:not([data-prompt-shell]):not([data-composer-stack]):not(
+    [data-context-footer]
+  ):not([data-prompt-wrapper]):not([data-context-indicator]):not(
+    [data-ask-user-input-composer]
+  ) {
   background-color: #ffffff !important;
   border: 1px solid rgba(24, 24, 27, 0.055) !important;
   box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04) !important;
   border-radius: var(--prompt-radius-lg) !important;
 }
 
-[data-prompt-root] > div > div:not([data-prompt-shell]):not([data-composer-stack]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):not([data-ask-user-input-composer]):focus-within {
+[data-prompt-root]
+  > div
+  > div:not([data-prompt-shell]):not([data-composer-stack]):not(
+    [data-context-footer]
+  ):not([data-prompt-wrapper]):not([data-context-indicator]):not(
+    [data-ask-user-input-composer]
+  ):focus-within {
   border-color: rgba(24, 24, 27, 0.1) !important;
   box-shadow: 0 1px 2px rgba(24, 24, 27, 0.05) !important;
 }
@@ -904,8 +934,11 @@ nav.sidebar-hover-area {
 .user-message-card__body {
   position: relative;
   z-index: 1;
-  background:
-    linear-gradient(180deg, rgba(250, 250, 251, 0.98), #f4f4f5) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(250, 250, 251, 0.98),
+    #f4f4f5
+  ) !important;
   border: 1px solid rgba(24, 24, 27, 0.075) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
@@ -919,8 +952,11 @@ nav.sidebar-hover-area {
 
 .user-message-card__body:hover,
 .user-message-card__body:focus-visible {
-  background:
-    linear-gradient(180deg, rgba(247, 247, 248, 0.98), #eeeeef) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(247, 247, 248, 0.98),
+    #eeeeef
+  ) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
     0 1px 2px rgba(24, 24, 27, 0.025) !important;
@@ -929,8 +965,11 @@ nav.sidebar-hover-area {
 button.user-message-card__body:not(:disabled):hover,
 .user-message-card__body[role="button"]:hover,
 .user-message-card__body[role="button"]:focus-visible {
-  background:
-    linear-gradient(180deg, rgba(247, 247, 248, 0.98), #eeeeef) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(247, 247, 248, 0.98),
+    #eeeeef
+  ) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
     0 1px 2px rgba(24, 24, 27, 0.025) !important;
@@ -946,8 +985,11 @@ button.user-message-card__body:not(:disabled):hover,
 
 .user-message-card__body--editing:hover,
 .user-message-card__body--editing:focus-within {
-  background:
-    linear-gradient(180deg, rgba(250, 250, 251, 0.98), #f4f4f5) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(250, 250, 251, 0.98),
+    #f4f4f5
+  ) !important;
 }
 
 /* Muted secondary feedback and retry action buttons styling */
@@ -959,15 +1001,17 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /* Assistant chrome buttons may soft-hover; follow-ups + chat-row innards must not. */
-.assistant-message button:not(.no-hover-overlay):not(.no-hover):not(
-    .follow-up-prompt
-  ):not(.label-hover-bold):hover {
+.assistant-message
+  button:not(.no-hover-overlay):not(.no-hover):not(.follow-up-prompt):not(
+    .label-hover-bold
+  ):hover {
   background-color: rgba(24, 24, 27, 0.04) !important;
   color: var(--foreground) !important;
   transform: translateY(-0.5px);
 }
 
-.group\/chat button:not(.no-hover-overlay):not(.no-hover):not(.ui-row-icon-button):hover,
+.group\/chat
+  button:not(.no-hover-overlay):not(.no-hover):not(.ui-row-icon-button):hover,
 .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):hover,
 .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):hover,
 .assistant-message .follow-up-prompt:hover,
@@ -1245,7 +1289,10 @@ button.user-message-card__body:not(:disabled):hover,
   overflow-y: hidden;
   min-height: var(--prompt-input-editor-min-height, 32px);
   max-height: var(--prompt-input-editor-max-height, 168px);
-  height: var(--prompt-input-editor-height, var(--prompt-input-editor-min-height, 32px));
+  height: var(
+    --prompt-input-editor-height,
+    var(--prompt-input-editor-min-height, 32px)
+  );
   overflow-anchor: none;
   box-sizing: border-box;
   transition: height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1255,12 +1302,17 @@ button.user-message-card__body:not(:disabled):hover,
   transition: min-height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-[data-prompt-root] [data-prompt-shell] [data-prompt-layout="stacked"] [data-prompt-editor] {
+[data-prompt-root]
+  [data-prompt-shell]
+  [data-prompt-layout="stacked"]
+  [data-prompt-editor] {
   flex: none;
   align-self: stretch;
 }
 
-[data-prompt-root] [data-prompt-shell] [data-prompt-layout="stacked"].prompt-body-grid {
+[data-prompt-root]
+  [data-prompt-shell]
+  [data-prompt-layout="stacked"].prompt-body-grid {
   min-height: 0;
 }
 
@@ -1730,21 +1782,41 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /* Row owns selection/hover — nested title links stay clear; pin/more may hover. */
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button),
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):hover,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):focus,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):focus-visible,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button)[aria-current="page"],
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button)[data-state="open"],
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button),
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):hover,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):focus {
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button),
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button):hover,
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button):focus,
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button):focus-visible,
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button)[aria-current="page"],
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button)[data-state="open"],
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  [role="button"]:not(.ui-row-icon-button),
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  [role="button"]:not(.ui-row-icon-button):hover,
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  [role="button"]:not(.ui-row-icon-button):focus {
   background: transparent !important;
   box-shadow: none !important;
 }
 
 .glass-sidebar-docked .glass-sidebar-agent-menu-btn .ui-row-icon-button:hover,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn .ui-row-icon-button[data-state="open"] {
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  .ui-row-icon-button[data-state="open"] {
   background-color: rgba(24, 24, 27, 0.08) !important;
   color: #18181b !important;
 }
@@ -1758,7 +1830,8 @@ button.user-message-card__body:not(:disabled):hover,
   border-radius: 8px;
 }
 
-.glass-sidebar-docked .glass-sidebar-footer-account-trigger:not(.ui-icon-button) {
+.glass-sidebar-docked
+  .glass-sidebar-footer-account-trigger:not(.ui-icon-button) {
   min-height: 44px;
   height: auto;
 }
@@ -1967,8 +2040,11 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .markdown-content .composer-message-codeblock {
-  background:
-    linear-gradient(180deg, rgba(250, 250, 251, 0.98), #f7f7f8) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(250, 250, 251, 0.98),
+    #f7f7f8
+  ) !important;
 }
 
 .markdown-content .ui-code-block-content {
@@ -2706,4 +2782,157 @@ button[data-speed-toggle][data-state="open"] {
   );
   background-size: 200% 100%;
   animation: checkout-upi-qr-shimmer 1.35s ease-in-out infinite;
+}
+
+/* ── Clauxen unified product finish ──────────────────────────────────────
+   This final layer normalizes older one-off surfaces onto the current
+   product language while preserving their existing layout and behavior. */
+.app-shell-root {
+  background:
+    radial-gradient(
+      circle at 36% -18%,
+      hsl(var(--brand) / 0.09),
+      transparent 30%
+    ),
+    var(--app-shell-bg);
+}
+
+nav.clauxen-sidebar,
+.clauxen-sidebar .sidebar-scrollable,
+.clauxen-sidebar .ui-sidebar-top-bar {
+  background-color: var(--app-sidebar-bg) !important;
+}
+
+.clauxen-sidebar {
+  border-right: 1px solid rgba(20, 22, 36, 0.045) !important;
+}
+
+.clauxen-sidebar .ui-nav-row,
+.clauxen-sidebar .glass-sidebar-footer-account-trigger {
+  border-radius: 10px !important;
+}
+
+.clauxen-sidebar .ui-nav-row:hover,
+.clauxen-sidebar .glass-sidebar-footer-account-trigger:hover,
+.clauxen-sidebar .glass-sidebar-footer-account-trigger[data-state="open"] {
+  background: rgba(35, 37, 56, 0.055) !important;
+}
+
+.clauxen-sidebar .ui-nav-row[aria-current="page"],
+.clauxen-sidebar .ui-nav-row[data-active="true"] {
+  background: hsl(var(--brand) / 0.1) !important;
+  color: hsl(var(--brand-strong)) !important;
+}
+
+.clauxen-sidebar .clauxen-new-chat:hover {
+  background: hsl(var(--brand-strong)) !important;
+  box-shadow: 0 7px 20px hsl(var(--brand) / 0.22) !important;
+}
+
+.clauxen-sidebar .clauxen-new-chat kbd {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.app-agent-panel,
+.app-page-surface {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 160px),
+    var(--app-panel-bg) !important;
+}
+
+.content-pane-top-bar {
+  height: var(--chat-header-height) !important;
+  min-height: var(--chat-header-height) !important;
+  border-bottom: 1px solid rgba(20, 22, 36, 0.045) !important;
+  background: rgba(251, 251, 253, 0.84) !important;
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+[data-prompt-root] [data-prompt-shell] {
+  border-color: rgba(85, 87, 112, 0.18) !important;
+  border-radius: 20px !important;
+  box-shadow:
+    0 1px 2px rgba(20, 22, 36, 0.04),
+    0 14px 34px -24px rgba(20, 22, 36, 0.3) !important;
+}
+
+[data-prompt-root] [data-prompt-shell]:focus-within {
+  border-color: hsl(var(--brand) / 0.42) !important;
+  box-shadow:
+    0 0 0 3px hsl(var(--brand) / 0.09),
+    0 18px 38px -24px hsl(var(--brand) / 0.35) !important;
+}
+
+button[class*="bg-zinc-900"][class*="text-white"],
+a[class*="bg-zinc-900"][class*="text-white"] {
+  background-color: hsl(var(--brand)) !important;
+}
+
+button[class*="bg-zinc-900"][class*="text-white"]:hover,
+a[class*="bg-zinc-900"][class*="text-white"]:hover {
+  background-color: hsl(var(--brand-strong)) !important;
+}
+
+[role="menu"],
+[data-radix-popper-content-wrapper] > div,
+.dropdown-menu-content,
+.ui-menu {
+  border-color: rgba(20, 22, 36, 0.075) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow:
+    0 18px 50px -20px rgba(20, 22, 36, 0.32),
+    0 2px 6px rgba(20, 22, 36, 0.05) !important;
+}
+
+[role="menuitem"],
+.dropdown-menu-item,
+.ui-menu-row {
+  border-radius: 9px !important;
+}
+
+.app-page-surface > header,
+.app-page-surface > [class*="border-b"] {
+  border-color: rgba(20, 22, 36, 0.055) !important;
+}
+
+.app-feature-card {
+  isolation: isolate;
+}
+
+::selection {
+  background: hsl(var(--brand) / 0.18);
+  color: hsl(var(--foreground));
+}
+
+:focus-visible {
+  outline-color: hsl(var(--brand) / 0.5);
+}
+
+.dark .app-agent-panel,
+.dark .app-page-surface {
+  background: var(--app-panel-bg) !important;
+}
+
+.dark .content-pane-top-bar {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  background: rgba(20, 21, 28, 0.86) !important;
+}
+
+.dark .clauxen-sidebar {
+  border-color: rgba(255, 255, 255, 0.045) !important;
+}
+
+@media (max-width: 639px) {
+  :root {
+    --icon-btn-size: 38px;
+    --chat-header-height: 52px;
+  }
+
+  .app-page-surface h1 {
+    text-wrap: balance;
+  }
 }

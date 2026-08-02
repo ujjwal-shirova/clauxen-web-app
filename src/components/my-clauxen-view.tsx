@@ -31,11 +31,7 @@ type MyClauxenData = {
 
 function ClauxenMark({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 40 40"
-      className={cn("h-9 w-9", className)}
-      aria-hidden
-    >
+    <svg viewBox="0 0 40 40" className={cn("h-9 w-9", className)} aria-hidden>
       <defs>
         <linearGradient id="clauxen-mark" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#5eb0ff" />
@@ -142,7 +138,7 @@ export function MyClauxenView() {
       : `${titleName}'s Clauxen`;
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-white text-zinc-900">
+    <div className="app-page-surface flex h-full min-h-0 w-full flex-col bg-[var(--app-panel-bg)] text-zinc-900">
       <div className="flex shrink-0 items-center gap-2 px-3 pb-1 pt-3 sm:hidden">
         <MobileMenuButton onClick={openMobileNav} />
         <span className="text-[15px] font-semibold">My Clauxen</span>
@@ -180,15 +176,15 @@ export function MyClauxenView() {
                 <div className="mb-3">
                   <ClauxenMark />
                 </div>
-                <h1 className="text-[28px] font-semibold tracking-tight sm:text-[32px]">
+                <h1 className="text-[28px] font-semibold tracking-[-0.04em] sm:text-[32px]">
                   {pageTitle}
                 </h1>
                 <p className="mt-2 max-w-[34rem] text-[14px] leading-relaxed text-zinc-500 sm:text-[15px]">
                   Clauxen has been with you for{" "}
                   <StatStrong>{data.daysWithClauxen}</StatStrong> days, chatted{" "}
-                  <StatStrong>{data.messageCount}</StatStrong> times, and we&apos;ve
-                  met <StatStrong>{data.streakDays}</StatStrong> days in a row
-                  recently
+                  <StatStrong>{data.messageCount}</StatStrong> times, and
+                  we&apos;ve met <StatStrong>{data.streakDays}</StatStrong> days
+                  in a row recently
                 </p>
               </div>
 
@@ -200,11 +196,13 @@ export function MyClauxenView() {
                   "shrink-0 rounded-full px-4 py-2 text-[13px] font-medium transition-colors",
                   data.selfGrowthEnabled
                     ? "bg-zinc-100 text-zinc-500"
-                    : "bg-zinc-900 text-white hover:bg-zinc-800",
+                    : "bg-[hsl(var(--brand))] text-white shadow-[0_4px_12px_hsl(var(--brand)/0.18)] hover:bg-[hsl(var(--brand-strong))]",
                   saving && "opacity-70",
                 )}
               >
-                {data.selfGrowthEnabled ? "Self-growth on" : "Enable self-growth"}
+                {data.selfGrowthEnabled
+                  ? "Self-growth on"
+                  : "Enable self-growth"}
               </button>
             </header>
 

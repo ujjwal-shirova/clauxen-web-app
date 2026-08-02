@@ -42,17 +42,17 @@ function NavButton({
         onClick={onSelect}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "ui-nav-row w-full rounded-lg px-2 text-left text-[14px] font-medium leading-5 transition-colors duration-150",
+          "ui-nav-row w-full rounded-[10px] px-2.5 text-left text-[13.5px] font-medium leading-5 transition-colors duration-150",
           isActive
-            ? "bg-[rgba(11,11,11,0.08)] text-zinc-900 dark:bg-white/10 dark:text-zinc-100"
-            : "text-zinc-700 hover:bg-[rgba(11,11,11,0.04)] hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-100",
+            ? "bg-[hsl(var(--brand)/0.11)] text-[hsl(var(--brand-strong))] dark:bg-[hsl(var(--brand)/0.16)] dark:text-indigo-200"
+            : "text-zinc-600 hover:bg-black/[0.045] hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-100",
         )}
       >
         <Icon
           className={cn(
-            "size-5 shrink-0 stroke-[1.75]",
+            "size-[17px] shrink-0 stroke-[1.8]",
             isActive
-              ? "text-zinc-700 dark:text-zinc-200"
+              ? "text-[hsl(var(--brand))] dark:text-indigo-300"
               : "text-zinc-500 dark:text-zinc-500",
           )}
           aria-hidden

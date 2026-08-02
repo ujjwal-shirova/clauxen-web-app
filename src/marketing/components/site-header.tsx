@@ -7,7 +7,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white/90 backdrop-blur-md dark:border-zinc-800/80 dark:bg-[var(--app-panel-bg)]/90">
+    <header className="sticky top-0 z-50 border-b border-black/[0.055] bg-white/80 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-[var(--app-panel-bg)]/90">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <a
           href="/overview"
@@ -68,7 +68,7 @@ export function SiteHeader() {
           </a>
           <a
             href={SITE.login}
-            className="rounded-full bg-zinc-900 px-3.5 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+            className="rounded-[10px] bg-[hsl(var(--brand))] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_12px_hsl(var(--brand)/0.18)] hover:bg-[hsl(var(--brand-strong))] dark:text-white"
           >
             Try Clauxen
           </a>

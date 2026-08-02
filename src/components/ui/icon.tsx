@@ -28,7 +28,7 @@ export interface IconProps extends LucideProps {
 
 export function Icon({
   icon: LucideIcon,
-  size = "xl",
+  size = "lg",
   variant = "default",
   className,
   ...props
