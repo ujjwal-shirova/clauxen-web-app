@@ -8,6 +8,7 @@ import {
   MoreHorizontal,
   Search,
   Sparkles,
+  SquarePen,
   Volume2,
 } from "lucide-react";
 import { AssistantContentRenderer } from "./assistant-content-renderer";
@@ -226,6 +227,7 @@ const MessageRow = React.memo(
     const activeBranchIndex = message.activeBranchIndex ?? branchVersions - 1;
     const [previewAttachment, setPreviewAttachment] =
       React.useState<MessageAttachment | null>(null);
+    const [userExpanded, setUserExpanded] = React.useState(false);
     // Structural markdown must keep one DOM tree. Downgrading a code block or
     // table to plain text off-screen changes its height and horizontal scroll,
     // which makes the chat jump when that message approaches the viewport.
@@ -254,7 +256,7 @@ const MessageRow = React.memo(
         ref={visibilityRef}
         className={cn(
           "group flex w-full max-w-full flex-col",
-          shouldAnimate && "animate-in fade-in duration-500",
+          shouldAnimate && "animate-in fade-in duration-200",
           message.role === "user" ? "w-full items-stretch" : "w-full items-stretch",
         )}
         onAnimationEnd={(event) => {
@@ -282,23 +284,46 @@ const MessageRow = React.memo(
                 <div
                   role="button"
                   tabIndex={0}
-                  onClick={() => onStartEdit(message)}
+                  onClick={() => setUserExpanded((prev) => !prev)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      onStartEdit(message);
+                      setUserExpanded((prev) => !prev);
                     }
                   }}
-                  className="user-message-card__body no-hover-overlay w-full cursor-pointer rounded-xl px-3 py-2 text-left transition-[border-color] duration-150"
-                  aria-label="Edit message"
+                  className="user-message-card__body no-hover-overlay group/user-msg relative w-full cursor-pointer rounded-xl px-3 py-2 pr-10 text-left transition-[border-color] duration-150"
+                  aria-label={
+                    userExpanded
+                      ? "Collapse message"
+                      : "Expand message"
+                  }
+                  aria-expanded={userExpanded}
+                  data-user-expanded={userExpanded || undefined}
                 >
+                  <HintTooltip content="Edit message" side="left">
+                    <button
+                      type="button"
+                      aria-label="Edit message"
+                      className="user-message-card__edit-btn no-hover-overlay flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onStartEdit(message);
+                      }}
+                      onKeyDown={(event) => {
+                        event.stopPropagation();
+                      }}
+                    >
+                      <SquarePen className="size-4" strokeWidth={1.75} />
+                    </button>
+                  </HintTooltip>
                   {message.attachments && message.attachments.length > 0 ? (
-                    <div className="mb-1.5 flex flex-wrap gap-1.5">
+                    <div className="mb-2 flex flex-wrap gap-1.5">
                       {message.attachments.map((attachment) => (
                         <AttachmentChip
                           key={attachment.id}
                           file={attachment}
-                          size="sm"
+                          size="md"
                           onOpen={() =>
                             setPreviewAttachment({
                               ...attachment,
@@ -316,19 +341,28 @@ const MessageRow = React.memo(
                   {message.content.trim() ? (
                     <div className="user-message-card__preview relative">
                       <p
-                        className="overflow-hidden whitespace-pre-wrap text-[13px] leading-[18px] text-zinc-900"
-                        style={{
-                          display: "-webkit-box",
-                          WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
-                          WebkitBoxOrient: "vertical",
-                        }}
+                        className={cn(
+                          "whitespace-pre-wrap text-[13px] leading-[18px] text-zinc-900",
+                          !userExpanded && "overflow-hidden",
+                        )}
+                        style={
+                          userExpanded
+                            ? undefined
+                            : {
+                                display: "-webkit-box",
+                                WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
+                                WebkitBoxOrient: "vertical",
+                              }
+                        }
                       >
                         {message.content}
                       </p>
-                      <div
-                        className="user-message-card__preview-fade"
-                        aria-hidden
-                      />
+                      {!userExpanded ? (
+                        <div
+                          className="user-message-card__preview-fade"
+                          aria-hidden
+                        />
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

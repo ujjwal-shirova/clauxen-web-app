@@ -81,10 +81,10 @@
       0 2px 8px rgba(24, 24, 27, 0.08);
     --cursor-radius-lg: 10px;
     --cursor-radius-xl: 13px;
-    /* Prompt composer — Cursor pill; expanded keeps generous rounded corners */
+    /* Prompt composer — collapsed pill; expanded uses modest corners (not capsule) */
     --prompt-radius: 9999px;
     --prompt-radius-lg: 9999px;
-    --prompt-radius-expanded: 32px;
+    --prompt-radius-expanded: 14px;
     --prompt-control-size: 28px;
     --prompt-editor-min-height: 24px;
     --prompt-shadow:
@@ -899,7 +899,7 @@ nav.sidebar-hover-area {
     box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-/* Expanded / multiline — keep corners generously rounded (not sharp) */
+/* Expanded / multiline — modest 14px corners (not over-rounded capsule) */
 [data-prompt-root] [data-prompt-shell][data-prompt-expanded="true"],
 [data-prompt-root] [data-composer-stack="with-project"][data-prompt-expanded="true"] {
   border-radius: var(--prompt-radius-expanded) !important;
@@ -1011,10 +1011,26 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /* Collapsed preview fade (matches Cursor max-height ~68px wash) */
-.user-message-card__body:not(.user-message-card__body--editing)
+.user-message-card__body:not(.user-message-card__body--editing):not(
+    [data-user-expanded="true"]
+  )
   .user-message-card__preview
   p {
   max-height: 68px;
+}
+
+.user-message-card__body[data-user-expanded="true"]
+  .user-message-card__preview
+  p {
+  max-height: 144px; /* 8 × 18px */
+  overflow-y: auto;
+  -webkit-line-clamp: unset !important;
+  display: block !important;
+}
+
+.user-message-card__body[data-user-expanded="true"]
+  .user-message-card__preview-fade {
+  display: none;
 }
 
 .user-message-card__preview {
@@ -1033,6 +1049,27 @@ button.user-message-card__body:not(:disabled):hover,
     var(--chat-user-card-bg, #fcfcfc),
     rgba(0, 0, 0, 0)
   );
+}
+
+/* Hover edit affordance — top-right inside the card */
+.user-message-card__edit-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.user-message-card:hover .user-message-card__edit-btn,
+.user-message-card:focus-within .user-message-card__edit-btn,
+.user-message-card__edit-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Muted secondary feedback and retry action buttons styling */

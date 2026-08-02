@@ -1598,15 +1598,20 @@ export function useChatApi(
         });
 
         const handleStreamEvent = (event: StreamEvent) => {
-          // Flush immediately on lifecycle boundaries so tool/thinking shimmer
-          // clears in the same frame the server ends the step.
+          // Flush immediately on lifecycle boundaries and first content so
+          // token paint / shimmer clear land in the same frame as arrival.
           if (
             event.type === "error" ||
             event.type === "done" ||
+            event.type === "start" ||
             event.type === "tool_end" ||
             event.type === "thinking_end" ||
             event.type === "segment_end" ||
-            event.type === "answer_finalize"
+            event.type === "answer_finalize" ||
+            event.type === "answer_delta" ||
+            event.type === "narration_delta" ||
+            event.type === "thinking_delta" ||
+            event.type === "text_delta"
           ) {
             streamBatcher.flush();
             handleStreamEventImmediate(event);
@@ -1988,11 +1993,15 @@ export function useChatApi(
           useChatStore.getState().setChatGenerating(pendingChatId, true);
         }
 
-        // Upload attachments in parallel; failures mark chips but still stream text.
-        // Incognito never persists files — skip uploads entirely.
-        const fileIds: string[] = [];
+        // Upload attachments in the background so first-token is not blocked.
+        // modelContent already carries local text previews for documents.
+        const knownFileIds = pendingAttachments
+          .map((item) => item.fileId)
+          .filter((id): id is string => Boolean(id));
+        const fileIds: string[] = [...knownFileIds];
         let uploadFailures = 0;
-        if (!ephemeral && pendingAttachments.length > 0) {
+        const uploadAttachmentsInBackground = async () => {
+          if (ephemeral || pendingAttachments.length === 0) return;
           const uploaded = await Promise.all(
             pendingAttachments.map(async (attachment) => {
               if (attachment.fileId) return attachment.fileId;
@@ -2007,7 +2016,7 @@ export function useChatApi(
             }),
           );
           for (const id of uploaded) {
-            if (id) fileIds.push(id);
+            if (id && !fileIds.includes(id)) fileIds.push(id);
           }
 
           setAllChats((prev) => {
@@ -2021,7 +2030,6 @@ export function useChatApi(
               attachments: (current.attachments ?? []).map((item, i) => ({
                 ...item,
                 fileId: uploaded[i] ?? item.fileId,
-                // Keep local preview even when upload fails so the chip still renders.
                 previewUrl: item.previewUrl,
               })),
             };
@@ -2033,7 +2041,10 @@ export function useChatApi(
               `[chat] ${uploadFailures} attachment upload(s) failed; continuing with text only`,
             );
           }
-        }
+        };
+
+        // Kick uploads without awaiting — generate starts immediately.
+        void uploadAttachmentsInBackground();
 
         const attachmentContext =
           pendingAttachments.length > 0

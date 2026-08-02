@@ -274,7 +274,7 @@ export function UserMessageInlineEditor({
 
   return (
     <div
-      className="user-message-card__body user-message-card__body--editing no-hover-overlay w-full rounded-[15px] px-3 py-2.5 text-left sm:rounded-[17px] sm:px-4 sm:py-3"
+      className="user-message-card__body user-message-card__body--editing no-hover-overlay w-full rounded-xl px-3 py-2.5 text-left sm:px-4 sm:py-3"
       data-user-message-editing={messageId}
       onKeyDown={(event) => {
         if (event.key === "Escape") {

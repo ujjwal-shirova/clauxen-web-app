@@ -479,7 +479,7 @@ export function Sidebar({
       "ui-sidebar-menu-button no-hover-overlay mb-0 w-full rounded-md text-[13px] font-medium leading-[18px] transition-colors duration-150 hover:bg-black/[0.04]",
       muted ? "text-zinc-800/40 hover:text-zinc-800/55" : "text-zinc-800/90",
       isCollapsed
-        ? "ui-icon-button mx-auto justify-center gap-0 px-0"
+        ? "ui-icon-button mx-auto flex justify-center gap-0 px-0"
         : "ui-nav-row justify-start px-2",
       active && "bg-black/[0.06]",
     );
@@ -712,7 +712,7 @@ export function Sidebar({
           </div>
 
           {isCollapsed && !isMobileLayout ? (
-            <div className="group/sidebar-logo absolute left-1/2 top-1/2 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+            <div className="group/sidebar-logo absolute inset-x-0 top-1/2 mx-auto flex h-7 w-7 -translate-y-1/2 items-center justify-center">
               <img
                 src={CLAUXEN_LOGO_SRC}
                 alt="Clauxen"
@@ -761,11 +761,11 @@ export function Sidebar({
         >
           <div
             className={cn(
-              "sticky top-0 z-10 bg-[var(--app-shell-bg)] px-1.5 pb-1 pt-0",
-              isCollapsed && "px-0",
+              "sticky top-0 z-10 bg-[var(--app-shell-bg)] pb-1 pt-0",
+              isCollapsed ? "flex justify-center px-0" : "px-1.5",
             )}
           >
-            <div className={cn(isCollapsed ? "px-0" : "px-0")}>
+            <div className={cn(isCollapsed ? "flex justify-center px-0" : "px-0")}>
               {isCollapsed ? (
                 <AppHref
                   href={APP_ROUTES.newChat}
@@ -777,7 +777,7 @@ export function Sidebar({
                     handleNewChat();
                   }}
                   aria-label="New chat"
-                  className="ui-icon-button mx-auto text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
+                  className="ui-icon-button text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
                 >
                   <NewChatBubbleIcon className="size-4" />
                 </AppHref>
@@ -807,7 +807,14 @@ export function Sidebar({
             </div>
           </div>
 
-          <div className="space-y-px px-1.5 pb-1">
+          <div
+            className={cn(
+              "space-y-px pb-1",
+              isCollapsed
+                ? "flex flex-col items-center px-0"
+                : "px-1.5",
+            )}
+          >
             {/* Nav: Library → Scheduled → Customize → Clauxen Code */}
             {renderNavButton({
               label: "Library",

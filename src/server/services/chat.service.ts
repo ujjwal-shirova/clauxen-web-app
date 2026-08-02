@@ -5,7 +5,7 @@ import * as messagesRepo from "@/server/repositories/messages.repository";
 import type { MessageTranscriptLine } from "@/server/repositories/messages.repository";
 import * as branchesRepo from "@/server/repositories/branches.repository";
 import * as transcriptRepo from "@/server/repositories/transcript.repository";
-import { createChatStream } from "@/app/api/chat/stream";
+import { createChatStream, loadChatStreamPersonalization } from "@/app/api/chat/stream";
 import type { AgentStreamOptions } from "@/server/agent-core";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
 import {
@@ -302,6 +302,10 @@ export async function streamChatGeneration(input: {
   let userMessageId: string | null = null;
   let assistant: Awaited<ReturnType<typeof messagesRepo.createMessage>> | null =
     null;
+
+  // Kick personalization off immediately so it overlaps turn insert + history.
+  const personalizationPromise = loadChatStreamPersonalization(input.userId);
+
   if (input.turn) {
     const attachments = await resolveUserAttachmentMeta(
       input.userId,
@@ -364,10 +368,11 @@ export async function streamChatGeneration(input: {
   // Prompt context from DB recent turns so partial client pages cannot starve
   // the model. Merge with client history so prior assistant answers are never
   // dropped when a row is mid-persist or content_json is incomplete.
-  const dbRecent = await messagesRepo.listRecentMessagesForChat(
-    input.chatId,
-    40,
-  );
+  // Overlap history fetch with personalization (already in flight).
+  const [dbRecent, personalization] = await Promise.all([
+    messagesRepo.listRecentMessagesForChat(input.chatId, 40),
+    personalizationPromise,
+  ]);
   const promptFromDb = buildPromptMessagesFromDbRows(dbRecent);
   const clientAsPrompt: AgentStreamOptions["messages"] = clientConversation.map(
     (message) => ({
@@ -460,6 +465,7 @@ export async function streamChatGeneration(input: {
       extendedThinking: input.extendedThinking,
       onPauseForUser: input.onPauseForUser,
       modelMessages: conversationForAgent,
+      personalization,
       onModelTurn: (turn) => {
         modelTurns.push(turn);
       },
