@@ -1,7 +1,11 @@
 "use client";
 
 import type { AgentToolSegment } from "@/lib/agent-segments";
-import { fileNameFromPath, type ChatArtifact } from "@/lib/chat-artifacts";
+import {
+  downloadArtifact,
+  fileNameFromPath,
+  type ChatArtifact,
+} from "@/lib/chat-artifacts";
 import {
   artifactSupportsPreview,
   inferLanguageFromPath,
@@ -26,17 +30,34 @@ export function AgentFileBlock({
   previousContent?: string;
 }) {
   const viewer = useOptionalArtifactViewer();
-  const path =
+  let path =
     tool.filePath ??
     (typeof tool.args?.path === "string" ? tool.args.path : "");
-  const fileName = path ? fileNameFromPath(path) : tool.name;
-  const content =
+  let content =
     tool.fileContent ??
     (typeof tool.args?.file_text === "string"
       ? tool.args.file_text
       : typeof tool.args?.content === "string"
         ? tool.args.content
         : "");
+  let fileId: string | undefined;
+  let storagePath: string | undefined;
+  let mimeType: string | undefined;
+  let sizeBytes: number | undefined;
+  if (tool.result?.trim()) {
+    try {
+      const result = JSON.parse(tool.result) as Record<string, unknown>;
+      if (typeof result.path === "string") path = result.path;
+      if (typeof result.content === "string") content = result.content;
+      if (typeof result.fileId === "string") fileId = result.fileId;
+      if (typeof result.storagePath === "string") storagePath = result.storagePath;
+      if (typeof result.mimeType === "string") mimeType = result.mimeType;
+      if (typeof result.sizeBytes === "number") sizeBytes = result.sizeBytes;
+    } catch {
+      // Streaming arguments remain the source of truth while a result is partial.
+    }
+  }
+  const fileName = path ? fileNameFromPath(path) : tool.name;
   const language =
     tool.fileLanguage ??
     (typeof tool.args?.language === "string"
@@ -96,10 +117,18 @@ export function AgentFileBlock({
     content,
     language,
     description: typeof description === "string" ? description : undefined,
+    fileId,
+    storagePath,
+    mimeType,
+    sizeBytes,
     createdAtMs: tool.completedAtMs ?? Date.now(),
   };
 
   const openFile = () => {
+    if (!content && fileId) {
+      downloadArtifact(artifact);
+      return;
+    }
     if (!content) return;
     const mode = artifactSupportsPreview(artifact.path, artifact.language)
       ? "preview"
@@ -111,14 +140,14 @@ export function AgentFileBlock({
     <button
       type="button"
       onClick={openFile}
-      disabled={!content}
+      disabled={!content && !fileId}
       className={cn(
         "group/file-row no-hover-overlay inline-flex max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] shadow-none",
         "hover:bg-transparent focus-visible:outline-none focus-visible:ring-0",
-        !content && "cursor-default opacity-70",
+        !content && !fileId && "cursor-default opacity-70",
       )}
       data-agent-file-block="done"
-      aria-label={content ? `Open ${fileName}` : fileName}
+      aria-label={content ? `Open ${fileName}` : fileId ? `Download ${fileName}` : fileName}
     >
       <span className="agent-activity-label--muted shrink-0">{verb}</span>
       <span className="agent-activity-label--subtle min-w-0 truncate">

@@ -56,6 +56,10 @@ export type StreamEvent =
       content: string;
       language?: string;
       description?: string;
+      fileId?: string;
+      storagePath?: string;
+      mimeType?: string;
+      sizeBytes?: number;
     }
   | { type: "agent_frame_start"; frameId: string }
   | { type: "agent_frame_complete"; frameId?: string }
@@ -92,6 +96,10 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
     heading?: unknown;
     isError?: unknown;
     argsComplete?: unknown;
+    fileId?: unknown;
+    storagePath?: unknown;
+    mimeType?: unknown;
+    sizeBytes?: unknown;
   };
 
   switch (event.type) {
@@ -211,18 +219,25 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
     case "artifact_upsert":
       return typeof event.artifactId === "string" &&
         typeof event.path === "string" &&
-        typeof event.content === "string"
+        (typeof event.content === "string" || typeof event.fileId === "string")
         ? {
             type: "artifact_upsert",
             artifactId: event.artifactId,
             path: event.path,
-            content: event.content,
+            content: typeof event.content === "string" ? event.content : "",
             language:
               typeof event.language === "string" ? event.language : undefined,
             description:
               typeof event.description === "string"
                 ? event.description
                 : undefined,
+            fileId: typeof event.fileId === "string" ? event.fileId : undefined,
+            storagePath:
+              typeof event.storagePath === "string" ? event.storagePath : undefined,
+            mimeType:
+              typeof event.mimeType === "string" ? event.mimeType : undefined,
+            sizeBytes:
+              typeof event.sizeBytes === "number" ? event.sizeBytes : undefined,
           }
         : null;
     case "agent_frame_complete":

@@ -470,30 +470,16 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   color: #9d9da7;
 }
 
+.dark .agent-activity-label--primary {
+  color: #e4e4e7;
+}
+
 .dark .agent-activity-label--subtle {
   color: #71717a;
 }
 
 .dark .agent-activity-label--emphasis {
   color: #e4e4e7;
-}
-
-/* Keep the same three-level hierarchy in dark mode. The old treatment let
-   activity prose collapse into the answer because both were near-white. */
-.dark .agent-activity-timeline::before {
-  background: #3f3f46;
-}
-
-.dark .agent-timeline-event::before {
-  border-color: #71717a;
-  background: #18181b;
-}
-
-.dark .agent-timeline-event[data-active="true"]::before,
-.dark .agent-thinking-phase[data-active="true"]::before {
-  border-color: #a1a1aa;
-  background: #a1a1aa;
-  box-shadow: 0 0 0 3px rgba(161, 161, 170, 0.14);
 }
 
 .dark .agent-narration,
@@ -519,11 +505,12 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 
 @keyframes stream-token-fade {
   from {
-    /* Soft ink-in only — never dip low enough to read as gray flicker. */
-    opacity: 0.92;
+    opacity: 0.38;
+    filter: blur(0.7px);
   }
   to {
     opacity: 1;
+    filter: blur(0);
   }
 }
 
@@ -532,7 +519,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: stream-token-fade;
-  animation-duration: 80ms;
+  animation-duration: 140ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
   /* Avoid will-change thrash during long tool→answer streams */
@@ -871,10 +858,6 @@ nav.sidebar-hover-area {
     box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-[data-prompt-root] [data-prompt-shell][data-add-menu-open="true"] {
-  overflow: visible;
-}
-
 /* Unified composer + project strip — one bordered stack, clipped round corners. */
 [data-prompt-root] [data-composer-stack="with-project"] {
   border: 1px solid #e4e4e7;
@@ -883,10 +866,6 @@ nav.sidebar-hover-area {
   box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04);
   overflow: hidden;
   isolation: isolate;
-}
-
-[data-prompt-root] [data-composer-stack="with-project"][data-add-menu-open="true"] {
-  overflow: visible;
 }
 
 [data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell] {
@@ -1386,6 +1365,8 @@ button.user-message-card__body:not(:disabled):hover,
 [data-radix-scroll-area-viewport].app-scrollbar,
 .chat-scroll-viewport {
   overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  isolation: isolate;
   /* Programmatic stream-follow owns interpolation. Global smooth scrolling
      makes wheel input race an in-flight CSS animation and causes jump-backs. */
   scroll-behavior: auto;
@@ -1513,57 +1494,22 @@ button.user-message-card__body:not(:disabled):hover,
   z-index: 25;
 }
 
-/* ─── Clauxen agent action stack ───────────────────────────────────────────
-   Cursor-style activity is intentionally a separate visual language from
-   narration and the final answer: quiet metadata, a precise timeline rail,
-   and compact tool surfaces. It must never look like answer prose. */
+/* ─── Clauxen agent activity stream ────────────────────────────────────────
+   Flat chronological ledger: no rail, tree indentation, or status dots. */
 
 .agent-trace {
   width: 100%;
   min-width: 0;
 }
 
-.agent-activity-timeline {
-  position: relative;
-  gap: 0.5rem;
-  padding: 0.15rem 0 0.15rem 1.05rem;
+.agent-activity-stream {
+  gap: 0.55rem;
+  padding-block: 0.1rem;
 }
 
-/* A restrained, continuous Cursor-like rail keeps a long run of activity
-   scannable without turning every action into a card. */
-.agent-activity-timeline::before {
-  position: absolute;
-  top: 0.52rem;
-  bottom: 0.52rem;
-  left: 0.23rem;
-  width: 1px;
-  content: "";
-  background: #e4e4e7;
-}
-
-.agent-timeline-event {
-  position: relative;
-}
-
-.agent-timeline-event::before {
-  position: absolute;
-  top: 0.48rem;
-  left: -0.99rem;
-  z-index: 1;
-  width: 0.48rem;
-  height: 0.48rem;
-  box-sizing: border-box;
-  content: "";
-  border: 1.5px solid #a1a1aa;
-  border-radius: 999px;
-  background: #fff;
-}
-
-.agent-timeline-event[data-active="true"]::before,
-.agent-thinking-phase[data-active="true"]::before {
-  border-color: #71717a;
-  background: #71717a;
-  box-shadow: 0 0 0 3px rgba(113, 113, 122, 0.12);
+.agent-activity-entry {
+  min-width: 0;
+  padding-block: 0.08rem;
 }
 
 .agent-trace__collapse {
@@ -1598,6 +1544,11 @@ button.user-message-card__body:not(:disabled):hover,
 
 .agent-activity-label--muted {
   color: #71717a; /* zinc-500 — primary verb / label */
+}
+
+.agent-activity-label--primary {
+  color: #27272a;
+  font-weight: 520;
 }
 
 .agent-activity-label--emphasis {
@@ -2002,6 +1953,12 @@ button.user-message-card__body:not(:disabled):hover,
   --shiki-token-string: #0a7f42;
   --shiki-token-constant: #953800;
   --shiki-token-punctuation: #57606a;
+}
+
+.markdown-content .markdown-code-scroll,
+.markdown-content .markdown-table-scroll {
+  touch-action: pan-x pan-y;
+  overflow-anchor: none;
 }
 
 .markdown-content .composer-message-codeblock {

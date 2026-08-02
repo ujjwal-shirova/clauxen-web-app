@@ -1321,7 +1321,6 @@ export function PromptInput({
           className={cn(
             "relative flex w-full flex-col",
             !isConversationStarted && "justify-center",
-            isAddMenuOpen && "overflow-visible",
           )}
           data-prompt-wrapper
         >
@@ -1353,7 +1352,6 @@ export function PromptInput({
             className={cn(
               "composer-stack w-full",
               withProjectStrip && "composer-stack--with-project",
-              isAddMenuOpen && "overflow-visible",
             )}
             data-composer-stack={withProjectStrip ? "with-project" : "solo"}
             data-add-menu-open={isAddMenuOpen || undefined}
@@ -1362,7 +1360,6 @@ export function PromptInput({
             className={cn(
               promptShellClass,
               isDraggingFiles && "ring-2 ring-[#2c84db]/35",
-              isAddMenuOpen && "overflow-visible",
             )}
             ref={promptShellRef}
             data-prompt-shell

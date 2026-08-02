@@ -50,6 +50,10 @@ export function ArtifactFileCard({
   const isPanel = variant === "panel";
 
   const openFile = () => {
+    if (!artifact.content && artifact.fileId) {
+      downloadArtifact(artifact);
+      return;
+    }
     const mode = artifactSupportsPreview(artifact.path, artifact.language)
       ? "preview"
       : "code";
@@ -73,7 +77,7 @@ export function ArtifactFileCard({
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200/90",
           isPanel && "gap-2.5 rounded-[9px] px-2 py-1.5",
         )}
-        aria-label={`Open ${title}`}
+        aria-label={`${artifact.content ? "Open" : "Download"} ${title}`}
       >
         <DocumentStackIcon size={isPanel ? "sm" : "md"} />
         <div className="min-w-0 flex-1">

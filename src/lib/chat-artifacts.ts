@@ -9,6 +9,11 @@ export type ChatArtifact = {
   content: string;
   language?: string;
   description?: string;
+  /** Durable file metadata for sandbox-produced binary or text outputs. */
+  fileId?: string;
+  storagePath?: string;
+  mimeType?: string;
+  sizeBytes?: number;
   createdAtMs: number;
 };
 
@@ -24,6 +29,16 @@ export function languageLabel(language?: string): string {
 }
 
 export function downloadArtifact(artifact: ChatArtifact) {
+  if (artifact.fileId) {
+    const anchor = document.createElement("a");
+    anchor.href = `/api/v1/files/${encodeURIComponent(artifact.fileId)}/content`;
+    anchor.download = artifact.fileName;
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    return;
+  }
   downloadTextFile(artifact.fileName, artifact.content);
 }
 
@@ -33,6 +48,7 @@ function normalizeArtifactPath(path: string): string {
 
 /** Prefer richer / newer artifact when the same path appears twice. */
 function preferArtifact(a: ChatArtifact, b: ChatArtifact): ChatArtifact {
+  if (Boolean(b.fileId) !== Boolean(a.fileId)) return b.fileId ? b : a;
   if (b.content.length !== a.content.length) {
     return b.content.length > a.content.length ? b : a;
   }
@@ -65,7 +81,12 @@ export function collectArtifactsFromAgentSegments(
 
     const stamp = segment.completedAtMs ?? Date.now();
 
-    if (segment.name === "create_file" || segment.name === "file_write") {
+    if (
+      segment.name === "create_file" ||
+      segment.name === "file_write" ||
+      segment.name === "bash_tool" ||
+      segment.name === "execute_code"
+    ) {
       let path =
         segment.filePath ??
         (typeof segment.args?.path === "string" ? segment.args.path : "");
@@ -76,21 +97,72 @@ export function collectArtifactsFromAgentSegments(
           : typeof segment.args?.file_text === "string"
             ? segment.args.file_text
             : "");
+      let fileId: string | undefined;
+      let storagePath: string | undefined;
+      let mimeType: string | undefined;
+      let sizeBytes: number | undefined;
+      let sandboxArtifacts: Array<Record<string, unknown>> = [];
       if (segment.result?.trim()) {
         try {
           const parsed = JSON.parse(segment.result) as {
             path?: string;
             content?: string;
+            fileId?: string;
+            storagePath?: string;
+            mimeType?: string;
+            sizeBytes?: number;
+            artifacts?: Array<Record<string, unknown>>;
           };
           if (typeof parsed.path === "string" && parsed.path) path = parsed.path;
           if (typeof parsed.content === "string" && parsed.content) {
             content = parsed.content;
           }
+          fileId = parsed.fileId;
+          storagePath = parsed.storagePath;
+          mimeType = parsed.mimeType;
+          sizeBytes = parsed.sizeBytes;
+          sandboxArtifacts = Array.isArray(parsed.artifacts)
+            ? parsed.artifacts
+            : [];
         } catch {
           // keep args / enriched fields
         }
       }
-      if (!path || !content) continue;
+      if (sandboxArtifacts.length > 0) {
+        sandboxArtifacts.forEach((artifact, index) => {
+          const artifactPath =
+            typeof artifact.path === "string" ? artifact.path : "";
+          const artifactContent =
+            typeof artifact.content === "string" ? artifact.content : "";
+          const artifactFileId =
+            typeof artifact.fileId === "string" ? artifact.fileId : undefined;
+          if (!artifactPath || (!artifactContent && !artifactFileId)) return;
+          const key = normalizeArtifactPath(artifactPath);
+          const next: ChatArtifact = {
+            id:
+              (typeof artifact.id === "string" && artifact.id) ||
+              `${messageId}:sandbox:${segment.toolCallId ?? segment.id}:${index}`,
+            path: artifactPath,
+            fileName: fileNameFromPath(artifactPath),
+            content: artifactContent,
+            language: segment.fileLanguage,
+            fileId: artifactFileId,
+            storagePath:
+              typeof artifact.storagePath === "string"
+                ? artifact.storagePath
+                : undefined,
+            mimeType:
+              typeof artifact.mimeType === "string" ? artifact.mimeType : undefined,
+            sizeBytes:
+              typeof artifact.sizeBytes === "number" ? artifact.sizeBytes : undefined,
+            createdAtMs: stamp,
+          };
+          const existing = byPath.get(key);
+          byPath.set(key, existing ? preferArtifact(existing, next) : next);
+        });
+        continue;
+      }
+      if (!path || (!content && !fileId)) continue;
       const key = normalizeArtifactPath(path);
       const next: ChatArtifact = {
         id: `${messageId}:create:${segment.toolCallId ?? segment.id}`,
@@ -98,6 +170,10 @@ export function collectArtifactsFromAgentSegments(
         fileName: fileNameFromPath(path),
         content,
         language: segment.fileLanguage,
+        fileId,
+        storagePath,
+        mimeType,
+        sizeBytes,
         createdAtMs: stamp,
       };
       const existing = byPath.get(key);

@@ -6,8 +6,8 @@ import { AgentTraceBlock } from "./agent-trace";
 import { AgentActivitySummaryLabel } from "./agent-activity-summary";
 
 /**
- * Collapsible agent step — Cursor-style flat timeline.
- * Header has no chevron; children sit flush left (no tree rail).
+ * Collapsible agent step in the flat activity stream.
+ * The chevron appears only on hover/focus; children stay flush left.
  * Narration always renders outside this block.
  */
 export function AgentWorkGroupView({
@@ -22,7 +22,7 @@ export function AgentWorkGroupView({
 }) {
   return (
     <div
-      className="agent-timeline-event agent-work-group-enter"
+      className="agent-work-group-enter"
       data-agent-work-group="true"
       data-active={group.isActive || undefined}
     >
@@ -37,7 +37,7 @@ export function AgentWorkGroupView({
         trailing={trailing}
         isActive={group.isActive}
         defaultExpanded={group.isActive}
-        chevronMode="never"
+        chevronMode="hover"
         className="agent-work-group"
         headerClassName="agent-work-group__header"
         contentClassName="agent-work-group__body"

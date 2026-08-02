@@ -32,7 +32,7 @@ function CodePane({
   return (
     <pre
       className={cn(
-        "max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md border px-2.5 py-2 font-mono text-[11.5px] leading-5",
+        "overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words rounded-md border px-2.5 py-2 font-mono text-[11.5px] leading-5 [overscroll-behavior-inline:contain]",
         tone === "error"
           ? "border-rose-200/80 bg-rose-50/60 text-rose-600"
           : "border-zinc-200/80 bg-zinc-50/80 text-zinc-700",
@@ -107,7 +107,7 @@ function ToolArea({
       {open ? (
         <div
           className={cn(
-            "max-h-72 overflow-y-auto px-3 pb-2.5",
+            "min-w-0 overflow-x-auto overflow-y-hidden px-3 pb-2.5 [overscroll-behavior-inline:contain]",
             mono && "font-mono text-[11.5px] leading-5",
           )}
         >
@@ -157,11 +157,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
   const hasOutput = Boolean(stdout.trim() || stderr.trim());
   const failed = isError || (code !== null && code !== 0);
 
-  const headerText = description.trim()
-    ? description.trim()
-    : isRunning
-      ? "Running command"
-      : "Ran command";
+  const headerText = description.trim() || "Using the Linux workspace";
 
   return (
     <div className="w-full min-w-0">
@@ -169,30 +165,18 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
         title={
           isRunning ? (
             <AgentShimmerText key={`bash-live-${tool.toolCallId}`} active>
-              <span className="agent-activity-label--muted">{headerText}</span>
-              <span className="agent-activity-label--subtle">…</span>
+              <span className="agent-activity-label--primary">Analyzing</span>
+              <span className="agent-activity-label--subtle"> {headerText}</span>
             </AgentShimmerText>
           ) : failed ? (
-            <span className="text-rose-500">{headerText}</span>
+            <>
+              <span className="text-rose-500">Analysis failed</span>
+              <span className="agent-activity-label--subtle"> {headerText}</span>
+            </>
           ) : (
             <>
-              <span className="agent-activity-label--muted">
-                {description.trim() ? "Ran" : "Ran command"}
-              </span>
-              {description.trim() ? (
-                <span className="agent-activity-label--subtle">
-                  {" "}
-                  {description.trim()}
-                </span>
-              ) : null}
-              {command && !description.trim() ? (
-                <span className="agent-activity-label--subtle">
-                  {" "}
-                  <span className="font-mono text-[12px]">
-                    {command.length > 48 ? `${command.slice(0, 48)}…` : command}
-                  </span>
-                </span>
-              ) : null}
+              <span className="agent-activity-label--primary">Analyzed</span>
+              <span className="agent-activity-label--subtle"> {headerText}</span>
             </>
           )
         }
@@ -268,11 +252,7 @@ export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolSegment }) {
     (parsed && typeof parsed.stderr === "string" ? parsed.stderr : "");
   const hasOutput = Boolean(resultStdout.trim() || resultStderr.trim());
 
-  const headerText = description.trim()
-    ? description.trim()
-    : isRunning
-      ? "Running code…"
-      : "Ran code";
+  const headerText = description.trim() || "Working with Python";
 
   return (
     <div className="w-full min-w-0">
@@ -280,17 +260,24 @@ export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolSegment }) {
         title={
           isRunning ? (
             <AgentShimmerText key={`exec-live-${tool.toolCallId}`} active>
-              {headerText}
+              <span className="agent-activity-label--primary">Analyzing</span>
+              <span className="agent-activity-label--subtle"> {headerText}</span>
             </AgentShimmerText>
           ) : isError ? (
-            <span className="text-rose-500">{headerText}</span>
+            <>
+              <span className="text-rose-500">Analysis failed</span>
+              <span className="agent-activity-label--subtle"> {headerText}</span>
+            </>
           ) : (
-            headerText
+            <>
+              <span className="agent-activity-label--primary">Analyzed</span>
+              <span className="agent-activity-label--subtle"> {headerText}</span>
+            </>
           )
         }
         isActive={isRunning}
-        defaultExpanded
-        showChevron
+        defaultExpanded={false}
+        chevronMode="hover"
         className="agent-execute-code-block"
         headerClassName="agent-execute-code-block__header"
         contentClassName="agent-execute-code-block__body"
@@ -492,7 +479,7 @@ function WebSearchSourcesHover({
           onClick={(event) => event.stopPropagation()}
         >
           <ul
-            className="app-scrollbar max-h-[min(280px,50vh)] overflow-y-auto overscroll-contain py-1"
+            className="py-1"
             data-agent-web-search="popover-results"
           >
             {results.map((row, index) => {
@@ -557,9 +544,10 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
         data-agent-web-search="running"
       >
         <AgentShimmerText key={`ws-live-${tool.toolCallId}`} active>
-          <span className="agent-activity-label--muted">
-            {query ? `Searching "${query}"` : "Searching the web"}
-          </span>
+          <span className="agent-activity-label--primary">Searching the web</span>
+          {query ? (
+            <span className="agent-activity-label--subtle"> {query}</span>
+          ) : null}
           <span className="agent-activity-label--subtle">…</span>
         </AgentShimmerText>
       </div>
@@ -568,18 +556,19 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
 
   const title = isRunning ? (
     <AgentShimmerText key={`ws-live-${tool.toolCallId}`} active>
-      <span className="agent-activity-label--muted">
-        {query ? `Searching "${query}"` : "Searching the web"}
-      </span>
+      <span className="agent-activity-label--primary">Searching the web</span>
+      {query ? (
+        <span className="agent-activity-label--subtle"> {query}</span>
+      ) : null}
       <span className="agent-activity-label--subtle">…</span>
     </AgentShimmerText>
   ) : query ? (
     <>
-      <span className="agent-activity-label--muted">Searched </span>
-      <span className="agent-activity-label--subtle">&quot;{query}&quot;</span>
+      <span className="agent-activity-label--primary">Searched the web</span>
+      <span className="agent-activity-label--subtle"> {query}</span>
     </>
   ) : (
-    <span className="agent-activity-label--muted">Searched the web</span>
+    <span className="agent-activity-label--primary">Searched the web</span>
   );
 
   return (
@@ -658,7 +647,7 @@ export function AgentFileReadBlock({ tool }: { tool: AgentToolSegment }) {
                   </span>
                 ) : null}
               </div>
-              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-md border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2 font-mono text-[11.5px] leading-5 text-zinc-700">
+              <pre className="overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words rounded-md border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2 font-mono text-[11.5px] leading-5 text-zinc-700 [overscroll-behavior-inline:contain]">
                 {content.slice(0, 12000)}
               </pre>
             </div>
@@ -713,7 +702,7 @@ export function AgentReadSkillBlock({ tool }: { tool: AgentToolSegment }) {
         {doc ? (
           <ToolBody>
             <div className="px-3 py-2.5">
-              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-[11.5px] leading-5 text-zinc-600">
+              <pre className="overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words font-mono text-[11.5px] leading-5 text-zinc-600 [overscroll-behavior-inline:contain]">
                 {doc.slice(0, 8000)}
               </pre>
             </div>

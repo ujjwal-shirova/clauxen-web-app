@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   type AnchorHTMLAttributes,
   type ReactNode,
 } from "react";
@@ -32,19 +33,37 @@ type StreamdownStreamingMarkdownProps = {
   sources?: ChatSource[];
 };
 
+function useStableSources(sources: ChatSource[]): ChatSource[] {
+  const signature = JSON.stringify(sources);
+  const cacheRef = useRef<{ signature: string; sources: ChatSource[] } | null>(
+    null,
+  );
+
+  if (!cacheRef.current || cacheRef.current.signature !== signature) {
+    cacheRef.current = { signature, sources };
+  }
+
+  return cacheRef.current.sources;
+}
+
 /**
- * Always wrap string nodes with reveal enabled so stream→settled does not
- * remount/swap the text tree (that swap caused a visible blink).
+ * Always wrap string nodes in the same reveal component so stream→settled
+ * changes only its paint state instead of remounting the markdown subtree.
  */
 function revealStreamingChildren(
   children: ReactNode,
   streamKey: string,
+  enabled: boolean,
 ): ReactNode {
   if (children == null || typeof children === "boolean") return children;
 
   if (typeof children === "string") {
     return children.length > 0 ? (
-      <StreamingRevealText text={children} streamKey={streamKey} enabled />
+      <StreamingRevealText
+        text={children}
+        streamKey={streamKey}
+        enabled={enabled}
+      />
     ) : (
       children
     );
@@ -53,7 +72,7 @@ function revealStreamingChildren(
   if (typeof children === "number") {
     const text = String(children);
     return text.length > 0 ? (
-      <StreamingRevealText text={text} streamKey={streamKey} enabled />
+      <StreamingRevealText text={text} streamKey={streamKey} enabled={enabled} />
     ) : (
       children
     );
@@ -61,7 +80,7 @@ function revealStreamingChildren(
 
   if (Array.isArray(children)) {
     return children.map((child, index) =>
-      revealStreamingChildren(child, `${streamKey}:${index}`),
+      revealStreamingChildren(child, `${streamKey}:${index}`, enabled),
     );
   }
 
@@ -107,8 +126,11 @@ export function StreamdownStreamingMarkdown({
   streamKey = "stream",
   sources = [],
 }: StreamdownStreamingMarkdownProps) {
-  // `isStreaming` kept for callers; paint path no longer remounts on settle.
-  void isStreaming;
+  // Keep the components map stable when a stream settles. Streamdown treats a
+  // new renderer map as a new markdown tree, which would flash the final frame.
+  const isStreamingRef = useRef(isStreaming);
+  isStreamingRef.current = isStreaming;
+  const stableSources = useStableSources(sources);
   const normalized = useMemo(
     () => normalizeLatexDelimiters(content),
     [content],
@@ -120,9 +142,17 @@ export function StreamdownStreamingMarkdown({
     };
   }, [streamKey]);
 
+  useEffect(() => {
+    if (isStreaming) return;
+    const timer = window.setTimeout(() => {
+      clearStreamPaintSessions(streamKey);
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [isStreaming, streamKey]);
+
   const components = useMemo(() => {
     const fade = (children: ReactNode, key = streamKey) =>
-      revealStreamingChildren(children, key);
+      revealStreamingChildren(children, key, isStreamingRef.current);
 
     const base = {
       ...markdownComponents,
@@ -184,11 +214,11 @@ export function StreamdownStreamingMarkdown({
         className?: string;
         children?: ReactNode;
       }) => <CodeRenderer {...codeProps} />,
-      a: createMarkdownLinkRenderer(sources),
+      a: createMarkdownLinkRenderer(stableSources),
     } satisfies Components;
 
     return base;
-  }, [sources, streamKey]);
+  }, [stableSources, streamKey]);
 
   return (
     <Streamdown

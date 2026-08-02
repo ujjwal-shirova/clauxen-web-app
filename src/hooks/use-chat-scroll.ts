@@ -202,16 +202,6 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     jumpToBottom("auto");
   }, [jumpToBottom]);
 
-  /** Ease toward bottom while pinned during streaming / content growth. */
-  const followContentGrowth = useCallback(() => {
-    const viewport = resolveViewport();
-    if (!viewport) return;
-    if (!pinnedRef.current || isUserInputActive()) return;
-
-    easeTowardBottom(viewport, markProgrammaticScroll);
-    lastScrollHeightRef.current = viewport.scrollHeight;
-  }, [resolveViewport, isUserInputActive, markProgrammaticScroll]);
-
   useEffect(() => {
     if (!enabled) return;
     const viewport = resolveViewport();
@@ -316,6 +306,5 @@ export function useChatScroll({ scrollAreaRef, enabled }: UseChatScrollOptions) 
     scrollToBottom,
     pinToBottom,
     showScrollToBottom,
-    followContentGrowth,
   };
 }

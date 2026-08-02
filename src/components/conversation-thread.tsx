@@ -226,12 +226,19 @@ const MessageRow = React.memo(
     const activeBranchIndex = message.activeBranchIndex ?? branchVersions - 1;
     const [previewAttachment, setPreviewAttachment] =
       React.useState<MessageAttachment | null>(null);
+    // Structural markdown must keep one DOM tree. Downgrading a code block or
+    // table to plain text off-screen changes its height and horizontal scroll,
+    // which makes the chat jump when that message approaches the viewport.
+    const hasStructuralMarkdown =
+      message.role === "assistant" &&
+      (/```|~~~|<table_title\b/i.test(message.content) ||
+        /^\s*\|.+\|\s*$/m.test(message.content));
     const { ref: visibilityRef, detailLevel } = useMessageDetailLevel(
-      message.role === "assistant",
+      message.role === "assistant" && !hasStructuralMarkdown,
       !!message.isStreaming,
     );
     const renderDetailLevel: MessageDetailLevel =
-      forcedDetailLevel ?? detailLevel;
+      forcedDetailLevel ?? (hasStructuralMarkdown ? "full" : detailLevel);
     const { shouldAnimate, markEntered } = useMessageEnterAnimation(
       messageUiKey(message),
       true,
@@ -671,6 +678,7 @@ interface ConversationTurnProps {
   onToggleMoreMenu?: (id: string, anchor?: DOMRect) => void;
   turnIndex: number;
 }
+
 
 const ConversationTurn = React.memo(
   function ConversationTurn({
@@ -1469,4 +1477,3 @@ export function ConversationThread({
     </FollowUpPromptProvider>
   );
 }
-

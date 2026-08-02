@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 
 /** Soften first-token paint: settle sooner once any chunk lands. */
-const MIN_DURATION_MS = 40;
-const MAX_DURATION_MS = 160;
-const FAST_GAP_MS = 24;
+const MIN_DURATION_MS = 90;
+const MAX_DURATION_MS = 190;
+const FAST_GAP_MS = 32;
 
 /**
  * Duration scales with inter-chunk gap so animation speed tracks the model's
@@ -20,15 +20,15 @@ export function computeStreamTokenDurationMs(
   // After a long pause (tools / thinking), catch up instantly — long fades
   // after tool rounds feel laggy and unresponsive.
   if (elapsedSinceLastChunk > 400) {
-    return MIN_DURATION_MS;
+    return 110;
   }
 
   if (elapsedSinceLastChunk <= 0) {
-    duration = 70;
+    duration = 125;
   } else if (elapsedSinceLastChunk < FAST_GAP_MS) {
     duration = Math.max(
       MIN_DURATION_MS,
-      Math.min(120, 40 + elapsedSinceLastChunk * 2.5),
+      Math.min(150, 75 + elapsedSinceLastChunk * 2.25),
     );
   } else {
     duration = Math.min(

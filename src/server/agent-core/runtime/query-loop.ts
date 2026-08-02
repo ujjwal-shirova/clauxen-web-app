@@ -78,10 +78,13 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
   }),
   execute_code: z.object({
     code: z.string(),
+    description: z.string(),
+    output_paths: z.array(z.string()).default([]),
   }),
   bash_tool: z.object({
     command: z.string(),
     description: z.string(),
+    output_paths: z.array(z.string()).default([]),
   }),
   weather_fetch: z.object({
     location_name: z.string(),
@@ -141,36 +144,79 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
   }),
 };
 
-/** create_file auto-presents — emit the downloadable artifact immediately. */
-function emitCreatedFileArtifact(
+type ArtifactRecord = {
+  id?: unknown;
+  path?: unknown;
+  content?: unknown;
+  fileId?: unknown;
+  storagePath?: unknown;
+  mimeType?: unknown;
+  sizeBytes?: unknown;
+  description?: unknown;
+};
+
+function emitArtifactRecord(
+  sse: ClauxenSseStream,
+  artifact: ArtifactRecord,
+  fallbackPath?: string,
+  fallbackContent?: string,
+  description?: string,
+) {
+  const path =
+    (typeof artifact.path === "string" && artifact.path) || fallbackPath || "";
+  const content =
+    (typeof artifact.content === "string" && artifact.content) ||
+    fallbackContent ||
+    "";
+  const fileId =
+    typeof artifact.fileId === "string" ? artifact.fileId : undefined;
+  if (!path || (!content && !fileId)) return;
+  sse.writeArtifact({
+    artifactId:
+      (typeof artifact.id === "string" && artifact.id) || fileId || path,
+    path,
+    content,
+    language: inferLanguage(path),
+    description:
+      typeof description === "string"
+        ? description
+        : typeof artifact.description === "string"
+          ? artifact.description
+          : undefined,
+    fileId,
+    storagePath:
+      typeof artifact.storagePath === "string" ? artifact.storagePath : undefined,
+    mimeType: typeof artifact.mimeType === "string" ? artifact.mimeType : undefined,
+    sizeBytes:
+      typeof artifact.sizeBytes === "number" ? artifact.sizeBytes : undefined,
+  });
+}
+
+/** Present direct text files and sandbox-produced binary/text deliverables. */
+function emitToolArtifacts(
   sse: ClauxenSseStream,
   output: unknown,
   fallbackPath?: string,
   fallbackContent?: string,
   description?: string,
 ) {
-  const record =
-    output && typeof output === "object"
-      ? (output as Record<string, unknown>)
-      : null;
-  const path =
-    (typeof record?.path === "string" && record.path) || fallbackPath || "";
-  const content =
-    (typeof record?.content === "string" && record.content) ||
-    fallbackContent ||
-    "";
-  if (!path || !content) return;
-  sse.writeArtifact(
-    path,
-    path,
-    content,
-    inferLanguage(path),
-    typeof description === "string"
-      ? description
-      : typeof record?.description === "string"
-        ? record.description
-        : undefined,
-  );
+  if (!output || typeof output !== "object") return;
+  const record = output as ArtifactRecord & { artifacts?: unknown };
+  if (Array.isArray(record.artifacts)) {
+    for (const artifact of record.artifacts) {
+      if (artifact && typeof artifact === "object") {
+        emitArtifactRecord(
+          sse,
+          artifact as ArtifactRecord,
+          undefined,
+          undefined,
+          description,
+        );
+      }
+    }
+    return;
+  }
+  emitArtifactRecord(sse, record, fallbackPath, fallbackContent, description);
 }
 
 function isMcpToolName(name: string): boolean {
@@ -404,8 +450,9 @@ export async function runAutonomousAgent(
         switch (part.type) {
           case "reasoning-delta": {
             if (!part.delta) break;
-            const segmentId = ensureThinking();
-            sse.writeThinkingDelta(part.delta, segmentId);
+            // Expose only the reasoning lifecycle. Private chain-of-thought
+            // remains server-side; user-visible progress is narration text.
+            ensureThinking();
             break;
           }
 
@@ -576,7 +623,7 @@ export async function runAutonomousAgent(
               if (tc.name === "web_search") {
                 sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
               } else if (
-                tc.name === "bash_tool" &&
+                (tc.name === "bash_tool" || tc.name === "execute_code") &&
                 (data.kind === "stdout" || data.kind === "stderr") &&
                 typeof data.delta === "string"
               ) {
@@ -630,13 +677,16 @@ export async function runAutonomousAgent(
           }
         }
 
-        // create_file auto-presents as a downloadable artifact card.
+        // Direct writes and sandbox output paths become artifact cards immediately.
         if (
-          (tc.name === "create_file" || tc.name === "file_write") &&
+          (tc.name === "create_file" ||
+            tc.name === "file_write" ||
+            tc.name === "bash_tool" ||
+            tc.name === "execute_code") &&
           outcomeOutput &&
           typeof outcomeOutput === "object"
         ) {
-          emitCreatedFileArtifact(
+          emitToolArtifacts(
             sse,
             outcomeOutput,
             typeof rawArgs.path === "string" ? rawArgs.path : undefined,

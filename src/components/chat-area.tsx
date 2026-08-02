@@ -205,7 +205,6 @@ function ChatAreaLayout({
     scrollToBottom,
     pinToBottom,
     showScrollToBottom,
-    followContentGrowth,
   } = useChatScroll({
     scrollAreaRef,
     enabled: isConversationStarted || showMessageSkeleton || showMessageLoadError,
@@ -265,26 +264,13 @@ function ChatAreaLayout({
     const last = messages[messages.length - 1];
     if (!last) return;
     // A newly sent user message must remain visible even if the thread just
-    // reset to its small recent-turn window. Streaming assistant updates are
-    // handled by followContentGrowth below.
+    // reset to its small recent-turn window. Streaming assistant growth is
+    // followed by the scroll hook's ResizeObserver.
     if (last.role !== "user") return;
     pinToBottom();
     const raf = requestAnimationFrame(() => pinToBottom());
     return () => cancelAnimationFrame(raf);
   }, [lastMessageKey, messages, pinToBottom]);
-
-  React.useEffect(() => {
-    if (!isGenerating) return;
-
-    let rafId = 0;
-    const tick = () => {
-      followContentGrowth();
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-
-    return () => cancelAnimationFrame(rafId);
-  }, [isGenerating, followContentGrowth]);
 
   const handleSaveEditedMessage = React.useCallback(
     async (

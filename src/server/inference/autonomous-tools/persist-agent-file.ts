@@ -8,6 +8,20 @@ import {
 
 function mimeFromPath(path: string): string {
   const lower = path.toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (lower.endsWith(".pptx")) {
+    return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+  }
+  if (lower.endsWith(".xlsx")) {
+    return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  }
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".zip")) return "application/zip";
   if (lower.endsWith(".md")) return "text/markdown";
   if (lower.endsWith(".json")) return "application/json";
   if (lower.endsWith(".html") || lower.endsWith(".htm")) return "text/html";
@@ -18,7 +32,7 @@ function mimeFromPath(path: string): string {
   if (lower.endsWith(".py")) return "text/x-python";
   if (lower.endsWith(".csv")) return "text/csv";
   if (lower.endsWith(".svg")) return "image/svg+xml";
-  return "text/plain";
+  return "application/octet-stream";
 }
 
 /**
@@ -29,8 +43,14 @@ export async function persistAgentCreatedFile(input: {
   userId: string;
   chatId: string;
   path: string;
-  content: string;
-}): Promise<{ fileId: string; storagePath: string } | null> {
+  content: string | Uint8Array;
+  source?: "create_file" | "sandbox";
+}): Promise<{
+  fileId: string;
+  storagePath: string;
+  mimeType: string;
+  sizeBytes: number;
+} | null> {
   const userId = input.userId.trim();
   const path = input.path.trim().replace(/^\/+/, "");
   if (!userId || !path) return null;
@@ -38,7 +58,10 @@ export async function persistAgentCreatedFile(input: {
   const fileName = path.split("/").pop() || "file.txt";
   const artifactId = randomUUID();
   const storagePath = buildArtifactKey(userId, artifactId, fileName);
-  const body = Buffer.from(input.content ?? "", "utf8");
+  const body =
+    typeof input.content === "string"
+      ? Buffer.from(input.content, "utf8")
+      : Buffer.from(input.content);
   const mimeType = mimeFromPath(path);
 
   const stored = await putObject({
@@ -65,10 +88,15 @@ export async function persistAgentCreatedFile(input: {
       chatId: input.chatId,
       workspacePath: path,
       contentHash: stored.contentHash ?? null,
-      source: "create_file",
+      source: input.source ?? "create_file",
     },
   });
 
   if (!file) return null;
-  return { fileId: file.id, storagePath: stored.key };
+  return {
+    fileId: file.id,
+    storagePath: stored.key,
+    mimeType,
+    sizeBytes: body.byteLength,
+  };
 }

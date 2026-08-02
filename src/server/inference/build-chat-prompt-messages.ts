@@ -99,12 +99,31 @@ function summarizeToolResult(
       error?: string;
       content?: string;
       ok?: boolean;
+      path?: string;
+      fileId?: string;
+      artifacts?: Array<{
+        path?: string;
+        fileId?: string;
+        mimeType?: string;
+        sizeBytes?: number;
+      }>;
     };
     if (typeof parsed.error === "string" && parsed.error.trim()) {
       return `${name} error: ${parsed.error.trim().slice(0, 240)}`;
     }
     if (parsed.status === "pending_user_input") {
       return `${name}: waiting for user answers`;
+    }
+    if (Array.isArray(parsed.artifacts) && parsed.artifacts.length > 0) {
+      const paths = parsed.artifacts
+        .map((artifact) => artifact.path?.trim())
+        .filter((path): path is string => Boolean(path));
+      if (paths.length > 0) {
+        return `${name} created files in the conversation workspace: ${paths.join(", ")}`;
+      }
+    }
+    if (typeof parsed.path === "string" && parsed.path.trim()) {
+      return `${name} created file: ${parsed.path.trim()}${parsed.fileId ? " (available to the user)" : ""}`;
     }
     if (Array.isArray(parsed.results) && parsed.results.length > 0) {
       const hits = parsed.results.slice(0, 8).map((item) => {

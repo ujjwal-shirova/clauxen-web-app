@@ -162,6 +162,10 @@ function upsertArtifact(
     content: event.content,
     language: event.language,
     description: event.description,
+    fileId: event.fileId,
+    storagePath: event.storagePath,
+    mimeType: event.mimeType,
+    sizeBytes: event.sizeBytes,
     createdAtMs: index >= 0 ? list[index].createdAtMs : Date.now(),
   };
   if (index >= 0) {

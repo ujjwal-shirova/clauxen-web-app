@@ -207,6 +207,11 @@ export function sanitizeBranchMessages(input: unknown): Message[] {
             content: asString(item.content, MAX_CONTENT_CHARS) ?? "",
             language: asString(item.language),
             description: asString(item.description),
+            fileId: asString(item.fileId),
+            storagePath: asString(item.storagePath),
+            mimeType: asString(item.mimeType),
+            sizeBytes:
+              typeof item.sizeBytes === "number" ? item.sizeBytes : undefined,
             createdAtMs:
               typeof item.createdAtMs === "number"
                 ? item.createdAtMs

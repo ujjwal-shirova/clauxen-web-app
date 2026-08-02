@@ -1,6 +1,5 @@
 import {
   createSandboxKeepAlive,
-  getOrCreateSandbox,
   runSandboxCode,
   runSandboxCommand,
 } from "@/server/sandbox/sandbox-manager";
@@ -16,7 +15,9 @@ import { searchPlaces } from "@/server/search/nominatim";
 import { searchImages } from "@/server/search/openverse";
 import { listAvailableSkills, readSkill } from "@/server/inference/autonomous-tools/skill-catalog";
 import {
+  ensureSandboxWorkspace,
   readScopedFile,
+  readScopedFileBytes,
   writeScopedFile,
 } from "@/server/inference/autonomous-tools/workspace";
 
@@ -40,6 +41,81 @@ export type ToolExecutionOutcome = {
   pauseForUser?: boolean;
   clarificationQuestion?: string;
 };
+
+type PublishedSandboxArtifact = {
+  id: string;
+  path: string;
+  content?: string;
+  fileId?: string;
+  storagePath?: string;
+  mimeType?: string;
+  sizeBytes: number;
+};
+
+function isTextArtifactPath(filePath: string): boolean {
+  return /\.(?:txt|md|markdown|csv|tsv|json|ya?ml|xml|html?|css|[cm]?[jt]sx?|py|rb|go|rs|java|kt|swift|sql|sh|svg)$/i.test(
+    filePath,
+  );
+}
+
+function requestedOutputPaths(args: Record<string, unknown>): string[] {
+  const values = Array.isArray(args.output_paths)
+    ? args.output_paths
+    : typeof args.output_path === "string"
+      ? [args.output_path]
+      : [];
+  return Array.from(
+    new Set(
+      values
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 12);
+}
+
+async function publishSandboxOutputs(
+  ctx: ToolExecutionContext,
+  paths: string[],
+): Promise<PublishedSandboxArtifact[]> {
+  const artifacts: PublishedSandboxArtifact[] = [];
+  for (const outputPath of paths) {
+    const { bytes } = await readScopedFileBytes(ctx, outputPath);
+    const normalizedPath = outputPath.replace(/^\/+/, "");
+    const content =
+      isTextArtifactPath(normalizedPath) && bytes.byteLength <= 512 * 1024
+        ? new TextDecoder().decode(bytes)
+        : undefined;
+    let persisted: {
+      fileId: string;
+      storagePath: string;
+      mimeType: string;
+      sizeBytes: number;
+    } | null = null;
+    if (ctx.userId) {
+      const { persistAgentCreatedFile } = await import(
+        "@/server/inference/autonomous-tools/persist-agent-file"
+      );
+      persisted = await persistAgentCreatedFile({
+        userId: ctx.userId,
+        chatId: ctx.conversationId,
+        path: normalizedPath,
+        content: bytes,
+        source: "sandbox",
+      });
+    }
+    artifacts.push({
+      id: persisted?.fileId ?? `${ctx.toolCallId ?? "artifact"}:${normalizedPath}`,
+      path: normalizedPath,
+      content,
+      fileId: persisted?.fileId,
+      storagePath: persisted?.storagePath,
+      mimeType: persisted?.mimeType,
+      sizeBytes: persisted?.sizeBytes ?? bytes.byteLength,
+    });
+  }
+  return artifacts;
+}
 
 export async function executeAutonomousTool(
   name: string,
@@ -172,14 +248,15 @@ export async function executeAutonomousTool(
   if (name === "bash_tool") {
     const command = String(args.command ?? "");
     assertSafeBashCommand(command);
-    const { info } = await getOrCreateSandbox({
+    const workspace = await ensureSandboxWorkspace({
       conversationId: ctx.conversationId,
       userId: ctx.userId,
     });
-    const keepAlive = createSandboxKeepAlive(info.sandboxId);
+    const keepAlive = createSandboxKeepAlive(workspace.sandboxId);
 
-    const result = await runSandboxCommand(info.sandboxId, {
+    const result = await runSandboxCommand(workspace.sandboxId, {
       command,
+      cwd: workspace.root,
       onStdout: (text) => {
         keepAlive.ping();
         ctx.onToolProgress?.({
@@ -198,21 +275,44 @@ export async function executeAutonomousTool(
       },
     });
 
+    const artifacts = await publishSandboxOutputs(
+      ctx,
+      requestedOutputPaths(args),
+    );
     return {
       output: {
         exitCode: result.exitCode,
         stdout: result.stdout,
         stderr: result.stderr,
         error: result.error,
-        sandboxId: info.sandboxId,
+        sandboxId: workspace.sandboxId,
+        workspace: workspace.root,
+        artifacts,
       },
     };
   }
 
   if (name === "execute_code") {
     const code = String(args.code ?? "");
-    const { info } = await getOrCreateSandbox({ conversationId: ctx.conversationId });
-    const execution = await runSandboxCode(info.sandboxId, code);
+    const workspace = await ensureSandboxWorkspace({
+      conversationId: ctx.conversationId,
+      userId: ctx.userId,
+    });
+    const execution = await runSandboxCode(workspace.sandboxId, code, {
+      cwd: workspace.root,
+      onStdout: (text) =>
+        ctx.onToolProgress?.({
+          tool_call_id: ctx.toolCallId,
+          kind: "stdout",
+          delta: text,
+        }),
+      onStderr: (text) =>
+        ctx.onToolProgress?.({
+          tool_call_id: ctx.toolCallId,
+          kind: "stderr",
+          delta: text,
+        }),
+    });
     const stdout =
       execution.logs?.stdout?.join("") ??
       (typeof execution.text === "string" ? execution.text : "");
@@ -224,28 +324,40 @@ export async function executeAutonomousTool(
           : JSON.stringify(execution.error)
         : null;
 
+    const artifacts = await publishSandboxOutputs(
+      ctx,
+      requestedOutputPaths(args),
+    );
     return {
       output: {
         stdout,
         stderr,
         error,
         result: execution.results ?? null,
+        sandboxId: workspace.sandboxId,
+        workspace: workspace.root,
+        artifacts,
       },
     };
   }
 
   if (name === "file_read") {
     const filePath = String(args.path ?? "");
-    const output = await readScopedFile(ctx.conversationId, filePath);
+    const output = await readScopedFile(ctx, filePath);
     return { output };
   }
 
   if (name === "create_file" || name === "file_write") {
     const filePath = String(args.path ?? "");
     const content = stripGeneratedArtifactFooter(String(args.content ?? ""));
-    const output = await writeScopedFile(ctx.conversationId, filePath, content);
+    const output = await writeScopedFile(ctx, filePath, content);
 
-    let persisted: { fileId: string; storagePath: string } | null = null;
+    let persisted: {
+      fileId: string;
+      storagePath: string;
+      mimeType: string;
+      sizeBytes: number;
+    } | null = null;
     if (ctx.userId) {
       try {
         const { persistAgentCreatedFile } = await import(
@@ -269,7 +381,12 @@ export async function executeAutonomousTool(
         description:
           typeof args.description === "string" ? args.description : undefined,
         ...(persisted
-          ? { fileId: persisted.fileId, storagePath: persisted.storagePath }
+          ? {
+              fileId: persisted.fileId,
+              storagePath: persisted.storagePath,
+              mimeType: persisted.mimeType,
+              sizeBytes: persisted.sizeBytes,
+            }
           : {}),
       },
     };

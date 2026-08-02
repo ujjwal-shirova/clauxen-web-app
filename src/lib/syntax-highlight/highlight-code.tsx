@@ -64,7 +64,7 @@ export function HighlightCode({
     >
       <code style={{ fontFamily: "inherit", fontSize: "inherit" }}>
         {lines.map((lineTokens, lineIndex) => (
-          <div
+          <span
             key={lineIndex}
             className="sh-code-line"
             style={{
@@ -96,7 +96,7 @@ export function HighlightCode({
                   )
                 : "\u00a0"}
             </span>
-          </div>
+          </span>
         ))}
       </code>
     </pre>

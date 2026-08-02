@@ -11,6 +11,8 @@ export {
   runSandboxCommand,
   runSandboxCode,
   readSandboxFile,
+  readSandboxFileBytes,
+  makeSandboxDir,
   writeSandboxFile,
   writeSandboxFiles,
   listSandboxFiles,

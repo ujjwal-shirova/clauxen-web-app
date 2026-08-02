@@ -15,6 +15,10 @@ type ClauxenUIDataParts = {
     content: string;
     language?: string;
     description?: string;
+    fileId?: string;
+    storagePath?: string;
+    mimeType?: string;
+    sizeBytes?: number;
   };
   "tool-data": { toolCallId: string; data: Record<string, unknown> };
   "step-done": { label?: string };
@@ -212,6 +216,10 @@ export function uiMessageChunkToStreamEvents(
           content: data.content,
           language: data.language,
           description: data.description,
+          fileId: data.fileId,
+          storagePath: data.storagePath,
+          mimeType: data.mimeType,
+          sizeBytes: data.sizeBytes,
         },
       ];
     }

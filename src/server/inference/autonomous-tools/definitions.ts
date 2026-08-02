@@ -149,7 +149,8 @@ export const autonomousAgentTools: FunctionTool[] = [
       "Run a shell command in an isolated Linux sandbox (Ubuntu). USE for file/directory operations, installing packages, running builds or scripts, git, and anything a terminal command does more naturally than Python.",
       "PREFER execute_code instead when the task is really computation, data analysis, or generating a chart/file from Python — bash_tool is for shell-level operations.",
       "Before calling, say a short one-line description of what the command does — the UI shows this as the block's title while the command streams in.",
-      "The sandbox persists across calls in this conversation, so installed packages and created files remain available for later bash_tool/execute_code calls.",
+      "The sandbox and working directory persist across calls in this conversation, so installed packages and created files remain available to bash_tool, execute_code, file_read, and create_file.",
+      "When the command creates a user deliverable, save it below outputs/ and include every created path in output_paths. Those paths are uploaded and presented to the user automatically.",
     ].join(" "),
     parameters: {
       type: "object",
@@ -163,8 +164,14 @@ export const autonomousAgentTools: FunctionTool[] = [
           type: "string",
           description: "The bash command to run.",
         },
+        output_paths: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Exact workspace-relative paths created for the user, such as outputs/report.pdf. Leave empty when no deliverable is produced.",
+        },
       },
-      required: ["description", "command"],
+      required: ["description", "command", "output_paths"],
       additionalProperties: false,
     },
     strict: true,
@@ -173,23 +180,35 @@ export const autonomousAgentTools: FunctionTool[] = [
     type: "function",
     name: "execute_code",
     description: [
-      "Run Python in an isolated sandbox and observe the output (stdout, stderr, errors).",
+      "Analyze with Python in an isolated Linux sandbox and observe live stdout, stderr, and errors. The UI presents this capability as Analyzing.",
       "USE when you need to: perform calculations, transform or analyse data, verify logic by running it, generate charts or images, or produce any file output.",
       "ALWAYS call read_skill FIRST when the task involves file formats, charts, PDFs, or environment-specific libraries — the sandbox may have different packages than your training data.",
-      "Print everything you want to observe; the return value is only what is printed.",
-      "SEQUENCING: read_skill → execute_code → optionally create_file (auto-presents).",
-      "Before calling, briefly describe what the code will do.",
+      "The Python context and conversation working directory persist across analysis calls. Files created by bash_tool, execute_code, create_file, and file_read share that same workspace.",
+      "Print everything you want to observe. For a user deliverable, save it below outputs/ and list every exact path in output_paths; the app uploads and presents those files automatically.",
+      "SEQUENCING: read_skill → execute_code with output_paths. Use create_file only for direct text files that do not need Python.",
+      "Provide a brief description of what the analysis will do.",
     ].join(" "),
     parameters: {
       type: "object",
       properties: {
+        description: {
+          type: "string",
+          description:
+            "One short active phrase shown beside Analyzing in the activity stream.",
+        },
         code: {
           type: "string",
           description:
             "Complete, runnable Python source. Print all outputs you need to observe.",
         },
+        output_paths: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Exact workspace-relative output files to upload and present. Leave empty when the analysis creates no deliverable.",
+        },
       },
-      required: ["code"],
+      required: ["description", "code", "output_paths"],
       additionalProperties: false,
     },
     strict: true,
@@ -244,7 +263,7 @@ export const autonomousAgentTools: FunctionTool[] = [
     description: [
       "Create/write a single text file in this conversation's workspace.",
       "The file is automatically presented to the user as a downloadable/viewable card when writing finishes — do NOT call present_files.",
-      "This is the ONLY file-creation tool — do not use bash, tags, or alternate write tools for the same deliverable.",
+      "Use this for direct text deliverables. For binary formats such as PDF, DOCX, PPTX, or XLSX, use execute_code and declare output_paths instead.",
       "Parent directories are created automatically. Prefer a simple relative path like `outputs/short-story.md`.",
       "Do NOT retry the same file with a different tool if create_file succeeds. Only retry create_file once if it failed with a clear recoverable error.",
       "ALWAYS call read_skill first when producing PDFs, PPTXs, charts, or other format-specific output.",

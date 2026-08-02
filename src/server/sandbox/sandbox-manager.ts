@@ -19,6 +19,7 @@ type SandboxModule = typeof import("novita-sandbox/code-interpreter");
 
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const sessionIndex = new Map<string, string>();
+const codeContextIndex = new Map<string, { id: string; language: string; cwd: string }>();
 
 function ensureProviderKey() {
   const key = requireNovitaApiKey();
@@ -270,6 +271,7 @@ export async function killSandbox(sandboxId: string) {
   for (const [key, id] of sessionIndex.entries()) {
     if (id === sandboxId) sessionIndex.delete(key);
   }
+  codeContextIndex.delete(sandboxId);
   return { sandboxId, killed: true };
 }
 
@@ -322,9 +324,29 @@ export async function runSandboxCommand(
   };
 }
 
-export async function runSandboxCode(sandboxId: string, code: string) {
+export async function runSandboxCode(
+  sandboxId: string,
+  code: string,
+  options?: {
+    cwd?: string;
+    onStdout?: (text: string) => void;
+    onStderr?: (text: string) => void;
+  },
+) {
   const { sandbox } = await connectSandbox(sandboxId);
-  const execution = await sandbox.runCode(code);
+  let context = codeContextIndex.get(sandboxId);
+  if (!context || (options?.cwd && context.cwd !== options.cwd)) {
+    context = await sandbox.createCodeContext({
+      language: "python",
+      cwd: options?.cwd,
+    });
+    codeContextIndex.set(sandboxId, context);
+  }
+  const execution = await sandbox.runCode(code, {
+    context,
+    onStdout: (message) => options?.onStdout?.(message.toString()),
+    onStderr: (message) => options?.onStderr?.(message.toString()),
+  });
   return {
     text: execution.text,
     logs: execution.logs,
@@ -335,7 +357,17 @@ export async function runSandboxCode(sandboxId: string, code: string) {
 
 export async function readSandboxFile(sandboxId: string, path: string) {
   const { sandbox } = await connectSandbox(sandboxId);
-  return sandbox.files.read(path);
+  return sandbox.files.read(path, { format: "text" });
+}
+
+export async function readSandboxFileBytes(sandboxId: string, path: string) {
+  const { sandbox } = await connectSandbox(sandboxId);
+  return sandbox.files.read(path, { format: "bytes" });
+}
+
+export async function makeSandboxDir(sandboxId: string, path: string) {
+  const { sandbox } = await connectSandbox(sandboxId);
+  return sandbox.files.makeDir(path);
 }
 
 export async function writeSandboxFile(
@@ -375,7 +407,9 @@ export async function isSandboxRunning(sandboxId: string) {
 
 export function clearSandboxSession(ctx?: SandboxSessionContext) {
   const key = sessionKey(ctx);
+  const sandboxId = sessionIndex.get(key);
   sessionIndex.delete(key);
+  if (sandboxId) codeContextIndex.delete(sandboxId);
 }
 
 export type { CodeInterpreterSandbox };

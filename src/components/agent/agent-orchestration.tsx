@@ -17,7 +17,6 @@ import {
   isAssistantGenerationError,
   toUserFacingChatError,
 } from "@/lib/assistant-generation-error";
-import { AgentTrace } from "./agent-trace";
 import { AgentWorkGroupView } from "./agent-work-group";
 import { AgentThinkingPhase } from "./agent-thinking-phase";
 import { AgentNarrationNote } from "./agent-narration-note";
@@ -122,7 +121,7 @@ function renderGroupMembers(
 }
 
 /**
- * Agent transcript: Cursor-style work-group folds on a timeline rail,
+ * Agent transcript: a flat chronological activity stream with optional folds,
  * narration prose outside those folds (never nested in the activity chrome),
  * then the readable final answer. Orb sits at the bottom only while generating
  * and before answer tokens.
@@ -175,11 +174,11 @@ export function AgentOrchestrationView({
         return (
           <div
             key={frame.id}
-            className="flex w-full min-w-0 flex-col gap-2"
+            className="agent-activity-stream flex w-full min-w-0 flex-col gap-2"
             data-agent-frame={frame.id}
           >
             {items.map((item) => {
-              // Narration sits outside the activity rail — plain prose between
+              // Narration sits outside activity controls — plain prose between
               // work groups, never nested under a fold header.
               if (item.kind === "narration") {
                 return (
@@ -193,29 +192,24 @@ export function AgentOrchestrationView({
               const { group } = item;
               const members = renderGroupMembers(group, segments, indexById);
 
-              // Lone Thought/tool: bare row on the rail (no fold header).
-              // Multi-step: Cursor fold. Both stay inside the timeline.
+              // Lone actions stay direct; related multi-step work shares a fold.
               if (!groupNeedsFoldChrome(group.segments)) {
                 return (
-                  <AgentTrace
+                  <div
                     key={group.id}
-                    className="agent-activity-timeline"
+                    className="agent-activity-entry agent-work-group-enter flex w-full min-w-0 flex-col gap-1"
+                    data-agent-work-group="bare"
+                    data-active={group.isActive || undefined}
                   >
-                    <div
-                      className="agent-timeline-event agent-work-group-enter flex w-full min-w-0 flex-col gap-1"
-                      data-agent-work-group="bare"
-                      data-active={group.isActive || undefined}
-                    >
-                      {members}
-                    </div>
-                  </AgentTrace>
+                    {members}
+                  </div>
                 );
               }
 
               return (
-                <AgentTrace key={group.id} className="agent-activity-timeline">
+                <div key={group.id} className="agent-activity-entry">
                   <AgentWorkGroupView group={group}>{members}</AgentWorkGroupView>
-                </AgentTrace>
+                </div>
               );
             })}
           </div>

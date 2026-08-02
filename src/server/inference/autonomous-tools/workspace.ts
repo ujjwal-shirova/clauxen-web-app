@@ -1,67 +1,85 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
+import {
+  getOrCreateSandbox,
+  listSandboxFiles,
+  makeSandboxDir,
+  readSandboxFile,
+  readSandboxFileBytes,
+  writeSandboxFile,
+} from "@/server/sandbox/sandbox-manager";
 
-/**
- * On Vercel the deployment filesystem is read-only except /tmp.
- * Locally we keep a project-relative workspace for easier debugging.
- */
-function resolveWorkspaceRoot(): string {
-  const configured = process.env.AUTONOMOUS_AGENT_FILE_ROOT?.trim();
-  if (configured) {
-    return path.isAbsolute(configured)
-      ? configured
-      : path.join(process.cwd(), configured);
-  }
-  if (process.env.VERCEL === "1" || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    return path.join(os.tmpdir(), "clauxen-agent-files");
-  }
-  return path.join(process.cwd(), ".autonomous-agent-files");
+export type AgentWorkspaceContext = {
+  conversationId: string;
+  userId?: string;
+};
+
+function safeConversationId(conversationId: string): string {
+  return conversationId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120) || "chat";
 }
 
-const FILE_WORKSPACE_ROOT = resolveWorkspaceRoot();
-
-function workspaceDir(conversationId: string): string {
-  const safeId = conversationId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
-  return path.join(FILE_WORKSPACE_ROOT, safeId || "chat");
+export function sandboxWorkspaceDir(conversationId: string): string {
+  return `/workspace/clauxen/${safeConversationId(conversationId)}`;
 }
 
-function resolveScopedPath(conversationId: string, filePath: string): string {
-  const base = workspaceDir(conversationId);
-  const cleaned = filePath.replace(/^\/+/, "").trim() || "untitled.txt";
-  const resolved = path.resolve(base, cleaned);
-  if (!resolved.startsWith(base + path.sep) && resolved !== base) {
+export function resolveSandboxWorkspacePath(
+  conversationId: string,
+  filePath: string,
+): string {
+  const root = sandboxWorkspaceDir(conversationId);
+  const normalized = filePath.replace(/\\/g, "/").trim();
+  if (normalized === root || normalized.startsWith(`${root}/`)) {
+    return normalized;
+  }
+  const cleaned = normalized.replace(/^\/+/, "");
+  const relative = cleaned || "untitled.txt";
+  const resolved = path.posix.resolve(root, relative);
+  if (resolved !== root && !resolved.startsWith(`${root}/`)) {
     throw new Error("Path escapes conversation workspace");
   }
   return resolved;
 }
 
-export async function ensureWorkspace(conversationId: string): Promise<string> {
-  const dir = workspaceDir(conversationId);
-  await mkdir(dir, { recursive: true });
-  return dir;
+export async function ensureSandboxWorkspace(
+  ctx: AgentWorkspaceContext,
+): Promise<{ sandboxId: string; root: string }> {
+  const { sandbox, info } = await getOrCreateSandbox(ctx);
+  const root = sandboxWorkspaceDir(ctx.conversationId);
+  await sandbox.files.makeDir("/workspace/clauxen");
+  await sandbox.files.makeDir(root);
+  await sandbox.files.makeDir(`${root}/outputs`);
+  return { sandboxId: info.sandboxId, root };
 }
 
 export async function readScopedFile(
-  conversationId: string,
+  ctx: AgentWorkspaceContext,
   filePath: string,
 ): Promise<{ path: string; content: string }> {
-  await ensureWorkspace(conversationId);
-  const resolved = resolveScopedPath(conversationId, filePath);
-  const content = await readFile(resolved, "utf8");
+  const { sandboxId } = await ensureSandboxWorkspace(ctx);
+  const resolved = resolveSandboxWorkspacePath(ctx.conversationId, filePath);
+  const content = await readSandboxFile(sandboxId, resolved);
   return { path: filePath.replace(/^\/+/, ""), content };
 }
 
+export async function readScopedFileBytes(
+  ctx: AgentWorkspaceContext,
+  filePath: string,
+): Promise<{ path: string; bytes: Uint8Array }> {
+  const { sandboxId } = await ensureSandboxWorkspace(ctx);
+  const resolved = resolveSandboxWorkspacePath(ctx.conversationId, filePath);
+  const bytes = await readSandboxFileBytes(sandboxId, resolved);
+  return { path: filePath.replace(/^\/+/, ""), bytes };
+}
+
 export async function writeScopedFile(
-  conversationId: string,
+  ctx: AgentWorkspaceContext,
   filePath: string,
   content: string,
 ): Promise<{ path: string; bytesWritten: number; content: string }> {
-  await ensureWorkspace(conversationId);
+  const { sandboxId } = await ensureSandboxWorkspace(ctx);
   const relative = filePath.replace(/^\/+/, "").trim() || "untitled.txt";
-  const resolved = resolveScopedPath(conversationId, relative);
-  await mkdir(path.dirname(resolved), { recursive: true });
-  await writeFile(resolved, content, "utf8");
+  const resolved = resolveSandboxWorkspacePath(ctx.conversationId, relative);
+  await makeSandboxDir(sandboxId, path.posix.dirname(resolved));
+  await writeSandboxFile(sandboxId, resolved, content);
   return {
     path: relative,
     bytesWritten: Buffer.byteLength(content, "utf8"),
@@ -70,11 +88,10 @@ export async function writeScopedFile(
 }
 
 export async function listScopedFiles(
-  conversationId: string,
+  ctx: AgentWorkspaceContext,
   dirPath = ".",
-): Promise<string[]> {
-  await ensureWorkspace(conversationId);
-  const resolved = resolveScopedPath(conversationId, dirPath);
-  const entries = await readdir(resolved, { withFileTypes: true });
-  return entries.map((e) => (e.isDirectory() ? `${e.name}/` : e.name));
+) {
+  const { sandboxId } = await ensureSandboxWorkspace(ctx);
+  const resolved = resolveSandboxWorkspacePath(ctx.conversationId, dirPath);
+  return listSandboxFiles(sandboxId, resolved);
 }

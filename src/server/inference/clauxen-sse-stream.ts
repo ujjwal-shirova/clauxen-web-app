@@ -164,20 +164,20 @@ export class ClauxenSseStream {
     this.write({ type: "tool_end", toolCallId, name, result, isError });
   }
 
-  writeArtifact(
-    artifactId: string,
-    path: string,
-    content: string,
-    language?: string,
-    description?: string,
-  ): void {
+  writeArtifact(artifact: {
+    artifactId: string;
+    path: string;
+    content: string;
+    language?: string;
+    description?: string;
+    fileId?: string;
+    storagePath?: string;
+    mimeType?: string;
+    sizeBytes?: number;
+  }): void {
     this.write({
       type: "artifact_upsert",
-      artifactId,
-      path,
-      content,
-      language,
-      description,
+      ...artifact,
     });
   }
 

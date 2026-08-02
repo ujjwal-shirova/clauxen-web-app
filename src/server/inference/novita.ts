@@ -62,6 +62,10 @@ export type ChatStreamEvent =
       content: string;
       language?: string;
       description?: string;
+      fileId?: string;
+      storagePath?: string;
+      mimeType?: string;
+      sizeBytes?: number;
     }
   | { type: "agent_frame_start"; frameId: string }
   | { type: "agent_frame_complete"; frameId?: string }

@@ -88,7 +88,7 @@ function PromptAddMenuRow({
       onMouseEnter={onHover}
       onFocus={onHover}
       className={cn(
-        "group flex w-full min-h-[40px] items-center gap-2.5 rounded-[12px] px-2.5 py-2 text-left transition-colors focus:outline-none",
+        "group flex w-full min-h-[40px] items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left transition-colors focus:outline-none",
         active ? "bg-zinc-100/90" : "hover:bg-zinc-100/90 focus-visible:bg-zinc-100/90",
       )}
     >
@@ -422,9 +422,9 @@ export function PromptAddMenuPanel({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: placement === "below" ? -6 : 6, scale: 0.985 }}
         transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
-        className="w-[240px] overflow-visible rounded-[18px] border border-zinc-200/90 bg-white font-sans shadow-[0_12px_40px_-18px_rgba(24,24,27,0.45)]"
+        className="w-[240px] overflow-visible rounded-[16px] border border-zinc-200/90 bg-white font-sans shadow-[0_12px_40px_-18px_rgba(24,24,27,0.45)]"
       >
-        <div className="flex flex-col gap-0.5 p-1.5">
+        <div className="flex flex-col gap-0.5 p-1">
           {items.map((item) => (
             <PromptAddMenuRow
               key={item.id}
