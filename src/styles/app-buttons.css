@@ -160,28 +160,31 @@
     color: #f4f4f5 !important;
   }
 
-  /* Sizes */
+  /* Sizes — Cursor-compact (13px body, 32–40px controls) */
   .app-btn-sm {
-    height: 2rem;
+    height: var(--ui-control-height, 32px);
     padding-left: 0.75rem;
     padding-right: 0.75rem;
-    font-size: 0.875rem;
+    font-size: var(--ui-font-size, 13px);
+    line-height: var(--ui-line-height, 18px);
     border-radius: var(--radius-sm);
   }
 
   .app-btn-md {
-    height: 2.25rem;
+    height: var(--ui-control-height-md, 36px);
     padding-left: 0.875rem;
     padding-right: 0.875rem;
-    font-size: 0.875rem;
+    font-size: var(--ui-font-size, 13px);
+    line-height: var(--ui-line-height, 18px);
     border-radius: var(--radius-sm);
   }
 
   .app-btn-lg {
-    height: 2.75rem;
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
-    font-size: 0.875rem;
+    height: var(--ui-control-height-lg, 40px);
+    padding-left: 1.125rem;
+    padding-right: 1.125rem;
+    font-size: var(--ui-font-size, 13px);
+    line-height: var(--ui-line-height, 18px);
     border-radius: var(--radius-md);
   }
 
@@ -205,11 +208,11 @@
   }
 
   .app-btn-icon {
-    height: var(--icon-btn-size, 32px);
-    width: var(--icon-btn-size, 32px);
-    min-height: var(--icon-btn-size, 32px);
-    min-width: var(--icon-btn-size, 32px);
-    padding: 7px;
+    height: var(--icon-btn-size, 28px);
+    width: var(--icon-btn-size, 28px);
+    min-height: var(--icon-btn-size, 28px);
+    min-width: var(--icon-btn-size, 28px);
+    padding: 6px;
     border-radius: var(--radius-sm);
     gap: 0;
   }

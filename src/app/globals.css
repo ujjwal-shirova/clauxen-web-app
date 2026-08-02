@@ -52,6 +52,24 @@
     --nav-label-size: 13px;
     --nav-label-line: 18px;
     --section-label-size: 12px;
+    /* Product surfaces (Library / Settings / Pricing / Gift / Scheduled) —
+       Cursor-compact type + control scale shared across non-chat pages. */
+    --ui-font-size: 13px;
+    --ui-line-height: 18px;
+    --ui-title-size: 18px;
+    --ui-title-line: 24px;
+    --ui-section-title-size: 15px;
+    --ui-section-title-line: 20px;
+    --ui-muted-size: 12.5px;
+    --ui-control-height: 32px;
+    --ui-control-height-md: 36px;
+    --ui-control-height-lg: 40px;
+    --ui-page-max-width: 880px;
+    --ui-page-max-width-wide: 1120px;
+    --ui-card-bg: #fcfcfc;
+    --ui-border: rgba(24, 24, 27, 0.1);
+    --ui-border-subtle: rgba(24, 24, 27, 0.06);
+    --ui-hover-wash: rgba(24, 24, 27, 0.05);
     --chat-header-height: 40px;
     --chat-header-icon-btn: 28px;
     --chat-title-size: 13px;
@@ -145,6 +163,10 @@
     --app-panel-bg: #1a1a1c;
     --chat-canvas-bg: #141416;
     --chat-user-card-bg: #1c1c1f;
+    --ui-card-bg: #1c1c1f;
+    --ui-border: rgba(255, 255, 255, 0.1);
+    --ui-border-subtle: rgba(255, 255, 255, 0.06);
+    --ui-hover-wash: rgba(255, 255, 255, 0.06);
     --overlay-scrim: rgba(0, 0, 0, 0.55);
     --glass-chat-surface-background: #141416;
     --cursor-menu-bg: rgba(24, 24, 27, 0.94);
@@ -685,10 +707,142 @@ svg.lucide.icon-2xl {
   height: var(--icon-size);
 }
 
-/* Product page surfaces — shared empty-state / header rhythm */
+/* Product page surfaces — Cursor-compact shared chrome for Library / Settings /
+   Pricing / Gift / Scheduled / Customize. Prefer these over ad-hoc Tailwind. */
 .app-page-surface {
   background-color: var(--app-panel-bg);
   color: hsl(var(--foreground));
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+}
+
+.app-page-title {
+  font-size: var(--ui-title-size);
+  line-height: var(--ui-title-line);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #18181b;
+}
+
+.dark .app-page-title {
+  color: #fafafa;
+}
+
+.app-page-subtitle {
+  margin-top: 0.25rem;
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  color: #71717a;
+}
+
+.dark .app-page-subtitle {
+  color: #a1a1aa;
+}
+
+.app-page-section-title {
+  font-size: var(--ui-section-title-size);
+  line-height: var(--ui-section-title-line);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: #18181b;
+}
+
+.dark .app-page-section-title {
+  color: #fafafa;
+}
+
+.app-page-body {
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  color: #27272a;
+}
+
+.dark .app-page-body {
+  color: #e4e4e7;
+}
+
+.app-page-muted {
+  font-size: var(--ui-muted-size);
+  line-height: var(--ui-line-height);
+  color: #71717a;
+}
+
+.dark .app-page-muted {
+  color: #a1a1aa;
+}
+
+.app-page-search {
+  box-sizing: border-box;
+  height: var(--ui-control-height-md);
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ui-border);
+  background: #ffffff;
+  padding-left: 2.5rem;
+  padding-right: 1rem;
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  color: #18181b;
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.03);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.app-page-search::placeholder {
+  color: #a1a1aa;
+}
+
+.app-page-search:focus {
+  outline: none;
+  border-color: rgba(24, 24, 27, 0.18);
+  box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.06);
+}
+
+.dark .app-page-search {
+  background: #18181b;
+  border-color: var(--ui-border);
+  color: #fafafa;
+}
+
+.dark .app-page-search:focus {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.app-page-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ui-border);
+  background: var(--ui-card-bg, #fcfcfc);
+}
+
+.app-page-card:hover {
+  background: color-mix(in srgb, var(--ui-card-bg, #fcfcfc) 92%, #e4e4e7);
+}
+
+.app-page-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: var(--ui-control-height-md);
+  padding-block: 0.625rem;
+  border-bottom: 1px solid var(--ui-border-subtle);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+}
+
+.app-page-row:last-child {
+  border-bottom: 0;
+}
+
+.app-overlay-panel {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ui-border);
+  background: var(--app-panel-bg, #ffffff);
+  box-shadow: var(--cursor-menu-shadow);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 /* Dense row actions (sidebar chat pin/more) — 28×28, visible hover */

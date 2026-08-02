@@ -196,7 +196,7 @@ export function ScheduledTasksView() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className={cn(appBtn.primarySm, "inline-flex h-9 items-center gap-1.5 px-4")}
+          className={cn(appBtn.primarySm, "inline-flex items-center gap-1.5")}
         >
           Create
           <ChevronDown className="icon-md opacity-90" strokeWidth={2} />
@@ -243,14 +243,14 @@ export function ScheduledTasksView() {
       ) : null}
 
       <div className="mobile-page-inset app-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[800px] flex-1 flex-col px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
+        <div className="mx-auto flex w-full max-w-[var(--ui-page-max-width,880px)] flex-1 flex-col px-4 pb-16 pt-5 sm:px-6 sm:pt-6">
           {/* Header */}
-          <div className="mb-8 flex items-start justify-between gap-4">
+          <div className="mb-5 flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="text-[24px] font-semibold tracking-[-0.03em] text-zinc-900 sm:text-[28px]">
+              <h1 className="app-page-title">
                 Scheduled Tasks
               </h1>
-              <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-zinc-500">
+              <p className="app-page-subtitle max-w-xl">
                 Let Clauxen run tasks on schedule and deliver results
                 automatically.
               </p>
@@ -260,7 +260,7 @@ export function ScheduledTasksView() {
               <AppHref
                 href={APP_ROUTES.newChat}
                 aria-label="Close"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                className="ui-icon-button text-zinc-500"
               >
                 <X className="icon-lg" strokeWidth={1.75} />
               </AppHref>
@@ -269,7 +269,7 @@ export function ScheduledTasksView() {
 
           {/* Body */}
           {loading ? (
-            <div className="flex flex-1 items-center justify-center py-20 text-[14px] text-zinc-400">
+            <div className="app-page-muted flex flex-1 items-center justify-center py-16">
               Loading…
             </div>
           ) : tasks.length === 0 ? (
@@ -281,10 +281,10 @@ export function ScheduledTasksView() {
                   absoluteStrokeWidth
                 />
               </div>
-              <p className="text-[15px] text-zinc-500">
+              <p className="app-page-section-title text-zinc-500">
                 Create a scheduled task.
               </p>
-              <div className="mt-3 flex items-center gap-3 text-[14px]">
+              <div className="app-page-body mt-3 flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setModalOpen(true)}
@@ -311,12 +311,12 @@ export function ScheduledTasksView() {
                   key={task.id}
                   className="flex items-center gap-3 py-3.5 first:pt-0"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-zinc-100 text-zinc-500">
                     <CalendarClock className="icon-lg" strokeWidth={1.75} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-[15px] font-medium text-zinc-900">
+                      <p className="app-page-body truncate font-medium">
                         {task.name}
                       </p>
                       {task.status === "paused" ? (
@@ -342,7 +342,7 @@ export function ScheduledTasksView() {
                       <button
                         type="button"
                         aria-label="Task actions"
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+                        className="ui-icon-button text-zinc-400"
                       >
                         <MoreHorizontal className="icon-lg" />
                       </button>

@@ -208,7 +208,7 @@ export function SettingsNavSidebar({
             id="settings-tab-select"
             value={activeTab}
             onChange={(event) => onTabChange(event.target.value as SettingsTab)}
-            className="h-9 w-full appearance-none rounded-lg bg-white/80 px-3 pr-10 text-[14px] text-zinc-800 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition-colors focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
+            className="h-8 w-full appearance-none rounded-[var(--radius-sm)] bg-white/80 px-3 pr-10 text-[13px] leading-[18px] text-zinc-800 shadow-[inset_0_0_0_1px_var(--ui-border)] outline-none transition-colors focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
           >
             {flatTabs.map((tab) => (
               <option key={tab} value={tab}>

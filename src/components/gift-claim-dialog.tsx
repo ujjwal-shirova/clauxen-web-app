@@ -92,7 +92,7 @@ export function GiftClaimDialog({
           >
             <div
               className={cn(
-                "w-full max-w-[400px] overflow-hidden rounded-2xl border border-zinc-200/90",
+                "app-overlay-panel w-full max-w-[400px] overflow-hidden",
                 "bg-white shadow-[0_24px_80px_rgba(0,0,0,0.16)]",
               )}
               onClick={(e) => e.stopPropagation()}
@@ -123,7 +123,7 @@ export function GiftClaimDialog({
                     >
                       Gift claimed
                     </h2>
-                    <p className="mt-2 text-[14px] leading-relaxed text-zinc-600">
+                    <p className="app-page-muted mt-2 leading-relaxed">
                       {durationLabel} of Clauxen {gift.planName} is now on your
                       account.
                     </p>
@@ -143,7 +143,7 @@ export function GiftClaimDialog({
                     >
                       You are gifted {gift.planName}
                     </h2>
-                    <p className="mt-1 text-[14px] text-zinc-500">
+                    <p className="app-page-muted mt-1">
                       {durationLabel} of Clauxen {gift.planName}
                     </p>
                     {error && (

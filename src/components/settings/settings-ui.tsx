@@ -30,12 +30,10 @@ export function SettingsSection({
   className?: string;
 }) {
   return (
-    <section className={cn("mb-8 last:mb-0 sm:mb-10", className)}>
+    <section className={cn("mb-6 last:mb-0 sm:mb-8", className)}>
       {title ? (
-        <div className="mb-4">
-          <h3 className="text-[15px] font-semibold leading-5 text-zinc-900">
-            {title}
-          </h3>
+        <div className="mb-3">
+          <h3 className="app-page-section-title">{title}</h3>
         </div>
       ) : null}
       {children}
@@ -61,10 +59,8 @@ export function SettingsPanelHeaderWithHelp({
   helpLabel?: string;
 }) {
   return (
-    <div className="mb-4 grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
-      <h2 className="text-[15px] font-semibold leading-5 text-zinc-900">
-        {title}
-      </h2>
+    <div className="mb-3 grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
+      <h2 className="app-page-section-title">{title}</h2>
       <a
         href={helpHref}
         className="mt-0.5 inline-flex items-center gap-1 text-zinc-400 transition-colors hover:text-zinc-900"
@@ -90,12 +86,12 @@ export function SettingsValueRow({
   return (
     <div
       className={cn(
-        "flex flex-col items-stretch gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-7",
-        !borderless && "border-b border-[rgba(11,11,11,0.05)]",
+        "flex flex-col items-stretch gap-2.5 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6",
+        !borderless && "border-b border-[var(--ui-border-subtle)]",
       )}
     >
-      <span className="text-[14px] font-medium text-zinc-900">{label}</span>
-      <span className="text-[14px] text-zinc-600 sm:max-w-[65%] sm:truncate sm:text-right">
+      <span className="app-page-body font-medium">{label}</span>
+      <span className="app-page-muted sm:max-w-[65%] sm:truncate sm:text-right">
         {value}
       </span>
     </div>
@@ -116,11 +112,11 @@ export function SettingsAddFamilyButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-zinc-200 bg-white px-4 text-[14px] font-medium text-zinc-900 transition-colors hover:bg-zinc-100",
+        "app-btn app-btn-secondary app-btn-sm no-hover-overlay inline-flex gap-1.5",
         className,
       )}
     >
-      <UserPlus className="icon-lg shrink-0" aria-hidden />
+      <UserPlus className="icon-md shrink-0" aria-hidden />
       {children}
     </button>
   );
@@ -134,10 +130,8 @@ export function SettingsSectionHeading({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-4 flex items-center justify-between gap-3">
-      <h3 className="text-[15px] font-semibold leading-5 text-zinc-900">
-        {children}
-      </h3>
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h3 className="app-page-section-title">{children}</h3>
       {action}
     </div>
   );
@@ -159,18 +153,16 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        "flex flex-col items-stretch gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-7",
-        !borderless && "border-b border-[rgba(11,11,11,0.05)]",
+        "flex flex-col items-stretch gap-2.5 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6",
+        !borderless && "border-b border-[var(--ui-border-subtle)]",
         className,
       )}
       role="group"
     >
       <div className="min-w-0 flex-1">
-        <div className="text-[14px] leading-5 text-zinc-900">{label}</div>
+        <div className="app-page-body">{label}</div>
         {description ? (
-          <div className="mt-1 text-[14px] leading-5 text-zinc-500 text-pretty">
-            {description}
-          </div>
+          <div className="app-page-muted mt-1 text-pretty">{description}</div>
         ) : null}
       </div>
       <div className="w-full min-w-0 sm:w-auto sm:shrink-0 [&_button]:max-w-full sm:[&_button]:max-w-none">
@@ -202,15 +194,15 @@ const settingsFocusReset =
   "outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0";
 
 const settingsOptionMenuContentClass =
-  "z-[120] min-w-[14rem] max-w-[20rem] rounded-2xl border border-zinc-200/90 bg-white p-1.5 text-zinc-900 shadow-[0_12px_32px_rgba(24,24,27,0.12)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_12px_32px_rgba(0,0,0,0.5)]";
+  "app-overlay-panel z-[120] min-w-[14rem] max-w-[20rem] rounded-[var(--radius-md)] p-1 text-zinc-900 dark:text-zinc-100";
 
 const settingsOptionTriggerClass = cn(
-  "no-hover-overlay inline-flex h-9 min-h-9 w-full shrink-0 items-center justify-between gap-1.5 rounded-lg bg-white/80 px-2.5 text-[14px] leading-5 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] transition-[box-shadow,background-color] duration-75 hover:bg-white sm:h-8 sm:min-h-8 sm:w-auto sm:justify-start sm:px-2 data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] dark:hover:bg-zinc-900 dark:data-[state=open]:bg-zinc-900",
+  "no-hover-overlay inline-flex h-8 min-h-8 w-full shrink-0 items-center justify-between gap-1.5 rounded-[var(--radius-sm)] bg-white/80 px-2.5 text-[13px] leading-[18px] text-zinc-900 shadow-[inset_0_0_0_1px_var(--ui-border)] transition-[box-shadow,background-color] duration-75 hover:bg-white sm:w-auto sm:justify-start sm:px-2 data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] dark:hover:bg-zinc-900 dark:data-[state=open]:bg-zinc-900",
   settingsFocusReset,
 );
 
 const settingsOptionMenuItemClass = cn(
-  "flex cursor-pointer select-none items-start gap-2.5 rounded-xl px-3 py-2.5 text-[14px] font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus:text-zinc-900 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800 dark:data-[highlighted]:bg-zinc-800",
+  "flex cursor-pointer select-none items-start gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-[13px] font-medium leading-[18px] text-zinc-900 transition-colors hover:bg-[var(--ui-hover-wash)] focus:bg-[var(--ui-hover-wash)] focus:text-zinc-900 data-[highlighted]:bg-[var(--ui-hover-wash)] data-[highlighted]:text-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800 dark:data-[highlighted]:bg-zinc-800",
   settingsFocusReset,
 );
 
@@ -338,7 +330,7 @@ export function SettingsSelectButton({
       onClick={onClick}
       aria-label={ariaLabel ?? value}
       className={cn(
-        "no-hover-overlay inline-flex h-9 min-h-9 shrink-0 items-center gap-2 rounded-lg bg-white px-3 text-[14px] text-zinc-900 transition-colors hover:bg-zinc-50",
+        "no-hover-overlay inline-flex h-8 min-h-8 shrink-0 items-center gap-2 rounded-[var(--radius-sm)] bg-white px-2.5 text-[13px] leading-[18px] text-zinc-900 transition-colors hover:bg-zinc-50",
         settingsFocusReset,
         className,
       )}
@@ -368,7 +360,7 @@ export function SettingsCharacteristicSelect({
         options={options}
         onValueChange={onChange}
         aria-label={`${label}, ${value}`}
-        className="h-9 min-h-9"
+        className="h-8 min-h-8"
       />
     </SettingsRow>
   );
@@ -425,7 +417,7 @@ export function SettingsTextarea({
       rows={rows}
       maxLength={maxLength}
       className={cn(
-        "w-full resize-none rounded-lg bg-white/80 px-3 py-2 text-[14px] leading-5 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] transition-[box-shadow,background-color] duration-75 placeholder:text-zinc-400 focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]",
+        "w-full resize-none rounded-[var(--radius-sm)] bg-white/80 px-3 py-2 text-[13px] leading-[18px] text-zinc-900 shadow-[inset_0_0_0_1px_var(--ui-border)] transition-[box-shadow,background-color] duration-75 placeholder:text-zinc-400 focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]",
         settingsFocusReset,
       )}
     />
@@ -449,7 +441,7 @@ export function SettingsVoiceControl({
         type="button"
         onClick={onPlay}
         className={cn(
-          "no-hover-overlay inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-[14px] text-zinc-900 transition-colors hover:bg-zinc-100 sm:w-auto sm:rounded-l-lg sm:rounded-r-none sm:border-r-0",
+          "no-hover-overlay inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white px-3 text-[13px] leading-[18px] text-zinc-900 transition-colors hover:bg-zinc-100 sm:w-auto sm:rounded-l-md sm:rounded-r-none sm:border-r-0",
           settingsFocusReset,
         )}
       >
@@ -461,7 +453,7 @@ export function SettingsVoiceControl({
         options={voices}
         onValueChange={onVoiceChange}
         aria-label={`Voice, ${voice}`}
-        className="h-9 min-h-9 rounded-lg border border-zinc-200 sm:rounded-l-none sm:rounded-r-lg"
+        className="h-8 min-h-8 rounded-[var(--radius-sm)] border border-[var(--ui-border)] sm:rounded-l-none sm:rounded-r-md"
         align="end"
       />
     </div>
@@ -492,7 +484,7 @@ export function SettingsPillButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "no-hover-overlay inline-flex h-9 shrink-0 items-center justify-center rounded-full border px-5 text-[14px] font-medium transition-colors",
+        "no-hover-overlay inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-4 text-[13px] font-medium leading-[18px] transition-colors",
         variant === "default" &&
           "border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-100",
         variant === "danger" &&
@@ -546,8 +538,8 @@ export function SettingsChevronRow({
         !borderless && "border-b border-[rgba(11,11,11,0.05)]",
       )}
     >
-      <span className="text-[14px] font-medium text-zinc-900">{label}</span>
-      <span className="flex shrink-0 items-center gap-1 text-[14px] text-zinc-500">
+      <span className="app-page-body font-medium">{label}</span>
+      <span className="app-page-muted flex shrink-0 items-center gap-1">
         {value ? <span>{value}</span> : null}
         <ChevronRight className="icon-md" aria-hidden />
       </span>
@@ -571,10 +563,10 @@ export function SettingsManageRow({
         !borderless && "border-b border-[rgba(11,11,11,0.05)]",
       )}
     >
-      <span className="text-[14px] font-medium text-zinc-900">{label}</span>
+      <span className="app-page-body font-medium">{label}</span>
       <SettingsPillButton
         onClick={onManage}
-        className="h-9 min-h-9 px-4 text-[14px]"
+        className="h-8 min-h-8 px-3 text-[13px]"
       >
         Manage
       </SettingsPillButton>
@@ -592,7 +584,7 @@ export function SettingsStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex rounded-md px-2 py-0.5 text-[14px] font-medium",
+        "inline-flex rounded-md px-2 py-0.5 text-[13px] font-medium leading-[18px]",
         tone === "success" && "bg-emerald-50 text-emerald-700",
         tone === "info" && "bg-blue-50 text-blue-700",
       )}
@@ -614,7 +606,7 @@ export function SettingsProgressBar({
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[14px] font-semibold text-zinc-900">{label}</p>
+      <p className="app-page-body font-semibold">{label}</p>
       <div
         className="relative h-3 overflow-hidden rounded-full border border-zinc-100 bg-zinc-200"
         role="progressbar"
@@ -641,8 +633,8 @@ export function SettingsFieldBlock({
 }) {
   return (
     <div className="border-b border-zinc-200 py-3 last:border-b-0">
-      <p className="text-[14px] text-zinc-900">{label}</p>
-      <p className="mt-1 whitespace-pre-line text-[14px] text-zinc-400">
+      <p className="app-page-body">{label}</p>
+      <p className="app-page-muted mt-1 whitespace-pre-line">
         {value || "—"}
       </p>
     </div>

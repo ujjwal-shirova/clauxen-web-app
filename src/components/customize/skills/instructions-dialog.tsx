@@ -50,7 +50,7 @@ export function InstructionsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       {" "}
       {/* controlled modal */}
-      <DialogContent className="max-w-[576px] p-0 bg-zinc-50 border-zinc-200 rounded-[16px] shadow-2xl animate-in zoom-in-95 duration-250 font-sans border-[0.666667px] gap-0 [&>button]:hidden overflow-y-auto max-h-[90vh]">
+      <DialogContent className="app-overlay-panel max-h-[90vh] max-w-[576px] gap-0 overflow-y-auto border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-0 font-sans animate-in zoom-in-95 duration-250 [&>button]:hidden">
         {" "}
         {/* wide dialog — scrollable on small viewports, default close hidden */}
         <DialogDescription className="sr-only">
@@ -87,7 +87,7 @@ export function InstructionsDialog({
             <div className="flex flex-col gap-2">
               {" "}
               {/* Skill Name field group */}
-              <label className="text-[14px] font-medium text-zinc-800">
+              <label className="app-page-body font-medium">
                 Skill name
               </label>{" "}
               {/* label — required identifier */}
@@ -95,13 +95,13 @@ export function InstructionsDialog({
                 value={skillName} // controlled value
                 onChange={(e) => setSkillName(e.target.value)} // name typing handler
                 placeholder="weekly-status-report" // placeholder — slug-style example
-                className="h-9 px-3 bg-white rounded-lg border-zinc-200 text-[14px] focus-visible:ring-2 focus-visible:ring-[#1B67B2]/20 transition-all placeholder-zinc-400"
+                className="app-page-search !h-8 !pl-3 focus-visible:ring-2 focus-visible:ring-zinc-900/10"
               />
             </div>
             <div className="flex flex-col gap-2">
               {" "}
               {/* Description field group */}
-              <label className="text-[14px] font-medium text-zinc-800">
+              <label className="app-page-body font-medium">
                 Description
               </label>{" "}
               {/* label — when-to-use summary */}
@@ -111,13 +111,13 @@ export function InstructionsDialog({
                 maxLength={SKILL_FIELD_MAX_LENGTH} // HTML cap — description field DoS guard
                 rows={3} // 3 rows visible height
                 placeholder="Generate weekly status reports from recent work. Use when asked for updates or progress summaries." // example trigger text
-                className="min-h-[100px] p-3 bg-white rounded-xl border-zinc-200 text-[14px] focus-visible:ring-2 focus-visible:ring-[#1B67B2]/20 transition-all resize-none placeholder-zinc-400"
+                className="app-page-body min-h-[100px] resize-none rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-white p-3 focus-visible:ring-2 focus-visible:ring-zinc-900/10"
               />
             </div>
             <div className="flex flex-col gap-2">
               {" "}
               {/* Instructions field group */}
-              <label className="text-[14px] font-medium text-zinc-800">
+              <label className="app-page-body font-medium">
                 Instructions
               </label>{" "}
               {/* label — full skill prompt body */}
@@ -126,7 +126,7 @@ export function InstructionsDialog({
                 onChange={(e) => setSkillInstructions(e.target.value)} // instructions typing
                 rows={10} // tall textarea for long prompts
                 placeholder="Summarize my recent work in three sections: wins, blockers, and next steps. Keep the tone professional but not stiff..." // example instructions
-                className="min-h-[240px] p-3 bg-white rounded-xl border-zinc-200 text-[14px] focus-visible:ring-2 focus-visible:ring-[#1B67B2]/20 transition-all resize-none placeholder-zinc-400"
+                className="app-page-body min-h-[240px] resize-none rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-white p-3 focus-visible:ring-2 focus-visible:ring-zinc-900/10"
               />
             </div>
           </div>

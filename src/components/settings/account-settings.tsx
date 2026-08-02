@@ -41,25 +41,25 @@ export function AccountSettings({
       <h2 className="mb-2 text-[20px] font-semibold tracking-tight">Account</h2>
 
       <div className="flex min-h-[56px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
-        <span className="text-[14px] text-zinc-900">Log out of all devices</span>
+        <span className="app-page-body">Log out of all devices</span>
         <SettingsPillButton onClick={onLogoutAllDevices ?? onLogout}>
           Log out
         </SettingsPillButton>
       </div>
 
       <div className="flex min-h-[56px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
-        <span className="text-[14px] text-zinc-900">Delete your account</span>
+        <span className="app-page-body">Delete your account</span>
         <button
           type="button"
           onClick={onDeleteAccount}
-          className="inline-flex h-9 items-center justify-center rounded-lg bg-zinc-900 px-4 text-[14px] font-medium text-white transition-colors hover:bg-zinc-800"
+          className="app-btn app-btn-primary app-btn-sm no-hover-overlay"
         >
           Delete account
         </button>
       </div>
 
       <div className="flex min-h-[56px] items-center justify-between gap-4 border-b border-zinc-100 py-3">
-        <span className="text-[14px] text-zinc-900">Organization ID</span>
+        <span className="app-page-body">Organization ID</span>
         <button
           type="button"
           onClick={onCopyOrgId}
@@ -71,7 +71,7 @@ export function AccountSettings({
       </div>
 
       <section className="mt-8">
-        <h3 className="text-[15px] font-semibold text-zinc-900">
+        <h3 className="app-page-section-title">
           Trusted devices
         </h3>
         <p className="mt-1 text-[13px] leading-snug text-zinc-500">
@@ -100,7 +100,7 @@ export function AccountSettings({
       </section>
 
       <section className="mt-8">
-        <h3 className="text-[15px] font-semibold text-zinc-900">
+        <h3 className="app-page-section-title">
           Active sessions
         </h3>
         <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200">

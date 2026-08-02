@@ -410,7 +410,7 @@ export function SettingsModal({
                   <p className="text-[12px] leading-[14px] text-zinc-500">
                     Settings
                   </p>
-                  <h2 className="truncate text-[15px] font-semibold leading-5 text-zinc-900">
+                  <h2 className="app-page-section-title truncate">
                     {activeTab}
                   </h2>
                 </div>
@@ -450,7 +450,7 @@ export function SettingsModal({
               <div
                 data-scroll-region=""
                 className={cn(
-                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12",
+                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[13px] leading-[18px] sm:px-6 md:px-6 md:pb-4 md:pt-10",
                   contentHydrating && "opacity-95",
                 )}
                 aria-busy={contentHydrating || undefined}

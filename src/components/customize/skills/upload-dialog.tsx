@@ -80,7 +80,7 @@ export function UploadSkillDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[512px] p-0 bg-zinc-50 border-zinc-200 rounded-[16px] shadow-2xl animate-in zoom-in-95 duration-250 font-sans border-[0.666667px] gap-0 [&>button]:hidden">
+      <DialogContent className="app-overlay-panel max-w-[512px] gap-0 border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-0 font-sans animate-in zoom-in-95 duration-250 [&>button]:hidden">
         {" "}
         {/* DialogContent styling — warm background, zoom-in animation, default close button hidden */}
         <DialogDescription className="sr-only">
@@ -137,7 +137,7 @@ export function UploadSkillDialog({
                   </svg>{" "}
                   {/* upload folder+plus icon */}
                 </div>
-                <span className="text-[14px] font-medium text-zinc-500">
+                <span className="app-page-muted font-medium">
                   {uploading ? "Uploading…" : "Drag and drop or click to upload"}
                 </span>
               </button>

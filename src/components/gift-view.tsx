@@ -268,13 +268,13 @@ export function GiftView({ onClose }: GiftViewProps) {
                 <h1 className="mb-2 font-serif text-[30px] font-medium leading-[1.3] text-zinc-800 sm:text-[38px] sm:leading-[1.4]">
                   Give the gift of Clauxen
                 </h1>
-                <p className="mb-10 text-[16px] font-[430] leading-relaxed text-zinc-600">
+                <p className="app-page-muted mb-8 leading-relaxed">
                   Every plan includes Clauxen Code, unlimited projects, and
                   access to our latest models.
                 </p>
 
                 <div className="mb-8">
-                  <span className="mb-3 block text-[14px] font-semibold text-zinc-800">
+                  <span className="mb-3 block app-page-body font-semibold">
                     Which plan?
                   </span>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -290,10 +290,10 @@ export function GiftView({ onClose }: GiftViewProps) {
                             : "border-black/10 bg-white/60 hover:border-black/25",
                         )}
                       >
-                        <div className="text-[14px] font-semibold text-zinc-800">
+                        <div className="app-page-body font-semibold">
                           {plan.name}
                         </div>
-                        <div className="mt-1 text-[14px] font-[430] leading-tight text-zinc-500">
+                        <div className="mt-1 app-page-muted">
                           {plan.subtitle}
                         </div>
                       </button>
@@ -302,7 +302,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </div>
 
                 <div className="mb-8">
-                  <span className="mb-3 block text-[14px] font-semibold text-zinc-800">
+                  <span className="mb-3 block app-page-body font-semibold">
                     How many months?
                   </span>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -318,7 +318,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                             : "border-black/10 bg-white/60 hover:border-black/25",
                         )}
                       >
-                        <div className="text-[14px] font-semibold text-zinc-800">
+                        <div className="app-page-body font-semibold">
                           {duration.label}
                         </div>
                       </button>
@@ -327,10 +327,10 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </div>
 
                 <div className="mb-10">
-                  <span className="mb-1 block text-[14px] font-semibold text-zinc-800">
+                  <span className="mb-1 block app-page-body font-semibold">
                     Total
                   </span>
-                  <div className="text-[24px] font-bold text-zinc-800">
+                  <div className="app-page-title font-bold">
                     {formatCheckoutAmountFromPaise(
                       total * 100,
                       currency,
@@ -353,12 +353,12 @@ export function GiftView({ onClose }: GiftViewProps) {
 
             {step === 2 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                <h1 className="mb-6 font-serif text-[28px] font-medium text-zinc-800">
+                <h1 className="app-page-title mb-5 font-medium">
                   Personalize your gift
                 </h1>
 
                 <div className="mb-8">
-                  <span className="mb-3 block text-[14px] font-semibold text-zinc-800">
+                  <span className="mb-3 block app-page-body font-semibold">
                     Pick a color
                   </span>
                   <div className="flex flex-wrap gap-3">
@@ -392,7 +392,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </div>
 
                 <div className="mb-8">
-                  <span className="mb-3 block text-[14px] font-semibold text-zinc-800">
+                  <span className="mb-3 block app-page-body font-semibold">
                     Choose how to send
                   </span>
                   <div className="space-y-3">
@@ -407,7 +407,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                       )}
                     >
                       <Mail className="icon-lg text-zinc-500" />
-                      <div className="flex-1 text-[14px] font-semibold">
+                      <div className="flex-1 app-page-body font-semibold">
                         Send an email
                       </div>
                       {deliveryMethod === "email" && (
@@ -425,7 +425,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                       )}
                     >
                       <LinkIcon className="icon-lg text-zinc-500" />
-                      <div className="flex-1 text-[14px] font-semibold">
+                      <div className="flex-1 app-page-body font-semibold">
                         Get a link to share
                       </div>
                       {deliveryMethod === "link" && (
@@ -439,7 +439,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                   {deliveryMethod === "email" && (
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[14px] font-medium text-zinc-800">
+                        <label className="app-page-body font-medium">
                           Recipient&apos;s name
                         </label>
                         <input
@@ -447,11 +447,11 @@ export function GiftView({ onClose }: GiftViewProps) {
                           placeholder="Name"
                           value={recipientName}
                           onChange={(e) => setRecipientName(e.target.value)}
-                          className="h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-[14px] transition-all focus:outline-none focus:ring-2 focus:ring-black/10"
+                          className="app-page-search !pl-3 transition-all focus:outline-none"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[14px] font-medium text-zinc-800">
+                        <label className="app-page-body font-medium">
                           Recipient&apos;s email
                         </label>
                         <input
@@ -459,24 +459,24 @@ export function GiftView({ onClose }: GiftViewProps) {
                           placeholder="Email"
                           value={recipientEmail}
                           onChange={(e) => setRecipientEmail(e.target.value)}
-                          className="h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-[14px] transition-all focus:outline-none focus:ring-2 focus:ring-black/10"
+                          className="app-page-search !pl-3 transition-all focus:outline-none"
                         />
                       </div>
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    <label className="text-[14px] font-medium text-zinc-800">
+                    <label className="app-page-body font-medium">
                       Your name
                     </label>
                     <input
                       type="text"
                       value={yourName}
                       onChange={(e) => setYourName(e.target.value)}
-                      className="h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-[14px] transition-all focus:outline-none focus:ring-2 focus:ring-black/10"
+                      className="app-page-search !pl-3 transition-all focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[14px] font-medium text-zinc-800">
+                    <label className="app-page-body font-medium">
                       Add a note
                       {deliveryMethod === "link" && (
                         <span className="ml-1 font-normal text-zinc-500">
@@ -489,18 +489,18 @@ export function GiftView({ onClose }: GiftViewProps) {
                       rows={3}
                       value={giftNote}
                       onChange={(e) => setGiftNote(e.target.value)}
-                      className="w-full resize-none rounded-lg border border-black/10 bg-white p-3 text-[14px] transition-all focus:outline-none focus:ring-2 focus:ring-black/10"
+                      className="app-page-body w-full resize-none rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white p-3 transition-all focus:outline-none focus:ring-2 focus:ring-black/10"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[14px] font-medium text-zinc-800">
+                    <label className="app-page-body font-medium">
                       Your email
                     </label>
                     <input
                       type="email"
                       value={yourEmail}
                       onChange={(e) => setYourEmail(e.target.value)}
-                      className="h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-[14px] transition-all focus:outline-none focus:ring-2 focus:ring-black/10"
+                      className="app-page-search !pl-3 transition-all focus:outline-none"
                     />
                   </div>
                 </div>
@@ -511,7 +511,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                       type="button"
                       variant="outline"
                       onClick={() => setStep(1)}
-                      className={cn(appBtn.secondary, "h-10 rounded-xl px-8")}
+                      className={cn(appBtn.secondary, "px-6")}
                     >
                       Back
                     </Button>

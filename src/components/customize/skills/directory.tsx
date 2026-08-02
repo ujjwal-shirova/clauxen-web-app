@@ -84,7 +84,7 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="skill-directory-title"
-        className="relative flex max-h-[min(673px,calc(100dvh-1.5rem))] w-full max-w-[min(1024px,calc(100vw-1.5rem))] flex-col rounded-xl bg-zinc-50 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1),0_4px_8px_rgba(11,11,11,0.08),0_12px_28px_-2px_rgba(11,11,11,0.08)] backdrop-blur-xl duration-200 animate-in fade-in zoom-in-95"
+        className="app-overlay-panel relative flex max-h-[min(673px,calc(100dvh-1.5rem))] w-full max-w-[min(1024px,calc(100vw-1.5rem))] flex-col bg-[var(--app-panel-bg)] text-zinc-900 duration-200 animate-in fade-in zoom-in-95"
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-auto rounded-xl p-5 sm:p-6">
           <div className="mb-3 flex items-start gap-2">
@@ -113,14 +113,14 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   aria-current="true"
-                  className="flex items-center gap-3 rounded-lg bg-zinc-100 px-4 py-1.5 text-[14px] font-semibold leading-5"
+                  className="flex items-center gap-3 rounded-lg bg-zinc-100 px-4 py-1.5 app-page-body font-semibold"
                 >
                   <BookOpen className="h-5 w-5" />
                   <span>Skills</span>
                 </button>
                 <button
                   type="button"
-                  className="flex items-center gap-3 rounded-lg px-4 py-1.5 text-[14px] leading-5 transition-colors hover:bg-zinc-100"
+                  className="flex items-center gap-3 rounded-lg px-4 py-1.5 app-page-body transition-colors hover:bg-[var(--ui-hover-wash)]"
                 >
                   <span className="grid h-5 w-5 place-items-center">
                     <svg
@@ -146,7 +146,7 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
                 </button>
                 <button
                   type="button"
-                  className="flex items-center gap-3 rounded-lg px-4 py-1.5 text-[14px] leading-5 transition-colors hover:bg-zinc-100"
+                  className="flex items-center gap-3 rounded-lg px-4 py-1.5 app-page-body transition-colors hover:bg-[var(--ui-hover-wash)]"
                 >
                   <PluginsNavIcon className="h-5 w-5" />
                   <span>Plugins</span>
@@ -162,7 +162,7 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
                   placeholder="Search skills..."
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  className="h-full min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-[#898781]"
+                  className="app-page-body h-full min-w-0 flex-1 bg-transparent outline-none placeholder:text-zinc-400"
                 />
               </div>
 
@@ -170,7 +170,7 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   aria-pressed
-                  className="shrink-0 rounded-full bg-[#e6e5e0] px-4 py-1.5 text-[14px] font-[430] leading-[19.6px]"
+                  className="app-page-body shrink-0 rounded-full bg-zinc-100 px-3 py-1"
                 >
                   Shirova &amp; Partners
                 </button>
@@ -179,7 +179,7 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
                     <button
                       key={label}
                       type="button"
-                      className="flex h-8 min-w-[120px] items-center justify-between rounded-lg border border-black/10 bg-white px-3 text-[14px] text-[#898781]"
+                      className="app-page-muted flex h-8 min-w-[120px] items-center justify-between rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white px-3"
                     >
                       <span>{label}</span>
                       <ChevronDown className="h-4 w-4" />
@@ -194,11 +194,11 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
               >
                 {directorySkills.map((skill) => (
                   <li key={skill.name}>
-                    <article className="flex h-full min-h-[142px] flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 text-left transition-colors hover:bg-zinc-50">
+                    <article className="app-page-card flex h-full min-h-[132px] flex-col gap-2.5 p-3.5 text-left transition-colors">
                       <div className="flex items-start gap-3">
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <span
-                            className="truncate text-[14px] font-medium leading-5"
+                            className="app-page-body truncate font-medium"
                             title={skill.name}
                           >
                             /{skill.name}

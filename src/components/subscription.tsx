@@ -173,7 +173,7 @@ function PlanCarouselCard({
         <div className="flex flex-col gap-4">
           <div className="relative flex flex-col gap-4">
             <div className="flex items-start justify-between gap-2">
-              <span className="text-[15px] font-medium leading-[15px]">
+              <span className="app-page-body font-medium">
                 {plan.name}
               </span>
               {isMax && (
@@ -210,7 +210,7 @@ function PlanCarouselCard({
                   </span>
                 )}
                 <div className="flex items-baseline gap-0.5">
-                  <p className="text-[24px] font-semibold leading-[27px] tracking-[-0.24px]">
+                  <p className="app-page-title">
                     {plan.customPriceLabel === "From" && !isMax ? "From " : ""}
                     {plan.customPriceLabel !== "Custom" ? "₹" : ""}
                     {price.main}
@@ -237,7 +237,7 @@ function PlanCarouselCard({
             <button
               type="button"
               disabled
-              className="flex h-9 w-full cursor-default items-center justify-center rounded-[10px] border-2 border-black/10 bg-zinc-100 text-[14px] font-medium text-zinc-400"
+              className="app-btn app-btn-md flex w-full cursor-default items-center justify-center rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-zinc-100 font-medium text-zinc-400"
             >
               <Check className="mr-1.5 h-[18px] w-[18px]" />
               Current plan
@@ -247,7 +247,7 @@ function PlanCarouselCard({
               type="button"
               onClick={onSelect}
               className={cn(
-                "flex h-9 w-full items-center justify-center rounded-[10px] text-[14px] font-medium transition-colors",
+                "app-btn app-btn-md flex w-full items-center justify-center rounded-[var(--radius-sm)] font-medium transition-colors",
                 plan.isPopular
                   ? "bg-zinc-900 text-white hover:bg-zinc-800"
                   : "border-2 border-black/10 bg-white text-zinc-900 hover:bg-zinc-50",
@@ -324,7 +324,7 @@ function OrganizationPlanCarouselCard({
 
         <div className="flex flex-col gap-4">
           <div className="relative flex flex-col gap-4">
-            <span className="text-[15px] font-medium leading-[15px]">
+            <span className="app-page-body font-medium">
               {displayName}
             </span>
 
@@ -408,7 +408,7 @@ function OrganizationPlanCarouselCard({
                         );
                         return (
                           <>
-                            <span className="text-[18px] font-semibold leading-6 tracking-[-0.18px] text-zinc-900">
+                            <span className="app-page-section-title">
                               ₹{display.amount.toLocaleString("en-IN")}
                             </span>
                             <span className="text-[11px] font-medium text-zinc-500">
@@ -432,7 +432,7 @@ function OrganizationPlanCarouselCard({
                   <p className="text-[11px] font-medium leading-4 text-zinc-600">
                     Min {plan.minSeats} members
                   </p>
-                  <p className="text-[18px] font-semibold leading-6 tracking-[-0.18px] text-zinc-900">
+                  <p className="app-page-section-title">
                     {plan.usagePricingLabel}
                   </p>
                   {plan.usagePricingSubtext && (
@@ -448,7 +448,7 @@ function OrganizationPlanCarouselCard({
                   <p className="text-[11px] font-medium leading-4 text-zinc-600">
                     Min {plan.minSeats} seats · pooled usage
                   </p>
-                  <p className="text-[15px] font-semibold leading-5 text-zinc-900">
+                  <p className="app-page-section-title">
                     {plan.usagePricingLabel}
                   </p>
                   {plan.usagePricingSubtext && (
@@ -486,7 +486,7 @@ function OrganizationPlanCarouselCard({
             type="button"
             onClick={onSelect}
             className={cn(
-              "flex h-9 w-full items-center justify-center rounded-[10px] text-[14px] font-medium transition-colors",
+              "app-btn app-btn-md flex w-full items-center justify-center rounded-[var(--radius-sm)] font-medium transition-colors",
               isPrimaryCta
                 ? "bg-zinc-900 text-white hover:bg-zinc-800"
                 : "border-2 border-black/10 bg-white text-zinc-900 hover:bg-zinc-50",
@@ -801,7 +801,7 @@ export default function UpgradePageContent({
         >
           <ArrowLeft className="icon-lg" />
         </button>
-        <h1 className="max-w-[min(100%,14rem)] truncate text-center text-[17px] font-medium tracking-[-0.1px] sm:max-w-none sm:text-[20px]">
+        <h1 className="app-page-title max-w-[min(100%,14rem)] truncate text-center sm:max-w-none">
           Plans that grow with you
         </h1>
       </header>

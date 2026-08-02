@@ -306,7 +306,7 @@ export function LibraryView() {
       {isMobile ? <ProjectsMobileHeader title="Library" onOpenMobileNav={openMobileNav} isNavOpen={!isSidebarCollapsed} trailing={newMenu} /> : null}
 
       <header>
-        <div className="mobile-page-inset mx-auto flex w-full max-w-[1120px] flex-wrap items-center gap-3 px-4 py-5 sm:px-8 sm:py-7">
+        <div className="mobile-page-inset mx-auto flex w-full max-w-[var(--ui-page-max-width-wide,1120px)] flex-wrap items-center gap-3 px-4 py-4 sm:px-8 sm:py-5">
           <div className="min-w-0 flex-1 basis-full sm:basis-auto">
             <h1 className={cn(appPage.title, "hidden sm:block")}>Library</h1>
             <p className={cn(appPage.subtitle, "hidden sm:block")}>Your uploads, generated files, images, and saved text.</p>
@@ -378,8 +378,8 @@ export function LibraryView() {
             <div className="grid place-items-center py-24 text-[13px] text-zinc-400">Loading your library…</div>
           ) : entries.length === 0 ? (
             <div className="mx-auto flex max-w-md flex-col items-center py-24 text-center">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-zinc-100 text-zinc-500 dark:bg-white/10"><Folder className="icon-2xl" /></div>
-              <h2 className="mt-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{query ? "Nothing found" : "This folder is empty"}</h2>
+              <div className="grid h-12 w-12 place-items-center rounded-[var(--radius-md)] bg-zinc-100 text-zinc-500 dark:bg-white/10"><Folder className="icon-2xl" /></div>
+              <h2 className="app-page-section-title mt-4">{query ? "Nothing found" : "This folder is empty"}</h2>
               <p className="mt-1 text-[13px] leading-5 text-zinc-500">Upload files, paste text, or create a folder. Files created by the assistant also appear here.</p>
               {!query ? <Button onClick={() => uploadInputRef.current?.click()} variant="outline" className={cn(appPage.outlineCta, "mt-5")}><Upload className="icon-md" /> Upload files</Button> : null}
             </div>
@@ -432,7 +432,7 @@ export function LibraryView() {
                       >
                         <Icon className="icon-md" />
                       </span>
-                      <span className="truncate text-[14px] font-medium text-zinc-800 dark:text-zinc-200">{entry.name}</span>
+                      <span className="app-page-body truncate font-medium">{entry.name}</span>
                     </button>
                     <span className="text-[13px] text-zinc-500 max-sm:hidden">{formatDate(entry.updatedAt)}</span>
                     <span className="text-right text-[13px] tabular-nums text-zinc-500 max-sm:hidden">{entry.kind === "file" ? formatSize(entry.size) : "—"}</span>
@@ -466,10 +466,10 @@ export function LibraryView() {
       {draggingOver ? <div className="pointer-events-none absolute inset-4 z-50 grid place-items-center rounded-2xl border-2 border-dashed border-zinc-400 bg-white/90 text-center backdrop-blur dark:bg-zinc-950/90"><div><Upload className="icon-2xl mx-auto" /><p className="mt-3 text-[15px] font-semibold">Drop files to upload</p><p className="mt-1 text-[13px] text-zinc-500">They’ll be saved in this folder.</p></div></div> : null}
 
       <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
-        <DialogContent className="gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[560px]">
+        <DialogContent className="app-overlay-panel gap-0 overflow-hidden p-0 sm:max-w-[560px]">
           <DialogHeader className="border-b px-5 py-4 text-left"><DialogTitle className="text-[16px]">Create text file</DialogTitle><DialogDescription>Paste text and choose the filename and extension to store in your Library.</DialogDescription></DialogHeader>
           <div className="space-y-4 px-5 py-5">
-            <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-zinc-600">File name</span><input value={pasteName} onChange={(event) => setPasteName(event.target.value)} placeholder="notes.txt" className="h-10 w-full rounded-xl border border-zinc-200 px-3 text-[14px] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-900" /></label>
+            <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-zinc-600">File name</span><input value={pasteName} onChange={(event) => setPasteName(event.target.value)} placeholder="notes.txt" className="app-page-search !pl-3 outline-none" /></label>
             <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-zinc-600">Content</span><textarea value={pasteContent} onChange={(event) => setPasteContent(event.target.value)} placeholder="Paste or type text here…" rows={10} className="w-full resize-y rounded-xl border border-zinc-200 p-3 font-mono text-[13px] leading-5 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-900" /></label>
           </div>
           <DialogFooter className="border-t bg-zinc-50 px-5 py-3 dark:bg-white/5"><Button variant="ghost" onClick={() => setPasteOpen(false)}>Cancel</Button><Button disabled={busy || !pasteName.trim() || !pasteContent.trim()} onClick={() => void createPastedFile()} className="bg-zinc-950 text-white hover:bg-zinc-800">Create file</Button></DialogFooter>
@@ -477,11 +477,11 @@ export function LibraryView() {
       </Dialog>
 
       <Dialog open={folderOpen} onOpenChange={setFolderOpen}>
-        <DialogContent className="rounded-2xl sm:max-w-[420px]"><DialogHeader><DialogTitle>New folder</DialogTitle><DialogDescription>Create a folder inside the current location.</DialogDescription></DialogHeader><input autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void createFolder(); }} placeholder="Folder name" className="h-10 rounded-xl border border-zinc-200 px-3 text-[14px] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-900" /><DialogFooter><Button variant="ghost" onClick={() => setFolderOpen(false)}>Cancel</Button><Button disabled={busy || !folderName.trim()} onClick={() => void createFolder()} className="bg-zinc-950 text-white hover:bg-zinc-800">Create folder</Button></DialogFooter></DialogContent>
+        <DialogContent className="app-overlay-panel sm:max-w-[420px]"><DialogHeader><DialogTitle>New folder</DialogTitle><DialogDescription>Create a folder inside the current location.</DialogDescription></DialogHeader><input autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void createFolder(); }} placeholder="Folder name" className="app-page-search !h-9 !pl-3 outline-none" /><DialogFooter><Button variant="ghost" onClick={() => setFolderOpen(false)}>Cancel</Button><Button disabled={busy || !folderName.trim()} onClick={() => void createFolder()} className="bg-zinc-950 text-white hover:bg-zinc-800">Create folder</Button></DialogFooter></DialogContent>
       </Dialog>
 
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent className="rounded-2xl sm:max-w-[460px]"><DialogHeader><DialogTitle>Move {selected.size || 1} item{(selected.size || 1) === 1 ? "" : "s"}</DialogTitle><DialogDescription>Choose a destination folder.</DialogDescription></DialogHeader><div className="max-h-72 space-y-1 overflow-y-auto"><button onClick={() => void move(selectedRefs, null)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="icon-md text-amber-500" /><span className="text-[14px] font-medium">Library root</span></button>{listing?.allFolders.filter((folder) => !selected.has(`folder:${folder.id}`)).map((folder) => <button key={folder.id} onClick={() => void move(selectedRefs, folder.id)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="icon-md text-amber-500" /><span className="truncate text-[14px]">{folder.name}</span></button>)}</div><DialogFooter><Button variant="ghost" onClick={() => setMoveOpen(false)}>Cancel</Button></DialogFooter></DialogContent>
+        <DialogContent className="app-overlay-panel sm:max-w-[460px]"><DialogHeader><DialogTitle>Move {selected.size || 1} item{(selected.size || 1) === 1 ? "" : "s"}</DialogTitle><DialogDescription>Choose a destination folder.</DialogDescription></DialogHeader><div className="max-h-72 space-y-1 overflow-y-auto"><button onClick={() => void move(selectedRefs, null)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="icon-md text-amber-500" /><span className="app-page-body font-medium">Library root</span></button>{listing?.allFolders.filter((folder) => !selected.has(`folder:${folder.id}`)).map((folder) => <button key={folder.id} onClick={() => void move(selectedRefs, folder.id)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="icon-md text-amber-500" /><span className="app-page-body truncate">{folder.name}</span></button>)}</div><DialogFooter><Button variant="ghost" onClick={() => setMoveOpen(false)}>Cancel</Button></DialogFooter></DialogContent>
       </Dialog>
     </div>
   );

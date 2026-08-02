@@ -101,7 +101,7 @@ export function GiftPurchaseSuccessDialog({
           >
             <div
               className={cn(
-                "w-full max-w-[420px] overflow-hidden rounded-2xl border border-zinc-200/90",
+                "app-overlay-panel w-full max-w-[420px] overflow-hidden",
                 "bg-white shadow-[0_24px_80px_rgba(0,0,0,0.16)]",
               )}
               onClick={(e) => e.stopPropagation()}
@@ -126,7 +126,7 @@ export function GiftPurchaseSuccessDialog({
                 >
                   Gift purchased
                 </h2>
-                <p className="mt-2 text-[14px] leading-relaxed text-zinc-600">
+                <p className="app-page-muted mt-2 leading-relaxed">
                   {durationLabel
                     ? `${durationLabel} of Clauxen ${gift.planName}`
                     : `Clauxen ${gift.planName}`}
@@ -189,7 +189,7 @@ export function GiftPurchaseSuccessDialog({
                     <p className="text-[12px] font-medium uppercase tracking-wide text-zinc-500">
                       Backup gift code
                     </p>
-                    <code className="block rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-[14px] font-semibold tracking-wide text-zinc-900">
+                    <code className="app-page-body block rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white px-3 py-2 font-semibold tracking-wide">
                       {gift.giftCode}
                     </code>
                   </div>
@@ -201,7 +201,7 @@ export function GiftPurchaseSuccessDialog({
                   onClick={onClose}
                   className={cn(
                     appBtn.secondary,
-                    "mt-4 h-10 w-full rounded-xl",
+                    "mt-4 w-full",
                     isLink && gift.claimUrl && "mt-3",
                   )}
                 >
