@@ -50,7 +50,7 @@ function NavButton({
       >
         <Icon
           className={cn(
-            "size-5 shrink-0 stroke-[1.75]",
+            "icon-lg shrink-0 stroke-[1.75]",
             isActive
               ? "text-zinc-700 dark:text-zinc-200"
               : "text-zinc-500 dark:text-zinc-500",
@@ -75,7 +75,7 @@ function SettingsSearchInput({
   return (
     <div className={cn("relative", className)}>
       <Search
-        className="pointer-events-none absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400"
+        className="pointer-events-none absolute left-2 top-1/2 icon-lg -translate-y-1/2 text-zinc-400"
         aria-hidden
       />
       <input
@@ -120,7 +120,7 @@ function ScrollHintChevron({
           : "pointer-events-none opacity-0 scale-90",
       )}
     >
-      <Icon className="h-4 w-4" strokeWidth={2} aria-hidden />
+      <Icon className="icon-md" strokeWidth={2} aria-hidden />
     </button>
   );
 }
@@ -216,7 +216,7 @@ export function SettingsNavSidebar({
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 icon-md -translate-y-1/2 text-zinc-500" />
         </div>
       </div>
     );

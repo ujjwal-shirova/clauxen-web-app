@@ -19,13 +19,13 @@ export const authPageStyles = {
   ink: "#18181b",
   muted: "#71717a",
   outlinedBtn:
-    "relative inline-flex h-11 w-full items-center justify-center gap-2.5 overflow-hidden rounded-[10px] border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50 disabled:opacity-60",
+    "relative inline-flex h-11 w-full items-center justify-center gap-2.5 overflow-hidden rounded-[var(--radius-md)] border border-zinc-200 bg-white px-5 text-sm font-medium tracking-[-0.01em] text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.03)] transition-[border-color,background-color] hover:border-zinc-300 hover:bg-zinc-50 disabled:opacity-60",
   iconBtn:
-    "relative inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-[10px] border border-zinc-200 bg-white px-2.5 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-60",
+    "relative inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-[var(--radius-md)] border border-zinc-200 bg-white px-2.5 text-sm font-medium tracking-[-0.01em] text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.03)] transition-[border-color,background-color] hover:border-zinc-300 hover:bg-zinc-50 disabled:opacity-60",
   primaryBtn:
-    "relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] bg-zinc-900 px-5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-70",
+    "relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[var(--radius-md)] bg-zinc-900 px-5 text-sm font-medium tracking-[-0.01em] text-white transition-colors hover:bg-zinc-800 disabled:opacity-70",
   input:
-    "h-11 w-full rounded-[10px] border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus-visible:border-zinc-300 focus-visible:ring-2 focus-visible:ring-zinc-900/10",
+    "h-11 w-full rounded-[var(--radius-md)] border border-zinc-200 bg-white px-3.5 text-sm font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.02)] outline-none transition-[border-color,box-shadow] placeholder:text-zinc-400 focus-visible:border-zinc-300 focus-visible:ring-2 focus-visible:ring-zinc-900/10",
   /** Clickable label — no button hover wash; see `.auth-text-link` in globals.css */
   textLink: "auth-text-link text-[13px]",
 };

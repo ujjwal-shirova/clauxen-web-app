@@ -28,11 +28,10 @@ export function AppsExtensionsView({
         <button
           type="button"
           onClick={onClose}
-          className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-all hover:bg-zinc-100 sm:left-6"
+          className="ui-icon-button no-hover-overlay absolute left-3 top-1/2 -translate-y-1/2 text-zinc-800 sm:left-6"
           aria-label="Back"
         >
-          {/* ArrowLeft icon — navigation affordance */}
-          <ArrowLeft className="h-5 w-5 text-zinc-800" />
+          <ArrowLeft className="icon-lg" />
         </button>
       </header>
 
@@ -40,17 +39,15 @@ export function AppsExtensionsView({
       <div className="mobile-page-inset flex-1 overflow-y-auto pb-24 sm:px-6">
         {/* centered column — max-width 896px, responsive top padding */}
         <div className="mx-auto flex w-full max-w-[896px] flex-col items-center pt-3 sm:pt-8">
-          {/* page heading — serif font, responsive size, centered tagline */}
-          <h2 className="mb-6 max-w-[18ch] text-center font-serif text-[22px] font-medium leading-tight text-zinc-800 sm:mb-10 sm:max-w-none sm:text-[28px]">
+          <h2 className="mb-6 max-w-[18ch] text-center text-[22px] font-semibold leading-tight tracking-[-0.03em] text-zinc-800 sm:mb-10 sm:max-w-none sm:text-[28px]">
             Do more with Clauxen, everywhere you work
           </h2>
 
           {/* product cards grid — 1 col mobile, 2 col md; Cowork spans full width */}
           <div className="grid w-full grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
             {/* Cowork hero card — featured desktop product, md:col-span-2 full row */}
-            <div className="overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-2 shadow-sm transition-all hover:shadow-md sm:rounded-[32px] sm:p-2.5 md:col-span-2">
-              {/* inner two-column layout — copy left, mock UI preview right on md+ */}
-              <div className="grid h-full grid-cols-1 overflow-hidden rounded-[18px] border border-zinc-200 bg-zinc-50 md:grid-cols-2 sm:rounded-[24px]">
+            <div className="overflow-hidden rounded-[20px] border border-zinc-200 bg-white p-2 shadow-sm transition-all hover:shadow-md sm:p-2.5 md:col-span-2">
+              <div className="grid h-full grid-cols-1 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 md:grid-cols-2">
                 {/* left column — title, description, Upgrade CTA */}
                 <div className="flex flex-col justify-between p-5 sm:p-7">
                   <div>
@@ -80,7 +77,7 @@ export function AppsExtensionsView({
                   </Button>
                 </div>
                 {/* right column — decorative browser/window mockup preview */}
-                <div className="relative min-h-[240px] bg-gradient-to-br from-[#F0EEE6] to-[#FAF9F5]">
+                <div className="relative min-h-[240px] bg-gradient-to-br from-zinc-50 to-zinc-100">
                   {/* dot grid background pattern — radial-gradient CSS inline style */}
                   <div
                     className="absolute inset-0 opacity-40"
@@ -118,8 +115,8 @@ export function AppsExtensionsView({
               </div>
             </div>
 
-            <div className="bg-white border border-zinc-200 rounded-[32px] p-2.5 shadow-sm hover:shadow-md transition-all">
-              <div className="bg-zinc-50 rounded-[24px] border border-zinc-200 p-7 flex flex-col h-full">
+            <div className="rounded-[20px] border border-zinc-200 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
+              <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-zinc-50 p-7">
                 {/* Mobile section title */}
                 <h3 className="text-lg font-semibold text-zinc-800 mb-2">
                   Mobile
@@ -133,7 +130,7 @@ export function AppsExtensionsView({
                   {/* iOS row — icon, label, App Store link */}
                   <div className="flex items-center justify-between py-3 border-b border-black/5">
                     <div className="flex items-center gap-3">
-                      <Smartphone className="w-5 h-5 text-zinc-500" />
+                      <Smartphone className="icon-lg text-zinc-500" />
                       <span className="text-[14px]">iOS</span>
                     </div>
                     <a
@@ -148,7 +145,7 @@ export function AppsExtensionsView({
                   {/* Android row — icon, label, Play Store link */}
                   <div className="flex items-center justify-between py-3">
                     <div className="flex items-center gap-3">
-                      <Smartphone className="w-5 h-5 text-zinc-500" />
+                      <Smartphone className="icon-lg text-zinc-500" />
                       <span className="text-[14px]">Android</span>
                     </div>
                     <a
@@ -165,8 +162,8 @@ export function AppsExtensionsView({
             </div>
 
             {/* Clauxen Code card — terminal/IDE integrations, upgrade-gated */}
-            <div className="bg-white border border-zinc-200 rounded-[32px] p-2.5 shadow-sm hover:shadow-md transition-all">
-              <div className="bg-zinc-50 rounded-[24px] border border-zinc-200 p-7 flex flex-col h-full">
+            <div className="rounded-[20px] border border-zinc-200 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
+              <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-zinc-50 p-7">
                 {/* Clauxen Code product title */}
                 <h3 className="text-lg font-semibold text-zinc-800 mb-2">
                   Clauxen Code
@@ -191,10 +188,10 @@ export function AppsExtensionsView({
                     className="w-full flex items-center justify-between py-3 border-b border-black/5 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
                   >
                     <div className="flex items-center gap-3">
-                      <Laptop className="w-5 h-5 text-zinc-500" />
+                      <Laptop className="icon-lg text-zinc-500" />
                       <span className="text-[14px]">Terminal</span>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ChevronRight className="icon-md text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>
                   {/* VS Code integration row — brand color square icon */}
                   <button
@@ -208,7 +205,7 @@ export function AppsExtensionsView({
                       </div>
                       <span className="text-[14px]">VS Code</span>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ChevronRight className="icon-md text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>
                   {/* JetBrains integration row — pink brand accent */}
                   <button
@@ -222,15 +219,15 @@ export function AppsExtensionsView({
                       </div>
                       <span className="text-[14px]">JetBrains</span>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ChevronRight className="icon-md text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Microsoft Office card — Excel/PowerPoint add-ins, green gradient tint */}
-            <div className="bg-white border border-zinc-200 rounded-[32px] p-2.5 shadow-sm hover:shadow-md transition-all">
-              <div className="bg-gradient-to-br from-[#F0FDF4]/50 to-[#FAF9F5] rounded-[24px] border border-zinc-200 p-7 flex flex-col h-full">
+            <div className="rounded-[20px] border border-zinc-200 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
+              <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-zinc-100/80 p-7">
                 {/* Microsoft Office section title */}
                 <h3 className="text-lg font-semibold text-zinc-800 mb-2">
                   Microsoft Office
@@ -261,7 +258,7 @@ export function AppsExtensionsView({
                       </div>
                       <span className="text-[14px]">Excel</span>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ChevronRight className="icon-md text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>
                   {/* PowerPoint row — red brand square */}
                   <button
@@ -275,15 +272,15 @@ export function AppsExtensionsView({
                       </div>
                       <span className="text-[14px]">PowerPoint</span>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ChevronRight className="icon-md text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Chrome extension card — browser automation, red-tint gradient */}
-            <div className="bg-white border border-zinc-200 rounded-[32px] p-2.5 shadow-sm hover:shadow-md transition-all">
-              <div className="bg-gradient-to-br from-[#FEF2F2]/50 to-[#FAF9F5] rounded-[24px] border border-zinc-200 p-7 flex flex-col h-full">
+            <div className="rounded-[20px] border border-zinc-200 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
+              <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-zinc-100/80 p-7">
                 {/* Chrome extension title */}
                 <h3 className="text-lg font-semibold text-zinc-800 mb-2">
                   Chrome

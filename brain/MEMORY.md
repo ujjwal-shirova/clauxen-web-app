@@ -283,3 +283,5 @@ Full target surface — **remember only; implement only when user asks for a sli
 | 2026-07-31 | Go plan monthly is ₹399 (was ₹99); DB plans.price_paise_monthly=39900, yearly=383000. Soft-nav and overlays call focusAppSurface so scroll/hover work without an extra click; profile menu hides trigger while open. | User: Razorpay must charge 399; focus stuck on previous page |
 
 | 2026-07-31 | Account menu trigger stays visible while open (do not hide). Current plan id/label cached in sessionStorage (billing-plan-cache) so pricing paints Current plan immediately without Free→Go flash; overlays show shimmer shells while chunks load and prefetch on idle. | User: profile vanished; pricing current-plan flash |
+
+| 2026-08-02 | Product UI stays warm-canvas + zinc monochrome (no indigo/purple primary). Shared page chrome via src/lib/app-page-chrome.ts; icons 18px chrome / 16px menus (icon-lg/icon-md); CTAs via app-btn charcoal primary. | User asked for polished minimal AI-platform UI; prior indigo redesign was reverted. |

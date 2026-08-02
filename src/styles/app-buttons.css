@@ -19,6 +19,7 @@
     flex-shrink: 0;
     font-weight: 500;
     line-height: 1.25;
+    letter-spacing: -0.01em;
     white-space: nowrap;
     user-select: none;
     cursor: pointer;
@@ -35,6 +36,12 @@
     opacity: 0.5;
     cursor: not-allowed;
     pointer-events: none;
+  }
+
+  .app-btn svg {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    flex-shrink: 0;
   }
 
   /* ── Primary (dark solid) — hover must NOT wash out white label ── */
@@ -60,6 +67,24 @@
     box-shadow: none !important;
   }
 
+  .dark .app-btn-primary,
+  .dark .btn-solid-dark {
+    background-color: #f4f4f5 !important;
+    color: #18181b !important;
+  }
+
+  .dark .app-btn-primary:hover:not(:disabled),
+  .dark .btn-solid-dark:hover:not(:disabled) {
+    background-color: #e4e4e7 !important;
+    color: #18181b !important;
+  }
+
+  .dark .app-btn-primary:active:not(:disabled),
+  .dark .btn-solid-dark:active:not(:disabled) {
+    background-color: #ffffff !important;
+    color: #18181b !important;
+  }
+
   /* ── Secondary (outlined / light) ── */
   .app-btn-secondary {
     background-color: #ffffff;
@@ -78,6 +103,19 @@
   .app-btn-secondary:active:not(:disabled) {
     background-color: #f4f4f5 !important;
     box-shadow: none !important;
+  }
+
+  .dark .app-btn-secondary {
+    background-color: transparent;
+    color: #f4f4f5;
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: none;
+  }
+
+  .dark .app-btn-secondary:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
   }
 
   /* ── Ghost (transparent toolbar / icon-adjacent) ── */
@@ -99,6 +137,15 @@
     box-shadow: none !important;
   }
 
+  .dark .app-btn-ghost {
+    color: #a1a1aa;
+  }
+
+  .dark .app-btn-ghost:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.07) !important;
+    color: #f4f4f5 !important;
+  }
+
   /* Keep hover fill while menus/popovers are open (e.g. Files + dropdown) */
   .app-btn-ghost[data-state="open"],
   .app-btn-ghost[aria-expanded="true"] {
@@ -107,13 +154,19 @@
     box-shadow: none !important;
   }
 
+  .dark .app-btn-ghost[data-state="open"],
+  .dark .app-btn-ghost[aria-expanded="true"] {
+    background-color: rgba(255, 255, 255, 0.07) !important;
+    color: #f4f4f5 !important;
+  }
+
   /* Sizes */
   .app-btn-sm {
     height: 2rem;
     padding-left: 0.75rem;
     padding-right: 0.75rem;
     font-size: 0.875rem;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-sm);
   }
 
   .app-btn-md {
@@ -121,7 +174,7 @@
     padding-left: 0.875rem;
     padding-right: 0.875rem;
     font-size: 0.875rem;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-sm);
   }
 
   .app-btn-lg {
@@ -129,7 +182,7 @@
     padding-left: 1.25rem;
     padding-right: 1.25rem;
     font-size: 0.875rem;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-md);
   }
 
   .btn-primary-solid {
@@ -157,7 +210,7 @@
     min-height: var(--icon-btn-size, 32px);
     min-width: var(--icon-btn-size, 32px);
     padding: 7px;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-sm);
     gap: 0;
   }
 }

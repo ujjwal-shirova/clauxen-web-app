@@ -11,9 +11,9 @@ import {
   sortProjects,
   type ProjectSortKey,
 } from "@/components/projects/project-sort-menu";
-import { Button } from "@/components/ui/button";
 import { ProjectsViewMobile } from "@/components/projects/projects-view-mobile";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { appPage } from "@/lib/app-page-chrome";
 
 interface ProjectsViewProps {
   projects: ApiProject[];
@@ -102,53 +102,48 @@ export function ProjectsView({
       ) : null}
 
       <div
-        className={cn(
-          "flex h-full w-full flex-1 flex-col overflow-hidden bg-white font-sans text-zinc-900",
-          isMobile && "hidden",
-        )}
+        className={cn(appPage.surface, isMobile && "hidden")}
       >
-      <div className="w-full shrink-0 border-b border-zinc-100">
-        <div className="mobile-page-inset mx-auto w-full max-w-[880px] pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-5 sm:pt-6 lg:pt-8">
+      <div className={appPage.headerBleed}>
+        <div className={appPage.headerInner}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
-              <h1 className="font-serif text-[24px] font-medium leading-[1.25] tracking-[-0.2px] text-zinc-800 sm:text-[28px] sm:leading-[34px]">
-                Projects
-              </h1>
-              <p className="mt-1 text-[13px] leading-5 text-zinc-500">
+              <h1 className={appPage.title}>Projects</h1>
+              <p className={appPage.subtitle}>
                 Organize chats, files, and instructions in one place.
               </p>
             </div>
 
             <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end sm:gap-3">
               <ProjectSortMenu value={sortKey} onChange={setSortKey} />
-              <Button
+              <button
                 type="button"
                 onClick={onNewProject}
-                className="h-9 shrink-0 gap-1.5 rounded-full bg-zinc-900 px-4 text-[14px] font-medium text-white shadow-sm hover:bg-zinc-800 active:scale-[0.985]"
+                className={appPage.primaryCta}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="icon-md" />
                 <span className="hidden min-[380px]:inline">New project</span>
                 <span className="min-[380px]:hidden">New</span>
-              </Button>
+              </button>
             </div>
           </div>
 
-          <div className="relative mt-4 sm:mt-5">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+          <div className={appPage.searchWrap}>
+            <Search className={appPage.searchIcon} />
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search projects..."
               aria-label="Search projects"
-              className="h-10 w-full rounded-full border border-zinc-200 bg-white pl-10 pr-4 text-[14px] text-zinc-900 transition-colors placeholder:text-zinc-400 focus:border-zinc-300 focus:outline-none"
+              className={appPage.searchInput}
             />
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="mobile-page-inset mx-auto w-full max-w-[880px] px-0 pb-24 pt-5 sm:px-6 sm:pt-6">
+        <div className={appPage.content}>
           {showSkeletons && <ProjectCardSkeletonGrid count={6} />}
 
           {isEmptySearch && (
@@ -159,34 +154,31 @@ export function ProjectsView({
 
           {isEmptyLibrary && (
             <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
-              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 text-zinc-300">
+              <div className={appPage.emptyIconWell}>
                 <svg
-                  width="40"
-                  height="40"
+                  width="36"
+                  height="36"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.25"
+                  strokeWidth="1.5"
                   aria-hidden
                 >
                   <path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
                 </svg>
               </div>
-              <h3 className="mb-2 text-[15px] font-medium text-zinc-800">
-                Create your first project
-              </h3>
-              <p className="mb-6 max-w-[380px] text-[13.5px] leading-relaxed text-zinc-500">
+              <h3 className={appPage.emptyTitle}>Create your first project</h3>
+              <p className={appPage.emptyBody}>
                 Upload materials, set custom instructions, and keep related
                 conversations together.
               </p>
-              <Button
+              <button
                 type="button"
-                variant="outline"
                 onClick={onNewProject}
-                className="h-9 rounded-full border-zinc-200 px-4 text-[13.5px] font-medium text-zinc-900 hover:bg-zinc-50"
+                className={appPage.outlineCta}
               >
                 New project
-              </Button>
+              </button>
             </div>
           )}
 

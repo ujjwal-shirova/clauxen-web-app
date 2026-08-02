@@ -46,10 +46,10 @@ function ProjectMenuRow({
     >
       <Icon
         className={cn(
-          "h-5 w-5 shrink-0",
-          destructive ? "text-[#8e2626]" : "text-zinc-900",
+          "icon-md shrink-0",
+          destructive ? "text-[#8e2626]" : "text-zinc-700",
         )}
-        strokeWidth={1.5}
+        strokeWidth={1.75}
       />
       <span className="min-w-0 flex-1 truncate">{label}</span>
     </DropdownMenuItem>
@@ -85,9 +85,9 @@ export function ProjectCard({
           type="button"
           onClick={onOpen}
           className={cn(
-            "flex h-full min-h-[148px] w-full flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 text-left",
-            "outline-none transition-all duration-150 hover:border-zinc-300 hover:shadow-[0_2px_8px_rgba(24,24,27,0.06)]",
-            "focus-visible:ring-2 focus-visible:ring-zinc-400/40",
+            "flex h-full min-h-[148px] w-full flex-col gap-3 rounded-[var(--radius-md)] border border-zinc-200/90 bg-white p-4 text-left",
+            "outline-none transition-[border-color,box-shadow] duration-150 hover:border-zinc-300 hover:shadow-[0_2px_10px_rgba(24,24,27,0.05)]",
+            "focus-visible:ring-2 focus-visible:ring-zinc-900/15",
           )}
         >
           <div className="flex items-center overflow-hidden pr-10">
@@ -122,9 +122,9 @@ export function ProjectCard({
                 type="button"
                 aria-label={`More options for ${project.name}`}
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/40"
+                className="ui-icon-button no-hover-overlay text-zinc-500"
               >
-                <MoreHorizontal className="h-5 w-5" strokeWidth={1.5} />
+                <MoreHorizontal className="icon-md" strokeWidth={1.75} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent

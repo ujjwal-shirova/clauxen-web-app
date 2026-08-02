@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { BookLock, Loader2 } from "lucide-react";
+import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useAppLayout } from "@/components/app-layout-context";
@@ -38,8 +39,8 @@ function ClauxenMark({ className }: { className?: string }) {
     >
       <defs>
         <linearGradient id="clauxen-mark" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#5eb0ff" />
-          <stop offset="100%" stopColor="#1a7af5" />
+          <stop offset="0%" stopColor="#27272a" />
+          <stop offset="100%" stopColor="#18181b" />
         </linearGradient>
       </defs>
       <rect width="40" height="40" rx="12" fill="url(#clauxen-mark)" />
@@ -156,7 +157,7 @@ export function MyClauxenView() {
       >
         {loading && !data ? (
           <div className="flex h-64 items-center justify-center text-zinc-400">
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <Loader2 className="icon-2xl animate-spin" />
           </div>
         ) : error && !data ? (
           <div className="rounded-2xl bg-red-50 px-5 py-6 text-sm text-red-600">
@@ -180,7 +181,7 @@ export function MyClauxenView() {
                 <div className="mb-3">
                   <ClauxenMark />
                 </div>
-                <h1 className="text-[28px] font-semibold tracking-tight sm:text-[32px]">
+                <h1 className={cn(appPage.title, "text-[28px] sm:text-[32px]")}>
                   {pageTitle}
                 </h1>
                 <p className="mt-2 max-w-[34rem] text-[14px] leading-relaxed text-zinc-500 sm:text-[15px]">
@@ -197,10 +198,10 @@ export function MyClauxenView() {
                 disabled={saving || data.selfGrowthEnabled}
                 onClick={() => void setSelfGrowth(true)}
                 className={cn(
-                  "shrink-0 rounded-full px-4 py-2 text-[13px] font-medium transition-colors",
+                  "shrink-0 rounded-lg px-4 py-2 text-[13px] font-medium transition-colors",
                   data.selfGrowthEnabled
                     ? "bg-zinc-100 text-zinc-500"
-                    : "bg-zinc-900 text-white hover:bg-zinc-800",
+                    : appPage.primaryCta,
                   saving && "opacity-70",
                 )}
               >
@@ -291,7 +292,7 @@ export function MyClauxenView() {
                         type="button"
                         disabled={saving}
                         onClick={() => void setSelfGrowth(true)}
-                        className="font-medium text-[#2589FF] hover:underline"
+                        className="font-medium text-zinc-900 underline-offset-2 hover:underline"
                       >
                         Enable it
                       </button>
@@ -304,7 +305,7 @@ export function MyClauxenView() {
             {/* Promo */}
             <section className="mt-14 flex flex-col items-start justify-between gap-8 border-t border-zinc-100 pt-10 sm:flex-row sm:items-center">
               <div className="max-w-md">
-                <h2 className="text-[20px] font-semibold tracking-tight sm:text-[22px]">
+                <h2 className={cn(appPage.title, "text-[20px] sm:text-[22px]")}>
                   Clauxen can now learn and grow on its own
                 </h2>
                 <p className="mt-2 text-[14px] leading-relaxed text-zinc-500">
@@ -317,7 +318,7 @@ export function MyClauxenView() {
                   disabled={saving || data.selfGrowthEnabled}
                   onClick={() => void setSelfGrowth(true)}
                   className={cn(
-                    "mt-5 rounded-full px-4 py-2 text-[13px] font-medium transition-colors",
+                    "mt-5 rounded-lg px-4 py-2 text-[13px] font-medium transition-colors",
                     data.selfGrowthEnabled
                       ? "bg-zinc-100 text-zinc-500"
                       : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200/80",

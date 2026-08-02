@@ -11,8 +11,8 @@ const NAV = [
 
 function AuthHeader() {
   return (
-    <header className="flex w-full shrink-0 items-center justify-center px-5 py-4 sm:px-6">
-      <nav className="flex items-center gap-5 text-[13px] text-zinc-500">
+    <header className="flex w-full shrink-0 items-center justify-center border-b border-zinc-200/60 px-5 py-4 sm:px-6">
+      <nav className="flex items-center gap-6 text-[13px] font-medium text-zinc-500">
         <a
           href="/#product"
           className="inline-flex items-center gap-2 transition-colors hover:text-zinc-900"

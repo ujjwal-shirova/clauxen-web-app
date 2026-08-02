@@ -72,7 +72,7 @@ export function SettingsPanelHeaderWithHelp({
         rel="noopener noreferrer"
       >
         <span className="sr-only">{helpLabel}</span>
-        <Info className="h-4 w-4 shrink-0" aria-hidden />
+        <Info className="icon-md shrink-0" aria-hidden />
       </a>
     </div>
   );
@@ -94,7 +94,7 @@ export function SettingsValueRow({
         !borderless && "border-b border-[rgba(11,11,11,0.05)]",
       )}
     >
-      <span className="text-[14px] font-[430] text-zinc-900">{label}</span>
+      <span className="text-[14px] font-medium text-zinc-900">{label}</span>
       <span className="text-[14px] text-zinc-600 sm:max-w-[65%] sm:truncate sm:text-right">
         {value}
       </span>
@@ -120,7 +120,7 @@ export function SettingsAddFamilyButton({
         className,
       )}
     >
-      <UserPlus className="h-5 w-5 shrink-0" aria-hidden />
+      <UserPlus className="icon-lg shrink-0" aria-hidden />
       {children}
     </button>
   );
@@ -210,7 +210,7 @@ const settingsOptionTriggerClass = cn(
 );
 
 const settingsOptionMenuItemClass = cn(
-  "flex cursor-pointer select-none items-start gap-2.5 rounded-xl px-3 py-2.5 text-[14px] font-[430] text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus:text-zinc-900 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800 dark:data-[highlighted]:bg-zinc-800",
+  "flex cursor-pointer select-none items-start gap-2.5 rounded-xl px-3 py-2.5 text-[14px] font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus:text-zinc-900 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800 dark:data-[highlighted]:bg-zinc-800",
   settingsFocusReset,
 );
 
@@ -266,7 +266,7 @@ export function SettingsOptionPicker({
           >
             {selected.label ?? selected.value}
           </span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
+          <ChevronDown className="icon-md shrink-0 text-zinc-500" aria-hidden />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -304,7 +304,7 @@ export function SettingsOptionPicker({
               </span>
               {isSelected ? (
                 <Check
-                  className="mt-0.5 h-4 w-4 shrink-0 text-zinc-900"
+                  className="icon-md mt-0.5 shrink-0 text-zinc-900"
                   aria-hidden
                 />
               ) : (
@@ -345,7 +345,7 @@ export function SettingsSelectButton({
     >
       {leading}
       <span>{value}</span>
-      <ChevronDown className="h-4 w-4 text-zinc-500" aria-hidden />
+      <ChevronDown className="icon-md text-zinc-500" aria-hidden />
     </button>
   );
 }
@@ -546,10 +546,10 @@ export function SettingsChevronRow({
         !borderless && "border-b border-[rgba(11,11,11,0.05)]",
       )}
     >
-      <span className="text-[14px] font-[430] text-zinc-900">{label}</span>
+      <span className="text-[14px] font-medium text-zinc-900">{label}</span>
       <span className="flex shrink-0 items-center gap-1 text-[14px] text-zinc-500">
         {value ? <span>{value}</span> : null}
-        <ChevronRight className="h-4 w-4" aria-hidden />
+        <ChevronRight className="icon-md" aria-hidden />
       </span>
     </button>
   );
@@ -571,7 +571,7 @@ export function SettingsManageRow({
         !borderless && "border-b border-[rgba(11,11,11,0.05)]",
       )}
     >
-      <span className="text-[14px] font-[430] text-zinc-900">{label}</span>
+      <span className="text-[14px] font-medium text-zinc-900">{label}</span>
       <SettingsPillButton
         onClick={onManage}
         className="h-9 min-h-9 px-4 text-[14px]"
@@ -660,7 +660,7 @@ export function SettingsIconMenuButton({
       aria-label={ariaLabel}
       className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
     >
-      <MoreHorizontal className="h-5 w-5" />
+      <MoreHorizontal className="icon-lg" />
     </button>
   );
 }

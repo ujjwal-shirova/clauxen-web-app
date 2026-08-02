@@ -799,7 +799,7 @@ export default function UpgradePageContent({
           className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-colors hover:bg-zinc-100 sm:left-4"
           aria-label="Back"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="icon-lg" />
         </button>
         <h1 className="max-w-[min(100%,14rem)] truncate text-center text-[17px] font-medium tracking-[-0.1px] sm:max-w-none sm:text-[20px]">
           Plans that grow with you

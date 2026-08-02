@@ -50,6 +50,7 @@ import {
   type LibraryFolder,
   type LibraryListing,
 } from "@/lib/api/library";
+import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
 
 type LibraryEntry =
@@ -259,20 +260,20 @@ export function LibraryView() {
   const newMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button disabled={busy} className="h-9 rounded-full bg-zinc-950 px-4 text-white shadow-sm hover:bg-zinc-800">
-          <Plus className="mr-1.5 h-4 w-4" /> New
+        <Button disabled={busy} className={appPage.primaryCta}>
+          <Plus className="icon-md" /> New
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48 rounded-xl p-1">
         <DropdownMenuItem onClick={() => uploadInputRef.current?.click()} className="gap-2 rounded-lg py-2">
-          <Upload className="h-4 w-4" /> Upload files
+          <Upload className="icon-md" /> Upload files
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setPasteOpen(true)} className="gap-2 rounded-lg py-2">
-          <FileText className="h-4 w-4" /> Paste text
+          <FileText className="icon-md" /> Paste text
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => setFolderOpen(true)} className="gap-2 rounded-lg py-2">
-          <Folder className="h-4 w-4" /> New folder
+          <Folder className="icon-md" /> New folder
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -280,7 +281,7 @@ export function LibraryView() {
 
   return (
     <div
-      className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-white font-sans dark:bg-zinc-950"
+      className="app-page-surface relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden font-sans"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) {
           event.preventDefault();
@@ -307,18 +308,18 @@ export function LibraryView() {
       <header>
         <div className="mobile-page-inset mx-auto flex w-full max-w-[1120px] flex-wrap items-center gap-3 px-4 py-5 sm:px-8 sm:py-7">
           <div className="min-w-0 flex-1 basis-full sm:basis-auto">
-            <h1 className="hidden font-serif text-[30px] font-medium tracking-[-0.035em] text-zinc-950 dark:text-zinc-50 sm:block">Library</h1>
-            <p className="mt-1 hidden text-[13px] text-zinc-500 sm:block">Your uploads, generated files, images, and saved text.</p>
+            <h1 className={cn(appPage.title, "hidden sm:block")}>Library</h1>
+            <p className={cn(appPage.subtitle, "hidden sm:block")}>Your uploads, generated files, images, and saved text.</p>
           </div>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:flex-none">
-            <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-zinc-100 p-1 dark:bg-white/10">
+            <div className="flex shrink-0 items-center gap-0.5 rounded-lg bg-zinc-100 p-1 dark:bg-white/10">
               {(["all", "images", "files"] as Filter[]).map((value) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => { setFilter(value); setSelected(new Set()); }}
                   className={cn(
-                    "no-hover-overlay rounded-full px-3 py-1 text-[12.5px] capitalize transition",
+                    "no-hover-overlay rounded-md px-3 py-1 text-[12.5px] font-medium capitalize transition",
                     filter === value
                       ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-white"
                       : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200",
@@ -328,9 +329,9 @@ export function LibraryView() {
                 </button>
               ))}
             </div>
-            <label className="relative flex h-10 w-full max-w-[280px] items-center sm:w-[240px]">
-              <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-zinc-400" />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this folder" className="h-full w-full rounded-full border border-zinc-200 bg-white pl-10 pr-4 text-[14px] outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-900" />
+            <label className="relative flex w-full max-w-[280px] items-center sm:w-[240px]">
+              <Search className={appPage.searchIcon} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this folder" aria-label="Search this folder" className={appPage.searchInput} />
             </label>
             {!isMobile ? newMenu : null}
           </div>
@@ -343,7 +344,7 @@ export function LibraryView() {
             <button type="button" onClick={() => void load(null)} className="no-hover-overlay rounded-md px-2 py-1 font-medium hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white">Library</button>
             {listing?.breadcrumbs.map((crumb) => (
               <React.Fragment key={crumb.id}>
-                <ChevronRight className="h-3.5 w-3.5 text-zinc-300" />
+                <ChevronRight className="icon-sm text-zinc-300" />
                 <button type="button" onClick={() => void load(crumb.id)} className="no-hover-overlay max-w-36 truncate rounded-md px-2 py-1 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white">{crumb.name}</button>
               </React.Fragment>
             ))}
@@ -356,9 +357,9 @@ export function LibraryView() {
           {selected.size > 0 ? (
             <div className="mb-3 flex min-h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 dark:border-white/10 dark:bg-white/5">
               <span className="text-[13px] font-medium">{selected.size} selected</span>
-              <Button variant="ghost" size="sm" onClick={() => setMoveOpen(true)} className="ml-auto h-8 gap-1.5"><FolderInput className="h-4 w-4" /> Move</Button>
-              <Button variant="ghost" size="sm" onClick={() => void remove(selectedRefs)} className="h-8 gap-1.5 text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" /> Delete</Button>
-              <button type="button" onClick={() => setSelected(new Set())} aria-label="Clear selection" className="no-hover-overlay grid h-8 w-8 place-items-center rounded-md hover:bg-zinc-200 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
+              <Button variant="ghost" size="sm" onClick={() => setMoveOpen(true)} className="ml-auto h-8 gap-1.5"><FolderInput className="icon-md" /> Move</Button>
+              <Button variant="ghost" size="sm" onClick={() => void remove(selectedRefs)} className="h-8 gap-1.5 text-red-600 hover:text-red-700"><Trash2 className="icon-md" /> Delete</Button>
+              <button type="button" onClick={() => setSelected(new Set())} aria-label="Clear selection" className="no-hover-overlay grid h-8 w-8 place-items-center rounded-md hover:bg-zinc-200 dark:hover:bg-white/10"><X className="icon-md" /></button>
             </div>
           ) : null}
 
@@ -377,10 +378,10 @@ export function LibraryView() {
             <div className="grid place-items-center py-24 text-[13px] text-zinc-400">Loading your library…</div>
           ) : entries.length === 0 ? (
             <div className="mx-auto flex max-w-md flex-col items-center py-24 text-center">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-zinc-100 text-zinc-500 dark:bg-white/10"><Folder className="h-6 w-6" /></div>
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-zinc-100 text-zinc-500 dark:bg-white/10"><Folder className="icon-2xl" /></div>
               <h2 className="mt-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{query ? "Nothing found" : "This folder is empty"}</h2>
               <p className="mt-1 text-[13px] leading-5 text-zinc-500">Upload files, paste text, or create a folder. Files created by the assistant also appear here.</p>
-              {!query ? <Button onClick={() => uploadInputRef.current?.click()} variant="outline" className="mt-5 h-9 rounded-full"><Upload className="mr-2 h-4 w-4" /> Upload files</Button> : null}
+              {!query ? <Button onClick={() => uploadInputRef.current?.click()} variant="outline" className={cn(appPage.outlineCta, "mt-5")}><Upload className="icon-md" /> Upload files</Button> : null}
             </div>
           ) : (
             <div>
@@ -429,7 +430,7 @@ export function LibraryView() {
                             : "bg-zinc-100 text-zinc-500 dark:bg-white/10",
                         )}
                       >
-                        <Icon className="h-4 w-4" />
+                        <Icon className="icon-md" />
                       </span>
                       <span className="truncate text-[14px] font-medium text-zinc-800 dark:text-zinc-200">{entry.name}</span>
                     </button>
@@ -442,16 +443,16 @@ export function LibraryView() {
                           aria-label={`Actions for ${entry.name}`}
                           className="no-hover-overlay grid h-8 w-8 place-items-center rounded-lg text-zinc-400 opacity-0 hover:bg-zinc-200 group-hover:opacity-100 data-[state=open]:opacity-100 dark:hover:bg-white/10"
                         >
-                          <MoreHorizontal className="h-4 w-4" />
+                          <MoreHorizontal className="icon-md" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44 rounded-xl p-1">
-                        <DropdownMenuItem onClick={() => openEntry(entry)} className="gap-2 rounded-lg"><Grid2X2 className="h-4 w-4" /> Open</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => rename(entry)} className="gap-2 rounded-lg"><Pencil className="h-4 w-4" /> Rename</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setSelected(new Set([key])); setMoveOpen(true); }} className="gap-2 rounded-lg"><FolderInput className="h-4 w-4" /> Move to…</DropdownMenuItem>
-                        {entry.kind === "file" ? <DropdownMenuItem onClick={() => openEntry(entry)} className="gap-2 rounded-lg"><Download className="h-4 w-4" /> Download</DropdownMenuItem> : null}
+                        <DropdownMenuItem onClick={() => openEntry(entry)} className="gap-2 rounded-lg"><Grid2X2 className="icon-md" /> Open</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => rename(entry)} className="gap-2 rounded-lg"><Pencil className="icon-md" /> Rename</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setSelected(new Set([key])); setMoveOpen(true); }} className="gap-2 rounded-lg"><FolderInput className="icon-md" /> Move to…</DropdownMenuItem>
+                        {entry.kind === "file" ? <DropdownMenuItem onClick={() => openEntry(entry)} className="gap-2 rounded-lg"><Download className="icon-md" /> Download</DropdownMenuItem> : null}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => void remove([{ id: entry.id, kind: entry.kind }])} className="gap-2 rounded-lg text-red-600 focus:text-red-600"><Trash2 className="h-4 w-4" /> Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => void remove([{ id: entry.id, kind: entry.kind }])} className="gap-2 rounded-lg text-red-600 focus:text-red-600"><Trash2 className="icon-md" /> Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -462,7 +463,7 @@ export function LibraryView() {
         </div>
       </main>
 
-      {draggingOver ? <div className="pointer-events-none absolute inset-4 z-50 grid place-items-center rounded-3xl border-2 border-dashed border-zinc-400 bg-white/90 text-center backdrop-blur dark:bg-zinc-950/90"><div><Upload className="mx-auto h-7 w-7" /><p className="mt-3 text-[15px] font-semibold">Drop files to upload</p><p className="mt-1 text-[13px] text-zinc-500">They’ll be saved in this folder.</p></div></div> : null}
+      {draggingOver ? <div className="pointer-events-none absolute inset-4 z-50 grid place-items-center rounded-2xl border-2 border-dashed border-zinc-400 bg-white/90 text-center backdrop-blur dark:bg-zinc-950/90"><div><Upload className="icon-2xl mx-auto" /><p className="mt-3 text-[15px] font-semibold">Drop files to upload</p><p className="mt-1 text-[13px] text-zinc-500">They’ll be saved in this folder.</p></div></div> : null}
 
       <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
         <DialogContent className="gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[560px]">
@@ -480,7 +481,7 @@ export function LibraryView() {
       </Dialog>
 
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent className="rounded-2xl sm:max-w-[460px]"><DialogHeader><DialogTitle>Move {selected.size || 1} item{(selected.size || 1) === 1 ? "" : "s"}</DialogTitle><DialogDescription>Choose a destination folder.</DialogDescription></DialogHeader><div className="max-h-72 space-y-1 overflow-y-auto"><button onClick={() => void move(selectedRefs, null)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="h-4 w-4 text-amber-500" /><span className="text-[14px] font-medium">Library root</span></button>{listing?.allFolders.filter((folder) => !selected.has(`folder:${folder.id}`)).map((folder) => <button key={folder.id} onClick={() => void move(selectedRefs, folder.id)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="h-4 w-4 text-amber-500" /><span className="truncate text-[14px]">{folder.name}</span></button>)}</div><DialogFooter><Button variant="ghost" onClick={() => setMoveOpen(false)}>Cancel</Button></DialogFooter></DialogContent>
+        <DialogContent className="rounded-2xl sm:max-w-[460px]"><DialogHeader><DialogTitle>Move {selected.size || 1} item{(selected.size || 1) === 1 ? "" : "s"}</DialogTitle><DialogDescription>Choose a destination folder.</DialogDescription></DialogHeader><div className="max-h-72 space-y-1 overflow-y-auto"><button onClick={() => void move(selectedRefs, null)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="icon-md text-amber-500" /><span className="text-[14px] font-medium">Library root</span></button>{listing?.allFolders.filter((folder) => !selected.has(`folder:${folder.id}`)).map((folder) => <button key={folder.id} onClick={() => void move(selectedRefs, folder.id)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="icon-md text-amber-500" /><span className="truncate text-[14px]">{folder.name}</span></button>)}</div><DialogFooter><Button variant="ghost" onClick={() => setMoveOpen(false)}>Cancel</Button></DialogFooter></DialogContent>
       </Dialog>
     </div>
   );

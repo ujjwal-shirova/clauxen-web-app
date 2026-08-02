@@ -25,6 +25,8 @@ import { useAppLayout } from "@/components/app-layout-context";
 import { ProjectsMobileHeader } from "@/components/projects/projects-mobile-header";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { AppHref } from "@/components/app-href";
+import { cn } from "@/lib/utils";
+import { appBtn } from "@/lib/app-buttons";
 import {
   NewScheduledTaskModal,
   type NewScheduledTaskPayload,
@@ -194,10 +196,10 @@ export function ScheduledTasksView() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-zinc-900 px-4 text-[14px] font-medium text-white transition-colors hover:bg-zinc-800"
+          className={cn(appBtn.primarySm, "inline-flex h-9 items-center gap-1.5 px-4")}
         >
           Create
-          <ChevronDown className="size-5 opacity-90" strokeWidth={2} />
+          <ChevronDown className="icon-md opacity-90" strokeWidth={2} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -205,10 +207,10 @@ export function ScheduledTasksView() {
         className="w-[200px] rounded-xl border border-black/[0.06] p-1 shadow-lg"
       >
         <DropdownMenuItem
-          className="cursor-pointer gap-2.5 rounded-lg px-2.5 py-2 text-[14px]"
+          className="ui-menu-row cursor-pointer"
           onSelect={() => setModalOpen(true)}
         >
-          <Pencil className="size-5 text-zinc-500" strokeWidth={1.75} />
+          <Pencil className="icon-md text-zinc-500" strokeWidth={1.75} />
           Create manually
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
@@ -217,10 +219,10 @@ export function ScheduledTasksView() {
             onClick={() => {
               stashScheduleChatDraft();
             }}
-            className="cursor-pointer gap-2.5 rounded-lg px-2.5 py-2 text-[14px]"
+            className="ui-menu-row cursor-pointer"
           >
             <MessageSquarePlus
-              className="size-5 text-zinc-500"
+              className="icon-md text-zinc-500"
               strokeWidth={1.75}
             />
             Create via chat
@@ -231,7 +233,7 @@ export function ScheduledTasksView() {
   );
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-white font-sans">
+    <div className={cn("app-page-surface flex h-full min-h-0 w-full flex-col font-sans")}>
       {isMobile ? (
         <ProjectsMobileHeader
           title="Scheduled Tasks"
@@ -245,10 +247,10 @@ export function ScheduledTasksView() {
           {/* Header */}
           <div className="mb-8 flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="text-[24px] font-semibold tracking-tight text-zinc-900 sm:text-[28px]">
+              <h1 className="text-[24px] font-semibold tracking-[-0.03em] text-zinc-900 sm:text-[28px]">
                 Scheduled Tasks
               </h1>
-              <p className="mt-1.5 max-w-xl text-[14px] leading-5 text-zinc-500">
+              <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-zinc-500">
                 Let Clauxen run tasks on schedule and deliver results
                 automatically.
               </p>
@@ -260,7 +262,7 @@ export function ScheduledTasksView() {
                 aria-label="Close"
                 className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
               >
-                <X className="h-5 w-5" strokeWidth={1.75} />
+                <X className="icon-lg" strokeWidth={1.75} />
               </AppHref>
             </div>
           </div>
@@ -310,7 +312,7 @@ export function ScheduledTasksView() {
                   className="flex items-center gap-3 py-3.5 first:pt-0"
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500">
-                    <CalendarClock className="h-5 w-5" strokeWidth={1.75} />
+                    <CalendarClock className="icon-lg" strokeWidth={1.75} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -342,7 +344,7 @@ export function ScheduledTasksView() {
                         aria-label="Task actions"
                         className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
                       >
-                        <MoreHorizontal className="size-5" />
+                        <MoreHorizontal className="icon-lg" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44 rounded-xl">
@@ -357,14 +359,14 @@ export function ScheduledTasksView() {
                         <DropdownMenuItem
                           onSelect={() => void patchStatus(task.id, "paused")}
                         >
-                          <Pause className="mr-2 size-5" />
+                          <Pause className="mr-2 icon-md" />
                           Pause
                         </DropdownMenuItem>
                       ) : task.status === "paused" ? (
                         <DropdownMenuItem
                           onSelect={() => void patchStatus(task.id, "active")}
                         >
-                          <Play className="mr-2 size-5" />
+                          <Play className="mr-2 icon-md" />
                           Resume
                         </DropdownMenuItem>
                       ) : null}
@@ -373,7 +375,7 @@ export function ScheduledTasksView() {
                         className="text-red-600 focus:text-red-600"
                         onSelect={() => void removeTask(task.id)}
                       >
-                        <Trash2 className="mr-2 size-5" />
+                        <Trash2 className="mr-2 icon-md" />
                         Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>

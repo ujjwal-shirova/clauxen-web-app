@@ -406,7 +406,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                           : "border-black/10 bg-white/60 hover:border-black/25",
                       )}
                     >
-                      <Mail className="h-5 w-5 text-zinc-500" />
+                      <Mail className="icon-lg text-zinc-500" />
                       <div className="flex-1 text-[14px] font-semibold">
                         Send an email
                       </div>
@@ -424,7 +424,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                           : "border-black/10 bg-white/60 hover:border-black/25",
                       )}
                     >
-                      <LinkIcon className="h-5 w-5 text-zinc-500" />
+                      <LinkIcon className="icon-lg text-zinc-500" />
                       <div className="flex-1 text-[14px] font-semibold">
                         Get a link to share
                       </div>

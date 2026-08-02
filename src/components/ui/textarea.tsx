@@ -1,8 +1,7 @@
-import * as React from "react"; // React forwardRef
+import * as React from "react";
 
-import { cn } from "@/lib/utils"; // className utility
+import { cn } from "@/lib/utils";
 
-// Textarea — multi-line text input with shadcn styling
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.ComponentProps<"textarea">
@@ -10,14 +9,14 @@ const Textarea = React.forwardRef<
   return (
     <textarea
       className={cn(
-        "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm", // base textarea styles
+        "flex min-h-[80px] w-full rounded-[var(--radius-sm)] border border-input bg-transparent px-3 py-2 text-base shadow-[0_1px_2px_rgba(24,24,27,0.02)] ring-offset-background placeholder:text-muted-foreground transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
         className,
       )}
-      ref={ref} // ref forwarding for focus/autosize libraries
-      {...props} // rows, value, onChange, placeholder, etc.
+      ref={ref}
+      {...props}
     />
   );
 });
-Textarea.displayName = "Textarea"; // DevTools label
+Textarea.displayName = "Textarea";
 
 export { Textarea };
