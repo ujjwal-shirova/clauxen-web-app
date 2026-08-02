@@ -312,7 +312,7 @@ export function ChatViewPane({
                   <div className="w-full">{promptInput}</div>
 
                   {incognitoWelcome ? (
-                    <div className="mt-1 flex w-full max-w-[var(--chat-column-max-width,768px)] flex-col items-center gap-1.5 px-4 text-center">
+                    <div className="mt-1 flex w-full max-w-[var(--chat-column-max-width,720px)] flex-col items-center gap-1.5 px-4 text-center">
                       <p className="text-[12.5px] leading-5 text-zinc-500">
                         Incognito chats aren&apos;t saved, added to memory, or
                         used to train models.
@@ -328,7 +328,7 @@ export function ChatViewPane({
                   /* Welcome action chips — same strip as main-app new chat. */
                   <div
                     className={cn(
-                      "flex w-full max-w-[var(--chat-column-max-width,768px)] flex-col items-center justify-start transition-[min-height] duration-200 ease-out min-h-[96px]",
+                      "flex w-full max-w-[var(--chat-column-max-width,720px)] flex-col items-center justify-start transition-[min-height] duration-200 ease-out min-h-[96px]",
                       composerOnlyWelcome && "min-h-0",
                     )}
                   >

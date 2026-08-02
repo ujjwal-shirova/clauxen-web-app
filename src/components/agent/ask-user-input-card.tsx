@@ -152,7 +152,7 @@ export function AskUserInputCard({
 
   return (
     <div
-      className="ask-user-input-card w-full max-w-[var(--chat-column-max-width,768px)] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_8px_28px_rgba(24,24,27,0.08)]"
+      className="ask-user-input-card w-full max-w-[var(--chat-column-max-width,720px)] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_8px_28px_rgba(24,24,27,0.08)]"
       data-ask-user-input
     >
       <div className="flex items-start justify-between gap-3 border-b border-zinc-100 px-4 py-3 sm:px-5 sm:py-3.5">

@@ -388,7 +388,7 @@ function ChatAreaLayout({
 
   const promptInput = pendingAskQuestions ? (
     <div
-      className="mx-auto w-full max-w-[var(--chat-column-max-width,768px)] px-0"
+      className="mx-auto w-full max-w-[var(--chat-column-max-width,720px)] px-0"
       data-ask-user-input-composer
     >
       <AskUserInputCard questions={pendingAskQuestions} />
@@ -429,7 +429,7 @@ function ChatAreaLayout({
   return (
     <div
       className={cn(
-        "glass-agent-drop-target relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-white",
+        "glass-agent-drop-target relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--chat-canvas-bg,#f8f8f8)]",
         incognito ? "rounded-none" : "rounded-[inherit]",
       )}
       data-incognito={incognito || undefined}

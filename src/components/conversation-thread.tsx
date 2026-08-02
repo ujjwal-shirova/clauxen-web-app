@@ -106,8 +106,8 @@ function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
 
 const RetryIcon = () => (
   <svg
-    width="18"
-    height="18"
+    width="12"
+    height="12"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -119,8 +119,8 @@ const RetryIcon = () => (
 /** Share glyph matching the filled 20-grid set (the lucide node graph read odd). */
 const ShareIcon = () => (
   <svg
-    width="18"
-    height="18"
+    width="12"
+    height="12"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -132,8 +132,8 @@ const ShareIcon = () => (
 
 const CustomCopyIcon = () => (
   <svg
-    width="18"
-    height="18"
+    width="12"
+    height="12"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -144,8 +144,8 @@ const CustomCopyIcon = () => (
 
 const ThumbsUpIcon = () => (
   <svg
-    width="18"
-    height="18"
+    width="12"
+    height="12"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -156,8 +156,8 @@ const ThumbsUpIcon = () => (
 
 const ThumbsDownIcon = () => (
   <svg
-    width="18"
-    height="18"
+    width="12"
+    height="12"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -289,7 +289,7 @@ const MessageRow = React.memo(
                       onStartEdit(message);
                     }
                   }}
-                  className="user-message-card__body no-hover-overlay w-full cursor-pointer rounded-[15px] px-3 py-2.5 text-left transition-colors sm:rounded-[17px] sm:px-4 sm:py-3"
+                  className="user-message-card__body no-hover-overlay w-full cursor-pointer rounded-xl px-3 py-2 text-left transition-[border-color] duration-150"
                   aria-label="Edit message"
                 >
                   {message.attachments && message.attachments.length > 0 ? (
@@ -314,16 +314,22 @@ const MessageRow = React.memo(
                     </div>
                   ) : null}
                   {message.content.trim() ? (
-                    <p
-                      className="overflow-hidden whitespace-pre-wrap text-zinc-900"
-                      style={{
-                        display: "-webkit-box",
-                        WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
-                        WebkitBoxOrient: "vertical",
-                      }}
-                    >
-                      {message.content}
-                    </p>
+                    <div className="user-message-card__preview relative">
+                      <p
+                        className="overflow-hidden whitespace-pre-wrap text-[13px] leading-[18px] text-zinc-900"
+                        style={{
+                          display: "-webkit-box",
+                          WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
+                          WebkitBoxOrient: "vertical",
+                        }}
+                      >
+                        {message.content}
+                      </p>
+                      <div
+                        className="user-message-card__preview-fade"
+                        aria-hidden
+                      />
+                    </div>
                   ) : null}
                 </div>
               )}
@@ -349,11 +355,11 @@ const MessageRow = React.memo(
                         type="button"
                         onClick={() => onSwitchBranch(message.id, "prev")}
                         disabled={activeBranchIndex <= 0}
-                        className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                        className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
                       >
                         <svg
-                          width="18"
-                          height="18"
+                          width="14"
+                          height="14"
                           viewBox="0 0 20 20"
                           fill="currentColor"
                           aria-hidden="true"
@@ -370,11 +376,11 @@ const MessageRow = React.memo(
                         type="button"
                         onClick={() => onSwitchBranch(message.id, "next")}
                         disabled={activeBranchIndex >= branchVersions - 1}
-                        className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                        className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
                       >
                         <svg
-                          width="18"
-                          height="18"
+                          width="14"
+                          height="14"
                           viewBox="0 0 20 20"
                           fill="currentColor"
                           aria-hidden="true"
@@ -476,7 +482,7 @@ const MessageRow = React.memo(
                           className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                         >
                           {copiedId === message.id ? (
-                            <Check className="size-[18px] text-emerald-600" strokeWidth={2} />
+                            <Check className="size-3 text-emerald-600" strokeWidth={2} />
                           ) : (
                             <CustomCopyIcon />
                           )}
@@ -544,7 +550,7 @@ const MessageRow = React.memo(
                             }}
                             className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                           >
-                            <MoreHorizontal className="size-[18px]" strokeWidth={1.75} />
+                            <MoreHorizontal className="size-3" strokeWidth={1.75} />
                           </button>
                         </HintTooltip>
                       </div>
@@ -582,11 +588,11 @@ const MessageRow = React.memo(
                               type="button"
                               onClick={() => onSwitchBranch(message.id, "prev")}
                               disabled={activeBranchIndex <= 0}
-                              className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                              className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
                             >
                               <svg
-                                width="18"
-                                height="18"
+                                width="14"
+                                height="14"
                                 viewBox="0 0 20 20"
                                 fill="currentColor"
                                 aria-hidden="true"
@@ -603,11 +609,11 @@ const MessageRow = React.memo(
                               type="button"
                               onClick={() => onSwitchBranch(message.id, "next")}
                               disabled={activeBranchIndex >= branchVersions - 1}
-                              className="flex h-8 w-6 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                              className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
                             >
                               <svg
-                                width="18"
-                                height="18"
+                                width="14"
+                                height="14"
                                 viewBox="0 0 20 20"
                                 fill="currentColor"
                                 aria-hidden="true"

@@ -53,22 +53,27 @@
     --nav-label-line: 18px;
     --section-label-size: 12px;
     --chat-header-height: 40px;
-    --chat-title-size: 14px;
-    --chat-user-font-size: 14px;
-    --chat-assistant-font-size: 15px;
-    --chat-message-line-height: 1.65;
+    --chat-header-icon-btn: 28px;
+    --chat-title-size: 13px;
+    --chat-user-font-size: 13px;
+    --chat-assistant-font-size: 13px;
+    --chat-message-line-height: 1.5;
+    --chat-user-line-height: 18px;
+    --chat-assistant-line-height: 19.5px;
     --menu-icon-size: 14px;
     --menu-row-height: 32px;
     --icon-color: #18181b;
     --icon-muted: rgba(24, 24, 27, 0.66);
     --icon-subtle: rgba(24, 24, 27, 0.6);
-    /* App shell — Cursor-style cool gray behind pure white panels */
+    /* App shell — Cursor-style cool gray; chat canvas is a touch lighter */
     --app-shell-bg: #f3f3f3;
     --app-panel-bg: #ffffff;
+    --chat-canvas-bg: #f8f8f8;
+    --chat-user-card-bg: #fcfcfc;
     --overlay-scrim: rgba(24, 24, 27, 0.4);
-    /* Shared chat / composer column breadth */
-    --chat-column-max-width: 768px;
-    --glass-chat-surface-background: #ffffff;
+    /* Shared chat / composer column breadth — Cursor agents column */
+    --chat-column-max-width: 720px;
+    --glass-chat-surface-background: #f8f8f8;
     --cursor-menu-bg: rgba(255, 255, 255, 0.94);
     --cursor-menu-border: rgba(24, 24, 27, 0.1);
     --cursor-menu-shadow:
@@ -76,15 +81,17 @@
       0 2px 8px rgba(24, 24, 27, 0.08);
     --cursor-radius-lg: 10px;
     --cursor-radius-xl: 13px;
-    /* Prompt composer */
-    --prompt-radius: 18px;
-    --prompt-radius-lg: 26px;
+    /* Prompt composer — Cursor pill */
+    --prompt-radius: 9999px;
+    --prompt-radius-lg: 9999px;
+    --prompt-control-size: 24px;
+    --prompt-editor-min-height: 36px;
     --prompt-shadow:
-      0 0 0 1px rgba(24, 24, 27, 0.045), 0 1px 2px rgba(24, 24, 27, 0.02),
-      0 6px 20px -10px rgba(24, 24, 27, 0.06);
+      inset 0 0 0 1px rgba(24, 24, 27, 0.1),
+      0 1px 4px rgba(0, 0, 0, 0.008);
     --prompt-shadow-focus:
-      0 0 0 1px rgba(24, 24, 27, 0.09), 0 2px 4px rgba(24, 24, 27, 0.03),
-      0 12px 32px -12px rgba(24, 24, 27, 0.1);
+      inset 0 0 0 1px rgba(24, 24, 27, 0.14),
+      0 1px 4px rgba(0, 0, 0, 0.02);
     /* Panel elevation */
     --panel-shadow:
       0 1px 2px rgba(24, 24, 27, 0.03), 0 10px 28px -16px rgba(24, 24, 27, 0.08);
@@ -135,6 +142,8 @@
     --icon-subtle: rgba(244, 244, 245, 0.6);
     --app-shell-bg: #141416;
     --app-panel-bg: #1a1a1c;
+    --chat-canvas-bg: #141416;
+    --chat-user-card-bg: #1c1c1f;
     --overlay-scrim: rgba(0, 0, 0, 0.55);
     --glass-chat-surface-background: #141416;
     --cursor-menu-bg: rgba(24, 24, 27, 0.94);
@@ -418,36 +427,47 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   color: #bfdbfe;
 }
 .dark .user-message-card__body {
-  background: #1c1c1f !important;
+  background: var(--chat-user-card-bg, #1c1c1f) !important;
   color: #f4f4f5;
   /* One border token for every state — dark bubbles match light-mode logic:
      sticky position never changes the card's visual treatment. */
-  border-color: rgba(255, 255, 255, 0.07) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    0 1px 2px rgba(0, 0, 0, 0.28) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
 }
 .dark .user-message-card__body:hover,
 .dark .user-message-card__body:focus-visible,
 .dark .user-message-card__body[role="button"]:hover,
 .dark .user-message-card__body[role="button"]:focus-visible {
-  background: #222226 !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 1px 2px rgba(0, 0, 0, 0.28) !important;
+  background: var(--chat-user-card-bg, #1c1c1f) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
 }
 .dark .sticky-user-msg--stuck {
-  background-color: hsl(var(--background));
+  background-color: var(--chat-canvas-bg, hsl(var(--background)));
 }
 .dark .sticky-user-msg-host[data-user-msg-editing="true"].sticky-user-msg--stuck {
-  background-color: hsl(var(--background));
+  background-color: var(--chat-canvas-bg, hsl(var(--background)));
 }
 .dark .sticky-user-msg--stuck::after {
   background: linear-gradient(
     to bottom,
-    hsl(var(--background) / 1),
-    hsl(var(--background) / 0)
+    var(--chat-canvas-bg, hsl(var(--background))),
+    transparent
   );
+}
+.dark .user-message-card__preview-fade {
+  background: linear-gradient(
+    to top,
+    var(--chat-user-card-bg, #1c1c1f),
+    rgba(0, 0, 0, 0)
+  );
+}
+.dark .sticky-user-msg-host {
+  background-color: var(--chat-canvas-bg, hsl(var(--background)));
+}
+.dark [data-prompt-root] [data-prompt-shell],
+.dark [data-prompt-root] [data-composer-stack="with-project"] {
+  background: var(--chat-user-card-bg, #1c1c1f) !important;
 }
 
 /* Thinking vs main answer — keep reasoning visibly muted in dark theme too */
@@ -849,49 +869,53 @@ nav.sidebar-hover-area {
   transition: background-color 0.15s ease !important;
 }
 
-/* Compact prompt composer — single zinc hairline (no double-border / dual shadow) */
+/* Compact prompt composer — Cursor pill (inset hairline + soft lift) */
 [data-prompt-root] [data-prompt-shell] {
-  background: #ffffff !important;
-  border: 1px solid #e4e4e7 !important; /* zinc-200 */
-  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04) !important;
-  border-radius: 28px !important;
+  background: var(--chat-user-card-bg, #fcfcfc) !important;
+  border: 0 !important;
+  box-shadow: var(--prompt-shadow) !important;
+  border-radius: var(--prompt-radius) !important;
   overflow: hidden;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   transition:
-    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Unified composer + project strip — one bordered stack, clipped round corners. */
 [data-prompt-root] [data-composer-stack="with-project"] {
-  border: 1px solid #e4e4e7;
-  border-radius: 28px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04);
+  border: 0;
+  border-radius: var(--prompt-radius);
+  background: var(--chat-user-card-bg, #fcfcfc);
+  box-shadow: var(--prompt-shadow);
   overflow: hidden;
   isolation: isolate;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 [data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell] {
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  background: #ffffff !important;
+  background: transparent !important;
   overflow: visible;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 [data-prompt-root] [data-composer-stack="with-project"] [data-composer-project-strip] {
   border-radius: 0;
-  border-top: 1px solid #ececee;
+  border-top: 1px solid rgba(24, 24, 27, 0.08);
 }
 
 [data-prompt-root] [data-composer-stack="with-project"]:focus-within {
-  border-color: #d4d4d8; /* zinc-300 */
-  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.05);
+  box-shadow: var(--prompt-shadow-focus);
 }
 
 [data-prompt-root] [data-prompt-shell]:focus-within {
-  border-color: #d4d4d8 !important;
-  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.05) !important;
+  box-shadow: var(--prompt-shadow-focus) !important;
 }
 
 [data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell]:focus-within {
@@ -902,15 +926,14 @@ nav.sidebar-hover-area {
 /* Legacy outer wrappers only — never [data-composer-stack] / [data-prompt-shell]
    (those own the single hairline). Matching the stack caused a double border. */
 [data-prompt-root] > div > div:not([data-prompt-shell]):not([data-composer-stack]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):not([data-ask-user-input-composer]) {
-  background-color: #ffffff !important;
-  border: 1px solid rgba(24, 24, 27, 0.055) !important;
-  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04) !important;
+  background-color: var(--chat-user-card-bg, #fcfcfc) !important;
+  border: 0 !important;
+  box-shadow: var(--prompt-shadow) !important;
   border-radius: var(--prompt-radius-lg) !important;
 }
 
 [data-prompt-root] > div > div:not([data-prompt-shell]):not([data-composer-stack]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):not([data-ask-user-input-composer]):focus-within {
-  border-color: rgba(24, 24, 27, 0.1) !important;
-  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.05) !important;
+  box-shadow: var(--prompt-shadow-focus) !important;
 }
 
 /* Solo stack is a layout wrapper only — border lives on [data-prompt-shell]. */
@@ -920,54 +943,71 @@ nav.sidebar-hover-area {
   background: transparent !important;
 }
 
-/* User message — full-width Claude-style card (opaque; never ghost-button hovers) */
+/* User message — Cursor card (flat #fcfcfc, 12px radius, 8% border) */
 .user-message-card__body {
   position: relative;
   z-index: 1;
-  background:
-    linear-gradient(180deg, rgba(250, 250, 251, 0.98), #f4f4f5) !important;
-  border: 1px solid rgba(24, 24, 27, 0.075) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 1px 2px rgba(24, 24, 27, 0.025) !important;
+  background: var(--chat-user-card-bg, #fcfcfc) !important;
+  border: 1px solid rgba(24, 24, 27, 0.08) !important;
+  box-shadow: none !important;
+  border-radius: 12px !important;
   color: #18181b !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
+  transition: border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
   /* Do not use contain:paint — it clips the rounded border/shadow and left
      a hard gray strip under the bubble when the sticky host docked. */
 }
 
 .user-message-card__body:hover,
 .user-message-card__body:focus-visible {
-  background:
-    linear-gradient(180deg, rgba(247, 247, 248, 0.98), #eeeeef) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 1px 2px rgba(24, 24, 27, 0.025) !important;
+  background: var(--chat-user-card-bg, #fcfcfc) !important;
+  border-color: rgba(24, 24, 27, 0.12) !important;
+  box-shadow: none !important;
 }
 
 button.user-message-card__body:not(:disabled):hover,
 .user-message-card__body[role="button"]:hover,
 .user-message-card__body[role="button"]:focus-visible {
-  background:
-    linear-gradient(180deg, rgba(247, 247, 248, 0.98), #eeeeef) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 1px 2px rgba(24, 24, 27, 0.025) !important;
+  background: var(--chat-user-card-bg, #fcfcfc) !important;
+  border-color: rgba(24, 24, 27, 0.12) !important;
+  box-shadow: none !important;
 }
 
 .user-message-card__body--editing {
   cursor: default !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    0 0 0 1px rgba(24, 24, 27, 0.06),
-    0 8px 20px -12px rgba(24, 24, 27, 0.18) !important;
+  box-shadow: none !important;
+  border-color: rgba(24, 24, 27, 0.12) !important;
 }
 
 .user-message-card__body--editing:hover,
 .user-message-card__body--editing:focus-within {
-  background:
-    linear-gradient(180deg, rgba(250, 250, 251, 0.98), #f4f4f5) !important;
+  background: var(--chat-user-card-bg, #fcfcfc) !important;
+}
+
+/* Collapsed preview fade (matches Cursor max-height ~68px wash) */
+.user-message-card__body:not(.user-message-card__body--editing)
+  .user-message-card__preview
+  p {
+  max-height: 68px;
+}
+
+.user-message-card__preview {
+  position: relative;
+}
+
+.user-message-card__preview-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 18px;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    var(--chat-user-card-bg, #fcfcfc),
+    rgba(0, 0, 0, 0)
+  );
 }
 
 /* Muted secondary feedback and retry action buttons styling */
@@ -1067,14 +1107,14 @@ button.user-message-card__body:not(:disabled):hover,
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  max-width: var(--chat-column-max-width, 768px);
+  max-width: var(--chat-column-max-width, 720px);
   margin-inline: auto;
-  padding-inline: 1rem;
+  padding-inline: 12px;
 }
 
 @media (min-width: 640px) {
   .chat-column {
-    padding-inline: 1.25rem;
+    padding-inline: 12px;
   }
 }
 
@@ -1094,12 +1134,12 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 [data-composer-dock] .chat-column {
-  padding-inline: 1rem;
+  padding-inline: 12px;
 }
 
 @media (min-width: 640px) {
   [data-composer-dock] .chat-column {
-    padding-inline: 1.25rem;
+    padding-inline: 12px;
   }
 }
 
@@ -1115,7 +1155,7 @@ button.user-message-card__body:not(:disabled):hover,
 
 .content-pane-top-bar {
   border-bottom: 0 !important;
-  background: #ffffff !important;
+  background: var(--chat-canvas-bg, #f8f8f8) !important;
   box-shadow: none !important;
   height: var(--chat-header-height) !important;
   min-height: var(--chat-header-height) !important;
@@ -1126,7 +1166,7 @@ button.user-message-card__body:not(:disabled):hover,
   border-top-right-radius: inherit;
 }
 
-/* Universal header chrome: icon-only = 24×24, text+icon = 32px */
+/* Chat header chrome: Cursor 28×28 icon buttons, 6px radius */
 .content-pane-top-bar .ui-icon-button,
 .content-pane-top-bar button[aria-label="Incognito"],
 .content-pane-top-bar button[aria-label="Chat options"],
@@ -1134,10 +1174,10 @@ button.user-message-card__body:not(:disabled):hover,
 .content-pane-top-bar button[aria-label="Open navigation menu"],
 .content-pane-top-bar button[aria-label="Share chat"] {
   box-sizing: border-box;
-  width: var(--icon-btn-size);
-  height: var(--icon-btn-size);
-  min-width: var(--icon-btn-size);
-  min-height: var(--icon-btn-size);
+  width: var(--chat-header-icon-btn, 28px);
+  height: var(--chat-header-icon-btn, 28px);
+  min-width: var(--chat-header-icon-btn, 28px);
+  min-height: var(--chat-header-icon-btn, 28px);
   padding: 5px;
   border-radius: 6px;
 }
@@ -1153,15 +1193,15 @@ button.user-message-card__body:not(:disabled):hover,
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  height: var(--nav-row-height);
-  min-height: var(--nav-row-height);
+  height: 28px;
+  min-height: 28px;
   gap: var(--nav-gap-tight);
   padding-left: 8px;
   padding-right: 8px;
   border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.25;
+  font-size: var(--chat-title-size, 13px);
+  font-weight: 400;
+  line-height: 18px;
 }
 
 .content-pane-top-bar__trailing-wrap {
@@ -1242,13 +1282,13 @@ button.user-message-card__body:not(:disabled):hover,
 
 .ui-prompt-input__container,
 [data-prompt-root] [data-prompt-shell] {
-  --prompt-input-editor-min-height: 32px;
+  --prompt-input-editor-min-height: var(--prompt-editor-min-height, 36px);
   --prompt-input-editor-max-height: 168px;
   --prompt-input-editor-height: var(--prompt-input-editor-min-height);
 }
 
 .ui-prompt-input-toolbar {
-  min-height: 36px;
+  min-height: var(--prompt-control-size, 24px);
 }
 
 [data-prompt-root] [data-prompt-shell] {
@@ -1286,13 +1326,13 @@ button.user-message-card__body:not(:disabled):hover,
 
 .sticky-user-msg-host {
   position: sticky;
-  top: var(--header-height, 36px);
+  top: var(--header-height, 40px);
   z-index: 2;
   width: 100%;
   max-width: 100%;
   flex-shrink: 0;
   align-self: stretch;
-  background-color: #ffffff;
+  background-color: var(--chat-canvas-bg, #f8f8f8);
   overflow: visible;
   overflow-anchor: none;
   /* Always inset the card under the absolute header so the rounded top
@@ -1303,13 +1343,14 @@ button.user-message-card__body:not(:disabled):hover,
   padding-top: 8px;
   padding-bottom: 0;
   margin-top: -8px;
+  margin-bottom: 12px;
 }
 
 /* Expanded inline editor uses the same sticky host path as the collapsed
    preview — do not introduce overflow/contain that would trap sticky release. */
 .sticky-user-msg-host[data-user-msg-editing="true"] {
   position: sticky;
-  top: var(--header-height, 36px);
+  top: var(--header-height, 40px);
   overflow: visible;
   contain: none;
 }
@@ -1317,7 +1358,7 @@ button.user-message-card__body:not(:disabled):hover,
 .sticky-user-msg-host[data-user-msg-editing="true"].sticky-user-msg--stuck {
   z-index: 25;
   isolation: isolate;
-  background-color: #ffffff;
+  background-color: var(--chat-canvas-bg, #f8f8f8);
 }
 
 [data-conversation-turn] .assistant-message {
@@ -1385,7 +1426,7 @@ button.user-message-card__body:not(:disabled):hover,
 .sticky-user-msg--stuck {
   z-index: 25;
   isolation: isolate;
-  background-color: #ffffff;
+  background-color: var(--chat-canvas-bg, #f8f8f8);
   padding-top: 8px;
   padding-bottom: 10px;
   margin-top: -8px;
@@ -1396,10 +1437,8 @@ button.user-message-card__body:not(:disabled):hover,
   /* Sticky changes position only — identical border/shadow tokens as the
      resting card so every user bubble reads the same while scrolling. */
   transform: translateZ(0);
-  border-color: rgba(24, 24, 27, 0.075) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 1px 2px rgba(24, 24, 27, 0.025) !important;
+  border-color: rgba(24, 24, 27, 0.08) !important;
+  box-shadow: none !important;
 }
 
 /* Soft wash under the docked bubble so content scrolling beneath doesn’t
@@ -1409,14 +1448,17 @@ button.user-message-card__body:not(:disabled):hover,
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -14px;
-  height: 14px;
+  bottom: -20px;
+  height: 20px;
   pointer-events: none;
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 1),
-    rgba(255, 255, 255, 0)
+    var(--chat-canvas-bg, #f8f8f8),
+    rgba(248, 248, 248, 0)
   );
+  mask-image: linear-gradient(rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%);
+  -webkit-mask-image: linear-gradient(rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%);
+  z-index: 1;
 }
 
 [data-conversation-turn][data-sticky-active="true"] .sticky-user-msg-host {
@@ -1930,36 +1972,36 @@ button.user-message-card__body:not(:disabled):hover,
   min-width: 0;
   max-width: 100%;
   font-size: var(--chat-assistant-font-size);
-  line-height: var(--chat-message-line-height);
+  line-height: var(--chat-assistant-line-height, 19.5px);
   font-weight: 400;
-  letter-spacing: -0.011em;
+  letter-spacing: normal;
   overflow-anchor: none;
 }
 
 .user-message-card__body p {
   font-size: var(--chat-user-font-size) !important;
-  font-weight: 500 !important;
-  line-height: 1.55 !important;
-  letter-spacing: -0.01em;
+  font-weight: 400 !important;
+  line-height: var(--chat-user-line-height, 18px) !important;
+  letter-spacing: normal;
 }
 
-/* Message action icon buttons — compact 32×32 chrome with hover */
+/* Message action icon buttons — compact 20×20 chrome with hover */
 .assistant-message button[aria-label="Copy message"],
 .assistant-message button[aria-label="Retry"],
 .assistant-message button[aria-label="Positive feedback"],
 .assistant-message button[aria-label="Negative feedback"],
 .assistant-message button[aria-label="Share message"],
 .assistant-message button[aria-label="More actions"] {
-  width: var(--icon-btn-size) !important;
-  height: var(--icon-btn-size) !important;
-  min-width: var(--icon-btn-size);
-  min-height: var(--icon-btn-size);
-  padding: 7px;
-  border-radius: 8px !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px;
+  min-height: 20px;
+  padding: 4px;
+  border-radius: 4px !important;
 }
 
 .assistant-message-actions {
-  min-height: var(--icon-btn-size);
+  min-height: 20px;
 }
 
 .assistant-message-actions > [data-more-trigger] {
