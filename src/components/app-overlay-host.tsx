@@ -157,10 +157,10 @@ export function AppOverlayHost() {
       cancelIdleCallback?: (handle: number) => void;
     };
     if (typeof idleWindow.requestIdleCallback === "function") {
-      const id = idleWindow.requestIdleCallback(warm, { timeout: 2500 });
+      const id = idleWindow.requestIdleCallback(warm, { timeout: 8000 });
       return () => idleWindow.cancelIdleCallback?.(id);
     }
-    const timer = window.setTimeout(warm, 800);
+    const timer = window.setTimeout(warm, 4000);
     return () => window.clearTimeout(timer);
   }, []);
 

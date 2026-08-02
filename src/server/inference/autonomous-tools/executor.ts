@@ -128,10 +128,7 @@ async function publishSandboxOutputs(
       const message =
         error instanceof Error ? error.message : "Could not read output path";
       errors.push({ path: outputPath, error: message });
-      console.warn(
-        `[sandbox] output_paths miss for ${outputPath}:`,
-        message,
-      );
+      console.warn(`[sandbox] output_paths miss for ${outputPath}:`, message);
     }
   }
   return { artifacts, errors };

@@ -148,7 +148,9 @@ function PreferencesInner({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (authLoading) return;
+    // Fire settings as soon as we have an identity (hint or JWT). Waiting on
+    // auth.loading used to serialize settings behind the quiet session call.
+    if (!user?.id && authLoading) return;
     void refresh({ quiet: ready });
   }, [authLoading, user?.id]);
 

@@ -7,7 +7,6 @@ import { ensureUserRecord } from "@/server/services/identity.service";
 import * as profileService from "@/server/services/profile.service";
 import { createSupabaseClientFromRequest } from "@/server/auth/supabase-session";
 import {
-  getSessionFromRequest,
   sessionCookieHeader,
   clearSessionCookieHeader,
   type SessionUser,
@@ -103,9 +102,13 @@ function attachSessionCookies(
   }
 }
 
+/**
+ * Full session: one Auth user read, provision once, return merged session.
+ * Avoids the old triple-getUser + unconditional profile UPDATE on every boot.
+ */
 const fullSessionHandler = withApiHandler(async ({ request, session }) => {
   const supabase = createSupabaseClientFromRequest(request);
-  let bootstrappedUserId: string | null = null;
+  let resolved: SessionUser | null = session;
 
   if (supabase) {
     const {
@@ -128,17 +131,28 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
           email: user.email,
           displayName: authFullName,
         });
-        bootstrappedUserId = user.id;
       }
-      await profileService.syncProfileFromAuth({
+      resolved = await profileService.syncProfileFromAuth({
         userId: user.id,
         email: user.email ?? null,
         authMetadata: user.user_metadata,
+      }).then((row) => {
+        if (!row) return sessionFromAuthUser(user);
+        return {
+          id: row.id,
+          email: row.email ?? user.email ?? null,
+          displayName:
+            row.display_name ??
+            resolveAuthFullName(user.user_metadata) ??
+            user.email?.split("@")[0] ??
+            null,
+          preferredName: row.preferred_name ?? null,
+          avatarUrl:
+            row.avatar_url ?? resolveAuthAvatarUrl(user.user_metadata),
+        } satisfies SessionUser;
       });
     }
-  }
-
-  if (session?.id && session.email && session.id !== bootstrappedUserId) {
+  } else if (session?.id && session.email) {
     assertEmailNotDisposable(session.email);
     await ensureUserRecord({
       userId: session.id,
@@ -147,8 +161,6 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
     });
   }
 
-  const freshSession = await getSessionFromRequest(request);
-  const resolved = freshSession ?? session;
   const response = jsonData({ session: resolved });
   attachSessionCookies(response, resolved);
   return response;

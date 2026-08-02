@@ -36,9 +36,23 @@ export async function syncProfileFromAuth(input: {
     displayName = authFullName ?? displayName ?? emailLocal;
   }
 
+  const needsAvatar = Boolean(authAvatar && !existing?.avatar_url);
+  const displayUnchanged =
+    (existing?.display_name?.trim() || null) === (displayName?.trim() || null);
+
+  // Skip no-op UPDATEs — they used to echo through Realtime on every app open.
+  if (existing && displayUnchanged && !needsAvatar) {
+    if (authFullName) {
+      await mirrorPersonalizationNames(input.userId, {
+        fullName: authFullName,
+      });
+    }
+    return existing;
+  }
+
   const row = await profileRepo.updateProfile(input.userId, {
     displayName,
-    ...(authAvatar && !existing?.avatar_url ? { avatarUrl: authAvatar } : {}),
+    ...(needsAvatar ? { avatarUrl: authAvatar } : {}),
   });
 
   if (authFullName) {

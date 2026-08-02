@@ -21,7 +21,7 @@ function withOnboardingCookie(
   response.cookies.set(
     ONBOARDING_DONE_COOKIE,
     onboardingDoneCookieValue(userId, completed),
-    onboardingDoneCookieOptions(),
+    onboardingDoneCookieOptions(completed),
   );
   return response;
 }

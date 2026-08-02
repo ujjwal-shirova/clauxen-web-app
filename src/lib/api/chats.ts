@@ -49,7 +49,7 @@ async function listChatsViaWorker(projectId?: string): Promise<{
         Accept: "application/json",
       },
       credentials: "omit",
-      signal: AbortSignal.timeout(6_000),
+      signal: AbortSignal.timeout(1_500),
     });
     if (!response.ok) return null;
     const payload = (await response.json()) as {
@@ -65,11 +65,20 @@ async function listChatsViaWorker(projectId?: string): Promise<{
 }
 
 export async function listChats(projectId?: string) {
-  const fromWorker = await listChatsViaWorker(projectId);
-  if (fromWorker) return fromWorker;
-
   const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
-  return apiFetch<{ chats: ApiChat[] }>(`/api/v1/chats${qs}`);
+  const nextPromise = apiFetch<{ chats: ApiChat[] }>(`/api/v1/chats${qs}`);
+  const workerPromise = listChatsViaWorker(projectId);
+
+  // Race Worker vs Next — first usable result wins (ChatGPT-style Recents).
+  const first = await Promise.race([
+    workerPromise.then((result) =>
+      result ? ({ ok: true as const, result }) : ({ ok: false as const }),
+    ),
+    nextPromise.then((result) => ({ ok: true as const, result })),
+  ]);
+
+  if (first.ok) return first.result;
+  return nextPromise;
 }
 
 export async function createChat(input?: {
