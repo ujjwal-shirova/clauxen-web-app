@@ -22,7 +22,7 @@ export function ChatRightRailControls({
   suppressArtifactsHover = false,
 }: ChatRightRailControlsProps) {
   return (
-    <div className={cn("flex shrink-0 items-center justify-end gap-2", className)}>
+    <div className={cn("flex shrink-0 items-center justify-end gap-1.5", className)}>
       {onToggleArtifactsPanel ? (
         <HintTooltip content="Artifacts">
           <button
@@ -31,7 +31,7 @@ export function ChatRightRailControls({
             aria-label="Toggle artifacts panel"
             aria-pressed={isArtifactsPanelOpen}
             className={cn(
-              "ui-icon-button rounded-[10px] border transition-all",
+              "ui-icon-button rounded-md border transition-all",
               suppressArtifactsHover && "no-hover no-hover-overlay",
               isArtifactsPanelOpen
                 ? "border-zinc-200 bg-zinc-100 text-zinc-800"
@@ -40,7 +40,7 @@ export function ChatRightRailControls({
                   : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-zinc-100",
             )}
           >
-            <Files className="size-[18px]" strokeWidth={1.75} />
+            <Files className="size-4" strokeWidth={1.75} />
           </button>
         </HintTooltip>
       ) : null}
@@ -51,7 +51,7 @@ export function ChatRightRailControls({
             onClick={onShareClick}
             aria-label="Share chat"
             className={cn(
-              "inline-flex h-9 min-w-[56px] items-center justify-center rounded-[10px] border border-zinc-200 bg-white px-3 text-[14px] font-medium text-zinc-800 transition-all hover:bg-zinc-50",
+              "inline-flex h-7 min-w-[52px] items-center justify-center rounded-md border border-zinc-200/90 bg-white px-2.5 text-[12px] font-medium leading-4 text-zinc-800 transition-colors hover:bg-zinc-50",
               shareClassName,
             )}
           >

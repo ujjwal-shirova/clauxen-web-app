@@ -68,7 +68,6 @@ import type { RecentChat } from "@/lib/types";
 
 const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
 const SECTION_STORAGE_PREFIX = "clauxen_sidebar_section_";
-const CLAUXEN_LOGO_SRC = "/assets/icons/clauxen-icon.png";
 
 type SidebarSectionKey = "pinned" | "projects" | "recents";
 
@@ -699,47 +698,37 @@ export function Sidebar({
           !isMobileLayout && !isCollapsed && "w-[min(86vw,256px)] lg:w-[256px]",
         )}
       >
-        <div className="ui-sidebar-top-bar relative flex h-10 shrink-0 items-center justify-between px-1.5">
-          <div
-            className={cn(
-              "flex items-center px-1 transition-opacity duration-300",
-              isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100",
-            )}
-          >
-            <img
-              src={CLAUXEN_LOGO_SRC}
-              alt="Clauxen"
-              width={18}
-              height={18}
-              className="h-[18px] w-[18px] shrink-0 rounded-[6px] object-contain"
-              draggable={false}
-            />
-          </div>
+        <div
+          className={cn(
+            "ui-sidebar-top-bar relative flex h-10 shrink-0 items-center px-1.5",
+            isCollapsed && !isMobileLayout
+              ? "justify-center"
+              : "justify-between",
+          )}
+        >
+          {!isCollapsed ? (
+            <div className="flex min-w-0 items-center px-1">
+              <span className="truncate text-[15px] font-semibold tracking-[-0.02em] text-zinc-900">
+                Clauxen
+              </span>
+            </div>
+          ) : null}
 
           {isCollapsed && !isMobileLayout ? (
-            <div className="group/sidebar-logo absolute inset-x-0 top-1/2 mx-auto flex h-7 w-7 -translate-y-1/2 items-center justify-center">
-              <img
-                src={CLAUXEN_LOGO_SRC}
-                alt="Clauxen"
-                width={18}
-                height={18}
-                className="h-[18px] w-[18px] shrink-0 rounded-[6px] object-contain transition-opacity duration-200 group-hover/sidebar-logo:opacity-0"
-                draggable={false}
-              />
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsCollapsed(false);
-                }}
-                aria-label="Expand sidebar"
-                className="ui-icon-button absolute inset-0 text-zinc-800/66 opacity-0 transition-all duration-200 hover:bg-black/[0.04] group-hover/sidebar-logo:opacity-100"
-              >
-                <SidebarOpenIcon className="size-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsCollapsed(false);
+              }}
+              aria-label="Expand sidebar"
+              className="ui-icon-button text-zinc-800/70 transition-colors duration-150 hover:bg-black/[0.04] hover:text-zinc-900"
+            >
+              <SidebarOpenIcon className="size-4" />
+            </button>
           ) : (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsCollapsed(!isCollapsed);
@@ -751,8 +740,6 @@ export function Sidebar({
             >
               {isMobileLayout && !isCollapsed ? (
                 <X className="size-4" />
-              ) : isCollapsed ? (
-                <SidebarOpenIcon className="size-4" />
               ) : (
                 <SidebarToggleIcon className="size-4" />
               )}

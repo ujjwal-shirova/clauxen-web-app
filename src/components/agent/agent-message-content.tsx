@@ -11,7 +11,6 @@ import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
 import { AgentOrchestrationView } from "./agent-orchestration";
 import { AgentPlanningNextMoves } from "./agent-planning-label";
 import { collectMessageSources } from "@/lib/chat-sources";
-import { SourcesInlineStrip } from "@/components/chat-sources";
 
 export function AgentMessageContent({
   message,
@@ -32,6 +31,7 @@ export function AgentMessageContent({
       isStreaming: streaming,
       answerStreaming,
     });
+    // Inline citation chips only — no auto bottom source-card strip.
     const sources = collectMessageSources(message);
 
     // Fresh turn before any tokens — orb only (no planning label).
@@ -65,15 +65,6 @@ export function AgentMessageContent({
               agentArtifacts={message.agentArtifacts}
               {...({ sources } as any)}
             />
-          </div>
-        ) : null}
-        {sources.length > 0 ? (
-          <div
-            data-agent-block="sources"
-            data-sources-live={streaming || undefined}
-            className="overflow-anchor-none"
-          >
-            <SourcesInlineStrip sources={sources} />
           </div>
         ) : null}
         {showOrb ? (

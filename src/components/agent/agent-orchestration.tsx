@@ -11,7 +11,6 @@ import { groupAgentWorkItems } from "@/lib/agent-work-groups";
 import { AssistantContentRenderer } from "@/components/assistant-content-renderer";
 import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
 import { collectMessageSources } from "@/lib/chat-sources";
-import { SourcesInlineStrip } from "@/components/chat-sources";
 import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
 import {
   isAssistantGenerationError,
@@ -234,16 +233,6 @@ export function AgentOrchestrationView({
               {...({ sources } as any)}
             />
           )}
-        </div>
-      ) : null}
-
-      {sources.length > 0 ? (
-        <div
-          data-agent-block="sources"
-          data-sources-live={streaming || undefined}
-          className="overflow-anchor-none"
-        >
-          <SourcesInlineStrip sources={sources} />
         </div>
       ) : null}
 

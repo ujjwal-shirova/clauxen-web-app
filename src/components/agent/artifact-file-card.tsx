@@ -13,12 +13,12 @@ import {
 import { useOptionalArtifactViewer } from "@/contexts/artifact-viewer-context";
 
 function DocumentStackIcon({ size = "md" }: { size?: "sm" | "md" }) {
-  const box = size === "sm" ? "h-9 w-9 rounded-[9px]" : "h-10 w-10 rounded-[10px]";
-  const icon = size === "sm" ? "h-[18px] w-[18px]" : "h-[20px] w-[20px]";
+  const box = size === "sm" ? "h-8 w-8 rounded-md" : "h-9 w-9 rounded-md";
+  const icon = size === "sm" ? "h-4 w-4" : "h-[18px] w-[18px]";
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center border border-zinc-200/90 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]",
+        "flex shrink-0 items-center justify-center border border-zinc-200/90 bg-white",
         box,
       )}
     >
@@ -63,8 +63,8 @@ export function ArtifactFileCard({
   return (
     <div
       className={cn(
-        "artifact-file-card relative my-3 flex w-full min-w-0 items-stretch gap-2 rounded-[14px] border border-zinc-200/85 bg-white p-1.5",
-        isPanel && "my-0 rounded-[12px] p-1",
+        "artifact-file-card relative my-3 flex w-full min-w-0 items-stretch gap-1.5 rounded-lg border border-zinc-200/90 bg-white p-1",
+        isPanel && "my-0 rounded-lg p-1",
         className,
       )}
     >
@@ -72,10 +72,10 @@ export function ArtifactFileCard({
         type="button"
         onClick={openFile}
         className={cn(
-          "artifact-file-card__body group/file-body no-hover-overlay flex min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-zinc-50/90 px-2.5 py-2 text-left transition-colors duration-200",
+          "artifact-file-card__body group/file-body no-hover-overlay flex min-w-0 flex-1 items-center gap-2.5 rounded-md bg-zinc-50/80 px-2 py-1.5 text-left transition-colors duration-150",
           "hover:bg-zinc-100/90",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200/90",
-          isPanel && "gap-2.5 rounded-[9px] px-2 py-1.5",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300",
+          isPanel && "gap-2 rounded-md px-2 py-1.5",
         )}
         aria-label={`${artifact.content ? "Open" : "Download"} ${title}`}
       >
@@ -83,13 +83,13 @@ export function ArtifactFileCard({
         <div className="min-w-0 flex-1">
           <p
             className={cn(
-              "truncate font-semibold tracking-[-0.01em] text-zinc-900",
-              isPanel ? "text-[13.5px]" : "text-[14px]",
+              "truncate font-medium tracking-[-0.01em] text-zinc-900",
+              isPanel ? "text-[13px]" : "text-[13px]",
             )}
           >
             {title}
           </p>
-          <p className="mt-0.5 truncate text-[12px] font-[430] text-zinc-500">
+          <p className="mt-0.5 truncate text-[11.5px] font-[430] text-zinc-500">
             {meta}
           </p>
         </div>
@@ -103,13 +103,12 @@ export function ArtifactFileCard({
         }}
         aria-label={`Download ${title}`}
         className={cn(
-          "no-hover-overlay inline-flex shrink-0 items-center justify-center gap-1.5 self-center rounded-[10px] border border-zinc-200/90 bg-white text-zinc-700 transition-[border-color,background-color,color,box-shadow] duration-200",
-          "hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 hover:shadow-[0_1px_2px_rgba(24,24,27,0.06)]",
-          "active:scale-[0.98]",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200/90",
+          "no-hover-overlay inline-flex shrink-0 items-center justify-center gap-1.5 self-center rounded-md border border-zinc-200/90 bg-white text-zinc-700 transition-colors duration-150",
+          "hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300",
           isPanel
-            ? "h-8 w-8"
-            : "h-9 px-3 text-[12px] font-semibold",
+            ? "h-7 w-7"
+            : "h-7 px-2.5 text-[12px] font-medium",
         )}
       >
         <Download className="h-3.5 w-3.5 shrink-0" strokeWidth={1.9} />

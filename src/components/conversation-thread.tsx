@@ -593,7 +593,7 @@ const MessageRow = React.memo(
                           <button
                             type="button"
                             onClick={() => onOpenSources?.(message.id)}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2.5 text-[12.5px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50"
+                            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-zinc-200/90 bg-white px-2 text-[12px] font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
                           >
                             <span className="flex -space-x-1">
                               {messageSources.slice(0, 3).map((source) => (

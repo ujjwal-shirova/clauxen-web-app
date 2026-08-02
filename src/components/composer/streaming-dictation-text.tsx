@@ -10,6 +10,10 @@ type StreamingDictationTextProps = {
   status: DictationStatus;
 };
 
+/** Match prompt composer single-line metrics — never inflate height just for listening. */
+const DICTATION_LINE =
+  "min-h-[var(--prompt-editor-min-height,22px)] text-[13px] font-[430] leading-[18px]";
+
 export function StreamingDictationText({
   text,
   status,
@@ -25,9 +29,11 @@ export function StreamingDictationText({
 
   if (!text) {
     return (
-      <div className="flex min-h-9 items-center gap-2 text-[13px] text-zinc-500">
-        <LoaderCircle className="icon-md animate-spin" />
-        <span>
+      <div
+        className={`flex items-center gap-2 text-zinc-500 ${DICTATION_LINE}`}
+      >
+        <LoaderCircle className="size-3.5 shrink-0 animate-spin" />
+        <span className="truncate">
           {status === "connecting" ? "Connecting dictation…" : "Listening…"}
         </span>
       </div>
@@ -41,7 +47,7 @@ export function StreamingDictationText({
       aria-label="Live dictation transcript"
       aria-multiline="true"
       aria-live="polite"
-      className="max-h-[147px] min-h-9 overflow-y-auto py-1 text-[14px] font-[430] leading-[21px] text-zinc-800 [scrollbar-width:thin]"
+      className={`max-h-[147px] overflow-y-auto py-0 text-zinc-800 [scrollbar-width:thin] ${DICTATION_LINE}`}
     >
       {parts.map((part, index) =>
         /^\s+$/.test(part) ? (

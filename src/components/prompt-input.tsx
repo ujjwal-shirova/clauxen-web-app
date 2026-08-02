@@ -239,10 +239,7 @@ export function PromptInput({
     attachments.length > 0 ||
     attachmentError != null;
   const useCompactPromptLayout =
-    !isMultiline &&
-    !showComposeControls &&
-    !showDictationSurface &&
-    !hasPromptAddons;
+    !isMultiline && !showComposeControls && !hasPromptAddons;
   const isClient = useIsClient();
 
   const setAddMenuOpen = useCallback(
@@ -398,7 +395,21 @@ export function PromptInput({
 
   const resizeTextarea = useCallback(() => {
     const textarea = textareaRef.current;
-    if (!textarea || showDictationSurface) return;
+    // During live dictation the textarea is swapped for StreamingDictationText —
+    // still keep multiline state honest from the live transcript so the shell
+    // only grows when the text actually needs another line.
+    if (showDictationSurface) {
+      const live = dictation.displayText ?? "";
+      const hasExplicitNewline = live.includes("\n");
+      const approxMultiline =
+        hasExplicitNewline || live.trim().length > 72;
+      if (approxMultiline !== isMultilineRef.current) {
+        isMultilineRef.current = approxMultiline;
+        setIsMultiline(approxMultiline);
+      }
+      return;
+    }
+    if (!textarea) return;
 
     const singleLineHeight = getSingleLineHeight();
     const maxHeight = getTextareaMaxHeight();
@@ -443,6 +454,7 @@ export function PromptInput({
       }
     }
   }, [
+    dictation.displayText,
     getTextareaMaxHeight,
     getSingleLineHeight,
     readDraft,
@@ -484,6 +496,7 @@ export function PromptInput({
     showDictationSurface,
     showComposeControls,
     isMultiline,
+    dictation.displayText,
     scheduleResizeTextarea,
   ]);
 
@@ -915,16 +928,13 @@ export function PromptInput({
 
   const withProjectStrip = showProjectStrip;
   const promptIsExpanded =
-    isMultiline ||
-    showComposeControls ||
-    showDictationSurface ||
-    hasPromptAddons;
+    isMultiline || showComposeControls || hasPromptAddons;
   const promptShellClass = cn(
-    "relative w-full max-w-full bg-[var(--chat-user-card-bg,#fcfcfc)] transition-[min-height,border-radius,border-color,background-color,box-shadow] duration-300 ease-out",
+    "relative w-full max-w-full bg-[var(--chat-user-card-bg,#fcfcfc)] transition-[min-height,border-color,background-color,box-shadow] duration-300 ease-out rounded-xl",
     withProjectStrip && "composer-shell--with-project-strip",
     showComposeControls && "min-h-[40px]",
     composerVariant === "incognito" &&
-      "rounded-full border border-dashed border-zinc-300/90 shadow-none",
+      "rounded-xl border border-dashed border-zinc-300/90 shadow-none",
   );
 
   const renderMicButton = () => (

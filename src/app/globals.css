@@ -56,10 +56,10 @@
     --chat-header-icon-btn: 28px;
     --chat-title-size: 13px;
     --chat-user-font-size: 13px;
-    --chat-assistant-font-size: 13px;
-    --chat-message-line-height: 1.5;
+    --chat-assistant-font-size: 14px;
+    --chat-message-line-height: 1.55;
     --chat-user-line-height: 18px;
-    --chat-assistant-line-height: 19.5px;
+    --chat-assistant-line-height: 22px;
     --menu-icon-size: 16px;
     --menu-row-height: 32px;
     --icon-color: #18181b;
@@ -81,9 +81,9 @@
       0 2px 8px rgba(24, 24, 27, 0.08);
     --cursor-radius-lg: 10px;
     --cursor-radius-xl: 13px;
-    /* Prompt composer — Cursor density (compact controls, modest expanded radius) */
-    --prompt-radius: 9999px;
-    --prompt-radius-lg: 9999px;
+    /* Prompt composer — consistent small radius (no pill→small flash on expand) */
+    --prompt-radius: 12px;
+    --prompt-radius-lg: 12px;
     --prompt-radius-expanded: 12px;
     --prompt-control-size: 24px;
     --prompt-editor-min-height: 22px;
@@ -883,41 +883,38 @@ nav.sidebar-hover-area {
   transition: background-color 0.15s ease !important;
 }
 
-/* Compact prompt composer — Cursor pill (inset hairline + soft lift) */
+/* Compact prompt composer — consistent 12px corners (no radius morph flash) */
 [data-prompt-root] [data-prompt-shell] {
   background: var(--chat-user-card-bg, #fcfcfc) !important;
   border: 0 !important;
   box-shadow: var(--prompt-shadow) !important;
-  border-radius: var(--prompt-radius) !important;
+  border-radius: var(--prompt-radius, 12px) !important;
   overflow: hidden;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   transition:
-    border-radius 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    min-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    min-height 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.15s ease,
+    box-shadow 0.15s ease !important;
 }
 
-/* Expanded / multiline — modest 14px corners (not over-rounded capsule) */
+/* Expanded uses the same radius — never start as a pill then shrink */
 [data-prompt-root] [data-prompt-shell][data-prompt-expanded="true"],
 [data-prompt-root] [data-composer-stack="with-project"][data-prompt-expanded="true"] {
-  border-radius: var(--prompt-radius-expanded) !important;
+  border-radius: var(--prompt-radius-expanded, 12px) !important;
 }
 
 /* Unified composer + project strip — one bordered stack, clipped round corners. */
 [data-prompt-root] [data-composer-stack="with-project"] {
   border: 0;
-  border-radius: var(--prompt-radius);
+  border-radius: var(--prompt-radius, 12px);
   background: var(--chat-user-card-bg, #fcfcfc);
   box-shadow: var(--prompt-shadow);
   overflow: hidden;
   isolation: isolate;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  transition:
-    border-radius 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell] {
@@ -1051,12 +1048,12 @@ button.user-message-card__body:not(:disabled):hover,
   );
 }
 
-/* Hover edit affordance — top-right inside the card */
+/* Hover edit affordance — pinned top-right inside the card */
 .user-message-card__edit-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
   opacity: 0;
   pointer-events: none;
   transition:
@@ -1246,9 +1243,14 @@ button.user-message-card__body:not(:disabled):hover,
 
 .content-pane-top-bar button[aria-label="Share chat"] {
   width: auto;
+  height: 28px;
+  min-height: 28px;
   min-width: 52px;
   padding-left: 10px;
   padding-right: 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .content-pane-top-bar .ui-chrome-text-btn {
@@ -1358,18 +1360,18 @@ button.user-message-card__body:not(:disabled):hover,
   resize: none;
   overflow-x: hidden;
   overflow-y: hidden;
-  min-height: var(--prompt-input-editor-min-height, 24px);
+  min-height: var(--prompt-input-editor-min-height, 22px);
   max-height: var(--prompt-input-editor-max-height, 168px);
-  height: var(--prompt-input-editor-height, var(--prompt-input-editor-min-height, 24px));
+  height: var(--prompt-input-editor-height, var(--prompt-input-editor-min-height, 22px));
   overflow-anchor: none;
   box-sizing: border-box;
-  transition: height 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  /* No height transition — avoids top-misaligned → center flash on first paint / resize */
+  transition: none;
 }
 
 [data-prompt-root] [data-prompt-shell] [data-prompt-editor] {
-  transition:
-    min-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    padding 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Instant vertical alignment — no padding/min-height morph that parks text at the top */
+  transition: none;
 }
 
 /* Stable side-anchored grid — plus left, editor center, actions right.
@@ -1384,10 +1386,8 @@ button.user-message-card__body:not(:disabled):hover,
   padding: 4px 8px;
   min-height: 40px;
   box-sizing: border-box;
-  transition:
-    padding 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    min-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    align-items 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  /* No align-items/padding transition — prevents text starting top then sliding to center */
+  transition: none;
 }
 
 [data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-expanded="true"],
@@ -1403,19 +1403,21 @@ button.user-message-card__body:not(:disabled):hover,
   align-items: center;
   justify-content: center;
   padding-bottom: 0;
-  transition: padding 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: none;
 }
 
 [data-prompt-root] [data-prompt-shell] .prompt-body-grid [data-prompt-editor] {
   grid-area: editor;
   min-width: 0;
-  align-self: stretch;
+  align-self: center;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-[data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-layout="stacked"] [data-prompt-editor] {
+[data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-layout="stacked"] [data-prompt-editor],
+[data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-expanded="true"] [data-prompt-editor] {
+  align-self: stretch;
   justify-content: flex-start;
   padding-top: 2px;
 }
@@ -1485,15 +1487,15 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 [data-prompt-root] .prompt-control-ghost {
-  background-color: rgba(24, 24, 27, 0.06) !important;
-  color: #52525b !important;
+  background-color: transparent !important;
+  color: #71717a !important;
   box-shadow: none !important;
 }
 
 [data-prompt-root] .prompt-control-ghost:hover:not(:disabled),
 [data-prompt-root] .prompt-control-ghost:focus-visible:not(:disabled),
 [data-prompt-root] .prompt-control-ghost[aria-expanded="true"] {
-  background-color: rgba(24, 24, 27, 0.1) !important;
+  background-color: rgba(24, 24, 27, 0.06) !important;
   color: #18181b !important;
   box-shadow: none !important;
 }
