@@ -290,3 +290,5 @@ Full target surface — **remember only; implement only when user asks for a sli
 | 2026-08-02 | Product UI stays warm-canvas + zinc monochrome (no indigo/purple primary). Shared page chrome via src/lib/app-page-chrome.ts; icons 18px chrome / 16px menus (icon-lg/icon-md); CTAs via app-btn charcoal primary. | User asked for polished minimal AI-platform UI; prior indigo redesign was reverted. |
 
 | 2026-08-02 | Cloud/agent git workflow: commit and push only on master. Do not create feature branches or PRs unless the user explicitly asks. | User requested merge-all + delete branches/PRs; future work stays on master only |
+
+| 2026-08-02 | Composer/chrome density: 28px controls (--prompt-control-size/--icon-btn-size), 16px icons; filled mic/send use .prompt-control-filled (no washout hover); plus uses .prompt-control-ghost; composer morphs via CSS grid compact↔stacked with smooth height/radius (expanded radius 28px); assistant actions 28×28. | User: tiny actions/sidebar icons, washed-out mic/send hover, hard composer expand cut, expanded corners |

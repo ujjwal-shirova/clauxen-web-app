@@ -175,7 +175,7 @@ const ProfileMenuChevron = ({ className }: { className?: string }) => (
     fill="currentColor"
     viewBox="0 0 256 256"
     aria-hidden="true"
-    className={cn("size-3.5 shrink-0 text-zinc-500", className)}
+    className={cn("size-4 shrink-0 text-zinc-500", className)}
   >
     <path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z" />
   </svg>
@@ -418,7 +418,7 @@ export function Sidebar({
           className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
         >
           <span className="ui-nav-icon text-zinc-800/66">
-            <NavProjectsIcon className="size-3.5" />
+            <NavProjectsIcon className="size-4" />
           </span>
           <span className="min-w-0 flex-1 truncate">
             {project.name || "Untitled project"}
@@ -730,7 +730,7 @@ export function Sidebar({
                 aria-label="Expand sidebar"
                 className="ui-icon-button absolute inset-0 text-zinc-800/66 opacity-0 transition-all duration-200 hover:bg-black/[0.04] group-hover/sidebar-logo:opacity-100"
               >
-                <SidebarOpenIcon className="size-3.5" />
+                <SidebarOpenIcon className="size-4" />
               </button>
             </div>
           ) : (
@@ -745,11 +745,11 @@ export function Sidebar({
               className="ui-icon-button text-zinc-800/66 transition-all duration-200 hover:bg-black/[0.04]"
             >
               {isMobileLayout && !isCollapsed ? (
-                <X className="size-3.5" />
+                <X className="size-4" />
               ) : isCollapsed ? (
-                <SidebarOpenIcon className="size-3.5" />
+                <SidebarOpenIcon className="size-4" />
               ) : (
-                <SidebarToggleIcon className="size-3.5" />
+                <SidebarToggleIcon className="size-4" />
               )}
             </button>
           )}
@@ -779,7 +779,7 @@ export function Sidebar({
                   aria-label="New chat"
                   className="ui-icon-button mx-auto text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
                 >
-                  <NewChatBubbleIcon className="size-3.5" />
+                  <NewChatBubbleIcon className="size-4" />
                 </AppHref>
               ) : (
                 <AppHref
@@ -795,7 +795,7 @@ export function Sidebar({
                   className="group ui-sidebar-menu-button no-hover-overlay flex h-8 w-full items-center justify-between gap-2 rounded-md px-2 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <NewChatBubbleIcon className="size-3.5 shrink-0 text-zinc-800/66" />
+                    <NewChatBubbleIcon className="size-4 shrink-0 text-zinc-800/66" />
                     <span className="truncate">New Chat</span>
                   </span>
                   <span className="flex shrink-0 items-center gap-0.5 opacity-60">
@@ -811,7 +811,7 @@ export function Sidebar({
             {/* Nav: Library → Scheduled → Customize → Clauxen Code */}
             {renderNavButton({
               label: "Library",
-              icon: <Library className="size-3.5" />,
+              icon: <Library className="size-4" />,
               href: APP_ROUTES.library,
               onClick: onLibraryClick,
               active: activeView === "library",
@@ -820,7 +820,7 @@ export function Sidebar({
             {renderNavButton({
               label: "Scheduled Task",
               icon: (
-                <CalendarClock className="size-3.5" strokeWidth={1.5} />
+                <CalendarClock className="size-4" strokeWidth={1.5} />
               ),
               href: APP_ROUTES.scheduledTasks,
               onClick: () => onScheduledTasksClick?.(),
@@ -830,7 +830,7 @@ export function Sidebar({
             {renderNavButton({
               label: "Customize",
               icon: (
-                <SlidersHorizontal className="size-3.5" strokeWidth={1.5} />
+                <SlidersHorizontal className="size-4" strokeWidth={1.5} />
               ),
               href: overlayHref({ type: "settings", tab: "Connectors" }),
               onClick: () => onCustomizeClick?.(),
@@ -839,7 +839,7 @@ export function Sidebar({
 
             {renderNavButton({
               label: "Clauxen Code",
-              icon: <Code2 className="size-3.5" strokeWidth={1.5} />,
+              icon: <Code2 className="size-4" strokeWidth={1.5} />,
               onClick: () =>
                 runNavAction(() => {
                   onClauxenCodeClick?.();
@@ -847,7 +847,7 @@ export function Sidebar({
               active: activeView === "clauxen-code",
               trailing: !isCollapsed ? (
                 <ArrowUpRight
-                  className="ml-auto size-3.5 shrink-0 text-zinc-800/40"
+                  className="ml-auto size-4 shrink-0 text-zinc-800/40"
                   strokeWidth={1.5}
                   aria-hidden
                 />
@@ -896,7 +896,7 @@ export function Sidebar({
                     className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-md px-2 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
                   >
                     <Plus
-                      className="size-3.5 shrink-0 text-zinc-800/66"
+                      className="size-4 shrink-0 text-zinc-800/66"
                       strokeWidth={1.5}
                     />
                     <span className="truncate">New Project</span>
@@ -1009,7 +1009,7 @@ export function Sidebar({
                       ) : null}
                     </div>
                     {!isCollapsed && (
-                      <ProfileMenuChevron className="size-3.5 opacity-70" />
+                      <ProfileMenuChevron className="size-4 opacity-70" />
                     )}
                   </button>
                 </DropdownMenuTrigger>
@@ -1035,7 +1035,7 @@ export function Sidebar({
                       className="ui-menu-row no-hover-overlay cursor-pointer justify-between"
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <Settings className="size-3.5 text-zinc-800" />
+                        <Settings className="size-4 text-zinc-800" />
                         <span>Settings</span>
                       </div>
                       <span className="text-[12px] text-zinc-500">⇧⌘,</span>
@@ -1055,14 +1055,14 @@ export function Sidebar({
                         }}
                         className="ui-menu-row no-hover-overlay cursor-pointer"
                       >
-                        <Sparkles className="size-3.5 text-zinc-800" />
+                        <Sparkles className="size-4 text-zinc-800" />
                         <span>Personalization</span>
                       </AppHref>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger className="ui-menu-row no-hover-overlay cursor-pointer">
-                      <Languages className="size-3.5 text-zinc-800" />
+                      <Languages className="size-4 text-zinc-800" />
                       <span>Language</span>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
@@ -1080,7 +1080,7 @@ export function Sidebar({
                     </DropdownMenuPortal>
                   </DropdownMenuSub>
                   <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
-                    <HelpCircle className="size-3.5 text-zinc-800" />
+                    <HelpCircle className="size-4 text-zinc-800" />
                     <span>Get help</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -1093,7 +1093,7 @@ export function Sidebar({
                       }}
                       className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
-                      <ArrowUpCircle className="size-3.5 text-zinc-800" />
+                      <ArrowUpCircle className="size-4 text-zinc-800" />
                       <span>Upgrade plan</span>
                     </AppHref>
                   </DropdownMenuItem>
@@ -1107,7 +1107,7 @@ export function Sidebar({
                       }}
                       className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
-                      <LayoutGrid className="size-3.5 text-zinc-800" />
+                      <LayoutGrid className="size-4 text-zinc-800" />
                       <span>Apps and extensions</span>
                     </AppHref>
                   </DropdownMenuItem>
@@ -1121,13 +1121,13 @@ export function Sidebar({
                       }}
                       className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
-                      <Gift className="size-3.5 text-zinc-800" />
+                      <Gift className="size-4 text-zinc-800" />
                       <span>Gift Clauxen</span>
                     </AppHref>
                   </DropdownMenuItem>
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger className="ui-menu-row no-hover-overlay cursor-pointer">
-                      <HelpCircle className="size-3.5 text-zinc-800" />
+                      <HelpCircle className="size-4 text-zinc-800" />
                       <span>Learn more</span>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
@@ -1149,7 +1149,7 @@ export function Sidebar({
                     onClick={() => onLogoutClick?.()}
                     className="ui-menu-row no-hover-overlay cursor-pointer text-destructive"
                   >
-                    <LogOut className="size-3.5" />
+                    <LogOut className="size-4" />
                     <span>Log out</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>

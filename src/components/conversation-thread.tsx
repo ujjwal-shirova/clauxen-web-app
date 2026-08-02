@@ -106,8 +106,8 @@ function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
 
 const RetryIcon = () => (
   <svg
-    width="12"
-    height="12"
+    width="16"
+    height="16"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -119,8 +119,8 @@ const RetryIcon = () => (
 /** Share glyph matching the filled 20-grid set (the lucide node graph read odd). */
 const ShareIcon = () => (
   <svg
-    width="12"
-    height="12"
+    width="16"
+    height="16"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -132,8 +132,8 @@ const ShareIcon = () => (
 
 const CustomCopyIcon = () => (
   <svg
-    width="12"
-    height="12"
+    width="16"
+    height="16"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -144,8 +144,8 @@ const CustomCopyIcon = () => (
 
 const ThumbsUpIcon = () => (
   <svg
-    width="12"
-    height="12"
+    width="16"
+    height="16"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -156,8 +156,8 @@ const ThumbsUpIcon = () => (
 
 const ThumbsDownIcon = () => (
   <svg
-    width="12"
-    height="12"
+    width="16"
+    height="16"
     viewBox="0 0 20 20"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
@@ -482,7 +482,7 @@ const MessageRow = React.memo(
                           className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                         >
                           {copiedId === message.id ? (
-                            <Check className="size-3 text-emerald-600" strokeWidth={2} />
+                            <Check className="size-4 text-emerald-600" strokeWidth={2} />
                           ) : (
                             <CustomCopyIcon />
                           )}
@@ -550,7 +550,7 @@ const MessageRow = React.memo(
                             }}
                             className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
                           >
-                            <MoreHorizontal className="size-3" strokeWidth={1.75} />
+                            <MoreHorizontal className="size-4" strokeWidth={1.75} />
                           </button>
                         </HintTooltip>
                       </div>

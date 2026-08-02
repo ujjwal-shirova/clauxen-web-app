@@ -42,10 +42,10 @@
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-composer: 28px;
-    /* App chrome icon/button scale — Cursor-compact */
-    --icon-size: 14px;
+    /* App chrome icon/button scale — Cursor density */
+    --icon-size: 16px;
     --icon-stroke: 1.5;
-    --icon-btn-size: 24px;
+    --icon-btn-size: 28px;
     --nav-row-height: 32px;
     --nav-gap-tight: 8px;
     --nav-gap-loose: 8px;
@@ -60,7 +60,7 @@
     --chat-message-line-height: 1.5;
     --chat-user-line-height: 18px;
     --chat-assistant-line-height: 19.5px;
-    --menu-icon-size: 14px;
+    --menu-icon-size: 16px;
     --menu-row-height: 32px;
     --icon-color: #18181b;
     --icon-muted: rgba(24, 24, 27, 0.66);
@@ -81,11 +81,12 @@
       0 2px 8px rgba(24, 24, 27, 0.08);
     --cursor-radius-lg: 10px;
     --cursor-radius-xl: 13px;
-    /* Prompt composer — Cursor pill */
+    /* Prompt composer — Cursor pill; expanded keeps generous rounded corners */
     --prompt-radius: 9999px;
     --prompt-radius-lg: 9999px;
-    --prompt-control-size: 24px;
-    --prompt-editor-min-height: 36px;
+    --prompt-radius-expanded: 32px;
+    --prompt-control-size: 28px;
+    --prompt-editor-min-height: 24px;
     --prompt-shadow:
       inset 0 0 0 1px rgba(24, 24, 27, 0.1),
       0 1px 4px rgba(0, 0, 0, 0.008);
@@ -214,7 +215,11 @@
       [class*="bg-black"]
     ):not([class*="bg-zinc-9"]):not([class*="bg-zinc-8"]):not(
       [class*="bg-primary"]
-    ):not([class*="bg-[#0b0b0b]"]):not([class*="text-white"]):hover,
+    ):not([class*="bg-[#0b0b0b]"]):not([class*="bg-[#141414]"]):not(
+      [class*="text-white"]
+    ):not([class*="text-[#fcfcfc]"]):not(.prompt-control-filled):not(
+      .prompt-control-ghost
+    ):hover,
   a[role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(
       .auth-text-link
     ):not(.label-hover-bold):not(.follow-up-prompt):not(.app-btn):not(
@@ -296,11 +301,20 @@
   button[class*="bg-zinc-9"]:not(:disabled):not(.no-hover-overlay):hover,
   button[class*="bg-zinc-8"]:not(:disabled):not(.no-hover-overlay):hover,
   button[class*="bg-[#0b0b0b]"]:not(:disabled):not(.no-hover-overlay):hover,
+  button[class*="bg-[#141414]"]:not(:disabled):not(.no-hover-overlay):hover,
   button.bg-primary:not(:disabled):not(.no-hover-overlay):hover,
   button[class*="bg-primary"]:not(:disabled):not(.no-hover-overlay):hover,
   .btn-solid-dark:not(:disabled):not(.no-hover-overlay):hover,
   .app-btn-primary:not(:disabled):hover {
     box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.08) !important;
+  }
+
+  /* Filled prompt controls opt out of inset wash entirely */
+  button.prompt-control-filled:hover,
+  button.prompt-control-filled:focus-visible,
+  button.prompt-control-ghost:hover,
+  button.prompt-control-ghost:focus-visible {
+    box-shadow: none !important;
   }
 
 }
@@ -587,7 +601,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   will-change: opacity, transform;
 }
 
-/* Lucide icon system — crisp 14px default (chrome); menus use --menu-icon-size */
+/* Lucide icon system — crisp 16px default (chrome); menus use --menu-icon-size */
 svg.lucide {
   width: var(--icon-size);
   height: var(--icon-size);
@@ -625,7 +639,7 @@ svg.lucide.icon-2xl {
   height: 24px;
 }
 
-/* App chrome: icon-only control — 24×24 with pad around 14px icon */
+/* App chrome: icon-only control — 28×28 with pad around 16px icon */
 .ui-icon-button {
   box-sizing: border-box;
   display: inline-flex;
@@ -635,7 +649,7 @@ svg.lucide.icon-2xl {
   height: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 5px;
+  padding: 6px;
   border-radius: var(--radius-sm);
   flex-shrink: 0;
   color: var(--icon-muted);
@@ -667,17 +681,17 @@ svg.lucide.icon-2xl {
   color: hsl(var(--foreground));
 }
 
-/* Dense row actions (sidebar chat pin/more) — 24×24, visible hover */
+/* Dense row actions (sidebar chat pin/more) — 28×28, visible hover */
 .ui-row-icon-button {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  min-height: 24px;
-  padding: 5px;
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  min-width: var(--icon-btn-size);
+  min-height: var(--icon-btn-size);
+  padding: 6px;
   border-radius: 6px;
   flex-shrink: 0;
   color: var(--icon-subtle);
@@ -695,8 +709,8 @@ svg.lucide.icon-2xl {
 }
 
 .ui-row-icon-button svg {
-  width: 14px;
-  height: 14px;
+  width: var(--icon-size);
+  height: var(--icon-size);
 }
 
 /* Dropdown / profile menu rows */
@@ -879,8 +893,16 @@ nav.sidebar-hover-area {
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   transition:
-    border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-radius 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    min-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Expanded / multiline — keep corners generously rounded (not sharp) */
+[data-prompt-root] [data-prompt-shell][data-prompt-expanded="true"],
+[data-prompt-root] [data-composer-stack="with-project"][data-prompt-expanded="true"] {
+  border-radius: var(--prompt-radius-expanded) !important;
 }
 
 /* Unified composer + project strip — one bordered stack, clipped round corners. */
@@ -893,6 +915,9 @@ nav.sidebar-hover-area {
   isolation: isolate;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  transition:
+    border-radius 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell] {
@@ -1282,20 +1307,13 @@ button.user-message-card__body:not(:disabled):hover,
 
 .ui-prompt-input__container,
 [data-prompt-root] [data-prompt-shell] {
-  --prompt-input-editor-min-height: var(--prompt-editor-min-height, 36px);
+  --prompt-input-editor-min-height: var(--prompt-editor-min-height, 24px);
   --prompt-input-editor-max-height: 168px;
   --prompt-input-editor-height: var(--prompt-input-editor-min-height);
 }
 
 .ui-prompt-input-toolbar {
-  min-height: var(--prompt-control-size, 24px);
-}
-
-[data-prompt-root] [data-prompt-shell] {
-  transition:
-    min-height 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  min-height: var(--prompt-control-size, 28px);
 }
 
 [data-prompt-root] [data-prompt-shell] textarea,
@@ -1303,21 +1321,149 @@ button.user-message-card__body:not(:disabled):hover,
   resize: none;
   overflow-x: hidden;
   overflow-y: hidden;
-  min-height: var(--prompt-input-editor-min-height, 32px);
+  min-height: var(--prompt-input-editor-min-height, 24px);
   max-height: var(--prompt-input-editor-max-height, 168px);
-  height: var(--prompt-input-editor-height, var(--prompt-input-editor-min-height, 32px));
+  height: var(--prompt-input-editor-height, var(--prompt-input-editor-min-height, 24px));
   overflow-anchor: none;
   box-sizing: border-box;
-  transition: height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: height 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-prompt-root] [data-prompt-shell] [data-prompt-editor] {
-  transition: min-height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    min-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-[data-prompt-root] [data-prompt-shell] [data-prompt-layout="stacked"] [data-prompt-editor] {
-  flex: none;
+/* Stable side-anchored grid — plus left, editor center, actions right.
+   Multiline only grows editor height (align end); no compact↔stacked remount cut. */
+[data-prompt-root] [data-prompt-shell] .prompt-body-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "add editor trailing";
+  align-items: center;
+  column-gap: 10px;
+  padding: 6px 10px;
+  min-height: 48px;
+  box-sizing: border-box;
+  transition:
+    padding 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    min-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    align-items 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-expanded="true"],
+[data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-layout="stacked"] {
+  align-items: end;
+  padding: 10px 10px 8px;
+  min-height: 0;
+}
+
+[data-prompt-root] [data-prompt-shell] .prompt-body-grid [data-prompt-add] {
+  grid-area: add;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 0;
+  transition: padding 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-prompt-root] [data-prompt-shell] .prompt-body-grid [data-prompt-editor] {
+  grid-area: editor;
+  min-width: 0;
   align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+[data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-layout="stacked"] [data-prompt-editor] {
+  justify-content: flex-start;
+  padding-top: 2px;
+}
+
+[data-prompt-root] [data-prompt-shell] .prompt-body-grid [data-prompt-trailing] {
+  grid-area: trailing;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Prompt control buttons — Cursor 28px density */
+[data-prompt-root] .prompt-control-filled,
+[data-prompt-root] .prompt-control-ghost {
+  box-sizing: border-box;
+  width: var(--prompt-control-size, 28px) !important;
+  height: var(--prompt-control-size, 28px) !important;
+  min-width: var(--prompt-control-size, 28px);
+  min-height: var(--prompt-control-size, 28px);
+  padding: 0 !important;
+  border-radius: 9999px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition:
+    background-color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.16s ease !important;
+}
+
+[data-prompt-root] .prompt-control-filled,
+[data-prompt-root] .prompt-control-filled:hover,
+[data-prompt-root] .prompt-control-filled:focus,
+[data-prompt-root] .prompt-control-filled:focus-visible,
+[data-prompt-root] .prompt-control-filled[data-app-button]:hover {
+  background-color: #141414 !important;
+  color: #fcfcfc !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+[data-prompt-root] .prompt-control-filled:hover:not(:disabled),
+[data-prompt-root] .prompt-control-filled:focus-visible:not(:disabled) {
+  background-color: #2a2a2a !important;
+  color: #ffffff !important;
+}
+
+[data-prompt-root] .prompt-control-filled:active:not(:disabled) {
+  background-color: #0a0a0a !important;
+  color: #ffffff !important;
+}
+
+[data-prompt-root] .prompt-control-filled:disabled {
+  opacity: 0.4 !important;
+  background-color: #141414 !important;
+  color: #fcfcfc !important;
+}
+
+[data-prompt-root] .prompt-control-filled svg {
+  width: 16px !important;
+  height: 16px !important;
+  color: inherit !important;
+  opacity: 1 !important;
+}
+
+[data-prompt-root] .prompt-control-ghost {
+  background-color: rgba(24, 24, 27, 0.06) !important;
+  color: #52525b !important;
+  box-shadow: none !important;
+}
+
+[data-prompt-root] .prompt-control-ghost:hover:not(:disabled),
+[data-prompt-root] .prompt-control-ghost:focus-visible:not(:disabled),
+[data-prompt-root] .prompt-control-ghost[aria-expanded="true"] {
+  background-color: rgba(24, 24, 27, 0.1) !important;
+  color: #18181b !important;
+  box-shadow: none !important;
+}
+
+[data-prompt-root] .prompt-control-ghost svg {
+  width: 16px !important;
+  height: 16px !important;
 }
 
 [data-prompt-root] [data-prompt-shell] [data-prompt-layout="stacked"].prompt-body-grid {
@@ -1755,7 +1901,7 @@ button.user-message-card__body:not(:disabled):hover,
   height: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 5px;
+  padding: 6px;
   border-radius: 6px;
   color: var(--icon-muted);
 }
@@ -1830,8 +1976,8 @@ button.user-message-card__body:not(:disabled):hover,
 .glass-sidebar-docked .ui-nav-icon,
 .glass-sidebar-docked .ui-nav-icon svg,
 .glass-sidebar-docked .ui-icon-button svg {
-  width: 14px;
-  height: 14px;
+  width: var(--icon-size);
+  height: var(--icon-size);
 }
 
 .dark .glass-sidebar-docked .ui-sidebar-menu-button:hover,
@@ -1985,27 +2131,39 @@ button.user-message-card__body:not(:disabled):hover,
   letter-spacing: normal;
 }
 
-/* Message action icon buttons — compact 20×20 chrome with hover */
+/* Message action icon buttons — Cursor 28×28 chrome with hover */
 .assistant-message button[aria-label="Copy message"],
 .assistant-message button[aria-label="Retry"],
 .assistant-message button[aria-label="Positive feedback"],
 .assistant-message button[aria-label="Negative feedback"],
 .assistant-message button[aria-label="Share message"],
 .assistant-message button[aria-label="More actions"] {
-  width: 20px !important;
-  height: 20px !important;
-  min-width: 20px;
-  min-height: 20px;
-  padding: 4px;
-  border-radius: 4px !important;
+  width: var(--icon-btn-size, 28px) !important;
+  height: var(--icon-btn-size, 28px) !important;
+  min-width: var(--icon-btn-size, 28px);
+  min-height: var(--icon-btn-size, 28px);
+  padding: 6px;
+  border-radius: 6px !important;
 }
 
 .assistant-message-actions {
-  min-height: 20px;
+  min-height: var(--icon-btn-size, 28px);
+  gap: 2px;
 }
 
 .assistant-message-actions > [data-more-trigger] {
   display: inline-flex;
+}
+
+.assistant-message-actions .ui-icon-button svg,
+.assistant-message button[aria-label="Copy message"] svg,
+.assistant-message button[aria-label="Retry"] svg,
+.assistant-message button[aria-label="Positive feedback"] svg,
+.assistant-message button[aria-label="Negative feedback"] svg,
+.assistant-message button[aria-label="Share message"] svg,
+.assistant-message button[aria-label="More actions"] svg {
+  width: 16px !important;
+  height: 16px !important;
 }
 
 .assistant-message button[aria-label="Copy message"]:hover,
@@ -2016,6 +2174,8 @@ button.user-message-card__body:not(:disabled):hover,
 .assistant-message button[aria-label="More actions"]:hover {
   background-color: rgba(24, 24, 27, 0.06) !important;
   color: #18181b !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
 }
 
 .markdown-content > *:first-child,
@@ -2645,17 +2805,33 @@ button:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
     .app-btn
   ):not(.app-btn-primary):not(.app-btn-secondary):not(.app-btn-ghost):not(
     .btn-solid-dark
-  ):not(.btn-primary-solid):not([class*="text-white"]):hover,
+  ):not(.btn-primary-solid):not([class*="text-white"]):not(
+    [class*="text-[#fcfcfc]"]
+  ):not([class*="bg-[#141414]"]):not([class*="bg-black"]):not(
+    .prompt-control-filled
+  ):not(.prompt-control-ghost):hover,
 [role="button"]:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
     .label-hover-bold
   ):not(.follow-up-prompt):not([aria-disabled="true"]):not(.app-btn):not(
     .context-usage-trigger
-  ):not([class*="text-white"]):hover,
+  ):not([class*="text-white"]):not(.prompt-control-filled):not(
+    .prompt-control-ghost
+  ):hover,
 button[data-app-button]:not([class*="text-white"]):not(
-    [class*="bg-zinc-9"]
-  ):not([class*="bg-black"]):hover,
-[data-prompt-input] button:not([class*="text-white"]):hover,
-.prompt-input button:not([class*="text-white"]):hover,
+    [class*="text-[#fcfcfc]"]
+  ):not([class*="bg-zinc-9"]):not([class*="bg-black"]):not(
+    [class*="bg-[#141414]"]
+  ):not(.prompt-control-filled):not(.prompt-control-ghost):hover,
+[data-prompt-input] button:not([class*="text-white"]):not(
+    [class*="text-[#fcfcfc]"]
+  ):not([class*="bg-[#141414]"]):not(.prompt-control-filled):not(
+    .prompt-control-ghost
+  ):hover,
+.prompt-input button:not([class*="text-white"]):not(
+    [class*="text-[#fcfcfc]"]
+  ):not([class*="bg-[#141414]"]):not(.prompt-control-filled):not(
+    .prompt-control-ghost
+  ):hover,
 button[data-speed-toggle]:hover,
 .app-action-button:hover,
 .dropdown-menu-trigger:hover {
@@ -2675,16 +2851,24 @@ button[data-speed-toggle]:hover,
   box-shadow: none !important;
 }
 
-/* Active / pressed / selected / open states */
-button[aria-pressed="true"]:not(:disabled),
-button[data-active="true"],
+/* Active / pressed / selected / open states — skip filled prompt controls */
+button[aria-pressed="true"]:not(:disabled):not(.prompt-control-filled),
+button[data-active="true"]:not(.prompt-control-filled),
 button[data-speed-toggle][data-active="true"],
-[data-prompt-input] button[aria-expanded="true"],
-.prompt-input button[aria-expanded="true"],
-button[aria-current="page"],
+[data-prompt-input] button[aria-expanded="true"]:not(.prompt-control-filled):not(
+    .prompt-control-ghost
+  ),
+.prompt-input button[aria-expanded="true"]:not(.prompt-control-filled):not(
+    .prompt-control-ghost
+  ),
+button[aria-current="page"]:not(.prompt-control-filled),
 .app-action-button[aria-current="true"],
-button[data-state="open"]:not(.context-usage-trigger),
-[role="button"][data-state="open"]:not(.context-usage-trigger) {
+button[data-state="open"]:not(.context-usage-trigger):not(
+    .prompt-control-filled
+  ):not(.prompt-control-ghost),
+[role="button"][data-state="open"]:not(.context-usage-trigger):not(
+    .prompt-control-filled
+  ):not(.prompt-control-ghost) {
   background-color: rgba(24, 24, 27, 0.08) !important;
 }
 

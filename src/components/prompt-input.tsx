@@ -117,7 +117,10 @@ const COMPOSE_ACTION_META: Record<
 };
 
 const addMenuTriggerClass =
-  "menu-trigger-active flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black/[0.06] text-zinc-600 transition-colors hover:bg-black/[0.09] hover:text-zinc-800 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
+  "menu-trigger-active no-hover-overlay prompt-control-ghost shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
+
+const promptFilledControlClass =
+  "no-hover-overlay prompt-control-filled shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-app-button";
 
 /** Fallback single-line height when measurement is not ready yet. */
 const COLLAPSED_TEXTAREA_HEIGHT_PX = 20;
@@ -131,16 +134,24 @@ function measureTextareaScrollHeight(textarea: HTMLTextAreaElement): number {
     minHeight: textarea.style.minHeight,
     maxHeight: textarea.style.maxHeight,
     overflow: textarea.style.overflow,
+    transition: textarea.style.transition,
   };
+  // Disable height transition while probing — otherwise the measure
+  // momentarily collapses to 0 and animates back (hard cut / flicker).
+  textarea.style.transition = "none";
   textarea.style.height = "0";
   textarea.style.minHeight = "0";
   textarea.style.maxHeight = "none";
   textarea.style.overflow = "hidden";
+  // Force reflow so the zero-height probe is applied before reading.
+  void textarea.offsetHeight;
   const measured = textarea.scrollHeight;
   textarea.style.height = previous.height;
   textarea.style.minHeight = previous.minHeight;
   textarea.style.maxHeight = previous.maxHeight;
   textarea.style.overflow = previous.overflow;
+  void textarea.offsetHeight;
+  textarea.style.transition = previous.transition;
   return measured;
 }
 
@@ -900,14 +911,18 @@ export function PromptInput({
     scheduleResizeTextarea();
   };
 
-  const micButtonClass =
-    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#141414] text-[#fcfcfc] transition-colors hover:bg-zinc-800 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0";
+  const micButtonClass = promptFilledControlClass;
 
   const withProjectStrip = showProjectStrip;
+  const promptIsExpanded =
+    isMultiline ||
+    showComposeControls ||
+    showDictationSurface ||
+    hasPromptAddons;
   const promptShellClass = cn(
-    "relative w-full max-w-full bg-[var(--chat-user-card-bg,#fcfcfc)] transition-[min-height,border-color,background-color,box-shadow] duration-150 ease-out",
+    "relative w-full max-w-full bg-[var(--chat-user-card-bg,#fcfcfc)] transition-[min-height,border-radius,border-color,background-color,box-shadow] duration-300 ease-out",
     withProjectStrip && "composer-shell--with-project-strip",
-    showComposeControls && "min-h-[44px]",
+    showComposeControls && "min-h-[48px]",
     composerVariant === "incognito" &&
       "rounded-full border border-dashed border-zinc-300/90 shadow-none",
   );
@@ -921,7 +936,7 @@ export function PromptInput({
         className={micButtonClass}
         data-app-button
       >
-        <Mic className="icon-sm shrink-0 opacity-90" />
+        <Mic className="icon-md shrink-0" strokeWidth={1.75} />
       </button>
     </HintTooltip>
   );
@@ -932,9 +947,9 @@ export function PromptInput({
         type="button"
         disabled
         aria-label="Send"
-        className="no-hover-overlay flex h-6 w-6 cursor-not-allowed items-center justify-center rounded-full bg-[#141414] text-[#fcfcfc] opacity-40"
+        className={cn(promptFilledControlClass, "cursor-not-allowed")}
       >
-        <ArrowUp className="icon-sm" />
+        <ArrowUp className="icon-md" strokeWidth={2} />
       </button>
     </HintTooltip>
   );
@@ -950,12 +965,12 @@ export function PromptInput({
               disabled={dictation.status === "stopping"}
               aria-label="Cancel dictation"
               className={cn(
-                "flex h-6 w-6 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100",
+                "no-hover-overlay prompt-control-ghost",
                 dictation.status === "stopping" &&
                   "cursor-not-allowed opacity-40",
               )}
             >
-              <X className="icon-sm" />
+              <X className="icon-md" strokeWidth={1.75} />
             </button>
           </HintTooltip>
           <HintTooltip content="Submit dictation">
@@ -965,16 +980,15 @@ export function PromptInput({
               disabled={dictation.status === "stopping"}
               aria-label="Submit dictation"
               className={cn(
-                "flex h-6 w-6 items-center justify-center rounded-full transition-colors",
                 dictation.status === "stopping"
-                  ? "cursor-wait bg-[#141414] text-[#fcfcfc]"
-                  : "text-zinc-600 hover:bg-zinc-100",
+                  ? cn(promptFilledControlClass, "cursor-wait")
+                  : "no-hover-overlay prompt-control-ghost",
               )}
             >
               {dictation.status === "stopping" ? (
-                <Square className="icon-xs animate-pulse" />
+                <Square className="icon-sm animate-pulse" />
               ) : (
-                <Square className="icon-xs fill-current" />
+                <Square className="icon-sm fill-current" />
               )}
             </button>
           </HintTooltip>
@@ -993,10 +1007,10 @@ export function PromptInput({
                 type="button"
                 onClick={handleSubmit}
                 aria-label="Send queued message"
-                className="no-hover-overlay flex h-6 w-6 items-center justify-center rounded-full bg-[#141414] text-[#fcfcfc] transition-all duration-150 hover:bg-zinc-800 data-app-button"
+                className={promptFilledControlClass}
                 data-app-button
               >
-                <ArrowUp className="icon-sm" />
+                <ArrowUp className="icon-md" strokeWidth={2} />
               </button>
             </HintTooltip>
           ) : (
@@ -1005,10 +1019,10 @@ export function PromptInput({
                 type="button"
                 onClick={onStopGeneration}
                 aria-label="Stop generating"
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-[#141414] text-[#fcfcfc] transition-all duration-150 hover:bg-zinc-900 data-app-button"
+                className={promptFilledControlClass}
                 data-app-button
               >
-                <Square className="size-3 fill-current" />
+                <Square className="size-3.5 fill-current" />
               </button>
             </HintTooltip>
           )
@@ -1018,10 +1032,10 @@ export function PromptInput({
               type="button"
               onClick={handleSubmit}
               aria-label="Send"
-              className="no-hover-overlay flex h-6 w-6 items-center justify-center rounded-full bg-[#141414] text-[#fcfcfc] transition-all duration-150 hover:bg-zinc-800 data-app-button"
+              className={promptFilledControlClass}
               data-app-button
             >
-              <ArrowUp className="icon-sm" />
+              <ArrowUp className="icon-md" strokeWidth={2} />
             </button>
           </HintTooltip>
         ) : (
@@ -1042,12 +1056,11 @@ export function PromptInput({
         onClick={() => setAddMenuOpen(!isAddMenuOpen)}
         className={cn(
           addMenuTriggerClass,
-          isAddMenuOpen && "bg-black/[0.1] text-zinc-800",
           isCapturingScreenshot && "opacity-50",
         )}
       >
         <Plus
-          className="icon-sm shrink-0 opacity-80"
+          className="icon-md shrink-0"
           strokeWidth={1.75}
         />
       </button>
@@ -1087,55 +1100,26 @@ export function PromptInput({
   const renderPromptBody = (placeholder: string, centerSlot?: ReactNode) => {
     return (
       <div
-        className={cn(
-          "prompt-body-grid w-full flex flex-col",
-          useCompactPromptLayout &&
-            "prompt-body-grid--compact flex-row items-center gap-3 px-3 py-1 min-h-[44px]",
-        )}
+        className="prompt-body-grid w-full"
         data-prompt-layout={useCompactPromptLayout ? "compact" : "stacked"}
+        data-prompt-expanded={promptIsExpanded || undefined}
       >
-        <div
-          className={cn(
-            "prompt-editor-area min-w-0",
-            useCompactPromptLayout
-              ? "order-2 flex-1 min-h-[36px]"
-              : "w-full px-3 pt-1.5 pb-0",
-          )}
-          data-prompt-editor
-        >
+        <div data-prompt-add>{renderAddMenuButton()}</div>
+
+        <div data-prompt-editor>
           {renderTextareaField(
             placeholder,
-            useCompactPromptLayout ? "py-0" : undefined,
+            useCompactPromptLayout ? "py-0" : "py-1",
           )}
+          {/* Center slot (compose chip) sits under the editor when expanded */}
+          {!useCompactPromptLayout && centerSlot ? (
+            <div className="mt-1.5 flex items-center" data-prompt-center-inline>
+              {centerSlot}
+            </div>
+          ) : null}
         </div>
 
-        <div
-          className={cn(
-            "prompt-toolbar-area flex items-center gap-1 px-2 py-1.5 sm:gap-1.5 sm:px-2.5 sm:py-2",
-            useCompactPromptLayout && "contents",
-          )}
-        >
-          <div className={cn(useCompactPromptLayout && "order-1")}>
-            {renderAddMenuButton()}
-          </div>
-          <div className={cn(useCompactPromptLayout && "hidden")}>
-            {centerSlot}
-          </div>
-          <div
-            className={cn(
-              "prompt-toolbar-spacer min-w-0 flex-1",
-              useCompactPromptLayout && "hidden",
-            )}
-          />
-          <div
-            className={cn(
-              "prompt-trailing-actions flex shrink-0 items-center gap-1",
-              useCompactPromptLayout && "order-3",
-            )}
-          >
-            {renderTrailingActions()}
-          </div>
-        </div>
+        <div data-prompt-trailing>{renderTrailingActions()}</div>
       </div>
     );
   };
@@ -1196,9 +1180,9 @@ export function PromptInput({
               <button
                 type="button"
                 onClick={onScrollToBottom}
-                className="absolute -top-11 right-2 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-[#fcfcfc]/95 text-zinc-500 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-white hover:text-zinc-700"
+                className="absolute -top-11 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-[#fcfcfc]/95 text-zinc-500 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-white hover:text-zinc-700"
               >
-                <ArrowDown className="icon-sm" />
+                <ArrowDown className="icon-md" />
               </button>
             </HintTooltip>
           )}
@@ -1221,6 +1205,7 @@ export function PromptInput({
               withProjectStrip && "composer-stack--with-project",
             )}
             data-composer-stack={withProjectStrip ? "with-project" : "solo"}
+            data-prompt-expanded={promptIsExpanded || undefined}
             data-add-menu-open={isAddMenuOpen || undefined}
           >
             <div
@@ -1230,6 +1215,7 @@ export function PromptInput({
               )}
               ref={promptShellRef}
               data-prompt-shell
+              data-prompt-expanded={promptIsExpanded || undefined}
               data-compose-mode={showComposeControls || undefined}
               data-drop-active={isDraggingFiles || undefined}
               data-add-menu-open={isAddMenuOpen || undefined}
