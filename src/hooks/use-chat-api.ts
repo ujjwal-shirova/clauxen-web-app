@@ -1194,6 +1194,7 @@ export function useChatApi(
         content: string;
         modelContent?: string;
         fileIds?: string[];
+        images?: Array<{ mimeType: string; data: string; name?: string }>;
         userClientId: string;
         assistantClientId: string;
       },
@@ -1313,6 +1314,7 @@ export function useChatApi(
                   content: turn.content,
                   modelContent: turn.modelContent,
                   fileIds: turn.fileIds,
+                  images: turn.images,
                   userClientId: turn.userClientId,
                   assistantClientId,
                 },
@@ -1997,14 +1999,53 @@ export function useChatApi(
           useChatStore.getState().setChatGenerating(pendingChatId, true);
         }
 
-        // Upload attachments in the background so first-token is not blocked.
-        // modelContent already carries local text previews for documents.
+        // Upload attachments before generate when images need durable fileIds,
+        // but always read image bytes locally for Novita/Kimi vision (base64).
         const knownFileIds = pendingAttachments
           .map((item) => item.fileId)
           .filter((id): id is string => Boolean(id));
         const fileIds: string[] = [...knownFileIds];
         let uploadFailures = 0;
-        const uploadAttachmentsInBackground = async () => {
+
+        const readFileAsDataUrl = (file: File): Promise<string> =>
+          new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve(typeof reader.result === "string" ? reader.result : "");
+            reader.onerror = () =>
+              reject(reader.error ?? new Error("Failed to read image"));
+            reader.readAsDataURL(file);
+          });
+
+        const visionImages: Array<{
+          mimeType: string;
+          data: string;
+          name?: string;
+        }> = [];
+        for (const item of pendingAttachments) {
+          if (item.kind !== "image") continue;
+          const mimeType = item.mimeType || "image/jpeg";
+          let dataUrl =
+            typeof item.previewUrl === "string" &&
+            item.previewUrl.startsWith("data:")
+              ? item.previewUrl
+              : "";
+          if (!dataUrl && item.file) {
+            try {
+              dataUrl = await readFileAsDataUrl(item.file);
+            } catch {
+              continue;
+            }
+          }
+          if (!dataUrl) continue;
+          visionImages.push({
+            mimeType,
+            data: dataUrl,
+            name: item.name,
+          });
+        }
+
+        const uploadAttachments = async () => {
           if (ephemeral || pendingAttachments.length === 0) return;
           const uploaded = await Promise.all(
             pendingAttachments.map(async (attachment) => {
@@ -2047,8 +2088,13 @@ export function useChatApi(
           }
         };
 
-        // Kick uploads without awaiting — generate starts immediately.
-        void uploadAttachmentsInBackground();
+        // Await uploads when we have files (images need durable ids for history;
+        // vision still uses local base64 so the model does not wait on R2).
+        if (!ephemeral && pendingAttachments.some((item) => item.file && !item.fileId)) {
+          await uploadAttachments();
+        } else {
+          void uploadAttachments();
+        }
 
         const attachmentContext =
           pendingAttachments.length > 0
@@ -2058,6 +2104,9 @@ export function useChatApi(
                 ...pendingAttachments.map((item) => {
                   if (item.kind === "document" && item.textPreview) {
                     return `- ${item.name}:\n${item.textPreview.slice(0, 8000)}`;
+                  }
+                  if (item.kind === "image") {
+                    return `- ${item.name} (image attached for vision)`;
                   }
                   return `- ${item.name} (${item.mimeType || item.kind})`;
                 }),
@@ -2098,6 +2147,7 @@ export function useChatApi(
                 content: userContent,
                 modelContent: modelUserContent || userContent,
                 fileIds: fileIds.length ? fileIds : undefined,
+                images: visionImages.length ? visionImages : undefined,
                 userClientId: tempUserId,
                 assistantClientId,
               },

@@ -10,22 +10,21 @@ import { useAppOverlays } from "@/hooks/use-app-overlays";
 import { useAuth } from "@/hooks/use-auth";
 import { isSettingsTab } from "@/components/settings/constants";
 import { Skeleton } from "@/components/ui/skeleton";
+import { chrome } from "@/lib/app-chrome";
+import { cn } from "@/lib/utils";
 
 function SettingsLoadingShell() {
   return (
     <FullscreenPortal>
       <div className="fixed inset-0 z-[200]" role="presentation">
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-[rgba(244,244,245,0.84)] dark:bg-black/70"
-        />
+        <div aria-hidden className={chrome.overlay.scrim} />
         <div
           role="dialog"
           aria-modal="true"
           aria-busy="true"
           aria-label="Loading settings"
           data-app-overlay-surface=""
-          className="fixed z-[201] flex min-h-0 flex-col overflow-hidden bg-[var(--app-panel-bg)] inset-0 h-[100dvh] w-full md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)]"
+          className={chrome.overlay.modalShell}
         >
           <SettingsPageSkeleton />
         </div>
@@ -44,7 +43,7 @@ function PricingLoadingShell() {
         aria-label="Loading pricing"
         data-app-overlay-surface=""
         tabIndex={-1}
-        className="fixed inset-0 z-[200] overflow-y-auto bg-[var(--app-shell-bg)] outline-none"
+        className={cn(chrome.overlay.surface, "overflow-y-auto")}
       >
         <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-8 px-6 pb-16 pt-10 sm:px-10">
           <div className="flex items-center justify-between gap-4">
@@ -60,7 +59,7 @@ function PricingLoadingShell() {
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className="flex w-[240px] shrink-0 flex-col rounded-xl border border-zinc-200/80 bg-white p-5"
+                className="app-page-card flex w-[240px] shrink-0 flex-col p-5"
               >
                 <Skeleton className="h-4 w-16" variant="text" />
                 <Skeleton className="mt-4 h-8 w-24" variant="text" />
@@ -91,7 +90,7 @@ function OverlayPageLoadingShell({ label }: { label: string }) {
         aria-label={label}
         data-app-overlay-surface=""
         tabIndex={-1}
-        className="fixed inset-0 z-[200] flex min-h-0 flex-col overflow-hidden bg-[var(--app-shell-bg)] outline-none"
+        className={chrome.overlay.surface}
       >
         <div className="flex items-center gap-3 px-4 py-4 sm:px-6">
           <Skeleton className="h-9 w-9 rounded-lg" />
@@ -100,9 +99,9 @@ function OverlayPageLoadingShell({ label }: { label: string }) {
         <div className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-4 px-6 pb-16 pt-6">
           <Skeleton className="h-9 w-64 max-w-full" variant="text" />
           <Skeleton className="h-4 w-full max-w-md" variant="text" />
-          <Skeleton className="mt-4 h-40 w-full rounded-2xl" />
-          <Skeleton className="h-28 w-full rounded-2xl" />
-          <Skeleton className="h-28 w-full rounded-2xl" />
+          <Skeleton className="app-page-card mt-4 h-40 w-full" />
+          <Skeleton className="app-page-card h-28 w-full" />
+          <Skeleton className="app-page-card h-28 w-full" />
         </div>
       </div>
     </FullscreenPortal>

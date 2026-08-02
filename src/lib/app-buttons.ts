@@ -1,6 +1,10 @@
 import { cn } from "@/lib/utils";
 
-/** Canonical class strings for app-wide button variants (see styles/app-buttons.css). */
+/**
+ * Canonical class strings for app-wide button variants.
+ * Styles live in `src/app/globals.css` (`.app-btn*`). Prefer `chrome.btn`
+ * from `@/lib/app-chrome` in new product UI.
+ */
 export const appBtn = {
   base: "app-btn no-hover-overlay",
   primary: "app-btn app-btn-primary app-btn-md no-hover-overlay",

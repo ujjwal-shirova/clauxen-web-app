@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"; // Input — single-line skill na
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { appBtn } from "@/lib/app-buttons";
+import { chrome } from "@/lib/app-chrome";
 
 const SKILL_TITLE_MAX_LENGTH = 128; // slug/title cap — oversized POST body / DB abuse mitigation
 const SKILL_FIELD_MAX_LENGTH = 50_000; // per textarea cap — instruction_profiles.instructions is text but bounded client-side
@@ -50,7 +51,7 @@ export function InstructionsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       {" "}
       {/* controlled modal */}
-      <DialogContent className="app-overlay-panel max-h-[90vh] max-w-[576px] gap-0 overflow-y-auto border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-0 font-sans animate-in zoom-in-95 duration-250 [&>button]:hidden">
+      <DialogContent className={cn(chrome.overlay.dialog, "max-h-[90vh] max-w-[576px] gap-0 overflow-y-auto p-0 animate-in zoom-in-95 duration-250 [&>button]:hidden")}>
         {" "}
         {/* wide dialog — scrollable on small viewports, default close hidden */}
         <DialogDescription className="sr-only">

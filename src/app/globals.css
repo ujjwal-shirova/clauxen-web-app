@@ -1,9 +1,17 @@
+/*
+ * Clauxen product chrome — SINGLE CORE STYLESHEET.
+ *
+ * Edit THIS file for colors, type, radii, spacing, pages, overlays, popups,
+ * buttons, fields, chat tokens, and shared utilities. Do not split theme into
+ * separate CSS files. React layout recipes: src/lib/app-chrome.ts only.
+ */
+
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "../styles/app-buttons.css";
-@import "../styles/app-notifications.css";
 @source "../../node_modules/streamdown/dist/*.js";
 @source "../../node_modules/@streamdown/math/dist/*.js";
+
+/* ========== Design tokens + shared chrome utilities ========== */
 
 @layer base {
   :root {
@@ -36,12 +44,14 @@
     --chart-3: 240 5% 64%;
     --chart-4: 240 4.8% 86%;
     --chart-5: 240 5.9% 90%;
+
     /* Radius scale: controls / cards / composer */
     --radius: 8px;
     --radius-sm: 6px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-composer: 28px;
+
     /* App chrome icon/button scale — Cursor density */
     --icon-size: 16px;
     --icon-stroke: 1.5;
@@ -52,8 +62,8 @@
     --nav-label-size: 13px;
     --nav-label-line: 18px;
     --section-label-size: 12px;
-    /* Product surfaces (Library / Settings / Pricing / Gift / Scheduled) —
-       Cursor-compact type + control scale shared across non-chat pages. */
+
+    /* Product surfaces — Cursor-compact type + control scale */
     --ui-font-size: 13px;
     --ui-line-height: 18px;
     --ui-title-size: 18px;
@@ -70,6 +80,15 @@
     --ui-border: rgba(24, 24, 27, 0.1);
     --ui-border-subtle: rgba(24, 24, 27, 0.06);
     --ui-hover-wash: rgba(24, 24, 27, 0.05);
+    --ui-fg: #18181b;
+    --ui-fg-body: #27272a;
+    --ui-fg-muted: #71717a;
+    --ui-fg-placeholder: #a1a1aa;
+    --ui-field-bg: #ffffff;
+    --ui-field-focus-border: rgba(24, 24, 27, 0.18);
+    --ui-field-focus-ring: rgba(24, 24, 27, 0.06);
+    --ui-muted-surface: rgba(244, 244, 245, 0.8);
+
     --chat-header-height: 40px;
     --chat-header-icon-btn: 28px;
     --chat-title-size: 13px;
@@ -83,13 +102,16 @@
     --icon-color: #18181b;
     --icon-muted: rgba(24, 24, 27, 0.66);
     --icon-subtle: rgba(24, 24, 27, 0.6);
+
     /* App shell — Cursor-style cool gray; chat canvas is a touch lighter */
     --app-shell-bg: #f3f3f3;
     --app-panel-bg: #ffffff;
     --chat-canvas-bg: #f8f8f8;
     --chat-user-card-bg: #fcfcfc;
     --overlay-scrim: rgba(24, 24, 27, 0.4);
-    /* Shared chat / composer column breadth — Cursor agents column */
+    --overlay-scrim-soft: rgba(244, 244, 245, 0.84);
+
+    /* Shared chat / composer column breadth */
     --chat-column-max-width: 720px;
     --glass-chat-surface-background: #f8f8f8;
     --cursor-menu-bg: rgba(255, 255, 255, 0.94);
@@ -99,7 +121,8 @@
       0 2px 8px rgba(24, 24, 27, 0.08);
     --cursor-radius-lg: 10px;
     --cursor-radius-xl: 13px;
-    /* Prompt composer — consistent small radius (no pill→small flash on expand) */
+
+    /* Prompt composer */
     --prompt-radius: 12px;
     --prompt-radius-lg: 12px;
     --prompt-radius-expanded: 12px;
@@ -111,21 +134,20 @@
     --prompt-shadow-focus:
       inset 0 0 0 1px rgba(24, 24, 27, 0.14),
       0 1px 4px rgba(0, 0, 0, 0.02);
-    /* Panel elevation */
+
     --panel-shadow:
       0 1px 2px rgba(24, 24, 27, 0.03), 0 10px 28px -16px rgba(24, 24, 27, 0.08);
-    /* Skeleton shimmer tokens */
+    --field-shadow: 0 1px 2px rgba(24, 24, 27, 0.03);
+
     --skeleton-base: #f4f4f5;
     --skeleton-highlight: rgba(255, 255, 255, 0.6);
     --skeleton-duration: 1.6s;
     --skeleton-delay: 0ms;
 
-    /* Sticky element layout variables */
     --header-height-mobile: 80px;
     --header-height-desktop: 96px;
     --sticky-spacing: 8px;
 
-    /* Assistant chat text (overridden by data-chat-font) */
     --chat-font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
   }
 
@@ -167,7 +189,16 @@
     --ui-border: rgba(255, 255, 255, 0.1);
     --ui-border-subtle: rgba(255, 255, 255, 0.06);
     --ui-hover-wash: rgba(255, 255, 255, 0.06);
+    --ui-fg: #fafafa;
+    --ui-fg-body: #e4e4e7;
+    --ui-fg-muted: #a1a1aa;
+    --ui-fg-placeholder: #71717a;
+    --ui-field-bg: #18181b;
+    --ui-field-focus-border: rgba(255, 255, 255, 0.2);
+    --ui-field-focus-ring: rgba(255, 255, 255, 0.08);
+    --ui-muted-surface: rgba(255, 255, 255, 0.04);
     --overlay-scrim: rgba(0, 0, 0, 0.55);
+    --overlay-scrim-soft: rgba(0, 0, 0, 0.7);
     --glass-chat-surface-background: #141416;
     --cursor-menu-bg: rgba(24, 24, 27, 0.94);
     --cursor-menu-border: rgba(255, 255, 255, 0.1);
@@ -182,11 +213,499 @@
       0 12px 32px -12px rgba(0, 0, 0, 0.55);
     --panel-shadow:
       0 1px 2px rgba(0, 0, 0, 0.25), 0 14px 36px -18px rgba(0, 0, 0, 0.55);
+    --field-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     --skeleton-base: #1c1c1f;
     --skeleton-highlight: rgba(255, 255, 255, 0.06);
   }
 }
 
+/* ——— Shared chrome utilities (prefer over ad-hoc Tailwind) ——— */
+
+.app-page-surface {
+  background-color: var(--app-panel-bg);
+  color: hsl(var(--foreground));
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+}
+
+.app-page-title {
+  font-size: var(--ui-title-size);
+  line-height: var(--ui-title-line);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ui-fg);
+}
+
+.app-page-subtitle {
+  margin-top: 0.25rem;
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  color: var(--ui-fg-muted);
+}
+
+.app-page-section-title {
+  font-size: var(--ui-section-title-size);
+  line-height: var(--ui-section-title-line);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ui-fg);
+}
+
+.app-page-body {
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  color: var(--ui-fg-body);
+}
+
+.app-page-muted {
+  font-size: var(--ui-muted-size);
+  line-height: var(--ui-line-height);
+  color: var(--ui-fg-muted);
+}
+
+.app-page-search {
+  box-sizing: border-box;
+  height: var(--ui-control-height-md);
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ui-border);
+  background: var(--ui-field-bg);
+  padding-left: 2.5rem;
+  padding-right: 1rem;
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  color: var(--ui-fg);
+  box-shadow: var(--field-shadow);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.app-page-search::placeholder {
+  color: var(--ui-fg-placeholder);
+}
+
+.app-page-search:focus {
+  outline: none;
+  border-color: var(--ui-field-focus-border);
+  box-shadow: 0 0 0 2px var(--ui-field-focus-ring);
+}
+
+.app-page-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ui-border);
+  background: var(--ui-card-bg, #fcfcfc);
+}
+
+.app-page-card:hover {
+  background: color-mix(in srgb, var(--ui-card-bg, #fcfcfc) 92%, #e4e4e7);
+}
+
+.dark .app-page-card:hover {
+  background: color-mix(in srgb, var(--ui-card-bg, #1c1c1f) 88%, #fff);
+}
+
+.app-page-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: var(--ui-control-height-md);
+  padding-block: 0.625rem;
+  border-bottom: 1px solid var(--ui-border-subtle);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+}
+
+.app-page-row:last-child {
+  border-bottom: 0;
+}
+
+.app-overlay-panel {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ui-border);
+  background: var(--app-panel-bg, #ffffff);
+  box-shadow: var(--cursor-menu-shadow);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+}
+
+.app-dialog-panel {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ui-border);
+  background: var(--app-panel-bg);
+  box-shadow: var(--cursor-menu-shadow);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  font-family: inherit;
+}
+
+.app-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-scrim-soft);
+}
+
+.app-scrim--strong {
+  background: var(--overlay-scrim);
+}
+
+.app-surface-shell {
+  background-color: var(--app-shell-bg);
+  color: hsl(var(--foreground));
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  outline: none;
+}
+
+.app-surface-panel {
+  background-color: var(--app-panel-bg);
+  color: hsl(var(--foreground));
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  outline: none;
+}
+
+/* Shared form field — checkout + settings + dialogs */
+.app-field {
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ui-border);
+  background: var(--ui-field-bg);
+  padding: 0.625rem 0.75rem;
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  color: var(--ui-fg);
+  box-shadow: var(--field-shadow);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    color 0.15s ease;
+}
+
+.app-field::placeholder {
+  color: var(--ui-fg-placeholder);
+}
+
+.app-field:focus {
+  outline: none;
+  border-color: var(--ui-field-focus-border);
+  box-shadow: 0 0 0 2px var(--ui-field-focus-ring);
+}
+
+.app-field--icons {
+  padding-right: 7rem;
+}
+
+.app-field--trailing {
+  padding-right: 2.5rem;
+}
+
+.app-field-muted-panel {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ui-border);
+  background: var(--ui-muted-surface);
+  padding: 1rem 0.875rem;
+  text-align: center;
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  color: var(--ui-fg-muted);
+}
+
+/* App chrome: icon-only control — 28×28 with pad around 16px icon */
+.ui-icon-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  min-width: var(--icon-btn-size);
+  min-height: var(--icon-btn-size);
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  color: var(--icon-muted);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.ui-icon-button:hover:not(:disabled),
+.ui-icon-button[data-state="open"] {
+  background-color: var(--ui-hover-wash);
+  color: var(--icon-color);
+}
+
+.ui-icon-button svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+/* ========== App buttons ========== */
+
+@layer components {
+  /* Shared base — transitions without fighting Tailwind utilities */
+  .app-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--nav-gap-loose, 6px);
+    flex-shrink: 0;
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition:
+      background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+      color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .app-btn:disabled,
+  .app-btn[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .app-btn svg {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    flex-shrink: 0;
+  }
+
+  /* ── Primary (dark solid) — hover must NOT wash out white label ── */
+  .app-btn-primary,
+  .btn-solid-dark {
+    background-color: #18181b !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .app-btn-primary:hover:not(:disabled),
+  .btn-solid-dark:hover:not(:disabled) {
+    background-color: #27272a !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .app-btn-primary:active:not(:disabled),
+  .btn-solid-dark:active:not(:disabled) {
+    background-color: #09090b !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .dark .app-btn-primary,
+  .dark .btn-solid-dark {
+    background-color: #f4f4f5 !important;
+    color: #18181b !important;
+  }
+
+  .dark .app-btn-primary:hover:not(:disabled),
+  .dark .btn-solid-dark:hover:not(:disabled) {
+    background-color: #e4e4e7 !important;
+    color: #18181b !important;
+  }
+
+  .dark .app-btn-primary:active:not(:disabled),
+  .dark .btn-solid-dark:active:not(:disabled) {
+    background-color: #ffffff !important;
+    color: #18181b !important;
+  }
+
+  /* ── Secondary (outlined / light) ── */
+  .app-btn-secondary {
+    background-color: #ffffff;
+    color: #27272a;
+    border-color: rgba(24, 24, 27, 0.12);
+    box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04);
+  }
+
+  .app-btn-secondary:hover:not(:disabled) {
+    background-color: #fafafa !important;
+    color: #18181b !important;
+    border-color: rgba(24, 24, 27, 0.16) !important;
+    box-shadow: none !important;
+  }
+
+  .app-btn-secondary:active:not(:disabled) {
+    background-color: #f4f4f5 !important;
+    box-shadow: none !important;
+  }
+
+  .dark .app-btn-secondary {
+    background-color: transparent;
+    color: #f4f4f5;
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: none;
+  }
+
+  .dark .app-btn-secondary:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
+  }
+
+  /* ── Ghost (transparent toolbar / icon-adjacent) ── */
+  .app-btn-ghost {
+    background-color: transparent;
+    color: #71717a;
+    border-color: transparent;
+    box-shadow: none !important;
+  }
+
+  .app-btn-ghost:hover:not(:disabled) {
+    background-color: rgba(24, 24, 27, 0.05) !important;
+    color: #27272a !important;
+    box-shadow: none !important;
+  }
+
+  .app-btn-ghost:active:not(:disabled) {
+    background-color: rgba(24, 24, 27, 0.08) !important;
+    box-shadow: none !important;
+  }
+
+  .dark .app-btn-ghost {
+    color: #a1a1aa;
+  }
+
+  .dark .app-btn-ghost:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.07) !important;
+    color: #f4f4f5 !important;
+  }
+
+  /* Keep hover fill while menus/popovers are open (e.g. Files + dropdown) */
+  .app-btn-ghost[data-state="open"],
+  .app-btn-ghost[aria-expanded="true"] {
+    background-color: rgba(24, 24, 27, 0.05) !important;
+    color: #27272a !important;
+    box-shadow: none !important;
+  }
+
+  .dark .app-btn-ghost[data-state="open"],
+  .dark .app-btn-ghost[aria-expanded="true"] {
+    background-color: rgba(255, 255, 255, 0.07) !important;
+    color: #f4f4f5 !important;
+  }
+
+  /* Sizes — Cursor-compact (13px body, 32–40px controls) */
+  .app-btn-sm {
+    height: var(--ui-control-height, 32px);
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: var(--ui-font-size, 13px);
+    line-height: var(--ui-line-height, 18px);
+    border-radius: var(--radius-sm);
+  }
+
+  .app-btn-md {
+    height: var(--ui-control-height-md, 36px);
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+    font-size: var(--ui-font-size, 13px);
+    line-height: var(--ui-line-height, 18px);
+    border-radius: var(--radius-sm);
+  }
+
+  .app-btn-lg {
+    height: var(--ui-control-height-lg, 40px);
+    padding-left: 1.125rem;
+    padding-right: 1.125rem;
+    font-size: var(--ui-font-size, 13px);
+    line-height: var(--ui-line-height, 18px);
+    border-radius: var(--radius-md);
+  }
+
+  .btn-primary-solid {
+    background-color: #18181b !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .btn-primary-solid:hover:not(:disabled) {
+    background-color: #27272a !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .btn-primary-solid:active:not(:disabled) {
+    background-color: #09090b !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .app-btn-icon {
+    height: var(--icon-btn-size, 28px);
+    width: var(--icon-btn-size, 28px);
+    min-height: var(--icon-btn-size, 28px);
+    min-width: var(--icon-btn-size, 28px);
+    padding: 6px;
+    border-radius: var(--radius-sm);
+    gap: 0;
+  }
+}
+
+/* Exclude app-btn variants from legacy universal inset overlay (prevents wash-out) */
+@layer base {
+  button.app-btn:hover,
+  button.app-btn-primary:hover,
+  button.app-btn-secondary:hover,
+  button.app-btn-ghost:hover,
+  button.btn-solid-dark:hover,
+  button.btn-primary-solid:hover,
+  button.btn-primary-solid:active,
+  [role="button"].app-btn:hover {
+    /* Reset legacy inset shadow from globals base layer */
+    box-shadow: none;
+  }
+}
+
+/* ========== App notifications ========== */
+
+@keyframes app-notification-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(100% + 1rem));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes app-notification-slide-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(100% + 1rem));
+  }
+}
+
+.app-notification-enter {
+  animation: app-notification-slide-in 0.2s cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
+}
+
+.app-notification-exit {
+  animation: app-notification-slide-out 0.2s cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
+}
+
+/* ========== App behavioral / chat / layout rules ========== */
 @layer base {
   html {
     background-color: var(--app-shell-bg);
@@ -502,10 +1021,8 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 .dark .user-message-card__preview-fade {
   background: linear-gradient(
     to top,
-    var(--chat-user-card-bg, #1c1c1f) 0%,
-    color-mix(in srgb, var(--chat-user-card-bg, #1c1c1f) 78%, transparent) 42%,
-    color-mix(in srgb, var(--chat-user-card-bg, #1c1c1f) 28%, transparent) 72%,
-    transparent 100%
+    var(--chat-user-card-bg, #1c1c1f),
+    rgba(0, 0, 0, 0)
   );
 }
 .dark .sticky-user-msg-host {
@@ -574,12 +1091,10 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 
 @keyframes stream-token-fade {
   from {
-    opacity: 0.62;
-    filter: blur(0.35px);
+    opacity: 0.55;
   }
   to {
     opacity: 1;
-    filter: blur(0);
   }
 }
 
@@ -588,10 +1103,9 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: stream-token-fade;
-  animation-duration: 90ms;
+  animation-duration: 55ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
-  /* Avoid will-change thrash during long tool→answer streams */
   backface-visibility: hidden;
 }
 
@@ -669,180 +1183,6 @@ svg.lucide.icon-xl {
 svg.lucide.icon-2xl {
   width: 24px;
   height: 24px;
-}
-
-/* App chrome: icon-only control — 28×28 with pad around 16px icon */
-.ui-icon-button {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--icon-btn-size);
-  height: var(--icon-btn-size);
-  min-width: var(--icon-btn-size);
-  min-height: var(--icon-btn-size);
-  padding: 6px;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-  color: var(--icon-muted);
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.ui-icon-button:hover:not(:disabled),
-.ui-icon-button[data-state="open"] {
-  background-color: rgba(24, 24, 27, 0.06);
-  color: var(--icon-color);
-}
-
-.dark .ui-icon-button:hover:not(:disabled),
-.dark .ui-icon-button[data-state="open"] {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: var(--icon-color);
-}
-
-.ui-icon-button svg {
-  width: var(--icon-size);
-  height: var(--icon-size);
-}
-
-/* Product page surfaces — Cursor-compact shared chrome for Library / Settings /
-   Pricing / Gift / Scheduled / Customize. Prefer these over ad-hoc Tailwind. */
-.app-page-surface {
-  background-color: var(--app-panel-bg);
-  color: hsl(var(--foreground));
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
-}
-
-.app-page-title {
-  font-size: var(--ui-title-size);
-  line-height: var(--ui-title-line);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: #18181b;
-}
-
-.dark .app-page-title {
-  color: #fafafa;
-}
-
-.app-page-subtitle {
-  margin-top: 0.25rem;
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
-  color: #71717a;
-}
-
-.dark .app-page-subtitle {
-  color: #a1a1aa;
-}
-
-.app-page-section-title {
-  font-size: var(--ui-section-title-size);
-  line-height: var(--ui-section-title-line);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: #18181b;
-}
-
-.dark .app-page-section-title {
-  color: #fafafa;
-}
-
-.app-page-body {
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
-  color: #27272a;
-}
-
-.dark .app-page-body {
-  color: #e4e4e7;
-}
-
-.app-page-muted {
-  font-size: var(--ui-muted-size);
-  line-height: var(--ui-line-height);
-  color: #71717a;
-}
-
-.dark .app-page-muted {
-  color: #a1a1aa;
-}
-
-.app-page-search {
-  box-sizing: border-box;
-  height: var(--ui-control-height-md);
-  width: 100%;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--ui-border);
-  background: #ffffff;
-  padding-left: 2.5rem;
-  padding-right: 1rem;
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
-  color: #18181b;
-  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.03);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.app-page-search::placeholder {
-  color: #a1a1aa;
-}
-
-.app-page-search:focus {
-  outline: none;
-  border-color: rgba(24, 24, 27, 0.18);
-  box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.06);
-}
-
-.dark .app-page-search {
-  background: #18181b;
-  border-color: var(--ui-border);
-  color: #fafafa;
-}
-
-.dark .app-page-search:focus {
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
-}
-
-.app-page-card {
-  border-radius: var(--radius-md);
-  border: 1px solid var(--ui-border);
-  background: var(--ui-card-bg, #fcfcfc);
-}
-
-.app-page-card:hover {
-  background: color-mix(in srgb, var(--ui-card-bg, #fcfcfc) 92%, #e4e4e7);
-}
-
-.app-page-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  min-height: var(--ui-control-height-md);
-  padding-block: 0.625rem;
-  border-bottom: 1px solid var(--ui-border-subtle);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
-}
-
-.app-page-row:last-child {
-  border-bottom: 0;
-}
-
-.app-overlay-panel {
-  border-radius: var(--radius-md);
-  border: 1px solid var(--ui-border);
-  background: var(--app-panel-bg, #ffffff);
-  box-shadow: var(--cursor-menu-shadow);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
 }
 
 /* Dense row actions (sidebar chat pin/more) — 28×28, visible hover */
@@ -1203,27 +1543,13 @@ button.user-message-card__body:not(:disabled):hover,
   left: 0;
   right: 0;
   bottom: 0;
-  height: 28px;
+  height: 18px;
   pointer-events: none;
-  z-index: 1;
   background: linear-gradient(
     to top,
-    var(--chat-user-card-bg, #fcfcfc) 0%,
-    color-mix(in srgb, var(--chat-user-card-bg, #fcfcfc) 78%, transparent) 42%,
-    color-mix(in srgb, var(--chat-user-card-bg, #fcfcfc) 28%, transparent) 72%,
-    transparent 100%
+    var(--chat-user-card-bg, #fcfcfc),
+    rgba(0, 0, 0, 0)
   );
-}
-
-@supports not (background: color-mix(in srgb, white 50%, transparent)) {
-  .user-message-card__preview-fade {
-    background: linear-gradient(
-      to top,
-      var(--chat-user-card-bg, #fcfcfc) 0%,
-      rgba(252, 252, 252, 0.72) 45%,
-      rgba(252, 252, 252, 0) 100%
-    );
-  }
 }
 
 /* Hover edit affordance — pinned top-right inside the card */
@@ -1815,17 +2141,15 @@ button.user-message-card__body:not(:disabled):hover,
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -20px;
-  height: 20px;
+  bottom: -12px;
+  height: 12px;
   pointer-events: none;
   background: linear-gradient(
     to bottom,
     var(--chat-canvas-bg, #f8f8f8),
     rgba(248, 248, 248, 0)
   );
-  mask-image: linear-gradient(rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%);
-  -webkit-mask-image: linear-gradient(rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%);
-  z-index: 1;
+  z-index: 0;
 }
 
 [data-conversation-turn][data-sticky-active="true"] .sticky-user-msg-host {

@@ -37,7 +37,7 @@ export function CheckoutBillingAddressSummary({
           {lines.map((line) => (
             <p
               key={line}
-              className="truncate text-[14px] leading-5 text-[#121212]"
+              className="app-page-body truncate"
             >
               {line}
             </p>

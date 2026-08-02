@@ -9,14 +9,21 @@ import {
 } from "@/server/agent-core";
 import { ClauxenSseStream } from "@/server/inference/clauxen-sse-stream";
 import type { IncomingMessage } from "@/server/inference/novita";
-import { buildModelSystemPrompt, buildTemporalContextAppend } from "@/server/inference/system-prompt";
+import {
+  buildModelSystemPrompt,
+  buildTemporalContextAppend,
+} from "@/server/inference/system-prompt";
 import {
   buildUserPersonalizationAppend,
   loadUserPersonalization,
 } from "@/server/services/user-personalization.service";
 import { loadFollowUpSuggestionsEnabled } from "@/server/services/follow-up-settings.service";
 import { buildFollowUpSystemInstruction } from "@/lib/follow-up-prompt";
-import { resolveModelRuntime, parseChatModelId, modelCatalogEnvFromProcess } from "@/lib/model-catalog";
+import {
+  resolveModelRuntime,
+  parseChatModelId,
+  modelCatalogEnvFromProcess,
+} from "@/lib/model-catalog";
 import {
   parseHomerReasoningEffort,
   type HomerReasoningEffort,
@@ -26,6 +33,11 @@ export type ChatStreamPersonalizationBundle = {
   personalizationAppend: string;
   followUpsEnabled: boolean;
   extendedThinkingDefault: boolean;
+};
+
+export type ResolvedChatStreamContext = {
+  modelMessages: AgentStreamOptions["messages"];
+  personalization: ChatStreamPersonalizationBundle;
 };
 
 export type ChatStreamOptions = {
@@ -51,6 +63,11 @@ export type ChatStreamOptions = {
    * without waiting on a second personalization round-trip.
    */
   personalization?: ChatStreamPersonalizationBundle;
+  /**
+   * Resolve history + vision attachments AFTER the SSE response has started.
+   * Emits `start` immediately so the client is not blocked on DB/R2 prep.
+   */
+  resolveContext?: () => Promise<ResolvedChatStreamContext>;
 };
 
 /** Load personalization bits used to build the system prompt (cacheable). */
@@ -85,24 +102,32 @@ export async function createChatStream(
   // the consumer attaches are buffered in ClauxenSseStream.
   void (async () => {
     try {
-      // Prefer starting after the consumer is attached so the first frames
-      // flush without sitting in the pending queue longer than needed.
-      // When personalization is already loaded, skip the wait — TTFT matters more.
-      if (!options.personalization) {
-        await Promise.race([
-          sse.ready,
-          new Promise<void>((resolve) => setTimeout(resolve, 50)),
-        ]);
-      } else {
-        await Promise.race([
-          sse.ready,
-          new Promise<void>((resolve) => setTimeout(resolve, 0)),
-        ]);
+      // Attach consumer ASAP; never block first paint on prep.
+      await Promise.race([
+        sse.ready,
+        new Promise<void>((resolve) => setTimeout(resolve, 0)),
+      ]);
+
+      // Tell the client the turn has started before history/vision/MCP work.
+      sse.writeStart(true);
+
+      if (options.signal?.aborted) {
+        sse.finalize();
+        return;
       }
 
-      const personalization =
-        options.personalization ??
-        (await loadChatStreamPersonalization(options.userId));
+      const resolved = options.resolveContext
+        ? await options.resolveContext()
+        : {
+            modelMessages:
+              options.modelMessages ??
+              messages.map((m) => ({ role: m.role, content: m.content })),
+            personalization:
+              options.personalization ??
+              (await loadChatStreamPersonalization(options.userId)),
+          };
+
+      const personalization = resolved.personalization;
 
       if (options.signal?.aborted) {
         sse.finalize();
@@ -162,9 +187,7 @@ export async function createChatStream(
         options.extendedThinking ?? personalization.extendedThinkingDefault;
 
       const agentOptions: AgentStreamOptions = {
-        messages:
-          options.modelMessages ??
-          messages.map((m) => ({ role: m.role, content: m.content })),
+        messages: resolved.modelMessages,
         model: runtime.modelSlug,
         chatModelId,
         homerReasoningEffort: parseHomerReasoningEffort(
@@ -180,13 +203,11 @@ export async function createChatStream(
         maxTokens: 8192,
         onPauseForUser: options.onPauseForUser,
         onModelTurn: options.onModelTurn,
+        skipWriteStart: true,
       };
 
-      // Always autonomous — tools are always armed; the model decides when to use them.
       await runAutonomousAgent(sse, agentOptions);
     } catch {
-      // Errors are written to the SSE stream inside runAutonomousAgent; swallow
-      // here so client disconnect / abort never surfaces as unhandledRejection.
       try {
         sse.finalize();
       } catch {

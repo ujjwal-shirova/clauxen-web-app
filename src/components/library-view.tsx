@@ -50,7 +50,7 @@ import {
   type LibraryFolder,
   type LibraryListing,
 } from "@/lib/api/library";
-import { appPage } from "@/lib/app-page-chrome";
+import { chrome, appPage } from "@/lib/app-chrome";
 import { cn } from "@/lib/utils";
 
 type LibraryEntry =
@@ -466,7 +466,7 @@ export function LibraryView() {
       {draggingOver ? <div className="pointer-events-none absolute inset-4 z-50 grid place-items-center rounded-2xl border-2 border-dashed border-zinc-400 bg-white/90 text-center backdrop-blur dark:bg-zinc-950/90"><div><Upload className="icon-2xl mx-auto" /><p className="mt-3 text-[15px] font-semibold">Drop files to upload</p><p className="mt-1 text-[13px] text-zinc-500">They’ll be saved in this folder.</p></div></div> : null}
 
       <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
-        <DialogContent className="app-overlay-panel gap-0 overflow-hidden p-0 sm:max-w-[560px]">
+        <DialogContent className={cn(chrome.overlay.panel, "gap-0 overflow-hidden p-0 sm:max-w-[560px]")}>
           <DialogHeader className="border-b px-5 py-4 text-left"><DialogTitle className="text-[16px]">Create text file</DialogTitle><DialogDescription>Paste text and choose the filename and extension to store in your Library.</DialogDescription></DialogHeader>
           <div className="space-y-4 px-5 py-5">
             <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-zinc-600">File name</span><input value={pasteName} onChange={(event) => setPasteName(event.target.value)} placeholder="notes.txt" className="app-page-search !pl-3 outline-none" /></label>
@@ -477,11 +477,11 @@ export function LibraryView() {
       </Dialog>
 
       <Dialog open={folderOpen} onOpenChange={setFolderOpen}>
-        <DialogContent className="app-overlay-panel sm:max-w-[420px]"><DialogHeader><DialogTitle>New folder</DialogTitle><DialogDescription>Create a folder inside the current location.</DialogDescription></DialogHeader><input autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void createFolder(); }} placeholder="Folder name" className="app-page-search !h-9 !pl-3 outline-none" /><DialogFooter><Button variant="ghost" onClick={() => setFolderOpen(false)}>Cancel</Button><Button disabled={busy || !folderName.trim()} onClick={() => void createFolder()} className="bg-zinc-950 text-white hover:bg-zinc-800">Create folder</Button></DialogFooter></DialogContent>
+        <DialogContent className={cn(chrome.overlay.panel, "sm:max-w-[420px]")}><DialogHeader><DialogTitle>New folder</DialogTitle><DialogDescription>Create a folder inside the current location.</DialogDescription></DialogHeader><input autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void createFolder(); }} placeholder="Folder name" className="app-page-search !h-9 !pl-3 outline-none" /><DialogFooter><Button variant="ghost" onClick={() => setFolderOpen(false)}>Cancel</Button><Button disabled={busy || !folderName.trim()} onClick={() => void createFolder()} className="bg-zinc-950 text-white hover:bg-zinc-800">Create folder</Button></DialogFooter></DialogContent>
       </Dialog>
 
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent className="app-overlay-panel sm:max-w-[460px]"><DialogHeader><DialogTitle>Move {selected.size || 1} item{(selected.size || 1) === 1 ? "" : "s"}</DialogTitle><DialogDescription>Choose a destination folder.</DialogDescription></DialogHeader><div className="max-h-72 space-y-1 overflow-y-auto"><button onClick={() => void move(selectedRefs, null)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="icon-md text-amber-500" /><span className="app-page-body font-medium">Library root</span></button>{listing?.allFolders.filter((folder) => !selected.has(`folder:${folder.id}`)).map((folder) => <button key={folder.id} onClick={() => void move(selectedRefs, folder.id)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="icon-md text-amber-500" /><span className="app-page-body truncate">{folder.name}</span></button>)}</div><DialogFooter><Button variant="ghost" onClick={() => setMoveOpen(false)}>Cancel</Button></DialogFooter></DialogContent>
+        <DialogContent className={cn(chrome.overlay.panel, "sm:max-w-[460px]")}><DialogHeader><DialogTitle>Move {selected.size || 1} item{(selected.size || 1) === 1 ? "" : "s"}</DialogTitle><DialogDescription>Choose a destination folder.</DialogDescription></DialogHeader><div className="max-h-72 space-y-1 overflow-y-auto"><button onClick={() => void move(selectedRefs, null)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="icon-md text-amber-500" /><span className="app-page-body font-medium">Library root</span></button>{listing?.allFolders.filter((folder) => !selected.has(`folder:${folder.id}`)).map((folder) => <button key={folder.id} onClick={() => void move(selectedRefs, folder.id)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-white/10"><Folder className="icon-md text-amber-500" /><span className="app-page-body truncate">{folder.name}</span></button>)}</div><DialogFooter><Button variant="ghost" onClick={() => setMoveOpen(false)}>Cancel</Button></DialogFooter></DialogContent>
       </Dialog>
     </div>
   );

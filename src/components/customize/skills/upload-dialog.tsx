@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { uploadSkillFile } from "@/lib/api/customize";
 import { cn } from "@/lib/utils";
+import { chrome } from "@/lib/app-chrome";
 import {
   Dialog, // Dialog root — Radix/shadcn modal wrapper, open/onOpenChange controlled
   DialogContent,
@@ -80,7 +81,7 @@ export function UploadSkillDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="app-overlay-panel max-w-[512px] gap-0 border-[var(--ui-border)] bg-[var(--app-panel-bg)] p-0 font-sans animate-in zoom-in-95 duration-250 [&>button]:hidden">
+      <DialogContent className={cn(chrome.overlay.dialog, "max-w-[512px] gap-0 p-0 animate-in zoom-in-95 duration-250 [&>button]:hidden")}>
         {" "}
         {/* DialogContent styling — warm background, zoom-in animation, default close button hidden */}
         <DialogDescription className="sr-only">

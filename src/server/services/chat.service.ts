@@ -41,6 +41,11 @@ import {
   mergePromptHistories,
 } from "@/server/inference/build-chat-prompt-messages";
 import {
+  resolveVisionImageBlocks,
+  withVisionUserContent,
+  type ClientVisionImage,
+} from "@/server/inference/vision-attachments";
+import {
   toUserFacingChatError,
   EMPTY_ASSISTANT_RESPONSE_FALLBACK,
 } from "@/lib/assistant-generation-error";
@@ -267,6 +272,8 @@ export async function streamChatGeneration(input: {
     content: string;
     modelContent?: string;
     fileIds?: string[];
+    /** Client-side image bytes for Novita/Kimi vision (base64 or data URLs). */
+    images?: ClientVisionImage[];
     userClientId: string;
     assistantClientId: string;
   };
@@ -369,77 +376,125 @@ export async function streamChatGeneration(input: {
     });
   }
 
-  // Prompt context from DB recent turns so partial client pages cannot starve
-  // the model. Merge with client history so prior assistant answers are never
-  // dropped when a row is mid-persist or content_json is incomplete.
-  // History + personalization were already in flight alongside the turn insert.
-  const [dbRecent, personalization] = await Promise.all([
-    historyPromise,
-    personalizationPromise,
-  ]);
-  const promptFromDb = buildPromptMessagesFromDbRows(dbRecent);
-  const clientAsPrompt: AgentStreamOptions["messages"] = clientConversation.map(
-    (message) => ({
-      role: message.role,
-      content: message.content,
-    }),
-  );
-  let conversationForAgent = mergePromptHistories(
-    promptFromDb.structured,
-    clientAsPrompt,
-  );
-  if (lastClientUser) {
-    let lastAgentUserIndex = -1;
-    for (let i = conversationForAgent.length - 1; i >= 0; i -= 1) {
-      if (
-        conversationForAgent[i]?.role === "user" &&
-        typeof conversationForAgent[i]?.content === "string"
-      ) {
-        lastAgentUserIndex = i;
-        break;
-      }
-    }
-    if (lastAgentUserIndex >= 0) {
-      conversationForAgent = conversationForAgent.map((message, index) =>
-        index === lastAgentUserIndex
-          ? { ...message, content: lastClientUser.content }
-          : message,
-      );
-    } else {
-      conversationForAgent = [
-        ...conversationForAgent,
-        { role: "user", content: lastClientUser.content },
-      ];
-    }
-  }
-  let conversationForModel: IncomingMessage[] = conversationForAgent
-    .filter(
-      (m): m is { role: "user" | "assistant"; content: string } =>
-        (m.role === "user" || m.role === "assistant") &&
-        typeof m.content === "string" &&
-        m.content.trim().length > 0,
-    )
-    .map((m) => ({ role: m.role, content: m.content }));
-
-  const generateChatTitle = resolveGenerateChatTitle(
-    clientConversation,
-    input.generateChatTitle ??
-      (chat.title.trim().toLowerCase() === "new chat" &&
-        clientConversation.filter((message) => message.role === "user")
-          .length === 1),
-  );
-  const titleUserContent = input.turn?.content ?? requestedUserContent;
-  let generatedTitle: string | null = null;
-
+  const modelTurns: TranscriptAgentModelTurn[] = [];
   const started = Date.now();
   let answer = "";
   let thinking = "";
   let streamError: string | null = null;
-  /** Wall time spent in thinking phases only (excludes tool execution). */
   let thinkingStartedAtMs: number | null = null;
   let thinkingAccumulatedMs = 0;
   const toolsById = new Map<string, CapturedToolCall>();
-  const modelTurns: TranscriptAgentModelTurn[] = [];
+
+  // Prompt context + vision attach run INSIDE the SSE body so the HTTP
+  // response (and early `start` event) is not blocked on history/R2.
+  // History + personalization were already kicked off beside the turn insert.
+  const sourceStream = await createChatStream(
+    clientConversation.map((m) => ({ role: m.role, content: m.content })),
+    {
+      chatModel: input.chatModel,
+      userId: input.userId,
+      conversationId: input.chatId,
+      userCountryCode: input.userCountryCode,
+      clientTimezone: input.clientTimezone,
+      generateChatTitle: resolveGenerateChatTitle(
+        clientConversation,
+        input.generateChatTitle ??
+          (chat.title.trim().toLowerCase() === "new chat" &&
+            clientConversation.filter((message) => message.role === "user")
+              .length === 1),
+      ),
+      signal: input.signal,
+      homerReasoningEffort: input.homerReasoningEffort,
+      extendedThinking: input.extendedThinking,
+      onPauseForUser: input.onPauseForUser,
+      onModelTurn: (turn) => {
+        modelTurns.push(turn);
+      },
+      resolveContext: async () => {
+        const [dbRecent, personalization] = await Promise.all([
+          historyPromise,
+          personalizationPromise,
+        ]);
+        const promptFromDb = buildPromptMessagesFromDbRows(dbRecent);
+        const clientAsPrompt: AgentStreamOptions["messages"] =
+          clientConversation.map((message) => ({
+            role: message.role,
+            content: message.content,
+          }));
+        let conversationForAgent = mergePromptHistories(
+          promptFromDb.structured,
+          clientAsPrompt,
+        );
+
+        const preferredUserContent =
+          input.turn?.modelContent?.trim() ||
+          lastClientUser?.content.trim() ||
+          requestedUserContent;
+
+        if (preferredUserContent) {
+          let lastAgentUserIndex = -1;
+          for (let i = conversationForAgent.length - 1; i >= 0; i -= 1) {
+            if (conversationForAgent[i]?.role === "user") {
+              lastAgentUserIndex = i;
+              break;
+            }
+          }
+          if (lastAgentUserIndex >= 0) {
+            conversationForAgent = conversationForAgent.map((message, index) =>
+              index === lastAgentUserIndex
+                ? { ...message, content: preferredUserContent }
+                : message,
+            );
+          } else {
+            conversationForAgent = [
+              ...conversationForAgent,
+              { role: "user", content: preferredUserContent },
+            ];
+          }
+        }
+
+        const visionBlocks = await resolveVisionImageBlocks({
+          userId: input.userId,
+          fileIds: input.turn?.fileIds,
+          clientImages: input.turn?.images,
+        });
+
+        if (visionBlocks.length > 0) {
+          let lastUserIdx = -1;
+          for (let i = conversationForAgent.length - 1; i >= 0; i -= 1) {
+            if (conversationForAgent[i]?.role === "user") {
+              lastUserIdx = i;
+              break;
+            }
+          }
+          if (lastUserIdx >= 0) {
+            const current = conversationForAgent[lastUserIdx]!;
+            const text =
+              typeof current.content === "string"
+                ? current.content
+                : preferredUserContent;
+            conversationForAgent = conversationForAgent.map((message, index) =>
+              index === lastUserIdx
+                ? {
+                    ...message,
+                    content: withVisionUserContent(text, visionBlocks),
+                  }
+                : message,
+            );
+          }
+        }
+
+        return {
+          modelMessages: conversationForAgent,
+          personalization,
+        };
+      },
+    },
+  );
+
+  const titleUserContent = input.turn?.content ?? requestedUserContent;
+  let generatedTitle: string | null = null;
+  const conversationForModel: IncomingMessage[] = clientConversation;
 
   const beginThinkingPhase = () => {
     if (thinkingStartedAtMs == null) {
@@ -457,23 +512,7 @@ export async function streamChatGeneration(input: {
   }).modelSlug;
 
   try {
-    const sourceStream = await createChatStream(conversationForModel, {
-      chatModel: input.chatModel,
-      userId: input.userId,
-      conversationId: input.chatId,
-      userCountryCode: input.userCountryCode,
-      clientTimezone: input.clientTimezone,
-      generateChatTitle,
-      signal: input.signal,
-      homerReasoningEffort: input.homerReasoningEffort,
-      extendedThinking: input.extendedThinking,
-      onPauseForUser: input.onPauseForUser,
-      modelMessages: conversationForAgent,
-      personalization,
-      onModelTurn: (turn) => {
-        modelTurns.push(turn);
-      },
-    });
+    // sourceStream already created above — continue into tapChatSseStream
     const body = tapChatSseStream(
       sourceStream,
       {

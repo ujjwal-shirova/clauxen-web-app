@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 
 /** Soften first-token paint: settle sooner once any chunk lands. */
-const MIN_DURATION_MS = 55;
-const MAX_DURATION_MS = 130;
-const FAST_GAP_MS = 28;
+const MIN_DURATION_MS = 40;
+const MAX_DURATION_MS = 95;
+const FAST_GAP_MS = 24;
 
 /**
  * Duration scales with inter-chunk gap so animation speed tracks the model's
@@ -127,7 +127,7 @@ export type StreamFadeConfig = {
 
 export const DEFAULT_STREAM_FADE: StreamFadeConfig = {
   animation: "stream-token-fade",
-  animationDuration: "55ms",
+  animationDuration: "40ms",
   animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
 };
 

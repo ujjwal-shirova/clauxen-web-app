@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, ChevronDown, Plus, Search, X } from "lucide-react";
+import { chrome } from "@/lib/app-chrome";
+import { cn } from "@/lib/utils";
 import { starterSkillsStructure } from "@/lib/starter-skills-data";
 
 const FEATURED_DESCRIPTIONS: Record<string, string> = {
@@ -73,7 +75,7 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
   }, [query]);
 
   const dialog = (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-zinc-900/20 p-3 backdrop-blur-[2px] sm:p-4">
+    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-[var(--overlay-scrim)] p-3 sm:p-4">
       <button
         type="button"
         aria-label="Close directory"
@@ -84,7 +86,7 @@ export function SkillDirectoryDialog({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="skill-directory-title"
-        className="app-overlay-panel relative flex max-h-[min(673px,calc(100dvh-1.5rem))] w-full max-w-[min(1024px,calc(100vw-1.5rem))] flex-col bg-[var(--app-panel-bg)] text-zinc-900 duration-200 animate-in fade-in zoom-in-95"
+        className={cn(chrome.overlay.panel, "relative flex max-h-[min(673px,calc(100dvh-1.5rem))] w-full max-w-[min(1024px,calc(100vw-1.5rem))] flex-col text-zinc-900 duration-200 animate-in fade-in zoom-in-95")}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-auto rounded-xl p-5 sm:p-6">
           <div className="mb-3 flex items-start gap-2">

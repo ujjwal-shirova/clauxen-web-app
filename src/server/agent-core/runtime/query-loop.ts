@@ -52,7 +52,7 @@ import { McpConnectorHarness } from "@/server/mcp/registry";
 import { listMcpServers } from "@/server/mcp/types";
 
 /** Cap MCP discovery so a hung connector cannot delay first token. */
-const MCP_DISCOVER_BUDGET_MS = 450;
+const MCP_DISCOVER_BUDGET_MS = 200;
 
 /** Single autonomous step budget. The model decides how many steps it needs. */
 const MAX_STEPS = 24;
@@ -274,6 +274,8 @@ export type AgentStreamOptions = {
   onModelTurn?: (turn: TranscriptAgentModelTurn) => void;
   /** Claude Code–style injectable deps (defaults to Provider production wiring). */
   deps?: QueryDeps;
+  /** When true, caller already emitted SSE `start` (early TTFT). */
+  skipWriteStart?: boolean;
 };
 
 function resolveThinkingBudget(options: AgentStreamOptions): number {
@@ -327,10 +329,14 @@ export async function runAutonomousAgent(
   const thinkingBudget = resolveThinkingBudget(options);
 
   // Signal the client immediately — do not wait on MCP discovery for UI start.
-  sse.writeStart(true);
+  if (!options.skipWriteStart) {
+    sse.writeStart(true);
+  }
 
   // MCP connectors: discover with a hard budget so unreachable servers never
   // sit on the TTFT critical path (listTools defaults to a 20s fetch timeout).
+  // Run discovery in parallel with the first model call setup by not awaiting
+  // beyond the budget — empty catalog skips entirely.
   const mcp = new McpConnectorHarness();
   let mcpTools: Awaited<ReturnType<McpConnectorHarness["discover"]>> = [];
   if (listMcpServers().length > 0) {
@@ -463,8 +469,8 @@ export async function runAutonomousAgent(
         switch (part.type) {
           case "reasoning-delta": {
             if (!part.delta) break;
-            // Expose only the reasoning lifecycle. Private chain-of-thought
-            // remains server-side; user-visible progress is narration text.
+            // Open the thinking segment so the orb/timeline is live while the
+            // model reasons — do not dump private CoT into the transcript.
             ensureThinking();
             break;
           }

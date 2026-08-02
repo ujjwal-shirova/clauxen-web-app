@@ -1402,7 +1402,7 @@ export function BillingCheckout({
         type="button"
         onClick={() => setBillingCycle("monthly")}
         className={cn(
-          "flex flex-col items-start rounded-2xl border px-4 py-4 text-left transition-all",
+          "flex flex-col items-start rounded-[var(--radius-md)] border px-3.5 py-3 text-left text-[13px] leading-[18px] transition-all",
           effectiveBillingCycle === "monthly"
             ? "border-zinc-900 bg-zinc-900 text-white"
             : "border-zinc-200 bg-[var(--app-panel-bg)] hover:border-zinc-300",
@@ -1425,7 +1425,7 @@ export function BillingCheckout({
         <span className="max-w-[75%] text-left font-medium">Monthly</span>
         <span
           className={cn(
-            "mt-1 text-left text-[14px] leading-5",
+            "app-page-muted mt-1 text-left",
             effectiveBillingCycle === "monthly"
               ? "text-white/80"
               : "text-zinc-600",
@@ -1442,7 +1442,7 @@ export function BillingCheckout({
         onClick={() => setBillingCycle("yearly")}
         disabled={orgPlan ? !orgPlan.yearlySupported : false}
         className={cn(
-          "flex flex-col items-start rounded-2xl border px-4 py-4 text-left transition-all",
+          "flex flex-col items-start rounded-[var(--radius-md)] border px-3.5 py-3 text-left text-[13px] leading-[18px] transition-all",
           effectiveBillingCycle === "yearly"
             ? "border-zinc-900 bg-zinc-900 text-white"
             : "border-zinc-200 bg-[var(--app-panel-bg)] hover:border-zinc-300",
@@ -1480,7 +1480,7 @@ export function BillingCheckout({
         <span className="max-w-[75%] text-left font-medium">Yearly</span>
         <span
           className={cn(
-            "mt-1 text-left text-[14px] leading-5",
+            "app-page-muted mt-1 text-left",
             effectiveBillingCycle === "yearly"
               ? "text-white/80"
               : "text-zinc-600",
@@ -1506,7 +1506,7 @@ export function BillingCheckout({
           type="button"
           onClick={() => setMaxTier(tier)}
           className={cn(
-            "flex flex-col items-start rounded-2xl border px-4 py-4 text-left transition-all",
+            "flex flex-col items-start rounded-[var(--radius-md)] border px-3.5 py-3 text-left text-[13px] leading-[18px] transition-all",
             maxTier === tier
               ? "border-zinc-900 bg-zinc-900 text-white"
               : "border-zinc-200 bg-[var(--app-panel-bg)] hover:border-zinc-300",
@@ -1539,7 +1539,7 @@ export function BillingCheckout({
           <span className="max-w-[75%] text-left font-medium">
             {tierDetails.usageLabel}
           </span>
-          <span className="mt-1 text-left text-[14px] leading-5 text-zinc-800">
+          <span className="app-page-muted mt-1 text-left">
             {formatInr(tierDetails.monthlyPriceInr)}/month
           </span>
         </button>
@@ -1671,7 +1671,7 @@ export function BillingCheckout({
   );
 
   const variablePlanNotice = isVariableCheckoutPlan && (
-    <div className="rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] px-4 py-4 text-[14px] leading-relaxed text-zinc-800">
+    <div className="app-page-card rounded-[var(--radius-md)] px-3.5 py-3 leading-relaxed">
       {isUsageCodePlan ? (
         <p>
           <strong>Usage pricing:</strong> Clauxen Code usage is metered and
@@ -1772,11 +1772,11 @@ export function BillingCheckout({
   }
 
   return (
-    <div className="relative w-full bg-[var(--app-shell-bg)] font-sans text-zinc-800">
+    <div className="app-surface-shell relative w-full font-sans text-zinc-800">
       <button
         type="button"
         onClick={onBack}
-        className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200/80 bg-[var(--app-panel-bg)] text-zinc-700 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-white sm:left-6"
+        className="ui-icon-button absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 h-10 w-10 border border-[var(--ui-border)] bg-[var(--app-panel-bg)] text-zinc-700 shadow-[var(--field-shadow)] transition-colors hover:bg-[var(--ui-field-bg)] sm:left-6"
         aria-label="Back"
       >
         <svg
@@ -1794,7 +1794,7 @@ export function BillingCheckout({
         <main className="mx-auto flex w-full max-w-[1080px] flex-col items-start gap-8 px-4 pb-28 pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.25rem))] sm:gap-10 sm:px-6 lg:flex-row">
           {/* Left column — plan summary */}
           <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[400px]">
-            <h1 className="mb-6 text-[22px] font-semibold tracking-[-0.03em] text-zinc-900 sm:text-[24px]">
+            <h1 className="app-page-title mb-5">
               {details.name}
             </h1>
 
@@ -1805,7 +1805,7 @@ export function BillingCheckout({
               {businessSeatConfigurator}
               {variablePlanNotice}
 
-              <div className="flex flex-col gap-3.5 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] p-5 text-[14px] shadow-[0_1px_2px_rgba(24,24,27,0.03)]">
+              <div className="app-page-card flex flex-col gap-3 rounded-[var(--radius-md)] p-4 shadow-[0_1px_2px_rgba(24,24,27,0.03)]">
                 <div className="text-[13px] font-semibold uppercase tracking-[0.04em] text-zinc-400">
                   Order details
                 </div>
@@ -1863,7 +1863,7 @@ export function BillingCheckout({
                 </div>
               </div>
 
-              <div className="flex gap-3 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] p-4">
+              <div className="app-page-card flex gap-3 rounded-[var(--radius-md)] p-3.5">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
                 <p className="text-[13px] leading-relaxed text-zinc-600">
                   {isGiftCheckout ? (
@@ -1915,7 +1915,7 @@ export function BillingCheckout({
           </aside>
 
           {/* Right column — checkout form */}
-          <div className="box-border min-w-0 w-full flex-1 rounded-2xl border border-zinc-200/90 bg-[var(--app-panel-bg)] px-6 py-7 shadow-[0_1px_2px_rgba(24,24,27,0.03)] sm:px-8 sm:py-8">
+          <div className="app-page-card box-border min-w-0 w-full flex-1 rounded-[var(--radius-md)] px-5 py-5 shadow-[0_1px_2px_rgba(24,24,27,0.03)] sm:px-6 sm:py-6">
             {payError && <CheckoutErrorBanner message={payError} />}
             <CheckoutForm
               paymentTab={paymentTab}

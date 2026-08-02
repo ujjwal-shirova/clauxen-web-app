@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, Link as LinkIcon, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { chrome } from "@/lib/app-chrome";
 import { appBtn } from "@/lib/app-buttons";
 import { GiftAnimation } from "./gift-animation";
 import { FullscreenPortal } from "./fullscreen-portal";
@@ -248,7 +249,7 @@ export function GiftView({ onClose }: GiftViewProps) {
 
   return (
     <FullscreenPortal>
-      <div ref={surfaceRef} data-app-overlay-surface="" tabIndex={-1} className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)] font-sans outline-none lg:flex-row lg:pt-0">
+      <div ref={surfaceRef} data-app-overlay-surface="" tabIndex={-1} className={cn(chrome.overlay.surface, "pt-[env(safe-area-inset-top)] font-sans lg:flex-row lg:pt-0")}>
         <button
           type="button"
           onClick={handleBack}
@@ -259,7 +260,7 @@ export function GiftView({ onClose }: GiftViewProps) {
         </button>
 
         <div
-          className="app-scrollbar relative min-h-0 flex-[1.6] overflow-y-auto border-b border-black/5 bg-[var(--app-shell-bg)] lg:border-b-0 lg:border-r lg:border-black/5"
+          className="app-scrollbar relative min-h-0 flex-[1.6] overflow-y-auto border-b border-[var(--ui-border-subtle)] bg-[var(--app-shell-bg)] lg:border-b-0 lg:border-r lg:border-[var(--ui-border-subtle)]"
           data-scroll-region=""
         >
           <div className="mobile-page-inset mx-auto flex min-h-full max-w-[512px] flex-col justify-center pb-8 pt-14 sm:px-8 sm:py-24 lg:pt-16">

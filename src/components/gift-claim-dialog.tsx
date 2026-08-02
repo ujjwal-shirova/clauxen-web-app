@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { chrome } from "@/lib/app-chrome";
 import { appBtn } from "@/lib/app-buttons";
 import { GiftAnimation } from "@/components/gift-animation";
 
@@ -92,8 +93,8 @@ export function GiftClaimDialog({
           >
             <div
               className={cn(
-                "app-overlay-panel w-full max-w-[400px] overflow-hidden",
-                "bg-white shadow-[0_24px_80px_rgba(0,0,0,0.16)]",
+                chrome.overlay.panel,
+                "w-full max-w-[400px] overflow-hidden",
               )}
               onClick={(e) => e.stopPropagation()}
             >

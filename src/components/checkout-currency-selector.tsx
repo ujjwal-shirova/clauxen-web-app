@@ -48,7 +48,7 @@ export function CheckoutCurrencySelector({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex h-10 min-w-[108px] items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.03)] transition-[border,box-shadow] duration-150 hover:border-zinc-300"
+        className="app-btn app-btn-secondary app-btn-sm flex min-w-[108px] items-center gap-2 px-3"
       >
         <span className="text-base leading-none" aria-hidden>
           {selected.flag}
@@ -66,7 +66,7 @@ export function CheckoutCurrencySelector({
         <div
           role="listbox"
           aria-label="Currency"
-          className="absolute right-0 z-50 mt-2 w-[220px] overflow-hidden rounded-xl border border-zinc-200 bg-white py-1 shadow-[0_12px_32px_rgba(24,24,27,0.12)]"
+          className="app-page-card absolute right-0 z-50 mt-2 w-[220px] overflow-hidden py-1 shadow-[0_12px_32px_rgba(24,24,27,0.12)]"
         >
           {CHECKOUT_CURRENCIES.map((code) => {
             const option = CHECKOUT_CURRENCY_LABELS[code];
@@ -82,7 +82,7 @@ export function CheckoutCurrencySelector({
                   setOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-[#121212] transition-colors",
+                  "app-page-body flex w-full items-center gap-3 px-3 py-2 text-left transition-colors",
                   isSelected ? "bg-zinc-100" : "hover:bg-zinc-50",
                 )}
               >

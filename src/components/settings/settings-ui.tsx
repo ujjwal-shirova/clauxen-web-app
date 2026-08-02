@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { chrome } from "@/lib/app-chrome";
 import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
@@ -194,10 +195,10 @@ const settingsFocusReset =
   "outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0";
 
 const settingsOptionMenuContentClass =
-  "app-overlay-panel z-[120] min-w-[14rem] max-w-[20rem] rounded-[var(--radius-md)] p-1 text-zinc-900 dark:text-zinc-100";
+  cn(chrome.overlay.panel, "z-[120] min-w-[14rem] max-w-[20rem] p-1 text-zinc-900 dark:text-zinc-100");
 
 const settingsOptionTriggerClass = cn(
-  "no-hover-overlay inline-flex h-8 min-h-8 w-full shrink-0 items-center justify-between gap-1.5 rounded-[var(--radius-sm)] bg-white/80 px-2.5 text-[13px] leading-[18px] text-zinc-900 shadow-[inset_0_0_0_1px_var(--ui-border)] transition-[box-shadow,background-color] duration-75 hover:bg-white sm:w-auto sm:justify-start sm:px-2 data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] dark:hover:bg-zinc-900 dark:data-[state=open]:bg-zinc-900",
+  "no-hover-overlay inline-flex h-8 min-h-8 w-full shrink-0 items-center justify-between gap-1.5 rounded-[var(--radius-sm)] bg-white/80 px-2.5 text-[length:var(--ui-font-size)] leading-[var(--ui-line-height)] text-zinc-900 shadow-[inset_0_0_0_1px_var(--ui-border)] transition-[box-shadow,background-color] duration-75 hover:bg-white sm:w-auto sm:justify-start sm:px-2 data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] dark:hover:bg-zinc-900 dark:data-[state=open]:bg-zinc-900",
   settingsFocusReset,
 );
 
@@ -330,7 +331,7 @@ export function SettingsSelectButton({
       onClick={onClick}
       aria-label={ariaLabel ?? value}
       className={cn(
-        "no-hover-overlay inline-flex h-8 min-h-8 shrink-0 items-center gap-2 rounded-[var(--radius-sm)] bg-white px-2.5 text-[13px] leading-[18px] text-zinc-900 transition-colors hover:bg-zinc-50",
+        "no-hover-overlay inline-flex h-8 min-h-8 shrink-0 items-center gap-2 rounded-[var(--radius-sm)] bg-white px-2.5 text-[length:var(--ui-font-size)] leading-[var(--ui-line-height)] text-zinc-900 transition-colors hover:bg-zinc-50",
         settingsFocusReset,
         className,
       )}
@@ -417,7 +418,7 @@ export function SettingsTextarea({
       rows={rows}
       maxLength={maxLength}
       className={cn(
-        "w-full resize-none rounded-[var(--radius-sm)] bg-white/80 px-3 py-2 text-[13px] leading-[18px] text-zinc-900 shadow-[inset_0_0_0_1px_var(--ui-border)] transition-[box-shadow,background-color] duration-75 placeholder:text-zinc-400 focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]",
+        "w-full resize-none rounded-[var(--radius-sm)] bg-white/80 px-3 py-2 text-[length:var(--ui-font-size)] leading-[var(--ui-line-height)] text-zinc-900 shadow-[inset_0_0_0_1px_var(--ui-border)] transition-[box-shadow,background-color] duration-75 placeholder:text-zinc-400 focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]",
         settingsFocusReset,
       )}
     />
@@ -441,7 +442,7 @@ export function SettingsVoiceControl({
         type="button"
         onClick={onPlay}
         className={cn(
-          "no-hover-overlay inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white px-3 text-[13px] leading-[18px] text-zinc-900 transition-colors hover:bg-zinc-100 sm:w-auto sm:rounded-l-md sm:rounded-r-none sm:border-r-0",
+          "no-hover-overlay inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white px-3 text-[length:var(--ui-font-size)] leading-[var(--ui-line-height)] text-zinc-900 transition-colors hover:bg-zinc-100 sm:w-auto sm:rounded-l-md sm:rounded-r-none sm:border-r-0",
           settingsFocusReset,
         )}
       >

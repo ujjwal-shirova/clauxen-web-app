@@ -159,7 +159,7 @@ export function CheckoutUpiQrModal({
         </div>
 
         <div className="px-5 pb-6 pt-3 sm:px-6">
-          <div className="rounded-2xl bg-zinc-100/90 p-4 sm:p-5">
+          <div className="rounded-[var(--radius-md)] bg-zinc-100/90 p-3.5 sm:p-4">
             <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
               {/* Fixed square — clean upi:// QR (from image_content), never tall branded card */}
               <div
@@ -194,7 +194,7 @@ export function CheckoutUpiQrModal({
               </div>
 
               <div className="min-w-0 flex-1 text-center sm:text-left">
-                <p className="text-[15px] font-medium leading-snug text-zinc-600">
+                <p className="app-page-muted font-medium leading-snug">
                   Scan the QR using any UPI App
                 </p>
                 <p className="mt-1 text-[13px] text-zinc-400">
@@ -223,7 +223,7 @@ export function CheckoutUpiQrModal({
           <button
             type="button"
             onClick={() => onClose("cancel")}
-            className="no-hover mt-4 w-full rounded-xl py-2.5 text-[14px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
+            className="app-page-muted no-hover mt-4 w-full rounded-[var(--radius-md)] py-2 font-medium transition-colors hover:text-zinc-800"
           >
             Cancel
           </button>

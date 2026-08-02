@@ -71,7 +71,7 @@ export function CheckoutBillingAddress({
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="px-1 text-[15px] font-semibold text-[#121212]">
+      <h3 className="app-page-section-title px-1">
         Billing address
       </h3>
 

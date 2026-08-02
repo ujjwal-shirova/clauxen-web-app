@@ -42,6 +42,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
         content?: unknown;
         modelContent?: unknown;
         fileIds?: unknown;
+        images?: unknown;
         userClientId?: unknown;
         assistantClientId?: unknown;
       };
@@ -79,6 +80,34 @@ export const POST = withApiRouteParams<{ chatId: string }>(
                 (fileId): fileId is string => typeof fileId === "string",
               )
             : undefined,
+          images: (() => {
+            if (!Array.isArray(rawTurn.images)) return undefined;
+            const parsed: Array<{
+              mimeType: string;
+              data: string;
+              name?: string;
+            }> = [];
+            for (const image of rawTurn.images) {
+              if (!image || typeof image !== "object") continue;
+              const record = image as Record<string, unknown>;
+              const mimeType =
+                typeof record.mimeType === "string"
+                  ? record.mimeType.trim()
+                  : "";
+              const data =
+                typeof record.data === "string" ? record.data.trim() : "";
+              if (!mimeType || !data) continue;
+              parsed.push({
+                mimeType,
+                data,
+                ...(typeof record.name === "string"
+                  ? { name: record.name.trim().slice(0, 240) }
+                  : {}),
+              });
+              if (parsed.length >= 8) break;
+            }
+            return parsed.length ? parsed : undefined;
+          })(),
           userClientId:
             typeof rawTurn.userClientId === "string"
               ? rawTurn.userClientId.trim()

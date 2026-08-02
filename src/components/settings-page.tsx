@@ -13,6 +13,7 @@ import { DEFAULT_APP_SETTINGS } from "@/lib/settings-defaults";
 import * as workspacesApi from "@/lib/api/workspaces";
 import type { Workspace } from "@/lib/api/workspaces";
 import { cn } from "@/lib/utils";
+import { chrome } from "@/lib/app-chrome";
 import { FullscreenPortal } from "@/components/fullscreen-portal";
 import type { SessionUser } from "@/lib/api/auth";
 import { useAuth } from "@/hooks/use-auth";
@@ -378,7 +379,7 @@ export function SettingsModal({
         <div
           aria-hidden
           data-settings-washout
-          className="absolute inset-0 cursor-default bg-[rgba(244,244,245,0.84)] max-md:bg-[rgba(244,244,245,0.92)] dark:bg-black/70 max-md:dark:bg-black/80"
+          className={cn(chrome.overlay.scrim, "cursor-default max-md:opacity-95")}
           onClick={onClose}
         />
 
@@ -390,10 +391,9 @@ export function SettingsModal({
           data-app-overlay-surface=""
           tabIndex={-1}
           className={cn(
-            "fixed z-[201] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none dark:text-zinc-100",
-            "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",
-            "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
-            "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)] md:pt-0 md:pb-0 dark:md:border-white/10 dark:md:shadow-[0_24px_80px_-16px_rgba(0,0,0,0.65)]",
+            chrome.overlay.modalShell,
+            "max-w-none font-sans text-zinc-900 dark:text-zinc-100",
+            "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:pt-0 md:pb-0",
           )}
         >
           <h1 id="settings-modal-title" className="sr-only">
@@ -404,7 +404,7 @@ export function SettingsModal({
           </p>
 
           <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch">
-            <div className="shrink-0 border-b border-[rgba(11,11,11,0.1)] bg-[var(--app-shell-bg)] px-4 py-3 md:hidden">
+            <div className="shrink-0 border-b border-[var(--ui-border)] bg-[var(--app-shell-bg)] px-4 py-3 md:hidden">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[12px] leading-[14px] text-zinc-500">
@@ -417,7 +417,7 @@ export function SettingsModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="ui-icon-button shrink-0 text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)]"
+                  className="ui-icon-button shrink-0 text-zinc-700 transition-colors hover:bg-[var(--ui-hover-wash)]"
                   aria-label="Close settings"
                 >
                   <X className="icon-lg" strokeWidth={1.75} />
@@ -430,7 +430,7 @@ export function SettingsModal({
               />
             </div>
 
-            <aside className="hidden min-h-0 shrink-0 bg-[var(--app-shell-bg)] md:flex md:w-[192px] md:flex-col md:border-r md:border-[rgba(11,11,11,0.1)] md:p-3">
+            <aside className="hidden min-h-0 shrink-0 bg-[var(--app-shell-bg)] md:flex md:w-[192px] md:flex-col md:border-r md:border-[var(--ui-border)] md:p-3">
               <SettingsNavSidebar
                 activeTab={activeTab}
                 onTabChange={handleTabChange}
@@ -441,7 +441,7 @@ export function SettingsModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="ui-icon-button absolute right-3 top-3 z-10 hidden text-zinc-700 transition-colors hover:bg-[rgba(11,11,11,0.05)] md:inline-flex"
+                className="ui-icon-button absolute right-3 top-3 z-10 hidden text-zinc-700 transition-colors hover:bg-[var(--ui-hover-wash)] md:inline-flex"
                 aria-label="Close settings"
               >
                 <X className="icon-lg" strokeWidth={1.75} />

@@ -60,7 +60,7 @@ export function CheckoutMobileField({
         Mobile number
       </div>
       <div className="relative">
-        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-zinc-500">
+        <span className="app-page-muted pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
           +91
         </span>
         <input
@@ -161,12 +161,12 @@ function NetbankingBankPanel({
       )}
 
       <div
-        className="max-h-[220px] overflow-y-auto rounded-2xl border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.03)]"
+        className="app-page-card max-h-[220px] overflow-y-auto shadow-[0_1px_2px_rgba(24,24,27,0.03)]"
         role="listbox"
         aria-label="Banks"
       >
         {banks.length === 0 ? (
-          <div className="px-4 py-6 text-center text-sm text-zinc-500">
+          <div className="app-page-muted px-4 py-6 text-center">
             No banks match “{query.trim()}”.
           </div>
         ) : (
@@ -180,7 +180,7 @@ function NetbankingBankPanel({
                 aria-selected={selected}
                 onClick={() => selectBank(bank.code)}
                 className={cn(
-                  "flex w-full items-center gap-3 px-3.5 py-3 text-left text-[14px] transition-colors duration-100",
+                  "app-page-body flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors duration-100",
                   index > 0 && "border-t border-zinc-100",
                   selected
                     ? "bg-zinc-900 text-white"
@@ -284,10 +284,10 @@ export function CheckoutPaymentPanel({
             className="h-8 w-11 rounded-[5px] border border-[#e0e0e0] bg-white p-0.5"
           />
           <div>
-            <div className="text-sm font-medium text-[#121212]">
+            <div className="app-page-body font-medium">
               {savedMethod.brand}
             </div>
-            <div className="text-sm text-zinc-600">
+            <div className="app-page-muted">
               {savedMethod.maskedNumber ||
                 (isUpi
                   ? savedMethod.upiVpa || "UPI"
