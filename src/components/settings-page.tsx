@@ -378,7 +378,7 @@ export function SettingsModal({
         <div
           aria-hidden
           data-settings-washout
-          className="absolute inset-0 cursor-default bg-[#171827]/35 backdrop-blur-md max-md:bg-[#171827]/45 dark:bg-black/70 max-md:dark:bg-black/80"
+          className="absolute inset-0 cursor-default bg-[rgba(244,244,245,0.84)] max-md:bg-[rgba(244,244,245,0.92)] dark:bg-black/70 max-md:dark:bg-black/80"
           onClick={onClose}
         />
 
@@ -393,7 +393,7 @@ export function SettingsModal({
             "fixed z-[201] flex min-h-0 max-w-none flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 outline-none dark:text-zinc-100",
             "inset-0 h-[100dvh] w-full rounded-none border-0 shadow-none",
             "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
-            "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(720px,calc(100dvh-2rem))] md:w-[min(1020px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[20px] md:border md:border-white/70 md:shadow-[0_32px_100px_-24px_rgba(18,20,38,0.38)] md:pt-0 md:pb-0 dark:md:border-white/10 dark:md:shadow-[0_24px_80px_-16px_rgba(0,0,0,0.65)]",
+            "md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-[rgba(11,11,11,0.1)] md:shadow-[0_24px_80px_-16px_rgba(24,24,27,0.2)] md:pt-0 md:pb-0 dark:md:border-white/10 dark:md:shadow-[0_24px_80px_-16px_rgba(0,0,0,0.65)]",
           )}
         >
           <h1 id="settings-modal-title" className="sr-only">
@@ -430,7 +430,7 @@ export function SettingsModal({
               />
             </div>
 
-            <aside className="hidden min-h-0 shrink-0 bg-[var(--app-sidebar-bg)] md:flex md:w-[220px] md:flex-col md:border-r md:border-black/[0.06] md:p-4">
+            <aside className="hidden min-h-0 shrink-0 bg-[var(--app-shell-bg)] md:flex md:w-[192px] md:flex-col md:border-r md:border-[rgba(11,11,11,0.1)] md:p-3">
               <SettingsNavSidebar
                 activeTab={activeTab}
                 onTabChange={handleTabChange}
@@ -450,7 +450,7 @@ export function SettingsModal({
               <div
                 data-scroll-region=""
                 className={cn(
-                  "app-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 text-[14px] leading-5 sm:px-8 md:px-10 md:pb-8 md:pt-14",
+                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[14px] leading-5 sm:px-6 md:px-6 md:pb-4 md:pt-12",
                   contentHydrating && "opacity-95",
                 )}
                 aria-busy={contentHydrating || undefined}

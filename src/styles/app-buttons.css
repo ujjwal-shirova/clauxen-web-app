@@ -40,22 +40,22 @@
   /* ── Primary (dark solid) — hover must NOT wash out white label ── */
   .app-btn-primary,
   .btn-solid-dark {
-    background-color: hsl(var(--brand)) !important;
+    background-color: #18181b !important;
     color: #ffffff !important;
     border-color: transparent !important;
-    box-shadow: 0 1px 2px hsl(var(--brand) / 0.24) !important;
+    box-shadow: none !important;
   }
 
   .app-btn-primary:hover:not(:disabled),
   .btn-solid-dark:hover:not(:disabled) {
-    background-color: hsl(var(--brand-strong)) !important;
+    background-color: #27272a !important;
     color: #ffffff !important;
     box-shadow: none !important;
   }
 
   .app-btn-primary:active:not(:disabled),
   .btn-solid-dark:active:not(:disabled) {
-    background-color: hsl(var(--brand-strong)) !important;
+    background-color: #09090b !important;
     color: #ffffff !important;
     box-shadow: none !important;
   }
@@ -133,20 +133,20 @@
   }
 
   .btn-primary-solid {
-    background-color: hsl(var(--brand)) !important;
+    background-color: #18181b !important;
     color: #ffffff !important;
     border-color: transparent !important;
-    box-shadow: 0 1px 2px hsl(var(--brand) / 0.24) !important;
+    box-shadow: none !important;
   }
 
   .btn-primary-solid:hover:not(:disabled) {
-    background-color: hsl(var(--brand-strong)) !important;
+    background-color: #27272a !important;
     color: #ffffff !important;
     box-shadow: none !important;
   }
 
   .btn-primary-solid:active:not(:disabled) {
-    background-color: hsl(var(--brand-strong)) !important;
+    background-color: #09090b !important;
     color: #ffffff !important;
     box-shadow: none !important;
   }

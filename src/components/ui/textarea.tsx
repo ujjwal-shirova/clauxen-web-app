@@ -10,7 +10,7 @@ const Textarea = React.forwardRef<
   return (
     <textarea
       className={cn(
-        "flex min-h-[96px] w-full rounded-xl border border-input bg-white px-3.5 py-3 text-base shadow-[0_1px_2px_rgba(20,22,36,0.025)] ring-offset-background transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-[hsl(var(--brand)/0.55)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[hsl(var(--brand)/0.12)] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-zinc-900", // base textarea styles
+        "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm", // base textarea styles
         className,
       )}
       ref={ref} // ref forwarding for focus/autosize libraries
