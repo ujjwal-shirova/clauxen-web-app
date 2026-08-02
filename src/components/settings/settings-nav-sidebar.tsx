@@ -42,7 +42,7 @@ function NavButton({
         onClick={onSelect}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "ui-nav-row w-full rounded-lg px-2 text-left text-[14px] font-medium leading-5 transition-colors duration-150",
+          "ui-nav-row w-full rounded-md px-2 text-left text-[13px] font-medium leading-[18px] transition-colors duration-150",
           isActive
             ? "bg-[rgba(11,11,11,0.08)] text-zinc-900 dark:bg-white/10 dark:text-zinc-100"
             : "text-zinc-700 hover:bg-[rgba(11,11,11,0.04)] hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-100",
@@ -50,7 +50,7 @@ function NavButton({
       >
         <Icon
           className={cn(
-            "icon-lg shrink-0 stroke-[1.75]",
+            "icon-sm shrink-0 stroke-[1.5]",
             isActive
               ? "text-zinc-700 dark:text-zinc-200"
               : "text-zinc-500 dark:text-zinc-500",
@@ -75,7 +75,7 @@ function SettingsSearchInput({
   return (
     <div className={cn("relative", className)}>
       <Search
-        className="pointer-events-none absolute left-2 top-1/2 icon-lg -translate-y-1/2 text-zinc-400"
+        className="pointer-events-none absolute left-2 top-1/2 icon-sm -translate-y-1/2 text-zinc-400"
         aria-hidden
       />
       <input
@@ -84,7 +84,7 @@ function SettingsSearchInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder="Search"
         aria-label="Search settings"
-        className="h-9 w-full rounded-lg bg-white/80 py-0 pl-9 pr-2 text-[14px] leading-5 text-zinc-900 placeholder:text-zinc-400 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition-[box-shadow,background-color] duration-75 focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] dark:focus:bg-zinc-900"
+        className="h-8 w-full rounded-md bg-white/80 py-0 pl-8 pr-2 text-[13px] leading-[18px] text-zinc-900 placeholder:text-zinc-400 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition-[box-shadow,background-color] duration-75 focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] dark:focus:bg-zinc-900"
       />
     </div>
   );

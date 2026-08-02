@@ -22,7 +22,7 @@ const groupOptions: Array<{
 ];
 
 const sidebarGroupTriggerClass =
-  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-zinc-500 shadow-none transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10 data-[state=open]:bg-zinc-100 data-[state=open]:text-zinc-700";
+  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-zinc-800/66 shadow-none transition-colors hover:bg-black/[0.04] hover:text-zinc-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10 data-[state=open]:bg-black/[0.04] data-[state=open]:text-zinc-800/80";
 
 export function SidebarChatGroupMenu({
   value,
@@ -44,7 +44,7 @@ export function SidebarChatGroupMenu({
           onClick={onClick}
           className={sidebarGroupTriggerClass}
         >
-          <SlidersVertical className="size-5 shrink-0 opacity-80" strokeWidth={1.75} />
+          <SlidersVertical className="size-3.5 shrink-0" strokeWidth={1.5} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -52,9 +52,9 @@ export function SidebarChatGroupMenu({
         align="end"
         sideOffset={6}
         avoidCollisions={false}
-        className="z-50 min-w-[148px] rounded-xl border border-black/[0.08] bg-white p-1 shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
+        className="z-50 min-w-[148px] rounded-[10px] border border-black/[0.08] bg-white p-1 shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
       >
-        <DropdownMenuLabel className="px-2.5 py-1.5 text-[12px] font-[430] text-zinc-500">
+        <DropdownMenuLabel className="px-2 py-1.5 text-[12px] font-medium text-zinc-500">
           Group by
         </DropdownMenuLabel>
         {groupOptions.map((option) => {
@@ -70,7 +70,7 @@ export function SidebarChatGroupMenu({
                 if (!isDisabled) onChange(option.value);
               }}
               className={cn(
-                "flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-[430] text-zinc-800 focus:bg-zinc-100",
+                "flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-[13px] font-medium text-zinc-800 focus:bg-zinc-100",
                 isDisabled && "cursor-default text-zinc-400 opacity-70",
               )}
             >

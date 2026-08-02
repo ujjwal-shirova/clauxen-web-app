@@ -8,8 +8,8 @@
 @layer base {
   :root {
     /*
-     * Clauxen product palette — warm canvas, pure white panels, charcoal CTAs.
-     * Monochrome chrome (no indigo/purple accent in product UI).
+     * Clauxen product palette — cool gray shell (#f3f3f3), pure white panels,
+     * charcoal CTAs. Monochrome chrome (no indigo/purple accent in product UI).
      */
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
@@ -38,29 +38,32 @@
     --chart-5: 240 5.9% 90%;
     /* Radius scale: controls / cards / composer */
     --radius: 8px;
-    --radius-sm: 8px;
+    --radius-sm: 6px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-composer: 28px;
-    /* App chrome icon/button scale */
-    --icon-size: 18px;
-    --icon-stroke: 1.75;
-    --icon-btn-size: 32px;
-    --nav-row-height: 34px;
-    --nav-gap-tight: 3px;
-    --nav-gap-loose: 6px;
+    /* App chrome icon/button scale — Cursor-compact */
+    --icon-size: 14px;
+    --icon-stroke: 1.5;
+    --icon-btn-size: 24px;
+    --nav-row-height: 32px;
+    --nav-gap-tight: 8px;
+    --nav-gap-loose: 8px;
+    --nav-label-size: 13px;
+    --nav-label-line: 18px;
+    --section-label-size: 12px;
     --chat-header-height: 40px;
     --chat-title-size: 14px;
     --chat-user-font-size: 14px;
     --chat-assistant-font-size: 15px;
     --chat-message-line-height: 1.65;
-    --menu-icon-size: 16px;
-    --menu-row-height: 34px;
+    --menu-icon-size: 14px;
+    --menu-row-height: 32px;
     --icon-color: #18181b;
-    --icon-muted: #71717a;
-    --icon-subtle: #a1a1aa;
-    /* App shell — warm canvas behind pure white panels */
-    --app-shell-bg: #fcf9f8;
+    --icon-muted: rgba(24, 24, 27, 0.66);
+    --icon-subtle: rgba(24, 24, 27, 0.6);
+    /* App shell — Cursor-style cool gray behind pure white panels */
+    --app-shell-bg: #f3f3f3;
     --app-panel-bg: #ffffff;
     --overlay-scrim: rgba(24, 24, 27, 0.4);
     /* Shared chat / composer column breadth */
@@ -128,10 +131,10 @@
     --chart-4: 240 4% 22%;
     --chart-5: 240 4% 18%;
     --icon-color: #f4f4f5;
-    --icon-muted: #a1a1aa;
-    --icon-subtle: #71717a;
-    --app-shell-bg: #0c0c0e;
-    --app-panel-bg: #141416;
+    --icon-muted: rgba(244, 244, 245, 0.66);
+    --icon-subtle: rgba(244, 244, 245, 0.6);
+    --app-shell-bg: #141416;
+    --app-panel-bg: #1a1a1c;
     --overlay-scrim: rgba(0, 0, 0, 0.55);
     --glass-chat-surface-background: #141416;
     --cursor-menu-bg: rgba(24, 24, 27, 0.94);
@@ -564,7 +567,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   will-change: opacity, transform;
 }
 
-/* Lucide icon system — crisp 18px default (chrome); menus use --menu-icon-size */
+/* Lucide icon system — crisp 14px default (chrome); menus use --menu-icon-size */
 svg.lucide {
   width: var(--icon-size);
   height: var(--icon-size);
@@ -602,7 +605,7 @@ svg.lucide.icon-2xl {
   height: 24px;
 }
 
-/* App chrome: icon-only control — default 32×32 with pad around 18px icon */
+/* App chrome: icon-only control — 24×24 with pad around 14px icon */
 .ui-icon-button {
   box-sizing: border-box;
   display: inline-flex;
@@ -612,7 +615,7 @@ svg.lucide.icon-2xl {
   height: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 7px;
+  padding: 5px;
   border-radius: var(--radius-sm);
   flex-shrink: 0;
   color: var(--icon-muted);
@@ -644,20 +647,20 @@ svg.lucide.icon-2xl {
   color: hsl(var(--foreground));
 }
 
-/* Dense row actions (sidebar chat pin/more) — 28×28, visible hover */
+/* Dense row actions (sidebar chat pin/more) — 24×24, visible hover */
 .ui-row-icon-button {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  padding: 6px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 5px;
   border-radius: 6px;
   flex-shrink: 0;
-  color: #71717a;
+  color: var(--icon-subtle);
   background: transparent;
   transition:
     background-color 0.15s ease,
@@ -672,8 +675,8 @@ svg.lucide.icon-2xl {
 }
 
 .ui-row-icon-button svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 /* Dropdown / profile menu rows */
@@ -681,12 +684,12 @@ svg.lucide.icon-2xl {
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: var(--menu-row-height);
   height: auto;
-  padding: 6px 10px !important;
-  border-radius: 8px;
-  font-size: 13.5px !important;
+  padding: 6px 8px !important;
+  border-radius: 6px;
+  font-size: 13px !important;
   font-weight: 500;
   line-height: 1.25;
   color: #27272a;
@@ -1123,7 +1126,7 @@ button.user-message-card__body:not(:disabled):hover,
   border-top-right-radius: inherit;
 }
 
-/* Universal header chrome: icon-only = 32×32, text+icon = 34px */
+/* Universal header chrome: icon-only = 24×24, text+icon = 32px */
 .content-pane-top-bar .ui-icon-button,
 .content-pane-top-bar button[aria-label="Incognito"],
 .content-pane-top-bar button[aria-label="Chat options"],
@@ -1135,15 +1138,15 @@ button.user-message-card__body:not(:disabled):hover,
   height: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 7px;
-  border-radius: 8px;
+  padding: 5px;
+  border-radius: 6px;
 }
 
 .content-pane-top-bar button[aria-label="Share chat"] {
   width: auto;
-  min-width: 56px;
-  padding-left: 12px;
-  padding-right: 12px;
+  min-width: 52px;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 .content-pane-top-bar .ui-chrome-text-btn {
@@ -1155,8 +1158,8 @@ button.user-message-card__body:not(:disabled):hover,
   gap: var(--nav-gap-tight);
   padding-left: 8px;
   padding-right: 8px;
-  border-radius: 8px;
-  font-size: var(--chat-title-size);
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.25;
 }
@@ -1688,10 +1691,17 @@ button.user-message-card__body:not(:disabled):hover,
   border-right: 0 !important;
   background: var(--app-shell-bg) !important;
   box-shadow: none !important;
+  font-size: var(--nav-label-size);
+  line-height: var(--nav-label-line);
+  color: rgba(24, 24, 27, 0.88);
 }
 
 .glass-sidebar-docked .ui-sidebar-top-bar {
   border-bottom: 0;
+  height: auto;
+  min-height: 0;
+  padding-top: 8px;
+  padding-bottom: 0;
 }
 
 .glass-sidebar-docked .ui-icon-button,
@@ -1703,15 +1713,19 @@ button.user-message-card__body:not(:disabled):hover,
   height: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   min-height: var(--icon-btn-size);
-  padding: 7px;
-  border-radius: 8px;
+  padding: 5px;
+  border-radius: 6px;
+  color: var(--icon-muted);
 }
 
 .glass-sidebar-docked .ui-sidebar-menu-button,
 .glass-sidebar-docked .glass-sidebar-agent-menu-btn {
   min-height: var(--nav-row-height);
   height: var(--nav-row-height);
-  border-radius: 8px;
+  border-radius: 6px;
+  font-size: var(--nav-label-size);
+  line-height: var(--nav-label-line);
+  font-weight: 500;
 }
 
 .glass-sidebar-docked .ui-sidebar-menu-button:hover,
@@ -1723,7 +1737,7 @@ button.user-message-card__body:not(:disabled):hover,
 .glass-sidebar-docked .glass-sidebar-agent-menu-btn[data-active="true"],
 .glass-sidebar-docked .ui-sidebar-menu-button.bg-black\/\[0\.06\] {
   background: rgba(24, 24, 27, 0.07) !important;
-  box-shadow: inset 0 0 0 1px rgba(24, 24, 27, 0.025);
+  box-shadow: none;
 }
 
 /* Row owns selection/hover — nested title links stay clear; pin/more may hover. */
@@ -1747,22 +1761,46 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .glass-sidebar-docked .ui-sidebar-content {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(24, 24, 27, 0.18) transparent;
+  scrollbar-width: none;
+  scrollbar-color: transparent transparent;
+}
+
+.glass-sidebar-docked .ui-sidebar-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .glass-sidebar-docked .glass-sidebar-footer-account-trigger {
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .glass-sidebar-docked .glass-sidebar-footer-account-trigger:not(.ui-icon-button) {
-  min-height: 44px;
+  min-height: 32px;
   height: auto;
 }
 
 .glass-sidebar-docked .ui-sidebar-menu-button-label,
 .glass-sidebar-docked .ui-text {
   letter-spacing: -0.006em;
+}
+
+.glass-sidebar-docked .ui-nav-icon,
+.glass-sidebar-docked .ui-nav-icon svg,
+.glass-sidebar-docked .ui-icon-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.dark .glass-sidebar-docked .ui-sidebar-menu-button:hover,
+.dark .glass-sidebar-docked .glass-sidebar-agent-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark .glass-sidebar-docked .glass-sidebar-agent-menu-btn.bg-black\/\[0\.06\],
+.dark .glass-sidebar-docked .glass-sidebar-agent-menu-btn[data-active="true"],
+.dark .glass-sidebar-docked .ui-sidebar-menu-button.bg-black\/\[0\.06\] {
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .sidebar-scrollable,
