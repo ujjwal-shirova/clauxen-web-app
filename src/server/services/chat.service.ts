@@ -115,7 +115,8 @@ export async function getChatMessagesPage(
 ) {
   const chat = await chatsRepo.getChatForUser(chatId, userId);
   if (!chat) throw notFound("Chat not found.");
-  await messagesRepo.finalizeStaleStreamingMessages(chatId).catch(() => 0);
+  // Do not await — a write must not sit on the GET hydrate path (pool.max=1).
+  void messagesRepo.finalizeStaleStreamingMessages(chatId).catch(() => 0);
   const { listMessagesPagePreferEdge } =
     await import("@/server/chat/list-messages-page");
   const page = await listMessagesPagePreferEdge({

@@ -32,11 +32,12 @@ function CodePane({
   return (
     <pre
       className={cn(
-        "overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words rounded-md border px-2.5 py-2 font-mono text-[11.5px] leading-5 [overscroll-behavior-inline:contain]",
+        "agent-terminal-pane overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words rounded-md border px-2.5 py-2 font-mono text-[11.5px] leading-5 [overscroll-behavior-x:contain] [overscroll-behavior-y:auto]",
         tone === "error"
-          ? "border-rose-200/80 bg-rose-50/60 text-rose-600"
-          : "border-zinc-200/80 bg-zinc-50/80 text-zinc-700",
+          ? "border-rose-200/80 bg-rose-50/60 text-rose-600 dark:border-rose-500/30 dark:bg-rose-950/40 dark:text-rose-300"
+          : "border-zinc-200/80 bg-zinc-50/90 text-zinc-700 dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:text-zinc-300",
       )}
+      data-chat-scroll-passthrough=""
     >
       {children}
     </pre>
@@ -86,14 +87,14 @@ function ToolArea({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className={cn("border-t border-zinc-200/70 first:border-t-0")}>
+    <div className={cn("border-t border-zinc-200/70 first:border-t-0 dark:border-zinc-700/70")}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-[10.5px] font-medium uppercase tracking-[0.06em]",
-          error ? "text-rose-500" : "text-zinc-400",
-          "hover:text-zinc-600 transition-colors",
+          error ? "text-rose-500 dark:text-rose-400" : "text-zinc-400 dark:text-zinc-500",
+          "hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors",
         )}
       >
         <ChevronRight
@@ -107,9 +108,10 @@ function ToolArea({
       {open ? (
         <div
           className={cn(
-            "min-w-0 overflow-x-auto overflow-y-hidden px-3 pb-2.5 [overscroll-behavior-inline:contain]",
+            "min-w-0 overflow-x-auto overflow-y-hidden px-3 pb-2.5 [overscroll-behavior-x:contain] [overscroll-behavior-y:auto]",
             mono && "font-mono text-[11.5px] leading-5",
           )}
+          data-chat-scroll-passthrough=""
         >
           {children}
         </div>
@@ -120,9 +122,49 @@ function ToolArea({
 
 function ToolBody({ children }: { children: ReactNode }) {
   return (
-    <div className="w-full overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
+    <div
+      className="agent-analyzing-terminal w-full overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)] dark:border-zinc-700/80 dark:bg-zinc-950 dark:shadow-none"
+      data-chat-scroll-passthrough=""
+    >
       {children}
     </div>
+  );
+}
+
+/** Shared activity-row title: dark verb (shimmers live) + light-gray detail. */
+function AgentStepTitle({
+  verb,
+  detail,
+  streaming = false,
+  failed = false,
+  streamKey,
+}: {
+  verb: string;
+  detail?: string;
+  streaming?: boolean;
+  failed?: boolean;
+  streamKey?: string;
+}) {
+  const verbNode = failed ? (
+    <span className="text-rose-500 dark:text-rose-400">{verb}</span>
+  ) : streaming ? (
+    <AgentShimmerText key={streamKey} active>
+      <span className="agent-activity-label--primary">{verb}</span>
+    </AgentShimmerText>
+  ) : (
+    <span className="agent-activity-label--primary">{verb}</span>
+  );
+
+  return (
+    <>
+      {verbNode}
+      {detail ? (
+        <span className="agent-activity-label--subtle"> {detail}</span>
+      ) : null}
+      {streaming ? (
+        <span className="agent-activity-label--subtle">…</span>
+      ) : null}
+    </>
   );
 }
 

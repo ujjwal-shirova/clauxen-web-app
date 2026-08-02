@@ -335,11 +335,19 @@ export async function runSandboxCode(
 ) {
   const { sandbox } = await connectSandbox(sandboxId);
   let context = codeContextIndex.get(sandboxId);
-  if (!context || (options?.cwd && context.cwd !== options.cwd)) {
-    context = await sandbox.createCodeContext({
+  // Only create a new Python context when missing. Recreating on cwd mismatch
+  // wiped imports/globals across execute_code calls (SDK often omits cwd on
+  // the returned context, so `context.cwd !== options.cwd` was always true).
+  if (!context) {
+    const created = await sandbox.createCodeContext({
       language: "python",
       cwd: options?.cwd,
     });
+    context = {
+      id: created.id,
+      language: created.language ?? "python",
+      cwd: options?.cwd ?? "",
+    };
     codeContextIndex.set(sandboxId, context);
   }
   const execution = await sandbox.runCode(code, {

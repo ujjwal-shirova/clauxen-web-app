@@ -8,12 +8,16 @@ export function onboardingDoneCookieValue(
   return `${userId}.${completed ? "1" : "0"}`;
 }
 
-export function onboardingDoneCookieOptions() {
+/**
+ * Completed → long cache. Incomplete → short TTL so a user who finishes
+ * onboarding in another browser is not stuck bouncing for a year.
+ */
+export function onboardingDoneCookieOptions(completed = true) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 365,
+    maxAge: completed ? 60 * 60 * 24 * 365 : 60 * 5,
   };
 }

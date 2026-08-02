@@ -2,10 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/types/database.types";
-import {
-  DISPOSABLE_EMAIL_MESSAGE,
-  isDisposableEmailSafe,
-} from "@/server/email-verifier/disposable-email";
 import { getSupabasePublicConfig, requireSupabasePublicConfig } from "./env";
 import {
   ONBOARDING_DONE_COOKIE,
@@ -84,7 +80,7 @@ function writeOnboardingCache(
   response.cookies.set(
     ONBOARDING_DONE_COOKIE,
     onboardingDoneCookieValue(userId, complete),
-    onboardingDoneCookieOptions(),
+    onboardingDoneCookieOptions(complete),
   );
 }
 
@@ -170,8 +166,9 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Prefer local JWT read for document gates. Only revalidate with Auth when
-  // there is no session or the access token is missing / near expiry.
+  // Prefer local JWT read for document gates. Only hit GoTrue when the token
+  // is missing or within ~30s of expiry — cold opens must not pay a full
+  // Auth round-trip on every return visit.
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -181,7 +178,7 @@ export async function updateSession(request: NextRequest) {
   const needsRemoteValidation =
     !user ||
     !session?.access_token ||
-    expiresAtMs < Date.now() + 5 * 60 * 1000;
+    expiresAtMs < Date.now() + 30 * 1000;
 
   if (needsRemoteValidation) {
     const {
@@ -218,24 +215,8 @@ export async function updateSession(request: NextRequest) {
     });
   }
 
-  // Hard gate: disposable sessions cannot use the app (DevTools / direct API bypass).
-  if (
-    user?.email &&
-    isDisposableEmailSafe(user.email) &&
-    !pathname.startsWith("/api/") &&
-    pathname !== "/login" &&
-    pathname !== "/signup"
-  ) {
-    await supabase.auth.signOut();
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    loginUrl.search = "";
-    loginUrl.searchParams.set("error", DISPOSABLE_EMAIL_MESSAGE);
-    return withSessionCookies(
-      supabaseResponse,
-      NextResponse.redirect(loginUrl),
-    );
-  }
+  // Disposable-email enforcement lives on signup + /api/v1/auth/session —
+  // never on the document proxy (that path used to read a 1MB blocklist).
 
   const devSession = authDevBypassEnabled()
     ? request.cookies.get(SESSION_COOKIE_NAME)?.value
@@ -307,10 +288,6 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isAuthenticated && (pathname === "/login" || pathname === "/signup")) {
-    // Don't bounce disposable users back into the app from the login splash.
-    if (user?.email && isDisposableEmailSafe(user.email)) {
-      return supabaseResponse;
-    }
     const complete = userId
       ? await resolveOnboardingComplete(
           request,

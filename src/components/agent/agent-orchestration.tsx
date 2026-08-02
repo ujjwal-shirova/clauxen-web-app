@@ -7,7 +7,7 @@ import {
   mergeAgentFramesForDisplay,
   resolveAgentFrames,
 } from "@/lib/agent-frames";
-import { groupAgentWorkItems, groupNeedsFoldChrome } from "@/lib/agent-work-groups";
+import { groupAgentWorkItems } from "@/lib/agent-work-groups";
 import { AssistantContentRenderer } from "@/components/assistant-content-renderer";
 import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
 import { collectMessageSources } from "@/lib/chat-sources";
@@ -17,7 +17,6 @@ import {
   isAssistantGenerationError,
   toUserFacingChatError,
 } from "@/lib/assistant-generation-error";
-import { AgentWorkGroupView } from "./agent-work-group";
 import { AgentThinkingPhase } from "./agent-thinking-phase";
 import { AgentNarrationNote } from "./agent-narration-note";
 import { AgentToolBlock } from "./agent-tool-blocks";
@@ -192,23 +191,16 @@ export function AgentOrchestrationView({
               const { group } = item;
               const members = renderGroupMembers(group, segments, indexById);
 
-              // Lone actions stay direct; related multi-step work shares a fold.
-              if (!groupNeedsFoldChrome(group.segments)) {
-                return (
-                  <div
-                    key={group.id}
-                    className="agent-activity-entry agent-work-group-enter flex w-full min-w-0 flex-col gap-1"
-                    data-agent-work-group="bare"
-                    data-active={group.isActive || undefined}
-                  >
-                    {members}
-                  </div>
-                );
-              }
-
+              // Flat Cursor/Claude ledger: every step stays visible as its own
+              // row. No aggregate fold that hides Analyzed / Created / Searched.
               return (
-                <div key={group.id} className="agent-activity-entry">
-                  <AgentWorkGroupView group={group}>{members}</AgentWorkGroupView>
+                <div
+                  key={group.id}
+                  className="agent-activity-entry agent-work-group-enter flex w-full min-w-0 flex-col gap-1"
+                  data-agent-work-group="bare"
+                  data-active={group.isActive || undefined}
+                >
+                  {members}
                 </div>
               );
             })}

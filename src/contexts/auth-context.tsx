@@ -92,7 +92,9 @@ function hintToSession(): SessionUser | null {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(() => hintToSession());
-  const [loading, setLoading] = useState(true);
+  // ChatGPT-style: identity hint means we already know who you are — do not
+  // block the shell on the quiet session round-trip.
+  const [loading, setLoading] = useState(() => !hintToSession());
 
   const refresh = useCallback(async (opts?: { quiet?: boolean }) => {
     if (!opts?.quiet) setLoading(true);
@@ -151,9 +153,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } = await supabase.auth.getSession();
         if (!cancelled && session?.user) {
           setUser((prev) => prev ?? sessionFromSupabaseUser(session.user));
+          setLoading(false);
+        } else if (!cancelled && hintToSession()) {
+          setLoading(false);
         }
       } catch {
-        /* ignore */
+        if (!cancelled && hintToSession()) setLoading(false);
       }
       if (!cancelled) await refresh({ quiet: true });
       if (!cancelled) setLoading(false);

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { createHash } from "node:crypto";
 import {
   getOrCreateSandbox,
   listSandboxFiles,
@@ -14,29 +15,82 @@ export type AgentWorkspaceContext = {
 };
 
 function safeConversationId(conversationId: string): string {
-  return conversationId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120) || "chat";
+  const cleaned = conversationId.replace(/[^a-zA-Z0-9_-]/g, "_");
+  if (!cleaned) return "chat";
+  if (cleaned.length <= 120) return cleaned;
+  const digest = createHash("sha256").update(conversationId).digest("hex").slice(0, 16);
+  return `${cleaned.slice(0, 100)}_${digest}`;
 }
 
 export function sandboxWorkspaceDir(conversationId: string): string {
   return `/workspace/clauxen/${safeConversationId(conversationId)}`;
 }
 
+/**
+ * Resolve a model-supplied path into the conversation workspace.
+ * Absolute paths outside the workspace remap under outputs/ by basename.
+ */
 export function resolveSandboxWorkspacePath(
   conversationId: string,
   filePath: string,
 ): string {
   const root = sandboxWorkspaceDir(conversationId);
   const normalized = filePath.replace(/\\/g, "/").trim();
+  if (!normalized) {
+    return path.posix.join(root, "untitled.txt");
+  }
   if (normalized === root || normalized.startsWith(`${root}/`)) {
     return normalized;
   }
-  const cleaned = normalized.replace(/^\/+/, "");
-  const relative = cleaned || "untitled.txt";
+  if (normalized.startsWith("/")) {
+    const base = path.posix.basename(normalized) || "untitled.txt";
+    return path.posix.join(root, "outputs", base);
+  }
+  const relative = normalized.replace(/^\/+/, "") || "untitled.txt";
   const resolved = path.posix.resolve(root, relative);
   if (resolved !== root && !resolved.startsWith(`${root}/`)) {
-    throw new Error("Path escapes conversation workspace");
+    throw new Error(
+      `Path escapes conversation workspace. Write deliverables under ${root}/outputs/.`,
+    );
   }
   return resolved;
+}
+
+/** Prefer original absolute path, then remapped workspace path. */
+export function resolveSandboxReadableCandidates(
+  conversationId: string,
+  filePath: string,
+): string[] {
+  const root = sandboxWorkspaceDir(conversationId);
+  const normalized = filePath.replace(/\\/g, "/").trim();
+  if (!normalized) return [path.posix.join(root, "untitled.txt")];
+
+  const candidates: string[] = [];
+  if (normalized === root || normalized.startsWith(`${root}/`)) {
+    candidates.push(normalized);
+  } else if (normalized.startsWith("/")) {
+    candidates.push(normalized);
+    candidates.push(resolveSandboxWorkspacePath(conversationId, normalized));
+  } else {
+    candidates.push(resolveSandboxWorkspacePath(conversationId, normalized));
+  }
+  return Array.from(new Set(candidates));
+}
+
+export function toWorkspaceRelativePath(
+  conversationId: string,
+  absoluteOrRelative: string,
+): string {
+  const root = sandboxWorkspaceDir(conversationId);
+  const normalized = absoluteOrRelative.replace(/\\/g, "/").trim();
+  if (normalized.startsWith(`${root}/`)) {
+    return normalized.slice(root.length + 1);
+  }
+  if (normalized === root) return ".";
+  if (normalized.startsWith("/")) {
+    return path.posix.join("outputs", path.posix.basename(normalized) || "untitled.txt");
+  }
+  return normalized.replace(/^\/+/, "") || "untitled.txt";
 }
 
 export async function ensureSandboxWorkspace(
@@ -55,19 +109,46 @@ export async function readScopedFile(
   filePath: string,
 ): Promise<{ path: string; content: string }> {
   const { sandboxId } = await ensureSandboxWorkspace(ctx);
-  const resolved = resolveSandboxWorkspacePath(ctx.conversationId, filePath);
-  const content = await readSandboxFile(sandboxId, resolved);
-  return { path: filePath.replace(/^\/+/, ""), content };
+  const candidates = resolveSandboxReadableCandidates(ctx.conversationId, filePath);
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    try {
+      const content = await readSandboxFile(sandboxId, candidate);
+      return {
+        path: toWorkspaceRelativePath(ctx.conversationId, candidate),
+        content,
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Could not read ${filePath}`);
 }
 
 export async function readScopedFileBytes(
   ctx: AgentWorkspaceContext,
   filePath: string,
-): Promise<{ path: string; bytes: Uint8Array }> {
+): Promise<{ path: string; bytes: Uint8Array; absolutePath: string }> {
   const { sandboxId } = await ensureSandboxWorkspace(ctx);
-  const resolved = resolveSandboxWorkspacePath(ctx.conversationId, filePath);
-  const bytes = await readSandboxFileBytes(sandboxId, resolved);
-  return { path: filePath.replace(/^\/+/, ""), bytes };
+  const candidates = resolveSandboxReadableCandidates(ctx.conversationId, filePath);
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    try {
+      const bytes = await readSandboxFileBytes(sandboxId, candidate);
+      return {
+        path: toWorkspaceRelativePath(ctx.conversationId, candidate),
+        bytes,
+        absolutePath: candidate,
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Could not read ${filePath}`);
 }
 
 export async function writeScopedFile(
@@ -76,7 +157,7 @@ export async function writeScopedFile(
   content: string,
 ): Promise<{ path: string; bytesWritten: number; content: string }> {
   const { sandboxId } = await ensureSandboxWorkspace(ctx);
-  const relative = filePath.replace(/^\/+/, "").trim() || "untitled.txt";
+  const relative = toWorkspaceRelativePath(ctx.conversationId, filePath);
   const resolved = resolveSandboxWorkspacePath(ctx.conversationId, relative);
   await makeSandboxDir(sandboxId, path.posix.dirname(resolved));
   await writeSandboxFile(sandboxId, resolved, content);

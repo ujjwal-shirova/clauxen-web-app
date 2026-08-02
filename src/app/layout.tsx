@@ -76,13 +76,7 @@ export default function RootLayout({
             before hydration to avoid theme flash. */}
         {/* eslint-disable-next-line react/no-danger */}
         <script dangerouslySetInnerHTML={{ __html: preferenceBootScript }} />
-        {/* Edge / browser connection warm-up for auth + fonts (FCP helpers). */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
+        {/* Edge / browser connection warm-up for auth + chat-history. */}
         {supabasePreconnect ? (
           <link
             rel="preconnect"
@@ -97,21 +91,9 @@ export default function RootLayout({
             crossOrigin="anonymous"
           />
         ) : null}
-        {/* Razorpay Custom Checkout / netbanking — warm TLS before Pay. */}
-        <link rel="preconnect" href="https://checkout.razorpay.com" />
-        <link rel="preconnect" href="https://api.razorpay.com" />
+        {/* Razorpay is warmed on checkout/pricing — do not preload on every app open. */}
         <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
         <link rel="dns-prefetch" href="https://api.razorpay.com" />
-        <link
-          rel="preload"
-          href="https://checkout.razorpay.com/v1/razorpay.js"
-          as="script"
-        />
-        <link
-          rel="preload"
-          href="https://checkout.razorpay.com/v1/checkout.js"
-          as="script"
-        />
       </head>
       <body
         className={`${inter.className} antialiased`}

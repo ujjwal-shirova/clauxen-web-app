@@ -74,47 +74,64 @@ function requestedOutputPaths(args: Record<string, unknown>): string[] {
   ).slice(0, 12);
 }
 
+type PublishSandboxOutputsResult = {
+  artifacts: PublishedSandboxArtifact[];
+  errors: Array<{ path: string; error: string }>;
+};
+
 async function publishSandboxOutputs(
   ctx: ToolExecutionContext,
   paths: string[],
-): Promise<PublishedSandboxArtifact[]> {
+): Promise<PublishSandboxOutputsResult> {
   const artifacts: PublishedSandboxArtifact[] = [];
+  const errors: Array<{ path: string; error: string }> = [];
   for (const outputPath of paths) {
-    const { bytes } = await readScopedFileBytes(ctx, outputPath);
-    const normalizedPath = outputPath.replace(/^\/+/, "");
-    const content =
-      isTextArtifactPath(normalizedPath) && bytes.byteLength <= 512 * 1024
-        ? new TextDecoder().decode(bytes)
-        : undefined;
-    let persisted: {
-      fileId: string;
-      storagePath: string;
-      mimeType: string;
-      sizeBytes: number;
-    } | null = null;
-    if (ctx.userId) {
-      const { persistAgentCreatedFile } = await import(
-        "@/server/inference/autonomous-tools/persist-agent-file"
+    try {
+      const { bytes, path: normalizedPath } = await readScopedFileBytes(
+        ctx,
+        outputPath,
       );
-      persisted = await persistAgentCreatedFile({
-        userId: ctx.userId,
-        chatId: ctx.conversationId,
+      const content =
+        isTextArtifactPath(normalizedPath) && bytes.byteLength <= 512 * 1024
+          ? new TextDecoder().decode(bytes)
+          : undefined;
+      let persisted: {
+        fileId: string;
+        storagePath: string;
+        mimeType: string;
+        sizeBytes: number;
+      } | null = null;
+      if (ctx.userId) {
+        const { persistAgentCreatedFile } = await import(
+          "@/server/inference/autonomous-tools/persist-agent-file"
+        );
+        persisted = await persistAgentCreatedFile({
+          userId: ctx.userId,
+          chatId: ctx.conversationId,
+          path: normalizedPath,
+          content: bytes,
+          source: "sandbox",
+        });
+      }
+      artifacts.push({
+        id:
+          persisted?.fileId ??
+          `${ctx.toolCallId ?? "artifact"}:${normalizedPath}`,
         path: normalizedPath,
-        content: bytes,
-        source: "sandbox",
+        content,
+        fileId: persisted?.fileId,
+        storagePath: persisted?.storagePath,
+        mimeType: persisted?.mimeType,
+        sizeBytes: persisted?.sizeBytes ?? bytes.byteLength,
       });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not read output path";
+      errors.push({ path: outputPath, error: message });
+      console.warn(`[sandbox] output_paths miss for ${outputPath}:`, message);
     }
-    artifacts.push({
-      id: persisted?.fileId ?? `${ctx.toolCallId ?? "artifact"}:${normalizedPath}`,
-      path: normalizedPath,
-      content,
-      fileId: persisted?.fileId,
-      storagePath: persisted?.storagePath,
-      mimeType: persisted?.mimeType,
-      sizeBytes: persisted?.sizeBytes ?? bytes.byteLength,
-    });
   }
-  return artifacts;
+  return { artifacts, errors };
 }
 
 export async function executeAutonomousTool(
@@ -275,7 +292,7 @@ export async function executeAutonomousTool(
       },
     });
 
-    const artifacts = await publishSandboxOutputs(
+    const published = await publishSandboxOutputs(
       ctx,
       requestedOutputPaths(args),
     );
@@ -287,7 +304,10 @@ export async function executeAutonomousTool(
         error: result.error,
         sandboxId: workspace.sandboxId,
         workspace: workspace.root,
-        artifacts,
+        artifacts: published.artifacts,
+        ...(published.errors.length
+          ? { outputPathErrors: published.errors }
+          : {}),
       },
     };
   }
@@ -298,20 +318,25 @@ export async function executeAutonomousTool(
       conversationId: ctx.conversationId,
       userId: ctx.userId,
     });
+    const keepAlive = createSandboxKeepAlive(workspace.sandboxId);
     const execution = await runSandboxCode(workspace.sandboxId, code, {
       cwd: workspace.root,
-      onStdout: (text) =>
+      onStdout: (text) => {
+        keepAlive.ping();
         ctx.onToolProgress?.({
           tool_call_id: ctx.toolCallId,
           kind: "stdout",
           delta: text,
-        }),
-      onStderr: (text) =>
+        });
+      },
+      onStderr: (text) => {
+        keepAlive.ping();
         ctx.onToolProgress?.({
           tool_call_id: ctx.toolCallId,
           kind: "stderr",
           delta: text,
-        }),
+        });
+      },
     });
     const stdout =
       execution.logs?.stdout?.join("") ??
@@ -324,7 +349,7 @@ export async function executeAutonomousTool(
           : JSON.stringify(execution.error)
         : null;
 
-    const artifacts = await publishSandboxOutputs(
+    const published = await publishSandboxOutputs(
       ctx,
       requestedOutputPaths(args),
     );
@@ -336,7 +361,10 @@ export async function executeAutonomousTool(
         result: execution.results ?? null,
         sandboxId: workspace.sandboxId,
         workspace: workspace.root,
-        artifacts,
+        artifacts: published.artifacts,
+        ...(published.errors.length
+          ? { outputPathErrors: published.errors }
+          : {}),
       },
     };
   }
@@ -366,7 +394,7 @@ export async function executeAutonomousTool(
         persisted = await persistAgentCreatedFile({
           userId: ctx.userId,
           chatId: ctx.conversationId,
-          path: filePath,
+          path: output.path,
           content,
         });
       } catch (error) {
