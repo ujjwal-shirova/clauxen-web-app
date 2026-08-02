@@ -81,11 +81,17 @@ export async function createChatStream(
   const sse = new ClauxenSseStream();
 
   // Return the ReadableStream immediately so the HTTP response can flush
-  // headers + early SSE frames while personalization / Novita warm up.
-  // Previously we awaited DB personalization before returning, which delayed
-  // first-byte and made the client sit on a blank optimistic orb.
+  // headers while personalization / Novita warm up. Events written before
+  // the consumer attaches are buffered in ClauxenSseStream.
   void (async () => {
     try {
+      // Prefer starting after the consumer is attached so the first frames
+      // flush without sitting in the pending queue longer than needed.
+      await Promise.race([
+        sse.ready,
+        new Promise<void>((resolve) => setTimeout(resolve, 50)),
+      ]);
+
       const personalization =
         options.personalization ??
         (await loadChatStreamPersonalization(options.userId));

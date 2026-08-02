@@ -476,7 +476,7 @@ export function Sidebar({
 
   const navButtonClass = (active = false, muted = false) =>
     cn(
-      "ui-sidebar-menu-button no-hover-overlay mb-0 w-full rounded-md text-[13px] font-medium leading-[18px] transition-colors duration-150 hover:bg-black/[0.04]",
+      "ui-sidebar-menu-button no-hover-overlay group/nav mb-0 w-full rounded-md text-[13px] font-medium leading-[18px] transition-colors duration-150 hover:bg-black/[0.04]",
       muted ? "text-zinc-800/40 hover:text-zinc-800/55" : "text-zinc-800/90",
       isCollapsed
         ? "ui-icon-button mx-auto flex justify-center gap-0 px-0"
@@ -512,11 +512,16 @@ export function Sidebar({
       >
         <div className={cn("ui-nav-icon", muted && "opacity-60")}>{icon}</div>
         {!isCollapsed && (
-          <span className={cn("truncate", muted && "text-zinc-400")}>
-            {label}
+          <span
+            className={cn(
+              "flex min-w-0 items-center gap-0.5",
+              muted && "text-zinc-400",
+            )}
+          >
+            <span className="truncate">{label}</span>
+            {trailing}
           </span>
         )}
-        {!isCollapsed && trailing}
       </div>
     );
 
@@ -792,13 +797,13 @@ export function Sidebar({
                     handleNewChat();
                   }}
                   aria-label="New chat"
-                  className="group ui-sidebar-menu-button no-hover-overlay flex h-8 w-full items-center justify-between gap-2 rounded-md px-2 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
+                  className="group no-hover-overlay flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-zinc-200/80 bg-white px-2 text-[13px] font-medium leading-[18px] text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <NewChatBubbleIcon className="size-4 shrink-0 text-zinc-800/66" />
+                    <NewChatBubbleIcon className="size-4 shrink-0 text-zinc-800/70" />
                     <span className="truncate">New Chat</span>
                   </span>
-                  <span className="flex shrink-0 items-center gap-0.5 opacity-60">
+                  <span className="flex shrink-0 items-center gap-0.5 text-zinc-500 opacity-70">
                     <ShortcutKey>{isApplePlatform ? "⌘" : "Ctrl"}</ShortcutKey>
                     <ShortcutKey>K</ShortcutKey>
                   </span>
@@ -854,8 +859,8 @@ export function Sidebar({
               active: activeView === "clauxen-code",
               trailing: !isCollapsed ? (
                 <ArrowUpRight
-                  className="ml-auto size-4 shrink-0 text-zinc-800/40"
-                  strokeWidth={1.5}
+                  className="size-3.5 shrink-0 text-zinc-800/45 opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100"
+                  strokeWidth={1.75}
                   aria-hidden
                 />
               ) : undefined,

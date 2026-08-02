@@ -1,5 +1,4 @@
 const TARGET_SAMPLE_RATE = 16_000;
-const RECORDER_TIMESLICE_MS = 1_000;
 
 function preferredRecordingMimeType(): string {
   if (typeof MediaRecorder === "undefined") return "audio/webm";
@@ -54,18 +53,18 @@ class StreamingLinearResampler {
   }
 }
 
+/**
+ * Live mic capture for AssemblyAI streaming dictation.
+ * Sends 16 kHz PCM only — does not record or upload audio blobs.
+ */
 export class MicrophoneCapture {
   private audioContext: AudioContext | null = null;
   private processor: ScriptProcessorNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
-  private recorder: MediaRecorder | null = null;
-  private stopPromise: Promise<void> | null = null;
-  private resolveStop: (() => void) | null = null;
 
   constructor(
     private readonly stream: MediaStream,
     private readonly onPcm: (audio: ArrayBuffer) => void,
-    private readonly onRecordedChunk: (chunk: Blob) => void,
   ) {}
 
   async start() {
@@ -99,41 +98,15 @@ export class MicrophoneCapture {
     this.source.connect(this.processor);
     this.processor.connect(silentGain);
     silentGain.connect(this.audioContext.destination);
-
-    const mimeType = preferredRecordingMimeType();
-    this.recorder = new MediaRecorder(this.stream, {
-      ...(mimeType ? { mimeType } : {}),
-      audioBitsPerSecond: 64_000,
-    });
-    this.stopPromise = new Promise<void>((resolve) => {
-      this.resolveStop = resolve;
-    });
-    this.recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) this.onRecordedChunk(event.data);
-    };
-    this.recorder.onstop = () => this.resolveStop?.();
-    this.recorder.start(RECORDER_TIMESLICE_MS);
   }
 
   async stop() {
     this.stopAudioGraph();
-    if (this.recorder?.state === "recording") {
-      this.recorder.stop();
-      await this.stopPromise;
-    }
     this.stopTracks();
   }
 
   emergencyStop() {
     this.stopAudioGraph();
-    if (this.recorder?.state === "recording") {
-      try {
-        this.recorder.requestData();
-        this.recorder.stop();
-      } catch {
-        // The page may already be tearing down.
-      }
-    }
     this.stopTracks();
   }
 

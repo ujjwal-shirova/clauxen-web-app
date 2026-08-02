@@ -165,13 +165,29 @@ export async function executeAutonomousTool(
 
   if (name === "web_search") {
     const query = String(args.query ?? "");
+    // Signal search start immediately so the UI is not blank while Exa connects.
+    ctx.onToolProgress?.({
+      query,
+      tool_call_id: ctx.toolCallId,
+      status: "searching",
+    });
     const hits = await searchWebWithExa(query, {
       userLocation: ctx.userCountryCode,
       numResults: 10,
+      onStreamContent: (delta) => {
+        if (!delta) return;
+        ctx.onToolProgress?.({
+          query,
+          tool_call_id: ctx.toolCallId,
+          status: "streaming",
+          content_delta: delta,
+        });
+      },
       onPartialResults: (partial) => {
         ctx.onToolProgress?.({
           query,
           tool_call_id: ctx.toolCallId,
+          status: "results",
           results: partial.slice(0, 10).map((h, i) => ({
             index: i + 1,
             title: h.title,

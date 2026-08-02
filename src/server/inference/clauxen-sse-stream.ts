@@ -39,25 +39,59 @@ type StreamController = {
 export class ClauxenSseStream {
   private controller: StreamController | null = null;
   private closed = false;
+  /** Buffer frames written before the HTTP consumer attaches the controller. */
+  private pending: Uint8Array[] = [];
+  private readyResolve: (() => void) | null = null;
+  readonly ready: Promise<void>;
   readonly stream: ReadableStream<Uint8Array>;
   private readonly encoder = new TextEncoder();
 
   constructor() {
+    this.ready = new Promise<void>((resolve) => {
+      this.readyResolve = resolve;
+    });
     this.stream = new ReadableStream<Uint8Array>({
       start: (controller: StreamController) => {
         this.controller = controller;
+        if (this.pending.length > 0) {
+          for (const chunk of this.pending) {
+            try {
+              controller.enqueue(chunk);
+            } catch {
+              break;
+            }
+          }
+          this.pending = [];
+        }
+        this.readyResolve?.();
+        this.readyResolve = null;
       },
       cancel: () => {
         this.closed = true;
+        this.pending = [];
+        this.readyResolve?.();
+        this.readyResolve = null;
       },
     });
   }
 
   /** Write a single SSE event to the stream. */
   write(event: StreamEvent): void {
-    if (this.closed || !this.controller) return;
-    const payload = `data: ${JSON.stringify(event)}\n\n`;
-    this.controller.enqueue(this.encoder.encode(payload));
+    if (this.closed) return;
+    const payload = this.encoder.encode(
+      `data: ${JSON.stringify(event)}\n\n`,
+    );
+    if (!this.controller) {
+      // Consumer not attached yet — queue so early start/tool/narration
+      // frames are never dropped (looks like a hung assistant otherwise).
+      this.pending.push(payload);
+      return;
+    }
+    try {
+      this.controller.enqueue(payload);
+    } catch {
+      this.closed = true;
+    }
   }
 
   writeStart(agentMode = false): void {
@@ -198,11 +232,14 @@ export class ClauxenSseStream {
   finalize(): void {
     if (this.closed) return;
     this.closed = true;
+    this.pending = [];
     try {
       this.controller?.close();
     } catch {
       // already closed
     }
+    this.readyResolve?.();
+    this.readyResolve = null;
   }
 
   get isClosed(): boolean {

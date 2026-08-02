@@ -922,7 +922,7 @@ export function PromptInput({
   const promptShellClass = cn(
     "relative w-full max-w-full bg-[var(--chat-user-card-bg,#fcfcfc)] transition-[min-height,border-radius,border-color,background-color,box-shadow] duration-300 ease-out",
     withProjectStrip && "composer-shell--with-project-strip",
-    showComposeControls && "min-h-[48px]",
+    showComposeControls && "min-h-[40px]",
     composerVariant === "incognito" &&
       "rounded-full border border-dashed border-zinc-300/90 shadow-none",
   );
@@ -936,7 +936,7 @@ export function PromptInput({
         className={micButtonClass}
         data-app-button
       >
-        <Mic className="icon-md shrink-0" strokeWidth={1.75} />
+        <Mic className="icon-sm shrink-0" strokeWidth={1.75} />
       </button>
     </HintTooltip>
   );
@@ -949,7 +949,7 @@ export function PromptInput({
         aria-label="Send"
         className={cn(promptFilledControlClass, "cursor-not-allowed")}
       >
-        <ArrowUp className="icon-md" strokeWidth={2} />
+        <ArrowUp className="icon-sm" strokeWidth={2} />
       </button>
     </HintTooltip>
   );

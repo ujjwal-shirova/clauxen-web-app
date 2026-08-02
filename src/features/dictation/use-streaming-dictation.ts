@@ -6,7 +6,6 @@ import {
   getPreferredRecordingMimeType,
   MicrophoneCapture,
 } from "@/features/dictation/microphone-capture";
-import { DictationRecordingUploader } from "@/features/dictation/recording-uploader";
 import {
   applyAssemblyTurn,
   EMPTY_STREAMING_TRANSCRIPT,
@@ -40,7 +39,6 @@ export function useStreamingDictation({
   );
   const connectionRef = useRef<AssemblyAiStreamingConnection | null>(null);
   const captureRef = useRef<MicrophoneCapture | null>(null);
-  const uploaderRef = useRef<DictationRecordingUploader | null>(null);
   const endingRef = useRef<Promise<void> | null>(null);
 
   const updateStatus = useCallback((next: DictationStatus) => {
@@ -58,7 +56,6 @@ export function useStreamingDictation({
   const releaseRefs = useCallback(() => {
     connectionRef.current = null;
     captureRef.current = null;
-    uploaderRef.current = null;
     transcriptRef.current = EMPTY_STREAMING_TRANSCRIPT;
     endingRef.current = null;
   }, []);
@@ -72,13 +69,12 @@ export function useStreamingDictation({
         updateStatus("stopping");
         const capture = captureRef.current;
         const connection = connectionRef.current;
-        const uploader = uploaderRef.current;
 
         try {
           await capture?.stop();
           await connection?.finish();
           const text = currentText();
-          await uploader?.finalize(reason, text);
+          // Live transcription only — never upload/persist microphone audio.
           if (reason === "cancelled") {
             onDraftChange(baseDraftRef.current);
             setDisplayText(baseDraftRef.current);
@@ -109,17 +105,14 @@ export function useStreamingDictation({
     const text = currentText();
     captureRef.current?.emergencyStop();
     void connectionRef.current?.finish();
-    uploaderRef.current?.finalizeInBackground("page-hidden", text);
+    onDraftChange(text);
     releaseRefs();
     statusRef.current = "idle";
-  }, [currentText, releaseRefs]);
+  }, [currentText, onDraftChange, releaseRefs]);
 
   const start = useCallback(async () => {
     if (statusRef.current !== "idle") return;
-    if (
-      !navigator.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === "undefined"
-    ) {
+    if (!navigator.mediaDevices?.getUserMedia) {
       setError("This browser does not support microphone dictation.");
       return;
     }
@@ -168,8 +161,6 @@ export function useStreamingDictation({
         throw new Error("Dictation session was incomplete.");
       }
 
-      const uploader = new DictationRecordingUploader(data.sessionId);
-      uploaderRef.current = uploader;
       const connection = new AssemblyAiStreamingConnection(
         data,
         (turn) => {
@@ -186,10 +177,9 @@ export function useStreamingDictation({
       connectionRef.current = connection;
       await connection.connect();
 
-      const capture = new MicrophoneCapture(
-        stream,
-        (audio) => connection.sendAudio(audio),
-        (chunk) => uploader.enqueue(chunk),
+      // PCM → AssemblyAI only. No MediaRecorder / R2 chunk uploads.
+      const capture = new MicrophoneCapture(stream, (audio) =>
+        connection.sendAudio(audio),
       );
       captureRef.current = capture;
       for (const track of stream.getAudioTracks()) {
@@ -200,7 +190,6 @@ export function useStreamingDictation({
     } catch (startError) {
       stream?.getTracks().forEach((track) => track.stop());
       connectionRef.current?.close();
-      uploaderRef.current?.finalizeInBackground("error", currentText());
       releaseRefs();
       onDraftChange(baseDraftRef.current);
       setDisplayText(baseDraftRef.current);

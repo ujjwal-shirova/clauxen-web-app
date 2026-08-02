@@ -133,6 +133,7 @@ export async function searchWebWithExa(
   options?: ExaSearchOptions,
 ): Promise<ExaSearchHit[]> {
   const exa = requireExaClient();
+  const SEARCH_TIMEOUT_MS = 22_000;
 
   const requestOptions = buildSearchRequestOptions({
     userLocation: options?.userLocation,
@@ -142,34 +143,53 @@ export async function searchWebWithExa(
   });
   const hitsByUrl = new Map<string, ExaSearchHit>();
 
-  try {
-    for await (const chunk of exa.streamSearch(query, requestOptions)) {
-      if (chunk.content) {
-        options?.onStreamContent?.(chunk.content);
-      }
+  const runStreamSearch = async () => {
+    try {
+      for await (const chunk of exa.streamSearch(query, requestOptions)) {
+        if (chunk.content) {
+          options?.onStreamContent?.(chunk.content);
+        }
 
-      if (chunk.citations?.length) {
-        for (const citation of chunk.citations) {
-          if (!citation.url || hitsByUrl.has(citation.url)) continue;
-          hitsByUrl.set(citation.url, mapCitation(citation));
-          options?.onPartialResults?.(Array.from(hitsByUrl.values()));
+        if (chunk.citations?.length) {
+          for (const citation of chunk.citations) {
+            if (!citation.url || hitsByUrl.has(citation.url)) continue;
+            hitsByUrl.set(citation.url, mapCitation(citation));
+            options?.onPartialResults?.(Array.from(hitsByUrl.values()));
+          }
         }
       }
+    } catch {
+      // Fall through to blocking search below.
     }
-  } catch {
-    // Fall through to blocking search below.
-  }
+  };
+
+  await Promise.race([
+    runStreamSearch(),
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, SEARCH_TIMEOUT_MS);
+    }),
+  ]);
 
   if (hitsByUrl.size > 0) {
     return Array.from(hitsByUrl.values());
   }
 
-  const response = await exa.search(query, requestOptions);
-  const results = (response.results ?? []).map((result) =>
-    mapExaResult(result as ExaResultRow),
-  );
-  await emitResultsProgressively(results, options?.onPartialResults);
-  return results;
+  try {
+    const response = await Promise.race([
+      exa.search(query, requestOptions),
+      new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), 12_000);
+      }),
+    ]);
+    if (!response) return [];
+    const results = (response.results ?? []).map((result) =>
+      mapExaResult(result as ExaResultRow),
+    );
+    await emitResultsProgressively(results, options?.onPartialResults);
+    return results;
+  } catch {
+    return [];
+  }
 }
 
 /** Fetch page excerpts for known URLs via Exa `/contents`. */

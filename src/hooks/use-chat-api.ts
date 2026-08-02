@@ -1604,8 +1604,12 @@ export function useChatApi(
             event.type === "error" ||
             event.type === "done" ||
             event.type === "start" ||
+            event.type === "tool_start" ||
             event.type === "tool_end" ||
+            event.type === "tool_data" ||
+            event.type === "tool_output_delta" ||
             event.type === "thinking_end" ||
+            event.type === "segment_start" ||
             event.type === "segment_end" ||
             event.type === "answer_finalize" ||
             event.type === "answer_delta" ||
