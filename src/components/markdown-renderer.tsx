@@ -114,22 +114,17 @@ export const MarkdownMessage = ({
     );
   }
 
-  // Same Streamdown-based tree whether streaming or settled — swapping to the
-  // plain ReactMarkdown pipeline (MarkdownOrchestrator) the instant streaming
-  // ended used to remount the whole subtree, producing a visible flash/hard
-  // cut on every completed message.
+  // Convert citations once inside StreamingMarkdown — pre-converting here
+  // rewrote the whole answer when sources landed and fought the token paint.
   const cleanContent = stripReferenceDefinitions(content);
   const displayContent =
     sources.length > 0
-      ? convertCitationReferencesToLinks(
-          stripTrailingCitationClusters(cleanContent),
-          sources,
-        )
+      ? stripTrailingCitationClusters(cleanContent)
       : cleanContent;
 
   return (
     <div
-      className="relative min-w-0 max-w-full"
+      className="relative min-w-0 max-w-full overflow-anchor-none"
       data-streaming={isStreaming || undefined}
     >
       <StreamingMarkdown

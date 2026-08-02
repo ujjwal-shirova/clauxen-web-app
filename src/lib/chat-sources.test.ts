@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   convertCitationReferencesToLinks,
+  unwrapCitationLinkDecorators,
   type ChatSource,
 } from "@/lib/chat-sources";
 
@@ -39,6 +40,11 @@ describe("convertCitationReferencesToLinks", () => {
       out,
       /\[Example Source Alpha\]\(https:\/\/alpha\.example\.com\/article-a\)/,
     );
+    assert.equal(
+      /\(\s*\[/.test(out),
+      false,
+      "must strip wrapping citation parens",
+    );
   });
 
   it("falls back to title/domain when index is out of range", () => {
@@ -73,5 +79,32 @@ describe("convertCitationReferencesToLinks", () => {
     );
     assert.equal(out.includes("[99]"), false);
     assert.match(out, /Claim Unknown Outlet\./);
+  });
+
+  it("unwraps multi-cite paren clusters without commas", () => {
+    const out = convertCitationReferencesToLinks(
+      'said "false and misleading" ([Example Source Alpha][1], [Example Source Beta][2]).',
+      sources,
+    );
+    assert.equal(/\(\s*\[/.test(out), false);
+    assert.equal(/\]\s*,\s*\[/.test(out), false);
+    assert.match(
+      out,
+      /\[Example Source Alpha\]\(https:\/\/alpha\.example\.com\/article-a\) \[Example Source Beta\]\(https:\/\/beta\.example\.com\/article-b\)/,
+    );
+  });
+});
+
+describe("unwrapCitationLinkDecorators", () => {
+  it("strips parens and commas around already-converted citation links", () => {
+    const out = unwrapCitationLinkDecorators(
+      "claim ( [Alpha](https://alpha.example.com/a) , [Beta](https://beta.example.com/b) ).",
+    );
+    assert.equal(/\(\s*\[/.test(out), false);
+    assert.equal(/\]\s*,\s*\[/.test(out), false);
+    assert.match(
+      out,
+      /\[Alpha\]\(https:\/\/alpha\.example\.com\/a\) \[Beta\]\(https:\/\/beta\.example\.com\/b\)/,
+    );
   });
 });

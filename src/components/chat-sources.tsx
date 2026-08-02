@@ -174,10 +174,18 @@ export function SourceChip({
 
   useEffect(() => {
     if (!open) return;
-    const sync = () => updatePosition();
+    let raf = 0;
+    const sync = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => {
+        raf = 0;
+        updatePosition();
+      });
+    };
     window.addEventListener("resize", sync);
     window.addEventListener("scroll", sync, true);
     return () => {
+      if (raf) window.cancelAnimationFrame(raf);
       window.removeEventListener("resize", sync);
       window.removeEventListener("scroll", sync, true);
     };
@@ -207,9 +215,11 @@ export function SourceChip({
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
         className={cn(
-          "relative mx-0.5 inline-flex align-baseline items-center border border-zinc-200/90 bg-white font-medium text-zinc-700 outline-none transition-colors duration-150 hover:border-zinc-300 hover:bg-zinc-50 focus-visible:border-zinc-300 focus-visible:ring-0",
+          "relative mx-0.5 inline-flex align-middle items-center border border-zinc-200/90 bg-white font-medium text-zinc-700 outline-none transition-colors duration-150 hover:border-zinc-300 hover:bg-zinc-50 focus-visible:border-zinc-300 focus-visible:ring-0 overflow-anchor-none",
           sizeClasses,
         )}
+        data-source-chip=""
+        data-chat-scroll-passthrough=""
       >
         <SourceFavicon
           source={source}
@@ -235,6 +245,8 @@ export function SourceChip({
                 width: cardWidth,
                 transform: `translateY(-100%) scale(${open ? 1 : 0.98})`,
               }}
+              data-source-preview=""
+              data-chat-scroll-passthrough=""
               onMouseEnter={scheduleShow}
               onMouseLeave={scheduleHide}
             >
@@ -375,7 +387,7 @@ export function createCitationLink(sources: ChatSource[]) {
       const hit = byUrl.get(normalizeUrl(href));
       if (hit) {
         return (
-          <span className="inline-flex animate-in fade-in duration-150">
+          <span className="inline-flex overflow-anchor-none align-middle">
             <SourceChip source={hit.source} index={hit.index} compact />
           </span>
         );

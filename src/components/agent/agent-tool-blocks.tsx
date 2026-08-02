@@ -473,26 +473,29 @@ function WebSearchSourcesMeta({
   );
 }
 
-/** Hover near the searched label → scrollable sources popup (no expanded list). */
+/** Hover the full “Searched the web …” row → scrollable sources popup. */
 function WebSearchSourcesHover({
   results,
   favicons,
+  children,
 }: {
   results: WebSearchResult[];
   favicons: string[];
+  children: ReactNode;
 }) {
   const count = results.length;
-  if (count === 0) return null;
+  if (count === 0) return <>{children}</>;
 
   return (
-    <HoverCard openDelay={120} closeDelay={160}>
+    <HoverCard openDelay={100} closeDelay={140}>
       <HoverCardTrigger asChild>
         <button
           type="button"
-          className="no-hover no-hover-overlay inline-flex cursor-default items-center border-0 bg-transparent p-0 shadow-none"
-          aria-label={`${count} sources`}
+          className="no-hover no-hover-overlay agent-web-search__trigger inline-flex max-w-full min-w-0 cursor-default items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none outline-none focus-visible:outline-none"
+          aria-label={`Searched the web, ${count} sources`}
           onClick={(event) => event.preventDefault()}
         >
+          {children}
           <WebSearchSourcesMeta favicons={favicons} count={count} />
         </button>
       </HoverCardTrigger>
@@ -501,12 +504,15 @@ function WebSearchSourcesHover({
           side="bottom"
           align="start"
           sideOffset={6}
-          className="agent-web-search-popover z-[80] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-zinc-200/90 bg-white p-0 shadow-[0_12px_32px_-12px_rgba(24,24,27,0.28)] dark:border-zinc-700/80 dark:bg-zinc-950 dark:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.55)]"
+          collisionPadding={12}
+          className="agent-web-search-popover z-[80] w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-lg border border-zinc-200/90 bg-white p-0 shadow-[0_8px_24px_-10px_rgba(24,24,27,0.22)] dark:border-zinc-700/80 dark:bg-zinc-950 dark:shadow-[0_8px_24px_-10px_rgba(0,0,0,0.5)]"
           onClick={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
         >
           <ul
-            className="py-1"
+            className="max-h-[min(280px,42vh)] overflow-y-auto overscroll-contain py-0.5 [scrollbar-width:thin]"
             data-agent-web-search="popover-results"
+            data-scroll-region=""
           >
             {results.map((row, index) => {
               const domain = resultDomain(row);
@@ -518,7 +524,7 @@ function WebSearchSourcesHover({
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
-                      "flex min-w-0 items-start gap-2.5 px-3 py-2 transition-colors",
+                      "flex min-w-0 items-start gap-2 px-2.5 py-1.5 transition-colors",
                       href
                         ? "hover:bg-zinc-50 dark:hover:bg-zinc-900"
                         : "pointer-events-none",
@@ -528,19 +534,19 @@ function WebSearchSourcesHover({
                       <SearchResultFavicon
                         favicon={row.favicon}
                         title={row.title}
-                        size={16}
+                        size={14}
                       />
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-[13px] font-medium leading-5 text-zinc-800 dark:text-zinc-100">
+                      <span className="truncate text-[12px] font-medium leading-[16px] text-zinc-800 dark:text-zinc-100">
                         {row.title || row.url}
                       </span>
                       {row.snippet ? (
-                        <span className="line-clamp-2 text-[12px] leading-4.5 text-zinc-500 dark:text-zinc-400">
+                        <span className="line-clamp-2 text-[11px] leading-[14px] text-zinc-500 dark:text-zinc-400">
                           {row.snippet}
                         </span>
                       ) : null}
-                      <span className="truncate text-[11px] text-zinc-400 dark:text-zinc-500">
+                      <span className="truncate text-[10px] leading-[12px] text-zinc-400 dark:text-zinc-500">
                         {domain}
                       </span>
                     </span>
@@ -586,18 +592,25 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
     );
   }
 
+  const titleSpan = (
+    <span className="agent-trace__title min-w-0 max-w-[min(100%,36rem)] truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]">
+      {title}
+    </span>
+  );
+
   return (
     <div
-      className="agent-web-search inline-flex max-w-full min-w-0 flex-wrap items-center gap-1.5"
+      className="agent-web-search inline-flex max-w-full min-w-0 flex-wrap items-center gap-1.5 overflow-anchor-none"
       data-agent-web-search="row"
       data-agent-step="web_search"
     >
-      <span className="agent-trace__title min-w-0 max-w-[min(100%,36rem)] truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]">
-        {title}
-      </span>
       {resultCount > 0 ? (
-        <WebSearchSourcesHover results={results} favicons={favicons} />
-      ) : null}
+        <WebSearchSourcesHover results={results} favicons={favicons}>
+          {titleSpan}
+        </WebSearchSourcesHover>
+      ) : (
+        titleSpan
+      )}
     </div>
   );
 }

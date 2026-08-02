@@ -12,6 +12,7 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  LoaderCircle,
   Mic,
   Plus,
   Square,
@@ -234,7 +235,9 @@ export function PromptInput({
   const composeMeta = activeComposeAction
     ? COMPOSE_ACTION_META[activeComposeAction]
     : null;
-  const showDictationSurface = dictation.isActive;
+  const showDictationSurface =
+    dictation.status === "listening" || dictation.status === "stopping";
+  const dictationConnecting = dictation.status === "connecting";
   const hasPromptAddons =
     selectedQuickActions.length > 0 ||
     attachments.length > 0 ||
@@ -937,15 +940,32 @@ export function PromptInput({
   );
 
   const renderMicButton = () => (
-    <HintTooltip content="Dictate">
+    <HintTooltip content={dictationConnecting ? "Connecting…" : "Dictate"}>
       <button
         type="button"
-        onClick={() => void dictation.start()}
+        onClick={() => {
+          if (dictationConnecting) return;
+          void dictation.start();
+        }}
+        disabled={dictationConnecting}
         aria-pressed={dictation.isActive}
-        className="no-hover-overlay prompt-control-ghost shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+        aria-busy={dictationConnecting || undefined}
+        aria-label={dictationConnecting ? "Connecting dictation" : "Dictate"}
+        className={cn(
+          "no-hover-overlay prompt-control-ghost shrink-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
+          dictationConnecting && "cursor-wait opacity-80",
+        )}
         data-app-button
       >
-        <Mic className="icon-sm shrink-0" strokeWidth={1.75} />
+        {dictationConnecting ? (
+          <LoaderCircle
+            className="icon-sm shrink-0 animate-spin"
+            strokeWidth={1.75}
+            aria-hidden
+          />
+        ) : (
+          <Mic className="icon-sm shrink-0" strokeWidth={1.75} aria-hidden />
+        )}
       </button>
     </HintTooltip>
   );

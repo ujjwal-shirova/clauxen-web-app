@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { LoaderCircle } from "lucide-react";
 import type { DictationStatus } from "@/features/dictation/types";
 
 type StreamingDictationTextProps = {
@@ -16,7 +15,7 @@ const DICTATION_LINE =
 
 export function StreamingDictationText({
   text,
-  status,
+  status: _status,
 }: StreamingDictationTextProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
@@ -27,15 +26,15 @@ export function StreamingDictationText({
     if (element) element.scrollTop = element.scrollHeight;
   }, [text]);
 
+  // Connecting state stays on the mic button spinner — composer only shows
+  // Listening once the dictation surface is active.
   if (!text) {
     return (
       <div
-        className={`flex items-center gap-2 text-zinc-500 ${DICTATION_LINE}`}
+        className={`flex items-center text-zinc-500 ${DICTATION_LINE}`}
+        aria-live="polite"
       >
-        <LoaderCircle className="size-3.5 shrink-0 animate-spin" />
-        <span className="truncate">
-          {status === "connecting" ? "Connecting dictation…" : "Listening…"}
-        </span>
+        <span className="truncate">Listening…</span>
       </div>
     );
   }

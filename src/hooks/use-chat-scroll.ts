@@ -16,7 +16,7 @@ const REPIN_THRESHOLD = 96;
 /** Distance from bottom (px) past which the scroll-to-bottom affordance shows. */
 const SHOW_BUTTON_THRESHOLD = 220;
 /** Ignore auto-follow briefly after explicit user wheel/touch input. */
-const USER_INPUT_COOLDOWN_MS = 320;
+const USER_INPUT_COOLDOWN_MS = 480;
 /** Per-frame easing keeps growing output continuous instead of hard-snapping. */
 const FOLLOW_EASE = 0.28;
 /** Below this distance we snap exactly to bottom instead of easing forever. */

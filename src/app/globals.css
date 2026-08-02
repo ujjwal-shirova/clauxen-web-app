@@ -1091,7 +1091,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 
 @keyframes stream-token-fade {
   from {
-    opacity: 0.55;
+    opacity: 0.72;
   }
   to {
     opacity: 1;
@@ -1103,10 +1103,12 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: stream-token-fade;
-  animation-duration: 55ms;
+  animation-duration: 48ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
   backface-visibility: hidden;
+  /* Never shift line boxes while tokens paint. */
+  transform: translateZ(0);
 }
 
 .stream-token-stable {
@@ -2251,6 +2253,8 @@ button.user-message-card__body:not(:disabled):hover,
 
 /* Nested tool chrome must never steal the chat's vertical wheel. */
 [data-chat-scroll-passthrough],
+[data-source-chip],
+[data-source-preview],
 .agent-terminal-pane,
 .agent-analyzing-terminal {
   overscroll-behavior-y: auto;
@@ -2377,6 +2381,29 @@ button.user-message-card__body:not(:disabled):hover,
 
 .agent-web-search__header {
   max-width: 100%;
+}
+
+.agent-web-search__trigger {
+  max-width: 100%;
+  overflow-anchor: none;
+}
+
+.agent-web-search-popover {
+  overflow-anchor: none;
+}
+
+.agent-web-search-popover [data-agent-web-search="popover-results"] {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+[data-source-chip],
+[data-source-preview] {
+  overflow-anchor: none;
+}
+
+.markdown-content[data-streaming] {
+  overflow-anchor: none;
 }
 
 .agent-thinking__card {

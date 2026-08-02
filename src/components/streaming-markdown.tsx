@@ -43,6 +43,7 @@ export function StreamingMarkdown({
     });
     let nextMarkdown = prepared.markdown;
     if (sources.length > 0) {
+      // Live citation chips as tokens arrive — unwrap paren/comma clusters.
       nextMarkdown = convertCitationReferencesToLinks(nextMarkdown, sources);
     }
     return { markdown: nextMarkdown, prompts: prepared.prompts };
@@ -56,7 +57,7 @@ export function StreamingMarkdown({
 
   return (
     <div
-      className="markdown-content min-w-0 max-w-full text-[13px] leading-[18px] text-zinc-800"
+      className="markdown-content min-w-0 max-w-full overflow-anchor-none text-[13px] leading-[18px] text-zinc-800"
       data-streaming={isStreaming || undefined}
     >
       <StreamdownStreamingMarkdown

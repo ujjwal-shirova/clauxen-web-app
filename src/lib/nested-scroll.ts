@@ -162,6 +162,8 @@ export function resolveWheelScrollTarget(
       if (
         axis === "y" &&
         (node.hasAttribute("data-chat-scroll-passthrough") ||
+          node.hasAttribute("data-source-chip") ||
+          node.hasAttribute("data-source-preview") ||
           node.classList.contains("agent-terminal-pane"))
       ) {
         const axes = scrollHostAxes(node, getStyle(node));

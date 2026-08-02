@@ -171,6 +171,45 @@ function resolveCitationSource(
   return undefined;
 }
 
+const MD_CITATION_LINK = String.raw`\[(?:[^\]]*)\]\(https?:\/\/[^)\s]+\)`;
+
+/**
+ * Strip model decoration around citation link clusters so chips don't render
+ * with literal parentheses / commas: `( [chip] , [chip] )` → `[chip] [chip]`.
+ */
+export function unwrapCitationLinkDecorators(text: string): string {
+  if (!text) return text;
+
+  const clusterInParens = new RegExp(
+    String.raw`\(\s*((?:${MD_CITATION_LINK}\s*[,;]?\s*)+)\s*\)`,
+    "g",
+  );
+  const commaBetweenLinks = new RegExp(
+    String.raw`(${MD_CITATION_LINK})\s*[,;]\s*(?=${MD_CITATION_LINK})`,
+    "g",
+  );
+
+  return text
+    .replace(clusterInParens, (_match, inner: string) =>
+      String(inner)
+        .replace(commaBetweenLinks, "$1 ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .replace(commaBetweenLinks, "$1 ");
+}
+
+function citationTokenToLink(
+  sources: ChatSource[],
+  title: string,
+  nStr: string,
+): string {
+  const n = parseInt(nStr, 10);
+  const src = resolveCitationSource(sources, n, title);
+  if (src) return `[${title}](${src.url})`;
+  return title.trim() || "";
+}
+
 /**
  * Convert citation markers in the LLM output text into direct markdown links.
  * This allows the renderer to turn model citations like ([Title][3]) or [3]
@@ -179,10 +218,12 @@ function resolveCitationSource(
  * Supported patterns (1-based index into the provided sources array):
  *   - [Title][N]
  *   - ([Title][N])
+ *   - ([Title][N], [Title][M]) multi-cite paren clusters
  *   - bare [N]
  *
  * If N is out of range, falls back to title/domain match. Unmatched markers
  * are stripped to plain title text so raw `([The Hindu][9])` never leaks.
+ * Wrapping parentheses / commas around converted link clusters are removed.
  */
 export function convertCitationReferencesToLinks(
   text: string,
@@ -192,33 +233,37 @@ export function convertCitationReferencesToLinks(
 
   let result = text;
 
+  // Multi-cite paren cluster: ([A][1], [B][2]) → links without wrapping parens
+  result = result.replace(
+    /\(\s*((?:\[[^\]]+?\]\[\d+\]\s*[,;]?\s*){2,})\s*\)/g,
+    (_match, inner: string) =>
+      String(inner)
+        .replace(/\[([^\]]+?)\]\[(\d+)\]/g, (_m, title: string, nStr: string) =>
+          citationTokenToLink(sources, title, nStr),
+        )
+        .replace(/\s*[,;]\s*/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+  );
+
   // Handle parenthesized citation form used by the model: ([Title][N])
   result = result.replace(
     /\(\s*\[([^\]]+?)\]\[(\d+)\]\s*\)/g,
-    (_match, title: string, nStr: string) => {
-      const n = parseInt(nStr, 10);
-      const src = resolveCitationSource(sources, n, title);
-      if (src) return `[${title}](${src.url})`;
-      // Prefer a clean domain/title chip-less fallback over raw markup.
-      return title.trim() || "";
-    },
+    (_match, title: string, nStr: string) =>
+      citationTokenToLink(sources, title, nStr),
   );
 
   // [TitleOrDomain][N]  -->  [TitleOrDomain](https://url)
   result = result.replace(
     /\[([^\]\[]+?)\]\[(\d+)\]/g,
-    (_match, title: string, nStr: string) => {
-      const n = parseInt(nStr, 10);
-      const src = resolveCitationSource(sources, n, title);
-      if (src) return `[${title}](${src.url})`;
-      return title.trim() || "";
-    },
+    (_match, title: string, nStr: string) =>
+      citationTokenToLink(sources, title, nStr),
   );
 
   // Bare numeric citation [N] --> direct link (chip replaces the link content)
   result = result.replace(
     /(^|[^[\]])\[(\d+)\](?!\(|\[)/g,
-    (match, prefix: string, nStr: string) => {
+    (_match, prefix: string, nStr: string) => {
       const n = parseInt(nStr, 10);
       const src = resolveCitationSource(sources, n);
       if (src) {
@@ -229,5 +274,5 @@ export function convertCitationReferencesToLinks(
     },
   );
 
-  return result;
+  return unwrapCitationLinkDecorators(result);
 }
