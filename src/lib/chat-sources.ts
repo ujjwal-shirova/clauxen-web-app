@@ -41,6 +41,54 @@ export function stripReferenceDefinitions(input: string): string {
   return lines.slice(0, end).join("\n").trim();
 }
 
+/** One citation token: ([Title][N]) · [Title][N] · [N] · [text](url) · bare (url). */
+const CITATION_TOKEN_SOURCE = [
+  String.raw`\(\s*\[[^\]]{0,120}?\]\[\d{1,3}\]\s*\)`,
+  String.raw`\[[^\]\[]{0,120}?\]\[\d{1,3}\]`,
+  String.raw`\[\d{1,3}\]`,
+  String.raw`\[[^\]]{0,120}?\]\(https?:\/\/[^)\s]+\)`,
+].join("|");
+
+const CITATION_CLUSTER_LINE = new RegExp(
+  String.raw`^\s*(?:[-*•]\s*)?(?:(?:${CITATION_TOKEN_SOURCE})[\s,;·|]*)+$`,
+);
+
+const SOURCES_HEADING_LINE =
+  /^\s*(?:#{1,6}\s*)?(?:\*\*)?(?:sources?|references?|citations?)(?:\*\*)?\s*:?\s*$/i;
+
+/**
+ * Drop a trailing block that is nothing but citations (optionally under a
+ * "Sources"/"References" heading). Source chips must only appear where the
+ * assistant explicitly wove them into prose — never as an auto footer group.
+ */
+export function stripTrailingCitationClusters(input: string): string {
+  if (!input) return input;
+  const lines = input.split(/\r?\n/);
+  let end = lines.length;
+  let removedCluster = false;
+
+  while (end > 0) {
+    const trimmed = (lines[end - 1] ?? "").trim();
+    if (trimmed === "") {
+      end -= 1;
+      continue;
+    }
+    if (CITATION_CLUSTER_LINE.test(trimmed)) {
+      end -= 1;
+      removedCluster = true;
+      continue;
+    }
+    if (removedCluster && SOURCES_HEADING_LINE.test(trimmed)) {
+      end -= 1;
+      continue;
+    }
+    break;
+  }
+
+  if (!removedCluster || end === lines.length) return input;
+  return lines.slice(0, end).join("\n").replace(/\s+$/, "");
+}
+
 export function collectChatSources(messages: Message[]): ChatSource[] {
   const byUrl = new Map<string, ChatSource>();
 

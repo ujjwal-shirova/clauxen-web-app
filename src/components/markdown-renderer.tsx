@@ -15,6 +15,7 @@ import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
 import {
   convertCitationReferencesToLinks,
   stripReferenceDefinitions,
+  stripTrailingCitationClusters,
   type ChatSource,
 } from "@/lib/chat-sources";
 
@@ -32,7 +33,11 @@ export const MarkdownOrchestrator = ({
   if (sources.length > 0) {
     // Convert model citation syntax ([Title][N] or [N]) into direct links
     // so that our link renderer can replace them with inline SourceChips.
-    displayText = convertCitationReferencesToLinks(displayText, sources);
+    // Trailing citation-only footers never render as a bottom chip group.
+    displayText = convertCitationReferencesToLinks(
+      stripTrailingCitationClusters(displayText),
+      sources,
+    );
   }
 
   // If we have sources, override the link renderer to turn citation links into inline chips
@@ -116,7 +121,10 @@ export const MarkdownMessage = ({
   const cleanContent = stripReferenceDefinitions(content);
   const displayContent =
     sources.length > 0
-      ? convertCitationReferencesToLinks(cleanContent, sources)
+      ? convertCitationReferencesToLinks(
+          stripTrailingCitationClusters(cleanContent),
+          sources,
+        )
       : cleanContent;
 
   return (
