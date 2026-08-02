@@ -288,3 +288,5 @@ Full target surface — **remember only; implement only when user asks for a sli
 | 2026-07-31 | Account menu trigger stays visible while open (do not hide). Current plan id/label cached in sessionStorage (billing-plan-cache) so pricing paints Current plan immediately without Free→Go flash; overlays show shimmer shells while chunks load and prefetch on idle. | User: profile vanished; pricing current-plan flash |
 
 | 2026-08-02 | Product UI stays warm-canvas + zinc monochrome (no indigo/purple primary). Shared page chrome via src/lib/app-page-chrome.ts; icons 18px chrome / 16px menus (icon-lg/icon-md); CTAs via app-btn charcoal primary. | User asked for polished minimal AI-platform UI; prior indigo redesign was reverted. |
+
+| 2026-08-02 | Cloud/agent git workflow: commit and push only on master. Do not create feature branches or PRs unless the user explicitly asks. | User requested merge-all + delete branches/PRs; future work stays on master only |
