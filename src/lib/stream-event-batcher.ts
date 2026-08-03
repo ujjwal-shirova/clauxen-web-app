@@ -98,5 +98,14 @@ export function createStreamEventBatcher(options: {
     flush();
   };
 
-  return { push, flush, dispose };
+  /** Drop pending work without flushing — used when the user stops mid-stream. */
+  const cancel = () => {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    queue = [];
+  };
+
+  return { push, flush, dispose, cancel };
 }

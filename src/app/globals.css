@@ -16,8 +16,8 @@
 @layer base {
   :root {
     /*
-     * Clauxen product palette — cool gray shell (#f3f3f3), pure white panels,
-     * charcoal CTAs. Monochrome chrome (no indigo/purple accent in product UI).
+     * Clauxen product palette — cool slate shell, white elevated panels,
+     * ink CTAs. Soft elevation + true borders (not hairline-only cards).
      */
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
@@ -46,13 +46,13 @@
     --chart-5: 240 5.9% 90%;
 
     /* Radius scale: controls / cards / composer */
-    --radius: 8px;
-    --radius-sm: 6px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-composer: 28px;
+    --radius: 10px;
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+    --radius-composer: 20px;
 
-    /* App chrome icon/button scale — Cursor density */
+    /* App chrome icon/button scale — compact product density */
     --icon-size: 16px;
     --icon-stroke: 1.5;
     --icon-btn-size: 28px;
@@ -63,7 +63,7 @@
     --nav-label-line: 18px;
     --section-label-size: 12px;
 
-    /* Product surfaces — Cursor-compact type + control scale */
+    /* Product surfaces — compact type + control scale */
     --ui-font-size: 13px;
     --ui-line-height: 18px;
     --ui-title-size: 18px;
@@ -74,35 +74,37 @@
     --ui-control-height: 28px;
     --ui-control-height-md: 28px;
     --ui-control-height-lg: 36px;
-    /* Settings overlay — Cursor dashboard settings chrome */
-    --settings-canvas-bg: #f8f8f8;
-    --settings-card-bg: #fcfcfc;
-    --settings-card-radius: 12px;
-    --settings-card-shadow: 0 0 0 1px color-mix(in oklab, #18181b 4%, transparent);
+    /* Settings / product overlay surface */
+    --settings-canvas-bg: #f2f3f6;
+    --settings-card-bg: #ffffff;
+    --settings-card-radius: 14px;
+    --settings-card-shadow:
+      0 1px 2px rgba(20, 21, 26, 0.04),
+      0 0 0 1px rgba(20, 21, 26, 0.07);
     --settings-control-height: 28px;
     --settings-row-gap: 20px;
     --settings-row-pad-x: 16px;
     --settings-row-pad-y: 12px;
-    --settings-fg: #18181b;
-    --settings-fg-muted: color-mix(in oklab, #18181b 74%, transparent);
-    --settings-hairline: color-mix(in oklab, #18181b 4%, transparent);
-    --settings-input-border: color-mix(in oklab, #18181b 12%, transparent);
-    --settings-btn-border: color-mix(in oklab, #18181b 8%, transparent);
-    --settings-switch-track: color-mix(in oklab, #18181b 14%, transparent);
+    --settings-fg: #14151a;
+    --settings-fg-muted: color-mix(in oklab, #14151a 72%, transparent);
+    --settings-hairline: color-mix(in oklab, #14151a 8%, transparent);
+    --settings-input-border: color-mix(in oklab, #14151a 14%, transparent);
+    --settings-btn-border: color-mix(in oklab, #14151a 10%, transparent);
+    --settings-switch-track: color-mix(in oklab, #14151a 16%, transparent);
     --ui-page-max-width: 880px;
     --ui-page-max-width-wide: 1120px;
-    --ui-card-bg: #fcfcfc;
-    --ui-border: color-mix(in oklab, #18181b 12%, transparent);
-    --ui-border-subtle: color-mix(in oklab, #18181b 4%, transparent);
-    --ui-hover-wash: color-mix(in oklab, #18181b 5%, transparent);
-    --ui-fg: #18181b;
-    --ui-fg-body: #18181b;
-    --ui-fg-muted: color-mix(in oklab, #18181b 74%, transparent);
-    --ui-fg-placeholder: color-mix(in oklab, #18181b 52%, transparent);
-    --ui-field-bg: #fcfcfc;
-    --ui-field-focus-border: color-mix(in oklab, #18181b 22%, transparent);
-    --ui-field-focus-ring: color-mix(in oklab, #18181b 6%, transparent);
-    --ui-muted-surface: color-mix(in oklab, #18181b 4%, transparent);
+    --ui-card-bg: #ffffff;
+    --ui-border: color-mix(in oklab, #14151a 12%, transparent);
+    --ui-border-subtle: color-mix(in oklab, #14151a 7%, transparent);
+    --ui-hover-wash: color-mix(in oklab, #14151a 5%, transparent);
+    --ui-fg: #14151a;
+    --ui-fg-body: #14151a;
+    --ui-fg-muted: color-mix(in oklab, #14151a 72%, transparent);
+    --ui-fg-placeholder: color-mix(in oklab, #14151a 50%, transparent);
+    --ui-field-bg: #ffffff;
+    --ui-field-focus-border: color-mix(in oklab, #14151a 24%, transparent);
+    --ui-field-focus-ring: color-mix(in oklab, #14151a 7%, transparent);
+    --ui-muted-surface: color-mix(in oklab, #14151a 4%, transparent);
 
     --chat-header-height: 40px;
     --chat-header-icon-btn: 28px;
@@ -112,79 +114,78 @@
     --chat-message-line-height: 1.4;
     --chat-user-line-height: 18px;
     --chat-assistant-line-height: 18px;
-    /* Cursor compact menu chrome (plus menu / dropdowns / popovers) */
+    /* Compact popup / dropdown chrome */
     --menu-icon-size: 14px;
-    --menu-row-height: 26px;
-    --menu-item-radius: 4px;
-    --menu-pad: 4px;
+    --menu-row-height: 28px;
+    --menu-item-radius: 6px;
+    --menu-pad: 5px;
     --menu-item-gap: 1px;
-    --menu-item-pad-y: 4px;
-    --menu-item-pad-x: 8px;
+    --menu-item-pad-y: 5px;
+    --menu-item-pad-x: 9px;
     --menu-font-size: 13px;
     --menu-line-height: 18px;
-    --menu-letter-spacing: -0.08px;
-    --menu-icon-fg: rgba(24, 24, 27, 0.74);
-    --menu-chevron-fg: rgba(24, 24, 27, 0.52);
-    --menu-hover-wash: rgba(24, 24, 27, 0.05);
-    --icon-color: #18181b;
-    --icon-muted: rgba(24, 24, 27, 0.66);
-    --icon-subtle: rgba(24, 24, 27, 0.6);
+    --menu-letter-spacing: -0.01em;
+    --menu-icon-fg: rgba(20, 21, 26, 0.72);
+    --menu-chevron-fg: rgba(20, 21, 26, 0.5);
+    --menu-hover-wash: rgba(20, 21, 26, 0.055);
+    --icon-color: #14151a;
+    --icon-muted: rgba(20, 21, 26, 0.64);
+    --icon-subtle: rgba(20, 21, 26, 0.58);
 
-    /* Pricing / plan view — Cursor pricing warm neutrals (keep Clauxen card radius) */
-    --pricing-bg: #f7f7f4;
-    --pricing-card: #f2f1ed;
-    --pricing-thumb: #e6e5e0;
-    --pricing-fg: #26251e;
-    --pricing-muted: color-mix(in oklab, #26251e 60%, transparent);
-    --pricing-cta: #26251e;
-    --pricing-cta-fg: #f7f7f4;
-    --pricing-cta-secondary: #e6e5e0;
-    --pricing-toggle-track: #f2f1ed;
-    --pricing-thumb-active: color-mix(in oklab, #26251e 10%, transparent);
+    /* Pricing / plan view — cool slate aligned with product shell */
+    --pricing-bg: #f0f1f4;
+    --pricing-card: #ffffff;
+    --pricing-thumb: #e2e4e9;
+    --pricing-fg: #14151a;
+    --pricing-muted: color-mix(in oklab, #14151a 58%, transparent);
+    --pricing-cta: #14151a;
+    --pricing-cta-fg: #f2f3f6;
+    --pricing-cta-secondary: #e2e4e9;
+    --pricing-toggle-track: #e8eaee;
+    --pricing-thumb-active: color-mix(in oklab, #14151a 9%, transparent);
 
-    /* App shell — Cursor-style cool gray; product pages share canvas #f8f8f8 */
-    --app-shell-bg: #f3f3f3;
-    --app-panel-bg: #f8f8f8;
-    --chat-canvas-bg: #f8f8f8;
-    --chat-user-card-bg: #fcfcfc;
-    --overlay-scrim: rgba(24, 24, 27, 0.4);
-    --overlay-scrim-soft: rgba(244, 244, 245, 0.84);
+    /* App shell — cool slate canvas shared by chat + product pages */
+    --app-shell-bg: #e8eaee;
+    --app-panel-bg: #f2f3f6;
+    --chat-canvas-bg: #f2f3f6;
+    --chat-user-card-bg: #ffffff;
+    --overlay-scrim: rgba(20, 21, 26, 0.42);
+    --overlay-scrim-soft: rgba(232, 234, 238, 0.88);
 
     /* Shared chat / composer column breadth */
     --chat-column-max-width: 720px;
-    --glass-chat-surface-background: #f8f8f8;
-    /* Solid Cursor menu surface — no glass/blur (matches agents plus menu) */
-    --cursor-menu-bg: #fcfcfc;
-    --cursor-menu-border: rgba(24, 24, 27, 0.12);
-    --cursor-menu-shadow:
-      0 0 0 1px var(--cursor-menu-border),
-      0 8px 24px -12px rgba(24, 24, 27, 0.18),
-      0 2px 6px -2px rgba(24, 24, 27, 0.06);
-    --cursor-radius-lg: 8px;
-    --cursor-radius-xl: 8px;
-    --cursor-menu-max-height: 400px;
-    --cursor-menu-min-width: 120px;
-    --cursor-menu-width: 200px;
-    --cursor-menu-max-width: 320px;
-    --cursor-menu-z: 3000;
-    --cursor-menu-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --glass-chat-surface-background: #f2f3f6;
+    /* Solid popup surface — no glass/blur */
+    --popup-bg: #ffffff;
+    --popup-border: rgba(20, 21, 26, 0.1);
+    --popup-shadow:
+      0 1px 2px rgba(20, 21, 26, 0.05),
+      0 10px 28px -14px rgba(20, 21, 26, 0.18);
+    --popup-radius: 10px;
+    --popup-radius-lg: 12px;
+    --popup-max-height: 400px;
+    --popup-min-width: 128px;
+    --popup-width: 212px;
+    --popup-max-width: 320px;
+    --popup-z: 3000;
+    --popup-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
     /* Prompt composer */
-    --prompt-radius: 12px;
-    --prompt-radius-lg: 12px;
-    --prompt-radius-expanded: 12px;
+    --prompt-radius: 14px;
+    --prompt-radius-lg: 14px;
+    --prompt-radius-expanded: 14px;
     --prompt-control-size: 24px;
     --prompt-editor-min-height: 22px;
     --prompt-shadow:
-      inset 0 0 0 1px rgba(24, 24, 27, 0.1),
-      0 1px 4px rgba(0, 0, 0, 0.008);
+      0 0 0 1px rgba(20, 21, 26, 0.09),
+      0 1px 3px rgba(20, 21, 26, 0.04);
     --prompt-shadow-focus:
-      inset 0 0 0 1px rgba(24, 24, 27, 0.14),
-      0 1px 4px rgba(0, 0, 0, 0.02);
+      0 0 0 1px rgba(20, 21, 26, 0.16),
+      0 2px 8px rgba(20, 21, 26, 0.06);
 
     --panel-shadow:
-      0 1px 2px rgba(24, 24, 27, 0.03), 0 10px 28px -16px rgba(24, 24, 27, 0.08);
-    --field-shadow: 0 1px 2px rgba(24, 24, 27, 0.03);
+      0 1px 2px rgba(20, 21, 26, 0.04), 0 12px 28px -16px rgba(20, 21, 26, 0.12);
+    --field-shadow: 0 1px 2px rgba(20, 21, 26, 0.04);
 
     --skeleton-base: #f4f4f5;
     --skeleton-highlight: rgba(255, 255, 255, 0.6);
@@ -247,12 +248,11 @@
     --overlay-scrim: rgba(0, 0, 0, 0.55);
     --overlay-scrim-soft: rgba(0, 0, 0, 0.7);
     --glass-chat-surface-background: #141416;
-    --cursor-menu-bg: #1c1c1f;
-    --cursor-menu-border: rgba(255, 255, 255, 0.12);
-    --cursor-menu-shadow:
-      0 0 0 1px var(--cursor-menu-border),
-      0 8px 24px -12px rgba(0, 0, 0, 0.55),
-      0 2px 6px -2px rgba(0, 0, 0, 0.35);
+    --popup-bg: #1c1c1f;
+    --popup-border: rgba(255, 255, 255, 0.12);
+    --popup-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.35),
+      0 12px 32px -14px rgba(0, 0, 0, 0.55);
     --menu-icon-fg: rgba(244, 244, 245, 0.74);
     --menu-chevron-fg: rgba(244, 244, 245, 0.52);
     --menu-hover-wash: rgba(255, 255, 255, 0.06);
@@ -343,19 +343,19 @@
 .app-page-card {
   border-radius: var(--settings-card-radius, var(--radius-md));
   border: none;
-  background: var(--settings-card-bg, var(--ui-card-bg, #fcfcfc));
+  background: var(--settings-card-bg, var(--ui-card-bg, #ffffff));
   box-shadow: var(--settings-card-shadow);
 }
 
 .app-page-card:hover {
-  background: var(--settings-card-bg, var(--ui-card-bg, #fcfcfc));
+  background: var(--settings-card-bg, var(--ui-card-bg, #ffffff));
 }
 
 .dark .app-page-card:hover {
   background: var(--ui-card-bg, #1c1c1f);
 }
 
-/* Cursor settings surface — cards + compact controls */
+/* Settings surface — cards + compact controls */
 .settings-canvas {
   background-color: var(--settings-canvas-bg);
   color: var(--settings-fg);
@@ -495,7 +495,7 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--ui-border);
   background: var(--app-panel-bg, #ffffff);
-  box-shadow: var(--cursor-menu-shadow);
+  box-shadow: var(--popup-shadow);
   font-size: var(--ui-font-size);
   line-height: var(--ui-line-height);
 }
@@ -504,7 +504,7 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--ui-border);
   background: var(--app-panel-bg);
-  box-shadow: var(--cursor-menu-shadow);
+  box-shadow: var(--popup-shadow);
   font-size: var(--ui-font-size);
   line-height: var(--ui-line-height);
   font-family: inherit;
@@ -767,7 +767,7 @@
     color: #f4f4f5 !important;
   }
 
-  /* Sizes — Cursor settings density (28px controls, 36px large CTA) */
+  /* Sizes — 28px controls, 36px large CTA */
   .app-btn-sm {
     height: var(--ui-control-height, 28px);
     padding-left: 0.5rem;
@@ -1143,9 +1143,9 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 .dark [data-prompt-add-submenu],
 .dark .agent-web-search-popover,
 .dark [data-source-preview-card] {
-  background-color: var(--cursor-menu-bg) !important;
+  background-color: var(--popup-bg) !important;
   border-color: transparent !important;
-  box-shadow: var(--cursor-menu-shadow) !important;
+  box-shadow: var(--popup-shadow) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   color: #f4f4f5;
@@ -1411,7 +1411,7 @@ svg.lucide.icon-2xl {
   line-height: var(--menu-line-height);
   letter-spacing: var(--menu-letter-spacing);
   color: #27272a;
-  transition: background-color 0.1s var(--cursor-menu-ease);
+  transition: background-color 0.1s var(--popup-ease);
 }
 
 .ui-menu-row:hover,
@@ -1545,8 +1545,7 @@ nav.sidebar-hover-area {
   background-color: transparent !important;
 }
 
-/* Cursor solid menu / popup overlays — shared across plus menu, dropdowns, popovers.
-   No glass blur (conflicts with Cursor agents chrome). */
+/* Solid popup overlays — plus menu, dropdowns, popovers. No glass blur. */
 .ui-menu,
 [role="menu"],
 [data-radix-popper-content-wrapper] > div[role="menu"],
@@ -1555,12 +1554,12 @@ nav.sidebar-hover-area {
 [data-prompt-add-submenu],
 .agent-web-search-popover,
 [data-source-preview-card] {
-  background-color: var(--cursor-menu-bg) !important;
+  background-color: var(--popup-bg) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   border: 0 !important;
-  box-shadow: var(--cursor-menu-shadow) !important;
-  border-radius: var(--cursor-radius-lg) !important;
+  box-shadow: var(--popup-shadow) !important;
+  border-radius: var(--popup-radius) !important;
   padding: var(--menu-pad) !important;
   font-size: var(--menu-font-size) !important;
   line-height: var(--menu-line-height) !important;
@@ -1569,13 +1568,13 @@ nav.sidebar-hover-area {
   isolation: isolate;
   contain: layout style;
   user-select: none;
-  max-height: var(--cursor-menu-max-height);
+  max-height: var(--popup-max-height);
   transition:
-    opacity 0.1s var(--cursor-menu-ease),
-    transform 0.1s var(--cursor-menu-ease);
+    opacity 0.1s var(--popup-ease),
+    transform 0.1s var(--popup-ease);
 }
 
-/* Dropdown / menu item rows — Cursor compact */
+/* Dropdown / menu item rows — compact */
 .ui-menu [role="menuitem"],
 .ui-menu__row,
 .ui-menu__submenu-trigger,
@@ -1590,12 +1589,12 @@ nav.sidebar-hover-area {
   padding: var(--menu-item-pad-y) var(--menu-item-pad-x) !important;
   min-height: var(--menu-row-height);
   gap: 8px;
-  transition: background-color 0.1s var(--cursor-menu-ease) !important;
+  transition: background-color 0.1s var(--popup-ease) !important;
 }
 
-/* Compact prompt composer — consistent 12px corners (no radius morph flash) */
+/* Compact prompt composer — consistent corners (no radius morph flash) */
 [data-prompt-root] [data-prompt-shell] {
-  background: var(--chat-user-card-bg, #fcfcfc) !important;
+  background: var(--chat-user-card-bg, #ffffff) !important;
   border: 0 !important;
   box-shadow: var(--prompt-shadow) !important;
   border-radius: var(--prompt-radius, 12px) !important;
@@ -1618,7 +1617,7 @@ nav.sidebar-hover-area {
 [data-prompt-root] [data-composer-stack="with-project"] {
   border: 0;
   border-radius: var(--prompt-radius, 12px);
-  background: var(--chat-user-card-bg, #fcfcfc);
+  background: var(--chat-user-card-bg, #ffffff);
   box-shadow: var(--prompt-shadow);
   overflow: hidden;
   isolation: isolate;
@@ -1658,7 +1657,7 @@ nav.sidebar-hover-area {
 /* Legacy outer wrappers only — never [data-composer-stack] / [data-prompt-shell]
    (those own the single hairline). Matching the stack caused a double border. */
 [data-prompt-root] > div > div:not([data-prompt-shell]):not([data-composer-stack]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):not([data-ask-user-input-composer]) {
-  background-color: var(--chat-user-card-bg, #fcfcfc) !important;
+  background-color: var(--chat-user-card-bg, #ffffff) !important;
   border: 0 !important;
   box-shadow: var(--prompt-shadow) !important;
   border-radius: var(--prompt-radius-lg) !important;
@@ -1675,11 +1674,11 @@ nav.sidebar-hover-area {
   background: transparent !important;
 }
 
-/* User message — Cursor card (flat #fcfcfc, 12px radius, 8% border) */
+/* User message card */
 .user-message-card__body {
   position: relative;
   z-index: 1;
-  background: var(--chat-user-card-bg, #fcfcfc) !important;
+  background: var(--chat-user-card-bg, #ffffff) !important;
   border: 1px solid rgba(24, 24, 27, 0.08) !important;
   box-shadow: none !important;
   border-radius: 12px !important;
@@ -1693,7 +1692,7 @@ nav.sidebar-hover-area {
 
 .user-message-card__body:hover,
 .user-message-card__body:focus-visible {
-  background: var(--chat-user-card-bg, #fcfcfc) !important;
+  background: var(--chat-user-card-bg, #ffffff) !important;
   border-color: rgba(24, 24, 27, 0.12) !important;
   box-shadow: none !important;
 }
@@ -1701,7 +1700,7 @@ nav.sidebar-hover-area {
 button.user-message-card__body:not(:disabled):hover,
 .user-message-card__body[role="button"]:hover,
 .user-message-card__body[role="button"]:focus-visible {
-  background: var(--chat-user-card-bg, #fcfcfc) !important;
+  background: var(--chat-user-card-bg, #ffffff) !important;
   border-color: rgba(24, 24, 27, 0.12) !important;
   box-shadow: none !important;
 }
@@ -1714,10 +1713,10 @@ button.user-message-card__body:not(:disabled):hover,
 
 .user-message-card__body--editing:hover,
 .user-message-card__body--editing:focus-within {
-  background: var(--chat-user-card-bg, #fcfcfc) !important;
+  background: var(--chat-user-card-bg, #ffffff) !important;
 }
 
-/* Collapsed preview fade (matches Cursor max-height ~68px wash) */
+/* Collapsed preview fade */
 .user-message-card__body:not(.user-message-card__body--editing):not(
     [data-user-expanded="true"]
   )
@@ -1753,7 +1752,7 @@ button.user-message-card__body:not(:disabled):hover,
   pointer-events: none;
   background: linear-gradient(
     to top,
-    var(--chat-user-card-bg, #fcfcfc),
+    var(--chat-user-card-bg, #ffffff),
     rgba(0, 0, 0, 0)
   );
 }
@@ -1944,7 +1943,7 @@ button.user-message-card__body:not(:disabled):hover,
 
 .content-pane-top-bar {
   border-bottom: 0 !important;
-  background: var(--chat-canvas-bg, #f8f8f8) !important;
+  background: var(--chat-canvas-bg, #f2f3f6) !important;
   box-shadow: none !important;
   height: var(--chat-header-height) !important;
   min-height: var(--chat-header-height) !important;
@@ -1955,7 +1954,7 @@ button.user-message-card__body:not(:disabled):hover,
   border-top-right-radius: inherit;
 }
 
-/* Chat header chrome: Cursor 28×28 icon buttons, 6px radius */
+/* Chat header chrome: 28×28 icon buttons */
 .content-pane-top-bar .ui-icon-button,
 .content-pane-top-bar button[aria-label="Incognito"],
 .content-pane-top-bar button[aria-label="Chat options"],
@@ -2027,19 +2026,19 @@ button.user-message-card__body:not(:disabled):hover,
 .ui-menu,
 [role="menu"].dropdown-menu-content,
 [data-radix-popper-content-wrapper] [role="menu"] {
-  border-radius: var(--cursor-radius-lg) !important;
+  border-radius: var(--popup-radius) !important;
   border-color: transparent !important;
-  background: var(--cursor-menu-bg) !important;
-  box-shadow: var(--cursor-menu-shadow) !important;
+  background: var(--popup-bg) !important;
+  box-shadow: var(--popup-shadow) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  min-width: var(--cursor-menu-min-width);
-  max-width: var(--cursor-menu-max-width);
+  min-width: var(--popup-min-width);
+  max-width: var(--popup-max-width);
 }
 
 .ui-menu__layout {
   max-height: min(
-    var(--cursor-menu-max-height),
+    var(--popup-max-height),
     var(--ui-menu-available-height, 100vh)
   );
   overflow-x: hidden;
@@ -2089,11 +2088,11 @@ button.user-message-card__body:not(:disabled):hover,
   color: var(--menu-icon-fg);
 }
 
-/* Composer plus menu — Cursor agents sizing */
+/* Composer plus menu sizing */
 [data-prompt-add-menu] {
-  width: var(--cursor-menu-width) !important;
-  min-width: var(--cursor-menu-min-width);
-  max-width: min(100vw - 24px, var(--cursor-menu-max-width));
+  width: var(--popup-width) !important;
+  min-width: var(--popup-min-width);
+  max-width: min(100vw - 24px, var(--popup-max-width));
   overflow: hidden !important;
   font-family: inherit;
 }
@@ -2102,7 +2101,7 @@ button.user-message-card__body:not(:disabled):hover,
   display: flex;
   flex-direction: column;
   gap: var(--menu-item-gap);
-  max-height: var(--cursor-menu-max-height);
+  max-height: var(--popup-max-height);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -2127,7 +2126,7 @@ button.user-message-card__body:not(:disabled):hover,
   font-weight: 400;
   color: #18181b;
   text-align: left;
-  transition: background-color 0.1s var(--cursor-menu-ease);
+  transition: background-color 0.1s var(--popup-ease);
 }
 
 [data-prompt-add-menu-row]:hover,
@@ -2160,8 +2159,8 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 [data-prompt-add-submenu] {
-  min-width: var(--cursor-menu-width);
-  max-width: var(--cursor-menu-max-width);
+  min-width: var(--popup-width);
+  max-width: var(--popup-max-width);
 }
 
 .ui-prompt-input__container,
@@ -2250,7 +2249,7 @@ button.user-message-card__body:not(:disabled):hover,
   gap: 4px;
 }
 
-/* Prompt control buttons — Cursor 24px density */
+/* Prompt control buttons — 24px density */
 [data-prompt-root] .prompt-control-filled,
 [data-prompt-root] .prompt-control-ghost {
   box-sizing: border-box;
@@ -2337,7 +2336,7 @@ button.user-message-card__body:not(:disabled):hover,
   max-width: 100%;
   flex-shrink: 0;
   align-self: stretch;
-  background-color: var(--chat-canvas-bg, #f8f8f8);
+  background-color: var(--chat-canvas-bg, #f2f3f6);
   overflow: visible;
   overflow-anchor: none;
   /* Always inset the card under the absolute header so the rounded top
@@ -2363,7 +2362,7 @@ button.user-message-card__body:not(:disabled):hover,
 .sticky-user-msg-host[data-user-msg-editing="true"].sticky-user-msg--stuck {
   z-index: 25;
   isolation: isolate;
-  background-color: var(--chat-canvas-bg, #f8f8f8);
+  background-color: var(--chat-canvas-bg, #f2f3f6);
 }
 
 [data-conversation-turn] .assistant-message {
@@ -2376,7 +2375,7 @@ button.user-message-card__body:not(:disabled):hover,
   overflow-anchor: none;
 }
 
-/* Claude-style transcript: user cards and assistant share one column edge */
+/* Transcript layout: user cards and assistant share one column edge */
 .user-message-card {
   width: 100%;
   max-width: 100%;
@@ -2431,7 +2430,7 @@ button.user-message-card__body:not(:disabled):hover,
 .sticky-user-msg--stuck {
   z-index: 25;
   isolation: isolate;
-  background-color: var(--chat-canvas-bg, #f8f8f8);
+  background-color: var(--chat-canvas-bg, #f2f3f6);
   padding-top: 8px;
   padding-bottom: 10px;
   margin-top: -8px;
@@ -2458,7 +2457,7 @@ button.user-message-card__body:not(:disabled):hover,
   pointer-events: none;
   background: linear-gradient(
     to bottom,
-    var(--chat-canvas-bg, #f8f8f8),
+    var(--chat-canvas-bg, #f2f3f6),
     rgba(248, 248, 248, 0)
   );
   z-index: 0;
@@ -2499,7 +2498,7 @@ button.user-message-card__body:not(:disabled):hover,
 /*
   Code/table headers always dock under that turn's sticky user bubble via
   --turn-user-msg-height. No JS pin attrs — sticky works as soon as the block
-  mounts during streaming (ChatGPT/Claude behavior). Active-turn only raises
+  mounts during streaming. Active-turn only raises
   z-index so the current turn wins over older sticky chrome.
 */
 [data-conversation-turn]
@@ -2574,7 +2573,7 @@ button.user-message-card__body:not(:disabled):hover,
   transition-property: grid-template-rows;
 }
 
-/* Work-group fold headers — Cursor-style activity chrome (tools/thinking).
+/* Work-group fold headers (tools/thinking).
    Narration prose renders outside these folds, not under the header. */
 .agent-work-group__header {
   max-width: 100%;
@@ -3013,7 +3012,7 @@ button.user-message-card__body:not(:disabled):hover,
   letter-spacing: normal;
 }
 
-/* Message action icon buttons — Cursor 28×28 chrome with hover */
+/* Message action icon buttons — 28×28 with hover */
 .assistant-message button[aria-label="Copy message"],
 .assistant-message button[aria-label="Retry"],
 .assistant-message button[aria-label="Positive feedback"],

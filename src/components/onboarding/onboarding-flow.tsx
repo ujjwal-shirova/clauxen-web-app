@@ -109,7 +109,7 @@ export function OnboardingFlow() {
     stepRef.current = step;
   }, [step]);
 
-  // Keep /onboarding#step in the address bar (ChatGPT/Claude-style deep links).
+  // Keep /onboarding#step in the address bar (deep links).
   useEffect(() => {
     if (!hydrated || busy) return;
     syncingHashRef.current = true;

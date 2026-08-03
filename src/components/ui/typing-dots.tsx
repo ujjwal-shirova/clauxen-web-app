@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Minimal three-dot indicator for title / sidebar streaming labels.
- * Message streaming uses StreamingOrbCursor instead.
+ * Message streaming uses the streaming caret orb instead.
  */
 export function TypingDots({ className }: { className?: string }) {
   return (

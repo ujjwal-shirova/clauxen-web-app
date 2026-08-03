@@ -216,7 +216,7 @@ function summarizeAgentActions(agentUi?: TranscriptAgentUi): string {
 /**
  * Durable plain-text context for a prior assistant turn.
  * Never replays signed thinking / tool_use blocks (those break follow-ups when
- * signatures are missing). ChatGPT/Claude-style: prior answer text + compact tool note.
+ * signatures are missing). Prefer prior answer text + compact tool note.
  */
 export function assistantContextTextFromRow(row: MessageRow): string {
   const agentUi = readAgentUi(row);

@@ -69,7 +69,7 @@ export async function listChats(projectId?: string) {
   const nextPromise = apiFetch<{ chats: ApiChat[] }>(`/api/v1/chats${qs}`);
   const workerPromise = listChatsViaWorker(projectId);
 
-  // Race Worker vs Next — first usable result wins (ChatGPT-style Recents).
+  // Race Worker vs Next — first usable result wins.
   const first = await Promise.race([
     workerPromise.then((result) =>
       result ? { ok: true as const, result } : { ok: false as const },
@@ -319,7 +319,7 @@ export async function saveBranchState(
   );
 }
 
-/** Download Cursor-style JSONL transcript for a chat (training export). */
+/** Download JSONL transcript for a chat (training export). */
 export async function getChatTranscript(
   chatId: string,
   format: "jsonl" | "json" = "json",

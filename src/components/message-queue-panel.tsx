@@ -21,7 +21,7 @@ type MessageQueuePanelProps = {
 };
 
 /**
- * Compact Claude-style queue strip above the prompt composer.
+ * Compact queue strip above the prompt composer.
  */
 export function MessageQueuePanel({
   items,

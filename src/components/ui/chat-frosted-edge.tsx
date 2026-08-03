@@ -31,8 +31,8 @@ export function ChatFrostedEdge({
         className={cn(
           "h-full w-full",
           isTop
-            ? "bg-gradient-to-b from-[var(--chat-canvas-bg,#f8f8f8)] from-55% to-transparent"
-            : "bg-gradient-to-t from-[var(--chat-canvas-bg,#f8f8f8)] from-55% to-transparent",
+            ? "bg-gradient-to-b from-[var(--chat-canvas-bg,#f2f3f6)] from-55% to-transparent"
+            : "bg-gradient-to-t from-[var(--chat-canvas-bg,#f2f3f6)] from-55% to-transparent",
         )}
       />
     </div>

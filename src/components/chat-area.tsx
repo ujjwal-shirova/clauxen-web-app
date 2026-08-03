@@ -217,7 +217,7 @@ function ChatAreaLayout({
   const sourceCountRef = React.useRef(chatSources.length);
 
   React.useEffect(() => {
-    // Auto-open the artifacts rail when a new file appears (ChatGPT-style).
+    // Auto-open the artifacts rail when a new file appears.
     if (
       chatArtifacts.length > artifactCountRef.current &&
       chatArtifacts.length > 0 &&
@@ -429,7 +429,7 @@ function ChatAreaLayout({
   return (
     <div
       className={cn(
-        "glass-agent-drop-target relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--chat-canvas-bg,#f8f8f8)]",
+        "glass-agent-drop-target relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--chat-canvas-bg,#f2f3f6)]",
         incognito ? "rounded-none" : "rounded-[inherit]",
       )}
       data-incognito={incognito || undefined}

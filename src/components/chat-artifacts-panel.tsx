@@ -33,7 +33,7 @@ export function ChatArtifactsPanel({
   return (
     <aside
       className={cn(
-        "flex h-full w-full min-w-0 flex-col bg-[#f8f8f8]",
+        "flex h-full w-full min-w-0 flex-col bg-[var(--app-panel-bg)]",
         "border-zinc-200/80 lg:h-full lg:min-h-0 lg:flex-1 lg:rounded-xl lg:border",
         className,
       )}

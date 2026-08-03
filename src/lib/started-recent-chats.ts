@@ -8,7 +8,7 @@ type ChatMessageLookup = Record<
 /**
  * Hide empty local drafts from Recents.
  * Server list is the source of truth on reload — chats that are not hydrated
- * locally yet (`undefined`) stay visible (ChatGPT/Claude behavior).
+ * locally yet (`undefined`) stay visible.
  * Only hide when we know the chat is an empty local draft (never started).
  * Evicted inactive chats omit their key entirely — they stay visible.
  */

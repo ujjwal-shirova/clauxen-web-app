@@ -41,8 +41,8 @@ export function SourcePreviewCard({ source }: { source: ChatSource }) {
     <div
       data-source-preview-card=""
       className={cn(
-        "w-full rounded-[var(--cursor-radius-lg)] bg-[var(--cursor-menu-bg)] p-2.5 text-left",
-        "shadow-[var(--cursor-menu-shadow)]",
+        "w-full rounded-[var(--popup-radius)] bg-[var(--popup-bg)] p-2.5 text-left",
+        "shadow-[var(--popup-shadow)]",
       )}
     >
       <div className="mb-2 flex items-center gap-2">
@@ -335,8 +335,8 @@ export function ChatSourcesPanel({
   }, [messages, messageId]);
 
   return (
-    <aside className="flex h-full w-full min-w-0 flex-col border-zinc-200/80 bg-[#f8f8f8] lg:w-[min(340px,34vw)] lg:shrink-0 lg:border-l">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-200/80 bg-[#f8f8f8] px-3 py-2.5">
+    <aside className="flex h-full w-full min-w-0 flex-col border-zinc-200/80 bg-[var(--app-panel-bg)] lg:w-[min(340px,34vw)] lg:shrink-0 lg:border-l">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-200/80 bg-[var(--app-panel-bg)] px-3 py-2.5">
         <h3 className="text-[13px] font-medium tracking-[-0.01em] text-zinc-800">
           Sources
           {sources.length > 0 ? (

@@ -312,7 +312,7 @@ export async function consumeClauxenStreamResponse(
       reader.releaseLock();
     }
     if (!streamComplete && !signal?.aborted) {
-      // Proxies idle-cut SSE mid-turn. Soft-complete so ChatGPT/Claude-style
+      // Proxies idle-cut SSE mid-turn. Soft-complete so
       // continues: keep painted tokens instead of "Connection was interrupted".
       onEvent({ type: "done" });
     }

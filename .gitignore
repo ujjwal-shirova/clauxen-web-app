@@ -36,7 +36,8 @@ pnpm-debug.log*
 
 .DS_Store
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
 
 # Novita load-test output (project root)
 output.txt

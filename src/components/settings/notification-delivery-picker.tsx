@@ -44,7 +44,7 @@ type NotificationDeliveryPickerProps = {
 };
 
 /**
- * ChatGPT-style delivery control: trigger shows "Push, Email" / etc.
+ * Delivery control: trigger shows "Push, Email" / etc.
  * Opens a small card with Push + Email switches (both can be on).
  * Entire row is clickable, not only the switch thumb.
  */

@@ -44,7 +44,7 @@ function renderParts(parts: ActivitySummaryPart[]): ReactNode {
   });
 }
 
-/** Cursor-intensity work-group header from tool/thinking counts. */
+/** Work-group header from tool/thinking counts. */
 export function AgentActivitySummaryLabel({
   segments,
   isActive,
@@ -55,13 +55,13 @@ export function AgentActivitySummaryLabel({
   /** Plain string fallback (narration-derived single-step labels). */
   fallback?: string;
 }) {
-  const useCursorMix =
+  const useToolMix =
     segments.filter((s) => s.kind === "tool").length >= 2 ||
     (segments.some((s) => s.kind === "thinking") &&
       segments.some((s) => s.kind === "tool"));
 
   const content =
-    useCursorMix || !fallback ? (
+    useToolMix || !fallback ? (
       renderParts(
         buildActivitySummaryParts(segments, isActive ? "active" : "done"),
       )

@@ -1,6 +1,6 @@
 /**
  * Shared onboarding wizard steps + URL hash helpers.
- * Hash format mirrors ChatGPT/Claude: /onboarding#plan-selection
+ * Hash format: /onboarding#plan-selection
  */
 
 export const ONBOARDING_STEPS = [

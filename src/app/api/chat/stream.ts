@@ -70,7 +70,7 @@ export type ChatStreamOptions = {
    * Resolve history + vision attachments AFTER the SSE response has started.
    * Emits `start` immediately so the client is not blocked on DB/R2 prep.
    * Implementations must soft-timeout Supabase/history work so first tokens
-   * never wait on a slow database round-trip (ChatGPT-style TTFT).
+   * never wait on a slow database round-trip (TTFT).
    */
   resolveContext?: () => Promise<ResolvedChatStreamContext>;
 };

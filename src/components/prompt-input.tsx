@@ -932,7 +932,7 @@ export function PromptInput({
   const promptIsExpanded =
     isMultiline || showComposeControls || hasPromptAddons;
   const promptShellClass = cn(
-    "relative w-full max-w-full bg-[var(--chat-user-card-bg,#fcfcfc)] transition-[min-height,border-color,background-color,box-shadow] duration-300 ease-out rounded-xl",
+    "relative w-full max-w-full bg-[var(--chat-user-card-bg,#ffffff)] transition-[min-height,border-color,background-color,box-shadow] duration-300 ease-out rounded-xl",
     withProjectStrip && "composer-shell--with-project-strip",
     showComposeControls && "min-h-[40px]",
     composerVariant === "incognito" &&

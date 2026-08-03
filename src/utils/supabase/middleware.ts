@@ -187,7 +187,7 @@ export async function updateSession(request: NextRequest) {
     user = remoteUser;
   }
 
-  // Fast UI identity hint (non-HttpOnly) — mirrors ChatGPT split-cookie pattern.
+  // Fast UI identity hint (non-HttpOnly) for early paint.
   if (user?.id) {
     const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
     const preferred =

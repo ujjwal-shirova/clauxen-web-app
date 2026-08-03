@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 /**
- * Hybrid Claude + ChatGPT settings IA (no Voice).
+ * Settings IA (no Voice).
  * Conflicts resolved:
  * - Memory generate → Capabilities; memory reference → Personalization
  * - Export / delete / archive → Privacy (no separate Data controls)
@@ -143,7 +143,7 @@ export const baseStyleToneOptions = [
   "Cynical",
 ] as const;
 
-/** Rich labels for Base style and tone dropdown (ChatGPT-style). */
+/** Rich labels for Base style and tone dropdown. */
 export const baseStyleToneOptionItems = [
   { value: "Default", label: "Default", description: "Preset style and tone" },
   {

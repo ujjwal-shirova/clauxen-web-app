@@ -62,7 +62,7 @@ export type PromptAddMenuPanelProps = {
 };
 
 const MENU_GAP_PX = 8;
-/** Flyout sits just outside the main menu border (matches Claude-style nested menus). */
+/** Flyout sits just outside the main menu border. */
 const SUBMENU_GAP_PX = 4;
 
 function PromptAddMenuRow({
@@ -117,7 +117,7 @@ function ToggleSubmenu<T extends string>({
   onSelect: (mode: T) => void;
 }) {
   return (
-    <div className="flex min-w-[var(--cursor-menu-width)] flex-col gap-[var(--menu-item-gap)]">
+    <div className="flex min-w-[var(--popup-width)] flex-col gap-[var(--menu-item-gap)]">
       {options.map((option) => {
         const selected = mode === option.id;
         return (
@@ -166,7 +166,7 @@ function PlaceholderSubmenu({
   onAction?: () => void;
 }) {
   return (
-    <div className="flex min-w-[var(--cursor-menu-width)] flex-col gap-2 p-1">
+    <div className="flex min-w-[var(--popup-width)] flex-col gap-2 p-1">
       <div>
         <p className="text-[13px] font-medium leading-[18px] tracking-[-0.08px] text-zinc-900">
           {title}

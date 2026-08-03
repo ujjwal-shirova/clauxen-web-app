@@ -48,7 +48,7 @@ function startLeaseWatchdogs(chatId: string, entry: GenerationEntry) {
         current.controller.abort();
       })
       .catch(() => undefined);
-  }, 2_000);
+  }, 400);
 
   const heartbeat = setInterval(() => {
     void renewChatCoordLease(chatId, leaseId)

@@ -19,7 +19,7 @@ import { fileNameFromPath } from "@/lib/chat-artifacts";
  *
  * Narration is ALWAYS a standalone row outside activity steps. When the model
  * announces a step and then runs tools, a narration-derived label can label a
- * simple single-tool step; multi-step mixes keep Cursor-style summaries for
+ * simple single-tool step; multi-step mixes keep tool-count summaries for
  * metadata, but the chat UI renders every member flush-left (no aggregate fold).
  *
  *  narration (outside)
@@ -56,7 +56,7 @@ function isGroupMember(
   return segment.kind === "thinking" || segment.kind === "tool";
 }
 
-/** Fallback / primary Cursor-style header for a tool mix. */
+/** Fallback / primary header for a tool mix. */
 export function summarizeGroupSegments(
   segments: Array<AgentThinkingSegment | AgentToolSegment>,
   state: "active" | "done",
@@ -66,7 +66,7 @@ export function summarizeGroupSegments(
 
 /**
  * Prefer narration-derived labels for a single coherent step; otherwise use
- * the Cursor tool-mix summary (Edited N files, 1 search, …).
+ * the tool-mix summary (Edited N files, 1 search, …).
  */
 export function resolveGroupLabel(
   segments: Array<AgentThinkingSegment | AgentToolSegment>,
@@ -75,7 +75,7 @@ export function resolveGroupLabel(
 ): string {
   const toolCount = segments.filter((s) => s.kind === "tool").length;
   const thinkingCount = segments.filter((s) => s.kind === "thinking").length;
-  // Multi-step mixes always get Cursor summaries so the header lists counts.
+  // Multi-step mixes always get tool-mix summaries so the header lists counts.
   if (toolCount + thinkingCount >= 2 || toolCount >= 2) {
     return summarizeActivityPlain(segments, state);
   }
@@ -87,7 +87,7 @@ export function resolveGroupLabel(
 }
 
 /**
- * Fold chrome is retired — the transcript is a flat Cursor/Claude ledger.
+ * Fold chrome is retired — the transcript is a flat activity ledger.
  * Kept as a predicate for tests/callers; always false.
  */
 export function groupNeedsFoldChrome(

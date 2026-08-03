@@ -1,5 +1,5 @@
 /**
- * Cursor-style activity summaries + live labels for the agent timeline.
+ * Activity summaries + live labels for the agent timeline.
  *
  * Plain-string helpers live here so tests stay dependency-free; React
  * rendering of the labels happens in agent-orchestration.tsx.
@@ -103,7 +103,7 @@ export function collectActivityCounts(
 }
 
 /**
- * Structured Cursor-style summary parts.
+ * Structured activity summary parts.
  * Example: Edited 4 files, explored 7 files, 1 search, ran 1 command +150 -47
  */
 export function buildActivitySummaryParts(
@@ -225,7 +225,7 @@ export function buildActivitySummaryParts(
   return parts;
 }
 
-/** Plain-text form of the Cursor summary (tests / a11y). */
+/** Plain-text form of the activity summary (tests / a11y). */
 export function summarizeActivityPlain(
   segments: Array<AgentThinkingSegment | AgentToolSegment>,
   state: "active" | "done",

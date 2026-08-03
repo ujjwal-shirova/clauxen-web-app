@@ -18,12 +18,12 @@ export function segmentedOptionClass(
   return cn(
     base,
     active
-      ? "bg-[var(--settings-card-bg,#fcfcfc)] text-[var(--settings-fg,#18181b)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#18181b_8%,transparent)]"
+      ? "bg-[var(--settings-card-bg,#ffffff)] text-[var(--settings-fg,#18181b)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#18181b_8%,transparent)]"
       : "text-[var(--settings-fg-muted,rgba(24,24,27,0.74))] hover:text-[var(--settings-fg,#18181b)]",
   );
 }
 
-/** Pricing / onboarding plan switcher pills (Cursor pricing toggle). */
+/** Pricing / onboarding plan switcher pills. */
 export function subscriptionSegmentClass(active: boolean) {
   return cn(
     "no-hover-overlay relative z-[1] rounded-full px-5 py-2.5 text-[13px] font-medium leading-4 transition-colors duration-150",

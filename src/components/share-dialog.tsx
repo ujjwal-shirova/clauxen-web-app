@@ -24,7 +24,7 @@ interface ShareDialogProps {
 }
 
 /**
- * ChatGPT-style share popup: private vs public link snapshot.
+ * Share dialog: private vs public link snapshot.
  * Wired to `/api/v1/chats/[chatId]/share`.
  *
  * Renders via portal on document.body with framer-motion animations.

@@ -2,7 +2,7 @@
  * Canonical app routes.
  *
  * Main pages (real Next routes): `/`, `/new`, `/c/:id`, `/library`, `/projects`, …
- * Sub-pages / overlays (hash fragments, ChatGPT-style): `#settings`, `#settings/Personalization`,
+ * Sub-pages / overlays (hash fragments): `#settings`, `#settings/Personalization`,
  * `#pricing`, `#gift`, `#apps` — parent page stays loaded underneath.
  */
 
@@ -119,7 +119,7 @@ export type AppOverlayPath =
   | { type: "gift" }
   | { type: "settings"; tab: SettingsTab };
 
-/** Parse hash fragment into an overlay (ChatGPT-style). */
+/** Parse hash fragment into an overlay. */
 export function parseOverlayHash(
   hash: string | null | undefined,
 ): AppOverlayPath | null {

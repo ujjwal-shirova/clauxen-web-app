@@ -97,7 +97,7 @@ describe("hydrate-chat-messages", () => {
     assert.equal(hydrated[0]?.agentFrames?.[0]?.id, "durable");
   });
 
-  it("hydrates thinking + tools from Cursor content_json", () => {
+  it("hydrates thinking + tools from content_json", () => {
     const base: Message = {
       id: "a1",
       role: "assistant",

@@ -108,7 +108,7 @@ function isNewChatHomePath(): boolean {
 
 /**
  * Prefer the URL chat id. On `/` and `/new` always start a blank new chat
- * (ChatGPT/Claude style) — never reopen the previous conversation from IndexedDB.
+ * — never reopen the previous conversation from IndexedDB.
  */
 function preferRouteActiveChatId(restored: string | null): string | null {
   const routeId = readRouteChatIdFromLocation();

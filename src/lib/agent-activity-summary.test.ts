@@ -31,7 +31,7 @@ function thinking(
 }
 
 describe("summarizeActivityPlain", () => {
-  it("builds Cursor-style multi-tool summaries", () => {
+  it("builds multi-tool activity summaries", () => {
     const plain = summarizeActivityPlain(
       [
         tool("a", "create_file"),

@@ -1,5 +1,5 @@
 /**
- * Client-readable identity hint cookie (ChatGPT-style split session).
+ * Client-readable identity hint cookie (split session).
  * HttpOnly JWT stays in Supabase auth cookies; this only speeds UI paint
  * (sidebar name / avatar) before /api/v1/auth/session returns.
  */

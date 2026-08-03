@@ -234,13 +234,40 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           );
           try {
             while (true) {
+              if (generationController.signal.aborted) {
+                try {
+                  await reader.cancel();
+                } catch {
+                  // ignore
+                }
+                break;
+              }
               const { done, value } = await reader.read();
               if (done) break;
               try {
                 controller.enqueue(value);
               } catch {
-                // Client disconnected — drain the rest so onComplete can persist.
+                // Client disconnected. Explicit stop already aborted the
+                // generation controller — cancel upstream instead of draining
+                // so the provider stops spending tokens. Tab close alone still
+                // drains so onComplete can persist the partial reply.
+                if (generationController.signal.aborted) {
+                  try {
+                    await reader.cancel();
+                  } catch {
+                    // ignore
+                  }
+                  break;
+                }
                 while (true) {
+                  if (generationController.signal.aborted) {
+                    try {
+                      await reader.cancel();
+                    } catch {
+                      // ignore
+                    }
+                    break;
+                  }
                   const next = await reader.read();
                   if (next.done) break;
                 }

@@ -7,7 +7,7 @@ type StreamingOrbCursorProps = {
 };
 
 /**
- * ChatGPT-style round cursor orb — pulses black ↔ gray while streaming.
+ * Streaming caret orb — pulses ink ↔ muted while generating.
  * One consistent size for waiting + mid-stream (no large→small jump).
  */
 export function StreamingOrbCursor({ className }: StreamingOrbCursorProps) {

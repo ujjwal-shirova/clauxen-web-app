@@ -215,14 +215,34 @@ export async function* streamChatCompletion(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let aborted = options.signal?.aborted === true;
   const toolCallState = new Map<
     number,
     { id: string; name: string; arguments: string }
   >();
 
+  // Cancel the upstream body immediately on stop so the provider stops
+  // generating tokens — releaseLock alone leaves the HTTP stream open.
+  const cancelUpstream = () => {
+    aborted = true;
+    void reader.cancel().catch(() => undefined);
+  };
+  if (options.signal) {
+    if (options.signal.aborted) {
+      cancelUpstream();
+    } else {
+      options.signal.addEventListener("abort", cancelUpstream, { once: true });
+    }
+  }
+
   try {
+    if (aborted) {
+      yield { type: "abort" };
+      return;
+    }
+
     while (true) {
-      if (options.signal?.aborted) {
+      if (aborted || options.signal?.aborted) {
         yield { type: "abort" };
         break;
       }
@@ -231,7 +251,7 @@ export async function* streamChatCompletion(
       try {
         readResult = await reader.read();
       } catch (error) {
-        if (isAbortError(error, options.signal)) {
+        if (aborted || isAbortError(error, options.signal)) {
           yield { type: "abort" };
           break;
         }
@@ -350,7 +370,21 @@ export async function* streamChatCompletion(
       }
     }
   } finally {
-    reader.releaseLock();
+    if (options.signal) {
+      options.signal.removeEventListener("abort", cancelUpstream);
+    }
+    if (aborted || options.signal?.aborted) {
+      try {
+        await reader.cancel();
+      } catch {
+        // already cancelled / locked
+      }
+    }
+    try {
+      reader.releaseLock();
+    } catch {
+      // already released after cancel
+    }
   }
 }
 

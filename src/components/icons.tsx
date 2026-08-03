@@ -196,7 +196,7 @@ export function NewChatIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** Speech-bubble + plus — ChatGPT-style new chat affordance. */
+/** Speech-bubble + plus — new chat affordance. */
 export function NewChatBubbleIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg

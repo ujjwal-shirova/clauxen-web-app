@@ -30,7 +30,7 @@ export function SettingsSection({
   title?: string;
   children: React.ReactNode;
   className?: string;
-  /** Wrap children in Cursor settings card. Default true. */
+  /** Wrap children in a settings card. Default true. */
   card?: boolean;
 }) {
   return (

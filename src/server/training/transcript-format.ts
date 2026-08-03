@@ -5,9 +5,9 @@
  * Content blocks match Anthropic / Clauxen Code assistant message content:
  *   thinking | text | tool_use
  * Tool results are stored as user-role messages (Anthropic wire format), not
- * nested inside the assistant message (Cursor dump style).
+ * nested inside the assistant message (legacy dump format).
  *
- * Schema also accepts legacy Cursor-style assistant records that embed
+ * Schema also accepts legacy assistant records that embed
  * tool_result parts for hydrate/back-compat.
  */
 

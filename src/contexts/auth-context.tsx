@@ -92,7 +92,7 @@ function hintToSession(): SessionUser | null {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(() => hintToSession());
-  // ChatGPT-style: identity hint means we already know who you are — do not
+  // Identity hint means we already know who you are — do not
   // block the shell on the quiet session round-trip.
   const [loading, setLoading] = useState(() => !hintToSession());
 
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     void (async () => {
-      // Instant JWT bootstrap (ChatGPT/Claude: paint identity before BFF).
+      // Instant JWT bootstrap — paint identity before BFF.
       try {
         const supabase = createClient();
         const {

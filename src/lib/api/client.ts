@@ -52,7 +52,7 @@ async function parseApiPayload<T>(response: Response, bodyText: string): Promise
 
 /**
  * Browser API fetch. Retries once on Vercel challenge HTML so a transient
- * checkpoint does not tear down in-app settings/chat (ChatGPT/Claude-style).
+ * checkpoint does not tear down in-app settings/chat.
  */
 export async function apiFetch<T>(
   path: string,

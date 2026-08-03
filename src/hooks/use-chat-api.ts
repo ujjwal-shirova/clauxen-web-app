@@ -19,6 +19,8 @@ import {
 } from "@/lib/agent-stream-fast-path";
 import { agentAnswerDuplicatesInterim } from "@/lib/agent-frames";
 import { createStreamEventBatcher } from "@/lib/stream-event-batcher";
+import { clearStreamPaintSessions } from "@/lib/streaming-token-reveal";
+import { messageUiKey } from "@/lib/message-ui-key";
 import type { Message, RecentChat } from "@/lib/types";
 import { useAiStream } from "@/hooks/use-ai-stream";
 import {
@@ -492,7 +494,7 @@ export function useChatApi(
   }, [projectIdFilter, refreshChats]);
 
   // Live message inserts/updates for the open chat (other devices / tabs).
-  // ChatGPT/Claude pattern: while THIS tab owns an SSE generation, the stream
+  // While THIS tab owns an SSE generation, the stream
   // is the sole source of truth for the assistant turn. Supabase Realtime must
   // not mutate content / streaming flags mid-turn (empty DB rows kill the orb).
   useEffect(() => {
@@ -1000,28 +1002,44 @@ export function useChatApi(
     const gen = getGeneration(chatId);
     if (!gen) return;
 
-    // Explicit server stop — tab close alone must not cancel durable generation.
-    // Incognito sessions have no DO lease / chat row.
+    const assistantId = gen.assistantMessageId;
+
+    // Explicit server stop first — cancel provider generation before the
+    // client tears down SSE. Tab close alone must not cancel durable generation.
     if (!chatId.startsWith("incognito-")) {
       void fetch(`/api/v1/chats/${chatId}/generate/stop`, {
         method: "POST",
         credentials: "include",
+        keepalive: true,
       }).catch(() => {});
     }
 
+    // Drop the local generation lease before mutating the transcript so
+    // in-flight SSE / rAF batches no-op and cannot resurrect the caret.
     gen.request.abort();
     setGeneration(chatId, null);
     useChatStore.getState().setChatGenerating(chatId, false);
 
+    const currentMessages = getAllChatsNormalized()[chatId] ?? [];
+    for (const message of currentMessages) {
+      if (message.id === assistantId || message.clientId === assistantId) {
+        clearStreamPaintSessions(messageUiKey(message));
+        if (message.id) clearStreamPaintSessions(message.id);
+        if (message.clientId) clearStreamPaintSessions(message.clientId);
+      }
+    }
+
     setAllChats((prev) => {
-      const currentMessages = prev[chatId] || [];
+      const list = prev[chatId] || [];
       return {
         ...prev,
-        [chatId]: currentMessages.map((message) =>
-          message.id === gen.assistantMessageId
-            ? { ...message, isStreaming: false }
-            : message,
-        ),
+        [chatId]: list.map((message) => {
+          const matches =
+            message.id === assistantId ||
+            message.clientId === assistantId;
+          if (!matches) return message;
+          return applyAgentStreamEvent(message, { type: "done" });
+        }),
       };
     });
   }, []);
@@ -1514,6 +1532,7 @@ export function useChatApi(
         };
 
         const handleStreamEventImmediate = (event: StreamEvent) => {
+          if (getGeneration(chatId)?.request !== controller) return;
           const targetAssistantId = resolveAssistantId();
           if (event.type === "turn_ready") {
             const serverUserId = event.userMessageId;
@@ -1686,6 +1705,9 @@ export function useChatApi(
 
         const streamBatcher = createStreamEventBatcher({
           onFlush: (events) => {
+            // User stop clears generation before the SSE reader unwinds —
+            // drop late batches so the caret cannot resurrect.
+            if (getGeneration(chatId)?.request !== controller) return;
             for (const event of events) {
               handleStreamEventImmediate(event);
             }
@@ -1693,6 +1715,7 @@ export function useChatApi(
         });
 
         const handleStreamEvent = (event: StreamEvent) => {
+          if (getGeneration(chatId)?.request !== controller) return;
           // Flush immediately on lifecycle boundaries and first content so
           // token paint / shimmer clear land in the same frame as arrival.
           if (
@@ -1720,12 +1743,19 @@ export function useChatApi(
           streamBatcher.push(event);
         };
 
-        await streamFromResponse(
-          response,
-          { onEvent: handleStreamEvent },
-          controller.signal,
-        );
-        streamBatcher.dispose();
+        try {
+          await streamFromResponse(
+            response,
+            { onEvent: handleStreamEvent },
+            controller.signal,
+          );
+        } finally {
+          if (controller.signal.aborted) {
+            streamBatcher.cancel();
+          } else {
+            streamBatcher.dispose();
+          }
+        }
 
         if (answerAccumulator && answerAccumulator.raw.trim()) {
           const finalized = finalizeChatTitleStrippedAnswer(
@@ -1949,7 +1979,7 @@ export function useChatApi(
           ? null
           : activeChatId;
 
-      // ChatGPT-style: while this chat is generating, new prompts go to the
+      // While this chat is generating, new prompts go to the
       // queue instead of racing a second generation (which produced 409s).
       // Attachment-only sends cannot be queued yet — require an idle chat.
       const locallyGenerating = Boolean(
@@ -2030,7 +2060,7 @@ export function useChatApi(
           ...prev,
           [chatId!]: [...(prev[chatId!] ?? []), optimisticUser],
         }));
-        // Touch Recents so this chat stays at the top (ChatGPT/Claude).
+        // Touch Recents so this chat stays at the top.
         if (!ephemeral) {
           setRecentChats((prev) => {
             const touchedAt = Date.now();

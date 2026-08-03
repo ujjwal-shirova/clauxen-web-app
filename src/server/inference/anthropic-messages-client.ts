@@ -156,9 +156,26 @@ export async function* streamAnthropicMessages(
   >();
   let stopReason = "end_turn";
 
+  const abortUpstream = () => {
+    try {
+      stream.abort();
+    } catch {
+      // ignore — already closed
+    }
+  };
+  if (options.signal) {
+    if (options.signal.aborted) {
+      abortUpstream();
+      yield { type: "abort" };
+      return;
+    }
+    options.signal.addEventListener("abort", abortUpstream, { once: true });
+  }
+
   try {
     for await (const event of stream) {
       if (options.signal?.aborted) {
+        abortUpstream();
         yield { type: "abort" };
         return;
       }
@@ -249,6 +266,7 @@ export async function* streamAnthropicMessages(
     };
   } catch (error) {
     if (options.signal?.aborted) {
+      abortUpstream();
       yield { type: "abort" };
       return;
     }
@@ -256,6 +274,10 @@ export async function* streamAnthropicMessages(
       type: "error",
       error: error instanceof Error ? error.message : String(error),
     };
+  } finally {
+    if (options.signal) {
+      options.signal.removeEventListener("abort", abortUpstream);
+    }
   }
 }
 

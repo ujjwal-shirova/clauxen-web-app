@@ -1,5 +1,5 @@
 /**
- * Chat sticky docking — ChatGPT/Claude-style.
+ * Chat sticky docking for the live turn.
  *
  * Rules:
  * - Only one turn elevates its sticky user bubble at a time.

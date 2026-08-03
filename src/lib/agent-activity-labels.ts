@@ -2,7 +2,7 @@
  * Derives compact work-group headers from the agent's narration prose.
  *
  * The model writes natural progress sentences ("Let me check the latest
- * pricing for that."). The UI turns them into Claude-style step headers:
+ * pricing for that."). The UI turns them into step headers:
  * shimmering gerund while the group runs ("Checking latest pricing…"),
  * past tense once it completes ("Checked latest pricing").
  *

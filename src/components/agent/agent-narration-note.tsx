@@ -10,7 +10,7 @@ import { MarkdownRenderer } from "@/components/markdown-renderer";
 /**
  * Mid-turn narration — quiet prose between tools. Not private thinking,
  * not the final answer. Plain readable text with no card chrome — the
- * Cursor/Claude-style progress note the user follows while work runs.
+ * Mid-turn progress note shown while tools run.
  */
 export function AgentNarrationNote({
   segment,

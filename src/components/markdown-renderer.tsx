@@ -134,7 +134,7 @@ export const MarkdownMessage = ({
         sources={sources}
       />
       {isStreaming && showCursor ? (
-        <StreamingOrbCursor className="ml-1 mt-1" />
+        <StreamingOrbCursor className="ml-1 inline-block translate-y-[-1px]" />
       ) : null}
     </div>
   );

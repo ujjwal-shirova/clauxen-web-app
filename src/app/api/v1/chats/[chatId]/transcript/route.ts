@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Export a chat as Cursor-style JSONL for training / inspection.
+ * Export a chat as JSONL for training / inspection.
  * GET /api/v1/chats/[chatId]/transcript?format=jsonl|json
  */
 export const GET = withApiRouteParams<{ chatId: string }>(

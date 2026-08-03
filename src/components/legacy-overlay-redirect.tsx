@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Legacy path overlay → ChatGPT-style hash on `/new`.
+ * Legacy path overlay → hash on `/new`.
  * Ensures a real parent page always mounts under the overlay.
  */
 

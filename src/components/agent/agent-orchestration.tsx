@@ -201,7 +201,7 @@ export function AgentOrchestrationView({
               const { group } = item;
               const members = renderGroupMembers(group, segments, indexById);
 
-              // Flat Cursor/Claude ledger: every step stays visible as its own
+              // Flat activity ledger: every step stays visible as its own
               // row. No aggregate fold that hides Analyzed / Created / Searched
               // behind "Edited N files, ran 1 command".
               return (

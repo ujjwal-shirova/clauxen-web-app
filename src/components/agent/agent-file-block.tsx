@@ -18,7 +18,7 @@ import { AgentShimmerText } from "./agent-trace";
 import { CreateFileStreamBlock } from "./create-file-stream-block";
 
 /**
- * create_file / file_write — Cursor-style timeline row when done:
+ * create_file / file_write — timeline row when done:
  * "Edited filename +N −M" (click opens the file viewer).
  * While writing: expanded live stream under a shimmering header.
  */
