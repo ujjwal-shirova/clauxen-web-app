@@ -55,6 +55,7 @@ description: >-
 - Nested scrolling is axis-aware (`src/lib/nested-scroll.ts`): chat viewport owns vertical scroll; x-only / passthrough agent chrome + source chips/previews never swallow vertical deltas; only the create-file stream pane and web-search popover list are intentional nested y-scrollers.
 - Dictation: while `connecting`, keep the normal composer and show a spinner on the mic button — do not swap in the “Connecting dictation…” surface. Listening / cancel / check appear only after connect.
 - Premature SSE close soft-completes (legacy + UI-message paths); generate keepalives every 5s; do not paint "Connection was interrupted" when useful tokens/tools already rendered.
+- **TTFT:** `beginChatGeneration` claims the local map instantly and returns without awaiting chat-coord DO; SSE `start` flushes before Supabase `beginChatTurn` / ownership RTT; DO lease is awaited inside `resolveContext` (and gates turn insert) so cross-isolate single-writer still holds. History/personalization soft-budgeted (~120ms). Durable ids via `turn_ready`.
 - Every generate injects `<current_datetime>` (client IANA timezone + server clock) so the model knows today's day/date/year for web search.
 - MCP servers come from env `CLAUXEN_MCP_SERVERS` (JSON array of `{id,url,headers?}`); tools appear as `mcp__<serverId>__<toolName>` and render via `AgentMcpToolBlock` inside work-group timeline rows.
 - Skills load from the bundled `skills-pack/` directory only — never developer-homedir paths.

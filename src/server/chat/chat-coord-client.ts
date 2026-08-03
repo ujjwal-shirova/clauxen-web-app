@@ -39,6 +39,9 @@ async function coordFetch(
       headers: {
         "content-type": "application/json",
         "x-clauxen-internal": token,
+        // Some zone rules challenge bare scripted clients (CF 1010); keep a
+        // stable product UA so Vercel→Worker lease calls are not blocked.
+        "user-agent": "ClauxenChatCoord/1.0 (+https://clauxen.com)",
       },
       body: JSON.stringify(body),
       cache: "no-store",
@@ -72,7 +75,14 @@ export async function releaseChatCoordLease(
   leaseId: string,
 ): Promise<void> {
   if (!isChatCoordConfigured()) return;
-  await coordFetch("/release", { chatId, leaseId });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const { status } = await coordFetch("/release", { chatId, leaseId });
+    if (status >= 200 && status < 300) return;
+    if (attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+    }
+  }
+  console.warn("[chat-coord] lease release deferred to TTL:", chatId);
 }
 
 /** Keep a live lease renewable while allowing crashed holders to expire fast. */

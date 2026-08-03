@@ -131,16 +131,39 @@ export const POST = withApiRouteParams<{ chatId: string }>(
 
     // Durable generations are only stopped explicitly. A duplicate request
     // must never abort an existing turn and create a second assistant row.
-    // Cross-isolate lease is owned by clauxen-chat-coord (Durable Object).
-    const generationController = await beginChatGeneration(params.chatId);
-    if (!generationController) {
-      throw new AppError(
-        "We couldn't start that reply just yet. Please try again in a moment.",
-        409,
-        "generation_in_progress",
+    // Local map claim is instant; DO lease overlaps SSE start (awaited inside
+    // resolveContext before turn insert / model). Cross-isolate truth = DO.
+    const generation = beginChatGeneration(params.chatId);
+    if (!generation) {
+      // Persist the follow-up before asking the browser to wait. Previously the
+      // lease check happened first, so the optimistic user bubble was never
+      // committed and disappeared on reload after this 409.
+      if (turn) {
+        await chatService.reserveQueuedChatTurn({
+          chatId: params.chatId,
+          userId: user.id,
+          turn,
+        });
+      }
+      return Response.json(
+        {
+          error: {
+            message:
+              "The previous reply is still finishing. Your message is saved and queued.",
+            code: "generation_in_progress",
+          },
+        },
+        {
+          status: 409,
+          headers: {
+            "Cache-Control": "no-store",
+            "Retry-After": "1",
+          },
+        },
       );
     }
 
+    const generationController = generation.controller;
     let finishOnce: (() => Promise<void>) | null = null;
 
     try {
@@ -151,6 +174,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
           messages,
           turn,
           signal: generationController.signal,
+          ensureLease: () => generation.lease,
           userCountryCode: resolveRequestCountryCode(request.headers),
           generateChatTitle: body.generateChatTitle,
           chatModel: flags.modelOverride || body.chatModel,
@@ -173,20 +197,18 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       finishOnce = async () => {
         if (finished) return;
         finished = true;
-        // Release the generation lease before DB persist. Ask-user pauses
-        // end the SSE stream with an empty answer; awaiting persist first
-        // left the lease held and caused 409 "already generating" when the
-        // user submitted questionnaire answers.
+        // A normal turn is not finished until its assistant row is durable.
+        // Ask-user pauses release in onPauseForUser above, so they remain fast.
         try {
-          await endChatGeneration(params.chatId, generationController);
-        } finally {
           await onComplete();
+        } finally {
+          await endChatGeneration(params.chatId, generationController);
         }
       };
 
       // Keep the isolate alive until DB persist finishes (tab close safe).
-      after(() => {
-        void finishOnce?.();
+      after(async () => {
+        await finishOnce?.();
       });
 
       // Proxies (Cloudflare / load balancers) idle-cut SSE when no bytes flow
@@ -249,9 +271,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       return new Response(wrapped, {
         headers: {
           ...CLAUXEN_STREAM_HEADERS,
-          ...(userMessageId
-            ? { "X-User-Message-Id": userMessageId }
-            : {}),
+          ...(userMessageId ? { "X-User-Message-Id": userMessageId } : {}),
           ...(assistantMessageId
             ? { "X-Assistant-Message-Id": assistantMessageId }
             : {}),

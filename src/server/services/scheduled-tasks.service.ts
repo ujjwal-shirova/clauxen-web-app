@@ -276,10 +276,11 @@ export async function executeScheduledTask(
     const userClientId = `sched-u-${randomUUID()}`;
     const assistantClientId = `sched-a-${randomUUID()}`;
 
-    const generationController = await beginChatGeneration(chatId);
-    if (!generationController) {
+    const generation = beginChatGeneration(chatId);
+    if (!generation) {
       throw new Error("Generation lease unavailable");
     }
+    const generationController = generation.controller;
 
     try {
       const { stream, onComplete } = await chatService.streamChatGeneration({
@@ -292,6 +293,7 @@ export async function executeScheduledTask(
           assistantClientId,
         },
         signal: generationController.signal,
+        ensureLease: () => generation.lease,
         generateChatTitle: true,
       });
 

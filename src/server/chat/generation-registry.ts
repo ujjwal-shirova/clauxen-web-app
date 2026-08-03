@@ -2,6 +2,10 @@
  * In-process AbortController registry + optional Cloudflare Durable Object lease.
  * The DO is the cross-isolate source of truth for "already generating".
  * The local map still aborts the SSE pump on this isolate when stop is called here.
+ *
+ * TTFT: claim the local map immediately and return the AbortController without
+ * awaiting the DO round-trip. Callers start SSE, then `await session.lease`
+ * inside resolveContext before the model / durable turn insert.
  */
 import { randomUUID } from "node:crypto";
 import {
@@ -12,76 +16,118 @@ import {
   renewChatCoordLease,
 } from "@/server/chat/chat-coord-client";
 
+export type ChatCoordLeaseResult = "acquired" | "conflict" | "skipped";
+
+export type ChatGenerationSession = {
+  controller: AbortController;
+  /** Settles when the Durable Object lease is decided (or skipped). */
+  lease: Promise<ChatCoordLeaseResult>;
+};
+
 type GenerationEntry = {
   controller: AbortController;
   startedAt: number;
   leaseId: string;
   poll: ReturnType<typeof setInterval> | null;
   heartbeat: ReturnType<typeof setInterval> | null;
+  leaseResult: ChatCoordLeaseResult | null;
 };
 
 const generations = new Map<string, GenerationEntry>();
 
-export async function beginChatGeneration(
-  chatId: string,
-): Promise<AbortController | null> {
-  if (generations.has(chatId)) {
-    return null;
-  }
+function startLeaseWatchdogs(chatId: string, entry: GenerationEntry) {
+  const { leaseId, controller } = entry;
+  if (entry.poll || entry.heartbeat) return;
 
-  const leaseId = randomUUID();
-  const lease = await acquireChatCoordLease(chatId, leaseId);
-  if (lease === "conflict") {
-    return null;
-  }
-
-  const controller = new AbortController();
-  const generationEntry: GenerationEntry = {
-    controller,
-    startedAt: Date.now(),
-    leaseId,
-    poll: null,
-    heartbeat: null,
-  };
-  generations.set(chatId, generationEntry);
-
-  // Poll Durable Object stop flag so a stop hit on another isolate still cancels.
   const poll = setInterval(() => {
     void getChatCoordStatus(chatId)
       .then((status) => {
         if (!status?.stopRequested) return;
-        const entry = generations.get(chatId);
-        if (!entry || entry.leaseId !== leaseId) return;
-        entry.controller.abort();
+        const current = generations.get(chatId);
+        if (!current || current.leaseId !== leaseId) return;
+        current.controller.abort();
       })
       .catch(() => undefined);
   }, 2_000);
+
   const heartbeat = setInterval(() => {
     void renewChatCoordLease(chatId, leaseId)
       .then((result) => {
         if (result !== "lost") return;
-        const entry = generations.get(chatId);
-        if (!entry || entry.leaseId !== leaseId) return;
+        const current = generations.get(chatId);
+        if (!current || current.leaseId !== leaseId) return;
         // Another holder reclaimed this lease; stop this isolate to preserve
         // the single-writer invariant for the assistant turn.
-        entry.controller.abort();
+        current.controller.abort();
       })
       .catch(() => undefined);
   }, 20_000);
-  generationEntry.poll = poll;
-  generationEntry.heartbeat = heartbeat;
+
+  entry.poll = poll;
+  entry.heartbeat = heartbeat;
   controller.signal.addEventListener(
     "abort",
     () => {
       clearInterval(poll);
       clearInterval(heartbeat);
-      generationEntry.poll = null;
-      generationEntry.heartbeat = null;
+      entry.poll = null;
+      entry.heartbeat = null;
     },
     { once: true },
   );
+}
 
-  return controller;
+/**
+ * Begin a generation. Returns null when this isolate already has an active turn.
+ * Does not await the Cloudflare DO lease — await `session.lease` before mutating
+ * durable state or calling the model.
+ */
+export function beginChatGeneration(
+  chatId: string,
+): ChatGenerationSession | null {
+  if (generations.has(chatId)) {
+    return null;
+  }
+
+  const leaseId = randomUUID();
+  const controller = new AbortController();
+  const entry: GenerationEntry = {
+    controller,
+    startedAt: Date.now(),
+    leaseId,
+    poll: null,
+    heartbeat: null,
+    leaseResult: null,
+  };
+  generations.set(chatId, entry);
+
+  const lease = acquireChatCoordLease(chatId, leaseId).then((result) => {
+    const current = generations.get(chatId);
+    if (!current || current.leaseId !== leaseId) {
+      // Local generation already ended; drop a late-acquired DO lease.
+      if (result === "acquired") {
+        void releaseChatCoordLease(chatId, leaseId);
+      }
+      return result === "conflict" ? "conflict" : "skipped";
+    }
+
+    if (result === "conflict") {
+      current.leaseResult = "conflict";
+      generations.delete(chatId);
+      if (current.poll) clearInterval(current.poll);
+      if (current.heartbeat) clearInterval(current.heartbeat);
+      current.controller.abort();
+      return "conflict";
+    }
+
+    current.leaseResult = result;
+    if (result === "acquired") {
+      startLeaseWatchdogs(chatId, current);
+    }
+    return result;
+  });
+
+  return { controller, lease };
 }
 
 export async function abortChatGeneration(chatId: string): Promise<boolean> {

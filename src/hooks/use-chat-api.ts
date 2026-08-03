@@ -137,7 +137,9 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
       ? meta.attachments
       : undefined,
     createdAt,
-    isStreaming: row.status === "streaming" && !staleStreaming,
+    isStreaming:
+      (row.status === "streaming" || row.status === "queued") &&
+      !staleStreaming,
   });
   return hydrateMessageFromContentJson(
     base,
@@ -1322,14 +1324,49 @@ export function useChatApi(
             : {}),
         });
 
-        // Brief retry on lease races: previous turn just ended / ask pause
-        // released the DO a few ms after the client became idle.
+        // A reload or route swap can forget the local generation map while the
+        // server still owns the durable Cloudflare lease. The first 409 saves
+        // this turn as queued; wait on the lightweight status route instead of
+        // hammering /generate (and its rate limiter) or failing the transcript.
         let response: Response | null = null;
         let lastDetail = "Generation failed";
         const generateUrl = ephemeral
           ? "/api/v1/incognito/generate"
           : `/api/v1/chats/${chatId}/generate`;
-        for (let attempt = 0; attempt < 6; attempt += 1) {
+        const waitForGenerationSlot = async (): Promise<boolean> => {
+          if (ephemeral) return false;
+          const deadline = Date.now() + 285_000;
+          let statusFailures = 0;
+          while (Date.now() < deadline) {
+            await new Promise((resolve) => setTimeout(resolve, 1_250));
+            try {
+              const statusResponse = await fetch(`${generateUrl}/status`, {
+                method: "GET",
+                headers: { Accept: "application/json" },
+                credentials: "include",
+                cache: "no-store",
+                signal: controller.signal,
+              });
+              if (!statusResponse.ok) {
+                statusFailures += 1;
+                if (statusFailures >= 8) return true;
+                continue;
+              }
+              const payload = (await statusResponse.json()) as {
+                data?: { active?: boolean };
+              };
+              statusFailures = 0;
+              if (!payload.data?.active) return true;
+            } catch (error) {
+              if (controller.signal.aborted) throw error;
+              statusFailures += 1;
+              if (statusFailures >= 8) return true;
+            }
+          }
+          return false;
+        };
+
+        for (let attempt = 0; attempt < 4; attempt += 1) {
           const attemptResponse = await fetch(generateUrl, {
             method: "POST",
             headers: {
@@ -1350,7 +1387,7 @@ export function useChatApi(
             const peek = await attemptResponse.clone().text();
             if (looksLikeSecurityChallenge(attemptResponse, peek)) {
               lastDetail = "Security check in progress. Please retry in a moment.";
-              if (attempt < 5) {
+              if (attempt < 3) {
                 await new Promise((resolve) =>
                   setTimeout(resolve, 400 + attempt * 200),
                 );
@@ -1386,12 +1423,15 @@ export function useChatApi(
             // ignore parse errors
           }
           lastDetail = detail;
-          if (!leaseBusy || attempt === 5) {
+          if (!leaseBusy || attempt === 3) {
             throw new Error(detail);
           }
-          await new Promise((resolve) =>
-            setTimeout(resolve, 80 + attempt * 60),
-          );
+          const slotAvailable = await waitForGenerationSlot();
+          if (!slotAvailable) {
+            throw new Error(
+              "The previous reply is taking longer than expected. Your message is saved; please reopen this chat in a moment.",
+            );
+          }
         }
         if (!response?.ok || !response.body) {
           throw new Error(lastDetail);
@@ -1475,6 +1515,59 @@ export function useChatApi(
 
         const handleStreamEventImmediate = (event: StreamEvent) => {
           const targetAssistantId = resolveAssistantId();
+          if (event.type === "turn_ready") {
+            const serverUserId = event.userMessageId;
+            if (turn && serverUserId && serverUserId !== turn.userClientId) {
+              setAllChats((prev) => {
+                const list = prev[chatId] ?? [];
+                const index = list.findIndex(
+                  (message) =>
+                    message.id === turn.userClientId ||
+                    message.clientId === turn.userClientId,
+                );
+                if (index < 0) return prev;
+                const next = [...list];
+                next[index] = {
+                  ...next[index]!,
+                  id: serverUserId,
+                  clientId: next[index]!.clientId ?? turn.userClientId,
+                };
+                return { ...prev, [chatId]: next };
+              });
+            }
+            const serverAssistantId = event.assistantMessageId;
+            if (serverAssistantId && serverAssistantId !== assistantId) {
+              const previousId = assistantId;
+              assistantId = serverAssistantId;
+              const current = getGeneration(chatId);
+              if (current?.request === controller) {
+                setGeneration(chatId, {
+                  request: controller,
+                  assistantMessageId: assistantId,
+                });
+              }
+              useChatStore
+                .getState()
+                .setStreaming({ chatId, messageId: assistantId });
+              setAllChats((prev) => {
+                const list = prev[chatId] ?? [];
+                const index = list.findIndex(
+                  (message) =>
+                    message.id === previousId ||
+                    message.clientId === assistantClientId,
+                );
+                if (index < 0) return prev;
+                const next = [...list];
+                next[index] = {
+                  ...next[index]!,
+                  id: assistantId,
+                  clientId: next[index]!.clientId ?? assistantClientId,
+                };
+                return { ...prev, [chatId]: next };
+              });
+            }
+            return;
+          }
           if (event.type === "chat_title") {
             void applyInlineChatTitle(event.title);
             return;
@@ -1606,6 +1699,7 @@ export function useChatApi(
             event.type === "error" ||
             event.type === "done" ||
             event.type === "start" ||
+            event.type === "turn_ready" ||
             event.type === "tool_start" ||
             event.type === "tool_end" ||
             event.type === "tool_data" ||

@@ -1,5 +1,11 @@
 export type StreamEvent =
   | { type: "start"; agentMode?: boolean; assistantMessageId?: string }
+  | {
+      /** Durable turn ids after Supabase insert — may arrive after SSE start. */
+      type: "turn_ready";
+      userMessageId?: string;
+      assistantMessageId?: string;
+    }
   | { type: "thinking_start" }
   | { type: "thinking_delta"; delta: string; segmentId?: string }
   | { type: "thinking_end"; segmentId?: string }
@@ -108,7 +114,25 @@ function parseStreamEvent(raw: unknown): StreamEvent | null {
         type: "start",
         agentMode:
           typeof event.agentMode === "boolean" ? event.agentMode : undefined,
+        assistantMessageId:
+          typeof (event as { assistantMessageId?: unknown }).assistantMessageId ===
+          "string"
+            ? (event as { assistantMessageId: string }).assistantMessageId
+            : undefined,
       };
+    case "turn_ready": {
+      const userMessageId =
+        typeof (event as { userMessageId?: unknown }).userMessageId === "string"
+          ? (event as { userMessageId: string }).userMessageId
+          : undefined;
+      const assistantMessageId =
+        typeof (event as { assistantMessageId?: unknown }).assistantMessageId ===
+        "string"
+          ? (event as { assistantMessageId: string }).assistantMessageId
+          : undefined;
+      if (!userMessageId && !assistantMessageId) return null;
+      return { type: "turn_ready", userMessageId, assistantMessageId };
+    }
     case "thinking_start":
     case "done":
       return { type: event.type };

@@ -38,6 +38,9 @@ export type ChatStreamPersonalizationBundle = {
 export type ResolvedChatStreamContext = {
   modelMessages: AgentStreamOptions["messages"];
   personalization: ChatStreamPersonalizationBundle;
+  /** Durable ids once the turn row is written (may arrive after SSE start). */
+  userMessageId?: string;
+  assistantMessageId?: string;
 };
 
 export type ChatStreamOptions = {
@@ -66,8 +69,32 @@ export type ChatStreamOptions = {
   /**
    * Resolve history + vision attachments AFTER the SSE response has started.
    * Emits `start` immediately so the client is not blocked on DB/R2 prep.
+   * Implementations must soft-timeout Supabase/history work so first tokens
+   * never wait on a slow database round-trip (ChatGPT-style TTFT).
    */
   resolveContext?: () => Promise<ResolvedChatStreamContext>;
+};
+
+/** Soft ceiling for DB enrichment before the model call — never stall TTFT. */
+export const CHAT_CONTEXT_BUDGET_MS = 120;
+
+export function withBudget<T>(
+  promise: Promise<T>,
+  fallback: T,
+  ms: number = CHAT_CONTEXT_BUDGET_MS,
+): Promise<T> {
+  return Promise.race([
+    promise.catch(() => fallback),
+    new Promise<T>((resolve) => {
+      setTimeout(() => resolve(fallback), ms);
+    }),
+  ]);
+}
+
+export const EMPTY_CHAT_PERSONALIZATION: ChatStreamPersonalizationBundle = {
+  personalizationAppend: "",
+  followUpsEnabled: true,
+  extendedThinkingDefault: false,
 };
 
 /** Load personalization bits used to build the system prompt (cacheable). */
@@ -126,6 +153,15 @@ export async function createChatStream(
               options.personalization ??
               (await loadChatStreamPersonalization(options.userId)),
           };
+
+      // Remap optimistic client ids → durable DB ids without delaying start.
+      if (resolved.userMessageId || resolved.assistantMessageId) {
+        sse.write({
+          type: "turn_ready",
+          userMessageId: resolved.userMessageId,
+          assistantMessageId: resolved.assistantMessageId,
+        });
+      }
 
       const personalization = resolved.personalization;
 
@@ -207,7 +243,17 @@ export async function createChatStream(
       };
 
       await runAutonomousAgent(sse, agentOptions);
-    } catch {
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Something unexpected happened. Please try again.";
+      try {
+        sse.writeError(message);
+        sse.writeDone();
+      } catch {
+        // stream already closed
+      }
       try {
         sse.finalize();
       } catch {

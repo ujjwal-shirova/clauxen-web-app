@@ -5,7 +5,13 @@ import * as messagesRepo from "@/server/repositories/messages.repository";
 import type { MessageTranscriptLine } from "@/server/repositories/messages.repository";
 import * as branchesRepo from "@/server/repositories/branches.repository";
 import * as transcriptRepo from "@/server/repositories/transcript.repository";
-import { createChatStream, loadChatStreamPersonalization } from "@/app/api/chat/stream";
+import {
+  createChatStream,
+  loadChatStreamPersonalization,
+  withBudget,
+  EMPTY_CHAT_PERSONALIZATION,
+  CHAT_CONTEXT_BUDGET_MS,
+} from "@/app/api/chat/stream";
 import type { AgentStreamOptions } from "@/server/agent-core";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
 import {
@@ -224,6 +230,43 @@ function userMessageMetadata(input: {
   return Object.keys(metadata).length ? metadata : undefined;
 }
 
+/**
+ * Persist a follow-up before returning a generation-lease conflict.
+ * The browser can safely wait/retry with the same client ids, and a reload
+ * still shows the user's message instead of losing the optimistic bubble.
+ */
+export async function reserveQueuedChatTurn(input: {
+  chatId: string;
+  userId: string;
+  turn: {
+    content: string;
+    modelContent?: string;
+    fileIds?: string[];
+    userClientId: string;
+    assistantClientId: string;
+  };
+}) {
+  const attachments = input.turn.fileIds?.length
+    ? await resolveUserAttachmentMeta(input.userId, input.turn.fileIds)
+    : [];
+  return messagesRepo.beginChatTurn({
+    chatId: input.chatId,
+    userId: input.userId,
+    userContent: input.turn.content,
+    userMetadata: userMessageMetadata({
+      attachments,
+      modelContent: input.turn.modelContent,
+      content: input.turn.content,
+    }),
+    userContentJson: buildUserTranscriptRecord(input.turn.content),
+    fileIds: input.turn.fileIds,
+    userClientId: input.turn.userClientId,
+    assistantClientId: input.turn.assistantClientId,
+    assistantContentJson: buildAssistantTranscriptRecord({ answer: "" }),
+    assistantStatus: "queued",
+  });
+}
+
 export async function appendUserMessage(
   chatId: string,
   userId: string,
@@ -278,6 +321,11 @@ export async function streamChatGeneration(input: {
     assistantClientId: string;
   };
   signal?: AbortSignal;
+  /**
+   * Await the chat-coord DO lease (started in parallel with SSE). Must resolve
+   * before durable turn insert / model so cross-isolate single-writer holds.
+   */
+  ensureLease?: () => Promise<"acquired" | "conflict" | "skipped">;
   userCountryCode?: string;
   /** IANA timezone from the browser (for prompt temporal context). */
   clientTimezone?: string;
@@ -287,15 +335,14 @@ export async function streamChatGeneration(input: {
   extendedThinking?: boolean;
   onPauseForUser?: () => void | Promise<void>;
 }) {
-  // Kick personalization + history before ownership check so DB RTTs overlap.
+  // Kick ownership + personalization + history immediately so DB RTTs overlap
+  // SSE flush and the DO lease — never block Response headers on them.
+  const chatPromise = chatsRepo.getChatForUser(input.chatId, input.userId);
   const personalizationPromise = loadChatStreamPersonalization(input.userId);
   const historyPromise = messagesRepo.listRecentMessagesForChat(
     input.chatId,
     40,
   );
-
-  const chat = await chatsRepo.getChatForUser(input.chatId, input.userId);
-  if (!chat) throw notFound("Chat not found.");
 
   const clientConversation = sanitizeMessages(input.messages).filter(
     (message) => message.content.trim().length > 0,
@@ -313,60 +360,92 @@ export async function streamChatGeneration(input: {
     throw new AppError("A user message is required.", 400);
   }
 
-  let userMessageId: string | null = null;
-  let assistant: Awaited<ReturnType<typeof messagesRepo.createMessage>> | null =
-    null;
+  const turnState: {
+    userMessageId: string | null;
+    assistant: { id: string; status?: string; inserted?: boolean } | null;
+  } = {
+    userMessageId: null,
+    assistant: null,
+  };
+  let turnFailure: unknown = null;
 
-  if (input.turn) {
-    const attachments =
-      input.turn.fileIds && input.turn.fileIds.length > 0
-        ? await resolveUserAttachmentMeta(input.userId, input.turn.fileIds)
-        : [];
-    const turn = await messagesRepo.beginChatTurn({
-      chatId: input.chatId,
-      userId: input.userId,
-      userContent: input.turn.content,
-      userMetadata: userMessageMetadata({
-        attachments,
-        modelContent: input.turn.modelContent,
-        content: input.turn.content,
-      }),
-      userContentJson: buildUserTranscriptRecord(input.turn.content),
-      fileIds: input.turn.fileIds,
-      userClientId: input.turn.userClientId,
-      assistantClientId: input.turn.assistantClientId,
-      assistantContentJson: buildAssistantTranscriptRecord({ answer: "" }),
-    });
-    assistant = turn.assistant;
-    userMessageId = turn.user.id;
-
-    // A turn is durable before inference begins. Invalidate edge caches in the
-    // background — awaiting Worker RTT here delayed first token and let the
-    // client paint a blank streaming orb while generation had not started.
-    void import("@/server/chat/warm-history-cache")
-      .then(({ invalidateChatHistoryCache }) =>
-        invalidateChatHistoryCache({
-          userId: input.userId,
-          chatId: input.chatId,
-        }),
-      )
-      .catch(() => false);
-
-    if (!turn.assistant.inserted) {
-      const status =
-        turn.assistant.status === "streaming"
-          ? "already generating"
-          : "already completed";
-      throw new AppError(
-        `This chat turn is ${status}. Refresh the conversation before retrying.`,
-        409,
-        "chat_turn_exists",
-      );
+  // Single shared gate so resolveContext + turn insert both wait on the same
+  // DO lease promise and only reserve the queued turn once on conflict.
+  const leaseGate = (input.ensureLease
+    ? input.ensureLease()
+    : Promise.resolve("skipped" as const)
+  ).then(async (lease) => {
+    if (lease !== "conflict") return lease;
+    if (input.turn) {
+      await reserveQueuedChatTurn({
+        chatId: input.chatId,
+        userId: input.userId,
+        turn: input.turn,
+      }).catch(() => undefined);
     }
-  } else {
-    // Compatibility path for older callers that persist their user row before
-    // invoking generation. Main product chat always supplies `turn`.
-    assistant = await messagesRepo.createMessage({
+    throw new AppError(
+      "The previous reply is still finishing. Your message is saved and queued.",
+      409,
+      "generation_in_progress",
+    );
+  });
+
+  // Durable turn insert runs after lease + overlaps SSE — do NOT await it
+  // before returning the stream. Client already has optimistic clientId rows.
+  const turnPromise = (async () => {
+    await leaseGate;
+
+    const chat = await chatPromise;
+    if (!chat) throw notFound("Chat not found.");
+
+    if (input.turn) {
+      const attachments =
+        input.turn.fileIds && input.turn.fileIds.length > 0
+          ? await resolveUserAttachmentMeta(input.userId, input.turn.fileIds)
+          : [];
+      const turn = await messagesRepo.beginChatTurn({
+        chatId: input.chatId,
+        userId: input.userId,
+        userContent: input.turn.content,
+        userMetadata: userMessageMetadata({
+          attachments,
+          modelContent: input.turn.modelContent,
+          content: input.turn.content,
+        }),
+        userContentJson: buildUserTranscriptRecord(input.turn.content),
+        fileIds: input.turn.fileIds,
+        userClientId: input.turn.userClientId,
+        assistantClientId: input.turn.assistantClientId,
+        assistantContentJson: buildAssistantTranscriptRecord({ answer: "" }),
+        assistantStatus: "streaming",
+      });
+      turnState.assistant = turn.assistant;
+      turnState.userMessageId = turn.user.id;
+
+      void import("@/server/chat/warm-history-cache")
+        .then(({ invalidateChatHistoryCache }) =>
+          invalidateChatHistoryCache({
+            userId: input.userId,
+            chatId: input.chatId,
+          }),
+        )
+        .catch(() => false);
+
+      if (!turn.assistant.inserted) {
+        const status =
+          turn.assistant.status === "streaming"
+            ? "already generating"
+            : "already completed";
+        throw new AppError(
+          `This chat turn is ${status}. Refresh the conversation before retrying.`,
+          409,
+          "chat_turn_exists",
+        );
+      }
+      return turn;
+    }
+
+    const created = await messagesRepo.createMessage({
       chatId: input.chatId,
       userId: input.userId,
       role: "assistant",
@@ -374,7 +453,12 @@ export async function streamChatGeneration(input: {
       status: "streaming",
       contentJson: buildAssistantTranscriptRecord({ answer: "" }),
     });
-  }
+    turnState.assistant = created;
+    return { user: null, assistant: created };
+  })().catch((error) => {
+    turnFailure = error;
+    throw error;
+  });
 
   const modelTurns: TranscriptAgentModelTurn[] = [];
   const started = Date.now();
@@ -385,9 +469,10 @@ export async function streamChatGeneration(input: {
   let thinkingAccumulatedMs = 0;
   const toolsById = new Map<string, CapturedToolCall>();
 
-  // Prompt context + vision attach run INSIDE the SSE body so the HTTP
-  // response (and early `start` event) is not blocked on history/R2.
-  // History + personalization were already kicked off beside the turn insert.
+  // Prompt context runs INSIDE the SSE body after `start`. History /
+  // personalization are soft-budgeted so a slow Supabase RTT cannot hold the
+  // model (client transcript is enough to begin). Lease + ownership are hard
+  // gates before turn insert / inference.
   const sourceStream = await createChatStream(
     clientConversation.map((m) => ({ role: m.role, content: m.content })),
     {
@@ -396,12 +481,12 @@ export async function streamChatGeneration(input: {
       conversationId: input.chatId,
       userCountryCode: input.userCountryCode,
       clientTimezone: input.clientTimezone,
+      // Title heuristic without awaiting ownership — refined if chat loads.
       generateChatTitle: resolveGenerateChatTitle(
         clientConversation,
         input.generateChatTitle ??
-          (chat.title.trim().toLowerCase() === "new chat" &&
-            clientConversation.filter((message) => message.role === "user")
-              .length === 1),
+          clientConversation.filter((message) => message.role === "user")
+            .length === 1,
       ),
       signal: input.signal,
       homerReasoningEffort: input.homerReasoningEffort,
@@ -411,9 +496,27 @@ export async function streamChatGeneration(input: {
         modelTurns.push(turn);
       },
       resolveContext: async () => {
+        // Lease + ownership must win before the model; soft-budget only
+        // enrichment queries (history / personalization).
+        await leaseGate;
+        const chat = await chatPromise;
+        if (!chat) throw notFound("Chat not found.");
+
+        await Promise.race([
+          turnPromise.catch(() => undefined),
+          new Promise<void>((resolve) => {
+            setTimeout(resolve, CHAT_CONTEXT_BUDGET_MS);
+          }),
+        ]);
+        if (turnFailure) throw turnFailure;
+
         const [dbRecent, personalization] = await Promise.all([
-          historyPromise,
-          personalizationPromise,
+          withBudget(historyPromise, [], CHAT_CONTEXT_BUDGET_MS),
+          withBudget(
+            personalizationPromise,
+            EMPTY_CHAT_PERSONALIZATION,
+            CHAT_CONTEXT_BUDGET_MS,
+          ),
         ]);
         const promptFromDb = buildPromptMessagesFromDbRows(dbRecent);
         const clientAsPrompt: AgentStreamOptions["messages"] =
@@ -453,11 +556,16 @@ export async function streamChatGeneration(input: {
           }
         }
 
-        const visionBlocks = await resolveVisionImageBlocks({
-          userId: input.userId,
-          fileIds: input.turn?.fileIds,
-          clientImages: input.turn?.images,
-        });
+        const hasVisionInputs =
+          Boolean(input.turn?.images?.length) ||
+          Boolean(input.turn?.fileIds?.length);
+        const visionBlocks = hasVisionInputs
+          ? await resolveVisionImageBlocks({
+              userId: input.userId,
+              fileIds: input.turn?.fileIds,
+              clientImages: input.turn?.images,
+            })
+          : [];
 
         if (visionBlocks.length > 0) {
           let lastUserIdx = -1;
@@ -487,6 +595,8 @@ export async function streamChatGeneration(input: {
         return {
           modelMessages: conversationForAgent,
           personalization,
+          userMessageId: turnState.userMessageId ?? undefined,
+          assistantMessageId: turnState.assistant?.id ?? undefined,
         };
       },
     },
@@ -575,7 +685,14 @@ export async function streamChatGeneration(input: {
     );
 
     const persistOnDone = async () => {
-      const assistantRow = assistant;
+      // Ensure the durable turn row exists before finalize (insert may still
+      // be in flight when the model finishes unusually fast).
+      try {
+        await turnPromise;
+      } catch {
+        // turnFailure already recorded; finalize may no-op without assistant id
+      }
+      const assistantRow = turnState.assistant;
       const generatedAnswer = finalizeChatTitleStrippedAnswer(answer);
       const tools = Array.from(toolsById.values());
       const pausedForUserInput = tools.some(
@@ -727,14 +844,24 @@ export async function streamChatGeneration(input: {
         .catch(() => {});
     };
 
+    // Prefer durable ids when the turn already landed; otherwise fall back to
+    // client ids so the Response can flush without waiting on Supabase.
+    await Promise.race([
+      turnPromise.catch(() => undefined),
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, 40);
+      }),
+    ]);
+
     return {
       stream: body,
-      userMessageId,
-      assistantMessageId: assistant?.id ?? null,
+      userMessageId: turnState.userMessageId ?? input.turn?.userClientId ?? null,
+      assistantMessageId:
+        turnState.assistant?.id ?? input.turn?.assistantClientId ?? null,
       onComplete: persistOnDone,
     };
   } catch (error) {
-    const assistantRow = assistant;
+    const assistantRow = turnState.assistant;
     const tools = Array.from(toolsById.values());
     if (assistantRow?.id) {
       const failedContent = toUserFacingChatError(
