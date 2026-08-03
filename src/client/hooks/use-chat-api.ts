@@ -123,6 +123,10 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
   const content = staleStreaming
     ? "Generation interrupted."
     : finalizeChatTitleStrippedAnswer(row.content);
+  const isChatActive =
+    Boolean(useChatStore.getState().generatingChatIds[row.chat_id]) ||
+    Boolean(getGeneration(row.chat_id));
+
   const base = compactMessageBranchData({
     id: row.id,
     clientId:
@@ -141,6 +145,7 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
       : undefined,
     createdAt,
     isStreaming:
+      isChatActive &&
       (row.status === "streaming" || row.status === "queued") &&
       !staleStreaming,
   });
@@ -807,9 +812,27 @@ export function useChatApi(
           }
           return { ...prev, [chatId]: merged };
         }
+        const sanitizedHydrated = hydrated.map((m) => {
+          if (isLive || (!m.isStreaming && !m.isThinkingStreaming)) return m;
+          return {
+            ...m,
+            isStreaming: false,
+            isThinkingStreaming: false,
+            agentFrameComplete: true,
+            agentSegments: m.agentSegments?.map((s) => ({
+              ...s,
+              isStreaming: false,
+            })),
+            agentFrames: m.agentFrames?.map((f) => ({
+              ...f,
+              complete: true,
+              segments: f.segments.map((s) => ({ ...s, isStreaming: false })),
+            })),
+          };
+        });
         return {
           ...prev,
-          [chatId]: hydrated,
+          [chatId]: sanitizedHydrated,
         };
       });
       hydratedChatIdsRef.current.add(chatId);
@@ -1304,6 +1327,7 @@ export function useChatApi(
               clientId: assistantClientId,
               role: "assistant",
               content: "",
+              createdAt: Date.now() + 1,
               isStreaming: true,
               agentMode: true,
               agentFrameComplete: false,
@@ -2024,12 +2048,14 @@ export function useChatApi(
       }
 
       const isNewChat = !chatId;
+      const now = Date.now();
       const tempUserId = `temp-${randomUUID()}`;
       const optimisticUser: Message = {
         id: tempUserId,
         clientId: tempUserId,
         role: "user",
         content: trimmed,
+        createdAt: now,
         attachments:
           !ephemeral && pendingAttachments.length > 0
             ? toMessageAttachments(pendingAttachments)

@@ -93,48 +93,13 @@ function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
     if (msg.role !== "assistant" && msg.role !== "system") continue;
 
     const last = groups[groups.length - 1];
-    // Prefer appending to the open turn; never invent a stray user bubble.
-    if (last && last.userMessage) {
-      last.assistantMessages.push(msg);
-    } else if (last && !last.userMessage) {
+    if (last) {
       last.assistantMessages.push(msg);
     } else {
       groups.push({ userMessage: null, assistantMessages: [msg] });
     }
   }
-  return healOrphanedAssistantTurns(groups);
-}
-
-/**
- * Safety net: if an assistant turn has no user and the next turn is a lone
- * user bubble (realtime appended the user after the answer), re-pair them.
- */
-function healOrphanedAssistantTurns(
-  groups: ConversationTurnGroup[],
-): ConversationTurnGroup[] {
-  if (groups.length <= 1) return groups;
-  const out: ConversationTurnGroup[] = [];
-
-  for (let i = 0; i < groups.length; i += 1) {
-    const group = groups[i]!;
-    const next = groups[i + 1];
-    if (
-      !group.userMessage &&
-      group.assistantMessages.length > 0 &&
-      next?.userMessage &&
-      next.assistantMessages.length === 0
-    ) {
-      out.push({
-        userMessage: next.userMessage,
-        assistantMessages: group.assistantMessages,
-      });
-      i += 1;
-      continue;
-    }
-    out.push(group);
-  }
-
-  return out;
+  return groups;
 }
 
 const RetryIcon = () => (

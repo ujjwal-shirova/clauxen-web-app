@@ -351,7 +351,12 @@ function shouldPairUserWithAssistant(
     return Math.abs(userTime - assistantTime) <= SAME_USER_MESSAGE_WINDOW_MS;
   }
 
-  // Undated optimistic rows: only pair with empty/live assistants.
+  // Undated / optimistic rows: if a user bubble is adjacent to a live/empty assistant
+  // bubble in inverted order, they belong together with the user leading.
+  if (typeof userTime !== "number" || typeof assistantTime !== "number") {
+    return isLiveStreaming(assistant) || !assistant.content.trim();
+  }
+
   return false;
 }
 
