@@ -1,25 +1,11 @@
-import {
-  appMainShellClassName,
-  appShellRootClassName,
-} from "@/lib/app-shell-layout";
-
 /**
- * Instant shell for `/c/*` (and other main routes that suspend) so the
- * document is not withheld while chat seed / RSC children resolve.
+ * Soft loading fallback inside the main panel during RSC transitions.
+ * Does not render outer shell or sidebar chrome (MainLayout already provides those).
  */
 export default function MainLoading() {
   return (
-    <div className={appShellRootClassName(false)} data-app-boot-shell="">
-      <div
-        className="hidden w-[var(--sidebar-width,256px)] shrink-0 border-r border-zinc-200/80 bg-[var(--app-shell-bg,#fafafa)] md:block dark:border-zinc-800"
-        aria-hidden
-      />
-      <div className={appMainShellClassName({ isMobile: false })}>
-        <div className="flex h-full min-h-0 w-full flex-col">
-          <div className="h-10 shrink-0" />
-          <div className="flex-1" />
-        </div>
-      </div>
+    <div className="flex h-full w-full min-h-0 flex-1 flex-col items-center justify-center">
+      <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-700 dark:border-zinc-700 dark:border-t-zinc-200" />
     </div>
   );
 }

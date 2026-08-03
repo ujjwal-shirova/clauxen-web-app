@@ -197,12 +197,12 @@ export const POST = withApiRouteParams<{ chatId: string }>(
       finishOnce = async () => {
         if (finished) return;
         finished = true;
-        // A normal turn is not finished until its assistant row is durable.
-        // Ask-user pauses release in onPauseForUser above, so they remain fast.
+        // Release the generation lock immediately so follow-up turns are never
+        // blocked by background DB persistence.
         try {
-          await onComplete();
-        } finally {
           await endChatGeneration(params.chatId, generationController);
+        } finally {
+          await onComplete();
         }
       };
 

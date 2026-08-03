@@ -72,10 +72,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   useDocumentTitle();
 
   // Soft-nav updates the URL before Next swaps RSC children. When the live
-  // path is already a chat surface but Next is still on library/projects/etc.,
-  // paint ChatView immediately so New Chat / chat clicks feel instant.
-  const paintOptimisticChat =
-    isChatSurface(pathname) && !isChatSurface(nextPathname);
+  // path is a chat surface (including /new, /c/*, /incognito), paint ChatView
+  // directly so new chats, thread switches, and new turns feel instant with no cuts.
+  const paintOptimisticChat = isChatSurface(pathname);
 
   // Client auth gate — middleware is primary; this catches JWT-less shells.
   React.useEffect(() => {

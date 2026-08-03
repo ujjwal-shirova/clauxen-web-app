@@ -1000,13 +1000,7 @@ export function useChatApi(
   const stopGeneration = useCallback(() => {
     const chatId = useChatStore.getState().activeChatId;
     if (!chatId) return;
-    const gen = getGeneration(chatId);
-    if (!gen) return;
 
-    const assistantId = gen.assistantMessageId;
-
-    // Explicit server stop first — cancel provider generation before the
-    // client tears down SSE. Tab close alone must not cancel durable generation.
     if (!chatId.startsWith("incognito-")) {
       void fetch(`/api/v1/chats/${chatId}/generate/stop`, {
         method: "POST",
@@ -1015,20 +1009,16 @@ export function useChatApi(
       }).catch(() => {});
     }
 
-    // Drop the local generation lease before mutating the transcript so
-    // in-flight SSE / rAF batches no-op and cannot resurrect the caret.
-    gen.request.abort();
-    setGeneration(chatId, null);
-    useChatStore.getState().setChatGenerating(chatId, false);
+    const gen = getGeneration(chatId);
+    const assistantId = gen?.assistantMessageId;
 
-    const currentMessages = getAllChatsNormalized()[chatId] ?? [];
-    for (const message of currentMessages) {
-      if (message.id === assistantId || message.clientId === assistantId) {
-        clearStreamPaintSessions(messageUiKey(message));
-        if (message.id) clearStreamPaintSessions(message.id);
-        if (message.clientId) clearStreamPaintSessions(message.clientId);
-      }
+    if (gen) {
+      gen.request.abort();
+      setGeneration(chatId, null);
     }
+
+    useChatStore.getState().setChatGenerating(chatId, false);
+    useChatStore.getState().setStreaming(null);
 
     setAllChats((prev) => {
       const list = prev[chatId] || [];
@@ -1036,9 +1026,15 @@ export function useChatApi(
         ...prev,
         [chatId]: list.map((message) => {
           const matches =
-            message.id === assistantId ||
-            message.clientId === assistantId;
+            message.isStreaming ||
+            message.isThinkingStreaming ||
+            (assistantId &&
+              (message.id === assistantId ||
+                message.clientId === assistantId));
           if (!matches) return message;
+          clearStreamPaintSessions(messageUiKey(message));
+          if (message.id) clearStreamPaintSessions(message.id);
+          if (message.clientId) clearStreamPaintSessions(message.clientId);
           return applyAgentStreamEvent(message, { type: "done" });
         }),
       };
@@ -1356,8 +1352,10 @@ export function useChatApi(
           if (ephemeral) return false;
           const deadline = Date.now() + 285_000;
           let statusFailures = 0;
+          let pollDelayMs = 150;
           while (Date.now() < deadline) {
-            await new Promise((resolve) => setTimeout(resolve, 1_250));
+            await new Promise((resolve) => setTimeout(resolve, pollDelayMs));
+            pollDelayMs = Math.min(1000, Math.round(pollDelayMs * 1.5));
             try {
               const statusResponse = await fetch(`${generateUrl}/status`, {
                 method: "GET",
