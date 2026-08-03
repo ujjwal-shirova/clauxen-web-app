@@ -348,7 +348,9 @@ export function buildPromptMessagesFromDbRows(
     // Skip the in-flight empty assistant placeholder for the current turn.
     if (
       row.role === "assistant" &&
-      (row.status === "streaming" || row.status === "pending") &&
+      (row.status === "streaming" ||
+        row.status === "queued" ||
+        row.status === "pending") &&
       !(row.content ?? "").trim()
     ) {
       const agentUi = readAgentUi(row);

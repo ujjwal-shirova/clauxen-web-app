@@ -1,5 +1,12 @@
 # Local / migration tooling — not needed at runtime on Vercel
 .tools/
+.next/
+node_modules/
+output/
+tmp/
+.venv-*/
+.git/
+workers/
 
 # Local storage fallbacks and dev artifacts (root-level only — not src/backend/storage)
 /storage/

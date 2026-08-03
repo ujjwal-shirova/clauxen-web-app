@@ -1,11 +1,11 @@
 # Clauxen chat-history Worker
 
-Edge data plane so Hyperdrive is a **miss-only** path:
+Edge data plane with source-consistent live reads:
 
-1. **Cache API** (same-colo, no daily quota) — hottest pages + JWT memo + chat list
-2. **Workers KV** (`CHAT_HISTORY_CACHE`) — short TTL edge cache
-3. **R2** (`CHAT_ARCHIVES` → `clauxen-chat-archives`) — durable head snapshots
-4. **Hyperdrive** → Supabase Postgres — cold miss only
+1. **Hyperdrive** → Supabase Postgres — authoritative default for mutable chat lists and messages (`fresh=1`)
+2. **Cache API** + **Workers KV** — optional paint hints only when callers explicitly request `fresh=0`
+3. **R2** (`CHAT_ARCHIVES` → `clauxen-chat-archives`) — background archives, not live history authority
+4. **Cache API** — short-lived JWT verification memo
 
 ## Live
 
@@ -19,15 +19,15 @@ Edge data plane so Hyperdrive is a **miss-only** path:
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
-| GET | `/v1/chats?limit=50&projectId=` | Bearer JWT | Sidebar list (Cache → KV → Hyperdrive) |
-| GET | `/v1/chats/:id/messages?limit=&cursor_*` | Bearer JWT | Message pages |
+| GET | `/v1/chats?limit=50&projectId=&fresh=1` | Bearer JWT | Source-consistent sidebar list |
+| GET | `/v1/chats/:id/messages?limit=&cursor_*&fresh=1` | Bearer JWT | Source-consistent message pages |
 | POST | `/internal/warm` | `x-clauxen-internal` | Warm limits `[2,20]` + refresh list |
 | POST | `/internal/invalidate` | `x-clauxen-internal` | Purge message + list caches |
 | GET | `/health` | — | Binding status |
 
 Responses include `x-clauxen-cache: cache-api|kv|r2|hyperdrive|list-*|jwt-*`.
 
-Default TTLs: latest **1800s**, cursor **300s**, list **120s**, JWT memo **60s**.
+Default cache-hint TTLs: latest **60s**, cursor **300s**, list **60s**, JWT memo **60s**. Normal app reads use `private, no-store` and bypass history snapshots.
 
 ## App env
 

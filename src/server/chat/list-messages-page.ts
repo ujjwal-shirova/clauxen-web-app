@@ -23,6 +23,7 @@ export async function listMessagesPagePreferEdge(input: {
   if (workerBase && input.accessToken) {
     try {
       const params = new URLSearchParams();
+      params.set("fresh", "1");
       if (input.limit) params.set("limit", String(input.limit));
       if (input.cursorId) params.set("cursor_id", input.cursorId);
       if (input.cursorCreatedAt) {

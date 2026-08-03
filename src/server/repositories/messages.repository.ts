@@ -63,7 +63,8 @@ export async function listMessagesPage(input: {
     Math.max(1, input.limit ?? DEFAULT_PAGE_LIMIT),
   );
   const rows = await query<PageRpcRow>(
-    `select id, chat_id, role, content, status, metadata, content_json, created_at, has_more
+    `select id, chat_id, role, content, status, metadata, content_json, created_at,
+            client_id, has_more
      from public.fetch_chat_messages_page($1, $2::uuid, $3::timestamptz, $4::uuid, $5)`,
     [
       input.chatId,
@@ -299,6 +300,7 @@ export async function beginChatTurn(input: {
   userClientId: string;
   assistantClientId: string;
   assistantContentJson?: Record<string, unknown>;
+  assistantStatus?: "queued" | "streaming";
 }): Promise<{
   user: InsertedMessageRow;
   assistant: InsertedMessageRow;
@@ -338,7 +340,7 @@ export async function beginChatTurn(input: {
       userId: input.userId,
       role: "assistant",
       content: "",
-      status: "streaming",
+      status: input.assistantStatus ?? "streaming",
       contentJson: input.assistantContentJson,
       clientId: input.assistantClientId,
     });
@@ -346,7 +348,11 @@ export async function beginChatTurn(input: {
     // The global generation lease is acquired before this transaction. If the
     // same client turn exists but is not complete, its prior holder is gone and
     // this request may safely resume the durable assistant row in place.
-    if (!assistant.inserted && assistant.status !== "complete") {
+    if (
+      !assistant.inserted &&
+      input.assistantStatus !== "queued" &&
+      assistant.status !== "complete"
+    ) {
       const recovered = await client.query<InsertedMessageRow>(
         `update public.chat_messages
          set content = '',

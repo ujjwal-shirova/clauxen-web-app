@@ -6066,6 +6066,7 @@ export type Database = {
         }
         Returns: {
           chat_id: string
+          client_id: string
           content: string
           content_json: Json
           created_at: string

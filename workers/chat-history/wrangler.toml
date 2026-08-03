@@ -15,12 +15,11 @@ enabled = true
 head_sampling_rate = 1
 
 [vars]
-# Cache API / KV TTLs for mutable conversations. Every write invalidates these
-# keys synchronously; short TTLs provide a safe fallback if wiring regresses.
-# Writes invalidate synchronously; longer TTLs cut India↔us-west-1 Hyperdrive misses.
-LATEST_PAGE_CACHE_TTL_SECONDS = "900"
+# Cache API / KV hints are opt-in for mutable conversations. Short TTLs limit
+# stale exposure if a future caller explicitly chooses the `fresh=0` path.
+LATEST_PAGE_CACHE_TTL_SECONDS = "60"
 CURSOR_PAGE_CACHE_TTL_SECONDS = "300"
-CHAT_LIST_CACHE_TTL_SECONDS = "300"
+CHAT_LIST_CACHE_TTL_SECONDS = "60"
 JWT_CACHE_TTL_SECONDS = "300"
 APP_ORIGIN = "https://clauxen.com,https://www.clauxen.com,https://*.vercel.app,http://localhost:9002"
 

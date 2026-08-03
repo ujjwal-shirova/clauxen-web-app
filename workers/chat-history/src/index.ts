@@ -36,6 +36,7 @@ type MessageRow = {
   metadata: Record<string, unknown>;
   content_json: Record<string, unknown>;
   created_at: string;
+  client_id: string | null;
   has_more: boolean;
 };
 
@@ -207,12 +208,13 @@ async function fetchMessagesPage(
     limit: number;
   },
 ): Promise<PagePayload> {
-  // Chat history must be read-after-write consistent. Worker Cache/KV provides
-  // the controlled fast path; a miss must not reintroduce stale Hyperdrive SQL.
+  // Chat history must be read-after-write consistent. Hyperdrive is configured
+  // without query caching, so this is the authoritative live read path.
   const sql = sqlClient(env, true);
   try {
     const rows = (await sql`
-      select id, chat_id, role, content, status, metadata, content_json, created_at, has_more
+      select id, chat_id, role, content, status, metadata, content_json, created_at,
+             client_id, has_more
       from public.fetch_chat_messages_page(
         ${input.chatId},
         ${input.userId}::uuid,
@@ -244,36 +246,37 @@ async function fetchChatList(
   try {
     const chats = input.projectId
       ? await sql`
-          select id, title, project_id, starred, updated_at
-          from public.chats
-          where user_id = ${input.userId}::uuid
-            and status != 'deleted'
-            and project_id = ${input.projectId}
-          order by updated_at desc
+          select c.id, c.title, c.project_id, c.starred, c.updated_at,
+                 exists (
+                   select 1 from public.pinned_chats p
+                   where p.user_id = ${input.userId}::uuid and p.chat_id = c.id
+                 ) as pinned
+          from public.chats c
+          where c.user_id = ${input.userId}::uuid
+            and c.status != 'deleted'
+            and c.project_id = ${input.projectId}
+          order by c.updated_at desc
           limit ${input.limit}
         `
       : await sql`
-          select id, title, project_id, starred, updated_at
-          from public.chats
-          where user_id = ${input.userId}::uuid
-            and status != 'deleted'
-          order by updated_at desc
+          select c.id, c.title, c.project_id, c.starred, c.updated_at,
+                 exists (
+                   select 1 from public.pinned_chats p
+                   where p.user_id = ${input.userId}::uuid and p.chat_id = c.id
+                 ) as pinned
+          from public.chats c
+          where c.user_id = ${input.userId}::uuid
+            and c.status != 'deleted'
+          order by c.updated_at desc
           limit ${input.limit}
         `;
-
-    const pinned = await sql`
-      select chat_id
-      from public.pinned_chats
-      where user_id = ${input.userId}::uuid
-    `;
-    const pinnedRows = pinned as unknown as { chat_id: string }[];
-    const pinnedIds = new Set(pinnedRows.map((p) => p.chat_id));
 
     const chatRows = chats as unknown as Array<{
       id: string;
       title: string;
       project_id: string | null;
       starred: boolean;
+      pinned: boolean;
       updated_at: string;
     }>;
 
@@ -282,7 +285,7 @@ async function fetchChatList(
       name: chat.title,
       projectId: chat.project_id,
       starred: Boolean(chat.starred),
-      pinned: pinnedIds.has(chat.id),
+      pinned: Boolean(chat.pinned),
       updatedAt: chat.updated_at,
     }));
   } finally {
@@ -844,7 +847,8 @@ export default {
       return json({ ok: true }, 200, undefined, cors);
     }
 
-    // Sidebar chat list — Cache API → KV → Hyperdrive
+    // Sidebar chat list. Mutable state is source-consistent by default; the
+    // cache ladder remains an explicit paint-hint path via `fresh=0`.
     if (url.pathname === "/v1/chats" && request.method === "GET") {
       const user = await verifySupabaseJwt(request, env, ctx);
       if (!user) return json({ error: "unauthorized" }, 401, undefined, cors);
@@ -858,39 +862,42 @@ export default {
         60,
         Number(env.CHAT_LIST_CACHE_TTL_SECONDS ?? "120") || 120,
       );
+      const fresh = url.searchParams.get("fresh") !== "0";
 
-      const listHit = await caches.default.match(
-        listCacheRequest(user.sub, projectId, limit),
-      );
-      if (listHit) {
-        const headers = new Headers(listHit.headers);
-        headers.set("x-clauxen-cache", "list-cache-api");
-        for (const [k, v] of Object.entries(cors)) headers.set(k, v);
-        return new Response(listHit.body, { status: listHit.status, headers });
-      }
-
-      if (env.CHAT_HISTORY_CACHE) {
-        const cached = await env.CHAT_HISTORY_CACHE.get(
-          listKvKey(user.sub, projectId, limit),
-          "json",
+      if (!fresh) {
+        const listHit = await caches.default.match(
+          listCacheRequest(user.sub, projectId, limit),
         );
-        if (cached) {
-          const response = json(
-            { data: { chats: cached } },
-            200,
-            {
-              "cache-control": `private, max-age=${listTtl}`,
-              "x-clauxen-cache": "list-kv",
-            },
-            cors,
+        if (listHit) {
+          const headers = new Headers(listHit.headers);
+          headers.set("x-clauxen-cache", "list-cache-api");
+          for (const [k, v] of Object.entries(cors)) headers.set(k, v);
+          return new Response(listHit.body, { status: listHit.status, headers });
+        }
+
+        if (env.CHAT_HISTORY_CACHE) {
+          const cached = await env.CHAT_HISTORY_CACHE.get(
+            listKvKey(user.sub, projectId, limit),
+            "json",
           );
-          ctx.waitUntil(
-            caches.default.put(
-              listCacheRequest(user.sub, projectId, limit),
-              response.clone(),
-            ),
-          );
-          return response;
+          if (cached) {
+            const response = json(
+              { data: { chats: cached } },
+              200,
+              {
+                "cache-control": `private, max-age=${listTtl}`,
+                "x-clauxen-cache": "list-kv",
+              },
+              cors,
+            );
+            ctx.waitUntil(
+              caches.default.put(
+                listCacheRequest(user.sub, projectId, limit),
+                response.clone(),
+              ),
+            );
+            return response;
+          }
         }
       }
 
@@ -900,22 +907,28 @@ export default {
           projectId,
           limit,
         });
-        ctx.waitUntil(
-          writeListCaches(env, ctx, {
-            userId: user.sub,
-            projectId,
-            limit,
-            chats,
-            cacheTtl: listTtl,
-            cors,
-          }),
-        );
+        if (!fresh) {
+          ctx.waitUntil(
+            writeListCaches(env, ctx, {
+              userId: user.sub,
+              projectId,
+              limit,
+              chats,
+              cacheTtl: listTtl,
+              cors,
+            }),
+          );
+        }
         return json(
           { data: { chats } },
           200,
           {
-            "cache-control": `private, max-age=${listTtl}`,
-            "x-clauxen-cache": "list-hyperdrive",
+            "cache-control": fresh
+              ? "private, no-store"
+              : `private, max-age=${listTtl}`,
+            "x-clauxen-cache": fresh
+              ? "list-hyperdrive-fresh"
+              : "list-hyperdrive",
           },
           cors,
         );
@@ -941,6 +954,7 @@ export default {
     const cursorId = url.searchParams.get("cursor_id");
     const cursorCreatedAt = url.searchParams.get("cursor_created_at");
     const isLatestPage = !cursorId && !cursorCreatedAt;
+    const fresh = url.searchParams.get("fresh") !== "0";
     const cacheTtl = Math.max(
       60,
       Number(env.LATEST_PAGE_CACHE_TTL_SECONDS ?? "1800") || 1800,
@@ -950,7 +964,7 @@ export default {
       Number(env.CURSOR_PAGE_CACHE_TTL_SECONDS ?? "300") || 300,
     );
 
-    if (isLatestPage) {
+    if (!fresh && isLatestPage) {
       const hit = await caches.default.match(
         cacheRequest(user.sub, chatId, limit),
       );
@@ -1017,7 +1031,7 @@ export default {
         );
         return response;
       }
-    } else {
+    } else if (!fresh) {
       const pageHit = await caches.default.match(
         pageCacheRequest(user.sub, chatId, limit, cursorId, cursorCreatedAt),
       );
@@ -1096,17 +1110,19 @@ export default {
           { chatId, userId: user.sub, limit },
           page,
         );
-        ctx.waitUntil(
-          writeCaches(env, ctx, {
-            userId: user.sub,
-            chatId,
-            limit,
-            payload: page,
-            cacheTtl,
-            cors,
-          }),
-        );
-      } else {
+        if (!fresh) {
+          ctx.waitUntil(
+            writeCaches(env, ctx, {
+              userId: user.sub,
+              chatId,
+              limit,
+              payload: page,
+              cacheTtl,
+              cors,
+            }),
+          );
+        }
+      } else if (!fresh) {
         ctx.waitUntil(
           writePageCaches(env, ctx, {
             userId: user.sub,
@@ -1126,12 +1142,20 @@ export default {
         200,
         isLatestPage
           ? {
-              "cache-control": `private, max-age=${cacheTtl}`,
-              "x-clauxen-cache": "hyperdrive",
+              "cache-control": fresh
+                ? "private, no-store"
+                : `private, max-age=${cacheTtl}`,
+              "x-clauxen-cache": fresh
+                ? "hyperdrive-fresh"
+                : "hyperdrive",
             }
           : {
-              "cache-control": `private, max-age=${cursorTtl}`,
-              "x-clauxen-cache": "hyperdrive-page",
+              "cache-control": fresh
+                ? "private, no-store"
+                : `private, max-age=${cursorTtl}`,
+              "x-clauxen-cache": fresh
+                ? "hyperdrive-page-fresh"
+                : "hyperdrive-page",
             },
         cors,
       );

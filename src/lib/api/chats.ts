@@ -41,7 +41,7 @@ async function listChatsViaWorker(projectId?: string): Promise<{
     const accessToken = await getSupabaseAccessTokenSingleflight();
     if (!accessToken) return null;
 
-    const params = new URLSearchParams({ limit: "50" });
+    const params = new URLSearchParams({ limit: "50", fresh: "1" });
     if (projectId) params.set("projectId", projectId);
     const response = await fetch(`${base}/v1/chats?${params}`, {
       headers: {
@@ -72,7 +72,7 @@ export async function listChats(projectId?: string) {
   // Race Worker vs Next — first usable result wins (ChatGPT-style Recents).
   const first = await Promise.race([
     workerPromise.then((result) =>
-      result ? ({ ok: true as const, result }) : ({ ok: false as const }),
+      result ? { ok: true as const, result } : { ok: false as const },
     ),
     nextPromise.then((result) => ({ ok: true as const, result })),
   ]);
@@ -120,6 +120,7 @@ async function listMessagesPageViaWorker(
     if (!accessToken) return null;
 
     const params = new URLSearchParams();
+    params.set("fresh", "1");
     if (input?.limit) params.set("limit", String(input.limit));
     if (input?.cursorId) params.set("cursor_id", input.cursorId);
     if (input?.cursorCreatedAt) {
