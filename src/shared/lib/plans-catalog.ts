@@ -43,6 +43,7 @@ export type PlanCard = {
   giftable: boolean;
   isCurrent?: boolean;
   isPopular?: boolean;
+  isRecommended?: boolean;
   isSpecialOffer?: boolean;
   isHighlight?: boolean;
   highlight?: string;
@@ -470,6 +471,7 @@ export const PERSONAL_PLANS: PlanCard[] = [
     monthlyPriceInr: PLAN_MONTHLY_PRICES_INR.pro,
     yearlySupported: true,
     giftable: true,
+    isRecommended: true,
     highlight: "Everything in Plus, plus:",
     buttonLabel: "Upgrade to Pro",
     features: [

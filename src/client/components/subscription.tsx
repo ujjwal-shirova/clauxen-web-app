@@ -58,12 +58,21 @@ function normalizePlanId(planId: string | null | undefined): string {
 
 function PlanBadge({
   label,
+  variant,
 }: {
   label: string;
   variant: "popular" | "special" | "recommended";
 }) {
+  if (variant === "recommended") {
+    return (
+      <div className="absolute right-3 top-3 flex h-6 items-center rounded-md border border-[var(--pricing-fg)]/40 bg-transparent px-2 text-[11px] font-medium text-[var(--pricing-fg)]">
+        {label}
+      </div>
+    );
+  }
+
   return (
-    <div className="absolute right-3 top-3 flex h-6 items-center rounded-full bg-[var(--pricing-cta)] px-2.5 text-[12px] font-medium text-[var(--pricing-cta-fg)]">
+    <div className="absolute right-3 top-3 flex h-6 items-center rounded-full bg-[var(--pricing-cta)] px-2.5 text-[11px] font-medium text-[var(--pricing-cta-fg)]">
       {label}
     </div>
   );
@@ -182,6 +191,7 @@ function PlanCarouselCard({
   return (
     <div className="relative flex w-[240px] shrink-0 flex-col rounded-xl bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px]">
       {plan.isPopular && <PlanBadge label="Popular" variant="popular" />}
+      {plan.isRecommended && <PlanBadge label="Recommended" variant="recommended" />}
       {plan.isSpecialOffer && (
         <PlanBadge label="Special Offer" variant="special" />
       )}

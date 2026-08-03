@@ -43,38 +43,56 @@ function PricingLoadingShell() {
         aria-label="Loading pricing"
         data-app-overlay-surface=""
         tabIndex={-1}
-        className={cn(chrome.overlay.surface, "overflow-y-auto")}
+        className={cn(
+          chrome.overlay.surface,
+          "overflow-y-auto bg-[var(--pricing-bg,#f0f1f4)] text-[var(--pricing-fg,#14151a)]",
+        )}
       >
-        <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-8 px-6 pb-16 pt-10 sm:px-10">
-          <div className="flex items-center justify-between gap-4">
-            <Skeleton className="h-8 w-40" variant="text" />
-            <Skeleton className="h-9 w-9 rounded-lg" />
+        <header className="sticky top-0 z-20 flex items-center justify-center border-b border-black/[0.06] bg-[var(--pricing-bg,#f0f1f4)]/95 px-12 py-3.5 sm:py-4">
+          <Skeleton className="h-8 w-52 rounded-full" animation="shimmer" />
+        </header>
+
+        <main className="mobile-page-inset mx-auto flex w-full max-w-[1152px] flex-col gap-5 py-5 pb-24 sm:gap-6 sm:py-6 lg:px-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <Skeleton className="h-9 w-52 rounded-full" animation="shimmer" />
+            <Skeleton className="h-9 w-60 rounded-full" animation="shimmer" />
           </div>
-          <div className="flex flex-col items-center gap-3">
-            <Skeleton className="h-10 w-72 max-w-full" variant="text" />
-            <Skeleton className="h-4 w-56 max-w-full" variant="text" />
-            <Skeleton className="mt-2 h-9 w-44 rounded-full" />
-          </div>
-          <div className="flex gap-5 overflow-hidden px-2 py-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="app-page-card flex w-[240px] shrink-0 flex-col p-5"
-              >
-                <Skeleton className="h-4 w-16" variant="text" />
-                <Skeleton className="mt-4 h-8 w-24" variant="text" />
-                <Skeleton className="mt-2 h-3 w-28" variant="text" />
-                <Skeleton className="mt-5 h-9 w-full rounded-lg" />
-                <div className="mt-5 space-y-2.5">
-                  <Skeleton className="h-3 w-full" variant="text" />
-                  <Skeleton className="h-3 w-[90%]" variant="text" />
-                  <Skeleton className="h-3 w-[80%]" variant="text" />
-                  <Skeleton className="h-3 w-[85%]" variant="text" />
+
+          <div className="relative -mx-4 overflow-hidden">
+            <div className="flex items-stretch gap-2.5 overflow-x-auto px-7 py-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="relative flex w-[240px] shrink-0 flex-col rounded-xl bg-[var(--pricing-card,#ffffff)] px-[15px] pb-[15px] pt-[13px] shadow-xs"
+                >
+                  <Skeleton className="h-6 w-20 rounded-md" animation="shimmer" />
+                  <Skeleton className="mt-2 h-7 w-28 rounded-md" animation="shimmer" />
+                  <Skeleton className="mt-2 h-4 w-40 rounded-md" animation="shimmer" />
+                  <Skeleton className="mt-3.5 h-9 w-full rounded-full" animation="shimmer" />
+
+                  <Skeleton className="mt-5 h-4 w-28 rounded-md" animation="shimmer" />
+
+                  <div className="mt-3.5 flex flex-col gap-2.5">
+                    {Array.from({ length: 6 }).map((_, fIndex) => (
+                      <div key={fIndex} className="flex items-center gap-2">
+                        <Skeleton className="h-3.5 w-3.5 shrink-0 rounded-full" animation="shimmer" />
+                        <Skeleton
+                          className={cn(
+                            "h-3.5 rounded-md",
+                            fIndex % 3 === 0 && "w-full",
+                            fIndex % 3 === 1 && "w-[85%]",
+                            fIndex % 3 === 2 && "w-[92%]",
+                          )}
+                          animation="shimmer"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     </FullscreenPortal>
   );
