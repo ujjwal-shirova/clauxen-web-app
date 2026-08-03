@@ -3,7 +3,7 @@
  *
  * Edit THIS file for colors, type, radii, spacing, pages, overlays, popups,
  * buttons, fields, chat tokens, and shared utilities. Do not split theme into
- * separate CSS files. React layout recipes: src/lib/app-chrome.ts only.
+ * separate CSS files. React layout recipes: src/shared/lib/app-chrome.ts only.
  */
 
 @import "tailwindcss";

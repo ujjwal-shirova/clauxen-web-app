@@ -6,7 +6,7 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 
 - **Streaming chat** — SSE-based conversation streaming with per-model routing, interleaved "thinking" traces, and custom token fade-in for animated markdown.
 - **Multi-model routing** — internal model personas (**Homer**, **Helios**, **Virgil**) proxied through Novita's Anthropic- and OpenAI-compatible endpoints, plus a Claude-Messages-API-compatible proxy at `/api/shirova/v1/messages`.
-- **Autonomous agent** — Provider-backed tool-use loop via `@/server/agent-core` (web search, sandbox, files, skills). Streams to `src/components/agent/*`. See [`docs/systems/autonomous-agent.md`](docs/systems/autonomous-agent.md).
+- **Autonomous agent** — Provider-backed tool-use loop via `@/server/agent-core` (web search, sandbox, files, skills). Streams to `src/client/components/agent/*`.
 - **Projects & RAG** — project folders with custom instructions, file uploads, chunking + embeddings, and pgvector-backed retrieval grounding chat responses.
 - **Code sandboxes** — provision, connect to, and run commands/files inside remote sandboxes (`/api/v1/sandbox/*`, Novita sandbox).
 - **Billing & checkout** — Razorpay-based orders, subscriptions, invoices, plans, UPI flow, and gifting, with webhook handling.
@@ -36,24 +36,21 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 | Path | Purpose |
 |---|---|
 | `src/app/` | Next.js App Router — pages and `/api` route handlers |
-| `src/components/` | React UI (incl. `components/agent/` chat transcript) |
-| `src/hooks/`, `src/contexts/`, `src/stores/` | Client hooks and providers |
-| `src/features/` | Feature modules (e.g. dictation) that own their UI+logic |
-| `src/lib/` | Shared client + isomorphic helpers |
+| `src/client/components/` | React UI (incl. `agent/` chat transcript) |
+| `src/client/hooks/`, `contexts/`, `stores/`, `features/` | Client state and feature modules |
+| `src/client/workers/` | Browser workers (e.g. search) |
+| `src/shared/lib/` | Shared client + isomorphic helpers |
+| `src/shared/utils/` | Utilities (incl. Supabase clients) |
+| `src/shared/types/` | Shared TypeScript types |
+| `src/modules/projects/` | Project RAG pipeline (ingestion, chunking, embeddings) |
 | `src/app/globals.css` | Single product chrome stylesheet (tokens, pages, chat, menus) |
 | `src/marketing/` | Marketing site components and content |
 | `src/prompts/` | Model system prompts + personalization `.md` |
 | `src/server/` | Server-only services, repos, inference, auth, billing |
 | `src/server/agent-core/` | Chat agent loop (Provider Messages + tools) |
-| `src/projects/` | Project RAG pipeline (ingestion, chunking, embeddings) |
-| `src/workers/` | Browser workers (e.g. search) |
-| `src/utils/supabase/` | Browser/server/middleware Supabase clients |
 | `supabase/` | Supabase config and SQL migrations |
 | `workers/` | Cloudflare Workers (chat-history, r2-gateway, chat-coord, …) |
 | `scripts/` | Deploy, env sync, seed scripts, ingestion worker |
-| `skills/` | Agent skills (symlinked to `.cursor/skills/`) |
-| `docs/` | Architecture and operations documentation |
-| `brain/` | Persistent agent memory for this repo |
 
 ## Getting started
 

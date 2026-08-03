@@ -1,11 +1,11 @@
 import {
   resolveDatabaseUrl,
   resolveSupabaseServiceRoleKey,
-} from "../../lib/vercel-env";
+} from "@/lib/vercel-env";
 import {
   MODEL_CONFIG,
   normalizeUpstreamModelSlug,
-} from "../../lib/model-config";
+} from "@/lib/model-config";
 
 function optional(name: string, fallback = ""): string {
   return process.env[name]?.trim() || fallback;

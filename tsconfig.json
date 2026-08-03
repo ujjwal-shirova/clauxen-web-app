@@ -21,6 +21,26 @@
       }
     ],
     "paths": {
+      "@/components": ["./src/client/components"],
+      "@/components/*": ["./src/client/components/*"],
+      "@/hooks": ["./src/client/hooks"],
+      "@/hooks/*": ["./src/client/hooks/*"],
+      "@/contexts": ["./src/client/contexts"],
+      "@/contexts/*": ["./src/client/contexts/*"],
+      "@/stores": ["./src/client/stores"],
+      "@/stores/*": ["./src/client/stores/*"],
+      "@/features": ["./src/client/features"],
+      "@/features/*": ["./src/client/features/*"],
+      "@/workers": ["./src/client/workers"],
+      "@/workers/*": ["./src/client/workers/*"],
+      "@/lib": ["./src/shared/lib"],
+      "@/lib/*": ["./src/shared/lib/*"],
+      "@/utils": ["./src/shared/utils"],
+      "@/utils/*": ["./src/shared/utils/*"],
+      "@/types": ["./src/shared/types"],
+      "@/types/*": ["./src/shared/types/*"],
+      "@/projects": ["./src/modules/projects"],
+      "@/projects/*": ["./src/modules/projects/*"],
       "@/*": ["./src/*"]
     }
   },
