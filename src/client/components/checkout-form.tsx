@@ -191,7 +191,10 @@ export function CheckoutForm({
               if (!payDisabled) onPayPrepare?.();
             }}
             className={cn(
-              payDisabled ? checkoutUi.payDisabled : appBtn.primaryLg,
+              "inline-flex h-11 min-h-[44px] w-full items-center justify-center rounded-[var(--radius-sm)] px-5 text-[14px] font-medium leading-5 transition-all duration-150",
+              payDisabled
+                ? "cursor-not-allowed bg-[#e2e4e9] text-[#71717a]"
+                : "bg-[#14151a] text-[#ffffff] hover:bg-[#27272a] active:bg-[#09090b] shadow-xs",
             )}
           >
             {paying ? "Processing…" : payLabel}

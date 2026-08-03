@@ -85,15 +85,15 @@ export function CheckoutBillingAddress({
       />
 
       <label
-        className={cn(checkoutUi.field, "relative flex flex-col gap-0.5 py-2")}
+        className="relative flex h-auto min-h-[38px] w-full flex-col justify-center gap-0.5 rounded-[var(--radius-sm)] border border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] px-3 py-1.5"
       >
-        <span className="text-[11px] font-medium leading-none text-[#6d6e78]">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-[#6d6e78]">
           Country or region
         </span>
         <select
           value={value.countryCode}
           onChange={(e) => patch({ countryCode: e.target.value })}
-          className="w-full appearance-none bg-transparent pr-6 text-base text-[#121212] outline-none"
+          className="w-full appearance-none bg-transparent pr-6 text-[13px] leading-[18px] text-[#121212] outline-none"
           aria-label="Country or region"
         >
           <option value="IN">India</option>
@@ -155,18 +155,15 @@ export function CheckoutBillingAddress({
           )}
         </div>
         <label
-          className={cn(
-            checkoutUi.field,
-            "relative flex flex-col gap-0.5 py-2",
-          )}
+          className="relative flex h-auto min-h-[38px] w-full flex-col justify-center gap-0.5 rounded-[var(--radius-sm)] border border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] px-3 py-1.5"
         >
-          <span className="text-[11px] font-medium leading-none text-[#6d6e78]">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-[#6d6e78]">
             State
           </span>
           <select
             value={value.state}
             onChange={(e) => patch({ state: e.target.value })}
-            className="w-full appearance-none bg-transparent pr-6 text-base text-[#121212] outline-none"
+            className="w-full appearance-none bg-transparent pr-6 text-[13px] leading-[18px] text-[#121212] outline-none"
             aria-label="State"
           >
             <option value="">Select state</option>

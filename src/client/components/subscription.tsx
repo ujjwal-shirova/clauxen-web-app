@@ -86,13 +86,14 @@ function PricingCtaButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "inline-flex w-full items-center justify-center rounded-full px-[21.6px] py-3 text-[13px] font-medium leading-4 transition-colors",
+        "inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 text-[13px] font-medium leading-4 transition-all duration-150",
         variant === "primary" &&
-          "bg-[var(--pricing-cta)] text-[var(--pricing-cta-fg)] hover:opacity-90",
+          "bg-[#14151a] text-[#ffffff] hover:bg-[#27272a] active:bg-[#09090b]",
         variant === "secondary" &&
-          "bg-[var(--pricing-cta-secondary)] text-[var(--pricing-fg)] hover:opacity-90",
+          "bg-[#e2e4e9] text-[#14151a] hover:bg-[#d5d8e0] active:bg-[#cbcfd8]",
         variant === "current" &&
-          "cursor-default bg-[var(--pricing-cta-secondary)] text-[var(--pricing-muted)]",
+          "cursor-default bg-[#e8eaee] text-[#52525b]",
+        disabled && "cursor-not-allowed opacity-60",
       )}
     >
       {children}
@@ -179,53 +180,41 @@ function PlanCarouselCard({
   const isMax = plan.id === "max";
 
   return (
-    <div className="relative flex w-[240px] shrink-0 flex-col justify-between rounded-xl bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px]">
+    <div className="relative flex w-[240px] shrink-0 flex-col rounded-xl bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px]">
       {plan.isPopular && <PlanBadge label="Popular" variant="popular" />}
       {plan.isSpecialOffer && (
         <PlanBadge label="Special Offer" variant="special" />
       )}
 
-      <div className="flex flex-col">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-[22px] font-normal leading-[1.3] tracking-[-0.11px] text-[var(--pricing-fg)]">
-            {plan.name}
-          </h3>
-        </div>
+      {/* Top Header Block — Title, Price + 5x/20x Toggle, Subtitle, CTA Button */}
+      <div className="flex flex-col min-h-[165px]">
+        <h3 className="text-[22px] font-normal leading-[1.3] tracking-[-0.11px] text-[var(--pricing-fg)]">
+          {plan.name}
+        </h3>
 
-        <p className="mt-0.5 flex items-baseline gap-0.5 text-[22px] leading-[1.3] tracking-[-0.11px] text-[var(--pricing-muted)]">
-          {price.strikethrough != null && (
-            <span className="mr-1.5 text-[14px] line-through">
-              ₹{price.strikethrough.toLocaleString("en-IN")}
+        {/* Cost label and 5x / 20x toggle on the right side */}
+        <div className="mt-0.5 flex items-center justify-between gap-1.5">
+          <p className="flex items-baseline gap-0.5 text-[22px] leading-[1.3] tracking-[-0.11px] text-[var(--pricing-muted)]">
+            {price.strikethrough != null && (
+              <span className="mr-1 text-[14px] line-through">
+                ₹{price.strikethrough.toLocaleString("en-IN")}
+              </span>
+            )}
+            <span>
+              {plan.customPriceLabel === "From" && !isMax ? "From " : ""}
+              {plan.customPriceLabel !== "Custom" ? "₹" : ""}
+              {price.main}
             </span>
-          )}
-          <span>
-            {plan.customPriceLabel === "From" && !isMax ? "From " : ""}
-            {plan.customPriceLabel !== "Custom" ? "₹" : ""}
-            {price.main}
-          </span>
-          {price.suffix && (
-            <span className="text-[14px] leading-5">{price.suffix}</span>
-          )}
-        </p>
+            {price.suffix && (
+              <span className="text-[14px] leading-5">{price.suffix}</span>
+            )}
+          </p>
 
-        <div className="mt-1 min-h-5">
-          {plan.subtitle ? (
-            <p className="text-[13px] leading-[18px] text-[var(--pricing-muted)]">
-              {plan.subtitle}
-            </p>
-          ) : price.subtext ? (
-            <p className="text-[12px] leading-4 text-[var(--pricing-muted)]">
-              {price.subtext}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="mt-4 flex min-h-[38px] items-center">
-          {isMax ? (
+          {isMax && (
             <div
               className={cn(
                 subscriptionSegmentTrackClass,
-                "bg-[var(--pricing-thumb)]",
+                "shrink-0 bg-[var(--pricing-thumb)] p-0.5",
               )}
             >
               {(["5x", "20x"] as const).map((tier) => (
@@ -237,7 +226,7 @@ function PlanCarouselCard({
                     onMaxTierChange?.(tier);
                   }}
                   className={cn(
-                    "relative z-[1] rounded-full px-3 py-1 text-[12px] font-medium leading-4 transition-colors",
+                    "relative z-[1] rounded-full px-2 py-0.5 text-[11px] font-medium leading-4 transition-colors",
                     maxTier === tier
                       ? "bg-[var(--pricing-thumb-active)] text-[var(--pricing-fg)]"
                       : "text-[var(--pricing-muted)] hover:text-[var(--pricing-fg)]",
@@ -247,18 +236,55 @@ function PlanCarouselCard({
                 </button>
               ))}
             </div>
+          )}
+        </div>
+
+        <div className="mt-1 min-h-[36px]">
+          {plan.subtitle ? (
+            <p className="text-[13px] leading-[18px] text-[var(--pricing-muted)]">
+              {plan.subtitle}
+            </p>
+          ) : price.subtext ? (
+            <p className="text-[12px] leading-4 text-[var(--pricing-muted)]">
+              {price.subtext}
+            </p>
           ) : null}
         </div>
 
+        {/* Button placed directly below the description/subtitle */}
+        <div className="mt-3">
+          {isCurrent ? (
+            <PricingCtaButton disabled variant="current">
+              <Check className="mr-1.5 h-4 w-4" />
+              Current plan
+            </PricingCtaButton>
+          ) : isLowerThanCurrent ? (
+            <div className="h-10" />
+          ) : (
+            <PricingCtaButton
+              onClick={onSelect}
+              variant={plan.isPopular ? "primary" : "secondary"}
+            >
+              {ctaLabel ??
+                (forceSelectable && plan.id === "free"
+                  ? "Continue with Free"
+                  : plan.buttonLabel)}
+            </PricingCtaButton>
+          )}
+        </div>
+      </div>
+
+      {/* Feature section starts at exact same height for all cards */}
+      <div className="mt-4 flex flex-col flex-1">
         {plan.highlight ? (
-          <p className="mt-4 text-[13px] text-[var(--pricing-muted)]">
+          <p className="text-[13px] text-[var(--pricing-muted)]">
             {plan.highlight}
           </p>
         ) : (
-          <p className="mt-4 text-[13px] text-[var(--pricing-muted)]">Includes:</p>
+          <p className="text-[13px] text-[var(--pricing-muted)]">Includes:</p>
         )}
 
-        <ul className="mt-4 flex flex-col gap-[3.7px]" role="list">
+        <ul className="mt-3 flex flex-col gap-[3.7px]" role="list">
           {features.map((feature) => (
             <li key={feature} className="flex gap-[7.5px] text-[13px] leading-[18px] text-[var(--pricing-fg)]">
               <span className="shrink-0 text-[var(--pricing-fg)]" aria-hidden>
@@ -268,25 +294,6 @@ function PlanCarouselCard({
             </li>
           ))}
         </ul>
-      </div>
-
-      <div className="mt-8">
-        {isCurrent ? (
-          <PricingCtaButton disabled variant="current">
-            <Check className="mr-1.5 h-4 w-4" />
-            Current plan
-          </PricingCtaButton>
-        ) : isLowerThanCurrent ? null : (
-          <PricingCtaButton
-            onClick={onSelect}
-            variant={plan.isPopular ? "primary" : "secondary"}
-          >
-            {ctaLabel ??
-              (forceSelectable && plan.id === "free"
-                ? "Continue with Free"
-                : plan.buttonLabel)}
-          </PricingCtaButton>
-        )}
       </div>
     </div>
   );

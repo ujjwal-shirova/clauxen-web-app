@@ -23,10 +23,7 @@ export function CheckoutBillingAddressSummary({
     <button
       type="button"
       onClick={onEdit}
-      className={cn(
-        checkoutUi.field,
-        "flex w-full items-start justify-between gap-3 py-3 text-left transition-colors hover:border-zinc-400",
-      )}
+      className="flex h-auto min-h-[38px] w-full items-start justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] p-3 text-left transition-colors hover:border-zinc-400"
       aria-label="Edit billing address"
     >
       <div className="min-w-0 flex-1">
@@ -37,7 +34,7 @@ export function CheckoutBillingAddressSummary({
           {lines.map((line) => (
             <p
               key={line}
-              className="app-page-body truncate"
+              className="app-page-body truncate text-[13px] leading-[18px]"
             >
               {line}
             </p>

@@ -60,17 +60,17 @@ export function CheckoutMobileField({
         Mobile number
       </div>
       <div className="relative">
-        <span className="app-page-muted pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+        <span className="app-page-muted pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-medium text-[13px]">
           +91
         </span>
         <input
           type="tel"
           inputMode="numeric"
           autoComplete="tel-national"
-          placeholder="98765 43210"
+          placeholder="10-digit mobile number"
           value={value}
           onChange={(e) => onChange(formatIndianMobileInput(e.target.value))}
-          className={cn(checkoutUi.field, "pl-12")}
+          className={cn(checkoutUi.field, "pl-12 text-[13px]")}
           aria-label="Mobile number"
         />
       </div>
