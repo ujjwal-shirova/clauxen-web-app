@@ -6,7 +6,7 @@ output/
 tmp/
 .venv-*/
 .git/
-workers/
+/workers/
 
 # Local storage fallbacks and dev artifacts (root-level only — not src/backend/storage)
 /storage/
@@ -20,8 +20,8 @@ docs/
 brain/
 .cursor/
 .playwright-cli/
-workers/**/node_modules/
-workers/**/.wrangler/
+/workers/**/node_modules/
+/workers/**/.wrangler/
 **/*.test.ts
 **/tsconfig.tsbuildinfo
 
