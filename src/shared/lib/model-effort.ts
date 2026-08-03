@@ -38,7 +38,7 @@ export type NovitaThinkingParams = {
 };
 
 /**
- * Build Novita / OpenAI-compat thinking controls for chat/completions.
+ * Build Provider thinking controls for Anthropic Messages / gateway.
  * Always sets enable_thinking explicitly so models do not think by default.
  * Composer Thinking toggle maps here: On → true, Off → false.
  */

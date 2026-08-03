@@ -7,7 +7,7 @@ import { MODEL_CONFIG, normalizeUpstreamModelSlug, type ConfiguredModelId } from
 
 export type ChatModelId = ConfiguredModelId;
 
-export type InferenceProviderKind = "openai";
+export type InferenceProviderKind = "anthropic";
 
 export type ModelCatalogEntry = {
   id: ChatModelId;
@@ -33,7 +33,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     label: MODEL_CONFIG.metadata.virgil.label,
     shortLabel: MODEL_CONFIG.metadata.virgil.shortLabel,
     description: MODEL_CONFIG.metadata.virgil.description,
-    provider: "openai",
+    provider: "anthropic",
     defaultModelSlug: MODEL_CONFIG.models.virgil.defaultSlug,
     modelEnvKey: MODEL_CONFIG.providerEnv.modelClauxenV1,
     baseUrlEnvKey: MODEL_CONFIG.providerEnv.baseUrl,

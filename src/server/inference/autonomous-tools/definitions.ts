@@ -1,7 +1,5 @@
-import type { FunctionTool } from "openai/resources/responses/responses";
-
 /**
- * Autonomous agent tool definitions.
+ * Autonomous agent tool definitions (Anthropic Messages / agent-core).
  *
  * These descriptions ARE the only steering for the thinking-agent path.
  * Each description answers three questions the model needs:
@@ -17,7 +15,16 @@ import type { FunctionTool } from "openai/resources/responses/responses";
  *     narration the user sees between tool calls (image reference in the ticket)
  *   • Capability framing ("observe…", "decide…") activates ReAct-style thinking
  */
-export const autonomousAgentTools: FunctionTool[] = [
+
+export type AutonomousAgentTool = {
+  type: "function";
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  strict?: boolean;
+};
+
+export const autonomousAgentTools: AutonomousAgentTool[] = [
   {
     type: "function",
     name: "web_search",

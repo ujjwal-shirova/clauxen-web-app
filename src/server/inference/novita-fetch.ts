@@ -1,7 +1,7 @@
 import { Agent, fetch as undiciFetch } from "undici";
 
 /**
- * Dedicated dispatcher for Novita OpenAI-compatible API.
+ * Dedicated dispatcher for Provider / Novita Anthropic-compatible API.
  * Force HTTP/1.1 — Node/undici HTTP/2 to api.novita.ai can stall until the
  * 300s h2 stream timeout (UND_ERR_INFO) with no tokens delivered.
  */

@@ -238,6 +238,128 @@ async function fetchMessagesPage(
   }
 }
 
+/** Newest N messages ASC — model prompt context (generate path). */
+async function fetchRecentMessages(
+  env: Env,
+  input: { chatId: string; userId: string; limit: number },
+): Promise<Omit<MessageRow, "has_more">[]> {
+  const sql = sqlClient(env, false);
+  try {
+    // Match Vercel listRecentMessagesForChat — chat-scoped, not user-scoped
+    // (legacy rows may have null user_id).
+    const rows = (await sql`
+      select id, chat_id, role, coalesce(content, '') as content, status, metadata,
+             coalesce(content_json, '{}'::jsonb) as content_json, created_at, client_id
+      from (
+        select id, chat_id, role, content, status, metadata, content_json, created_at, client_id
+        from public.chat_messages
+        where chat_id = ${input.chatId}::uuid
+          and status != 'cancelled'
+        order by created_at desc, id desc
+        limit ${input.limit}
+      ) recent
+      order by created_at asc, id asc
+    `) as Omit<MessageRow, "has_more">[];
+    return rows;
+  } finally {
+    await sql.end({ timeout: 1 });
+  }
+}
+
+/**
+ * Cache-first recent transcript for Vercel generate.
+ * Ladder: Cache API → KV → R2 → Hyperdrive. Avoids hammering Postgres on every turn.
+ */
+async function loadRecentMessagesPreferCache(
+  env: Env,
+  input: { userId: string; chatId: string; limit: number },
+): Promise<{ messages: Omit<MessageRow, "has_more">[]; source: string }> {
+  const limit = Math.min(500, Math.max(1, input.limit));
+
+  const hit = await caches.default.match(
+    cacheRequest(input.userId, input.chatId, limit),
+  );
+  if (hit) {
+    try {
+      const payload = (await hit.json()) as {
+        data?: { messages?: Omit<MessageRow, "has_more">[] };
+        messages?: Omit<MessageRow, "has_more">[];
+      };
+      const messages = payload.data?.messages ?? payload.messages;
+      if (Array.isArray(messages) && messages.length > 0) {
+        return { messages: messages.slice(-limit), source: "cache-api" };
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  if (env.CHAT_HISTORY_CACHE) {
+    const cached = await env.CHAT_HISTORY_CACHE.get(
+      kvKey(input.userId, input.chatId, limit),
+      "json",
+    );
+    if (cached && typeof cached === "object") {
+      const messages = (cached as { messages?: Omit<MessageRow, "has_more">[] })
+        .messages;
+      if (Array.isArray(messages) && messages.length > 0) {
+        return { messages: messages.slice(-limit), source: "kv" };
+      }
+    }
+  }
+
+  const r2Latest = await readR2Archive(env, {
+    userId: input.userId,
+    chatId: input.chatId,
+    limit,
+    cursorId: null,
+    cursorCreatedAt: null,
+  });
+  if (r2Latest?.messages?.length) {
+    return {
+      messages: r2Latest.messages.slice(-limit),
+      source: "r2",
+    };
+  }
+
+  // Common warm sizes (20/80/500) — reuse a larger cached page when exact miss.
+  for (const warmLimit of [80, 500, 40, 20]) {
+    if (warmLimit === limit) continue;
+    if (env.CHAT_HISTORY_CACHE) {
+      const cached = await env.CHAT_HISTORY_CACHE.get(
+        kvKey(input.userId, input.chatId, warmLimit),
+        "json",
+      );
+      const messages = (
+        cached as { messages?: Omit<MessageRow, "has_more">[] } | null
+      )?.messages;
+      if (Array.isArray(messages) && messages.length > 0) {
+        return { messages: messages.slice(-limit), source: `kv-${warmLimit}` };
+      }
+    }
+    const r2 = await readR2Archive(env, {
+      userId: input.userId,
+      chatId: input.chatId,
+      limit: warmLimit,
+      cursorId: null,
+      cursorCreatedAt: null,
+    });
+    if (r2?.messages?.length) {
+      return {
+        messages: r2.messages.slice(-limit),
+        source: `r2-${warmLimit}`,
+      };
+    }
+  }
+
+  const messages = await fetchRecentMessages(env, {
+    chatId: input.chatId,
+    userId: input.userId,
+    limit,
+  });
+  return { messages, source: "hyperdrive" };
+}
+
 async function fetchChatList(
   env: Env,
   input: { userId: string; projectId: string | null; limit: number },
@@ -845,6 +967,48 @@ export default {
         });
       }
       return json({ ok: true }, 200, undefined, cors);
+    }
+
+    // Vercel generate path — cache-first recent turns (no user JWT required).
+    if (url.pathname === "/internal/recent" && request.method === "POST") {
+      if (!requireInternal(request, env)) {
+        return json({ error: "unauthorized" }, 401, undefined, cors);
+      }
+      const body = (await request.json().catch(() => ({}))) as {
+        userId?: string;
+        chatId?: string;
+        limit?: number;
+      };
+      if (!body.userId || !body.chatId) {
+        return json(
+          { error: "userId and chatId required" },
+          400,
+          undefined,
+          cors,
+        );
+      }
+      try {
+        const limit = Math.min(120, Math.max(1, Number(body.limit) || 40));
+        const loaded = await loadRecentMessagesPreferCache(env, {
+          userId: body.userId,
+          chatId: body.chatId,
+          limit,
+        });
+        return json(
+          {
+            data: {
+              messages: loaded.messages,
+              source: loaded.source,
+            },
+          },
+          200,
+          { "x-clauxen-cache": loaded.source },
+          cors,
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return json({ error: message }, 500, undefined, cors);
+      }
     }
 
     // Sidebar chat list. Mutable state is source-consistent by default; the

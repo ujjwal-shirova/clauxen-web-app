@@ -25,7 +25,7 @@ const GENERATION_ERROR_PREFIXES = [
 
 const TECHNICAL_PATTERNS: Array<{ test: RegExp; message: string }> = [
   {
-    test: /already generating|generation_in_progress|chat_turn_exists/i,
+    test: /already generating|generation_in_progress|chat_turn_exists|previous reply is still finishing|still finishing|message is saved and queued/i,
     message:
       "We couldn't start that reply just yet. Please try again in a moment.",
   },
@@ -34,7 +34,7 @@ const TECHNICAL_PATTERNS: Array<{ test: RegExp; message: string }> = [
     message: "Security check in progress. Please retry in a moment.",
   },
   {
-    test: /failed to fetch|networkerror|load failed|network request failed|stream ended|response stream ended|ECONNRESET|ETIMEDOUT|timeout/i,
+    test: /failed to fetch|networkerror|load failed|network request failed|stream ended|response stream ended|ECONNRESET|ETIMEDOUT|timeout|aborted|abort/i,
     message: "Connection was interrupted. Please try again.",
   },
   {

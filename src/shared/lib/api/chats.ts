@@ -41,7 +41,7 @@ async function listChatsViaWorker(projectId?: string): Promise<{
     const accessToken = await getSupabaseAccessTokenSingleflight();
     if (!accessToken) return null;
 
-    const params = new URLSearchParams({ limit: "50", fresh: "1" });
+    const params = new URLSearchParams({ limit: "50", fresh: "0" });
     if (projectId) params.set("projectId", projectId);
     const response = await fetch(`${base}/v1/chats?${params}`, {
       headers: {
@@ -120,7 +120,7 @@ async function listMessagesPageViaWorker(
     if (!accessToken) return null;
 
     const params = new URLSearchParams();
-    params.set("fresh", "1");
+    params.set("fresh", "0");
     if (input?.limit) params.set("limit", String(input.limit));
     if (input?.cursorId) params.set("cursor_id", input.cursorId);
     if (input?.cursorCreatedAt) {

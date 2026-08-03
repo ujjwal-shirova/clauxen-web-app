@@ -1,29 +1,60 @@
-import OpenAI from "openai";
+/**
+ * Project RAG embeddings via raw HTTP (no OpenAI SDK).
+ *
+ * Anthropic Messages does not expose an embeddings API. Project ingestion still
+ * needs vectors, so this uses a configurable OpenAI-compatible embeddings
+ * endpoint when EMBEDDING_API_KEY / OPENAI_API_KEY is set.
+ */
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const EMBEDDING_DIM = 1536;
 
-let openaiClient: OpenAI | null = null;
-
-function getOpenAI() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured.");
-  }
-  openaiClient ??= new OpenAI({ apiKey });
-  return openaiClient;
+function embeddingConfig() {
+  const apiKey =
+    process.env.EMBEDDING_API_KEY?.trim() ||
+    process.env.OPENAI_API_KEY?.trim() ||
+    "";
+  const baseUrl = (
+    process.env.EMBEDDING_BASE_URL?.trim() || "https://api.openai.com/v1"
+  ).replace(/\/+$/, "");
+  return { apiKey, baseUrl };
 }
 
 export async function embedText(text: string): Promise<number[]> {
-  const client = getOpenAI();
-  const response = await client.embeddings.create({
-    model: EMBEDDING_MODEL,
-    input: text,
-    dimensions: EMBEDDING_DIM,
+  const { apiKey, baseUrl } = embeddingConfig();
+  if (!apiKey) {
+    throw new Error(
+      "EMBEDDING_API_KEY (or OPENAI_API_KEY) is not configured for project embeddings.",
+    );
+  }
+
+  const response = await fetch(`${baseUrl}/embeddings`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: EMBEDDING_MODEL,
+      input: text,
+      dimensions: EMBEDDING_DIM,
+    }),
+    cache: "no-store",
   });
-  const vector = response.data[0]?.embedding;
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(
+      `Embedding request failed (${response.status}): ${detail.slice(0, 200)}`,
+    );
+  }
+
+  const payload = (await response.json()) as {
+    data?: Array<{ embedding?: number[] }>;
+  };
+  const vector = payload.data?.[0]?.embedding;
   if (!vector || vector.length !== EMBEDDING_DIM) {
-    throw new Error("Invalid embedding response from OpenAI.");
+    throw new Error("Invalid embedding response.");
   }
   return vector;
 }

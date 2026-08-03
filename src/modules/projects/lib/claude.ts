@@ -1,18 +1,21 @@
-import OpenAI from "openai";
-import { env, requireNovitaApiKey } from "@/server/config/env";
+import Anthropic from "@anthropic-ai/sdk";
+import {
+  env,
+  requireProviderApiKey,
+  requireAnthropicBaseUrl,
+} from "@/server/config/env";
 import { MODEL_CONFIG } from "@/lib/model-config";
 
 const DEFAULT_MODEL = MODEL_CONFIG.models.helios.defaultSlug;
 
-let openAiClient: OpenAI | null = null;
+let anthropicClient: Anthropic | null = null;
 
-function getOpenAi() {
-  const apiKey = requireNovitaApiKey();
-  openAiClient ??= new OpenAI({
-    apiKey,
-    baseURL: env.novitaOpenAiBaseUrl.replace(/\/+$/, ""),
+function getAnthropic() {
+  anthropicClient ??= new Anthropic({
+    apiKey: requireProviderApiKey(),
+    baseURL: requireAnthropicBaseUrl(),
   });
-  return openAiClient;
+  return anthropicClient;
 }
 
 export type StreamMessage = {
@@ -27,31 +30,25 @@ export async function streamClaudeResponse(options: {
   thinkingLevel?: string;
   onToken: (token: string) => void;
 }) {
-  const client = getOpenAi();
-  const model = options.model ?? DEFAULT_MODEL;
+  const client = getAnthropic();
+  const model = options.model ?? env.defaultModel ?? DEFAULT_MODEL;
 
-  const stream = await client.chat.completions.create({
+  const stream = client.messages.stream({
     model,
     max_tokens: 8192,
-    stream: true,
-    messages: [
-      ...(options.system
-        ? [{ role: "system" as const, content: options.system }]
-        : []),
-      ...options.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    ],
+    ...(options.system ? { system: options.system } : {}),
+    messages: options.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    })),
   });
 
   let fullText = "";
-  for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta?.content;
-    if (!delta) continue;
+  stream.on("text", (delta) => {
     fullText += delta;
     options.onToken(delta);
-  }
+  });
 
+  await stream.finalMessage();
   return fullText;
 }

@@ -20,12 +20,13 @@ import {
   tapChatSseStream,
   type IncomingMessage,
 } from "@/server/inference/novita";
-import { generateOpenAiTitle } from "@/server/inference/openai-stream";
+import { generateChatTitle as generateAnthropicChatTitle } from "@/server/agent-core";
 import { resolveInferenceRoute } from "@/lib/inference-routing";
 import { parseChatModelId } from "@/lib/model-catalog";
 import { logInferenceTelemetry } from "@/server/telemetry/inference-log";
 import { query } from "@/server/db/pool";
 import * as billingService from "@/server/services/billing.service";
+import { listRecentMessagesPreferCloudflare } from "@/server/chat/recent-messages";
 import {
   normalizeInlineChatTitle,
   finalizeChatTitleStrippedAnswer,
@@ -335,14 +336,16 @@ export async function streamChatGeneration(input: {
   extendedThinking?: boolean;
   onPauseForUser?: () => void | Promise<void>;
 }) {
-  // Kick ownership + personalization + history immediately so DB RTTs overlap
-  // SSE flush and the DO lease — never block Response headers on them.
+  // Kick ownership + personalization + history immediately so Worker/DB RTTs
+  // overlap SSE flush and the DO lease — never block Response headers on them.
+  // History prefers Cloudflare cache (not direct Supabase) on every continue.
   const chatPromise = chatsRepo.getChatForUser(input.chatId, input.userId);
   const personalizationPromise = loadChatStreamPersonalization(input.userId);
-  const historyPromise = messagesRepo.listRecentMessagesForChat(
-    input.chatId,
-    40,
-  );
+  const historyPromise = listRecentMessagesPreferCloudflare({
+    chatId: input.chatId,
+    userId: input.userId,
+    limit: 40,
+  });
 
   const clientConversation = sanitizeMessages(input.messages).filter(
     (message) => message.content.trim().length > 0,
@@ -511,7 +514,9 @@ export async function streamChatGeneration(input: {
         if (turnFailure) throw turnFailure;
 
         const [dbRecent, personalization] = await Promise.all([
-          withBudget(historyPromise, [], CHAT_CONTEXT_BUDGET_MS),
+          // Worker cache is usually <50ms; allow a bit more than personalization
+          // so continued chats keep prior turns without timing out to [].
+          withBudget(historyPromise, [], Math.max(CHAT_CONTEXT_BUDGET_MS, 450)),
           withBudget(
             personalizationPromise,
             EMPTY_CHAT_PERSONALIZATION,
@@ -919,7 +924,7 @@ export async function generateChatTitle(
 
   let title: string;
   try {
-    title = await generateOpenAiTitle(messages);
+    title = await generateAnthropicChatTitle(messages);
   } catch {
     title = "";
   }

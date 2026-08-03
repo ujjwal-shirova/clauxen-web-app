@@ -9,6 +9,7 @@ import * as messagesRepo from "@/server/repositories/messages.repository";
 /**
  * Prefer Cloudflare chat-history Worker (Cache API → KV → R2 → Hyperdrive)
  * when configured; otherwise query Postgres directly via the RPC.
+ * Uses fresh=0 so warm caches serve continues without Hyperdrive/Supabase.
  * Latest pages are pair-aligned so the client never needs a second fetch.
  */
 export async function listMessagesPagePreferEdge(input: {
@@ -23,7 +24,7 @@ export async function listMessagesPagePreferEdge(input: {
   if (workerBase && input.accessToken) {
     try {
       const params = new URLSearchParams();
-      params.set("fresh", "1");
+      params.set("fresh", "0");
       if (input.limit) params.set("limit", String(input.limit));
       if (input.cursorId) params.set("cursor_id", input.cursorId);
       if (input.cursorCreatedAt) {

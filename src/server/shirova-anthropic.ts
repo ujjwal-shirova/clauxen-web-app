@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { env, requireNovitaApiKey } from "@/server/config/env";
+import {
+  env,
+  requireProviderApiKey,
+  requireAnthropicBaseUrl,
+} from "@/server/config/env";
 
 function getAllowedGatewayKeys() {
   return [
@@ -28,11 +32,11 @@ async function readUpstreamError(response: Response) {
   try {
     return await response.text();
   } catch {
-    return JSON.stringify({ error: "Novita Anthropic request failed." });
+    return JSON.stringify({ error: "Anthropic Messages request failed." });
   }
 }
 
-/** Proxies authenticated Shirova clients to Novita's Anthropic Messages API. */
+/** Proxies authenticated Shirova clients to the Provider Anthropic Messages API. */
 export async function handleShirovaMessagesPost(request: Request) {
   try {
     if (!authorizeGatewayRequest(request)) {
@@ -45,12 +49,15 @@ export async function handleShirovaMessagesPost(request: Request) {
       );
     }
 
-    const body = await request.json();
-    const apiKey = requireNovitaApiKey();
-    const upstream = await fetch(`${env.novitaOpenAiBaseUrl.replace(/\/+$/, "")}/v1/chat/completions`, {
+    const body = (await request.json()) as Record<string, unknown>;
+    const apiKey = requireProviderApiKey();
+    const anthropicBase = requireAnthropicBaseUrl().replace(/\/+$/, "");
+    const upstream = await fetch(`${anthropicBase}/v1/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

@@ -12,15 +12,15 @@ export const MODEL_CONFIG = {
   // ==========================================
   endpoints: {
     /**
-     * Last-resort OpenAI-compatible base URL when Provider_BASE_URL is unset.
-     * Prefer Provider_BASE_URL in Vercel / .env.local.
+     * Last-resort Provider base URL when Provider_BASE_URL is unset.
+     * Prefer Provider_BASE_URL in Vercel / .env.local (…/openai or …/anthropic).
      */
     providerOpenAiBaseUrl: "",
 
     /** @deprecated Prefer Provider_BASE_URL */
     novitaOpenAiBaseUrl: "",
 
-    /** @deprecated Prefer Provider_BASE_URL for OpenAI-compatible traffic */
+    /** @deprecated Prefer Provider_BASE_URL; Anthropic path is derived server-side */
     novitaAnthropicBaseUrl: "",
 
     /** @deprecated */

@@ -28,6 +28,7 @@ import {
   parseHomerReasoningEffort,
   type HomerReasoningEffort,
 } from "@/lib/model-effort";
+import { toUserFacingChatError } from "@/lib/assistant-generation-error";
 
 export type ChatStreamPersonalizationBundle = {
   personalizationAppend: string;
@@ -244,10 +245,11 @@ export async function createChatStream(
 
       await runAutonomousAgent(sse, agentOptions);
     } catch (error) {
-      const message =
+      const message = toUserFacingChatError(
         error instanceof Error && error.message.trim()
           ? error.message
-          : "Something unexpected happened. Please try again.";
+          : error,
+      );
       try {
         sse.writeError(message);
         sse.writeDone();

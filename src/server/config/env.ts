@@ -106,8 +106,9 @@ export const env = {
   novitaApiKey: providerApiKey,
 
   novitaAnthropicBaseUrl: resolveAnthropicBaseUrl(),
+  /** @deprecated Gateway host often ends in /openai; Anthropic path is derived. */
   novitaOpenAiBaseUrl: providerOpenAiBaseUrl,
-  /** Alias for OpenAI-compatible provider base URL. */
+  /** Provider base URL (may be …/openai); use requireAnthropicBaseUrl for Messages. */
   providerBaseUrl: providerOpenAiBaseUrl,
 
   /** Homer — uses Provider_Model_Clauxen_V1 unless a legacy override exists. */
@@ -127,6 +128,11 @@ export const env = {
     firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.thinking.envKey),
     MODEL_CONFIG.models.thinking.defaultSlug,
   ),
+  fastModel: normalizeUpstreamModelSlug(
+    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.fast.envKey),
+    MODEL_CONFIG.models.fast.defaultSlug,
+  ),
+  /** @deprecated Use fastModel */
   openAiFastModel: normalizeUpstreamModelSlug(
     firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.fast.envKey),
     MODEL_CONFIG.models.fast.defaultSlug,
@@ -143,6 +149,9 @@ export const env = {
   falKey: optional("FAL_KEY"),
   parallelApiKey: optional("PARALLEL_API_KEY"),
   googlePlacesApiKey: optional("GOOGLE_PLACES_API_KEY"),
+  /** Optional embeddings key for project RAG (not used for chat). */
+  embeddingApiKey: firstOptional("EMBEDDING_API_KEY", "OPENAI_API_KEY"),
+  /** @deprecated Prefer embeddingApiKey */
   openAiApiKey: optional("OPENAI_API_KEY"),
   /** AssemblyAI Streaming v3 key. Exact Vercel name requested by the app owner. */
   assemblyAiApiKey: firstOptional(

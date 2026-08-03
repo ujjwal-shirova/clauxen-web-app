@@ -6,6 +6,7 @@ import { applyAgentStreamEvent } from "@/lib/agent-stream-reducer";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
 import {
   EMPTY_ASSISTANT_RESPONSE_FALLBACK,
+  USER_FACING_CHAT_ERROR,
   hasUsefulAssistantProgress,
   toUserFacingChatError,
 } from "@/lib/assistant-generation-error";
@@ -1678,7 +1679,24 @@ export function useChatApi(
             return;
           }
           if (event.type === "error") {
-            throw new Error(event.message);
+            // Soft-complete when the turn already painted tools/answer —
+            // a mid-continue provider blip must not wipe the conversation.
+            const existing = (allChatsRef.current[chatId] ?? []).find(
+              (m) =>
+                m.id === targetAssistantId ||
+                m.clientId === assistantClientId,
+            );
+            if (existing && hasUsefulAssistantProgress(existing)) {
+              patchAssistantMessage(chatId, targetAssistantId, (message) => ({
+                ...message,
+                isStreaming: false,
+                isThinkingStreaming: false,
+                agentFrameComplete: true,
+                generationFailed: false,
+              }));
+              return;
+            }
+            throw new Error(event.message || USER_FACING_CHAT_ERROR);
           }
           if (
             event.type === "tool_end" &&
