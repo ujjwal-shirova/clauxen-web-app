@@ -2,14 +2,14 @@
 
 import { useEffect, useRef } from "react";
 
-/** Soften first-token paint: settle sooner once any chunk lands. */
-const MIN_DURATION_MS = 32;
-const MAX_DURATION_MS = 78;
-const FAST_GAP_MS = 20;
+/** Soften first-token paint — visible enough to read as typing, short enough to feel live. */
+const MIN_DURATION_MS = 55;
+const MAX_DURATION_MS = 160;
+const FAST_GAP_MS = 28;
 
 /**
  * Duration scales with inter-chunk gap so animation speed tracks the model's
- * token rate. Kept short enough that fast streams feel live.
+ * token rate. Kept perceptible so streams never look like a static dump.
  */
 export function computeStreamTokenDurationMs(
   elapsedSinceLastChunk: number,
@@ -17,27 +17,27 @@ export function computeStreamTokenDurationMs(
 ): number {
   let duration: number;
 
-  // After a long pause (tools / thinking), catch up instantly — long fades
+  // After a long pause (tools / thinking), catch up quickly — long fades
   // after tool rounds feel laggy and unresponsive.
   if (elapsedSinceLastChunk > 400) {
-    return 55;
+    return 90;
   }
 
   if (elapsedSinceLastChunk <= 0) {
-    duration = 64;
+    duration = 110;
   } else if (elapsedSinceLastChunk < FAST_GAP_MS) {
     duration = Math.max(
       MIN_DURATION_MS,
-      Math.min(90, 48 + elapsedSinceLastChunk * 1.5),
+      Math.min(140, 70 + elapsedSinceLastChunk * 2),
     );
   } else {
     duration = Math.min(
       MAX_DURATION_MS,
-      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.2),
+      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.35),
     );
   }
 
-  const sizeBoost = Math.min(6, Math.sqrt(Math.max(0, chunkLength)) * 1.0);
+  const sizeBoost = Math.min(18, Math.sqrt(Math.max(0, chunkLength)) * 1.6);
   return Math.round(
     Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, duration + sizeBoost)),
   );
@@ -184,10 +184,10 @@ export function StreamingTokenReveal({
     const deltaLength = Math.max(0, text.length - prefixLen);
     const elapsed = session.lastAt > 0 ? now - session.lastAt : 0;
 
-    // Large non-growth rewrites (citation reshuffle / AST remount) must not
-    // re-animate the whole body — that is the gray↔white flicker.
-    const settleWithoutFade =
-      !isGrowth && (prefixLen === 0 || deltaLength > 48 || previous.length > 0);
+    // Large zero-overlap rewrites (citation reshuffle / AST remount) must not
+    // re-animate the whole body — that is the gray↔white flicker. Partial
+    // overlap still fades the delta so live streams stay visible.
+    const settleWithoutFade = !isGrowth && prefixLen === 0 && deltaLength > 64;
 
     if (settleWithoutFade) {
       session.settled = text;

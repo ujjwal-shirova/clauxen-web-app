@@ -280,12 +280,14 @@ function collapseDuplicateUserMessages(messages: Message[]): Message[] {
  * pair chronologically. Total order: dated rows first by createdAt; rows
  * sharing a persisted timestamp put the user before its assistant (they are
  * written in one DB transaction); undated rows keep insertion order last.
+ * Then fix remaining assistant→user inversions within the pairing window so a
+ * user bubble never sits below its own answer.
  */
 export function healChatMessageOrder(
   messages: readonly Message[],
 ): Message[] {
   if (messages.length <= 1) return [...messages];
-  return messages
+  const sorted = messages
     .map((message, index) => ({ message, index }))
     .sort((a, b) => {
       const aTime = a.message.createdAt;
@@ -302,6 +304,55 @@ export function healChatMessageOrder(
       return a.index - b.index;
     })
     .map(({ message }) => message);
+
+  return healInvertedUserAssistantPairs(sorted);
+}
+
+/**
+ * When a durable user row lands after its assistant (realtime/hydrate race),
+ * timestamps often differ by a few ms — equal-stamp sorting alone misses it.
+ * Walk adjacent assistant→user inversions and swap when they belong together.
+ */
+export function healInvertedUserAssistantPairs(
+  messages: readonly Message[],
+): Message[] {
+  if (messages.length <= 1) return [...messages];
+  const out = [...messages];
+
+  for (let i = 0; i < out.length - 1; i += 1) {
+    const cur = out[i]!;
+    const next = out[i + 1]!;
+    if (cur.role !== "assistant" || next.role !== "user") continue;
+
+    const prev = i > 0 ? out[i - 1]! : null;
+    // Already has a leading user — this assistant is mid-turn progress.
+    if (prev?.role === "user") continue;
+    if (!shouldPairUserWithAssistant(next, cur)) continue;
+
+    out[i] = next;
+    out[i + 1] = cur;
+    // Re-check one step back in case of A, A, U chains.
+    i = Math.max(-1, i - 2);
+  }
+
+  return out;
+}
+
+function shouldPairUserWithAssistant(
+  user: Message,
+  assistant: Message,
+): boolean {
+  if (user.role !== "user" || assistant.role !== "assistant") return false;
+  if (isLiveStreaming(assistant) || !assistant.content.trim()) return true;
+
+  const userTime = user.createdAt;
+  const assistantTime = assistant.createdAt;
+  if (typeof userTime === "number" && typeof assistantTime === "number") {
+    return Math.abs(userTime - assistantTime) <= SAME_USER_MESSAGE_WINDOW_MS;
+  }
+
+  // Undated optimistic rows: only pair with empty/live assistants.
+  return false;
 }
 
 function collapseConsecutiveDuplicates(messages: Message[]): Message[] {

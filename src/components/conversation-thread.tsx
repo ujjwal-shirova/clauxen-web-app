@@ -102,7 +102,39 @@ function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
       groups.push({ userMessage: null, assistantMessages: [msg] });
     }
   }
-  return groups;
+  return healOrphanedAssistantTurns(groups);
+}
+
+/**
+ * Safety net: if an assistant turn has no user and the next turn is a lone
+ * user bubble (realtime appended the user after the answer), re-pair them.
+ */
+function healOrphanedAssistantTurns(
+  groups: ConversationTurnGroup[],
+): ConversationTurnGroup[] {
+  if (groups.length <= 1) return groups;
+  const out: ConversationTurnGroup[] = [];
+
+  for (let i = 0; i < groups.length; i += 1) {
+    const group = groups[i]!;
+    const next = groups[i + 1];
+    if (
+      !group.userMessage &&
+      group.assistantMessages.length > 0 &&
+      next?.userMessage &&
+      next.assistantMessages.length === 0
+    ) {
+      out.push({
+        userMessage: next.userMessage,
+        assistantMessages: group.assistantMessages,
+      });
+      i += 1;
+      continue;
+    }
+    out.push(group);
+  }
+
+  return out;
 }
 
 const RetryIcon = () => (
@@ -300,23 +332,25 @@ const MessageRow = React.memo(
                   aria-expanded={userExpanded}
                   data-user-expanded={userExpanded || undefined}
                 >
-                  <HintTooltip content="Edit message" side="left">
-                    <button
-                      type="button"
-                      aria-label="Edit message"
-                      className="user-message-card__edit-btn no-hover-overlay flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onStartEdit(message);
-                      }}
-                      onKeyDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                    >
-                      <SquarePen className="size-4" strokeWidth={1.75} />
-                    </button>
-                  </HintTooltip>
+                  <div className="user-message-card__edit">
+                    <HintTooltip content="Edit message" side="left">
+                      <button
+                        type="button"
+                        aria-label="Edit message"
+                        className="user-message-card__edit-btn no-hover-overlay flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onStartEdit(message);
+                        }}
+                        onKeyDown={(event) => {
+                          event.stopPropagation();
+                        }}
+                      >
+                        <SquarePen className="size-4" strokeWidth={1.75} />
+                      </button>
+                    </HintTooltip>
+                  </div>
                   {message.attachments && message.attachments.length > 0 ? (
                     <div className="mb-2 flex flex-wrap gap-1.5">
                       {message.attachments.map((attachment) => (

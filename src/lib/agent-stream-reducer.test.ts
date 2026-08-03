@@ -65,6 +65,8 @@ describe("agent stream reducer transcript channels", () => {
       segmentId: "narration-1",
       delta: "This became the final answer.",
     });
+    // Tokens mirror into content while streaming so the answer body paints live.
+    assert.equal(message.content, "This became the final answer.");
     message = applyAgentStreamEvent(message, {
       type: "answer_finalize",
       segmentId: "narration-1",
@@ -91,12 +93,15 @@ describe("agent stream reducer transcript channels", () => {
       segmentId: "narration-1",
       delta: "Fetching the docs.",
     });
+    assert.equal(message.content, "Fetching the docs.");
     message = applyAgentStreamEvent(message, {
       type: "tool_start",
       toolCallId: "tool-1",
       name: "web_fetch",
       args: { url: "https://example.com" },
     });
+    // Pre-tool mirror cleared so interim prose is not the final answer.
+    assert.equal(message.content, "");
     message = applyAgentStreamEvent(message, {
       type: "tool_end",
       toolCallId: "tool-1",

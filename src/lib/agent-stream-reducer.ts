@@ -318,6 +318,7 @@ export function applyAgentStreamEvent(
       agentMode = true;
       const segmentKind =
         event.type === "narration_delta" ? "narration" : "text";
+      let mirroredContent: string | null = null;
       state = withSegments(state, (segments) => {
         const existing = segments.find(
           (
@@ -329,15 +330,35 @@ export function applyAgentStreamEvent(
             segment.id === event.segmentId &&
             (segment.kind === "narration" || segment.kind === "text"),
         );
-        return upsertSegment(segments, {
+        const nextContent = `${existing?.content ?? ""}${event.delta}`;
+        const nextSegments = upsertSegment(segments, {
           kind: existing?.kind ?? segmentKind,
           id: event.segmentId,
-          content: `${existing?.content ?? ""}${event.delta}`,
+          content: nextContent,
           isStreaming: true,
           isFinal: existing?.kind === "narration" ? existing.isFinal : undefined,
         });
+        // Mirror into message.content while no tool/thinking is live so the
+        // answer body streams token-by-token (finalize must not teleport a dump).
+        const hasLiveWork = nextSegments.some(
+          (segment) =>
+            (segment.kind === "tool" && segment.status === "running") ||
+            (segment.kind === "thinking" && segment.isStreaming === true),
+        );
+        if (!hasLiveWork) {
+          mirroredContent = nextContent;
+        }
+        return nextSegments;
       });
-      return syncFrameState(state, { agentMode, isStreaming: true });
+      if (mirroredContent != null) {
+        content = mirroredContent;
+      }
+      return syncFrameState(state, {
+        agentMode,
+        content,
+        isThinkingStreaming: false,
+        isStreaming: true,
+      });
     }
 
     case "answer_finalize": {
@@ -494,6 +515,28 @@ export function applyAgentStreamEvent(
 
     case "tool_start": {
       agentMode = true;
+      // Pre-tool narration may have been mirrored into content. Clear it so
+      // interim prose does not flash as the final answer above the tool row.
+      if (content.trim()) {
+        const segments =
+          state.frames[state.frameIdx]?.segments ??
+          state.message.agentSegments ??
+          [];
+        const lastNarration = [...segments]
+          .reverse()
+          .find(
+            (segment) =>
+              segment.kind === "narration" || segment.kind === "text",
+          );
+        if (
+          lastNarration &&
+          (lastNarration.kind === "narration" ||
+            lastNarration.kind === "text") &&
+          content.trim() === lastNarration.content.trim()
+        ) {
+          content = "";
+        }
+      }
       state = withSegments(state, (segments) => {
         const existingTool = segments.find(
           (segment): segment is AgentToolSegment =>

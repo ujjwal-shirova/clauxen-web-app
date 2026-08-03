@@ -173,10 +173,16 @@ export function shouldUseAgentMessageLayout(message: Message): boolean {
  * True when trailing content is an *exact* copy of a progress narration note
  * (legacy duplication). The promoted final segment (isFinal) IS the answer —
  * it must never suppress the answer render.
+ *
+ * Live mirrored final-round narration (streamed into `content` before
+ * answer_finalize) also must not suppress — that is how tokens paint in the
+ * answer body instead of teleporting in as a dump on finalize.
  */
 export function agentAnswerDuplicatesInterim(message: Message): boolean {
   const trailing = message.content.trim();
   if (!trailing) return false;
+  if (isLiveMirroredAnswer(message)) return false;
+
   return resolveAgentFrames(message).some((frame) =>
     frame.segments.some(
       (segment) =>
@@ -185,6 +191,65 @@ export function agentAnswerDuplicatesInterim(message: Message): boolean {
         segment.content.trim() === trailing,
     ),
   );
+}
+
+/**
+ * Narration currently mirrored into `message.content` as the live answer.
+ * Used to hide the duplicate interim note while the answer body streams.
+ */
+export function isLiveMirroredAnswer(message: Message): boolean {
+  if (message.isStreaming !== true) return false;
+  const trailing = message.content.trim();
+  if (!trailing) return false;
+
+  const segments = resolveAgentFrames(message).flatMap(
+    (frame) => frame.segments,
+  );
+  if (
+    segments.some(
+      (segment) =>
+        (segment.kind === "tool" && segment.status === "running") ||
+        (segment.kind === "thinking" && segment.isStreaming === true),
+    )
+  ) {
+    return false;
+  }
+
+  const matchIndex = [...segments]
+    .map((segment, index) => ({ segment, index }))
+    .reverse()
+    .find(
+      ({ segment }) =>
+        (segment.kind === "narration" || segment.kind === "text") &&
+        segment.content.trim() === trailing &&
+        (segment.isStreaming === true ||
+          (segment.kind === "narration" && segment.isFinal === true)),
+    )?.index;
+  if (matchIndex == null) return false;
+
+  const hasToolBefore = segments
+    .slice(0, matchIndex)
+    .some((segment) => segment.kind === "tool");
+  const hasAnyTool = segments.some((segment) => segment.kind === "tool");
+  return !hasAnyTool || hasToolBefore;
+}
+
+/** Stable stream key for the answer body — prefers the narration segment id. */
+export function resolveAnswerStreamKey(message: Message): string {
+  const trailing = message.content.trim();
+  if (trailing) {
+    for (const frame of resolveAgentFrames(message)) {
+      for (const segment of frame.segments) {
+        if (
+          (segment.kind === "narration" || segment.kind === "text") &&
+          segment.content.trim() === trailing
+        ) {
+          return segment.id;
+        }
+      }
+    }
+  }
+  return `${message.id}-answer`;
 }
 
 /**

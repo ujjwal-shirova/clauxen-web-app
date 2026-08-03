@@ -4,8 +4,10 @@ import type { Message } from "@/lib/types";
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
 import {
   agentAnswerDuplicatesInterim,
+  isLiveMirroredAnswer,
   mergeAgentFramesForDisplay,
   resolveAgentFrames,
+  resolveAnswerStreamKey,
 } from "@/lib/agent-frames";
 import { groupAgentWorkItems } from "@/lib/agent-work-groups";
 import { AssistantContentRenderer } from "@/components/assistant-content-renderer";
@@ -142,6 +144,8 @@ export function AgentOrchestrationView({
   });
   const suppressDuplicateAnswer =
     answer.length > 0 && agentAnswerDuplicatesInterim(message);
+  const hideMirroredNarration = isLiveMirroredAnswer(message);
+  const answerStreamKey = resolveAnswerStreamKey(message);
 
   const workFrames = frames.filter((frame) =>
     hasVisibleWork(traceSegments(frame.segments)),
@@ -179,6 +183,13 @@ export function AgentOrchestrationView({
               // Narration sits outside activity controls — plain prose between
               // work groups, never nested under a fold header.
               if (item.kind === "narration") {
+                // Live mirrored answer already paints in the answer body.
+                if (
+                  hideMirroredNarration &&
+                  item.segment.content.trim() === answer
+                ) {
+                  return null;
+                }
                 return (
                   <AgentNarrationNote
                     key={item.segment.id}
@@ -227,7 +238,7 @@ export function AgentOrchestrationView({
               content={message.content}
               messageId={message.id}
               isStreaming={streaming}
-              streamKey={`${message.id}-answer`}
+              streamKey={answerStreamKey}
               detailLevel={detailLevel}
               agentArtifacts={message.agentArtifacts}
               {...({ sources } as any)}

@@ -180,4 +180,26 @@ describe("dedupeChatMessages", () => {
       ["u1", "a1", "u2", "a2"],
     );
   });
+
+  it("heals user appended after assistant when timestamps differ slightly", () => {
+    const stamp = 1_700_000_000_000;
+    const result = dedupeChatMessages([
+      msg({
+        id: "a1",
+        role: "assistant",
+        content: "I was built by Shirova AI…",
+        createdAt: stamp + 40,
+      }),
+      msg({
+        id: "u1",
+        role: "user",
+        content: "so who made you and what makes you different than chatgpt",
+        createdAt: stamp + 120,
+      }),
+    ]);
+    assert.deepEqual(
+      result.map((m) => m.id),
+      ["u1", "a1"],
+    );
+  });
 });

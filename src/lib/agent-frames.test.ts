@@ -135,4 +135,31 @@ describe("agentAnswerDuplicatesInterim", () => {
 
     assert.equal(agentAnswerDuplicatesInterim(message), false);
   });
+
+  it("does not suppress live mirrored answer narration while streaming", () => {
+    const answer = "I was built by Shirova AI.";
+    const message: Message = {
+      id: "m-live",
+      role: "assistant",
+      content: answer,
+      isStreaming: true,
+      agentFrames: [
+        {
+          id: "f1",
+          complete: false,
+          startedAtMs: 1,
+          segments: [
+            {
+              kind: "narration",
+              id: "n-live",
+              content: answer,
+              isStreaming: true,
+            },
+          ],
+        },
+      ],
+    };
+
+    assert.equal(agentAnswerDuplicatesInterim(message), false);
+  });
 });

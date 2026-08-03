@@ -1091,10 +1091,12 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 
 @keyframes stream-token-fade {
   from {
-    opacity: 0.72;
+    opacity: 0.18;
+    filter: blur(2.5px);
   }
   to {
     opacity: 1;
+    filter: blur(0);
   }
 }
 
@@ -1103,7 +1105,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: stream-token-fade;
-  animation-duration: 48ms;
+  animation-duration: 110ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
   backface-visibility: hidden;
@@ -1554,18 +1556,34 @@ button.user-message-card__body:not(:disabled):hover,
   );
 }
 
-/* Hover edit affordance — pinned top-right inside the card */
-.user-message-card__edit-btn {
+/* Hover edit affordance — wrapper is the absolute top-right anchor so
+   TooltipTrigger/asChild cannot pull the control into document flow. */
+.user-message-card__edit {
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.user-message-card__edit-btn {
+  position: relative;
+  top: auto;
+  right: auto;
   opacity: 0;
   pointer-events: none;
   transition:
     opacity 0.15s ease,
     background-color 0.15s ease,
     color 0.15s ease;
+}
+
+.user-message-card:hover .user-message-card__edit,
+.user-message-card:focus-within .user-message-card__edit {
+  pointer-events: auto;
 }
 
 .user-message-card:hover .user-message-card__edit-btn,
