@@ -38,19 +38,22 @@ Clauxen is an AI-powered chat platform built on Next.js — multi-model conversa
 | `src/app/` | Next.js App Router — pages and `/api` route handlers |
 | `src/components/` | React UI (incl. `components/agent/` chat transcript) |
 | `src/hooks/`, `src/contexts/`, `src/stores/` | Client hooks and providers |
+| `src/features/` | Feature modules (e.g. dictation) that own their UI+logic |
 | `src/lib/` | Shared client + isomorphic helpers |
-| `src/styles/` | Global CSS fragments imported by `globals.css` |
+| `src/app/globals.css` | Single product chrome stylesheet (tokens, pages, chat, menus) |
 | `src/marketing/` | Marketing site components and content |
-| `src/prompts/` | Model system prompts (`virgil.md`) + personalization `.md` |
+| `src/prompts/` | Model system prompts + personalization `.md` |
 | `src/server/` | Server-only services, repos, inference, auth, billing |
 | `src/server/agent-core/` | Chat agent loop (Provider Messages + tools) |
 | `src/projects/` | Project RAG pipeline (ingestion, chunking, embeddings) |
+| `src/workers/` | Browser workers (e.g. search) |
 | `src/utils/supabase/` | Browser/server/middleware Supabase clients |
 | `supabase/` | Supabase config and SQL migrations |
-| `workers/` | Cloudflare Workers (chat-history, r2-gateway, etc.) |
+| `workers/` | Cloudflare Workers (chat-history, r2-gateway, chat-coord, …) |
 | `scripts/` | Deploy, env sync, seed scripts, ingestion worker |
 | `skills/` | Agent skills (symlinked to `.cursor/skills/`) |
 | `docs/` | Architecture and operations documentation |
+| `brain/` | Persistent agent memory for this repo |
 
 ## Getting started
 

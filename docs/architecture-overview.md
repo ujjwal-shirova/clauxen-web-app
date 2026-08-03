@@ -56,7 +56,8 @@ It is **not** a thin chat wrapper. The product spans three cloud platforms with 
 | `src/app/` | Next.js routes: pages under `(main)`, auth, checkout, share; all `/api` handlers |
 | `src/components/` | React UI (`components/agent/` = chat transcript) |
 | `src/hooks/`, `src/contexts/`, `src/stores/` | Client hooks and providers |
-| `src/lib/`, `src/styles/` | Shared helpers and CSS fragments |
+| `src/lib/` | Shared helpers |
+| `src/app/globals.css` | Product chrome SSOT (tokens + utilities) |
 | `src/marketing/` | Marketing site components and content |
 | `src/server/` | Server services, repositories, inference, auth, billing, storage, db pool |
 | `src/server/agent-core/` | Chat agent loop (Provider Messages + tools) |

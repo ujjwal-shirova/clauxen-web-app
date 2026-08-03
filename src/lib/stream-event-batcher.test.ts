@@ -23,10 +23,16 @@ describe("createStreamEventBatcher", () => {
   });
 
   after(() => {
-    if (previousRaf) g.requestAnimationFrame = previousRaf;
-    else delete g.requestAnimationFrame;
-    if (previousCancel) g.cancelAnimationFrame = previousCancel;
-    else delete g.cancelAnimationFrame;
+    if (previousRaf) {
+      g.requestAnimationFrame = previousRaf;
+    } else {
+      Reflect.deleteProperty(g, "requestAnimationFrame");
+    }
+    if (previousCancel) {
+      g.cancelAnimationFrame = previousCancel;
+    } else {
+      Reflect.deleteProperty(g, "cancelAnimationFrame");
+    }
   });
 
   it("cancel drops pending events without flushing", async () => {
