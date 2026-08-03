@@ -129,18 +129,21 @@ function renderGroupMembers(
 export function AgentOrchestrationView({
   message,
   detailLevel,
+  chatIsGenerating = false,
 }: {
   message: Message;
   detailLevel: MessageDetailLevel;
+  chatIsGenerating?: boolean;
 }) {
   const frames = mergeAgentFramesForDisplay(resolveAgentFrames(message));
   const sources = collectMessageSources(message);
-  const streaming = message.isStreaming === true;
+  const streaming = message.isStreaming === true && chatIsGenerating;
   const answer = message.content.trim();
   const answerStreaming = streaming && answer.length > 0;
   const showOrb = shouldShowAssistantStreamingOrb({
     isStreaming: streaming,
     answerStreaming,
+    chatIsGenerating,
   });
   const suppressDuplicateAnswer =
     answer.length > 0 && agentAnswerDuplicatesInterim(message);

@@ -15,14 +15,16 @@ import { collectMessageSources } from "@/lib/chat-sources";
 export function AgentMessageContent({
   message,
   detailLevel,
+  chatIsGenerating = false,
 }: {
   message: Message;
   detailLevel: MessageDetailLevel;
+  chatIsGenerating?: boolean;
 }) {
   const hasAgentUi = shouldUseAgentMessageLayout(message);
 
   if (!hasAgentUi) {
-    const streaming = message.isStreaming === true;
+    const streaming = message.isStreaming === true && chatIsGenerating;
     const hasThinking =
       message.hasThinking ||
       (message.thinkingContent?.trim().length ?? 0) > 0;
@@ -30,6 +32,7 @@ export function AgentMessageContent({
     const showOrb = shouldShowAssistantStreamingOrb({
       isStreaming: streaming,
       answerStreaming,
+      chatIsGenerating,
     });
     // Inline citation chips only — no auto bottom source-card strip.
     const sources = collectMessageSources(message);
@@ -44,7 +47,7 @@ export function AgentMessageContent({
         {hasThinking ? (
           <ThinkingBlock
             content={message.thinkingContent}
-            isStreaming={!!message.isThinkingStreaming}
+            isStreaming={!!message.isThinkingStreaming && chatIsGenerating}
             thinkingDurationSeconds={message.thinkingDurationSeconds}
             thinkingStartedAtMs={message.thinkingStartedAtMs}
             className="mb-4"
@@ -81,7 +84,11 @@ export function AgentMessageContent({
 
   return (
     <div className="w-full min-w-0">
-      <AgentOrchestrationView message={message} detailLevel={detailLevel} />
+      <AgentOrchestrationView
+        message={message}
+        detailLevel={detailLevel}
+        chatIsGenerating={chatIsGenerating}
+      />
     </div>
   );
 }

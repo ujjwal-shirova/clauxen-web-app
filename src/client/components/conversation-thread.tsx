@@ -45,6 +45,7 @@ import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
 import { dedupeChatMessages } from "@/lib/dedupe-chat-messages";
 import { syncStickyUserMessages } from "@/lib/chat-sticky";
 import { hasCompletedAssistantOutput } from "@/lib/assistant-output-state";
+import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
 
 const USER_MESSAGE_PREVIEW_LINES = 2;
 const MESSAGE_ANCHOR_PREFIX = "chat-message-";
@@ -99,7 +100,42 @@ function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
       groups.push({ userMessage: null, assistantMessages: [msg] });
     }
   }
-  return groups;
+  return reattachLiveAssistantToFollowingUser(groups);
+}
+
+/**
+ * If a live/empty assistant landed on the previous turn while the follow-up
+ * user bubble sits alone (append-order race), move that assistant down so the
+ * streaming orb paints under the message the user just sent.
+ */
+function reattachLiveAssistantToFollowingUser(
+  groups: ConversationTurnGroup[],
+): ConversationTurnGroup[] {
+  if (groups.length < 2) return groups;
+  const out = groups.map((group) => ({
+    ...group,
+    assistantMessages: [...group.assistantMessages],
+  }));
+
+  for (let i = 0; i < out.length - 1; i += 1) {
+    const current = out[i]!;
+    const next = out[i + 1]!;
+    if (!next.userMessage || next.assistantMessages.length > 0) continue;
+
+    while (current.assistantMessages.length > 0) {
+      const last =
+        current.assistantMessages[current.assistantMessages.length - 1]!;
+      const liveOrEmpty =
+        last.isStreaming === true ||
+        last.isThinkingStreaming === true ||
+        !(last.content ?? "").trim();
+      if (!liveOrEmpty) break;
+      current.assistantMessages.pop();
+      next.assistantMessages.unshift(last);
+    }
+  }
+
+  return out;
 }
 
 const RetryIcon = () => (
@@ -199,6 +235,7 @@ interface MessageRowProps {
   forcedDetailLevel?: MessageDetailLevel;
   moreMenuId?: string | null;
   onToggleMoreMenu?: (id: string, anchor?: DOMRect) => void;
+  chatIsGenerating?: boolean;
 }
 
 const MessageRow = React.memo(
@@ -219,6 +256,7 @@ const MessageRow = React.memo(
     forcedDetailLevel,
     moreMenuId,
     onToggleMoreMenu,
+    chatIsGenerating = false,
   }: MessageRowProps) {
     const branchVersions = message.branchVersions?.length ?? 1;
     const activeBranchIndex = message.activeBranchIndex ?? branchVersions - 1;
@@ -247,6 +285,12 @@ const MessageRow = React.memo(
       [message],
     );
     const outputComplete = hasCompletedAssistantOutput(message);
+    const liveStreaming = message.isStreaming === true && chatIsGenerating;
+    const showWaitingOrb = shouldShowAssistantStreamingOrb({
+      isStreaming: liveStreaming,
+      answerStreaming: liveStreaming && message.content.trim().length > 0,
+      chatIsGenerating,
+    });
 
     return (
       <div
@@ -445,6 +489,7 @@ const MessageRow = React.memo(
                 <AgentMessageContent
                   message={message}
                   detailLevel={renderDetailLevel}
+                  chatIsGenerating={chatIsGenerating}
                 />
               </div>
             ) : isAssistantGenerationError(message) ? (
@@ -462,21 +507,21 @@ const MessageRow = React.memo(
                   (message.thinkingContent?.trim().length ?? 0) > 0) && (
                   <ThinkingBlock
                     content={message.thinkingContent}
-                    isStreaming={!!message.isThinkingStreaming}
+                    isStreaming={!!message.isThinkingStreaming && chatIsGenerating}
                     thinkingDurationSeconds={message.thinkingDurationSeconds}
                     thinkingStartedAtMs={message.thinkingStartedAtMs}
                     className="mb-4"
                   />
                 )}
-                {message.isStreaming &&
+                {showWaitingOrb &&
                 message.content.length === 0 &&
                 !(
                   message.hasThinking ||
                   (message.thinkingContent?.trim().length ?? 0) > 0
                 ) ? (
-                  <AgentPlanningNextMoves />
+                  <AgentPlanningNextMoves showOrb={showWaitingOrb} />
                 ) : null}
-                {message.isStreaming &&
+                {showWaitingOrb &&
                 message.content.length === 0 &&
                 (message.hasThinking ||
                   (message.thinkingContent?.trim().length ?? 0) > 0) ? (
@@ -493,7 +538,7 @@ const MessageRow = React.memo(
                     <AssistantContentRenderer
                       content={message.content}
                       messageId={message.id}
-                      isStreaming={!!message.isStreaming}
+                      isStreaming={liveStreaming}
                       streamKey={messageUiKey(message)}
                       detailLevel={renderDetailLevel}
                       agentArtifacts={message.agentArtifacts}
@@ -689,7 +734,8 @@ const MessageRow = React.memo(
       prev.editValue === next.editValue &&
       prev.copiedId === next.copiedId &&
       prev.forcedDetailLevel === next.forcedDetailLevel &&
-      prev.moreMenuId === next.moreMenuId
+      prev.moreMenuId === next.moreMenuId &&
+      prev.chatIsGenerating === next.chatIsGenerating
     );
   },
 );
@@ -716,6 +762,7 @@ interface ConversationTurnProps {
   moreMenuId?: string | null;
   onToggleMoreMenu?: (id: string, anchor?: DOMRect) => void;
   turnIndex: number;
+  chatIsGenerating?: boolean;
 }
 
 
@@ -738,6 +785,7 @@ const ConversationTurn = React.memo(
     moreMenuId,
     onToggleMoreMenu,
     turnIndex,
+    chatIsGenerating = false,
   }: ConversationTurnProps) {
     const turnRootRef = React.useRef<HTMLDivElement>(null);
     const userMsgHostRef = React.useRef<HTMLDivElement>(null);
@@ -781,7 +829,9 @@ const ConversationTurn = React.memo(
         data-conversation-turn
         data-turn-index={turnIndex}
         data-turn-streaming={
-          assistantMessages.some((message) => message.isStreaming) || undefined
+          (chatIsGenerating &&
+            assistantMessages.some((message) => message.isStreaming)) ||
+          undefined
         }
         className="relative flex w-full flex-col gap-3 sm:gap-4"
         style={{ "--turn-index": turnIndex } as React.CSSProperties}
@@ -811,6 +861,7 @@ const ConversationTurn = React.memo(
                 onOpenSources={onOpenSources}
                 moreMenuId={moreMenuId}
                 onToggleMoreMenu={onToggleMoreMenu}
+                chatIsGenerating={chatIsGenerating}
               />
             </div>
           </>
@@ -833,6 +884,7 @@ const ConversationTurn = React.memo(
             onOpenSources={onOpenSources}
             moreMenuId={moreMenuId}
             onToggleMoreMenu={onToggleMoreMenu}
+            chatIsGenerating={chatIsGenerating}
           />
         ))}
       </div>
@@ -885,7 +937,8 @@ const ConversationTurn = React.memo(
       prev.copiedId === next.copiedId &&
       prev.onOpenSources === next.onOpenSources &&
       prev.moreMenuId === next.moreMenuId &&
-      prev.turnIndex === next.turnIndex
+      prev.turnIndex === next.turnIndex &&
+      prev.chatIsGenerating === next.chatIsGenerating
     );
   },
 );
@@ -1377,6 +1430,7 @@ export function ConversationThread({
     onOpenSources,
     moreMenuId,
     onToggleMoreMenu: toggleMoreMenu,
+    chatIsGenerating: isGeneratingProp,
   };
 
   return (

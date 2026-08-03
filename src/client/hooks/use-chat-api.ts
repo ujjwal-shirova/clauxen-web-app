@@ -101,6 +101,47 @@ function bootRecentChatsFromSync(): RecentChat[] {
   return readSyncDeviceChatList(userId) ?? [];
 }
 
+function isChatActivelyGenerating(chatId: string): boolean {
+  return (
+    Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
+    Boolean(getGeneration(chatId))
+  );
+}
+
+/** Temp / pending ids mean an optimistic turn is on screen even before the lease. */
+function hasOptimisticTurn(messages: readonly Message[]): boolean {
+  return messages.some(
+    (message) =>
+      Boolean(message?.id?.startsWith("temp-")) ||
+      Boolean(message?.id?.startsWith("pending-")) ||
+      Boolean(message?.clientId?.startsWith("temp-")) ||
+      Boolean(message?.clientId?.startsWith("pending-")),
+  );
+}
+
+/** Never keep a streaming orb when this tab is not actively generating. */
+function clearIdleStreamingFlags(message: Message): Message {
+  if (!message.isStreaming && !message.isThinkingStreaming) return message;
+  return {
+    ...message,
+    isStreaming: false,
+    isThinkingStreaming: false,
+    agentFrameComplete: true,
+    agentSegments: message.agentSegments?.map((segment) => ({
+      ...segment,
+      isStreaming: false,
+    })),
+    agentFrames: message.agentFrames?.map((frame) => ({
+      ...frame,
+      complete: true,
+      segments: frame.segments.map((segment) => ({
+        ...segment,
+        isStreaming: false,
+      })),
+    })),
+  };
+}
+
 function mapApiMessage(row: chatsApi.ApiMessage): Message {
   const meta = row.metadata as {
     thinkingContent?: string;
@@ -123,9 +164,7 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
   const content = staleStreaming
     ? "Generation interrupted."
     : finalizeChatTitleStrippedAnswer(row.content);
-  const isChatActive =
-    Boolean(useChatStore.getState().generatingChatIds[row.chat_id]) ||
-    Boolean(getGeneration(row.chat_id));
+  const isChatActive = isChatActivelyGenerating(row.chat_id);
 
   const base = compactMessageBranchData({
     id: row.id,
@@ -681,6 +720,7 @@ export function useChatApi(
               (mapped.agentFrames?.some((frame) => frame.segments.length > 0) ??
                 false) ||
               (mapped.agentSegments?.length ?? 0) > 0;
+            const chatStillGenerating = isChatActivelyGenerating(activeChatId);
             next[index] = {
               ...prevMessage,
               ...mapped,
@@ -692,7 +732,11 @@ export function useChatApi(
                 (mapped.content?.length ?? 0)
                   ? prevMessage.content
                   : mapped.content,
-              isStreaming: rowStatus === "streaming",
+              // Never resurrect the orb from a stale DB "streaming" row when
+              // this tab is idle — that was the load-time caret bug.
+              isStreaming:
+                chatStillGenerating &&
+                (rowStatus === "streaming" || rowStatus === "queued"),
               ...(localHasAgentFrames && !mappedHasAgentFrames
                 ? {
                     agentMode: prevMessage.agentMode,
@@ -744,16 +788,10 @@ export function useChatApi(
       });
       setAllChats((prev) => {
         const existing = prev[chatId] ?? [];
+        // Stale isStreaming alone must NOT count as live — that blocked hydrate
+        // and left the orb stuck after reload / aborted turns.
         const isLive =
-          Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
-          Boolean(getGeneration(chatId)) ||
-          existing.some(
-            (message) =>
-              message.isStreaming === true ||
-              message.isThinkingStreaming === true ||
-              Boolean(message.id?.startsWith("temp-")) ||
-              Boolean(message.clientId?.startsWith("temp-")),
-          );
+          isChatActivelyGenerating(chatId) || hasOptimisticTurn(existing);
         // Never replace a live optimistic/streaming thread with a colder
         // server snapshot (empty assistant rows cause the blank-orb bug).
         if (isLive && existing.length > 0) {
@@ -812,27 +850,9 @@ export function useChatApi(
           }
           return { ...prev, [chatId]: merged };
         }
-        const sanitizedHydrated = hydrated.map((m) => {
-          if (isLive || (!m.isStreaming && !m.isThinkingStreaming)) return m;
-          return {
-            ...m,
-            isStreaming: false,
-            isThinkingStreaming: false,
-            agentFrameComplete: true,
-            agentSegments: m.agentSegments?.map((s) => ({
-              ...s,
-              isStreaming: false,
-            })),
-            agentFrames: m.agentFrames?.map((f) => ({
-              ...f,
-              complete: true,
-              segments: f.segments.map((s) => ({ ...s, isStreaming: false })),
-            })),
-          };
-        });
         return {
           ...prev,
-          [chatId]: sanitizedHydrated,
+          [chatId]: hydrated.map(clearIdleStreamingFlags),
         };
       });
       hydratedChatIdsRef.current.add(chatId);
@@ -845,10 +865,7 @@ export function useChatApi(
       const silent = opts?.silent === true;
       // Never reconcile over a live turn — silent Worker fetches were wiping
       // the optimistic orb on new-chat / follow-up navigations.
-      const store = useChatStore.getState();
-      const isLive =
-        Boolean(store.generatingChatIds[chatId]) ||
-        Boolean(getGeneration(chatId));
+      const isLive = isChatActivelyGenerating(chatId);
       if (silent && isLive) {
         return;
       }
@@ -867,11 +884,7 @@ export function useChatApi(
           chatsApi.getBranchState(chatId).catch(() => null),
         ]);
         // Re-check after await — generation may have started while fetching.
-        const after = useChatStore.getState();
-        if (
-          Boolean(after.generatingChatIds[chatId]) ||
-          Boolean(getGeneration(chatId))
-        ) {
+        if (isChatActivelyGenerating(chatId)) {
           applyHydratedMessages(chatId, bundle.messages, null);
           return;
         }
@@ -934,21 +947,29 @@ export function useChatApi(
         existingIds?.map((id) => store.messagesById[id]).filter(Boolean) ?? [];
       const hasLocalTurns = existingMessages.length > 0;
       const isLive =
-        Boolean(store.generatingChatIds[chatId]) ||
-        Boolean(getGeneration(chatId)) ||
-        existingMessages.some(
-          (message) =>
-            message?.isStreaming === true ||
-            message?.isThinkingStreaming === true ||
-            Boolean(message?.id?.startsWith("temp-")) ||
-            Boolean(message?.clientId?.startsWith("temp-")),
-        );
+        isChatActivelyGenerating(chatId) ||
+        hasOptimisticTurn(existingMessages as Message[]);
       const alreadyHydrated = hydratedChatIdsRef.current.has(chatId);
 
       // Keep optimistic / in-flight turns — never let SSR seed or a fetch
       // wipe a live stream (that remount flicker on send from /new).
       if (hasLocalTurns && (alreadyHydrated || isLive)) {
         takePendingChatRouteSeed(chatId);
+        // Idle reopen with a stale isStreaming flag still paints the orb —
+        // strip it whenever this tab is not actually generating.
+        if (!isChatActivelyGenerating(chatId)) {
+          const hasStaleOrb = existingMessages.some(
+            (message) =>
+              message?.isStreaming === true ||
+              message?.isThinkingStreaming === true,
+          );
+          if (hasStaleOrb) {
+            setAllChats((prev) => ({
+              ...prev,
+              [chatId]: (prev[chatId] ?? []).map(clearIdleStreamingFlags),
+            }));
+          }
+        }
         setLoadingChatId((current) => (current === chatId ? null : current));
         return;
       }
@@ -1000,10 +1021,7 @@ export function useChatApi(
         );
         setLoadingChatId((current) => (current === chatId ? null : current));
         // Only silent-reconcile when idle — never during a live send/stream.
-        const liveNow =
-          Boolean(useChatStore.getState().generatingChatIds[chatId]) ||
-          Boolean(getGeneration(chatId));
-        if (!liveNow) {
+        if (!isChatActivelyGenerating(chatId)) {
           void loadChatMessages(chatId, { silent: true });
         }
         return;
@@ -1054,11 +1072,13 @@ export function useChatApi(
             (assistantId &&
               (message.id === assistantId ||
                 message.clientId === assistantId));
-          if (!matches) return message;
+          if (!matches) return clearIdleStreamingFlags(message);
           clearStreamPaintSessions(messageUiKey(message));
           if (message.id) clearStreamPaintSessions(message.id);
           if (message.clientId) clearStreamPaintSessions(message.clientId);
-          return applyAgentStreamEvent(message, { type: "done" });
+          return clearIdleStreamingFlags(
+            applyAgentStreamEvent(message, { type: "done" }),
+          );
         }),
       };
     });
@@ -2050,6 +2070,9 @@ export function useChatApi(
       const isNewChat = !chatId;
       const now = Date.now();
       const tempUserId = `temp-${randomUUID()}`;
+      // Stable assistant client id up front so user+assistant paint as one turn
+      // (avoids the follow-up pairing race where A lands before U in the store).
+      const assistantClientId = randomUUID();
       const optimisticUser: Message = {
         id: tempUserId,
         clientId: tempUserId,
@@ -2060,6 +2083,16 @@ export function useChatApi(
           !ephemeral && pendingAttachments.length > 0
             ? toMessageAttachments(pendingAttachments)
             : undefined,
+      };
+      const optimisticAssistant: Message = {
+        id: assistantClientId,
+        clientId: assistantClientId,
+        role: "assistant",
+        content: "",
+        createdAt: now + 1,
+        isStreaming: true,
+        agentMode: true,
+        agentFrameComplete: false,
       };
 
       // Optimistic pending id — paint chat-view + sidebar immediately.
@@ -2074,6 +2107,7 @@ export function useChatApi(
           setCreatingChatPending(true);
         }
         setActiveChatId(pendingChatId);
+        useChatStore.getState().setChatGenerating(pendingChatId, true);
         if (!ephemeral) {
           setRecentChats((prev) => {
             const next = [
@@ -2093,14 +2127,20 @@ export function useChatApi(
         }
         setAllChats((prev) => ({
           ...prev,
-          [pendingChatId!]: [optimisticUser],
+          [pendingChatId!]: [optimisticUser, optimisticAssistant],
         }));
         hydratedChatIdsRef.current.add(pendingChatId);
       } else {
-        // Existing chat — paint the user bubble immediately (before network).
+        // Existing chat — paint user + assistant placeholder as one turn so the
+        // streaming orb never attaches to the previous user message.
+        useChatStore.getState().setChatGenerating(chatId, true);
         setAllChats((prev) => ({
           ...prev,
-          [chatId!]: [...(prev[chatId!] ?? []), optimisticUser],
+          [chatId!]: [
+            ...(prev[chatId!] ?? []),
+            optimisticUser,
+            optimisticAssistant,
+          ],
         }));
         // Touch Recents so this chat stays at the top.
         if (!ephemeral) {
@@ -2286,7 +2326,10 @@ export function useChatApi(
         };
 
         const priorMessages = (allChatsRef.current[chatId!] ?? []).filter(
-          (message) => message.id !== tempUserId,
+          (message) =>
+            message.id !== tempUserId &&
+            message.id !== assistantClientId &&
+            message.clientId !== assistantClientId,
         );
         const conversation = buildConversation([
           ...priorMessages,
@@ -2296,7 +2339,6 @@ export function useChatApi(
         // One server-owned turn creates the durable user and assistant rows in
         // a transaction. Sending their stable client ids makes browser retries
         // idempotent without racing a separate /messages request.
-        const assistantClientId = randomUUID();
         const userContent = trimmed || "(attached files)";
         useChatStore.getState().setChatGenerating(chatId!, true);
 
@@ -2339,11 +2381,26 @@ export function useChatApi(
               return next;
             });
           }
+          useChatStore.getState().setChatGenerating(pendingChatId, false);
           useChatStore.getState().removeChat(pendingChatId);
           if (useChatStore.getState().activeChatId === pendingChatId) {
             setActiveChatId(null);
           }
           hydratedChatIdsRef.current.delete(pendingChatId);
+        } else if (chatId) {
+          // Roll back the optimistic follow-up turn and drop the idle orb.
+          const failedChatId = chatId;
+          useChatStore.getState().setChatGenerating(failedChatId, false);
+          useChatStore.getState().setStreaming(null);
+          setAllChats((prev) => ({
+            ...prev,
+            [failedChatId]: (prev[failedChatId] ?? []).filter(
+              (message) =>
+                message.id !== tempUserId &&
+                message.id !== assistantClientId &&
+                message.clientId !== assistantClientId,
+            ),
+          }));
         }
         console.warn("[chat] send failed:", error);
         return null;

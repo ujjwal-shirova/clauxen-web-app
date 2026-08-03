@@ -42,4 +42,15 @@ describe("shouldShowAssistantStreamingOrb", () => {
       false,
     );
   });
+
+  it("hides when the chat is not generating even if message flag is stale", () => {
+    assert.equal(
+      shouldShowAssistantStreamingOrb({
+        isStreaming: true,
+        answerStreaming: false,
+        chatIsGenerating: false,
+      }),
+      false,
+    );
+  });
 });
