@@ -505,7 +505,7 @@ function WebSearchSourcesHover({
           align="start"
           sideOffset={6}
           collisionPadding={12}
-          className="agent-web-search-popover z-[80] w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-lg border border-zinc-200/90 bg-white p-0 shadow-[0_8px_24px_-10px_rgba(24,24,27,0.22)] dark:border-zinc-700/80 dark:bg-zinc-950 dark:shadow-[0_8px_24px_-10px_rgba(0,0,0,0.5)]"
+          className="agent-web-search-popover z-[3000] w-[min(320px,calc(100vw-2rem))] overflow-hidden p-0"
           onClick={(event) => event.stopPropagation()}
           onWheel={(event) => event.stopPropagation()}
         >

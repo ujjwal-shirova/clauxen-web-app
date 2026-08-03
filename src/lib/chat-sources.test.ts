@@ -93,6 +93,17 @@ describe("convertCitationReferencesToLinks", () => {
       /\[Example Source Alpha\]\(https:\/\/alpha\.example\.com\/article-a\) \[Example Source Beta\]\(https:\/\/beta\.example\.com\/article-b\)/,
     );
   });
+
+  it("unwraps multi-cite clusters separated by middle dots", () => {
+    const out = convertCitationReferencesToLinks(
+      "Claim ([Example Source Alpha][1] · [Example Source Beta][2]).",
+      sources,
+    );
+    assert.equal(/\(\s*\[/.test(out), false);
+    assert.equal(out.includes("·"), false);
+    assert.match(out, /alpha\.example\.com\/article-a/);
+    assert.match(out, /beta\.example\.com\/article-b/);
+  });
 });
 
 describe("unwrapCitationLinkDecorators", () => {
@@ -106,5 +117,12 @@ describe("unwrapCitationLinkDecorators", () => {
       out,
       /\[Alpha\]\(https:\/\/alpha\.example\.com\/a\) \[Beta\]\(https:\/\/beta\.example\.com\/b\)/,
     );
+  });
+
+  it("strips a single parenthesized converted chip", () => {
+    const out = unwrapCitationLinkDecorators(
+      "claim ([Alpha](https://alpha.example.com/a)).",
+    );
+    assert.equal(out, "claim [Alpha](https://alpha.example.com/a).");
   });
 });

@@ -181,22 +181,28 @@ export function unwrapCitationLinkDecorators(text: string): string {
   if (!text) return text;
 
   const clusterInParens = new RegExp(
-    String.raw`\(\s*((?:${MD_CITATION_LINK}\s*[,;]?\s*)+)\s*\)`,
+    String.raw`\(\s*((?:${MD_CITATION_LINK}\s*[,;·|]?\s*)+)\s*\)`,
     "g",
   );
-  const commaBetweenLinks = new RegExp(
-    String.raw`(${MD_CITATION_LINK})\s*[,;]\s*(?=${MD_CITATION_LINK})`,
+  const sepBetweenLinks = new RegExp(
+    String.raw`(${MD_CITATION_LINK})\s*[,;·|]\s*(?=${MD_CITATION_LINK})`,
+    "g",
+  );
+  // Lone parenthesized chip left after conversion: ( [Title](url) )
+  const singleParenLink = new RegExp(
+    String.raw`\(\s*(${MD_CITATION_LINK})\s*\)`,
     "g",
   );
 
   return text
     .replace(clusterInParens, (_match, inner: string) =>
       String(inner)
-        .replace(commaBetweenLinks, "$1 ")
+        .replace(sepBetweenLinks, "$1 ")
         .replace(/\s+/g, " ")
         .trim(),
     )
-    .replace(commaBetweenLinks, "$1 ");
+    .replace(singleParenLink, "$1")
+    .replace(sepBetweenLinks, "$1 ");
 }
 
 function citationTokenToLink(
@@ -235,13 +241,13 @@ export function convertCitationReferencesToLinks(
 
   // Multi-cite paren cluster: ([A][1], [B][2]) → links without wrapping parens
   result = result.replace(
-    /\(\s*((?:\[[^\]]+?\]\[\d+\]\s*[,;]?\s*){2,})\s*\)/g,
+    /\(\s*((?:\[[^\]]+?\]\[\d+\]\s*[,;·|]?\s*){2,})\s*\)/g,
     (_match, inner: string) =>
       String(inner)
         .replace(/\[([^\]]+?)\]\[(\d+)\]/g, (_m, title: string, nStr: string) =>
           citationTokenToLink(sources, title, nStr),
         )
-        .replace(/\s*[,;]\s*/g, " ")
+        .replace(/\s*[,;·|]\s*/g, " ")
         .replace(/\s+/g, " ")
         .trim(),
   );

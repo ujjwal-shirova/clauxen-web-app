@@ -84,28 +84,20 @@ function PromptAddMenuRow({
     <button
       ref={rowRef}
       type="button"
+      role="menuitem"
+      data-prompt-add-menu-row=""
+      data-active={active ? "true" : undefined}
       onClick={onSelect}
       onMouseEnter={onHover}
       onFocus={onHover}
-      className={cn(
-        "group flex w-full min-h-[40px] items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left transition-colors focus:outline-none",
-        active ? "bg-zinc-100/90" : "hover:bg-zinc-100/90 focus-visible:bg-zinc-100/90",
-      )}
+      className="focus:outline-none"
     >
-      <Icon
-        className="h-[18px] w-[18px] shrink-0 text-zinc-700"
-        strokeWidth={1.75}
-        aria-hidden
-      />
-      <span className="min-w-0 flex-1 truncate text-[14px] font-[430] leading-5 text-zinc-900">
-        {item.label}
+      <span data-prompt-add-menu-icon="" aria-hidden>
+        <Icon strokeWidth={1.75} />
       </span>
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
       {item.hasSubmenu ? (
-        <ChevronRight
-          className="h-4 w-4 shrink-0 text-zinc-400"
-          strokeWidth={1.75}
-          aria-hidden
-        />
+        <ChevronRight data-prompt-add-menu-chevron="" strokeWidth={1.75} aria-hidden />
       ) : null}
     </button>
   );
@@ -125,21 +117,21 @@ function ToggleSubmenu<T extends string>({
   onSelect: (mode: T) => void;
 }) {
   return (
-    <div className="flex min-w-[220px] flex-col gap-0.5 p-1.5">
+    <div className="flex min-w-[var(--cursor-menu-width)] flex-col gap-[var(--menu-item-gap)]">
       {options.map((option) => {
         const selected = mode === option.id;
         return (
           <button
             key={option.id}
             type="button"
+            role="menuitem"
+            data-prompt-add-menu-row=""
+            data-active={selected ? "true" : undefined}
             onClick={() => onSelect(option.id)}
-            className={cn(
-              "flex w-full items-start gap-2 rounded-[12px] px-2.5 py-2 text-left transition-colors hover:bg-zinc-100/90 focus:outline-none focus-visible:bg-zinc-100/90",
-              selected && "bg-zinc-50",
-            )}
+            className="items-start focus:outline-none"
           >
             <span className="min-w-0 flex-1">
-              <span className="block text-[13.5px] font-semibold leading-5 text-zinc-900">
+              <span className="block text-[13px] font-medium leading-[18px] tracking-[-0.08px] text-zinc-900">
                 {option.label}
               </span>
               <span className="mt-0.5 block text-[12px] leading-4 text-zinc-500">
@@ -148,12 +140,12 @@ function ToggleSubmenu<T extends string>({
             </span>
             {selected ? (
               <Check
-                className="mt-0.5 h-4 w-4 shrink-0 text-[#3a83f7]"
+                className="mt-0.5 h-[14px] w-[14px] shrink-0 text-[#3a83f7]"
                 strokeWidth={2.25}
                 aria-hidden
               />
             ) : (
-              <span className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <span className="mt-0.5 h-[14px] w-[14px] shrink-0" aria-hidden />
             )}
           </button>
         );
@@ -174,9 +166,9 @@ function PlaceholderSubmenu({
   onAction?: () => void;
 }) {
   return (
-    <div className="flex min-w-[200px] flex-col gap-2 p-3">
+    <div className="flex min-w-[var(--cursor-menu-width)] flex-col gap-2 p-1">
       <div>
-        <p className="text-[13.5px] font-semibold leading-5 text-zinc-900">
+        <p className="text-[13px] font-medium leading-[18px] tracking-[-0.08px] text-zinc-900">
           {title}
         </p>
         <p className="mt-0.5 text-[12px] leading-4 text-zinc-500">{body}</p>
@@ -185,7 +177,7 @@ function PlaceholderSubmenu({
         <button
           type="button"
           onClick={onAction}
-          className="rounded-[10px] bg-zinc-900 px-2.5 py-1.5 text-left text-[12.5px] font-medium text-white transition-colors hover:bg-zinc-800"
+          className="rounded-[var(--menu-item-radius)] bg-zinc-900 px-2 py-1.5 text-left text-[12.5px] font-medium leading-[18px] text-white transition-colors hover:bg-zinc-800"
         >
           {actionLabel}
         </button>
@@ -245,7 +237,7 @@ function useAnchoredMenuPosition(
         prev.position === "fixed" &&
         prev.top === top &&
         prev.left === left &&
-        prev.zIndex === 80
+        prev.zIndex === 3000
       ) {
         return prev;
       }
@@ -253,7 +245,7 @@ function useAnchoredMenuPosition(
         position: "fixed",
         top,
         left,
-        zIndex: 80,
+        zIndex: 3000,
         visibility: "visible",
       };
     });
@@ -371,7 +363,7 @@ export function PromptAddMenuPanel({
       setSubmenuTopPx(row.offsetTop);
 
       const menuRect = menu.getBoundingClientRect();
-      const estimatedSubmenuWidth = 236;
+      const estimatedSubmenuWidth = 200;
       const spaceRight =
         window.innerWidth - menuRect.right - SUBMENU_GAP_PX - 12;
       setSubmenuSide(spaceRight >= estimatedSubmenuWidth ? "right" : "left");
@@ -411,6 +403,8 @@ export function PromptAddMenuPanel({
     <div
       ref={resolvedRef}
       style={menuPosition}
+      role="menu"
+      aria-label="Add files, skills, and MCP servers"
       className={cn("relative w-max max-w-[min(100vw-24px,320px)]", className)}
       data-prompt-add-menu-root
     >
@@ -418,13 +412,13 @@ export function PromptAddMenuPanel({
         key={`prompt-add-menu-${placement}`}
         data-prompt-add-menu
         data-prompt-add-menu-placement={placement}
-        initial={{ opacity: 0, y: placement === "below" ? -8 : 8, scale: 0.985 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: placement === "below" ? -6 : 6, scale: 0.985 }}
-        transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
-        className="w-[240px] overflow-visible rounded-[16px] border border-zinc-200/90 bg-white font-sans shadow-[0_12px_40px_-18px_rgba(24,24,27,0.45)]"
+        initial={{ opacity: 0, y: placement === "below" ? -4 : 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: placement === "below" ? -3 : 3 }}
+        transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
+        className="overflow-hidden font-sans"
       >
-        <div className="flex flex-col gap-0.5 p-1">
+        <div data-prompt-add-menu-list="" role="presentation">
           {items.map((item) => (
             <PromptAddMenuRow
               key={item.id}
@@ -453,21 +447,20 @@ export function PromptAddMenuPanel({
         <motion.div
           key={`prompt-add-submenu-${activeSubmenu}`}
           data-prompt-add-submenu={activeSubmenu}
+          role="menu"
           initial={{
             opacity: 0,
             x: submenuSide === "right" ? -4 : 4,
-            scale: 0.98,
           }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
+          animate={{ opacity: 1, x: 0 }}
           exit={{
             opacity: 0,
             x: submenuSide === "right" ? -2 : 2,
-            scale: 0.98,
           }}
-          transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
+          transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
           style={{ top: submenuTopPx }}
           className={cn(
-            "absolute z-10 overflow-hidden rounded-[16px] border border-zinc-200/90 bg-white shadow-[0_12px_40px_-18px_rgba(24,24,27,0.45)]",
+            "absolute z-10 overflow-hidden font-sans",
             submenuSide === "right"
               ? "left-[calc(100%+4px)]"
               : "right-[calc(100%+4px)]",

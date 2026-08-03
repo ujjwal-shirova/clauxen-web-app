@@ -39,9 +39,10 @@ export function SourcePreviewCard({ source }: { source: ChatSource }) {
 
   return (
     <div
+      data-source-preview-card=""
       className={cn(
-        "w-full rounded-lg border border-zinc-200/90 bg-white p-2.5 text-left",
-        "shadow-[0_8px_24px_-10px_rgba(24,24,27,0.18),0_2px_6px_-2px_rgba(24,24,27,0.08)]",
+        "w-full rounded-[var(--cursor-radius-lg)] bg-[var(--cursor-menu-bg)] p-2.5 text-left",
+        "shadow-[var(--cursor-menu-shadow)]",
       )}
     >
       <div className="mb-2 flex items-center gap-2">
