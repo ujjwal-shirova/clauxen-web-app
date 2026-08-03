@@ -338,14 +338,15 @@ export function applyAgentStreamEvent(
           isStreaming: true,
           isFinal: existing?.kind === "narration" ? existing.isFinal : undefined,
         });
-        // Mirror into message.content while no tool/thinking is live so the
-        // answer body streams token-by-token (finalize must not teleport a dump).
+        // Mirror into message.content while no tool or thinking is live/present in
+        // this turn, so simple non-tool responses stream directly in the answer body.
+        const hasAnyTool = nextSegments.some((segment) => segment.kind === "tool");
         const hasLiveWork = nextSegments.some(
           (segment) =>
             (segment.kind === "tool" && segment.status === "running") ||
             (segment.kind === "thinking" && segment.isStreaming === true),
         );
-        if (!hasLiveWork) {
+        if (!hasAnyTool && !hasLiveWork) {
           mirroredContent = nextContent;
         }
         return nextSegments;

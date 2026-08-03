@@ -1266,12 +1266,10 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 
 @keyframes stream-token-fade {
   from {
-    opacity: 0.18;
-    filter: blur(2.5px);
+    opacity: 0.35;
   }
   to {
     opacity: 1;
-    filter: blur(0);
   }
 }
 
@@ -1280,12 +1278,10 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: stream-token-fade;
-  animation-duration: 110ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  animation-fill-mode: both;
-  backface-visibility: hidden;
-  /* Never shift line boxes while tokens paint. */
-  transform: translateZ(0);
+  animation-duration: 50ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: forwards;
+  will-change: opacity;
 }
 
 .stream-token-stable {
@@ -1308,12 +1304,10 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
    Short durations (4-28ms) make the animation track the model's actual tokens/sec. */
 @keyframes clx-stream-pop {
   from {
-    opacity: 0.9;
-    transform: translateY(0.5px);
+    opacity: 0.85;
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -1321,9 +1315,10 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: clx-stream-pop;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  animation-fill-mode: both;
-  will-change: opacity, transform;
+  animation-duration: 40ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: forwards;
+  will-change: opacity;
 }
 
 /* Lucide icon system — crisp 16px default (chrome); menus use --menu-icon-size */

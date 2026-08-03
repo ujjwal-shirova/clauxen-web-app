@@ -4,40 +4,29 @@ import { useEffect, useRef } from "react";
 
 /** Soften first-token paint — visible enough to read as typing, short enough to feel live. */
 const MIN_DURATION_MS = 55;
-const MAX_DURATION_MS = 160;
-const FAST_GAP_MS = 28;
+const MAX_DURATION_MS = 110;
 
 /**
  * Duration scales with inter-chunk gap so animation speed tracks the model's
- * token rate. Kept perceptible so streams never look like a static dump.
+ * token rate. Kept snappy and smooth without lag or blur flicker.
  */
 export function computeStreamTokenDurationMs(
   elapsedSinceLastChunk: number,
   chunkLength: number,
 ): number {
-  let duration: number;
-
-  // After a long pause (tools / thinking), catch up quickly — long fades
-  // after tool rounds feel laggy and unresponsive.
   if (elapsedSinceLastChunk > 400) {
-    return 90;
+    return 60;
   }
 
   if (elapsedSinceLastChunk <= 0) {
-    duration = 110;
-  } else if (elapsedSinceLastChunk < FAST_GAP_MS) {
-    duration = Math.max(
-      MIN_DURATION_MS,
-      Math.min(140, 70 + elapsedSinceLastChunk * 2),
-    );
-  } else {
-    duration = Math.min(
-      MAX_DURATION_MS,
-      Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.35),
-    );
+    return 55;
   }
 
-  const sizeBoost = Math.min(18, Math.sqrt(Math.max(0, chunkLength)) * 1.6);
+  const duration = Math.min(
+    MAX_DURATION_MS,
+    Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.35),
+  );
+  const sizeBoost = Math.min(10, Math.sqrt(Math.max(0, chunkLength)) * 1.2);
   return Math.round(
     Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, duration + sizeBoost)),
   );
@@ -87,9 +76,10 @@ function resolvePaintSession(sessionKey: string, text: string): PaintSession {
     // Remounted text node: reuse the session that already painted this growth.
     hit = group.find((session) => {
       if (!session.prev) return false;
-      if (text.startsWith(session.prev)) return true;
+      if (text.startsWith(session.prev) || session.prev.startsWith(text)) return true;
       const shared = commonPrefixLength(session.prev, text);
-      return shared >= Math.min(24, Math.floor(session.prev.length * 0.7));
+      const minShared = Math.min(4, Math.floor(Math.min(session.prev.length, text.length) * 0.3));
+      return shared >= minShared;
     });
   }
 
@@ -99,7 +89,7 @@ function resolvePaintSession(sessionKey: string, text: string): PaintSession {
       prev: "",
       settled: "",
       delta: "",
-      duration: 120,
+      duration: 50,
       lastAt: 0,
     };
     group.push(hit);
@@ -184,10 +174,11 @@ export function StreamingTokenReveal({
     const deltaLength = Math.max(0, text.length - prefixLen);
     const elapsed = session.lastAt > 0 ? now - session.lastAt : 0;
 
-    // Large zero-overlap rewrites (citation reshuffle / AST remount) must not
-    // re-animate the whole body — that is the gray↔white flicker. Partial
-    // overlap still fades the delta so live streams stay visible.
-    const settleWithoutFade = !isGrowth && prefixLen === 0 && deltaLength > 64;
+    // Zero-overlap rewrites (citation reshuffle / AST remount) or text that
+    // shrank/settled must not re-animate — that is the gray/white flicker.
+    const settleWithoutFade =
+      (!isGrowth && prefixLen === 0 && deltaLength > 16) ||
+      (previous.length > 0 && text.length <= previous.length);
 
     if (settleWithoutFade) {
       session.settled = text;
