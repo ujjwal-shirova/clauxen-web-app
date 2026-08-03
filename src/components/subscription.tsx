@@ -7,10 +7,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { subscriptionSegmentClass } from "@/lib/segmented-control";
+import {
+  subscriptionSegmentClass,
+  subscriptionSegmentTrackClass,
+} from "@/lib/segmented-control";
 import type { MaxTier } from "@/components/billing-checkout";
 import {
   CHECKOUT_PLAN_IDS,
@@ -54,28 +56,47 @@ function normalizePlanId(planId: string | null | undefined): string {
   return known ?? "free";
 }
 
-const CARD_SHADOW =
-  "shadow-[0_0_1.072px_rgba(0,0,0,0.4),0_2px_4px_rgba(0,0,0,0.04)]";
-
 function PlanBadge({
   label,
-  variant,
 }: {
   label: string;
   variant: "popular" | "special" | "recommended";
 }) {
   return (
-    <div
-      className={cn(
-        "absolute right-0 top-[-6px] flex h-6 items-center rounded-full px-2.5 text-[12px] font-medium",
-        (variant === "popular" ||
-          variant === "special" ||
-          variant === "recommended") &&
-          "bg-zinc-900 text-white",
-      )}
-    >
+    <div className="absolute right-3 top-3 flex h-6 items-center rounded-full bg-[var(--pricing-cta)] px-2.5 text-[12px] font-medium text-[var(--pricing-cta-fg)]">
       {label}
     </div>
+  );
+}
+
+function PricingCtaButton({
+  children,
+  onClick,
+  disabled,
+  variant = "primary",
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  variant?: "primary" | "secondary" | "current";
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "inline-flex w-full items-center justify-center rounded-full px-[21.6px] py-3 text-[13px] font-medium leading-4 transition-colors",
+        variant === "primary" &&
+          "bg-[var(--pricing-cta)] text-[var(--pricing-cta-fg)] hover:opacity-90",
+        variant === "secondary" &&
+          "bg-[var(--pricing-cta-secondary)] text-[var(--pricing-fg)] hover:opacity-90",
+        variant === "current" &&
+          "cursor-default bg-[var(--pricing-cta-secondary)] text-[var(--pricing-muted)]",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -158,130 +179,114 @@ function PlanCarouselCard({
   const isMax = plan.id === "max";
 
   return (
-    <div
-      className={cn(
-        "flex w-[240px] shrink-0 flex-col isolate rounded-xl",
-        CARD_SHADOW,
+    <div className="relative flex w-[240px] shrink-0 flex-col justify-between rounded-xl bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px]">
+      {plan.isPopular && <PlanBadge label="Popular" variant="popular" />}
+      {plan.isSpecialOffer && (
+        <PlanBadge label="Special Offer" variant="special" />
       )}
-    >
-      <div className="relative z-[2] rounded-t-xl bg-white px-5 pb-5 pt-[26px]">
-        {plan.isPopular && <PlanBadge label="Popular" variant="popular" />}
-        {plan.isSpecialOffer && (
-          <PlanBadge label="Special Offer" variant="special" />
+
+      <div className="flex flex-col">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-[22px] font-normal leading-[1.3] tracking-[-0.11px] text-[var(--pricing-fg)]">
+            {plan.name}
+          </h3>
+        </div>
+
+        <p className="mt-0.5 flex items-baseline gap-0.5 text-[22px] leading-[1.3] tracking-[-0.11px] text-[var(--pricing-muted)]">
+          {price.strikethrough != null && (
+            <span className="mr-1.5 text-[14px] line-through">
+              ₹{price.strikethrough.toLocaleString("en-IN")}
+            </span>
+          )}
+          <span>
+            {plan.customPriceLabel === "From" && !isMax ? "From " : ""}
+            {plan.customPriceLabel !== "Custom" ? "₹" : ""}
+            {price.main}
+          </span>
+          {price.suffix && (
+            <span className="text-[14px] leading-5">{price.suffix}</span>
+          )}
+        </p>
+
+        <div className="mt-1 min-h-5">
+          {plan.subtitle ? (
+            <p className="text-[13px] leading-[18px] text-[var(--pricing-muted)]">
+              {plan.subtitle}
+            </p>
+          ) : price.subtext ? (
+            <p className="text-[12px] leading-4 text-[var(--pricing-muted)]">
+              {price.subtext}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="mt-4 flex min-h-[38px] items-center">
+          {isMax ? (
+            <div
+              className={cn(
+                subscriptionSegmentTrackClass,
+                "bg-[var(--pricing-thumb)]",
+              )}
+            >
+              {(["5x", "20x"] as const).map((tier) => (
+                <button
+                  key={tier}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMaxTierChange?.(tier);
+                  }}
+                  className={cn(
+                    "relative z-[1] rounded-full px-3 py-1 text-[12px] font-medium leading-4 transition-colors",
+                    maxTier === tier
+                      ? "bg-[var(--pricing-thumb-active)] text-[var(--pricing-fg)]"
+                      : "text-[var(--pricing-muted)] hover:text-[var(--pricing-fg)]",
+                  )}
+                >
+                  {tier}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {plan.highlight ? (
+          <p className="mt-4 text-[13px] text-[var(--pricing-muted)]">
+            {plan.highlight}
+          </p>
+        ) : (
+          <p className="mt-4 text-[13px] text-[var(--pricing-muted)]">Includes:</p>
         )}
 
-        <div className="flex flex-col gap-4">
-          <div className="relative flex flex-col gap-4">
-            <div className="flex items-start justify-between gap-2">
-              <span className="app-page-body font-medium">
-                {plan.name}
+        <ul className="mt-4 flex flex-col gap-[3.7px]" role="list">
+          {features.map((feature) => (
+            <li key={feature} className="flex gap-[7.5px] text-[13px] leading-[18px] text-[var(--pricing-fg)]">
+              <span className="shrink-0 text-[var(--pricing-fg)]" aria-hidden>
+                ✓
               </span>
-              {isMax && (
-                <div className="flex rounded-[10px] bg-black/[0.043] p-0.5">
-                  {(["5x", "20x"] as const).map((tier) => (
-                    <button
-                      key={tier}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onMaxTierChange?.(tier);
-                      }}
-                      className={cn(
-                        "rounded-lg px-2.5 py-1 text-[12px] font-medium transition-all",
-                        maxTier === tier
-                          ? "bg-white shadow-sm"
-                          : "text-zinc-500 hover:text-zinc-900",
-                      )}
-                    >
-                      {tier}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <p className="text-[13px] text-zinc-600">{plan.subtitle}</p>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-1.5">
-                {price.strikethrough != null && (
-                  <span className="text-[13px] font-medium text-zinc-500 line-through">
-                    ₹{price.strikethrough.toLocaleString("en-IN")}
-                  </span>
-                )}
-                <div className="flex items-baseline gap-0.5">
-                  <p className="app-page-title">
-                    {plan.customPriceLabel === "From" && !isMax ? "From " : ""}
-                    {plan.customPriceLabel !== "Custom" ? "₹" : ""}
-                    {price.main}
-                  </p>
-                  {price.suffix && (
-                    <span className="text-[13px] font-medium text-zinc-500">
-                      {price.suffix}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="h-5">
-                {price.subtext && (
-                  <p className="text-[12px] leading-4 text-zinc-500">
-                    {price.subtext}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* No CTA spacer for lower-than-current plans — features sit under the price. */}
-          {isCurrent ? (
-            <button
-              type="button"
-              disabled
-              className="app-btn app-btn-md flex w-full cursor-default items-center justify-center rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-zinc-100 font-medium text-zinc-400"
-            >
-              <Check className="mr-1.5 h-[18px] w-[18px]" />
-              Current plan
-            </button>
-          ) : isLowerThanCurrent ? null : (
-            <button
-              type="button"
-              onClick={onSelect}
-              className={cn(
-                "app-btn app-btn-md flex w-full items-center justify-center rounded-[var(--radius-sm)] font-medium transition-colors",
-                plan.isPopular
-                  ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                  : "border-2 border-black/10 bg-white text-zinc-900 hover:bg-zinc-50",
-              )}
-            >
-              {ctaLabel ??
-                (forceSelectable && plan.id === "free"
-                  ? "Continue with Free"
-                  : plan.buttonLabel)}
-            </button>
-          )}
-        </div>
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <div className="flex flex-col gap-3.5 rounded-b-xl bg-black/[0.02] px-4 py-4 pb-5">
-        {plan.highlight && (
-          <div className="flex items-start gap-0.5">
-            <Plus className="mt-0.5 h-[18px] w-[18px] shrink-0 text-zinc-500" />
-            <p className="text-[13px] font-medium leading-[19.5px] text-zinc-500">
-              {plan.highlight}
-            </p>
-          </div>
+      <div className="mt-8">
+        {isCurrent ? (
+          <PricingCtaButton disabled variant="current">
+            <Check className="mr-1.5 h-4 w-4" />
+            Current plan
+          </PricingCtaButton>
+        ) : isLowerThanCurrent ? null : (
+          <PricingCtaButton
+            onClick={onSelect}
+            variant={plan.isPopular ? "primary" : "secondary"}
+          >
+            {ctaLabel ??
+              (forceSelectable && plan.id === "free"
+                ? "Continue with Free"
+                : plan.buttonLabel)}
+          </PricingCtaButton>
         )}
-        {features.map((feature) => (
-          <div key={feature} className="flex items-start gap-0.5">
-            <Check
-              className="mt-0.5 h-[18px] w-[18px] shrink-0 text-zinc-900"
-              strokeWidth={1.5}
-            />
-            <p className="text-[13px] leading-[19.5px] text-zinc-900">
-              {feature}
-            </p>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -308,220 +313,207 @@ function OrganizationPlanCarouselCard({
     : plan.name;
 
   return (
-    <div
-      className={cn(
-        "flex w-[240px] shrink-0 flex-col isolate rounded-xl",
-        CARD_SHADOW,
+    <div className="relative flex w-[240px] shrink-0 flex-col justify-between rounded-xl bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px]">
+      {plan.isRecommended && (
+        <PlanBadge label="Recommended" variant="recommended" />
       )}
-    >
-      <div className="relative z-[2] rounded-t-xl bg-white px-5 pb-5 pt-[26px]">
-        {plan.isRecommended && (
-          <PlanBadge label="Recommended" variant="recommended" />
-        )}
-        {plan.isSpecialOffer && (
-          <PlanBadge label="Special Offer" variant="special" />
-        )}
+      {plan.isSpecialOffer && (
+        <PlanBadge label="Special Offer" variant="special" />
+      )}
 
-        <div className="flex flex-col gap-4">
-          <div className="relative flex flex-col gap-4">
-            <span className="app-page-body font-medium">
-              {displayName}
-            </span>
+      <div className="flex flex-col">
+        <h3 className="text-[22px] font-normal leading-[1.3] tracking-[-0.11px] text-[var(--pricing-fg)]">
+          {displayName}
+        </h3>
 
-            <p className="text-[13px] text-zinc-600">{plan.subtitle}</p>
+        <p className="mt-0.5 text-[13px] leading-[18px] text-[var(--pricing-muted)]">
+          {plan.subtitle}
+        </p>
 
-            <div className="rounded-lg bg-black/[0.04] p-3">
-              <p className="mb-2.5 text-[11px] font-medium leading-4 text-zinc-500">
-                {plan.userRangeLabel}
+        <div className="mt-4 rounded-lg bg-[var(--pricing-thumb)]/70 p-3">
+          <p className="mb-2.5 text-[11px] font-medium leading-4 text-[var(--pricing-muted)]">
+            {plan.userRangeLabel}
+          </p>
+
+          {plan.pricingModel === "per-seat" && plan.seatOptions && (
+            <div className="flex flex-col">
+              <p className="mb-2.5 text-[11px] font-medium leading-4 text-[var(--pricing-muted)]">
+                Min {plan.minSeats} seats · configure each seat separately
               </p>
+              {plan.seatOptions.map((seat, index) => {
+                const display = getOrganizationSeatDisplayPrice(
+                  seat.monthlyPriceInr,
+                  cycle,
+                  plan.yearlySupported,
+                );
+                return (
+                  <div key={seat.id}>
+                    {index > 0 && (
+                      <div className="my-2.5 border-t border-[var(--pricing-fg)]/10" />
+                    )}
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-[12px] font-medium leading-4 text-[var(--pricing-fg)]">
+                        {seat.label}
+                      </span>
+                      <div className="shrink-0 text-right">
+                        <div className="flex items-baseline justify-end gap-1">
+                          {display.strikethrough != null && (
+                            <span className="text-[11px] text-[var(--pricing-muted)] line-through">
+                              ₹
+                              {display.strikethrough.toLocaleString("en-IN")}
+                            </span>
+                          )}
+                          <span className="text-[13px] font-semibold leading-4 text-[var(--pricing-fg)]">
+                            ₹{display.amount.toLocaleString("en-IN")}
+                            <span className="text-[11px] font-medium text-[var(--pricing-muted)]">
+                              /mo
+                            </span>
+                          </span>
+                        </div>
+                        {seat.note && (
+                          <p className="mt-0.5 max-w-[118px] text-[10px] leading-[14px] text-[var(--pricing-muted)]">
+                            {seat.note}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-              {plan.pricingModel === "per-seat" && plan.seatOptions && (
-                <div className="flex flex-col">
-                  <p className="mb-2.5 text-[11px] font-medium leading-4 text-zinc-600">
-                    Min {plan.minSeats} seats · configure each seat separately
-                  </p>
-                  {plan.seatOptions.map((seat, index) => {
+          {plan.pricingModel === "bundle-seat" &&
+            plan.bundleSeatMonthlyInr != null && (
+              <div className="flex flex-col gap-1">
+                <p className="text-[11px] font-medium leading-4 text-[var(--pricing-muted)]">
+                  Min {plan.minSeats} seats · per seat
+                </p>
+                <div className="flex flex-wrap items-baseline gap-1">
+                  {plan.bundleSeatMonthlyStrikethroughInr != null && (
+                    <span className="text-[11px] text-[var(--pricing-muted)] line-through">
+                      ₹
+                      {plan.bundleSeatMonthlyStrikethroughInr.toLocaleString(
+                        "en-IN",
+                      )}
+                    </span>
+                  )}
+                  {(() => {
                     const display = getOrganizationSeatDisplayPrice(
-                      seat.monthlyPriceInr,
+                      plan.bundleSeatMonthlyInr,
                       cycle,
                       plan.yearlySupported,
                     );
                     return (
-                      <div key={seat.id}>
-                        {index > 0 && (
-                          <div className="my-2.5 border-t border-black/10" />
-                        )}
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="text-[12px] font-medium leading-4 text-zinc-900">
-                            {seat.label}
-                          </span>
-                          <div className="shrink-0 text-right">
-                            <div className="flex items-baseline justify-end gap-1">
-                              {display.strikethrough != null && (
-                                <span className="text-[11px] text-zinc-500 line-through">
-                                  ₹
-                                  {display.strikethrough.toLocaleString(
-                                    "en-IN",
-                                  )}
-                                </span>
-                              )}
-                              <span className="text-[13px] font-semibold leading-4 text-zinc-900">
-                                ₹{display.amount.toLocaleString("en-IN")}
-                                <span className="text-[11px] font-medium text-zinc-500">
-                                  /mo
-                                </span>
-                              </span>
-                            </div>
-                            {seat.note && (
-                              <p className="mt-0.5 max-w-[118px] text-[10px] leading-[14px] text-zinc-500">
-                                {seat.note}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {plan.pricingModel === "bundle-seat" &&
-                plan.bundleSeatMonthlyInr != null && (
-                  <div className="flex flex-col gap-1">
-                    <p className="text-[11px] font-medium leading-4 text-zinc-600">
-                      Min {plan.minSeats} seats · per seat
-                    </p>
-                    <div className="flex flex-wrap items-baseline gap-1">
-                      {plan.bundleSeatMonthlyStrikethroughInr != null && (
-                        <span className="text-[11px] text-zinc-500 line-through">
-                          ₹
-                          {plan.bundleSeatMonthlyStrikethroughInr.toLocaleString(
-                            "en-IN",
-                          )}
+                      <>
+                        <span className="text-[15px] font-medium text-[var(--pricing-fg)]">
+                          ₹{display.amount.toLocaleString("en-IN")}
                         </span>
-                      )}
-                      {(() => {
-                        const display = getOrganizationSeatDisplayPrice(
-                          plan.bundleSeatMonthlyInr,
-                          cycle,
-                          plan.yearlySupported,
-                        );
-                        return (
-                          <>
-                            <span className="app-page-section-title">
-                              ₹{display.amount.toLocaleString("en-IN")}
-                            </span>
-                            <span className="text-[11px] font-medium text-zinc-500">
-                              / seat / mo
-                            </span>
-                          </>
-                        );
-                      })()}
-                    </div>
-                    {cycle === "yearly" && (
-                      <p className="text-[10px] leading-4 text-zinc-500">
-                        Billed annually · {YEARLY_DISCOUNT_PERCENT}% off vs
-                        monthly
-                      </p>
-                    )}
-                  </div>
-                )}
-
-              {plan.pricingModel === "usage" && (
-                <div className="flex flex-col gap-1">
-                  <p className="text-[11px] font-medium leading-4 text-zinc-600">
-                    Min {plan.minSeats} members
-                  </p>
-                  <p className="app-page-section-title">
-                    {plan.usagePricingLabel}
-                  </p>
-                  {plan.usagePricingSubtext && (
-                    <p className="text-[10px] leading-4 text-zinc-500">
-                      {plan.usagePricingSubtext}
-                    </p>
-                  )}
+                        <span className="text-[11px] font-medium text-[var(--pricing-muted)]">
+                          / seat / mo
+                        </span>
+                      </>
+                    );
+                  })()}
                 </div>
-              )}
+                {cycle === "yearly" && (
+                  <p className="text-[10px] leading-4 text-[var(--pricing-muted)]">
+                    Billed annually · {YEARLY_DISCOUNT_PERCENT}% off vs monthly
+                  </p>
+                )}
+              </div>
+            )}
 
-              {plan.pricingModel === "seat-plus-usage" && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-[11px] font-medium leading-4 text-zinc-600">
-                    Min {plan.minSeats} seats · pooled usage
+          {plan.pricingModel === "usage" && (
+            <div className="flex flex-col gap-1">
+              <p className="text-[11px] font-medium leading-4 text-[var(--pricing-muted)]">
+                Min {plan.minSeats} members
+              </p>
+              <p className="text-[15px] font-medium text-[var(--pricing-fg)]">
+                {plan.usagePricingLabel}
+              </p>
+              {plan.usagePricingSubtext && (
+                <p className="text-[10px] leading-4 text-[var(--pricing-muted)]">
+                  {plan.usagePricingSubtext}
+                </p>
+              )}
+            </div>
+          )}
+
+          {plan.pricingModel === "seat-plus-usage" && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] font-medium leading-4 text-[var(--pricing-muted)]">
+                Min {plan.minSeats} seats · pooled usage
+              </p>
+              <p className="text-[15px] font-medium text-[var(--pricing-fg)]">
+                {plan.usagePricingLabel}
+              </p>
+              {plan.usagePricingSubtext && (
+                <p className="text-[10px] leading-4 text-[var(--pricing-muted)]">
+                  {plan.usagePricingSubtext}
+                </p>
+              )}
+              {plan.seatOptions && (
+                <div className="border-t border-[var(--pricing-fg)]/10 pt-2">
+                  <p className="mb-1.5 text-[10px] font-medium leading-4 text-[var(--pricing-muted)]">
+                    Per-seat personal tier (Plus, Pro, or Max):
                   </p>
-                  <p className="app-page-section-title">
-                    {plan.usagePricingLabel}
-                  </p>
-                  {plan.usagePricingSubtext && (
-                    <p className="text-[10px] leading-4 text-zinc-500">
-                      {plan.usagePricingSubtext}
+                  {plan.seatOptions.slice(0, 2).map((seat) => (
+                    <p
+                      key={seat.id}
+                      className="text-[10px] leading-4 text-[var(--pricing-muted)]"
+                    >
+                      {seat.label}: ₹
+                      {seat.monthlyPriceInr.toLocaleString("en-IN")}/mo
                     </p>
-                  )}
-                  {plan.seatOptions && (
-                    <div className="border-t border-black/10 pt-2">
-                      <p className="mb-1.5 text-[10px] font-medium leading-4 text-zinc-500">
-                        Per-seat personal tier (Plus, Pro, or Max):
-                      </p>
-                      {plan.seatOptions.slice(0, 2).map((seat) => (
-                        <p
-                          key={seat.id}
-                          className="text-[10px] leading-4 text-zinc-600"
-                        >
-                          {seat.label}: ₹
-                          {seat.monthlyPriceInr.toLocaleString("en-IN")}/mo
-                        </p>
-                      ))}
-                      <p className="text-[10px] leading-4 text-zinc-500">
-                        + Max 5x & Max 20x seats available
-                      </p>
-                    </div>
-                  )}
+                  ))}
+                  <p className="text-[10px] leading-4 text-[var(--pricing-muted)]">
+                    + Max 5x & Max 20x seats available
+                  </p>
                 </div>
               )}
             </div>
-
-            <div className="h-0" />
-          </div>
-
-          <button
-            type="button"
-            onClick={onSelect}
-            className={cn(
-              "app-btn app-btn-md flex w-full items-center justify-center rounded-[var(--radius-sm)] font-medium transition-colors",
-              isPrimaryCta
-                ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                : "border-2 border-black/10 bg-white text-zinc-900 hover:bg-zinc-50",
-            )}
-          >
-            {ctaLabel ?? plan.buttonLabel}
-          </button>
+          )}
         </div>
-      </div>
 
-      <div className="flex flex-col gap-3.5 rounded-b-xl bg-black/[0.02] px-4 py-4 pb-5">
-        {plan.highlight && (
-          <div className="flex items-start gap-0.5">
-            <Plus className="mt-0.5 h-[18px] w-[18px] shrink-0 text-zinc-500" />
-            <p className="text-[13px] font-medium leading-[19.5px] text-zinc-500">
-              {plan.highlight}
-            </p>
-          </div>
+        <div className="mt-4 min-h-[38px]" />
+
+        {plan.highlight ? (
+          <p className="mt-4 text-[13px] text-[var(--pricing-muted)]">
+            {plan.highlight}
+          </p>
+        ) : (
+          <p className="mt-4 text-[13px] text-[var(--pricing-muted)]">Includes:</p>
         )}
-        {plan.features.map((feature) => (
-          <div key={feature} className="flex items-start gap-0.5">
-            <Check
-              className="mt-0.5 h-[18px] w-[18px] shrink-0 text-zinc-900"
-              strokeWidth={1.5}
-            />
-            <p className="text-[13px] leading-[19.5px] text-zinc-900">
-              {feature}
-            </p>
-          </div>
-        ))}
+
+        <ul className="mt-4 flex flex-col gap-[3.7px]" role="list">
+          {plan.features.map((feature) => (
+            <li
+              key={feature}
+              className="flex gap-[7.5px] text-[13px] leading-[18px] text-[var(--pricing-fg)]"
+            >
+              <span className="shrink-0" aria-hidden>
+                ✓
+              </span>
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+
         {plan.footerNote && (
-          <p className="text-[11px] leading-4 text-zinc-500">
+          <p className="mt-3 text-[11px] leading-4 text-[var(--pricing-muted)]">
             {plan.footerNote}
           </p>
         )}
+      </div>
+
+      <div className="mt-8">
+        <PricingCtaButton
+          onClick={onSelect}
+          variant={isPrimaryCta ? "primary" : "secondary"}
+        >
+          {ctaLabel ?? plan.buttonLabel}
+        </PricingCtaButton>
       </div>
     </div>
   );
@@ -633,36 +625,49 @@ export function PlansCarouselSection({
     <div className={cn("flex flex-col gap-3 sm:gap-4", className)}>
       <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
         {layout === "tabs" ? (
-          <div className="rounded-[10px] bg-black/[0.043] p-0.5">
+          <div className={subscriptionSegmentTrackClass}>
             <button
               type="button"
               onClick={() => setActiveTab("individual")}
-              className={subscriptionSegmentClass(activeTab === "individual")}
+              className={cn(
+                subscriptionSegmentClass(activeTab === "individual"),
+                activeTab === "individual" &&
+                  "bg-[var(--pricing-thumb)]",
+              )}
             >
               Individual
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("team")}
-              className={subscriptionSegmentClass(activeTab === "team")}
+              className={cn(
+                subscriptionSegmentClass(activeTab === "team"),
+                activeTab === "team" && "bg-[var(--pricing-thumb)]",
+              )}
             >
               Team & Enterprise
             </button>
           </div>
         ) : null}
 
-        <div className="rounded-[10px] bg-black/[0.043] p-0.5">
+        <div className={subscriptionSegmentTrackClass}>
           <button
             type="button"
             onClick={() => setBillingCycle("monthly")}
-            className={subscriptionSegmentClass(billingCycle === "monthly")}
+            className={cn(
+              subscriptionSegmentClass(billingCycle === "monthly"),
+              billingCycle === "monthly" && "bg-[var(--pricing-thumb)]",
+            )}
           >
             Monthly
           </button>
           <button
             type="button"
             onClick={() => setBillingCycle("yearly")}
-            className={subscriptionSegmentClass(billingCycle === "yearly")}
+            className={cn(
+              subscriptionSegmentClass(billingCycle === "yearly"),
+              billingCycle === "yearly" && "bg-[var(--pricing-thumb)]",
+            )}
           >
             Yearly (save {YEARLY_DISCOUNT_PERCENT}%)
           </button>
@@ -675,11 +680,10 @@ export function PlansCarouselSection({
             disabled={!canScrollLeft}
             onClick={() => scrollBy("left")}
             className={cn(
-              "flex rounded-full p-1.5 shadow-sm transition-opacity",
+              "flex rounded-full bg-[var(--pricing-card)] p-1.5 transition-opacity",
               canScrollLeft
-                ? "bg-white hover:bg-zinc-50"
-                : "cursor-default bg-white opacity-30",
-              CARD_SHADOW,
+                ? "text-[var(--pricing-fg)] hover:bg-[var(--pricing-thumb)]"
+                : "cursor-default text-[var(--pricing-muted)] opacity-40",
             )}
           >
             <ChevronLeft className="h-[18px] w-[18px]" />
@@ -690,11 +694,10 @@ export function PlansCarouselSection({
             disabled={!canScrollRight}
             onClick={() => scrollBy("right")}
             className={cn(
-              "flex rounded-full p-1.5 shadow-sm transition-opacity",
+              "flex rounded-full bg-[var(--pricing-card)] p-1.5 transition-opacity",
               canScrollRight
-                ? "bg-white hover:bg-zinc-50"
-                : "cursor-default bg-white opacity-30",
-              CARD_SHADOW,
+                ? "text-[var(--pricing-fg)] hover:bg-[var(--pricing-thumb)]"
+                : "cursor-default text-[var(--pricing-muted)] opacity-40",
             )}
           >
             <ChevronRight className="h-[18px] w-[18px]" />
@@ -705,7 +708,7 @@ export function PlansCarouselSection({
       <div className="relative -mx-4 overflow-hidden">
         <div
           ref={scrollRef}
-          className="flex items-start gap-5 overflow-x-auto px-7 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex items-stretch gap-2.5 overflow-x-auto px-7 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           style={{
             maskImage:
               "linear-gradient(90deg, transparent 0%, black 50px, black calc(100% - 50px), transparent 100%)",
@@ -744,8 +747,8 @@ export function PlansCarouselSection({
       </div>
 
       {layout === "tabs" && activeTab === "team" ? (
-        <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-zinc-50 p-3 text-[13px] text-zinc-600">
-          <Info className="h-4 w-4 shrink-0" />
+        <div className="flex items-center gap-2 rounded-xl bg-[var(--pricing-card)] p-3 text-[13px] text-[var(--pricing-muted)]">
+          <Info className="h-4 w-4 shrink-0 text-[var(--pricing-fg)]" />
           <span>
             Work email required. Each seat can be Plus, Pro, Max 5x, or Max 20x
             — Go is not available on organization plans. Minimum seats: Team 2 ·
@@ -792,16 +795,16 @@ export default function UpgradePageContent({
   };
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-white font-sans text-zinc-900">
-      <header className="sticky top-0 z-20 flex items-center justify-center border-b border-black/5 bg-white/90 px-12 py-3.5 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md sm:py-4">
+    <div className="h-full w-full overflow-y-auto bg-[var(--pricing-bg)] font-sans text-[var(--pricing-fg)]">
+      <header className="sticky top-0 z-20 flex items-center justify-center border-b border-[var(--pricing-fg)]/[0.06] bg-[var(--pricing-bg)]/95 px-12 py-3.5 pt-[max(0.75rem,env(safe-area-inset-top))] sm:py-4">
         <button
           onClick={onClose}
-          className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-colors hover:bg-zinc-100 sm:left-4"
+          className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-colors hover:bg-[var(--pricing-card)] sm:left-4"
           aria-label="Back"
         >
           <ArrowLeft className="icon-lg" />
         </button>
-        <h1 className="app-page-title max-w-[min(100%,14rem)] truncate text-center sm:max-w-none">
+        <h1 className="max-w-[min(100%,14rem)] truncate text-center text-[22px] font-normal leading-[1.3] tracking-[-0.11px] text-[var(--pricing-fg)] sm:max-w-none sm:text-[28px] sm:tracking-[-0.4px]">
           Plans that grow with you
         </h1>
       </header>
@@ -814,12 +817,12 @@ export default function UpgradePageContent({
           onOrganizationPlanSelect={handleOrganizationPlanSelection}
         />
 
-        <p className="text-center text-[13px] text-zinc-500">
+        <p className="text-center text-[13px] text-[var(--pricing-muted)]">
           *
           <a
             href="#"
             onClick={handlePlaceholderLinkClick}
-            className="underline underline-offset-4 decoration-zinc-400/40 hover:text-zinc-900"
+            className="underline underline-offset-4 decoration-[var(--pricing-fg)]/25 hover:text-[var(--pricing-fg)]"
           >
             Usage limits apply
           </a>

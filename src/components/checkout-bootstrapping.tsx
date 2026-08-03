@@ -17,7 +17,7 @@ export function CheckoutBootstrapping({
     >
       <div className="flex flex-col items-center gap-4 text-center">
         <div
-          className="h-9 w-9 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-800"
+          className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--settings-hairline)] border-t-[var(--settings-fg)]"
           aria-hidden
         />
         <p className="app-page-muted font-medium">

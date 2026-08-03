@@ -437,11 +437,11 @@ export function SettingsModal({
               />
             </aside>
 
-            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--app-panel-bg)]">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--settings-canvas-bg)] settings-canvas">
               <button
                 type="button"
                 onClick={onClose}
-                className="ui-icon-button absolute right-3 top-3 z-10 hidden text-zinc-700 transition-colors hover:bg-[var(--ui-hover-wash)] md:inline-flex"
+                className="ui-icon-button absolute right-3 top-3 z-10 hidden text-[var(--settings-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--settings-fg)] md:inline-flex"
                 aria-label="Close settings"
               >
                 <X className="icon-lg" strokeWidth={1.75} />
@@ -450,14 +450,20 @@ export function SettingsModal({
               <div
                 data-scroll-region=""
                 className={cn(
-                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-[13px] leading-[18px] sm:px-6 md:px-6 md:pb-4 md:pt-10",
-                  contentHydrating && "opacity-95",
+                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 md:px-6 md:pb-6 md:pt-10",
                 )}
                 aria-busy={contentHydrating || undefined}
               >
-                <SettingsTabErrorBoundary tabLabel={activeTab}>
-                  {renderActiveTab()}
-                </SettingsTabErrorBoundary>
+                <div
+                  className={cn(
+                    "mx-auto w-full max-w-[720px]",
+                    contentHydrating && "opacity-[0.97]",
+                  )}
+                >
+                  <SettingsTabErrorBoundary tabLabel={activeTab}>
+                    {renderActiveTab()}
+                  </SettingsTabErrorBoundary>
+                </div>
               </div>
             </div>
           </div>

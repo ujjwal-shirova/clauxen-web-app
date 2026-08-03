@@ -11,7 +11,7 @@ import { appBtn } from "@/lib/app-buttons";
 
 const page = {
   surface:
-    "app-page-surface flex h-full w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900 dark:text-zinc-50",
+    "app-page-surface flex h-full w-full flex-1 flex-col overflow-hidden font-sans text-[var(--settings-fg)] dark:text-zinc-50",
   headerBleed:
     "w-full shrink-0 border-b border-[var(--ui-border-subtle)] dark:border-white/[0.06]",
   headerInner:
@@ -21,12 +21,12 @@ const page = {
   subtitle: "app-page-subtitle",
   searchWrap: "relative mt-3 sm:mt-4",
   searchIcon:
-    "pointer-events-none absolute left-3 top-1/2 icon-md -translate-y-1/2 text-zinc-400",
+    "pointer-events-none absolute left-2.5 top-1/2 icon-sm -translate-y-1/2 text-[var(--settings-fg-muted)]",
   searchInput: "app-page-search",
   primaryCta: cn(appBtn.primary, "shrink-0 gap-1.5 shadow-none"),
   outlineCta: cn(appBtn.secondary, "shrink-0"),
   emptyIconWell:
-    "mb-5 flex h-14 w-14 items-center justify-center rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-zinc-50 text-zinc-300 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-600",
+    "mb-5 flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] shadow-[var(--settings-card-shadow)]",
   emptyTitle: "app-page-section-title mb-1.5",
   emptyBody: "app-page-muted mb-5 max-w-[380px]",
   content:
@@ -64,48 +64,48 @@ const field = {
 } as const;
 
 const checkout = {
-  form: "app-page-surface w-full font-sans text-zinc-900",
-  stack: "flex flex-col gap-5",
-  section: "flex flex-col gap-3",
+  form: "app-page-surface w-full font-sans text-[var(--settings-fg)]",
+  stack: "flex flex-col gap-4",
+  section: "flex flex-col gap-2",
 
   field: field.base,
   fieldWithIcons: field.withIcons,
   fieldWithTrailingIcon: field.withTrailing,
 
-  sectionTitle: "app-page-section-title px-0.5",
-  panel: cn(page.card, "px-3.5 py-3 shadow-[var(--field-shadow)]"),
+  sectionTitle: "settings-section-label px-0.5",
+  panel: "settings-card px-4 py-3",
   panelMuted: field.mutedPanel,
 
   tabBase:
-    "flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border px-2 py-2.5 text-[length:var(--ui-font-size)] font-medium leading-[var(--ui-line-height)] transition-all duration-150",
-  tabSelected: "border-zinc-900 bg-zinc-900 text-white",
+    "flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] px-2 py-2 text-[13px] font-medium leading-[18px] transition-colors duration-150 shadow-[inset_0_0_0_1px_var(--settings-btn-border)]",
+  tabSelected: "bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)] shadow-none",
   tabUnselected:
-    "border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50",
+    "bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]",
 
   expressButton: cn(appBtn.primaryLg, "w-full gap-2"),
 
   iconButton:
-    "ui-icon-button border border-transparent text-zinc-500 hover:border-[var(--ui-border)]",
+    "ui-icon-button border border-transparent text-[var(--settings-fg-muted)] hover:bg-[var(--ui-hover-wash)]",
 
   checkbox:
-    "h-4 w-4 shrink-0 rounded border border-zinc-300 accent-zinc-900",
+    "h-4 w-4 shrink-0 rounded border border-[var(--settings-input-border)] accent-[var(--settings-fg)]",
   labelMuted: page.muted,
-  labelFine: "app-page-muted text-[12px]",
-  errorText: "text-[length:var(--ui-font-size)] leading-[var(--ui-line-height)] text-red-600",
+  labelFine: "settings-muted text-[12px]",
+  errorText: "text-[13px] leading-[18px] text-red-600",
 
   payDisabled:
-    "h-10 w-full cursor-not-allowed rounded-[var(--radius-md)] border border-zinc-200 bg-zinc-200 text-[length:var(--ui-font-size)] font-medium text-white",
+    "h-9 w-full cursor-not-allowed rounded-[var(--radius-sm)] bg-[color-mix(in_oklab,#18181b_6%,transparent)] text-[13px] font-medium text-[var(--settings-fg-muted)]",
 
   hint: cn(
     page.muted,
-    "flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--ui-border)] bg-[var(--ui-muted-surface)] px-3.5 py-2.5",
+    "flex items-center gap-3 rounded-[var(--settings-card-radius)] bg-[var(--settings-card-bg)] px-3.5 py-2.5 shadow-[var(--settings-card-shadow)]",
   ),
 
   errorBanner:
-    "mb-4 flex items-center rounded-[var(--radius-md)] border border-red-200 bg-red-50 px-3 py-2 text-[length:var(--ui-font-size)] leading-[var(--ui-line-height)] text-red-800",
+    "mb-4 flex items-center rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-2 text-[13px] leading-[18px] text-red-800",
 
-  orLine: "h-px flex-1 bg-zinc-200",
-  orLabel: "px-1 text-[12px] font-medium text-zinc-500",
+  orLine: "h-px flex-1 bg-[var(--settings-hairline)]",
+  orLabel: "px-1 text-[12px] font-medium text-[var(--settings-fg-muted)]",
 } as const;
 
 export const chrome = {

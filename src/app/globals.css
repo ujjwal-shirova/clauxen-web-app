@@ -68,26 +68,41 @@
     --ui-line-height: 18px;
     --ui-title-size: 18px;
     --ui-title-line: 24px;
-    --ui-section-title-size: 15px;
+    --ui-section-title-size: 13px;
     --ui-section-title-line: 20px;
-    --ui-muted-size: 12.5px;
-    --ui-control-height: 32px;
-    --ui-control-height-md: 36px;
-    --ui-control-height-lg: 40px;
+    --ui-muted-size: 13px;
+    --ui-control-height: 28px;
+    --ui-control-height-md: 28px;
+    --ui-control-height-lg: 36px;
+    /* Settings overlay — Cursor dashboard settings chrome */
+    --settings-canvas-bg: #f8f8f8;
+    --settings-card-bg: #fcfcfc;
+    --settings-card-radius: 12px;
+    --settings-card-shadow: 0 0 0 1px color-mix(in oklab, #18181b 4%, transparent);
+    --settings-control-height: 28px;
+    --settings-row-gap: 20px;
+    --settings-row-pad-x: 16px;
+    --settings-row-pad-y: 12px;
+    --settings-fg: #18181b;
+    --settings-fg-muted: color-mix(in oklab, #18181b 74%, transparent);
+    --settings-hairline: color-mix(in oklab, #18181b 4%, transparent);
+    --settings-input-border: color-mix(in oklab, #18181b 12%, transparent);
+    --settings-btn-border: color-mix(in oklab, #18181b 8%, transparent);
+    --settings-switch-track: color-mix(in oklab, #18181b 14%, transparent);
     --ui-page-max-width: 880px;
     --ui-page-max-width-wide: 1120px;
     --ui-card-bg: #fcfcfc;
-    --ui-border: rgba(24, 24, 27, 0.1);
-    --ui-border-subtle: rgba(24, 24, 27, 0.06);
-    --ui-hover-wash: rgba(24, 24, 27, 0.05);
+    --ui-border: color-mix(in oklab, #18181b 12%, transparent);
+    --ui-border-subtle: color-mix(in oklab, #18181b 4%, transparent);
+    --ui-hover-wash: color-mix(in oklab, #18181b 5%, transparent);
     --ui-fg: #18181b;
-    --ui-fg-body: #27272a;
-    --ui-fg-muted: #71717a;
-    --ui-fg-placeholder: #a1a1aa;
-    --ui-field-bg: #ffffff;
-    --ui-field-focus-border: rgba(24, 24, 27, 0.18);
-    --ui-field-focus-ring: rgba(24, 24, 27, 0.06);
-    --ui-muted-surface: rgba(244, 244, 245, 0.8);
+    --ui-fg-body: #18181b;
+    --ui-fg-muted: color-mix(in oklab, #18181b 74%, transparent);
+    --ui-fg-placeholder: color-mix(in oklab, #18181b 52%, transparent);
+    --ui-field-bg: #fcfcfc;
+    --ui-field-focus-border: color-mix(in oklab, #18181b 22%, transparent);
+    --ui-field-focus-ring: color-mix(in oklab, #18181b 6%, transparent);
+    --ui-muted-surface: color-mix(in oklab, #18181b 4%, transparent);
 
     --chat-header-height: 40px;
     --chat-header-icon-btn: 28px;
@@ -115,9 +130,21 @@
     --icon-muted: rgba(24, 24, 27, 0.66);
     --icon-subtle: rgba(24, 24, 27, 0.6);
 
-    /* App shell — Cursor-style cool gray; chat canvas is a touch lighter */
+    /* Pricing / plan view — Cursor pricing warm neutrals (keep Clauxen card radius) */
+    --pricing-bg: #f7f7f4;
+    --pricing-card: #f2f1ed;
+    --pricing-thumb: #e6e5e0;
+    --pricing-fg: #26251e;
+    --pricing-muted: color-mix(in oklab, #26251e 60%, transparent);
+    --pricing-cta: #26251e;
+    --pricing-cta-fg: #f7f7f4;
+    --pricing-cta-secondary: #e6e5e0;
+    --pricing-toggle-track: #f2f1ed;
+    --pricing-thumb-active: color-mix(in oklab, #26251e 10%, transparent);
+
+    /* App shell — Cursor-style cool gray; product pages share canvas #f8f8f8 */
     --app-shell-bg: #f3f3f3;
-    --app-panel-bg: #ffffff;
+    --app-panel-bg: #f8f8f8;
     --chat-canvas-bg: #f8f8f8;
     --chat-user-card-bg: #fcfcfc;
     --overlay-scrim: rgba(24, 24, 27, 0.4);
@@ -246,8 +273,8 @@
 /* ——— Shared chrome utilities (prefer over ad-hoc Tailwind) ——— */
 
 .app-page-surface {
-  background-color: var(--app-panel-bg);
-  color: hsl(var(--foreground));
+  background-color: var(--settings-canvas-bg, var(--app-panel-bg));
+  color: var(--settings-fg, hsl(var(--foreground)));
   font-size: var(--ui-font-size);
   line-height: var(--ui-line-height);
 }
@@ -255,7 +282,7 @@
 .app-page-title {
   font-size: var(--ui-title-size);
   line-height: var(--ui-title-line);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.02em;
   color: var(--ui-fg);
 }
@@ -270,8 +297,8 @@
 .app-page-section-title {
   font-size: var(--ui-section-title-size);
   line-height: var(--ui-section-title-line);
-  font-weight: 600;
-  letter-spacing: -0.015em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   color: var(--ui-fg);
 }
 
@@ -289,20 +316,18 @@
 
 .app-page-search {
   box-sizing: border-box;
-  height: var(--ui-control-height-md);
+  height: var(--ui-control-height);
   width: 100%;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--ui-border);
-  background: var(--ui-field-bg);
-  padding-left: 2.5rem;
-  padding-right: 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--settings-input-border, var(--ui-border));
+  background: var(--settings-card-bg, var(--ui-field-bg));
+  padding-left: 2.25rem;
+  padding-right: 0.5rem;
   font-size: var(--ui-font-size);
   line-height: var(--ui-line-height);
   color: var(--ui-fg);
-  box-shadow: var(--field-shadow);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+  box-shadow: none;
+  transition: border-color 0.15s ease;
 }
 
 .app-page-search::placeholder {
@@ -312,21 +337,142 @@
 .app-page-search:focus {
   outline: none;
   border-color: var(--ui-field-focus-border);
-  box-shadow: 0 0 0 2px var(--ui-field-focus-ring);
+  box-shadow: none;
 }
 
 .app-page-card {
-  border-radius: var(--radius-md);
-  border: 1px solid var(--ui-border);
-  background: var(--ui-card-bg, #fcfcfc);
+  border-radius: var(--settings-card-radius, var(--radius-md));
+  border: none;
+  background: var(--settings-card-bg, var(--ui-card-bg, #fcfcfc));
+  box-shadow: var(--settings-card-shadow);
 }
 
 .app-page-card:hover {
-  background: color-mix(in srgb, var(--ui-card-bg, #fcfcfc) 92%, #e4e4e7);
+  background: var(--settings-card-bg, var(--ui-card-bg, #fcfcfc));
 }
 
 .dark .app-page-card:hover {
-  background: color-mix(in srgb, var(--ui-card-bg, #1c1c1f) 88%, #fff);
+  background: var(--ui-card-bg, #1c1c1f);
+}
+
+/* Cursor settings surface — cards + compact controls */
+.settings-canvas {
+  background-color: var(--settings-canvas-bg);
+  color: var(--settings-fg);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  align-self: stretch;
+  border-radius: var(--settings-card-radius);
+  background: var(--settings-card-bg);
+  box-shadow: var(--settings-card-shadow);
+}
+
+.settings-section-label {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--settings-fg);
+}
+
+.settings-muted {
+  color: var(--settings-fg-muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.settings-field {
+  appearance: none;
+  width: 100%;
+  height: var(--settings-control-height);
+  min-height: var(--settings-control-height);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--settings-input-border);
+  background: var(--settings-card-bg);
+  padding-left: 8px;
+  padding-right: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--settings-fg);
+  outline: none;
+}
+
+.settings-field::placeholder {
+  color: var(--settings-fg-muted);
+}
+
+.settings-field:focus {
+  border-color: color-mix(in oklab, #18181b 22%, transparent);
+}
+
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--settings-control-height);
+  min-height: var(--settings-control-height);
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--settings-btn-border);
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--settings-fg);
+  white-space: nowrap;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.settings-btn:hover:not(:disabled) {
+  background: var(--ui-hover-wash);
+}
+
+.settings-btn:disabled {
+  color: var(--settings-fg-muted);
+  background: color-mix(in oklab, #18181b 6%, transparent);
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.settings-btn--muted {
+  color: var(--settings-fg-muted);
+  box-shadow: none;
+}
+
+.settings-btn--muted:hover:not(:disabled) {
+  background: var(--ui-hover-wash);
+  color: var(--settings-fg);
+}
+
+.settings-switch {
+  height: 20px;
+  width: 34px;
+  border-width: 2px;
+}
+
+.settings-switch[data-state="unchecked"] {
+  background-color: var(--settings-switch-track);
+}
+
+.settings-switch[data-state="checked"] {
+  background-color: var(--settings-fg);
+}
+
+.settings-switch [data-slot="thumb"],
+.settings-switch > span {
+  height: 16px;
+  width: 16px;
+}
+
+.settings-switch[data-state="checked"] > span {
+  transform: translateX(14px);
 }
 
 .app-page-row {
@@ -394,19 +540,17 @@
 .app-field {
   box-sizing: border-box;
   width: 100%;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--ui-border);
-  background: var(--ui-field-bg);
-  padding: 0.625rem 0.75rem;
+  height: var(--ui-control-height);
+  min-height: var(--ui-control-height);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--settings-input-border, var(--ui-border));
+  background: var(--settings-card-bg, var(--ui-field-bg));
+  padding: 0 0.5rem;
   font-size: var(--ui-font-size);
   line-height: var(--ui-line-height);
   color: var(--ui-fg);
-  box-shadow: var(--field-shadow);
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    color 0.15s ease;
+  box-shadow: none;
+  transition: border-color 0.15s ease;
 }
 
 .app-field::placeholder {
@@ -416,7 +560,7 @@
 .app-field:focus {
   outline: none;
   border-color: var(--ui-field-focus-border);
-  box-shadow: 0 0 0 2px var(--ui-field-focus-ring);
+  box-shadow: none;
 }
 
 .app-field--icons {
@@ -428,10 +572,11 @@
 }
 
 .app-field-muted-panel {
-  border-radius: var(--radius-md);
-  border: 1px solid var(--ui-border);
-  background: var(--ui-muted-surface);
-  padding: 1rem 0.875rem;
+  border-radius: var(--settings-card-radius, var(--radius-md));
+  border: none;
+  background: var(--settings-card-bg, var(--ui-muted-surface));
+  box-shadow: var(--settings-card-shadow);
+  padding: 0.875rem;
   text-align: center;
   font-size: var(--ui-font-size);
   line-height: var(--ui-line-height);
@@ -549,17 +694,17 @@
 
   /* ── Secondary (outlined / light) ── */
   .app-btn-secondary {
-    background-color: #ffffff;
-    color: #27272a;
-    border-color: rgba(24, 24, 27, 0.12);
-    box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04);
+    background-color: transparent;
+    color: #18181b;
+    border-color: transparent;
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, #18181b 8%, transparent);
   }
 
   .app-btn-secondary:hover:not(:disabled) {
-    background-color: #fafafa !important;
+    background-color: color-mix(in oklab, #18181b 5%, transparent) !important;
     color: #18181b !important;
-    border-color: rgba(24, 24, 27, 0.16) !important;
-    box-shadow: none !important;
+    border-color: transparent !important;
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, #18181b 8%, transparent) !important;
   }
 
   .app-btn-secondary:active:not(:disabled) {
@@ -622,32 +767,32 @@
     color: #f4f4f5 !important;
   }
 
-  /* Sizes — Cursor-compact (13px body, 32–40px controls) */
+  /* Sizes — Cursor settings density (28px controls, 36px large CTA) */
   .app-btn-sm {
-    height: var(--ui-control-height, 32px);
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
+    height: var(--ui-control-height, 28px);
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
     font-size: var(--ui-font-size, 13px);
     line-height: var(--ui-line-height, 18px);
     border-radius: var(--radius-sm);
   }
 
   .app-btn-md {
-    height: var(--ui-control-height-md, 36px);
-    padding-left: 0.875rem;
-    padding-right: 0.875rem;
+    height: var(--ui-control-height-md, 28px);
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
     font-size: var(--ui-font-size, 13px);
     line-height: var(--ui-line-height, 18px);
     border-radius: var(--radius-sm);
   }
 
   .app-btn-lg {
-    height: var(--ui-control-height-lg, 40px);
-    padding-left: 1.125rem;
-    padding-right: 1.125rem;
+    height: var(--ui-control-height-lg, 36px);
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
     font-size: var(--ui-font-size, 13px);
     line-height: var(--ui-line-height, 18px);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
   }
 
   .btn-primary-solid {

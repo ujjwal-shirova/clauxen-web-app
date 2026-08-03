@@ -204,13 +204,13 @@ export function ScheduledTasksView() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-[200px] rounded-xl border border-black/[0.06] p-1 shadow-lg"
+        className="w-[200px] p-1"
       >
         <DropdownMenuItem
           className="ui-menu-row cursor-pointer"
           onSelect={() => setModalOpen(true)}
         >
-          <Pencil className="icon-md text-zinc-500" strokeWidth={1.75} />
+          <Pencil className="icon-md text-[var(--settings-fg-muted)]" strokeWidth={1.75} />
           Create manually
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
@@ -222,7 +222,7 @@ export function ScheduledTasksView() {
             className="ui-menu-row cursor-pointer"
           >
             <MessageSquarePlus
-              className="icon-md text-zinc-500"
+              className="icon-md text-[var(--settings-fg-muted)]"
               strokeWidth={1.75}
             />
             Create via chat
@@ -260,7 +260,7 @@ export function ScheduledTasksView() {
               <AppHref
                 href={APP_ROUTES.newChat}
                 aria-label="Close"
-                className="ui-icon-button text-zinc-500"
+                className="ui-icon-button text-[var(--settings-fg-muted)]"
               >
                 <X className="icon-lg" strokeWidth={1.75} />
               </AppHref>
@@ -274,45 +274,44 @@ export function ScheduledTasksView() {
             </div>
           ) : tasks.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
-              <div className="mb-5 text-zinc-300">
+              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] shadow-[var(--settings-card-shadow)]">
                 <CalendarClock
-                  className="h-16 w-16"
-                  strokeWidth={1}
-                  absoluteStrokeWidth
+                  className="icon-lg"
+                  strokeWidth={1.5}
                 />
               </div>
-              <p className="app-page-section-title text-zinc-500">
+              <p className="app-page-section-title text-[var(--settings-fg-muted)]">
                 Create a scheduled task.
               </p>
               <div className="app-page-body mt-3 flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setModalOpen(true)}
-                  className="font-medium text-blue-600 transition-colors hover:text-blue-700"
+                  className="font-medium text-[var(--settings-fg)] underline-offset-2 hover:underline"
                 >
                   Add manually
                 </button>
-                <span className="text-zinc-300">or</span>
+                <span className="text-[var(--settings-fg-muted)] opacity-50">or</span>
                 <AppHref
                   href={scheduleViaChatHref}
                   onClick={() => {
                     stashScheduleChatDraft();
                   }}
-                  className="font-medium text-blue-600 transition-colors hover:text-blue-700"
+                  className="font-medium text-[var(--settings-fg)] underline-offset-2 hover:underline"
                 >
                   Create via chat
                 </AppHref>
               </div>
             </div>
           ) : (
-            <ul className="divide-y divide-zinc-100">
+            <ul className="settings-card divide-y divide-[var(--settings-hairline)] overflow-hidden">
               {tasks.map((task) => (
                 <li
                   key={task.id}
-                  className="flex items-center gap-3 py-3.5 first:pt-0"
+                  className="flex items-center gap-3 px-3.5 py-3 first:pt-3"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-zinc-100 text-zinc-500">
-                    <CalendarClock className="icon-lg" strokeWidth={1.75} />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[color-mix(in_oklab,#18181b_6%,transparent)] text-[var(--settings-fg-muted)]">
+                    <CalendarClock className="icon-md" strokeWidth={1.75} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -320,17 +319,17 @@ export function ScheduledTasksView() {
                         {task.name}
                       </p>
                       {task.status === "paused" ? (
-                        <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-500">
+                        <span className="rounded-[4px] bg-[color-mix(in_oklab,#18181b_6%,transparent)] px-1.5 py-0.5 text-[11px] font-medium leading-[14px] text-[var(--settings-fg-muted)]">
                           Paused
                         </span>
                       ) : null}
                       {task.status === "completed" ? (
-                        <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-500">
+                        <span className="rounded-[4px] bg-[color-mix(in_oklab,#18181b_6%,transparent)] px-1.5 py-0.5 text-[11px] font-medium leading-[14px] text-[var(--settings-fg-muted)]">
                           Done
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-0.5 truncate text-[13px] text-zinc-500">
+                    <p className="app-page-muted mt-0.5 truncate">
                       {scheduleSummary(task)}
                       {task.next_run_at && task.status === "active"
                         ? ` · Next ${nextRunLabel(task.next_run_at)}`
@@ -342,12 +341,12 @@ export function ScheduledTasksView() {
                       <button
                         type="button"
                         aria-label="Task actions"
-                        className="ui-icon-button text-zinc-400"
+                        className="ui-icon-button text-[var(--settings-fg-muted)]"
                       >
                         <MoreHorizontal className="icon-lg" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44 rounded-xl">
+                    <DropdownMenuContent align="end" className="w-44 p-1">
                       {task.last_chat_id ? (
                         <DropdownMenuItem asChild>
                           <AppHref href={APP_ROUTES.chat(task.last_chat_id)}>

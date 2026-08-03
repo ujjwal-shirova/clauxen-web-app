@@ -42,10 +42,10 @@ function NavButton({
         onClick={onSelect}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "ui-nav-row w-full rounded-md px-2 text-left text-[13px] font-medium leading-[18px] transition-colors duration-150",
+          "flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] font-medium leading-[18px] transition-colors duration-150",
           isActive
-            ? "bg-[rgba(11,11,11,0.08)] text-zinc-900 dark:bg-white/10 dark:text-zinc-100"
-            : "text-zinc-700 hover:bg-[rgba(11,11,11,0.04)] hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-100",
+            ? "bg-[color-mix(in_oklab,#18181b_8%,transparent)] text-[var(--settings-fg,#18181b)] dark:bg-white/10 dark:text-zinc-100"
+            : "text-zinc-700 hover:bg-[color-mix(in_oklab,#18181b_4%,transparent)] hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-100",
         )}
       >
         <Icon
@@ -84,7 +84,7 @@ function SettingsSearchInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder="Search"
         aria-label="Search settings"
-        className="h-8 w-full rounded-md bg-white/80 py-0 pl-8 pr-2 text-[13px] leading-[18px] text-zinc-900 placeholder:text-zinc-400 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition-[box-shadow,background-color] duration-75 focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] dark:focus:bg-zinc-900"
+        className="h-7 w-full rounded-md bg-[var(--settings-card-bg)] py-0 pl-8 pr-2 text-[13px] leading-[18px] text-[var(--settings-fg)] placeholder:text-[var(--settings-fg-muted)] shadow-[inset_0_0_0_1px_var(--settings-input-border)] outline-none transition-[box-shadow,background-color] duration-75 focus:shadow-[inset_0_0_0_1px_color-mix(in_oklab,#18181b_18%,transparent)] dark:bg-zinc-900/80 dark:text-zinc-100"
       />
     </div>
   );

@@ -49,7 +49,7 @@ export function CheckoutPreparing({
     <div className="app-surface-shell fixed inset-0 z-[110] flex items-center justify-center">
       <div className="mx-6 w-full max-w-[520px] text-center">
         <h1
-          className="checkout-preparing-title text-[24px] font-semibold tracking-[-0.03em] text-zinc-900 sm:text-[26px]"
+          className="checkout-preparing-title app-page-title text-[22px] tracking-[-0.03em] sm:text-[24px]"
           aria-live="polite"
         >
           Getting your plan ready

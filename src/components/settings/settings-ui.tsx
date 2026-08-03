@@ -25,19 +25,25 @@ export function SettingsSection({
   title,
   children,
   className,
+  card = true,
 }: {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  /** Wrap children in Cursor settings card. Default true. */
+  card?: boolean;
 }) {
   return (
-    <section className={cn("mb-6 last:mb-0 sm:mb-8", className)}>
+    <section
+      className={cn(
+        "mb-4 flex flex-col gap-2 last:mb-0 sm:mb-4",
+        className,
+      )}
+    >
       {title ? (
-        <div className="mb-3">
-          <h3 className="app-page-section-title">{title}</h3>
-        </div>
+        <h3 className="settings-section-label px-0.5">{title}</h3>
       ) : null}
-      {children}
+      {card ? <div className="settings-card">{children}</div> : children}
     </section>
   );
 }
@@ -60,11 +66,13 @@ export function SettingsPanelHeaderWithHelp({
   helpLabel?: string;
 }) {
   return (
-    <div className="mb-3 grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
-      <h2 className="app-page-section-title">{title}</h2>
+    <div className="mb-4 grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
+      <h2 className="text-[13px] font-medium leading-5 text-[var(--settings-fg)]">
+        {title}
+      </h2>
       <a
         href={helpHref}
-        className="mt-0.5 inline-flex items-center gap-1 text-zinc-400 transition-colors hover:text-zinc-900"
+        className="mt-0.5 inline-flex items-center gap-1 text-[var(--settings-fg-muted)] transition-colors hover:text-[var(--settings-fg)]"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -74,6 +82,12 @@ export function SettingsPanelHeaderWithHelp({
     </div>
   );
 }
+
+const settingsRowBase =
+  "relative flex flex-col items-stretch gap-2.5 px-[var(--settings-row-pad-x)] py-[var(--settings-row-pad-y)] sm:flex-row sm:items-center sm:gap-[var(--settings-row-gap)]";
+
+const settingsRowHairline =
+  "before:pointer before:left-[var(--settings-row-pad-x)] before:right-[var(--settings-row-pad-x)] before:top-0 before:h-px before:bg-[var(--settings-hairline)] first:before:hidden";
 
 export function SettingsValueRow({
   label,
@@ -87,12 +101,14 @@ export function SettingsValueRow({
   return (
     <div
       className={cn(
-        "flex flex-col items-stretch gap-2.5 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6",
-        !borderless && "border-b border-[var(--ui-border-subtle)]",
+        settingsRowBase,
+        !borderless && settingsRowHairline,
       )}
     >
-      <span className="app-page-body font-medium">{label}</span>
-      <span className="app-page-muted sm:max-w-[65%] sm:truncate sm:text-right">
+      <span className="min-w-0 flex-1 text-[13px] leading-5 text-[var(--settings-fg)]">
+        {label}
+      </span>
+      <span className="settings-muted min-w-0 flex-1 truncate sm:text-right">
         {value}
       </span>
     </div>
@@ -112,12 +128,9 @@ export function SettingsAddFamilyButton({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "app-btn app-btn-secondary app-btn-sm no-hover-overlay inline-flex gap-1.5",
-        className,
-      )}
+      className={cn("settings-btn no-hover-overlay", className)}
     >
-      <UserPlus className="icon-md shrink-0" aria-hidden />
+      <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
       {children}
     </button>
   );
@@ -131,8 +144,8 @@ export function SettingsSectionHeading({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <h3 className="app-page-section-title">{children}</h3>
+    <div className="mb-2 flex items-center justify-between gap-3 px-0.5">
+      <h3 className="settings-section-label">{children}</h3>
       {action}
     </div>
   );
@@ -154,19 +167,21 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        "flex flex-col items-stretch gap-2.5 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6",
-        !borderless && "border-b border-[var(--ui-border-subtle)]",
+        settingsRowBase,
+        !borderless && settingsRowHairline,
         className,
       )}
       role="group"
     >
       <div className="min-w-0 flex-1">
-        <div className="app-page-body">{label}</div>
+        <div className="text-[13px] leading-5 text-[var(--settings-fg)]">
+          {label}
+        </div>
         {description ? (
-          <div className="app-page-muted mt-1 text-pretty">{description}</div>
+          <div className="settings-muted mt-0.5 text-pretty">{description}</div>
         ) : null}
       </div>
-      <div className="w-full min-w-0 sm:w-auto sm:shrink-0 [&_button]:max-w-full sm:[&_button]:max-w-none">
+      <div className="flex w-full min-w-0 justify-end sm:w-auto sm:shrink-0 sm:flex-1 [&_button]:max-w-full sm:[&_button]:max-w-none">
         {children}
       </div>
     </div>
@@ -198,7 +213,8 @@ const settingsOptionMenuContentClass =
   cn(chrome.overlay.panel, "z-[120] min-w-[14rem] max-w-[20rem] p-1 text-zinc-900 dark:text-zinc-100");
 
 const settingsOptionTriggerClass = cn(
-  "no-hover-overlay inline-flex h-8 min-h-8 w-full shrink-0 items-center justify-between gap-1.5 rounded-[var(--radius-sm)] bg-white/80 px-2.5 text-[length:var(--ui-font-size)] leading-[var(--ui-line-height)] text-zinc-900 shadow-[inset_0_0_0_1px_var(--ui-border)] transition-[box-shadow,background-color] duration-75 hover:bg-white sm:w-auto sm:justify-start sm:px-2 data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)] dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] dark:hover:bg-zinc-900 dark:data-[state=open]:bg-zinc-900",
+  "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] w-full shrink-0 justify-between gap-1.5 px-2 text-[13px] leading-[18px] sm:w-auto sm:justify-start",
+  "bg-[var(--settings-card-bg)] text-[var(--settings-fg)] hover:bg-[var(--settings-card-bg)] data-[state=open]:shadow-[inset_0_0_0_1px_color-mix(in_oklab,#18181b_18%,transparent)]",
   settingsFocusReset,
 );
 
@@ -331,7 +347,7 @@ export function SettingsSelectButton({
       onClick={onClick}
       aria-label={ariaLabel ?? value}
       className={cn(
-        "no-hover-overlay inline-flex h-8 min-h-8 shrink-0 items-center gap-2 rounded-[var(--radius-sm)] bg-white px-2.5 text-[length:var(--ui-font-size)] leading-[var(--ui-line-height)] text-zinc-900 transition-colors hover:bg-zinc-50",
+        "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] shrink-0 gap-2 px-2 text-[13px] leading-[18px]",
         settingsFocusReset,
         className,
       )}
@@ -361,7 +377,7 @@ export function SettingsCharacteristicSelect({
         options={options}
         onValueChange={onChange}
         aria-label={`${label}, ${value}`}
-        className="h-8 min-h-8"
+        className="h-[var(--settings-control-height)] min-h-[var(--settings-control-height)]"
       />
     </SettingsRow>
   );
@@ -392,6 +408,10 @@ export function SettingsToggleRow({
         checked={checked}
         onCheckedChange={onCheckedChange}
         disabled={disabled}
+        className={cn(
+          "settings-switch h-5 w-[34px] border-2 border-transparent data-[state=unchecked]:bg-[var(--settings-switch-track)] data-[state=checked]:bg-[var(--settings-fg)]",
+          "[&>span]:h-4 [&>span]:w-4 data-[state=checked]:[&>span]:translate-x-[14px]",
+        )}
       />
     </SettingsRow>
   );
@@ -418,7 +438,7 @@ export function SettingsTextarea({
       rows={rows}
       maxLength={maxLength}
       className={cn(
-        "w-full resize-none rounded-[var(--radius-sm)] bg-white/80 px-3 py-2 text-[length:var(--ui-font-size)] leading-[var(--ui-line-height)] text-zinc-900 shadow-[inset_0_0_0_1px_var(--ui-border)] transition-[box-shadow,background-color] duration-75 placeholder:text-zinc-400 focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]",
+        "settings-field min-h-[72px] resize-none py-2",
         settingsFocusReset,
       )}
     />
@@ -442,7 +462,7 @@ export function SettingsVoiceControl({
         type="button"
         onClick={onPlay}
         className={cn(
-          "no-hover-overlay inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white px-3 text-[length:var(--ui-font-size)] leading-[var(--ui-line-height)] text-zinc-900 transition-colors hover:bg-zinc-100 sm:w-auto sm:rounded-l-md sm:rounded-r-none sm:border-r-0",
+          "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] w-full justify-center gap-1.5 sm:w-auto sm:rounded-r-none",
           settingsFocusReset,
         )}
       >
@@ -454,7 +474,7 @@ export function SettingsVoiceControl({
         options={voices}
         onValueChange={onVoiceChange}
         aria-label={`Voice, ${voice}`}
-        className="h-8 min-h-8 rounded-[var(--radius-sm)] border border-[var(--ui-border)] sm:rounded-l-none sm:rounded-r-md"
+        className="h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] sm:rounded-l-none"
         align="end"
       />
     </div>
@@ -474,24 +494,24 @@ export function SettingsPillButton({
   onClick,
   variant = "default",
   className,
+  disabled,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   variant?: "default" | "danger" | "ghost";
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "no-hover-overlay inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-4 text-[13px] font-medium leading-[18px] transition-colors",
-        variant === "default" &&
-          "border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-100",
+        "no-hover-overlay settings-btn shrink-0",
         variant === "danger" &&
-          "border-[#e02e2a] bg-transparent text-[#e02e2a] hover:bg-[#e02e2a]/5",
-        variant === "ghost" &&
-          "border-transparent bg-transparent px-3 text-zinc-600 hover:bg-zinc-100",
+          "text-[#e02e2a] shadow-[inset_0_0_0_1px_rgba(224,46,42,0.35)] hover:bg-[#e02e2a]/5",
+        variant === "ghost" && "settings-btn--muted shadow-none",
         settingsFocusReset,
         className,
       )}
@@ -534,13 +554,17 @@ export function SettingsChevronRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "no-hover-overlay flex w-full items-center justify-between gap-7 py-3 text-left transition-colors hover:bg-[rgba(11,11,11,0.03)]",
+        "no-hover-overlay",
+        settingsRowBase,
+        "w-full text-left transition-colors hover:bg-[var(--ui-hover-wash)]",
         settingsFocusReset,
-        !borderless && "border-b border-[rgba(11,11,11,0.05)]",
+        !borderless && settingsRowHairline,
       )}
     >
-      <span className="app-page-body font-medium">{label}</span>
-      <span className="app-page-muted flex shrink-0 items-center gap-1">
+      <span className="min-w-0 flex-1 text-[13px] leading-5 text-[var(--settings-fg)]">
+        {label}
+      </span>
+      <span className="settings-muted flex shrink-0 items-center gap-1">
         {value ? <span>{value}</span> : null}
         <ChevronRight className="icon-md" aria-hidden />
       </span>
@@ -560,17 +584,14 @@ export function SettingsManageRow({
   return (
     <div
       className={cn(
-        "flex flex-col items-stretch gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-7",
-        !borderless && "border-b border-[rgba(11,11,11,0.05)]",
+        settingsRowBase,
+        !borderless && settingsRowHairline,
       )}
     >
-      <span className="app-page-body font-medium">{label}</span>
-      <SettingsPillButton
-        onClick={onManage}
-        className="h-8 min-h-8 px-3 text-[13px]"
-      >
-        Manage
-      </SettingsPillButton>
+      <span className="min-w-0 flex-1 text-[13px] leading-5 text-[var(--settings-fg)]">
+        {label}
+      </span>
+      <SettingsPillButton onClick={onManage}>Manage</SettingsPillButton>
     </div>
   );
 }

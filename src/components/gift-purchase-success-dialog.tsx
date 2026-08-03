@@ -107,27 +107,26 @@ export function GiftPurchaseSuccessDialog({
               )}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative flex flex-col items-center bg-zinc-50 px-6 pb-5 pt-8">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.7),transparent_55%)]" />
+              <div className="relative flex flex-col items-center bg-[var(--settings-canvas-bg)] px-6 pb-5 pt-8">
                 <div className="relative">
                   <GiftAnimation />
                 </div>
-                <div className="relative mt-4 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm ring-2 ring-white">
+                <div className="relative mt-4 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-[var(--settings-card-bg)]">
                   <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
                 </div>
               </div>
 
               <div className="px-6 pb-6 pt-5 text-center">
-                <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+                <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--settings-fg-muted)]">
                   Payment successful
                 </p>
                 <h2
                   id="gift-purchase-success-title"
-                  className="mt-2 font-serif text-[22px] font-medium text-zinc-900"
+                  className="mt-2 font-serif text-[22px] font-medium text-[var(--settings-fg)]"
                 >
                   Gift purchased
                 </h2>
-                <p className="app-page-muted mt-2 leading-relaxed">
+                <p className="app-page-muted mt-2">
                   {durationLabel
                     ? `${durationLabel} of Clauxen ${gift.planName}`
                     : `Clauxen ${gift.planName}`}
@@ -140,11 +139,11 @@ export function GiftPurchaseSuccessDialog({
 
                 {isLink && gift.claimUrl ? (
                   <div className="mt-5 space-y-2 text-left">
-                    <p className="text-[12px] font-medium uppercase tracking-wide text-zinc-500">
+                    <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--settings-fg-muted)]">
                       Gift link
                     </p>
-                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-                      <code className="block break-all text-[12px] leading-5 text-zinc-800">
+                    <div className="rounded-[var(--settings-card-radius)] bg-[var(--settings-canvas-bg)] px-3 py-2.5 shadow-[var(--settings-card-shadow)]">
+                      <code className="block break-all text-[12px] leading-[18px] text-[var(--settings-fg)]">
                         {gift.claimUrl}
                       </code>
                     </div>
@@ -167,12 +166,12 @@ export function GiftPurchaseSuccessDialog({
                     </Button>
                   </div>
                 ) : (
-                  <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-left">
+                  <div className="mt-5 rounded-[var(--settings-card-radius)] bg-[var(--settings-canvas-bg)] px-4 py-3 text-left shadow-[var(--settings-card-shadow)]">
                     <div className="flex items-start gap-3">
-                      <Mail className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
-                      <p className="text-[13px] leading-relaxed text-zinc-600">
+                      <Mail className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg-muted)]" />
+                      <p className="settings-muted">
                         We sent an email with a{" "}
-                        <span className="font-medium text-zinc-800">
+                        <span className="font-medium text-[var(--settings-fg)]">
                           Claim the gift
                         </span>{" "}
                         button
@@ -187,10 +186,10 @@ export function GiftPurchaseSuccessDialog({
 
                 {!isLink && gift.giftCode ? (
                   <div className="mt-4 space-y-1.5 text-left">
-                    <p className="text-[12px] font-medium uppercase tracking-wide text-zinc-500">
+                    <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--settings-fg-muted)]">
                       Backup gift code
                     </p>
-                    <code className="app-page-body block rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white px-3 py-2 font-semibold tracking-wide">
+                    <code className="app-page-body block rounded-[var(--radius-sm)] bg-[var(--settings-card-bg)] px-3 py-2 font-medium tracking-wide shadow-[var(--settings-card-shadow)]">
                       {gift.giftCode}
                     </code>
                   </div>

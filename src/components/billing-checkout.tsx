@@ -131,25 +131,25 @@ function SeatStepper({
   onIncrement: () => void;
 }) {
   return (
-    <div className="flex h-8 items-center rounded-lg border border-black/10 bg-white">
+    <div className="flex h-7 items-center rounded-[var(--radius-sm)] bg-[var(--settings-card-bg)] shadow-[inset_0_0_0_1px_var(--settings-btn-border)]">
       <button
         type="button"
         disabled={!canDecrement}
         onClick={onDecrement}
         aria-label="Decrease seats"
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-l-lg transition-colors",
+          "flex h-7 w-7 items-center justify-center rounded-l-[var(--radius-sm)] transition-colors",
           canDecrement
-            ? "text-zinc-700 hover:bg-zinc-50"
-            : "cursor-not-allowed text-zinc-300",
+            ? "text-[var(--settings-fg)] hover:bg-[var(--ui-hover-wash)]"
+            : "cursor-not-allowed text-[var(--settings-fg-muted)] opacity-40",
         )}
       >
         <Minus className="h-3.5 w-3.5" />
       </button>
       <span
         className={cn(
-          "min-w-[52px] px-1 text-center text-[12px] font-medium",
-          count === 0 ? "text-zinc-400" : "text-zinc-900",
+          "min-w-[48px] px-1 text-center text-[12px] font-medium leading-[18px]",
+          count === 0 ? "text-[var(--settings-fg-muted)]" : "text-[var(--settings-fg)]",
         )}
       >
         {count === 0 ? "None" : count}
@@ -160,10 +160,10 @@ function SeatStepper({
         onClick={onIncrement}
         aria-label="Increase seats"
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-r-lg transition-colors",
+          "flex h-7 w-7 items-center justify-center rounded-r-[var(--radius-sm)] transition-colors",
           canIncrement
-            ? "text-zinc-700 hover:bg-zinc-50"
-            : "cursor-not-allowed text-zinc-300",
+            ? "text-[var(--settings-fg)] hover:bg-[var(--ui-hover-wash)]"
+            : "cursor-not-allowed text-[var(--settings-fg-muted)] opacity-40",
         )}
       >
         <Plus className="h-3.5 w-3.5" />
@@ -1397,40 +1397,33 @@ export function BillingCheckout({
 
   const billingCycleToggle =
     !isMaxPlan && !isVariableCheckoutPlan && !isGiftCheckout && (
-    <div className="grid grid-cols-2 gap-2 sm:gap-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3">
       <button
         type="button"
         onClick={() => setBillingCycle("monthly")}
         className={cn(
-          "flex flex-col items-start rounded-[var(--radius-md)] border px-3.5 py-3 text-left text-[13px] leading-[18px] transition-all",
+          "flex flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-colors shadow-[var(--settings-card-shadow)]",
           effectiveBillingCycle === "monthly"
-            ? "border-zinc-900 bg-zinc-900 text-white"
-            : "border-zinc-200 bg-[var(--app-panel-bg)] hover:border-zinc-300",
+            ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
+            : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]",
         )}
       >
         <div className="mb-3 flex w-full items-center justify-between">
           <div
             className={cn(
-              "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
+              "flex h-5 w-5 items-center justify-center rounded-full border-2",
               effectiveBillingCycle === "monthly"
-                ? "border-white/80"
-                : "border-zinc-300",
+                ? "border-[var(--settings-fg)]"
+                : "border-[var(--settings-input-border)]",
             )}
           >
             {effectiveBillingCycle === "monthly" && (
-              <div className="h-2.5 w-2.5 rounded-full bg-white" />
+              <div className="h-2 w-2 rounded-full bg-[var(--settings-fg)]" />
             )}
           </div>
         </div>
-        <span className="max-w-[75%] text-left font-medium">Monthly</span>
-        <span
-          className={cn(
-            "app-page-muted mt-1 text-left",
-            effectiveBillingCycle === "monthly"
-              ? "text-white/80"
-              : "text-zinc-600",
-          )}
-        >
+        <span className="max-w-[75%] text-left font-medium text-[var(--settings-fg)]">Monthly</span>
+        <span className="app-page-muted mt-1 text-left">
           {isTeamPlan || isBusinessWorkspace
             ? "Billed monthly per seat"
             : `${formatInr(details.monthly)}/month`}
@@ -1442,10 +1435,10 @@ export function BillingCheckout({
         onClick={() => setBillingCycle("yearly")}
         disabled={orgPlan ? !orgPlan.yearlySupported : false}
         className={cn(
-          "flex flex-col items-start rounded-[var(--radius-md)] border px-3.5 py-3 text-left text-[13px] leading-[18px] transition-all",
+          "flex flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-colors shadow-[var(--settings-card-shadow)]",
           effectiveBillingCycle === "yearly"
-            ? "border-zinc-900 bg-zinc-900 text-white"
-            : "border-zinc-200 bg-[var(--app-panel-bg)] hover:border-zinc-300",
+            ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
+            : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]",
           orgPlan &&
             !orgPlan.yearlySupported &&
             "cursor-not-allowed opacity-50",
@@ -1454,38 +1447,24 @@ export function BillingCheckout({
         <div className="mb-3 flex w-full items-center justify-between">
           <div
             className={cn(
-              "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
+              "flex h-5 w-5 items-center justify-center rounded-full border-2",
               effectiveBillingCycle === "yearly"
-                ? "border-white/80"
-                : "border-zinc-300",
+                ? "border-[var(--settings-fg)]"
+                : "border-[var(--settings-input-border)]",
             )}
           >
             {effectiveBillingCycle === "yearly" && (
-              <div className="h-2.5 w-2.5 rounded-full bg-white" />
+              <div className="h-2 w-2 rounded-full bg-[var(--settings-fg)]" />
             )}
           </div>
           {(orgPlan?.yearlySupported ?? details.yearly > 0) && (
-            <div
-              className={cn(
-                "rounded-lg px-2 py-1 text-[12px] font-medium leading-4",
-                effectiveBillingCycle === "yearly"
-                  ? "bg-white/15 text-white"
-                  : "bg-zinc-100 text-zinc-700",
-              )}
-            >
+            <div className="rounded-[4px] bg-[color-mix(in_oklab,#18181b_6%,transparent)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
               Save {YEARLY_DISCOUNT_PERCENT}%
             </div>
           )}
         </div>
-        <span className="max-w-[75%] text-left font-medium">Yearly</span>
-        <span
-          className={cn(
-            "app-page-muted mt-1 text-left",
-            effectiveBillingCycle === "yearly"
-              ? "text-white/80"
-              : "text-zinc-600",
-          )}
-        >
+        <span className="max-w-[75%] text-left font-medium text-[var(--settings-fg)]">Yearly</span>
+        <span className="app-page-muted mt-1 text-left">
           {isTeamPlan || isBusinessWorkspace
             ? `Save ${YEARLY_DISCOUNT_PERCENT}% billed annually`
             : `${formatInr(details.yearly)}/year`}
@@ -1495,7 +1474,7 @@ export function BillingCheckout({
   );
 
   const maxTierToggle = isMaxPlan && (
-    <div className="grid grid-cols-2 gap-2 sm:gap-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3">
       {(
         Object.entries(MAX_TIER_OPTIONS) as Array<
           [MaxTier, (typeof MAX_TIER_OPTIONS)[MaxTier]]
@@ -1506,37 +1485,32 @@ export function BillingCheckout({
           type="button"
           onClick={() => setMaxTier(tier)}
           className={cn(
-            "flex flex-col items-start rounded-[var(--radius-md)] border px-3.5 py-3 text-left text-[13px] leading-[18px] transition-all",
+            "flex flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-colors shadow-[var(--settings-card-shadow)]",
             maxTier === tier
-              ? "border-zinc-900 bg-zinc-900 text-white"
-              : "border-zinc-200 bg-[var(--app-panel-bg)] hover:border-zinc-300",
+              ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
+              : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]",
           )}
         >
           <div className="mb-3 flex w-full items-center justify-between">
             <div
               className={cn(
-                "flex h-[22px] w-[22px] items-center justify-center rounded-full border-2",
-                maxTier === tier ? "border-white/80" : "border-zinc-300",
+                "flex h-5 w-5 items-center justify-center rounded-full border-2",
+                maxTier === tier
+                  ? "border-[var(--settings-fg)]"
+                  : "border-[var(--settings-input-border)]",
               )}
             >
               {maxTier === tier && (
-                <div className="h-2.5 w-2.5 rounded-full bg-white" />
+                <div className="h-2 w-2 rounded-full bg-[var(--settings-fg)]" />
               )}
             </div>
             {tierDetails.badge && (
-              <div
-                className={cn(
-                  "rounded-lg px-2 py-1 text-[12px] font-medium leading-4",
-                  maxTier === tier
-                    ? "bg-white/15 text-white"
-                    : "bg-zinc-100 text-zinc-700",
-                )}
-              >
+              <div className="rounded-[4px] bg-[color-mix(in_oklab,#18181b_6%,transparent)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
                 {tierDetails.badge}
               </div>
             )}
           </div>
-          <span className="max-w-[75%] text-left font-medium">
+          <span className="max-w-[75%] text-left font-medium text-[var(--settings-fg)]">
             {tierDetails.usageLabel}
           </span>
           <span className="app-page-muted mt-1 text-left">
@@ -1548,11 +1522,11 @@ export function BillingCheckout({
   );
 
   const teamSeatConfigurator = isTeamPlan && orgPlan && (
-    <div className="rounded-lg bg-black/[0.04] p-3">
-      <p className="mb-1 text-[11px] font-medium leading-4 text-zinc-500">
+    <div className="settings-card px-3.5 py-3">
+      <p className="mb-1 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
         {orgPlan.userRangeLabel}
       </p>
-      <p className="mb-3 text-[11px] font-medium leading-4 text-zinc-600">
+      <p className="mb-3 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
         Min {minSeats} seats · configure each seat separately
       </p>
       <div className="flex flex-col">
@@ -1569,26 +1543,26 @@ export function BillingCheckout({
 
           return (
             <div key={seatId}>
-              {index > 0 && <div className="my-2.5 border-t border-black/10" />}
+              {index > 0 && <div className="my-2.5 border-t border-[var(--settings-hairline)]" />}
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <span className="text-[12px] font-medium leading-4 text-zinc-900">
+                  <span className="text-[12px] font-medium leading-4 text-[var(--settings-fg)]">
                     {seat.label}
                   </span>
                   <div className="mt-1 flex flex-wrap items-baseline gap-1">
                     {display.strikethrough != null && (
-                      <span className="text-[11px] text-zinc-500 line-through">
+                      <span className="text-[11px] text-[var(--settings-fg-muted)] line-through">
                         ₹{display.strikethrough.toLocaleString("en-IN")}
                       </span>
                     )}
-                    <span className="text-[13px] font-semibold leading-4 text-zinc-900">
+                    <span className="text-[13px] font-medium leading-4 text-[var(--settings-fg)]">
                       ₹{display.amount.toLocaleString("en-IN")}
-                      <span className="text-[11px] font-medium text-zinc-500">
+                      <span className="text-[11px] font-medium text-[var(--settings-fg-muted)]">
                         /mo
                       </span>
                     </span>
                   </div>
-                  <p className="mt-0.5 max-w-[200px] text-[10px] leading-[14px] text-zinc-500">
+                  <p className="mt-0.5 max-w-[200px] text-[10px] leading-[14px] text-[var(--settings-fg-muted)]">
                     {seat.usageNote}
                   </p>
                 </div>
@@ -1613,21 +1587,21 @@ export function BillingCheckout({
   );
 
   const businessSeatConfigurator = isBusinessWorkspace && orgPlan && (
-    <div className="rounded-lg bg-black/[0.04] p-3">
-      <p className="mb-1 text-[11px] font-medium leading-4 text-zinc-500">
+    <div className="settings-card px-3.5 py-3">
+      <p className="mb-1 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
         {orgPlan.userRangeLabel}
       </p>
-      <p className="mb-3 text-[11px] font-medium leading-4 text-zinc-600">
+      <p className="mb-3 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
         Min {minSeats} seats · per seat
       </p>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="text-[12px] font-medium leading-4 text-zinc-900">
+          <span className="text-[12px] font-medium leading-4 text-[var(--settings-fg)]">
             Business seat
           </span>
           <div className="mt-1 flex flex-wrap items-baseline gap-1">
             {orgPlan.bundleSeatMonthlyStrikethroughInr != null && (
-              <span className="text-[11px] text-zinc-500 line-through">
+              <span className="text-[11px] text-[var(--settings-fg-muted)] line-through">
                 ₹
                 {orgPlan.bundleSeatMonthlyStrikethroughInr.toLocaleString(
                   "en-IN",
@@ -1642,16 +1616,16 @@ export function BillingCheckout({
                 orgPlan.yearlySupported,
               );
               return (
-                <span className="text-[13px] font-semibold leading-4 text-zinc-900">
+                <span className="text-[13px] font-medium leading-4 text-[var(--settings-fg)]">
                   ₹{display.amount.toLocaleString("en-IN")}
-                  <span className="text-[11px] font-medium text-zinc-500">
+                  <span className="text-[11px] font-medium text-[var(--settings-fg-muted)]">
                     /mo
                   </span>
                 </span>
               );
             })()}
           </div>
-          <p className="mt-0.5 max-w-[200px] text-[10px] leading-[14px] text-zinc-500">
+          <p className="mt-0.5 max-w-[200px] text-[10px] leading-[14px] text-[var(--settings-fg-muted)]">
             Clauxen & Collabry bundle for every seat
           </p>
         </div>
@@ -1671,7 +1645,7 @@ export function BillingCheckout({
   );
 
   const variablePlanNotice = isVariableCheckoutPlan && (
-    <div className="app-page-card rounded-[var(--radius-md)] px-3.5 py-3 leading-relaxed">
+    <div className="settings-card px-3.5 py-3 settings-muted">
       {isUsageCodePlan ? (
         <p>
           <strong>Usage pricing:</strong> Clauxen Code usage is metered and
@@ -1772,11 +1746,11 @@ export function BillingCheckout({
   }
 
   return (
-    <div className="app-surface-shell relative w-full font-sans text-zinc-800">
+    <div className="app-surface-shell settings-canvas relative w-full font-sans text-[var(--settings-fg)]">
       <button
         type="button"
         onClick={onBack}
-        className="ui-icon-button absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 h-10 w-10 border border-[var(--ui-border)] bg-[var(--app-panel-bg)] text-zinc-700 shadow-[var(--field-shadow)] transition-colors hover:bg-[var(--ui-field-bg)] sm:left-6"
+        className="ui-icon-button absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 text-[var(--settings-fg)] transition-colors hover:bg-[var(--ui-hover-wash)] sm:left-6"
         aria-label="Back"
       >
         <svg
@@ -1805,21 +1779,21 @@ export function BillingCheckout({
               {businessSeatConfigurator}
               {variablePlanNotice}
 
-              <div className="app-page-card flex flex-col gap-3 rounded-[var(--radius-md)] p-4 shadow-[0_1px_2px_rgba(24,24,27,0.03)]">
-                <div className="text-[13px] font-semibold uppercase tracking-[0.04em] text-zinc-400">
+              <div className="settings-card flex flex-col gap-3 px-4 py-3.5">
+                <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-[var(--settings-fg-muted)]">
                   Order details
                 </div>
 
                 {orderLineItems.map((item) => (
                   <div
                     key={item.key}
-                    className="flex items-center justify-between"
+                    className="flex items-center justify-between text-[13px] leading-[18px]"
                   >
                     <div className="flex flex-col">
-                      <span className="font-medium">{item.label}</span>
-                      <span className="text-zinc-500">{item.sublabel}</span>
+                      <span className="font-medium text-[var(--settings-fg)]">{item.label}</span>
+                      <span className="text-[var(--settings-fg-muted)]">{item.sublabel}</span>
                     </div>
-                    <span className="font-semibold">
+                    <span className="font-medium text-[var(--settings-fg)]">
                       {isVariableCheckoutPlan
                         ? isUsageCodePlan
                           ? "Usage pricing"
@@ -1829,9 +1803,9 @@ export function BillingCheckout({
                   </div>
                 ))}
 
-                <div className="h-px w-full bg-black/10" />
+                <div className="h-px w-full bg-[var(--settings-hairline)]" />
 
-                <div className="flex items-center justify-between font-medium">
+                <div className="flex items-center justify-between text-[13px] font-medium leading-[18px]">
                   <span>Subtotal</span>
                   <span>
                     {isVariableCheckoutPlan
@@ -1842,7 +1816,7 @@ export function BillingCheckout({
                   </span>
                 </div>
                 {taxResult.showTaxRow && (
-                  <div className="flex items-center justify-between font-medium">
+                  <div className="flex items-center justify-between text-[13px] font-medium leading-[18px]">
                     <span>{taxResult.taxLabel ?? "Tax"}</span>
                     <span>
                       {taxResult.isGstExempt ? formatInr(0) : formatInr(tax)}
@@ -1850,12 +1824,12 @@ export function BillingCheckout({
                   </div>
                 )}
                 {taxResult.taxNote && (
-                  <p className="text-[12px] leading-relaxed text-zinc-500">
+                  <p className="settings-muted text-[12px]">
                     {taxResult.taxNote}
                   </p>
                 )}
-                <div className="h-px w-full bg-zinc-100" />
-                <div className="flex items-center justify-between font-semibold text-zinc-900">
+                <div className="h-px w-full bg-[var(--settings-hairline)]" />
+                <div className="flex items-center justify-between text-[13px] font-medium leading-[18px] text-[var(--settings-fg)]">
                   <span>Total due today</span>
                   <span>
                     {isVariableCheckoutPlan ? formatInr(0) : formatInr(total)}
@@ -1863,9 +1837,9 @@ export function BillingCheckout({
                 </div>
               </div>
 
-              <div className="app-page-card flex gap-3 rounded-[var(--radius-md)] p-3.5">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-                <p className="text-[13px] leading-relaxed text-zinc-600">
+              <div className="settings-card flex gap-3 px-3.5 py-3">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg-muted)]" />
+                <p className="settings-muted">
                   {isGiftCheckout ? (
                     <>
                       Gift subscription for{" "}

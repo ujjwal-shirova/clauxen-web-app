@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 /** Shared pill track for settings / pricing segmented controls. */
 export const segmentedTrackClass =
-  "inline-flex rounded-lg bg-zinc-100/90 p-0.5";
+  "inline-flex rounded-md bg-[color-mix(in_oklab,#18181b_6%,transparent)] p-0.5";
 
 /** Text or icon pill — active state has no global hover washout. */
 export function segmentedOptionClass(
@@ -12,21 +12,27 @@ export function segmentedOptionClass(
   const base = cn(
     "no-hover-overlay font-medium transition-colors",
     size === "icon"
-      ? "inline-flex h-8 w-9 items-center justify-center rounded-md"
-      : "h-8 rounded-md px-3 text-[13px]",
+      ? "inline-flex h-7 w-8 items-center justify-center rounded-[5px]"
+      : "h-7 rounded-[5px] px-2.5 text-[13px] leading-[18px]",
   );
   return cn(
     base,
     active
-      ? "bg-white text-zinc-900 shadow-sm"
-      : "text-zinc-500 hover:text-zinc-800",
+      ? "bg-[var(--settings-card-bg,#fcfcfc)] text-[var(--settings-fg,#18181b)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#18181b_8%,transparent)]"
+      : "text-[var(--settings-fg-muted,rgba(24,24,27,0.74))] hover:text-[var(--settings-fg,#18181b)]",
   );
 }
 
-/** Pricing / onboarding plan switcher pills. */
+/** Pricing / onboarding plan switcher pills (Cursor pricing toggle). */
 export function subscriptionSegmentClass(active: boolean) {
   return cn(
-    "no-hover-overlay rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-    active ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900",
+    "no-hover-overlay relative z-[1] rounded-full px-5 py-2.5 text-[13px] font-medium leading-4 transition-colors duration-150",
+    active
+      ? "text-[var(--pricing-fg)]"
+      : "text-[var(--pricing-muted)] hover:text-[var(--pricing-fg)]",
   );
 }
+
+/** Track around Monthly/Yearly and Individual/Team switches. */
+export const subscriptionSegmentTrackClass =
+  "relative inline-flex rounded-full bg-[var(--pricing-toggle-track)] p-0.5";

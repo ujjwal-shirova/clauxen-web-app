@@ -34,8 +34,7 @@ const appearanceModes = [
 
 const MAX_CUSTOM_INSTRUCTIONS = 1500;
 
-const inputClass =
-  "h-9 w-full max-w-[20rem] rounded-lg border border-zinc-200 bg-white px-3 text-[14px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500";
+const inputClass = "settings-field max-w-[20rem]";
 
 interface GeneralSettingsProps {
   personalization: PersonalizationSettings;
@@ -171,29 +170,30 @@ export function GeneralSettings({
             }
           />
         </SettingsRow>
-        <div className="border-b border-zinc-100 py-3 last:border-b-0">
-          <p className="text-[14px] text-zinc-900">Custom instructions</p>
-          <p className="mt-1 text-[13px] leading-snug text-zinc-500">
-            Clauxen will keep these in mind across chats within Shirova
-            guidelines.
-          </p>
-          <textarea
-            value={instructionsDraft}
-            onChange={(e) =>
-              setInstructionsDraft(
-                e.target.value.slice(0, MAX_CUSTOM_INSTRUCTIONS),
-              )
-            }
-            onBlur={commitInstructions}
-            rows={4}
-            maxLength={MAX_CUSTOM_INSTRUCTIONS}
-            placeholder="e.g. when learning new concepts, I find analogies particularly helpful"
-            className="mt-3 w-full resize-y rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[14px] leading-5 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500"
-          />
-          <p className="mt-1.5 text-right text-[11px] text-zinc-400">
-            {instructionsDraft.length}/{MAX_CUSTOM_INSTRUCTIONS}
-          </p>
-        </div>
+        <SettingsRow
+          label="Custom instructions"
+          description="Clauxen will keep these in mind across chats within Shirova guidelines."
+          className="!flex-col !items-stretch sm:!flex-col"
+        >
+          <div className="w-full">
+            <textarea
+              value={instructionsDraft}
+              onChange={(e) =>
+                setInstructionsDraft(
+                  e.target.value.slice(0, MAX_CUSTOM_INSTRUCTIONS),
+                )
+              }
+              onBlur={commitInstructions}
+              rows={4}
+              maxLength={MAX_CUSTOM_INSTRUCTIONS}
+              placeholder="e.g. when learning new concepts, I find analogies particularly helpful"
+              className="settings-field mt-1 min-h-[96px] w-full resize-y py-2"
+            />
+            <p className="mt-1.5 text-right text-[11px] text-[var(--settings-fg-muted)]">
+              {instructionsDraft.length}/{MAX_CUSTOM_INSTRUCTIONS}
+            </p>
+          </div>
+        </SettingsRow>
       </SettingsSection>
 
       <SettingsSection title="Preferences">
@@ -226,14 +226,10 @@ export function GeneralSettings({
           />
         </SettingsRow>
 
-        <div className="flex min-h-[72px] items-start justify-between gap-4 border-b border-zinc-100 py-3">
-          <div className="min-w-0 flex-1 pr-4">
-            <p className="text-[14px] font-medium">Motion</p>
-            <p className="mt-1 text-[13px] leading-snug text-zinc-500">
-              Reduce animation in streaming responses and other interface
-              elements.
-            </p>
-          </div>
+        <SettingsRow
+          label="Motion"
+          description="Reduce animation in streaming responses and other interface elements."
+        >
           <div className={cn(segmentedTrackClass, "shrink-0")}>
             {motionOptions.map((option) => {
               const active = motion === option;
@@ -249,7 +245,7 @@ export function GeneralSettings({
               );
             })}
           </div>
-        </div>
+        </SettingsRow>
 
         <SettingsToggleRow
           label="Follow-up suggestions"

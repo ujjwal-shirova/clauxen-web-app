@@ -10,9 +10,26 @@ import { FullscreenPortal } from "@/components/fullscreen-portal";
 import { useOverlaySurfaceFocus } from "@/lib/surface-focus";
 
 interface AppsExtensionsViewProps {
-  onClose: () => void; // back button / overlay dismiss callback
-  onUpgradeClick: () => void; // paid plan upgrade flow trigger — billing view
+  onClose: () => void;
+  onUpgradeClick: () => void;
 }
+
+const cardShell =
+  "settings-card overflow-hidden transition-colors hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]";
+
+const cardInner =
+  "flex h-full flex-col bg-[var(--settings-canvas-bg)] p-5 sm:p-6";
+
+const cardTitle = "settings-section-label mb-1.5";
+const cardBody = "settings-muted mb-5 leading-[18px]";
+
+const rowBase =
+  "flex w-full items-center justify-between gap-3 border-b border-[var(--settings-hairline)] py-2.5 last:border-b-0";
+
+const downloadLink = cn(
+  appBtn.secondarySm,
+  "no-hover-overlay shrink-0 px-3 no-underline",
+);
 
 export function AppsExtensionsView({
   onClose,
@@ -22,288 +39,242 @@ export function AppsExtensionsView({
   useOverlaySurfaceFocus(surfaceRef);
   return (
     <FullscreenPortal>
-    <div ref={surfaceRef} data-app-overlay-surface="" tabIndex={-1} className={cn(chrome.overlay.surface, "pt-[env(safe-area-inset-top)]")}>
-      {/* header — centered layout with absolute-positioned back button */}
-      <header className="relative z-20 flex w-full shrink-0 items-center justify-center bg-[color-mix(in_srgb,var(--app-shell-bg)_80%,transparent)] px-4 py-3.5 backdrop-blur-md sm:py-5">
-        {/* back button — absolute left; onClose parent callback */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="ui-icon-button no-hover-overlay absolute left-3 top-1/2 -translate-y-1/2 text-zinc-800 sm:left-6"
-          aria-label="Back"
-        >
-          <ArrowLeft className="icon-lg" />
-        </button>
-      </header>
+      <div
+        ref={surfaceRef}
+        data-app-overlay-surface=""
+        tabIndex={-1}
+        className={cn(
+          chrome.overlay.surface,
+          "settings-canvas pt-[env(safe-area-inset-top)]",
+        )}
+      >
+        <header className="relative z-20 flex w-full shrink-0 items-center justify-center px-4 py-3 sm:py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="ui-icon-button no-hover-overlay absolute left-3 top-1/2 -translate-y-1/2 text-[var(--settings-fg)] sm:left-6"
+            aria-label="Back"
+          >
+            <ArrowLeft className="icon-lg" />
+          </button>
+        </header>
 
-      {/* scrollable main content — bottom padding for safe scroll area */}
-      <div className="mobile-page-inset flex-1 overflow-y-auto pb-24 sm:px-6">
-        {/* centered column — max-width 896px, responsive top padding */}
-        <div className="mx-auto flex w-full max-w-[896px] flex-col items-center pt-3 sm:pt-8">
-          <h2 className="mb-6 max-w-[18ch] text-center text-[22px] font-semibold leading-tight tracking-[-0.03em] text-zinc-800 sm:mb-10 sm:max-w-none sm:text-[28px]">
-            Do more with Clauxen, everywhere you work
-          </h2>
+        <div className="mobile-page-inset flex-1 overflow-y-auto pb-24 sm:px-6">
+          <div className="mx-auto flex w-full max-w-[880px] flex-col items-center pt-2 sm:pt-6">
+            <h2 className="app-page-title mb-6 max-w-[22ch] text-center sm:mb-8 sm:max-w-none">
+              Do more with Clauxen, everywhere you work
+            </h2>
 
-          {/* product cards grid — 1 col mobile, 2 col md; Cowork spans full width */}
-          <div className="grid w-full grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
-            {/* Cowork hero card — featured desktop product, md:col-span-2 full row */}
-            <div className="overflow-hidden rounded-[20px] border border-zinc-200 bg-white p-2 shadow-sm transition-all hover:shadow-md sm:p-2.5 md:col-span-2">
-              <div className="grid h-full grid-cols-1 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 md:grid-cols-2">
-                {/* left column — title, description, Upgrade CTA */}
-                <div className="flex flex-col justify-between p-5 sm:p-7">
-                  <div>
-                    {/* Cowork product name */}
-                    <h3 className="text-lg font-semibold text-zinc-800 mb-2">
-                      Cowork
-                    </h3>
-                    {/* product description — Pro/Max plans, desktop-only emphasis */}
-                    <p className="text-[14px] text-zinc-500 leading-relaxed mb-6">
-                      Clauxen works in your files and browser tabs to help you
-                      get things done.
-                      <br />
-                      <br />
-                      Available for Pro and Max plans.
-                      <br />
-                      <span className="font-semibold text-zinc-800">
-                        Only on desktop.
-                      </span>
-                    </p>
+            <div className="grid w-full grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
+              {/* Cowork */}
+              <div className={cn(cardShell, "md:col-span-2")}>
+                <div className="grid h-full grid-cols-1 overflow-hidden md:grid-cols-2">
+                  <div className={cn(cardInner, "justify-between")}>
+                    <div>
+                      <h3 className={cardTitle}>Cowork</h3>
+                      <p className={cardBody}>
+                        Clauxen works in your files and browser tabs to help you
+                        get things done.
+                        <br />
+                        <br />
+                        Available for Pro and Max plans.
+                        <br />
+                        <span className="font-medium text-[var(--settings-fg)]">
+                          Only on desktop.
+                        </span>
+                      </p>
+                    </div>
+                    <Button
+                      onClick={onUpgradeClick}
+                      className={cn(appBtn.primary, "w-fit px-4")}
+                    >
+                      Upgrade
+                    </Button>
                   </div>
-                  {/* Upgrade button — onUpgradeClick billing flow */}
-                  <Button
-                    onClick={onUpgradeClick}
-                    className={cn(appBtn.primary, "w-fit px-6")}
-                  >
-                    Upgrade
-                  </Button>
-                </div>
-                {/* right column — decorative browser/window mockup preview */}
-                <div className="relative min-h-[240px] bg-gradient-to-br from-zinc-50 to-zinc-100">
-                  {/* dot grid background pattern — radial-gradient CSS inline style */}
-                  <div
-                    className="absolute inset-0 opacity-40"
-                    style={{
-                      backgroundImage:
-                        "radial-gradient(circle, rgba(20, 20, 19, 0.15) 1px, transparent 1px)",
-                      backgroundSize: "24px 24px",
-                    }}
-                  />
-                  {/* centered mock window container */}
-                  <div className="absolute inset-0 flex items-center justify-center p-8">
-                    {/* faux browser window — aspect-video, shadow, rounded corners */}
-                    <div className="relative w-full aspect-video bg-white rounded-xl shadow-xl border border-black/5 overflow-hidden">
-                      {/* macOS-style traffic light window controls */}
-                      <div className="h-6 bg-[#E5E7EB] flex items-center px-3 gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-[#FF5F57]" />
-                        <div className="w-2 h-2 rounded-full bg-[#FEBC2E]" />
-                        <div className="w-2 h-2 rounded-full bg-[#28C840]" />
-                      </div>
-                      {/* skeleton content lines — placeholder UI mock */}
-                      <div className="p-4 space-y-2">
-                        <div className="h-2 w-3/4 bg-gray-100 rounded" />
-                        <div className="h-2 w-1/2 bg-gray-100 rounded" />
-                        {/* Clauxen avatar chip + text bar skeleton */}
-                        <div className="pt-4 flex items-center gap-2">
-                          <div className="w-6 h-6 rounded bg-zinc-900 flex items-center justify-center text-[10px] text-white">
-                            C
+                  <div className="relative min-h-[200px] bg-[var(--settings-canvas-bg)]">
+                    <div
+                      className="absolute inset-0 opacity-40"
+                      style={{
+                        backgroundImage:
+                          "radial-gradient(circle, rgba(24, 24, 27, 0.12) 1px, transparent 1px)",
+                        backgroundSize: "20px 20px",
+                      }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center p-6">
+                      <div className="relative aspect-video w-full max-w-[320px] overflow-hidden rounded-[var(--settings-card-radius)] bg-[var(--settings-card-bg)] shadow-[var(--settings-card-shadow)]">
+                        <div className="flex h-6 items-center gap-1.5 bg-[color-mix(in_oklab,#18181b_6%,transparent)] px-3">
+                          <div className="h-2 w-2 rounded-full bg-[#FF5F57]" />
+                          <div className="h-2 w-2 rounded-full bg-[#FEBC2E]" />
+                          <div className="h-2 w-2 rounded-full bg-[#28C840]" />
+                        </div>
+                        <div className="space-y-2 p-3.5">
+                          <div className="h-1.5 w-3/4 rounded bg-[color-mix(in_oklab,#18181b_8%,transparent)]" />
+                          <div className="h-1.5 w-1/2 rounded bg-[color-mix(in_oklab,#18181b_8%,transparent)]" />
+                          <div className="flex items-center gap-2 pt-3">
+                            <div className="flex h-5 w-5 items-center justify-center rounded bg-[var(--settings-fg)] text-[9px] text-[var(--settings-canvas-bg)]">
+                              C
+                            </div>
+                            <div className="h-1.5 w-1/3 rounded bg-[color-mix(in_oklab,#18181b_10%,transparent)]" />
                           </div>
-                          <div className="h-2 w-1/3 bg-gray-200 rounded" />
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="rounded-[20px] border border-zinc-200 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
-              <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-zinc-50 p-7">
-                {/* Mobile section title */}
-                <h3 className="text-lg font-semibold text-zinc-800 mb-2">
-                  Mobile
-                </h3>
-                {/* Mobile value proposition copy */}
-                <p className="text-[14px] text-zinc-500 leading-relaxed mb-6">
-                  Tap into your health data, notes, and reminders.
-                </p>
-                {/* platform rows — mt-auto pushes list to card bottom */}
-                <div className="space-y-3 mt-auto">
-                  {/* iOS row — icon, label, App Store link */}
-                  <div className="flex items-center justify-between py-3 border-b border-black/5">
-                    <div className="flex items-center gap-3">
-                      <Smartphone className="icon-lg text-zinc-500" />
-                      <span className="text-[14px]">iOS</span>
+              {/* Mobile */}
+              <div className={cardShell}>
+                <div className={cardInner}>
+                  <h3 className={cardTitle}>Mobile</h3>
+                  <p className={cardBody}>
+                    Tap into your health data, notes, and reminders.
+                  </p>
+                  <div className="mt-auto">
+                    <div className={rowBase}>
+                      <div className="flex items-center gap-2.5">
+                        <Smartphone className="icon-md text-[var(--settings-fg-muted)]" />
+                        <span className="app-page-body">iOS</span>
+                      </div>
+                      <a
+                        href="https://apps.apple.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={downloadLink}
+                      >
+                        Download
+                      </a>
                     </div>
-                    <a
-                      href="https://apps.apple.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[14px] font-medium text-zinc-800 px-4 py-1.5 border border-black/15 rounded-lg hover:bg-zinc-100 transition-colors"
-                    >
-                      Download
-                    </a>
-                  </div>
-                  {/* Android row — icon, label, Play Store link */}
-                  <div className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <Smartphone className="icon-lg text-zinc-500" />
-                      <span className="text-[14px]">Android</span>
+                    <div className={rowBase}>
+                      <div className="flex items-center gap-2.5">
+                        <Smartphone className="icon-md text-[var(--settings-fg-muted)]" />
+                        <span className="app-page-body">Android</span>
+                      </div>
+                      <a
+                        href="https://play.google.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={downloadLink}
+                      >
+                        Download
+                      </a>
                     </div>
-                    <a
-                      href="https://play.google.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[14px] font-medium text-zinc-800 px-4 py-1.5 border border-black/15 rounded-lg hover:bg-zinc-100 transition-colors"
-                    >
-                      Download
-                    </a>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Clauxen Code card — terminal/IDE integrations, upgrade-gated */}
-            <div className="rounded-[20px] border border-zinc-200 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
-              <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-zinc-50 p-7">
-                {/* Clauxen Code product title */}
-                <h3 className="text-lg font-semibold text-zinc-800 mb-2">
-                  Clauxen Code
-                </h3>
-                {/* developer workflow description */}
-                <p className="text-[14px] text-zinc-500 leading-relaxed mb-6">
-                  Build, debug, and ship from your terminal or IDE.
-                </p>
-                {/* outline Upgrade CTA — transparent style */}
-                <Button
-                  onClick={onUpgradeClick}
-                  className="w-fit h-9 px-6 bg-transparent border border-black/15 text-zinc-800 hover:bg-zinc-100 rounded-lg mb-6"
-                >
-                  Upgrade
-                </Button>
-                {/* integration list — each row onUpgradeClick placeholder navigation */}
-                <div className="space-y-1">
-                  {/* Terminal integration row — hover chevron reveal */}
-                  <button
-                    type="button"
+              {/* Clauxen Code */}
+              <div className={cardShell}>
+                <div className={cardInner}>
+                  <h3 className={cardTitle}>Clauxen Code</h3>
+                  <p className={cardBody}>
+                    Build, debug, and ship from your terminal or IDE.
+                  </p>
+                  <Button
                     onClick={onUpgradeClick}
-                    className="w-full flex items-center justify-between py-3 border-b border-black/5 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
+                    className={cn(appBtn.secondary, "mb-4 w-fit px-4")}
                   >
-                    <div className="flex items-center gap-3">
-                      <Laptop className="icon-lg text-zinc-500" />
-                      <span className="text-[14px]">Terminal</span>
-                    </div>
-                    <ChevronRight className="icon-md text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                  </button>
-                  {/* VS Code integration row — brand color square icon */}
-                  <button
-                    type="button"
-                    onClick={onUpgradeClick}
-                    className="w-full flex items-center justify-between py-3 border-b border-black/5 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 flex items-center justify-center">
-                        <div className="w-4 h-4 bg-[#007ACC] rounded-sm" />
+                    Upgrade
+                  </Button>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={onUpgradeClick}
+                      className={cn(rowBase, "group text-left transition-colors hover:bg-[var(--ui-hover-wash)]")}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Laptop className="icon-md text-[var(--settings-fg-muted)]" />
+                        <span className="app-page-body">Terminal</span>
                       </div>
-                      <span className="text-[14px]">VS Code</span>
-                    </div>
-                    <ChevronRight className="icon-md text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                  </button>
-                  {/* JetBrains integration row — pink brand accent */}
-                  <button
-                    type="button"
-                    onClick={onUpgradeClick}
-                    className="w-full flex items-center justify-between py-3 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 flex items-center justify-center">
-                        <div className="w-4 h-4 bg-[#FE2857] rounded-sm" />
+                      <ChevronRight className="icon-sm text-[var(--settings-fg-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onUpgradeClick}
+                      className={cn(rowBase, "group text-left transition-colors hover:bg-[var(--ui-hover-wash)]")}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-3.5 w-3.5 rounded-[2px] bg-[#007ACC]" />
+                        <span className="app-page-body">VS Code</span>
                       </div>
-                      <span className="text-[14px]">JetBrains</span>
-                    </div>
-                    <ChevronRight className="icon-md text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                  </button>
+                      <ChevronRight className="icon-sm text-[var(--settings-fg-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onUpgradeClick}
+                      className={cn(rowBase, "group text-left transition-colors hover:bg-[var(--ui-hover-wash)]")}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-3.5 w-3.5 rounded-[2px] bg-[#FE2857]" />
+                        <span className="app-page-body">JetBrains</span>
+                      </div>
+                      <ChevronRight className="icon-sm text-[var(--settings-fg-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Microsoft Office card — Excel/PowerPoint add-ins, green gradient tint */}
-            <div className="rounded-[20px] border border-zinc-200 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
-              <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-zinc-100/80 p-7">
-                {/* Microsoft Office section title */}
-                <h3 className="text-lg font-semibold text-zinc-800 mb-2">
-                  Microsoft Office
-                </h3>
-                {/* Office copilot-style value proposition */}
-                <p className="text-[14px] text-zinc-500 leading-relaxed mb-6">
-                  Analyze data and build presentations with Clauxen alongside
-                  you.
-                </p>
-                {/* outline Upgrade CTA */}
-                <Button
-                  onClick={onUpgradeClick}
-                  className="w-fit h-9 px-6 bg-transparent border border-black/15 text-zinc-800 hover:bg-zinc-100 rounded-lg mb-6"
-                >
-                  Upgrade
-                </Button>
-                {/* Office app integration rows */}
-                <div className="space-y-1">
-                  {/* Excel row — green brand square */}
-                  <button
-                    type="button"
+              {/* Microsoft Office */}
+              <div className={cardShell}>
+                <div className={cardInner}>
+                  <h3 className={cardTitle}>Microsoft Office</h3>
+                  <p className={cardBody}>
+                    Analyze data and build presentations with Clauxen alongside
+                    you.
+                  </p>
+                  <Button
                     onClick={onUpgradeClick}
-                    className="w-full flex items-center justify-between py-3 border-b border-black/5 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
+                    className={cn(appBtn.secondary, "mb-4 w-fit px-4")}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 flex items-center justify-center">
-                        <div className="w-4 h-4 bg-[#1D6F42] rounded-sm" />
+                    Upgrade
+                  </Button>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={onUpgradeClick}
+                      className={cn(rowBase, "group text-left transition-colors hover:bg-[var(--ui-hover-wash)]")}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-3.5 w-3.5 rounded-[2px] bg-[#1D6F42]" />
+                        <span className="app-page-body">Excel</span>
                       </div>
-                      <span className="text-[14px]">Excel</span>
-                    </div>
-                    <ChevronRight className="icon-md text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                  </button>
-                  {/* PowerPoint row — red brand square */}
-                  <button
-                    type="button"
-                    onClick={onUpgradeClick}
-                    className="w-full flex items-center justify-between py-3 hover:bg-black/[0.02] -mx-7 px-7 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 flex items-center justify-center">
-                        <div className="w-4 h-4 bg-[#B7472A] rounded-sm" />
+                      <ChevronRight className="icon-sm text-[var(--settings-fg-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onUpgradeClick}
+                      className={cn(rowBase, "group text-left transition-colors hover:bg-[var(--ui-hover-wash)]")}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-3.5 w-3.5 rounded-[2px] bg-[#B7472A]" />
+                        <span className="app-page-body">PowerPoint</span>
                       </div>
-                      <span className="text-[14px]">PowerPoint</span>
-                    </div>
-                    <ChevronRight className="icon-md text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                  </button>
+                      <ChevronRight className="icon-sm text-[var(--settings-fg-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Chrome extension card — browser automation, red-tint gradient */}
-            <div className="rounded-[20px] border border-zinc-200 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
-              <div className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-zinc-100/80 p-7">
-                {/* Chrome extension title */}
-                <h3 className="text-lg font-semibold text-zinc-800 mb-2">
-                  Chrome
-                </h3>
-                {/* browser automation description — Cowork synergy mention */}
-                <p className="text-[14px] text-zinc-500 leading-relaxed mb-6">
-                  Clauxen navigates, clicks buttons, and fills forms in your
-                  browser. Works in Cowork.
-                </p>
-                {/* Upgrade CTA — mt-auto bottom-aligns button in flex column */}
-                <Button
-                  onClick={onUpgradeClick}
-                  className="w-fit h-9 px-6 bg-transparent border border-black/15 text-zinc-800 hover:bg-zinc-100 rounded-lg mt-auto"
-                >
-                  Upgrade
-                </Button>
+              {/* Chrome */}
+              <div className={cardShell}>
+                <div className={cardInner}>
+                  <h3 className={cardTitle}>Chrome</h3>
+                  <p className={cardBody}>
+                    Clauxen navigates, clicks buttons, and fills forms in your
+                    browser. Works in Cowork.
+                  </p>
+                  <Button
+                    onClick={onUpgradeClick}
+                    className={cn(appBtn.secondary, "mt-auto w-fit px-4")}
+                  >
+                    Upgrade
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
     </FullscreenPortal>
   );
 }

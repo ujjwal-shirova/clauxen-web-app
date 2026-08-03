@@ -253,45 +253,45 @@ export function GiftView({ onClose }: GiftViewProps) {
         <button
           type="button"
           onClick={handleBack}
-          className="ui-icon-button absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[110] text-zinc-800 transition-all hover:bg-zinc-100/80 sm:left-6 sm:top-6"
+          className="ui-icon-button absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[110] text-[var(--settings-fg)] transition-colors hover:bg-[var(--ui-hover-wash)] sm:left-6 sm:top-6"
           aria-label="Back"
         >
           <ArrowLeft className="size-[18px]" />
         </button>
 
         <div
-          className="app-scrollbar relative min-h-0 flex-[1.6] overflow-y-auto border-b border-[var(--ui-border-subtle)] bg-[var(--app-shell-bg)] lg:border-b-0 lg:border-r lg:border-[var(--ui-border-subtle)]"
+          className="app-scrollbar relative min-h-0 flex-[1.6] overflow-y-auto border-b border-[var(--settings-hairline)] bg-[var(--settings-canvas-bg)] lg:border-b-0 lg:border-r lg:border-[var(--settings-hairline)]"
           data-scroll-region=""
         >
           <div className="mobile-page-inset mx-auto flex min-h-full max-w-[512px] flex-col justify-center pb-8 pt-14 sm:px-8 sm:py-24 lg:pt-16">
             {step === 1 && (
               <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-                <h1 className="mb-2 font-serif text-[30px] font-medium leading-[1.3] text-zinc-800 sm:text-[38px] sm:leading-[1.4]">
+                <h1 className="mb-2 font-serif text-[28px] font-medium leading-[1.3] text-[var(--settings-fg)] sm:text-[34px] sm:leading-[1.35]">
                   Give the gift of Clauxen
                 </h1>
-                <p className="app-page-muted mb-8 leading-relaxed">
+                <p className="app-page-muted mb-8">
                   Every plan includes Clauxen Code, unlimited projects, and
                   access to our latest models.
                 </p>
 
                 <div className="mb-8">
-                  <span className="mb-3 block app-page-body font-semibold">
+                  <span className="mb-3 block settings-section-label">
                     Which plan?
                   </span>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     {plans.map((plan) => (
                       <button
                         key={plan.id}
                         type="button"
                         onClick={() => setSelectedPlan(plan.id)}
                         className={cn(
-                          "rounded-xl border p-4 text-left transition-all duration-200 outline-none",
+                          "rounded-[var(--settings-card-radius)] p-3.5 text-left transition-colors duration-150 outline-none shadow-[var(--settings-card-shadow)]",
                           selectedPlan === plan.id
-                            ? "border-zinc-900 bg-white shadow-sm ring-1 ring-zinc-900"
-                            : "border-black/10 bg-white/60 hover:border-black/25",
+                            ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
+                            : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]",
                         )}
                       >
-                        <div className="app-page-body font-semibold">
+                        <div className="app-page-body font-medium">
                           {plan.name}
                         </div>
                         <div className="mt-1 app-page-muted">
@@ -303,23 +303,23 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </div>
 
                 <div className="mb-8">
-                  <span className="mb-3 block app-page-body font-semibold">
+                  <span className="mb-3 block settings-section-label">
                     How many months?
                   </span>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                     {durations.map((duration) => (
                       <button
                         key={duration.id}
                         type="button"
                         onClick={() => setSelectedDuration(duration.id)}
                         className={cn(
-                          "rounded-xl border px-2 py-3 text-center transition-all duration-200 outline-none",
+                          "rounded-[var(--settings-card-radius)] px-2 py-2.5 text-center transition-colors duration-150 outline-none shadow-[var(--settings-card-shadow)]",
                           selectedDuration === duration.id
-                            ? "border-zinc-900 bg-white shadow-sm ring-1 ring-zinc-900"
-                            : "border-black/10 bg-white/60 hover:border-black/25",
+                            ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
+                            : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]",
                         )}
                       >
-                        <div className="app-page-body font-semibold">
+                        <div className="app-page-body font-medium">
                           {duration.label}
                         </div>
                       </button>
@@ -328,10 +328,10 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </div>
 
                 <div className="mb-10">
-                  <span className="mb-1 block app-page-body font-semibold">
+                  <span className="mb-1 block settings-section-label">
                     Total
                   </span>
-                  <div className="app-page-title font-bold">
+                  <div className="app-page-title font-medium">
                     {formatCheckoutAmountFromPaise(
                       total * 100,
                       currency,
@@ -340,11 +340,11 @@ export function GiftView({ onClose }: GiftViewProps) {
                   </div>
                 </div>
 
-                <div className="flex justify-end border-t border-black/5 pt-4">
+                <div className="flex justify-end border-t border-[var(--settings-hairline)] pt-4">
                   <Button
                     type="button"
                     onClick={() => setStep(2)}
-                    className={cn(appBtn.primaryLgAuto, "px-8")}
+                    className={cn(appBtn.primaryLgAuto, "px-6")}
                   >
                     Next
                   </Button>
@@ -359,19 +359,19 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </h1>
 
                 <div className="mb-8">
-                  <span className="mb-3 block app-page-body font-semibold">
+                  <span className="mb-3 block settings-section-label">
                     Pick a color
                   </span>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2.5">
                     {colors.map((color) => (
                       <button
                         key={color.id}
                         type="button"
                         onClick={() => setSelectedColor(color)}
                         className={cn(
-                          "no-hover-overlay flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all",
+                          "no-hover-overlay flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all",
                           selectedColor.id === color.id
-                            ? "border-zinc-900 ring-2 ring-zinc-900/20"
+                            ? "border-[var(--settings-fg)] ring-2 ring-[color-mix(in_oklab,#18181b_12%,transparent)]"
                             : "border-transparent",
                         )}
                         style={{ backgroundColor: color.value }}
@@ -380,9 +380,9 @@ export function GiftView({ onClose }: GiftViewProps) {
                         {selectedColor.id === color.id && (
                           <Check
                             className={cn(
-                              "h-4 w-4",
+                              "h-3.5 w-3.5",
                               isLightSwatch(color.id)
-                                ? "text-zinc-900"
+                                ? "text-[var(--settings-fg)]"
                                 : "text-white",
                             )}
                           />
@@ -393,52 +393,52 @@ export function GiftView({ onClose }: GiftViewProps) {
                 </div>
 
                 <div className="mb-8">
-                  <span className="mb-3 block app-page-body font-semibold">
+                  <span className="mb-3 block settings-section-label">
                     Choose how to send
                   </span>
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <button
                       type="button"
                       onClick={() => setDeliveryMethod("email")}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all",
+                        "flex w-full items-center gap-3 rounded-[var(--settings-card-radius)] p-3.5 text-left transition-colors shadow-[var(--settings-card-shadow)]",
                         deliveryMethod === "email"
-                          ? "border-zinc-900 bg-white ring-1 ring-zinc-900/10"
-                          : "border-black/10 bg-white/60 hover:border-black/25",
+                          ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
+                          : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]",
                       )}
                     >
-                      <Mail className="icon-lg text-zinc-500" />
-                      <div className="flex-1 app-page-body font-semibold">
+                      <Mail className="icon-md text-[var(--settings-fg-muted)]" />
+                      <div className="flex-1 app-page-body font-medium">
                         Send an email
                       </div>
                       {deliveryMethod === "email" && (
-                        <div className="h-2.5 w-2.5 rounded-full bg-zinc-900" />
+                        <div className="h-2 w-2 rounded-full bg-[var(--settings-fg)]" />
                       )}
                     </button>
                     <button
                       type="button"
                       onClick={() => setDeliveryMethod("link")}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all",
+                        "flex w-full items-center gap-3 rounded-[var(--settings-card-radius)] p-3.5 text-left transition-colors shadow-[var(--settings-card-shadow)]",
                         deliveryMethod === "link"
-                          ? "border-zinc-900 bg-white ring-1 ring-zinc-900/10"
-                          : "border-black/10 bg-white/60 hover:border-black/25",
+                          ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
+                          : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]",
                       )}
                     >
-                      <LinkIcon className="icon-lg text-zinc-500" />
-                      <div className="flex-1 app-page-body font-semibold">
+                      <LinkIcon className="icon-md text-[var(--settings-fg-muted)]" />
+                      <div className="flex-1 app-page-body font-medium">
                         Get a link to share
                       </div>
                       {deliveryMethod === "link" && (
-                        <div className="h-2.5 w-2.5 rounded-full bg-zinc-900" />
+                        <div className="h-2 w-2 rounded-full bg-[var(--settings-fg)]" />
                       )}
                     </button>
                   </div>
                 </div>
 
-                <div className="mb-10 space-y-4">
+                <div className="mb-10 space-y-3.5">
                   {deliveryMethod === "email" && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <label className="app-page-body font-medium">
                           Recipient&apos;s name
@@ -480,7 +480,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                     <label className="app-page-body font-medium">
                       Add a note
                       {deliveryMethod === "link" && (
-                        <span className="ml-1 font-normal text-zinc-500">
+                        <span className="ml-1 font-normal text-[var(--settings-fg-muted)]">
                           (optional)
                         </span>
                       )}
@@ -490,7 +490,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                       rows={3}
                       value={giftNote}
                       onChange={(e) => setGiftNote(e.target.value)}
-                      className="app-page-body w-full resize-none rounded-[var(--radius-sm)] border border-[var(--ui-border)] bg-white p-3 transition-all focus:outline-none focus:ring-2 focus:ring-black/10"
+                      className="app-field w-full resize-none p-3 focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -506,13 +506,13 @@ export function GiftView({ onClose }: GiftViewProps) {
                   </div>
                 </div>
 
-                <div className="flex flex-col items-end gap-2 border-t border-black/5 pt-4">
-                  <div className="flex justify-end gap-3">
+                <div className="flex flex-col items-end gap-2 border-t border-[var(--settings-hairline)] pt-4">
+                  <div className="flex justify-end gap-2.5">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setStep(1)}
-                      className={cn(appBtn.secondary, "px-6")}
+                      className={cn(appBtn.secondary, "px-5")}
                     >
                       Back
                     </Button>
@@ -524,13 +524,13 @@ export function GiftView({ onClose }: GiftViewProps) {
                         (deliveryMethod === "email" &&
                           !isValidEmail(recipientEmail.trim()))
                       }
-                      className={cn(appBtn.primaryLgAuto, "px-8")}
+                      className={cn(appBtn.primaryLgAuto, "px-6")}
                     >
                       {checkoutLoading ? "Preparing…" : "Check out"}
                     </Button>
                   </div>
                   {checkoutError && (
-                    <p className="text-[12px] text-red-600">{checkoutError}</p>
+                    <p className="text-[12px] leading-[18px] text-red-600">{checkoutError}</p>
                   )}
                 </div>
               </div>
@@ -538,7 +538,7 @@ export function GiftView({ onClose }: GiftViewProps) {
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col items-center justify-center bg-zinc-100/80 p-5 sm:p-8 lg:sticky lg:top-0 lg:h-full lg:flex-1">
+        <div className="flex shrink-0 flex-col items-center justify-center bg-[color-mix(in_oklab,#18181b_4%,var(--settings-canvas-bg))] p-5 sm:p-8 lg:sticky lg:top-0 lg:h-full lg:flex-1">
           <div className="relative flex scale-[0.92] flex-col items-center gap-4 transition-all duration-500 animate-in zoom-in-95 sm:scale-100 lg:scale-[1.2]">
             <div className="relative w-[min(100%,248px)] sm:w-[300px]">
               <div
@@ -546,7 +546,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                 style={{
                   aspectRatio: "3 / 2",
                   backgroundColor: selectedColor.value,
-                  borderRadius: "18px",
+                  borderRadius: "12px",
                   boxShadow:
                     "0 18px 40px -16px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.18)",
                 }}
@@ -593,7 +593,7 @@ export function GiftView({ onClose }: GiftViewProps) {
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 px-4">
                   <GiftAnimation />
                   <div className="text-center">
-                    <div className="text-[13px] font-semibold leading-5 tracking-[-0.01em] text-zinc-900">
+                    <div className="text-[13px] font-medium leading-[18px] tracking-[-0.01em] text-[var(--settings-fg)]">
                       {currentDuration.label} of Clauxen {currentPlan.name}
                     </div>
                   </div>
@@ -603,14 +603,14 @@ export function GiftView({ onClose }: GiftViewProps) {
 
             {(deliveryMethod === "email" || deliveryMethod === "link") &&
               (recipientName || giftNote) && (
-                <div className="w-72 animate-in fade-in slide-in-from-top-2 rounded-xl border border-zinc-200/80 bg-white/90 p-4 duration-300 backdrop-blur-sm">
+                <div className="w-72 animate-in fade-in slide-in-from-top-2 rounded-[var(--settings-card-radius)] bg-[var(--settings-card-bg)] p-3.5 shadow-[var(--settings-card-shadow)] duration-300">
                   {recipientName && (
-                    <div className="mb-1 text-[12px] font-semibold text-zinc-900">
+                    <div className="mb-1 text-[12px] font-medium leading-[18px] text-[var(--settings-fg)]">
                       To: {recipientName}
                     </div>
                   )}
                   {giftNote && (
-                    <p className="break-words text-[12px] font-[430] leading-relaxed text-zinc-700">
+                    <p className="break-words text-[12px] leading-[18px] text-[var(--settings-fg-muted)]">
                       {giftNote}
                     </p>
                   )}

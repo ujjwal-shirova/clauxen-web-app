@@ -164,7 +164,11 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
         ref={surfaceRef}
         data-app-overlay-surface=""
         tabIndex={-1}
-        className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)] outline-none [scrollbar-gutter:stable]"
+        className={
+          currentView === "plans"
+            ? "fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--pricing-bg)] outline-none [scrollbar-gutter:stable]"
+            : "fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)] outline-none [scrollbar-gutter:stable]"
+        }
         data-scroll-region=""
       >
         {currentView === "plans" && (
