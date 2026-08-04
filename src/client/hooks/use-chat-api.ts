@@ -29,6 +29,7 @@ import {
   patchAssistantMessage,
   setAllChatsNormalized,
 } from "@/lib/chat-store-bridge";
+import { sealCompletedAssistantMessages } from "@/lib/dedupe-chat-messages";
 import {
   useActiveChatMessages,
   useActiveChatId,
@@ -1980,13 +1981,21 @@ export function useChatApi(
       } finally {
         // Only clear state if this generation is still the active one.
         if (getGeneration(chatId)?.request === controller) {
+          // Seal the finished assistant BEFORE clearing the lease / draining
+          // the queue. Otherwise the next optimistic U+A can steal or merge
+          // the previous answer (queue flush disappearance bug).
+          setAllChats((prev) => ({
+            ...prev,
+            [chatId]: sealCompletedAssistantMessages(prev[chatId] ?? []),
+          }));
           setGeneration(chatId, null);
           useChatStore.getState().setChatGenerating(chatId, false);
-          // Drain one queued prompt for this chat, if any.
+          useChatStore.getState().setStreaming(null);
           const nextQueued = useChatStore
             .getState()
             .shiftQueuedMessage(chatId);
           if (nextQueued?.content) {
+            // Let the sealed transcript commit before painting the next turn.
             queueMicrotask(() => {
               void handleSendMessageRef.current?.(nextQueued.content, {
                 forceNewChat: false,
@@ -2073,7 +2082,17 @@ export function useChatApi(
       }
 
       const isNewChat = !chatId;
-      const now = Date.now();
+      const existingForStamp = chatId
+        ? (allChatsRef.current[chatId] ?? [])
+        : [];
+      const lastStamp = existingForStamp.reduce((max, message) => {
+        const stamp =
+          typeof message.createdAt === "number" ? message.createdAt : 0;
+        return stamp > max ? stamp : max;
+      }, 0);
+      // Monotonic stamps so heal sort cannot put the previous assistant after
+      // the newly queued user/assistant pair.
+      const now = Math.max(Date.now(), lastStamp + 2);
       const tempUserId = `temp-${randomUUID()}`;
       // Stable assistant client id up front so user+assistant paint as one turn
       // (avoids the follow-up pairing race where A lands before U in the store).
@@ -2136,17 +2155,16 @@ export function useChatApi(
         }));
         hydratedChatIdsRef.current.add(pendingChatId);
       } else {
-        // Existing chat — paint user + assistant placeholder as one turn so the
-        // streaming orb never attaches to the previous user message.
+        // Existing chat — seal any stale live flags on prior turns, then paint
+        // the new user+assistant pair as one atomic append.
         useChatStore.getState().setChatGenerating(chatId, true);
-        setAllChats((prev) => ({
-          ...prev,
-          [chatId!]: [
-            ...(prev[chatId!] ?? []),
-            optimisticUser,
-            optimisticAssistant,
-          ],
-        }));
+        setAllChats((prev) => {
+          const sealed = sealCompletedAssistantMessages(prev[chatId!] ?? []);
+          return {
+            ...prev,
+            [chatId!]: [...sealed, optimisticUser, optimisticAssistant],
+          };
+        });
         // Touch Recents so this chat stays at the top.
         if (!ephemeral) {
           setRecentChats((prev) => {
