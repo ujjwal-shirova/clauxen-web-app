@@ -16,6 +16,8 @@ export type ToolExecutionContext = {
   conversationId?: string;
   userCountryCode?: string;
   toolCallId: string;
+  /** Model id that produced the current tool call (for agent-trace attribution). */
+  modelId?: string;
   onProgress?: (data: Record<string, unknown>) => void;
 };
 

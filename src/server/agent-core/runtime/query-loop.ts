@@ -638,6 +638,7 @@ export async function runAutonomousAgent(
             conversationId: conversationId ?? "chat",
             userCountryCode,
             toolCallId: tc.id,
+            modelId: options.model,
             onProgress: (data) => {
               if (tc.name === "web_search") {
                 sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
