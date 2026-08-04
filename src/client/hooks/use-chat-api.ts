@@ -591,6 +591,11 @@ export function useChatApi(
     ): Message[] | null => {
       const gen = getGeneration(activeChatId);
       if (mapped.role === "assistant" && gen?.assistantMessageId) {
+        // Only remap the assistant that belongs to the *current* generation.
+        // A late realtime UPDATE for a *previous* turn's assistant must not
+        // hijack gen.assistantMessageId — otherwise the follow-up stream's
+        // resolveAssistantId targets the wrong (previous) assistant and its
+        // tools render under the previous user message.
         const localIndex = existing.findIndex(
           (message) =>
             message.id === gen.assistantMessageId ||
@@ -601,6 +606,12 @@ export function useChatApi(
         );
         if (localIndex >= 0) {
           const local = existing[localIndex]!;
+          // The remapped assistant belongs to the current generation only when
+          // it was located via the generation's own assistant identity — NOT
+          // merely because a stale turn's realtime UPDATE shares mapped.clientId.
+          const isCurrentGenerationAssistant =
+            local.id === gen.assistantMessageId ||
+            local.clientId === gen.assistantMessageId;
           if (local.id === mapped.id) return null;
           const next = [...existing];
           next[localIndex] = {
@@ -609,13 +620,15 @@ export function useChatApi(
             clientId: local.clientId ?? mapped.clientId ?? local.id,
             turnId: local.turnId ?? mapped.turnId,
           };
-          setGeneration(activeChatId, {
-            request: gen.request,
-            assistantMessageId: mapped.id,
-          });
-          useChatStore
-            .getState()
-            .setStreaming({ chatId: activeChatId, messageId: mapped.id });
+          if (isCurrentGenerationAssistant) {
+            setGeneration(activeChatId, {
+              request: gen.request,
+              assistantMessageId: mapped.id,
+            });
+            useChatStore
+              .getState()
+              .setStreaming({ chatId: activeChatId, messageId: mapped.id });
+          }
           return next;
         }
         return null;
