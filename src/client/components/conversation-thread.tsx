@@ -42,7 +42,8 @@ import {
 import { FollowUpPromptProvider } from "@/contexts/follow-up-prompt-context";
 import { useAppPreferencesOptional } from "@/contexts/app-preferences-context";
 import { stripFollowUpPromptTags } from "@/lib/follow-up-prompt";
-import { dedupeChatMessages, isBlankStreamingPlaceholder, hasAssistantBody } from "@/lib/dedupe-chat-messages";
+import { groupMessagesIntoTurns } from "@/lib/chat-turns";
+import type { ConversationTurnGroup } from "@/lib/chat-turns";
 import { syncStickyUserMessages } from "@/lib/chat-sticky";
 import { hasCompletedAssistantOutput } from "@/lib/assistant-output-state";
 import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
@@ -75,154 +76,6 @@ interface ConversationThreadProps {
   isGenerating?: boolean;
   /** Send a suggested follow-up as a new user message. */
   onFollowUpSelect?: (prompt: string) => void;
-}
-
-type ConversationTurnGroup = {
-  userMessage: Message | null;
-  assistantMessages: Message[];
-};
-
-function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
-  const groups: ConversationTurnGroup[] = [];
-  const deduped = dedupeChatMessages(messages);
-  for (const msg of deduped) {
-    if (msg.role === "user") {
-      groups.push({ userMessage: msg, assistantMessages: [] });
-      continue;
-    }
-    if (msg.role !== "assistant" && msg.role !== "system") continue;
-
-    const last = groups[groups.length - 1];
-    if (msg.turnId) {
-      const match = [...groups]
-        .reverse()
-        .find((group) => group.userMessage?.turnId === msg.turnId);
-      if (match) {
-        match.assistantMessages.push(msg);
-        continue;
-      }
-    }
-    if (last) {
-      last.assistantMessages.push(msg);
-    } else {
-      groups.push({ userMessage: null, assistantMessages: [msg] });
-    }
-  }
-  return healConversationTurnPairing(groups);
-}
-
-/**
- * Only blank live placeholders may move across turns. Completed / contentful
- * assistants stay with their user so queue flushes cannot erase prior answers.
- */
-function healConversationTurnPairing(
-  groups: ConversationTurnGroup[],
-): ConversationTurnGroup[] {
-  if (groups.length === 0) return groups;
-
-  let out = groups.map((group) => ({
-    ...group,
-    assistantMessages: [...group.assistantMessages],
-  }));
-
-  // 1) Orphan blank live assistants + following user → user leads.
-  const paired: ConversationTurnGroup[] = [];
-  for (let i = 0; i < out.length; i += 1) {
-    const group = out[i]!;
-    const next = out[i + 1];
-
-    if (
-      !group.userMessage &&
-      group.assistantMessages.length > 0 &&
-      next?.userMessage
-    ) {
-      const blanks = group.assistantMessages.filter(isBlankStreamingPlaceholder);
-      const committed = group.assistantMessages.filter(
-        (message) => !isBlankStreamingPlaceholder(message),
-      );
-
-      if (blanks.length > 0 && committed.length === 0) {
-        paired.push({
-          userMessage: next.userMessage,
-          assistantMessages: [...blanks, ...next.assistantMessages],
-        });
-        i += 1;
-        continue;
-      }
-
-      if (blanks.length > 0 && committed.length > 0) {
-        paired.push({ userMessage: null, assistantMessages: committed });
-        paired.push({
-          userMessage: next.userMessage,
-          assistantMessages: [...blanks, ...next.assistantMessages],
-        });
-        i += 1;
-        continue;
-      }
-    }
-
-    paired.push(group);
-  }
-  out = paired;
-
-  // 2) Move trailing blank placeholders onto the following user turn.
-  for (let i = 0; i < out.length - 1; i += 1) {
-    const current = out[i]!;
-    const next = out[i + 1]!;
-    if (!next.userMessage) continue;
-
-    while (current.assistantMessages.length > 0) {
-      const last =
-        current.assistantMessages[current.assistantMessages.length - 1]!;
-      if (!isBlankStreamingPlaceholder(last)) break;
-      current.assistantMessages.pop();
-      next.assistantMessages.unshift(last);
-    }
-  }
-
-  // 3) Collapse blank placeholders into the preceding assistant in the turn.
-  for (const group of out) {
-    if (group.assistantMessages.length <= 1) continue;
-    const collapsed: Message[] = [];
-    for (const message of group.assistantMessages) {
-      const prev = collapsed[collapsed.length - 1];
-      if (
-        prev &&
-        !(hasAssistantBody(prev) && hasAssistantBody(message)) &&
-        (isBlankStreamingPlaceholder(message) ||
-          isBlankStreamingPlaceholder(prev))
-      ) {
-        collapsed[collapsed.length - 1] = {
-          ...prev,
-          ...message,
-          id:
-            message.id.startsWith("temp-") || message.id.startsWith("pending-")
-              ? prev.id
-              : message.id,
-          clientId: message.clientId ?? prev.clientId ?? message.id,
-          content:
-            (message.content?.length ?? 0) >= (prev.content?.length ?? 0)
-              ? message.content
-              : prev.content,
-          isStreaming: Boolean(prev.isStreaming || message.isStreaming),
-          isThinkingStreaming: Boolean(
-            prev.isThinkingStreaming || message.isThinkingStreaming,
-          ),
-          agentFrames: message.agentFrames?.length
-            ? message.agentFrames
-            : prev.agentFrames,
-          agentSegments: message.agentSegments?.length
-            ? message.agentSegments
-            : prev.agentSegments,
-        };
-        continue;
-      }
-      collapsed.push(message);
-    }
-    group.assistantMessages = collapsed;
-  }
-
-  return out;
 }
 
 const RetryIcon = () => (
@@ -1540,9 +1393,11 @@ export function ConversationThread({
       {groups.map((group, index) => (
         <ConversationTurn
           key={
-            group.userMessage
+            group.userMessage?.turnId ??
+            (group.userMessage
               ? messageUiKey(group.userMessage)
-              : `turn-${index}`
+              : (group.assistantMessages[0]?.turnId ??
+                `turn-${index}`))
           }
           turnIndex={index}
           userMessage={group.userMessage}

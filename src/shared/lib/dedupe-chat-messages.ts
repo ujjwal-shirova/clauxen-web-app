@@ -33,12 +33,12 @@ export function dedupeChatMessages(messages: readonly Message[]): Message[] {
 
   const hasTurnIds = list.some((message) => Boolean(message.turnId));
   if (hasTurnIds) {
-    list = flattenByTurnId(list);
-  } else {
-    list = healChatMessageOrder(list);
-    list = ensureBlankLivePlaceholdersFollowLatestUser(list);
+    // Turn ids are authoritative — no timestamp guessing, no re-pairing.
+    return flattenByTurnId(list);
   }
 
+  list = healChatMessageOrder(list);
+  list = ensureBlankLivePlaceholdersFollowLatestUser(list);
   list = collapseConsecutiveDuplicates(list);
   return list;
 }
@@ -305,15 +305,19 @@ type TurnBucket = {
   user: Message | null;
   assistants: Message[];
   order: number;
+  stamp: number;
 };
 
 /**
- * Flatten by turnId encounter order. User always leads its assistants.
- * Blank live placeholders without a turn attach to the latest open user turn.
+ * Flatten strictly by turn. A turn owns its user prompt and every assistant
+ * row that carries the same turn id — nothing can migrate between turns, so a
+ * finished answer can never be stolen by the next (queued) prompt.
+ *
+ * Only an untagged blank streaming placeholder is adopted by the newest turn,
+ * because that is the one row the UI paints before ids are known.
  */
 export function flattenByTurnId(messages: readonly Message[]): Message[] {
   const buckets = new Map<string, TurnBucket>();
-  const ordered: TurnBucket[] = [];
   let orderCounter = 0;
 
   const ensureBucket = (turnId: string): TurnBucket => {
@@ -324,10 +328,16 @@ export function flattenByTurnId(messages: readonly Message[]): Message[] {
       user: null,
       assistants: [],
       order: orderCounter++,
+      stamp: Number.POSITIVE_INFINITY,
     };
     buckets.set(turnId, bucket);
-    ordered.push(bucket);
     return bucket;
+  };
+
+  const noteStamp = (bucket: TurnBucket, message: Message) => {
+    if (typeof message.createdAt === "number" && message.createdAt < bucket.stamp) {
+      bucket.stamp = message.createdAt;
+    }
   };
 
   let latestUserTurnId: string | null = null;
@@ -339,49 +349,60 @@ export function flattenByTurnId(messages: readonly Message[]): Message[] {
       bucket.user = bucket.user
         ? mergeMessagePreferRich(bucket.user, { ...message, turnId })
         : { ...message, turnId };
+      noteStamp(bucket, message);
       latestUserTurnId = turnId;
       continue;
     }
 
     if (message.role !== "assistant") continue;
 
-    let turnId = message.turnId?.trim() || "";
-    if (!turnId) {
-      if (isBlankStreamingPlaceholder(message) && latestUserTurnId) {
-        turnId = latestUserTurnId;
-      } else {
-        turnId = `legacy-assistant-${message.id}`;
-      }
-    }
+    // Untagged rows (legacy transcripts, regenerate / edit branches) belong to
+    // the most recent user in array order — the store appends chronologically,
+    // so position is authoritative here. Tagged rows never take this path, so
+    // a real turn can still never absorb another turn's answer.
+    const turnId =
+      message.turnId?.trim() ||
+      latestUserTurnId ||
+      `legacy-assistant-${message.id}`;
 
     const bucket = ensureBucket(turnId);
-    const existingIndex = bucket.assistants.findIndex((assistant) =>
-      sameAssistantIdentity(assistant, message),
-    );
     const stamped = { ...message, turnId };
+    noteStamp(bucket, message);
+
+    const existingIndex = bucket.assistants.findIndex((assistant) =>
+      sameAssistantIdentity(assistant, stamped),
+    );
     if (existingIndex >= 0) {
       bucket.assistants[existingIndex] = mergeMessagePreferRich(
         bucket.assistants[existingIndex]!,
         stamped,
       );
-    } else if (
-      isBlankStreamingPlaceholder(stamped) &&
-      bucket.assistants.some((assistant) => isLiveStreaming(assistant))
+      continue;
+    }
+
+    // One live answer per turn: fold a duplicate blank orb into it.
+    const liveIndex = bucket.assistants.findIndex((assistant) =>
+      isLiveStreaming(assistant),
+    );
+    if (
+      liveIndex >= 0 &&
+      (isBlankStreamingPlaceholder(stamped) ||
+        isBlankStreamingPlaceholder(bucket.assistants[liveIndex]!))
     ) {
-      const liveIndex = bucket.assistants.findIndex((assistant) =>
-        isLiveStreaming(assistant),
-      );
       bucket.assistants[liveIndex] = mergeMessagePreferRich(
         bucket.assistants[liveIndex]!,
         stamped,
       );
-    } else {
-      bucket.assistants.push(stamped);
+      continue;
     }
-    if (bucket.user) latestUserTurnId = turnId;
+
+    bucket.assistants.push(stamped);
   }
 
-  ordered.sort((a, b) => a.order - b.order);
+  const ordered = [...buckets.values()].sort((a, b) => {
+    if (a.stamp !== b.stamp) return a.stamp - b.stamp;
+    return a.order - b.order;
+  });
 
   const out: Message[] = [];
   for (const bucket of ordered) {

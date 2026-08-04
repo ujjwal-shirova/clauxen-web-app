@@ -29,7 +29,16 @@ import {
   patchAssistantMessage,
   setAllChatsNormalized,
 } from "@/lib/chat-store-bridge";
-import { sealCompletedAssistantMessages, assignLegacyTurnIds } from "@/lib/dedupe-chat-messages";
+import {
+  sealCompletedAssistantMessages,
+  assignLegacyTurnIds,
+} from "@/lib/dedupe-chat-messages";
+import {
+  assistantClientIdForTurn,
+  createTurnId,
+  deriveTurnIdFromClientId,
+  userClientIdForTurn,
+} from "@/lib/chat-turn-id";
 import {
   useActiveChatMessages,
   useActiveChatId,
@@ -167,12 +176,17 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     : finalizeChatTitleStrippedAnswer(row.content);
   const isChatActive = isChatActivelyGenerating(row.chat_id);
 
+  const clientId =
+    typeof row.client_id === "string" && row.client_id.trim()
+      ? row.client_id.trim()
+      : row.id;
+
   const base = compactMessageBranchData({
     id: row.id,
-    clientId:
-      typeof row.client_id === "string" && row.client_id.trim()
-        ? row.client_id.trim()
-        : row.id,
+    clientId,
+    // Turn identity is encoded in client_id, so DB rows rejoin the exact turn
+    // they belong to after realtime / hydrate / reload.
+    turnId: deriveTurnIdFromClientId(clientId),
     role: row.role as Message["role"],
     content,
     thinkingContent: meta.thinkingContent,
@@ -1290,6 +1304,12 @@ export function useChatApi(
         overrideAssistantId ?? turn?.assistantClientId ?? randomUUID();
       let assistantId = assistantIdLocal;
       const assistantClientId = assistantIdLocal;
+      // Retries / regenerations reuse the existing turn when the client id
+      // carries one; otherwise this stream opens its own turn.
+      const streamTurnId =
+        deriveTurnIdFromClientId(assistantClientId) ??
+        deriveTurnIdFromClientId(turn?.userClientId) ??
+        createTurnId();
       setGeneration(chatId, {
         request: controller,
         assistantMessageId: assistantId,
@@ -1349,7 +1369,7 @@ export function useChatApi(
               m.clientId === assistantClientId ||
               (turn?.userClientId &&
                 (m.id === turn.userClientId || m.clientId === turn.userClientId)),
-          )?.turnId ?? `turn-${assistantClientId}`;
+          )?.turnId ?? streamTurnId;
         if (exists) {
           return {
             ...prev,
@@ -1579,7 +1599,7 @@ export function useChatApi(
               ...next[index]!,
               id: assistantId,
               clientId: next[index]!.clientId ?? assistantClientId,
-              turnId: next[index]!.turnId ?? `turn-${assistantClientId}`,
+              turnId: next[index]!.turnId ?? streamTurnId,
             };
             return { ...prev, [chatId]: next };
           });
@@ -1661,7 +1681,7 @@ export function useChatApi(
                   ...next[index]!,
                   id: assistantId,
                   clientId: next[index]!.clientId ?? assistantClientId,
-                  turnId: next[index]!.turnId ?? `turn-${assistantClientId}`,
+                  turnId: next[index]!.turnId ?? streamTurnId,
                 };
                 return { ...prev, [chatId]: next };
               });
@@ -2125,14 +2145,15 @@ export function useChatApi(
       // Monotonic stamps so heal sort cannot put the previous assistant after
       // the newly queued user/assistant pair.
       const now = Math.max(Date.now(), lastStamp + 2);
-      const tempUserId = `temp-${randomUUID()}`;
-      // Stable assistant client id up front so user+assistant paint as one turn
-      // (avoids the follow-up pairing race where A lands before U in the store).
-      const assistantClientId = randomUUID();
-      const turnId = `turn-${assistantClientId}`;
+      // One turn id owns this prompt and its reply. Both client ids embed it,
+      // so the DB round-trip (realtime / hydrate / reload) restores the pair.
+      const turnId = createTurnId();
+      const userClientId = userClientIdForTurn(turnId);
+      const assistantClientId = assistantClientIdForTurn(turnId);
+      const tempUserId = `temp-${userClientId}`;
       const optimisticUser: Message = {
         id: tempUserId,
-        clientId: tempUserId,
+        clientId: userClientId,
         turnId,
         role: "user",
         content: trimmed,
@@ -2414,7 +2435,9 @@ export function useChatApi(
                 modelContent: modelUserContent || userContent,
                 fileIds: fileIds.length ? fileIds : undefined,
                 images: visionImages.length ? visionImages : undefined,
-                userClientId: tempUserId,
+                // Persist the turn-encoded client ids so DB rows can rebuild
+                // the exact user↔assistant pairing on any later read.
+                userClientId,
                 assistantClientId,
               },
           { ephemeral },
