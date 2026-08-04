@@ -100,39 +100,147 @@ function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
       groups.push({ userMessage: null, assistantMessages: [msg] });
     }
   }
-  return reattachLiveAssistantToFollowingUser(groups);
+  return healConversationTurnPairing(groups);
+}
+
+function isEmptyStreamingAssistant(message: Message): boolean {
+  return (
+    (message.isStreaming === true || message.isThinkingStreaming === true) &&
+    !(message.content ?? "").trim() &&
+    !(message.agentFrames?.some((frame) => frame.segments.length > 0) ?? false) &&
+    !(message.agentSegments?.length ?? 0)
+  );
+}
+
+function isLiveOrEmptyAssistant(message: Message): boolean {
+  return (
+    message.isStreaming === true ||
+    message.isThinkingStreaming === true ||
+    !(message.content ?? "").trim()
+  );
 }
 
 /**
- * If a live/empty assistant landed on the previous turn while the follow-up
- * user bubble sits alone (append-order race), move that assistant down so the
- * streaming orb paints under the message the user just sent.
+ * Guarantee user → assistant visual order while streaming.
+ *
+ * Covers the screenshot bug: an orphan / mis-ordered assistant with answer
+ * tokens paints above the user chip, while an empty optimistic placeholder
+ * keeps a second orb under the user near the composer.
  */
-function reattachLiveAssistantToFollowingUser(
+function healConversationTurnPairing(
   groups: ConversationTurnGroup[],
 ): ConversationTurnGroup[] {
-  if (groups.length < 2) return groups;
-  const out = groups.map((group) => ({
+  if (groups.length === 0) return groups;
+
+  let out = groups.map((group) => ({
     ...group,
     assistantMessages: [...group.assistantMessages],
   }));
 
+  // 1) Orphan assistant turn(s) + following user (optionally with empty
+  //    streaming placeholders) → one turn with the user leading.
+  const paired: ConversationTurnGroup[] = [];
+  for (let i = 0; i < out.length; i += 1) {
+    const group = out[i]!;
+    const next = out[i + 1];
+    const nextOnlyEmptyPlaceholders =
+      !!next?.userMessage &&
+      next.assistantMessages.every(isEmptyStreamingAssistant);
+
+    if (
+      !group.userMessage &&
+      group.assistantMessages.length > 0 &&
+      next?.userMessage &&
+      (next.assistantMessages.length === 0 || nextOnlyEmptyPlaceholders)
+    ) {
+      paired.push({
+        userMessage: next.userMessage,
+        assistantMessages: [
+          ...group.assistantMessages,
+          ...next.assistantMessages,
+        ],
+      });
+      i += 1;
+      continue;
+    }
+    paired.push(group);
+  }
+  out = paired;
+
+  // 2) Move trailing live/empty assistants onto the following user turn —
+  //    even when that turn already has empty streaming placeholders.
   for (let i = 0; i < out.length - 1; i += 1) {
     const current = out[i]!;
     const next = out[i + 1]!;
-    if (!next.userMessage || next.assistantMessages.length > 0) continue;
+    if (!next.userMessage) continue;
+    if (
+      next.assistantMessages.length > 0 &&
+      !next.assistantMessages.every(isEmptyStreamingAssistant)
+    ) {
+      continue;
+    }
 
     while (current.assistantMessages.length > 0) {
       const last =
         current.assistantMessages[current.assistantMessages.length - 1]!;
-      const liveOrEmpty =
-        last.isStreaming === true ||
-        last.isThinkingStreaming === true ||
-        !(last.content ?? "").trim();
-      if (!liveOrEmpty) break;
+      if (!isLiveOrEmptyAssistant(last)) break;
+      // Keep completed answers with their own user.
+      if (
+        current.userMessage &&
+        last.isStreaming !== true &&
+        last.isThinkingStreaming !== true &&
+        (last.content ?? "").trim()
+      ) {
+        break;
+      }
       current.assistantMessages.pop();
       next.assistantMessages.unshift(last);
     }
+  }
+
+  // 3) Collapse duplicate live assistants inside each turn (content + empty orb).
+  for (const group of out) {
+    if (group.assistantMessages.length <= 1) continue;
+    const collapsed: Message[] = [];
+    for (const message of group.assistantMessages) {
+      const prev = collapsed[collapsed.length - 1];
+      if (
+        prev &&
+        prev.role === "assistant" &&
+        message.role === "assistant" &&
+        ((prev.isStreaming === true && message.isStreaming === true) ||
+          (isEmptyStreamingAssistant(prev) &&
+            isLiveOrEmptyAssistant(message)) ||
+          (isEmptyStreamingAssistant(message) &&
+            isLiveOrEmptyAssistant(prev)))
+      ) {
+        collapsed[collapsed.length - 1] = {
+          ...prev,
+          ...message,
+          id:
+            message.id.startsWith("temp-") || message.id.startsWith("pending-")
+              ? prev.id
+              : message.id,
+          clientId: message.clientId ?? prev.clientId ?? message.id,
+          content:
+            (message.content?.length ?? 0) >= (prev.content?.length ?? 0)
+              ? message.content
+              : prev.content,
+          isStreaming: prev.isStreaming || message.isStreaming,
+          isThinkingStreaming:
+            prev.isThinkingStreaming || message.isThinkingStreaming,
+          agentFrames: message.agentFrames?.length
+            ? message.agentFrames
+            : prev.agentFrames,
+          agentSegments: message.agentSegments?.length
+            ? message.agentSegments
+            : prev.agentSegments,
+        };
+        continue;
+      }
+      collapsed.push(message);
+    }
+    group.assistantMessages = collapsed;
   }
 
   return out;

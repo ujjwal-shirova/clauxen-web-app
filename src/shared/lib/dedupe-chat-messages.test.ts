@@ -257,4 +257,35 @@ describe("dedupeChatMessages", () => {
       ["u1", "a1", "u2", "a2"],
     );
   });
+
+  it("moves live answer tokens below the latest user when order inverted", () => {
+    const stamp = 1_700_000_000_000;
+    const result = dedupeChatMessages([
+      msg({
+        id: "a-content",
+        role: "assistant",
+        content: "Research & Information",
+        createdAt: stamp + 10,
+        isStreaming: true,
+      }),
+      msg({
+        id: "u-new",
+        role: "user",
+        content: "what things you can do for me?",
+        createdAt: stamp,
+      }),
+      msg({
+        id: "a-empty",
+        role: "assistant",
+        content: "",
+        createdAt: stamp + 11,
+        isStreaming: true,
+      }),
+    ]);
+    assert.equal(result[0]?.role, "user");
+    assert.equal(result[0]?.id, "u-new");
+    assert.equal(result.filter((m) => m.role === "assistant").length, 1);
+    assert.equal(result[1]?.isStreaming, true);
+    assert.match(result[1]?.content ?? "", /Research/);
+  });
 });

@@ -44,6 +44,9 @@ export function dedupeChatMessages(messages: readonly Message[]): Message[] {
   // Heal arrival order before the consecutive sweep so pairing is stable.
   list = healChatMessageOrder(list);
 
+  // Live streaming replies must sit after the latest user bubble — never above.
+  list = ensureLiveAssistantsFollowLatestUser(list);
+
   // Collapse consecutive identical user/assistant bubbles.
   list = collapseConsecutiveDuplicates(list);
 
@@ -175,13 +178,10 @@ function collapseTempServerPairs(messages: Message[]): Message[] {
         ) {
           return true;
         }
-        // Both empty streaming placeholders for the same turn.
-        return (
-          isLiveStreaming(message) &&
-          isLiveStreaming(candidate) &&
-          contentLen(message) === 0 &&
-          contentLen(candidate) === 0
-        );
+        // Two in-flight assistants in one chat are the same turn (optimistic
+        // placeholder + durable row / duplicate paint). Merge even when one
+        // already has tokens so we never render A_content above U + A_empty.
+        return isLiveStreaming(message) && isLiveStreaming(candidate);
       });
       if (matchIndex >= 0) {
         consumed.add(i);
@@ -306,6 +306,45 @@ export function healChatMessageOrder(
     .map(({ message }) => message);
 
   return healInvertedUserAssistantPairs(sorted);
+}
+
+/**
+ * Hard guarantee for in-flight turns: every live streaming assistant must sit
+ * after the latest user bubble. Fixes the visible bug where answer tokens
+ * paint above the user chip while an empty placeholder orb sits below it.
+ */
+export function ensureLiveAssistantsFollowLatestUser(
+  messages: readonly Message[],
+): Message[] {
+  if (messages.length <= 1) return [...messages];
+
+  let latestUserIndex = -1;
+  for (let i = 0; i < messages.length; i += 1) {
+    if (messages[i]?.role === "user") latestUserIndex = i;
+  }
+  if (latestUserIndex < 0) return [...messages];
+
+  const liveIndexes: number[] = [];
+  for (let i = 0; i < messages.length; i += 1) {
+    const message = messages[i]!;
+    if (message.role === "assistant" && isLiveStreaming(message)) {
+      liveIndexes.push(i);
+    }
+  }
+  if (liveIndexes.length === 0) return [...messages];
+  if (liveIndexes.every((index) => index > latestUserIndex)) {
+    return [...messages];
+  }
+
+  const liveMessages = liveIndexes.map((index) => messages[index]!);
+  const liveSet = new Set(liveIndexes);
+  const rest = messages.filter((_, index) => !liveSet.has(index));
+
+  let insertAt = 0;
+  for (let i = 0; i < rest.length; i += 1) {
+    if (rest[i]?.role === "user") insertAt = i + 1;
+  }
+  return [...rest.slice(0, insertAt), ...liveMessages, ...rest.slice(insertAt)];
 }
 
 /**

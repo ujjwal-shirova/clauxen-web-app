@@ -846,6 +846,11 @@ export function useChatApi(
             ) {
               continue;
             }
+            // Never prepend/append a contentful assistant ahead of the latest
+            // optimistic user — that is the "answer above user chip" bug.
+            if (remote.role === "assistant") {
+              continue;
+            }
             merged.push(remote);
           }
           return { ...prev, [chatId]: merged };
