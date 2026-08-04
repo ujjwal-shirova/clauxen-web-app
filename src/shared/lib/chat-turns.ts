@@ -9,9 +9,9 @@ export type ConversationTurnGroup = {
 /**
  * Build render turns from a raw message list.
  *
- * `dedupeChatMessages` already emits a turn-ordered list (each user followed
- * by that turn's assistants), so grouping is a plain fold: an assistant joins
- * the open turn only when the turn ids agree. That is what stops a queued
+ * `dedupeChatMessages` already emits a turn-ordered list (each user followed by
+ * that turn's assistants), so grouping is a plain fold. An assistant joins
+ * the open turn only when the turn ids agree — that is what stops a queued
  * follow-up from adopting the previous turn's answer.
  */
 export function groupMessagesIntoTurns(
@@ -30,7 +30,6 @@ export function groupMessagesIntoTurns(
     const open = groups[groups.length - 1];
     const openTurnId = open?.userMessage?.turnId;
 
-    // Both sides tagged and different → this answer owns a different turn.
     if (message.turnId && openTurnId && message.turnId !== openTurnId) {
       groups.push({ userMessage: null, assistantMessages: [message] });
       continue;

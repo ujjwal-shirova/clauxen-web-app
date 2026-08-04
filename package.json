@@ -23,7 +23,6 @@
     "supabase:functions:list": "supabase functions list",
     "strip:annotations": "node .tools/strip-hindi-annotations.mjs",
     "worker": "tsx scripts/worker.ts",
-    "test": "tsx --test \"src/**/*.test.ts\"",
     "audit:public-env": "node scripts/audit-public-env.mjs",
     "vercel:env:sync": "node scripts/sync-vercel-env-api.mjs",
     "website:manifest": "python3 scripts/website/generate-pages-manifest.py"
