@@ -175,11 +175,22 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     ? "Generation interrupted."
     : finalizeChatTitleStrippedAnswer(row.content);
   const isChatActive = isChatActivelyGenerating(row.chat_id);
+  const activeGenAssistantId = getGeneration(row.chat_id)?.assistantMessageId ?? null;
 
   const clientId =
     typeof row.client_id === "string" && row.client_id.trim()
       ? row.client_id.trim()
       : row.id;
+
+  // Only the active generation's assistant row may carry a live orb.
+  // A previous turn's "streaming" status (DB lag) must not resurrect its orb
+  // while a follow-up turn owns the stream.
+  const isThisTurnActive =
+    isChatActive &&
+    (row.role !== "assistant" ||
+      activeGenAssistantId === null ||
+      row.id === activeGenAssistantId ||
+      clientId === activeGenAssistantId);
 
   const base = compactMessageBranchData({
     id: row.id,
@@ -199,7 +210,7 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
       : undefined,
     createdAt,
     isStreaming:
-      isChatActive &&
+      isThisTurnActive &&
       (row.status === "streaming" || row.status === "queued") &&
       !staleStreaming,
   });
@@ -749,6 +760,16 @@ export function useChatApi(
                 false) ||
               (mapped.agentSegments?.length ?? 0) > 0;
             const chatStillGenerating = isChatActivelyGenerating(activeChatId);
+            const activeGenAssistantId = getGeneration(activeChatId)?.assistantMessageId ?? null;
+            // Only the active generation's assistant may show a live orb.
+            // A stale DB "streaming" UPDATE on a *previous* turn must not
+            // resurrect its orb while the follow-up turn owns the stream.
+            const isThisTurnActive =
+              chatStillGenerating &&
+              (activeGenAssistantId === null ||
+                mapped.id === activeGenAssistantId ||
+                mapped.clientId === activeGenAssistantId ||
+                prevMessage.clientId === activeGenAssistantId);
             next[index] = {
               ...prevMessage,
               ...mapped,
@@ -761,10 +782,8 @@ export function useChatApi(
                 (mapped.content?.length ?? 0)
                   ? prevMessage.content
                   : mapped.content,
-              // Never resurrect the orb from a stale DB "streaming" row when
-              // this tab is idle — that was the load-time caret bug.
               isStreaming:
-                chatStillGenerating &&
+                isThisTurnActive &&
                 (rowStatus === "streaming" || rowStatus === "queued"),
               ...(localHasAgentFrames && !mappedHasAgentFrames
                 ? {
@@ -1518,6 +1537,8 @@ export function useChatApi(
           }
 
           let detail = `Generation failed (${attemptResponse.status})`;
+          // A 409 always means the durable lease is still held — never surface
+          // that as "Something unexpected happened"; retry on the status route.
           let leaseBusy = attemptResponse.status === 409;
           try {
             const payload = (await attemptResponse.json()) as {
@@ -2130,6 +2151,38 @@ export function useChatApi(
             Boolean(useChatStore.getState().generatingChatIds[chatId]);
           if (!stillHeld) break;
           await new Promise((resolve) => setTimeout(resolve, 40));
+        }
+        // Also wait for the server-side DO lease to release. The local
+        // controller is gone before the durable lease commits, so a
+        // bypassQueue send would 409 → "Something unexpected happened".
+        if (!ephemeral) {
+          const generateStatusUrl = `/api/v1/chats/${chatId}/generate/status`;
+          const serverDeadline = Date.now() + 8_000;
+          let serverFailures = 0;
+          while (Date.now() < serverDeadline) {
+            try {
+              const statusResponse = await fetch(generateStatusUrl, {
+                method: "GET",
+                headers: { Accept: "application/json" },
+                credentials: "include",
+                cache: "no-store",
+              });
+              if (statusResponse.ok) {
+                serverFailures = 0;
+                const payload = (await statusResponse.json()) as {
+                  data?: { active?: boolean };
+                };
+                if (!payload.data?.active) break;
+              } else {
+                serverFailures += 1;
+                if (serverFailures >= 6) break;
+              }
+            } catch {
+              serverFailures += 1;
+              if (serverFailures >= 6) break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 80));
+          }
         }
       }
 
