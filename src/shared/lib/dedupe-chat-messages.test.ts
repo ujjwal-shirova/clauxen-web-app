@@ -202,4 +202,59 @@ describe("dedupeChatMessages", () => {
       ["u1", "a1"],
     );
   });
+
+  it("moves a live follow-up assistant out from under the previous user", () => {
+    const stamp = 1_700_000_000_000;
+    // Dated streaming A2 + undated U2 sorts as U1,A2,U2 — heal must swap
+    // even though A2 already has a leading user (the previous turn).
+    const result = dedupeChatMessages([
+      msg({ id: "u1", role: "user", content: "first", createdAt: stamp }),
+      msg({
+        id: "a2",
+        role: "assistant",
+        content: "",
+        createdAt: stamp + 60_001,
+        isStreaming: true,
+      }),
+      msg({
+        id: "u2",
+        role: "user",
+        content: "follow up",
+      }),
+    ]);
+    assert.deepEqual(
+      result.map((m) => m.id),
+      ["u1", "u2", "a2"],
+    );
+  });
+
+  it("keeps a completed previous answer with its user when a follow-up arrives", () => {
+    const stamp = 1_700_000_000_000;
+    const result = dedupeChatMessages([
+      msg({ id: "u1", role: "user", content: "first", createdAt: stamp }),
+      msg({
+        id: "a1",
+        role: "assistant",
+        content: "first answer",
+        createdAt: stamp + 1,
+      }),
+      msg({
+        id: "u2",
+        role: "user",
+        content: "follow up",
+        createdAt: stamp + 60_000,
+      }),
+      msg({
+        id: "a2",
+        role: "assistant",
+        content: "",
+        createdAt: stamp + 60_001,
+        isStreaming: true,
+      }),
+    ]);
+    assert.deepEqual(
+      result.map((m) => m.id),
+      ["u1", "a1", "u2", "a2"],
+    );
+  });
 });

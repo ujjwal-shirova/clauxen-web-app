@@ -312,6 +312,11 @@ export function healChatMessageOrder(
  * When a durable user row lands after its assistant (realtime/hydrate race),
  * timestamps often differ by a few ms — equal-stamp sorting alone misses it.
  * Walk adjacent assistant→user inversions and swap when they belong together.
+ *
+ * Special case: a live/empty streaming assistant sitting between two users is
+ * almost always the in-flight reply for the *following* user (optimistic
+ * append race: A2 landed before U2). Leaving it attached to the previous user
+ * is the follow-up pairing bug.
  */
 export function healInvertedUserAssistantPairs(
   messages: readonly Message[],
@@ -325,9 +330,15 @@ export function healInvertedUserAssistantPairs(
     if (cur.role !== "assistant" || next.role !== "user") continue;
 
     const prev = i > 0 ? out[i - 1]! : null;
-    // Already has a leading user — this assistant is mid-turn progress.
-    if (prev?.role === "user") continue;
-    if (!shouldPairUserWithAssistant(next, cur)) continue;
+    const liveOrEmpty =
+      isLiveStreaming(cur) || contentLen(cur) === 0;
+
+    if (prev?.role === "user") {
+      // Completed answer between two users belongs to the previous turn.
+      if (!liveOrEmpty) continue;
+    } else if (!shouldPairUserWithAssistant(next, cur)) {
+      continue;
+    }
 
     out[i] = next;
     out[i + 1] = cur;
