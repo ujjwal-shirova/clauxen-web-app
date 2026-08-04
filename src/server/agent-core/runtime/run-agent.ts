@@ -1,7 +1,7 @@
 /**
- * Claude Code–style agent loop entry for Clauxen Web.
+ * OpenAI Responses agent loop entry for Clauxen Web.
  *
- * Stream → tools → tool_result → repeat, via Provider Messages API only.
+ * Stream → strict function calls → function outputs → repeat via OpenAI Responses.
  * UI events go to ClauxenSseStream → src/components/agent/* (DOM).
  */
 

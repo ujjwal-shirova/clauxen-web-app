@@ -8,9 +8,6 @@ export type ChatConversationTurn = {
   content: string;
 };
 
-/** @deprecated Use ChatConversationTurn */
-export type AnthropicConversationTurn = ChatConversationTurn;
-
 /** Active branch index per forked message (depth order in the thread). */
 export type BranchActivePath = number[];
 
@@ -121,9 +118,6 @@ export function buildChatConversation(
     options?.maxChars ?? CHAT_CONTEXT_MAX_CHARS,
   );
 }
-
-/** @deprecated Use buildChatConversation */
-export const buildAnthropicConversation = buildChatConversation;
 
 /** Collect active branch indices for messages that have more than one version. */
 export function extractActiveBranchPath(

@@ -1,21 +1,16 @@
-/**
- * Claude Code query dependency injection — Provider-only production wiring.
- *
- * Mirrors legacy-source/src/query/deps.ts: tests can override callModel;
- * production uses Novita/Provider Messages streaming.
- */
+/** OpenAI Responses query dependency injection. */
 
 import { randomUUID } from "crypto";
-import { streamAnthropicMessages } from "@/server/agent-core/provider/messages-client";
+import { streamOpenAIResponse } from "@/server/agent-core/provider/messages-client";
 
 export type QueryDeps = {
-  callModel: typeof streamAnthropicMessages;
+  callModel: typeof streamOpenAIResponse;
   uuid: () => string;
 };
 
 export function productionDeps(): QueryDeps {
   return {
-    callModel: streamAnthropicMessages,
+    callModel: streamOpenAIResponse,
     uuid: randomUUID,
   };
 }

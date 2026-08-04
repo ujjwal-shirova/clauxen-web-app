@@ -20,7 +20,7 @@ const FEATURED_DESCRIPTIONS: Record<string, string> = {
 };
 
 function publicSkillName(name: string) {
-  return name.replace(/claude/gi, "clauxen");
+  return name;
 }
 
 function descriptionForSkill(name: string) {

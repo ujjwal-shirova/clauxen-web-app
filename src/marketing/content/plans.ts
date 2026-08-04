@@ -6,7 +6,7 @@ import {
 import { definePage } from "@/marketing/lib/types";
 import { CTA, ctaBand, faq, hero } from "@/marketing/content/_helpers";
 
-/** /plans — Claude pricing pattern: individual cards + org cards + FAQ. */
+/** /plans — individual cards + organization cards + FAQ. */
 export const plansPage = definePage(
   "/plans",
   "Plans",

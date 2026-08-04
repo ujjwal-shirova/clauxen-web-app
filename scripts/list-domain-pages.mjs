@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Inventory every discoverable page under a domain (default: claude.com).
+ * Inventory every discoverable page under a domain (default: openai.com).
  *
  * Strategy (most complete → least):
  *   1. robots.txt → Sitemap: URLs
@@ -9,12 +9,12 @@
  *
  * Usage:
  *   node scripts/list-domain-pages.mjs
- *   node scripts/list-domain-pages.mjs --domain claude.com
- *   node scripts/list-domain-pages.mjs --domain claude.com --crawl --max-pages 500
- *   node scripts/list-domain-pages.mjs --domain claude.com --out ./tmp/claude-pages.json
+ *   node scripts/list-domain-pages.mjs --domain openai.com
+ *   node scripts/list-domain-pages.mjs --domain openai.com --crawl --max-pages 500
+ *   node scripts/list-domain-pages.mjs --domain openai.com --out ./tmp/openai-pages.json
  *
  * Flags:
- *   --domain <host>     Host to inventory (default: claude.com)
+ *   --domain <host>     Host to inventory (default: openai.com)
  *   --start <url>       Seed URL (default: https://<domain>/)
  *   --crawl             Also BFS-crawl HTML for internal links
  *   --max-pages <n>     Cap on crawl fetches (default: 300)
@@ -107,7 +107,7 @@ function printHelp() {
   console.log(`Usage: node scripts/list-domain-pages.mjs [options]
 
 Options:
-  --domain <host>      Host to inventory (default: claude.com)
+  --domain <host>      Host to inventory (default: openai.com)
   --start <url>        Seed URL (default: https://<domain>/)
   --crawl              BFS-crawl HTML for internal links
   --max-pages <n>      Max crawl fetches (default: 300)
@@ -123,7 +123,7 @@ Options:
 
 function parseArgs(argv) {
   const args = {
-    domain: "claude.com",
+    domain: "openai.com",
     start: null,
     crawl: false,
     maxPages: 300,
@@ -569,7 +569,7 @@ const MAIN_HUB_ONLY = new Set([
   "connectors",
   "plugins",
   "customers",
-  "code-with-claude",
+  "api",
   "contact-sales",
 ]);
 

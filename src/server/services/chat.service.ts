@@ -20,7 +20,7 @@ import {
   tapChatSseStream,
   type IncomingMessage,
 } from "@/server/inference/novita";
-import { generateChatTitle as generateAnthropicChatTitle } from "@/server/agent-core";
+import { generateChatTitle as generateOpenAIChatTitle } from "@/server/agent-core";
 import { resolveInferenceRoute } from "@/lib/inference-routing";
 import { parseChatModelId } from "@/lib/model-catalog";
 import { logInferenceTelemetry } from "@/server/telemetry/inference-log";
@@ -924,7 +924,7 @@ export async function generateChatTitle(
 
   let title: string;
   try {
-    title = await generateAnthropicChatTitle(messages);
+    title = await generateOpenAIChatTitle(messages);
   } catch {
     title = "";
   }

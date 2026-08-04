@@ -1,6 +1,6 @@
 import type { ConfiguredModelId } from "@/lib/model-config";
 
-/** Homer (GLM-5.2) reasoning effort — Novita accepts "high" | "max". */
+/** OpenAI reasoning effort exposed by the product UI. */
 export type HomerReasoningEffort = "high" | "max";
 
 export const DEFAULT_HOMER_REASONING_EFFORT: HomerReasoningEffort = "high";
@@ -32,33 +32,32 @@ export function getHomerReasoningEffortOption(effort: HomerReasoningEffort) {
   );
 }
 
-export type NovitaThinkingParams = {
-  enable_thinking: boolean;
-  reasoning_effort?: HomerReasoningEffort;
+export type OpenAIReasoningParams = {
+  enabled: boolean;
+  effort?: HomerReasoningEffort;
 };
 
 /**
- * Build Provider thinking controls for Anthropic Messages / gateway.
- * Always sets enable_thinking explicitly so models do not think by default.
+ * Build OpenAI Responses reasoning controls.
  * Composer Thinking toggle maps here: On → true, Off → false.
  */
-export function resolveNovitaThinkingParams(input: {
+export function resolveOpenAIReasoningParams(input: {
   chatModel: ConfiguredModelId;
   thinkingEnabled: boolean;
   homerReasoningEffort?: HomerReasoningEffort;
-}): NovitaThinkingParams {
-  const enable_thinking = input.thinkingEnabled === true;
-  if (!enable_thinking) {
-    return { enable_thinking: false };
+}): OpenAIReasoningParams {
+  const enabled = input.thinkingEnabled === true;
+  if (!enabled) {
+    return { enabled: false };
   }
   if (input.chatModel === "homer") {
     return {
-      enable_thinking: true,
-      reasoning_effort:
+      enabled: true,
+      effort:
         input.homerReasoningEffort ?? DEFAULT_HOMER_REASONING_EFFORT,
     };
   }
-  return { enable_thinking: true };
+  return { enabled: true };
 }
 
 /**
@@ -72,8 +71,8 @@ export function resolveAutonomousThinkingParams(input: {
   chatModel: ConfiguredModelId;
   thinkingEnabled?: boolean;
   homerReasoningEffort?: HomerReasoningEffort;
-}): NovitaThinkingParams {
-  return resolveNovitaThinkingParams({
+}): OpenAIReasoningParams {
+  return resolveOpenAIReasoningParams({
     chatModel: input.chatModel,
     thinkingEnabled: input.thinkingEnabled === true,
     homerReasoningEffort: input.homerReasoningEffort,

@@ -7,7 +7,7 @@ import {
   linkGrid,
 } from "@/marketing/content/_helpers";
 
-/** /overview — Claude product/overview pattern: thinking partner + how you use it. */
+/** /overview — product overview: thinking partner + how you use it. */
 export const overviewPage = definePage(
   "/overview",
   "Overview",

@@ -19,69 +19,69 @@ const categories = [
 
 const MAX_ARTIFACT_TITLE_LENGTH = 200;
 
+const ARTIFACT_PREVIEW =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='500' viewBox='0 0 800 500'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%23eef0f5'/%3E%3Cstop offset='1' stop-color='%23d7dce8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='800' height='500' rx='32' fill='url(%23g)'/%3E%3Ccircle cx='400' cy='250' r='54' fill='%231d1d20' opacity='.85'/%3E%3C/svg%3E";
+
 const inspirations = [
   {
     title: "Writing editor",
     category: "Be creative",
-    image: "https://claude.ai/images/artifacts-studio/writing_editor.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
     title: "PRD To Prototype",
     category: "Be creative",
-    image: "https://claude.ai/images/artifacts-studio/c4e_prd_to_prototype.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
     title: "Slack Project Insights",
     category: "Learn something",
-    image:
-      "https://claude.ai/images/artifacts-studio/slack_project_insights.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
     title: "Raw Note Transformer",
     category: "Life hacks",
-    image:
-      "https://claude.ai/images/artifacts-studio/c4e_raw_note_transformer.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
     title: "Brainstorm Idea Generator",
     category: "Be creative",
-    image:
-      "https://claude.ai/images/artifacts-studio/c4e_brainstorm_idea_generator.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
     title: "Flashcards",
     category: "Learn something",
-    image: "https://claude.ai/images/artifacts-studio/flashcards.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
-    title: "Anthropic office simulator",
+    title: "AI office simulator",
     category: "Play a game",
-    image: "https://claude.ai/images/artifacts-studio/office_sim.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
     title: "CodeVerter",
     category: "Be creative",
-    image: "https://claude.ai/images/artifacts-studio/codeverter.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
     title: "PyLingo",
     category: "Learn something",
-    image: "https://claude.ai/images/artifacts-studio/pylingo.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
     title: "Molecule studio",
     category: "Learn something",
-    image: "https://claude.ai/images/artifacts-studio/molecule.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
     title: "QR code generator",
     category: "Life hacks",
-    image: "https://claude.ai/images/artifacts-studio/qr_code.svg",
+    image: ARTIFACT_PREVIEW,
   },
   {
     title: "AI platformer game",
     category: "Play a game",
-    image: "https://claude.ai/images/artifacts-studio/ai_platformer.svg",
+    image: ARTIFACT_PREVIEW,
   },
 ];
 

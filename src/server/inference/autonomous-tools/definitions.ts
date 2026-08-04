@@ -1,5 +1,5 @@
 /**
- * Autonomous agent tool definitions (Anthropic Messages / agent-core).
+ * Autonomous agent tool definitions for the OpenAI Responses runtime.
  *
  * These descriptions ARE the only steering for the thinking-agent path.
  * Each description answers three questions the model needs:

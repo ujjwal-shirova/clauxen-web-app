@@ -9,7 +9,7 @@ export const CLAUXEN_CODE_SCOPES = [
   // Legacy names still requested by the bundled CLI runtime
   "user:inference",
   "user:profile",
-  "user:sessions:claude_code",
+  "user:sessions:code",
   "user:mcp_servers",
   "user:file_upload",
   "org:create_api_key",

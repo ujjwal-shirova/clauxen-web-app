@@ -1,8 +1,8 @@
 /**
- * Clauxen autonomous agent loop (Provider / Novita, Anthropic Messages API).
+ * Clauxen autonomous agent loop (OpenAI Responses API).
  *
  * Round lifecycle:
- *   1. Stream one model round: thinking → narration prose → tool_use blocks.
+ *   1. Stream one model round: reasoning → narration → strict function calls.
  *   2. Every text delta streams live as a narration segment — visible progress.
  *   3. Tool calls close the round's text segment; tools execute sequentially.
  *   4. tool_result blocks go back; next round starts.
@@ -14,11 +14,13 @@
  */
 
 import {
-  toAnthropicTools,
-  requireProviderApiKey,
-  requireAnthropicBaseUrl,
+  toOpenAITools,
+  requireOpenAIApiKey,
+  optionalOpenAIBaseUrl,
   env,
-  type AnthropicChatMessage,
+  type OpenAIInputItem,
+  type OpenAIOutputItem,
+  type OpenAIMessageContent,
 } from "@/server/agent-core/provider/messages-client";
 import type { ClauxenSseStream } from "@/server/inference/clauxen-sse-stream";
 import {
@@ -41,10 +43,10 @@ import {
   type HomerReasoningEffort,
 } from "@/lib/model-effort";
 import { DEFAULT_CHAT_MODEL_ID } from "@/lib/model-catalog";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { productionDeps, type QueryDeps } from "@/server/agent-core/query/deps";
 import {
-  captureAnthropicContentBlocks,
+  captureOpenAIOutputItems,
   toolResultPart,
   type TranscriptAgentModelTurn,
 } from "@/server/training/transcript-format";
@@ -254,7 +256,7 @@ function buildHealingTools(): Map<string, ToolDefinition> {
 export type AgentStreamOptions = {
   messages: Array<{
     role: string;
-    content: string | Anthropic.ContentBlockParam[];
+    content: OpenAIMessageContent;
   }>;
   model: string;
   chatModelId?: ConfiguredModelId;
@@ -270,9 +272,9 @@ export type AgentStreamOptions = {
   maxTokens?: number;
   /** Fired when ask_user_input pauses the loop — release generation lease early. */
   onPauseForUser?: () => void | Promise<void>;
-  /** Captures exact signed Messages API rounds for durable replay/training. */
+  /** Captures exact Responses API rounds for durable replay/training. */
   onModelTurn?: (turn: TranscriptAgentModelTurn) => void;
-  /** Claude Code–style injectable deps (defaults to Provider production wiring). */
+  /** Injectable OpenAI Responses dependency (production by default). */
   deps?: QueryDeps;
   /** When true, caller already emitted SSE `start` (early TTFT). */
   skipWriteStart?: boolean;
@@ -285,8 +287,8 @@ function resolveThinkingBudget(options: AgentStreamOptions): number {
     thinkingEnabled: options.thinkingEnabled === true,
     homerReasoningEffort: options.homerReasoningEffort,
   });
-  if (!thinking.enable_thinking) return 0;
-  const effort = String(thinking.reasoning_effort ?? "high");
+  if (!thinking.enabled) return 0;
+  const effort = String(thinking.effort ?? "high");
   switch (effort) {
     case "low":
       return 2_048;
@@ -319,7 +321,6 @@ export async function runAutonomousAgent(
     userCountryCode,
     signal,
     systemPrompt,
-    temperature,
     maxTokens,
     onPauseForUser,
   } = options;
@@ -352,7 +353,7 @@ export async function runAutonomousAgent(
     }
   }
 
-  const anthropicTools = toAnthropicTools([
+  const openAITools = toOpenAITools([
     ...autonomousAgentTools
       // present_files removed — create_file auto-presents to the user.
       .filter((tool) => tool.name !== "present_files")
@@ -371,13 +372,17 @@ export async function runAutonomousAgent(
     })),
   ]);
 
-  // Anthropic: system is separate; history is user/assistant only.
-  const conversation: AnthropicChatMessage[] = rawMessages
+  // Responses API input is an ordered list of user/assistant messages plus
+  // native function_call/function_call_output items from agent rounds.
+  const conversation: OpenAIInputItem[] = rawMessages
     .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
+    .map(
+      (m) =>
+        ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }) as OpenAIInputItem,
+    );
 
   // One activity frame for the entire assistant turn.
   const frameId = "agent-frame-1";
@@ -450,18 +455,23 @@ export async function runAutonomousAgent(
       let roundText = "";
       let roundNarrationId: string | null = null;
       let finished:
-        | { reason: string; content: Anthropic.ContentBlock[] }
+        | { reason: string; output: OpenAIOutputItem[] }
         | undefined;
 
       const stream = deps.callModel({
         model: options.model,
-        system: systemPrompt,
-        messages: conversation,
-        tools: anthropicTools.length > 0 ? anthropicTools : undefined,
-        temperature: temperature ?? 0.6,
-        max_tokens: maxTokens ?? 8192,
-        thinkingBudgetTokens: thinkingBudget,
-        enableThinking: thinkingBudget > 0,
+        instructions: systemPrompt,
+        input: conversation,
+        tools: openAITools.length > 0 ? openAITools : undefined,
+        maxOutputTokens: maxTokens ?? 8192,
+        reasoningEffort:
+          thinkingBudget >= 10_000
+            ? "high"
+            : thinkingBudget >= 5_000
+              ? "medium"
+              : thinkingBudget > 0
+                ? "low"
+                : undefined,
         signal,
       });
 
@@ -537,7 +547,7 @@ export async function runAutonomousAgent(
             break;
 
           case "finish":
-            finished = { reason: part.reason, content: part.content };
+            finished = { reason: part.reason, output: part.output };
             break;
 
           case "error":
@@ -569,7 +579,7 @@ export async function runAutonomousAgent(
               startedAtMs: modelTurnStartedAtMs,
               assistantCompletedAtMs,
               completedAtMs: assistantCompletedAtMs,
-              assistant: captureAnthropicContentBlocks(finished.content),
+              assistant: captureOpenAIOutputItems(finished.output),
             });
           } catch {
             // Transcript capture must never break the visible response.
@@ -579,18 +589,15 @@ export async function runAutonomousAgent(
       }
 
       // ── Tool round: the round's text stays as narration; execute tools. ──
-      if (!finished || finished.content.length === 0) {
+      if (!finished || finished.output.length === 0) {
         throw new Error(
           "The model requested a tool without a replayable assistant message.",
         );
       }
 
-      // Replay the exact API response, including signed/redacted thinking.
-      // Rebuilding or filtering these blocks breaks reasoning continuity.
-      conversation.push({
-        role: "assistant",
-        content: finished.content as unknown as Anthropic.ContentBlockParam[],
-      });
+      // Replay native Responses output items. Function call ids remain stable
+      // across the tool-output continuation round.
+      conversation.push(...(finished.output as OpenAIInputItem[]));
 
       let pauseForUser = false;
       const toolResults: Array<{
@@ -666,6 +673,7 @@ export async function runAutonomousAgent(
               userId,
               userCountryCode,
               toolCallId: tc.id,
+              modelId: options.model,
               onToolProgress: (data) => {
                 if (tc.name === "web_search") {
                   sse.writeToolData(tc.id, { ...data, tool_call_id: tc.id });
@@ -736,16 +744,13 @@ export async function runAutonomousAgent(
         });
       }
 
-      // Anthropic: tool results are a user message with tool_result blocks.
-      conversation.push({
-        role: "user",
-        content: toolResults.map((tr) => ({
-          type: "tool_result" as const,
-          tool_use_id: tr.toolCallId,
-          content: tr.result,
-          ...(tr.isError ? { is_error: true } : {}),
-        })),
-      });
+      for (const result of toolResults) {
+        conversation.push({
+          type: "function_call_output",
+          call_id: result.toolCallId,
+          output: result.result,
+        });
+      }
 
       try {
         options.onModelTurn?.({
@@ -753,7 +758,7 @@ export async function runAutonomousAgent(
           startedAtMs: modelTurnStartedAtMs,
           assistantCompletedAtMs,
           completedAtMs: Date.now(),
-          assistant: captureAnthropicContentBlocks(finished.content),
+          assistant: captureOpenAIOutputItems(finished.output),
           toolResults: toolResults.map((result) =>
             toolResultPart(result.toolCallId, result.result, result.isError),
           ),
@@ -810,38 +815,55 @@ export async function generateChatTitle(
   if (!userContent) return "New Chat";
 
   try {
-    const client = new Anthropic({
-      apiKey: requireProviderApiKey(),
-      baseURL: requireAnthropicBaseUrl(),
+    const client = new OpenAI({
+      apiKey: requireOpenAIApiKey(),
+      ...(optionalOpenAIBaseUrl()
+        ? { baseURL: optionalOpenAIBaseUrl() }
+        : {}),
     });
-    const response = await client.messages.create(
+    const response = await client.responses.create(
       {
         model: optionsModelForTitle(),
-        max_tokens: 48,
-        temperature: 0.3,
-        system:
+        max_output_tokens: 80,
+        instructions:
           "You write short conversation titles for a chat sidebar. Output ONLY the title (3-6 words). No quotes or labels.",
-        messages: [
+        input: [
           {
             role: "user",
             content: [
-              userContent ? `User: ${userContent.slice(0, 500)}` : "",
-              assistantContent
-                ? `Assistant: ${assistantContent.slice(0, 500)}`
-                : "",
-            ]
-              .filter(Boolean)
-              .join("\n"),
+              {
+                type: "input_text",
+                text: [
+                  userContent ? `User: ${userContent.slice(0, 500)}` : "",
+                  assistantContent
+                    ? `Assistant: ${assistantContent.slice(0, 500)}`
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join("\n"),
+              },
+            ],
           },
         ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "chat_title",
+            strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              properties: { title: { type: "string" } },
+              required: ["title"],
+            },
+          },
+        },
+        store: false,
       },
       { signal },
     );
-    const text = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("")
-      .trim();
+    const parsed = JSON.parse(response.output_text) as { title?: unknown };
+    const text = typeof parsed.title === "string" ? parsed.title.trim() : "";
     return text.slice(0, 80) || userContent.slice(0, 50).trim();
   } catch {
     return userContent.slice(0, 50).trim();
@@ -849,7 +871,7 @@ export async function generateChatTitle(
 }
 
 function optionsModelForTitle(): string {
-  return env.heliosModel || env.defaultModel || "claude-sonnet-4-20250514";
+  return env.heliosModel || env.defaultModel || "gpt-5.6";
 }
 
 function safeParseJson(raw: string): Record<string, unknown> {

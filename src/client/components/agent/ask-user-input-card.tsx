@@ -25,7 +25,7 @@ type AskUserInputCardProps = {
   disabled?: boolean;
 };
 
-/** Compact composer questionnaire — Anthropic AskUserQuestion-inspired. */
+/** Compact composer questionnaire for structured agent clarification. */
 export function AskUserInputCard({
   questions,
   disabled = false,

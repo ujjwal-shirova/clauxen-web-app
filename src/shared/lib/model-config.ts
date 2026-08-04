@@ -13,15 +13,12 @@ export const MODEL_CONFIG = {
   endpoints: {
     /**
      * Last-resort Provider base URL when Provider_BASE_URL is unset.
-     * Prefer Provider_BASE_URL in Vercel / .env.local (…/openai or …/anthropic).
+     * Prefer OPENAI_BASE_URL or Provider_BASE_URL in Vercel / .env.local.
      */
     providerOpenAiBaseUrl: "",
 
     /** @deprecated Prefer Provider_BASE_URL */
     novitaOpenAiBaseUrl: "",
-
-    /** @deprecated Prefer Provider_BASE_URL; Anthropic path is derived server-side */
-    novitaAnthropicBaseUrl: "",
 
     /** @deprecated */
     novitaMessagesUrl: "",
@@ -33,31 +30,31 @@ export const MODEL_CONFIG = {
   models: {
     /** Homer — most capable (optional override) */
     homer: {
-      defaultSlug: "moonshotai/kimi-k2.6",
+      defaultSlug: "gpt-5.6",
       envKey: "Provider_Model_Clauxen_V1",
     },
 
     /** Helios — everyday work */
     helios: {
-      defaultSlug: "moonshotai/kimi-k2.6",
+      defaultSlug: "gpt-5.6",
       envKey: "Provider_Model_Clauxen_V1",
     },
 
     /** Virgil — default chat model */
     virgil: {
-      defaultSlug: "moonshotai/kimi-k2.6",
+      defaultSlug: "gpt-5.6",
       envKey: "Provider_Model_Clauxen_V1",
     },
 
-    /** Interleaved-thinking agent model */
+    /** OpenAI reasoning model */
     thinking: {
-      defaultSlug: "moonshotai/kimi-k2.6",
+      defaultSlug: "gpt-5.6",
       envKey: "Provider_Model_Clauxen_V1",
     },
 
     /** Fast chat path */
     fast: {
-      defaultSlug: "moonshotai/kimi-k2.6",
+      defaultSlug: "gpt-5.6",
       envKey: "Provider_Model_Clauxen_V1",
     },
   },
@@ -105,8 +102,8 @@ export const MODEL_CONFIG = {
 
 /** Upstream slugs that are no longer served — remapped at runtime. */
 const DEPRECATED_MODEL_SLUGS: Record<string, string> = {
-  "nex-agi/nex-n2-pro": "moonshotai/kimi-k2.6",
-  "tencent/hy3": "moonshotai/kimi-k2.6",
+  "nex-agi/nex-n2-pro": "gpt-5.6",
+  "tencent/hy3": "gpt-5.6",
   "deepseek/deepseek_v3": "",
 };
 

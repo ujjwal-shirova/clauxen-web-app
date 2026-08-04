@@ -14,14 +14,16 @@ export {
 export { productionDeps, type QueryDeps } from "@/server/agent-core/query/deps";
 
 export {
-  streamAnthropicMessages,
-  toAnthropicTools,
-  requireProviderApiKey,
-  requireAnthropicBaseUrl,
-  type AnthropicChatMessage,
-  type AnthropicCompletionOptions,
-  type AnthropicStreamPart,
-  type AnthropicToolDefinition,
+  streamOpenAIResponse,
+  toOpenAITools,
+  requireOpenAIApiKey,
+  optionalOpenAIBaseUrl,
+  type OpenAIInputItem,
+  type OpenAIOutputItem,
+  type OpenAIMessageContent,
+  type OpenAICompletionOptions,
+  type OpenAIStreamPart,
+  type OpenAIToolDefinition,
 } from "@/server/agent-core/provider/messages-client";
 
 export {

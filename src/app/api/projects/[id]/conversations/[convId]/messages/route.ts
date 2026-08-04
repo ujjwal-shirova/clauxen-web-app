@@ -7,7 +7,7 @@ import {
   buildRagContextBlock,
   assembleSystemPrompt,
 } from "@/server/services/project-ingestion.service";
-import { streamClaudeResponse } from "@/projects/lib/claude";
+import { streamOpenAIProjectResponse } from "@/projects/lib/openai";
 import { requireProjectsUser, ProjectsAuthError } from "@/projects/lib/auth";
 import { jsonData, jsonError } from "@/projects/lib/api-response";
 
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          assistantContent = await streamClaudeResponse({
+          assistantContent = await streamOpenAIProjectResponse({
             system,
             messages: history.map((m) => ({
               role: m.role as "user" | "assistant",

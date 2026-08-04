@@ -15,9 +15,8 @@ const API = "https://api.vercel.com";
 
 const SKIP = new Set(["VERCEL", "VERCEL_ENV", "VERCEL_URL", "VERCEL_REGION", "CI", "NODE_ENV"]);
 
-/** Never sync — Anthropic-only, integration duplicates, or deprecated keys. */
+/** Never sync — integration duplicates or deprecated keys. */
 const SKIP_KEYS = new Set([
-  "NOVITA_ANTHROPIC_BASE_URL",
   "SHIROVA_NOVITA_MESSAGES_URL",
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_ANON_KEY",

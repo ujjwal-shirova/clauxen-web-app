@@ -575,13 +575,13 @@ const starterSkillsStructureData: FileItem[] = [
     ],
   },
   {
-    name: "claude-api",
+    name: "openai-api",
     type: "folder",
     children: [
       {
         name: "csharp",
         type: "folder",
-        children: [{ name: "claude-api.md", type: "file" }],
+        children: [{ name: "openai-api.md", type: "file" }],
       },
       {
         name: "curl",
@@ -591,17 +591,17 @@ const starterSkillsStructureData: FileItem[] = [
       {
         name: "go",
         type: "folder",
-        children: [{ name: "claude-api.md", type: "file" }],
+        children: [{ name: "openai-api.md", type: "file" }],
       },
       {
         name: "java",
         type: "folder",
-        children: [{ name: "claude-api.md", type: "file" }],
+        children: [{ name: "openai-api.md", type: "file" }],
       },
       {
         name: "php",
         type: "folder",
-        children: [{ name: "claude-api.md", type: "file" }],
+        children: [{ name: "openai-api.md", type: "file" }],
       },
       {
         name: "python",
@@ -616,7 +616,7 @@ const starterSkillsStructureData: FileItem[] = [
             ],
           },
           {
-            name: "claude-api",
+            name: "openai-api",
             type: "folder",
             children: [
               { name: "batches.md", type: "file" },
@@ -631,7 +631,7 @@ const starterSkillsStructureData: FileItem[] = [
       {
         name: "ruby",
         type: "folder",
-        children: [{ name: "claude-api.md", type: "file" }],
+        children: [{ name: "openai-api.md", type: "file" }],
       },
       {
         name: "shared",
@@ -656,7 +656,7 @@ const starterSkillsStructureData: FileItem[] = [
             ],
           },
           {
-            name: "claude-api",
+            name: "openai-api",
             type: "folder",
             children: [
               { name: "batches.md", type: "file" },
@@ -844,7 +844,7 @@ const starterSkillsStructureData: FileItem[] = [
     type: "folder",
     children: [
       {
-        name: ".claude-plugin",
+        name: ".openai-plugin",
         type: "folder",
         children: [{ name: "marketplace.json", type: "file" }],
       },
@@ -1054,12 +1054,12 @@ const starterSkillsStructureData: FileItem[] = [
         children: [{ name: "SKILL.md", type: "file" }],
       },
       {
-        name: "anthropic_administrator-automation",
+        name: "openai_administrator-automation",
         type: "folder",
         children: [{ name: "SKILL.md", type: "file" }],
       },
       {
-        name: "anthropic-administrator-automation",
+        name: "openai-administrator-automation",
         type: "folder",
         children: [{ name: "SKILL.md", type: "file" }],
       },
@@ -5025,7 +5025,7 @@ const starterSkillsStructureData: FileItem[] = [
     type: "folder",
     children: [
       {
-        name: ".claude-plugin",
+        name: ".openai-plugin",
         type: "folder",
         children: [{ name: "plugin.json", type: "file" }],
       },

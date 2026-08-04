@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Deduplicate Vercel env vars: one row per key (multi-target), drop Anthropic + redundant Supabase/Postgres keys.
+ * Deduplicate Vercel env vars: one row per key (multi-target).
  * Auth: VERCEL_TOKEN env var.
  */
 import { readFileSync, existsSync } from "node:fs";
@@ -13,9 +13,8 @@ const TEAM_ID = "team_uO4zWwgLWJfc9GpMMrr5KOwa";
 const API = "https://api.vercel.com";
 const DELETE_DELAY_MS = 1100;
 
-/** Never sync — Anthropic-only or deprecated keys. */
+/** Never sync — redundant or deprecated keys. */
 const SKIP_KEYS = new Set([
-  "NOVITA_ANTHROPIC_BASE_URL",
   "SHIROVA_NOVITA_MESSAGES_URL",
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_ANON_KEY",
@@ -34,7 +33,6 @@ const SKIP_KEYS = new Set([
   "LLM_MODEL",
   "R2_USER_FILES_BUCKET",
   "SHIROVA_INFERENCE_FUNCTION",
-  "ANTHROPIC_API_KEY",
 ]);
 
 /** @deprecated Prefer scripts/reconcile-vercel-env.mjs — kept for emergency wipe+rebuild. */

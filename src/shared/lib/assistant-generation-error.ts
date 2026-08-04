@@ -47,7 +47,7 @@ const TECHNICAL_PATTERNS: Array<{ test: RegExp; message: string }> = [
       "We're a bit busy right now. Please wait a moment and try again.",
   },
   {
-    test: /\b5\d\d\b|internal server|bad gateway|service unavailable|novita|anthropic|openai|provider|inference/i,
+    test: /\b5\d\d\b|internal server|bad gateway|service unavailable|openai|provider|inference/i,
     message: USER_FACING_CHAT_ERROR,
   },
   {

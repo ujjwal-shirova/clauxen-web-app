@@ -28,7 +28,7 @@ export interface Tool {
 
 export interface Contributor {
   type: ContributorType;
-  /** models.dev convention, e.g. "anthropic/claude-opus-4-5-20251101" */
+  /** models.dev convention, e.g. "openai/gpt-5.6" */
   model_id?: string;
 }
 
@@ -107,7 +107,6 @@ export function normalizeModelId(model?: string): string | undefined {
   if (!model) return undefined;
   if (model.includes("/")) return model;
   const prefixes: Record<string, string> = {
-    "claude-": "anthropic",
     "gpt-": "openai",
     "o1": "openai",
     "o3": "openai",

@@ -1,4 +1,4 @@
-import type Anthropic from "@anthropic-ai/sdk";
+import type { Responses } from "openai/resources/responses/responses";
 import { getObject } from "@/server/storage/object-store";
 import type { StoragePurpose } from "@/server/storage/object-store";
 import { query } from "@/server/db/pool";
@@ -49,15 +49,15 @@ function purposeForMime(mime: string): StoragePurpose {
 }
 
 /**
- * Load image bytes for Novita/Kimi multimodal (Anthropic Messages image blocks).
+ * Load image bytes for OpenAI Responses multimodal input.
  * Prefers client-provided base64 (fast path); falls back to R2 via fileIds.
  */
 export async function resolveVisionImageBlocks(input: {
   userId: string;
   fileIds?: string[];
   clientImages?: ClientVisionImage[];
-}): Promise<Anthropic.ImageBlockParam[]> {
-  const blocks: Anthropic.ImageBlockParam[] = [];
+}): Promise<Responses.ResponseInputImage[]> {
+  const blocks: Responses.ResponseInputImage[] = [];
   const seen = new Set<string>();
 
   for (const image of input.clientImages ?? []) {
@@ -69,12 +69,9 @@ export async function resolveVisionImageBlocks(input: {
     if (seen.has(key)) continue;
     seen.add(key);
     blocks.push({
-      type: "image",
-      source: {
-        type: "base64",
-        media_type: mime as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
-        data: base64,
-      },
+      type: "input_image",
+      detail: "auto",
+      image_url: `data:${mime};base64,${base64}`,
     });
   }
 
@@ -108,16 +105,9 @@ export async function resolveVisionImageBlocks(input: {
       if (seen.has(key)) continue;
       seen.add(key);
       blocks.push({
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: mime as
-            | "image/jpeg"
-            | "image/png"
-            | "image/gif"
-            | "image/webp",
-          data: base64,
-        },
+        type: "input_image",
+        detail: "auto",
+        image_url: `data:${mime};base64,${base64}`,
       });
     } catch {
       // Skip unreadable files — text context still reaches the model.
@@ -128,25 +118,25 @@ export async function resolveVisionImageBlocks(input: {
 }
 
 /**
- * Attach vision blocks to the latest user turn for Anthropic/Novita Messages.
+ * Attach image blocks to the latest user turn for OpenAI Responses.
  * Text stays as a text block; images are native multimodal parts (not filename stubs).
  */
 export function withVisionUserContent(
   text: string,
-  images: Anthropic.ImageBlockParam[],
-): string | Anthropic.ContentBlockParam[] {
+  images: Responses.ResponseInputImage[],
+): string | Responses.ResponseInputMessageContentList {
   const cleaned = text.trim();
   if (!images.length) return cleaned;
 
-  const parts: Anthropic.ContentBlockParam[] = [];
+  const parts: Responses.ResponseInputMessageContentList = [];
   for (const image of images) {
     parts.push(image);
   }
   if (cleaned) {
-    parts.push({ type: "text", text: cleaned });
+    parts.push({ type: "input_text", text: cleaned });
   } else {
     parts.push({
-      type: "text",
+      type: "input_text",
       text: "Please analyze the attached image(s).",
     });
   }

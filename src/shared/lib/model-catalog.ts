@@ -7,7 +7,7 @@ import { MODEL_CONFIG, normalizeUpstreamModelSlug, type ConfiguredModelId } from
 
 export type ChatModelId = ConfiguredModelId;
 
-export type InferenceProviderKind = "anthropic";
+export type InferenceProviderKind = "openai";
 
 export type ModelCatalogEntry = {
   id: ChatModelId;
@@ -33,7 +33,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     label: MODEL_CONFIG.metadata.virgil.label,
     shortLabel: MODEL_CONFIG.metadata.virgil.shortLabel,
     description: MODEL_CONFIG.metadata.virgil.description,
-    provider: "anthropic",
+    provider: "openai",
     defaultModelSlug: MODEL_CONFIG.models.virgil.defaultSlug,
     modelEnvKey: MODEL_CONFIG.providerEnv.modelClauxenV1,
     baseUrlEnvKey: MODEL_CONFIG.providerEnv.baseUrl,
@@ -57,7 +57,6 @@ export type ModelRuntimeConfig = {
 };
 
 export type ModelCatalogEnv = {
-  novitaAnthropicBaseUrl: string;
   novitaOpenAiBaseUrl: string;
   homerModel: string;
   heliosModel: string;
@@ -182,7 +181,6 @@ export function resolveOpenAiModelId(
   models: { homerModel: string; heliosModel: string },
 ): string {
   return resolveModelRuntime(chatModelId, {
-    novitaAnthropicBaseUrl: "",
     novitaOpenAiBaseUrl: "",
     homerModel: models.homerModel,
     heliosModel: models.heliosModel,
@@ -197,7 +195,6 @@ export function modelCatalogEnvFromProcess(): ModelCatalogEnv {
   const providerBase = readProviderBaseUrl() ?? "";
 
   return {
-    novitaAnthropicBaseUrl: providerBase,
     novitaOpenAiBaseUrl: providerBase,
     homerModel: normalizeUpstreamModelSlug(
       providerModel,

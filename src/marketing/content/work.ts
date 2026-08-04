@@ -7,7 +7,7 @@ import {
   linkGrid,
 } from "@/marketing/content/_helpers";
 
-/** /work — Claude Cowork pattern: goal → polished deliverable. */
+/** /work — goal → polished deliverable. */
 export const workPage = definePage(
   "/work",
   "Work",

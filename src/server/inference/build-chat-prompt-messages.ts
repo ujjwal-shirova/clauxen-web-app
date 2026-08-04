@@ -294,7 +294,7 @@ export function mergePromptHistories(
   return coerceAlternatingRoles(merged);
 }
 
-/** Ensure user/assistant alternation for Anthropic Messages API. */
+/** Ensure stable user/assistant alternation for model context. */
 function coerceAlternatingRoles(messages: PromptMessage[]): PromptMessage[] {
   const out: PromptMessage[] = [];
   for (const msg of messages) {

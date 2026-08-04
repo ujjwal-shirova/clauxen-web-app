@@ -1,18 +1,11 @@
 /**
- * Anthropic Messages API–shaped JSONL transcript records for training export
- * and chat_messages.content_json persistence.
- *
- * Content blocks match Anthropic / Clauxen Code assistant message content:
- *   thinking | text | tool_use
- * Tool results are stored as user-role messages (Anthropic wire format), not
- * nested inside the assistant message (legacy dump format).
- *
- * Schema also accepts legacy assistant records that embed
- * tool_result parts for hydrate/back-compat.
+ * OpenAI Responses API–shaped JSONL transcript records for training export
+ * and chat_messages.content_json persistence. Legacy block names remain
+ * readable so existing conversations continue to hydrate.
  */
 
 export const TRANSCRIPT_SCHEMA_VERSION =
-  "clauxen.transcript.anthropic.v1" as const;
+  "clauxen.transcript.openai.v1" as const;
 
 /** @deprecated Prefer TRANSCRIPT_SCHEMA_VERSION — kept for reading old rows. */
 export const TRANSCRIPT_SCHEMA_VERSION_LEGACY =
@@ -26,7 +19,7 @@ export type TranscriptTextPart = {
 export type TranscriptThinkingPart = {
   type: "thinking";
   thinking: string;
-  /** Optional Anthropic thinking signature when present. */
+  /** Optional provider reasoning signature when present. */
   signature?: string;
 };
 
@@ -72,7 +65,7 @@ export type TranscriptAgentUi = {
   completedAtMs?: number;
   thinkingDurationSeconds?: number;
   actions?: TranscriptAgentAction[];
-  /** Exact chronological Messages API rounds for durable transcript hydrate. */
+  /** Exact chronological Responses API rounds for durable transcript hydrate. */
   modelTurns?: TranscriptAgentModelTurn[];
 };
 
@@ -90,7 +83,7 @@ export type TranscriptMessageRecord = {
   message: {
     content: TranscriptContentPart[];
   };
-  /** Optional UI timing for agent work frames (not part of Anthropic wire). */
+  /** Optional UI timing for agent work frames. */
   agent_ui?: TranscriptAgentUi;
 };
 
@@ -146,51 +139,62 @@ export function toolResultPart(
   };
 }
 
-/** Keep only Anthropic-compatible blocks needed for replay/training. */
-export function captureAnthropicContentBlocks(
-  blocks: readonly unknown[],
+/** Capture OpenAI Responses output items for durable replay/training. */
+export function captureOpenAIOutputItems(
+  items: readonly unknown[],
 ): TranscriptContentPart[] {
   const captured: TranscriptContentPart[] = [];
 
-  for (const value of blocks) {
+  for (const value of items) {
     if (!value || typeof value !== "object") continue;
-    const block = value as Record<string, unknown>;
+    const item = value as Record<string, unknown>;
 
-    if (block.type === "thinking" && typeof block.thinking === "string") {
-      captured.push(
-        thinkingPart(
-          block.thinking,
-          typeof block.signature === "string" ? block.signature : undefined,
-        ),
-      );
+    if (item.type === "reasoning" && Array.isArray(item.summary)) {
+      const summary = item.summary
+        .map((part) =>
+          part &&
+          typeof part === "object" &&
+          typeof (part as { text?: unknown }).text === "string"
+            ? String((part as { text: string }).text)
+            : "",
+        )
+        .join("");
+      if (summary) captured.push(thinkingPart(summary));
+      continue;
+    }
+
+    if (item.type === "message" && Array.isArray(item.content)) {
+      for (const content of item.content) {
+        if (
+          content &&
+          typeof content === "object" &&
+          (content as { type?: unknown }).type === "output_text" &&
+          typeof (content as { text?: unknown }).text === "string"
+        ) {
+          captured.push(textPart(String((content as { text: string }).text)));
+        }
+      }
       continue;
     }
 
     if (
-      block.type === "redacted_thinking" &&
-      typeof block.data === "string"
+      item.type === "function_call" &&
+      typeof item.call_id === "string" &&
+      typeof item.name === "string"
     ) {
-      captured.push({ type: "redacted_thinking", data: block.data });
-      continue;
-    }
-
-    if (block.type === "text" && typeof block.text === "string") {
-      captured.push(textPart(block.text));
-      continue;
-    }
-
-    if (
-      block.type === "tool_use" &&
-      typeof block.id === "string" &&
-      typeof block.name === "string"
-    ) {
+      let input: Record<string, unknown> = {};
+      if (typeof item.arguments === "string") {
+        try {
+          input = JSON.parse(item.arguments) as Record<string, unknown>;
+        } catch {
+          input = {};
+        }
+      }
       captured.push(
         toolUsePart(
-          block.name,
-          block.input && typeof block.input === "object"
-            ? (block.input as Record<string, unknown>)
-            : {},
-          block.id,
+          item.name,
+          input,
+          item.call_id,
         ),
       );
     }
@@ -210,7 +214,7 @@ export function buildUserTranscriptRecord(
   };
 }
 
-/** Anthropic order: thinking → tool_use* → text (no tool_result on assistant). */
+/** Canonical order: reasoning → function calls → visible text. */
 export function buildAssistantTranscriptRecord(input: {
   answer: string;
   thinking?: string;
@@ -237,7 +241,7 @@ export function buildAssistantTranscriptRecord(input: {
   };
 }
 
-/** Anthropic user message carrying tool_result blocks after a tool_use turn. */
+/** Tool-output message emitted after a function-call round. */
 export function buildToolResultUserRecord(
   tools: CapturedToolCall[],
 ): TranscriptMessageRecord | null {
@@ -266,7 +270,7 @@ export function transcriptRoleOf(
   return record.role;
 }
 
-/** Convert UI/branch Message-like objects into Anthropic-shaped JSONL records. */
+/** Convert UI/branch Message-like objects into canonical JSONL records. */
 export function messagesToTranscriptRecords(
   messages: Array<{
     id?: string;

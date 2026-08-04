@@ -159,7 +159,7 @@ function enrichMessageAgentUi(message: Message): Message {
 
 /**
  * Hydrate a UI Message from chat_messages.content_json when it is an
- * Anthropic Messages-style transcript record
+ * Canonical model transcript record
  * (`{ role, message: { content: [...] } }`).
  */
 export function hydrateMessageFromContentJson(

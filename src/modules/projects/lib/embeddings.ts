@@ -1,10 +1,4 @@
-/**
- * Project RAG embeddings via raw HTTP (no OpenAI SDK).
- *
- * Anthropic Messages does not expose an embeddings API. Project ingestion still
- * needs vectors, so this uses a configurable OpenAI-compatible embeddings
- * endpoint when EMBEDDING_API_KEY / OPENAI_API_KEY is set.
- */
+/** Project RAG embeddings via the OpenAI-compatible embeddings endpoint. */
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const EMBEDDING_DIM = 1536;

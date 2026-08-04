@@ -29,7 +29,8 @@ const isProduction = process.env.NODE_ENV === "production" || isVercel;
 
 const PROVIDER = MODEL_CONFIG.providerEnv;
 
-const providerApiKey = firstOptional(
+const openAiApiKey = firstOptional(
+  "OPENAI_API_KEY",
   PROVIDER.apiKey,
   "NOVITA_AI_KEY",
   "NOVITA_API_KEY",
@@ -45,42 +46,6 @@ const providerOpenAiBaseUrl = normalizeBaseUrl(
   firstOptional(PROVIDER.baseUrl, "NOVITA_OPENAI_BASE_URL", "LLM_BASE_URL") ||
     MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
 );
-
-/**
- * Resolve Anthropic Messages API base URL from Provider_* env only.
- * Never hardcode vendor hosts — derive `/anthropic` from Provider_BASE_URL
- * when that env points at an OpenAI-compatible path (`…/openai`).
- */
-function resolveAnthropicBaseUrl(): string {
-  const dedicated = firstOptional(
-    "NOVITA_ANTHROPIC_BASE_URL",
-    "ANTHROPIC_BASE_URL",
-  );
-  if (dedicated) return normalizeBaseUrl(dedicated);
-
-  const providerBase = firstOptional(
-    PROVIDER.baseUrl,
-    "NOVITA_OPENAI_BASE_URL",
-    "LLM_BASE_URL",
-  );
-  if (!providerBase) {
-    return normalizeBaseUrl(MODEL_CONFIG.endpoints.novitaAnthropicBaseUrl);
-  }
-
-  if (/\/anthropic\/?$/i.test(providerBase)) {
-    return normalizeBaseUrl(providerBase);
-  }
-
-  // Provider_BASE_URL is often `https://…/openai` — map to Messages path.
-  if (/\/openai\/?$/i.test(providerBase)) {
-    return normalizeBaseUrl(
-      providerBase.replace(/\/openai\/?$/i, "/anthropic"),
-    );
-  }
-
-  // Host-only or other path — append /anthropic.
-  return normalizeBaseUrl(`${normalizeBaseUrl(providerBase)}/anthropic`);
-}
 
 function resolveAuthDevBypass(): boolean {
   // Never allow unsigned cookie bypass on Vercel / production.
@@ -101,14 +66,14 @@ export const env = {
    * Inference API key — Provider_API_Key (Vercel sensitive).
    * Legacy NOVITA_* aliases accepted only as fallback for local migration.
    */
-  providerApiKey,
-  /** @deprecated Use providerApiKey */
-  novitaApiKey: providerApiKey,
+  openAiApiKey,
+  /** @deprecated Use openAiApiKey */
+  providerApiKey: openAiApiKey,
+  /** @deprecated Use openAiApiKey */
+  novitaApiKey: openAiApiKey,
 
-  novitaAnthropicBaseUrl: resolveAnthropicBaseUrl(),
-  /** @deprecated Gateway host often ends in /openai; Anthropic path is derived. */
   novitaOpenAiBaseUrl: providerOpenAiBaseUrl,
-  /** Provider base URL (may be …/openai); use requireAnthropicBaseUrl for Messages. */
+  /** Optional OpenAI-compatible base URL. Official OpenAI is the SDK default. */
   providerBaseUrl: providerOpenAiBaseUrl,
 
   /** Homer — uses Provider_Model_Clauxen_V1 unless a legacy override exists. */
@@ -149,10 +114,10 @@ export const env = {
   falKey: optional("FAL_KEY"),
   parallelApiKey: optional("PARALLEL_API_KEY"),
   googlePlacesApiKey: optional("GOOGLE_PLACES_API_KEY"),
-  /** Optional embeddings key for project RAG (not used for chat). */
+  /** Optional embeddings key for project RAG. */
   embeddingApiKey: firstOptional("EMBEDDING_API_KEY", "OPENAI_API_KEY"),
   /** @deprecated Prefer embeddingApiKey */
-  openAiApiKey: optional("OPENAI_API_KEY"),
+  openAiApiKeyLegacy: optional("OPENAI_API_KEY"),
   /** AssemblyAI Streaming v3 key. Exact Vercel name requested by the app owner. */
   assemblyAiApiKey: firstOptional(
     "Assembly_Provider_Key",
@@ -162,7 +127,7 @@ export const env = {
     "ASSEMBLYAI_STREAMING_HOST",
     "streaming.assemblyai.com",
   ),
-  /** Kimi thinking: enabled | disabled -> Anthropic extended thinking. */
+  /** Reasoning preference for the OpenAI Responses API. */
   thinkingType:
     optional("SHIROVA_THINKING_TYPE", "disabled") === "enabled"
       ? ("enabled" as const)
@@ -301,6 +266,26 @@ export function requireProviderApiKey(): string {
   return key;
 }
 
+/** Server-only OpenAI credential. */
+export function requireOpenAIApiKey(): string {
+  if (typeof window !== "undefined") {
+    throw new Error("OpenAI credentials are server-only.");
+  }
+  const key = env.openAiApiKey;
+  if (!key) {
+    throw new Error("OPENAI_API_KEY is not configured on the server.");
+  }
+  return key;
+}
+
+/** Optional OpenAI-compatible base URL; empty uses the official SDK default. */
+export function optionalOpenAIBaseUrl(): string | undefined {
+  if (typeof window !== "undefined") {
+    throw new Error("OpenAI base URL is server-only.");
+  }
+  return env.providerBaseUrl || undefined;
+}
+
 /** @deprecated Use requireProviderApiKey */
 export function requireNovitaApiKey(): string {
   return requireProviderApiKey();
@@ -313,20 +298,6 @@ export function requireProviderBaseUrl(): string {
   const url = env.providerBaseUrl;
   if (!url) {
     throw new Error(`${PROVIDER.baseUrl} is not configured on the server.`);
-  }
-  return url;
-}
-
-/** Anthropic Messages path derived from Provider_BASE_URL (…/openai → …/anthropic). */
-export function requireAnthropicBaseUrl(): string {
-  if (typeof window !== "undefined") {
-    throw new Error("Provider base URL is server-only.");
-  }
-  const url = env.novitaAnthropicBaseUrl;
-  if (!url) {
-    throw new Error(
-      `${PROVIDER.baseUrl} (Anthropic path) is not configured on the server.`,
-    );
   }
   return url;
 }

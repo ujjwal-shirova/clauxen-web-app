@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const MODELS = [
-  { id: "claude-sonnet-4-6", label: "Sonnet 4.6" },
-  { id: "claude-opus-4-6", label: "Opus 4.6" },
+  { id: "gpt-5.6", label: "GPT-5.6" },
+  { id: "gpt-5.6-mini", label: "GPT-5.6 Mini" },
 ] as const;
 
 type ModelOption = (typeof MODELS)[number];

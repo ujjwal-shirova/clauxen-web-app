@@ -130,7 +130,7 @@ export function ProjectFilesPanel({
         <div className="mt-2 flex items-center gap-2 text-[12px] leading-4">
           <span className="flex-1 text-zinc-500">{capacityLabel}</span>
           <a
-            href="https://support.anthropic.com/en/articles/9517075-what-are-projects"
+            href="https://platform.openai.com/docs/guides/pdf-files"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Learn more about project knowledge"

@@ -7,7 +7,7 @@ import {
   hero,
 } from "@/marketing/content/_helpers";
 
-/** /download — Claude download pattern: desktop + mobile + FAQ. */
+/** /download — desktop + mobile + FAQ. */
 export const downloadPage = definePage(
   "/download",
   "Download",

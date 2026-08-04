@@ -1,21 +1,18 @@
-/**
- * Provider / Novita Messages client for agent-core.
- *
- * Only Provider_API_Key + derived Anthropic-compatible base URL.
- * No Anthropic OAuth, Bedrock, Vertex, or Foundry.
- */
+/** OpenAI Responses API provider surface for agent-core. */
 
 export {
-  streamAnthropicMessages,
-  toAnthropicTools,
-  type AnthropicChatMessage,
-  type AnthropicCompletionOptions,
-  type AnthropicStreamPart,
-  type AnthropicToolDefinition,
-} from "@/server/inference/anthropic-messages-client";
+  streamOpenAIResponse,
+  toOpenAITools,
+  type OpenAIInputItem,
+  type OpenAIOutputItem,
+  type OpenAIMessageContent,
+  type OpenAICompletionOptions,
+  type OpenAIStreamPart,
+  type OpenAIToolDefinition,
+} from "@/server/inference/openai-responses-client";
 
 export {
-  requireProviderApiKey,
-  requireAnthropicBaseUrl,
+  requireOpenAIApiKey,
+  optionalOpenAIBaseUrl,
   env,
 } from "@/server/config/env";

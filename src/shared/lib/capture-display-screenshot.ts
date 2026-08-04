@@ -47,7 +47,7 @@ function waitForVideoFrame(video: HTMLVideoElement): Promise<void> {
 }
 
 /**
- * Captures a single frame via the browser Screen Capture API (same flow as Claude web).
+ * Captures a single frame via the browser Screen Capture API.
  * The user picks a tab, window, or screen in the native browser picker.
  */
 export async function captureDisplayScreenshot(): Promise<CapturedScreenshot> {

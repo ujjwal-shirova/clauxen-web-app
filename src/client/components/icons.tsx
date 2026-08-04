@@ -3,7 +3,7 @@
 import type { SVGProps } from "react";
 import { cn } from "@/lib/utils";
 
-export function ClaudeStar(props: SVGProps<SVGSVGElement>) {
+export function AgentStar(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
       width="32"
@@ -391,7 +391,7 @@ export function CheckIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function CreateWithClaudeIcon(props: SVGProps<SVGSVGElement>) {
+export function CreateWithAgentIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
       width="20"
