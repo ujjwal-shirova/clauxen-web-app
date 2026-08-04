@@ -87,13 +87,21 @@ function groupMessagesIntoTurns(messages: Message[]): ConversationTurnGroup[] {
   const deduped = dedupeChatMessages(messages);
   for (const msg of deduped) {
     if (msg.role === "user") {
-      // Each user message opens a new turn so bubbles stay chronologically paired.
       groups.push({ userMessage: msg, assistantMessages: [] });
       continue;
     }
     if (msg.role !== "assistant" && msg.role !== "system") continue;
 
     const last = groups[groups.length - 1];
+    if (msg.turnId) {
+      const match = [...groups]
+        .reverse()
+        .find((group) => group.userMessage?.turnId === msg.turnId);
+      if (match) {
+        match.assistantMessages.push(msg);
+        continue;
+      }
+    }
     if (last) {
       last.assistantMessages.push(msg);
     } else {

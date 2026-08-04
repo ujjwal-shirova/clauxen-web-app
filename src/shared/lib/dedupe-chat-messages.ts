@@ -1,12 +1,14 @@
 import type { Message } from "@/lib/types";
 
 /**
- * Collapse duplicate chat rows that can appear from optimistic + realtime +
- * persist races (temp-* → server id, INSERT while streaming, etc.) and heal
- * arrival-order glitches so a user bubble never lands below its own answer.
+ * Transcript normalizer for optimistic + realtime + queue-flush races.
  *
- * Critical queue-flush rule: a completed previous assistant must never be
- * reattached to the next user or merged into the next live placeholder.
+ * Design:
+ * 1. Collapse duplicate identities (id / clientId / temp↔durable).
+ * 2. Prefer turnId-stable ordering so a finished answer can never jump under
+ *    the next queued user prompt.
+ * 3. Only blank live placeholders may be reattached; contentful assistants
+ *    stay with their turn forever.
  */
 export function dedupeChatMessages(messages: readonly Message[]): Message[] {
   if (messages.length <= 1) return [...messages];
@@ -26,13 +28,18 @@ export function dedupeChatMessages(messages: readonly Message[]): Message[] {
   }
 
   let list = order.map((id) => byId.get(id)!);
-
   list = collapseTempServerPairs(list);
   list = collapseDuplicateUserMessages(list);
-  list = healChatMessageOrder(list);
-  list = ensureBlankLivePlaceholdersFollowLatestUser(list);
-  list = collapseConsecutiveDuplicates(list);
 
+  const hasTurnIds = list.some((message) => Boolean(message.turnId));
+  if (hasTurnIds) {
+    list = flattenByTurnId(list);
+  } else {
+    list = healChatMessageOrder(list);
+    list = ensureBlankLivePlaceholdersFollowLatestUser(list);
+  }
+
+  list = collapseConsecutiveDuplicates(list);
   return list;
 }
 
@@ -59,15 +66,10 @@ function hasAgentProgress(message: Message): boolean {
   return false;
 }
 
-/** Answer text, agent timeline, or artifacts — this turn already painted. */
 export function hasAssistantBody(message: Message): boolean {
   return contentLen(message) > 0 || hasAgentProgress(message);
 }
 
-/**
- * True empty streaming orb — safe to move/merge. Anything with body is a real
- * turn and must stay with its user (especially across queue flushes).
- */
 export function isBlankStreamingPlaceholder(message: Message): boolean {
   return (
     message.role === "assistant" &&
@@ -100,7 +102,6 @@ function preferDurableId(a: Message, b: Message): string {
   return a.id;
 }
 
-/** Exported for unit tests — keep streaming orbs ahead of empty snapshots. */
 export function mergeMessagePreferRich(a: Message, b: Message): Message {
   const aLive = isLiveStreaming(a);
   const bLive = isLiveStreaming(b);
@@ -109,13 +110,13 @@ export function mergeMessagePreferRich(a: Message, b: Message): Message {
   const aFrames = a.agentFrames?.length ?? 0;
   const bFrames = b.agentFrames?.length ?? 0;
 
-  // Critical: an empty/cold completed row must never replace a live orb.
   if (aLive && !bLive && aLen >= bLen) {
     return {
       ...b,
       ...a,
       id: preferDurableId(a, b),
       clientId: a.clientId ?? b.clientId ?? a.id,
+      turnId: a.turnId ?? b.turnId,
       attachments: a.attachments ?? b.attachments,
       isStreaming: true,
       isThinkingStreaming: a.isThinkingStreaming ?? false,
@@ -127,6 +128,7 @@ export function mergeMessagePreferRich(a: Message, b: Message): Message {
       ...b,
       id: preferDurableId(a, b),
       clientId: b.clientId ?? a.clientId ?? b.id,
+      turnId: b.turnId ?? a.turnId,
       attachments: b.attachments ?? a.attachments,
       isStreaming: true,
       isThinkingStreaming: b.isThinkingStreaming ?? false,
@@ -140,8 +142,6 @@ export function mergeMessagePreferRich(a: Message, b: Message): Message {
   const prefer = bScore > aScore ? b : aScore > bScore ? a : bLive ? b : a;
   const other = prefer === a ? b : a;
 
-  // Never resurrect streaming on a richer completed side when the other is
-  // only a blank placeholder — that teleports old answers under new turns.
   const preferIsBlank = isBlankStreamingPlaceholder(prefer);
   const otherIsBlank = isBlankStreamingPlaceholder(other);
   const keepStreaming =
@@ -156,6 +156,7 @@ export function mergeMessagePreferRich(a: Message, b: Message): Message {
     ...prefer,
     id: preferDurableId(prefer, other),
     clientId: prefer.clientId ?? other.clientId ?? prefer.id,
+    turnId: prefer.turnId ?? other.turnId,
     attachments: prefer.attachments ?? other.attachments,
     agentFrames: prefer.agentFrames?.length
       ? prefer.agentFrames
@@ -188,7 +189,9 @@ function collapseTempServerPairs(messages: Message[]): Message[] {
           !consumed.has(index) &&
           candidate.role === "user" &&
           !isEphemeralId(candidate.id) &&
-          candidate.content.trim() === message.content.trim(),
+          (message.turnId && candidate.turnId
+            ? message.turnId === candidate.turnId
+            : candidate.content.trim() === message.content.trim()),
       );
       if (matchIndex >= 0) {
         consumed.add(i);
@@ -203,11 +206,21 @@ function collapseTempServerPairs(messages: Message[]): Message[] {
         if (index === i || consumed.has(index)) return false;
         if (candidate.role !== "assistant") return false;
         if (sameAssistantIdentity(message, candidate)) return true;
-        // Only merge two blank live placeholders — never a completed/stale-live
-        // previous answer into the next turn's empty orb.
+        if (
+          message.turnId &&
+          candidate.turnId &&
+          message.turnId === candidate.turnId &&
+          (isBlankStreamingPlaceholder(message) ||
+            isBlankStreamingPlaceholder(candidate))
+        ) {
+          return true;
+        }
         return (
           isBlankStreamingPlaceholder(message) &&
-          isBlankStreamingPlaceholder(candidate)
+          isBlankStreamingPlaceholder(candidate) &&
+          (!message.turnId ||
+            !candidate.turnId ||
+            message.turnId === candidate.turnId)
         );
       });
       if (matchIndex >= 0) {
@@ -224,7 +237,6 @@ function collapseTempServerPairs(messages: Message[]): Message[] {
   return result;
 }
 
-/** Two durable user rows written within this window are one logical message. */
 const SAME_USER_MESSAGE_WINDOW_MS = 2 * 60 * 1000;
 
 function normalizeUserContent(content: string | undefined): string {
@@ -233,6 +245,7 @@ function normalizeUserContent(content: string | undefined): string {
 
 function isSameLogicalUserMessage(a: Message, b: Message): boolean {
   if (a.role !== "user" || b.role !== "user") return false;
+  if (a.turnId && b.turnId) return a.turnId === b.turnId;
   if (normalizeUserContent(a.content) !== normalizeUserContent(b.content)) {
     return false;
   }
@@ -287,6 +300,97 @@ function collapseDuplicateUserMessages(messages: Message[]): Message[] {
   return result;
 }
 
+type TurnBucket = {
+  turnId: string;
+  user: Message | null;
+  assistants: Message[];
+  order: number;
+};
+
+/**
+ * Flatten by turnId encounter order. User always leads its assistants.
+ * Blank live placeholders without a turn attach to the latest open user turn.
+ */
+export function flattenByTurnId(messages: readonly Message[]): Message[] {
+  const buckets = new Map<string, TurnBucket>();
+  const ordered: TurnBucket[] = [];
+  let orderCounter = 0;
+
+  const ensureBucket = (turnId: string): TurnBucket => {
+    const existing = buckets.get(turnId);
+    if (existing) return existing;
+    const bucket: TurnBucket = {
+      turnId,
+      user: null,
+      assistants: [],
+      order: orderCounter++,
+    };
+    buckets.set(turnId, bucket);
+    ordered.push(bucket);
+    return bucket;
+  };
+
+  let latestUserTurnId: string | null = null;
+
+  for (const message of messages) {
+    if (message.role === "user") {
+      const turnId = message.turnId?.trim() || `legacy-user-${message.id}`;
+      const bucket = ensureBucket(turnId);
+      bucket.user = bucket.user
+        ? mergeMessagePreferRich(bucket.user, { ...message, turnId })
+        : { ...message, turnId };
+      latestUserTurnId = turnId;
+      continue;
+    }
+
+    if (message.role !== "assistant") continue;
+
+    let turnId = message.turnId?.trim() || "";
+    if (!turnId) {
+      if (isBlankStreamingPlaceholder(message) && latestUserTurnId) {
+        turnId = latestUserTurnId;
+      } else {
+        turnId = `legacy-assistant-${message.id}`;
+      }
+    }
+
+    const bucket = ensureBucket(turnId);
+    const existingIndex = bucket.assistants.findIndex((assistant) =>
+      sameAssistantIdentity(assistant, message),
+    );
+    const stamped = { ...message, turnId };
+    if (existingIndex >= 0) {
+      bucket.assistants[existingIndex] = mergeMessagePreferRich(
+        bucket.assistants[existingIndex]!,
+        stamped,
+      );
+    } else if (
+      isBlankStreamingPlaceholder(stamped) &&
+      bucket.assistants.some((assistant) => isLiveStreaming(assistant))
+    ) {
+      const liveIndex = bucket.assistants.findIndex((assistant) =>
+        isLiveStreaming(assistant),
+      );
+      bucket.assistants[liveIndex] = mergeMessagePreferRich(
+        bucket.assistants[liveIndex]!,
+        stamped,
+      );
+    } else {
+      bucket.assistants.push(stamped);
+    }
+    if (bucket.user) latestUserTurnId = turnId;
+  }
+
+  ordered.sort((a, b) => a.order - b.order);
+
+  const out: Message[] = [];
+  for (const bucket of ordered) {
+    if (bucket.user) out.push(bucket.user);
+    for (const assistant of bucket.assistants) out.push(assistant);
+  }
+  return out;
+}
+
 export function healChatMessageOrder(
   messages: readonly Message[],
 ): Message[] {
@@ -305,8 +409,6 @@ export function healChatMessageOrder(
       if (aDated && bDated && a.message.role !== b.message.role) {
         return a.message.role === "user" ? -1 : 1;
       }
-      // Stable transcript order: never let insertion noise reorder committed
-      // rows that share a stamp — original index wins after role tie-break.
       return a.index - b.index;
     })
     .map(({ message }) => message);
@@ -314,11 +416,6 @@ export function healChatMessageOrder(
   return healInvertedUserAssistantPairs(sorted);
 }
 
-/**
- * Move only blank live placeholders that landed before the latest user.
- * Never relocate assistants that already have answer/timeline body — that is
- * what made previous answers vanish under the queued follow-up.
- */
 export function ensureBlankLivePlaceholdersFollowLatestUser(
   messages: readonly Message[],
 ): Message[] {
@@ -345,7 +442,6 @@ export function ensureBlankLivePlaceholdersFollowLatestUser(
   for (let i = 0; i < rest.length; i += 1) {
     if (rest[i]?.role === "user") insertAt = i + 1;
   }
-  // Place blanks after the latest user, behind any assistants already there.
   while (
     insertAt < rest.length &&
     rest[insertAt]?.role === "assistant" &&
@@ -356,14 +452,9 @@ export function ensureBlankLivePlaceholdersFollowLatestUser(
   return [...rest.slice(0, insertAt), ...moved, ...rest.slice(insertAt)];
 }
 
-/** @deprecated Use ensureBlankLivePlaceholdersFollowLatestUser */
 export const ensureLiveAssistantsFollowLatestUser =
   ensureBlankLivePlaceholdersFollowLatestUser;
 
-/**
- * Swap adjacent assistant→user inversions when they belong together.
- * Never steal a contentful previous answer from between two users (queue flush).
- */
 export function healInvertedUserAssistantPairs(
   messages: readonly Message[],
 ): Message[] {
@@ -377,9 +468,10 @@ export function healInvertedUserAssistantPairs(
 
     const prev = i > 0 ? out[i - 1]! : null;
 
-    // Between two users: only blank live placeholders may move to the next user.
     if (prev?.role === "user") {
       if (!isBlankStreamingPlaceholder(cur)) continue;
+      // Different turn ids — blank belongs to next user only when unmatched.
+      if (cur.turnId && prev.turnId && cur.turnId === prev.turnId) continue;
     } else if (!shouldPairUserWithAssistant(next, cur)) {
       continue;
     }
@@ -397,6 +489,9 @@ function shouldPairUserWithAssistant(
   assistant: Message,
 ): boolean {
   if (user.role !== "user" || assistant.role !== "assistant") return false;
+  if (user.turnId && assistant.turnId) {
+    return user.turnId === assistant.turnId;
+  }
   if (isBlankStreamingPlaceholder(assistant)) return true;
 
   const userTime = user.createdAt;
@@ -405,7 +500,6 @@ function shouldPairUserWithAssistant(
     return Math.abs(userTime - assistantTime) <= SAME_USER_MESSAGE_WINDOW_MS;
   }
 
-  // Undated orphan A before U: only pair blank live placeholders.
   if (typeof userTime !== "number" || typeof assistantTime !== "number") {
     return isBlankStreamingPlaceholder(assistant);
   }
@@ -420,20 +514,28 @@ function collapseConsecutiveDuplicates(messages: Message[]): Message[] {
     if (prev && prev.role === message.role) {
       if (
         prev.role === "user" &&
-        prev.content.trim() === message.content.trim()
+        (prev.turnId && message.turnId
+          ? prev.turnId === message.turnId
+          : prev.content.trim() === message.content.trim())
       ) {
         result[result.length - 1] = mergeMessagePreferRich(prev, message);
         continue;
       }
       if (prev.role === "assistant" && message.role === "assistant") {
         const sameIdentity = sameAssistantIdentity(prev, message);
+        const sameTurnBlank =
+          prev.turnId &&
+          message.turnId &&
+          prev.turnId === message.turnId &&
+          (isBlankStreamingPlaceholder(prev) ||
+            isBlankStreamingPlaceholder(message));
         const blankIntoLive =
           (isBlankStreamingPlaceholder(message) && isLiveStreaming(prev)) ||
           (isBlankStreamingPlaceholder(prev) && isLiveStreaming(message));
         const bothBlank =
           isBlankStreamingPlaceholder(prev) &&
           isBlankStreamingPlaceholder(message);
-        if (sameIdentity || blankIntoLive || bothBlank) {
+        if (sameIdentity || sameTurnBlank || blankIntoLive || bothBlank) {
           result[result.length - 1] = mergeMessagePreferRich(prev, message);
           continue;
         }
@@ -444,7 +546,6 @@ function collapseConsecutiveDuplicates(messages: Message[]): Message[] {
   return result;
 }
 
-/** Seal finished assistants so queue flushes cannot treat them as live. */
 export function sealCompletedAssistantMessages(
   messages: readonly Message[],
 ): Message[] {
@@ -455,8 +556,6 @@ export function sealCompletedAssistantMessages(
         ? message
         : { ...message, agentFrameComplete: true };
     }
-    // Still flagged live but already has a body from a finished SSE turn —
-    // clear streaming so the next queued prompt cannot steal/merge it.
     if (hasAssistantBody(message) || message.agentFrameComplete) {
       return {
         ...message,
@@ -467,4 +566,38 @@ export function sealCompletedAssistantMessages(
     }
     return message;
   });
+}
+
+/** Assign synthetic turnIds to legacy transcripts (hydrate path). */
+export function assignLegacyTurnIds(messages: readonly Message[]): Message[] {
+  if (messages.length === 0) return [];
+  if (messages.every((message) => Boolean(message.turnId))) {
+    return [...messages];
+  }
+
+  const healed = healChatMessageOrder(messages);
+  const out: Message[] = [];
+  let turnCounter = 0;
+  let currentTurnId: string | null = null;
+
+  for (const message of healed) {
+    if (message.role === "user") {
+      turnCounter += 1;
+      currentTurnId = message.turnId?.trim() || `legacy-turn-${turnCounter}`;
+      out.push({ ...message, turnId: currentTurnId });
+      continue;
+    }
+    if (message.turnId?.trim()) {
+      currentTurnId = message.turnId.trim();
+      out.push(message);
+      continue;
+    }
+    if (!currentTurnId) {
+      turnCounter += 1;
+      currentTurnId = `legacy-turn-${turnCounter}`;
+    }
+    out.push({ ...message, turnId: currentTurnId });
+  }
+
+  return out;
 }

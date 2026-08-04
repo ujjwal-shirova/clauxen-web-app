@@ -400,6 +400,86 @@ describe("dedupeChatMessages", () => {
     assert.match(result[1]?.content ?? "", /Research/);
   });
 
+  it("keeps previous answer under its turn when queued follow-up shares turnIds", () => {
+    const stamp = 1_700_000_000_000;
+    const result = dedupeChatMessages([
+      msg({
+        id: "u1",
+        turnId: "t1",
+        role: "user",
+        content: "first",
+        createdAt: stamp,
+      }),
+      msg({
+        id: "a1",
+        turnId: "t1",
+        role: "assistant",
+        content: "first answer",
+        createdAt: stamp + 1,
+        agentFrameComplete: true,
+      }),
+      msg({
+        id: "u2",
+        turnId: "t2",
+        role: "user",
+        content: "queued",
+        createdAt: stamp + 60_000,
+      }),
+      msg({
+        id: "a2",
+        turnId: "t2",
+        role: "assistant",
+        content: "",
+        createdAt: stamp + 60_001,
+        isStreaming: true,
+      }),
+    ]);
+    assert.deepEqual(
+      result.map((m) => m.id),
+      ["u1", "a1", "u2", "a2"],
+    );
+  });
+
+  it("does not teleport a stale-live answer into the next turnId", () => {
+    const stamp = 1_700_000_000_000;
+    const result = dedupeChatMessages([
+      msg({
+        id: "u1",
+        turnId: "t1",
+        role: "user",
+        content: "first",
+        createdAt: stamp,
+      }),
+      msg({
+        id: "a1",
+        turnId: "t1",
+        role: "assistant",
+        content: "Research & Information",
+        createdAt: stamp + 1,
+        isStreaming: true,
+      }),
+      msg({
+        id: "u2",
+        turnId: "t2",
+        role: "user",
+        content: "queued",
+        createdAt: stamp + 2,
+      }),
+      msg({
+        id: "a2",
+        turnId: "t2",
+        role: "assistant",
+        content: "",
+        createdAt: stamp + 3,
+        isStreaming: true,
+      }),
+    ]);
+    assert.deepEqual(
+      result.map((m) => `${m.id}:${m.turnId}`),
+      ["u1:t1", "a1:t1", "u2:t2", "a2:t2"],
+    );
+  });
+
   it("sealCompletedAssistantMessages clears stale live flags on finished turns", () => {
     const sealed = sealCompletedAssistantMessages([
       msg({
@@ -420,3 +500,4 @@ describe("dedupeChatMessages", () => {
     assert.equal(sealed[1]?.isStreaming, true);
   });
 });
+

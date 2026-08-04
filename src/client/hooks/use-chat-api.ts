@@ -29,7 +29,7 @@ import {
   patchAssistantMessage,
   setAllChatsNormalized,
 } from "@/lib/chat-store-bridge";
-import { sealCompletedAssistantMessages } from "@/lib/dedupe-chat-messages";
+import { sealCompletedAssistantMessages, assignLegacyTurnIds } from "@/lib/dedupe-chat-messages";
 import {
   useActiveChatMessages,
   useActiveChatId,
@@ -255,6 +255,8 @@ export function useChatApi(
   const pendingPinOverridesRef = useRef<Map<string, boolean>>(new Map());
   /** Optimistic title overrides until server list name catches up. */
   const pendingTitleOverridesRef = useRef<Map<string, string>>(new Map());
+  /** Chats removed in the UI — keep them out of refresh merges until the server agrees. */
+  const pendingDeletedChatIdsRef = useRef<Set<string>>(new Set());
   const branchPersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Branch overlay snapshot per chat — applied once on hydrate. */
   const branchMessagesByChatRef = useRef<Record<string, unknown>>({});
@@ -338,17 +340,26 @@ export function useChatApi(
       }));
       const now = Date.now();
       const LOCAL_LIST_GRACE_MS = 90_000;
+      const deletedIds = pendingDeletedChatIdsRef.current;
       setRecentChats((prev) => {
-        const serverIds = new Set(serverChats.map((c) => c.id));
+        const serverChatsVisible = serverChats.filter((c) => !deletedIds.has(c.id));
+        // Once the server list no longer returns a deleted id, drop the hold.
+        for (const id of [...deletedIds]) {
+          if (!serverChats.some((c) => c.id === id)) {
+            deletedIds.delete(id);
+          }
+        }
+        const serverIds = new Set(serverChatsVisible.map((c) => c.id));
         // Keep rows the server list hasn't caught yet (pending create, or
         // Worker/list cache lag right after create / first message).
         const localOnly = prev.filter((c) => {
+          if (deletedIds.has(c.id)) return false;
           if (serverIds.has(c.id)) return false;
           if (c.isCreating || c.id.startsWith("pending-")) return true;
           const age = now - (c.updatedAt ?? 0);
           return age >= 0 && age < LOCAL_LIST_GRACE_MS;
         });
-        const merged = serverChats.map((server) => {
+        const merged = serverChatsVisible.map((server) => {
           const local = prev.find((p) => p.id === server.id);
           const pinOverride = pendingPinOverridesRef.current.get(server.id);
           const titleOverride = pendingTitleOverridesRef.current.get(server.id);
@@ -574,6 +585,7 @@ export function useChatApi(
             ...local,
             id: mapped.id,
             clientId: local.clientId ?? mapped.clientId ?? local.id,
+            turnId: local.turnId ?? mapped.turnId,
           };
           setGeneration(activeChatId, {
             request: gen.request,
@@ -604,6 +616,7 @@ export function useChatApi(
             ...local,
             id: mapped.id,
             clientId: local.clientId ?? mapped.clientId ?? local.id,
+            turnId: local.turnId ?? mapped.turnId,
             attachments: local.attachments ?? mapped.attachments,
           };
           return next;
@@ -728,6 +741,7 @@ export function useChatApi(
               id: mapped.id,
               clientId:
                 prevMessage.clientId ?? mapped.clientId ?? mapped.id,
+              turnId: prevMessage.turnId ?? mapped.turnId,
               content:
                 (prevMessage.content?.length ?? 0) >
                 (mapped.content?.length ?? 0)
@@ -782,11 +796,13 @@ export function useChatApi(
       if (branchMessages != null) {
         branchMessagesByChatRef.current[chatId] = branchMessages;
       }
-      const hydrated = overlayBranchMessagesOnPage({
-        pageMessages: apiMessages.map(mapApiMessage),
-        branchMessages:
-          branchMessages ?? branchMessagesByChatRef.current[chatId] ?? null,
-      });
+      const hydrated = assignLegacyTurnIds(
+        overlayBranchMessagesOnPage({
+          pageMessages: apiMessages.map(mapApiMessage),
+          branchMessages:
+            branchMessages ?? branchMessagesByChatRef.current[chatId] ?? null,
+        }),
+      );
       setAllChats((prev) => {
         const existing = prev[chatId] ?? [];
         // Stale isStreaming alone must NOT count as live — that blocked hydrate
@@ -816,11 +832,13 @@ export function useChatApi(
                 ...local,
                 id: match.id,
                 clientId: local.clientId ?? match.clientId ?? local.id,
+                turnId: local.turnId ?? match.turnId,
               };
             }
             return {
               ...match,
               clientId: local.clientId ?? match.clientId ?? match.id,
+              turnId: local.turnId ?? match.turnId,
               attachments: local.attachments ?? match.attachments,
             };
           });
@@ -1324,6 +1342,14 @@ export function useChatApi(
         const exists = current.some(
           (m) => m.id === assistantId || m.clientId === assistantClientId,
         );
+        const turnId =
+          current.find(
+            (m) =>
+              m.id === assistantId ||
+              m.clientId === assistantClientId ||
+              (turn?.userClientId &&
+                (m.id === turn.userClientId || m.clientId === turn.userClientId)),
+          )?.turnId ?? `turn-${assistantClientId}`;
         if (exists) {
           return {
             ...prev,
@@ -1332,6 +1358,7 @@ export function useChatApi(
                 ? {
                     ...m,
                     clientId: m.clientId ?? assistantClientId,
+                    turnId: m.turnId ?? turnId,
                     isStreaming: true,
                     // Keep any tokens already painted if this is a reconcile.
                     content: m.content ?? "",
@@ -1351,6 +1378,7 @@ export function useChatApi(
             {
               id: assistantId,
               clientId: assistantClientId,
+              turnId,
               role: "assistant",
               content: "",
               createdAt: Date.now() + 1,
@@ -1519,6 +1547,7 @@ export function useChatApi(
               ...next[index]!,
               id: serverUserId,
               clientId: next[index]!.clientId ?? turn.userClientId,
+              turnId: next[index]!.turnId,
             };
             return { ...prev, [chatId]: next };
           });
@@ -1550,6 +1579,7 @@ export function useChatApi(
               ...next[index]!,
               id: assistantId,
               clientId: next[index]!.clientId ?? assistantClientId,
+              turnId: next[index]!.turnId ?? `turn-${assistantClientId}`,
             };
             return { ...prev, [chatId]: next };
           });
@@ -1599,6 +1629,7 @@ export function useChatApi(
                   ...next[index]!,
                   id: serverUserId,
                   clientId: next[index]!.clientId ?? turn.userClientId,
+                  turnId: next[index]!.turnId,
                 };
                 return { ...prev, [chatId]: next };
               });
@@ -1630,6 +1661,7 @@ export function useChatApi(
                   ...next[index]!,
                   id: assistantId,
                   clientId: next[index]!.clientId ?? assistantClientId,
+                  turnId: next[index]!.turnId ?? `turn-${assistantClientId}`,
                 };
                 return { ...prev, [chatId]: next };
               });
@@ -2097,9 +2129,11 @@ export function useChatApi(
       // Stable assistant client id up front so user+assistant paint as one turn
       // (avoids the follow-up pairing race where A lands before U in the store).
       const assistantClientId = randomUUID();
+      const turnId = `turn-${assistantClientId}`;
       const optimisticUser: Message = {
         id: tempUserId,
         clientId: tempUserId,
+        turnId,
         role: "user",
         content: trimmed,
         createdAt: now,
@@ -2111,6 +2145,7 @@ export function useChatApi(
       const optimisticAssistant: Message = {
         id: assistantClientId,
         clientId: assistantClientId,
+        turnId,
         role: "assistant",
         content: "",
         createdAt: now + 1,
@@ -2465,6 +2500,8 @@ export function useChatApi(
       const previousMessages = allChatsRef.current[chatId];
       const wasActive = activeChatId === chatId;
 
+      pendingDeletedChatIdsRef.current.add(chatId);
+
       setAllChats((prev) => {
         const next = { ...prev };
         delete next[chatId];
@@ -2480,6 +2517,7 @@ export function useChatApi(
         setActiveChatId(null);
       }
       if (userId) {
+        writeSyncDeviceChatList(userId, remaining);
         void persistDeviceRecentChatsNow(
           userId,
           remaining,
@@ -2489,9 +2527,12 @@ export function useChatApi(
 
       try {
         await chatsApi.deleteChat(chatId);
+        // Refresh in the background without resurrecting this id.
+        void refreshChats({ silent: true });
       } catch (error) {
         console.error("Failed to delete chat:", error);
         // Roll back sidebar + messages so the user can retry.
+        pendingDeletedChatIdsRef.current.delete(chatId);
         setRecentChats(previousRecent);
         recentChatsRef.current = previousRecent;
         if (previousMessages) {
@@ -2504,6 +2545,7 @@ export function useChatApi(
           setActiveChatId(chatId);
         }
         if (userId) {
+          writeSyncDeviceChatList(userId, previousRecent);
           void persistDeviceRecentChatsNow(
             userId,
             previousRecent,
@@ -2512,7 +2554,7 @@ export function useChatApi(
         }
       }
     },
-    [activeChatId, userId],
+    [activeChatId, refreshChats, userId],
   );
 
   const handleRenameChat = useCallback(

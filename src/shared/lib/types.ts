@@ -25,6 +25,11 @@ export type Message = {
    * React keys, enter animations, and Streamdown trees from remounting.
    */
   clientId?: string;
+  /**
+   * Stable id shared by the user prompt and its assistant reply. Keeps the
+   * transcript from re-pairing across queue flushes / realtime races.
+   */
+  turnId?: string;
   role: "user" | "assistant";
   content: string;
   thinkingContent?: string;
