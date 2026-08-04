@@ -5,15 +5,12 @@ import { subscribeWithSelector } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import type { Message, RecentChat } from "@/lib/types";
 import { FULL_CHAT_HYDRATE_LIMIT } from "@/lib/chat-history-page-size";
+import { deriveTurnIdFromClientId } from "@/lib/chat-turn-id";
 
-/** Stable empty references — never allocate new [] in selectors (prevents infinite loops). */
 const EMPTY_IDS: readonly string[] = [];
 const EMPTY_MESSAGES: readonly Message[] = [];
 
-/** Active RAM window hint — full-thread hydrate keeps the open chat intact. */
 export const ACTIVE_RAM_MESSAGE_WINDOW = FULL_CHAT_HYDRATE_LIMIT;
-
-/** Cap for rare trim helpers — match full-chat hydrate limit. */
 export const MAX_ACTIVE_CHAT_MESSAGES = FULL_CHAT_HYDRATE_LIMIT;
 
 export type QueuedChatMessage = {
@@ -28,7 +25,6 @@ export type ChatStoreState = {
   recentChats: RecentChat[];
   activeChatId: string | null;
   isGenerating: boolean;
-  /** Chat IDs currently streaming an assistant reply (multitask-safe). */
   generatingChatIds: Record<string, true>;
   streaming: { chatId: string; messageId: string } | null;
   queuedMessagesByChatId: Record<string, QueuedChatMessage[]>;
@@ -57,7 +53,6 @@ type ChatStoreActions = {
     delta: string,
   ) => void;
   removeChat: (chatId: string) => void;
-  /** Remap an optimistic pending chat id to the real server id without remounting messages. */
   migrateChatId: (fromId: string, toId: string) => void;
   setRecentChats: (
     updater: RecentChat[] | ((prev: RecentChat[]) => RecentChat[]),
@@ -77,12 +72,10 @@ type ChatStoreActions = {
       | ((prev: ChatStoreState["branchDataset"]) => ChatStoreState["branchDataset"]),
   ) => void;
   evictMessagesExcept: (chatId: string, keepIds: Set<string>) => void;
-  /** Drop message bodies for every chat except `keepChatId` (re-fetched on open). */
   clearInactiveChatMessages: (
     keepChatId: string | null,
     opts?: { alsoKeep?: string | null },
   ) => void;
-  /** Keep the newest `limit` messages for a chat (always retains streaming rows). */
   trimChatMessagesToWindow: (chatId: string, limit?: number) => void;
   hydrateFromLegacy: (payload: {
     allChats?: Record<string, Message[]>;
@@ -95,19 +88,117 @@ type ChatStoreActions = {
 
 export type ChatStore = ChatStoreState & ChatStoreActions;
 
-function indexMessages(messages: Message[]): {
-  byId: Record<string, Message>;
-  ids: string[];
-} {
-  const byId: Record<string, Message> = {};
-  const ids: string[] = [];
-  for (const message of messages) {
-    if (!message?.id) continue;
-    byId[message.id] = message;
-    ids.push(message.id);
-  }
-  return { byId, ids };
+function isLive(message: Message): boolean {
+  return message.isStreaming === true || message.isThinkingStreaming === true;
 }
+
+function hasBody(message: Message): boolean {
+  if (message.content?.trim()) return true;
+  if (message.agentSegments?.length) return true;
+  if (message.agentFrames?.some((f) => f.segments.length > 0)) return true;
+  if (message.agentArtifacts?.length) return true;
+  return false;
+}
+
+/** Turn sort key: group by turnId, user before assistant, then createdAt. */
+function turnSortKey(message: Message, index: number): string {
+  const turnId =
+    message.turnId ?? deriveTurnIdFromClientId(message.clientId) ?? "";
+  const roleRank = message.role === "user" ? "0" : "1";
+  const stamp =
+    typeof message.createdAt === "number"
+      ? message.createdAt.toString().padStart(13, "0")
+      : "9999999999999";
+  return `${turnId}\u0000${roleRank}\u0000${stamp}\u0000${index
+    .toString()
+    .padStart(10, "0")}`;
+}
+
+function sortIdsByTurn(
+  ids: string[],
+  byId: Record<string, Message>,
+): string[] {
+  if (ids.length <= 1) return ids;
+  return ids
+    .map((id, index) => ({ id, index }))
+    .sort((a, b) => {
+      const ma = byId[a.id];
+      const mb = byId[b.id];
+      if (!ma || !mb) return a.index - b.index;
+      return turnSortKey(ma, a.index).localeCompare(turnSortKey(mb, b.index));
+    })
+    .map((entry) => entry.id);
+}
+
+function resolveExistingId(
+  incoming: Message,
+  ids: readonly string[],
+  byId: Record<string, Message>,
+): string | null {
+  if (byId[incoming.id]) return incoming.id;
+  for (const id of ids) {
+    const existing = byId[id];
+    if (!existing) continue;
+    if (
+      (incoming.clientId && existing.clientId === incoming.clientId) ||
+      (incoming.clientId && existing.id === incoming.clientId) ||
+      (existing.clientId && incoming.id === existing.clientId)
+    ) {
+      return id;
+    }
+  }
+  return null;
+}
+
+function mergeMessage(existing: Message, incoming: Message): Message {
+  const existingLive = isLive(existing);
+  const incomingLive = isLive(incoming);
+  const existingLen = existing.content?.trim().length ?? 0;
+  const incomingLen = incoming.content?.trim().length ?? 0;
+
+  if (existingLive && !incomingLive && existingLen >= incomingLen) {
+    return {
+      ...incoming,
+      ...existing,
+      turnId: existing.turnId ?? incoming.turnId,
+      clientId: existing.clientId ?? incoming.clientId ?? existing.id,
+      isStreaming: true,
+    };
+  }
+  if (incomingLive && !existingLive && incomingLen >= existingLen) {
+    return {
+      ...existing,
+      ...incoming,
+      turnId: incoming.turnId ?? existing.turnId,
+      clientId: incoming.clientId ?? existing.clientId ?? incoming.id,
+      isStreaming: true,
+    };
+  }
+
+  const prefer =
+    incomingLen > existingLen ||
+    (incoming.agentFrames?.length ?? 0) >
+      (existing.agentFrames?.length ?? 0)
+      ? incoming
+      : existing;
+  const other = prefer === incoming ? existing : incoming;
+
+  return {
+    ...other,
+    ...prefer,
+    turnId: prefer.turnId ?? other.turnId,
+    clientId: prefer.clientId ?? other.clientId ?? prefer.id,
+    content: existingLen >= incomingLen ? existing.content : incoming.content,
+    agentFrames: prefer.agentFrames?.length
+      ? prefer.agentFrames
+      : other.agentFrames,
+    agentSegments: prefer.agentSegments?.length
+      ? prefer.agentSegments
+      : other.agentSegments,
+  };
+}
+
+void hasBody;
 
 export const useChatStore = create<ChatStore>()(
   subscribeWithSelector((set, get) => ({
@@ -130,33 +221,81 @@ export const useChatStore = create<ChatStore>()(
     },
 
     setChatMessages: (chatId, messages) => {
-      const { byId, ids } = indexMessages(messages);
       set((state) => {
         const nextById = { ...state.messagesById };
         const prevIds = state.messageIdsByChatId[chatId] ?? [];
+        const incomingIds: string[] = [];
+        const byId: Record<string, Message> = {};
+
+        for (const message of messages) {
+          if (!message?.id) continue;
+          byId[message.id] = message;
+        }
         for (const oldId of prevIds) {
           if (!byId[oldId]) delete nextById[oldId];
         }
-        Object.assign(nextById, byId);
+        for (const message of messages) {
+          if (!message?.id) continue;
+          nextById[message.id] = message;
+          incomingIds.push(message.id);
+        }
+        const sorted = sortIdsByTurn(incomingIds, nextById);
         return {
           messagesById: nextById,
           messageIdsByChatId: {
             ...state.messageIdsByChatId,
-            [chatId]: ids,
+            [chatId]: sorted,
           },
         };
       });
     },
 
     upsertMessage: (chatId, message) => {
+      if (!message?.id) return;
       set((state) => {
         const ids = state.messageIdsByChatId[chatId] ?? [];
-        const hasId = ids.includes(message.id);
+        const existingId = resolveExistingId(message, ids, state.messagesById);
+        const nextById = { ...state.messagesById };
+
+        if (existingId && existingId !== message.id) {
+          delete nextById[existingId];
+          nextById[message.id] = mergeMessage(
+            state.messagesById[existingId]!,
+            message,
+          );
+          const nextIds = ids.map((id) =>
+            id === existingId ? message.id : id,
+          );
+          return {
+            messagesById: nextById,
+            messageIdsByChatId: {
+              ...state.messageIdsByChatId,
+              [chatId]: sortIdsByTurn(nextIds, nextById),
+            },
+          };
+        }
+
+        if (existingId === message.id) {
+          nextById[message.id] = mergeMessage(
+            state.messagesById[message.id]!,
+            message,
+          );
+          return {
+            messagesById: nextById,
+            messageIdsByChatId: {
+              ...state.messageIdsByChatId,
+              [chatId]: sortIdsByTurn(ids, nextById),
+            },
+          };
+        }
+
+        nextById[message.id] = message;
+        const nextIds = [...ids, message.id];
         return {
-          messagesById: { ...state.messagesById, [message.id]: message },
+          messagesById: nextById,
           messageIdsByChatId: {
             ...state.messageIdsByChatId,
-            [chatId]: hasId ? ids : [...ids, message.id],
+            [chatId]: sortIdsByTurn(nextIds, nextById),
           },
         };
       });
@@ -172,7 +311,8 @@ export const useChatStore = create<ChatStore>()(
             const candidate = state.messagesById[id];
             if (
               candidate &&
-              (candidate.clientId === messageId || candidate.id === messageId)
+              (candidate.clientId === messageId ||
+                candidate.id === messageId)
             ) {
               existing = candidate;
               resolvedId = id;
@@ -203,7 +343,8 @@ export const useChatStore = create<ChatStore>()(
             const candidate = state.messagesById[id];
             if (
               candidate &&
-              (candidate.clientId === messageId || candidate.id === messageId)
+              (candidate.clientId === messageId ||
+                candidate.id === messageId)
             ) {
               existing = candidate;
               resolvedId = id;
@@ -221,7 +362,9 @@ export const useChatStore = create<ChatStore>()(
               ...existing,
               [field]: `${existing[field] ?? ""}${delta}`,
               isStreaming: true,
-              ...(field === "content" ? { isThinkingStreaming: false } : {}),
+              ...(field === "content"
+                ? { isThinkingStreaming: false }
+                : {}),
             },
           },
         };
@@ -252,18 +395,15 @@ export const useChatStore = create<ChatStore>()(
         const fromIds = nextMessageIds[fromId];
         if (fromIds) {
           delete nextMessageIds[fromId];
-          // Prefer keeping any messages already under toId (shouldn't happen).
           nextMessageIds[toId] = nextMessageIds[toId]?.length
             ? nextMessageIds[toId]!
             : fromIds;
         }
-
         const nextGenerating = { ...state.generatingChatIds };
         if (nextGenerating[fromId]) {
           delete nextGenerating[fromId];
           nextGenerating[toId] = true;
         }
-
         const nextQueued = { ...state.queuedMessagesByChatId };
         if (nextQueued[fromId]) {
           nextQueued[toId] = [
@@ -272,21 +412,17 @@ export const useChatStore = create<ChatStore>()(
           ];
           delete nextQueued[fromId];
         }
-
         const nextBranch = { ...state.branchDataset };
         if (nextBranch[fromId] !== undefined) {
           nextBranch[toId] = nextBranch[fromId]!;
           delete nextBranch[fromId];
         }
-
         const streaming =
           state.streaming?.chatId === fromId
             ? { ...state.streaming, chatId: toId }
             : state.streaming;
-
         const activeChatId =
           state.activeChatId === fromId ? toId : state.activeChatId;
-
         return {
           messageIdsByChatId: nextMessageIds,
           generatingChatIds: nextGenerating,
@@ -304,7 +440,9 @@ export const useChatStore = create<ChatStore>()(
     setRecentChats: (updater) => {
       set((state) => ({
         recentChats:
-          typeof updater === "function" ? updater(state.recentChats) : updater,
+          typeof updater === "function"
+            ? updater(state.recentChats)
+            : updater,
       }));
     },
 
@@ -349,7 +487,10 @@ export const useChatStore = create<ChatStore>()(
       set((state) => ({
         queuedMessagesByChatId: {
           ...state.queuedMessagesByChatId,
-          [chatId]: [...(state.queuedMessagesByChatId[chatId] ?? []), item],
+          [chatId]: [
+            ...(state.queuedMessagesByChatId[chatId] ?? []),
+            item,
+          ],
         },
       }));
       return item;
@@ -361,8 +502,9 @@ export const useChatStore = create<ChatStore>()(
       set((state) => ({
         queuedMessagesByChatId: {
           ...state.queuedMessagesByChatId,
-          [chatId]: (state.queuedMessagesByChatId[chatId] ?? []).map((item) =>
-            item.id === id ? { ...item, content: trimmed } : item,
+          [chatId]: (state.queuedMessagesByChatId[chatId] ?? []).map(
+            (item) =>
+              item.id === id ? { ...item, content: trimmed } : item,
           ),
         },
       }));
@@ -372,9 +514,9 @@ export const useChatStore = create<ChatStore>()(
       set((state) => ({
         queuedMessagesByChatId: {
           ...state.queuedMessagesByChatId,
-          [chatId]: (state.queuedMessagesByChatId[chatId] ?? []).filter(
-            (item) => item.id !== id,
-          ),
+          [chatId]: (
+            state.queuedMessagesByChatId[chatId] ?? []
+          ).filter((item) => item.id !== id),
         },
       }));
     },
@@ -447,7 +589,9 @@ export const useChatStore = create<ChatStore>()(
         }
         const nextById = { ...state.messagesById };
         const nextIdsByChat: Record<string, string[]> = {};
-        for (const [chatId, ids] of Object.entries(state.messageIdsByChatId)) {
+        for (const [chatId, ids] of Object.entries(
+          state.messageIdsByChatId,
+        )) {
           if (keep.has(chatId)) {
             nextIdsByChat[chatId] = ids;
             continue;
@@ -455,8 +599,6 @@ export const useChatStore = create<ChatStore>()(
           for (const id of ids) {
             delete nextById[id];
           }
-          // Omit the key (do NOT set []). Empty arrays made
-          // filterStartedRecentChats hide the chat from Recents.
         }
         return {
           messagesById: nextById,
@@ -469,7 +611,6 @@ export const useChatStore = create<ChatStore>()(
       set((state) => {
         const ids = state.messageIdsByChatId[chatId] ?? [];
         if (ids.length <= limit) return state;
-
         const streamingIds = new Set<string>();
         for (const id of ids) {
           const message = state.messagesById[id];
@@ -477,12 +618,10 @@ export const useChatStore = create<ChatStore>()(
             streamingIds.add(id);
           }
         }
-
         const keep = new Set<string>(streamingIds);
         for (let i = ids.length - 1; i >= 0 && keep.size < limit; i -= 1) {
           keep.add(ids[i]!);
         }
-
         const nextById = { ...state.messagesById };
         const nextIds: string[] = [];
         for (const id of ids) {
@@ -507,9 +646,13 @@ export const useChatStore = create<ChatStore>()(
       const nextById: Record<string, Message> = {};
       const nextIdsByChat: Record<string, string[]> = {};
       for (const [chatId, messages] of Object.entries(allChats)) {
-        const { byId, ids } = indexMessages(messages);
-        Object.assign(nextById, byId);
-        nextIdsByChat[chatId] = ids;
+        const ids: string[] = [];
+        for (const message of messages) {
+          if (!message?.id) continue;
+          nextById[message.id] = message;
+          ids.push(message.id);
+        }
+        nextIdsByChat[chatId] = sortIdsByTurn(ids, nextById);
       }
       set({
         messagesById: nextById,
@@ -523,7 +666,9 @@ export const useChatStore = create<ChatStore>()(
     exportLegacyAllChats: () => {
       const state = get();
       const result: Record<string, Message[]> = {};
-      for (const [chatId, ids] of Object.entries(state.messageIdsByChatId)) {
+      for (const [chatId, ids] of Object.entries(
+        state.messageIdsByChatId,
+      )) {
         result[chatId] = ids
           .map((id) => state.messagesById[id])
           .filter((m): m is Message => m !== undefined);
@@ -533,7 +678,6 @@ export const useChatStore = create<ChatStore>()(
   })),
 );
 
-/** Subscribe to ordered message IDs for one chat. */
 export function useChatMessageIds(chatId: string | null): readonly string[] {
   return useChatStore((state) => {
     if (!chatId) return EMPTY_IDS;
@@ -547,7 +691,6 @@ export function useChatMessage(messageId: string | null): Message | undefined {
   );
 }
 
-/** Active chat ID — single source of truth for sidebar selection and message feed. */
 export function useActiveChatId(): string | null {
   return useChatStore((s) => s.activeChatId);
 }
@@ -556,16 +699,13 @@ export function setActiveChatId(chatId: string | null): void {
   useChatStore.getState().setActiveChatId(chatId);
 }
 
-/** Ordered messages for the active chat — shallow-compared to avoid re-render storms. */
 export function useActiveChatMessages(): Message[] {
   return useChatStore(
     useShallow((state) => {
       const chatId = state.activeChatId;
       if (!chatId) return EMPTY_MESSAGES as Message[];
-
       const ids = state.messageIdsByChatId[chatId];
       if (!ids || ids.length === 0) return EMPTY_MESSAGES as Message[];
-
       const result: Message[] = [];
       for (const id of ids) {
         const message = state.messagesById[id];

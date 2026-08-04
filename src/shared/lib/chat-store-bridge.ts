@@ -2,11 +2,14 @@
 
 import type { Message } from "@/lib/types";
 import { useChatStore } from "@/stores/chat-store";
-import { dedupeChatMessages } from "@/lib/dedupe-chat-messages";
 
 export type AllChats = Record<string, Message[]>;
 
-/** Drop-in replacement for useState setAllChats — writes to normalized Zustand store. */
+/**
+ * Drop-in replacement for useState setAllChats — writes to the normalized
+ * Zustand store. The store dedupes by id and sorts by turn by construction,
+ * so no external dedupe/heal pass is needed here.
+ */
 export function setAllChatsNormalized(
   updater: AllChats | ((prev: AllChats) => AllChats),
 ): void {
@@ -18,8 +21,7 @@ export function setAllChatsNormalized(
     if (!next[chatId]) store.removeChat(chatId);
   }
   for (const [chatId, messages] of Object.entries(next)) {
-    // Always collapse optimistic/realtime duplicates before commit.
-    store.setChatMessages(chatId, dedupeChatMessages(messages));
+    store.setChatMessages(chatId, messages);
   }
 }
 
