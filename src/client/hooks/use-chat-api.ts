@@ -29,10 +29,7 @@ import {
   patchAssistantMessage,
   setAllChatsNormalized,
 } from "@/lib/chat-store-bridge";
-import {
-  sealCompletedAssistantMessages,
-  assignLegacyTurnIds,
-} from "@/lib/dedupe-chat-messages";
+import { sealCompletedAssistantMessages, assignLegacyTurnIds } from "@/lib/chat-turn-helpers";
 import {
   assistantClientIdForTurn,
   createTurnId,

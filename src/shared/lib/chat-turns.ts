@@ -1,5 +1,4 @@
 import type { Message } from "@/lib/types";
-import { dedupeChatMessages } from "@/lib/dedupe-chat-messages";
 
 export type ConversationTurnGroup = {
   userMessage: Message | null;
@@ -7,20 +6,20 @@ export type ConversationTurnGroup = {
 };
 
 /**
- * Build render turns from a raw message list.
+ * Build render turns from a message list.
  *
- * `dedupeChatMessages` already emits a turn-ordered list (each user followed by
- * that turn's assistants), so grouping is a plain fold. An assistant joins
- * the open turn only when the turn ids agree — that is what stops a queued
- * follow-up from adopting the previous turn's answer.
+ * The turn-native chat store already dedupes by id and groups by turn by
+ * construction, so the input is turn-ordered: each user is followed by that
+ * turn's assistants. Grouping is a plain fold — an assistant joins the open
+ * turn only when the turn ids agree, which is what stops a queued follow-up
+ * from adopting the previous turn's answer.
  */
 export function groupMessagesIntoTurns(
   messages: readonly Message[],
 ): ConversationTurnGroup[] {
   const groups: ConversationTurnGroup[] = [];
-  const deduped = dedupeChatMessages(messages);
 
-  for (const message of deduped) {
+  for (const message of messages) {
     if (message.role === "user") {
       groups.push({ userMessage: message, assistantMessages: [] });
       continue;
