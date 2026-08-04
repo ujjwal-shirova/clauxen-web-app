@@ -85,7 +85,6 @@ function getToolInfo(): Tool {
 
 function getVcsInfo(root: string): Vcs | undefined {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { execSync } = require("node:child_process") as {
       execSync: (cmd: string, args: string[], opts: { cwd: string; encoding: string }) => string;
     };
@@ -212,13 +211,12 @@ export function appendTrace(trace: TraceRecord): void {
 export function readTraces(): TraceRecord[] {
   const root = getWorkspaceRoot();
   const filePath = join(root, TRACE_PATH);
-  try {
-    if (!existsSync(filePath)) return [];
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { readFileSync } = require("node:fs") as {
-      readFileSync: (path: string, encoding: string) => string;
-    };
-    const raw = readFileSync(filePath, "utf-8");
+    try {
+      if (!existsSync(filePath)) return [];
+      const { readFileSync } = require("node:fs") as {
+        readFileSync: (path: string, encoding: string) => string;
+      };
+      const raw = readFileSync(filePath, "utf-8");
     return raw
       .split("\n")
       .filter((line) => line.trim())
