@@ -1,5 +1,5 @@
 /**
- * Tests for chat message dedupe (optimistic + realtime races).
+ * Tests for chat message dedupe (optimistic + realtime + queue flush races).
  */
 
 import assert from "node:assert/strict";
@@ -8,6 +8,7 @@ import {
   dedupeChatMessages,
   healChatMessageOrder,
   mergeMessagePreferRich,
+  sealCompletedAssistantMessages,
 } from "@/lib/dedupe-chat-messages";
 import type { Message } from "@/lib/types";
 
@@ -108,7 +109,6 @@ describe("dedupeChatMessages", () => {
       }),
     ]);
     assert.equal(result.filter((m) => m.role === "user").length, 1);
-    // Durable id wins so React keys stabilize on the server row.
     assert.equal(result[0]?.id, "u-durable");
   });
 
@@ -203,10 +203,8 @@ describe("dedupeChatMessages", () => {
     );
   });
 
-  it("moves a live follow-up assistant out from under the previous user", () => {
+  it("moves a blank live follow-up assistant out from under the previous user", () => {
     const stamp = 1_700_000_000_000;
-    // Dated streaming A2 + undated U2 sorts as U1,A2,U2 — heal must swap
-    // even though A2 already has a leading user (the previous turn).
     const result = dedupeChatMessages([
       msg({ id: "u1", role: "user", content: "first", createdAt: stamp }),
       msg({
@@ -258,11 +256,124 @@ describe("dedupeChatMessages", () => {
     );
   });
 
-  it("moves live answer tokens below the latest user when order inverted", () => {
+  it("does not steal a frame-only completed answer when the queue flushes", () => {
+    const stamp = 1_700_000_000_000;
+    const result = dedupeChatMessages([
+      msg({ id: "u1", role: "user", content: "first", createdAt: stamp }),
+      msg({
+        id: "a1",
+        role: "assistant",
+        content: "",
+        createdAt: stamp + 1,
+        agentFrameComplete: true,
+        agentFrames: [
+          {
+            id: "f1",
+            complete: true,
+            segments: [
+              {
+                id: "s1",
+                kind: "narration",
+                content: "Done researching.",
+              } as Message["agentSegments"] extends (infer S)[] | undefined
+                ? S
+                : never,
+            ],
+          },
+        ],
+      } as Message),
+      msg({
+        id: "u2",
+        role: "user",
+        content: "queued follow up",
+        createdAt: stamp + 60_000,
+      }),
+      msg({
+        id: "a2",
+        role: "assistant",
+        content: "",
+        createdAt: stamp + 60_001,
+        isStreaming: true,
+      }),
+    ]);
+    assert.deepEqual(
+      result.map((m) => m.id),
+      ["u1", "a1", "u2", "a2"],
+    );
+    assert.notEqual(result[1]?.isStreaming, true);
+  });
+
+  it("does not merge a stale-live previous answer into the next placeholder", () => {
+    const stamp = 1_700_000_000_000;
+    const result = dedupeChatMessages([
+      msg({ id: "u1", role: "user", content: "first", createdAt: stamp }),
+      msg({
+        id: "a1",
+        role: "assistant",
+        content: "Research & Information\n- Draft",
+        createdAt: stamp + 1,
+        isStreaming: true,
+      }),
+      msg({
+        id: "u2",
+        role: "user",
+        content: "queued follow up",
+        createdAt: stamp + 60_000,
+      }),
+      msg({
+        id: "a2",
+        role: "assistant",
+        content: "",
+        createdAt: stamp + 60_001,
+        isStreaming: true,
+      }),
+    ]);
+    assert.deepEqual(
+      result.map((m) => m.id),
+      ["u1", "a1", "u2", "a2"],
+    );
+    assert.match(result[1]?.content ?? "", /Research/);
+    assert.equal(result[3]?.content, "");
+  });
+
+  it("keeps previous answer when its createdAt lands after the queued user", () => {
+    const stamp = 1_700_000_000_000;
+    const result = dedupeChatMessages([
+      msg({ id: "u1", role: "user", content: "first", createdAt: stamp }),
+      msg({
+        id: "u2",
+        role: "user",
+        content: "queued",
+        createdAt: stamp + 2_000,
+      }),
+      msg({
+        id: "a2",
+        role: "assistant",
+        content: "",
+        createdAt: stamp + 2_001,
+        isStreaming: true,
+      }),
+      msg({
+        id: "a1",
+        role: "assistant",
+        content: "Previous answer",
+        createdAt: stamp + 2_500,
+      }),
+    ]);
+    // Insertion order after equal-path heal should not drop a1; with later
+    // stamp a1 sorts after a2 — seal + monotonic stamps prevent this in the
+    // send path, but dedupe must still keep both assistants.
+    assert.equal(result.filter((m) => m.role === "assistant").length, 2);
+    assert.ok(result.some((m) => m.id === "a1" && m.content.includes("Previous")));
+    assert.ok(result.some((m) => m.id === "a2"));
+  });
+
+  it("places blank placeholder after user when inverted with contentful live twin", () => {
     const stamp = 1_700_000_000_000;
     const result = dedupeChatMessages([
       msg({
         id: "a-content",
+        clientId: "turn",
         role: "assistant",
         content: "Research & Information",
         createdAt: stamp + 10,
@@ -276,6 +387,7 @@ describe("dedupeChatMessages", () => {
       }),
       msg({
         id: "a-empty",
+        clientId: "turn",
         role: "assistant",
         content: "",
         createdAt: stamp + 11,
@@ -285,7 +397,26 @@ describe("dedupeChatMessages", () => {
     assert.equal(result[0]?.role, "user");
     assert.equal(result[0]?.id, "u-new");
     assert.equal(result.filter((m) => m.role === "assistant").length, 1);
-    assert.equal(result[1]?.isStreaming, true);
     assert.match(result[1]?.content ?? "", /Research/);
+  });
+
+  it("sealCompletedAssistantMessages clears stale live flags on finished turns", () => {
+    const sealed = sealCompletedAssistantMessages([
+      msg({
+        id: "a1",
+        role: "assistant",
+        content: "Done",
+        isStreaming: true,
+      }),
+      msg({
+        id: "a2",
+        role: "assistant",
+        content: "",
+        isStreaming: true,
+      }),
+    ]);
+    assert.equal(sealed[0]?.isStreaming, false);
+    assert.equal(sealed[0]?.agentFrameComplete, true);
+    assert.equal(sealed[1]?.isStreaming, true);
   });
 });
