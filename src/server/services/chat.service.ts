@@ -335,6 +335,8 @@ export async function streamChatGeneration(input: {
   homerReasoningEffort?: HomerReasoningEffort;
   extendedThinking?: boolean;
   onPauseForUser?: () => void | Promise<void>;
+  /** Correlates browser, Vercel, Worker, and provider-side diagnostics. */
+  requestId?: string;
 }) {
   // Kick ownership + personalization + history immediately so Worker/DB RTTs
   // overlap SSE flush and the DO lease — never block Response headers on them.
@@ -783,6 +785,7 @@ export async function streamChatGeneration(input: {
         messageCount: clientConversation.length,
         responseCharacterCount: answer.length,
         latencyMs,
+        requestId: input.requestId,
         ...(wasCancelled
           ? { errorMessage: "Generation cancelled." }
           : streamError
@@ -906,6 +909,7 @@ export async function streamChatGeneration(input: {
       messageCount: input.messages.length,
       errorMessage: error instanceof Error ? error.message : "Unknown error",
       latencyMs: Date.now() - started,
+      requestId: input.requestId,
     });
     throw error;
   }

@@ -10,6 +10,7 @@ export async function logInferenceTelemetry(input: {
   responseCharacterCount?: number;
   latencyMs?: number;
   errorMessage?: string;
+  requestId?: string;
 }) {
   if (!isDatabaseConfigured()) return;
 
@@ -32,7 +33,10 @@ export async function logInferenceTelemetry(input: {
         input.responseCharacterCount ?? 0,
         input.latencyMs ?? null,
         input.errorMessage ?? null,
-        JSON.stringify({ user_id: input.userId ?? null }),
+        JSON.stringify({
+          user_id: input.userId ?? null,
+          request_id: input.requestId ?? null,
+        }),
       ],
     );
   } catch {

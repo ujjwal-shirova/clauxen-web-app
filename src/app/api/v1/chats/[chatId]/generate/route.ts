@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export const POST = withApiRouteParams<{ chatId: string }>(
-  async ({ session, request, params }) => {
+  async ({ session, request, params, requestId }) => {
     const user = requireSession(session);
     await Promise.all([
       assertDurableRateLimit({
@@ -191,6 +191,7 @@ export const POST = withApiRouteParams<{ chatId: string }>(
             // user's questionnaire answers can start a new turn without 409.
             await endChatGeneration(params.chatId, generationController);
           },
+          requestId,
         });
 
       let finished = false;
