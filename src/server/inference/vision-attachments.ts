@@ -1,4 +1,7 @@
-import type { Responses } from "openai/resources/responses/responses";
+import type {
+  ChatCompletionContentPart,
+  ChatCompletionContentPartImage,
+} from "openai/resources/chat/completions/completions";
 import { getObject } from "@/server/storage/object-store";
 import type { StoragePurpose } from "@/server/storage/object-store";
 import { query } from "@/server/db/pool";
@@ -49,15 +52,15 @@ function purposeForMime(mime: string): StoragePurpose {
 }
 
 /**
- * Load image bytes for OpenAI Responses multimodal input.
+ * Load image bytes for OpenAI-compatible Chat Completions multimodal input.
  * Prefers client-provided base64 (fast path); falls back to R2 via fileIds.
  */
 export async function resolveVisionImageBlocks(input: {
   userId: string;
   fileIds?: string[];
   clientImages?: ClientVisionImage[];
-}): Promise<Responses.ResponseInputImage[]> {
-  const blocks: Responses.ResponseInputImage[] = [];
+}): Promise<ChatCompletionContentPartImage[]> {
+  const blocks: ChatCompletionContentPartImage[] = [];
   const seen = new Set<string>();
 
   for (const image of input.clientImages ?? []) {
@@ -69,9 +72,8 @@ export async function resolveVisionImageBlocks(input: {
     if (seen.has(key)) continue;
     seen.add(key);
     blocks.push({
-      type: "input_image",
-      detail: "auto",
-      image_url: `data:${mime};base64,${base64}`,
+      type: "image_url",
+      image_url: { url: `data:${mime};base64,${base64}`, detail: "auto" },
     });
   }
 
@@ -105,9 +107,8 @@ export async function resolveVisionImageBlocks(input: {
       if (seen.has(key)) continue;
       seen.add(key);
       blocks.push({
-        type: "input_image",
-        detail: "auto",
-        image_url: `data:${mime};base64,${base64}`,
+        type: "image_url",
+        image_url: { url: `data:${mime};base64,${base64}`, detail: "auto" },
       });
     } catch {
       // Skip unreadable files — text context still reaches the model.
@@ -118,25 +119,25 @@ export async function resolveVisionImageBlocks(input: {
 }
 
 /**
- * Attach image blocks to the latest user turn for OpenAI Responses.
+ * Attach image blocks to the latest user turn for OpenAI-compatible Chat Completions.
  * Text stays as a text block; images are native multimodal parts (not filename stubs).
  */
 export function withVisionUserContent(
   text: string,
-  images: Responses.ResponseInputImage[],
-): string | Responses.ResponseInputMessageContentList {
+  images: ChatCompletionContentPartImage[],
+): string | ChatCompletionContentPart[] {
   const cleaned = text.trim();
   if (!images.length) return cleaned;
 
-  const parts: Responses.ResponseInputMessageContentList = [];
+  const parts: ChatCompletionContentPart[] = [];
   for (const image of images) {
     parts.push(image);
   }
   if (cleaned) {
-    parts.push({ type: "input_text", text: cleaned });
+    parts.push({ type: "text", text: cleaned });
   } else {
     parts.push({
-      type: "input_text",
+      type: "text",
       text: "Please analyze the attached image(s).",
     });
   }

@@ -1,17 +1,21 @@
 import OpenAI from "openai";
-import type { Responses } from "openai/resources/responses/responses";
-import { parse as parsePartialJson, Allow } from "partial-json";
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from "openai/resources/chat/completions/completions";
 import {
   requireOpenAIApiKey,
   optionalOpenAIBaseUrl,
 } from "@/server/config/env";
 
-export type OpenAIToolDefinition = Responses.FunctionTool;
-export type OpenAIInputItem = Responses.ResponseInputItem;
-export type OpenAIOutputItem = Responses.ResponseOutputItem;
-export type OpenAIMessageContent =
-  | string
-  | Responses.ResponseInputMessageContentList;
+export type OpenAIToolDefinition = ChatCompletionTool;
+export type OpenAIInputItem = ChatCompletionMessageParam;
+/**
+ * Legacy transcript shape. Chat Completions does not expose Responses output
+ * items, so callers use `replay` to continue a tool round instead.
+ */
+export type OpenAIOutputItem = never;
+export type OpenAIMessageContent = ChatCompletionMessageParam["content"];
 
 export type OpenAIStreamPart =
   | { type: "reasoning-delta"; delta: string }
@@ -32,6 +36,7 @@ export type OpenAIStreamPart =
       type: "finish";
       reason: string;
       output: OpenAIOutputItem[];
+      replay: OpenAIInputItem[];
     }
   | { type: "error"; error: string }
   | { type: "abort" };
@@ -46,25 +51,6 @@ export type OpenAICompletionOptions = {
   reasoningEffort?: "low" | "medium" | "high";
 };
 
-const STRUCTURED_RESPONSE_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    kind: {
-      type: "string",
-      enum: ["narration", "answer"],
-      description:
-        "Use narration while more tool work is needed; use answer for the final response.",
-    },
-    content: {
-      type: "string",
-      description:
-        "Natural-language content shown to the user. Markdown is allowed.",
-    },
-  },
-  required: ["kind", "content"],
-} as const;
-
 function createClient(): OpenAI {
   return new OpenAI({
     apiKey: requireOpenAIApiKey(),
@@ -74,174 +60,98 @@ function createClient(): OpenAI {
   });
 }
 
-function structuredContent(raw: string): string {
-  if (!raw.trim()) return "";
-  try {
-    const value = JSON.parse(raw) as { content?: unknown };
-    return typeof value.content === "string" ? value.content : "";
-  } catch {
-    try {
-      const value = parsePartialJson(raw, Allow.ALL) as {
-        content?: unknown;
-      };
-      return typeof value?.content === "string" ? value.content : "";
-    } catch {
-      return "";
-    }
-  }
-}
-
 /**
- * Stream one OpenAI Responses API round.
+ * Stream one OpenAI-compatible Chat Completions round.
  *
- * The provider emits typed semantic events. Function calls use strict JSON
- * schemas; visible model output follows a strict response schema and only its
- * `content` field is forwarded to the app's SSE activity/answer protocol.
+ * Novita's OpenAI-compatible API supports Chat Completions but not the newer
+ * Responses API. This intentionally uses the broadly supported protocol for
+ * both Novita and official OpenAI-compatible providers.
  */
 export async function* streamOpenAIResponse(
   options: OpenAICompletionOptions,
 ): AsyncGenerator<OpenAIStreamPart> {
   const client = createClient();
-  const toolByItemId = new Map<
-    string,
-    { callId: string; name: string; arguments: string }
-  >();
-  let rawStructured = "";
-  let emittedContent = "";
-  let completed: Responses.Response | null = null;
+  const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
+  let text = "";
 
   try {
-    const stream = client.responses.stream(
+    const stream = await client.chat.completions.create(
       {
         model: options.model,
-        input: options.input,
-        instructions: options.instructions,
+        messages: [
+          ...(options.instructions
+            ? [{ role: "system" as const, content: options.instructions }]
+            : []),
+          ...options.input,
+        ],
         tools: options.tools,
         tool_choice: options.tools?.length ? "auto" : undefined,
         parallel_tool_calls: false,
-        max_output_tokens: options.maxOutputTokens ?? 8192,
-        ...(options.reasoningEffort
-          ? {
-              reasoning: {
-                effort: options.reasoningEffort,
-                summary: "auto",
-              },
-            }
-          : {}),
-        text: {
-          format: {
-            type: "json_schema",
-            name: "agent_response",
-            description:
-              "Structured visible output for the Clauxen agent UI.",
-            strict: true,
-            schema: STRUCTURED_RESPONSE_SCHEMA,
-          },
-        },
+        max_tokens: options.maxOutputTokens ?? 8192,
         stream: true,
-        store: false,
       },
       { signal: options.signal },
     );
 
-    for await (const event of stream) {
+    for await (const chunk of stream) {
       if (options.signal?.aborted) {
         yield { type: "abort" };
         return;
       }
-
-      switch (event.type) {
-        case "response.reasoning_summary_text.delta":
-        case "response.reasoning_text.delta":
-          yield { type: "reasoning-delta", delta: event.delta };
-          break;
-
-        case "response.output_text.delta": {
-          rawStructured += event.delta;
-          const content = structuredContent(rawStructured);
-          if (content.startsWith(emittedContent)) {
-            const delta = content.slice(emittedContent.length);
-            if (delta) {
-              emittedContent = content;
-              yield { type: "text-delta", delta };
-            }
+      const choice = chunk.choices[0];
+      if (!choice) continue;
+      const delta = choice.delta;
+      const reasoning = (delta as { reasoning_content?: unknown }).reasoning_content;
+      if (typeof reasoning === "string" && reasoning) {
+        yield { type: "reasoning-delta", delta: reasoning };
+      }
+      if (typeof delta.content === "string" && delta.content) {
+        text += delta.content;
+        yield { type: "text-delta", delta: delta.content };
+      }
+      for (const toolCall of delta.tool_calls ?? []) {
+        const index = toolCall.index;
+        let entry = toolCalls.get(index);
+        if (!entry) {
+          entry = {
+            id: toolCall.id ?? `call_${index}`,
+            name: toolCall.function?.name ?? "",
+            arguments: "",
+          };
+          toolCalls.set(index, entry);
+          if (entry.name) {
+            yield { type: "tool-call-start", toolCallId: entry.id, toolName: entry.name };
           }
-          break;
         }
-
-        case "response.output_item.added": {
-          if (event.item.type !== "function_call") break;
-          const callId = event.item.call_id;
-          toolByItemId.set(event.item.id ?? callId, {
-            callId,
-            name: event.item.name,
-            arguments: event.item.arguments ?? "",
-          });
-          yield {
-            type: "tool-call-start",
-            toolCallId: callId,
-            toolName: event.item.name,
-          };
-          break;
+        if (toolCall.function?.name && !entry.name) {
+          entry.name = toolCall.function.name;
+          yield { type: "tool-call-start", toolCallId: entry.id, toolName: entry.name };
         }
-
-        case "response.function_call_arguments.delta": {
-          const entry = toolByItemId.get(event.item_id);
-          if (!entry) break;
-          entry.arguments += event.delta;
-          yield {
-            type: "tool-call-delta",
-            toolCallId: entry.callId,
-            argumentsDelta: event.delta,
-          };
-          break;
+        if (toolCall.function?.arguments) {
+          entry.arguments += toolCall.function.arguments;
+          yield { type: "tool-call-delta", toolCallId: entry.id, argumentsDelta: toolCall.function.arguments };
         }
-
-        case "response.function_call_arguments.done": {
-          const entry = toolByItemId.get(event.item_id);
-          const callId = entry?.callId ?? event.item_id;
-          const name = entry?.name ?? event.name;
-          yield {
-            type: "tool-call-end",
-            toolCallId: callId,
-            toolName: name,
-            arguments: event.arguments || entry?.arguments || "{}",
-          };
-          break;
-        }
-
-        case "response.completed":
-          completed = event.response;
-          break;
-
-        case "response.failed":
-          yield {
-            type: "error",
-            error:
-              event.response.error?.message ??
-              "OpenAI response generation failed.",
-          };
-          return;
-
-        case "error":
-          yield {
-            type: "error",
-            error: event.message || "OpenAI streaming error.",
-          };
-          return;
       }
     }
-
-    completed ??= await stream.finalResponse();
-    const finalContent = structuredContent(completed.output_text);
-    if (finalContent.startsWith(emittedContent)) {
-      const delta = finalContent.slice(emittedContent.length);
-      if (delta) yield { type: "text-delta", delta };
+    for (const entry of toolCalls.values()) {
+      if (entry.name) {
+        yield { type: "tool-call-end", toolCallId: entry.id, toolName: entry.name, arguments: entry.arguments || "{}" };
+      }
     }
+    const replay: OpenAIInputItem[] = [
+      {
+        role: "assistant",
+        content: text || null,
+        ...(toolCalls.size
+          ? { tool_calls: [...toolCalls.values()].map((call) => ({ id: call.id, type: "function" as const, function: { name: call.name, arguments: call.arguments || "{}" } })) }
+          : {}),
+      },
+    ];
     yield {
       type: "finish",
-      reason: completed.status ?? "completed",
-      output: completed.output,
+      reason: "stop",
+      output: [],
+      replay,
     };
   } catch (error) {
     if (options.signal?.aborted) {
@@ -264,10 +174,12 @@ export function toOpenAITools(
 ): OpenAIToolDefinition[] {
   return tools.map((tool) => ({
     type: "function",
-    name: tool.name,
-    description: tool.description ?? tool.name,
-    parameters: strictToolSchema(tool.parameters ?? {}),
-    strict: true,
+    function: {
+      name: tool.name,
+      description: tool.description ?? tool.name,
+      parameters: strictToolSchema(tool.parameters ?? {}),
+      strict: true,
+    },
   }));
 }
 

@@ -455,7 +455,7 @@ export async function runAutonomousAgent(
       let roundText = "";
       let roundNarrationId: string | null = null;
       let finished:
-        | { reason: string; output: OpenAIOutputItem[] }
+        | { reason: string; output: OpenAIOutputItem[]; replay: OpenAIInputItem[] }
         | undefined;
 
       const stream = deps.callModel({
@@ -547,7 +547,11 @@ export async function runAutonomousAgent(
             break;
 
           case "finish":
-            finished = { reason: part.reason, output: part.output };
+            finished = {
+              reason: part.reason,
+              output: part.output,
+              replay: part.replay,
+            };
             break;
 
           case "error":
@@ -589,15 +593,14 @@ export async function runAutonomousAgent(
       }
 
       // ── Tool round: the round's text stays as narration; execute tools. ──
-      if (!finished || finished.output.length === 0) {
+      if (!finished || finished.replay.length === 0) {
         throw new Error(
           "The model requested a tool without a replayable assistant message.",
         );
       }
 
-      // Replay native Responses output items. Function call ids remain stable
-      // across the tool-output continuation round.
-      conversation.push(...(finished.output as OpenAIInputItem[]));
+      // Replay the assistant tool-call message before its tool results.
+      conversation.push(...finished.replay);
 
       let pauseForUser = false;
       const toolResults: Array<{
@@ -746,9 +749,9 @@ export async function runAutonomousAgent(
 
       for (const result of toolResults) {
         conversation.push({
-          type: "function_call_output",
-          call_id: result.toolCallId,
-          output: result.result,
+          role: "tool",
+          tool_call_id: result.toolCallId,
+          content: result.result,
         });
       }
 
@@ -821,49 +824,32 @@ export async function generateChatTitle(
         ? { baseURL: optionalOpenAIBaseUrl() }
         : {}),
     });
-    const response = await client.responses.create(
+    const response = await client.chat.completions.create(
       {
         model: optionsModelForTitle(),
-        max_output_tokens: 80,
-        instructions:
-          "You write short conversation titles for a chat sidebar. Output ONLY the title (3-6 words). No quotes or labels.",
-        input: [
+        max_tokens: 80,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You write short conversation titles for a chat sidebar. Output ONLY the title (3-6 words). No quotes or labels.",
+          },
           {
             role: "user",
             content: [
-              {
-                type: "input_text",
-                text: [
-                  userContent ? `User: ${userContent.slice(0, 500)}` : "",
-                  assistantContent
-                    ? `Assistant: ${assistantContent.slice(0, 500)}`
-                    : "",
-                ]
-                  .filter(Boolean)
-                  .join("\n"),
-              },
-            ],
+              userContent ? `User: ${userContent.slice(0, 500)}` : "",
+              assistantContent
+                ? `Assistant: ${assistantContent.slice(0, 500)}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
           },
         ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "chat_title",
-            strict: true,
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: { title: { type: "string" } },
-              required: ["title"],
-            },
-          },
-        },
-        store: false,
       },
       { signal },
     );
-    const parsed = JSON.parse(response.output_text) as { title?: unknown };
-    const text = typeof parsed.title === "string" ? parsed.title.trim() : "";
+    const text = response.choices[0]?.message.content?.trim() ?? "";
     return text.slice(0, 80) || userContent.slice(0, 50).trim();
   } catch {
     return userContent.slice(0, 50).trim();
