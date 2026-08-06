@@ -43,8 +43,8 @@ export function AgentThinkingPhase({
     );
 
   const status = segment.isStreaming
-    ? "Extended reasoning is in progress."
-    : "Extended reasoning completed before this response.";
+    ? "Planning the next verified action."
+    : "Reasoning completed before the next action.";
 
   return (
     <div
@@ -73,9 +73,7 @@ export function AgentThinkingPhase({
         aria-hidden={!isExpanded}
       >
         <div className="overflow-hidden">
-          <p className="px-0.5 text-[13px] leading-5 text-zinc-400">
-            {status}
-          </p>
+          <p className="px-0.5 text-[13px] leading-5 text-zinc-400">{status}</p>
         </div>
       </div>
     </div>

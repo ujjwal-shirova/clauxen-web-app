@@ -191,8 +191,11 @@ function emitArtifactRecord(
           : undefined,
     fileId,
     storagePath:
-      typeof artifact.storagePath === "string" ? artifact.storagePath : undefined,
-    mimeType: typeof artifact.mimeType === "string" ? artifact.mimeType : undefined,
+      typeof artifact.storagePath === "string"
+        ? artifact.storagePath
+        : undefined,
+    mimeType:
+      typeof artifact.mimeType === "string" ? artifact.mimeType : undefined,
     sizeBytes:
       typeof artifact.sizeBytes === "number" ? artifact.sizeBytes : undefined,
   });
@@ -306,6 +309,123 @@ type PendingToolCall = {
   name: string;
   arguments: string;
 };
+
+function textArg(args: Record<string, unknown>, key: string): string {
+  const value = args[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function conciseDetail(value: string, maxLength = 120): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+/** Safe, concrete narration when a model calls a tool without explaining it. */
+function describeToolIntent(
+  name: string,
+  args: Record<string, unknown>,
+): string {
+  const description = conciseDetail(textArg(args, "description"));
+  const path = conciseDetail(textArg(args, "path"));
+
+  switch (name) {
+    case "web_search": {
+      const query = conciseDetail(textArg(args, "query"), 90);
+      return query
+        ? `I’m searching the web for “${query}”.`
+        : "I’m searching the web for reliable sources.";
+    }
+    case "web_fetch": {
+      const rawUrl = textArg(args, "url");
+      let host = "the selected page";
+      try {
+        host = new URL(rawUrl).hostname.replace(/^www\./, "") || host;
+      } catch {
+        // Use the generic description for an incomplete streamed URL.
+      }
+      return `I’m reading ${host} for the relevant details.`;
+    }
+    case "bash_tool":
+      return description
+        ? `I’m checking the workspace: ${description}.`
+        : "I’m checking the workspace and validating the next step.";
+    case "execute_code":
+      return description
+        ? `I’m running an analysis: ${description}.`
+        : "I’m running an analysis to verify the result.";
+    case "file_read":
+      return path
+        ? `I’m reviewing ${path}.`
+        : "I’m reviewing the requested file.";
+    case "create_file":
+      return path
+        ? `I’m preparing ${path}.`
+        : "I’m preparing the requested file.";
+    case "file_write":
+      return path
+        ? `I’m updating ${path}.`
+        : "I’m updating the requested file.";
+    case "read_skill":
+      return "I’m loading the relevant workspace guidance before continuing.";
+    case "image_search":
+      return "I’m finding suitable images for this task.";
+    case "places_search":
+      return "I’m looking up the relevant places and location details.";
+    case "weather_fetch":
+      return "I’m checking the latest weather conditions.";
+    case "ask_user_input_v0":
+      return "I need one quick decision before I can continue.";
+    default:
+      return name.startsWith("mcp__")
+        ? "I’m using the connected service to complete the next step."
+        : "I’m carrying out the next verified step.";
+  }
+}
+
+/** Brief result handoff so the visible timeline has a useful bridge to the next action. */
+function describeToolOutcome(
+  name: string,
+  args: Record<string, unknown>,
+  result: string,
+  isError: boolean,
+): string {
+  if (isError) {
+    return "That step ran into an issue. I’m using the result to adjust the next action.";
+  }
+
+  if (name === "web_search") {
+    const parsed = safeParseJson(result);
+    const results = Array.isArray(parsed.results) ? parsed.results.length : 0;
+    return results > 0
+      ? `I found ${results} relevant source${results === 1 ? "" : "s"}; I’m checking the strongest evidence next.`
+      : "The search is complete; I’m checking the available evidence next.";
+  }
+
+  if (name === "web_fetch") {
+    return "I have the page content and I’m checking it against the request.";
+  }
+
+  if (name === "file_read") {
+    const path = conciseDetail(textArg(args, "path"));
+    return path
+      ? `I’ve reviewed ${path} and I’m using it for the next step.`
+      : "I’ve reviewed the file and I’m using it for the next step.";
+  }
+
+  if (name === "create_file" || name === "file_write") {
+    const path = conciseDetail(textArg(args, "path"));
+    return path
+      ? `${path} is ready; I’m verifying the remaining work.`
+      : "The file update is ready; I’m verifying the remaining work.";
+  }
+
+  if (name === "bash_tool" || name === "execute_code") {
+    return "That check completed; I’m using the output to decide the next verified action.";
+  }
+
+  return "That step completed; I’m using the result to continue.";
+}
 
 /**
  * Run the autonomous agent loop, streaming protocol events to the UI.
@@ -438,6 +558,14 @@ export async function runAutonomousAgent(
     return activeThinkingId;
   };
 
+  const writeActivityNarration = (text: string) => {
+    if (!text.trim()) return;
+    closeNarration();
+    const segmentId = ensureNarration();
+    sse.writeNarrationDelta(segmentId, text);
+    closeNarration();
+  };
+
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       if (signal?.aborted) {
@@ -455,7 +583,11 @@ export async function runAutonomousAgent(
       let roundText = "";
       let roundNarrationId: string | null = null;
       let finished:
-        | { reason: string; output: OpenAIOutputItem[]; replay: OpenAIInputItem[] }
+        | {
+            reason: string;
+            output: OpenAIOutputItem[];
+            replay: OpenAIInputItem[];
+          }
         | undefined;
 
       const stream = deps.callModel({
@@ -611,9 +743,14 @@ export async function runAutonomousAgent(
       }> = [];
 
       // Sequential execution: the sandbox is stateful and the UI reads top-down.
-      for (const tc of pendingToolCalls) {
+      for (const [toolIndex, tc] of pendingToolCalls.entries()) {
         if (signal?.aborted) break;
         const rawArgs = safeParseJson(tc.arguments);
+        // The model normally provides a pre-tool note. If it skips that note,
+        // provide one ourselves; batched calls also each get their own intent.
+        if (!roundText.trim() || toolIndex > 0) {
+          writeActivityNarration(describeToolIntent(tc.name, rawArgs));
+        }
         sse.writeToolStart(
           tc.id,
           tc.name,
@@ -629,6 +766,9 @@ export async function runAutonomousAgent(
           const outcome = await mcp.call(tc.name, rawArgs);
           const isError = outcome.isError;
           sse.writeToolEnd(tc.id, tc.name, outcome.text, isError);
+          writeActivityNarration(
+            describeToolOutcome(tc.name, rawArgs, outcome.text, isError),
+          );
           toolResults.push({
             toolCallId: tc.id,
             name: tc.name,
@@ -739,6 +879,9 @@ export async function runAutonomousAgent(
         }
 
         sse.writeToolEnd(tc.id, tc.name, resultStr, isError);
+        writeActivityNarration(
+          describeToolOutcome(tc.name, rawArgs, resultStr, isError),
+        );
         toolResults.push({
           toolCallId: tc.id,
           name: tc.name,
@@ -820,9 +963,7 @@ export async function generateChatTitle(
   try {
     const client = new OpenAI({
       apiKey: requireOpenAIApiKey(),
-      ...(optionalOpenAIBaseUrl()
-        ? { baseURL: optionalOpenAIBaseUrl() }
-        : {}),
+      ...(optionalOpenAIBaseUrl() ? { baseURL: optionalOpenAIBaseUrl() } : {}),
     });
     const response = await client.chat.completions.create(
       {
@@ -872,9 +1013,9 @@ function safeParseJson(raw: string): Record<string, unknown> {
 function isToolErrorOutput(output: unknown): boolean {
   return Boolean(
     output &&
-      typeof output === "object" &&
-      !Array.isArray(output) &&
-      typeof (output as { error?: unknown }).error === "string",
+    typeof output === "object" &&
+    !Array.isArray(output) &&
+    typeof (output as { error?: unknown }).error === "string",
   );
 }
 
