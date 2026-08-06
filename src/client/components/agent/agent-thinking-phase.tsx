@@ -22,8 +22,7 @@ export function AgentThinkingPhase({
     ) : duration ? (
       <>
         <span className="agent-activity-label--primary">Thought</span>
-        <span className="agent-activity-label--subtle">
-          {" "}
+        <span className="agent-activity-label--subtle ml-1">
           for {duration}s
         </span>
       </>

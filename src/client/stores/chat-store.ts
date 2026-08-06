@@ -100,16 +100,20 @@ function hasBody(message: Message): boolean {
   return false;
 }
 
-/** Turn sort key: group by turnId, user before assistant, then createdAt. */
-function turnSortKey(message: Message, index: number): string {
-  const turnId =
-    message.turnId ?? deriveTurnIdFromClientId(message.clientId) ?? "";
+/** Keep turn groups chronological; user messages precede their assistant reply. */
+function turnSortKey(
+  message: Message,
+  index: number,
+  turnStartedAt: ReadonlyMap<string, number>,
+): string {
+  const turnId = message.turnId ?? deriveTurnIdFromClientId(message.clientId);
+  const turnStamp = turnId ? turnStartedAt.get(turnId) : undefined;
   const roleRank = message.role === "user" ? "0" : "1";
   const stamp =
-    typeof message.createdAt === "number"
-      ? message.createdAt.toString().padStart(13, "0")
+    typeof turnStamp === "number"
+      ? turnStamp.toString().padStart(13, "0")
       : "9999999999999";
-  return `${turnId}\u0000${roleRank}\u0000${stamp}\u0000${index
+  return `${stamp}\u0000${roleRank}\u0000${index
     .toString()
     .padStart(10, "0")}`;
 }
@@ -119,13 +123,27 @@ function sortIdsByTurn(
   byId: Record<string, Message>,
 ): string[] {
   if (ids.length <= 1) return ids;
+  const turnStartedAt = new Map<string, number>();
+  for (const id of ids) {
+    const message = byId[id];
+    if (!message || typeof message.createdAt !== "number") continue;
+    const turnId =
+      message.turnId ?? deriveTurnIdFromClientId(message.clientId);
+    if (!turnId) continue;
+    const existing = turnStartedAt.get(turnId);
+    if (existing === undefined || message.createdAt < existing) {
+      turnStartedAt.set(turnId, message.createdAt);
+    }
+  }
   return ids
     .map((id, index) => ({ id, index }))
     .sort((a, b) => {
       const ma = byId[a.id];
       const mb = byId[b.id];
       if (!ma || !mb) return a.index - b.index;
-      return turnSortKey(ma, a.index).localeCompare(turnSortKey(mb, b.index));
+      return turnSortKey(ma, a.index, turnStartedAt).localeCompare(
+        turnSortKey(mb, b.index, turnStartedAt),
+      );
     })
     .map((entry) => entry.id);
 }
