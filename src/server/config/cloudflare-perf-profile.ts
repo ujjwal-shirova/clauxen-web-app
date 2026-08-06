@@ -11,8 +11,8 @@
  * - Rocket Loader: OFF (breaks React hydration)
  * - Auto Minify JS: OFF
  * - Polish (lossy) + WebP: on
- * - Tiered Cache: Smart
- * - Argo Smart Routing: ON (paid — origin path to Vercel + Workers)
+ * - Smart Tiered Cache: on with the Vercel public-cloud origin hint (free)
+ * - Argo Smart Routing: OFF unless measured origin-path latency justifies it
  *
  * ## Cache Rules
  * - `/_next/static/*` — Edge TTL 1y, Browser 1y, cache everything
@@ -32,13 +32,13 @@
  * - chat-coord: Durable Object generation lease per chatId
  *
  * ## Supabase
- * - Transaction pooler :6543 + Dedicated Pooler addon
+ * - Transaction pooler :6543; scale the pool only after connection saturation
  * - SECURITY DEFINER chat RPCs service_role-only
  * - pgvector for RAG; no Vectorize on product path
  *
  * ## Vercel
  * - Region `pdx1` (near Supabase us-west-1)
- * - Fluid Compute + Performance CPU on generate
+ * - Fluid Compute on; keep 1 GB only for long-running streaming/generation routes
  * - Env: chat-history + WORKER_URL + CHAT_COORD_* + EDGE_CONFIG
  *
  * ## Deploy
@@ -54,7 +54,14 @@ export const CLOUDFLARE_PERF_PROFILE = {
   autoMinifyJs: false,
   polish: "lossy",
   tieredCache: "smart",
-  argoSmartRouting: true,
+  // Argo is a paid add-on. The free-zone default is the better cost/perf
+  // baseline until monitoring shows origin-network latency is the bottleneck.
+  argoSmartRouting: false,
+  workerTraceSampling: {
+    chatHistory: 0.05,
+    chatCoord: 0.1,
+    r2Gateway: 0.1,
+  },
   staticPathEdgeTtlSeconds: 31_536_000,
   assetsPathEdgeTtlSeconds: 86_400,
   chatHistoryLatestTtlSeconds: 120,

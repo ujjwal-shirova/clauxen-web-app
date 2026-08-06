@@ -7,7 +7,8 @@ workers_dev = true
 
 [observability]
 enabled = true
-head_sampling_rate = 1
+# Durable Object coordination is latency-sensitive but high frequency.
+head_sampling_rate = 0.1
 
 [placement]
 region = "aws:us-west-1"
