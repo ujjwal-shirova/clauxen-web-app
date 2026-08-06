@@ -478,7 +478,7 @@ export async function runAutonomousAgent(
       for await (const part of stream) {
         switch (part.type) {
           case "reasoning-delta": {
-            if (!part.delta) break;
+            if (!part.delta || thinkingBudget <= 0) break;
             // Open the thinking segment so the orb/timeline is live while the
             // model reasons — do not dump private CoT into the transcript.
             ensureThinking();

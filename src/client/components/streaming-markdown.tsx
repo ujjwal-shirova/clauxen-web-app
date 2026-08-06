@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import {
   convertCitationReferencesToLinks,
   stripReferenceDefinitions,
+  stripTrailingCitationClusters,
   type ChatSource,
 } from "@/lib/chat-sources";
 import { normalizeLatexDelimiters } from "@/components/markdown-shared";
@@ -43,6 +44,9 @@ export function StreamingMarkdown({
     });
     let nextMarkdown = prepared.markdown;
     if (sources.length > 0) {
+      // Do not briefly render an appended citation footer while a streamed
+      // answer is still being parsed; cited prose is converted below.
+      nextMarkdown = stripTrailingCitationClusters(nextMarkdown);
       // Live citation chips as tokens arrive — unwrap paren/comma clusters.
       nextMarkdown = convertCitationReferencesToLinks(nextMarkdown, sources);
     }

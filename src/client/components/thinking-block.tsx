@@ -95,7 +95,8 @@ export function ThinkingBlock({
     return () => window.clearInterval(timer);
   }, [isStreaming, thinkingDurationSeconds, thinkingStartedAtMs]);
 
-  if (!content.trim()) {
+  const hasContent = Boolean(content.trim());
+  if (!hasContent && !isStreaming && !thinkingDurationSeconds) {
     return null;
   }
 
@@ -116,7 +117,7 @@ export function ThinkingBlock({
             <button
               type="button"
               onClick={() => setIsVisible((value) => !value)}
-              className="flex w-full items-center gap-2 rounded-[10px] py-0.5 text-left text-[14px] leading-5 text-zinc-500 transition-all duration-200 hover:text-zinc-800"
+              className="group flex w-full items-center gap-2 rounded-[10px] py-0.5 text-left text-[14px] leading-5 text-zinc-500 transition-all duration-200 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
               aria-expanded={isVisible}
             >
               <span
@@ -130,7 +131,7 @@ export function ThinkingBlock({
               </span>
               <ChevronDown
                 className={cn(
-                  "icon-md shrink-0 icon-muted transition-transform duration-200",
+                  "icon-md shrink-0 icon-muted opacity-0 transition-[opacity,transform] duration-200 group-hover:opacity-100 group-focus-visible:opacity-100",
                   isVisible && "rotate-180",
                 )}
               />
@@ -154,12 +155,20 @@ export function ThinkingBlock({
                   data-chat-scroll-passthrough=""
                 >
                   <div className="thinking-markdown">
-                    <MarkdownRenderer
-                      content={content}
-                      isStreaming={isStreaming}
-                      showCursor={false}
-                      lightweightStream={isStreaming}
-                    />
+                    {hasContent ? (
+                      <MarkdownRenderer
+                        content={content}
+                        isStreaming={isStreaming}
+                        showCursor={false}
+                        lightweightStream={isStreaming}
+                      />
+                    ) : (
+                      <p className="text-zinc-400">
+                        {isStreaming
+                          ? "Extended reasoning is in progress."
+                          : "Extended reasoning completed before this response."}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

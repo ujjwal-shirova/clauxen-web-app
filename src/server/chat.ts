@@ -99,9 +99,13 @@ export async function handleChatPost(request: Request) {
       model: runtime.modelSlug,
       chatModelId,
       homerReasoningEffort,
+      // The composer choice is authoritative for an active turn. Keep the
+      // saved preference only as a backwards-compatible fallback for older
+      // clients that do not send `extendedThinking` at all.
       thinkingEnabled:
-        body.extendedThinking === true ||
-        userPersonalization?.extendedThinking === true,
+        typeof body.extendedThinking === "boolean"
+          ? body.extendedThinking
+          : userPersonalization?.extendedThinking === true,
       userId: auth.session?.id,
       conversationId,
       userCountryCode: resolveRequestCountryCode(request.headers),

@@ -216,7 +216,7 @@ export function SourceChip({
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
         className={cn(
-          "relative mx-0.5 inline-flex align-middle items-center border border-zinc-200/90 bg-white font-medium text-zinc-700 outline-none transition-colors duration-150 hover:border-zinc-300 hover:bg-zinc-50 focus-visible:border-zinc-300 focus-visible:ring-0 overflow-anchor-none",
+          "relative mx-0.5 inline-flex whitespace-nowrap align-middle items-center border border-zinc-200/90 bg-white font-medium text-zinc-700 outline-none transition-colors duration-150 hover:border-zinc-300 hover:bg-zinc-50 focus-visible:border-zinc-300 focus-visible:ring-0 overflow-anchor-none",
           sizeClasses,
         )}
         data-source-chip=""
