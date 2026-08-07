@@ -11,6 +11,7 @@ const MAX_PROJECT_NAME_LENGTH = 200;
 const MAX_PROJECT_DESCRIPTION_LENGTH = 2000;
 const MAX_PROJECT_COLOR_LENGTH = 32;
 const MAX_PROJECT_SYSTEM_PROMPT_LENGTH = 8000;
+const MAX_PROJECT_ICON_LENGTH = 16;
 
 function assertValidProjectId(projectId: string) {
   if (!PROJECT_ID_RE.test(projectId)) {
@@ -23,6 +24,7 @@ function parseProjectPatch(body: unknown): {
   description?: string;
   color?: string;
   system_prompt?: string;
+  icon?: string;
 } {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     throw new AppError("Invalid JSON body.", 400);
@@ -33,6 +35,7 @@ function parseProjectPatch(body: unknown): {
     description?: string;
     color?: string;
     system_prompt?: string;
+    icon?: string;
   } = {};
   if ("name" in raw) {
     if (typeof raw.name !== "string")
@@ -73,11 +76,21 @@ function parseProjectPatch(body: unknown): {
     // Empty string clears instructions; the repo coalesces null → keep existing.
     patch.system_prompt = raw.system_prompt;
   }
+  if ("icon" in raw) {
+    if (
+      typeof raw.icon !== "string" ||
+      raw.icon.trim().length > MAX_PROJECT_ICON_LENGTH
+    ) {
+      throw new AppError("Invalid project icon.", 400);
+    }
+    patch.icon = raw.icon.trim();
+  }
   if (
     !("name" in patch) &&
     !("description" in patch) &&
     !("color" in patch) &&
-    !("system_prompt" in patch)
+    !("system_prompt" in patch) &&
+    !("icon" in patch)
   ) {
     throw new AppError("No valid fields to update.", 400);
   }

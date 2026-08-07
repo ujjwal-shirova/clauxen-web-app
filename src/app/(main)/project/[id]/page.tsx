@@ -149,6 +149,11 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
           await projectsHook.updateProject(id, { system_prompt: text });
         }
       }}
+      onSaveIcon={async (icon) => {
+        if (!apiEnabled) return;
+        const updated = await projectsHook.updateProject(id, { icon });
+        setProject(updated);
+      }}
       projectChats={(session?.startedRecentChats ?? []).filter(
         (chat) => chat.projectId === id,
       )}

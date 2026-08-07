@@ -416,8 +416,8 @@ export function Sidebar({
           }}
           className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
         >
-          <span className="ui-nav-icon text-zinc-800/66">
-            <NavProjectsIcon className="size-4" />
+          <span className="ui-nav-icon flex size-4 items-center justify-center text-[15px] leading-none text-zinc-800/66">
+            {project.icon || <NavProjectsIcon className="size-4" />}
           </span>
           <span className="min-w-0 flex-1 truncate">
             {project.name || "Untitled project"}

@@ -4,10 +4,12 @@ import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { appBtn } from "@/lib/app-buttons";
 import { AppHref } from "@/components/app-href";
+import { ProjectIconPicker } from "@/components/project-icon-picker";
 
 export type CreateProjectFormValues = {
   name: string;
   description: string;
+  icon: string;
 };
 
 type CreateProjectFormProps = {
@@ -23,6 +25,7 @@ type CreateProjectFormProps = {
   submitLabel?: string;
   initialName?: string;
   initialDescription?: string;
+  initialIcon?: string;
 };
 
 /**
@@ -39,23 +42,22 @@ export function CreateProjectForm({
   submitLabel = "Create project",
   initialName = "",
   initialDescription = "",
+  initialIcon = "📁",
 }: CreateProjectFormProps) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
+  const [icon, setIcon] = useState(initialIcon);
   const canSubmit = name.trim().length > 0 && !isSubmitting;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    void onSubmit({ name: name.trim(), description: description.trim() });
+    void onSubmit({ name: name.trim(), description: description.trim(), icon });
   };
 
   return (
     <div
-      className={cn(
-        "w-full max-w-[520px] font-sans text-zinc-900",
-        className,
-      )}
+      className={cn("w-full max-w-[520px] font-sans text-zinc-900", className)}
     >
       <h1 className="mb-3 text-[22px] font-semibold leading-[26px] text-zinc-900">
         {heading}
@@ -80,6 +82,18 @@ export function CreateProjectForm({
             </div>
           </div>
         ) : null}
+
+        <div className="flex flex-col gap-2">
+          <span className="text-[14px] font-medium text-zinc-900">
+            Project icon
+          </span>
+          <ProjectIconPicker
+            value={icon}
+            onChange={setIcon}
+            disabled={isSubmitting}
+            gallery
+          />
+        </div>
 
         <div className="flex flex-col gap-2">
           <label

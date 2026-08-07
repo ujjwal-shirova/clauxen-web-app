@@ -26,15 +26,18 @@ function ProjectCreateContent() {
   const handleCreate = async ({
     name,
     description,
+    icon,
   }: {
     name: string;
     description: string;
+    icon: string;
   }) => {
     setIsCreating(true);
     try {
       const project = await projects.createProject({
         name,
         description: description || undefined,
+        icon,
       });
       if (project) {
         instantNavigate(APP_ROUTES.project(project.id), { replace: true });

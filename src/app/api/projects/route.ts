@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 const createSchema = z.object({
   name: z.string().trim().min(1).max(100),
   description: z.string().trim().max(500).optional(),
+  icon: z.string().trim().max(16).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -37,13 +38,17 @@ export async function POST(request: NextRequest) {
 
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {
-      return jsonError(parsed.error.issues[0]?.message ?? "Validation failed.", 400);
+      return jsonError(
+        parsed.error.issues[0]?.message ?? "Validation failed.",
+        400,
+      );
     }
 
     const project = await projectsRepo.createProject({
       userId: user.id,
       name: parsed.data.name,
       description: parsed.data.description,
+      icon: parsed.data.icon,
     });
     if (!project) return jsonError("Failed to create project.", 500);
     return jsonData({ project }, 201);

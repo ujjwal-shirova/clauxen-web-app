@@ -40,11 +40,12 @@ export async function createProject(input: {
   name: string;
   description?: string;
   color?: string;
+  icon?: string;
   workspaceId?: string | null;
 }) {
   return queryOne<ProjectRow>(
-    `insert into public.projects (user_id, workspace_id, name, description, color)
-     select $1, $2, $3, $4, $5
+    `insert into public.projects (user_id, workspace_id, name, description, color, icon)
+     select $1, $2, $3, $4, $5, $6
      where $2 is null
         or exists (
           select 1 from public.workspaces w
@@ -64,6 +65,7 @@ export async function createProject(input: {
       input.name,
       input.description ?? null,
       input.color ?? null,
+      input.icon ?? null,
     ],
   ); // unauthorized workspace_id → zero rows → null
 }
@@ -71,7 +73,13 @@ export async function createProject(input: {
 export async function updateProject(
   projectId: string,
   userId: string,
-  patch: { name?: string; description?: string; color?: string; system_prompt?: string | null },
+  patch: {
+    name?: string;
+    description?: string;
+    color?: string;
+    system_prompt?: string | null;
+    icon?: string;
+  },
 ) {
   return queryOne<ProjectRow>(
     `update public.projects set
@@ -79,6 +87,7 @@ export async function updateProject(
        description = coalesce($4, description),
        color = coalesce($5, color),
        system_prompt = coalesce($6, system_prompt),
+       icon = coalesce($7, icon),
        updated_at = now()
      where id = $1 and user_id = $2 and status = 'active'
      returning id, user_id, workspace_id, name, description, system_prompt, color, icon, status, created_at, updated_at`,
@@ -89,6 +98,7 @@ export async function updateProject(
       patch.description ?? null,
       patch.color ?? null,
       patch.system_prompt ?? null,
+      patch.icon ?? null,
     ],
   );
 }

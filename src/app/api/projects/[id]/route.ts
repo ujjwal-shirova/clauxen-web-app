@@ -14,6 +14,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
   description: z.string().trim().max(500).optional().nullable(),
+  icon: z.string().trim().max(16).optional(),
 });
 
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -53,6 +54,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const project = await projectsRepo.updateProject(id, user.id, {
       name: parsed.data.name,
       description: parsed.data.description ?? undefined,
+      icon: parsed.data.icon,
     });
     if (!project) return jsonError("Project not found.", 404);
     return jsonData({ project });

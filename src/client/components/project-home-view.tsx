@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Folder, MessageSquare, MoreHorizontal, Plus } from "lucide-react";
+import { MessageSquare, MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ApiProject } from "@/lib/api/projects";
 import { PromptInput } from "@/components/prompt-input";
@@ -22,6 +22,7 @@ import {
   type ProjectFileMeta,
 } from "@/lib/project-storage";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
+import { ProjectIconPicker } from "@/components/project-icon-picker";
 import * as projectFilesApi from "@/lib/api/project-files";
 import { useAppNotifications } from "@/hooks/use-app-notifications";
 import type { RecentChat } from "@/lib/types";
@@ -34,6 +35,7 @@ type ProjectHomeViewProps = {
   onStopGeneration: () => void;
   isGenerating?: boolean;
   onSaveInstructions?: (text: string) => void | Promise<void>;
+  onSaveIcon?: (icon: string) => void | Promise<void>;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
   projectChats?: RecentChat[];
@@ -152,6 +154,7 @@ export function ProjectHomeView({
   onStopGeneration,
   isGenerating = false,
   onSaveInstructions,
+  onSaveIcon,
   onOpenMobileNav,
   showMobileMenu = false,
   projectChats = [],
@@ -262,8 +265,11 @@ export function ProjectHomeView({
             aria-controls="app-primary-nav"
           />
         ) : null}
-        <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
-          <Folder className="h-4 w-4" strokeWidth={1.75} />
+        <div className="relative">
+          <ProjectIconPicker
+            value={project.icon || "📁"}
+            onChange={(icon) => void onSaveIcon?.(icon)}
+          />
           <span
             className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#2f6fed]"
             aria-hidden

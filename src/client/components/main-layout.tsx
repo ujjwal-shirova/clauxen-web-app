@@ -28,9 +28,8 @@ import { AppOverlaysProvider, useAppOverlays } from "@/hooks/use-app-overlays";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { APP_ROUTES, isIncognitoPath, isNewChatPath } from "@/lib/app-routes";
+import { APP_ROUTES, isIncognitoPath } from "@/lib/app-routes";
 import { Sidebar } from "@/components/sidebar";
-import { ChatView } from "@/components/chat-view";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
@@ -48,16 +47,6 @@ function shouldMobileFullBleed(pathname: string | null): boolean {
   );
 }
 
-function isChatSurface(pathname: string | null | undefined): boolean {
-  if (!pathname) return false;
-  if (isNewChatPath(pathname) || isIncognitoPath(pathname)) return true;
-  return (
-    /^\/c\/[^/]+/.test(pathname) ||
-    /^\/project\/[^/]+\/c\/[^/]+/.test(pathname) ||
-    /\/conversations\/[^/]+/.test(pathname)
-  );
-}
-
 function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = useAppPathname();
@@ -72,11 +61,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   } = useSidebarState();
 
   useDocumentTitle();
-
-  // Soft-nav updates the URL before Next swaps RSC children. When the live
-  // path is a chat surface (including /new, /c/*, /incognito), paint ChatView
-  // directly so new chats, thread switches, and new turns feel instant with no cuts.
-  const paintOptimisticChat = isChatSurface(pathname);
 
   // Client auth gate — middleware is primary; this catches JWT-less shells.
   React.useEffect(() => {
@@ -384,7 +368,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           <div className="flex min-h-0 h-full w-full max-w-full flex-1 flex-col overflow-hidden items-stretch">
             <AppLayoutProvider value={layoutValue}>
               <SoftErrorBoundary name="main-panel">
-                {paintOptimisticChat ? <ChatView /> : children}
+                {children}
               </SoftErrorBoundary>
             </AppLayoutProvider>
           </div>

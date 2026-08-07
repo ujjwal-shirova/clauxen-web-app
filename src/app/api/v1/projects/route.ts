@@ -10,6 +10,7 @@ import { AppError } from "@/server/db/errors"; // validation errors — 400 bad 
 const MAX_PROJECT_NAME_LENGTH = 200;
 const MAX_PROJECT_DESCRIPTION_LENGTH = 2000;
 const PROJECT_COLOR_HEX = /^#[0-9A-Fa-f]{6}$/;
+const MAX_PROJECT_ICON_LENGTH = 16;
 
 export const runtime = "nodejs"; // DB pool access — Node.js runtime required
 export const dynamic = "force-dynamic"; // per-user project list — no static caching
@@ -27,12 +28,18 @@ export const GET = withApiHandler(
 export const POST = withApiHandler(
   async ({ session, request }) => {
     const user = requireSession(session);
-    let body: { name?: string; description?: string; color?: string };
+    let body: {
+      name?: string;
+      description?: string;
+      color?: string;
+      icon?: string;
+    };
     try {
       body = (await request.json()) as {
         name?: string;
         description?: string;
         color?: string;
+        icon?: string;
       };
     } catch {
       throw new AppError("Invalid JSON body.", 400);
@@ -63,12 +70,23 @@ export const POST = withApiHandler(
       }
       color = body.color;
     }
+    let icon: string | undefined;
+    if (body.icon !== undefined && body.icon !== null) {
+      if (
+        typeof body.icon !== "string" ||
+        body.icon.trim().length > MAX_PROJECT_ICON_LENGTH
+      ) {
+        throw new AppError("Invalid project icon.", 400);
+      }
+      icon = body.icon.trim() || undefined;
+    }
     // createProject — insert returning full row; workspace_id default null
     const project = await projectsRepo.createProject({
       userId: user.id,
       name, // leading/trailing spaces strip — display consistency
       description,
       color,
+      icon,
     });
     return jsonData({ project }, 201);
   },

@@ -7,6 +7,7 @@ import { readPinnedProjectIds, setProjectPinned } from "@/lib/pinned-projects";
 
 const MAX_PROJECT_NAME_LENGTH = 200;
 const API_PROJECTS_CACHE_KEY = "clauxen-api-projects-cache";
+const PROJECTS_UPDATED_EVENT = "clauxen:projects-updated";
 const LIST_DEDUP_TTL_MS = 5_000;
 
 type ApiProjectsCache = {
@@ -43,6 +44,13 @@ function saveCachedApiProjects(rows: ApiProject[]) {
     localStorage.setItem(API_PROJECTS_CACHE_KEY, JSON.stringify(payload));
   } catch {
     /* ignore quota */
+  }
+}
+
+function publishProjects(rows: ApiProject[]) {
+  saveCachedApiProjects(rows);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(PROJECTS_UPDATED_EVENT));
   }
 }
 
@@ -90,6 +98,14 @@ export function useProjects(apiEnabled: boolean) {
     void refresh();
   }, [refresh]);
 
+  // MainLayout, sidebar and project routes each use this hook. Keep those
+  // independent mounts in sync immediately after a create/edit/delete.
+  useEffect(() => {
+    const sync = () => setProjects(loadCachedApiProjects());
+    window.addEventListener(PROJECTS_UPDATED_EVENT, sync);
+    return () => window.removeEventListener(PROJECTS_UPDATED_EVENT, sync);
+  }, []);
+
   useEffect(() => {
     setPinnedIds(readPinnedProjectIds());
     const onStorage = (event: StorageEvent) => {
@@ -106,7 +122,7 @@ export function useProjects(apiEnabled: boolean) {
   }, []);
 
   const createProject = useCallback(
-    async (input: { name: string; description?: string }) => {
+    async (input: { name: string; description?: string; icon?: string }) => {
       const trimmed = input.name.trim();
       if (!trimmed || trimmed.length > MAX_PROJECT_NAME_LENGTH) return;
 
@@ -116,12 +132,13 @@ export function useProjects(apiEnabled: boolean) {
       const { project } = await projectsApi.createProject({
         name: trimmed,
         description: input.description?.trim() || undefined,
+        icon: input.icon,
       });
       setProjects((prev) => [
         project,
         ...prev.filter((p) => p.id !== project.id),
       ]);
-      saveCachedApiProjects([
+      publishProjects([
         project,
         ...loadCachedApiProjects().filter((p) => p.id !== project.id),
       ]);
@@ -137,15 +154,16 @@ export function useProjects(apiEnabled: boolean) {
         name?: string;
         description?: string;
         system_prompt?: string;
+        icon?: string;
       },
     ) => {
       if (!apiEnabled) throw new Error("Sign in before updating a project.");
       const { project } = await projectsApi.updateProject(projectId, patch);
-      setProjects((prev) => {
-        const next = prev.map((p) => (p.id === projectId ? project : p));
-        saveCachedApiProjects(next);
-        return next;
-      });
+      const next = loadCachedApiProjects().map((p) =>
+        p.id === projectId ? project : p,
+      );
+      setProjects(next);
+      publishProjects(next);
       return project;
     },
     [apiEnabled],
@@ -166,7 +184,7 @@ export function useProjects(apiEnabled: boolean) {
       }
       try {
         await projectsApi.deleteProject(projectId);
-        saveCachedApiProjects(previous.filter((p) => p.id !== projectId));
+        publishProjects(previous.filter((p) => p.id !== projectId));
         return true;
       } catch {
         setProjects(previous);

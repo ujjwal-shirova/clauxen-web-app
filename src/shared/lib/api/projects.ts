@@ -6,6 +6,7 @@ export type ApiProject = {
   description: string | null;
   system_prompt?: string | null;
   color: string | null;
+  icon: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -27,6 +28,7 @@ export async function updateProject(
     description?: string;
     color?: string;
     system_prompt?: string;
+    icon?: string;
   },
 ) {
   return apiFetch<{ project: ApiProject }>(
@@ -42,6 +44,7 @@ export async function createProject(input: {
   name: string;
   description?: string;
   color?: string;
+  icon?: string;
 }) {
   return apiFetch<{ project: ApiProject }>("/api/v1/projects", {
     method: "POST",
