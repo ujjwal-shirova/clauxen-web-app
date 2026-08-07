@@ -6,7 +6,7 @@ import {
   retrieveProjectContext,
   buildRagContextBlock,
   assembleSystemPrompt,
-} from "@/server/services/project-ingestion.service";
+} from "@/server/services/project-rag.service";
 import { streamOpenAIProjectResponse } from "@/projects/lib/openai";
 import { requireProjectsUser, ProjectsAuthError } from "@/projects/lib/auth";
 import { jsonData, jsonError } from "@/projects/lib/api-response";
