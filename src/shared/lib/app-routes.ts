@@ -82,15 +82,15 @@ export const APP_ROUTES = {
   chat: (chatId: string) => `/c/${encodeURIComponent(chatId)}`,
   /** Project dashboard — blank composer scoped to this project. */
   project: (projectId: string) => `/project/${encodeURIComponent(projectId)}`,
-  /** Chat started from a project — same `/c` surface + enter-method flag. */
-  projectChat: (chatId: string) =>
-    `/c/${encodeURIComponent(chatId)}?chat_enter_method=${CHAT_ENTER_METHOD_PROJECT}`,
+  /** Canonical chat surface inside a project. */
+  projectChat: (projectId: string, chatId: string) =>
+    `/project/${encodeURIComponent(projectId)}/c/${encodeURIComponent(chatId)}`,
   /**
    * @deprecated Prefer `projectChat(chatId)`. Kept so call sites that still
    * pass projectId keep compiling; navigates to `/c/…?chat_enter_method=project`.
    */
-  projectConversation: (_projectId: string, chatId: string) =>
-    `/c/${encodeURIComponent(chatId)}?chat_enter_method=${CHAT_ENTER_METHOD_PROJECT}`,
+  projectConversation: (projectId: string, chatId: string) =>
+    `/project/${encodeURIComponent(projectId)}/c/${encodeURIComponent(chatId)}`,
   /** @deprecated Prefer overlay hash helpers — kept for legacy path redirects. */
   upgrade: "/upgrade",
   pricing: "/upgrade",
@@ -135,7 +135,9 @@ export function parseOverlayHash(
 
   if (clean === "settings" || clean.startsWith("settings/")) {
     const parts = clean.split("/");
-    const raw = parts[1] ? decodeURIComponent(parts.slice(1).join("/")) : "General";
+    const raw = parts[1]
+      ? decodeURIComponent(parts.slice(1).join("/"))
+      : "General";
     return { type: "settings", tab: normalizeSettingsTab(raw) };
   }
 
@@ -206,11 +208,15 @@ export function isNewChatPath(pathname: string | null): boolean {
 
 /** True when this path is the Incognito (ephemeral) chat surface. */
 export function isIncognitoPath(pathname: string | null): boolean {
-  return pathname === "/incognito" || pathname?.startsWith("/incognito/") === true;
+  return (
+    pathname === "/incognito" || pathname?.startsWith("/incognito/") === true
+  );
 }
 
 /** Local session ids for Incognito — never hit Postgres chat rows. */
-export function isIncognitoSessionId(chatId: string | null | undefined): boolean {
+export function isIncognitoSessionId(
+  chatId: string | null | undefined,
+): boolean {
   return Boolean(chatId && chatId.startsWith("incognito-"));
 }
 

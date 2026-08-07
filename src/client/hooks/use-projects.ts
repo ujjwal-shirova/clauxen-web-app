@@ -3,13 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as projectsApi from "@/lib/api/projects";
 import type { ApiProject } from "@/lib/api/projects";
-import {
-  readPinnedProjectIds,
-  setProjectPinned,
-} from "@/lib/pinned-projects";
+import { readPinnedProjectIds, setProjectPinned } from "@/lib/pinned-projects";
 
 const MAX_PROJECT_NAME_LENGTH = 200;
-const LOCAL_PROJECTS_KEY = "clauxen-local-projects";
 const API_PROJECTS_CACHE_KEY = "clauxen-api-projects-cache";
 const LIST_DEDUP_TTL_MS = 5_000;
 
@@ -21,27 +17,6 @@ type ApiProjectsCache = {
 /** Shared across every useProjects() mount so boot doesn't triple-fetch. */
 let apiListInflight: Promise<ApiProject[]> | null = null;
 let apiListCached: ApiProjectsCache | null = null;
-
-function loadLocalProjects(): ApiProject[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(LOCAL_PROJECTS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as ApiProject[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalProjects(rows: ApiProject[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(rows));
-  } catch {
-    /* ignore quota */
-  }
-}
 
 function loadCachedApiProjects(): ApiProject[] {
   if (typeof window === "undefined") return [];
@@ -72,10 +47,7 @@ function saveCachedApiProjects(rows: ApiProject[]) {
 }
 
 async function listProjectsSingleflight(): Promise<ApiProject[]> {
-  if (
-    apiListCached &&
-    Date.now() - apiListCached.savedAt < LIST_DEDUP_TTL_MS
-  ) {
+  if (apiListCached && Date.now() - apiListCached.savedAt < LIST_DEDUP_TTL_MS) {
     return apiListCached.projects;
   }
   if (apiListInflight) return apiListInflight;
@@ -91,43 +63,24 @@ async function listProjectsSingleflight(): Promise<ApiProject[]> {
   return apiListInflight;
 }
 
-function createLocalProject(input: {
-  name: string;
-  description?: string;
-}): ApiProject {
-  const now = new Date().toISOString();
-  return {
-    id: `local-${crypto.randomUUID()}`,
-    name: input.name,
-    description: input.description ?? null,
-    color: null,
-    created_at: now,
-    updated_at: now,
-  };
-}
-
 export function useProjects(apiEnabled: boolean) {
   const [projects, setProjects] = useState<ApiProject[]>(() =>
-    apiEnabled ? loadCachedApiProjects() : loadLocalProjects(),
+    apiEnabled ? loadCachedApiProjects() : [],
   );
   const [loading, setLoading] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
     const hasPaint =
-      (apiEnabled
-        ? (apiListCached?.projects.length ?? loadCachedApiProjects().length)
-        : loadLocalProjects().length) > 0;
+      (apiListCached?.projects.length ?? loadCachedApiProjects().length) > 0;
     if (!hasPaint) setLoading(true);
     try {
       if (apiEnabled) {
         const rows = await listProjectsSingleflight();
         setProjects(rows);
-      } else {
-        setProjects(loadLocalProjects());
-      }
+      } else setProjects([]);
     } catch {
-      setProjects(apiEnabled ? loadCachedApiProjects() : []);
+      setProjects(loadCachedApiProjects());
     } finally {
       setLoading(false);
     }
@@ -157,26 +110,21 @@ export function useProjects(apiEnabled: boolean) {
       const trimmed = input.name.trim();
       if (!trimmed || trimmed.length > MAX_PROJECT_NAME_LENGTH) return;
 
-      if (apiEnabled) {
-        try {
-          const { project } = await projectsApi.createProject({
-            name: trimmed,
-            description: input.description?.trim() || undefined,
-          });
-          setProjects((prev) => [project, ...prev]);
-          return project;
-        } catch {
-          /* fall through to local save */
-        }
+      if (!apiEnabled) {
+        throw new Error("Sign in before creating a project.");
       }
-
-      const project = createLocalProject({
+      const { project } = await projectsApi.createProject({
         name: trimmed,
         description: input.description?.trim() || undefined,
       });
-      const next = [project, ...loadLocalProjects()];
-      saveLocalProjects(next);
-      setProjects(next);
+      setProjects((prev) => [
+        project,
+        ...prev.filter((p) => p.id !== project.id),
+      ]);
+      saveCachedApiProjects([
+        project,
+        ...loadCachedApiProjects().filter((p) => p.id !== project.id),
+      ]);
       return project;
     },
     [apiEnabled],
@@ -191,34 +139,14 @@ export function useProjects(apiEnabled: boolean) {
         system_prompt?: string;
       },
     ) => {
-      if (apiEnabled && !projectId.startsWith("local-")) {
-        try {
-          const { project } = await projectsApi.updateProject(projectId, patch);
-          setProjects((prev) =>
-            prev.map((p) => (p.id === projectId ? project : p)),
-          );
-          return project;
-        } catch {
-          return undefined;
-        }
-      }
-
-      const next = loadLocalProjects().map((p) =>
-        p.id === projectId
-          ? {
-              ...p,
-              name: patch.name ?? p.name,
-              description:
-                patch.description !== undefined
-                  ? patch.description || null
-                  : p.description,
-              updated_at: new Date().toISOString(),
-            }
-          : p,
-      );
-      saveLocalProjects(next);
-      setProjects(next);
-      return next.find((p) => p.id === projectId);
+      if (!apiEnabled) throw new Error("Sign in before updating a project.");
+      const { project } = await projectsApi.updateProject(projectId, patch);
+      setProjects((prev) => {
+        const next = prev.map((p) => (p.id === projectId ? project : p));
+        saveCachedApiProjects(next);
+        return next;
+      });
+      return project;
     },
     [apiEnabled],
   );
@@ -232,19 +160,18 @@ export function useProjects(apiEnabled: boolean) {
         setPinnedIds(setProjectPinned(projectId, false));
       }
 
-      if (apiEnabled && !projectId.startsWith("local-")) {
-        try {
-          await projectsApi.deleteProject(projectId);
-          return true;
-        } catch {
-          setProjects(previous);
-          return false;
-        }
+      if (!apiEnabled) {
+        setProjects(previous);
+        return false;
       }
-
-      const next = loadLocalProjects().filter((p) => p.id !== projectId);
-      saveLocalProjects(next);
-      return true;
+      try {
+        await projectsApi.deleteProject(projectId);
+        saveCachedApiProjects(previous.filter((p) => p.id !== projectId));
+        return true;
+      } catch {
+        setProjects(previous);
+        return false;
+      }
     },
     [apiEnabled, pinnedIds, projects],
   );

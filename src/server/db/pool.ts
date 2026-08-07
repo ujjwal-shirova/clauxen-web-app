@@ -31,6 +31,21 @@ function wait(ms: number): Promise<void> {
 function normalizeDatabaseUrl(url: string): string {
   try {
     const parsed = new URL(url);
+    // Direct Supabase database hosts are IPv6-first and open one backend
+    // connection per Vercel isolate. Convert that legacy URL to this project's
+    // IPv4 transaction pooler automatically when no Marketplace pooler URL was
+    // provisioned. Credentials stay identical; only host/user/port change.
+    const directSupabase = /^db\.([^.]+)\.supabase\.co$/i.exec(parsed.hostname);
+    if (env.isVercel && directSupabase) {
+      const projectRef = directSupabase[1]!;
+      const region = process.env.SUPABASE_DB_REGION?.trim() || "us-west-1";
+      const cluster = process.env.SUPABASE_POOLER_CLUSTER?.trim() || "aws-1";
+      parsed.hostname = `${cluster}-${region}.pooler.supabase.com`;
+      parsed.port = "6543";
+      if (parsed.username === "postgres") {
+        parsed.username = `postgres.${projectRef}`;
+      }
+    }
     // Avoid pg sslmode deprecation warnings flooding Vercel runtime logs.
     if (parsed.searchParams.has("sslmode")) {
       parsed.searchParams.delete("sslmode");

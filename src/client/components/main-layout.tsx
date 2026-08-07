@@ -52,7 +52,9 @@ function isChatSurface(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
   if (isNewChatPath(pathname) || isIncognitoPath(pathname)) return true;
   return (
-    /^\/c\/[^/]+/.test(pathname) || /\/conversations\/[^/]+/.test(pathname)
+    /^\/c\/[^/]+/.test(pathname) ||
+    /^\/project\/[^/]+\/c\/[^/]+/.test(pathname) ||
+    /\/conversations\/[^/]+/.test(pathname)
   );
 }
 
@@ -248,7 +250,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p.startsWith("/scheduled/") ||
       p === "/project" ||
       p === "/projects" ||
-      (p.startsWith("/project/") && !p.includes("/conversations/")) ||
+      (p.startsWith("/project/") &&
+        !p.includes("/c/") &&
+        !p.includes("/conversations/")) ||
       (p.startsWith("/projects") && !p.includes("/conversations/"))
     ) {
       return null;
@@ -293,61 +297,61 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           inert={overlayOpen || undefined}
           aria-hidden={overlayOpen || undefined}
         >
-        <Sidebar
-          id="app-primary-nav"
-          handleNewChat={handleNewChat}
-          isCollapsed={isSidebarCollapsed}
-          setIsCollapsed={setIsSidebarCollapsed}
-          isMobileLayout={isMobile}
-          sidebarReady={sidebarHydrated}
-          onNavigate={closeMobileNav}
-          onUpgradeClick={onUpgradeClick}
-          onSettingsClick={() => onSettingsClick("General")}
-          onPersonalizationClick={onPersonalizationClick}
-          onAppsExtensionsClick={onAppsExtensionsClick}
-          onGiftClick={onGiftClick}
-          onProjectsClick={goToProjects}
-          onLibraryClick={goToLibrary}
-          onCustomizeClick={goToCustomize}
-          onScheduledTasksClick={goToScheduledTasks}
-          onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
-          activeView={computeActiveView(
-            pathname,
-            overlays.currentOverlay?.type ?? null,
-            overlays.settingsTab,
-          )}
-          recentChats={startedRecentChats}
-          activeChatId={sidebarActiveChatId}
-          chatsLoading={chatsLoading}
-          creatingChatPending={creatingChatPending}
-          onSelectChat={onSelectChatFromSidebar}
-          onDeleteChat={onDeleteChatFromSidebar}
-          onRenameChat={handleRenameChat}
-          onPinChat={handlePinChat}
-          generatingChatIds={generatingChatIds}
-          projects={projects.projects}
-          pinnedProjects={projects.pinnedProjects}
-          projectsLoading={projects.loading}
-          activeProjectId={activeProjectId}
-          onNewProjectClick={goToCreateProject}
-          onSelectProject={openProjectDetail}
-          onPinProject={projects.pinProject}
-          userDisplayName={
-            auth.loading && !auth.user
-              ? null
-              : auth.user
-                ? sidebarDisplayNameOrNull({
-                    fullName: auth.user.displayName,
-                    preferredName: auth.user.preferredName,
-                    email: auth.user.email,
-                  })
-                : "Guest"
-          }
-          accountLoading={auth.loading && !auth.user}
-          userAvatarUrl={auth.user?.avatarUrl}
-          userEmail={auth.user?.email ?? ""}
-          onLogoutClick={() => void auth.logout()}
-        />
+          <Sidebar
+            id="app-primary-nav"
+            handleNewChat={handleNewChat}
+            isCollapsed={isSidebarCollapsed}
+            setIsCollapsed={setIsSidebarCollapsed}
+            isMobileLayout={isMobile}
+            sidebarReady={sidebarHydrated}
+            onNavigate={closeMobileNav}
+            onUpgradeClick={onUpgradeClick}
+            onSettingsClick={() => onSettingsClick("General")}
+            onPersonalizationClick={onPersonalizationClick}
+            onAppsExtensionsClick={onAppsExtensionsClick}
+            onGiftClick={onGiftClick}
+            onProjectsClick={goToProjects}
+            onLibraryClick={goToLibrary}
+            onCustomizeClick={goToCustomize}
+            onScheduledTasksClick={goToScheduledTasks}
+            onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
+            activeView={computeActiveView(
+              pathname,
+              overlays.currentOverlay?.type ?? null,
+              overlays.settingsTab,
+            )}
+            recentChats={startedRecentChats}
+            activeChatId={sidebarActiveChatId}
+            chatsLoading={chatsLoading}
+            creatingChatPending={creatingChatPending}
+            onSelectChat={onSelectChatFromSidebar}
+            onDeleteChat={onDeleteChatFromSidebar}
+            onRenameChat={handleRenameChat}
+            onPinChat={handlePinChat}
+            generatingChatIds={generatingChatIds}
+            projects={projects.projects}
+            pinnedProjects={projects.pinnedProjects}
+            projectsLoading={projects.loading}
+            activeProjectId={activeProjectId}
+            onNewProjectClick={goToCreateProject}
+            onSelectProject={openProjectDetail}
+            onPinProject={projects.pinProject}
+            userDisplayName={
+              auth.loading && !auth.user
+                ? null
+                : auth.user
+                  ? sidebarDisplayNameOrNull({
+                      fullName: auth.user.displayName,
+                      preferredName: auth.user.preferredName,
+                      email: auth.user.email,
+                    })
+                  : "Guest"
+            }
+            accountLoading={auth.loading && !auth.user}
+            userAvatarUrl={auth.user?.avatarUrl}
+            userEmail={auth.user?.email ?? ""}
+            onLogoutClick={() => void auth.logout()}
+          />
         </div>
       ) : null}
 
@@ -443,6 +447,8 @@ function getRouteChatIdForSidebar(pathname: string | null): string | null {
   if (!pathname) return null;
   const cMatch = pathname.match(/^\/c\/([^/?#]+)/);
   if (cMatch) return cMatch[1];
+  const projectChatMatch = pathname.match(/^\/project\/[^/?#]+\/c\/([^/?#]+)/);
+  if (projectChatMatch) return projectChatMatch[1];
   const pMatch = pathname.match(/\/conversations\/([^/?#]+)/);
   if (pMatch) return pMatch[1];
   return null;

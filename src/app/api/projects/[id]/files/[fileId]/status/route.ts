@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import * as projectFilesRepo from "@/server/repositories/project-files.repository";
+import * as userFilesRepo from "@/server/repositories/user-files.repository";
 import { requireProjectsUser, ProjectsAuthError } from "@/projects/lib/auth";
 import { jsonData, jsonError } from "@/projects/lib/api-response";
 
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const user = await requireProjectsUser(request);
     const { id, fileId } = await context.params;
-    const file = await projectFilesRepo.getProjectFile(fileId, id, user.id);
+    const file = await userFilesRepo.getProjectFile(fileId, id, user.id);
     if (!file) return jsonError("File not found.", 404);
     return jsonData({ file });
   } catch (error) {

@@ -1,46 +1,32 @@
-import { randomUUID } from "node:crypto";
 import { query, queryOne } from "@/server/db/pool";
 import { chunkText } from "@/projects/lib/chunking";
-import { embedText } from "@/projects/lib/embeddings";
+import { embedText, embedTexts, vectorToSql } from "@/projects/lib/embeddings";
 import { getObject } from "@/server/storage/object-store";
 import { extractTextFromBuffer } from "@/server/services/text-extract.service";
 
-function cosineSimilarity(a: number[], b: number[]) {
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  const len = Math.min(a.length, b.length);
-  for (let i = 0; i < len; i++) {
-    dot += a[i]! * b[i]!;
-    na += a[i]! * a[i]!;
-    nb += b[i]! * b[i]!;
-  }
-  const denom = Math.sqrt(na) * Math.sqrt(nb);
-  return denom === 0 ? 0 : dot / denom;
-}
-
-export async function retrieveProjectContext(projectId: string, queryText: string) {
+export async function retrieveProjectContext(
+  projectId: string,
+  userId: string,
+  queryText: string,
+) {
   const queryVector = await embedText(queryText);
   const rows = await query<{
     content: string;
-    embedding: number[] | null;
+    similarity: number;
   }>(
-    `select content, embedding
-     from public.document_chunks
-     where project_id = $1::uuid and embedding is not null`,
-    [projectId],
+    `select dc.content, 1 - (e.embedding <=> $3::extensions.vector) as similarity
+     from public.embeddings e
+     join public.document_chunks dc on dc.id = e.chunk_id
+     where dc.user_id = $1::uuid
+       and dc.source_type = 'project_file'
+       and dc.metadata->>'project_id' = $2
+       and e.embedding is not null
+     order by e.embedding <=> $3::extensions.vector
+     limit 8`,
+    [userId, projectId, vectorToSql(queryVector)],
   );
 
-  return rows
-    .map((row) => ({
-      content: row.content,
-      similarity: row.embedding
-        ? cosineSimilarity(queryVector, row.embedding)
-        : 0,
-    }))
-    .filter((r) => r.similarity > 0.2)
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, 8);
+  return rows.filter((row) => Number(row.similarity) > 0.2);
 }
 
 export async function processProjectFile(fileId: string) {
@@ -49,12 +35,14 @@ export async function processProjectFile(fileId: string) {
     project_id: string;
     user_id: string;
     filename: string;
-    file_type: string;
+    mime_type: string | null;
     storage_bucket: string;
     storage_path: string;
   }>(
-    `select id, project_id, user_id, filename, file_type, storage_bucket, storage_path
-     from public.project_files where id = $1`,
+    `select id, project_id, user_id, original_name as filename, mime_type,
+            storage_bucket, storage_path
+     from public.user_files
+     where id = $1 and project_id is not null and status != 'deleted'`,
     [fileId],
   );
   if (!file) return;
@@ -66,36 +54,62 @@ export async function processProjectFile(fileId: string) {
       file.storage_bucket,
     );
     const text = await extractTextFromBuffer(buffer, file.filename);
-    const chunks = chunkText(text);
+    // Bound per-file retrieval cost and batch both provider and Postgres work.
+    const chunks = chunkText(text).slice(0, 200);
 
-    await query(`delete from public.document_chunks where project_file_id = $1`, [
-      fileId,
-    ]);
+    await query(
+      `delete from public.document_chunks
+       where source_type = 'project_file' and source_id = $1`,
+      [fileId],
+    );
 
-    for (let i = 0; i < chunks.length; i++) {
-      const content = chunks[i]!;
-      const embedding = await embedText(content);
+    for (let offset = 0; offset < chunks.length; offset += 16) {
+      const batch = chunks.slice(offset, offset + 16);
+      const vectors = await embedTexts(batch);
+      const records = batch.map((content, index) => ({
+        chunk_index: offset + index,
+        content,
+        token_count: Math.ceil(content.length / 4),
+        embedding: vectorToSql(vectors[index]!),
+      }));
       await query(
-        `insert into public.document_chunks (
-           id, user_id, project_id, project_file_id, source_type, source_id,
-           chunk_index, content, token_count, embedding
-         ) values ($1, $2, $3, $4, 'project_file', $4, $5, $6, $7, $8)`,
+        `with input as (
+           select * from jsonb_to_recordset($4::jsonb) as x(
+             chunk_index integer, content text, token_count integer, embedding text
+           )
+         ), chunks as (
+           insert into public.document_chunks (
+             user_id, source_type, source_id, chunk_index, content, token_count,
+             metadata
+           )
+           select $1, 'project_file', $2, i.chunk_index, i.content,
+                  i.token_count,
+                  jsonb_build_object('project_id', $3, 'filename', $5)
+           from input i
+           returning id, chunk_index
+         )
+         insert into public.embeddings (
+           chunk_id, user_id, provider, model_id, embedding, dimensions
+         )
+         select c.id, $1, 'novita', 'baai/bge-m3',
+                i.embedding::extensions.vector, 1536
+         from chunks c
+         join input i using (chunk_index)`,
         [
-          randomUUID(),
           file.user_id,
-          file.project_id,
           fileId,
-          i,
-          content,
-          Math.ceil(content.length / 4),
-          embedding,
+          file.project_id,
+          JSON.stringify(records),
+          file.filename,
         ],
       );
     }
 
     await queryOne(
-      `update public.project_files
-       set status = 'ready', error_message = null, updated_at = now()
+      `update public.user_files
+       set status = 'ready',
+           metadata = coalesce(metadata, '{}'::jsonb) - 'ingestion_error',
+           updated_at = now()
        where id = $1 returning id`,
       [fileId],
     );
@@ -103,8 +117,9 @@ export async function processProjectFile(fileId: string) {
     const message =
       error instanceof Error ? error.message : "Ingestion failed.";
     await queryOne(
-      `update public.project_files
-       set status = 'failed', error_message = $2, updated_at = now()
+      `update public.user_files
+       set status = 'failed', metadata = coalesce(metadata, '{}'::jsonb) ||
+         jsonb_build_object('ingestion_error', $2::text), updated_at = now()
        where id = $1 returning id`,
       [fileId, message],
     );
@@ -113,6 +128,13 @@ export async function processProjectFile(fileId: string) {
 }
 
 export async function enqueueFileIngestion(fileId: string) {
+  // Vercel has no long-running BullMQ worker process. `after()` keeps the
+  // request function alive while this durable database-backed state machine
+  // extracts and embeds the file.
+  if (process.env.VERCEL === "1" || !process.env.REDIS_URL?.trim()) {
+    await processProjectFile(fileId);
+    return;
+  }
   try {
     const { ingestionQueue } = await import("@/projects/queue/ingestion");
     await ingestionQueue.add("ingest", { fileId }, { removeOnComplete: true });

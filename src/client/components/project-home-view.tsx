@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
-import { Folder, MoreHorizontal, Plus } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Folder, MessageSquare, MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ApiProject } from "@/lib/api/projects";
 import { PromptInput } from "@/components/prompt-input";
 import { SetProjectInstructionsDialog } from "@/components/set-project-instructions-dialog";
 import { ProjectFilesPanel } from "@/components/project-files-panel";
 import { AddTextContentDialog } from "@/components/add-text-content-dialog";
-import { AddGitHubDialog } from "@/components/add-github-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +22,9 @@ import {
   type ProjectFileMeta,
 } from "@/lib/project-storage";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
+import * as projectFilesApi from "@/lib/api/project-files";
+import { useAppNotifications } from "@/hooks/use-app-notifications";
+import type { RecentChat } from "@/lib/types";
 
 type ProjectHomeViewProps = {
   project: ApiProject;
@@ -34,6 +36,8 @@ type ProjectHomeViewProps = {
   onSaveInstructions?: (text: string) => void | Promise<void>;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
+  projectChats?: RecentChat[];
+  onOpenChat?: (chatId: string) => void;
 };
 
 function SharedContextIllustration({ className }: { className?: string }) {
@@ -80,7 +84,15 @@ function InstructionsIllustration({ className }: { className?: string }) {
       className={className}
       aria-hidden
     >
-      <rect x="24" y="16" width="56" height="48" rx="8" fill="#f4f4f5" stroke="#e4e4e7" />
+      <rect
+        x="24"
+        y="16"
+        width="56"
+        height="48"
+        rx="8"
+        fill="#f4f4f5"
+        stroke="#e4e4e7"
+      />
       <rect x="34" y="28" width="36" height="4" rx="2" fill="#d4d4d8" />
       <rect x="34" y="38" width="28" height="4" rx="2" fill="#e4e4e7" />
       <rect x="34" y="48" width="32" height="4" rx="2" fill="#e4e4e7" />
@@ -103,8 +115,24 @@ function FilesIllustration({ className }: { className?: string }) {
       className={className}
       aria-hidden
     >
-      <rect x="30" y="20" width="36" height="44" rx="6" fill="#f4f4f5" stroke="#e4e4e7" />
-      <rect x="48" y="28" width="36" height="44" rx="6" fill="#fafafa" stroke="#d4d4d8" />
+      <rect
+        x="30"
+        y="20"
+        width="36"
+        height="44"
+        rx="6"
+        fill="#f4f4f5"
+        stroke="#e4e4e7"
+      />
+      <rect
+        x="48"
+        y="28"
+        width="36"
+        height="44"
+        rx="6"
+        fill="#fafafa"
+        stroke="#d4d4d8"
+      />
       <rect x="56" y="40" width="20" height="3" rx="1.5" fill="#d4d4d8" />
       <rect x="56" y="48" width="16" height="3" rx="1.5" fill="#e4e4e7" />
       <rect x="56" y="56" width="18" height="3" rx="1.5" fill="#e4e4e7" />
@@ -126,18 +154,51 @@ export function ProjectHomeView({
   onSaveInstructions,
   onOpenMobileNav,
   showMobileMenu = false,
+  projectChats = [],
+  onOpenChat,
 }: ProjectHomeViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const [textDialogOpen, setTextDialogOpen] = useState(false);
-  const [githubDialogOpen, setGithubDialogOpen] = useState(false);
   const [instructions, setInstructions] = useState(
     () => project.system_prompt ?? getProjectInstructions(project.id),
   );
   const [files, setFiles] = useState<ProjectFileMeta[]>(() =>
     getProjectFiles(project.id),
   );
+  const { notifyInfo, notifyWarning } = useAppNotifications();
+
+  const refreshFiles = useCallback(async () => {
+    const { files: rows } = await projectFilesApi.listProjectFiles(project.id);
+    const next = rows.map<ProjectFileMeta>((file) => ({
+      id: file.id,
+      name: file.original_name,
+      addedAt: file.created_at,
+      kind: "upload",
+      subtitle:
+        file.status === "ready"
+          ? file.original_name.split(".").pop()?.toLowerCase() || "file"
+          : file.status,
+      capacityPercent: Math.max(
+        1,
+        Math.min(25, Math.ceil(Number(file.size_bytes || 0) / 200_000)),
+      ),
+    }));
+    setProjectFiles(project.id, next);
+    setFiles(next);
+    return next;
+  }, [project.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void refreshFiles().catch(() => {
+      if (!cancelled) notifyWarning("Project files could not be loaded.");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshFiles, notifyWarning]);
 
   const handleSaveInstructions = useCallback(
     (text: string) => {
@@ -150,10 +211,46 @@ export function ProjectHomeView({
 
   const persistFiles = useCallback(
     (next: ProjectFileMeta[]) => {
+      const nextIds = new Set(next.map((file) => file.id));
+      const removed = files.filter((file) => !nextIds.has(file.id));
       setProjectFiles(project.id, next);
       setFiles(next);
+      if (removed.length) {
+        void Promise.all(
+          removed.map((file) =>
+            projectFilesApi.deleteProjectFile(project.id, file.id),
+          ),
+        ).catch(() => {
+          notifyWarning("A project file could not be removed.");
+          void refreshFiles();
+        });
+      }
     },
-    [project.id],
+    [files, notifyWarning, project.id, refreshFiles],
+  );
+
+  const handleUpload = useCallback(
+    async (list: FileList) => {
+      const uploads = Array.from(list);
+      if (!uploads.length) return;
+      try {
+        await Promise.all(
+          uploads.map((file) =>
+            projectFilesApi.uploadProjectFile(project.id, file),
+          ),
+        );
+        await refreshFiles();
+        notifyInfo(
+          uploads.length === 1
+            ? `${uploads[0]!.name} uploaded`
+            : `${uploads.length} files uploaded`,
+        );
+        window.setTimeout(() => void refreshFiles(), 2_000);
+      } catch {
+        notifyWarning("One or more project files could not be uploaded.");
+      }
+    },
+    [notifyInfo, notifyWarning, project.id, refreshFiles],
   );
 
   return (
@@ -186,9 +283,7 @@ export function ProjectHomeView({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="z-[100] w-44">
-            <DropdownMenuItem
-              onSelect={() => onPinChange?.(!pinned)}
-            >
+            <DropdownMenuItem onSelect={() => onPinChange?.(!pinned)}>
               {pinned ? "Unpin project" : "Pin project"}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setInstructionsOpen(true)}>
@@ -201,14 +296,57 @@ export function ProjectHomeView({
         </DropdownMenu>
       </header>
 
-      <div className="mx-auto flex min-h-0 w-full max-w-[960px] flex-1 flex-col overflow-y-auto px-4 pb-4 pt-6 sm:px-6 lg:px-8">
-        <div className="flex min-h-0 flex-1 flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
-          <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-2 py-6 text-center lg:py-10">
-            <SharedContextIllustration className="mb-5 h-[110px] w-[148px]" />
-            <p className="max-w-[34ch] text-[13.5px] leading-5 text-zinc-500">
-              Shared context across all chats in this project. Help Clauxen
-              understand you better over time.
-            </p>
+      <div className="mx-auto flex min-h-0 w-full max-w-[1040px] flex-1 flex-col overflow-y-auto px-4 pb-8 pt-5 sm:px-6 lg:px-8">
+        <div className="grid min-h-0 flex-1 gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10">
+          <div className="flex min-w-0 flex-col">
+            <div className="mb-8">
+              <h2 className="mb-3 text-[20px] font-semibold tracking-[-0.02em] text-zinc-900">
+                What are you working on?
+              </h2>
+              <PromptInput
+                onSendMessage={onSendMessage}
+                onStopGeneration={onStopGeneration}
+                isConversationStarted={false}
+                isGenerating={isGenerating}
+                lockedProjectId={project.id}
+                showProjectStrip={false}
+                placeholder={`Start a chat in '${project.name}'...`}
+              />
+            </div>
+
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[14px] font-semibold text-zinc-900">Chats</h2>
+              <span className="text-[12px] tabular-nums text-zinc-400">
+                {projectChats.length}
+              </span>
+            </div>
+            {projectChats.length > 0 ? (
+              <div className="overflow-hidden rounded-2xl border border-zinc-200/90">
+                {projectChats.map((chat) => (
+                  <button
+                    key={chat.id}
+                    type="button"
+                    onClick={() => onOpenChat?.(chat.id)}
+                    className="flex w-full items-center gap-3 border-b border-zinc-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-zinc-50"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+                      <MessageSquare className="h-4 w-4" strokeWidth={1.7} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-zinc-800">
+                      {chat.name || "New chat"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 px-6 text-center">
+                <SharedContextIllustration className="mb-3 h-[88px] w-[118px]" />
+                <p className="max-w-[34ch] text-[13px] leading-5 text-zinc-500">
+                  Chats started here share this project&apos;s instructions and
+                  files.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="mx-auto flex w-full max-w-[300px] shrink-0 flex-col gap-3 lg:mx-0">
@@ -257,23 +395,6 @@ export function ProjectHomeView({
         </div>
       </div>
 
-      <div
-        className="shrink-0 px-3 pb-4 pt-1 sm:px-5"
-        data-composer-dock
-      >
-        <div className="mx-auto w-full max-w-[768px]">
-          <PromptInput
-            onSendMessage={onSendMessage}
-            onStopGeneration={onStopGeneration}
-            isConversationStarted={false}
-            isGenerating={isGenerating}
-            lockedProjectId={project.id}
-            showProjectStrip={false}
-            placeholder={`Start chatting in '${project.name}'...`}
-          />
-        </div>
-      </div>
-
       <SetProjectInstructionsDialog
         open={instructionsOpen}
         onOpenChange={setInstructionsOpen}
@@ -312,7 +433,6 @@ export function ProjectHomeView({
                 onFilesChange={persistFiles}
                 onUploadFromDevice={() => fileInputRef.current?.click()}
                 onAddTextContent={() => setTextDialogOpen(true)}
-                onGitHub={() => setGithubDialogOpen(true)}
               />
             </div>
           </div>
@@ -323,19 +443,15 @@ export function ProjectHomeView({
         open={textDialogOpen}
         onOpenChange={setTextDialogOpen}
         projectId={project.id}
-        onAdded={(file) =>
-          persistFiles([...getProjectFiles(project.id), file])
-        }
+        onAdded={async (file) => {
+          await projectFilesApi.addProjectText(project.id, {
+            title: file.name,
+            content: file.content ?? "",
+          });
+          await refreshFiles();
+          window.setTimeout(() => void refreshFiles(), 2_000);
+        }}
       />
-      <AddGitHubDialog
-        open={githubDialogOpen}
-        onOpenChange={setGithubDialogOpen}
-        projectId={project.id}
-        onAddFiles={(added) =>
-          persistFiles([...getProjectFiles(project.id), ...added])
-        }
-      />
-
       <input
         ref={fileInputRef}
         type="file"
@@ -344,17 +460,7 @@ export function ProjectHomeView({
         onChange={(e) => {
           const list = e.target.files;
           if (!list?.length) return;
-          const existing = getProjectFiles(project.id);
-          const incoming: ProjectFileMeta[] = Array.from(list).map((f, i) => ({
-            id: `file-${Date.now()}-${i}-${f.name}`,
-            name: f.name,
-            addedAt: new Date().toISOString(),
-            kind: "upload" as const,
-            subtitle: f.name.includes(".")
-              ? f.name.split(".").pop()?.toLowerCase()
-              : "file",
-          }));
-          persistFiles([...existing, ...incoming]);
+          void handleUpload(list);
           e.target.value = "";
         }}
       />

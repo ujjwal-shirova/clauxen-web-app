@@ -33,20 +33,14 @@ function MenuRow({
   );
 }
 
-function GitHubMenuRow({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
+function GitHubMenuRow({ onClick }: { onClick: () => void }) {
   return (
     <DropdownMenuItem
       className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-[14px] text-zinc-900 outline-none focus:bg-[rgba(31,30,29,0.06)]"
       onClick={onClick}
     >
       <GithubIcon className="h-[18px] w-[18px] opacity-90" />
-      {label}
+      GitHub
     </DropdownMenuItem>
   );
 }
@@ -87,13 +81,17 @@ export function ProjectFilesMenu({
           label="Upload from device"
           onClick={() => onUploadFromDevice?.()}
         />
+        {onGitHub ? (
+          <>
+            <DropdownMenuSeparator className="my-1 bg-[rgba(31,30,29,0.1)]" />
+            <GitHubMenuRow onClick={onGitHub} />
+          </>
+        ) : null}
         <MenuRow
           icon={FileText}
           label="Add text content"
           onClick={() => onAddTextContent?.()}
         />
-        <DropdownMenuSeparator className="my-1 bg-[rgba(31,30,29,0.1)]" />
-        <GitHubMenuRow label="GitHub" onClick={() => onGitHub?.()} />
       </DropdownMenuContent>
     </DropdownMenu>
   );

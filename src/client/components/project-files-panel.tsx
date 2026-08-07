@@ -43,7 +43,7 @@ type ProjectFilesPanelProps = {
   files: ProjectFileMeta[];
   onUploadFromDevice: () => void;
   onAddTextContent: () => void;
-  onGitHub: () => void;
+  onGitHub?: () => void;
   onFilesChange: (files: ProjectFileMeta[]) => void;
 };
 

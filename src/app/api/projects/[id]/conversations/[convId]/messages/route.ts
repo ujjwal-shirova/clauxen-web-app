@@ -68,7 +68,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const parsed = postSchema.safeParse(body);
     if (!parsed.success) {
-      return jsonError(parsed.error.issues[0]?.message ?? "Validation failed.", 400);
+      return jsonError(
+        parsed.error.issues[0]?.message ?? "Validation failed.",
+        400,
+      );
     }
 
     await projectChatsRepo.createProjectMessage({
@@ -82,7 +85,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     let ragChunks: Array<{ content: string }> = [];
     try {
-      ragChunks = await retrieveProjectContext(id, parsed.data.content);
+      ragChunks = await retrieveProjectContext(
+        id,
+        user.id,
+        parsed.data.content,
+      );
     } catch (ragError) {
       console.warn("[rag] retrieval failed:", ragError);
     }

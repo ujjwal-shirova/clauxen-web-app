@@ -123,13 +123,17 @@ export async function createChatFast(input: {
     try {
       return await queryOne<ChatRow>(
         `insert into public.chats (id, user_id, project_id, workspace_id, title)
-         values (
+         select
            $1,
            $2,
            $3,
            (select default_workspace_id from public.profiles where id = $2 limit 1),
            $4
-         )
+         where $3::uuid is null
+            or exists (
+              select 1 from public.projects p
+              where p.id = $3::uuid and p.user_id = $2::uuid and p.status = 'active'
+            )
          returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
         [id, input.userId, input.projectId ?? null, input.title ?? "New chat"],
       );

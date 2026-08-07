@@ -9,6 +9,6 @@ export default async function LegacyProjectConversationRedirectPage({
 }: {
   params: Promise<{ id: string; convId: string }>;
 }) {
-  const { convId } = await params;
-  redirect(APP_ROUTES.projectChat(convId));
+  const { id, convId } = await params;
+  redirect(APP_ROUTES.projectChat(id, convId));
 }

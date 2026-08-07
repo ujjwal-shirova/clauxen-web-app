@@ -1,11 +1,14 @@
+import { after } from "next/server";
 import { withApiHandler } from "@/server/http/api-handler";
 import { jsonData } from "@/server/http/api-response";
 import { requireSession } from "@/server/auth/require-session";
 import * as profileRepo from "@/server/repositories/profile.repository";
 import * as filesService from "@/server/services/files.service";
+import * as userFilesRepo from "@/server/repositories/user-files.repository";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 export const POST = withApiHandler(
   async ({ session, request }) => {
@@ -16,7 +19,7 @@ export const POST = withApiHandler(
       sizeBytes?: number;
     };
 
-    const file = await filesService.completeUserFileUpload(user.id, {
+    let file = await filesService.completeUserFileUpload(user.id, {
       fileId: body.fileId ?? "",
       contentHash: body.contentHash,
       sizeBytes: body.sizeBytes,
@@ -35,6 +38,20 @@ export const POST = withApiHandler(
         file.id,
       );
       await profileRepo.updateProfile(user.id, { avatarUrl: download.url });
+    }
+
+    if (file.project_id) {
+      file =
+        (await userFilesRepo.updateUserFile(file.id, user.id, {
+          status: "processing",
+        })) ?? file;
+      const { enqueueFileIngestion } =
+        await import("@/server/services/project-ingestion.service");
+      after(() => {
+        return enqueueFileIngestion(file.id).catch((error) => {
+          console.error("[project-ingestion] enqueue failed", error);
+        });
+      });
     }
 
     return jsonData({ file });

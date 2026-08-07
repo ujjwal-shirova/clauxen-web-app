@@ -49,6 +49,34 @@ export async function getUserFile(fileId: string, userId: string) {
   );
 }
 
+export async function listProjectFiles(projectId: string, userId: string) {
+  return query<UserFileRow>(
+    `select ${USER_FILE_COLUMNS}
+     from public.user_files
+     where project_id = $1::uuid
+       and user_id = $2::uuid
+       and status != 'deleted'
+     order by created_at desc`,
+    [projectId, userId],
+  );
+}
+
+export async function getProjectFile(
+  fileId: string,
+  projectId: string,
+  userId: string,
+) {
+  return queryOne<UserFileRow>(
+    `select ${USER_FILE_COLUMNS}
+     from public.user_files
+     where id = $1::uuid
+       and project_id = $2::uuid
+       and user_id = $3::uuid
+       and status != 'deleted'`,
+    [fileId, projectId, userId],
+  );
+}
+
 export async function listUserFiles(
   userId: string,
   folderId: string | null = null,
@@ -138,14 +166,15 @@ export async function createUserFile(input: {
   sizeBytes?: number;
   storageBucket: string;
   storagePath: string;
+  contentHash?: string | null;
   status?: string;
   metadata?: Record<string, unknown>;
 }) {
   return queryOne<UserFileRow>(
     `insert into public.user_files (
        user_id, workspace_id, project_id, folder_id, original_name, mime_type,
-       size_bytes, storage_bucket, storage_path, status, metadata
-     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
+       size_bytes, storage_bucket, storage_path, content_hash, status, metadata
+     ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
      returning ${USER_FILE_COLUMNS}`,
     [
       input.userId,
@@ -157,6 +186,7 @@ export async function createUserFile(input: {
       input.sizeBytes ?? 0,
       input.storageBucket,
       input.storagePath,
+      input.contentHash ?? null,
       input.status ?? "pending",
       JSON.stringify(input.metadata ?? {}),
     ],
@@ -232,7 +262,12 @@ export async function moveLibraryFileToRoot(input: {
        updated_at = now()
      where id = $1 and user_id = $2 and status != 'deleted'
      returning ${USER_FILE_COLUMNS}`,
-    [input.fileId, input.userId, input.originalName ?? null, input.storagePath ?? null],
+    [
+      input.fileId,
+      input.userId,
+      input.originalName ?? null,
+      input.storagePath ?? null,
+    ],
   );
 }
 

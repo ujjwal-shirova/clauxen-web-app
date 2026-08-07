@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import * as projectsRepo from "@/server/repositories/projects.repository";
-import * as projectFilesRepo from "@/server/repositories/project-files.repository";
+import * as userFilesRepo from "@/server/repositories/user-files.repository";
 import { deleteObject } from "@/server/storage/object-store";
 import { requireProjectsUser, ProjectsAuthError } from "@/projects/lib/auth";
 import { jsonData, jsonError } from "@/projects/lib/api-response";
@@ -44,7 +44,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const parsed = patchSchema.safeParse(body);
     if (!parsed.success) {
-      return jsonError(parsed.error.issues[0]?.message ?? "Validation failed.", 400);
+      return jsonError(
+        parsed.error.issues[0]?.message ?? "Validation failed.",
+        400,
+      );
     }
 
     const project = await projectsRepo.updateProject(id, user.id, {
@@ -68,17 +71,14 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const deleted = await projectsRepo.deleteProject(id, user.id);
     if (!deleted) return jsonError("Project not found.", 404);
 
-    const files = await projectFilesRepo.listProjectFiles(id, user.id);
+    const files = await userFilesRepo.listProjectFiles(id, user.id);
     for (const file of files) {
       try {
-        await deleteObject(
-          "documents",
-          file.storage_path,
-          file.storage_bucket,
-        );
+        await deleteObject("documents", file.storage_path, file.storage_bucket);
       } catch {
         /* best effort */
       }
+      await userFilesRepo.deleteUserFile(file.id, user.id);
     }
 
     return jsonData({ ok: true });

@@ -10,6 +10,7 @@ import {
 import {
   bucketForPurpose,
   buildImageKey,
+  buildProjectFileKey,
   buildUserLibraryKey,
   createPresignedGetUrl,
   createPresignedPutUrl,
@@ -59,7 +60,9 @@ async function buildUploadPresign(input: {
   key: string;
   contentType?: string | null;
 }) {
-  const expiresAt = new Date(Date.now() + PRESIGN_TTL_SECONDS * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + PRESIGN_TTL_SECONDS * 1000,
+  ).toISOString();
 
   if (env.workerUrl) {
     const base = env.workerUrl.replace(/\/+$/, "");
@@ -127,7 +130,9 @@ async function buildDownloadPresign(input: {
     const base = env.workerUrl.replace(/\/+$/, "");
     return {
       downloadUrl: `${base}/download/${encodeURIComponent(input.key)}?bucket=${encodeURIComponent(input.bucket)}`,
-      expiresAt: new Date(Date.now() + PRESIGN_TTL_SECONDS * 1000).toISOString(),
+      expiresAt: new Date(
+        Date.now() + PRESIGN_TTL_SECONDS * 1000,
+      ).toISOString(),
       stub: false,
     };
   }
@@ -186,6 +191,13 @@ export async function presignUserFileUpload(
     if (!folder) throw notFound("Folder not found.");
   }
 
+  if (input.projectId) {
+    const { getProject } =
+      await import("@/server/repositories/projects.repository");
+    const project = await getProject(input.projectId, userId);
+    if (!project) throw notFound("Project not found.");
+  }
+
   const isAvatar = input.purpose === "avatar";
   const mime = (input.mimeType ?? "").toLowerCase();
   if (isAvatar) {
@@ -207,7 +219,9 @@ export async function presignUserFileUpload(
   const bucket = bucketForPurpose(purpose);
   const storagePath = isAvatar
     ? buildAvatarKey(userId, originalName)
-    : buildStorageKey(userId, originalName, input.mimeType, input.folderId);
+    : input.projectId
+      ? buildProjectFileKey(userId, input.projectId, originalName)
+      : buildStorageKey(userId, originalName, input.mimeType, input.folderId);
 
   const file = await userFilesRepo.createUserFile({
     userId,
@@ -220,7 +234,10 @@ export async function presignUserFileUpload(
     storageBucket: bucket,
     storagePath,
     status: "pending",
-    metadata: { purpose: isAvatar ? "avatar" : purpose },
+    metadata: {
+      purpose: isAvatar ? "avatar" : purpose,
+      ...(input.projectId ? { projectKnowledge: true } : {}),
+    },
   });
 
   if (!file) throw new AppError("Failed to create file record.", 500);

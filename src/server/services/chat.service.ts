@@ -1,10 +1,16 @@
 import { AppError, notFound } from "@/server/db/errors";
 import * as chatsRepo from "@/server/repositories/chats.repository";
+import * as projectsRepo from "@/server/repositories/projects.repository";
 import * as pinnedChatsRepo from "@/server/repositories/pinned-chats.repository";
 import * as messagesRepo from "@/server/repositories/messages.repository";
 import type { MessageTranscriptLine } from "@/server/repositories/messages.repository";
 import * as branchesRepo from "@/server/repositories/branches.repository";
 import * as transcriptRepo from "@/server/repositories/transcript.repository";
+import {
+  buildRagContextBlock,
+  retrieveProjectContext,
+} from "@/server/services/project-rag.service";
+import { assembleSystemPrompt } from "@/server/inference/system-prompt";
 import {
   createChatStream,
   loadChatStreamPersonalization,
@@ -157,6 +163,10 @@ export async function createChatForUser(
   userId: string,
   input?: { title?: string; projectId?: string | null },
 ) {
+  if (input?.projectId) {
+    const project = await projectsRepo.getProject(input.projectId, userId);
+    if (!project) throw notFound("Project not found.");
+  }
   // Single round-trip: allocate id + insert with workspace from profiles subquery.
   const chat = await chatsRepo.createChatFast({
     userId,
@@ -376,9 +386,10 @@ export async function streamChatGeneration(input: {
 
   // Single shared gate so resolveContext + turn insert both wait on the same
   // DO lease promise and only reserve the queued turn once on conflict.
-  const leaseGate = (input.ensureLease
-    ? input.ensureLease()
-    : Promise.resolve("skipped" as const)
+  const leaseGate = (
+    input.ensureLease
+      ? input.ensureLease()
+      : Promise.resolve("skipped" as const)
   ).then(async (lease) => {
     if (lease !== "conflict") return lease;
     if (input.turn) {
@@ -599,9 +610,27 @@ export async function streamChatGeneration(input: {
           }
         }
 
+        let projectPromptAppend: string | undefined;
+        if (chat.project_id) {
+          const project = await projectsRepo.getProject(
+            chat.project_id,
+            input.userId,
+          );
+          const chunks = await retrieveProjectContext(
+            chat.project_id,
+            input.userId,
+            preferredUserContent,
+          ).catch(() => []);
+          projectPromptAppend = assembleSystemPrompt(
+            project?.system_prompt,
+            buildRagContextBlock(chunks),
+          );
+        }
+
         return {
           modelMessages: conversationForAgent,
           personalization,
+          projectPromptAppend,
           userMessageId: turnState.userMessageId ?? undefined,
           assistantMessageId: turnState.assistant?.id ?? undefined,
         };
@@ -712,15 +741,17 @@ export async function streamChatGeneration(input: {
       // assistant message. Make every terminal state visible and durable.
       // Ask-user pauses intentionally end with no answer text — that is not
       // a failed generation.
-      const cleanedAnswer = streamError
-        ? toUserFacingChatError(streamError)
-        : generatedAnswer.trim()
-          ? generatedAnswer
-          : pausedForUserInput
-            ? ""
-            : EMPTY_ASSISTANT_RESPONSE_FALLBACK;
-      const completedAtMs = Date.now();
       const wasCancelled = input.signal?.aborted === true;
+      const cleanedAnswer = wasCancelled
+        ? generatedAnswer
+        : streamError
+          ? toUserFacingChatError(streamError)
+          : generatedAnswer.trim()
+            ? generatedAnswer
+            : pausedForUserInput
+              ? ""
+              : EMPTY_ASSISTANT_RESPONSE_FALLBACK;
+      const completedAtMs = Date.now();
       const failed =
         Boolean(streamError) ||
         (!generatedAnswer.trim() && !pausedForUserInput);
@@ -863,7 +894,8 @@ export async function streamChatGeneration(input: {
 
     return {
       stream: body,
-      userMessageId: turnState.userMessageId ?? input.turn?.userClientId ?? null,
+      userMessageId:
+        turnState.userMessageId ?? input.turn?.userClientId ?? null,
       assistantMessageId:
         turnState.assistant?.id ?? input.turn?.assistantClientId ?? null,
       onComplete: persistOnDone,

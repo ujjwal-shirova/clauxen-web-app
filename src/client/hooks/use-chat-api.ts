@@ -29,7 +29,10 @@ import {
   patchAssistantMessage,
   setAllChatsNormalized,
 } from "@/lib/chat-store-bridge";
-import { sealCompletedAssistantMessages, assignLegacyTurnIds } from "@/lib/chat-turn-helpers";
+import {
+  sealCompletedAssistantMessages,
+  assignLegacyTurnIds,
+} from "@/lib/chat-turn-helpers";
 import {
   assistantClientIdForTurn,
   createTurnId,
@@ -162,17 +165,20 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     ? new Date(row.created_at).getTime()
     : undefined;
   const ageMs =
-    typeof createdAt === "number" ? Date.now() - createdAt : Number.POSITIVE_INFINITY;
+    typeof createdAt === "number"
+      ? Date.now() - createdAt
+      : Number.POSITIVE_INFINITY;
   // Abandoned streaming rows look like "missing messages" after reload.
   const staleStreaming =
-    row.status === "streaming" &&
-    ageMs > 90_000 &&
-    !(row.content ?? "").trim();
+    row.status === "streaming" && ageMs > 90_000 && !(row.content ?? "").trim();
   const content = staleStreaming
-    ? "Generation interrupted."
-    : finalizeChatTitleStrippedAnswer(row.content);
+    ? ""
+    : finalizeChatTitleStrippedAnswer(
+        row.content === "Generation interrupted." ? "" : row.content,
+      );
   const isChatActive = isChatActivelyGenerating(row.chat_id);
-  const activeGenAssistantId = getGeneration(row.chat_id)?.assistantMessageId ?? null;
+  const activeGenAssistantId =
+    getGeneration(row.chat_id)?.assistantMessageId ?? null;
 
   const clientId =
     typeof row.client_id === "string" && row.client_id.trim()
@@ -202,9 +208,7 @@ function mapApiMessage(row: chatsApi.ApiMessage): Message {
     thinkingDurationSeconds: meta.thinkingDurationSeconds,
     branchVersions: meta.branchVersions,
     activeBranchIndex: meta.activeBranchIndex,
-    attachments: Array.isArray(meta.attachments)
-      ? meta.attachments
-      : undefined,
+    attachments: Array.isArray(meta.attachments) ? meta.attachments : undefined,
     createdAt,
     isStreaming:
       isThisTurnActive &&
@@ -259,7 +263,9 @@ export function useChatApi(
   const setIsGenerating = useCallback((value: boolean) => {
     useChatStore.getState().setIsGenerating(value);
   }, []);
-  const [loading, setLoading] = useState(() => bootRecentChatsFromSync().length === 0);
+  const [loading, setLoading] = useState(
+    () => bootRecentChatsFromSync().length === 0,
+  );
   const [creatingChatPending, setCreatingChatPending] = useState(false);
   const [loadingChatId, setLoadingChatId] = useState<string | null>(null);
   const [messageLoadErrors, setMessageLoadErrors] = useState<
@@ -344,118 +350,134 @@ export function useChatApi(
     [persistBranches],
   );
 
-  const refreshChats = useCallback(async (opts?: { silent?: boolean }) => {
-    // Silent when caller asks and we already have rows (sync/IDB paint or prior fetch).
-    const silent =
-      opts?.silent === true &&
-      (chatsLoadedOnceRef.current || recentChatsRef.current.length > 0);
-    if (!silent) setLoading(true);
-    try {
-      const { chats } = await chatsApi.listChats(projectIdFilter ?? undefined);
-      const serverChats: RecentChat[] = chats.map((c) => ({
-        id: c.id,
-        name: c.name,
-        titleGenerated: c.name.toLowerCase() !== "new chat",
-        projectId: c.projectId,
-        pinned: Boolean(c.pinned),
-        updatedAt: new Date(c.updatedAt).getTime(),
-      }));
-      const now = Date.now();
-      const LOCAL_LIST_GRACE_MS = 90_000;
-      const deletedIds = pendingDeletedChatIdsRef.current;
-      setRecentChats((prev) => {
-        const serverChatsVisible = serverChats.filter((c) => !deletedIds.has(c.id));
-        // Once the server list no longer returns a deleted id, drop the hold.
-        for (const id of [...deletedIds]) {
-          if (!serverChats.some((c) => c.id === id)) {
-            deletedIds.delete(id);
+  const refreshChats = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      // Silent when caller asks and we already have rows (sync/IDB paint or prior fetch).
+      const silent =
+        opts?.silent === true &&
+        (chatsLoadedOnceRef.current || recentChatsRef.current.length > 0);
+      if (!silent) setLoading(true);
+      try {
+        const { chats } = await chatsApi.listChats(
+          projectIdFilter ?? undefined,
+        );
+        const serverChats: RecentChat[] = chats.map((c) => ({
+          id: c.id,
+          name: c.name,
+          titleGenerated: c.name.toLowerCase() !== "new chat",
+          projectId: c.projectId,
+          pinned: Boolean(c.pinned),
+          updatedAt: new Date(c.updatedAt).getTime(),
+        }));
+        const now = Date.now();
+        const LOCAL_LIST_GRACE_MS = 90_000;
+        const deletedIds = pendingDeletedChatIdsRef.current;
+        setRecentChats((prev) => {
+          const serverChatsVisible = serverChats.filter(
+            (c) => !deletedIds.has(c.id),
+          );
+          // Once the server list no longer returns a deleted id, drop the hold.
+          for (const id of [...deletedIds]) {
+            if (!serverChats.some((c) => c.id === id)) {
+              deletedIds.delete(id);
+            }
           }
-        }
-        const serverIds = new Set(serverChatsVisible.map((c) => c.id));
-        // Keep rows the server list hasn't caught yet (pending create, or
-        // Worker/list cache lag right after create / first message).
-        const localOnly = prev.filter((c) => {
-          if (deletedIds.has(c.id)) return false;
-          if (serverIds.has(c.id)) return false;
-          if (c.isCreating || c.id.startsWith("pending-")) return true;
-          const age = now - (c.updatedAt ?? 0);
-          return age >= 0 && age < LOCAL_LIST_GRACE_MS;
-        });
-        const merged = serverChatsVisible.map((server) => {
-          const local = prev.find((p) => p.id === server.id);
-          const pinOverride = pendingPinOverridesRef.current.get(server.id);
-          const titleOverride = pendingTitleOverridesRef.current.get(server.id);
-          const pinned =
-            pinOverride !== undefined ? pinOverride : server.pinned;
-          // Drop pin override only once the server list agrees — avoids cache lag
-          // flipping the chat out of Pinned after a successful POST.
-          if (pinOverride !== undefined && Boolean(server.pinned) === pinOverride) {
-            pendingPinOverridesRef.current.delete(server.id);
-          }
-          if (
-            titleOverride !== undefined &&
-            server.name.trim().toLowerCase() === titleOverride.trim().toLowerCase()
-          ) {
-            pendingTitleOverridesRef.current.delete(server.id);
-          }
-          if (!local) {
+          const serverIds = new Set(serverChatsVisible.map((c) => c.id));
+          // Keep rows the server list hasn't caught yet (pending create, or
+          // Worker/list cache lag right after create / first message).
+          const localOnly = prev.filter((c) => {
+            if (deletedIds.has(c.id)) return false;
+            if (serverIds.has(c.id)) return false;
+            if (c.isCreating || c.id.startsWith("pending-")) return true;
+            const age = now - (c.updatedAt ?? 0);
+            return age >= 0 && age < LOCAL_LIST_GRACE_MS;
+          });
+          const merged = serverChatsVisible.map((server) => {
+            const local = prev.find((p) => p.id === server.id);
+            const pinOverride = pendingPinOverridesRef.current.get(server.id);
+            const titleOverride = pendingTitleOverridesRef.current.get(
+              server.id,
+            );
+            const pinned =
+              pinOverride !== undefined ? pinOverride : server.pinned;
+            // Drop pin override only once the server list agrees — avoids cache lag
+            // flipping the chat out of Pinned after a successful POST.
+            if (
+              pinOverride !== undefined &&
+              Boolean(server.pinned) === pinOverride
+            ) {
+              pendingPinOverridesRef.current.delete(server.id);
+            }
+            if (
+              titleOverride !== undefined &&
+              server.name.trim().toLowerCase() ===
+                titleOverride.trim().toLowerCase()
+            ) {
+              pendingTitleOverridesRef.current.delete(server.id);
+            }
+            if (!local) {
+              return {
+                ...server,
+                pinned,
+                ...(titleOverride
+                  ? { name: titleOverride, titleGenerated: true }
+                  : null),
+              };
+            }
+            if (local.isTitleStreaming) {
+              return {
+                ...server,
+                name: local.name,
+                isTitleStreaming: true,
+                titleGenerated: local.titleGenerated,
+                pinned,
+                updatedAt: Math.max(
+                  local.updatedAt ?? 0,
+                  server.updatedAt ?? 0,
+                ),
+              };
+            }
+            const name =
+              titleOverride ??
+              (local.titleGenerated &&
+              local.name.trim().toLowerCase() !== "new chat" &&
+              server.name.trim().toLowerCase() === "new chat"
+                ? local.name
+                : server.name);
             return {
               ...server,
+              name,
+              titleGenerated:
+                Boolean(titleOverride) ||
+                local.titleGenerated ||
+                server.name.toLowerCase() !== "new chat",
               pinned,
-              ...(titleOverride
-                ? { name: titleOverride, titleGenerated: true }
-                : null),
-            };
-          }
-          if (local.isTitleStreaming) {
-            return {
-              ...server,
-              name: local.name,
-              isTitleStreaming: true,
-              titleGenerated: local.titleGenerated,
-              pinned,
+              // Prefer fresher local updatedAt so a just-created chat stays on top.
               updatedAt: Math.max(local.updatedAt ?? 0, server.updatedAt ?? 0),
             };
+          });
+          const next = [...localOnly, ...merged].sort((a, b) => {
+            if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+              return a.pinned ? -1 : 1;
+            }
+            return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+          });
+          recentChatsRef.current = next;
+          if (userId) {
+            writeSyncDeviceChatList(userId, next);
           }
-          const name =
-            titleOverride ??
-            (local.titleGenerated &&
-            local.name.trim().toLowerCase() !== "new chat" &&
-            server.name.trim().toLowerCase() === "new chat"
-              ? local.name
-              : server.name);
-          return {
-            ...server,
-            name,
-            titleGenerated:
-              Boolean(titleOverride) ||
-              local.titleGenerated ||
-              server.name.toLowerCase() !== "new chat",
-            pinned,
-            // Prefer fresher local updatedAt so a just-created chat stays on top.
-            updatedAt: Math.max(local.updatedAt ?? 0, server.updatedAt ?? 0),
-          };
+          return next;
         });
-        const next = [...localOnly, ...merged].sort((a, b) => {
-          if (Boolean(a.pinned) !== Boolean(b.pinned)) {
-            return a.pinned ? -1 : 1;
-          }
-          return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
-        });
-        recentChatsRef.current = next;
-        if (userId) {
-          writeSyncDeviceChatList(userId, next);
-        }
-        return next;
-      });
-    } catch (error) {
-      // Challenge HTML / transient network — keep existing sidebar list.
-      console.warn("[chats] list failed (soft):", error);
-    } finally {
-      chatsLoadedOnceRef.current = true;
-      setLoading(false);
-    }
-  }, [projectIdFilter, userId]);
+      } catch (error) {
+        // Challenge HTML / transient network — keep existing sidebar list.
+        console.warn("[chats] list failed (soft):", error);
+      } finally {
+        chatsLoadedOnceRef.current = true;
+        setLoading(false);
+      }
+    },
+    [projectIdFilter, userId],
+  );
 
   useEffect(() => {
     // Home = blank new chat immediately (don't wait for list / IndexedDB).
@@ -500,8 +522,7 @@ export function useChatApi(
       if (cancelled) return;
       // Reconcile with Worker/API without blanking a painted sidebar.
       void refreshChats({
-        silent:
-          recentChatsRef.current.length > 0 || chatsLoadedOnceRef.current,
+        silent: recentChatsRef.current.length > 0 || chatsLoadedOnceRef.current,
       });
     })();
 
@@ -672,7 +693,11 @@ export function useChatApi(
         },
         (payload) => {
           const row = payload.new as chatsApi.ApiMessage | undefined;
-          if (!row?.id || row.status === "cancelled") return;
+          if (
+            !row?.id ||
+            (row.status === "cancelled" && !(row.content ?? "").trim())
+          )
+            return;
           const mapped = mapApiMessage(row);
           const store = useChatStore.getState();
           const existing = store.getMessagesForChat(activeChatId);
@@ -757,7 +782,8 @@ export function useChatApi(
           const localHasAgentFrames =
             (prevMessage.agentFrames?.some(
               (frame) => frame.segments.length > 0,
-            ) ?? false) ||
+            ) ??
+              false) ||
             (prevMessage.agentSegments?.length ?? 0) > 0;
           const mappedHasAgentFrames =
             (mapped.agentFrames?.some((frame) => frame.segments.length > 0) ??
@@ -780,8 +806,7 @@ export function useChatApi(
             clientId: prevMessage.clientId ?? mapped.clientId ?? mapped.id,
             turnId: prevMessage.turnId ?? mapped.turnId,
             content:
-              (prevMessage.content?.length ?? 0) >
-              (mapped.content?.length ?? 0)
+              (prevMessage.content?.length ?? 0) > (mapped.content?.length ?? 0)
                 ? prevMessage.content
                 : mapped.content,
             isStreaming:
@@ -875,8 +900,9 @@ export function useChatApi(
             };
           });
           const existingKeys = new Set(
-            merged.flatMap((message) =>
-              [message.id, message.clientId].filter(Boolean) as string[],
+            merged.flatMap(
+              (message) =>
+                [message.id, message.clientId].filter(Boolean) as string[],
             ),
           );
           for (const remote of hydrated) {
@@ -892,8 +918,10 @@ export function useChatApi(
               remote.role === "assistant" &&
               !(remote.content ?? "").trim() &&
               (remote.isStreaming ||
-                !(remote.agentFrames?.some((f) => f.segments.length > 0) ??
-                  false))
+                !(
+                  remote.agentFrames?.some((f) => f.segments.length > 0) ??
+                  false
+                ))
             ) {
               continue;
             }
@@ -1070,11 +1098,7 @@ export function useChatApi(
 
       const ssrSeed = takePendingChatRouteSeed(chatId);
       if (ssrSeed) {
-        applyHydratedMessages(
-          chatId,
-          ssrSeed.messages,
-          ssrSeed.branchMessages,
-        );
+        applyHydratedMessages(chatId, ssrSeed.messages, ssrSeed.branchMessages);
         setLoadingChatId((current) => (current === chatId ? null : current));
         // Only silent-reconcile when idle — never during a live send/stream.
         if (!isChatActivelyGenerating(chatId)) {
@@ -1126,8 +1150,7 @@ export function useChatApi(
             message.isStreaming ||
             message.isThinkingStreaming ||
             (assistantId &&
-              (message.id === assistantId ||
-                message.clientId === assistantId));
+              (message.id === assistantId || message.clientId === assistantId));
           if (!matches) return clearIdleStreamingFlags(message);
           clearStreamPaintSessions(messageUiKey(message));
           if (message.id) clearStreamPaintSessions(message.id);
@@ -1391,9 +1414,9 @@ export function useChatApi(
             .getMessagesForChat(chatId)
             .find(
               (m) =>
-                (turn?.userClientId &&
-                  (m.id === turn.userClientId ||
-                    m.clientId === turn.userClientId)),
+                turn?.userClientId &&
+                (m.id === turn.userClientId ||
+                  m.clientId === turn.userClientId),
             )?.turnId ??
           streamTurnId;
         store.upsertMessage(chatId, {
@@ -1496,13 +1519,11 @@ export function useChatApi(
 
           // Cloudflare/Vercel challenge HTML on /generate — brief retry instead
           // of ending the turn with "Connection was interrupted".
-          if (
-            attemptResponse.body &&
-            !isEventStreamResponse(attemptResponse)
-          ) {
+          if (attemptResponse.body && !isEventStreamResponse(attemptResponse)) {
             const peek = await attemptResponse.clone().text();
             if (looksLikeSecurityChallenge(attemptResponse, peek)) {
-              lastDetail = "Security check in progress. Please retry in a moment.";
+              lastDetail =
+                "Security check in progress. Please retry in a moment.";
               if (attempt < 3) {
                 await new Promise((resolve) =>
                   setTimeout(resolve, 400 + attempt * 200),
@@ -1575,7 +1596,9 @@ export function useChatApi(
         }
 
         // Sync optimistic local id → durable DB assistant id (prevents duplicates).
-        const serverAssistantId = response.headers.get("X-Assistant-Message-Id");
+        const serverAssistantId = response.headers.get(
+          "X-Assistant-Message-Id",
+        );
         if (serverAssistantId && serverAssistantId !== assistantId) {
           const previousId = assistantId;
           assistantId = serverAssistantId;
@@ -1586,7 +1609,9 @@ export function useChatApi(
               assistantMessageId: assistantId,
             });
           }
-          useChatStore.getState().setStreaming({ chatId, messageId: assistantId });
+          useChatStore
+            .getState()
+            .setStreaming({ chatId, messageId: assistantId });
           const store = useChatStore.getState();
           const existing = store
             .getMessagesForChat(chatId)
@@ -1780,8 +1805,7 @@ export function useChatApi(
             // a mid-continue provider blip must not wipe the conversation.
             const existing = (allChatsRef.current[chatId] ?? []).find(
               (m) =>
-                m.id === targetAssistantId ||
-                m.clientId === assistantClientId,
+                m.id === targetAssistantId || m.clientId === assistantClientId,
             );
             if (existing && hasUsefulAssistantProgress(existing)) {
               patchAssistantMessage(chatId, targetAssistantId, (message) => ({
@@ -1795,10 +1819,7 @@ export function useChatApi(
             }
             throw new Error(event.message || USER_FACING_CHAT_ERROR);
           }
-          if (
-            event.type === "tool_end" &&
-            event.name === "ask_user_input_v0"
-          ) {
+          if (event.type === "tool_end" && event.name === "ask_user_input_v0") {
             // Mark the ask turn idle in the transcript, but keep the generation
             // controller until SSE `done`. Clearing early made bypassQueue think
             // the lease was free while the server still held it → 409.
@@ -1903,7 +1924,8 @@ export function useChatApi(
             .getMessagesForChat(chatId)
             .find(
               (m) =>
-                m.id === finalizedAssistantId || m.clientId === assistantClientId,
+                m.id === finalizedAssistantId ||
+                m.clientId === assistantClientId,
             );
           if (existing) {
             store.patchMessage(chatId, finalizedAssistantId, (m) => {
@@ -1965,9 +1987,7 @@ export function useChatApi(
                   (m.thinkingStartedAtMs
                     ? Math.max(
                         1,
-                        Math.round(
-                          (Date.now() - m.thinkingStartedAtMs) / 1000,
-                        ),
+                        Math.round((Date.now() - m.thinkingStartedAtMs) / 1000),
                       )
                     : undefined),
               };
@@ -1987,8 +2007,7 @@ export function useChatApi(
       } catch (error) {
         // Aborts come from stopGeneration, which already finalized the
         // assistant message and cleared generation state.
-        const isAbort =
-          error instanceof Error && error.name === "AbortError";
+        const isAbort = error instanceof Error && error.name === "AbortError";
         if (getGeneration(chatId)?.request === controller && !isAbort) {
           const failedAssistantId = resolveAssistantId();
           const rawMessage =
@@ -2047,9 +2066,7 @@ export function useChatApi(
           setGeneration(chatId, null);
           useChatStore.getState().setChatGenerating(chatId, false);
           useChatStore.getState().setStreaming(null);
-          const nextQueued = useChatStore
-            .getState()
-            .shiftQueuedMessage(chatId);
+          const nextQueued = useChatStore.getState().shiftQueuedMessage(chatId);
           if (nextQueued?.content) {
             // Let the sealed transcript commit before painting the next turn.
             queueMicrotask(() => {
@@ -2099,9 +2116,7 @@ export function useChatApi(
       }
 
       const bindProjectId =
-        options?.projectId !== undefined
-          ? options.projectId
-          : projectIdFilter;
+        options?.projectId !== undefined ? options.projectId : projectIdFilter;
 
       let chatId = options?.chatIdOverride
         ? options.chatIdOverride
@@ -2114,8 +2129,8 @@ export function useChatApi(
       // Attachment-only sends cannot be queued yet — require an idle chat.
       const locallyGenerating = Boolean(
         chatId &&
-          (useChatStore.getState().generatingChatIds[chatId] ||
-            getGeneration(chatId)),
+        (useChatStore.getState().generatingChatIds[chatId] ||
+          getGeneration(chatId)),
       );
       if (chatId && !options?.bypassQueue && locallyGenerating) {
         if (!trimmed) return null;
@@ -2259,7 +2274,10 @@ export function useChatApi(
             message.role === "assistant" &&
             (message.isStreaming || message.isThinkingStreaming)
           ) {
-            store.upsertMessage(chatId, sealCompletedAssistantMessages([message])[0]!);
+            store.upsertMessage(
+              chatId,
+              sealCompletedAssistantMessages([message])[0]!,
+            );
           }
         }
         store.upsertMessage(chatId, optimisticUser);
@@ -2394,7 +2412,9 @@ export function useChatApi(
 
           setAllChats((prev) => {
             const list = prev[chatId!] ?? [];
-            const index = list.findIndex((message) => message.id === tempUserId);
+            const index = list.findIndex(
+              (message) => message.id === tempUserId,
+            );
             if (index < 0) return prev;
             const next = [...list];
             const current = next[index]!;
@@ -2418,7 +2438,10 @@ export function useChatApi(
 
         // Await uploads when we have files (images need durable ids for history;
         // vision still uses local base64 so the model does not wait on R2).
-        if (!ephemeral && pendingAttachments.some((item) => item.file && !item.fileId)) {
+        if (
+          !ephemeral &&
+          pendingAttachments.some((item) => item.file && !item.fileId)
+        ) {
           await uploadAttachments();
         } else {
           void uploadAttachments();
@@ -2453,10 +2476,7 @@ export function useChatApi(
             message.id !== assistantClientId &&
             message.clientId !== assistantClientId,
         );
-        const conversation = buildConversation([
-          ...priorMessages,
-          modelUser,
-        ]);
+        const conversation = buildConversation([...priorMessages, modelUser]);
 
         // One server-owned turn creates the durable user and assistant rows in
         // a transaction. Sending their stable client ids makes browser retries
@@ -2633,7 +2653,12 @@ export function useChatApi(
       setRecentChats((prev) => {
         const next = prev.map((c) =>
           c.id === chatId
-            ? { ...c, name: title, titleGenerated: true, isTitleStreaming: false }
+            ? {
+                ...c,
+                name: title,
+                titleGenerated: true,
+                isTitleStreaming: false,
+              }
             : c,
         );
         recentChatsRef.current = next;
@@ -2692,35 +2717,35 @@ export function useChatApi(
         );
       }
 
-      void (pinned ? chatsApi.pinChat(chatId) : chatsApi.unpinChat(chatId)).catch(
-        (error) => {
-          console.error("Failed to persist chat pin:", error);
-          pendingPinOverridesRef.current.delete(chatId);
-          setRecentChats((prev) => {
-            const next = prev
-              .map((chat) =>
-                chat.id === chatId
-                  ? { ...chat, pinned: Boolean(prevPinned) }
-                  : chat,
-              )
-              .sort((a, b) => {
-                if (Boolean(a.pinned) !== Boolean(b.pinned)) {
-                  return a.pinned ? -1 : 1;
-                }
-                return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
-              });
-            recentChatsRef.current = next;
-            return next;
-          });
-          if (userId) {
-            void persistDeviceRecentChatsNow(
-              userId,
-              recentChatsRef.current,
-              useChatStore.getState().activeChatId,
-            );
-          }
-        },
-      );
+      void (
+        pinned ? chatsApi.pinChat(chatId) : chatsApi.unpinChat(chatId)
+      ).catch((error) => {
+        console.error("Failed to persist chat pin:", error);
+        pendingPinOverridesRef.current.delete(chatId);
+        setRecentChats((prev) => {
+          const next = prev
+            .map((chat) =>
+              chat.id === chatId
+                ? { ...chat, pinned: Boolean(prevPinned) }
+                : chat,
+            )
+            .sort((a, b) => {
+              if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+                return a.pinned ? -1 : 1;
+              }
+              return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+            });
+          recentChatsRef.current = next;
+          return next;
+        });
+        if (userId) {
+          void persistDeviceRecentChatsNow(
+            userId,
+            recentChatsRef.current,
+            useChatStore.getState().activeChatId,
+          );
+        }
+      });
     },
     [userId],
   );
@@ -2798,7 +2823,8 @@ export function useChatApi(
         msg.id === messageId
           ? {
               ...msg,
-              content: `${trimmed}${attachmentContext}`.trim() ||
+              content:
+                `${trimmed}${attachmentContext}`.trim() ||
                 trimmed ||
                 "(attached files)",
             }

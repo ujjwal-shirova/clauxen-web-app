@@ -34,13 +34,14 @@ export async function completeUpload(input: {
 /** Upload a browser File via presign → PUT → complete. */
 export async function uploadUserFile(
   file: File,
-  options?: { folderId?: string | null },
+  options?: { folderId?: string | null; projectId?: string },
 ) {
   const { fileId, uploadUrl, method, stub, worker } = await presignUpload({
     originalName: file.name,
     mimeType: file.type || "application/octet-stream",
     sizeBytes: file.size,
     folderId: options?.folderId,
+    projectId: options?.projectId,
   });
 
   if (!stub) {

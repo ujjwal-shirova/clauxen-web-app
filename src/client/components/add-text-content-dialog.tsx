@@ -17,7 +17,7 @@ type AddTextContentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
-  onAdded?: (file: ProjectFileMeta) => void;
+  onAdded?: (file: ProjectFileMeta) => void | Promise<void | ProjectFileMeta>;
 };
 
 export function AddTextContentDialog({
@@ -28,6 +28,7 @@ export function AddTextContentDialog({
 }: AddTextContentDialogProps) {
   const [title, setTitle] = React.useState("");
   const [content, setContent] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
     if (open) {
@@ -36,7 +37,7 @@ export function AddTextContentDialog({
     }
   }, [open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
@@ -52,8 +53,13 @@ export function AddTextContentDialog({
       subtitle: `${lineCount} line${lineCount === 1 ? "" : "s"}`,
     };
 
-    onAdded?.(file);
-    onOpenChange(false);
+    setSubmitting(true);
+    try {
+      await onAdded?.(file);
+      onOpenChange(false);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -130,10 +136,10 @@ export function AddTextContentDialog({
             </button>
             <button
               type="submit"
-              disabled={!title.trim() || !content.trim()}
+              disabled={!title.trim() || !content.trim() || submitting}
               className={appBtn.primary}
             >
-              Add Content
+              {submitting ? "Adding…" : "Add Content"}
             </button>
           </div>
         </form>

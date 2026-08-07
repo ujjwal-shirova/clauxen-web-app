@@ -52,7 +52,7 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
       setLoadFailed(false);
       return;
     }
-    if (!id || id.startsWith("local-")) {
+    if (!id) {
       if (!apiEnabled) {
         setProject(cached ?? null);
         setLoadFailed(!cached);
@@ -90,7 +90,9 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
           forceNewChat: true,
           projectId: id,
           onChatCreated: (newId) => {
-            instantNavigate(APP_ROUTES.projectChat(newId), { replace: true });
+            instantNavigate(APP_ROUTES.projectChat(id, newId), {
+              replace: true,
+            });
           },
         });
         if (chatId) {
@@ -98,7 +100,7 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
             typeof window !== "undefined"
               ? `${window.location.pathname}${window.location.search}`
               : "";
-          const target = APP_ROUTES.projectChat(chatId);
+          const target = APP_ROUTES.projectChat(id, chatId);
           if (pathNow !== target) {
             instantNavigate(target, { replace: true });
           }
@@ -143,10 +145,16 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
       onStopGeneration={() => session?.stopGeneration()}
       isGenerating={isGenerating || Boolean(session?.isGenerating)}
       onSaveInstructions={async (text) => {
-        if (apiEnabled && !id.startsWith("local-")) {
+        if (apiEnabled) {
           await projectsHook.updateProject(id, { system_prompt: text });
         }
       }}
+      projectChats={(session?.startedRecentChats ?? []).filter(
+        (chat) => chat.projectId === id,
+      )}
+      onOpenChat={(chatId) =>
+        instantNavigate(APP_ROUTES.projectChat(id, chatId))
+      }
       onOpenMobileNav={openMobileNav}
       showMobileMenu={isMobile && isSidebarCollapsed}
     />

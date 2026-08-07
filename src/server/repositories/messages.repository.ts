@@ -40,7 +40,8 @@ export async function listMessagesForChat(chatId: string) {
     `select id, chat_id, role, coalesce(content, '') as content, status, metadata,
             coalesce(content_json, '{}'::jsonb) as content_json, created_at, client_id
      from public.chat_messages
-     where chat_id = $1 and status != 'cancelled'
+     where chat_id = $1
+       and (status != 'cancelled' or coalesce(trim(content), '') != '')
      order by created_at asc, id asc`,
     [chatId],
   );
@@ -98,7 +99,8 @@ export async function listRecentMessagesForChat(
      from (
        select id, chat_id, role, content, status, metadata, content_json, created_at, client_id
        from public.chat_messages
-       where chat_id = $1 and status != 'cancelled'
+       where chat_id = $1
+         and (status != 'cancelled' or coalesce(trim(content), '') != '')
        order by created_at desc, id desc
        limit $2
      ) recent
@@ -751,10 +753,9 @@ export async function finalizeStaleStreamingMessages(
   const rows = await query<{ id: string }>(
     `with updated as (
        update public.chat_messages
-       set status = 'failed',
-           content = case
-             when coalesce(content, '') = '' then 'Generation interrupted.'
-             else content
+       set status = case
+             when coalesce(trim(content), '') = '' then 'failed'
+             else 'complete'
            end,
            updated_at = now()
        where chat_id = $1

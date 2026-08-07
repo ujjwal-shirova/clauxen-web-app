@@ -433,7 +433,11 @@ export function Sidebar({
             }}
             className="ui-row-icon-button ml-1 opacity-0 transition-[opacity,color] group-hover/chat:opacity-100 focus-visible:opacity-100"
           >
-            {showUnpin ? <PinOff strokeWidth={1.5} /> : <Pin strokeWidth={1.5} />}
+            {showUnpin ? (
+              <PinOff strokeWidth={1.5} />
+            ) : (
+              <Pin strokeWidth={1.5} />
+            )}
           </button>
         ) : null}
       </div>
@@ -570,7 +574,7 @@ export function Sidebar({
     const isGeneratingChat = generatingSet.has(chat.id);
     const isActive = activeChatId === chat.id;
     const chatHref = chat.projectId
-      ? APP_ROUTES.projectChat(chat.id)
+      ? APP_ROUTES.projectChat(chat.projectId, chat.id)
       : APP_ROUTES.chat(chat.id);
     // Spinner only when another chat is generating in the background.
     // Never on the active chat, never while creating/starting a new chat.
@@ -676,9 +680,7 @@ export function Sidebar({
       <nav
         id={id}
         data-skip-global-prompt-focus
-        onClick={() =>
-          !isMobileLayout && isCollapsed && setIsCollapsed(false)
-        }
+        onClick={() => !isMobileLayout && isCollapsed && setIsCollapsed(false)}
         className={cn(
           "sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)]",
           isMobileLayout &&
@@ -760,7 +762,9 @@ export function Sidebar({
               isCollapsed ? "flex justify-center px-0" : "px-1.5",
             )}
           >
-            <div className={cn(isCollapsed ? "flex justify-center px-0" : "px-0")}>
+            <div
+              className={cn(isCollapsed ? "flex justify-center px-0" : "px-0")}
+            >
               {isCollapsed ? (
                 <AppHref
                   href={APP_ROUTES.newChat}
@@ -805,9 +809,7 @@ export function Sidebar({
           <div
             className={cn(
               "space-y-px pb-1",
-              isCollapsed
-                ? "flex flex-col items-center px-0"
-                : "px-1.5",
+              isCollapsed ? "flex flex-col items-center px-0" : "px-1.5",
             )}
           >
             {/* Nav: Library → Scheduled → Customize → Clauxen Code */}
@@ -821,9 +823,7 @@ export function Sidebar({
 
             {renderNavButton({
               label: "Scheduled Task",
-              icon: (
-                <CalendarClock className="size-4" strokeWidth={1.5} />
-              ),
+              icon: <CalendarClock className="size-4" strokeWidth={1.5} />,
               href: APP_ROUTES.scheduledTasks,
               onClick: () => onScheduledTasksClick?.(),
               active: activeView === "scheduled-tasks",
@@ -831,9 +831,7 @@ export function Sidebar({
 
             {renderNavButton({
               label: "Customize",
-              icon: (
-                <SlidersHorizontal className="size-4" strokeWidth={1.5} />
-              ),
+              icon: <SlidersHorizontal className="size-4" strokeWidth={1.5} />,
               href: overlayHref({ type: "settings", tab: "Connectors" }),
               onClick: () => onCustomizeClick?.(),
               active: activeView === "connectors",

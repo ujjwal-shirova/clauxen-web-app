@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { ChatArea } from "@/components/chat-area";
 import { PaymentSuccessDialog } from "@/components/payment-success-dialog";
@@ -23,10 +29,7 @@ import { useProjects } from "@/hooks/use-projects";
 import * as projectsApi from "@/lib/api/projects";
 import { getBillingSubscription } from "@/lib/api/billing";
 import { writeCachedBillingPlan } from "@/lib/billing-plan-cache";
-import {
-  DEFAULT_CHAT_MODEL_ID,
-  type ChatModelId,
-} from "@/lib/chat-models";
+import { DEFAULT_CHAT_MODEL_ID, type ChatModelId } from "@/lib/chat-models";
 import {
   DEFAULT_HOMER_REASONING_EFFORT,
   type HomerReasoningEffort,
@@ -55,6 +58,7 @@ type ChatController = ReturnType<typeof useChat> & {
 
 function getRouteChatId(pathname: string): string | null {
   return (
+    pathname.match(/^\/project\/[^/]+\/c\/([^/]+)/)?.[1] ??
     pathname.match(/\/conversations\/([^/]+)/)?.[1] ??
     pathname.match(/^\/c\/([^/]+)/)?.[1] ??
     null
@@ -88,7 +92,9 @@ function ChatViewBody({
   const [localEffort, setLocalEffort] = useState<HomerReasoningEffort>(
     DEFAULT_HOMER_REASONING_EFFORT,
   );
-  const [localModel, setLocalModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
+  const [localModel, setLocalModel] = useState<ChatModelId>(
+    DEFAULT_CHAT_MODEL_ID,
+  );
   const [localExtendedThinking, setLocalExtendedThinking] = useState(false);
   const [resolvedProjectName, setResolvedProjectName] = useState<string | null>(
     projectBreadcrumb?.label ?? null,
@@ -136,8 +142,7 @@ function ChatViewBody({
     }
   }, [pathname]);
 
-  const homerReasoningEffort =
-    chat.homerReasoningEffort ?? localEffort;
+  const homerReasoningEffort = chat.homerReasoningEffort ?? localEffort;
   const setHomerReasoningEffort =
     chat.setHomerReasoningEffort ?? setLocalEffort;
   const chatModel = chat.chatModel ?? localModel;
@@ -176,17 +181,15 @@ function ChatViewBody({
   );
   const messagesLoadError =
     (chat as { messagesLoadError?: string | null }).messagesLoadError ?? null;
-  const retryLoadMessages =
-    (chat as { retryLoadMessages?: () => Promise<void> }).retryLoadMessages;
+  const retryLoadMessages = (
+    chat as { retryLoadMessages?: () => Promise<void> }
+  ).retryLoadMessages;
 
   const routeChatId = getRouteChatId(pathname);
   const isProjectHome = isProjectHomePath(pathname);
 
   // Bind new chats from the project dashboard without filtering the sidebar list.
-  const bindProjectId =
-    projectId ??
-    activeChat?.projectId ??
-    null;
+  const bindProjectId = projectId ?? activeChat?.projectId ?? null;
 
   // Keep showing the live conversation as soon as a chat id / messages exist,
   // even before Next finishes soft-navigating off /new or /project/:id.
@@ -246,7 +249,6 @@ function ChatViewBody({
       setResolvedProjectName(cached.name);
       return;
     }
-    if (id.startsWith("local-")) return;
     let cancelled = false;
     void projectsApi.getProject(id).then(
       ({ project }) => {
@@ -285,7 +287,10 @@ function ChatViewBody({
   const openChatRoute = useCallback(
     (chatId: string) => {
       if (projectId || bindProjectId) {
-        instantNavigate(APP_ROUTES.projectChat(chatId), { replace: true });
+        instantNavigate(
+          APP_ROUTES.projectChat(projectId ?? bindProjectId!, chatId),
+          { replace: true },
+        );
         return;
       }
       instantNavigate(APP_ROUTES.chat(chatId), { replace: true });
@@ -333,7 +338,7 @@ function ChatViewBody({
           : pathname;
       const targetPath =
         projectId || bindProjectId
-          ? APP_ROUTES.projectChat(chatId)
+          ? APP_ROUTES.projectChat(projectId ?? bindProjectId!, chatId)
           : APP_ROUTES.chat(chatId);
       if (shouldOpenRoute && pathNow !== targetPath) {
         openChatRoute(chatId);
@@ -368,9 +373,10 @@ function ChatViewBody({
       // Optimistic delete updates UI sync; navigate away without waiting on API.
       void handleDeleteChat(chatId);
       if (!wasActive) return;
-      const target = projectId || bindProjectId
-        ? APP_ROUTES.project(projectId || bindProjectId!)
-        : APP_ROUTES.newChat;
+      const target =
+        projectId || bindProjectId
+          ? APP_ROUTES.project(projectId || bindProjectId!)
+          : APP_ROUTES.newChat;
       instantNavigate(target, { replace: true });
     },
     [activeChatId, handleDeleteChat, projectId, bindProjectId, instantNavigate],
@@ -407,8 +413,8 @@ function ChatViewBody({
     isIncognito
       ? "Incognito"
       : blankNewChatComposer
-        ? resolvedProjectName ?? "Project"
-        : displayActiveChat?.name ?? null,
+        ? (resolvedProjectName ?? "Project")
+        : (displayActiveChat?.name ?? null),
     {
       brandOnly: brandOnlyTab,
     },
@@ -514,7 +520,9 @@ function ChatViewStandalone({
   projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
   incognito?: boolean;
 }) {
-  const [chatModel, setChatModel] = useState<ChatModelId>(DEFAULT_CHAT_MODEL_ID);
+  const [chatModel, setChatModel] = useState<ChatModelId>(
+    DEFAULT_CHAT_MODEL_ID,
+  );
   const [homerReasoningEffort, setHomerReasoningEffort] =
     useState<HomerReasoningEffort>(DEFAULT_HOMER_REASONING_EFFORT);
 
