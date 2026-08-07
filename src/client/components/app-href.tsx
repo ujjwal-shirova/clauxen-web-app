@@ -61,10 +61,21 @@ export const AppHref = forwardRef<HTMLAnchorElement, AppHrefProps>(
   ) {
     const navigate = useInstantNavigate();
 
+    const opensNewTab =
+      rest.target === "_blank" ||
+      (typeof rest.target === "string" && rest.target.length > 0);
+
     const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
       onClick?.(event);
       if (event.defaultPrevented) return;
-      if (!soft || isExternalHref(href) || isModifiedClick(event)) return;
+      if (
+        !soft ||
+        opensNewTab ||
+        isExternalHref(href) ||
+        isModifiedClick(event)
+      ) {
+        return;
+      }
       event.preventDefault();
       navigate(href, { replace });
     };

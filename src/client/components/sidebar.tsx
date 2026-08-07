@@ -18,6 +18,7 @@ import {
   Languages,
   Sparkles,
   Library,
+  Clapperboard,
   SlidersHorizontal,
   X,
   LayoutGrid,
@@ -496,6 +497,10 @@ export function Sidebar({
     muted = false,
     trailing,
     replace = false,
+    soft = true,
+    target,
+    rel,
+    title,
   }: {
     label: string;
     icon: React.ReactNode;
@@ -505,6 +510,10 @@ export function Sidebar({
     muted?: boolean;
     trailing?: React.ReactNode;
     replace?: boolean;
+    soft?: boolean;
+    target?: string;
+    rel?: string;
+    title?: string;
   }) => {
     const body = (
       <div
@@ -513,7 +522,9 @@ export function Sidebar({
           !isCollapsed && "w-full",
         )}
       >
-        <div className={cn("ui-nav-icon", muted && "opacity-60")}>{icon}</div>
+        <div className={cn("relative ui-nav-icon", muted && "opacity-60")}>
+          {icon}
+        </div>
         {!isCollapsed && (
           <span
             className={cn(
@@ -533,11 +544,20 @@ export function Sidebar({
         <AppHref
           href={href}
           replace={replace}
+          soft={soft}
+          target={target}
+          rel={rel}
+          title={title}
           aria-label={label}
           aria-current={active ? "page" : undefined}
           className={navButtonClass(active, muted)}
           onClick={(e) => {
             e.stopPropagation();
+            if (target === "_blank") {
+              onClick?.();
+              if (isMobileLayout) onNavigate?.();
+              return;
+            }
             if (!isPlainLeftClick(e)) return;
             onClick?.();
             if (isMobileLayout) onNavigate?.();
@@ -556,6 +576,7 @@ export function Sidebar({
           onClick?.();
         }}
         aria-label={label}
+        title={title}
         className={navButtonClass(active, muted)}
       >
         {body}
@@ -812,7 +833,35 @@ export function Sidebar({
               isCollapsed ? "flex flex-col items-center px-0" : "px-1.5",
             )}
           >
-            {/* Nav: Library → Scheduled → Customize → Clauxen Code */}
+            {/* Nav: Studio → Library → Scheduled → Customize → Clauxen Code */}
+            {renderNavButton({
+              label: "Studio",
+              icon: (
+                <span className="relative inline-flex">
+                  <Clapperboard className="size-4" strokeWidth={1.5} />
+                  {isCollapsed ? (
+                    <span
+                      className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-amber-500"
+                      aria-hidden
+                    />
+                  ) : null}
+                </span>
+              ),
+              href: APP_ROUTES.studio,
+              soft: false,
+              target: "_blank",
+              rel: "noopener noreferrer",
+              title: "Open Clauxen Studio in a new tab",
+              onClick: () => {
+                if (isMobileLayout) onNavigate?.();
+              },
+              trailing: !isCollapsed ? (
+                <span className="ml-1.5 inline-flex shrink-0 items-center rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-800/90 bg-amber-400/25">
+                  New
+                </span>
+              ) : undefined,
+            })}
+
             {renderNavButton({
               label: "Library",
               icon: <Library className="size-4" />,

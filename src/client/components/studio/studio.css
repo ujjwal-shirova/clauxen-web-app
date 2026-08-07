@@ -1,0 +1,117 @@
+/* Clauxen Studio — cinematic creative shell (distinct from chat app) */
+
+.studio-shell {
+  font-feature-settings: "ss01" on, "cv11" on;
+  -webkit-font-smoothing: antialiased;
+}
+
+.studio-stage {
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      rgba(196, 165, 116, 0.07),
+      transparent 55%
+    ),
+    #0a0908;
+}
+
+.studio-dock-focused {
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.studio-chip-select {
+  appearance: none;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.35rem 1.75rem 0.35rem 0.55rem;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(242, 235, 224, 0.85);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.45rem center;
+  outline: none;
+  cursor: pointer;
+}
+
+.studio-chip-select:focus {
+  border-color: rgba(196, 165, 116, 0.4);
+}
+
+.studio-chip-select option {
+  background: #1a1814;
+  color: #f2ebe0;
+}
+
+.studio-gallery-item {
+  animation: studio-item-in 0.45s ease-out both;
+}
+
+.studio-gallery-pending {
+  animation:
+    studio-item-in 0.45s ease-out both,
+    studio-pending-pulse 1.6s ease-in-out infinite;
+}
+
+.studio-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(232, 212, 176, 0.35),
+    rgba(255, 255, 255, 0.08)
+  );
+  background-size: 200% 100%;
+  animation: studio-shimmer 1.2s linear infinite;
+}
+
+.studio-detail-drawer {
+  animation: studio-drawer-in 0.28s ease-out both;
+}
+
+@keyframes studio-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes studio-pending-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes studio-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes studio-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .studio-detail-drawer {
+    display: none;
+  }
+}
