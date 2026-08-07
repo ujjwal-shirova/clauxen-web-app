@@ -45,16 +45,16 @@ export async function createProject(input: {
 }) {
   return queryOne<ProjectRow>(
     `insert into public.projects (user_id, workspace_id, name, description, color, icon)
-     select $1, $2, $3, $4, $5, $6
-     where $2 is null
+     select $1::uuid, $2::uuid, $3, $4, $5, $6
+     where $2::uuid is null
         or exists (
           select 1 from public.workspaces w
-          where w.id = $2
+          where w.id = $2::uuid
             and (
-              w.owner_id = $1
+              w.owner_id = $1::uuid
               or exists (
                 select 1 from public.workspace_members wm
-                where wm.workspace_id = w.id and wm.user_id = $1 and wm.status = 'active'
+                where wm.workspace_id = w.id and wm.user_id = $1::uuid and wm.status = 'active'
               )
             )
         )
