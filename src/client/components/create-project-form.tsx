@@ -26,6 +26,7 @@ type CreateProjectFormProps = {
   initialName?: string;
   initialDescription?: string;
   initialIcon?: string;
+  errorMessage?: string | null;
 };
 
 /**
@@ -43,6 +44,7 @@ export function CreateProjectForm({
   initialName = "",
   initialDescription = "",
   initialIcon = "📁",
+  errorMessage,
 }: CreateProjectFormProps) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
@@ -164,6 +166,11 @@ export function CreateProjectForm({
             {isSubmitting ? "Creating…" : submitLabel}
           </button>
         </div>
+        {errorMessage ? (
+          <p role="alert" className="-mt-4 text-sm text-red-600">
+            {errorMessage}
+          </p>
+        ) : null}
       </form>
     </div>
   );

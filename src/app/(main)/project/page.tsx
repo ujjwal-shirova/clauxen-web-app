@@ -4,7 +4,6 @@ import { Suspense, useState } from "react";
 import { CreateProjectForm } from "@/components/create-project-form";
 import { useProjects } from "@/hooks/use-projects";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 
@@ -19,9 +18,9 @@ export default function ProjectCreateRoutePage() {
 function ProjectCreateContent() {
   const instantNavigate = useInstantNavigate();
   const auth = useAuth();
-  const { toast } = useToast();
   const projects = useProjects(Boolean(auth.user?.id));
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const handleCreate = async ({
     name,
@@ -33,6 +32,7 @@ function ProjectCreateContent() {
     icon: string;
   }) => {
     setIsCreating(true);
+    setCreateError(null);
     try {
       const project = await projects.createProject({
         name,
@@ -43,17 +43,9 @@ function ProjectCreateContent() {
         instantNavigate(APP_ROUTES.project(project.id), { replace: true });
         return;
       }
-      toast({
-        title: "Could not create project",
-        description: "Enter a project name and try again.",
-        variant: "destructive",
-      });
+      setCreateError("Enter a project name and try again.");
     } catch {
-      toast({
-        title: "Could not create project",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
+      setCreateError("Couldn’t create the project right now. Please retry.");
     } finally {
       setIsCreating(false);
     }
@@ -66,6 +58,7 @@ function ProjectCreateContent() {
           onSubmit={handleCreate}
           cancelHref={APP_ROUTES.newChat}
           isSubmitting={isCreating}
+          errorMessage={createError}
         />
       </div>
     </div>

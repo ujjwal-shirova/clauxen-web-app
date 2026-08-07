@@ -31,18 +31,25 @@ function wait(ms: number): Promise<void> {
 function normalizeDatabaseUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    // Direct Supabase database hosts are IPv6-first and open one backend
-    // connection per Vercel isolate. Convert that legacy URL to this project's
-    // IPv4 transaction pooler automatically when no Marketplace pooler URL was
-    // provisioned. Credentials stay identical; only host/user/port change.
+    // Vercel must use Supabase's IPv4 transaction pooler. The marketplace can
+    // supply either a direct database URL or a session-pooler URL, and both
+    // can intermittently time out from serverless isolates. Canonicalise both
+    // forms to port 6543; credentials stay the same.
     const directSupabase = /^db\.([^.]+)\.supabase\.co$/i.exec(parsed.hostname);
-    if (env.isVercel && directSupabase) {
-      const projectRef = directSupabase[1]!;
+    const pooledSupabase = parsed.hostname.endsWith(".pooler.supabase.com");
+    if (env.isVercel && (directSupabase || pooledSupabase)) {
+      const usernameRef = /^postgres\.([a-z0-9]+)$/i.exec(
+        decodeURIComponent(parsed.username),
+      )?.[1];
+      const projectRef = directSupabase?.[1] ?? usernameRef;
+      // If a custom pooler user cannot identify the project, retain its host
+      // rather than risking a malformed connection string.
+      if (!projectRef) return url;
       const region = process.env.SUPABASE_DB_REGION?.trim() || "us-west-1";
       const cluster = process.env.SUPABASE_POOLER_CLUSTER?.trim() || "aws-1";
       parsed.hostname = `${cluster}-${region}.pooler.supabase.com`;
       parsed.port = "6543";
-      if (parsed.username === "postgres") {
+      if (decodeURIComponent(parsed.username) === "postgres") {
         parsed.username = `postgres.${projectRef}`;
       }
     }
