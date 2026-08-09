@@ -71,8 +71,6 @@ export const APP_ROUTES = {
   /** Ephemeral chat — not saved to history, files, or memory. */
   incognito: "/incognito",
   library: "/library",
-  /** AI creative studio — image / video generation (opens in its own shell). */
-  studio: "/studio",
   /** Scheduled automations (run prompts on a cadence). */
   scheduledTasks: "/scheduled",
   /** Create-project surface (inline form, not a gallery). */
