@@ -110,20 +110,20 @@
     --chat-header-icon-btn: 36px;
     --chat-title-size: 14px;
     --chat-user-font-size: 15px;
-    --chat-assistant-font-size: 15px;
+    --chat-assistant-font-size: 16px;
     --chat-message-line-height: 1.55;
     --chat-user-line-height: 22px;
-    --chat-assistant-line-height: 23px;
+    --chat-assistant-line-height: 25px;
     /* Compact popup / dropdown chrome */
-    --menu-icon-size: 14px;
-    --menu-row-height: 28px;
-    --menu-item-radius: 6px;
-    --menu-pad: 5px;
-    --menu-item-gap: 1px;
-    --menu-item-pad-y: 5px;
-    --menu-item-pad-x: 9px;
-    --menu-font-size: 13px;
-    --menu-line-height: 18px;
+    --menu-icon-size: 16px;
+    --menu-row-height: 38px;
+    --menu-item-radius: 10px;
+    --menu-pad: 8px;
+    --menu-item-gap: 2px;
+    --menu-item-pad-y: 8px;
+    --menu-item-pad-x: 10px;
+    --menu-font-size: 14px;
+    --menu-line-height: 20px;
     --menu-letter-spacing: -0.01em;
     --menu-icon-fg: rgba(20, 21, 26, 0.72);
     --menu-chevron-fg: rgba(20, 21, 26, 0.5);
@@ -161,13 +161,13 @@
     --popup-border: rgba(20, 21, 26, 0.1);
     --popup-shadow:
       0 1px 2px rgba(20, 21, 26, 0.05),
-      0 10px 28px -14px rgba(20, 21, 26, 0.18);
-    --popup-radius: 10px;
-    --popup-radius-lg: 12px;
+      0 14px 38px -16px rgba(20, 21, 26, 0.22);
+    --popup-radius: 16px;
+    --popup-radius-lg: 18px;
     --popup-max-height: 400px;
     --popup-min-width: 128px;
-    --popup-width: 212px;
-    --popup-max-width: 320px;
+    --popup-width: 240px;
+    --popup-max-width: 360px;
     --popup-z: 3000;
     --popup-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
@@ -3008,24 +3008,26 @@ button.user-message-card__body:not(:disabled):hover,
   letter-spacing: normal;
 }
 
-/* Message action icon buttons — 28×28 with hover */
+/* Message actions use a relaxed 32px target and 18px glyphs so the row reads
+   as a deliberate control group beneath the answer. */
 .assistant-message button[aria-label="Copy message"],
 .assistant-message button[aria-label="Retry"],
 .assistant-message button[aria-label="Positive feedback"],
 .assistant-message button[aria-label="Negative feedback"],
 .assistant-message button[aria-label="Share message"],
 .assistant-message button[aria-label="More actions"] {
-  width: var(--icon-btn-size, 28px) !important;
-  height: var(--icon-btn-size, 28px) !important;
-  min-width: var(--icon-btn-size, 28px);
-  min-height: var(--icon-btn-size, 28px);
-  padding: 6px;
-  border-radius: 6px !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 7px;
+  border-radius: 9px !important;
 }
 
 .assistant-message-actions {
-  min-height: var(--icon-btn-size, 28px);
-  gap: 2px;
+  min-height: 32px;
+  margin-top: 10px !important;
+  gap: 4px;
 }
 
 .assistant-message-actions > [data-more-trigger] {
@@ -3039,8 +3041,8 @@ button.user-message-card__body:not(:disabled):hover,
 .assistant-message button[aria-label="Negative feedback"] svg,
 .assistant-message button[aria-label="Share message"] svg,
 .assistant-message button[aria-label="More actions"] svg {
-  width: 16px !important;
-  height: 16px !important;
+  width: 18px !important;
+  height: 18px !important;
 }
 
 .assistant-message button[aria-label="Copy message"]:hover,
@@ -4016,4 +4018,90 @@ button[data-speed-toggle][data-state="open"] {
   min-height: 20px;
   font-size: 11px;
   color: #96969e;
+}
+
+/* Unified elevated action containers — shared by header, composer, sidebar,
+   nested menus, and every Radix dropdown in the product. */
+.ui-menu,
+[role="menu"].dropdown-menu-content,
+[data-radix-popper-content-wrapper] > [role="menu"],
+[data-prompt-add-menu],
+[data-prompt-add-submenu] {
+  border: 1px solid var(--popup-border) !important;
+  border-radius: var(--popup-radius) !important;
+  background: var(--popup-bg) !important;
+  box-shadow: var(--popup-shadow) !important;
+  padding: var(--menu-pad) !important;
+  overflow: hidden;
+}
+
+/* The composer menu's positioning wrapper is not itself a visible surface. */
+[data-prompt-add-menu-root][role="menu"] {
+  max-height: none;
+  padding: 0 !important;
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  contain: none;
+  isolation: auto;
+}
+
+.ui-menu [role="menuitem"],
+.ui-menu-row,
+[data-prompt-add-menu-row] {
+  min-height: var(--menu-row-height) !important;
+  border-radius: var(--menu-item-radius) !important;
+  padding: var(--menu-item-pad-y) var(--menu-item-pad-x) !important;
+  font-size: var(--menu-font-size) !important;
+  line-height: var(--menu-line-height) !important;
+  gap: 10px;
+}
+
+.ui-menu [role="menuitem"] > svg,
+.ui-menu-row > svg,
+[data-prompt-add-menu-icon] svg,
+[data-prompt-add-menu-chevron] {
+  width: var(--menu-icon-size) !important;
+  height: var(--menu-icon-size) !important;
+}
+
+.ui-menu [role="separator"] {
+  margin-block: 6px !important;
+  background: var(--ui-border-subtle, rgba(24, 24, 27, 0.08)) !important;
+}
+
+/* User actions live in their own row under the bubble, matching the editing
+   affordance without reducing the message's readable width. */
+.user-message-actions {
+  width: fit-content;
+  margin-left: auto;
+  padding-right: 6px;
+}
+
+.user-message-action-btn {
+  border-radius: 10px !important;
+}
+
+.user-message-card__body--editing {
+  width: min(90%, 620px) !important;
+  max-width: min(90%, 620px) !important;
+  min-width: min(520px, 90%) !important;
+  margin-left: auto;
+  border-radius: 24px 24px 8px 24px !important;
+  padding: 16px !important;
+}
+
+.user-message-card__body--editing textarea {
+  font-size: 15px !important;
+  line-height: 22px !important;
+}
+
+@media (max-width: 640px) {
+  .user-message-card__body--editing {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
 }

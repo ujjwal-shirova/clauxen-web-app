@@ -189,7 +189,7 @@ function PlanCarouselCard({
   const isMax = plan.id === "max";
 
   return (
-    <div className="relative flex w-[240px] shrink-0 flex-col rounded-xl bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px]">
+    <div className="relative flex w-[240px] shrink-0 flex-col rounded-2xl border border-[var(--pricing-fg)]/[0.06] bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px] shadow-[0_8px_28px_-22px_rgba(20,21,26,0.32)]">
       {plan.isPopular && <PlanBadge label="Popular" variant="popular" />}
       {plan.isRecommended && <PlanBadge label="Recommended" variant="recommended" />}
       {plan.isSpecialOffer && (
@@ -330,7 +330,7 @@ function OrganizationPlanCarouselCard({
     : plan.name;
 
   return (
-    <div className="relative flex w-[240px] shrink-0 flex-col justify-between rounded-xl bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px]">
+    <div className="relative flex w-[240px] shrink-0 flex-col justify-between rounded-2xl border border-[var(--pricing-fg)]/[0.06] bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px] shadow-[0_8px_28px_-22px_rgba(20,21,26,0.32)]">
       {plan.isRecommended && (
         <PlanBadge label="Recommended" variant="recommended" />
       )}

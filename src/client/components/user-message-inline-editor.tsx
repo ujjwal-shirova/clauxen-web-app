@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUp, LoaderCircle, Mic, Plus, X } from "lucide-react";
+import { LoaderCircle, Mic, Plus, X } from "lucide-react";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { AttachmentChip } from "@/components/composer/attachment-chip";
 import { AttachmentImageLightbox } from "@/components/composer/attachment-image-lightbox";
@@ -322,7 +322,7 @@ export function UserMessageInlineEditor({
         <p className="mt-1 text-[11px] text-red-600">{attachmentError}</p>
       ) : null}
 
-      <div className="mt-2 flex items-center gap-1.5">
+      <div className="mt-2 flex items-center gap-1.5 px-1 pb-1">
         <HintTooltip content="Add files">
           <button
             type="button"
@@ -334,8 +334,6 @@ export function UserMessageInlineEditor({
             <Plus className="h-4 w-4" strokeWidth={1.75} />
           </button>
         </HintTooltip>
-
-        <div className="min-w-0 flex-1" />
 
         {isDictating ? (
           <HintTooltip content="Stop dictation">
@@ -366,25 +364,33 @@ export function UserMessageInlineEditor({
           </HintTooltip>
         )}
 
-        <HintTooltip content="Send">
-          <button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={!canSubmit || disabled || isSubmitting}
-            aria-label="Send edited message"
-            className={cn(
-              "no-hover-overlay flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white transition-all",
-              (!canSubmit || disabled || isSubmitting) &&
-                "cursor-not-allowed opacity-40",
-            )}
-          >
-            {isSubmitting ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : (
-              <ArrowUp className="h-4 w-4" />
-            )}
-          </button>
-        </HintTooltip>
+        <div className="min-w-0 flex-1" />
+
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={disabled || isSubmitting}
+          className="no-hover-overlay inline-flex h-8 items-center justify-center rounded-xl px-3 text-[14px] font-medium text-zinc-600 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-40"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleSubmit()}
+          disabled={!canSubmit || disabled || isSubmitting}
+          aria-label="Save edited message"
+          className={cn(
+            "no-hover-overlay inline-flex h-8 min-w-[58px] items-center justify-center rounded-xl bg-zinc-900 px-3 text-[14px] font-medium text-white transition-colors hover:bg-zinc-700",
+            (!canSubmit || disabled || isSubmitting) &&
+              "cursor-not-allowed opacity-40",
+          )}
+        >
+          {isSubmitting ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            "Save"
+          )}
+        </button>
       </div>
 
       <input

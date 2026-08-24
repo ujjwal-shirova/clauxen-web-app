@@ -1019,7 +1019,7 @@ export function Sidebar({
                   sideOffset={8}
                   collisionPadding={12}
                   onCloseAutoFocus={(e) => e.preventDefault()}
-                  className="z-[60] w-[min(252px,calc(100vw-2rem))] rounded-xl border border-zinc-300 bg-white/85 p-1.5 font-sans shadow-lg backdrop-blur-3xl"
+                  className="z-[60] w-[min(260px,calc(100vw-2rem))] font-sans"
                 >
                   <DropdownMenuLabel className="px-2.5 py-1.5 text-[12px] font-medium text-zinc-500 truncate">
                     {userEmail || "Not signed in"}
@@ -1066,7 +1066,7 @@ export function Sidebar({
                       <span>Language</span>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
-                      <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
+                      <DropdownMenuSubContent className="z-50 w-[220px] font-sans">
                         <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
                           English
                         </DropdownMenuItem>
@@ -1131,7 +1131,7 @@ export function Sidebar({
                       <span>Learn more</span>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
-                      <DropdownMenuSubContent className="w-[220px] bg-white/80 backdrop-blur-3xl border-zinc-300 rounded-xl shadow-lg p-1.5 z-50 font-sans">
+                      <DropdownMenuSubContent className="z-50 w-[220px] font-sans">
                         <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
                           Release notes
                         </DropdownMenuItem>

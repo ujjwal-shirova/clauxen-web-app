@@ -49,13 +49,13 @@ function PricingLoadingShell() {
         )}
       >
         <header className="sticky top-0 z-20 flex items-center justify-center border-b border-black/[0.06] bg-[var(--pricing-bg,#f0f1f4)]/95 px-12 py-3.5 sm:py-4">
-          <Skeleton className="h-8 w-52 rounded-full" animation="shimmer" />
+          <Skeleton className="h-8 w-52 rounded-full" animation="none" />
         </header>
 
         <main className="mobile-page-inset mx-auto flex w-full max-w-[1152px] flex-col gap-5 py-5 pb-24 sm:gap-6 sm:py-6 lg:px-6">
           <div className="flex flex-wrap items-center gap-3">
-            <Skeleton className="h-9 w-52 rounded-full" animation="shimmer" />
-            <Skeleton className="h-9 w-60 rounded-full" animation="shimmer" />
+            <Skeleton className="h-9 w-52 rounded-full" animation="none" />
+            <Skeleton className="h-9 w-60 rounded-full" animation="none" />
           </div>
 
           <div className="relative -mx-4 overflow-hidden">
@@ -63,19 +63,19 @@ function PricingLoadingShell() {
               {Array.from({ length: 4 }).map((_, index) => (
                 <div
                   key={index}
-                  className="relative flex w-[240px] shrink-0 flex-col rounded-xl bg-[var(--pricing-card,#ffffff)] px-[15px] pb-[15px] pt-[13px] shadow-xs"
+                  className="relative flex w-[240px] shrink-0 flex-col rounded-2xl border border-black/[0.06] bg-[var(--pricing-card,#ffffff)] px-[15px] pb-[15px] pt-[13px] shadow-[0_8px_28px_-22px_rgba(20,21,26,0.32)]"
                 >
-                  <Skeleton className="h-6 w-20 rounded-md" animation="shimmer" />
-                  <Skeleton className="mt-2 h-7 w-28 rounded-md" animation="shimmer" />
-                  <Skeleton className="mt-2 h-4 w-40 rounded-md" animation="shimmer" />
-                  <Skeleton className="mt-3.5 h-9 w-full rounded-full" animation="shimmer" />
+                  <Skeleton className="h-6 w-20 rounded-md" animation="none" />
+                  <Skeleton className="mt-2 h-7 w-28 rounded-md" animation="none" />
+                  <Skeleton className="mt-2 h-4 w-40 rounded-md" animation="none" />
+                  <Skeleton className="mt-3.5 h-9 w-full rounded-full" animation="none" />
 
-                  <Skeleton className="mt-5 h-4 w-28 rounded-md" animation="shimmer" />
+                  <Skeleton className="mt-5 h-4 w-28 rounded-md" animation="none" />
 
                   <div className="mt-3.5 flex flex-col gap-2.5">
                     {Array.from({ length: 6 }).map((_, fIndex) => (
                       <div key={fIndex} className="flex items-center gap-2">
-                        <Skeleton className="h-3.5 w-3.5 shrink-0 rounded-full" animation="shimmer" />
+                        <Skeleton className="h-3.5 w-3.5 shrink-0 rounded-full" animation="none" />
                         <Skeleton
                           className={cn(
                             "h-3.5 rounded-md",
@@ -83,7 +83,7 @@ function PricingLoadingShell() {
                             fIndex % 3 === 1 && "w-[85%]",
                             fIndex % 3 === 2 && "w-[92%]",
                           )}
-                          animation="shimmer"
+                          animation="none"
                         />
                       </div>
                     ))}

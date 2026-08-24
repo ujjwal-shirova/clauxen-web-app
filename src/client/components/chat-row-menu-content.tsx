@@ -73,7 +73,7 @@ export function ChatRowMenuContent({
       sideOffset={sideOffset}
       onClick={onClick}
       className={cn(
-        "z-50 min-w-[220px] rounded-xl border border-black/[0.08] bg-white p-1.5 text-zinc-800 shadow-[0_8px_28px_rgba(26,23,18,0.12)]",
+        "z-50 w-[240px] text-zinc-800",
         className,
       )}
     >
@@ -117,7 +117,7 @@ export function ChatRowMenuContent({
             <ChevronRight className="ml-auto size-3.5 text-zinc-400" />
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
-            <DropdownMenuSubContent className="z-50 min-w-[200px] rounded-xl border border-black/[0.08] bg-white p-1.5 shadow-[0_8px_28px_rgba(26,23,18,0.12)]">
+            <DropdownMenuSubContent className="z-50 w-[220px]">
               <DropdownMenuItem asChild>
                 <AppHref
                   href={moveToProjectHref}

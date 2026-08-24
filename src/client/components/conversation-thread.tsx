@@ -281,25 +281,6 @@ const MessageRow = React.memo(
                   aria-expanded={userExpanded}
                   data-user-expanded={userExpanded || undefined}
                 >
-                  <div className="user-message-card__edit">
-                    <HintTooltip content="Edit message" side="left">
-                      <button
-                        type="button"
-                        aria-label="Edit message"
-                        className="user-message-card__edit-btn no-hover-overlay flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          onStartEdit(message);
-                        }}
-                        onKeyDown={(event) => {
-                          event.stopPropagation();
-                        }}
-                      >
-                        <SquarePen className="size-4" strokeWidth={1.75} />
-                      </button>
-                    </HintTooltip>
-                  </div>
                   {message.attachments && message.attachments.length > 0 ? (
                     <div className="mb-2 flex flex-wrap gap-1.5">
                       {message.attachments.map((attachment) => (
@@ -364,9 +345,10 @@ const MessageRow = React.memo(
                 textPreview={previewAttachment?.textPreview}
                 onClose={() => setPreviewAttachment(null)}
               />
-              {branchVersions > 1 && editingMessageId !== message.id ? (
-                <div className="user-message-actions mt-0.5 flex h-7 items-center justify-end gap-0">
-                  <div className="flex items-center gap-1 text-zinc-500">
+              {editingMessageId !== message.id ? (
+                <div className="user-message-actions mt-1 flex h-8 items-center justify-end gap-1">
+                  {branchVersions > 1 ? (
+                    <div className="mr-1 flex items-center gap-1 text-zinc-500">
                     <HintTooltip content="Previous version" side="bottom">
                       <button
                         type="button"
@@ -407,6 +389,31 @@ const MessageRow = React.memo(
                       </button>
                     </HintTooltip>
                   </div>
+                  ) : null}
+                  <HintTooltip content="Edit message" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Edit message"
+                      className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                      onClick={() => onStartEdit(message)}
+                    >
+                      <SquarePen className="size-4" strokeWidth={1.75} />
+                    </button>
+                  </HintTooltip>
+                  <HintTooltip content="Copy message" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Copy user message"
+                      className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                      onClick={() => onCopy(message.id, message.content)}
+                    >
+                      {copiedId === message.id ? (
+                        <Check className="size-4 text-emerald-600" strokeWidth={2} />
+                      ) : (
+                        <CustomCopyIcon />
+                      )}
+                    </button>
+                  </HintTooltip>
                 </div>
               ) : null}
             </div>
@@ -491,7 +498,7 @@ const MessageRow = React.memo(
             {outputComplete &&
             !isAssistantGenerationError(message) ? (
               <>
-                <div className="assistant-message-actions relative mt-2 flex flex-wrap items-center gap-0.5 overflow-anchor-none font-sans text-zinc-500">
+                <div className="assistant-message-actions relative mt-2.5 flex flex-wrap items-center gap-1 overflow-anchor-none font-sans text-zinc-500">
                       <HintTooltip content="Copy" side="bottom" align="start">
                         <button
                           type="button"

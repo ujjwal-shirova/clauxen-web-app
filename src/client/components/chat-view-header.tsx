@@ -180,7 +180,7 @@ export function ChatViewHeader({
                 </div>
               ) : (
                 <DropdownMenu modal={false}>
-                  <div className="inline-flex max-w-full items-stretch overflow-hidden rounded-lg border border-transparent">
+                  <div className="inline-flex max-w-full items-center gap-1.5 overflow-visible rounded-full border border-transparent">
                     {isEditingTitle ? (
                       <input
                         ref={titleInputRef}
@@ -196,7 +196,7 @@ export function ChatViewHeader({
                             setIsEditingTitle(false);
                           }
                         }}
-                        className="ui-chrome-text-btn w-auto min-w-[4ch] max-w-[min(70vw,420px)] rounded-l-lg border-0 bg-zinc-100 text-zinc-800 outline-none ring-0"
+                        className="ui-chrome-text-btn w-auto min-w-[4ch] max-w-[min(70vw,420px)] rounded-full border-0 bg-zinc-100 px-4 text-zinc-800 outline-none ring-0"
                         style={{ width: `${Math.max(editTitleValue.length, 4)}ch` }}
                         aria-label="Edit chat title"
                       />
@@ -204,7 +204,7 @@ export function ChatViewHeader({
                       <button
                         type="button"
                         onClick={startInlineEdit}
-                        className="ui-chrome-text-btn w-fit max-w-[min(70vw,420px)] rounded-l-lg text-zinc-800 transition-all hover:bg-zinc-100"
+                        className="ui-chrome-text-btn w-fit max-w-[min(70vw,420px)] rounded-full bg-zinc-100 px-4 text-zinc-800 transition-all hover:bg-zinc-200/70"
                       >
                         <StreamingChatTitle
                           title={displayTitle}
@@ -214,12 +214,11 @@ export function ChatViewHeader({
                         {isTitleStreaming ? <TypingDots className="ml-1 shrink-0" /> : null}
                       </button>
                     )}
-                    <div className="h-5 w-px shrink-0 self-center bg-black/10" />
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
                         aria-label="Chat options"
-                        className="ui-icon-button rounded-r-lg text-zinc-800 transition-all hover:bg-zinc-100 data-[state=open]:bg-black/5"
+                        className="ui-icon-button rounded-full text-zinc-500 transition-all hover:bg-zinc-100 hover:text-zinc-800 data-[state=open]:bg-zinc-100 data-[state=open]:text-zinc-800"
                       >
                         <ChevronDown className="size-3.5 opacity-70" />
                       </button>
