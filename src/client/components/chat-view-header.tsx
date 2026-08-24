@@ -204,7 +204,7 @@ export function ChatViewHeader({
                       <button
                         type="button"
                         onClick={startInlineEdit}
-                        className="ui-chrome-text-btn w-fit max-w-[min(70vw,420px)] rounded-full bg-zinc-100 px-4 text-zinc-800 transition-all hover:bg-zinc-200/70"
+                        className="ui-chrome-text-btn w-fit max-w-[min(70vw,420px)] rounded-full bg-transparent px-4 text-zinc-800 transition-colors hover:bg-zinc-100 focus-visible:bg-zinc-100"
                       >
                         <StreamingChatTitle
                           title={displayTitle}

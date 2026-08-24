@@ -346,7 +346,7 @@ const MessageRow = React.memo(
                 onClose={() => setPreviewAttachment(null)}
               />
               {editingMessageId !== message.id ? (
-                <div className="user-message-actions mt-1 flex h-8 items-center justify-end gap-1">
+                <div className="user-message-actions flex h-8 items-center justify-end gap-1">
                   {branchVersions > 1 ? (
                     <div className="mr-1 flex items-center gap-1 text-zinc-500">
                     <HintTooltip content="Previous version" side="bottom">
@@ -780,7 +780,7 @@ const ConversationTurn = React.memo(
             assistantMessages.some((message) => message.isStreaming)) ||
           undefined
         }
-        className="relative flex w-full flex-col gap-3 sm:gap-4"
+        className="relative flex w-full flex-col gap-2.5"
         style={{ "--turn-index": turnIndex } as React.CSSProperties}
       >
         {userMessage && (

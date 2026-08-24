@@ -2343,7 +2343,7 @@ button.user-message-card__body:not(:disabled):hover,
   padding-top: 8px;
   padding-bottom: 0;
   margin-top: -8px;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 /* Expanded inline editor uses the same sticky host path as the collapsed
@@ -2364,7 +2364,7 @@ button.user-message-card__body:not(:disabled):hover,
 [data-conversation-turn] .assistant-message {
   position: relative;
   z-index: 0;
-  padding-top: 0.35rem;
+  padding-top: 0.125rem;
 }
 
 .overflow-anchor-none {
@@ -2428,7 +2428,7 @@ button.user-message-card__body:not(:disabled):hover,
   isolation: isolate;
   background-color: var(--chat-canvas-bg, #f2f3f6);
   padding-top: 8px;
-  padding-bottom: 10px;
+  padding-bottom: 6px;
   margin-top: -8px;
   box-shadow: none;
 }
@@ -2448,8 +2448,8 @@ button.user-message-card__body:not(:disabled):hover,
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -12px;
-  height: 12px;
+  bottom: -8px;
+  height: 8px;
   pointer-events: none;
   background: linear-gradient(
     to bottom,
@@ -2464,8 +2464,8 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .sticky-user-msg--stuck .user-message-actions {
-  /* Keep the row's measured height stable while docked. Removing it from
-     layout changed --turn-user-msg-height and made code/table headers jump. */
+  /* Docked messages keep their actions hidden; the row is absolutely
+     positioned so it never inflates the sticky offset. */
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -3998,7 +3998,7 @@ button[data-speed-toggle][data-state="open"] {
 }
 
 [data-conversation-turn] .assistant-message {
-  padding-top: 6px;
+  padding-top: 2px;
 }
 
 .markdown-content,
@@ -4075,8 +4075,12 @@ button[data-speed-toggle][data-state="open"] {
 /* User actions live in their own row under the bubble, matching the editing
    affordance without reducing the message's readable width. */
 .user-message-actions {
+  position: absolute;
+  top: 100%;
+  right: 0;
   width: fit-content;
   margin-left: auto;
+  margin-top: 4px;
   padding-right: 6px;
 }
 
