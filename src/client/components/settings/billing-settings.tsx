@@ -35,8 +35,10 @@ import {
 } from "@/components/checkout-billing-address";
 import { AddPaymentMethodDialog } from "@/components/settings/add-payment-method-dialog";
 import { ManagePlanDialog } from "@/components/settings/manage-plan-dialog";
-import { SettingsBillingSkeleton } from "@/components/settings/settings-page-skeleton";
-import { writeCachedBillingPlan } from "@/lib/billing-plan-cache";
+import {
+  readCachedPlanId,
+  writeCachedBillingPlan,
+} from "@/lib/billing-plan-cache";
 import {
   SettingsFieldBlock,
   SettingsPanelTitle,
@@ -130,8 +132,9 @@ export function BillingSettings({
   userEmail,
 }: BillingSettingsProps) {
   const auth = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [planId, setPlanId] = useState<string | null>(null);
+  const [planId, setPlanId] = useState<string | null>(() =>
+    readCachedPlanId("free"),
+  );
   const [cancelAtEnd, setCancelAtEnd] = useState(false);
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -165,10 +168,8 @@ export function BillingSettings({
 
   const reload = useCallback(async () => {
     if (!auth.isAuthenticated) {
-      setLoading(false);
       return;
     }
-    setLoading(true);
     try {
       const [overview, inv, addr, methods, gifts] = await Promise.all([
         getBillingSubscription(),
@@ -192,8 +193,6 @@ export function BillingSettings({
       setPaymentMethods(methods.paymentMethods ?? []);
     } catch {
       // keep defaults
-    } finally {
-      setLoading(false);
     }
   }, [auth.isAuthenticated]);
 
@@ -276,10 +275,6 @@ export function BillingSettings({
       window.open(billingInvoicePdfUrl(paymentId), "_blank", "noopener");
     }
   };
-
-  if (loading) {
-    return <SettingsBillingSkeleton />;
-  }
 
   return (
     <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900 dark:text-zinc-100">
