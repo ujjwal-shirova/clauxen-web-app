@@ -87,7 +87,7 @@ export function ComposerProjectStrip({
   return (
     <div
       className={cn(
-        "composer-project-strip relative flex h-9 items-center border-t border-zinc-200/70 bg-[#f4f4f5] px-2.5 sm:h-9 sm:px-3",
+        "composer-project-strip relative flex h-10 items-center border-t border-zinc-200/70 bg-[#fafafa] px-3 sm:h-10 sm:px-4",
         className,
       )}
       data-composer-project-strip
@@ -97,7 +97,7 @@ export function ComposerProjectStrip({
           <button
             type="button"
             className={cn(
-              "inline-flex h-7 max-w-full items-center gap-1.5 rounded-full px-1.5 text-[12.5px] font-[430] text-zinc-600 transition-colors",
+              "inline-flex h-8 max-w-full items-center gap-2 rounded-full px-2 text-[13px] font-[430] text-zinc-600 transition-colors",
               !locked && "hover:bg-black/[0.04] hover:text-zinc-800",
               locked && "cursor-default",
             )}

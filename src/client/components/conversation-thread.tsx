@@ -1381,7 +1381,7 @@ export function ConversationThread({
     <div
       ref={listRef}
       className={cn(
-        "flex w-full min-w-0 max-w-full flex-col gap-4 px-0 pt-4 pb-4 sm:gap-5 sm:px-0 sm:pt-8 sm:pb-7",
+        "flex w-full min-w-0 max-w-full flex-col gap-6 px-0 pt-5 pb-5 sm:gap-8 sm:px-0 sm:pt-10 sm:pb-8",
         className,
       )}
       data-virtual-scroll

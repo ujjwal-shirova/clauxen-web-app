@@ -56,12 +56,12 @@
     --icon-size: 16px;
     --icon-stroke: 1.5;
     --icon-btn-size: 28px;
-    --nav-row-height: 32px;
+    --nav-row-height: 36px;
     --nav-gap-tight: 8px;
     --nav-gap-loose: 8px;
-    --nav-label-size: 13px;
-    --nav-label-line: 18px;
-    --section-label-size: 12px;
+    --nav-label-size: 14px;
+    --nav-label-line: 20px;
+    --section-label-size: 13px;
 
     /* Product surfaces — compact type + control scale */
     --ui-font-size: 13px;
@@ -106,14 +106,14 @@
     --ui-field-focus-ring: color-mix(in oklab, #14151a 7%, transparent);
     --ui-muted-surface: color-mix(in oklab, #14151a 4%, transparent);
 
-    --chat-header-height: 40px;
-    --chat-header-icon-btn: 28px;
-    --chat-title-size: 13px;
-    --chat-user-font-size: 13px;
-    --chat-assistant-font-size: 13px;
-    --chat-message-line-height: 1.4;
-    --chat-user-line-height: 18px;
-    --chat-assistant-line-height: 18px;
+    --chat-header-height: 56px;
+    --chat-header-icon-btn: 36px;
+    --chat-title-size: 14px;
+    --chat-user-font-size: 15px;
+    --chat-assistant-font-size: 15px;
+    --chat-message-line-height: 1.55;
+    --chat-user-line-height: 22px;
+    --chat-assistant-line-height: 23px;
     /* Compact popup / dropdown chrome */
     --menu-icon-size: 14px;
     --menu-row-height: 28px;
@@ -145,16 +145,17 @@
     --pricing-thumb-active: color-mix(in oklab, #14151a 9%, transparent);
 
     /* App shell — cool slate canvas shared by chat + product pages */
-    --app-shell-bg: #e8eaee;
-    --app-panel-bg: #f2f3f6;
-    --chat-canvas-bg: #f2f3f6;
-    --chat-user-card-bg: #ffffff;
+    --app-shell-bg: #fcfcfc;
+    --app-panel-bg: #fcfcfc;
+    --chat-canvas-bg: #fcfcfc;
+    --chat-user-card-bg: #f7f7f7;
     --overlay-scrim: rgba(20, 21, 26, 0.42);
     --overlay-scrim-soft: rgba(232, 234, 238, 0.88);
 
     /* Shared chat / composer column breadth */
-    --chat-column-max-width: 720px;
-    --glass-chat-surface-background: #f2f3f6;
+    --chat-column-max-width: 752px;
+    --chat-reading-column-max-width: 704px;
+    --glass-chat-surface-background: #fcfcfc;
     /* Solid popup surface — no glass/blur */
     --popup-bg: #ffffff;
     --popup-border: rgba(20, 21, 26, 0.1);
@@ -171,17 +172,17 @@
     --popup-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
     /* Prompt composer */
-    --prompt-radius: 14px;
-    --prompt-radius-lg: 14px;
-    --prompt-radius-expanded: 14px;
-    --prompt-control-size: 24px;
-    --prompt-editor-min-height: 22px;
+    --prompt-radius: 24px;
+    --prompt-radius-lg: 24px;
+    --prompt-radius-expanded: 24px;
+    --prompt-control-size: 32px;
+    --prompt-editor-min-height: 24px;
     --prompt-shadow:
       0 0 0 1px rgba(20, 21, 26, 0.09),
-      0 1px 3px rgba(20, 21, 26, 0.04);
+      0 3px 12px rgba(20, 21, 26, 0.045);
     --prompt-shadow-focus:
-      0 0 0 1px rgba(20, 21, 26, 0.16),
-      0 2px 8px rgba(20, 21, 26, 0.06);
+      0 0 0 1px rgba(20, 21, 26, 0.18),
+      0 4px 18px rgba(20, 21, 26, 0.07);
 
     --panel-shadow:
       0 1px 2px rgba(20, 21, 26, 0.04), 0 12px 28px -16px rgba(20, 21, 26, 0.12);
@@ -3858,4 +3859,161 @@ button[data-speed-toggle][data-state="open"] {
   );
   background-size: 200% 100%;
   animation: checkout-upi-qr-shimmer 1.35s ease-in-out infinite;
+}
+
+/* ── 2026 chat surface ─────────────────────────────────────────────────────
+   Builder/Grok-derived proportions, expressed through Clauxen's existing
+   semantic hooks so every control keeps its original behavior. */
+@media (min-width: 1024px) {
+  .app-agent-panel {
+    border-left-color: rgba(24, 24, 27, 0.07) !important;
+  }
+}
+
+.glass-sidebar-docked {
+  background: var(--app-shell-bg) !important;
+}
+
+.glass-sidebar-docked .ui-sidebar-top-bar {
+  min-height: 56px;
+  padding: 8px 10px 4px;
+}
+
+.glass-sidebar-docked .ui-sidebar-content {
+  padding-inline: 6px;
+}
+
+.glass-sidebar-docked .clauxen-wordmark {
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+.glass-sidebar-docked a[aria-label="New chat"]:not(.ui-icon-button) {
+  height: 38px !important;
+  border-color: transparent !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-inline: 10px !important;
+  font-size: 14px !important;
+}
+
+.glass-sidebar-docked a[aria-label="New chat"]:not(.ui-icon-button):hover {
+  background: rgba(24, 24, 27, 0.05) !important;
+}
+
+.glass-sidebar-docked .ui-sidebar-menu-button,
+.glass-sidebar-docked .glass-sidebar-agent-menu-btn {
+  border-radius: 9px;
+  padding-inline: 10px;
+  font-weight: 450;
+}
+
+.glass-sidebar-docked .glass-sidebar-footer-account-trigger {
+  border-radius: 10px;
+  padding: 7px 8px;
+}
+
+.content-pane-top-bar {
+  padding-inline: 22px !important;
+}
+
+.content-pane-top-bar .ui-chrome-text-btn {
+  min-height: 36px;
+  padding-inline: 10px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.content-pane-top-bar .ui-icon-button,
+.content-pane-top-bar button[aria-label="Incognito"],
+.content-pane-top-bar button[aria-label="Chat options"],
+.content-pane-top-bar button[aria-label="Toggle artifacts panel"],
+.content-pane-top-bar button[aria-label="Open navigation menu"],
+.content-pane-top-bar button[aria-label="Share chat"] {
+  border-radius: 10px;
+}
+
+.agent-panel-conversation-shell[data-chat-active]
+  .chat-scroll-content
+  > .chat-column {
+  max-width: var(--chat-reading-column-max-width, 704px);
+}
+
+[data-composer-dock] .chat-column {
+  max-width: var(--chat-column-max-width, 752px);
+}
+
+[data-prompt-root] [data-prompt-shell] .prompt-body-grid {
+  min-height: 52px;
+  padding: 8px 10px;
+  column-gap: 10px;
+}
+
+[data-prompt-root] [data-prompt-shell] textarea,
+[data-prompt-root] [data-prompt-shell] textarea.prompt-textarea {
+  font-size: 16px !important;
+  line-height: 24px !important;
+  color: var(--ui-fg, #18181b);
+}
+
+[data-prompt-root] [data-prompt-shell] textarea::placeholder,
+[data-prompt-root] [data-prompt-shell] textarea.prompt-textarea::placeholder {
+  color: var(--ui-fg-placeholder, #8f8f96);
+  opacity: 1;
+}
+
+[data-prompt-root] .prompt-control-filled,
+[data-prompt-root] .prompt-control-ghost {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+[data-prompt-root] .prompt-control-filled svg,
+[data-prompt-root] .prompt-control-ghost svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+
+.user-message-card__body {
+  width: fit-content !important;
+  max-width: min(90%, 620px) !important;
+  margin-left: auto;
+  border-color: rgba(24, 24, 27, 0.055) !important;
+  border-radius: 24px 24px 8px 24px !important;
+  background: var(--chat-user-card-bg, #f7f7f7) !important;
+  padding: 10px 16px !important;
+  box-shadow: none !important;
+}
+
+.user-message-card__body:hover,
+.user-message-card__body:focus-visible {
+  background: color-mix(in oklab, var(--chat-user-card-bg) 94%, black) !important;
+}
+
+[data-conversation-turn] .assistant-message {
+  padding-top: 6px;
+}
+
+.markdown-content,
+.assistant-message {
+  color: var(--ui-fg-body, #26262a);
+}
+
+.chat-scroll-viewport {
+  scrollbar-width: none;
+}
+
+.chat-scroll-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.glass-chat-status-bar {
+  min-height: 20px;
+  font-size: 11px;
+  color: #96969e;
 }

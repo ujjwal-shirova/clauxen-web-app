@@ -25,7 +25,7 @@ export function appMainShellClassName(options: {
 
   return cn(
     "app-main-shell relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-shell-bg)]",
-    "py-2.5 pr-2.5 pl-0",
+    "p-0",
   );
 }
 
@@ -50,7 +50,7 @@ export function appAgentPanelClassName(options: {
     "app-agent-panel agent-panel relative flex h-full min-h-0 max-h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] [transform:translateZ(0)]",
     fullBleed
       ? "min-h-[100dvh] rounded-none border-0 shadow-none"
-      : "rounded-[12px] border border-b-0 border-zinc-200/70 shadow-none sm:rounded-[14px]",
+      : "rounded-none border-0 border-l border-zinc-200/70 shadow-none",
   );
 }
 

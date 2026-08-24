@@ -260,7 +260,7 @@ export function ChatViewPane({
                 <div
                   className={cn(
                     "chat-column flex w-full min-w-0 flex-col items-center",
-                    "gap-3 sm:gap-5",
+                    "gap-4 sm:gap-6",
                   )}
                 >
                   {incognitoWelcome ? (
@@ -281,8 +281,8 @@ export function ChatViewPane({
                         : "font-handwriting",
                       !incognitoWelcome &&
                         (composerOnlyWelcome
-                          ? "text-[22px] leading-[30px] sm:text-[32px] sm:leading-[40px]"
-                          : "text-[24px] leading-[32px] sm:text-[38px] sm:leading-[48px]"),
+                          ? "text-[24px] leading-[32px] sm:text-[38px] sm:leading-[46px]"
+                          : "text-[26px] leading-[34px] sm:text-[44px] sm:leading-[52px]"),
                     )}
                     suppressHydrationWarning
                   >
@@ -359,7 +359,7 @@ export function ChatViewPane({
                           exit={{ opacity: 0, y: -10 }}
                           transition={{ duration: 0.2 }}
                           className={cn(
-                            "mt-1 flex w-full flex-wrap justify-center gap-1.5 sm:mt-1.5 sm:gap-1.5",
+                            "mt-1 flex w-full flex-wrap justify-center gap-2 sm:mt-2 sm:gap-2",
                             composerOnlyWelcome && "gap-1 sm:gap-1",
                           )}
                         >
@@ -369,7 +369,7 @@ export function ChatViewPane({
                               type="button"
                               onClick={() => onActiveChipChange(chip.label)}
                               className={cn(
-                                "flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-transparent px-3 text-[12.5px] leading-5 text-zinc-600 transition-all duration-150 hover:bg-zinc-50 hover:text-zinc-900 sm:h-8 sm:gap-1.5 sm:px-3.5 sm:text-[13px] sm:leading-[20px]",
+                                "flex h-9 items-center gap-2 rounded-full border border-zinc-200/80 bg-transparent px-3.5 text-[13px] leading-5 text-zinc-600 transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 sm:h-9 sm:px-4 sm:text-[14px]",
                                 composerOnlyWelcome &&
                                   "h-7 px-2.5 text-[11.5px] sm:h-7 sm:px-2.5 sm:text-[12px]",
                               )}
@@ -407,7 +407,7 @@ export function ChatViewPane({
           </div>
           <div
             ref={composerMeasureRef}
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pt-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] sm:pt-3 sm:pb-5"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pt-3 sm:pb-6"
             data-composer-dock
           >
             <div className="chat-composer-row">
