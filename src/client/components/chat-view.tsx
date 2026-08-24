@@ -225,13 +225,7 @@ function ChatViewBody({
     if (isProjectHome || blankNewChatComposer) {
       startNewChatRef.current();
     }
-  }, [
-    isIncognito,
-    activeChatId,
-    routeChatId,
-    isProjectHome,
-    blankNewChatComposer,
-  ]);
+  }, [isIncognito, routeChatId, isProjectHome, blankNewChatComposer]);
 
   // Resolve project name for breadcrumb when opened via /c?chat_enter_method=project.
   useEffect(() => {

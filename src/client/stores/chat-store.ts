@@ -111,9 +111,11 @@ function turnSortKey(
   const roleRank = message.role === "user" ? "0" : "1";
   const stamp =
     typeof turnStamp === "number"
-      ? turnStamp.toString().padStart(13, "0")
-      : "9999999999999";
-  return `${stamp}\u0000${roleRank}\u0000${index
+      ? turnStamp
+      : typeof message.createdAt === "number"
+        ? message.createdAt
+        : index;
+  return `${stamp.toString().padStart(13, "0")}\u0000${roleRank}\u0000${index
     .toString()
     .padStart(10, "0")}`;
 }
@@ -254,7 +256,10 @@ export const useChatStore = create<ChatStore>()(
         }
         for (const message of messages) {
           if (!message?.id) continue;
-          nextById[message.id] = message;
+          const previous = nextById[message.id];
+          nextById[message.id] = previous
+            ? mergeMessage(previous, message)
+            : message;
           incomingIds.push(message.id);
         }
         const sorted = sortIdsByTurn(incomingIds, nextById);

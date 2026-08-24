@@ -32,6 +32,7 @@ import {
 import {
   sealCompletedAssistantMessages,
   assignLegacyTurnIds,
+  unionChatTranscript,
 } from "@/lib/chat-turn-helpers";
 import {
   assistantClientIdForTurn,
@@ -866,77 +867,12 @@ export function useChatApi(
         // and left the orb stuck after reload / aborted turns.
         const isLive =
           isChatActivelyGenerating(chatId) || hasOptimisticTurn(existing);
-        // Never replace a live optimistic/streaming thread with a colder
-        // server snapshot (empty assistant rows cause the blank-orb bug).
-        if (isLive && existing.length > 0) {
-          const merged = existing.map((local) => {
-            const match = hydrated.find(
-              (remote) =>
-                remote.id === local.id ||
-                (local.clientId &&
-                  (remote.clientId === local.clientId ||
-                    remote.id === local.clientId)) ||
-                (remote.clientId && remote.clientId === local.id),
-            );
-            if (!match) return local;
-            // Id remap only while streaming — never adopt colder content.
-            if (
-              local.isStreaming ||
-              local.isThinkingStreaming ||
-              (local.content?.length ?? 0) >= (match.content?.length ?? 0)
-            ) {
-              return {
-                ...local,
-                id: match.id,
-                clientId: local.clientId ?? match.clientId ?? local.id,
-                turnId: local.turnId ?? match.turnId,
-              };
-            }
-            return {
-              ...match,
-              clientId: local.clientId ?? match.clientId ?? match.id,
-              turnId: local.turnId ?? match.turnId,
-              attachments: local.attachments ?? match.attachments,
-            };
-          });
-          const existingKeys = new Set(
-            merged.flatMap(
-              (message) =>
-                [message.id, message.clientId].filter(Boolean) as string[],
-            ),
-          );
-          for (const remote of hydrated) {
-            if (
-              existingKeys.has(remote.id) ||
-              (remote.clientId && existingKeys.has(remote.clientId))
-            ) {
-              continue;
-            }
-            // Never append a blank streaming/completed assistant while live —
-            // that paints a second orb then collapses to empty.
-            if (
-              remote.role === "assistant" &&
-              !(remote.content ?? "").trim() &&
-              (remote.isStreaming ||
-                !(
-                  remote.agentFrames?.some((f) => f.segments.length > 0) ??
-                  false
-                ))
-            ) {
-              continue;
-            }
-            // Never prepend/append a contentful assistant ahead of the latest
-            // optimistic user — that is the "answer above user chip" bug.
-            if (remote.role === "assistant") {
-              continue;
-            }
-            merged.push(remote);
-          }
-          return { ...prev, [chatId]: merged };
-        }
+        const merged = unionChatTranscript(existing, hydrated, { live: isLive });
         return {
           ...prev,
-          [chatId]: hydrated.map(clearIdleStreamingFlags),
+          [chatId]: isLive
+            ? merged
+            : merged.map(clearIdleStreamingFlags),
         };
       });
       hydratedChatIdsRef.current.add(chatId);

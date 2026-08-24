@@ -18,26 +18,51 @@ export function groupMessagesIntoTurns(
   messages: readonly Message[],
 ): ConversationTurnGroup[] {
   const groups: ConversationTurnGroup[] = [];
+  const groupByTurnId = new Map<string, ConversationTurnGroup>();
 
   for (const message of messages) {
     if (message.role === "user") {
-      groups.push({ userMessage: message, assistantMessages: [] });
+      const group: ConversationTurnGroup = {
+        userMessage: message,
+        assistantMessages: [],
+      };
+      groups.push(group);
+      if (message.turnId) groupByTurnId.set(message.turnId, group);
       continue;
     }
     if (message.role !== "assistant") continue;
+
+    const matched = message.turnId
+      ? groupByTurnId.get(message.turnId)
+      : undefined;
+    if (matched) {
+      matched.assistantMessages.push(message);
+      continue;
+    }
 
     const open = groups[groups.length - 1];
     const openTurnId = open?.userMessage?.turnId;
 
     if (message.turnId && openTurnId && message.turnId !== openTurnId) {
-      groups.push({ userMessage: null, assistantMessages: [message] });
+      const orphan: ConversationTurnGroup = {
+        userMessage: null,
+        assistantMessages: [message],
+      };
+      groups.push(orphan);
+      groupByTurnId.set(message.turnId, orphan);
       continue;
     }
 
     if (open) {
       open.assistantMessages.push(message);
+      if (message.turnId) groupByTurnId.set(message.turnId, open);
     } else {
-      groups.push({ userMessage: null, assistantMessages: [message] });
+      const orphan: ConversationTurnGroup = {
+        userMessage: null,
+        assistantMessages: [message],
+      };
+      groups.push(orphan);
+      if (message.turnId) groupByTurnId.set(message.turnId, orphan);
     }
   }
 
