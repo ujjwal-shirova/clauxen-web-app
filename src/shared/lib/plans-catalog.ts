@@ -435,7 +435,6 @@ export const PERSONAL_PLANS: PlanCard[] = [
       "Expanded deep research",
       "Build and publish websites with database support",
       "Agent multitasking with a task dashboard",
-      "Scheduled tasks that run automatically and post results",
       "Clauxen Code access",
       "Plugin access",
       "Longer memory",

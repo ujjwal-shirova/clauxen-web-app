@@ -17,7 +17,7 @@
  * ## Cache Rules
  * - `/_next/static/*` — Edge TTL 1y, Browser 1y, cache everything
  * - `/assets/*` — Edge TTL 1d + SWR 7d
- * - Bypass: `/api/*`, `/login`, `/onboarding`, `/auth/*`, HTML shells (`/`, `/new`, `/c/*`, `/library`, `/projects`)
+ * - Bypass: `/api/*`, `/login`, `/onboarding`, `/auth/*`, HTML shells (`/`, `/new`, `/c/*`, `/projects`)
  * - Hash overlays (`#settings`) are client-only — never affect CDN keys
  *
  * ## Hyperdrive

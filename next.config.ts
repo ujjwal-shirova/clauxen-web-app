@@ -226,6 +226,16 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      { source: "/library", destination: "/new", permanent: true },
+      { source: "/library/:path*", destination: "/new", permanent: true },
+      { source: "/scheduled", destination: "/new", permanent: true },
+      { source: "/scheduled/:path*", destination: "/new", permanent: true },
+      { source: "/customize", destination: "/new", permanent: true },
+      { source: "/customize/:path*", destination: "/new", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -131,23 +131,6 @@ const autonomousZodByName: Record<string, z.ZodTypeAny> = {
       .min(1)
       .max(3),
   }),
-  create_scheduled_task: z.object({
-    name: z.string(),
-    requirement: z.string(),
-    frequency: z.enum(["once", "daily", "weekly", "monthly"]),
-    time_local: z.string(),
-    timezone: z.string(),
-    run_date: z.union([z.string(), z.null()]).optional(),
-    day_of_week: z.union([z.number(), z.null()]).optional(),
-    day_of_month: z.union([z.number(), z.null()]).optional(),
-    expires_at: z.union([z.string(), z.null()]).optional(),
-  }),
-  list_scheduled_tasks: z.object({
-    include_completed: z.boolean().optional(),
-  }),
-  cancel_scheduled_task: z.object({
-    task_id: z.string(),
-  }),
 };
 
 type ArtifactRecord = {

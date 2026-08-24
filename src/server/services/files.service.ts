@@ -186,11 +186,6 @@ export async function presignUserFileUpload(
     throw new AppError("originalName is required.", 400);
   }
 
-  if (input.folderId) {
-    const folder = await userFilesRepo.getLibraryFolder(input.folderId, userId);
-    if (!folder) throw notFound("Folder not found.");
-  }
-
   if (input.projectId) {
     const { getProject } =
       await import("@/server/repositories/projects.repository");
@@ -221,13 +216,13 @@ export async function presignUserFileUpload(
     ? buildAvatarKey(userId, originalName)
     : input.projectId
       ? buildProjectFileKey(userId, input.projectId, originalName)
-      : buildStorageKey(userId, originalName, input.mimeType, input.folderId);
+      : buildStorageKey(userId, originalName, input.mimeType);
 
   const file = await userFilesRepo.createUserFile({
     userId,
     workspaceId: input.workspaceId,
     projectId: input.projectId,
-    folderId: input.folderId,
+    folderId: null,
     originalName,
     mimeType: input.mimeType,
     sizeBytes: input.sizeBytes ?? 0,

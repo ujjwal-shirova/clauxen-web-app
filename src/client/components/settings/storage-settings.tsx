@@ -66,7 +66,7 @@ export function StorageSettings() {
       <section>
         <h3 className="text-[15px] font-semibold">Manage storage</h3>
         <p className="mt-1 text-[13px] text-zinc-500">
-          Manage your library to free up storage
+          Manage your files to free up storage
         </p>
         <ul className="mt-4">
           {categories.map((item) => (

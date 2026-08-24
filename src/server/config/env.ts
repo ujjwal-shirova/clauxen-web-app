@@ -209,12 +209,6 @@ export const env = {
    */
   paymentMethodEncryptionKey: optional("PAYMENT_METHOD_ENCRYPTION_KEY"),
 
-  /**
-   * Shared secret for scheduled-tasks cron dispatch
-   * (`/api/v1/internal/scheduled-tasks/dispatch`).
-   */
-  scheduledTasksInternalToken: optional("SCHEDULED_TASKS_INTERNAL_TOKEN"),
-
   r2ImagesBucket: optional("R2_IMAGES_BUCKET", "clauxen-images"),
   r2DocumentsBucket: optional(
     "R2_DOCUMENTS_BUCKET",

@@ -533,18 +533,8 @@ export function PromptInput({
     isMultilineRef.current = false;
     singleLineHeightRef.current = COLLAPSED_TEXTAREA_HEIGHT_PX;
     requestAnimationFrame(() => {
-      // Prefer a stashed “Create via chat” schedule draft over an empty box.
-      void import("@/lib/schedule-chat-draft").then(
-        ({ consumeScheduleChatDraft }) => {
-          const draft = consumeScheduleChatDraft();
-          if (draft) {
-            syncDraftImmediate(draft);
-            setIsMultiline(draft.includes("\n") || draft.length > 80);
-          }
-          scheduleResizeTextarea();
-          textareaRef.current?.focus({ preventScroll: true });
-        },
-      );
+      scheduleResizeTextarea();
+      textareaRef.current?.focus({ preventScroll: true });
     });
   }, [focusKey, syncDraftImmediate, scheduleResizeTextarea]);
 

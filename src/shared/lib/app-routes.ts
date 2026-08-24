@@ -1,7 +1,7 @@
 /**
  * Canonical app routes.
  *
- * Main pages (real Next routes): `/`, `/new`, `/c/:id`, `/library`, `/projects`, …
+ * Main pages (real Next routes): `/`, `/new`, `/c/:id`, `/projects`, …
  * Sub-pages / overlays (hash fragments): `#settings`, `#settings/Personalization`,
  * `#pricing`, `#gift`, `#apps` — parent page stays loaded underneath.
  */
@@ -70,13 +70,8 @@ export const APP_ROUTES = {
   home: "/new",
   /** Ephemeral chat — not saved to history, files, or memory. */
   incognito: "/incognito",
-  library: "/library",
-  /** Scheduled automations (run prompts on a cadence). */
-  scheduledTasks: "/scheduled",
   /** Create-project surface (inline form, not a gallery). */
   projects: "/project",
-  /** @deprecated Removed — Customize nav opens settings Connectors. Kept for redirects. */
-  customize: "/customize",
   myClauxen: "/my-clauxen",
 
   chat: (chatId: string) => `/c/${encodeURIComponent(chatId)}`,
@@ -230,10 +225,6 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname === "/incognito" ||
     pathname.startsWith("/incognito/") ||
     pathname.startsWith("/c/") ||
-    pathname === "/library" ||
-    pathname.startsWith("/library/") ||
-    pathname === "/scheduled" ||
-    pathname.startsWith("/scheduled/") ||
     pathname === "/project" ||
     pathname.startsWith("/project/") ||
     pathname === "/projects" ||

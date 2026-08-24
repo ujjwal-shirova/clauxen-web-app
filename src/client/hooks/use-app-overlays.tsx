@@ -50,7 +50,6 @@ const AppOverlaysContext = createContext<AppOverlaysValue | null>(null);
 /** Prefetch real pages only — overlays are hash fragments, not routes. */
 const PREFETCH_PATHS = [
   APP_ROUTES.newChat,
-  APP_ROUTES.library,
   APP_ROUTES.projects,
   APP_ROUTES.myClauxen,
 ] as const;

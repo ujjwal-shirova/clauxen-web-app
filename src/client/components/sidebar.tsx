@@ -5,7 +5,6 @@ import {
   Settings,
   ArrowUpCircle,
   ArrowUpRight,
-  CalendarClock,
   ChevronRight,
   Code2,
   Gift,
@@ -17,8 +16,6 @@ import {
   Plus,
   Languages,
   Sparkles,
-  Library,
-  SlidersHorizontal,
   X,
   LayoutGrid,
 } from "lucide-react";
@@ -194,12 +191,9 @@ interface SidebarProps {
   onUpgradeClick: () => void;
   onSettingsClick: () => void;
   onPersonalizationClick?: () => void;
-  onCustomizeClick?: () => void;
   onAppsExtensionsClick: () => void;
-  onLibraryClick: () => void;
   onGiftClick: () => void;
   onProjectsClick: () => void;
-  onScheduledTasksClick?: () => void;
   onClauxenCodeClick?: () => void;
   activeView?: string;
   recentChats: RecentChat[];
@@ -241,12 +235,9 @@ export function Sidebar({
   onUpgradeClick,
   onSettingsClick,
   onPersonalizationClick,
-  onCustomizeClick,
   onAppsExtensionsClick,
-  onLibraryClick,
   onGiftClick,
   onProjectsClick,
-  onScheduledTasksClick,
   onClauxenCodeClick,
   activeView,
   recentChats,
@@ -290,7 +281,6 @@ export function Sidebar({
   const [planLabel, setPlanLabel] = useState<string | null>(
     () => cachedPlan?.planLabel ?? null,
   );
-  const [planLoading, setPlanLoading] = useState(() => !cachedPlan);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -313,11 +303,8 @@ export function Sidebar({
     const loadPlan = async () => {
       if (!userEmail) {
         setPlanLabel(null);
-        setPlanLoading(false);
         return;
       }
-      const hasCached = Boolean(readCachedBillingPlan());
-      if (!hasCached) setPlanLoading(true);
       try {
         const { getBillingSubscription } = await import("@/lib/api/billing");
         const overview = await getBillingSubscription();
@@ -334,8 +321,6 @@ export function Sidebar({
           const fallback = writeCachedBillingPlan("free");
           setPlanLabel(fallback.planLabel);
         }
-      } finally {
-        if (!cancelled) setPlanLoading(false);
       }
     };
     void loadPlan();
@@ -479,11 +464,11 @@ export function Sidebar({
 
   const navButtonClass = (active = false, muted = false) =>
     cn(
-      "ui-sidebar-menu-button no-hover-overlay group/nav mb-0 w-full rounded-md text-[13px] font-medium leading-[18px] transition-colors duration-150 hover:bg-black/[0.04]",
+      "no-hover-overlay group/nav mb-0 rounded-md text-[13px] font-medium leading-[18px] transition-colors duration-150 hover:bg-black/[0.04]",
       muted ? "text-zinc-800/40 hover:text-zinc-800/55" : "text-zinc-800/90",
       isCollapsed
-        ? "ui-icon-button mx-auto flex justify-center gap-0 px-0"
-        : "ui-nav-row justify-start px-2",
+        ? "ui-icon-button mx-auto shrink-0 justify-center gap-0 px-0"
+        : "ui-sidebar-menu-button ui-nav-row w-full justify-start px-2",
       active && "bg-black/[0.06]",
     );
 
@@ -506,25 +491,20 @@ export function Sidebar({
     trailing?: React.ReactNode;
     replace?: boolean;
   }) => {
-    const body = (
-      <div
-        className={cn(
-          "flex min-w-0 items-center gap-2",
-          !isCollapsed && "w-full",
-        )}
-      >
+    const body = isCollapsed ? (
+      <div className={cn("ui-nav-icon", muted && "opacity-60")}>{icon}</div>
+    ) : (
+      <div className="flex w-full min-w-0 items-center gap-2">
         <div className={cn("ui-nav-icon", muted && "opacity-60")}>{icon}</div>
-        {!isCollapsed && (
-          <span
-            className={cn(
-              "flex min-w-0 items-center gap-0.5",
-              muted && "text-zinc-400",
-            )}
-          >
-            <span className="truncate">{label}</span>
-            {trailing}
-          </span>
-        )}
+        <span
+          className={cn(
+            "flex min-w-0 items-center gap-0.5",
+            muted && "text-zinc-400",
+          )}
+        >
+          <span className="truncate">{label}</span>
+          {trailing}
+        </span>
       </div>
     );
 
@@ -812,31 +792,6 @@ export function Sidebar({
               isCollapsed ? "flex flex-col items-center px-0" : "px-1.5",
             )}
           >
-            {/* Nav: Library → Scheduled → Customize → Clauxen Code */}
-            {renderNavButton({
-              label: "Library",
-              icon: <Library className="size-4" />,
-              href: APP_ROUTES.library,
-              onClick: onLibraryClick,
-              active: activeView === "library",
-            })}
-
-            {renderNavButton({
-              label: "Scheduled Task",
-              icon: <CalendarClock className="size-4" strokeWidth={1.5} />,
-              href: APP_ROUTES.scheduledTasks,
-              onClick: () => onScheduledTasksClick?.(),
-              active: activeView === "scheduled-tasks",
-            })}
-
-            {renderNavButton({
-              label: "Customize",
-              icon: <SlidersHorizontal className="size-4" strokeWidth={1.5} />,
-              href: overlayHref({ type: "settings", tab: "Connectors" }),
-              onClick: () => onCustomizeClick?.(),
-              active: activeView === "connectors",
-            })}
-
             {renderNavButton({
               label: "Clauxen Code",
               icon: <Code2 className="size-4" strokeWidth={1.5} />,
@@ -999,10 +954,7 @@ export function Sidebar({
                           {userDisplayName}
                         </p>
                       )}
-                      {accountLoading ||
-                      (Boolean(userEmail) && (planLoading || !planLabel)) ? (
-                        <Skeleton className="h-3 w-[4.75rem]" variant="text" />
-                      ) : planLabel ? (
+                      {planLabel ? (
                         <p className="truncate text-[12px] font-medium leading-4 text-zinc-800/60">
                           {planLabel}
                         </p>

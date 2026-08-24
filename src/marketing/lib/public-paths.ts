@@ -2,7 +2,7 @@
  * Path prefixes / exact paths that must stay reachable without login.
  * Used by Edge middleware (`src/utils/supabase/middleware.ts`).
  *
- * Keep chat app routes (/ , /new, /c/*, /library, …) protected.
+ * Keep chat app routes (/ , /new, /c/*, …) protected.
  * Marketing pricing is `/plans` — not `/pricing` (in-app overlay).
  */
 
