@@ -6,16 +6,18 @@ import { AssistantContentRenderer } from "@/components/assistant-content-rendere
 import { ThinkingBlock } from "@/components/thinking-block";
 import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
-import { agentTraceIsActive, traceHasWork } from "@/lib/agent-trace";
+import { agentTraceIsActive } from "@/lib/agent-trace";
 import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
 import { AgentTranscriptView } from "./agent-transcript";
 import { AgentWorkingRow } from "./agent-trace-view";
 import { collectMessageSources } from "@/lib/chat-sources";
 
-/** A turn uses the agent transcript layout when real trace work exists. */
+/** Once an agent turn has a trace, keep that renderer mounted through settle.
+ * Switching back to the plain answer renderer on finalize remounted markdown
+ * and caused the transient large/bold first frame. */
 export function shouldUseAgentTraceLayout(message: Message): boolean {
   return (
-    Boolean(message.agentMode) && traceHasWork(message.agentTrace?.steps ?? [])
+    Boolean(message.agentMode) && (message.agentTrace?.steps.length ?? 0) > 0
   );
 }
 
@@ -56,7 +58,11 @@ export function AgentMessageContent({
   // or the plain orb (simple chats).
   if (streaming && !message.content.trim() && !hasThinking) {
     if (message.agentMode && !message.agentFrameComplete) {
-      return <AgentWorkingRow startedAtMs={message.agentTrace?.startedAtMs} />;
+      return (
+        <AgentWorkingRow
+          startedAtMs={message.agentTrace?.startedAtMs ?? message.createdAt}
+        />
+      );
     }
     return <StreamingOrbCursor />;
   }

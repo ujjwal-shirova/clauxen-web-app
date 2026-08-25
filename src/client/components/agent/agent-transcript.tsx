@@ -2,8 +2,7 @@
 
 import { useMemo } from "react";
 import type { Message } from "@/lib/types";
-import { agentTraceIsActive, traceHasWork } from "@/lib/agent-trace";
-import { summarizeTraceSteps } from "@/lib/agent-trace-labels";
+import { traceHasWork } from "@/lib/agent-trace";
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
 import { AssistantContentRenderer } from "@/components/assistant-content-renderer";
 import { collectMessageSources } from "@/lib/chat-sources";
@@ -34,20 +33,31 @@ export function AgentTranscriptView({
 }) {
   const trace = message.agentTrace;
   const steps = useMemo(() => trace?.steps ?? [], [trace]);
-  const active = agentTraceIsActive(trace) && chatIsGenerating;
   const answer = message.content.trim();
+  const active = chatIsGenerating && trace?.complete !== true;
   const sources = collectMessageSources(message);
   const streaming = message.isStreaming === true && chatIsGenerating;
 
-  const workSteps = useMemo(
-    () => steps.filter((step) => traceHasWork([step])),
-    [steps],
-  );
+  const workSteps = useMemo(() => {
+    const mirroredNarrationId = [...steps]
+      .reverse()
+      .find(
+        (step) =>
+          step.kind === "narration" &&
+          answer.length > 0 &&
+          step.content.trim() === answer,
+      )?.id;
+    return steps.filter(
+      (step) => step.id !== mirroredNarrationId && traceHasWork([step]),
+    );
+  }, [answer, steps]);
   const hasWork = workSteps.length > 0;
-
-  const summary = useMemo(
-    () => (!active ? summarizeTraceSteps(steps) : null),
-    [steps, active],
+  const awaitingInput = steps.some(
+    (step) =>
+      step.kind === "tool" &&
+      step.name === "ask_user_input_v0" &&
+      step.status === "done" &&
+      !answer,
   );
 
   if (!hasWork && !answer) {
@@ -62,20 +72,12 @@ export function AgentTranscriptView({
       data-assistant-content="true"
       data-agent-transcript-root="true"
     >
-      {/* Done-state aggregate: one quiet ledger line above the trace. */}
-      {!active && hasWork && steps.length > 3 && summary ? (
-        <p
-          className="min-w-0 truncate text-[13px] font-[430] leading-5 text-zinc-400 dark:text-zinc-500"
-          data-agent-trace-summary="true"
-        >
-          {summary}
-        </p>
-      ) : null}
-
       <AgentTraceView
         steps={workSteps}
         isActive={active}
         startedAtMs={trace?.startedAtMs}
+        completedAtMs={trace?.completedAtMs}
+        keepExpanded={awaitingInput}
         hideFinalNarration={Boolean(answer)}
       />
 
@@ -116,7 +118,7 @@ function FreshTurnPlaceholder() {
       className="flex w-full min-w-0 flex-col gap-1.5"
       data-agent-fresh-turn="true"
     >
-      <AgentWorkingRow startedAtMs={Date.now()} />
+      <AgentWorkingRow />
     </div>
   );
 }

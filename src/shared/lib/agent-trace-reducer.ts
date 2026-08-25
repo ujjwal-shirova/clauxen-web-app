@@ -212,24 +212,28 @@ export function applyAgentStreamEvent(
           step.kind === "narration" && step.id === event.segmentId,
       );
       const nextContent = `${existing?.content ?? ""}${visibleDelta}`;
+      const deltaCount = (existing?.deltaCount ?? 0) + 1;
       let mirroredContent: string | null = null;
       const nextSteps = upsertStep(steps, {
         kind: "narration",
         id: event.segmentId,
         content: nextContent,
+        deltaCount,
         isStreaming: true,
         isFinal: existing?.isFinal,
         startedAtMs: existing?.startedAtMs ?? Date.now(),
       });
-      // Mirror into message.content while no tool/thinking is live or present
-      // in this turn, so simple non-tool responses stream in the answer body.
+      // Once a post-tool narration has more than one provider delta, treat it
+      // as the answer candidate and stream it in the answer body. One-shot
+      // generated progress notes stay exclusively in the trace. If a tool
+      // call follows, tool_start clears the optimistic candidate again.
       const hasAnyTool = nextSteps.some((step) => step.kind === "tool");
       const hasLiveWork = nextSteps.some(
         (step) =>
           (step.kind === "tool" && step.status === "running") ||
           (step.kind === "thinking" && step.isStreaming === true),
       );
-      if (!hasAnyTool && !hasLiveWork) {
+      if (!hasLiveWork && (!hasAnyTool || deltaCount > 1)) {
         mirroredContent = nextContent;
       }
       return {
@@ -270,7 +274,9 @@ export function applyAgentStreamEvent(
                 kind: "narration",
                 id: event.segmentId,
                 content: "",
+                deltaCount: 0,
                 isStreaming: true,
+                startedAtMs: Date.now(),
               }),
             },
           };
@@ -306,6 +312,7 @@ export function applyAgentStreamEvent(
     case "answer_finalize": {
       const text = event.text.trim();
       if (!text) return message;
+      const now = Date.now();
       const steps = message.agentTrace?.steps ?? [];
       const nextSteps = event.segmentId
         ? steps.map((step) =>
@@ -321,7 +328,12 @@ export function applyAgentStreamEvent(
         isStreaming: true,
         agentTrace:
           message.agentTrace && nextSteps.length > 0
-            ? { ...message.agentTrace, steps: nextSteps }
+            ? {
+                ...message.agentTrace,
+                steps: finalizeStreamingSteps(nextSteps, now),
+                complete: true,
+                completedAtMs: message.agentTrace.completedAtMs ?? now,
+              }
             : message.agentTrace,
       };
     }

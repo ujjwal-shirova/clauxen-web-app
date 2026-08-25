@@ -71,8 +71,6 @@ export const APP_ROUTES = {
   /** Ephemeral chat — not saved to history, files, or memory. */
   incognito: "/incognito",
   library: "/library",
-  /** Scheduled automations (run prompts on a cadence). */
-  scheduledTasks: "/scheduled",
   /** Create-project surface (inline form, not a gallery). */
   projects: "/project",
   /** @deprecated Removed — Customize nav opens settings Connectors. Kept for redirects. */

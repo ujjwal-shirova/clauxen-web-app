@@ -472,7 +472,11 @@ const MessageRow = React.memo(
                   message.hasThinking ||
                   (message.thinkingContent?.trim().length ?? 0) > 0
                 ) ? (
-                  <AgentWorkingRow />
+                  <AgentWorkingRow
+                    startedAtMs={
+                      message.agentTrace?.startedAtMs ?? message.createdAt
+                    }
+                  />
                 ) : null}
                 {showWaitingOrb &&
                 message.content.length === 0 &&
@@ -680,6 +684,9 @@ const MessageRow = React.memo(
       pm.thinkingDurationSeconds === nm.thinkingDurationSeconds &&
       pm.agentMode === nm.agentMode &&
       pm.agentFrameComplete === nm.agentFrameComplete &&
+      pm.agentTrace?.complete === nm.agentTrace?.complete &&
+      pm.agentTrace?.startedAtMs === nm.agentTrace?.startedAtMs &&
+      pm.agentTrace?.completedAtMs === nm.agentTrace?.completedAtMs &&
       agentStepsVisuallyEqual(pm.agentTrace?.steps, nm.agentTrace?.steps) &&
       pm.activeBranchIndex === nm.activeBranchIndex &&
       pm.branchVersions === nm.branchVersions &&

@@ -5,7 +5,6 @@ import {
   Settings,
   ArrowUpCircle,
   ArrowUpRight,
-  CalendarClock,
   ChevronRight,
   Code2,
   Gift,
@@ -17,8 +16,6 @@ import {
   Plus,
   Languages,
   Sparkles,
-  Library,
-  SlidersHorizontal,
   X,
   LayoutGrid,
 } from "lucide-react";
@@ -194,12 +191,9 @@ interface SidebarProps {
   onUpgradeClick: () => void;
   onSettingsClick: () => void;
   onPersonalizationClick?: () => void;
-  onCustomizeClick?: () => void;
   onAppsExtensionsClick: () => void;
-  onLibraryClick: () => void;
   onGiftClick: () => void;
   onProjectsClick: () => void;
-  onScheduledTasksClick?: () => void;
   onClauxenCodeClick?: () => void;
   activeView?: string;
   recentChats: RecentChat[];
@@ -241,12 +235,9 @@ export function Sidebar({
   onUpgradeClick,
   onSettingsClick,
   onPersonalizationClick,
-  onCustomizeClick,
   onAppsExtensionsClick,
-  onLibraryClick,
   onGiftClick,
   onProjectsClick,
-  onScheduledTasksClick,
   onClauxenCodeClick,
   activeView,
   recentChats,
@@ -812,31 +803,6 @@ export function Sidebar({
               isCollapsed ? "flex flex-col items-center px-0" : "px-1.5",
             )}
           >
-            {/* Nav: Library → Scheduled → Customize → Clauxen Code */}
-            {renderNavButton({
-              label: "Library",
-              icon: <Library className="size-4" />,
-              href: APP_ROUTES.library,
-              onClick: onLibraryClick,
-              active: activeView === "library",
-            })}
-
-            {renderNavButton({
-              label: "Scheduled Task",
-              icon: <CalendarClock className="size-4" strokeWidth={1.5} />,
-              href: APP_ROUTES.scheduledTasks,
-              onClick: () => onScheduledTasksClick?.(),
-              active: activeView === "scheduled-tasks",
-            })}
-
-            {renderNavButton({
-              label: "Customize",
-              icon: <SlidersHorizontal className="size-4" strokeWidth={1.5} />,
-              href: overlayHref({ type: "settings", tab: "Connectors" }),
-              onClick: () => onCustomizeClick?.(),
-              active: activeView === "connectors",
-            })}
-
             {renderNavButton({
               label: "Clauxen Code",
               icon: <Code2 className="size-4" strokeWidth={1.5} />,

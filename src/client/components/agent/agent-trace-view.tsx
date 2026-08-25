@@ -1,102 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Search, Globe, Terminal, FileText, Plug } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import type { AgentStep, AgentToolStep } from "@/lib/agent-trace";
-import { domainFromUrl } from "@/lib/agent-trace";
 import { cn } from "@/lib/utils";
-import {
-  completedToolLabel,
-  runningToolLabel,
-  formatElapsedSeconds,
-} from "@/lib/agent-trace-labels";
+import { formatElapsedSeconds, runningToolLabel } from "@/lib/agent-trace-labels";
+import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
+import { StreamingTextFade } from "@/lib/streaming-text-fade";
+import { AgentToolBlock } from "./agent-tool-blocks";
 
-/**
- * Trace step icons — a single small leading glyph per row (Grok-style
- * status lines: icon + short label).
- */
-function StepIcon({ step }: { step: AgentStep }) {
-  if (step.kind === "thinking") {
-    return <SparkleGlyph />;
-  }
-  if (step.kind === "narration") {
-    return null; // narration renders as plain prose — no glyph
-  }
-  const className = "h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500";
-  switch (step.name) {
-    case "web_search":
-    case "image_search":
-    case "places_search":
-      return <Search className={className} strokeWidth={1.75} aria-hidden />;
-    case "web_fetch":
-      return <Globe className={className} strokeWidth={1.75} aria-hidden />;
-    case "bash_tool":
-    case "execute_code":
-      return <Terminal className={className} strokeWidth={1.75} aria-hidden />;
-    case "create_file":
-    case "file_write":
-    case "file_read":
-      return <FileText className={className} strokeWidth={1.75} aria-hidden />;
-    default:
-      if (step.name.startsWith("mcp__")) {
-        return <Plug className={className} strokeWidth={1.75} aria-hidden />;
-      }
-      return (
-        <span
-          className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-600"
-          aria-hidden
-        />
-      );
-  }
-}
-
-function SparkleGlyph() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500"
-      fill="currentColor"
-      aria-hidden
-    >
-      <path d="M8 1.5l1.2 3.6a4 4 0 001.7 1.7L14.5 8l-3.6 1.2a4 4 0 00-1.7 1.7L8 14.5 6.8 10.9a4 4 0 00-1.7-1.7L1.5 8l3.6-1.2a4 4 0 001.7-1.7L8 1.5z" />
-    </svg>
-  );
-}
-
-/** 3x3 dot grid processing indicator (as in the reference status row). */
-export function WorkingDots({ className }: { className?: string }) {
+function MorphingWorkIcon({ active = true }: { active?: boolean }) {
   return (
     <span
-      className={cn(
-        "grid h-3.5 w-3.5 shrink-0 grid-cols-3 gap-[1.5px]",
-        className,
-      )}
+      className={cn("agent-work-morph", !active && "agent-work-morph--settled")}
       aria-hidden
     >
-      {Array.from({ length: 9 }, (_, index) => (
-        <span
-          key={index}
-          className="h-[2px] w-[2px] rounded-full bg-zinc-400 dark:bg-zinc-500"
-          style={{
-            animation: `working-dot-pulse 1.2s ease-in-out ${index * 0.08}s infinite`,
-          }}
-        />
-      ))}
+      <span data-shape="square" />
+      <span data-shape="circle" />
+      <span data-shape="triangle" />
+      <span data-shape="star" />
     </span>
   );
 }
 
-/**
- * Grok-style trailing status row: shimmering label + live elapsed timer.
- * Sits below the latest trace step while the assistant works.
- */
+function elapsedLabel(startedAtMs?: number, endedAtMs = Date.now()): string {
+  if (!startedAtMs) return "0s";
+  return formatElapsedSeconds(Math.max(0, endedAtMs - startedAtMs));
+}
+
+/** Live, layout-stable activity label shown from send until answer paint. */
 export function AgentWorkingRow({
   startedAtMs,
   activeLabel,
   className,
 }: {
   startedAtMs?: number;
-  /** Present-tense action ("Searching for …") or undefined for generic. */
   activeLabel?: string;
   className?: string;
 }) {
@@ -107,222 +45,192 @@ export function AgentWorkingRow({
     return () => window.clearInterval(timer);
   }, []);
 
-  const elapsed = startedAtMs ? formatElapsedSeconds(now - startedAtMs) : null;
-  const label = activeLabel ?? "Working";
-
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 py-0.5 animate-in fade-in duration-200",
+        "agent-trace-enter flex min-h-5 items-center gap-1.5 py-0.5",
         className,
       )}
       data-agent-working-row="true"
+      role="status"
+      aria-live="polite"
     >
-      <WorkingDots />
+      <MorphingWorkIcon />
       <span className="min-w-0 truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]">
         <span className="shimmer-text" data-shimmer-active="true">
-          {label}
-          {elapsed ? ` for ${elapsed}` : ""}
+          {activeLabel ?? "Working"} for {elapsedLabel(startedAtMs, now)}
         </span>
       </span>
     </div>
   );
 }
 
-/**
- * One tool step row — past-tense summary when done ("Ran 1 search"),
- * present-tense + shimmer while running. Expandable body (command output,
- * search results) is rendered by the existing per-tool blocks.
- */
-function ToolTraceRow({
-  tool,
-  children,
+function NarrationTraceRow({
+  step,
 }: {
-  tool: AgentToolStep;
-  children?: React.ReactNode;
+  step: Extract<AgentStep, { kind: "narration" }>;
 }) {
-  const running = tool.status === "running";
-  const hasBody = children != null && children !== false;
+  const content = step.content.trim();
+  if (!content) return null;
 
-  const header = (
-    <>
-      <StepIcon step={tool} />
-      {running ? (
-        <AgentWorkingRowInline label={runningToolLabel(tool)} />
-      ) : (
-        <span
-          className={cn(
-            "min-w-0 truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]",
-            tool.status === "error"
-              ? "text-rose-500"
-              : "text-zinc-500 dark:text-zinc-400",
-          )}
-        >
-          {completedToolLabel(tool)}
-        </span>
-      )}
-    </>
-  );
-
-  if (!hasBody && !running) {
-    return (
-      <div
-        className="agent-trace__row flex min-w-0 items-center gap-1.5"
-        data-agent-trace-row={tool.toolCallId}
-      >
-        {header}
-      </div>
-    );
-  }
-
-  // Running or expandable rows use the collapsible block chrome.
-  return (
-    <CollapsibleTraceRow
-      keyContent={header}
-      defaultExpanded={running}
-      toolCallId={tool.toolCallId}
-    >
-      {children}
-    </CollapsibleTraceRow>
-  );
-}
-
-function AgentWorkingRowInline({ label }: { label: string }) {
-  return (
-    <span className="min-w-0 truncate text-[13px] font-[430] leading-5 tracking-[-0.01em]">
-      <span className="shimmer-text" data-shimmer-active="true">
-        {label}
-      </span>
-    </span>
-  );
-}
-
-function CollapsibleTraceRow({
-  keyContent,
-  children,
-  defaultExpanded,
-  toolCallId,
-}: {
-  keyContent: React.ReactNode;
-  children?: React.ReactNode;
-  defaultExpanded: boolean;
-  toolCallId: string;
-}) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
   return (
     <div
-      className="agent-trace__row min-w-0"
-      data-agent-trace-row={toolCallId}
+      className="agent-narration agent-trace-enter min-w-0"
+      data-agent-narration="true"
+    >
+      {step.isStreaming ? (
+        <StreamingTextFade
+          content={content}
+          streamKey={`trace-${step.id}`}
+          className="whitespace-pre-wrap break-words text-[13px] font-[430] leading-5 text-zinc-600 dark:text-zinc-300"
+        />
+      ) : (
+        <p className="whitespace-pre-wrap break-words text-[13px] font-[430] leading-5">
+          {content}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function TraceSteps({ steps }: { steps: AgentStep[] }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5" data-agent-trace-steps="true">
+      {steps.map((step) => {
+        if (step.kind === "thinking") return null;
+        if (step.kind === "narration") {
+          return <NarrationTraceRow key={step.id} step={step} />;
+        }
+        return (
+          <div className="agent-trace-enter min-w-0" key={step.id}>
+            <AgentToolBlock tool={step} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CompletedTrace({
+  steps,
+  startedAtMs,
+  completedAtMs,
+}: {
+  steps: AgentStep[];
+  startedAtMs?: number;
+  completedAtMs?: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const duration = elapsedLabel(startedAtMs, completedAtMs ?? startedAtMs);
+
+  return (
+    <div
+      className="min-w-0"
+      data-agent-completed-trace="true"
       data-expanded={expanded || undefined}
     >
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className="group/trace-row no-hover no-hover-overlay flex max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0"
+        onClick={() =>
+          preserveScrollAnchorOnToggle(buttonRef.current, () => {
+            setExpanded((value) => !value);
+          })
+        }
+        className="group/worked no-hover no-hover-overlay inline-flex min-h-5 max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left text-[13px] font-[430] leading-5 tracking-[-0.01em] text-zinc-500 shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 dark:text-zinc-400"
         aria-expanded={expanded}
       >
-        {keyContent}
+        <MorphingWorkIcon active={false} />
+        <span className="truncate">Worked for {duration}</span>
+        <ChevronRight
+          className={cn(
+            "size-3.5 shrink-0 text-zinc-400 opacity-0 transition-[opacity,transform] duration-180 group-hover/worked:opacity-100 group-focus-visible/worked:opacity-100",
+            expanded && "rotate-90 opacity-100",
+          )}
+          aria-hidden
+        />
       </button>
-      {children != null ? (
-        <div
-          className="grid transition-[grid-template-rows,opacity] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]"
-          style={{
-            gridTemplateRows: expanded ? "1fr" : "0fr",
-            opacity: expanded ? 1 : 0,
-          }}
-          aria-hidden={!expanded}
-        >
-          <div className="min-h-0 overflow-hidden pt-1">{children}</div>
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          expanded
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0",
+        )}
+        aria-hidden={!expanded}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="pt-1.5 pl-5">
+            <TraceSteps steps={steps} />
+          </div>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
 
-/** Narration row — first-person progress prose between work steps. */
-function NarrationTraceRow({ content }: { content: string }) {
-  return (
-    <p
-      className="agent-narration min-w-0 text-[15px] font-[430] leading-[1.55] text-zinc-700 dark:text-zinc-200"
-      data-agent-narration="true"
-    >
-      {content}
-    </p>
-  );
-}
-
-/**
- * The full turn trace: ordered steps, then the trailing Working-for row
- * while anything is live.
- */
+/** Ordered activity trace followed by a live timer, collapsed when complete. */
 export function AgentTraceView({
   steps,
   isActive,
   startedAtMs,
+  completedAtMs,
+  keepExpanded,
   hideFinalNarration,
 }: {
   steps: AgentStep[];
   isActive: boolean;
   startedAtMs?: number;
-  /** Hide the final narration step that was promoted to the answer body. */
+  completedAtMs?: number;
+  /** Actionable traces (for example ask-user-input) must remain visible. */
+  keepExpanded?: boolean;
   hideFinalNarration?: boolean;
 }) {
-  const lastRunningTool = isActive
-    ? [...steps]
-        .reverse()
-        .find(
-          (step): step is AgentToolStep =>
-            step.kind === "tool" && step.status === "running",
-        )
-    : undefined;
+  const visibleSteps = useMemo(
+    () =>
+      hideFinalNarration
+        ? steps.filter(
+            (step) => !(step.kind === "narration" && step.isFinal === true),
+          )
+        : steps,
+    [hideFinalNarration, steps],
+  );
+  const lastRunningTool = [...visibleSteps]
+    .reverse()
+    .find(
+      (step): step is AgentToolStep =>
+        step.kind === "tool" && step.status === "running",
+    );
 
-  const visibleSteps = hideFinalNarration
-    ? steps.filter(
-        (step) => !(step.kind === "narration" && step.isFinal === true),
-      )
-    : steps;
-
-  if (visibleSteps.length === 0 && !isActive) return null;
+  if (!isActive) {
+    if (visibleSteps.length === 0) return null;
+    if (keepExpanded) return <TraceSteps steps={visibleSteps} />;
+    const lastStepCompletedAtMs = visibleSteps.reduce(
+      (latest, step) => Math.max(latest, step.completedAtMs ?? 0),
+      0,
+    );
+    return (
+      <CompletedTrace
+        steps={visibleSteps}
+        startedAtMs={startedAtMs}
+        completedAtMs={(completedAtMs ?? lastStepCompletedAtMs) || undefined}
+      />
+    );
+  }
 
   return (
     <div
       className="flex w-full min-w-0 flex-col gap-1.5"
       data-agent-trace-view="true"
     >
-      {visibleSteps.map((step) => {
-        if (step.kind === "narration") {
-          return (
-            <NarrationTraceRow key={step.id} content={step.content.trim()} />
-          );
+      <TraceSteps steps={visibleSteps} />
+      <AgentWorkingRow
+        startedAtMs={startedAtMs}
+        activeLabel={
+          lastRunningTool ? runningToolLabel(lastRunningTool) : undefined
         }
-        if (step.kind === "thinking") {
-          // Presence-only phase — the trailing Working-for row carries it.
-          return null;
-        }
-        return (
-          <ToolTraceRow key={step.id} tool={step}>
-            <ToolStepBody tool={step} />
-          </ToolTraceRow>
-        );
-      })}
-
-      {/* Trailing status: live tool label wins; otherwise generic timer. */}
-      {isActive ? (
-        <AgentWorkingRow
-          startedAtMs={startedAtMs}
-          activeLabel={
-            lastRunningTool ? runningToolLabel(lastRunningTool) : undefined
-          }
-        />
-      ) : null}
+      />
     </div>
   );
-}
-
-function ToolStepBody({ tool }: { tool: AgentToolStep }): React.ReactNode {
-  // Rich bodies (search result cards, terminal panes, file blocks) are owned
-  // by the per-tool components imported by the message renderer; this hook
-  // point keeps them out of the flat ledger's critical path.
-  void tool;
-  return false as unknown as React.ReactNode;
 }

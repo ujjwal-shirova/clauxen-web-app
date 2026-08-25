@@ -1877,6 +1877,7 @@ export function useChatApi(
           );
         };
 
+        let paintedFirstContent = false;
         const streamBatcher = createStreamEventBatcher({
           onFlush: (events) => {
             // User stop clears generation before the SSE reader unwinds —
@@ -1890,8 +1891,29 @@ export function useChatApi(
 
         const handleStreamEvent = (event: StreamEvent) => {
           if (getGeneration(chatId)?.request !== controller) return;
-          // Flush immediately on lifecycle boundaries and first content so
-          // token paint / shimmer clear land in the same frame as arrival.
+          const isContentDelta =
+            event.type === "answer_delta" ||
+            event.type === "narration_delta" ||
+            event.type === "thinking_delta" ||
+            event.type === "text_delta" ||
+            event.type === "tool_output_delta";
+
+          // Paint the first visible chunk immediately for low TTFT. Subsequent
+          // deltas are coalesced to one reducer pass per animation frame so a
+          // fast provider cannot starve React paint with token-sized commits.
+          if (isContentDelta) {
+            if (!paintedFirstContent) {
+              paintedFirstContent = true;
+              streamBatcher.flush();
+              handleStreamEventImmediate(event);
+            } else {
+              streamBatcher.push(event);
+            }
+            return;
+          }
+
+          // Lifecycle events form ordering boundaries: land queued content
+          // before a tool/segment changes phase.
           if (
             event.type === "error" ||
             event.type === "done" ||
@@ -1900,15 +1922,10 @@ export function useChatApi(
             event.type === "tool_start" ||
             event.type === "tool_end" ||
             event.type === "tool_data" ||
-            event.type === "tool_output_delta" ||
             event.type === "thinking_end" ||
             event.type === "segment_start" ||
             event.type === "segment_end" ||
-            event.type === "answer_finalize" ||
-            event.type === "answer_delta" ||
-            event.type === "narration_delta" ||
-            event.type === "thinking_delta" ||
-            event.type === "text_delta"
+            event.type === "answer_finalize"
           ) {
             streamBatcher.flush();
             handleStreamEventImmediate(event);

@@ -46,6 +46,19 @@ export function coalesceStreamEvents(events: StreamEvent[]): StreamEvent[] {
 
     if (
       prev &&
+      event.type === "text_delta" &&
+      prev.type === "text_delta" &&
+      prev.segmentId === event.segmentId
+    ) {
+      merged[merged.length - 1] = {
+        ...prev,
+        delta: prev.delta + event.delta,
+      };
+      continue;
+    }
+
+    if (
+      prev &&
       event.type === "tool_output_delta" &&
       prev.type === "tool_output_delta" &&
       prev.toolCallId === event.toolCallId &&

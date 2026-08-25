@@ -40,6 +40,9 @@ export type AgentThinkingStep = AgentStepBase & {
 export type AgentNarrationStep = AgentStepBase & {
   kind: "narration";
   content: string;
+  /** Number of provider deltas folded into this row. One-shot activity notes
+   * stay in the trace; multi-delta final prose can stream in the answer body. */
+  deltaCount?: number;
   isStreaming?: boolean;
   /** True once promoted to the durable final answer (answer_finalize). */
   isFinal?: boolean;
@@ -120,7 +123,7 @@ export function agentTraceIsActive(
   return trace.steps.some((step) => {
     if (step.kind === "tool") return step.status === "running";
     if (step.kind === "thinking") return step.isStreaming === true;
-    return false;
+    return step.isStreaming === true;
   });
 }
 
@@ -180,6 +183,7 @@ export function agentStepsVisuallyEqual(
       a.kind === "narration" &&
       b.kind === "narration" &&
       a.content === b.content &&
+      a.deltaCount === b.deltaCount &&
       a.isStreaming === b.isStreaming &&
       a.isFinal === b.isFinal
     ) {

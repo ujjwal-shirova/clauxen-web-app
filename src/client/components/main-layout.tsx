@@ -33,7 +33,6 @@ import { Sidebar } from "@/components/sidebar";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
-  "/scheduled",
   "/my-clauxen",
   "/project",
   "/projects",
@@ -115,23 +114,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     instantNavigate(APP_ROUTES.newChat, { replace: true });
   }, [startNewChat, closeMobileNav, overlays, instantNavigate]);
 
-  /** Side-effects only — route changes come from AppHref / plain href. */
-  const goToLibrary = useCallback(() => {
-    closeMobileNav();
-  }, [closeMobileNav]);
-
-  const goToScheduledTasks = useCallback(() => {
-    closeMobileNav();
-  }, [closeMobileNav]);
-
   const goToProjects = useCallback(() => {
     closeMobileNav();
   }, [closeMobileNav]);
-
-  const goToCustomize = useCallback(() => {
-    overlays.openSettings("Connectors");
-    closeMobileNav();
-  }, [overlays, closeMobileNav]);
 
   const onSelectChatFromSidebar = useCallback(
     (chatEntry: RecentChat) => {
@@ -230,8 +215,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p === "/incognito" ||
       p.startsWith("/incognito/") ||
       p === "/library" ||
-      p === "/scheduled" ||
-      p.startsWith("/scheduled/") ||
       p === "/project" ||
       p === "/projects" ||
       (p.startsWith("/project/") &&
@@ -295,9 +278,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
             onAppsExtensionsClick={onAppsExtensionsClick}
             onGiftClick={onGiftClick}
             onProjectsClick={goToProjects}
-            onLibraryClick={goToLibrary}
-            onCustomizeClick={goToCustomize}
-            onScheduledTasksClick={goToScheduledTasks}
             onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
             activeView={computeActiveView(
               pathname,
@@ -422,7 +402,6 @@ function computeActiveView(
     return "projects";
   }
   if (pathname.startsWith("/library")) return "library";
-  if (pathname.startsWith("/scheduled")) return "scheduled-tasks";
   if (pathname === "/new" || pathname === "/") return "chat";
   return "chat";
 }

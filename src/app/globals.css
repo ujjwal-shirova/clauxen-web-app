@@ -4176,6 +4176,125 @@ button[data-speed-toggle][data-state="open"] {
   border-radius: 10px !important;
 }
 
+/* Assistant stream chrome keeps one metric box from first token to settled
+   markdown, preventing synthetic bold/font swaps during incremental parsing. */
+[data-assistant-content] .markdown-content,
+.assistant-message .markdown-content {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+.agent-trace-enter {
+  animation: agent-trace-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes agent-trace-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* One compact glyph cycles square → circle → triangle → star without changing
+   its layout box, so the Working label never jumps as the shape changes. */
+.agent-work-morph {
+  position: relative;
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-work-morph > span {
+  position: absolute;
+  inset: 2px;
+  background: #71717a;
+  animation: agent-work-shape 4.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  will-change: opacity, transform, border-radius, clip-path;
+}
+
+.agent-work-morph > [data-shape="square"] {
+  border-radius: 2px;
+}
+
+.agent-work-morph > [data-shape="circle"] {
+  border-radius: 999px;
+  animation-delay: -1.2s;
+}
+
+.agent-work-morph > [data-shape="triangle"] {
+  clip-path: polygon(50% 3%, 97% 92%, 3% 92%);
+  animation-delay: -2.4s;
+}
+
+.agent-work-morph > [data-shape="star"] {
+  clip-path: polygon(
+    50% 0%,
+    61% 34%,
+    98% 35%,
+    68% 56%,
+    79% 94%,
+    50% 72%,
+    21% 94%,
+    32% 56%,
+    2% 35%,
+    39% 34%
+  );
+  animation-delay: -3.6s;
+}
+
+@keyframes agent-work-shape {
+  0%,
+  18% {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+  24%,
+  94% {
+    opacity: 0;
+    transform: rotate(45deg) scale(0.55);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(90deg) scale(1);
+  }
+}
+
+.agent-work-morph--settled > span {
+  display: none;
+  animation: none;
+}
+
+.agent-work-morph--settled > [data-shape="star"] {
+  display: block;
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-trace-enter {
+    animation: none;
+  }
+
+  .agent-work-morph > span {
+    display: none;
+    animation: none;
+  }
+
+  .agent-work-morph > [data-shape="circle"],
+  .agent-work-morph--settled > [data-shape="star"] {
+    display: block;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .user-message-card__body--editing {
   width: min(90%, 620px) !important;
   max-width: min(90%, 620px) !important;
