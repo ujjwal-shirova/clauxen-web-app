@@ -72,7 +72,11 @@ function revealStreamingChildren(
   if (typeof children === "number") {
     const text = String(children);
     return text.length > 0 ? (
-      <StreamingRevealText text={text} streamKey={streamKey} enabled={enabled} />
+      <StreamingRevealText
+        text={text}
+        streamKey={streamKey}
+        enabled={enabled}
+      />
     ) : (
       children
     );
@@ -228,7 +232,7 @@ export function StreamdownStreamingMarkdown({
       isAnimating={false}
       animated={false}
       parseIncompleteMarkdown
-      className="markdown-content min-w-0 max-w-full text-[13px] leading-[18px] text-zinc-800"
+      className="markdown-content min-w-0 max-w-full text-[16px] leading-[25px] text-zinc-800"
       plugins={{ math: streamdownMath }}
       components={components}
       lineNumbers={false}

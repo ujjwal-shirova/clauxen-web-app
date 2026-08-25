@@ -16,13 +16,13 @@ import {
 } from "@/lib/table-export";
 
 const bodyTextClass =
-  "font-sans text-[13px] leading-[18px] tracking-[-0.006em] text-zinc-800";
+  "font-sans text-[16px] leading-[25px] tracking-[-0.006em] text-zinc-800";
 const subtleTextClass =
-  "font-sans text-[12.5px] leading-[17px] tracking-[-0.004em] text-zinc-500";
+  "font-sans text-[15px] leading-[23px] tracking-[-0.004em] text-zinc-500";
 
 export const StyledH1 = ({ children, hasCursor, Cursor }: any) => (
   <div className="mb-2 mt-4">
-    <h1 className="font-sans text-[16px] font-semibold leading-[22px] tracking-[-0.02em] text-zinc-950">
+    <h1 className="font-sans text-[22px] font-semibold leading-[29px] tracking-[-0.02em] text-zinc-950">
       {children}
 
       {hasCursor && <Cursor />}
@@ -32,7 +32,7 @@ export const StyledH1 = ({ children, hasCursor, Cursor }: any) => (
 
 export const StyledH2 = ({ children, hasCursor, Cursor }: any) => (
   <div className="mb-1.5 mt-3.5">
-    <h2 className="font-sans text-[15px] font-semibold leading-[20px] tracking-[-0.016em] text-zinc-950">
+    <h2 className="font-sans text-[20px] font-semibold leading-[27px] tracking-[-0.016em] text-zinc-950">
       {children}
 
       {hasCursor && <Cursor />}
@@ -42,7 +42,7 @@ export const StyledH2 = ({ children, hasCursor, Cursor }: any) => (
 
 export const StyledH3 = ({ children, hasCursor, Cursor }: any) => (
   <div className="mb-1.5 mt-3">
-    <h3 className="font-sans text-[13.5px] font-semibold leading-[18px] tracking-[-0.012em] text-zinc-900">
+    <h3 className="font-sans text-[18px] font-semibold leading-[25px] tracking-[-0.012em] text-zinc-900">
       {children}
 
       {hasCursor && <Cursor />}
@@ -71,7 +71,7 @@ export const StyledInlineCode = ({
 }: {
   children: React.ReactNode;
 }) => (
-  <code className="markdown-glass-inline-code mx-0.5 rounded-[5px] border border-zinc-200/80 bg-zinc-100/80 px-1.5 py-[1px] font-mono text-[12px] font-[500] text-zinc-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+  <code className="markdown-glass-inline-code mx-0.5 rounded-[5px] border border-zinc-200/80 bg-zinc-100/80 px-1.5 py-[1px] font-mono text-[14px] font-[500] text-zinc-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
     {children}
   </code>
 );
@@ -201,7 +201,9 @@ export const StyledTableContainer = ({
         <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
-            aria-label={isCopied ? "Copied table markdown" : "Copy table markdown"}
+            aria-label={
+              isCopied ? "Copied table markdown" : "Copy table markdown"
+            }
             onClick={handleCopyMarkdown}
             className="ui-table-copy inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
           >
@@ -251,11 +253,7 @@ export const StyledTableHeader = ({
   children,
 }: {
   children: React.ReactNode;
-}) => (
-  <thead className="ui-table-header bg-zinc-100/80">
-    {children}
-  </thead>
-);
+}) => <thead className="ui-table-header bg-zinc-100/80">{children}</thead>;
 
 export const StyledTableHeadCell = ({
   children,
@@ -352,7 +350,9 @@ export const CodeBlockFrame = ({
               className="ui-code-block-download flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition-all hover:bg-zinc-200/70 hover:text-zinc-800 active:bg-zinc-200"
             >
               <Download size={12} />
-              <span>Download as {(downloadExtension || "txt").toUpperCase()}</span>
+              <span>
+                Download as {(downloadExtension || "txt").toUpperCase()}
+              </span>
             </button>
           ) : null}
         </div>

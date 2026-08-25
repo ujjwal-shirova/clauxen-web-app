@@ -28,7 +28,9 @@ export const MarkdownOrchestrator = ({
   isTyping?: boolean;
   showCursor?: boolean;
 }) => {
-  const normalizedText = stripReferenceDefinitions(normalizeLatexDelimiters(text));
+  const normalizedText = stripReferenceDefinitions(
+    normalizeLatexDelimiters(text),
+  );
   let displayText = normalizedText;
   if (sources.length > 0) {
     // Convert model citation syntax ([Title][N] or [N]) into direct links
@@ -51,7 +53,10 @@ export const MarkdownOrchestrator = ({
 
   return (
     <div className="markdown-content relative min-w-0 max-w-full">
-      <ReactMarkdown {...sharedReactMarkdownProps} components={effectiveComponents}>
+      <ReactMarkdown
+        {...sharedReactMarkdownProps}
+        components={effectiveComponents}
+      >
         {displayText}
       </ReactMarkdown>
     </div>
@@ -88,7 +93,7 @@ export const MarkdownMessage = ({
 
   if (detailLevel === "placeholder") {
     return (
-      <div className="min-h-[48px] whitespace-pre-wrap break-words text-[13px] leading-[18px] text-zinc-600">
+      <div className="min-h-[48px] whitespace-pre-wrap break-words text-[16px] leading-[25px] text-zinc-600">
         {content.slice(0, 280)}
         {content.length > 280 ? "…" : ""}
       </div>
@@ -97,7 +102,7 @@ export const MarkdownMessage = ({
 
   if (detailLevel === "plain" && !isStreaming) {
     return (
-      <div className="whitespace-pre-wrap break-words text-[13px] leading-[18px] text-zinc-800">
+      <div className="whitespace-pre-wrap break-words text-[16px] leading-[25px] text-zinc-800">
         {content}
       </div>
     );

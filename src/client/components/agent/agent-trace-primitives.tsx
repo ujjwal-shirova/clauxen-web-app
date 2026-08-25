@@ -105,7 +105,7 @@ export function AgentTraceBlock({
       ) : null}
       <span
         className={cn(
-          "agent-trace__title min-w-0 max-w-[min(100%,42rem)] truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em]",
+          "agent-trace__title min-w-0 max-w-[min(100%,42rem)] truncate text-left text-[14px] font-normal leading-6 tracking-[-0.01em]",
           titleClassName ?? "text-zinc-500 dark:text-zinc-400",
         )}
       >

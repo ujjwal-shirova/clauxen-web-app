@@ -1289,37 +1289,6 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   will-change: opacity, transform;
 }
 
-/* Typing caret that rides the live streaming delta — a small ink dot that
-   blinks while tokens land, removed the moment the stream settles. */
-.stream-typing-caret {
-  display: inline-block;
-  width: 0.42em;
-  height: 0.42em;
-  margin-left: 2px;
-  vertical-align: baseline;
-  border-radius: 9999px;
-  background-color: #18181b;
-  animation: stream-typing-caret-blink 1s ease-in-out infinite;
-}
-
-@keyframes stream-typing-caret-blink {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.35;
-    transform: scale(0.8);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stream-typing-caret {
-    animation: none;
-  }
-}
-
 .stream-token-stable {
   display: inline;
   white-space: pre-wrap;
@@ -3314,16 +3283,16 @@ button.user-message-card__body:not(:disabled):hover,
 
 @media (max-width: 640px) {
   .markdown-content {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .markdown-content p {
-    line-height: 18px !important;
+    line-height: 23px !important;
   }
 
   .assistant-message {
-    font-size: 13px;
-    line-height: 18px;
+    font-size: 15px;
+    line-height: 23px;
   }
 
   .markdown-code-scroll,
@@ -4268,10 +4237,16 @@ button[data-speed-toggle][data-state="open"] {
   0%,
   16% {
     clip-path: polygon(
-      16.7% 0%, 50% 0%, 83.3% 0%,
-      100% 33.3%, 100% 66.7%,
-      83.3% 100%, 50% 100%, 16.7% 100%,
-      0% 66.7%, 0% 33.3%
+      16.7% 0%,
+      50% 0%,
+      83.3% 0%,
+      100% 33.3%,
+      100% 66.7%,
+      83.3% 100%,
+      50% 100%,
+      16.7% 100%,
+      0% 66.7%,
+      0% 33.3%
     );
     transform: rotate(0deg);
   }
@@ -4279,10 +4254,16 @@ button[data-speed-toggle][data-state="open"] {
   30%,
   41% {
     clip-path: polygon(
-      50% 0%, 79.4% 9.5%, 97.6% 34.5%,
-      97.6% 65.5%, 79.4% 90.5%,
-      50% 100%, 20.6% 90.5%, 2.4% 65.5%,
-      2.4% 34.5%, 20.6% 9.5%
+      50% 0%,
+      79.4% 9.5%,
+      97.6% 34.5%,
+      97.6% 65.5%,
+      79.4% 90.5%,
+      50% 100%,
+      20.6% 90.5%,
+      2.4% 65.5%,
+      2.4% 34.5%,
+      20.6% 9.5%
     );
     transform: rotate(45deg);
   }
@@ -4290,10 +4271,16 @@ button[data-speed-toggle][data-state="open"] {
   55%,
   66% {
     clip-path: polygon(
-      50% 4%, 61.5% 26%, 73% 48%,
-      84.5% 70%, 96% 92%,
-      50% 92%, 4% 92%, 19.5% 70%,
-      31% 48%, 42.5% 26%
+      50% 4%,
+      61.5% 26%,
+      73% 48%,
+      84.5% 70%,
+      96% 92%,
+      50% 92%,
+      4% 92%,
+      19.5% 70%,
+      31% 48%,
+      42.5% 26%
     );
     transform: rotate(90deg);
   }
@@ -4301,20 +4288,32 @@ button[data-speed-toggle][data-state="open"] {
   80%,
   91% {
     clip-path: polygon(
-      50% 0%, 61% 34%, 98% 35%,
-      68% 56%, 79% 94%,
-      50% 72%, 21% 94%, 32% 56%,
-      2% 35%, 39% 34%
+      50% 0%,
+      61% 34%,
+      98% 35%,
+      68% 56%,
+      79% 94%,
+      50% 72%,
+      21% 94%,
+      32% 56%,
+      2% 35%,
+      39% 34%
     );
     transform: rotate(135deg);
   }
   /* back to square closes the loop seamlessly */
   100% {
     clip-path: polygon(
-      16.7% 0%, 50% 0%, 83.3% 0%,
-      100% 33.3%, 100% 66.7%,
-      83.3% 100%, 50% 100%, 16.7% 100%,
-      0% 66.7%, 0% 33.3%
+      16.7% 0%,
+      50% 0%,
+      83.3% 0%,
+      100% 33.3%,
+      100% 66.7%,
+      83.3% 100%,
+      50% 100%,
+      16.7% 100%,
+      0% 66.7%,
+      0% 33.3%
     );
     transform: rotate(180deg);
   }
@@ -4324,10 +4323,16 @@ button[data-speed-toggle][data-state="open"] {
 .agent-work-morph--settled > span {
   animation: none;
   clip-path: polygon(
-    50% 0%, 61% 34%, 98% 35%,
-    68% 56%, 79% 94%,
-    50% 72%, 21% 94%, 32% 56%,
-    2% 35%, 39% 34%
+    50% 0%,
+    61% 34%,
+    98% 35%,
+    68% 56%,
+    79% 94%,
+    50% 72%,
+    21% 94%,
+    32% 56%,
+    2% 35%,
+    39% 34%
   );
   transform: none;
 }
@@ -4345,11 +4350,83 @@ button[data-speed-toggle][data-state="open"] {
 
   .agent-work-morph--settled > span {
     clip-path: polygon(
-      50% 0%, 61% 34%, 98% 35%,
-      68% 56%, 79% 94%,
-      50% 72%, 21% 94%, 32% 56%,
-      2% 35%, 39% 34%
+      50% 0%,
+      61% 34%,
+      98% 35%,
+      68% 56%,
+      79% 94%,
+      50% 72%,
+      21% 94%,
+      32% 56%,
+      2% 35%,
+      39% 34%
     );
+  }
+}
+
+/* The activity glyph is always nine independent dots. SVG position animation
+   rearranges those dots into a grid, ring, triangle, and star without ever
+   painting a solid silhouette or changing the 24px layout footprint. */
+.agent-work-morph {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  color: #71717a;
+}
+
+.agent-work-morph svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+  overflow: visible;
+}
+
+.agent-work-dot {
+  fill: currentColor;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: agent-work-dot-pulse 1.45s ease-in-out infinite;
+}
+
+.agent-work-morph--settled .agent-work-dot {
+  animation: none;
+  opacity: 0.9;
+}
+
+.agent-trace-timeline__step {
+  position: relative;
+  padding-left: 24px;
+}
+
+.agent-trace-timeline__step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 24px;
+  bottom: -8px;
+  left: 7.5px;
+  width: 1px;
+  background: rgba(161, 161, 170, 0.32);
+}
+
+@keyframes agent-work-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.24;
+    transform: scale(0.78);
+  }
+  45% {
+    opacity: 0.92;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-work-dot {
+    animation: none;
+    opacity: 0.72;
   }
 }
 

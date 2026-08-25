@@ -314,15 +314,6 @@ type PendingToolCall = {
 };
 
 /**
- * Last-resort intent note when the model skips its own pre-tool prose.
- * Deliberately generic — specific progress narration must be written by the
- * model itself, never templated here.
- */
-function narrateToolIntent(): string {
-  return "I'm carrying out the next step.";
-}
-
-/**
  * Run the autonomous agent loop, streaming protocol events to the UI.
  */
 export async function runAutonomousAgent(
@@ -430,15 +421,6 @@ export async function runAutonomousAgent(
     return activeThinkingId;
   };
 
-  /** Emit a complete one-shot narration line (a trace row of progress prose). */
-  const writeActivityNarration = (text: string) => {
-    if (!text.trim()) return;
-    closeNarration();
-    const segmentId = ensureNarration();
-    sse.writeNarrationDelta(segmentId, text);
-    closeNarration();
-  };
-
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       if (signal?.aborted) {
@@ -483,9 +465,8 @@ export async function runAutonomousAgent(
         switch (part.type) {
           case "reasoning-delta": {
             if (!part.delta || thinkingBudget <= 0) break;
-            // Open the thinking phase so the Working-for row is live while the
-            // model reasons — private CoT is never dumped into the transcript.
-            ensureThinking();
+            const thinkingId = ensureThinking();
+            sse.writeThinkingDelta(part.delta, thinkingId);
             break;
           }
 
@@ -612,15 +593,9 @@ export async function runAutonomousAgent(
       }> = [];
 
       // Sequential execution: the sandbox is stateful and the UI reads top-down.
-      for (const [toolIndex, tc] of pendingToolCalls.entries()) {
+      for (const tc of pendingToolCalls) {
         if (signal?.aborted) break;
         const rawArgs = safeParseJson(tc.arguments);
-        // The model normally provides a pre-tool note in its own prose. If it
-        // skips it (or this is a later call in a batch), emit only the generic
-        // fallback — never templated, tool-specific narration.
-        if (!roundText.trim() || toolIndex > 0) {
-          writeActivityNarration(narrateToolIntent());
-        }
         sse.writeToolStart(
           tc.id,
           tc.name,

@@ -101,7 +101,7 @@ export function ThinkingBlock({
   }
 
   const displayLabel = isStreaming
-    ? label
+    ? `${label} for ${elapsedSeconds}s`
     : `Thought for ${elapsedSeconds}s`;
 
   return (
@@ -111,18 +111,18 @@ export function ThinkingBlock({
         className,
       )}
     >
-      <div className="px-2 py-2">
+      <div>
         <div className="grid gap-y-2">
           <div className="min-w-0">
             <button
               type="button"
               onClick={() => setIsVisible((value) => !value)}
-              className="group flex w-full items-center gap-2 rounded-[10px] py-0.5 text-left text-[14px] leading-5 text-zinc-500 transition-all duration-200 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+              className="group flex w-fit max-w-full items-center gap-1.5 border-0 bg-transparent py-0.5 text-left text-[14px] font-normal leading-6 text-zinc-500 transition-colors duration-200 hover:bg-transparent hover:text-zinc-600 focus-visible:outline-none"
               aria-expanded={isVisible}
             >
               <span
                 className={cn(
-                  "agent-activity-label--muted truncate font-medium",
+                  "agent-activity-label--muted truncate font-normal",
                   isStreaming && "shimmer-text",
                 )}
                 data-shimmer-active={isStreaming || undefined}
@@ -148,10 +148,10 @@ export function ThinkingBlock({
             aria-hidden={!isVisible}
           >
             <div className="overflow-hidden pt-0.5">
-              <div className="agent-thinking-body grid gap-3 rounded-[12px] border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-[13.5px] font-[430] leading-[1.4]">
+              <div className="agent-thinking-body grid max-w-[48rem] gap-3 pr-3 text-[14px] font-normal leading-6 text-zinc-600">
                 <div
                   ref={scrollRef}
-                  className="pr-1 text-[13.5px] leading-[1.55]"
+                  className="pr-1 text-[14px] leading-6"
                   data-chat-scroll-passthrough=""
                 >
                   <div className="thinking-markdown">

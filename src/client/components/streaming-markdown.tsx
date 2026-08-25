@@ -61,7 +61,7 @@ export function StreamingMarkdown({
 
   return (
     <div
-      className="markdown-content min-w-0 max-w-full overflow-anchor-none text-[13px] leading-[18px] text-zinc-800"
+      className="markdown-content min-w-0 max-w-full overflow-anchor-none text-[16px] leading-[25px] text-zinc-800"
       data-streaming={isStreaming || undefined}
     >
       <StreamdownStreamingMarkdown

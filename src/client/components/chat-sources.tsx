@@ -4,7 +4,12 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ExternalLink, Search, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { collectChatSources, collectMessageSources, type ChatSource, normalizeUrl } from "@/lib/chat-sources";
+import {
+  collectChatSources,
+  collectMessageSources,
+  type ChatSource,
+  normalizeUrl,
+} from "@/lib/chat-sources";
 import type { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +84,8 @@ const SOURCE_PREVIEW_VIEWPORT_PADDING = 16;
 const SOURCE_PREVIEW_CHIP_GAP = 8;
 
 function clampPreviewLeft(anchorCenterX: number, cardWidth: number) {
-  const maxLeft = window.innerWidth - cardWidth - SOURCE_PREVIEW_VIEWPORT_PADDING;
+  const maxLeft =
+    window.innerWidth - cardWidth - SOURCE_PREVIEW_VIEWPORT_PADDING;
   const centered = anchorCenterX - cardWidth / 2;
   return Math.max(SOURCE_PREVIEW_VIEWPORT_PADDING, Math.min(centered, maxLeft));
 }
@@ -103,8 +109,8 @@ export function SourceChip({
   const [cardWidth, setCardWidth] = useState(SOURCE_PREVIEW_CARD_WIDTH);
 
   const sizeClasses = compact
-    ? "h-5 max-w-[148px] gap-1 rounded-md px-1.5 text-[11px]"
-    : "h-6 max-w-[180px] gap-1 rounded-md px-1.5 text-[11px]";
+    ? "h-6 max-w-[164px] gap-1.5 rounded-full px-2 text-[12px]"
+    : "h-7 max-w-[200px] gap-1.5 rounded-full px-2 text-[12.5px]";
 
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
@@ -224,11 +230,13 @@ export function SourceChip({
       >
         <SourceFavicon
           source={source}
-          className={compact ? "h-3.5 w-3.5" : "h-3.5 w-3.5"}
+          className={compact ? "h-4 w-4" : "h-4 w-4"}
         />
         <span className="truncate leading-none">{source.domain}</span>
         {index != null ? (
-          <span className="text-[10px] tabular-nums text-zinc-400">{index + 1}</span>
+          <span className="text-[11px] tabular-nums text-zinc-400">
+            {index + 1}
+          </span>
         ) : null}
       </a>
 
@@ -274,15 +282,31 @@ export function SourcesInlineStrip({
   if (sources.length === 0) return null;
 
   return (
-    <div className={cn("mt-2 flex flex-wrap items-center gap-1 overflow-anchor-none", compact && "mt-1")}>
+    <div
+      className={cn(
+        "mt-2 flex flex-wrap items-center gap-1 overflow-anchor-none",
+        compact && "mt-1",
+      )}
+    >
       {sources.slice(0, compact ? 6 : 5).map((source, index) => (
-        <SourceChip key={source.id} source={source} index={index} compact={compact} />
+        <SourceChip
+          key={source.id}
+          source={source}
+          index={index}
+          compact={compact}
+        />
       ))}
     </div>
   );
 }
 
-function SourcePanelRow({ source, index }: { source: ChatSource; index: number }) {
+function SourcePanelRow({
+  source,
+  index,
+}: {
+  source: ChatSource;
+  index: number;
+}) {
   const excerpt =
     source.highlights?.find((highlight) => highlight.trim()) ?? source.snippet;
 

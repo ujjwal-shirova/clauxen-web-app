@@ -32,6 +32,8 @@ export type AgentStepBase = {
 
 export type AgentThinkingStep = AgentStepBase & {
   kind: "thinking";
+  /** Provider-supplied reasoning summary streamed for the expandable trace. */
+  content?: string;
   /** True while this reasoning phase is live. */
   isStreaming?: boolean;
   durationSeconds?: number;
@@ -171,6 +173,7 @@ export function agentStepsVisuallyEqual(
 
     if (a.kind === "thinking" && b.kind === "thinking") {
       if (
+        a.content !== b.content ||
         a.isStreaming !== b.isStreaming ||
         a.durationSeconds !== b.durationSeconds
       ) {

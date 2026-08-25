@@ -74,6 +74,7 @@ function segmentsFromModelTurns(input: {
         segments.push({
           kind: "thinking",
           id: `thinking-${input.messageId}-${thinkingIndex}`,
+          content: parsed.body.trim(),
           isStreaming: false,
           durationSeconds,
           startedAtMs: turnStartedAt,
@@ -289,6 +290,7 @@ export function hydrateMessageFromContentJson(
           {
             kind: "thinking" as const,
             id: `thinking-${base.id}`,
+            content: base.thinkingContent?.trim() || undefined,
             isStreaming: false,
             durationSeconds: thinkingDuration,
             startedAtMs: stamp,

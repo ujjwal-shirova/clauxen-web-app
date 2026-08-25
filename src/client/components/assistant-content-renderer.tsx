@@ -36,7 +36,7 @@ function MarkdownWithTitledTables({
         content={content}
         isStreaming={isStreaming}
         streamKey={streamKey}
-        showCursor={isStreaming}
+        showCursor={false}
         detailLevel={detailLevel}
         {...({ sources } as any)}
       />
@@ -55,7 +55,7 @@ function MarkdownWithTitledTables({
               key={`${streamKey}-md-${index}`}
               content={segment.content}
               isStreaming={isStreaming && isLast}
-              showCursor={isStreaming && isLast}
+              showCursor={false}
               streamKey={`${streamKey}-${index}`}
               detailLevel={detailLevel}
               {...({ sources } as any)}
@@ -104,8 +104,7 @@ export function AssistantContentRenderer({
   );
 
   const completedFromTags = useMemo(
-    () =>
-      messageId ? collectCreateFileArtifacts(content, messageId) : [],
+    () => (messageId ? collectCreateFileArtifacts(content, messageId) : []),
     [content, messageId],
   );
 
@@ -124,8 +123,7 @@ export function AssistantContentRenderer({
     if (!viewer || !messageId || !isStreaming) return;
 
     const completeCount = segments.filter(
-      (segment) =>
-        segment.type === "create_file" && segment.block.isComplete,
+      (segment) => segment.type === "create_file" && segment.block.isComplete,
     ).length;
 
     if (completeCount <= prevCompleteCountRef.current) return;
@@ -133,8 +131,7 @@ export function AssistantContentRenderer({
     const latestComplete = [...segments]
       .reverse()
       .find(
-        (segment) =>
-          segment.type === "create_file" && segment.block.isComplete,
+        (segment) => segment.type === "create_file" && segment.block.isComplete,
       );
 
     if (latestComplete?.type === "create_file") {

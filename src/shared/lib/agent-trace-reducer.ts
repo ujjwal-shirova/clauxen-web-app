@@ -16,7 +16,7 @@ import { toUserFacingChatError } from "@/lib/assistant-generation-error";
  * Agent trace reducer — folds SSE protocol events into Message.agentTrace.
  *
  * One flat ordered step list per turn:
- *   thinking   — interleaved reasoning phase (presence + duration only)
+ *   thinking   — interleaved provider reasoning with duration
  *   narration  — first-person progress prose; final round is promoted to the
  *                durable answer via answer_finalize (in place, no teleport)
  *   tool       — tool/connector lifecycle with streaming stdout/search hits
@@ -141,6 +141,7 @@ export function applyAgentStreamEvent(
           steps: upsertStep(steps, {
             kind: "thinking",
             id: existing?.id ?? segmentId,
+            content: existing?.content,
             isStreaming: true,
             startedAtMs: existing?.startedAtMs ?? Date.now(),
           }),
@@ -151,7 +152,6 @@ export function applyAgentStreamEvent(
 
     case "thinking_delta": {
       let next = message;
-      // Presence-only thinking phases — content stays out of the transcript.
       if (!next.hasThinking || !next.isThinkingStreaming) {
         next = applyAgentStreamEvent(message, {
           type: "thinking_start",
@@ -168,7 +168,23 @@ export function applyAgentStreamEvent(
           segmentId: event.segmentId,
         });
       }
-      return next;
+      if (!next.agentMode || !event.delta) return next;
+      const steps = next.agentTrace?.steps ?? [];
+      const targetId =
+        event.segmentId ??
+        [...steps].reverse().find((step) => step.kind === "thinking")?.id;
+      if (!targetId) return next;
+      return {
+        ...next,
+        agentTrace: {
+          ...(next.agentTrace ?? { steps: [], startedAtMs: Date.now() }),
+          steps: steps.map((step) =>
+            step.kind === "thinking" && step.id === targetId
+              ? { ...step, content: `${step.content ?? ""}${event.delta}` }
+              : step,
+          ),
+        },
+      };
     }
 
     case "thinking_end": {

@@ -221,8 +221,6 @@ export function StreamingTokenReveal({
       >
         {session.delta}
       </span>
-      {/* Typing caret rides the live delta so the reveal reads as real typing. */}
-      <span className="stream-typing-caret" aria-hidden />
     </>
   );
 }

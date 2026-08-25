@@ -210,10 +210,15 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolStep }) {
   return (
     <div className="w-full min-w-0" data-agent-step="analyzing">
       <AgentTraceBlock
+        leading={<Terminal className="h-4 w-4 text-zinc-500" />}
         title={
           <AgentStepTitle
             verb={
-              isRunning ? "Analyzing" : failed ? "Analysis failed" : "Analyzed"
+              isRunning
+                ? "Running command"
+                : failed
+                  ? "Command failed"
+                  : "Ran command"
             }
             detail={headerText}
             streaming={isRunning}
@@ -244,32 +249,20 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolStep }) {
         titleClassName="text-inherit"
       >
         <ToolBody>
-          <div className="px-3 pt-2.5 pb-1">
-            <div className="flex items-center gap-1.5 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
-              <Terminal className="h-3 w-3" />
-              Command
-            </div>
-            <CodePane>{command}</CodePane>
-          </div>
-          {hasOutput || isRunning ? (
-            <div className="px-3 pb-2.5">
-              <div className="flex items-center gap-1.5 pt-1 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
-                <ChevronRight className="h-3 w-3" />
-                Output
-              </div>
-              {stdout.trim() ? <CodePane>{stdout}</CodePane> : null}
-              {stderr.trim() ? (
-                <div className="mt-1.5">
-                  <CodePane tone="error">{stderr}</CodePane>
-                </div>
-              ) : null}
-              {isRunning && !stdout.trim() && !stderr.trim() ? (
-                <p className="text-[11.5px] italic text-zinc-400 dark:text-zinc-500">
-                  Waiting for output…
-                </p>
-              ) : null}
-            </div>
-          ) : null}
+          <pre
+            className={cn(
+              "agent-terminal-pane overflow-x-auto whitespace-pre-wrap break-words px-4 py-3 font-mono text-[13px] leading-[1.55] text-zinc-700 dark:text-zinc-300",
+              failed && "text-rose-600 dark:text-rose-300",
+            )}
+            data-chat-scroll-passthrough=""
+          >
+            <code className="text-amber-700 dark:text-amber-300">
+              {command}
+            </code>
+            {stdout.trim() ? `\n${stdout.trimEnd()}` : ""}
+            {stderr.trim() ? `\n${stderr.trimEnd()}` : ""}
+            {isRunning && !hasOutput ? "\nWaiting for output…" : ""}
+          </pre>
         </ToolBody>
       </AgentTraceBlock>
     </div>
