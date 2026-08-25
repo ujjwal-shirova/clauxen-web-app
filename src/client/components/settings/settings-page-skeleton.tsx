@@ -1,6 +1,15 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton as BaseSkeleton } from "@/components/ui/skeleton";
+
+/**
+ * Static skeleton placeholder for settings shells.
+ * The base Skeleton shimmers by default; the plan/billing view must open calm,
+ * so every placeholder here renders the same layout without any animation.
+ */
+function Skeleton(props: React.ComponentProps<typeof BaseSkeleton>) {
+  return <BaseSkeleton {...props} animation="none" />;
+}
 
 /** Static nav chrome — no shimmer (keeps the popup shell calm while content loads). */
 function SettingsNavStaticShell() {
@@ -20,7 +29,7 @@ function SettingsNavStaticShell() {
 
 /**
  * Full modal shell for chunk-load only.
- * Shimmer is limited to the content pane field placeholders — not the whole dialog/nav.
+ * Static placeholders only — no shimmer anywhere (calm open, per plan-view polish).
  */
 export function SettingsPageSkeleton() {
   return (
