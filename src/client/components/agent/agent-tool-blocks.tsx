@@ -11,11 +11,11 @@ import {
   Plug,
 } from "lucide-react";
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
-import type { AgentToolSegment, WebSearchResult } from "@/lib/agent-segments";
-import { domainFromUrl } from "@/lib/agent-segments";
+import type { AgentToolStep, WebSearchResult } from "@/lib/agent-trace";
+import { domainFromUrl } from "@/lib/agent-trace";
 import { cn } from "@/lib/utils";
 import { AgentFileBlock } from "./agent-file-block";
-import { AgentTraceBlock, AgentShimmerText } from "./agent-trace";
+import { AgentTraceBlock, AgentShimmerText } from "./agent-trace-primitives";
 
 const HoverCard = HoverCardPrimitive.Root;
 const HoverCardTrigger = HoverCardPrimitive.Trigger;
@@ -87,13 +87,19 @@ function ToolArea({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className={cn("border-t border-zinc-200/70 first:border-t-0 dark:border-zinc-700/70")}>
+    <div
+      className={cn(
+        "border-t border-zinc-200/70 first:border-t-0 dark:border-zinc-700/70",
+      )}
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-[10.5px] font-medium uppercase tracking-[0.06em]",
-          error ? "text-rose-500 dark:text-rose-400" : "text-zinc-400 dark:text-zinc-500",
+          error
+            ? "text-rose-500 dark:text-rose-400"
+            : "text-zinc-400 dark:text-zinc-500",
           "hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors",
         )}
       >
@@ -170,7 +176,7 @@ function AgentStepTitle({
 
 /* ─────────────────────────── bash_tool ─────────────────────────── */
 
-function extractExitCode(tool: AgentToolSegment): {
+function extractExitCode(tool: AgentToolStep): {
   code: number | null;
   stderr: string;
 } {
@@ -187,7 +193,7 @@ function extractExitCode(tool: AgentToolSegment): {
   return { code, stderr };
 }
 
-export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentBashToolBlock({ tool }: { tool: AgentToolStep }) {
   const isRunning = tool.status === "running";
   const isError = tool.status === "error";
   const command =
@@ -206,7 +212,9 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
       <AgentTraceBlock
         title={
           <AgentStepTitle
-            verb={isRunning ? "Analyzing" : failed ? "Analysis failed" : "Analyzed"}
+            verb={
+              isRunning ? "Analyzing" : failed ? "Analysis failed" : "Analyzed"
+            }
             detail={headerText}
             streaming={isRunning}
             failed={failed}
@@ -270,7 +278,7 @@ export function AgentBashToolBlock({ tool }: { tool: AgentToolSegment }) {
 
 /* ─────────────────────────── execute_code ──────────────────────── */
 
-export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolStep }) {
   const isRunning = tool.status === "running";
   const isError = tool.status === "error";
   const code = typeof tool.args?.code === "string" ? tool.args.code : "";
@@ -294,7 +302,9 @@ export function AgentExecuteCodeBlock({ tool }: { tool: AgentToolSegment }) {
       <AgentTraceBlock
         title={
           <AgentStepTitle
-            verb={isRunning ? "Analyzing" : isError ? "Analysis failed" : "Analyzed"}
+            verb={
+              isRunning ? "Analyzing" : isError ? "Analysis failed" : "Analyzed"
+            }
             detail={headerText}
             streaming={isRunning}
             failed={isError}
@@ -561,14 +571,17 @@ function WebSearchSourcesHover({
   );
 }
 
-export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentWebSearchBlock({ tool }: { tool: AgentToolStep }) {
   const isRunning = tool.status === "running";
   const query =
     tool.searchQuery ||
     (typeof tool.args?.query === "string" ? tool.args.query : "") ||
     "";
   const results = useMemo(() => tool.searchResults ?? [], [tool.searchResults]);
-  const favicons = useMemo(() => extractFavicons(results), [tool.searchResults]);
+  const favicons = useMemo(
+    () => extractFavicons(results),
+    [tool.searchResults],
+  );
   const resultCount = results.length;
 
   const title = (
@@ -615,7 +628,6 @@ export function AgentWebSearchBlock({ tool }: { tool: AgentToolSegment }) {
   );
 }
 
-
 /* ─────────────────────────── file_read ─────────────────────────── */
 
 function baseName(path: string): string {
@@ -623,7 +635,7 @@ function baseName(path: string): string {
   return parts[parts.length - 1] || path;
 }
 
-export function AgentFileReadBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentFileReadBlock({ tool }: { tool: AgentToolStep }) {
   const isRunning = tool.status === "running";
   const path = typeof tool.args?.path === "string" ? tool.args.path : "";
   const name = path ? baseName(path) : "file";
@@ -676,7 +688,8 @@ export function AgentFileReadBlock({ tool }: { tool: AgentToolSegment }) {
                   </span>
                 ) : null}
               </div>
-              <pre className="agent-terminal-pane overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words rounded-md border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2 font-mono text-[11.5px] leading-5 text-zinc-700 dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:text-zinc-300 [overscroll-behavior-x:contain] [overscroll-behavior-y:auto]"
+              <pre
+                className="agent-terminal-pane overflow-x-auto overflow-y-hidden whitespace-pre-wrap break-words rounded-md border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2 font-mono text-[11.5px] leading-5 text-zinc-700 dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:text-zinc-300 [overscroll-behavior-x:contain] [overscroll-behavior-y:auto]"
                 data-chat-scroll-passthrough=""
               >
                 {content.slice(0, 12000)}
@@ -695,7 +708,7 @@ export function AgentFileReadBlock({ tool }: { tool: AgentToolSegment }) {
 
 /* ─────────────────────────── read_skill ────────────────────────── */
 
-export function AgentReadSkillBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentReadSkillBlock({ tool }: { tool: AgentToolStep }) {
   const isRunning = tool.status === "running";
   const skillId =
     typeof tool.args?.skill_id === "string"
@@ -721,7 +734,9 @@ export function AgentReadSkillBlock({ tool }: { tool: AgentToolSegment }) {
         title={
           isRunning ? (
             <AgentShimmerText key={`rs-live-${tool.toolCallId}`} active>
-              <span className="agent-activity-label--primary">Loading skill</span>
+              <span className="agent-activity-label--primary">
+                Loading skill
+              </span>
               {name ? (
                 <span className="agent-activity-label--subtle"> {name}</span>
               ) : null}
@@ -733,7 +748,9 @@ export function AgentReadSkillBlock({ tool }: { tool: AgentToolSegment }) {
             </span>
           ) : (
             <>
-              <span className="agent-activity-label--primary">Loaded skill</span>
+              <span className="agent-activity-label--primary">
+                Loaded skill
+              </span>
               {name ? (
                 <span className="agent-activity-label--subtle"> {name}</span>
               ) : null}
@@ -792,7 +809,7 @@ function prettyJson(value: unknown): string {
   }
 }
 
-export function AgentMcpToolBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentMcpToolBlock({ tool }: { tool: AgentToolStep }) {
   const isRunning = tool.status === "running";
   const isError = tool.status === "error";
   const { server, tool: toolName } = parseMcpName(tool.name);
@@ -860,7 +877,7 @@ export function AgentMcpToolBlock({ tool }: { tool: AgentToolSegment }) {
 
 /* ─────────────────────────── weather ───────────────────────────── */
 
-export function AgentWeatherBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentWeatherBlock({ tool }: { tool: AgentToolStep }) {
   const isRunning = tool.status === "running";
   const location =
     typeof tool.args?.location === "string" ? tool.args.location : "";
@@ -941,7 +958,7 @@ export function AgentWeatherBlock({ tool }: { tool: AgentToolSegment }) {
 
 /* ─────────────────────────── places_search ─────────────────────── */
 
-export function AgentPlacesSearchBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentPlacesSearchBlock({ tool }: { tool: AgentToolStep }) {
   const isRunning = tool.status === "running";
   const query = typeof tool.args?.query === "string" ? tool.args.query : "";
   const data = tool.result ? tryParseJson(tool.result) : null;
@@ -1020,7 +1037,7 @@ export function AgentPlacesSearchBlock({ tool }: { tool: AgentToolSegment }) {
 
 /* ─────────────────────────── image_search ──────────────────────── */
 
-export function AgentImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentImageSearchBlock({ tool }: { tool: AgentToolStep }) {
   const isRunning = tool.status === "running";
   const query = typeof tool.args?.query === "string" ? tool.args.query : "";
   const data = tool.result ? tryParseJson(tool.result) : null;
@@ -1100,7 +1117,7 @@ export function AgentImageSearchBlock({ tool }: { tool: AgentToolSegment }) {
 
 /* ─────────────────────────── ask_user_input_v0 ─────────────────── */
 
-export function AgentAskUserInputBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentAskUserInputBlock({ tool }: { tool: AgentToolStep }) {
   const data = tool.result ? tryParseJson(tool.result) : null;
   const fromResult = Array.isArray(data?.questions)
     ? (data.questions as Array<Record<string, unknown>>)
@@ -1191,7 +1208,7 @@ export function AgentAskUserInputBlock({ tool }: { tool: AgentToolSegment }) {
 
 /* ─────────────────────────── generic fallback ──────────────────── */
 
-export function AgentGenericToolBlock({ tool }: { tool: AgentToolSegment }) {
+export function AgentGenericToolBlock({ tool }: { tool: AgentToolStep }) {
   const isRunning = tool.status === "running";
   const isError = tool.status === "error";
   const label =
@@ -1261,7 +1278,7 @@ export function AgentToolBlock({
   tool,
   previousFileContent,
 }: {
-  tool: AgentToolSegment;
+  tool: AgentToolStep;
   previousFileContent?: string;
 }) {
   switch (tool.name) {

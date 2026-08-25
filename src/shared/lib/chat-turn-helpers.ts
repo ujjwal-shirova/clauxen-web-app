@@ -7,8 +7,7 @@ function isLive(message: Message): boolean {
 
 function hasBody(message: Message): boolean {
   if (message.content?.trim()) return true;
-  if (message.agentSegments?.length) return true;
-  if (message.agentFrames?.some((f) => f.segments.length > 0)) return true;
+  if ((message.agentTrace?.steps ?? []).length > 0) return true;
   if (message.agentArtifacts?.length) return true;
   return false;
 }

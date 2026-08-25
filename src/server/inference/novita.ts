@@ -67,8 +67,6 @@ export type ChatStreamEvent =
       mimeType?: string;
       sizeBytes?: number;
     }
-  | { type: "agent_frame_start"; frameId: string }
-  | { type: "agent_frame_complete"; frameId?: string }
   | { type: "answer_finalize"; segmentId?: string; text: string }
   | { type: "chat_title"; title: string }
   | { type: "done" }

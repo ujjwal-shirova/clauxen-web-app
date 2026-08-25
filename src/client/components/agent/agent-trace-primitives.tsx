@@ -6,40 +6,31 @@ import { cn } from "@/lib/utils";
 import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 
 /**
- * Clauxen agent action stack — chronological interleaved thinking, narration,
- * and tool results. Sequence by spacing; rows stay flush-left (no tree indent).
+ * Presentational primitives for collapsible trace blocks and shimmer text.
+ * Shared by the per-tool detail blocks; the flat trace ledger itself renders
+ * via agent-trace-view.tsx.
  */
-export function AgentTrace({
+
+export function AgentShimmerText({
   children,
   className,
+  active = true,
 }: {
   children: ReactNode;
   className?: string;
+  /** When false, render plain text immediately (no residual animation). */
+  active?: boolean;
 }) {
+  if (!active) {
+    return <span className={className}>{children}</span>;
+  }
   return (
-    <div
-      className={cn(
-        "agent-trace flex w-full min-w-0 flex-col gap-1.5",
-        className,
-      )}
-      data-agent-trace="true"
-    >
+    <span className={cn("shimmer-text", className)} data-shimmer-active="true">
       {children}
-    </div>
+    </span>
   );
 }
 
-export type AgentTraceChevronMode =
-  | "never"
-  | "hover"
-  | "hover-collapsed"
-  | "always";
-
-/**
- * Collapsible action block.
- * Header chrome: title · trailing · optional chevron.
- * Expand grows downward via scroll-anchor lock.
- */
 export function AgentTraceBlock({
   title,
   trailing,
@@ -60,7 +51,7 @@ export function AgentTraceBlock({
   leading?: ReactNode;
   /** @deprecated Prefer chevronMode. */
   showChevron?: boolean;
-  chevronMode?: AgentTraceChevronMode;
+  chevronMode?: "never" | "hover" | "hover-collapsed" | "always";
   hideHeader?: boolean;
   isActive?: boolean;
   defaultExpanded?: boolean;
@@ -72,7 +63,7 @@ export function AgentTraceBlock({
 }) {
   const hasBody = children != null && children !== false;
   const canCollapse = hasBody && !hideHeader;
-  const mode: AgentTraceChevronMode =
+  const mode: "never" | "hover" | "hover-collapsed" | "always" =
     chevronMode ?? (showChevron ? "hover" : "never");
   const [expanded, setExpanded] = useState(hideHeader ? true : defaultExpanded);
   const userToggledRef = useRef(false);
@@ -100,13 +91,10 @@ export function AgentTraceBlock({
   const hoverClass =
     mode === "always"
       ? "opacity-100"
-      : mode === "hover-collapsed"
-        ? cn(
-            "opacity-0 group-hover/trace-header:opacity-100 group-focus-visible/trace-header:opacity-100",
-            expanded && "opacity-100",
-          )
-        : // hover
-          "opacity-0 group-hover/trace-header:opacity-100 group-focus-visible/trace-header:opacity-100";
+      : cn(
+          "opacity-0 group-hover/trace-header:opacity-100 group-focus-visible/trace-header:opacity-100",
+          expanded && "opacity-100",
+        );
 
   const headerInner = (
     <>
@@ -118,7 +106,7 @@ export function AgentTraceBlock({
       <span
         className={cn(
           "agent-trace__title min-w-0 max-w-[min(100%,42rem)] truncate text-left text-[13px] font-[430] leading-5 tracking-[-0.01em]",
-          titleClassName ?? "text-zinc-500",
+          titleClassName ?? "text-zinc-500 dark:text-zinc-400",
         )}
       >
         {title}
@@ -194,25 +182,5 @@ export function AgentTraceBlock({
         </div>
       ) : null}
     </div>
-  );
-}
-
-export function AgentShimmerText({
-  children,
-  className,
-  active = true,
-}: {
-  children: ReactNode;
-  className?: string;
-  /** When false, render plain text immediately (no residual animation). */
-  active?: boolean;
-}) {
-  if (!active) {
-    return <span className={className}>{children}</span>;
-  }
-  return (
-    <span className={cn("shimmer-text", className)} data-shimmer-active="true">
-      {children}
-    </span>
   );
 }

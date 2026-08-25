@@ -5,16 +5,14 @@
  *   data: {"type":"narration_delta","segmentId":"...","delta":"..."}\n\n
  *
  * Protocol (emitted by the agent loop, consumed by use-chat.ts +
- * agent-stream-reducer):
- *   start                      — turn begins (agentMode)
- *   agent_frame_start/complete — single work frame per turn
- *   segment_start/end          — thinking | narration segments
- *   thinking_delta/end         — extended-thinking stream
- *   narration_delta            — visible progress prose + the final answer
- *                                (streams as a segment, promoted at the end)
- *   answer_finalize            — promotes the final text segment to the answer
+ * agent-trace-reducer):
+ *   start / turn_ready        — turn lifecycle + durable ids
+ *   segment_start/end         — thinking | narration phases
+ *   thinking_start/delta/end  — interleaved reasoning phase presence
+ *   narration_delta           — first-person progress prose + final answer
+ *   answer_finalize           — promotes the final text to the durable answer
  *   tool_start/output_delta/data/end — tool lifecycle
- *   artifact_upsert            — create_file deliverable cards
+ *   artifact_upsert           — create_file deliverable cards
  *   chat_title / error / done
  */
 
@@ -78,9 +76,7 @@ export class ClauxenSseStream {
   /** Write a single SSE event to the stream. */
   write(event: StreamEvent): void {
     if (this.closed) return;
-    const payload = this.encoder.encode(
-      `data: ${JSON.stringify(event)}\n\n`,
-    );
+    const payload = this.encoder.encode(`data: ${JSON.stringify(event)}\n\n`);
     if (!this.controller) {
       // Consumer not attached yet — queue so early start/tool/narration
       // frames are never dropped (looks like a hung assistant otherwise).
@@ -98,8 +94,9 @@ export class ClauxenSseStream {
     this.write({ type: "start", agentMode });
   }
 
-  writeThinkingStart(): void {
-    this.write({ type: "thinking_start" });
+  writeThinkingStart(segmentId?: string): void {
+    if (!segmentId) return;
+    this.write({ type: "thinking_start", segmentId });
   }
 
   writeThinkingDelta(delta: string, segmentId?: string): void {
@@ -130,24 +127,16 @@ export class ClauxenSseStream {
     this.write({ type: "answer_finalize", segmentId, text });
   }
 
-  writeFrameStart(frameId: string): void {
-    this.write({ type: "agent_frame_start", frameId });
-  }
-
-  writeFrameComplete(frameId?: string): void {
-    this.write({ type: "agent_frame_complete", frameId });
-  }
-
   writeSegmentStart(
     segmentId: string,
-    kind: "thinking" | "narration" | "text" | "tool",
+    kind: "thinking" | "narration" | "tool",
   ): void {
     this.write({ type: "segment_start", segmentId, kind });
   }
 
   writeSegmentEnd(
     segmentId: string,
-    kind: "thinking" | "narration" | "text" | "tool",
+    kind: "thinking" | "narration" | "tool",
   ): void {
     this.write({ type: "segment_end", segmentId, kind });
   }
@@ -182,10 +171,7 @@ export class ClauxenSseStream {
     this.write({ type: "tool_output_delta", toolCallId, kind, delta });
   }
 
-  writeToolData(
-    toolCallId: string,
-    data: Record<string, unknown>,
-  ): void {
+  writeToolData(toolCallId: string, data: Record<string, unknown>): void {
     this.write({ type: "tool_data", toolCallId, data });
   }
 

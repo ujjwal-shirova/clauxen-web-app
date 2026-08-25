@@ -3,14 +3,20 @@
 import { useState } from "react";
 import { Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { domainFromUrl } from "@/lib/agent-segments";
+import { domainFromUrl } from "@/lib/agent-trace";
 
 function faviconUrl(url: string) {
   const domain = domainFromUrl(url);
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
 }
 
-function FaviconCircle({ url, className }: { url: string; className?: string }) {
+function FaviconCircle({
+  url,
+  className,
+}: {
+  url: string;
+  className?: string;
+}) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {

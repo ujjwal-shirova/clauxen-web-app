@@ -1,19 +1,10 @@
 import type { AskUserQuestion } from "@/components/agent/ask-user-input-card";
-import type { AgentToolSegment } from "@/lib/agent-segments";
+import type { AgentToolStep } from "@/lib/agent-trace";
 import type { Message } from "@/lib/types";
 
-function collectTools(message: Message): AgentToolSegment[] {
-  const fromFrames =
-    message.agentFrames?.flatMap((frame) =>
-      frame.segments.filter(
-        (segment): segment is AgentToolSegment => segment.kind === "tool",
-      ),
-    ) ?? [];
-  if (fromFrames.length > 0) return fromFrames;
-  return (
-    message.agentSegments?.filter(
-      (segment): segment is AgentToolSegment => segment.kind === "tool",
-    ) ?? []
+function collectTools(message: Message): AgentToolStep[] {
+  return (message.agentTrace?.steps ?? []).filter(
+    (step): step is AgentToolStep => step.kind === "tool",
   );
 }
 
@@ -30,7 +21,7 @@ function coerceQuestionList(raw: unknown): unknown[] {
   return [];
 }
 
-function questionsFromTool(tool: AgentToolSegment): AskUserQuestion[] {
+function questionsFromTool(tool: AgentToolStep): AskUserQuestion[] {
   const questions = coerceQuestionList(tool.args?.questions);
   if (questions.length === 0) return [];
   return questions.flatMap((item) => {
@@ -59,7 +50,7 @@ function questionsFromTool(tool: AgentToolSegment): AskUserQuestion[] {
   });
 }
 
-function isPendingAskTool(tool: AgentToolSegment): boolean {
+function isPendingAskTool(tool: AgentToolStep): boolean {
   if (tool.name !== "ask_user_input_v0") return false;
   if (tool.status === "error") return false;
   // Accept done (normal pause) and running (args landed, tool_end in flight).

@@ -6,11 +6,18 @@ import { AssistantContentRenderer } from "@/components/assistant-content-rendere
 import { ThinkingBlock } from "@/components/thinking-block";
 import { StreamingOrbCursor } from "@/components/ui/streaming-orb-cursor";
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
-import { shouldUseAgentMessageLayout } from "@/lib/agent-frames";
+import { agentTraceIsActive, traceHasWork } from "@/lib/agent-trace";
 import { shouldShowAssistantStreamingOrb } from "@/lib/streaming-orb-policy";
-import { AgentOrchestrationView } from "./agent-orchestration";
-import { AgentPlanningNextMoves } from "./agent-planning-label";
+import { AgentTranscriptView } from "./agent-transcript";
+import { AgentWorkingRow } from "./agent-trace-view";
 import { collectMessageSources } from "@/lib/chat-sources";
+
+/** A turn uses the agent transcript layout when real trace work exists. */
+export function shouldUseAgentTraceLayout(message: Message): boolean {
+  return (
+    Boolean(message.agentMode) && traceHasWork(message.agentTrace?.steps ?? [])
+  );
+}
 
 export function AgentMessageContent({
   message,
@@ -21,74 +28,78 @@ export function AgentMessageContent({
   detailLevel: MessageDetailLevel;
   chatIsGenerating?: boolean;
 }) {
-  const hasAgentUi = shouldUseAgentMessageLayout(message);
-
-  if (!hasAgentUi) {
-    const streaming = message.isStreaming === true && chatIsGenerating;
-    const hasThinking =
-      message.hasThinking ||
-      (message.thinkingContent?.trim().length ?? 0) > 0;
-    const answerStreaming = streaming && message.content.trim().length > 0;
-    const showOrb = shouldShowAssistantStreamingOrb({
-      isStreaming: streaming,
-      answerStreaming,
-      chatIsGenerating,
-    });
-    // Inline citation chips only — no auto bottom source-card strip.
-    const sources = collectMessageSources(message);
-
-    // Fresh turn before any tokens — orb only (no planning label).
-    if (streaming && !message.content.trim() && !hasThinking) {
-      return <AgentPlanningNextMoves showOrb={showOrb} />;
-    }
-
+  if (shouldUseAgentTraceLayout(message)) {
     return (
-      <>
-        {hasThinking ? (
-          <ThinkingBlock
-            content={message.thinkingContent}
-            isStreaming={!!message.isThinkingStreaming && chatIsGenerating}
-            thinkingDurationSeconds={message.thinkingDurationSeconds}
-            thinkingStartedAtMs={message.thinkingStartedAtMs}
-            className="mb-4"
-          />
-        ) : null}
-        {message.content.length > 0 ? (
-          <div
-            data-message-id={message.id}
-            data-assistant-content="true"
-            className="agent-answer-body min-w-0"
-          >
-            <AssistantContentRenderer
-              content={message.content}
-              messageId={message.id}
-              isStreaming={streaming}
-              streamKey={messageUiKey(message)}
-              detailLevel={detailLevel}
-              agentArtifacts={message.agentArtifacts}
-              {...({ sources } as any)}
-            />
-          </div>
-        ) : null}
-        {showOrb ? (
-          <div
-            className="flex items-center py-1 animate-in fade-in duration-200"
-            data-streaming-orb="bottom"
-          >
-            <StreamingOrbCursor />
-          </div>
-        ) : null}
-      </>
+      <div className="w-full min-w-0">
+        <AgentTranscriptView
+          message={message}
+          detailLevel={detailLevel}
+          chatIsGenerating={chatIsGenerating}
+        />
+      </div>
     );
   }
 
+  const streaming = message.isStreaming === true && chatIsGenerating;
+  const hasThinking =
+    message.hasThinking || (message.thinkingContent?.trim().length ?? 0) > 0;
+  const answerStreaming = streaming && message.content.trim().length > 0;
+  const showOrb = shouldShowAssistantStreamingOrb({
+    isStreaming: streaming,
+    answerStreaming,
+    chatIsGenerating,
+  });
+  // Inline citation chips only — no auto bottom source-card strip.
+  const sources = collectMessageSources(message);
+
+  // Fresh turn before any tokens — shimmering Working-for row (agent mode)
+  // or the plain orb (simple chats).
+  if (streaming && !message.content.trim() && !hasThinking) {
+    if (message.agentMode && !message.agentFrameComplete) {
+      return <AgentWorkingRow startedAtMs={message.agentTrace?.startedAtMs} />;
+    }
+    return <StreamingOrbCursor />;
+  }
+
   return (
-    <div className="w-full min-w-0">
-      <AgentOrchestrationView
-        message={message}
-        detailLevel={detailLevel}
-        chatIsGenerating={chatIsGenerating}
-      />
-    </div>
+    <>
+      {hasThinking ? (
+        <ThinkingBlock
+          content={message.thinkingContent}
+          isStreaming={!!message.isThinkingStreaming && chatIsGenerating}
+          thinkingDurationSeconds={message.thinkingDurationSeconds}
+          thinkingStartedAtMs={message.thinkingStartedAtMs}
+          className="mb-4"
+        />
+      ) : null}
+      {message.content.length > 0 ? (
+        <div
+          data-message-id={message.id}
+          data-assistant-content="true"
+          className="agent-answer-body min-w-0"
+        >
+          <AssistantContentRenderer
+            content={message.content}
+            messageId={message.id}
+            isStreaming={streaming}
+            streamKey={messageUiKey(message)}
+            detailLevel={detailLevel}
+            agentArtifacts={message.agentArtifacts}
+            {...({ sources } as any)}
+          />
+        </div>
+      ) : null}
+      {showOrb ? (
+        <div
+          className="flex items-center py-1 animate-in fade-in duration-200"
+          data-streaming-orb="bottom"
+        >
+          <StreamingOrbCursor />
+        </div>
+      ) : null}
+    </>
   );
 }
+
+// Keep the activity predicate referenced for external callers.
+export { agentTraceIsActive };

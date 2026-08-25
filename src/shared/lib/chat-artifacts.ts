@@ -59,7 +59,7 @@ function preferArtifact(a: ChatArtifact, b: ChatArtifact): ChatArtifact {
  * Rebuild downloadable cards from create_file (and legacy present_files)
  * tool results so reload restores the same presentation as live SSE.
  */
-export function collectArtifactsFromAgentSegments(
+export function collectArtifactsFromAgentSteps(
   messageId: string,
   segments: Array<{
     kind: string;
@@ -113,7 +113,8 @@ export function collectArtifactsFromAgentSegments(
             sizeBytes?: number;
             artifacts?: Array<Record<string, unknown>>;
           };
-          if (typeof parsed.path === "string" && parsed.path) path = parsed.path;
+          if (typeof parsed.path === "string" && parsed.path)
+            path = parsed.path;
           if (typeof parsed.content === "string" && parsed.content) {
             content = parsed.content;
           }
@@ -152,9 +153,13 @@ export function collectArtifactsFromAgentSegments(
                 ? artifact.storagePath
                 : undefined,
             mimeType:
-              typeof artifact.mimeType === "string" ? artifact.mimeType : undefined,
+              typeof artifact.mimeType === "string"
+                ? artifact.mimeType
+                : undefined,
             sizeBytes:
-              typeof artifact.sizeBytes === "number" ? artifact.sizeBytes : undefined,
+              typeof artifact.sizeBytes === "number"
+                ? artifact.sizeBytes
+                : undefined,
             createdAtMs: stamp,
           };
           const existing = byPath.get(key);
@@ -193,7 +198,8 @@ export function collectArtifactsFromAgentSegments(
         if (Array.isArray(parsed.files)) {
           files = parsed.files.filter(
             (file): file is { path: string; content: string } =>
-              typeof file?.path === "string" && typeof file?.content === "string",
+              typeof file?.path === "string" &&
+              typeof file?.content === "string",
           );
         }
       } catch {
@@ -251,23 +257,18 @@ export function collectChatArtifacts(messages: Message[]): ChatArtifact[] {
     for (const artifact of message.agentArtifacts ?? []) {
       upsert(artifact);
     }
-    if (message.agentSegments) {
-      for (const artifact of collectArtifactsFromAgentSegments(
+    if (message.agentTrace?.steps.length) {
+      for (const artifact of collectArtifactsFromAgentSteps(
         message.id,
-        message.agentSegments,
+        message.agentTrace.steps,
       )) {
         upsert(artifact);
       }
     }
-    for (const frame of message.agentFrames ?? []) {
-      for (const artifact of collectArtifactsFromAgentSegments(
-        message.id,
-        frame.segments,
-      )) {
-        upsert(artifact);
-      }
-    }
-    if (message.role === "assistant" && message.content.includes("<create_file")) {
+    if (
+      message.role === "assistant" &&
+      message.content.includes("<create_file")
+    ) {
       for (const artifact of collectCreateFileArtifacts(
         message.content,
         message.id,

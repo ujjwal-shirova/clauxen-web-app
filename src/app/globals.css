@@ -79,8 +79,7 @@
     --settings-card-bg: #ffffff;
     --settings-card-radius: 14px;
     --settings-card-shadow:
-      0 1px 2px rgba(20, 21, 26, 0.04),
-      0 0 0 1px rgba(20, 21, 26, 0.07);
+      0 1px 2px rgba(20, 21, 26, 0.04), 0 0 0 1px rgba(20, 21, 26, 0.07);
     --settings-control-height: 28px;
     --settings-row-gap: 20px;
     --settings-row-pad-x: 16px;
@@ -160,8 +159,7 @@
     --popup-bg: #ffffff;
     --popup-border: rgba(20, 21, 26, 0.1);
     --popup-shadow:
-      0 1px 2px rgba(20, 21, 26, 0.05),
-      0 14px 38px -16px rgba(20, 21, 26, 0.22);
+      0 1px 2px rgba(20, 21, 26, 0.05), 0 14px 38px -16px rgba(20, 21, 26, 0.22);
     --popup-radius: 16px;
     --popup-radius-lg: 18px;
     --popup-max-height: 400px;
@@ -178,11 +176,9 @@
     --prompt-control-size: 32px;
     --prompt-editor-min-height: 24px;
     --prompt-shadow:
-      0 0 0 1px rgba(20, 21, 26, 0.09),
-      0 3px 12px rgba(20, 21, 26, 0.045);
+      0 0 0 1px rgba(20, 21, 26, 0.09), 0 3px 12px rgba(20, 21, 26, 0.045);
     --prompt-shadow-focus:
-      0 0 0 1px rgba(20, 21, 26, 0.18),
-      0 4px 18px rgba(20, 21, 26, 0.07);
+      0 0 0 1px rgba(20, 21, 26, 0.18), 0 4px 18px rgba(20, 21, 26, 0.07);
 
     --panel-shadow:
       0 1px 2px rgba(20, 21, 26, 0.04), 0 12px 28px -16px rgba(20, 21, 26, 0.12);
@@ -252,8 +248,7 @@
     --popup-bg: #1c1c1f;
     --popup-border: rgba(255, 255, 255, 0.12);
     --popup-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.35),
-      0 12px 32px -14px rgba(0, 0, 0, 0.55);
+      0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px -14px rgba(0, 0, 0, 0.55);
     --menu-icon-fg: rgba(244, 244, 245, 0.74);
     --menu-chevron-fg: rgba(244, 244, 245, 0.52);
     --menu-hover-wash: rgba(255, 255, 255, 0.06);
@@ -428,7 +423,9 @@
   line-height: 18px;
   color: var(--settings-fg);
   white-space: nowrap;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .settings-btn:hover:not(:disabled) {
@@ -1027,7 +1024,6 @@
   button.prompt-control-ghost:focus-visible {
     box-shadow: none !important;
   }
-
 }
 
 .font-serif {
@@ -1038,7 +1034,9 @@
 .clauxen-wordmark {
   font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
   font-optical-sizing: auto;
-  font-feature-settings: "kern" 1, "liga" 1;
+  font-feature-settings:
+    "kern" 1,
+    "liga" 1;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -1098,8 +1096,8 @@ html[data-chat-font="Merriweather"] {
   --chat-font-family: "Merriweather", Georgia, serif;
 }
 html[data-chat-font="System"] {
-  --chat-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  --chat-font-family:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 [data-assistant-content] .markdown-content,
@@ -1184,7 +1182,8 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 .dark .sticky-user-msg--stuck {
   background-color: var(--chat-canvas-bg, hsl(var(--background)));
 }
-.dark .sticky-user-msg-host[data-user-msg-editing="true"].sticky-user-msg--stuck {
+.dark
+  .sticky-user-msg-host[data-user-msg-editing="true"].sticky-user-msg--stuck {
   background-color: var(--chat-canvas-bg, hsl(var(--background)));
 }
 .dark .sticky-user-msg--stuck::after {
@@ -1267,10 +1266,15 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 
 @keyframes stream-token-fade {
   from {
-    opacity: 0.35;
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  60% {
+    opacity: 1;
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -1279,10 +1283,10 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   display: inline;
   white-space: pre-wrap;
   animation-name: stream-token-fade;
-  animation-duration: 50ms;
+  animation-duration: 140ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-fill-mode: forwards;
-  will-change: opacity;
+  animation-fill-mode: both;
+  will-change: opacity, transform;
 }
 
 .stream-token-stable {
@@ -1534,10 +1538,18 @@ nav.sidebar-hover-area {
 }
 
 /* Chat rows own the hover pill — nested title buttons stay clear; row icon actions may hover. */
-.sidebar-scrollable .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):hover,
-.sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):hover,
-.sidebar-scrollable .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):focus,
-.sidebar-scrollable .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):focus {
+.sidebar-scrollable
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button):hover,
+.sidebar-scrollable
+  .glass-sidebar-agent-menu-btn
+  [role="button"]:not(.ui-row-icon-button):hover,
+.sidebar-scrollable
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button):focus,
+.sidebar-scrollable
+  .glass-sidebar-agent-menu-btn
+  [role="button"]:not(.ui-row-icon-button):focus {
   background-color: transparent !important;
 }
 
@@ -1605,7 +1617,8 @@ nav.sidebar-hover-area {
 
 /* Expanded uses the same radius — never start as a pill then shrink */
 [data-prompt-root] [data-prompt-shell][data-prompt-expanded="true"],
-[data-prompt-root] [data-composer-stack="with-project"][data-prompt-expanded="true"] {
+[data-prompt-root]
+  [data-composer-stack="with-project"][data-prompt-expanded="true"] {
   border-radius: var(--prompt-radius-expanded, 12px) !important;
 }
 
@@ -1632,7 +1645,9 @@ nav.sidebar-hover-area {
   -webkit-backdrop-filter: none;
 }
 
-[data-prompt-root] [data-composer-stack="with-project"] [data-composer-project-strip] {
+[data-prompt-root]
+  [data-composer-stack="with-project"]
+  [data-composer-project-strip] {
   border-radius: 0;
   border-top: 1px solid rgba(24, 24, 27, 0.08);
 }
@@ -1645,21 +1660,35 @@ nav.sidebar-hover-area {
   box-shadow: var(--prompt-shadow-focus) !important;
 }
 
-[data-prompt-root] [data-composer-stack="with-project"] [data-prompt-shell]:focus-within {
+[data-prompt-root]
+  [data-composer-stack="with-project"]
+  [data-prompt-shell]:focus-within {
   border-color: transparent !important;
   box-shadow: none !important;
 }
 
 /* Legacy outer wrappers only — never [data-composer-stack] / [data-prompt-shell]
    (those own the single hairline). Matching the stack caused a double border. */
-[data-prompt-root] > div > div:not([data-prompt-shell]):not([data-composer-stack]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):not([data-ask-user-input-composer]) {
+[data-prompt-root]
+  > div
+  > div:not([data-prompt-shell]):not([data-composer-stack]):not(
+    [data-context-footer]
+  ):not([data-prompt-wrapper]):not([data-context-indicator]):not(
+    [data-ask-user-input-composer]
+  ) {
   background-color: var(--chat-user-card-bg, #ffffff) !important;
   border: 0 !important;
   box-shadow: var(--prompt-shadow) !important;
   border-radius: var(--prompt-radius-lg) !important;
 }
 
-[data-prompt-root] > div > div:not([data-prompt-shell]):not([data-composer-stack]):not([data-context-footer]):not([data-prompt-wrapper]):not([data-context-indicator]):not([data-ask-user-input-composer]):focus-within {
+[data-prompt-root]
+  > div
+  > div:not([data-prompt-shell]):not([data-composer-stack]):not(
+    [data-context-footer]
+  ):not([data-prompt-wrapper]):not([data-context-indicator]):not(
+    [data-ask-user-input-composer]
+  ):focus-within {
   box-shadow: var(--prompt-shadow-focus) !important;
 }
 
@@ -1799,15 +1828,17 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /* Assistant chrome buttons may soft-hover; follow-ups + chat-row innards must not. */
-.assistant-message button:not(.no-hover-overlay):not(.no-hover):not(
-    .follow-up-prompt
-  ):not(.label-hover-bold):hover {
+.assistant-message
+  button:not(.no-hover-overlay):not(.no-hover):not(.follow-up-prompt):not(
+    .label-hover-bold
+  ):hover {
   background-color: rgba(24, 24, 27, 0.04) !important;
   color: var(--foreground) !important;
   transform: translateY(-0.5px);
 }
 
-.group\/chat button:not(.no-hover-overlay):not(.no-hover):not(.ui-row-icon-button):hover,
+.group\/chat
+  button:not(.no-hover-overlay):not(.no-hover):not(.ui-row-icon-button):hover,
 .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):hover,
 .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):hover,
 .assistant-message .follow-up-prompt:hover,
@@ -2177,7 +2208,10 @@ button.user-message-card__body:not(:disabled):hover,
   overflow-y: hidden;
   min-height: var(--prompt-input-editor-min-height, 22px);
   max-height: var(--prompt-input-editor-max-height, 168px);
-  height: var(--prompt-input-editor-height, var(--prompt-input-editor-min-height, 22px));
+  height: var(
+    --prompt-input-editor-height,
+    var(--prompt-input-editor-min-height, 22px)
+  );
   overflow-anchor: none;
   box-sizing: border-box;
   /* No height transition — avoids top-misaligned → center flash on first paint / resize */
@@ -2205,8 +2239,12 @@ button.user-message-card__body:not(:disabled):hover,
   transition: none;
 }
 
-[data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-expanded="true"],
-[data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-layout="stacked"] {
+[data-prompt-root]
+  [data-prompt-shell]
+  .prompt-body-grid[data-prompt-expanded="true"],
+[data-prompt-root]
+  [data-prompt-shell]
+  .prompt-body-grid[data-prompt-layout="stacked"] {
   align-items: end;
   padding: 8px 8px 6px;
   min-height: 0;
@@ -2230,14 +2268,23 @@ button.user-message-card__body:not(:disabled):hover,
   justify-content: center;
 }
 
-[data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-layout="stacked"] [data-prompt-editor],
-[data-prompt-root] [data-prompt-shell] .prompt-body-grid[data-prompt-expanded="true"] [data-prompt-editor] {
+[data-prompt-root]
+  [data-prompt-shell]
+  .prompt-body-grid[data-prompt-layout="stacked"]
+  [data-prompt-editor],
+[data-prompt-root]
+  [data-prompt-shell]
+  .prompt-body-grid[data-prompt-expanded="true"]
+  [data-prompt-editor] {
   align-self: stretch;
   justify-content: flex-start;
   padding-top: 2px;
 }
 
-[data-prompt-root] [data-prompt-shell] .prompt-body-grid [data-prompt-trailing] {
+[data-prompt-root]
+  [data-prompt-shell]
+  .prompt-body-grid
+  [data-prompt-trailing] {
   grid-area: trailing;
   display: flex;
   align-items: center;
@@ -2320,7 +2367,9 @@ button.user-message-card__body:not(:disabled):hover,
   height: 14px !important;
 }
 
-[data-prompt-root] [data-prompt-shell] [data-prompt-layout="stacked"].prompt-body-grid {
+[data-prompt-root]
+  [data-prompt-shell]
+  [data-prompt-layout="stacked"].prompt-body-grid {
   min-height: 0;
 }
 
@@ -2806,21 +2855,41 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 /* Row owns selection/hover — nested title links stay clear; pin/more may hover. */
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button),
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):hover,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):focus,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button):focus-visible,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button)[aria-current="page"],
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn button:not(.ui-row-icon-button)[data-state="open"],
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button),
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):hover,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn [role="button"]:not(.ui-row-icon-button):focus {
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button),
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button):hover,
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button):focus,
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button):focus-visible,
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button)[aria-current="page"],
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  button:not(.ui-row-icon-button)[data-state="open"],
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  [role="button"]:not(.ui-row-icon-button),
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  [role="button"]:not(.ui-row-icon-button):hover,
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  [role="button"]:not(.ui-row-icon-button):focus {
   background: transparent !important;
   box-shadow: none !important;
 }
 
 .glass-sidebar-docked .glass-sidebar-agent-menu-btn .ui-row-icon-button:hover,
-.glass-sidebar-docked .glass-sidebar-agent-menu-btn .ui-row-icon-button[data-state="open"] {
+.glass-sidebar-docked
+  .glass-sidebar-agent-menu-btn
+  .ui-row-icon-button[data-state="open"] {
   background-color: rgba(24, 24, 27, 0.08) !important;
   color: #18181b !important;
 }
@@ -2840,7 +2909,8 @@ button.user-message-card__body:not(:disabled):hover,
   border-radius: 6px;
 }
 
-.glass-sidebar-docked .glass-sidebar-footer-account-trigger:not(.ui-icon-button) {
+.glass-sidebar-docked
+  .glass-sidebar-footer-account-trigger:not(.ui-icon-button) {
   min-height: 32px;
   height: auto;
 }
@@ -3098,8 +3168,11 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .markdown-content .composer-message-codeblock {
-  background:
-    linear-gradient(180deg, rgba(250, 250, 251, 0.98), #f7f7f8) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(250, 250, 251, 0.98),
+    #f7f7f8
+  ) !important;
 }
 
 .markdown-content .ui-code-block-content {
@@ -3461,6 +3534,17 @@ html[data-reduce-motion="1"] .orb-cursor-core {
   }
 }
 
+/* Agent Working-for row — 3x3 dot grid pulse. */
+@keyframes working-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @keyframes shimmer {
   0% {
     background-position: 100% 50%;
@@ -3701,16 +3785,14 @@ button[data-app-button]:not([class*="text-white"]):not(
   ):not([class*="bg-zinc-9"]):not([class*="bg-black"]):not(
     [class*="bg-[#141414]"]
   ):not(.prompt-control-filled):not(.prompt-control-ghost):hover,
-[data-prompt-input] button:not([class*="text-white"]):not(
-    [class*="text-[#fcfcfc]"]
-  ):not([class*="bg-[#141414]"]):not(.prompt-control-filled):not(
-    .prompt-control-ghost
-  ):hover,
-.prompt-input button:not([class*="text-white"]):not(
-    [class*="text-[#fcfcfc]"]
-  ):not([class*="bg-[#141414]"]):not(.prompt-control-filled):not(
-    .prompt-control-ghost
-  ):hover,
+[data-prompt-input]
+  button:not([class*="text-white"]):not([class*="text-[#fcfcfc]"]):not(
+    [class*="bg-[#141414]"]
+  ):not(.prompt-control-filled):not(.prompt-control-ghost):hover,
+.prompt-input
+  button:not([class*="text-white"]):not([class*="text-[#fcfcfc]"]):not(
+    [class*="bg-[#141414]"]
+  ):not(.prompt-control-filled):not(.prompt-control-ghost):hover,
 button[data-speed-toggle]:hover,
 .app-action-button:hover,
 .dropdown-menu-trigger:hover {
@@ -3734,10 +3816,12 @@ button[data-speed-toggle]:hover,
 button[aria-pressed="true"]:not(:disabled):not(.prompt-control-filled),
 button[data-active="true"]:not(.prompt-control-filled),
 button[data-speed-toggle][data-active="true"],
-[data-prompt-input] button[aria-expanded="true"]:not(.prompt-control-filled):not(
+[data-prompt-input]
+  button[aria-expanded="true"]:not(.prompt-control-filled):not(
     .prompt-control-ghost
   ),
-.prompt-input button[aria-expanded="true"]:not(.prompt-control-filled):not(
+.prompt-input
+  button[aria-expanded="true"]:not(.prompt-control-filled):not(
     .prompt-control-ghost
   ),
 button[aria-current="page"]:not(.prompt-control-filled),
@@ -3994,7 +4078,11 @@ button[data-speed-toggle][data-state="open"] {
 
 .user-message-card__body:hover,
 .user-message-card__body:focus-visible {
-  background: color-mix(in oklab, var(--chat-user-card-bg) 94%, black) !important;
+  background: color-mix(
+    in oklab,
+    var(--chat-user-card-bg) 94%,
+    black
+  ) !important;
 }
 
 [data-conversation-turn] .assistant-message {

@@ -1,6 +1,9 @@
 import type { Message } from "@/lib/types";
-import type { AgentFrame } from "@/lib/agent-frames";
-import type { AgentSegment, WebSearchResult } from "@/lib/agent-segments";
+import type {
+  AgentStep,
+  AgentTraceState,
+  WebSearchResult,
+} from "@/lib/agent-trace";
 import type { ChatArtifact } from "@/lib/chat-artifacts";
 
 const MAX_BRANCH_MESSAGES = 500;
@@ -16,7 +19,7 @@ function asString(value: unknown, max = MAX_CONTENT_CHARS): string | undefined {
   return value.length > max ? value.slice(0, max) : value;
 }
 
-function sanitizeAgentSegment(value: unknown): AgentSegment | null {
+function sanitizeAgentStep(value: unknown): AgentStep | null {
   const row = asRecord(value);
   if (!row) return null;
   const kind = asString(row.kind);
@@ -26,7 +29,6 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
     return {
       kind: "thinking",
       id,
-      content: asString(row.content) ?? "",
       isStreaming: Boolean(row.isStreaming),
       durationSeconds:
         typeof row.durationSeconds === "number"
@@ -36,15 +38,13 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
         typeof row.startedAtMs === "number" ? row.startedAtMs : undefined,
     };
   }
-  if (kind === "narration" || kind === "text") {
+  if (kind === "narration") {
     return {
       kind,
       id,
       content: asString(row.content) ?? "",
       isStreaming: Boolean(row.isStreaming),
-      ...(kind === "narration" && row.isFinal === true
-        ? { isFinal: true as const }
-        : {}),
+      ...(row.isFinal === true ? { isFinal: true as const } : {}),
     };
   }
   if (kind === "tool") {
@@ -104,55 +104,63 @@ function sanitizeAgentSegment(value: unknown): AgentSegment | null {
         typeof row.completedAtMs === "number" ? row.completedAtMs : undefined,
     };
   }
-  if (kind === "step_done") {
+  return null;
+}
+
+/** Accept legacy frame blobs and normalize into the flat trace state. */
+function sanitizeAgentTrace(value: unknown): AgentTraceState | null {
+  if (Array.isArray(value)) {
+    const steps = value
+      .map(sanitizeAgentStep)
+      .filter((step): step is AgentStep => Boolean(step));
+    return steps.length > 0 ? { steps } : null;
+  }
+  const row = asRecord(value);
+  if (!row) return null;
+  // New shape: AgentTraceState.
+  if (Array.isArray(row.steps)) {
+    const steps = row.steps
+      .map(sanitizeAgentStep)
+      .filter((step): step is AgentStep => Boolean(step));
+    if (steps.length === 0 && !Array.isArray(row.segments)) return null;
+    const source = Array.isArray(row.segments)
+      ? row.segments
+          .map(sanitizeAgentStep)
+          .filter((step): step is AgentStep => Boolean(step))
+      : steps;
+    const startedAtMs =
+      typeof row.startedAtMs === "number" && row.startedAtMs > 0
+        ? row.startedAtMs
+        : Date.now();
+    let completedAtMs =
+      typeof row.completedAtMs === "number" ? row.completedAtMs : undefined;
+    const MAX_MS = 2 * 60 * 60 * 1000;
+    if (
+      typeof completedAtMs === "number" &&
+      completedAtMs - startedAtMs > MAX_MS
+    ) {
+      completedAtMs = startedAtMs;
+    }
     return {
-      kind: "step_done",
-      id,
-      label: asString(row.label),
+      steps: source,
+      complete: typeof row.complete === "boolean" ? row.complete : undefined,
+      startedAtMs,
+      ...(completedAtMs ? { completedAtMs } : {}),
     };
+  }
+  // Legacy single-frame shape: { id, segments[], complete, ... }.
+  if (Array.isArray(row.segments)) {
+    const trace = sanitizeAgentTrace({
+      steps: row.segments,
+      complete: row.complete,
+      startedAtMs: row.startedAtMs,
+      completedAtMs: row.completedAtMs,
+    });
+    return trace;
   }
   return null;
 }
 
-function sanitizeAgentFrame(value: unknown): AgentFrame | null {
-  const row = asRecord(value);
-  if (!row) return null;
-  const segments = Array.isArray(row.segments)
-    ? row.segments
-        .map(sanitizeAgentSegment)
-        .filter((segment): segment is AgentSegment => Boolean(segment))
-    : [];
-  const startedAtMs =
-    typeof row.startedAtMs === "number" && row.startedAtMs > 0
-      ? row.startedAtMs
-      : Date.now();
-  let completedAtMs =
-    typeof row.completedAtMs === "number" ? row.completedAtMs : undefined;
-  // Clamp absurd spans (stale startedAt + missing/wrong completedAt).
-  const MAX_MS = 2 * 60 * 60 * 1000;
-  if (
-    typeof completedAtMs === "number" &&
-    completedAtMs - startedAtMs > MAX_MS
-  ) {
-    completedAtMs = startedAtMs;
-  }
-  if (row.complete && completedAtMs == null) {
-    completedAtMs = startedAtMs;
-  }
-  return {
-    id: asString(row.id) ?? `frame-${Math.random().toString(36).slice(2, 10)}`,
-    segments,
-    complete: Boolean(row.complete),
-    startedAtMs,
-    completedAtMs,
-  };
-}
-
-/**
- * Persist branch UI state without stripping message ids / agent frames.
- * (sanitizeMessages is for model prompts only — it drops ids and caused
- * reload duplicates when every message collapsed onto `undefined`.)
- */
 export function sanitizeBranchMessages(input: unknown): Message[] {
   if (!Array.isArray(input)) return [];
 
@@ -182,15 +190,27 @@ export function sanitizeBranchMessages(input: unknown): Message[] {
     if (typeof row.agentFrameComplete === "boolean") {
       message.agentFrameComplete = row.agentFrameComplete;
     }
-    if (Array.isArray(row.agentSegments)) {
-      message.agentSegments = row.agentSegments
-        .map(sanitizeAgentSegment)
-        .filter((segment): segment is AgentSegment => Boolean(segment));
-    }
-    if (Array.isArray(row.agentFrames)) {
-      message.agentFrames = row.agentFrames
-        .map(sanitizeAgentFrame)
-        .filter((frame): frame is AgentFrame => Boolean(frame));
+    if (row.agentTrace !== undefined) {
+      const trace = sanitizeAgentTrace(row.agentTrace);
+      if (trace) message.agentTrace = trace;
+    } else if (Array.isArray(row.agentSegments)) {
+      // Legacy persisted segments → one complete trace.
+      const trace = sanitizeAgentTrace({
+        steps: row.agentSegments,
+        complete: true,
+      });
+      if (trace) message.agentTrace = trace;
+    } else if (Array.isArray(row.agentFrames)) {
+      // Legacy frames → merge segments in order.
+      const mergedSteps: unknown[] = [];
+      for (const frame of row.agentFrames) {
+        const record = asRecord(frame);
+        if (record && Array.isArray(record.segments)) {
+          mergedSteps.push(...record.segments);
+        }
+      }
+      const trace = sanitizeAgentTrace({ steps: mergedSteps, complete: true });
+      if (trace) message.agentTrace = trace;
     }
     if (Array.isArray(row.agentArtifacts)) {
       message.agentArtifacts = row.agentArtifacts

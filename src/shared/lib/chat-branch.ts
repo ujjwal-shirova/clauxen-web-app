@@ -13,8 +13,7 @@ export const stripMessageForSnapshot = (message: Message): Message => ({
   thinkingDurationSeconds: message.thinkingDurationSeconds,
   agentMode: message.agentMode,
   agentFrameComplete: message.agentFrameComplete,
-  agentSegments: message.agentSegments,
-  agentFrames: message.agentFrames,
+  agentTrace: message.agentTrace,
   agentArtifacts: message.agentArtifacts,
 });
 
@@ -29,8 +28,7 @@ const stripNestedSnapshots = (
     thinkingDurationSeconds: version.thinkingDurationSeconds,
     agentMode: version.agentMode,
     agentFrameComplete: version.agentFrameComplete,
-    agentSegments: version.agentSegments,
-    agentFrames: version.agentFrames,
+    agentTrace: version.agentTrace,
     agentArtifacts: version.agentArtifacts,
   }));
 
@@ -89,12 +87,11 @@ export const mergeSnapshotWithBranchMeta = (
           }
         : null;
     const currentMeta = currentMetaMap.get(msg.id);
-    const meta =
-      snapshotMeta?.branchVersions?.length
-        ? snapshotMeta
-        : currentMeta?.branchVersions?.length
-          ? currentMeta
-          : null;
+    const meta = snapshotMeta?.branchVersions?.length
+      ? snapshotMeta
+      : currentMeta?.branchVersions?.length
+        ? currentMeta
+        : null;
 
     if (!meta?.branchVersions?.length) return msg;
     return {
@@ -119,8 +116,7 @@ export const ensureBranchVersions = (
           thinkingDurationSeconds: message.thinkingDurationSeconds,
           agentMode: message.agentMode,
           agentFrameComplete: message.agentFrameComplete,
-          agentSegments: message.agentSegments,
-          agentFrames: message.agentFrames,
+          agentTrace: message.agentTrace,
           agentArtifacts: message.agentArtifacts,
         },
       ];
@@ -142,8 +138,7 @@ export const hydrateMessageFromActiveBranch = (
     thinkingDurationSeconds: active.thinkingDurationSeconds,
     agentMode: active.agentMode,
     agentFrameComplete: active.agentFrameComplete,
-    agentSegments: active.agentSegments,
-    agentFrames: active.agentFrames,
+    agentTrace: active.agentTrace,
     agentArtifacts: active.agentArtifacts,
     activeBranchIndex: safeIndex,
     branchVersions: versions,
@@ -160,8 +155,7 @@ export function captureSnapshotForActiveBranch(
   if (!targetMessage) return chatMessages;
 
   const versions = ensureBranchVersions(targetMessage);
-  const activeIndex =
-    targetMessage.activeBranchIndex ?? versions.length - 1;
+  const activeIndex = targetMessage.activeBranchIndex ?? versions.length - 1;
   if (versions[activeIndex]?.snapshot?.length) {
     return chatMessages;
   }
@@ -389,7 +383,9 @@ export function switchMessageBranchHelper(
     chatMessages,
     messageId,
   );
-  const targetMessage = messagesWithSnapshot.find((msg) => msg.id === messageId);
+  const targetMessage = messagesWithSnapshot.find(
+    (msg) => msg.id === messageId,
+  );
   if (!targetMessage) {
     return { nextChat: chatMessages, nextActiveIndex: 0, totalVersions: 1 };
   }

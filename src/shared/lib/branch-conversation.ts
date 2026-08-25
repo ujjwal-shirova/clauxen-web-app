@@ -1,5 +1,5 @@
 import type { Message } from "@/lib/types";
-import { resolveAgentFrames } from "@/lib/agent-frames";
+
 import { stripMessageContentForModelApi } from "@/lib/model-context";
 
 /** Stateless chat API turn — rebuilt from the active branch on each request. */
@@ -21,21 +21,18 @@ export const CHAT_CONTEXT_MAX_CHARS = 72_000;
  */
 function agentContextAppendix(message: Message): string {
   if (message.role !== "assistant") return "";
-  const frames = resolveAgentFrames(message);
   const tools: string[] = [];
-  for (const frame of frames) {
-    for (const segment of frame.segments) {
-      if (segment.kind !== "tool") continue;
-      const query =
-        segment.searchQuery ||
-        (typeof segment.args?.query === "string"
-          ? segment.args.query
-          : undefined);
-      const label = query
-        ? `${segment.name}(${query})`
-        : segment.description || segment.name;
-      tools.push(label);
-    }
+  for (const segment of message.agentTrace?.steps ?? []) {
+    if (segment.kind !== "tool") continue;
+    const query =
+      segment.searchQuery ||
+      (typeof segment.args?.query === "string"
+        ? segment.args.query
+        : undefined);
+    const label = query
+      ? `${segment.name}(${query})`
+      : segment.description || segment.name;
+    tools.push(label);
   }
   if (tools.length === 0) return "";
   // Compact — enough for the model to stay on-topic for follow-ups.
@@ -43,15 +40,17 @@ function agentContextAppendix(message: Message): string {
   return `\n\n[Prior agent actions in this turn: ${unique.join("; ")}]`;
 }
 
-function toConversationTurns(messages: readonly Message[]): ChatConversationTurn[] {
+function toConversationTurns(
+  messages: readonly Message[],
+): ChatConversationTurn[] {
   return messages
     .filter(
       (message) =>
         (message.role === "user" || message.role === "assistant") &&
         (message.content.trim().length > 0 ||
           (message.role === "assistant" &&
-            resolveAgentFrames(message).some((frame) =>
-              frame.segments.some((segment) => segment.kind === "tool"),
+            (message.agentTrace?.steps ?? []).some(
+              (step) => step.kind === "tool",
             ))),
     )
     .map((message) => {

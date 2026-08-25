@@ -235,22 +235,11 @@ export function uiMessageChunkToStreamEvents(
       ];
     }
     case "data-step-done": {
-      const data = chunk.data as ClauxenUIDataParts["step-done"];
-      return [{ type: "step_done", label: data.label }];
+      // step_done is retired in the flat trace protocol — no-op.
+      return [];
     }
     case "data-agent-frame": {
-      const data = chunk.data as ClauxenUIDataParts["agent-frame"];
-      if (data.complete) {
-        return [
-          {
-            type: "agent_frame_complete",
-            frameId: data.frameId,
-          },
-        ];
-      }
-      if (data.frameId) {
-        return [{ type: "agent_frame_start", frameId: data.frameId }];
-      }
+      // Frame events are retired — the trace is turn-scoped and flat.
       return [];
     }
     case "data-chat-title": {

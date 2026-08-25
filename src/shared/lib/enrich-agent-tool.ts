@@ -1,16 +1,13 @@
-import type {
-  AgentToolSegment,
-  WebSearchResult,
-} from "@/lib/agent-segments";
-import { parseToolResult } from "@/lib/agent-segments";
+import type { AgentToolStep, WebSearchResult } from "@/lib/agent-trace";
+import { parseToolResult } from "@/lib/agent-trace";
 import { inferLanguageFromPath } from "@/lib/create-file-tags";
 
 export function enrichToolFromResult(
-  tool: AgentToolSegment,
+  tool: AgentToolStep,
   result: string,
-): AgentToolSegment {
+): AgentToolStep {
   const parsed = parseToolResult(result);
-  const next: AgentToolSegment = {
+  const next: AgentToolStep = {
     ...tool,
     result,
     status: "done",
@@ -81,7 +78,7 @@ export function enrichToolFromResult(
       next.fileContent =
         typeof record.content === "string"
           ? record.content
-          : contentFromArgs ?? next.fileContent;
+          : (contentFromArgs ?? next.fileContent);
     } else {
       next.filePath = pathFromArgs ?? next.filePath;
       next.fileContent = contentFromArgs ?? next.fileContent;
@@ -117,9 +114,7 @@ export function enrichToolFromResult(
 }
 
 /** Rebuild tool UI fields (searchResults, fileContent) from stored result JSON. */
-export function enrichPersistedToolSegment(
-  tool: AgentToolSegment,
-): AgentToolSegment {
+export function enrichPersistedToolSegment(tool: AgentToolStep): AgentToolStep {
   let next = { ...tool };
   if (
     (next.name === "create_file" || next.name === "file_write") &&

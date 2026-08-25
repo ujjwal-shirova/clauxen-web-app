@@ -1,6 +1,6 @@
 "use client";
 
-import type { AgentToolSegment } from "@/lib/agent-segments";
+import type { AgentToolStep } from "@/lib/agent-trace";
 import {
   downloadArtifact,
   fileNameFromPath,
@@ -10,12 +10,24 @@ import {
   artifactSupportsPreview,
   inferLanguageFromPath,
 } from "@/lib/create-file-tags";
-import { countContentLineDiff } from "@/lib/agent-activity-summary";
 import { cn } from "@/lib/utils";
 import { useOptionalArtifactViewer } from "@/contexts/artifact-viewer-context";
-import { AgentToolCard } from "./agent-tool-card";
-import { AgentShimmerText } from "./agent-trace";
 import { CreateFileStreamBlock } from "./create-file-stream-block";
+
+function countFileLines(
+  content: string,
+  previousContent?: string,
+): { insertions: number; deletions: number } {
+  const count = (value: string) =>
+    value ? value.replace(/\n$/, "").split("\n").length : 0;
+  const next = count(content);
+  if (!previousContent) return { insertions: next, deletions: 0 };
+  const prev = count(previousContent);
+  return {
+    insertions: Math.max(0, next - Math.min(next, prev)),
+    deletions: Math.max(0, prev - next),
+  };
+}
 
 /**
  * create_file / file_write — timeline row when done:
@@ -26,7 +38,7 @@ export function AgentFileBlock({
   tool,
   previousContent,
 }: {
-  tool: AgentToolSegment;
+  tool: AgentToolStep;
   previousContent?: string;
 }) {
   const viewer = useOptionalArtifactViewer();
@@ -50,7 +62,8 @@ export function AgentFileBlock({
       if (typeof result.path === "string") path = result.path;
       if (typeof result.content === "string") content = result.content;
       if (typeof result.fileId === "string") fileId = result.fileId;
-      if (typeof result.storagePath === "string") storagePath = result.storagePath;
+      if (typeof result.storagePath === "string")
+        storagePath = result.storagePath;
       if (typeof result.mimeType === "string") mimeType = result.mimeType;
       if (typeof result.sizeBytes === "number") sizeBytes = result.sizeBytes;
     } catch {
@@ -68,7 +81,7 @@ export function AgentFileBlock({
     typeof tool.args?.description === "string"
       ? tool.args.description
       : tool.description;
-  const diff = countContentLineDiff(content, previousContent);
+  const diff = countFileLines(content, previousContent);
   const showDiff = !isRunning && (diff.insertions > 0 || diff.deletions > 0);
   const isEdit = Boolean(previousContent && previousContent.length > 0);
   const verb = isEdit ? "Edited" : "Created";
@@ -76,38 +89,26 @@ export function AgentFileBlock({
   if (isRunning) {
     return (
       <div
-        className="flex w-full min-w-0 flex-col"
+        className="flex w-full min-w-0 flex-col gap-1"
         data-agent-file-block="writing"
       >
-        <AgentToolCard
-          label={
-            <>
-              <AgentShimmerText active>
-                <span className="agent-activity-label--primary">Writing</span>
-              </AgentShimmerText>
-              <span className="agent-activity-label--subtle">
-                {" "}
-                {description || fileName || "file"}
-              </span>
-              <span className="agent-activity-label--subtle">…</span>
-            </>
-          }
-          isRunning
-          defaultExpanded
-        >
-          <CreateFileStreamBlock
-            compact
-            block={{
-              id: path || tool.id,
-              path: path || fileName,
-              title: fileName.replace(/\.[^.]+$/, "") || "Untitled",
-              language,
-              content,
-              isComplete: false,
-            }}
-            streamKey={tool.id}
-          />
-        </AgentToolCard>
+        <div className="flex min-w-0 items-center gap-1.5 text-[13px] font-[430] leading-5 tracking-[-0.01em]">
+          <span className="shimmer-text" data-shimmer-active="true">
+            Writing {description || fileName || "file"}…
+          </span>
+        </div>
+        <CreateFileStreamBlock
+          compact
+          block={{
+            id: path || tool.id,
+            path: path || fileName,
+            title: fileName.replace(/\.[^.]+$/, "") || "Untitled",
+            language,
+            content,
+            isComplete: false,
+          }}
+          streamKey={tool.id}
+        />
       </div>
     );
   }
@@ -151,7 +152,13 @@ export function AgentFileBlock({
         !content && !fileId && "cursor-default opacity-70",
       )}
       data-agent-file-block="done"
-      aria-label={content ? `Open ${fileName}` : fileId ? `Download ${fileName}` : fileName}
+      aria-label={
+        content
+          ? `Open ${fileName}`
+          : fileId
+            ? `Download ${fileName}`
+            : fileName
+      }
     >
       <span className="agent-activity-label--muted shrink-0">{verb}</span>
       <span className="agent-activity-label--subtle min-w-0 truncate">
@@ -172,6 +179,6 @@ export function AgentFileBlock({
 }
 
 /** present_files is removed from the agent loop — hide legacy hydrated steps. */
-export function PresentFilesBlock(_props: { tool: AgentToolSegment }) {
+export function PresentFilesBlock(_props: { tool: AgentToolStep }) {
   return null;
 }

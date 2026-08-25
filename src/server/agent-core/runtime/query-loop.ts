@@ -1,16 +1,19 @@
 /**
- * Clauxen autonomous agent loop (OpenAI Responses API).
+ * Clauxen autonomous agent loop (OpenAI Responses API) — flat trace protocol.
  *
  * Round lifecycle:
  *   1. Stream one model round: reasoning → narration → strict function calls.
- *   2. Every text delta streams live as a narration segment — visible progress.
- *   3. Tool calls close the round's text segment; tools execute sequentially.
+ *   2. Every text delta streams live as a first-person narration step —
+ *      visible progress prose in the chat trace.
+ *   3. Tool calls close the round's narration; tools execute sequentially.
  *   4. tool_result blocks go back; next round starts.
  *   5. A round with no tool calls ends the turn: its text is promoted to the
  *      durable answer via answer_finalize (in place — no answer teleporting).
  *
- * No tag parsing anywhere: narration vs answer is decided structurally by
- * whether the round made tool calls.
+ * Emission is turn-scoped and flat (no frame events): thinking phases,
+ * narration lines, and tool rows append to one ordered AgentStep list that
+ * the client reducer folds into Message.agentTrace. Narration is distinct
+ * from interleaved thinking — it is deliberate, user-facing progress output.
  */
 
 import {
@@ -321,8 +324,12 @@ function conciseDetail(value: string, maxLength = 120): string {
   return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
-/** Safe, concrete narration when a model calls a tool without explaining it. */
-function describeToolIntent(
+/**
+ * First-person narration when a model calls a tool without explaining itself.
+ * This is progress prose for the trace — deliberately different register from
+ * interleaved thinking (which is never shown verbatim).
+ */
+function narrateToolIntent(
   name: string,
   args: Record<string, unknown>,
 ): string {
@@ -333,8 +340,8 @@ function describeToolIntent(
     case "web_search": {
       const query = conciseDetail(textArg(args, "query"), 90);
       return query
-        ? `I’m searching the web for “${query}”.`
-        : "I’m searching the web for reliable sources.";
+        ? `I'm searching the web for "${query}".`
+        : "I'm searching the web for reliable sources.";
     }
     case "web_fetch": {
       const rawUrl = textArg(args, "url");
@@ -344,87 +351,87 @@ function describeToolIntent(
       } catch {
         // Use the generic description for an incomplete streamed URL.
       }
-      return `I’m reading ${host} for the relevant details.`;
+      return `I'm reading ${host} for the relevant details.`;
     }
     case "bash_tool":
       return description
-        ? `I’m checking the workspace: ${description}.`
-        : "I’m checking the workspace and validating the next step.";
+        ? `I'm checking the workspace: ${description}.`
+        : "I'm checking the workspace and validating the next step.";
     case "execute_code":
       return description
-        ? `I’m running an analysis: ${description}.`
-        : "I’m running an analysis to verify the result.";
+        ? `I'm running an analysis: ${description}.`
+        : "I'm running an analysis to verify the result.";
     case "file_read":
       return path
-        ? `I’m reviewing ${path}.`
-        : "I’m reviewing the requested file.";
+        ? `I'm reviewing ${path}.`
+        : "I'm reviewing the requested file.";
     case "create_file":
       return path
-        ? `I’m preparing ${path}.`
-        : "I’m preparing the requested file.";
+        ? `I'm preparing ${path}.`
+        : "I'm preparing the requested file.";
     case "file_write":
       return path
-        ? `I’m updating ${path}.`
-        : "I’m updating the requested file.";
+        ? `I'm updating ${path}.`
+        : "I'm updating the requested file.";
     case "read_skill":
-      return "I’m loading the relevant workspace guidance before continuing.";
+      return "I'm loading the relevant workspace guidance before continuing.";
     case "image_search":
-      return "I’m finding suitable images for this task.";
+      return "I'm finding suitable images for this task.";
     case "places_search":
-      return "I’m looking up the relevant places and location details.";
+      return "I'm looking up the relevant places and location details.";
     case "weather_fetch":
-      return "I’m checking the latest weather conditions.";
+      return "I'm checking the latest weather conditions.";
     case "ask_user_input_v0":
       return "I need one quick decision before I can continue.";
     default:
       return name.startsWith("mcp__")
-        ? "I’m using the connected service to complete the next step."
-        : "I’m carrying out the next verified step.";
+        ? "I'm using the connected service to complete the next step."
+        : "I'm carrying out the next verified step.";
   }
 }
 
-/** Brief result handoff so the visible timeline has a useful bridge to the next action. */
-function describeToolOutcome(
+/** Brief result handoff so the visible trace bridges to the next action. */
+function narrateToolOutcome(
   name: string,
   args: Record<string, unknown>,
   result: string,
   isError: boolean,
 ): string {
   if (isError) {
-    return "That step ran into an issue. I’m using the result to adjust the next action.";
+    return "That step ran into an issue. I'm using the result to adjust the next action.";
   }
 
   if (name === "web_search") {
     const parsed = safeParseJson(result);
     const results = Array.isArray(parsed.results) ? parsed.results.length : 0;
     return results > 0
-      ? `I found ${results} relevant source${results === 1 ? "" : "s"}; I’m checking the strongest evidence next.`
-      : "The search is complete; I’m checking the available evidence next.";
+      ? `I found ${results} relevant source${results === 1 ? "" : "s"}; I'm checking the strongest evidence next.`
+      : "The search is complete; I'm checking the available evidence next.";
   }
 
   if (name === "web_fetch") {
-    return "I have the page content and I’m checking it against the request.";
+    return "I have the page content and I'm checking it against the request.";
   }
 
   if (name === "file_read") {
     const path = conciseDetail(textArg(args, "path"));
     return path
-      ? `I’ve reviewed ${path} and I’m using it for the next step.`
-      : "I’ve reviewed the file and I’m using it for the next step.";
+      ? `I've reviewed ${path} and I'm using it for the next step.`
+      : "I've reviewed the file and I'm using it for the next step.";
   }
 
   if (name === "create_file" || name === "file_write") {
     const path = conciseDetail(textArg(args, "path"));
     return path
-      ? `${path} is ready; I’m verifying the remaining work.`
-      : "The file update is ready; I’m verifying the remaining work.";
+      ? `${path} is ready; I'm verifying the remaining work.`
+      : "The file update is ready; I'm verifying the remaining work.";
   }
 
   if (name === "bash_tool" || name === "execute_code") {
-    return "That check completed; I’m using the output to decide the next verified action.";
+    return "That check completed; I'm using the output to decide the next verified action.";
   }
 
-  return "That step completed; I’m using the result to continue.";
+  return "That step completed; I'm using the result to continue.";
 }
 
 /**
@@ -455,9 +462,7 @@ export async function runAutonomousAgent(
   }
 
   // MCP connectors: discover with a hard budget so unreachable servers never
-  // sit on the TTFT critical path (listTools defaults to a 20s fetch timeout).
-  // Run discovery in parallel with the first model call setup by not awaiting
-  // beyond the budget — empty catalog skips entirely.
+  // sit on the TTFT critical path.
   const mcp = new McpConnectorHarness();
   let mcpTools: Awaited<ReturnType<McpConnectorHarness["discover"]>> = [];
   if (listMcpServers().length > 0) {
@@ -504,19 +509,9 @@ export async function runAutonomousAgent(
         }) as OpenAIInputItem,
     );
 
-  // One activity frame for the entire assistant turn.
-  const frameId = "agent-frame-1";
-  let frameOpen = false;
   let narrationCounter = 0;
-  let thinkingCounter = 0;
   let activeNarrationId: string | null = null;
   let activeThinkingId: string | null = null;
-
-  const openFrame = () => {
-    if (frameOpen) return;
-    sse.writeFrameStart(frameId);
-    frameOpen = true;
-  };
 
   const closeNarration = () => {
     if (!activeNarrationId) return;
@@ -527,37 +522,27 @@ export async function runAutonomousAgent(
   const closeThinking = () => {
     if (!activeThinkingId) return;
     sse.writeThinkingEnd(activeThinkingId);
-    sse.writeSegmentEnd(activeThinkingId, "thinking");
     activeThinkingId = null;
-  };
-
-  const closeFrame = () => {
-    closeNarration();
-    closeThinking();
-    if (!frameOpen) return;
-    sse.writeFrameComplete(frameId);
-    frameOpen = false;
   };
 
   const ensureNarration = (): string => {
     if (activeNarrationId) return activeNarrationId;
     narrationCounter += 1;
-    activeNarrationId = `${frameId}-narration-${narrationCounter}`;
-    openFrame();
+    activeNarrationId = `narration-${narrationCounter}`;
     sse.writeSegmentStart(activeNarrationId, "narration");
     return activeNarrationId;
   };
 
   const ensureThinking = (): string => {
     if (activeThinkingId) return activeThinkingId;
-    thinkingCounter += 1;
-    activeThinkingId = `${frameId}-thinking-${thinkingCounter}`;
-    openFrame();
+    narrationCounter += 1;
+    activeThinkingId = `thinking-${Date.now()}-${narrationCounter}`;
     sse.writeSegmentStart(activeThinkingId, "thinking");
-    sse.writeThinkingStart();
+    sse.writeThinkingStart(activeThinkingId);
     return activeThinkingId;
   };
 
+  /** Emit a complete one-shot narration line (a trace row of progress prose). */
   const writeActivityNarration = (text: string) => {
     if (!text.trim()) return;
     closeNarration();
@@ -569,7 +554,6 @@ export async function runAutonomousAgent(
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       if (signal?.aborted) {
-        closeFrame();
         sse.writeError("Generation aborted.");
         return;
       }
@@ -611,8 +595,8 @@ export async function runAutonomousAgent(
         switch (part.type) {
           case "reasoning-delta": {
             if (!part.delta || thinkingBudget <= 0) break;
-            // Open the thinking segment so the orb/timeline is live while the
-            // model reasons — do not dump private CoT into the transcript.
+            // Open the thinking phase so the Working-for row is live while the
+            // model reasons — private CoT is never dumped into the transcript.
             ensureThinking();
             break;
           }
@@ -629,7 +613,6 @@ export async function runAutonomousAgent(
           }
 
           case "tool-call-start":
-            openFrame();
             closeThinking();
             // Pre-tool prose stays as narration — close it before the tool row.
             closeNarration();
@@ -687,12 +670,10 @@ export async function runAutonomousAgent(
             break;
 
           case "error":
-            closeFrame();
             sse.writeError(part.error);
             return;
 
           case "abort":
-            closeFrame();
             sse.writeError("Generation aborted.");
             return;
         }
@@ -749,7 +730,7 @@ export async function runAutonomousAgent(
         // The model normally provides a pre-tool note. If it skips that note,
         // provide one ourselves; batched calls also each get their own intent.
         if (!roundText.trim() || toolIndex > 0) {
-          writeActivityNarration(describeToolIntent(tc.name, rawArgs));
+          writeActivityNarration(narrateToolIntent(tc.name, rawArgs));
         }
         sse.writeToolStart(
           tc.id,
@@ -767,7 +748,7 @@ export async function runAutonomousAgent(
           const isError = outcome.isError;
           sse.writeToolEnd(tc.id, tc.name, outcome.text, isError);
           writeActivityNarration(
-            describeToolOutcome(tc.name, rawArgs, outcome.text, isError),
+            narrateToolOutcome(tc.name, rawArgs, outcome.text, isError),
           );
           toolResults.push({
             toolCallId: tc.id,
@@ -880,7 +861,7 @@ export async function runAutonomousAgent(
 
         sse.writeToolEnd(tc.id, tc.name, resultStr, isError);
         writeActivityNarration(
-          describeToolOutcome(tc.name, rawArgs, resultStr, isError),
+          narrateToolOutcome(tc.name, rawArgs, resultStr, isError),
         );
         toolResults.push({
           toolCallId: tc.id,
@@ -914,7 +895,6 @@ export async function runAutonomousAgent(
       }
 
       if (pauseForUser) {
-        closeFrame();
         try {
           await onPauseForUser?.();
         } catch {
@@ -931,7 +911,6 @@ export async function runAutonomousAgent(
           error.name === "ResponseAborted" ||
           /aborted/i.test(error.message)));
 
-    closeFrame();
     if (aborted) {
       sse.writeError("Generation aborted.");
       return;
@@ -941,7 +920,6 @@ export async function runAutonomousAgent(
     sse.writeError(message);
     return;
   } finally {
-    closeFrame();
     sse.writeDone();
     sse.finalize();
     await mcp.close().catch(() => {});

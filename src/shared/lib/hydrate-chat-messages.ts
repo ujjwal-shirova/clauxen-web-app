@@ -1,8 +1,7 @@
 import type { Message } from "@/lib/types";
-import type { AgentFrame } from "@/lib/agent-frames";
-import type { AgentSegment, AgentToolSegment } from "@/lib/agent-segments";
+import type { AgentStep, AgentToolStep } from "@/lib/agent-trace";
 import { enrichPersistedToolSegment } from "@/lib/enrich-agent-tool";
-import { collectArtifactsFromAgentSegments } from "@/lib/chat-artifacts";
+import { collectArtifactsFromAgentSteps } from "@/lib/chat-artifacts";
 import type {
   TranscriptAgentModelTurn,
   TranscriptAgentUi,
@@ -29,8 +28,8 @@ function segmentsFromModelTurns(input: {
   turns: TranscriptAgentModelTurn[];
   agentUi?: TranscriptAgentUi;
   fallbackStamp: number;
-}): AgentSegment[] {
-  const segments: AgentSegment[] = [];
+}): AgentStep[] {
+  const segments: AgentStep[] = [];
   let thinkingIndex = 0;
   let narrationIndex = 0;
 
@@ -75,11 +74,11 @@ function segmentsFromModelTurns(input: {
         segments.push({
           kind: "thinking",
           id: `thinking-${input.messageId}-${thinkingIndex}`,
-          content: parsed.body.trim(),
           isStreaming: false,
           durationSeconds,
           startedAtMs: turnStartedAt,
         });
+        // Persisted CoT text stays in the message's thinkingContent only.
         continue;
       }
 
@@ -134,7 +133,7 @@ function segmentsFromModelTurns(input: {
   return segments;
 }
 
-function enrichSegments(segments: AgentSegment[]): AgentSegment[] {
+function enrichSegments(segments: AgentStep[]): AgentStep[] {
   return segments.map((segment) => {
     if (segment.kind !== "tool") return segment;
     return enrichPersistedToolSegment(segment);
@@ -142,18 +141,13 @@ function enrichSegments(segments: AgentSegment[]): AgentSegment[] {
 }
 
 function enrichMessageAgentUi(message: Message): Message {
-  const frames = message.agentFrames?.map((frame) => ({
-    ...frame,
-    segments: enrichSegments(frame.segments),
-  }));
-  const segments = message.agentSegments
-    ? enrichSegments(message.agentSegments)
-    : frames?.[0]?.segments;
-  if (!frames && !segments) return message;
+  const steps = message.agentTrace
+    ? { ...message.agentTrace, steps: enrichSegments(message.agentTrace.steps) }
+    : undefined;
+  if (!steps) return message;
   return {
     ...message,
-    agentFrames: frames ?? message.agentFrames,
-    agentSegments: segments ?? message.agentSegments,
+    agentTrace: steps,
   };
 }
 
@@ -176,7 +170,7 @@ export function hydrateMessageFromContentJson(
     ? agentUi.actions
     : [];
   let thinking = base.thinkingContent ?? "";
-  const tools: AgentToolSegment[] = [];
+  const tools: AgentToolStep[] = [];
   const texts: string[] = [];
 
   for (const part of parts) {
@@ -254,11 +248,9 @@ export function hydrateMessageFromContentJson(
   const narrationTexts = new Set(
     modelSegments
       .filter(
-        (
-          segment,
-        ): segment is Extract<AgentSegment, { kind: "narration" | "text" }> =>
-          (segment.kind === "narration" || segment.kind === "text") &&
-          !(segment.kind === "narration" && segment.isFinal) &&
+        (segment): segment is Extract<AgentStep, { kind: "narration" }> =>
+          segment.kind === "narration" &&
+          !segment.isFinal &&
           Boolean(segment.content.trim()),
       )
       .map((segment) => segment.content.trim()),
@@ -267,16 +259,6 @@ export function hydrateMessageFromContentJson(
   if (content && narrationTexts.has(content)) {
     content = "";
   }
-  const modelThinking = modelSegments
-    .filter(
-      (segment): segment is Extract<AgentSegment, { kind: "thinking" }> =>
-        segment.kind === "thinking",
-    )
-    .map((segment) => segment.content.trim())
-    .filter(Boolean)
-    .join("\n\n");
-  if (modelThinking) thinking = modelThinking;
-
   const hasThinking = Boolean(thinking.trim());
   const hasTools =
     modelSegments.some((segment) => segment.kind === "tool") ||
@@ -301,13 +283,12 @@ export function hydrateMessageFromContentJson(
       : stamp +
         Math.max(1000, (thinkingDuration ?? 1) * 1000 + (hasTools ? 2000 : 0));
 
-  const legacySegments: AgentSegment[] = [
+  const legacySegments: AgentStep[] = [
     ...(hasThinking
       ? [
           {
             kind: "thinking" as const,
             id: `thinking-${base.id}`,
-            content: thinking,
             isStreaming: false,
             durationSeconds: thinkingDuration,
             startedAtMs: stamp,
@@ -319,17 +300,14 @@ export function hydrateMessageFromContentJson(
   const persistedSegments =
     modelSegments.length > 0 ? modelSegments : legacySegments;
 
-  const frames: AgentFrame[] | undefined =
+  const trace =
     persistedSegments.length > 0
-      ? [
-          {
-            id: `hydrated-${base.id}`,
-            complete: true,
-            startedAtMs: stamp,
-            completedAtMs,
-            segments: persistedSegments,
-          },
-        ]
+      ? {
+          steps: persistedSegments,
+          complete: true,
+          startedAtMs: stamp,
+          completedAtMs,
+        }
       : undefined;
 
   return enrichMessageAgentUi({
@@ -339,16 +317,12 @@ export function hydrateMessageFromContentJson(
     hasThinking: hasThinking || base.hasThinking,
     thinkingDurationSeconds: thinkingDuration ?? base.thinkingDurationSeconds,
     agentMode: hasAgentSegments || base.agentMode,
-    agentFrameComplete: frames ? true : base.agentFrameComplete,
-    agentFrames: frames ?? base.agentFrames,
-    agentSegments: frames?.[0]?.segments ?? base.agentSegments,
+    agentFrameComplete: trace ? true : base.agentFrameComplete,
+    agentTrace: trace ?? base.agentTrace,
     agentArtifacts:
       base.agentArtifacts && base.agentArtifacts.length > 0
         ? base.agentArtifacts
-        : collectArtifactsFromAgentSegments(
-            base.id,
-            frames?.[0]?.segments ?? persistedSegments,
-          ),
+        : collectArtifactsFromAgentSteps(base.id, persistedSegments),
   });
 }
 
@@ -394,10 +368,7 @@ export function overlayBranchMessagesOnPage(input: {
       agentMode: message.agentMode ?? overlay.agentMode,
       agentFrameComplete:
         message.agentFrameComplete ?? overlay.agentFrameComplete,
-      agentFrames: message.agentFrames ?? overlay.agentFrames,
-      agentSegments: message.agentSegments ?? overlay.agentSegments,
-      activeAgentFrameIndex:
-        message.activeAgentFrameIndex ?? overlay.activeAgentFrameIndex,
+      agentTrace: message.agentTrace ?? overlay.agentTrace,
       agentArtifacts: message.agentArtifacts ?? overlay.agentArtifacts,
       thinkingContent: message.thinkingContent ?? overlay.thinkingContent,
       thinkingDurationSeconds:

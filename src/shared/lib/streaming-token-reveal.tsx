@@ -3,30 +3,28 @@
 import { useEffect, useRef } from "react";
 
 /** Soften first-token paint — visible enough to read as typing, short enough to feel live. */
-const MIN_DURATION_MS = 55;
-const MAX_DURATION_MS = 110;
+const MIN_DURATION_MS = 90;
+const MAX_DURATION_MS = 220;
 
 /**
  * Duration scales with inter-chunk gap so animation speed tracks the model's
- * token rate. Kept snappy and smooth without lag or blur flicker.
+ * token rate: slow tokens get a gentle rise, fast tokens stay snappy without
+ * overlapping into a blur.
  */
 export function computeStreamTokenDurationMs(
   elapsedSinceLastChunk: number,
   chunkLength: number,
 ): number {
-  if (elapsedSinceLastChunk > 400) {
-    return 60;
+  if (elapsedSinceLastChunk > 600) {
+    return MAX_DURATION_MS;
   }
 
-  if (elapsedSinceLastChunk <= 0) {
-    return 55;
-  }
+  const duration =
+    elapsedSinceLastChunk <= 0
+      ? MIN_DURATION_MS
+      : Math.min(MAX_DURATION_MS, elapsedSinceLastChunk * 0.45);
 
-  const duration = Math.min(
-    MAX_DURATION_MS,
-    Math.max(MIN_DURATION_MS, elapsedSinceLastChunk * 0.35),
-  );
-  const sizeBoost = Math.min(10, Math.sqrt(Math.max(0, chunkLength)) * 1.2);
+  const sizeBoost = Math.min(40, Math.sqrt(Math.max(0, chunkLength)) * 4);
   return Math.round(
     Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, duration + sizeBoost)),
   );
@@ -76,9 +74,13 @@ function resolvePaintSession(sessionKey: string, text: string): PaintSession {
     // Remounted text node: reuse the session that already painted this growth.
     hit = group.find((session) => {
       if (!session.prev) return false;
-      if (text.startsWith(session.prev) || session.prev.startsWith(text)) return true;
+      if (text.startsWith(session.prev) || session.prev.startsWith(text))
+        return true;
       const shared = commonPrefixLength(session.prev, text);
-      const minShared = Math.min(4, Math.floor(Math.min(session.prev.length, text.length) * 0.3));
+      const minShared = Math.min(
+        4,
+        Math.floor(Math.min(session.prev.length, text.length) * 0.3),
+      );
       return shared >= minShared;
     });
   }
@@ -117,8 +119,8 @@ export type StreamFadeConfig = {
 
 export const DEFAULT_STREAM_FADE: StreamFadeConfig = {
   animation: "stream-token-fade",
-  animationDuration: "40ms",
-  animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+  animationDuration: "140ms",
+  animationTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
 };
 
 /**
@@ -160,7 +162,9 @@ export function StreamingTokenReveal({
       session.delta = "";
       session.prev = text;
     }
-    return <span className="stream-token-stable">{session.settled || text}</span>;
+    return (
+      <span className="stream-token-stable">{session.settled || text}</span>
+    );
   }
 
   if (text !== session.prev) {
@@ -199,7 +203,9 @@ export function StreamingTokenReveal({
   // Prefer a single stable span once the delta has landed — avoids a
   // fragment remount when streaming ends mid-paint.
   if (!session.delta) {
-    return <span className="stream-token-stable">{session.settled || text}</span>;
+    return (
+      <span className="stream-token-stable">{session.settled || text}</span>
+    );
   }
 
   return (

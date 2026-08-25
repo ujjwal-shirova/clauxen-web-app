@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import type { StreamEvent } from "@/lib/chat-stream";
-import { applyAgentStreamEvent } from "@/lib/agent-stream-reducer";
+import { applyAgentStreamEvent } from "@/lib/agent-trace-reducer";
 import { sanitizeAssistantStreamDelta } from "@/lib/assistant-output-sanitize";
 import {
   EMPTY_ASSISTANT_RESPONSE_FALLBACK,
@@ -14,11 +14,9 @@ import {
   isEventStreamResponse,
   looksLikeSecurityChallenge,
 } from "@/lib/security-challenge";
-import {
-  canFastAppendAnswer,
-  patchToolOutputDelta,
-} from "@/lib/agent-stream-fast-path";
-import { agentAnswerDuplicatesInterim } from "@/lib/agent-frames";
+function canFastAppendAnswer(message: Message | undefined): boolean {
+  return Boolean(message && !message.agentMode);
+}
 import { createStreamEventBatcher } from "@/lib/stream-event-batcher";
 import { clearStreamPaintSessions } from "@/lib/streaming-token-reveal";
 import { messageUiKey } from "@/lib/message-ui-key";
@@ -137,18 +135,18 @@ function clearIdleStreamingFlags(message: Message): Message {
     isStreaming: false,
     isThinkingStreaming: false,
     agentFrameComplete: true,
-    agentSegments: message.agentSegments?.map((segment) => ({
-      ...segment,
-      isStreaming: false,
-    })),
-    agentFrames: message.agentFrames?.map((frame) => ({
-      ...frame,
-      complete: true,
-      segments: frame.segments.map((segment) => ({
-        ...segment,
-        isStreaming: false,
-      })),
-    })),
+    agentTrace: message.agentTrace
+      ? {
+          ...message.agentTrace,
+          complete: true,
+          steps: message.agentTrace.steps.map((step) => ({
+            ...step,
+            ...(step.kind === "tool" && step.status === "running"
+              ? { status: "done" as const, completedAtMs: Date.now() }
+              : {}),
+          })),
+        }
+      : undefined,
   };
 }
 
@@ -780,15 +778,9 @@ export function useChatApi(
 
           const prevMessage = existing[index]!;
           const localHasAgentFrames =
-            (prevMessage.agentFrames?.some(
-              (frame) => frame.segments.length > 0,
-            ) ??
-              false) ||
-            (prevMessage.agentSegments?.length ?? 0) > 0;
+            (prevMessage.agentTrace?.steps.length ?? 0) > 0;
           const mappedHasAgentFrames =
-            (mapped.agentFrames?.some((frame) => frame.segments.length > 0) ??
-              false) ||
-            (mapped.agentSegments?.length ?? 0) > 0;
+            (mapped.agentTrace?.steps.length ?? 0) > 0;
           const chatStillGenerating = isChatActivelyGenerating(activeChatId);
           const activeGenAssistantId =
             getGeneration(activeChatId)?.assistantMessageId ?? null;
@@ -816,9 +808,7 @@ export function useChatApi(
               ? {
                   agentMode: prevMessage.agentMode,
                   agentFrameComplete: prevMessage.agentFrameComplete,
-                  agentFrames: prevMessage.agentFrames,
-                  agentSegments: prevMessage.agentSegments,
-                  activeAgentFrameIndex: prevMessage.activeAgentFrameIndex,
+                  agentTrace: prevMessage.agentTrace,
                   agentArtifacts: prevMessage.agentArtifacts,
                 }
               : {}),
@@ -918,10 +908,7 @@ export function useChatApi(
               remote.role === "assistant" &&
               !(remote.content ?? "").trim() &&
               (remote.isStreaming ||
-                !(
-                  remote.agentFrames?.some((f) => f.segments.length > 0) ??
-                  false
-                ))
+                !((remote.agentTrace?.steps.length ?? 0) > 0))
             ) {
               continue;
             }
@@ -934,10 +921,61 @@ export function useChatApi(
           }
           return { ...prev, [chatId]: merged };
         }
-        return {
-          ...prev,
-          [chatId]: hydrated.map(clearIdleStreamingFlags),
-        };
+        // Idle hydrate: merge per-message instead of wholesale replacement.
+        // The old code swapped the whole list for the server snapshot, which
+        // erased locally painted answers whenever the durable row lagged
+        // behind (the disappearing-assistant bug right after a turn ends).
+        const localById = new Map<string, Message>();
+        for (const message of existing) {
+          if (message.id) localById.set(message.id, message);
+          if (message.clientId) localById.set(message.clientId, message);
+        }
+        const merged = hydrated.map((remote) => {
+          const local =
+            (remote.id && localById.get(remote.id)) ??
+            (remote.clientId ? localById.get(remote.clientId) : undefined);
+          if (!local) return clearIdleStreamingFlags(remote);
+          // Local painted content wins when it is at least as rich; otherwise
+          // adopt the server row but keep local identity + attachments.
+          const localLen = local.content?.trim().length ?? 0;
+          const remoteLen = remote.content?.trim().length ?? 0;
+          if (
+            local.isStreaming ||
+            local.isThinkingStreaming ||
+            localLen >= remoteLen
+          ) {
+            return {
+              ...local,
+              id: remote.id,
+              clientId: local.clientId ?? remote.clientId ?? remote.id,
+              turnId: local.turnId ?? remote.turnId,
+            };
+          }
+          return clearIdleStreamingFlags({
+            ...remote,
+            clientId: local.clientId ?? remote.clientId ?? remote.id,
+            turnId: local.turnId ?? remote.turnId,
+            attachments: local.attachments ?? remote.attachments,
+          });
+        });
+        // Keep any local-only rows the server does not know about yet (e.g. an
+        // assistant reply whose finalize commit has not landed).
+        const hydratedKeys = new Set(
+          merged.flatMap(
+            (message) =>
+              [message.id, message.clientId].filter(Boolean) as string[],
+          ),
+        );
+        for (const message of existing) {
+          if (
+            hydratedKeys.has(message.id) ||
+            (message.clientId && hydratedKeys.has(message.clientId))
+          ) {
+            continue;
+          }
+          merged.push(clearIdleStreamingFlags(message));
+        }
+        return { ...prev, [chatId]: merged };
       });
       hydratedChatIdsRef.current.add(chatId);
     },
@@ -1796,7 +1834,7 @@ export function useChatApi(
           }
           if (event.type === "tool_output_delta") {
             patchAssistantMessage(chatId, targetAssistantId, (message) =>
-              patchToolOutputDelta(message, event),
+              applyAgentStreamEvent(message, event),
             );
             return;
           }
@@ -1934,23 +1972,15 @@ export function useChatApi(
                 accumulatorRaw: answerAccumulator?.raw,
                 messageContent: m.content,
               });
-              const visible = agentAnswerDuplicatesInterim({
-                ...m,
-                content: finalized,
-              })
-                ? m.content
-                : finalized;
+              const visible = finalized;
               const content = (() => {
                 if (visible.trim()) return visible;
-                const hasPendingAsk = (m.agentFrames ?? [])
-                  .flatMap((frame) => frame.segments)
-                  .concat(m.agentSegments ?? [])
-                  .some(
-                    (segment) =>
-                      segment.kind === "tool" &&
-                      segment.name === "ask_user_input_v0" &&
-                      segment.status === "done",
-                  );
+                const hasPendingAsk = (m.agentTrace?.steps ?? []).some(
+                  (step) =>
+                    step.kind === "tool" &&
+                    step.name === "ask_user_input_v0" &&
+                    step.status === "done",
+                );
                 if (hasPendingAsk) return "";
                 if (hasUsefulAssistantProgress(m)) return m.content ?? "";
                 return EMPTY_ASSISTANT_RESPONSE_FALLBACK;
@@ -1962,15 +1992,12 @@ export function useChatApi(
                   messageContent: m.content,
                 });
                 if (fin.trim()) return false;
-                const hasPendingAsk = (m.agentFrames ?? [])
-                  .flatMap((frame) => frame.segments)
-                  .concat(m.agentSegments ?? [])
-                  .some(
-                    (segment) =>
-                      segment.kind === "tool" &&
-                      segment.name === "ask_user_input_v0" &&
-                      segment.status === "done",
-                  );
+                const hasPendingAsk = (m.agentTrace?.steps ?? []).some(
+                  (step) =>
+                    step.kind === "tool" &&
+                    step.name === "ask_user_input_v0" &&
+                    step.status === "done",
+                );
                 if (hasPendingAsk) return false;
                 if (hasUsefulAssistantProgress(m)) return false;
                 return true;

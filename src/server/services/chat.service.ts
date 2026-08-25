@@ -642,6 +642,47 @@ export async function streamChatGeneration(input: {
   let generatedTitle: string | null = null;
   const conversationForModel: IncomingMessage[] = clientConversation;
 
+  /**
+   * Checkpoint the growing answer into the durable assistant row while the
+   * stream is still open. If the isolate dies / proxy cuts / tab closes, a
+   * reload shows the text painted so far instead of an empty ghost row.
+   * Throttled so Supabase sees at most one write per interval per turn.
+   */
+  const PARTIAL_SAVE_INTERVAL_MS = 4_000;
+  let lastPartialSaveAtMs = 0;
+  let partialSaveInFlight: Promise<unknown> = Promise.resolve();
+  const maybeSavePartialAnswer = () => {
+    if (input.signal?.aborted) return;
+    const now = Date.now();
+    if (
+      now - lastPartialSaveAtMs < PARTIAL_SAVE_INTERVAL_MS ||
+      !answer.trim()
+    ) {
+      return;
+    }
+    lastPartialSaveAtMs = now;
+    const snapshotAnswer = finalizeChatTitleStrippedAnswer(answer);
+    if (!snapshotAnswer.trim()) return;
+    partialSaveInFlight = partialSaveInFlight
+      .catch(() => undefined)
+      .then(async () => {
+        // The turn insert may still be in flight; wait for it once.
+        try {
+          await turnPromise;
+        } catch {
+          return;
+        }
+        if (!turnState.assistant?.id) return;
+        await messagesRepo.updateMessageContent(
+          turnState.assistant.id,
+          input.chatId,
+          snapshotAnswer,
+          "streaming",
+        );
+      })
+      .catch(() => undefined);
+  };
+
   const beginThinkingPhase = () => {
     if (thinkingStartedAtMs == null) {
       thinkingStartedAtMs = Date.now();
@@ -664,11 +705,16 @@ export async function streamChatGeneration(input: {
       {
         onAnswerDelta: (delta) => {
           answer += delta;
+          maybeSavePartialAnswer();
         },
         onAnswerFinalize: (text) => {
           // The loop promotes the final-round text wholesale — replace, never
           // append (narration prose from earlier rounds is not the answer).
           answer = text;
+          // Persist the promoted answer immediately so a disconnect between
+          // here and onComplete cannot wipe the visible reply.
+          lastPartialSaveAtMs = 0;
+          maybeSavePartialAnswer();
         },
         onAnswerClear: () => {
           answer = "";
@@ -721,6 +767,14 @@ export async function streamChatGeneration(input: {
     );
 
     const persistOnDone = async () => {
+      // Let any in-flight partial checkpoint finish BEFORE the authoritative
+      // finalize write — otherwise a late streaming write could overwrite the
+      // completed answer with a shorter snapshot.
+      try {
+        await partialSaveInFlight;
+      } catch {
+        // ignore
+      }
       // Ensure the durable turn row exists before finalize (insert may still
       // be in flight when the model finishes unusually fast).
       try {

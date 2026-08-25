@@ -1,5 +1,4 @@
-import type { AgentSegment } from "@/lib/agent-segments";
-import type { AgentFrame } from "@/lib/agent-frames";
+import type { AgentTraceState } from "@/lib/agent-trace";
 import type { ChatArtifact } from "@/lib/chat-artifacts";
 import type { MessageAttachment } from "@/lib/composer-attachments";
 
@@ -11,8 +10,7 @@ export type MessageBranchVersion = {
   readonly thinkingDurationSeconds?: number;
   readonly agentMode?: boolean;
   readonly agentFrameComplete?: boolean;
-  readonly agentSegments?: AgentSegment[];
-  readonly agentFrames?: AgentFrame[];
+  readonly agentTrace?: AgentTraceState;
   readonly agentArtifacts?: ChatArtifact[];
   readonly snapshot?: readonly Message[];
 };
@@ -44,10 +42,10 @@ export type Message = {
    */
   generationFailed?: boolean;
   agentMode?: boolean;
+  /** @deprecated Kept for persisted-message compat; the trace carries state. */
   agentFrameComplete?: boolean;
-  agentSegments?: AgentSegment[];
-  agentFrames?: AgentFrame[];
-  activeAgentFrameIndex?: number;
+  /** Flat ordered activity trace for this assistant turn. */
+  agentTrace?: AgentTraceState;
   agentArtifacts?: ChatArtifact[];
   /** User-uploaded images / documents shown as chips on the message. */
   attachments?: MessageAttachment[];

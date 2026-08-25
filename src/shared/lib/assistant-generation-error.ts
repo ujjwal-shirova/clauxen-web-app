@@ -43,8 +43,7 @@ const TECHNICAL_PATTERNS: Array<{ test: RegExp; message: string }> = [
   },
   {
     test: /\b429\b|rate limit|too many requests|quota|capacity|overloaded/i,
-    message:
-      "We're a bit busy right now. Please wait a moment and try again.",
+    message: "We're a bit busy right now. Please wait a moment and try again.",
   },
   {
     test: /\b5\d\d\b|internal server|bad gateway|service unavailable|openai|provider|inference/i,
@@ -58,13 +57,10 @@ const TECHNICAL_PATTERNS: Array<{ test: RegExp; message: string }> = [
 
 /** True when the assistant already painted useful work — soft-complete instead of failing. */
 export function hasUsefulAssistantProgress(
-  message: Pick<Message, "content" | "agentSegments" | "agentFrames">,
+  message: Pick<Message, "content" | "agentTrace">,
 ): boolean {
   if (message.content?.trim()) return true;
-  const segments = [
-    ...(message.agentSegments ?? []),
-    ...(message.agentFrames?.flatMap((frame) => frame.segments) ?? []),
-  ];
+  const segments = message.agentTrace?.steps ?? [];
   return segments.some((segment) => {
     if (segment.kind === "tool") {
       return (
@@ -75,14 +71,11 @@ export function hasUsefulAssistantProgress(
         Boolean(segment.fileContent?.trim())
       );
     }
-    if (
-      segment.kind === "thinking" ||
-      segment.kind === "narration" ||
-      segment.kind === "text"
-    ) {
-      return (
-        Boolean(segment.content?.trim()) || Boolean(segment.isStreaming)
-      );
+    if (segment.kind === "narration") {
+      return Boolean(segment.content.trim()) || Boolean(segment.isStreaming);
+    }
+    if (segment.kind === "thinking") {
+      return true;
     }
     return false;
   });
@@ -129,7 +122,5 @@ export function isAssistantGenerationError(
   if (message.generationFailed === true) return true;
   const content = message.content.trim();
   if (!content) return false;
-  return GENERATION_ERROR_PREFIXES.some((prefix) =>
-    content.startsWith(prefix),
-  );
+  return GENERATION_ERROR_PREFIXES.some((prefix) => content.startsWith(prefix));
 }

@@ -1,7 +1,10 @@
 "use client";
 
-import { domainFromUrl, type WebSearchResult } from "@/lib/agent-segments";
-import { resolveAgentFrames } from "@/lib/agent-frames";
+import {
+  domainFromUrl,
+  type WebSearchResult,
+  type AgentStep,
+} from "@/lib/agent-trace";
 import type { Message } from "@/lib/types";
 
 export type ChatSource = WebSearchResult & {
@@ -95,28 +98,27 @@ export function collectChatSources(messages: Message[]): ChatSource[] {
   for (const message of messages) {
     if (message.role !== "assistant") continue;
 
-    for (const frame of resolveAgentFrames(message)) {
-      for (const segment of frame.segments) {
-        if (segment.kind !== "tool") continue;
-        const results = segment.searchResults ?? [];
-        for (const result of results) {
-          if (!result.url) continue;
-          const normalizedUrl = normalizeUrl(result.url);
-          if (byUrl.has(normalizedUrl)) continue;
-          byUrl.set(normalizedUrl, {
-            ...result,
-            id: `${message.id}:${normalizedUrl}`,
-            url: result.url,
-            domain: domainFromUrl(result.url),
-            messageId: message.id,
-            toolCallId: segment.toolCallId,
-            query:
-              segment.searchQuery ??
-              (typeof segment.args?.query === "string"
-                ? segment.args.query
-                : undefined),
-          });
-        }
+    const steps = message.agentTrace?.steps ?? [];
+    for (const segment of steps) {
+      if (segment.kind !== "tool") continue;
+      const results = segment.searchResults ?? [];
+      for (const result of results) {
+        if (!result.url) continue;
+        const normalizedUrl = normalizeUrl(result.url);
+        if (byUrl.has(normalizedUrl)) continue;
+        byUrl.set(normalizedUrl, {
+          ...result,
+          id: `${message.id}:${normalizedUrl}`,
+          url: result.url,
+          domain: domainFromUrl(result.url),
+          messageId: message.id,
+          toolCallId: segment.toolCallId,
+          query:
+            segment.searchQuery ??
+            (typeof segment.args?.query === "string"
+              ? segment.args.query
+              : undefined),
+        });
       }
     }
   }
@@ -196,10 +198,7 @@ export function unwrapCitationLinkDecorators(text: string): string {
 
   return text
     .replace(clusterInParens, (_match, inner: string) =>
-      String(inner)
-        .replace(sepBetweenLinks, "$1 ")
-        .replace(/\s+/g, " ")
-        .trim(),
+      String(inner).replace(sepBetweenLinks, "$1 ").replace(/\s+/g, " ").trim(),
     )
     .replace(singleParenLink, "$1")
     .replace(sepBetweenLinks, "$1 ");

@@ -15,11 +15,11 @@ import { AssistantContentRenderer } from "./assistant-content-renderer";
 import { ThinkingBlock } from "./thinking-block";
 import { AgentMessageContent } from "./agent/agent-message-content";
 import { StreamingOrbCursor } from "./ui/streaming-orb-cursor";
-import { AgentPlanningNextMoves } from "./agent/agent-planning-label";
+import { AgentWorkingRow } from "./agent/agent-trace-view";
 import { HintTooltip } from "./ui/hint-tooltip";
 import type { Message } from "@/lib/types";
-import { agentSegmentsVisuallyEqual } from "@/lib/agent-segments";
-import { agentFramesVisuallyEqual, shouldUseAgentMessageLayout } from "@/lib/agent-frames";
+import { agentStepsVisuallyEqual } from "@/lib/agent-trace";
+import { shouldUseAgentTraceLayout } from "@/components/agent/agent-message-content";
 import { UserMessageInlineEditor } from "./user-message-inline-editor";
 import { cn } from "@/lib/utils";
 import { useMessageDetailLevel } from "@/hooks/use-message-visibility";
@@ -221,7 +221,8 @@ const MessageRow = React.memo(
       true,
     );
     const messageSources = React.useMemo(
-      () => (message.role === "assistant" ? collectMessageSources(message) : []),
+      () =>
+        message.role === "assistant" ? collectMessageSources(message) : [],
       [message],
     );
     const outputComplete = hasCompletedAssistantOutput(message);
@@ -238,7 +239,9 @@ const MessageRow = React.memo(
         className={cn(
           "group flex w-full max-w-full flex-col",
           shouldAnimate && "animate-in fade-in duration-200",
-          message.role === "user" ? "w-full items-stretch" : "w-full items-stretch",
+          message.role === "user"
+            ? "w-full items-stretch"
+            : "w-full items-stretch",
         )}
         onAnimationEnd={(event) => {
           if (event.currentTarget !== event.target) return;
@@ -246,109 +249,107 @@ const MessageRow = React.memo(
         }}
       >
         {message.role === "user" ? (
-            <div
-              id={messageAnchorId(message.id)}
-              className="user-message-card relative flex w-full scroll-mt-20 flex-col font-sans"
-            >
-              {editingMessageId === message.id ? (
-                <UserMessageInlineEditor
-                  messageId={message.id}
-                  initialAttachments={message.attachments}
-                  value={editValue ?? message.content}
-                  onValueChange={onEditValueChange}
-                  onCancel={onCancelEdit}
-                  onSubmit={async (content, attachments) => {
-                    await onSaveEdit(message.id, attachments, content);
-                  }}
-                />
-              ) : (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setUserExpanded((prev) => !prev)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setUserExpanded((prev) => !prev);
-                    }
-                  }}
-                  className="user-message-card__body no-hover-overlay group/user-msg relative w-full cursor-pointer rounded-xl px-3 py-2 pr-10 text-left transition-[border-color] duration-150"
-                  aria-label={
-                    userExpanded
-                      ? "Collapse message"
-                      : "Expand message"
+          <div
+            id={messageAnchorId(message.id)}
+            className="user-message-card relative flex w-full scroll-mt-20 flex-col font-sans"
+          >
+            {editingMessageId === message.id ? (
+              <UserMessageInlineEditor
+                messageId={message.id}
+                initialAttachments={message.attachments}
+                value={editValue ?? message.content}
+                onValueChange={onEditValueChange}
+                onCancel={onCancelEdit}
+                onSubmit={async (content, attachments) => {
+                  await onSaveEdit(message.id, attachments, content);
+                }}
+              />
+            ) : (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setUserExpanded((prev) => !prev)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setUserExpanded((prev) => !prev);
                   }
-                  aria-expanded={userExpanded}
-                  data-user-expanded={userExpanded || undefined}
-                >
-                  {message.attachments && message.attachments.length > 0 ? (
-                    <div className="mb-2 flex flex-wrap gap-1.5">
-                      {message.attachments.map((attachment) => (
-                        <AttachmentChip
-                          key={attachment.id}
-                          file={attachment}
-                          size="md"
-                          onOpen={() =>
-                            setPreviewAttachment({
-                              ...attachment,
-                              previewUrl:
-                                attachment.previewUrl ||
-                                (attachment.fileId
-                                  ? `/api/v1/files/${attachment.fileId}/url?redirect=1`
-                                  : undefined),
-                            })
-                          }
-                        />
-                      ))}
-                    </div>
-                  ) : null}
-                  {message.content.trim() ? (
-                    <div className="user-message-card__preview relative">
-                      <p
-                        className={cn(
-                          "whitespace-pre-wrap text-[13px] leading-[18px] text-zinc-900",
-                          !userExpanded && "overflow-hidden",
-                        )}
-                        style={
-                          userExpanded
-                            ? undefined
-                            : {
-                                display: "-webkit-box",
-                                WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
-                                WebkitBoxOrient: "vertical",
-                              }
+                }}
+                className="user-message-card__body no-hover-overlay group/user-msg relative w-full cursor-pointer rounded-xl px-3 py-2 pr-10 text-left transition-[border-color] duration-150"
+                aria-label={
+                  userExpanded ? "Collapse message" : "Expand message"
+                }
+                aria-expanded={userExpanded}
+                data-user-expanded={userExpanded || undefined}
+              >
+                {message.attachments && message.attachments.length > 0 ? (
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {message.attachments.map((attachment) => (
+                      <AttachmentChip
+                        key={attachment.id}
+                        file={attachment}
+                        size="md"
+                        onOpen={() =>
+                          setPreviewAttachment({
+                            ...attachment,
+                            previewUrl:
+                              attachment.previewUrl ||
+                              (attachment.fileId
+                                ? `/api/v1/files/${attachment.fileId}/url?redirect=1`
+                                : undefined),
+                          })
                         }
-                      >
-                        {message.content}
-                      </p>
-                      {!userExpanded ? (
-                        <div
-                          className="user-message-card__preview-fade"
-                          aria-hidden
-                        />
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-              <AttachmentImageLightbox
-                open={previewAttachment?.kind === "image"}
-                name={previewAttachment?.name ?? ""}
-                previewUrl={previewAttachment?.previewUrl ?? ""}
-                onClose={() => setPreviewAttachment(null)}
-              />
-              <AttachmentDocumentPreview
-                open={previewAttachment?.kind === "document"}
-                name={previewAttachment?.name ?? ""}
-                mimeType={previewAttachment?.mimeType ?? ""}
-                previewUrl={previewAttachment?.previewUrl}
-                textPreview={previewAttachment?.textPreview}
-                onClose={() => setPreviewAttachment(null)}
-              />
-              {editingMessageId !== message.id ? (
-                <div className="user-message-actions flex h-8 items-center justify-end gap-1">
-                  {branchVersions > 1 ? (
-                    <div className="mr-1 flex items-center gap-1 text-zinc-500">
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {message.content.trim() ? (
+                  <div className="user-message-card__preview relative">
+                    <p
+                      className={cn(
+                        "whitespace-pre-wrap text-[13px] leading-[18px] text-zinc-900",
+                        !userExpanded && "overflow-hidden",
+                      )}
+                      style={
+                        userExpanded
+                          ? undefined
+                          : {
+                              display: "-webkit-box",
+                              WebkitLineClamp: USER_MESSAGE_PREVIEW_LINES,
+                              WebkitBoxOrient: "vertical",
+                            }
+                      }
+                    >
+                      {message.content}
+                    </p>
+                    {!userExpanded ? (
+                      <div
+                        className="user-message-card__preview-fade"
+                        aria-hidden
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            )}
+            <AttachmentImageLightbox
+              open={previewAttachment?.kind === "image"}
+              name={previewAttachment?.name ?? ""}
+              previewUrl={previewAttachment?.previewUrl ?? ""}
+              onClose={() => setPreviewAttachment(null)}
+            />
+            <AttachmentDocumentPreview
+              open={previewAttachment?.kind === "document"}
+              name={previewAttachment?.name ?? ""}
+              mimeType={previewAttachment?.mimeType ?? ""}
+              previewUrl={previewAttachment?.previewUrl}
+              textPreview={previewAttachment?.textPreview}
+              onClose={() => setPreviewAttachment(null)}
+            />
+            {editingMessageId !== message.id ? (
+              <div className="user-message-actions flex h-8 items-center justify-end gap-1">
+                {branchVersions > 1 ? (
+                  <div className="mr-1 flex items-center gap-1 text-zinc-500">
                     <HintTooltip content="Previous version" side="bottom">
                       <button
                         type="button"
@@ -389,45 +390,48 @@ const MessageRow = React.memo(
                       </button>
                     </HintTooltip>
                   </div>
-                  ) : null}
-                  <HintTooltip content="Edit message" side="bottom">
-                    <button
-                      type="button"
-                      aria-label="Edit message"
-                      className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
-                      onClick={() => onStartEdit(message)}
-                    >
-                      <SquarePen className="size-4" strokeWidth={1.75} />
-                    </button>
-                  </HintTooltip>
-                  <HintTooltip content="Copy message" side="bottom">
-                    <button
-                      type="button"
-                      aria-label="Copy user message"
-                      className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
-                      onClick={() => onCopy(message.id, message.content)}
-                    >
-                      {copiedId === message.id ? (
-                        <Check className="size-4 text-emerald-600" strokeWidth={2} />
-                      ) : (
-                        <CustomCopyIcon />
-                      )}
-                    </button>
-                  </HintTooltip>
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+                <HintTooltip content="Edit message" side="bottom">
+                  <button
+                    type="button"
+                    aria-label="Edit message"
+                    className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                    onClick={() => onStartEdit(message)}
+                  >
+                    <SquarePen className="size-4" strokeWidth={1.75} />
+                  </button>
+                </HintTooltip>
+                <HintTooltip content="Copy message" side="bottom">
+                  <button
+                    type="button"
+                    aria-label="Copy user message"
+                    className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                    onClick={() => onCopy(message.id, message.content)}
+                  >
+                    {copiedId === message.id ? (
+                      <Check
+                        className="size-4 text-emerald-600"
+                        strokeWidth={2}
+                      />
+                    ) : (
+                      <CustomCopyIcon />
+                    )}
+                  </button>
+                </HintTooltip>
+              </div>
+            ) : null}
+          </div>
         ) : (
           <div
             className={cn(
               "assistant-message group w-full min-w-0 max-w-full",
               isAssistantGenerationError(message) &&
-                !shouldUseAgentMessageLayout(message)
+                !shouldUseAgentTraceLayout(message)
                 ? "text-red-600"
                 : "text-gray-800",
             )}
           >
-            {shouldUseAgentMessageLayout(message) ? (
+            {shouldUseAgentTraceLayout(message) ? (
               <div
                 data-message-id={message.id}
                 data-assistant-content="true"
@@ -454,7 +458,9 @@ const MessageRow = React.memo(
                   (message.thinkingContent?.trim().length ?? 0) > 0) && (
                   <ThinkingBlock
                     content={message.thinkingContent}
-                    isStreaming={!!message.isThinkingStreaming && chatIsGenerating}
+                    isStreaming={
+                      !!message.isThinkingStreaming && chatIsGenerating
+                    }
                     thinkingDurationSeconds={message.thinkingDurationSeconds}
                     thinkingStartedAtMs={message.thinkingStartedAtMs}
                     className="mb-4"
@@ -466,7 +472,7 @@ const MessageRow = React.memo(
                   message.hasThinking ||
                   (message.thinkingContent?.trim().length ?? 0) > 0
                 ) ? (
-                  <AgentPlanningNextMoves showOrb={showWaitingOrb} />
+                  <AgentWorkingRow />
                 ) : null}
                 {showWaitingOrb &&
                 message.content.length === 0 &&
@@ -495,161 +501,164 @@ const MessageRow = React.memo(
                 ) : null}
               </>
             )}
-            {outputComplete &&
-            !isAssistantGenerationError(message) ? (
+            {outputComplete && !isAssistantGenerationError(message) ? (
               <>
                 <div className="assistant-message-actions relative mt-2.5 flex flex-wrap items-center gap-1 overflow-anchor-none font-sans text-zinc-500">
-                      <HintTooltip content="Copy" side="bottom" align="start">
-                        <button
-                          type="button"
-                          aria-label="Copy message"
-                          onClick={() => onCopy(message.id, message.content)}
-                          className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
-                        >
-                          {copiedId === message.id ? (
-                            <Check className="size-4 text-emerald-600" strokeWidth={2} />
-                          ) : (
-                            <CustomCopyIcon />
-                          )}
-                        </button>
-                      </HintTooltip>
-                      <HintTooltip content="Positive feedback" side="bottom">
-                        <button
-                          type="button"
-                          aria-label="Positive feedback"
-                          className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
-                        >
-                          <ThumbsUpIcon />
-                        </button>
-                      </HintTooltip>
-                      <HintTooltip content="Negative feedback" side="bottom">
-                        <button
-                          type="button"
-                          aria-label="Negative feedback"
-                          className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
-                        >
-                          <ThumbsDownIcon />
-                        </button>
-                      </HintTooltip>
-                      <HintTooltip content="Retry" side="bottom">
-                        <button
-                          type="button"
-                          aria-label="Retry"
-                          onClick={() => onRetryAssistant(message.id)}
-                          className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
-                        >
-                          <RetryIcon />
-                        </button>
-                      </HintTooltip>
-                      <HintTooltip content="Share" side="bottom">
-                        <button
-                          type="button"
-                          aria-label="Share message"
-                          onClick={async () => {
-                            const text = message.content.trim();
-                            if (!text) return;
-                            if (typeof navigator.share === "function") {
-                              try {
-                                await navigator.share({ text });
-                                return;
-                              } catch {
-                                // fall through to clipboard
-                              }
-                            }
-                            await navigator.clipboard.writeText(text);
-                          }}
-                          className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
-                        >
-                          <ShareIcon />
-                        </button>
-                      </HintTooltip>
-                      <div className="relative" data-more-trigger>
-                        <HintTooltip content="More" side="bottom">
-                          <button
-                            type="button"
-                            aria-label="More actions"
-                            aria-expanded={moreMenuId === message.id}
-                            onClick={(event) => {
-                              const rect = event.currentTarget.getBoundingClientRect();
-                              onToggleMoreMenu?.(message.id, rect);
-                            }}
-                            className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
-                          >
-                            <MoreHorizontal className="size-4" strokeWidth={1.75} />
-                          </button>
-                        </HintTooltip>
-                      </div>
-                      {messageSources.length > 0 ? (
-                        <HintTooltip content="Sources" side="bottom">
-                          <button
-                            type="button"
-                            onClick={() => onOpenSources?.(message.id)}
-                            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-zinc-200/90 bg-white px-2 text-[12px] font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
-                          >
-                            <span className="flex -space-x-1">
-                              {messageSources.slice(0, 3).map((source) => (
-                                <img
-                                  key={source.id}
-                                  src={
-                                    source.favicon ||
-                                    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(source.domain)}&sz=32`
-                                  }
-                                  alt=""
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="size-4 rounded-full border border-white bg-white"
-                                />
-                              ))}
-                            </span>
-                            <Search className="size-4" />
-                            <span>Sources</span>
-                          </button>
-                        </HintTooltip>
-                      ) : null}
-                      {branchVersions > 1 ? (
-                        <div className="ml-0.5 flex items-center gap-1 text-zinc-500">
-                          <HintTooltip content="Previous version" side="bottom">
-                            <button
-                              type="button"
-                              onClick={() => onSwitchBranch(message.id, "prev")}
-                              disabled={activeBranchIndex <= 0}
-                              className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                                aria-hidden="true"
-                              >
-                                <path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" />
-                              </svg>
-                            </button>
-                          </HintTooltip>
-                          <span className="min-w-[34px] text-center text-[12px] font-[430]">
-                            {activeBranchIndex + 1} / {branchVersions}
-                          </span>
-                          <HintTooltip content="Next version" side="bottom">
-                            <button
-                              type="button"
-                              onClick={() => onSwitchBranch(message.id, "next")}
-                              disabled={activeBranchIndex >= branchVersions - 1}
-                              className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                                aria-hidden="true"
-                              >
-                                <path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" />
-                              </svg>
-                            </button>
-                          </HintTooltip>
-                        </div>
-                      ) : null}
+                  <HintTooltip content="Copy" side="bottom" align="start">
+                    <button
+                      type="button"
+                      aria-label="Copy message"
+                      onClick={() => onCopy(message.id, message.content)}
+                      className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                    >
+                      {copiedId === message.id ? (
+                        <Check
+                          className="size-4 text-emerald-600"
+                          strokeWidth={2}
+                        />
+                      ) : (
+                        <CustomCopyIcon />
+                      )}
+                    </button>
+                  </HintTooltip>
+                  <HintTooltip content="Positive feedback" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Positive feedback"
+                      className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                    >
+                      <ThumbsUpIcon />
+                    </button>
+                  </HintTooltip>
+                  <HintTooltip content="Negative feedback" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Negative feedback"
+                      className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                    >
+                      <ThumbsDownIcon />
+                    </button>
+                  </HintTooltip>
+                  <HintTooltip content="Retry" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Retry"
+                      onClick={() => onRetryAssistant(message.id)}
+                      className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                    >
+                      <RetryIcon />
+                    </button>
+                  </HintTooltip>
+                  <HintTooltip content="Share" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Share message"
+                      onClick={async () => {
+                        const text = message.content.trim();
+                        if (!text) return;
+                        if (typeof navigator.share === "function") {
+                          try {
+                            await navigator.share({ text });
+                            return;
+                          } catch {
+                            // fall through to clipboard
+                          }
+                        }
+                        await navigator.clipboard.writeText(text);
+                      }}
+                      className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                    >
+                      <ShareIcon />
+                    </button>
+                  </HintTooltip>
+                  <div className="relative" data-more-trigger>
+                    <HintTooltip content="More" side="bottom">
+                      <button
+                        type="button"
+                        aria-label="More actions"
+                        aria-expanded={moreMenuId === message.id}
+                        onClick={(event) => {
+                          const rect =
+                            event.currentTarget.getBoundingClientRect();
+                          onToggleMoreMenu?.(message.id, rect);
+                        }}
+                        className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                      >
+                        <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                      </button>
+                    </HintTooltip>
                   </div>
+                  {messageSources.length > 0 ? (
+                    <HintTooltip content="Sources" side="bottom">
+                      <button
+                        type="button"
+                        onClick={() => onOpenSources?.(message.id)}
+                        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-zinc-200/90 bg-white px-2 text-[12px] font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+                      >
+                        <span className="flex -space-x-1">
+                          {messageSources.slice(0, 3).map((source) => (
+                            <img
+                              key={source.id}
+                              src={
+                                source.favicon ||
+                                `https://www.google.com/s2/favicons?domain=${encodeURIComponent(source.domain)}&sz=32`
+                              }
+                              alt=""
+                              loading="lazy"
+                              decoding="async"
+                              className="size-4 rounded-full border border-white bg-white"
+                            />
+                          ))}
+                        </span>
+                        <Search className="size-4" />
+                        <span>Sources</span>
+                      </button>
+                    </HintTooltip>
+                  ) : null}
+                  {branchVersions > 1 ? (
+                    <div className="ml-0.5 flex items-center gap-1 text-zinc-500">
+                      <HintTooltip content="Previous version" side="bottom">
+                        <button
+                          type="button"
+                          onClick={() => onSwitchBranch(message.id, "prev")}
+                          disabled={activeBranchIndex <= 0}
+                          className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path d="M6.134 3.16a.5.5 0 0 1 .626-.088l.08.062 7 6.5a.5.5 0 0 1 .068.655l-.068.077-7 6.5a.5.5 0 1 1-.68-.732L12.767 10 6.16 3.866l-.067-.076a.5.5 0 0 1 .04-.63" />
+                          </svg>
+                        </button>
+                      </HintTooltip>
+                      <span className="min-w-[34px] text-center text-[12px] font-[430]">
+                        {activeBranchIndex + 1} / {branchVersions}
+                      </span>
+                      <HintTooltip content="Next version" side="bottom">
+                        <button
+                          type="button"
+                          onClick={() => onSwitchBranch(message.id, "next")}
+                          disabled={activeBranchIndex >= branchVersions - 1}
+                          className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path d="M13.24 3.072a.5.5 0 0 1 .667.718l-.067.076L7.233 10l6.607 6.134a.5.5 0 1 1-.68.732l-7-6.5-.068-.077a.5.5 0 0 1 .068-.655l7-6.5z" />
+                          </svg>
+                        </button>
+                      </HintTooltip>
+                    </div>
+                  ) : null}
+                </div>
               </>
             ) : null}
           </div>
@@ -671,9 +680,7 @@ const MessageRow = React.memo(
       pm.thinkingDurationSeconds === nm.thinkingDurationSeconds &&
       pm.agentMode === nm.agentMode &&
       pm.agentFrameComplete === nm.agentFrameComplete &&
-      pm.activeAgentFrameIndex === nm.activeAgentFrameIndex &&
-      agentSegmentsVisuallyEqual(pm.agentSegments, nm.agentSegments) &&
-      agentFramesVisuallyEqual(pm.agentFrames, nm.agentFrames) &&
+      agentStepsVisuallyEqual(pm.agentTrace?.steps, nm.agentTrace?.steps) &&
       pm.activeBranchIndex === nm.activeBranchIndex &&
       pm.branchVersions === nm.branchVersions &&
       pm.attachments === nm.attachments &&
@@ -712,7 +719,6 @@ interface ConversationTurnProps {
   chatIsGenerating?: boolean;
 }
 
-
 const ConversationTurn = React.memo(
   function ConversationTurn({
     userMessage,
@@ -737,8 +743,7 @@ const ConversationTurn = React.memo(
     const turnRootRef = React.useRef<HTMLDivElement>(null);
     const userMsgHostRef = React.useRef<HTMLDivElement>(null);
 
-    const isEditingUser =
-      !!userMessage && editingMessageId === userMessage.id;
+    const isEditingUser = !!userMessage && editingMessageId === userMessage.id;
 
     // Measure user message height for code-header sticky offset (layout effect
     // so --turn-user-msg-height is ready before first paint / sticky sync).
@@ -869,8 +874,7 @@ const ConversationTurn = React.memo(
         pa.generationFailed !== na.generationFailed ||
         pa.agentMode !== na.agentMode ||
         pa.agentFrameComplete !== na.agentFrameComplete ||
-        !agentSegmentsVisuallyEqual(pa.agentSegments, na.agentSegments) ||
-        !agentFramesVisuallyEqual(pa.agentFrames, na.agentFrames) ||
+        !agentStepsVisuallyEqual(pa.agentTrace?.steps, na.agentTrace?.steps) ||
         pa.activeBranchIndex !== na.activeBranchIndex ||
         pa.branchVersions !== na.branchVersions
       ) {
@@ -917,7 +921,12 @@ export function ConversationThread({
     left: number;
     placement: "above" | "below";
   } | null>(null);
-  const [selectionMenu, setSelectionMenu] = React.useState<null | { x: number; y: number; text: string; messageId: string }>(null);
+  const [selectionMenu, setSelectionMenu] = React.useState<null | {
+    x: number;
+    y: number;
+    text: string;
+    messageId: string;
+  }>(null);
   const isMobile = useIsMobile();
 
   const handleCopy = React.useCallback(async (id: string, text: string) => {
@@ -946,10 +955,7 @@ export function ConversationThread({
           spaceAbove >= menuHeight + gap + 12 ? "above" : "below";
         setMoreMenuAnchor({
           left: Math.max(12, Math.min(anchor.left, window.innerWidth - 232)),
-          top:
-            placement === "above"
-              ? anchor.top - gap
-              : anchor.bottom + gap,
+          top: placement === "above" ? anchor.top - gap : anchor.bottom + gap,
           placement,
         });
       } else {
@@ -973,7 +979,10 @@ export function ConversationThread({
     if (!moreMenuId) return;
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest("[data-more-menu]") && !target.closest("[data-more-trigger]")) {
+      if (
+        !target.closest("[data-more-menu]") &&
+        !target.closest("[data-more-trigger]")
+      ) {
         closeMoreMenu();
       }
     };
@@ -1068,7 +1077,12 @@ export function ConversationThread({
           // Re-check selection is still valid after the delay.
           const still = window.getSelection();
           if (!still || still.isCollapsed) return;
-          if (still.toString().replace(/\u00a0/g, " ").trim() !== next.text) {
+          if (
+            still
+              .toString()
+              .replace(/\u00a0/g, " ")
+              .trim() !== next.text
+          ) {
             return;
           }
           setSelectionMenu(next);
@@ -1160,28 +1174,22 @@ export function ConversationThread({
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       const message = messages[index];
       if (message.role === "assistant" && message.isStreaming) {
-        const agentStreamSize = (message.agentFrames ?? []).reduce(
-          (frameTotal, frame) =>
-            frameTotal +
-            frame.segments.reduce((segmentTotal, segment) => {
-              if (
-                segment.kind === "thinking" ||
-                segment.kind === "narration" ||
-                segment.kind === "text"
-              ) {
-                return segmentTotal + segment.content.length;
-              }
-              if (segment.kind === "tool") {
-                return (
-                  segmentTotal +
-                  (segment.stdout?.length ?? 0) +
-                  (segment.stderr?.length ?? 0) +
-                  (segment.result?.length ?? 0) +
-                  (segment.searchResults?.length ?? 0)
-                );
-              }
-              return segmentTotal;
-            }, 0),
+        const agentStreamSize = (message.agentTrace?.steps ?? []).reduce(
+          (stepTotal, step) => {
+            if (step.kind === "narration") {
+              return stepTotal + step.content.length;
+            }
+            if (step.kind === "tool") {
+              return (
+                stepTotal +
+                (step.stdout?.length ?? 0) +
+                (step.stderr?.length ?? 0) +
+                (step.result?.length ?? 0) +
+                (step.searchResults?.length ?? 0)
+              );
+            }
+            return stepTotal;
+          },
           0,
         );
         return `${message.id}:${message.content.length}:${message.thinkingContent?.length ?? 0}:${agentStreamSize}`;
@@ -1297,13 +1305,16 @@ export function ConversationThread({
     viewport.addEventListener("clauxen-turn-metrics", onTurnMetrics);
     window.addEventListener("resize", runSync);
 
-    const content = (viewport.firstElementChild as HTMLElement | null) ?? viewport;
+    const content =
+      (viewport.firstElementChild as HTMLElement | null) ?? viewport;
     const resizeObserver = new ResizeObserver(() => scheduleSync());
     resizeObserver.observe(content);
 
-    viewport.querySelectorAll<HTMLElement>("[data-sticky-user-msg]").forEach((host) => {
-      resizeObserver.observe(host);
-    });
+    viewport
+      .querySelectorAll<HTMLElement>("[data-sticky-user-msg]")
+      .forEach((host) => {
+        resizeObserver.observe(host);
+      });
 
     // Observe mounts (streamed code/table blocks). Code/table offsets are CSS
     // (--turn-user-msg-height); JS only elevates the active user bubble.
@@ -1341,7 +1352,12 @@ export function ConversationThread({
 
   React.useEffect(() => {
     stickySyncRef.current?.();
-  }, [stickyStreamKey, isFastScrollingProp, isGeneratingProp, editingMessageId]);
+  }, [
+    stickyStreamKey,
+    isFastScrollingProp,
+    isGeneratingProp,
+    editingMessageId,
+  ]);
 
   // Generation-end: one short settle pass after Streamdown finishes mounting.
   React.useEffect(() => {
@@ -1385,137 +1401,148 @@ export function ConversationThread({
       enabled={followUpsEnabled}
       onSelect={onFollowUpSelect}
     >
-    <div
-      ref={listRef}
-      className={cn(
-        "flex w-full min-w-0 max-w-full flex-col gap-6 px-0 pt-5 pb-5 sm:gap-8 sm:px-0 sm:pt-10 sm:pb-8",
-        className,
-      )}
-      data-virtual-scroll
-      data-fast-scrolling={isFastScrollingProp || undefined}
-    >
-      {/* Full-thread hydrate — no scroll-up pagination affordance. */}
-      <div className="h-px w-full shrink-0" aria-hidden />
-
-      {groups.map((group, index) => (
-        <ConversationTurn
-          key={
-            group.userMessage?.turnId ??
-            (group.userMessage
-              ? messageUiKey(group.userMessage)
-              : (group.assistantMessages[0]?.turnId ??
-                `turn-${index}`))
-          }
-          turnIndex={index}
-          userMessage={group.userMessage}
-          assistantMessages={group.assistantMessages}
-          editValue={
-            editingMessageId === group.userMessage?.id ? editValue : undefined
-          }
-          {...turnProps}
-        />
-      ))}
       <div
-        className="chat-thread-scroll-anchor h-px w-full shrink-0"
-        aria-hidden
-      />
-
-      {selectionMenu &&
-        !isMobile &&
-        createPortal(
-          <div
-            className="fixed z-[95] flex items-center overflow-hidden rounded-full border border-zinc-200 bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.28)] animate-in fade-in zoom-in-95 duration-150"
-            style={{ left: `${selectionMenu.x}px`, top: `${selectionMenu.y}px` }}
-            onMouseDown={(e) => e.preventDefault()}
-          >
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium text-zinc-900 transition hover:bg-zinc-50"
-              onClick={() => {
-                navigator.clipboard.writeText(selectionMenu.text).catch(() => {});
-                setSelectionMenu(null);
-                window.getSelection()?.removeAllRanges();
-              }}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Ask Clauxen
-            </button>
-            <span className="h-5 w-px bg-zinc-200" aria-hidden />
-            <button
-              type="button"
-              className="px-3 py-1.5 text-[12.5px] font-medium text-zinc-700 transition hover:bg-zinc-50"
-              onClick={() => {
-                navigator.clipboard.writeText(selectionMenu.text).catch(() => {});
-                setSelectionMenu(null);
-                window.getSelection()?.removeAllRanges();
-              }}
-            >
-              Start writing
-            </button>
-          </div>,
-          document.body,
+        ref={listRef}
+        className={cn(
+          "flex w-full min-w-0 max-w-full flex-col gap-6 px-0 pt-5 pb-5 sm:gap-8 sm:px-0 sm:pt-10 sm:pb-8",
+          className,
         )}
+        data-virtual-scroll
+        data-fast-scrolling={isFastScrollingProp || undefined}
+      >
+        {/* Full-thread hydrate — no scroll-up pagination affordance. */}
+        <div className="h-px w-full shrink-0" aria-hidden />
 
-      {moreMenuId &&
-        moreMenuAnchor &&
-        moreMenuMessage &&
-        createPortal(
-          <div
-            data-more-menu
-            className="fixed z-[95] w-[220px] rounded-[14px] border border-zinc-200 bg-white p-1 text-[13px] shadow-[0_10px_30px_-15px_rgba(24,24,27,0.25)]"
-            style={{
-              left: `${moreMenuAnchor.left}px`,
-              top: `${moreMenuAnchor.top}px`,
-              transform:
-                moreMenuAnchor.placement === "above"
-                  ? "translateY(-100%)"
-                  : undefined,
-            }}
-          >
-            <div className="px-3 py-1.5 text-[11px] text-zinc-500">
-              {moreMenuMessage.createdAt
-                ? new Date(moreMenuMessage.createdAt).toLocaleString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })
-                : "Just now"}
-            </div>
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-zinc-700 hover:bg-zinc-100"
-              onClick={() => {
-                closeMoreMenu();
-                const branchText = `Continuing from: ${moreMenuMessage.content.slice(0, 120)}${moreMenuMessage.content.length > 120 ? "…" : ""}`;
-                navigator.clipboard.writeText(branchText).catch(() => {});
+        {groups.map((group, index) => (
+          <ConversationTurn
+            key={
+              group.userMessage?.turnId ??
+              (group.userMessage
+                ? messageUiKey(group.userMessage)
+                : (group.assistantMessages[0]?.turnId ?? `turn-${index}`))
+            }
+            turnIndex={index}
+            userMessage={group.userMessage}
+            assistantMessages={group.assistantMessages}
+            editValue={
+              editingMessageId === group.userMessage?.id ? editValue : undefined
+            }
+            {...turnProps}
+          />
+        ))}
+        <div
+          className="chat-thread-scroll-anchor h-px w-full shrink-0"
+          aria-hidden
+        />
+
+        {selectionMenu &&
+          !isMobile &&
+          createPortal(
+            <div
+              className="fixed z-[95] flex items-center overflow-hidden rounded-full border border-zinc-200 bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.28)] animate-in fade-in zoom-in-95 duration-150"
+              style={{
+                left: `${selectionMenu.x}px`,
+                top: `${selectionMenu.y}px`,
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium text-zinc-900 transition hover:bg-zinc-50"
+                onClick={() => {
+                  navigator.clipboard
+                    .writeText(selectionMenu.text)
+                    .catch(() => {});
+                  setSelectionMenu(null);
+                  window.getSelection()?.removeAllRanges();
+                }}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Ask Clauxen
+              </button>
+              <span className="h-5 w-px bg-zinc-200" aria-hidden />
+              <button
+                type="button"
+                className="px-3 py-1.5 text-[12.5px] font-medium text-zinc-700 transition hover:bg-zinc-50"
+                onClick={() => {
+                  navigator.clipboard
+                    .writeText(selectionMenu.text)
+                    .catch(() => {});
+                  setSelectionMenu(null);
+                  window.getSelection()?.removeAllRanges();
+                }}
+              >
+                Start writing
+              </button>
+            </div>,
+            document.body,
+          )}
+
+        {moreMenuId &&
+          moreMenuAnchor &&
+          moreMenuMessage &&
+          createPortal(
+            <div
+              data-more-menu
+              className="fixed z-[95] w-[220px] rounded-[14px] border border-zinc-200 bg-white p-1 text-[13px] shadow-[0_10px_30px_-15px_rgba(24,24,27,0.25)]"
+              style={{
+                left: `${moreMenuAnchor.left}px`,
+                top: `${moreMenuAnchor.top}px`,
+                transform:
+                  moreMenuAnchor.placement === "above"
+                    ? "translateY(-100%)"
+                    : undefined,
               }}
             >
-              <GitBranch className="h-3.5 w-3.5" />
-              <span>Branch in new chat</span>
-            </button>
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-zinc-700 hover:bg-zinc-100"
-              onClick={() => {
-                closeMoreMenu();
-                try {
-                  const utter = new SpeechSynthesisUtterance(
-                    moreMenuMessage.content.replace(/\s+/g, " ").slice(0, 1200),
-                  );
-                  window.speechSynthesis?.speak(utter);
-                } catch {
-                  // ignore TTS failures
-                }
-              }}
-            >
-              <Volume2 className="h-3.5 w-3.5" />
-              <span>Read aloud</span>
-            </button>
-          </div>,
-          document.body,
-        )}
-    </div>
+              <div className="px-3 py-1.5 text-[11px] text-zinc-500">
+                {moreMenuMessage.createdAt
+                  ? new Date(moreMenuMessage.createdAt).toLocaleString(
+                      undefined,
+                      {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      },
+                    )
+                  : "Just now"}
+              </div>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-zinc-700 hover:bg-zinc-100"
+                onClick={() => {
+                  closeMoreMenu();
+                  const branchText = `Continuing from: ${moreMenuMessage.content.slice(0, 120)}${moreMenuMessage.content.length > 120 ? "…" : ""}`;
+                  navigator.clipboard.writeText(branchText).catch(() => {});
+                }}
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+                <span>Branch in new chat</span>
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-zinc-700 hover:bg-zinc-100"
+                onClick={() => {
+                  closeMoreMenu();
+                  try {
+                    const utter = new SpeechSynthesisUtterance(
+                      moreMenuMessage.content
+                        .replace(/\s+/g, " ")
+                        .slice(0, 1200),
+                    );
+                    window.speechSynthesis?.speak(utter);
+                  } catch {
+                    // ignore TTS failures
+                  }
+                }}
+              >
+                <Volume2 className="h-3.5 w-3.5" />
+                <span>Read aloud</span>
+              </button>
+            </div>,
+            document.body,
+          )}
+      </div>
     </FollowUpPromptProvider>
   );
 }
