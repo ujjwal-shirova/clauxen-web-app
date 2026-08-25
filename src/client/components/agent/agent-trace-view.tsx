@@ -235,34 +235,6 @@ function ThinkingTraceRow({ step }: { step: AgentThinkingStep }) {
   );
 }
 
-function NarrationTraceRow({
-  step,
-}: {
-  step: Extract<AgentStep, { kind: "narration" }>;
-}) {
-  const content = step.content.trim();
-  if (!content) return null;
-
-  return (
-    <div
-      className="agent-narration agent-trace-enter min-w-0"
-      data-agent-narration="true"
-    >
-      {step.isStreaming ? (
-        <StreamingTextFade
-          content={content}
-          streamKey={`trace-${step.id}`}
-          className="whitespace-pre-wrap break-words text-[13px] font-[430] leading-5 text-zinc-600 dark:text-zinc-300"
-        />
-      ) : (
-        <p className="whitespace-pre-wrap break-words text-[13px] font-[430] leading-5">
-          {content}
-        </p>
-      )}
-    </div>
-  );
-}
-
 type TraceDisplayRow =
   | { kind: "step"; step: AgentStep }
   | { kind: "searches"; id: string; tools: AgentToolStep[] };
@@ -393,16 +365,7 @@ function TraceSteps({ steps }: { steps: AgentStep[] }) {
             </div>
           );
         }
-        if (step.kind === "narration") {
-          return (
-            <div
-              className="agent-trace-timeline__step agent-trace-enter min-w-0"
-              key={step.id}
-            >
-              <NarrationTraceRow step={step} />
-            </div>
-          );
-        }
+        if (step.kind === "narration") return null;
         return (
           <div
             className="agent-trace-timeline__step agent-trace-enter min-w-0"
@@ -446,7 +409,6 @@ function CompletedTrace({
         className="group/worked no-hover no-hover-overlay inline-flex min-h-6 max-w-full items-center gap-2 border-0 bg-transparent p-0 text-left text-[14px] font-normal leading-6 tracking-[-0.01em] text-zinc-500 shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 dark:text-zinc-400"
         aria-expanded={expanded}
       >
-        <MorphingWorkIcon active={false} />
         <span className="truncate">Worked for {duration}</span>
         <ChevronRight
           className={cn(
@@ -482,7 +444,6 @@ export function AgentTraceView({
   startedAtMs,
   completedAtMs,
   keepExpanded,
-  hideFinalNarration,
 }: {
   steps: AgentStep[];
   isActive: boolean;
@@ -490,16 +451,10 @@ export function AgentTraceView({
   completedAtMs?: number;
   /** Actionable traces (for example ask-user-input) must remain visible. */
   keepExpanded?: boolean;
-  hideFinalNarration?: boolean;
 }) {
   const visibleSteps = useMemo(
-    () =>
-      hideFinalNarration
-        ? steps.filter(
-            (step) => !(step.kind === "narration" && step.isFinal === true),
-          )
-        : steps,
-    [hideFinalNarration, steps],
+    () => steps.filter((step) => step.kind !== "narration"),
+    [steps],
   );
   const lastRunningTool = [...visibleSteps]
     .reverse()

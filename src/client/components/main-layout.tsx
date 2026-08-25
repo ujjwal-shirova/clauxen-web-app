@@ -105,14 +105,17 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, [pathname, isMobile, setIsSidebarCollapsed]);
 
   const handleNewChat = useCallback(() => {
-    startNewChat();
     closeMobileNav();
     if (overlays.currentOverlay) {
       overlays.closeOverlay();
       return;
     }
+    if (pathname === APP_ROUTES.newChat || pathname === "/") {
+      startNewChat();
+      return;
+    }
     instantNavigate(APP_ROUTES.newChat, { replace: true });
-  }, [startNewChat, closeMobileNav, overlays, instantNavigate]);
+  }, [startNewChat, closeMobileNav, overlays, pathname, instantNavigate]);
 
   const goToProjects = useCallback(() => {
     closeMobileNav();

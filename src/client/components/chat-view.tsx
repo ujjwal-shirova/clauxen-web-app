@@ -222,16 +222,13 @@ function ChatViewBody({
       void handleSelectChatRef.current(routeChatId);
       return;
     }
-    if (isProjectHome || blankNewChatComposer) {
+    // Clear the old conversation only after the /new route has committed.
+    // Clearing it from the sidebar click while /c/:id was still mounted made
+    // this effect re-select that route id and fight the chat scroll owner.
+    if (isProjectHome || isNewChatPath(pathname)) {
       startNewChatRef.current();
     }
-  }, [
-    isIncognito,
-    activeChatId,
-    routeChatId,
-    isProjectHome,
-    blankNewChatComposer,
-  ]);
+  }, [isIncognito, activeChatId, routeChatId, isProjectHome, pathname]);
 
   // Resolve project name for breadcrumb when opened via /c?chat_enter_method=project.
   useEffect(() => {

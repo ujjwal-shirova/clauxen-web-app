@@ -239,17 +239,17 @@ export function applyAgentStreamEvent(
         isFinal: existing?.isFinal,
         startedAtMs: existing?.startedAtMs ?? Date.now(),
       });
-      // Once a post-tool narration has more than one provider delta, treat it
-      // as the answer candidate and stream it in the answer body. One-shot
-      // generated progress notes stay exclusively in the trace. If a tool
-      // call follows, tool_start clears the optimistic candidate again.
-      const hasAnyTool = nextSteps.some((step) => step.kind === "tool");
+      // Paint the very first provider chunk as answer-like prose. If a tool
+      // call follows, tool_start clears this optimistic candidate and the same
+      // narration remains in its interleaved transcript position. Waiting for
+      // a second chunk made single-delta provider responses appear all at once
+      // only when answer_finalize landed.
       const hasLiveWork = nextSteps.some(
         (step) =>
           (step.kind === "tool" && step.status === "running") ||
           (step.kind === "thinking" && step.isStreaming === true),
       );
-      if (!hasLiveWork && (!hasAnyTool || deltaCount > 1)) {
+      if (!hasLiveWork) {
         mirroredContent = nextContent;
       }
       return {
