@@ -1289,6 +1289,37 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   will-change: opacity, transform;
 }
 
+/* Typing caret that rides the live streaming delta — a small ink dot that
+   blinks while tokens land, removed the moment the stream settles. */
+.stream-typing-caret {
+  display: inline-block;
+  width: 0.42em;
+  height: 0.42em;
+  margin-left: 2px;
+  vertical-align: baseline;
+  border-radius: 9999px;
+  background-color: #18181b;
+  animation: stream-typing-caret-blink 1s ease-in-out infinite;
+}
+
+@keyframes stream-typing-caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stream-typing-caret {
+    animation: none;
+  }
+}
+
 .stream-token-stable {
   display: inline;
   white-space: pre-wrap;
@@ -3370,7 +3401,15 @@ button.user-message-card__body:not(:disabled):hover,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  vertical-align: -0.15em;
+  /* Size to the surrounding text, not a fixed px — keeps the caret
+     proportional in both 13px trace rows and 15px answer bodies. */
+  width: 0.85em;
+  height: 0.85em;
+  min-width: 10px;
+  min-height: 10px;
+  max-width: 14px;
+  max-height: 14px;
+  vertical-align: -0.12em;
 }
 
 .orb-cursor-core {
@@ -4199,8 +4238,10 @@ button[data-speed-toggle][data-state="open"] {
   }
 }
 
-/* One compact glyph cycles square → circle → triangle → star without changing
-   its layout box, so the Working label never jumps as the shape changes. */
+/* One glyph genuinely MORPHS square → circle → triangle → star. Every shape is
+   drawn as a 10-point polygon so clip-path interpolates point-by-point between
+   them — the outline visibly flows from one shape into the next instead of
+   crossfading. Layout box never changes, so the label never jumps. */
 .agent-work-morph {
   position: relative;
   display: inline-flex;
@@ -4212,68 +4253,82 @@ button[data-speed-toggle][data-state="open"] {
 }
 
 .agent-work-morph > span {
-  position: absolute;
-  inset: 2px;
-  background: #71717a;
-  animation: agent-work-shape 4.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-  will-change: opacity, transform, border-radius, clip-path;
-}
-
-.agent-work-morph > [data-shape="square"] {
-  border-radius: 2px;
-}
-
-.agent-work-morph > [data-shape="circle"] {
-  border-radius: 999px;
-  animation-delay: -1.2s;
-}
-
-.agent-work-morph > [data-shape="triangle"] {
-  clip-path: polygon(50% 3%, 97% 92%, 3% 92%);
-  animation-delay: -2.4s;
-}
-
-.agent-work-morph > [data-shape="star"] {
-  clip-path: polygon(
-    50% 0%,
-    61% 34%,
-    98% 35%,
-    68% 56%,
-    79% 94%,
-    50% 72%,
-    21% 94%,
-    32% 56%,
-    2% 35%,
-    39% 34%
-  );
-  animation-delay: -3.6s;
-}
-
-@keyframes agent-work-shape {
-  0%,
-  18% {
-    opacity: 1;
-    transform: rotate(0deg) scale(1);
-  }
-  24%,
-  94% {
-    opacity: 0;
-    transform: rotate(45deg) scale(0.55);
-  }
-  100% {
-    opacity: 1;
-    transform: rotate(90deg) scale(1);
-  }
-}
-
-.agent-work-morph--settled > span {
-  display: none;
-  animation: none;
-}
-
-.agent-work-morph--settled > [data-shape="star"] {
   display: block;
-  opacity: 1;
+  width: 100%;
+  height: 100%;
+  background: #71717a;
+  /* One continuous loop: square → circle → triangle → star → square.
+     Hold ≈18% per shape so each silhouette reads, then morph ≈14%. */
+  animation: agent-work-morph-loop 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  will-change: clip-path, transform;
+}
+
+@keyframes agent-work-morph-loop {
+  /* square */
+  0%,
+  16% {
+    clip-path: polygon(
+      16.7% 0%, 50% 0%, 83.3% 0%,
+      100% 33.3%, 100% 66.7%,
+      83.3% 100%, 50% 100%, 16.7% 100%,
+      0% 66.7%, 0% 33.3%
+    );
+    transform: rotate(0deg);
+  }
+  /* circle */
+  30%,
+  41% {
+    clip-path: polygon(
+      50% 0%, 79.4% 9.5%, 97.6% 34.5%,
+      97.6% 65.5%, 79.4% 90.5%,
+      50% 100%, 20.6% 90.5%, 2.4% 65.5%,
+      2.4% 34.5%, 20.6% 9.5%
+    );
+    transform: rotate(45deg);
+  }
+  /* triangle */
+  55%,
+  66% {
+    clip-path: polygon(
+      50% 4%, 61.5% 26%, 73% 48%,
+      84.5% 70%, 96% 92%,
+      50% 92%, 4% 92%, 19.5% 70%,
+      31% 48%, 42.5% 26%
+    );
+    transform: rotate(90deg);
+  }
+  /* star */
+  80%,
+  91% {
+    clip-path: polygon(
+      50% 0%, 61% 34%, 98% 35%,
+      68% 56%, 79% 94%,
+      50% 72%, 21% 94%, 32% 56%,
+      2% 35%, 39% 34%
+    );
+    transform: rotate(135deg);
+  }
+  /* back to square closes the loop seamlessly */
+  100% {
+    clip-path: polygon(
+      16.7% 0%, 50% 0%, 83.3% 0%,
+      100% 33.3%, 100% 66.7%,
+      83.3% 100%, 50% 100%, 16.7% 100%,
+      0% 66.7%, 0% 33.3%
+    );
+    transform: rotate(180deg);
+  }
+}
+
+/* Settled state parks on the star, static. */
+.agent-work-morph--settled > span {
+  animation: none;
+  clip-path: polygon(
+    50% 0%, 61% 34%, 98% 35%,
+    68% 56%, 79% 94%,
+    50% 72%, 21% 94%, 32% 56%,
+    2% 35%, 39% 34%
+  );
   transform: none;
 }
 
@@ -4283,15 +4338,18 @@ button[data-speed-toggle][data-state="open"] {
   }
 
   .agent-work-morph > span {
-    display: none;
     animation: none;
+    clip-path: circle(50%);
+    transform: none;
   }
 
-  .agent-work-morph > [data-shape="circle"],
-  .agent-work-morph--settled > [data-shape="star"] {
-    display: block;
-    opacity: 1;
-    transform: none;
+  .agent-work-morph--settled > span {
+    clip-path: polygon(
+      50% 0%, 61% 34%, 98% 35%,
+      68% 56%, 79% 94%,
+      50% 72%, 21% 94%, 32% 56%,
+      2% 35%, 39% 34%
+    );
   }
 }
 

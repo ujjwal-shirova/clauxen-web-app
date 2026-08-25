@@ -313,125 +313,13 @@ type PendingToolCall = {
   arguments: string;
 };
 
-function textArg(args: Record<string, unknown>, key: string): string {
-  const value = args[key];
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function conciseDetail(value: string, maxLength = 120): string {
-  const normalized = value.replace(/\s+/g, " ").trim();
-  if (normalized.length <= maxLength) return normalized;
-  return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
-}
-
 /**
- * First-person narration when a model calls a tool without explaining itself.
- * This is progress prose for the trace — deliberately different register from
- * interleaved thinking (which is never shown verbatim).
+ * Last-resort intent note when the model skips its own pre-tool prose.
+ * Deliberately generic — specific progress narration must be written by the
+ * model itself, never templated here.
  */
-function narrateToolIntent(
-  name: string,
-  args: Record<string, unknown>,
-): string {
-  const description = conciseDetail(textArg(args, "description"));
-  const path = conciseDetail(textArg(args, "path"));
-
-  switch (name) {
-    case "web_search": {
-      const query = conciseDetail(textArg(args, "query"), 90);
-      return query
-        ? `I'm searching the web for "${query}".`
-        : "I'm searching the web for reliable sources.";
-    }
-    case "web_fetch": {
-      const rawUrl = textArg(args, "url");
-      let host = "the selected page";
-      try {
-        host = new URL(rawUrl).hostname.replace(/^www\./, "") || host;
-      } catch {
-        // Use the generic description for an incomplete streamed URL.
-      }
-      return `I'm reading ${host} for the relevant details.`;
-    }
-    case "bash_tool":
-      return description
-        ? `I'm checking the workspace: ${description}.`
-        : "I'm checking the workspace and validating the next step.";
-    case "execute_code":
-      return description
-        ? `I'm running an analysis: ${description}.`
-        : "I'm running an analysis to verify the result.";
-    case "file_read":
-      return path
-        ? `I'm reviewing ${path}.`
-        : "I'm reviewing the requested file.";
-    case "create_file":
-      return path
-        ? `I'm preparing ${path}.`
-        : "I'm preparing the requested file.";
-    case "file_write":
-      return path
-        ? `I'm updating ${path}.`
-        : "I'm updating the requested file.";
-    case "read_skill":
-      return "I'm loading the relevant workspace guidance before continuing.";
-    case "image_search":
-      return "I'm finding suitable images for this task.";
-    case "places_search":
-      return "I'm looking up the relevant places and location details.";
-    case "weather_fetch":
-      return "I'm checking the latest weather conditions.";
-    case "ask_user_input_v0":
-      return "I need one quick decision before I can continue.";
-    default:
-      return name.startsWith("mcp__")
-        ? "I'm using the connected service to complete the next step."
-        : "I'm carrying out the next verified step.";
-  }
-}
-
-/** Brief result handoff so the visible trace bridges to the next action. */
-function narrateToolOutcome(
-  name: string,
-  args: Record<string, unknown>,
-  result: string,
-  isError: boolean,
-): string {
-  if (isError) {
-    return "That step ran into an issue. I'm using the result to adjust the next action.";
-  }
-
-  if (name === "web_search") {
-    const parsed = safeParseJson(result);
-    const results = Array.isArray(parsed.results) ? parsed.results.length : 0;
-    return results > 0
-      ? `I found ${results} relevant source${results === 1 ? "" : "s"}; I'm checking the strongest evidence next.`
-      : "The search is complete; I'm checking the available evidence next.";
-  }
-
-  if (name === "web_fetch") {
-    return "I have the page content and I'm checking it against the request.";
-  }
-
-  if (name === "file_read") {
-    const path = conciseDetail(textArg(args, "path"));
-    return path
-      ? `I've reviewed ${path} and I'm using it for the next step.`
-      : "I've reviewed the file and I'm using it for the next step.";
-  }
-
-  if (name === "create_file" || name === "file_write") {
-    const path = conciseDetail(textArg(args, "path"));
-    return path
-      ? `${path} is ready; I'm verifying the remaining work.`
-      : "The file update is ready; I'm verifying the remaining work.";
-  }
-
-  if (name === "bash_tool" || name === "execute_code") {
-    return "That check completed; I'm using the output to decide the next verified action.";
-  }
-
-  return "That step completed; I'm using the result to continue.";
+function narrateToolIntent(): string {
+  return "I'm carrying out the next step.";
 }
 
 /**
@@ -727,10 +615,11 @@ export async function runAutonomousAgent(
       for (const [toolIndex, tc] of pendingToolCalls.entries()) {
         if (signal?.aborted) break;
         const rawArgs = safeParseJson(tc.arguments);
-        // The model normally provides a pre-tool note. If it skips that note,
-        // provide one ourselves; batched calls also each get their own intent.
+        // The model normally provides a pre-tool note in its own prose. If it
+        // skips it (or this is a later call in a batch), emit only the generic
+        // fallback — never templated, tool-specific narration.
         if (!roundText.trim() || toolIndex > 0) {
-          writeActivityNarration(narrateToolIntent(tc.name, rawArgs));
+          writeActivityNarration(narrateToolIntent());
         }
         sse.writeToolStart(
           tc.id,
@@ -747,9 +636,6 @@ export async function runAutonomousAgent(
           const outcome = await mcp.call(tc.name, rawArgs);
           const isError = outcome.isError;
           sse.writeToolEnd(tc.id, tc.name, outcome.text, isError);
-          writeActivityNarration(
-            narrateToolOutcome(tc.name, rawArgs, outcome.text, isError),
-          );
           toolResults.push({
             toolCallId: tc.id,
             name: tc.name,
@@ -860,9 +746,6 @@ export async function runAutonomousAgent(
         }
 
         sse.writeToolEnd(tc.id, tc.name, resultStr, isError);
-        writeActivityNarration(
-          narrateToolOutcome(tc.name, rawArgs, resultStr, isError),
-        );
         toolResults.push({
           toolCallId: tc.id,
           name: tc.name,

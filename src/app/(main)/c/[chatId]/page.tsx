@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { ChatView } from "@/components/chat-view";
+import { ChatRouteSurface } from "@/client/components/chat-route-surface";
 import { ChatRouteSeedRegistrar } from "@/components/chat-route-seed-registrar";
 import { loadChatRouteSeed } from "@/server/chat/load-chat-route-seed";
 
@@ -27,7 +27,9 @@ export default function ChatRoutePage({
       <Suspense fallback={null}>
         <ChatRouteSeedLoader params={params} />
       </Suspense>
-      <ChatView />
+      {/* Same surface component as /new — React reconciles it across the
+          /new → /c/:id swap instead of remounting the live chat tree. */}
+      <ChatRouteSurface />
     </>
   );
 }

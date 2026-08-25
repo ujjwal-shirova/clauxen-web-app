@@ -14,7 +14,7 @@ export function StreamingOrbCursor({ className }: StreamingOrbCursorProps) {
   return (
     <span
       className={cn(
-        "streaming-orb-cursor inline-flex h-3.5 w-3.5 shrink-0 align-middle",
+        "streaming-orb-cursor inline-flex shrink-0 align-middle",
         className,
       )}
       aria-hidden

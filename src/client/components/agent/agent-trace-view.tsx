@@ -15,10 +15,7 @@ function MorphingWorkIcon({ active = true }: { active?: boolean }) {
       className={cn("agent-work-morph", !active && "agent-work-morph--settled")}
       aria-hidden
     >
-      <span data-shape="square" />
-      <span data-shape="circle" />
-      <span data-shape="triangle" />
-      <span data-shape="star" />
+      <span data-shape="morph" />
     </span>
   );
 }
