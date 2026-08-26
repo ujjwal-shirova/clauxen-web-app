@@ -66,6 +66,38 @@ export const POST = withApiHandler(
             ? body.expires_at
             : null,
       source: body.source === "chat" ? "chat" : "manual",
+      notificationMode:
+        typeof body.notificationMode === "string"
+          ? (body.notificationMode as "email_app")
+          : undefined,
+      modelMode:
+        typeof body.modelMode === "string"
+          ? (body.modelMode as "fast")
+          : undefined,
+      connectorIds: Array.isArray(body.connectorIds)
+        ? body.connectorIds.filter(
+            (value): value is string => typeof value === "string",
+          )
+        : undefined,
+      skillIds: Array.isArray(body.skillIds)
+        ? body.skillIds.filter(
+            (value): value is string => typeof value === "string",
+          )
+        : undefined,
+      attachmentRefs: Array.isArray(body.attachmentRefs)
+        ? body.attachmentRefs.filter(
+            (value): value is Record<string, unknown> =>
+              Boolean(value) &&
+              typeof value === "object" &&
+              !Array.isArray(value),
+          )
+        : undefined,
+      projectId:
+        typeof body.projectId === "string"
+          ? body.projectId
+          : body.projectId === null
+            ? null
+            : undefined,
     });
 
     return jsonData({ task }, 201);

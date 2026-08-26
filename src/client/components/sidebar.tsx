@@ -19,6 +19,7 @@ import {
   X,
   LayoutGrid,
   Clock3,
+  Blocks,
 } from "lucide-react";
 import {
   SidebarToggleIcon,
@@ -826,6 +827,13 @@ export function Sidebar({
               icon: <Clock3 className="size-4" strokeWidth={1.5} />,
               href: APP_ROUTES.automations,
               active: activeView === "automations",
+            })}
+
+            {renderNavButton({
+              label: "Plugins",
+              icon: <Blocks className="size-4" strokeWidth={1.5} />,
+              href: APP_ROUTES.plugins,
+              active: activeView === "plugins",
             })}
 
             {/* Order: Pinned (chats + projects) → Projects → Recent */}

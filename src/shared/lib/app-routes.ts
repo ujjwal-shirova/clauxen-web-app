@@ -71,6 +71,7 @@ export const APP_ROUTES = {
   /** Ephemeral chat — not saved to history, files, or memory. */
   incognito: "/incognito",
   automations: "/automations",
+  plugins: "/plugins",
   library: "/library",
   /** Create-project surface (inline form, not a gallery). */
   projects: "/project",
@@ -231,6 +232,8 @@ export function isMainAppPath(pathname: string | null): boolean {
     pathname.startsWith("/c/") ||
     pathname === "/automations" ||
     pathname.startsWith("/automations/") ||
+    pathname === "/plugins" ||
+    pathname.startsWith("/plugins/") ||
     pathname === "/library" ||
     pathname.startsWith("/library/") ||
     pathname === "/scheduled" ||

@@ -47,7 +47,20 @@ type GiftPayload = {
   claimUrl: string;
 };
 
-export type EmailSendPayload = InvoicePayload | AddressPayload | GiftPayload;
+type AutomationPayload = {
+  kind: "automation_run";
+  to: string;
+  taskName: string;
+  status: "success" | "failed" | "skipped";
+  summary: string;
+  chatUrl?: string | null;
+};
+
+export type EmailSendPayload =
+  | InvoicePayload
+  | AddressPayload
+  | GiftPayload
+  | AutomationPayload;
 
 function escapeHtml(value: string): string {
   return value
@@ -62,7 +75,10 @@ function escapeHtmlMultiline(value: string): string {
   return escapeHtml(value).replace(/\r\n|\r|\n/g, "<br>");
 }
 
-function giftNoteHtml(senderName: string, message: string | null | undefined): string {
+function giftNoteHtml(
+  senderName: string,
+  message: string | null | undefined,
+): string {
   const note = message?.trim();
   if (!note) return "";
   const label = senderName.trim()
@@ -74,7 +90,10 @@ function giftNoteHtml(senderName: string, message: string | null | undefined): s
   </div>`;
 }
 
-function giftNoteText(senderName: string, message: string | null | undefined): string {
+function giftNoteText(
+  senderName: string,
+  message: string | null | undefined,
+): string {
   const note = message?.trim();
   if (!note) return "";
   const label = senderName.trim()
@@ -84,7 +103,9 @@ function giftNoteText(senderName: string, message: string | null | undefined): s
 }
 
 function appOrigin(env: BillingEmailEnv): string {
-  const raw = (env.APP_ORIGIN || "https://www.clauxen.com").trim().replace(/\/$/, "");
+  const raw = (env.APP_ORIGIN || "https://www.clauxen.com")
+    .trim()
+    .replace(/\/$/, "");
   try {
     return new URL(raw).origin;
   } catch {
@@ -119,8 +140,7 @@ export async function sendBillingEmail(
   if (!env.EMAIL?.send) {
     return { ok: false, error: "email_binding_missing" };
   }
-  const fromEmail =
-    env.FROM_EMAIL?.trim() || "noreply@clauxen.com";
+  const fromEmail = env.FROM_EMAIL?.trim() || "noreply@clauxen.com";
   const fromName = env.FROM_NAME?.trim() || "Clauxen";
   const origin = appOrigin(env);
 
@@ -151,6 +171,18 @@ export async function sendBillingEmail(
       </p>`,
     );
     text = `Payment successful. Invoice ${payload.invoiceNumber}. Amount ${payload.amountLabel} for ${payload.planName}. View billing: ${settingsUrl}`;
+  } else if (payload.kind === "automation_run") {
+    const succeeded = payload.status === "success";
+    subject = `${payload.taskName} ${succeeded ? "completed" : payload.status}`;
+    const resultLink = payload.chatUrl
+      ? `<p style="margin:20px 0 0;"><a href="${escapeHtml(payload.chatUrl)}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;">Open result</a></p>`
+      : "";
+    html = wrapEmail(
+      subject,
+      `<p style="margin:0;font-size:15px;line-height:1.55;color:#3f3f46;">${escapeHtml(payload.summary)}</p>${resultLink}`,
+      "You received this because notifications are enabled for this automation.",
+    );
+    text = `${subject}\n\n${payload.summary}${payload.chatUrl ? `\n\nOpen result: ${payload.chatUrl}` : ""}`;
   } else if (
     payload.kind === "gift_received" ||
     payload.kind === "gift_share_link"
@@ -180,7 +212,10 @@ export async function sendBillingEmail(
     text = isShare
       ? `Share your Clauxen gift (${payload.planName}, ${payload.monthsLabel}): ${payload.claimUrl}${noteText}`
       : `You are gifted ${payload.planName} of Clauxen (${payload.monthsLabel}) from ${payload.senderName}.${noteText}Claim: ${payload.claimUrl}`;
-  } else {
+  } else if (
+    payload.kind === "billing_address_saved" ||
+    payload.kind === "billing_address_updated"
+  ) {
     const updated = payload.kind === "billing_address_updated";
     subject = updated
       ? "Your billing address was updated"
@@ -199,6 +234,8 @@ export async function sendBillingEmail(
       </p>`,
     );
     text = `${subject}. ${payload.fullName}: ${payload.summary}`;
+  } else {
+    return { ok: false, error: "unsupported_email_kind" };
   }
 
   try {

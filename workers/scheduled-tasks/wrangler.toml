@@ -15,6 +15,18 @@ head_sampling_rate = 1
 [vars]
 # Overridden per-env if needed; secret preferred for APP_ORIGIN in prod.
 
-# Fire every minute — Worker POSTs to Vercel dispatch endpoint.
+# Fire every minute — claim durable runs, enqueue them, then execute one/run.
 [triggers]
 crons = ["* * * * *"]
+
+[[queues.producers]]
+binding = "AUTOMATION_QUEUE"
+queue = "clauxen-automation-runs"
+
+[[queues.consumers]]
+queue = "clauxen-automation-runs"
+dead_letter_queue = "clauxen-automation-runs-dlq"
+max_batch_size = 3
+max_batch_timeout = 2
+max_retries = 5
+retry_delay = 60

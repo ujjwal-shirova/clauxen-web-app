@@ -31,7 +31,8 @@ export const PATCH = withApiRouteParams<{ taskId: string }>(
 
     const patch: Parameters<typeof scheduledTasks.updateTask>[2] = {};
     if (typeof body.name === "string") patch.name = body.name;
-    if (typeof body.requirement === "string") patch.requirement = body.requirement;
+    if (typeof body.requirement === "string")
+      patch.requirement = body.requirement;
     if (typeof body.frequency === "string") {
       patch.frequency = body.frequency as ScheduleFrequency;
     }
@@ -45,7 +46,8 @@ export const PATCH = withApiRouteParams<{ taskId: string }>(
       patch.runDate = typeof body.run_date === "string" ? body.run_date : null;
     }
     if (typeof body.dayOfWeek === "number") patch.dayOfWeek = body.dayOfWeek;
-    if (typeof body.day_of_week === "number") patch.dayOfWeek = body.day_of_week;
+    if (typeof body.day_of_week === "number")
+      patch.dayOfWeek = body.day_of_week;
     if (typeof body.dayOfMonth === "number") patch.dayOfMonth = body.dayOfMonth;
     if (typeof body.day_of_month === "number") {
       patch.dayOfMonth = body.day_of_month;
@@ -60,6 +62,31 @@ export const PATCH = withApiRouteParams<{ taskId: string }>(
     }
     if (body.status === "active" || body.status === "paused") {
       patch.status = body.status;
+    }
+    if (typeof body.notificationMode === "string") {
+      patch.notificationMode = body.notificationMode as "email_app";
+    }
+    if (typeof body.modelMode === "string") {
+      patch.modelMode = body.modelMode as "fast";
+    }
+    if (Array.isArray(body.connectorIds)) {
+      patch.connectorIds = body.connectorIds.filter(
+        (value): value is string => typeof value === "string",
+      );
+    }
+    if (Array.isArray(body.skillIds)) {
+      patch.skillIds = body.skillIds.filter(
+        (value): value is string => typeof value === "string",
+      );
+    }
+    if (Array.isArray(body.attachmentRefs)) {
+      patch.attachmentRefs = body.attachmentRefs.filter(
+        (value): value is Record<string, unknown> =>
+          Boolean(value) && typeof value === "object" && !Array.isArray(value),
+      );
+    }
+    if (body.projectId === null || typeof body.projectId === "string") {
+      patch.projectId = body.projectId;
     }
 
     const task = await scheduledTasks.updateTask(params.taskId, user.id, patch);

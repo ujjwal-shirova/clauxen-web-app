@@ -217,6 +217,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       p === "/new" ||
       p === "/incognito" ||
       p.startsWith("/incognito/") ||
+      p === "/plugins" ||
       p === "/library" ||
       p === "/project" ||
       p === "/projects" ||
@@ -402,6 +403,7 @@ function computeActiveView(
   if (!pathname) return "chat";
   if (pathname.startsWith("/my-clauxen")) return "my-clauxen";
   if (pathname.startsWith("/automations")) return "automations";
+  if (pathname.startsWith("/plugins")) return "plugins";
   if (pathname.startsWith("/project") || pathname.startsWith("/projects")) {
     return "projects";
   }

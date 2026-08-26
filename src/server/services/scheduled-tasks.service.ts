@@ -12,6 +12,8 @@ import {
   type ScheduleFrequency,
   type ScheduleSpec,
 } from "@/server/services/scheduled-tasks-schedule";
+import { env } from "@/server/config/env";
+import { sendAutomationRunEmail } from "@/server/billing/billing-email";
 
 const MAX_NAME = 50;
 const MAX_REQUIREMENT = 8000;
@@ -34,7 +36,10 @@ function assertTimezone(tz: string): string {
   }
 }
 
-function assertDate(value: string | null | undefined, label: string): string | null {
+function assertDate(
+  value: string | null | undefined,
+  label: string,
+): string | null {
   if (value === undefined || value === null || value === "") return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new AppError(`${label} must be YYYY-MM-DD.`, 400);
@@ -53,12 +58,30 @@ export type CreateScheduledTaskInput = {
   dayOfMonth?: number | null;
   expiresAt?: string | null;
   source?: "manual" | "chat";
+  notificationMode?: "email_app" | "email_only" | "app_only" | "off";
+  modelMode?: "fast" | "thinking";
+  connectorIds?: string[];
+  skillIds?: string[];
+  attachmentRefs?: Array<Record<string, unknown>>;
+  projectId?: string | null;
 };
+
+function cleanIds(values: string[] | undefined, label: string): string[] {
+  if (!values) return [];
+  const cleaned = [
+    ...new Set(values.map((value) => value.trim()).filter(Boolean)),
+  ];
+  if (cleaned.length > 20 || cleaned.some((value) => value.length > 160)) {
+    throw new AppError(`${label} selection is invalid.`, 400);
+  }
+  return cleaned;
+}
 
 export function validateCreateInput(raw: CreateScheduledTaskInput) {
   const name = raw.name?.trim() ?? "";
   if (!name) throw new AppError("Name is required.", 400);
-  if (name.length > MAX_NAME) throw new AppError("Name is too long (max 50).", 400);
+  if (name.length > MAX_NAME)
+    throw new AppError("Name is too long (max 50).", 400);
 
   const requirement = raw.requirement?.trim() ?? "";
   if (!requirement) throw new AppError("Requirement is required.", 400);
@@ -67,13 +90,26 @@ export function validateCreateInput(raw: CreateScheduledTaskInput) {
   }
 
   if (!FREQUENCIES.has(raw.frequency)) {
-    throw new AppError("Frequency must be once, daily, weekly, or monthly.", 400);
+    throw new AppError(
+      "Frequency must be once, daily, weekly, or monthly.",
+      400,
+    );
   }
 
   parseTimeLocal(raw.timeLocal);
   const timezone = assertTimezone(raw.timezone ?? "UTC");
   const runDate = assertDate(raw.runDate, "runDate");
   const expiresAt = assertDate(raw.expiresAt, "expiresAt");
+  const notificationMode = raw.notificationMode ?? "email_app";
+  if (
+    !["email_app", "email_only", "app_only", "off"].includes(notificationMode)
+  ) {
+    throw new AppError("Invalid notification mode.", 400);
+  }
+  const modelMode = raw.modelMode ?? "fast";
+  if (!["fast", "thinking"].includes(modelMode)) {
+    throw new AppError("Invalid model mode.", 400);
+  }
 
   let dayOfWeek = raw.dayOfWeek ?? null;
   let dayOfMonth = raw.dayOfMonth ?? null;
@@ -135,6 +171,14 @@ export function validateCreateInput(raw: CreateScheduledTaskInput) {
     expiresAt,
     nextRunAt: next.toISOString(),
     source: raw.source ?? ("manual" as const),
+    notificationMode,
+    modelMode,
+    connectorIds: cleanIds(raw.connectorIds, "Connector"),
+    skillIds: cleanIds(raw.skillIds, "Skill"),
+    attachmentRefs: Array.isArray(raw.attachmentRefs)
+      ? raw.attachmentRefs.slice(0, 20)
+      : [],
+    projectId: raw.projectId ?? null,
   };
 }
 
@@ -148,7 +192,10 @@ export async function getTask(taskId: string, userId: string) {
   return task;
 }
 
-export async function createTask(userId: string, raw: CreateScheduledTaskInput) {
+export async function createTask(
+  userId: string,
+  raw: CreateScheduledTaskInput,
+) {
   const active = await tasksRepo.countActiveScheduledTasks(userId);
   if (active >= MAX_ACTIVE_TASKS) {
     throw new AppError(
@@ -191,7 +238,8 @@ export async function updateTask(
             );
       const updated = await tasksRepo.updateScheduledTask(taskId, userId, {
         status: patch.status,
-        nextRunAt: patch.status === "paused" ? null : nextRunAt?.toISOString() ?? null,
+        nextRunAt:
+          patch.status === "paused" ? null : (nextRunAt?.toISOString() ?? null),
       });
       if (!updated) throw new AppError("Scheduled task not found.", 404);
       return updated;
@@ -211,6 +259,13 @@ export async function updateTask(
       patch.dayOfMonth !== undefined ? patch.dayOfMonth : existing.day_of_month,
     expiresAt:
       patch.expiresAt !== undefined ? patch.expiresAt : existing.expires_at,
+    notificationMode: patch.notificationMode ?? existing.notification_mode,
+    modelMode: patch.modelMode ?? existing.model_mode,
+    connectorIds: patch.connectorIds ?? existing.connector_ids,
+    skillIds: patch.skillIds ?? existing.skill_ids,
+    attachmentRefs: patch.attachmentRefs ?? existing.attachment_refs,
+    projectId:
+      patch.projectId !== undefined ? patch.projectId : existing.project_id,
   };
 
   const validated = validateCreateInput(merged);
@@ -226,6 +281,12 @@ export async function updateTask(
     expiresAt: validated.expiresAt,
     nextRunAt: validated.nextRunAt,
     status: patch.status ?? existing.status,
+    notificationMode: validated.notificationMode,
+    modelMode: validated.modelMode,
+    connectorIds: validated.connectorIds,
+    skillIds: validated.skillIds,
+    attachmentRefs: validated.attachmentRefs,
+    projectId: validated.projectId,
   });
   if (!updated) throw new AppError("Scheduled task not found.", 404);
   return updated;
@@ -238,26 +299,82 @@ export async function deleteTask(taskId: string, userId: string) {
 }
 
 function buildRunPrompt(task: tasksRepo.ScheduledTaskRow): string {
-  return [
-    `[Scheduled task: ${task.name}]`,
-    ``,
-    task.requirement.trim(),
-  ].join("\n");
+  return [`[Scheduled task: ${task.name}]`, ``, task.requirement.trim()].join(
+    "\n",
+  );
+}
+
+async function deliverRunNotification(
+  task: tasksRepo.ScheduledTaskRow,
+  run: tasksRepo.ScheduledTaskRunRow,
+  body: string,
+) {
+  if (task.notification_mode === "off") return;
+  if (
+    task.notification_mode === "email_app" ||
+    task.notification_mode === "app_only"
+  ) {
+    await tasksRepo.createAutomationNotification({ task, run, body });
+  }
+  if (
+    task.notification_mode === "email_app" ||
+    task.notification_mode === "email_only"
+  ) {
+    const recipient = await tasksRepo.getAutomationUserEmail(task.user_id);
+    if (recipient?.email) {
+      const chatUrl = run.chat_id
+        ? `${env.appUrl.replace(/\/+$/, "")}/c/${encodeURIComponent(run.chat_id)}`
+        : null;
+      await sendAutomationRunEmail({
+        to: recipient.email,
+        taskName: task.name,
+        status: run.status as "success" | "failed" | "skipped",
+        summary: body,
+        chatUrl,
+      });
+    }
+  }
 }
 
 /**
  * Execute one claimed task: create a chat, stream generation, record the run.
  * Consumes the SSE stream to completion (no client).
  */
-export async function executeScheduledTask(
-  task: tasksRepo.ScheduledTaskRow,
-): Promise<{ runId: string; chatId: string | null; ok: boolean }> {
-  const run = await tasksRepo.createScheduledTaskRun({
-    taskId: task.id,
-    userId: task.user_id,
-  });
-  if (!run) {
-    throw new Error("Failed to create run row");
+export async function executeScheduledRun(
+  runId: string,
+): Promise<{ runId: string; chatId: string | null; status: string }> {
+  const acquired = await tasksRepo.acquireScheduledTaskRun(runId);
+  if (!acquired) {
+    const existing = await tasksRepo.getScheduledTaskRun(runId);
+    if (!existing) throw new AppError("Scheduled run not found.", 404);
+    if (["success", "failed", "skipped"].includes(existing.status)) {
+      return { runId, chatId: existing.chat_id, status: existing.status };
+    }
+    throw new AppError("Scheduled run is already being executed.", 409);
+  }
+  const { task, run } = acquired;
+
+  if (task.status !== "active") {
+    const skipped = await tasksRepo.finishScheduledTaskRun({
+      runId,
+      status: "skipped",
+      summary: "Automation was not active when the queued run started.",
+    });
+    await tasksRepo.markScheduledTaskAfterRun({
+      taskId: task.id,
+      runId,
+      nextRunAt: null,
+      status: task.status,
+      lastRunStatus: "skipped",
+    });
+    if (skipped) {
+      await deliverRunNotification(
+        task,
+        skipped,
+        skipped.summary ?? "Automation skipped.",
+      );
+    }
+    return { runId, chatId: null, status: "skipped" };
   }
 
   const prompt = buildRunPrompt(task);
@@ -295,6 +412,9 @@ export async function executeScheduledTask(
         signal: generationController.signal,
         ensureLease: () => generation.lease,
         generateChatTitle: true,
+        chatModel:
+          task.model_mode === "thinking" ? env.thinkingModel : env.fastModel,
+        extendedThinking: task.model_mode === "thinking",
       });
 
       // Drain SSE so the agent finishes and persists.
@@ -326,8 +446,16 @@ export async function executeScheduledTask(
     ok = false;
   }
 
-  const runStatus = ok ? "success" : "failed";
-  await tasksRepo.finishScheduledTaskRun({
+  if (!ok && run.attempt_count < 5) {
+    await tasksRepo.requeueScheduledTaskRun(
+      run.id,
+      errorMessage ?? "Run failed",
+    );
+    throw new AppError(errorMessage ?? "Scheduled run failed.", 503);
+  }
+
+  const runStatus: "success" | "failed" = ok ? "success" : "failed";
+  const finishedRun = await tasksRepo.finishScheduledTaskRun({
     runId: run.id,
     status: runStatus,
     chatId,
@@ -353,38 +481,32 @@ export async function executeScheduledTask(
 
   await tasksRepo.markScheduledTaskAfterRun({
     taskId: task.id,
+    runId,
     nextRunAt: nextStatus === "active" && next ? next.toISOString() : null,
     status: nextStatus,
     lastRunStatus: runStatus,
     lastChatId: chatId,
   });
 
-  return { runId: run.id, chatId, ok };
-}
-
-/** Dispatch due tasks — called by internal cron endpoint. */
-export async function dispatchDueScheduledTasks(limit = 8): Promise<{
-  claimed: number;
-  results: Array<{ taskId: string; ok: boolean; chatId: string | null }>;
-}> {
-  const due = await tasksRepo.claimDueScheduledTasks(limit);
-  const results: Array<{ taskId: string; ok: boolean; chatId: string | null }> =
-    [];
-
-  // Run sequentially to avoid stampeding inference quotas.
-  for (const task of due) {
-    try {
-      const result = await executeScheduledTask(task);
-      results.push({
-        taskId: task.id,
-        ok: result.ok,
-        chatId: result.chatId,
-      });
-    } catch (err) {
-      console.error("[scheduled-tasks] execute failed", task.id, err);
-      results.push({ taskId: task.id, ok: false, chatId: null });
-    }
+  if (finishedRun) {
+    await deliverRunNotification(
+      task,
+      finishedRun,
+      summary ??
+        (ok
+          ? "Your automation completed successfully."
+          : (errorMessage ?? "Your automation failed.")),
+    );
   }
 
-  return { claimed: due.length, results };
+  return { runId: run.id, chatId, status: runStatus };
+}
+
+/** Claim due schedules into durable queue jobs. No inference runs here. */
+export async function dispatchDueScheduledTasks(limit = 8): Promise<{
+  claimed: number;
+  jobs: tasksRepo.QueuedScheduledRun[];
+}> {
+  const jobs = await tasksRepo.claimDueScheduledTasks(limit);
+  return { claimed: jobs.length, jobs };
 }

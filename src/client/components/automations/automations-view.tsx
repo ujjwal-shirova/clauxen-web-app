@@ -18,14 +18,17 @@ import {
 import {
   createAutomation,
   deleteAutomation,
+  listAutomationRuns,
   listAutomations,
   updateAutomation,
   type ApiAutomation,
+  type ApiAutomationRun,
   type AutomationInput,
 } from "@/lib/api/automations";
 import { useToast } from "@/hooks/use-toast";
 import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
+import { APP_ROUTES } from "@/lib/app-routes";
 
 type EditorValue = AutomationPreset | ApiAutomation | null;
 const CATEGORIES = [
@@ -71,6 +74,8 @@ export function AutomationsView() {
   const { toast } = useToast();
   const [tab, setTab] = useState<"automations" | "runs">("automations");
   const [tasks, setTasks] = useState<ApiAutomation[]>([]);
+  const [runs, setRuns] = useState<ApiAutomationRun[]>([]);
+  const [runsLoading, setRunsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -103,6 +108,35 @@ export function AutomationsView() {
       cancelled = true;
     };
   }, [toast]);
+
+  useEffect(() => {
+    if (tab !== "runs") return;
+    let cancelled = false;
+    const load = async () => {
+      setRunsLoading(true);
+      try {
+        const result = await listAutomationRuns();
+        if (!cancelled) setRuns(result.runs);
+      } catch (error) {
+        if (!cancelled) {
+          toast({
+            title: "Couldn’t load runs",
+            description:
+              error instanceof Error ? error.message : "Try again shortly.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (!cancelled) setRunsLoading(false);
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [tab, toast]);
 
   const openEditor = (value: EditorValue) => {
     setEditorValue(value);
@@ -219,16 +253,70 @@ export function AutomationsView() {
       <div className="app-scrollbar flex-1 overflow-y-auto">
         <main className="mobile-page-inset mx-auto w-full max-w-[1120px] px-4 pb-24 pt-2 sm:px-8">
           {tab === "runs" ? (
-            <div className="flex min-h-[380px] flex-col items-center justify-center text-center">
-              <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-black/[0.04] text-zinc-500">
-                <RotateCw className="size-5" />
+            runsLoading && runs.length === 0 ? (
+              <div className="flex min-h-[380px] items-center justify-center text-zinc-500">
+                <RotateCw className="size-5 animate-spin" />
               </div>
-              <h2 className="text-[17px] font-semibold">No recent runs</h2>
-              <p className="mt-1 max-w-sm text-[14px] leading-5 text-zinc-500">
-                Completed automation runs will appear here with their result and
-                status.
-              </p>
-            </div>
+            ) : runs.length === 0 ? (
+              <div className="flex min-h-[380px] flex-col items-center justify-center text-center">
+                <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-black/[0.04] text-zinc-500">
+                  <RotateCw className="size-5" />
+                </div>
+                <h2 className="text-[17px] font-semibold">No recent runs</h2>
+                <p className="mt-1 max-w-sm text-[14px] leading-5 text-zinc-500">
+                  Queued and completed automation runs will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {runs.map((run) => (
+                  <article
+                    key={run.id}
+                    className="rounded-2xl border border-black/[0.07] bg-[#f8f8f8] p-4 sm:p-5"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <h2 className="truncate text-[15px] font-semibold">
+                          {run.task_name}
+                        </h2>
+                        <p className="mt-1 text-[12px] text-zinc-500">
+                          {new Date(run.queued_at).toLocaleString()} · attempt{" "}
+                          {run.attempt_count}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          "rounded-full px-2.5 py-1 text-[11px] font-medium capitalize",
+                          run.status === "success" &&
+                            "bg-emerald-100 text-emerald-700",
+                          run.status === "failed" && "bg-red-100 text-red-700",
+                          (run.status === "queued" ||
+                            run.status === "running") &&
+                            "bg-amber-100 text-amber-700",
+                          run.status === "skipped" &&
+                            "bg-zinc-200 text-zinc-600",
+                        )}
+                      >
+                        {run.status}
+                      </span>
+                    </div>
+                    {run.summary || run.error_message ? (
+                      <p className="mt-3 line-clamp-3 text-[13px] leading-5 text-zinc-600">
+                        {run.summary || run.error_message}
+                      </p>
+                    ) : null}
+                    {run.chat_id ? (
+                      <a
+                        href={APP_ROUTES.chat(run.chat_id)}
+                        className="mt-3 inline-flex text-[13px] font-medium text-zinc-900 underline underline-offset-4"
+                      >
+                        Open result
+                      </a>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            )
           ) : (
             <div className="space-y-9">
               {loading ? (

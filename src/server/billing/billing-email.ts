@@ -6,7 +6,8 @@ export type BillingEmailKind =
   | "billing_address_saved"
   | "billing_address_updated"
   | "gift_received"
-  | "gift_share_link";
+  | "gift_share_link"
+  | "automation_run";
 
 type InvoiceEmailPayload = {
   to: string;
@@ -38,12 +39,24 @@ type GiftEmailPayload = {
   claimUrl: string;
 };
 
+type AutomationEmailPayload = {
+  to: string;
+  kind: "automation_run";
+  taskName: string;
+  status: "success" | "failed" | "skipped";
+  summary: string;
+  chatUrl?: string | null;
+};
+
 export type BillingEmailPayload =
   | InvoiceEmailPayload
   | AddressEmailPayload
-  | GiftEmailPayload;
+  | GiftEmailPayload
+  | AutomationEmailPayload;
 
-async function postBillingEmail(payload: BillingEmailPayload): Promise<boolean> {
+async function postBillingEmail(
+  payload: BillingEmailPayload,
+): Promise<boolean> {
   if (!isBillingWorkerConfigured()) {
     if (!env.authEmailWorkerUrl || !env.authEmailInternalToken) {
       console.warn("[billing-email] No email worker configured — skip send");
@@ -70,7 +83,11 @@ async function postBillingEmail(payload: BillingEmailPayload): Promise<boolean> 
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.warn("[billing-email] send failed", res.status, text.slice(0, 200));
+      console.warn(
+        "[billing-email] send failed",
+        res.status,
+        text.slice(0, 200),
+      );
       return false;
     }
     return true;
@@ -80,11 +97,15 @@ async function postBillingEmail(payload: BillingEmailPayload): Promise<boolean> 
   }
 }
 
-export async function sendBillingNotificationEmail(payload: BillingEmailPayload) {
+export async function sendBillingNotificationEmail(
+  payload: BillingEmailPayload,
+) {
   return postBillingEmail(payload);
 }
 
-export async function sendInvoicePaidEmail(input: Omit<InvoiceEmailPayload, "kind">) {
+export async function sendInvoicePaidEmail(
+  input: Omit<InvoiceEmailPayload, "kind">,
+) {
   return postBillingEmail({ ...input, kind: "invoice_paid" });
 }
 
@@ -94,4 +115,10 @@ export async function sendGiftNotificationEmail(
   },
 ) {
   return postBillingEmail(input);
+}
+
+export async function sendAutomationRunEmail(
+  input: Omit<AutomationEmailPayload, "kind">,
+) {
+  return postBillingEmail({ ...input, kind: "automation_run" });
 }

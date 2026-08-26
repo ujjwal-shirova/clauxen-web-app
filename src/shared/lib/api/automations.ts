@@ -17,7 +17,20 @@ export type ApiAutomation = {
   last_run_at: string | null;
   last_run_status: string | null;
   run_count: number;
+  notification_mode: AutomationNotificationMode;
+  model_mode: AutomationModelMode;
+  connector_ids: string[];
+  skill_ids: string[];
+  attachment_refs: Array<Record<string, unknown>>;
+  project_id: string | null;
 };
+
+export type AutomationNotificationMode =
+  | "email_app"
+  | "email_only"
+  | "app_only"
+  | "off";
+export type AutomationModelMode = "fast" | "thinking";
 
 export type AutomationInput = {
   name: string;
@@ -28,6 +41,27 @@ export type AutomationInput = {
   runDate?: string | null;
   dayOfWeek?: number | null;
   dayOfMonth?: number | null;
+  notificationMode?: AutomationNotificationMode;
+  modelMode?: AutomationModelMode;
+  connectorIds?: string[];
+  skillIds?: string[];
+  attachmentRefs?: Array<Record<string, unknown>>;
+  projectId?: string | null;
+};
+
+export type ApiAutomationRun = {
+  id: string;
+  task_id: string;
+  task_name: string;
+  chat_id: string | null;
+  status: "queued" | "running" | "success" | "failed" | "skipped";
+  queued_at: string;
+  started_at: string;
+  finished_at: string | null;
+  scheduled_for: string;
+  attempt_count: number;
+  summary: string | null;
+  error_message: string | null;
 };
 
 export function listAutomations() {
@@ -55,5 +89,11 @@ export function deleteAutomation(taskId: string) {
   return apiFetch<{ ok: boolean }>(
     `/api/v1/scheduled-tasks/${encodeURIComponent(taskId)}`,
     { method: "DELETE" },
+  );
+}
+
+export function listAutomationRuns(limit = 50) {
+  return apiFetch<{ runs: ApiAutomationRun[] }>(
+    `/api/v1/scheduled-tasks/runs?limit=${limit}`,
   );
 }

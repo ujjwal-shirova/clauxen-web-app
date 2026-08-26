@@ -76,6 +76,18 @@ const WEEKDAYS = [
   "Saturday",
 ];
 const NOTIFICATION_OPTIONS = ["Email + App", "Email only", "App only", "Off"];
+const NOTIFICATION_VALUES = {
+  "Email + App": "email_app",
+  "Email only": "email_only",
+  "App only": "app_only",
+  Off: "off",
+} as const;
+const NOTIFICATION_LABELS = {
+  email_app: "Email + App",
+  email_only: "Email only",
+  app_only: "App only",
+  off: "Off",
+} as const;
 
 function timezone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -120,6 +132,12 @@ function makeDraft(value: AutomationPreset | ApiAutomation | null): Draft {
     dayOfWeek: value.day_of_week,
     dayOfMonth: value.day_of_month,
     status: value.status,
+    notificationMode: value.notification_mode,
+    modelMode: value.model_mode,
+    connectorIds: value.connector_ids,
+    skillIds: value.skill_ids,
+    attachmentRefs: value.attachment_refs,
+    projectId: value.project_id,
     icon: AUTOMATION_PRESETS.find((preset) => preset.name === value.name)?.icon,
   };
 }
@@ -163,8 +181,16 @@ export function AutomationEditorDialog({
   useEffect(() => {
     if (open) {
       setDraft(makeDraft(value));
-      setNotification(NOTIFICATION_OPTIONS[0]);
-      setModel("Fast");
+      setNotification(
+        value && !("instructions" in value)
+          ? NOTIFICATION_LABELS[value.notification_mode]
+          : NOTIFICATION_OPTIONS[0],
+      );
+      setModel(
+        value && !("instructions" in value) && value.model_mode === "thinking"
+          ? "Thinking"
+          : "Fast",
+      );
     }
   }, [open, value]);
 
@@ -481,7 +507,10 @@ export function AutomationEditorDialog({
                     className="flex h-8 items-center gap-1.5 rounded-lg px-2 text-[14px] font-medium hover:bg-black/[0.04]"
                   >
                     <Wrench className="size-4" />
-                    Connectors <span className="text-zinc-500">0</span>
+                    Connectors{" "}
+                    <span className="text-zinc-500">
+                      {draft.connectorIds?.length ?? 0}
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -489,7 +518,10 @@ export function AutomationEditorDialog({
                     className="flex h-8 items-center gap-1.5 rounded-lg px-2 text-[14px] font-medium hover:bg-black/[0.04]"
                   >
                     <Gauge className="size-4" />
-                    Skills <span className="text-zinc-500">0</span>
+                    Skills{" "}
+                    <span className="text-zinc-500">
+                      {draft.skillIds?.length ?? 0}
+                    </span>
                   </button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -571,7 +603,16 @@ export function AutomationEditorDialog({
             <button
               type="button"
               disabled={!canSave}
-              onClick={() => void onSave(draft)}
+              onClick={() =>
+                void onSave({
+                  ...draft,
+                  notificationMode:
+                    NOTIFICATION_VALUES[
+                      notification as keyof typeof NOTIFICATION_VALUES
+                    ],
+                  modelMode: model === "Thinking" ? "thinking" : "fast",
+                })
+              }
               className="h-10 rounded-xl bg-zinc-950 px-5 text-[14px] font-medium text-white disabled:opacity-40"
             >
               {saving ? "Saving…" : "Save"}
