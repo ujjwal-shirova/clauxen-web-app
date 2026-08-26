@@ -5,7 +5,7 @@
  */
 
 export const TRANSCRIPT_SCHEMA_VERSION =
-  "clauxen.transcript.openai.v1" as const;
+  "clauxen.transcript.openai.v2" as const;
 
 /** @deprecated Prefer TRANSCRIPT_SCHEMA_VERSION — kept for reading old rows. */
 export const TRANSCRIPT_SCHEMA_VERSION_LEGACY =
@@ -60,11 +60,59 @@ export type TranscriptAgentAction = {
   completedAtMs?: number;
 };
 
+export type TranscriptSource = {
+  title: string;
+  url: string;
+  snippet: string;
+  publishedDate?: string;
+  favicon?: string;
+  highlights?: string[];
+};
+
+/** Canonical UI timeline persisted in the same order it streamed. */
+export type TranscriptAgentSegment =
+  | {
+      type: "thinking";
+      id: string;
+      content: string;
+      startedAtMs?: number;
+      completedAtMs?: number;
+      durationSeconds?: number;
+    }
+  | {
+      type: "narration";
+      id: string;
+      content: string;
+      isFinal?: boolean;
+      startedAtMs?: number;
+      completedAtMs?: number;
+    }
+  | {
+      type: "tool";
+      id: string;
+      toolCallId: string;
+      name: string;
+      status: "running" | "done" | "error" | "cancelled";
+      input: Record<string, unknown>;
+      result?: string;
+      description?: string;
+      searchQuery?: string;
+      sources?: TranscriptSource[];
+      startedAtMs?: number;
+      completedAtMs?: number;
+    };
+
 export type TranscriptAgentUi = {
+  model?: string;
+  status?: "streaming" | "complete" | "failed" | "cancelled";
   startedAtMs?: number;
   completedAtMs?: number;
   thinkingDurationSeconds?: number;
   actions?: TranscriptAgentAction[];
+  /** Lossless ordered SSE timeline used directly by chat hydration. */
+  segments?: TranscriptAgentSegment[];
+  /** Deduplicated source-card data for citations and training export. */
+  sources?: TranscriptSource[];
   /** Exact chronological Responses API rounds for durable transcript hydrate. */
   modelTurns?: TranscriptAgentModelTurn[];
 };
@@ -79,6 +127,7 @@ export type TranscriptAgentModelTurn = {
 };
 
 export type TranscriptMessageRecord = {
+  schema_version?: typeof TRANSCRIPT_SCHEMA_VERSION | string;
   role: "user" | "assistant" | "system" | "tool";
   message: {
     content: TranscriptContentPart[];
@@ -88,6 +137,7 @@ export type TranscriptMessageRecord = {
 };
 
 export type TranscriptMetaRecord = {
+  schema_version?: typeof TRANSCRIPT_SCHEMA_VERSION | string;
   type: "turn_ended";
   status: "success" | "error" | "cancelled";
 };
@@ -190,13 +240,7 @@ export function captureOpenAIOutputItems(
           input = {};
         }
       }
-      captured.push(
-        toolUsePart(
-          item.name,
-          input,
-          item.call_id,
-        ),
-      );
+      captured.push(toolUsePart(item.name, input, item.call_id));
     }
   }
 
@@ -207,6 +251,7 @@ export function buildUserTranscriptRecord(
   content: string,
 ): TranscriptMessageRecord {
   return {
+    schema_version: TRANSCRIPT_SCHEMA_VERSION,
     role: "user",
     message: {
       content: [textPart(content)],
@@ -214,7 +259,7 @@ export function buildUserTranscriptRecord(
   };
 }
 
-/** Canonical order: reasoning → function calls → visible text. */
+/** Canonical order follows the exact streamed segment chronology. */
 export function buildAssistantTranscriptRecord(input: {
   answer: string;
   thinking?: string;
@@ -222,19 +267,42 @@ export function buildAssistantTranscriptRecord(input: {
   agentUi?: TranscriptAgentUi;
 }): TranscriptMessageRecord {
   const parts: TranscriptContentPart[] = [];
-  const thinking = input.thinking?.trim();
-  if (thinking) parts.push(thinkingPart(thinking));
+  const segments = input.agentUi?.segments ?? [];
 
-  for (const tool of input.tools ?? []) {
-    parts.push(toolUsePart(tool.name, tool.input ?? {}, tool.id));
+  if (segments.length > 0) {
+    for (const segment of segments) {
+      if (segment.type === "thinking" && segment.content.trim()) {
+        parts.push(thinkingPart(segment.content));
+      } else if (segment.type === "narration" && segment.content.trim()) {
+        parts.push(textPart(segment.content));
+      } else if (segment.type === "tool") {
+        parts.push(
+          toolUsePart(segment.name, segment.input, segment.toolCallId),
+        );
+      }
+    }
+  } else {
+    const thinking = input.thinking?.trim();
+    if (thinking) parts.push(thinkingPart(thinking));
+
+    for (const tool of input.tools ?? []) {
+      parts.push(toolUsePart(tool.name, tool.input ?? {}, tool.id));
+    }
   }
 
   const answer = input.answer.trim();
-  if (answer) parts.push(textPart(answer));
+  const finalNarrationAlreadyStored = segments.some(
+    (segment) =>
+      segment.type === "narration" &&
+      segment.isFinal === true &&
+      segment.content.trim() === answer,
+  );
+  if (answer && !finalNarrationAlreadyStored) parts.push(textPart(answer));
 
   if (parts.length === 0) parts.push(textPart(""));
 
   return {
+    schema_version: TRANSCRIPT_SCHEMA_VERSION,
     role: "assistant",
     message: { content: parts },
     ...(input.agentUi ? { agent_ui: input.agentUi } : {}),
@@ -252,6 +320,7 @@ export function buildToolResultUserRecord(
   }
   if (parts.length === 0) return null;
   return {
+    schema_version: TRANSCRIPT_SCHEMA_VERSION,
     role: "user",
     message: { content: parts },
   };
@@ -260,7 +329,11 @@ export function buildToolResultUserRecord(
 export function buildTurnEndedRecord(
   status: TranscriptMetaRecord["status"] = "success",
 ): TranscriptMetaRecord {
-  return { type: "turn_ended", status };
+  return {
+    schema_version: TRANSCRIPT_SCHEMA_VERSION,
+    type: "turn_ended",
+    status,
+  };
 }
 
 export function transcriptRoleOf(

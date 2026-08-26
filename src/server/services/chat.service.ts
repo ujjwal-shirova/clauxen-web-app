@@ -44,10 +44,13 @@ import {
   buildToolResultUserRecord,
   buildTurnEndedRecord,
   buildUserTranscriptRecord,
-  messagesToTranscriptRecords,
   recordsToJsonl,
   type CapturedToolCall,
+  type TranscriptAgentSegment,
   type TranscriptAgentModelTurn,
+  type TranscriptMessageRecord,
+  type TranscriptRecord,
+  type TranscriptSource,
 } from "@/server/training/transcript-format";
 import {
   buildPromptMessagesFromDbRows,
@@ -91,6 +94,55 @@ function buildAssistantTranscriptLines(input: {
     ),
   });
   return lines;
+}
+
+function transcriptSourcesFrom(value: unknown): TranscriptSource[] {
+  const rows = Array.isArray(value)
+    ? value
+    : value &&
+        typeof value === "object" &&
+        Array.isArray((value as { results?: unknown }).results)
+      ? (value as { results: unknown[] }).results
+      : [];
+  return rows.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const candidate = row as Record<string, unknown>;
+    if (typeof candidate.url !== "string" || !candidate.url) return [];
+    return [
+      {
+        title:
+          typeof candidate.title === "string" && candidate.title
+            ? candidate.title
+            : candidate.url,
+        url: candidate.url,
+        snippet: typeof candidate.snippet === "string" ? candidate.snippet : "",
+        ...(typeof candidate.publishedDate === "string"
+          ? { publishedDate: candidate.publishedDate }
+          : {}),
+        ...(typeof candidate.favicon === "string"
+          ? { favicon: candidate.favicon }
+          : {}),
+        ...(Array.isArray(candidate.highlights)
+          ? {
+              highlights: candidate.highlights.filter(
+                (item): item is string => typeof item === "string",
+              ),
+            }
+          : {}),
+      },
+    ];
+  });
+}
+
+function dedupeTranscriptSources(
+  segments: TranscriptAgentSegment[],
+): TranscriptSource[] {
+  const byUrl = new Map<string, TranscriptSource>();
+  for (const segment of segments) {
+    if (segment.type !== "tool") continue;
+    for (const source of segment.sources ?? []) byUrl.set(source.url, source);
+  }
+  return [...byUrl.values()];
 }
 
 export async function listRecentChats(userId: string, projectId?: string) {
@@ -484,6 +536,72 @@ export async function streamChatGeneration(input: {
   let thinkingStartedAtMs: number | null = null;
   let thinkingAccumulatedMs = 0;
   const toolsById = new Map<string, CapturedToolCall>();
+  const streamedSegments: TranscriptAgentSegment[] = [];
+  const streamedSegmentsById = new Map<string, TranscriptAgentSegment>();
+
+  const addStreamedSegment = (segment: TranscriptAgentSegment) => {
+    const existing = streamedSegmentsById.get(segment.id);
+    if (existing) return existing;
+    streamedSegments.push(segment);
+    streamedSegmentsById.set(segment.id, segment);
+    return segment;
+  };
+
+  const ensureThinkingSegment = (segmentId?: string) => {
+    const id =
+      segmentId ??
+      [...streamedSegments]
+        .reverse()
+        .find(
+          (segment) => segment.type === "thinking" && !segment.completedAtMs,
+        )?.id ??
+      `thinking-${streamedSegments.length + 1}`;
+    const existing = streamedSegmentsById.get(id);
+    if (existing?.type === "thinking") return existing;
+    return addStreamedSegment({
+      type: "thinking",
+      id,
+      content: "",
+      startedAtMs: Date.now(),
+    }) as Extract<TranscriptAgentSegment, { type: "thinking" }>;
+  };
+
+  const ensureNarrationSegment = (segmentId: string) => {
+    const existing = streamedSegmentsById.get(segmentId);
+    if (existing?.type === "narration") return existing;
+    return addStreamedSegment({
+      type: "narration",
+      id: segmentId,
+      content: "",
+      startedAtMs: Date.now(),
+    }) as Extract<TranscriptAgentSegment, { type: "narration" }>;
+  };
+
+  const ensureToolSegment = (tool: {
+    toolCallId: string;
+    name: string;
+    args?: Record<string, unknown>;
+    description?: string;
+  }) => {
+    const id = `tool-${tool.toolCallId}`;
+    const existing = streamedSegmentsById.get(id);
+    if (existing?.type === "tool") {
+      existing.input = { ...existing.input, ...(tool.args ?? {}) };
+      existing.name = tool.name || existing.name;
+      existing.description = tool.description ?? existing.description;
+      return existing;
+    }
+    return addStreamedSegment({
+      type: "tool",
+      id,
+      toolCallId: tool.toolCallId,
+      name: tool.name,
+      status: "running",
+      input: tool.args ?? {},
+      description: tool.description,
+      startedAtMs: Date.now(),
+    }) as Extract<TranscriptAgentSegment, { type: "tool" }>;
+  };
 
   // Prompt context runs INSIDE the SSE body after `start`. History /
   // personalization are soft-budgeted so a slow Supabase RTT cannot hold the
@@ -651,18 +769,46 @@ export async function streamChatGeneration(input: {
   const PARTIAL_SAVE_INTERVAL_MS = 4_000;
   let lastPartialSaveAtMs = 0;
   let partialSaveInFlight: Promise<unknown> = Promise.resolve();
-  const maybeSavePartialAnswer = () => {
+  const maybeSavePartialTurn = () => {
     if (input.signal?.aborted) return;
     const now = Date.now();
+    if (now - lastPartialSaveAtMs < PARTIAL_SAVE_INTERVAL_MS) {
+      return;
+    }
+    const snapshotAnswer = finalizeChatTitleStrippedAnswer(answer);
     if (
-      now - lastPartialSaveAtMs < PARTIAL_SAVE_INTERVAL_MS ||
-      !answer.trim()
+      !snapshotAnswer.trim() &&
+      !thinking.trim() &&
+      streamedSegments.length === 0
     ) {
       return;
     }
     lastPartialSaveAtMs = now;
-    const snapshotAnswer = finalizeChatTitleStrippedAnswer(answer);
-    if (!snapshotAnswer.trim()) return;
+    const snapshotSegments = JSON.parse(
+      JSON.stringify(streamedSegments),
+    ) as TranscriptAgentSegment[];
+    const snapshotTools = Array.from(toolsById.values()).map((tool) => ({
+      ...tool,
+      input: { ...tool.input },
+    }));
+    const snapshotContentJson = buildAssistantTranscriptRecord({
+      answer: snapshotAnswer,
+      thinking,
+      tools: snapshotTools,
+      agentUi: {
+        model: modelForTelemetry,
+        status: "streaming",
+        startedAtMs: started,
+        thinkingDurationSeconds:
+          thinkingAccumulatedMs > 0
+            ? Math.max(1, Math.round(thinkingAccumulatedMs / 1000))
+            : undefined,
+        modelTurns: [...modelTurns],
+        segments: snapshotSegments,
+        sources: dedupeTranscriptSources(snapshotSegments),
+        actions: snapshotTools,
+      },
+    });
     partialSaveInFlight = partialSaveInFlight
       .catch(() => undefined)
       .then(async () => {
@@ -678,6 +824,7 @@ export async function streamChatGeneration(input: {
           input.chatId,
           snapshotAnswer,
           "streaming",
+          snapshotContentJson,
         );
       })
       .catch(() => undefined);
@@ -705,16 +852,22 @@ export async function streamChatGeneration(input: {
       {
         onAnswerDelta: (delta) => {
           answer += delta;
-          maybeSavePartialAnswer();
+          maybeSavePartialTurn();
         },
-        onAnswerFinalize: (text) => {
+        onAnswerFinalize: (text, segmentId) => {
           // The loop promotes the final-round text wholesale — replace, never
           // append (narration prose from earlier rounds is not the answer).
           answer = text;
+          if (segmentId) {
+            const narration = ensureNarrationSegment(segmentId);
+            narration.content = text;
+            narration.isFinal = true;
+            narration.completedAtMs ??= Date.now();
+          }
           // Persist the promoted answer immediately so a disconnect between
           // here and onComplete cannot wipe the visible reply.
           lastPartialSaveAtMs = 0;
-          maybeSavePartialAnswer();
+          maybeSavePartialTurn();
         },
         onAnswerClear: () => {
           answer = "";
@@ -722,12 +875,37 @@ export async function streamChatGeneration(input: {
         onThinkingStart: () => {
           beginThinkingPhase();
         },
-        onThinkingDelta: (delta) => {
+        onThinkingDelta: (delta, segmentId) => {
           beginThinkingPhase();
           thinking += delta;
+          ensureThinkingSegment(segmentId).content += delta;
+          maybeSavePartialTurn();
         },
-        onThinkingEnd: () => {
+        onThinkingEnd: (segmentId) => {
           endThinkingPhase();
+          const segment = ensureThinkingSegment(segmentId);
+          segment.completedAtMs ??= Date.now();
+          segment.durationSeconds = segment.startedAtMs
+            ? Math.max(
+                1,
+                Math.round(
+                  (segment.completedAtMs - segment.startedAtMs) / 1000,
+                ),
+              )
+            : undefined;
+        },
+        onSegmentStart: ({ segmentId, kind }) => {
+          if (kind === "thinking") ensureThinkingSegment(segmentId);
+          if (kind === "narration") ensureNarrationSegment(segmentId);
+        },
+        onSegmentEnd: ({ segmentId, kind }) => {
+          const segment = streamedSegmentsById.get(segmentId);
+          if (!segment || segment.type !== kind) return;
+          segment.completedAtMs ??= Date.now();
+        },
+        onNarrationDelta: (delta, segmentId) => {
+          ensureNarrationSegment(segmentId).content += delta;
+          maybeSavePartialTurn();
         },
         onChatTitle: (title) => {
           generatedTitle = normalizeInlineChatTitle(title, titleUserContent);
@@ -740,6 +918,7 @@ export async function streamChatGeneration(input: {
         onToolStart: (tool) => {
           // Tool work is not thinking time.
           endThinkingPhase();
+          ensureToolSegment(tool);
           const existing = toolsById.get(tool.toolCallId);
           toolsById.set(tool.toolCallId, {
             id: tool.toolCallId,
@@ -748,6 +927,7 @@ export async function streamChatGeneration(input: {
             description: tool.description ?? existing?.description,
             startedAtMs: existing?.startedAtMs ?? Date.now(),
           });
+          maybeSavePartialTurn();
         },
         onToolEnd: (tool) => {
           const existing = toolsById.get(tool.toolCallId);
@@ -761,6 +941,31 @@ export async function streamChatGeneration(input: {
             startedAtMs: existing?.startedAtMs,
             completedAtMs: Date.now(),
           });
+          const segment = ensureToolSegment({
+            toolCallId: tool.toolCallId,
+            name: tool.name || existing?.name || "tool",
+            args: existing?.input,
+            description: existing?.description,
+          });
+          segment.result = tool.result;
+          segment.status = tool.isError === true ? "error" : "done";
+          segment.completedAtMs = Date.now();
+          if (segment.name === "web_search") {
+            try {
+              segment.sources = transcriptSourcesFrom(JSON.parse(tool.result));
+            } catch {
+              segment.sources = transcriptSourcesFrom(tool.result);
+            }
+          }
+          maybeSavePartialTurn();
+        },
+        onToolData: ({ toolCallId, data }) => {
+          const segment = streamedSegmentsById.get(`tool-${toolCallId}`);
+          if (!segment || segment.type !== "tool") return;
+          if (typeof data.query === "string") segment.searchQuery = data.query;
+          const sources = transcriptSourcesFrom(data.results);
+          if (sources.length > 0) segment.sources = sources;
+          maybeSavePartialTurn();
         },
       },
       input.signal,
@@ -814,6 +1019,13 @@ export async function streamChatGeneration(input: {
         : failed
           ? "failed"
           : "complete";
+      for (const segment of streamedSegments) {
+        segment.completedAtMs ??= completedAtMs;
+        if (segment.type === "tool" && segment.status === "running") {
+          segment.status = wasCancelled ? "cancelled" : "error";
+        }
+      }
+      const persistedSources = dedupeTranscriptSources(streamedSegments);
       // Close any open thinking phase before persisting.
       endThinkingPhase();
       const thinkingDurationSeconds = thinking.trim()
@@ -824,10 +1036,14 @@ export async function streamChatGeneration(input: {
         thinking,
         tools,
         agentUi: {
+          model: modelForTelemetry,
+          status: completionStatus,
           startedAtMs: started,
           completedAtMs,
           thinkingDurationSeconds,
           modelTurns,
+          segments: streamedSegments,
+          sources: persistedSources,
           actions: tools.map((tool) => ({
             id: tool.id,
             name: tool.name,
@@ -958,6 +1174,13 @@ export async function streamChatGeneration(input: {
     const assistantRow = turnState.assistant;
     const tools = Array.from(toolsById.values());
     if (assistantRow?.id) {
+      const failedAtMs = Date.now();
+      for (const segment of streamedSegments) {
+        segment.completedAtMs ??= failedAtMs;
+        if (segment.type === "tool" && segment.status === "running") {
+          segment.status = input.signal?.aborted ? "cancelled" : "error";
+        }
+      }
       const failedContent = toUserFacingChatError(
         answer || (error instanceof Error ? error.message : String(error)),
       );
@@ -966,9 +1189,13 @@ export async function streamChatGeneration(input: {
         thinking,
         tools,
         agentUi: {
+          model: modelForTelemetry,
+          status: input.signal?.aborted ? "cancelled" : "failed",
           startedAtMs: started,
-          completedAtMs: Date.now(),
+          completedAtMs: failedAtMs,
           modelTurns,
+          segments: streamedSegments,
+          sources: dedupeTranscriptSources(streamedSegments),
           actions: tools,
         },
       });
@@ -1083,49 +1310,66 @@ export async function getChatTranscript(chatId: string, userId: string) {
 
   // Fallback: rebuild JSONL from durable content_json when export table is empty.
   const messages = await messagesRepo.listMessagesForChat(chatId);
-  const rebuilt = messagesToTranscriptRecords(
-    messages.map((row) => {
-      const agentUi = (
-        row.content_json as {
-          agent_ui?: {
-            actions?: Array<{
-              id: string;
-              name: string;
-              input?: Record<string, unknown>;
-              result?: string;
-              isError?: boolean;
-            }>;
-          };
-        }
-      )?.agent_ui;
-      return {
-        id: row.id,
-        role: row.role,
-        content: row.content ?? "",
-        agentFrames: agentUi?.actions?.length
-          ? [
-              {
-                segments: agentUi.actions.map((action) => ({
-                  kind: "tool",
-                  toolCallId: action.id,
-                  name: action.name,
-                  args: action.input ?? {},
-                  result: action.result,
-                  status: action.isError ? "error" : "done",
-                })),
-              },
-            ]
-          : undefined,
-      };
-    }),
-  );
+  const rebuilt: TranscriptRecord[] = [];
+  for (const row of messages) {
+    const candidate = row.content_json as Partial<TranscriptMessageRecord>;
+    const durableRecord =
+      candidate &&
+      typeof candidate === "object" &&
+      typeof candidate.role === "string" &&
+      candidate.message &&
+      Array.isArray(candidate.message.content)
+        ? (candidate as TranscriptMessageRecord)
+        : row.role === "user"
+          ? buildUserTranscriptRecord(row.content ?? "")
+          : buildAssistantTranscriptRecord({ answer: row.content ?? "" });
+    rebuilt.push(durableRecord);
+
+    if (durableRecord.role !== "assistant") continue;
+    const segments = durableRecord.agent_ui?.segments ?? [];
+    const segmentTools: CapturedToolCall[] = segments.flatMap((segment) =>
+      segment.type === "tool"
+        ? [
+            {
+              id: segment.toolCallId,
+              name: segment.name,
+              input: segment.input,
+              result: segment.result,
+              isError: segment.status === "error",
+            },
+          ]
+        : [],
+    );
+    const actionTools = (durableRecord.agent_ui?.actions ?? []).map(
+      (action) => ({
+        id: action.id,
+        name: action.name,
+        input: action.input,
+        result: action.result,
+        isError: action.isError,
+      }),
+    );
+    const toolResults = buildToolResultUserRecord(
+      segmentTools.length > 0 ? segmentTools : actionTools,
+    );
+    if (toolResults) rebuilt.push(toolResults);
+    rebuilt.push(
+      buildTurnEndedRecord(
+        row.status === "cancelled"
+          ? "cancelled"
+          : row.status === "failed"
+            ? "error"
+            : "success",
+      ),
+    );
+  }
   return {
     chat_id: chatId,
     user_id: userId,
     chat_title: chat.title,
     line_count: rebuilt.length,
     training_eligible: true,
-    jsonl: recordsToJsonl(rebuilt.map((line) => line.record)),
+    jsonl: recordsToJsonl(rebuilt),
   };
 }
 

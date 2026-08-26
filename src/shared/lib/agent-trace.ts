@@ -4,8 +4,7 @@
  * One flat, ordered list of steps per turn (replaces the old
  * frames + segments + work-groups trio):
  *
- *   thinking  — interleaved reasoning phase (private CoT is NOT persisted;
- *               only presence/duration)
+ *   thinking  — provider-supplied interleaved reasoning summary + duration
  *   narration — first-person progress prose ("I'm searching the web for X…")
  *   tool      — a tool/connector/bash/search invocation with lifecycle
  *

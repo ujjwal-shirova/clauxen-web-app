@@ -5,11 +5,14 @@ export function tapUiMessageSseStream(
   source: ReadableStream<Uint8Array>,
   callbacks: {
     onAnswerDelta?: (delta: string) => void;
-    onAnswerFinalize?: (text: string) => void;
+    onAnswerFinalize?: (text: string, segmentId?: string) => void;
     onAnswerClear?: () => void;
     onThinkingStart?: () => void;
-    onThinkingDelta?: (delta: string) => void;
-    onThinkingEnd?: () => void;
+    onThinkingDelta?: (delta: string, segmentId?: string) => void;
+    onThinkingEnd?: (segmentId?: string) => void;
+    onSegmentStart?: (segment: { segmentId: string; kind: string }) => void;
+    onSegmentEnd?: (segment: { segmentId: string; kind: string }) => void;
+    onNarrationDelta?: (delta: string, segmentId: string) => void;
     onChatTitle?: (title: string) => void;
     onToolStart?: (tool: {
       toolCallId: string;
@@ -22,6 +25,10 @@ export function tapUiMessageSseStream(
       name: string;
       result: string;
       isError?: boolean;
+    }) => void;
+    onToolData?: (tool: {
+      toolCallId: string;
+      data: Record<string, unknown>;
     }) => void;
     onError?: (message: string) => void;
   },
@@ -84,6 +91,9 @@ export function tapUiMessageSseStream(
                 name?: unknown;
                 args?: unknown;
                 description?: unknown;
+                segmentId?: unknown;
+                kind?: unknown;
+                data?: unknown;
                 result?: unknown;
                 isError?: unknown;
               };
@@ -91,7 +101,12 @@ export function tapUiMessageSseStream(
                 parsed.type === "answer_finalize" &&
                 typeof parsed.text === "string"
               ) {
-                callbacks.onAnswerFinalize?.(parsed.text);
+                callbacks.onAnswerFinalize?.(
+                  parsed.text,
+                  typeof parsed.segmentId === "string"
+                    ? parsed.segmentId
+                    : undefined,
+                );
               }
               if (
                 parsed.type === "answer_delta" &&
@@ -107,11 +122,47 @@ export function tapUiMessageSseStream(
               }
               if (parsed.type === "thinking_delta") {
                 if (typeof parsed.delta === "string") {
-                  callbacks.onThinkingDelta?.(parsed.delta);
+                  callbacks.onThinkingDelta?.(
+                    parsed.delta,
+                    typeof parsed.segmentId === "string"
+                      ? parsed.segmentId
+                      : undefined,
+                  );
                 }
               }
               if (parsed.type === "thinking_end") {
-                callbacks.onThinkingEnd?.();
+                callbacks.onThinkingEnd?.(
+                  typeof parsed.segmentId === "string"
+                    ? parsed.segmentId
+                    : undefined,
+                );
+              }
+              if (
+                parsed.type === "segment_start" &&
+                typeof parsed.segmentId === "string" &&
+                typeof parsed.kind === "string"
+              ) {
+                callbacks.onSegmentStart?.({
+                  segmentId: parsed.segmentId,
+                  kind: parsed.kind,
+                });
+              }
+              if (
+                parsed.type === "segment_end" &&
+                typeof parsed.segmentId === "string" &&
+                typeof parsed.kind === "string"
+              ) {
+                callbacks.onSegmentEnd?.({
+                  segmentId: parsed.segmentId,
+                  kind: parsed.kind,
+                });
+              }
+              if (
+                parsed.type === "narration_delta" &&
+                typeof parsed.delta === "string" &&
+                typeof parsed.segmentId === "string"
+              ) {
+                callbacks.onNarrationDelta?.(parsed.delta, parsed.segmentId);
               }
               if (parsed.type === "chat_title") {
                 if (typeof parsed.title === "string") {
@@ -161,6 +212,18 @@ export function tapUiMessageSseStream(
                         : undefined,
                   });
                 }
+              }
+              if (
+                parsed.type === "tool_data" &&
+                typeof parsed.toolCallId === "string" &&
+                parsed.data &&
+                typeof parsed.data === "object" &&
+                !Array.isArray(parsed.data)
+              ) {
+                callbacks.onToolData?.({
+                  toolCallId: parsed.toolCallId,
+                  data: parsed.data as Record<string, unknown>,
+                });
               }
             } catch {
               continue;

@@ -4,6 +4,7 @@ import { enrichPersistedToolSegment } from "@/lib/enrich-agent-tool";
 import { collectArtifactsFromAgentSteps } from "@/lib/chat-artifacts";
 import type {
   TranscriptAgentModelTurn,
+  TranscriptAgentSegment,
   TranscriptAgentUi,
   TranscriptContentPart,
   TranscriptMessageRecord,
@@ -134,6 +135,63 @@ function segmentsFromModelTurns(input: {
   return segments;
 }
 
+function stepsFromPersistedSegments(input: {
+  messageId: string;
+  segments: TranscriptAgentSegment[];
+}): AgentStep[] {
+  return input.segments.flatMap<AgentStep>((segment, index) => {
+    if (!segment || typeof segment !== "object") return [];
+    if (segment.type === "thinking") {
+      return [
+        {
+          kind: "thinking" as const,
+          id: segment.id || `thinking-${input.messageId}-${index}`,
+          content: segment.content,
+          isStreaming: false,
+          durationSeconds: segment.durationSeconds,
+          startedAtMs: segment.startedAtMs,
+          completedAtMs: segment.completedAtMs,
+        },
+      ];
+    }
+    if (segment.type === "narration") {
+      return [
+        {
+          kind: "narration" as const,
+          id: segment.id || `narration-${input.messageId}-${index}`,
+          content: segment.content,
+          isStreaming: false,
+          isFinal: segment.isFinal,
+          startedAtMs: segment.startedAtMs,
+          completedAtMs: segment.completedAtMs,
+        },
+      ];
+    }
+    if (segment.type !== "tool") return [];
+    return [
+      enrichPersistedToolSegment({
+        kind: "tool" as const,
+        id: segment.id || `tool-${segment.toolCallId}`,
+        toolCallId: segment.toolCallId,
+        name: segment.name,
+        status:
+          segment.status === "done"
+            ? "done"
+            : segment.status === "running"
+              ? "done"
+              : "error",
+        args: segment.input,
+        result: segment.result,
+        description: segment.description,
+        searchQuery: segment.searchQuery,
+        searchResults: segment.sources,
+        startedAtMs: segment.startedAtMs,
+        completedAtMs: segment.completedAtMs,
+      }),
+    ];
+  });
+}
+
 function enrichSegments(segments: AgentStep[]): AgentStep[] {
   return segments.map((segment) => {
     if (segment.kind !== "tool") return segment;
@@ -170,14 +228,16 @@ export function hydrateMessageFromContentJson(
   const persistedActions = Array.isArray(agentUi?.actions)
     ? agentUi.actions
     : [];
-  let thinking = base.thinkingContent ?? "";
+  let thinking = "";
   const tools: AgentToolStep[] = [];
   const texts: string[] = [];
 
   for (const part of parts) {
     if (!part || typeof part !== "object") continue;
     if (part.type === "thinking" && typeof part.thinking === "string") {
-      thinking = part.thinking;
+      thinking = [thinking.trim(), part.thinking.trim()]
+        .filter(Boolean)
+        .join("\n\n");
       continue;
     }
     if (part.type === "text" && typeof part.text === "string") {
@@ -217,6 +277,7 @@ export function hydrateMessageFromContentJson(
       );
     }
   }
+  if (!thinking.trim()) thinking = base.thinkingContent ?? "";
 
   const contentFromParts = texts
     .map((text) => parseAgentTextMarkup(text).visibleText.trim())
@@ -232,15 +293,23 @@ export function hydrateMessageFromContentJson(
   const modelTurns = Array.isArray(agentUi?.modelTurns)
     ? agentUi.modelTurns
     : [];
+  const directSegments = Array.isArray(agentUi?.segments)
+    ? stepsFromPersistedSegments({
+        messageId: base.id,
+        segments: agentUi.segments,
+      })
+    : [];
   const modelSegments =
-    modelTurns.length > 0
-      ? segmentsFromModelTurns({
-          messageId: base.id,
-          turns: modelTurns,
-          agentUi,
-          fallbackStamp: stamp,
-        })
-      : [];
+    directSegments.length > 0
+      ? directSegments
+      : modelTurns.length > 0
+        ? segmentsFromModelTurns({
+            messageId: base.id,
+            turns: modelTurns,
+            agentUi,
+            fallbackStamp: stamp,
+          })
+        : [];
 
   // Prefer durable row content; fall back to transcript text parts. Progress
   // narration (non-final) that also lingers in content gets blanked so the
@@ -256,7 +325,16 @@ export function hydrateMessageFromContentJson(
       )
       .map((segment) => segment.content.trim()),
   );
-  let content = (base.content ?? "").trim() || contentFromParts;
+  const persistedFinalNarration = [...modelSegments]
+    .reverse()
+    .find(
+      (segment): segment is Extract<AgentStep, { kind: "narration" }> =>
+        segment.kind === "narration" && segment.isFinal === true,
+    );
+  let content =
+    (base.content ?? "").trim() ||
+    persistedFinalNarration?.content.trim() ||
+    contentFromParts;
   if (content && narrationTexts.has(content)) {
     content = "";
   }

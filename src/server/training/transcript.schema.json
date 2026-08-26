@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clauxen.com/schemas/clauxen.transcript.openai.v2.json",
+  "title": "Clauxen OpenAI-compatible transcript record",
+  "oneOf": [
+    { "$ref": "#/$defs/messageRecord" },
+    { "$ref": "#/$defs/turnEndedRecord" }
+  ],
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["title", "url", "snippet"],
+      "properties": {
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "snippet": { "type": "string" },
+        "publishedDate": { "type": "string" },
+        "favicon": { "type": "string" },
+        "highlights": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "textPart": {
+      "type": "object",
+      "required": ["type", "text"],
+      "properties": {
+        "type": { "const": "text" },
+        "text": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "thinkingPart": {
+      "type": "object",
+      "required": ["type", "thinking"],
+      "properties": {
+        "type": { "const": "thinking" },
+        "thinking": { "type": "string" },
+        "signature": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "redactedThinkingPart": {
+      "type": "object",
+      "required": ["type", "data"],
+      "properties": {
+        "type": { "const": "redacted_thinking" },
+        "data": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "toolUsePart": {
+      "type": "object",
+      "required": ["type", "id", "name", "input"],
+      "properties": {
+        "type": { "const": "tool_use" },
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "input": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "toolResultPart": {
+      "type": "object",
+      "required": ["type", "tool_use_id", "content"],
+      "properties": {
+        "type": { "const": "tool_result" },
+        "tool_use_id": { "type": "string" },
+        "content": { "type": "string" },
+        "is_error": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "contentPart": {
+      "oneOf": [
+        { "$ref": "#/$defs/textPart" },
+        { "$ref": "#/$defs/thinkingPart" },
+        { "$ref": "#/$defs/redactedThinkingPart" },
+        { "$ref": "#/$defs/toolUsePart" },
+        { "$ref": "#/$defs/toolResultPart" }
+      ]
+    },
+    "thinkingSegment": {
+      "type": "object",
+      "required": ["type", "id", "content"],
+      "properties": {
+        "type": { "const": "thinking" },
+        "id": { "type": "string" },
+        "content": { "type": "string" },
+        "startedAtMs": { "type": "number" },
+        "completedAtMs": { "type": "number" },
+        "durationSeconds": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "narrationSegment": {
+      "type": "object",
+      "required": ["type", "id", "content"],
+      "properties": {
+        "type": { "const": "narration" },
+        "id": { "type": "string" },
+        "content": { "type": "string" },
+        "isFinal": { "type": "boolean" },
+        "startedAtMs": { "type": "number" },
+        "completedAtMs": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "toolSegment": {
+      "type": "object",
+      "required": ["type", "id", "toolCallId", "name", "status", "input"],
+      "properties": {
+        "type": { "const": "tool" },
+        "id": { "type": "string" },
+        "toolCallId": { "type": "string" },
+        "name": { "type": "string" },
+        "status": {
+          "enum": ["running", "done", "error", "cancelled"]
+        },
+        "input": { "type": "object" },
+        "result": { "type": "string" },
+        "description": { "type": "string" },
+        "searchQuery": { "type": "string" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source" }
+        },
+        "startedAtMs": { "type": "number" },
+        "completedAtMs": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "segment": {
+      "oneOf": [
+        { "$ref": "#/$defs/thinkingSegment" },
+        { "$ref": "#/$defs/narrationSegment" },
+        { "$ref": "#/$defs/toolSegment" }
+      ]
+    },
+    "action": {
+      "type": "object",
+      "required": ["id", "name", "input"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "input": { "type": "object" },
+        "result": { "type": "string" },
+        "isError": { "type": "boolean" },
+        "description": { "type": "string" },
+        "startedAtMs": { "type": "number" },
+        "completedAtMs": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "modelTurn": {
+      "type": "object",
+      "required": ["stopReason", "assistant"],
+      "properties": {
+        "stopReason": { "type": "string" },
+        "startedAtMs": { "type": "number" },
+        "assistantCompletedAtMs": { "type": "number" },
+        "completedAtMs": { "type": "number" },
+        "assistant": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/contentPart" }
+        },
+        "toolResults": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/toolResultPart" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "agentUi": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "status": {
+          "enum": ["streaming", "complete", "failed", "cancelled"]
+        },
+        "startedAtMs": { "type": "number" },
+        "completedAtMs": { "type": "number" },
+        "thinkingDurationSeconds": { "type": "number", "minimum": 0 },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action" }
+        },
+        "segments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/segment" }
+        },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source" }
+        },
+        "modelTurns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/modelTurn" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "messageRecord": {
+      "type": "object",
+      "required": ["schema_version", "role", "message"],
+      "properties": {
+        "schema_version": { "const": "clauxen.transcript.openai.v2" },
+        "role": { "enum": ["user", "assistant", "system", "tool"] },
+        "message": {
+          "type": "object",
+          "required": ["content"],
+          "properties": {
+            "content": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/contentPart" }
+            }
+          },
+          "additionalProperties": false
+        },
+        "agent_ui": { "$ref": "#/$defs/agentUi" }
+      },
+      "additionalProperties": false
+    },
+    "turnEndedRecord": {
+      "type": "object",
+      "required": ["schema_version", "type", "status"],
+      "properties": {
+        "schema_version": { "const": "clauxen.transcript.openai.v2" },
+        "type": { "const": "turn_ended" },
+        "status": { "enum": ["success", "error", "cancelled"] }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -340,6 +340,9 @@ export async function getChatTranscript(
     lineCount: number;
     trainingEligible: boolean;
     schemaVersion: string;
+    messages: unknown[];
+    trainingMessages: Array<{ role: string; content: unknown[] }>;
+    events: unknown[];
     jsonl: string;
   }>(`/api/v1/chats/${encodeURIComponent(chatId)}/transcript?format=json`);
 }

@@ -142,11 +142,14 @@ export function tapChatSseStream(
   source: ReadableStream<Uint8Array>,
   callbacks: {
     onAnswerDelta?: (delta: string) => void;
-    onAnswerFinalize?: (text: string) => void;
+    onAnswerFinalize?: (text: string, segmentId?: string) => void;
     onAnswerClear?: () => void;
     onThinkingStart?: () => void;
-    onThinkingDelta?: (delta: string) => void;
-    onThinkingEnd?: () => void;
+    onThinkingDelta?: (delta: string, segmentId?: string) => void;
+    onThinkingEnd?: (segmentId?: string) => void;
+    onSegmentStart?: (segment: { segmentId: string; kind: string }) => void;
+    onSegmentEnd?: (segment: { segmentId: string; kind: string }) => void;
+    onNarrationDelta?: (delta: string, segmentId: string) => void;
     onChatTitle?: (title: string) => void;
     onToolStart?: (tool: {
       toolCallId: string;
@@ -159,6 +162,10 @@ export function tapChatSseStream(
       name: string;
       result: string;
       isError?: boolean;
+    }) => void;
+    onToolData?: (tool: {
+      toolCallId: string;
+      data: Record<string, unknown>;
     }) => void;
     onError?: (message: string) => void;
   },
