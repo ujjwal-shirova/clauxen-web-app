@@ -60,6 +60,7 @@ function titleForPath(
     return `Projects - ${BRAND}`;
   }
   if (pathname.startsWith("/library")) return `Library - ${BRAND}`;
+  if (pathname.startsWith("/automations")) return `Automations - ${BRAND}`;
   if (pathname.startsWith("/scheduled")) return `Scheduled Tasks - ${BRAND}`;
   if (pathname.startsWith("/my-clauxen")) return `My Clauxen - ${BRAND}`;
 

@@ -18,6 +18,7 @@ import {
   Sparkles,
   X,
   LayoutGrid,
+  Clock3,
 } from "lucide-react";
 import {
   SidebarToggleIcon,
@@ -818,6 +819,13 @@ export function Sidebar({
                   aria-hidden
                 />
               ) : undefined,
+            })}
+
+            {renderNavButton({
+              label: "Automations",
+              icon: <Clock3 className="size-4" strokeWidth={1.5} />,
+              href: APP_ROUTES.automations,
+              active: activeView === "automations",
             })}
 
             {/* Order: Pinned (chats + projects) → Projects → Recent */}

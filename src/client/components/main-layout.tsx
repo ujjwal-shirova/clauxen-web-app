@@ -401,6 +401,7 @@ function computeActiveView(
   }
   if (!pathname) return "chat";
   if (pathname.startsWith("/my-clauxen")) return "my-clauxen";
+  if (pathname.startsWith("/automations")) return "automations";
   if (pathname.startsWith("/project") || pathname.startsWith("/projects")) {
     return "projects";
   }
