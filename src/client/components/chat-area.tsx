@@ -10,11 +10,12 @@ import { ChatViewHeader } from "./chat-view-header";
 import { IncognitoChatHeader } from "./incognito-chat-header";
 import { ChatViewPane } from "./chat-view-pane";
 import { ChatArtifactsPanel } from "./chat-artifacts-panel";
-import { ChatRightRailControls } from "./chat-right-rail-controls";
 import { ArtifactViewerPanel } from "./artifact-viewer-panel";
-import { ArtifactViewerProvider, useArtifactViewer } from "@/contexts/artifact-viewer-context";
+import {
+  ArtifactViewerProvider,
+  useArtifactViewer,
+} from "@/contexts/artifact-viewer-context";
 import { ChatSourcesPanel } from "./chat-sources";
-import { collectChatArtifacts } from "@/lib/chat-artifacts";
 import { collectChatSources, collectMessageSources } from "@/lib/chat-sources";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
@@ -42,7 +43,9 @@ interface ChatAreaProps {
     chatId: string,
     messageId: string,
     newContent: string,
-    options?: { attachments?: import("@/lib/composer-attachments").ComposerAttachment[] },
+    options?: {
+      attachments?: import("@/lib/composer-attachments").ComposerAttachment[];
+    },
   ) => Promise<void>;
   redoUserMessageWithBranch: (
     chatId: string,
@@ -159,11 +162,10 @@ function ChatAreaLayout({
   const [sourcesMessageId, setSourcesMessageId] = useState<string | null>(null);
   const [, startTransition] = React.useTransition();
   const displayMessages = messages;
-  const chatArtifacts = React.useMemo(
-    () => collectChatArtifacts(messages),
+  const chatSources = React.useMemo(
+    () => collectChatSources(messages),
     [messages],
   );
-  const chatSources = React.useMemo(() => collectChatSources(messages), [messages]);
 
   const isConversationStarted = messages.length > 0;
   // Route chat hydrating — blank pane (no welcome), no skeleton copy.
@@ -186,7 +188,6 @@ function ChatAreaLayout({
     !showMessageSkeleton &&
     Boolean(activeChatId) &&
     Boolean(messagesLoadError);
-  const hasArtifacts = chatArtifacts.length > 0;
   // Hide interactive header until the server chat id exists — no shimmer.
   const headerControlsLoading = Boolean(creatingChatPending);
   const showChatOptionsHeader =
@@ -195,39 +196,18 @@ function ChatAreaLayout({
     showMessageSkeleton ||
     showMessageLoadError;
   const showDesktopArtifactsRail =
-    hasArtifacts &&
-    isConversationStarted &&
-    !isMobile &&
-    !isViewerOpen &&
-    !isSourcesPanelOpen;
+    isConversationStarted && !isMobile && !isViewerOpen && !isSourcesPanelOpen;
 
-  const {
-    scrollToBottom,
-    pinToBottom,
-    showScrollToBottom,
-  } = useChatScroll({
+  const { scrollToBottom, pinToBottom, showScrollToBottom } = useChatScroll({
     scrollAreaRef,
-    enabled: isConversationStarted || showMessageSkeleton || showMessageLoadError,
+    enabled:
+      isConversationStarted || showMessageSkeleton || showMessageLoadError,
   });
   const { isFastScrolling } = useChatScrollActivity(
     scrollAreaRef,
     isConversationStarted || showMessageSkeleton || showMessageLoadError,
   );
-  const artifactCountRef = React.useRef(chatArtifacts.length);
   const sourceCountRef = React.useRef(chatSources.length);
-
-  React.useEffect(() => {
-    // Auto-open the artifacts rail when a new file appears.
-    if (
-      chatArtifacts.length > artifactCountRef.current &&
-      chatArtifacts.length > 0 &&
-      !isViewerOpen &&
-      !isSourcesPanelOpen
-    ) {
-      setIsArtifactsPanelOpen(true);
-    }
-    artifactCountRef.current = chatArtifacts.length;
-  }, [chatArtifacts.length, isViewerOpen, isSourcesPanelOpen]);
 
   React.useEffect(() => {
     if (chatSources.length > sourceCountRef.current) {
@@ -262,10 +242,9 @@ function ChatAreaLayout({
     return () => cancelAnimationFrame(frame);
   }, [activeChatId, isConversationStarted, pinToBottom]);
 
-  const lastMessageKey =
-    messages[messages.length - 1]
-      ? `${messages[messages.length - 1].id}:${messages[messages.length - 1].role}`
-      : "empty";
+  const lastMessageKey = messages[messages.length - 1]
+    ? `${messages[messages.length - 1].id}:${messages[messages.length - 1].role}`
+    : "empty";
 
   React.useLayoutEffect(() => {
     const last = messages[messages.length - 1];
@@ -330,10 +309,12 @@ function ChatAreaLayout({
 
   React.useEffect(() => {
     const onChatSend = (event: Event) => {
-      const detail = (event as CustomEvent<{
-        content?: string;
-        bypassQueue?: boolean;
-      }>).detail;
+      const detail = (
+        event as CustomEvent<{
+          content?: string;
+          bypassQueue?: boolean;
+        }>
+      ).detail;
       const content = detail?.content?.trim();
       if (!content) return;
       handleSendMessageAndScroll(content, {
@@ -342,7 +323,8 @@ function ChatAreaLayout({
     };
 
     window.addEventListener(CLAUXEN_CHAT_SEND_EVENT, onChatSend);
-    return () => window.removeEventListener(CLAUXEN_CHAT_SEND_EVENT, onChatSend);
+    return () =>
+      window.removeEventListener(CLAUXEN_CHAT_SEND_EVENT, onChatSend);
   }, [handleSendMessageAndScroll]);
 
   const toggleArtifactsPanel = React.useCallback(() => {
@@ -353,10 +335,13 @@ function ChatAreaLayout({
     setIsSourcesPanelOpen(false);
     if (isViewerOpen) {
       closeViewer();
-      artifactPanelOpenTimerRef.current = window.setTimeout(() => {
-        setIsArtifactsPanelOpen(true);
-        artifactPanelOpenTimerRef.current = null;
-      }, isMobile ? 360 : 220);
+      artifactPanelOpenTimerRef.current = window.setTimeout(
+        () => {
+          setIsArtifactsPanelOpen(true);
+          artifactPanelOpenTimerRef.current = null;
+        },
+        isMobile ? 360 : 220,
+      );
       return;
     }
     setIsArtifactsPanelOpen((open) => !open);
@@ -373,13 +358,16 @@ function ChatAreaLayout({
     onDeleteChat?.(activeChatId);
   }, [activeChatId, onDeleteChat]);
 
-  const handlePromptDraftChange = React.useCallback((value: string) => {
-    const has = value.trim().length > 0;
-    startTransition(() => {
-      setHasPromptDraft(has);
-      if (has) setActiveChip(null);
-    });
-  }, [startTransition]);
+  const handlePromptDraftChange = React.useCallback(
+    (value: string) => {
+      const has = value.trim().length > 0;
+      startTransition(() => {
+        setHasPromptDraft(has);
+        if (has) setActiveChip(null);
+      });
+    },
+    [startTransition],
+  );
 
   const pendingAskQuestions = React.useMemo(
     () => findPendingAskUserInput(messages),
@@ -419,9 +407,7 @@ function ChatAreaLayout({
       lockedProjectId={incognito ? null : lockedProjectId}
       showProjectStrip={!incognito && !composerAsConversation}
       allowAttachments={!incognito}
-      placeholder={
-        incognito ? "How can I help you today?" : undefined
-      }
+      placeholder={incognito ? "How can I help you today?" : undefined}
       composerVariant={incognito ? "incognito" : "default"}
     />
   );
@@ -435,7 +421,10 @@ function ChatAreaLayout({
       data-incognito={incognito || undefined}
     >
       {incognito && onCloseIncognito ? (
-        <IncognitoChatHeader onClose={onCloseIncognito} className="relative z-30" />
+        <IncognitoChatHeader
+          onClose={onCloseIncognito}
+          className="relative z-30"
+        />
       ) : null}
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <div
@@ -457,7 +446,6 @@ function ChatAreaLayout({
               isArtifactsPanelOpen={isArtifactsPanelOpen}
               chatTitle={activeChatTitle}
               isTitleStreaming={isActiveChatTitleStreaming}
-              suppressArtifactsHover={isViewerOpen}
               onDeleteChat={handleDeleteActiveChat}
               onOpenSettings={onOpenSettings}
               onOpenMobileNav={onOpenMobileNav}
@@ -544,9 +532,7 @@ function ChatAreaLayout({
               isArtifactsPanelOpen={isArtifactsPanelOpen}
               chatTitle={activeChatTitle}
               isTitleStreaming={isActiveChatTitleStreaming}
-              suppressArtifactsHover={isViewerOpen}
               isChatPinned={isActiveChatPinned}
-              hasArtifacts={hasArtifacts}
               headerControlsLoading={headerControlsLoading}
               onRenameChat={(title) => {
                 if (!activeChatId) return;
@@ -567,7 +553,6 @@ function ChatAreaLayout({
               showMobileMenu={showMobileMenu}
               projectBreadcrumb={projectBreadcrumb}
               className="z-20"
-              hideTrailingRailControlsOnDesktop={showDesktopArtifactsRail}
             />
           ) : null}
         </div>
@@ -632,7 +617,9 @@ function ChatAreaLayout({
         </AnimatePresence>
 
         <AnimatePresence initial={false}>
-          {!isViewerOpen && (isArtifactsPanelOpen || isSourcesPanelOpen) && isMobile ? (
+          {!isViewerOpen &&
+          (isArtifactsPanelOpen || isSourcesPanelOpen) &&
+          isMobile ? (
             <>
               <motion.div
                 key="right-panel-backdrop"
@@ -649,7 +636,11 @@ function ChatAreaLayout({
                 }}
               />
               <motion.div
-                key={isSourcesPanelOpen ? "sources-panel-mobile" : "artifacts-panel-mobile"}
+                key={
+                  isSourcesPanelOpen
+                    ? "sources-panel-mobile"
+                    : "artifacts-panel-mobile"
+                }
                 initial={{ x: "100%", opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: "100%", opacity: 0 }}
@@ -704,15 +695,8 @@ function ChatAreaLayout({
           ) : null}
         </AnimatePresence>
 
-        {showDesktopArtifactsRail ? (
+        {showDesktopArtifactsRail && isArtifactsPanelOpen ? (
           <div className="pointer-events-none absolute inset-y-0 right-0 z-30 hidden w-[384px] flex-col items-stretch py-2 pr-2 lg:flex">
-            <div className="pointer-events-auto flex h-[35px] shrink-0 items-center justify-end px-1">
-              <ChatRightRailControls
-                isArtifactsPanelOpen={isArtifactsPanelOpen}
-                onToggleArtifactsPanel={toggleArtifactsPanel}
-                onShareClick={() => setIsShareDialogOpen(true)}
-              />
-            </div>
             <AnimatePresence initial={false}>
               {isArtifactsPanelOpen ? (
                 <motion.div
@@ -721,7 +705,7 @@ function ChatAreaLayout({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -8, scale: 0.985 }}
                   transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-                  className="pointer-events-auto mt-2.5 flex min-h-0 flex-1 flex-col overflow-hidden"
+                  className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden"
                 >
                   <ChatArtifactsPanel
                     messages={messages}

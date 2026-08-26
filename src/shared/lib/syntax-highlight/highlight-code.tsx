@@ -18,10 +18,7 @@ export type HighlightCodeProps = {
   streamFade?: unknown;
 };
 
-function renderToken(
-  token: { kind: string; text: string },
-  key: string,
-) {
+function renderToken(token: { kind: string; text: string }, key: string) {
   const kind = token.kind as SyntaxTokenKind;
   return (
     <span key={key} style={{ color: tokenColor(kind) }}>
@@ -50,11 +47,11 @@ export function HighlightCode({
       className={className}
       style={{
         margin: 0,
-        padding: "0.75rem 0.875rem 0.75rem 0.625rem",
+        padding: "1rem 1.125rem 1rem 0.875rem",
         background: "transparent",
         fontFamily: CODE_FONT,
-        fontSize: "12.5px",
-        lineHeight: "1.55",
+        fontSize: "14px",
+        lineHeight: "1.6",
         color: tokenColor("plain"),
         tabSize: 2,
         whiteSpace: "pre",

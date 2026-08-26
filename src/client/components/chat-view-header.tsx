@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useIsClient } from "@/hooks/use-is-client";
-import { Check, ChevronDown, Sparkles } from "lucide-react";
+import { Check, ChevronDown, MoreHorizontal, Sparkles } from "lucide-react";
 import { TypingDots } from "./ui/typing-dots";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { DeleteChatDialog } from "./delete-chat-dialog";
@@ -47,11 +47,6 @@ interface ChatViewHeaderProps {
     href?: string;
     onClick?: () => void;
   };
-  /** Desktop artifacts rail owns Artifacts + Share; hide duplicates in header. */
-  hideTrailingRailControlsOnDesktop?: boolean;
-  suppressArtifactsHover?: boolean;
-  /** Show Artifacts icon only when the chat has files / photos / artifacts. */
-  hasArtifacts?: boolean;
   /** Hide interactive header controls until the chat id exists on the server (no shimmer). */
   headerControlsLoading?: boolean;
 }
@@ -77,48 +72,13 @@ export function ChatViewHeader({
   onOpenIncognito,
   className,
   projectBreadcrumb,
-  hideTrailingRailControlsOnDesktop = false,
-  suppressArtifactsHover = false,
-  hasArtifacts = false,
   headerControlsLoading = false,
 }: ChatViewHeaderProps) {
   const isClient = useIsClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editTitleValue, setEditTitleValue] = useState("");
-  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const displayTitle = resolveDisplayChatTitle(chatTitle, isTitleStreaming);
-
-  const commitInlineTitle = useCallback(() => {
-    const next = editTitleValue.trim();
-    setIsEditingTitle(false);
-    if (next && next !== displayTitle) {
-      onRenameChat?.(next);
-    }
-  }, [displayTitle, editTitleValue, onRenameChat]);
-
-  useEffect(() => {
-    if (!isEditingTitle) return;
-    const input = titleInputRef.current;
-    input?.focus();
-    input?.select();
-
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (titleInputRef.current?.contains(target)) return;
-      commitInlineTitle();
-    };
-
-    window.addEventListener("pointerdown", onPointerDown, true);
-    return () => window.removeEventListener("pointerdown", onPointerDown, true);
-  }, [commitInlineTitle, isEditingTitle]);
-
-  const startInlineEdit = () => {
-    setEditTitleValue(displayTitle);
-    setIsEditingTitle(true);
-  };
 
   if (isConversationStarted) {
     return (
@@ -143,7 +103,7 @@ export function ChatViewHeader({
                     className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2f6fed]"
                     aria-hidden
                   >
-                    { }
+                    {}
                     <img
                       src="/assets/icons/clauxen-icon.png"
                       alt=""
@@ -172,89 +132,54 @@ export function ChatViewHeader({
                   </span>
                 </div>
               ) : null}
-              {!isClient || headerControlsLoading ? (
-                <div className="inline-flex max-w-full items-center rounded-lg border border-transparent">
-                  <span className="ui-chrome-text-btn px-2 text-zinc-800">
-                    {displayTitle}
-                  </span>
-                </div>
-              ) : (
-                <DropdownMenu modal={false}>
-                  <div className="inline-flex max-w-full items-center gap-1.5 overflow-visible rounded-full border border-transparent">
-                    {isEditingTitle ? (
-                      <input
-                        ref={titleInputRef}
-                        value={editTitleValue}
-                        onChange={(event) => setEditTitleValue(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            commitInlineTitle();
-                          }
-                          if (event.key === "Escape") {
-                            event.preventDefault();
-                            setIsEditingTitle(false);
-                          }
-                        }}
-                        className="ui-chrome-text-btn w-auto min-w-[4ch] max-w-[min(70vw,420px)] rounded-full border-0 bg-zinc-100 px-4 text-zinc-800 outline-none ring-0"
-                        style={{ width: `${Math.max(editTitleValue.length, 4)}ch` }}
-                        aria-label="Edit chat title"
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={startInlineEdit}
-                        className="ui-chrome-text-btn w-fit max-w-[min(70vw,420px)] rounded-full bg-transparent px-4 text-zinc-800 transition-colors hover:bg-zinc-100 focus-visible:bg-zinc-100"
-                      >
-                        <StreamingChatTitle
-                          title={displayTitle}
-                          isStreaming={isTitleStreaming}
-                          className="w-auto max-w-full whitespace-nowrap"
-                        />
-                        {isTitleStreaming ? <TypingDots className="ml-1 shrink-0" /> : null}
-                      </button>
-                    )}
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label="Chat options"
-                        className="ui-icon-button rounded-full text-zinc-500 transition-all hover:bg-zinc-100 hover:text-zinc-800 data-[state=open]:bg-zinc-100 data-[state=open]:text-zinc-800"
-                      >
-                        <ChevronDown className="size-3.5 opacity-70" />
-                      </button>
-                    </DropdownMenuTrigger>
-                  </div>
-                  <ChatRowMenuContent
-                    align="start"
-                    side="bottom"
-                    className="z-[100]"
-                    isPinned={isChatPinned}
-                    onShare={onShareClick}
-                    onRename={() => setRenameDialogOpen(true)}
-                    onMoveToProject={onMoveToProject}
-                    onPin={onPinChat}
-                    onUnpin={onUnpinChat}
-                    onDelete={() => setDeleteDialogOpen(true)}
-                  />
-                </DropdownMenu>
-              )}
+              <div className="inline-flex min-w-0 max-w-full items-center px-2 text-zinc-800">
+                <StreamingChatTitle
+                  title={displayTitle}
+                  isStreaming={isTitleStreaming}
+                  className="w-auto max-w-[min(62vw,480px)] whitespace-nowrap"
+                />
+                {isTitleStreaming ? (
+                  <TypingDots className="ml-1 shrink-0" />
+                ) : null}
+              </div>
             </div>
 
-            <div
-              className={cn(
-                "content-pane-top-bar__trailing-wrap flex shrink-0 items-center gap-1",
-                hideTrailingRailControlsOnDesktop && "lg:hidden",
-              )}
-            >
+            <div className="content-pane-top-bar__trailing-wrap flex shrink-0 items-center gap-1">
               {headerControlsLoading ? null : (
                 <ChatRightRailControls
                   isArtifactsPanelOpen={isArtifactsPanelOpen}
-                  onToggleArtifactsPanel={
-                    hasArtifacts ? onToggleArtifactsPanel : undefined
-                  }
+                  onToggleArtifactsPanel={onToggleArtifactsPanel}
                   onShareClick={onShareClick}
-                  shareClassName="hidden min-[420px]:inline-flex"
-                  suppressArtifactsHover={suppressArtifactsHover}
+                  menu={
+                    isClient ? (
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Chat options"
+                            className="ui-icon-button rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 data-[state=open]:bg-zinc-100"
+                          >
+                            <MoreHorizontal
+                              className="size-[18px]"
+                              strokeWidth={1.8}
+                            />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <ChatRowMenuContent
+                          align="end"
+                          side="bottom"
+                          className="z-[100]"
+                          isPinned={isChatPinned}
+                          onShare={onShareClick}
+                          onRename={() => setRenameDialogOpen(true)}
+                          onMoveToProject={onMoveToProject}
+                          onPin={onPinChat}
+                          onUnpin={onUnpinChat}
+                          onDelete={() => setDeleteDialogOpen(true)}
+                        />
+                      </DropdownMenu>
+                    ) : null
+                  }
                 />
               )}
             </div>
@@ -328,7 +253,10 @@ export function ChatViewHeader({
               Great for everyday tasks
             </span>
           </span>
-          <Check className="size-3.5 shrink-0 text-zinc-900" strokeWidth={2.25} />
+          <Check
+            className="size-3.5 shrink-0 text-zinc-900"
+            strokeWidth={2.25}
+          />
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

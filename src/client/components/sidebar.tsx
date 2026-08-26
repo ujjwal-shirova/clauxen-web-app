@@ -395,8 +395,10 @@ export function Sidebar({
         data-active={isActive ? "true" : undefined}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-md px-2 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors",
-          isActive ? "bg-black/[0.06]" : "hover:bg-black/[0.04]",
+          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose min-h-8 w-full rounded-lg px-2.5 text-[13px] font-[450] leading-[18px] tracking-[-0.006em] text-zinc-800/90 transition-[background-color,box-shadow,color] duration-150",
+          isActive
+            ? "bg-black/[0.065] shadow-[inset_0_0_0_1px_rgba(24,24,27,0.025)]"
+            : "hover:bg-black/[0.04]",
         )}
       >
         <AppHref
@@ -472,10 +474,10 @@ export function Sidebar({
 
   const navButtonClass = (active = false, muted = false) =>
     cn(
-      "ui-sidebar-menu-button no-hover-overlay group/nav mb-0 w-full rounded-md text-[13px] font-medium leading-[18px] transition-colors duration-150 hover:bg-black/[0.04]",
+      "ui-sidebar-menu-button no-hover-overlay group/nav mb-0 w-full rounded-lg text-[13px] font-medium leading-[18px] transition-[background-color,color,box-shadow] duration-150 hover:bg-black/[0.04]",
       muted ? "text-zinc-800/40 hover:text-zinc-800/55" : "text-zinc-800/90",
       isCollapsed
-        ? "ui-icon-button mx-auto flex justify-center gap-0 px-0"
+        ? "ui-icon-button mx-auto flex !size-9 justify-center gap-0 !rounded-xl px-0"
         : "ui-nav-row justify-start px-2",
       active && "bg-black/[0.06]",
     );
@@ -583,10 +585,12 @@ export function Sidebar({
         data-active={isActive ? "true" : undefined}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-md px-1.5 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors",
+          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose min-h-8 w-full rounded-lg px-2.5 text-[13px] font-[450] leading-[18px] tracking-[-0.006em] text-zinc-800/90 transition-[background-color,box-shadow,color] duration-150",
           // One continuous row highlight — never nest hover/selection on
           // the title button or pin/menu actions.
-          isActive ? "bg-black/[0.06]" : "hover:bg-black/[0.04]",
+          isActive
+            ? "bg-black/[0.065] shadow-[inset_0_0_0_1px_rgba(24,24,27,0.025)]"
+            : "hover:bg-black/[0.04]",
         )}
       >
         <AppHref
@@ -689,7 +693,7 @@ export function Sidebar({
           isMobileLayout &&
             !isCollapsed &&
             "z-40 w-[min(88vw,280px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[env(safe-area-inset-bottom)]",
-          !isMobileLayout && isCollapsed && "w-[48px] cursor-pointer",
+          !isMobileLayout && isCollapsed && "w-[56px] cursor-pointer",
           !isMobileLayout && !isCollapsed && "w-[min(86vw,256px)] lg:w-[256px]",
         )}
       >
@@ -720,7 +724,7 @@ export function Sidebar({
                 setIsCollapsed(false);
               }}
               aria-label="Expand sidebar"
-              className="ui-icon-button text-zinc-800/70 transition-colors duration-150 hover:bg-black/[0.04] hover:text-zinc-900"
+              className="ui-icon-button !size-9 !rounded-xl text-zinc-800/70 transition-colors duration-150 hover:bg-black/[0.05] hover:text-zinc-900"
             >
               <SidebarOpenIcon className="size-4" />
             </button>
@@ -769,7 +773,7 @@ export function Sidebar({
                     handleNewChat();
                   }}
                   aria-label="New chat"
-                  className="ui-icon-button text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
+                  className="ui-icon-button !size-9 !rounded-xl text-zinc-800/90 transition-colors hover:bg-black/[0.05]"
                 >
                   <NewChatBubbleIcon className="size-4" />
                 </AppHref>
@@ -784,7 +788,7 @@ export function Sidebar({
                     handleNewChat();
                   }}
                   aria-label="New chat"
-                  className="group no-hover-overlay flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-zinc-200/80 bg-white px-2 text-[13px] font-medium leading-[18px] text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-colors hover:bg-zinc-50"
+                  className="group no-hover-overlay flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/80 bg-white px-2.5 text-[13px] font-medium leading-[18px] text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.045)] transition-[background-color,border-color,box-shadow] hover:border-zinc-300/80 hover:bg-zinc-50 hover:shadow-[0_2px_5px_rgba(24,24,27,0.055)]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <NewChatBubbleIcon className="size-4 shrink-0 text-zinc-800/70" />
@@ -905,7 +909,7 @@ export function Sidebar({
                 />
                 <SidebarSectionBody
                   expanded={recentsExpanded}
-                  className="mt-0.5 space-y-1"
+                  className="mt-1 space-y-1.5"
                 >
                   {groupedChats.map((group) => (
                     <div key={group.label || "all"}>
@@ -914,7 +918,7 @@ export function Sidebar({
                           {group.label}
                         </p>
                       ) : null}
-                      <div className="space-y-px">
+                      <div className="space-y-0.5">
                         {group.chats.map((chat) => renderChatRow(chat))}
                       </div>
                     </div>

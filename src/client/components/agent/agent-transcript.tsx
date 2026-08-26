@@ -2,7 +2,11 @@
 
 import { useMemo } from "react";
 import type { Message } from "@/lib/types";
-import type { AgentNarrationStep, AgentStep } from "@/lib/agent-trace";
+import {
+  agentTraceIsActive,
+  type AgentNarrationStep,
+  type AgentStep,
+} from "@/lib/agent-trace";
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
 import { AssistantContentRenderer } from "@/components/assistant-content-renderer";
 import { collectMessageSources } from "@/lib/chat-sources";
@@ -143,7 +147,15 @@ export function AgentTranscriptView({
           <AgentTraceView
             key={section.id}
             steps={section.steps}
-            isActive={active && !answer && isLastSection}
+            isActive={
+              active &&
+              !answer &&
+              isLastSection &&
+              agentTraceIsActive({
+                steps: section.steps,
+                complete: trace?.complete,
+              })
+            }
             startedAtMs={startedAtMs}
             completedAtMs={completedAtMs}
             keepExpanded={awaitingInput && isLastSection}

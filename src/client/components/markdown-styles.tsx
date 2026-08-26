@@ -191,11 +191,11 @@ export const StyledTableContainer = ({
   // CodeBlockFrame's header/content split.
   return (
     <div
-      className="composer-message-table my-3 w-full min-w-0 max-w-full rounded-[12px] border border-zinc-200/85 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.025)]"
+      className="composer-message-table my-4 w-full min-w-0 max-w-full rounded-2xl border border-zinc-200/90 bg-white shadow-[0_2px_8px_rgba(24,24,27,0.04)]"
       data-has-table-title={titleCtx ? "true" : undefined}
     >
-      <div className="ui-table-title-header table-title-header-sticky sticky z-20 flex min-h-[36px] items-center justify-between gap-2 rounded-t-[11px] border-b border-zinc-200/80 bg-white px-3 py-1.5">
-        <span className="min-w-0 truncate text-[12.5px] font-semibold text-zinc-900">
+      <div className="ui-table-title-header table-title-header-sticky sticky z-20 flex min-h-[46px] items-center justify-between gap-3 rounded-t-[15px] border-b border-zinc-200/80 bg-white px-4 py-2">
+        <span className="min-w-0 truncate text-[15px] font-semibold text-zinc-900">
           {tableTitle}
         </span>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -205,12 +205,12 @@ export const StyledTableContainer = ({
               isCopied ? "Copied table markdown" : "Copy table markdown"
             }
             onClick={handleCopyMarkdown}
-            className="ui-table-copy inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+            className="ui-table-copy inline-flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
           >
             {isCopied ? (
-              <Check size={14} className="text-emerald-600" />
+              <Check size={16} className="text-emerald-600" />
             ) : (
-              <Copy size={14} />
+              <Copy size={16} />
             )}
           </button>
           <DropdownMenu>
@@ -218,10 +218,10 @@ export const StyledTableContainer = ({
               <button
                 type="button"
                 aria-label="Download table"
-                className="ui-table-download inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                className="ui-table-download inline-flex h-8 items-center gap-1 rounded-lg px-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
               >
-                <Download size={14} />
-                <ChevronDown size={13} />
+                <Download size={16} />
+                <ChevronDown size={14} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -237,10 +237,10 @@ export const StyledTableContainer = ({
           </DropdownMenu>
         </div>
       </div>
-      <div className="markdown-table-scroll overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-[12px] [-webkit-overflow-scrolling:touch]">
+      <div className="markdown-table-scroll overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-2xl [-webkit-overflow-scrolling:touch]">
         <table
           ref={tableRef}
-          className="w-full min-w-[min(100%,460px)] border-collapse text-left font-sans text-[12.5px] text-zinc-800 sm:min-w-[500px]"
+          className="w-full min-w-[min(100%,640px)] border-collapse text-left font-sans text-[14.5px] text-zinc-800 sm:min-w-[700px]"
         >
           {children}
         </table>
@@ -260,7 +260,7 @@ export const StyledTableHeadCell = ({
 }: {
   children: React.ReactNode;
 }) => (
-  <th className="whitespace-nowrap border-b border-zinc-200/90 px-3 py-1.5 text-[11.5px] font-semibold tracking-[-0.002em] text-zinc-600">
+  <th className="whitespace-nowrap border-b border-zinc-200/90 px-4 py-3 text-[14px] font-semibold tracking-[-0.002em] text-zinc-600">
     {children}
   </th>
 );
@@ -285,11 +285,11 @@ export const StyledTableCell = ({
   isLastRow,
 }: any) => (
   <td
-    className={`border-b border-zinc-200/80 px-3 py-1.5 align-top text-[12.5px] leading-[17px] text-zinc-700 ${
+    className={`border-b border-zinc-200/80 px-4 py-2.5 align-top text-[14.5px] leading-[22px] text-zinc-700 ${
       isLastRow ? "border-b-0" : ""
     }`}
   >
-    <div className="md-table-cell-content break-words [&>code]:text-[11.5px]">
+    <div className="md-table-cell-content break-words [&>code]:text-[13px]">
       {children}
       {isLast && hasCursor && <Cursor />}
     </div>
@@ -325,9 +325,9 @@ export const CodeBlockFrame = ({
   const safeLanguage = sanitizeCodeBlockLanguage(language);
 
   return (
-    <div className="composer-message-codeblock relative my-2 w-full min-w-0 max-w-full rounded-[12px] border border-zinc-200/85 bg-zinc-50 shadow-[0_1px_2px_rgba(24,24,27,0.025)]">
-      <div className="ui-code-block code-block-header-sticky sticky z-10 flex min-h-[34px] items-center justify-between rounded-t-[11px] border-b border-zinc-200/80 bg-white px-3 py-1.5">
-        <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
+    <div className="composer-message-codeblock relative my-4 w-full min-w-0 max-w-full rounded-2xl border border-zinc-200/90 bg-zinc-50 shadow-[0_2px_8px_rgba(24,24,27,0.04)]">
+      <div className="ui-code-block code-block-header-sticky sticky z-10 flex min-h-[44px] items-center justify-between rounded-t-[15px] border-b border-zinc-200/80 bg-white px-4 py-2">
+        <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
           {safeLanguage}
         </span>
         <div className="-mr-0.5 flex items-center gap-1">
@@ -360,7 +360,7 @@ export const CodeBlockFrame = ({
 
       {/* overflow-y must be explicit: with only overflow-x set, CSS computes
           overflow-y to auto and paints a phantom vertical scrollbar. */}
-      <div className="markdown-code-scroll code-scrollbars ui-code-block-content w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-[12px] bg-zinc-50 [-webkit-overflow-scrolling:touch]">
+      <div className="markdown-code-scroll code-scrollbars ui-code-block-content w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-b-2xl bg-zinc-50 [-webkit-overflow-scrolling:touch]">
         {children}
       </div>
     </div>
