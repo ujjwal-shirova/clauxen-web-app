@@ -158,7 +158,7 @@ function SidebarSectionBody({
 
 function ShortcutKey({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded-[4px] border border-zinc-800/10 bg-transparent px-1 font-sans text-[10px] font-medium leading-none text-zinc-800/55">
+    <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded-[4px] border border-zinc-800/10 bg-black/[0.018] px-1 font-sans text-[10px] font-medium leading-none text-zinc-800/55 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400">
       {children}
     </kbd>
   );
@@ -755,7 +755,7 @@ export function Sidebar({
         >
           <div
             className={cn(
-              "sticky top-0 z-10 bg-[var(--app-shell-bg)] pb-1 pt-0",
+              "sticky top-0 z-10 bg-[var(--app-sidebar-bg,var(--app-shell-bg))] pb-1 pt-0",
               isCollapsed ? "flex justify-center px-0" : "px-1.5",
             )}
           >
@@ -788,7 +788,7 @@ export function Sidebar({
                     handleNewChat();
                   }}
                   aria-label="New chat"
-                  className="group no-hover-overlay flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/80 bg-white px-2.5 text-[13px] font-medium leading-[18px] text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.045)] transition-[background-color,border-color,box-shadow] hover:border-zinc-300/80 hover:bg-zinc-50 hover:shadow-[0_2px_5px_rgba(24,24,27,0.055)]"
+                  className="sidebar-new-chat-button group no-hover-overlay flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-black/[0.055] bg-black/[0.028] px-2.5 text-[13px] font-medium leading-[18px] text-zinc-800 transition-[background-color,border-color] hover:border-black/[0.075] hover:bg-black/[0.055]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <NewChatBubbleIcon className="size-4 shrink-0 text-zinc-800/70" />
@@ -932,10 +932,10 @@ export function Sidebar({
         {showAccountMenu && (
           <div
             className={cn(
-              "mt-auto shrink-0 flex flex-col bg-[var(--app-shell-bg)]",
+              "sidebar-account-footer mt-auto shrink-0 flex flex-col border-t border-black/[0.045] bg-[var(--app-sidebar-bg,var(--app-shell-bg))]",
               isCollapsed
                 ? "items-center gap-2 px-0 pb-2 pt-1"
-                : "items-stretch gap-1 px-2 py-1",
+                : "items-stretch gap-1 px-2 py-2",
             )}
           >
             <div
@@ -957,17 +957,17 @@ export function Sidebar({
                     onPointerDown={(e) => e.stopPropagation()}
                     aria-label="Account menu"
                     className={cn(
-                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center outline-none transition-colors duration-150 hover:bg-black/[0.04] data-[state=open]:bg-black/[0.04]",
+                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center border border-transparent bg-transparent outline-none transition-[background-color,border-color] duration-150 hover:border-black/[0.045] hover:bg-black/[0.035] data-[state=open]:border-black/[0.055] data-[state=open]:bg-black/[0.045]",
                       isCollapsed
                         ? "h-7 w-7 shrink-0 items-center justify-center rounded-full !p-0"
-                        : "h-auto min-h-8 w-full justify-start gap-2 rounded-md px-2 py-1.5",
+                        : "min-h-11 w-full justify-start gap-2.5 rounded-xl px-2.5 py-1.5",
                     )}
                   >
                     <UserAvatarDisplay
                       name={userDisplayName || "?"}
                       avatarUrl={userAvatarUrl}
                       size="sm"
-                      className="h-7 w-7 shrink-0 text-[10px] leading-none"
+                      className="h-7 w-7 shrink-0 bg-black/[0.065] text-[10px] leading-none text-zinc-700"
                     />
                     <div
                       className={cn(

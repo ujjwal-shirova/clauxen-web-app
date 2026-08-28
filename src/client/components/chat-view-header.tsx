@@ -3,11 +3,9 @@
 import { useState } from "react";
 import { useIsClient } from "@/hooks/use-is-client";
 import { Check, ChevronDown, MoreHorizontal, Sparkles } from "lucide-react";
-import { TypingDots } from "./ui/typing-dots";
 import { HintTooltip } from "./ui/hint-tooltip";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
-import { StreamingChatTitle } from "./streaming-chat-title";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
 import { ChatRightRailControls } from "./chat-right-rail-controls";
 import { GhostChatIcon } from "./icons";
@@ -127,21 +125,8 @@ export function ChatViewHeader({
                       {projectBreadcrumb.label}
                     </button>
                   )}
-                  <span className="shrink-0 text-zinc-400" aria-hidden>
-                    ›
-                  </span>
                 </div>
               ) : null}
-              <div className="inline-flex min-w-0 max-w-full items-center px-2 text-zinc-800">
-                <StreamingChatTitle
-                  title={displayTitle}
-                  isStreaming={isTitleStreaming}
-                  className="w-auto max-w-[min(62vw,480px)] whitespace-nowrap"
-                />
-                {isTitleStreaming ? (
-                  <TypingDots className="ml-1 shrink-0" />
-                ) : null}
-              </div>
             </div>
 
             <div className="content-pane-top-bar__trailing-wrap flex shrink-0 items-center gap-1">
