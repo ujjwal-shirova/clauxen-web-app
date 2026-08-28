@@ -88,6 +88,7 @@ export function AgentTraceBlock({
   };
 
   const showChevronIcon = mode !== "never" && canCollapse;
+  const swapLeadingForChevron = showChevronIcon && Boolean(leading);
   const hoverClass =
     mode === "always"
       ? "opacity-100"
@@ -99,8 +100,26 @@ export function AgentTraceBlock({
   const headerInner = (
     <>
       {leading ? (
-        <span className="agent-trace__leading inline-flex shrink-0 items-center">
-          {leading}
+        <span className="agent-trace__leading relative inline-flex size-4 shrink-0 items-center justify-center">
+          <span
+            className={cn(
+              "inline-flex transition-opacity duration-150",
+              swapLeadingForChevron &&
+                "group-hover/trace-header:opacity-0 group-focus-visible/trace-header:opacity-0",
+              swapLeadingForChevron && expanded && "opacity-0",
+            )}
+          >
+            {leading}
+          </span>
+          {swapLeadingForChevron ? (
+            <ChevronRight
+              className={cn(
+                "absolute inset-0 size-4 text-zinc-500 opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover/trace-header:opacity-100 group-focus-visible/trace-header:opacity-100",
+                expanded && "rotate-90 opacity-100",
+              )}
+              aria-hidden
+            />
+          ) : null}
         </span>
       ) : null}
       <span
@@ -116,7 +135,7 @@ export function AgentTraceBlock({
           {trailing}
         </span>
       ) : null}
-      {showChevronIcon ? (
+      {showChevronIcon && !swapLeadingForChevron ? (
         <ChevronRight
           className={cn(
             "agent-trace__chevron h-3.5 w-3.5 shrink-0 text-zinc-400 transition-[opacity,transform] duration-150 ease-out",

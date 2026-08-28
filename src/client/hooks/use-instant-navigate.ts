@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { focusAppSurface } from "@/lib/surface-focus";
+import { announceAppNavigation } from "@/hooks/use-app-pathname";
 
 /**
  * Client navigation delegated entirely to the App Router.  Mutating history
@@ -15,6 +16,8 @@ export function useInstantNavigate() {
   return useCallback(
     (path: string, options?: { replace?: boolean }) => {
       if (typeof window === "undefined") return;
+
+      announceAppNavigation(path);
 
       if (options?.replace) {
         router.replace(path, { scroll: false });

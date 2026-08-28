@@ -86,7 +86,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     creatingChatPending,
     loading: chatsLoading,
     generatingChatIds,
-    handleSelectChat,
     handleDeleteChat,
     handleRenameChat,
     handlePinChat,
@@ -115,6 +114,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       return;
     }
     instantNavigate(APP_ROUTES.newChat, { replace: true });
+    // Navigation is announced synchronously, so clearing the old chat here
+    // cannot be re-selected by the previous route and the new page paints now.
+    startNewChat();
   }, [startNewChat, closeMobileNav, overlays, pathname, instantNavigate]);
 
   const goToProjects = useCallback(() => {
@@ -122,11 +124,10 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, [closeMobileNav]);
 
   const onSelectChatFromSidebar = useCallback(
-    (chatEntry: RecentChat) => {
-      handleSelectChat(chatEntry.id);
+    (_chatEntry: RecentChat) => {
       closeMobileNav();
     },
-    [handleSelectChat, closeMobileNav],
+    [closeMobileNav],
   );
 
   const onDeleteChatFromSidebar = useCallback(

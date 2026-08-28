@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, ExternalLink, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChevronRight, Globe2, Search } from "lucide-react";
 import type {
+  AgentNarrationStep,
   AgentStep,
   AgentThinkingStep,
   AgentToolStep,
 } from "@/lib/agent-trace";
-import { domainFromUrl } from "@/lib/agent-trace";
 import { cn } from "@/lib/utils";
-import {
-  formatElapsedSeconds,
-  runningToolLabel,
-} from "@/lib/agent-trace-labels";
+import { formatElapsedSeconds } from "@/lib/agent-trace-labels";
 import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 import { StreamingTextFade } from "@/lib/streaming-text-fade";
 import { AgentToolBlock } from "./agent-tool-blocks";
@@ -167,7 +164,7 @@ export function AgentWorkingRow({
 }
 
 function ThinkingTraceRow({ step }: { step: AgentThinkingStep }) {
-  const [expanded, setExpanded] = useState(step.isStreaming === true);
+  const [expanded, setExpanded] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const content = step.content?.trim() ?? "";
 
@@ -175,11 +172,6 @@ function ThinkingTraceRow({ step }: { step: AgentThinkingStep }) {
     if (!step.isStreaming) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [step.isStreaming]);
-
-  useEffect(() => {
-    if (step.isStreaming) setExpanded(true);
-    else setExpanded(false);
   }, [step.isStreaming]);
 
   const seconds = step.isStreaming
@@ -277,58 +269,36 @@ function SearchTraceGroup({ tools }: { tools: AgentToolStep[] }) {
         </span>
       }
       isActive={running}
-      defaultExpanded={running}
+      defaultExpanded={false}
       chevronMode="hover"
       titleClassName="text-zinc-500 dark:text-zinc-400"
       className="agent-search-group"
     >
-      <div className="flex max-w-[48rem] flex-col gap-3 py-1.5 pl-[22px]">
+      <div className="ml-2 flex max-w-[48rem] flex-col gap-3 border-l border-zinc-200 py-1.5 pl-5 dark:border-zinc-700">
         {tools.map((tool) => {
           const query =
             tool.searchQuery ||
             (typeof tool.args?.query === "string" ? tool.args.query : "");
-          const results = tool.searchResults ?? [];
           return (
-            <div key={tool.id} className="min-w-0">
-              <p className="truncate text-[13px] leading-5 text-zinc-500">
-                <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                  {tool.status === "running" ? "Searching" : "Searched"}
+            <p
+              key={tool.id}
+              className="flex min-w-0 items-center gap-2 text-[14px] leading-6 text-zinc-500"
+            >
+              <Globe2
+                className="size-4 shrink-0 text-zinc-500"
+                strokeWidth={1.7}
+              />
+              <span className="min-w-0 truncate">
+                <span className="text-zinc-600 dark:text-zinc-300">
+                  {tool.status === "running"
+                    ? "Searching web for"
+                    : "Searched web for"}
                 </span>{" "}
-                {query || "the web"}
-              </p>
-              {results.length > 0 ? (
-                <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
-                  {results.slice(0, 8).map((result, index) => {
-                    const domain = domainFromUrl(result.url);
-                    return (
-                      <a
-                        key={`${result.url}-${index}`}
-                        href={result.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group/source flex min-w-0 items-start gap-2 rounded-lg border border-zinc-200/80 bg-white px-2.5 py-2 text-left transition-colors hover:bg-zinc-50 dark:border-zinc-700/80 dark:bg-zinc-900/40 dark:hover:bg-zinc-900"
-                      >
-                        <img
-                          src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`}
-                          alt=""
-                          loading="lazy"
-                          className="mt-0.5 h-4 w-4 shrink-0 rounded-[3px]"
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="line-clamp-1 block text-[12.5px] font-medium leading-4 text-zinc-800 dark:text-zinc-200">
-                            {result.title || domain}
-                          </span>
-                          <span className="mt-0.5 block truncate text-[11px] leading-4 text-zinc-400">
-                            {domain}
-                          </span>
-                        </span>
-                        <ExternalLink className="mt-0.5 size-3 shrink-0 text-zinc-300 opacity-0 transition-opacity group-hover/source:opacity-100" />
-                      </a>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </div>
+                <span className="font-mono text-zinc-400">
+                  {query || "the web"}
+                </span>
+              </span>
+            </p>
           );
         })}
       </div>
@@ -336,7 +306,13 @@ function SearchTraceGroup({ tools }: { tools: AgentToolStep[] }) {
   );
 }
 
-function TraceSteps({ steps }: { steps: AgentStep[] }) {
+function TraceSteps({
+  steps,
+  renderNarration,
+}: {
+  steps: AgentStep[];
+  renderNarration?: (step: AgentNarrationStep) => ReactNode;
+}) {
   const rows = groupTraceRows(steps);
   return (
     <div
@@ -365,7 +341,17 @@ function TraceSteps({ steps }: { steps: AgentStep[] }) {
             </div>
           );
         }
-        if (step.kind === "narration") return null;
+        if (step.kind === "narration") {
+          if (!step.content.trim() || !renderNarration) return null;
+          return (
+            <div
+              className="agent-trace-timeline__step agent-trace-enter min-w-0"
+              key={step.id}
+            >
+              {renderNarration(step)}
+            </div>
+          );
+        }
         return (
           <div
             className="agent-trace-timeline__step agent-trace-enter min-w-0"
@@ -383,10 +369,12 @@ function CompletedTrace({
   steps,
   startedAtMs,
   completedAtMs,
+  renderNarration,
 }: {
   steps: AgentStep[];
   startedAtMs?: number;
   completedAtMs?: number;
+  renderNarration?: (step: AgentNarrationStep) => ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -429,7 +417,7 @@ function CompletedTrace({
       >
         <div className="min-h-0 overflow-hidden">
           <div className="pt-1.5 pl-5">
-            <TraceSteps steps={steps} />
+            <TraceSteps steps={steps} renderNarration={renderNarration} />
           </div>
         </div>
       </div>
@@ -444,6 +432,7 @@ export function AgentTraceView({
   startedAtMs,
   completedAtMs,
   keepExpanded,
+  renderNarration,
 }: {
   steps: AgentStep[];
   isActive: boolean;
@@ -451,21 +440,16 @@ export function AgentTraceView({
   completedAtMs?: number;
   /** Actionable traces (for example ask-user-input) must remain visible. */
   keepExpanded?: boolean;
+  renderNarration?: (step: AgentNarrationStep) => ReactNode;
 }) {
-  const visibleSteps = useMemo(
-    () => steps.filter((step) => step.kind !== "narration"),
-    [steps],
-  );
-  const lastRunningTool = [...visibleSteps]
-    .reverse()
-    .find(
-      (step): step is AgentToolStep =>
-        step.kind === "tool" && step.status === "running",
-    );
-
+  const visibleSteps = useMemo(() => steps, [steps]);
   if (!isActive) {
     if (visibleSteps.length === 0) return null;
-    if (keepExpanded) return <TraceSteps steps={visibleSteps} />;
+    if (keepExpanded) {
+      return (
+        <TraceSteps steps={visibleSteps} renderNarration={renderNarration} />
+      );
+    }
     const lastStepCompletedAtMs = visibleSteps.reduce(
       (latest, step) => Math.max(latest, step.completedAtMs ?? 0),
       0,
@@ -475,6 +459,7 @@ export function AgentTraceView({
         steps={visibleSteps}
         startedAtMs={startedAtMs}
         completedAtMs={(completedAtMs ?? lastStepCompletedAtMs) || undefined}
+        renderNarration={renderNarration}
       />
     );
   }
@@ -484,13 +469,10 @@ export function AgentTraceView({
       className="flex w-full min-w-0 flex-col gap-1.5"
       data-agent-trace-view="true"
     >
-      <TraceSteps steps={visibleSteps} />
-      <AgentWorkingRow
-        startedAtMs={startedAtMs}
-        activeLabel={
-          lastRunningTool ? runningToolLabel(lastRunningTool) : undefined
-        }
-      />
+      <AgentWorkingRow startedAtMs={startedAtMs} />
+      <div className="pl-5">
+        <TraceSteps steps={visibleSteps} renderNarration={renderNarration} />
+      </div>
     </div>
   );
 }

@@ -379,9 +379,18 @@ function ChatViewBody({
     [activeChatId, handleDeleteChat, projectId, bindProjectId, instantNavigate],
   );
 
-  const displayMessages = blankNewChatComposer ? [] : messages;
-  const displayActiveChatId = blankNewChatComposer ? null : activeChatId;
-  const displayActiveChat = blankNewChatComposer ? null : activeChat;
+  const switchingRouteChat = Boolean(
+    routeChatId && routeChatId !== activeChatId && !isIncognito,
+  );
+  const displayMessages =
+    blankNewChatComposer || switchingRouteChat ? [] : messages;
+  const displayActiveChatId = blankNewChatComposer
+    ? null
+    : switchingRouteChat
+      ? routeChatId
+      : activeChatId;
+  const displayActiveChat =
+    blankNewChatComposer || switchingRouteChat ? null : activeChat;
   const displayMessagesLoading =
     !blankNewChatComposer && Boolean(messagesLoading);
 

@@ -4,19 +4,32 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { CLAUXEN_NAVIGATE_EVENT } from "@/hooks/use-document-title";
 
+let optimisticPathname: string | null = null;
+
+/** Paint shell route state immediately while Next commits its router tree. */
+export function announceAppNavigation(path: string): void {
+  if (typeof window === "undefined") return;
+  optimisticPathname = new URL(path, window.location.href).pathname;
+  window.dispatchEvent(new Event(CLAUXEN_NAVIGATE_EVENT));
+}
+
 function readWindowPathname(): string {
   if (typeof window === "undefined") return "";
-  return window.location.pathname || "";
+  return optimisticPathname ?? window.location.pathname ?? "";
 }
 
 function subscribeToSoftNav(onStoreChange: () => void) {
   if (typeof window === "undefined") return () => {};
   const onNav = () => onStoreChange();
+  const onPopState = () => {
+    optimisticPathname = null;
+    onStoreChange();
+  };
   window.addEventListener(CLAUXEN_NAVIGATE_EVENT, onNav);
-  window.addEventListener("popstate", onNav);
+  window.addEventListener("popstate", onPopState);
   return () => {
     window.removeEventListener(CLAUXEN_NAVIGATE_EVENT, onNav);
-    window.removeEventListener("popstate", onNav);
+    window.removeEventListener("popstate", onPopState);
   };
 }
 
@@ -32,6 +45,10 @@ export function useAppPathname(): string {
     readWindowPathname,
     () => nextPathname,
   );
+
+  useEffect(() => {
+    if (optimisticPathname === nextPathname) optimisticPathname = null;
+  }, [nextPathname]);
 
   // Prefer the live window path when it has already moved ahead of Next.
   if (livePathname && livePathname !== nextPathname) {

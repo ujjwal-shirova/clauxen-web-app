@@ -828,7 +828,7 @@ export function AgentMcpToolBlock({ tool }: { tool: AgentToolStep }) {
         }
         trailing={<Plug className="h-3.5 w-3.5 shrink-0 text-zinc-300" />}
         isActive={isRunning}
-        defaultExpanded={isRunning}
+        defaultExpanded={false}
         showChevron
         className="agent-mcp-tool"
         headerClassName="agent-mcp-tool__header"
@@ -894,7 +894,7 @@ export function AgentWeatherBlock({ tool }: { tool: AgentToolStep }) {
           )
         }
         isActive={isRunning}
-        defaultExpanded={isRunning}
+        defaultExpanded={false}
         showChevron
         className="agent-weather"
         headerClassName="agent-weather__header"
@@ -983,7 +983,7 @@ export function AgentPlacesSearchBlock({ tool }: { tool: AgentToolStep }) {
           ) : undefined
         }
         isActive={isRunning}
-        defaultExpanded={isRunning}
+        defaultExpanded={false}
         showChevron
         className="agent-places"
         headerClassName="agent-places__header"
@@ -1062,7 +1062,7 @@ export function AgentImageSearchBlock({ tool }: { tool: AgentToolStep }) {
           ) : undefined
         }
         isActive={isRunning}
-        defaultExpanded={isRunning}
+        defaultExpanded={false}
         showChevron
         className="agent-image-search"
         headerClassName="agent-image-search__header"
@@ -1224,7 +1224,7 @@ export function AgentGenericToolBlock({ tool }: { tool: AgentToolStep }) {
           )
         }
         isActive={isRunning}
-        defaultExpanded={isRunning}
+        defaultExpanded={false}
         showChevron
         className="agent-generic-tool"
         headerClassName="agent-generic-tool__header"

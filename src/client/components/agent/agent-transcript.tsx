@@ -16,46 +16,7 @@ import {
 } from "@/lib/assistant-generation-error";
 import { AgentTraceView, AgentWorkingRow } from "./agent-trace-view";
 
-/**
- * Tools/thinking form collapsible trace runs. Model-authored narration breaks
- * those runs and renders with the exact same markdown surface as an answer.
- */
-type TranscriptSection =
-  | { kind: "work"; id: string; steps: AgentStep[] }
-  | { kind: "narration"; id: string; step: AgentNarrationStep };
-
 const EMPTY_AGENT_STEPS: AgentStep[] = [];
-
-function buildTranscriptSections(
-  steps: AgentStep[],
-  mirroredNarrationId?: string,
-): TranscriptSection[] {
-  const sections: TranscriptSection[] = [];
-  let pendingWork: AgentStep[] = [];
-
-  const flushWork = () => {
-    if (pendingWork.length === 0) return;
-    sections.push({
-      kind: "work",
-      id: `work-${pendingWork[0]?.id ?? sections.length}`,
-      steps: pendingWork,
-    });
-    pendingWork = [];
-  };
-
-  for (const step of steps) {
-    if (step.kind !== "narration") {
-      pendingWork.push(step);
-      continue;
-    }
-    flushWork();
-    if (step.id !== mirroredNarrationId && step.content.trim()) {
-      sections.push({ kind: "narration", id: step.id, step });
-    }
-  }
-  flushWork();
-  return sections;
-}
 
 export function AgentTranscriptView({
   message,
@@ -85,11 +46,11 @@ export function AgentTranscriptView({
         )?.id,
     [answer, steps],
   );
-  const sections = useMemo(
-    () => buildTranscriptSections(steps, mirroredNarrationId),
+  const traceSteps = useMemo(
+    () => steps.filter((step) => step.id !== mirroredNarrationId),
     [mirroredNarrationId, steps],
   );
-  const hasTranscript = sections.length > 0;
+  const hasTranscript = traceSteps.length > 0;
   const awaitingInput = steps.some(
     (step) =>
       step.kind === "tool" &&
@@ -110,58 +71,37 @@ export function AgentTranscriptView({
       data-assistant-content="true"
       data-agent-transcript-root="true"
     >
-      {sections.map((section, index) => {
-        const isLastSection = index === sections.length - 1;
-        if (section.kind === "narration") {
-          return (
+      {hasTranscript ? (
+        <AgentTraceView
+          steps={traceSteps}
+          isActive={
+            active &&
+            !answer &&
+            agentTraceIsActive({
+              steps: traceSteps,
+              complete: trace?.complete,
+            })
+          }
+          startedAtMs={trace?.startedAtMs}
+          completedAtMs={trace?.completedAtMs}
+          keepExpanded={awaitingInput}
+          renderNarration={(step: AgentNarrationStep) => (
             <div
-              key={section.id}
-              className="agent-answer-body agent-intermediate-narration agent-trace-enter"
+              className="agent-answer-body agent-intermediate-narration"
               data-agent-intermediate-narration="true"
             >
               <AssistantContentRenderer
-                content={section.step.content}
+                content={step.content}
                 messageId={message.id}
-                isStreaming={active && section.step.isStreaming === true}
-                streamKey={`${message.id}-narration-${section.id}`}
+                isStreaming={active && step.isStreaming === true}
+                streamKey={`${message.id}-narration-${step.id}`}
                 detailLevel={detailLevel}
                 {...({ sources } as any)}
               />
             </div>
-          );
-        }
-
-        const startedAtMs =
-          section.steps.find((step) => step.startedAtMs)?.startedAtMs ??
-          trace?.startedAtMs;
-        const nextSection = sections[index + 1];
-        const completedAtMs =
-          nextSection?.kind === "narration"
-            ? nextSection.step.startedAtMs
-            : section.steps.reduce(
-                (latest, step) => Math.max(latest, step.completedAtMs ?? 0),
-                0,
-              ) || trace?.completedAtMs;
-
-        return (
-          <AgentTraceView
-            key={section.id}
-            steps={section.steps}
-            isActive={
-              active &&
-              !answer &&
-              isLastSection &&
-              agentTraceIsActive({
-                steps: section.steps,
-                complete: trace?.complete,
-              })
-            }
-            startedAtMs={startedAtMs}
-            completedAtMs={completedAtMs}
-            keepExpanded={awaitingInput && isLastSection}
-          />
-        );
-      })}
+          )}
+        />
+      ) : null}
 
       {answer ? (
         <div
