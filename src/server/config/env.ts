@@ -2,10 +2,7 @@ import {
   resolveDatabaseUrl,
   resolveSupabaseServiceRoleKey,
 } from "@/lib/vercel-env";
-import {
-  MODEL_CONFIG,
-  normalizeUpstreamModelSlug,
-} from "@/lib/model-config";
+import { MODEL_CONFIG, normalizeUpstreamModelSlug } from "@/lib/model-config";
 
 function optional(name: string, fallback = ""): string {
   return process.env[name]?.trim() || fallback;
@@ -30,15 +27,19 @@ const isProduction = process.env.NODE_ENV === "production" || isVercel;
 const PROVIDER = MODEL_CONFIG.providerEnv;
 
 const openAiApiKey = firstOptional(
-  "OPENAI_API_KEY",
   PROVIDER.apiKey,
   "NOVITA_AI_KEY",
   "NOVITA_API_KEY",
+  "OPENAI_API_KEY",
 );
 
-/** Primary chat / inference model from Provider_Model_Clauxen_V1. */
+/** Default chat model; the per-model variables below take priority. */
 const providerModelClauxenV1 = normalizeUpstreamModelSlug(
-  firstOptional(PROVIDER.modelClauxenV1, "SHIROVA_DEFAULT_MODEL"),
+  firstOptional(
+    PROVIDER.modelVirgil,
+    PROVIDER.modelClauxenV1,
+    "SHIROVA_DEFAULT_MODEL",
+  ),
   MODEL_CONFIG.models.virgil.defaultSlug,
 );
 
@@ -73,33 +74,33 @@ export const env = {
   novitaApiKey: openAiApiKey,
 
   novitaOpenAiBaseUrl: providerOpenAiBaseUrl,
-  /** Optional OpenAI-compatible base URL. Official OpenAI is the SDK default. */
+  /** Novita OpenAI-compatible base URL. */
   providerBaseUrl: providerOpenAiBaseUrl,
 
-  /** Homer — uses Provider_Model_Clauxen_V1 unless a legacy override exists. */
+  /** Composer-selectable Novita OpenAI-compatible models. */
   homerModel: normalizeUpstreamModelSlug(
-    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.homer.envKey),
+    firstOptional(PROVIDER.modelHomer, PROVIDER.modelClauxenV1),
     MODEL_CONFIG.models.homer.defaultSlug,
   ),
   heliosModel: normalizeUpstreamModelSlug(
-    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.helios.envKey),
+    firstOptional(PROVIDER.modelHelios, PROVIDER.modelClauxenV1),
     MODEL_CONFIG.models.helios.defaultSlug,
   ),
   virgilModel: normalizeUpstreamModelSlug(
-    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.virgil.envKey),
+    firstOptional(PROVIDER.modelVirgil, PROVIDER.modelClauxenV1),
     MODEL_CONFIG.models.virgil.defaultSlug,
   ),
   thinkingModel: normalizeUpstreamModelSlug(
-    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.thinking.envKey),
+    firstOptional(PROVIDER.modelVirgil, PROVIDER.modelClauxenV1),
     MODEL_CONFIG.models.thinking.defaultSlug,
   ),
   fastModel: normalizeUpstreamModelSlug(
-    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.fast.envKey),
+    firstOptional(PROVIDER.modelVirgil, PROVIDER.modelClauxenV1),
     MODEL_CONFIG.models.fast.defaultSlug,
   ),
   /** @deprecated Use fastModel */
   openAiFastModel: normalizeUpstreamModelSlug(
-    firstOptional(PROVIDER.modelClauxenV1, MODEL_CONFIG.models.fast.envKey),
+    firstOptional(PROVIDER.modelVirgil, PROVIDER.modelClauxenV1),
     MODEL_CONFIG.models.fast.defaultSlug,
   ),
   novitaMessagesUrl: optional("SHIROVA_NOVITA_MESSAGES_URL", ""),

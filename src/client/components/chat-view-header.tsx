@@ -2,13 +2,11 @@
 
 import { useState } from "react";
 import { useIsClient } from "@/hooks/use-is-client";
-import { Check, ChevronDown, MoreHorizontal, Sparkles } from "lucide-react";
-import { HintTooltip } from "./ui/hint-tooltip";
+import { MoreHorizontal } from "lucide-react";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
 import { ChatRightRailControls } from "./chat-right-rail-controls";
-import { GhostChatIcon } from "./icons";
 import { cn } from "@/lib/utils";
 import { resolveDisplayChatTitle } from "@/lib/chat-title";
 import {
@@ -37,8 +35,8 @@ interface ChatViewHeaderProps {
   onMoveToProject?: () => void;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
-  /** Opens the Incognito chat surface from the new-chat header ghost button. */
-  onOpenIncognito?: () => void;
+  /** Show the centered free-plan upgrade prompt on the new-chat surface. */
+  showFreePlanUpgrade?: boolean;
   className?: string;
   projectBreadcrumb?: {
     label: string;
@@ -67,7 +65,7 @@ export function ChatViewHeader({
   onMoveToProject,
   onOpenMobileNav,
   showMobileMenu = false,
-  onOpenIncognito,
+  showFreePlanUpgrade = false,
   className,
   projectBreadcrumb,
   headerControlsLoading = false,
@@ -188,110 +186,35 @@ export function ChatViewHeader({
     );
   }
 
-  // Header chrome uses shared ui-chrome-text-btn / ui-icon-button tokens.
-  const modelSwitcher = (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="ui-chrome-text-btn text-zinc-800 transition-colors hover:bg-zinc-100 data-[state=open]:bg-black/5"
-          aria-label="Choose Clauxen plan"
-        >
-          <span>Clauxen</span>
-          <ChevronDown className="size-3.5 opacity-70" strokeWidth={2} />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        sideOffset={6}
-        className="z-[100] w-[min(calc(100vw-2rem),280px)] rounded-[14px] border-zinc-200/90 p-1 shadow-[0_12px_32px_-14px_rgba(24,24,27,0.3)]"
-      >
-        <button
-          type="button"
-          onClick={onUpgradeClick}
-          className="flex w-full items-center gap-1.5 rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-zinc-50"
-        >
-          <span className="ui-nav-icon text-zinc-800">
-            <Sparkles className="size-3.5" strokeWidth={1.75} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-medium text-zinc-900">
-              Clauxen Plus
-            </span>
-            <span className="block text-[12px] text-zinc-500">
-              Our smartest model & more
-            </span>
-          </span>
-          <span className="inline-flex h-[34px] shrink-0 items-center rounded-full border border-zinc-200 bg-white px-3 text-[12px] font-medium text-zinc-800">
-            Upgrade
-          </span>
-        </button>
-        <div className="flex w-full items-center gap-1.5 rounded-[10px] px-2 py-1.5">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-[9px] font-semibold text-zinc-700">
-            C
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-medium text-zinc-900">
-              Clauxen
-            </span>
-            <span className="block text-[12px] text-zinc-500">
-              Great for everyday tasks
-            </span>
-          </span>
-          <Check
-            className="size-3.5 shrink-0 text-zinc-900"
-            strokeWidth={2.25}
-          />
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
-  const upgradeButton = (
-    <button
-      type="button"
-      onClick={onUpgradeClick}
-      className="ui-chrome-text-btn text-[#2f6fed] transition-colors hover:bg-[#2f6fed]/08 active:bg-[#2f6fed]/12"
-      aria-label="Upgrade plan"
-    >
-      <Sparkles className="size-3.5 shrink-0" strokeWidth={1.75} />
-      <span>Upgrade</span>
-    </button>
-  );
-
-  const ghostButton = (
-    <HintTooltip content="Incognito" side="bottom" align="end" sideOffset={8}>
-      <button
-        type="button"
-        onClick={() => onOpenIncognito?.()}
-        aria-label="Incognito"
-        className="ui-icon-button text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
-      >
-        <GhostChatIcon className="size-3.5" />
-      </button>
-    </HintTooltip>
-  );
-
   return (
-    <div
+    <header
       className={cn(
-        "content-pane-top-bar relative sticky top-0 z-20 flex w-full shrink-0 items-center justify-between gap-1 overflow-visible bg-[var(--app-panel-bg)] px-3 font-sans sm:px-4",
+        "content-pane-top-bar relative sticky top-0 z-20 flex w-full shrink-0 items-center overflow-visible bg-[var(--app-panel-bg)] px-3 font-sans sm:px-4",
         className,
       )}
     >
-      <div className="flex min-w-0 items-center gap-0.5">
-        {showMobileMenu && onOpenMobileNav ? (
-          <MobileMenuButton
-            onClick={onOpenMobileNav}
-            aria-controls="app-primary-nav"
+      {showMobileMenu && onOpenMobileNav ? (
+        <MobileMenuButton
+          onClick={onOpenMobileNav}
+          aria-controls="app-primary-nav"
+        />
+      ) : null}
+      {showFreePlanUpgrade ? (
+        <div className="absolute left-1/2 top-1/2 flex h-8 -translate-x-1/2 -translate-y-1/2 select-none items-center gap-1.5 rounded-lg bg-[#f6f6f4] px-2 pr-2.5 text-center text-[14px] font-normal leading-5 text-[#898781]">
+          <span>Free plan</span>
+          <span
+            className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[rgba(137,135,129,0.3)]"
+            aria-hidden="true"
           />
-        ) : null}
-        {modelSwitcher}
-      </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        {upgradeButton}
-        {ghostButton}
-      </div>
-    </div>
+          <button
+            type="button"
+            onClick={onUpgradeClick}
+            className="rounded-sm text-[#184f95] underline decoration-[rgba(24,79,149,0.4)] underline-offset-[3px] outline-none transition-[color,text-decoration-color,box-shadow] duration-[60ms] hover:text-[#123f79] hover:decoration-[#184f95] focus-visible:ring-2 focus-visible:ring-[#256abf]/40"
+          >
+            Upgrade
+          </button>
+        </div>
+      ) : null}
+    </header>
   );
 }

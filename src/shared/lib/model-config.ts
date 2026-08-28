@@ -13,9 +13,9 @@ export const MODEL_CONFIG = {
   endpoints: {
     /**
      * Last-resort Provider base URL when Provider_BASE_URL is unset.
-     * Prefer OPENAI_BASE_URL or Provider_BASE_URL in Vercel / .env.local.
+     * Prefer Provider_BASE_URL in Vercel / .env.local.
      */
-    providerOpenAiBaseUrl: "",
+    providerOpenAiBaseUrl: "https://api.novita.ai/openai",
 
     /** @deprecated Prefer Provider_BASE_URL */
     novitaOpenAiBaseUrl: "",
@@ -28,34 +28,34 @@ export const MODEL_CONFIG = {
   // 2. Upstream Model Slugs (Default Slugs)
   // ==========================================
   models: {
-    /** Homer — most capable (optional override) */
+    /** Homer — balanced medium model (optional override) */
     homer: {
-      defaultSlug: "gpt-5.6",
-      envKey: "Provider_Model_Clauxen_V1",
+      defaultSlug: "qwen/qwen3.8-2.4t-a95b",
+      envKey: "Provider_Model_Homer",
     },
 
-    /** Helios — everyday work */
+    /** Helios — smartest model */
     helios: {
-      defaultSlug: "gpt-5.6",
-      envKey: "Provider_Model_Clauxen_V1",
+      defaultSlug: "moonshotai/kimi-k2.6",
+      envKey: "Provider_Model_Helios",
     },
 
     /** Virgil — default chat model */
     virgil: {
-      defaultSlug: "gpt-5.6",
-      envKey: "Provider_Model_Clauxen_V1",
+      defaultSlug: "qwen/qwen3.8-flash",
+      envKey: "Provider_Model_Virgil",
     },
 
     /** OpenAI reasoning model */
     thinking: {
-      defaultSlug: "gpt-5.6",
-      envKey: "Provider_Model_Clauxen_V1",
+      defaultSlug: "qwen/qwen3.8-flash",
+      envKey: "Provider_Model_Virgil",
     },
 
     /** Fast chat path */
     fast: {
-      defaultSlug: "gpt-5.6",
-      envKey: "Provider_Model_Clauxen_V1",
+      defaultSlug: "qwen/qwen3.8-flash",
+      envKey: "Provider_Model_Virgil",
     },
   },
 
@@ -66,21 +66,21 @@ export const MODEL_CONFIG = {
     homer: {
       label: "Homer",
       shortLabel: "Homer",
-      description: "Most capable for ambitious work",
+      description: "Balanced for complex tasks",
       available: true,
-      requiresUpgrade: true,
+      requiresUpgrade: false,
     },
     helios: {
       label: "Helios",
       shortLabel: "Helios",
-      description: "Responsive everyday work",
+      description: "Smartest for demanding work",
       available: true,
       requiresUpgrade: false,
     },
     virgil: {
-      label: "Virgil 1.1",
-      shortLabel: "Virgil 1.1",
-      description: "Autonomous chat and tool orchestration",
+      label: "Virgil",
+      shortLabel: "Virgil",
+      description: "Fast for everyday tasks",
       available: true,
       requiresUpgrade: false,
     },
@@ -96,6 +96,10 @@ export const MODEL_CONFIG = {
     apiKey: "Provider_API_Key",
     baseUrl: "Provider_BASE_URL",
     sandboxTimeoutMs: "Provider_SANDBOX_TIMEOUT_MS",
+    modelVirgil: "Provider_Model_Virgil",
+    modelHomer: "Provider_Model_Homer",
+    modelHelios: "Provider_Model_Helios",
+    /** Legacy one-model override retained for old deployments. */
     modelClauxenV1: "Provider_Model_Clauxen_V1",
   },
 } as const;

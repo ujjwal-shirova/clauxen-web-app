@@ -469,7 +469,6 @@ export function AgentTraceView({
       className="flex w-full min-w-0 flex-col gap-1.5"
       data-agent-trace-view="true"
     >
-      <AgentWorkingRow startedAtMs={startedAtMs} />
       <div>
         <TraceSteps steps={visibleSteps} renderNarration={renderNarration} />
       </div>

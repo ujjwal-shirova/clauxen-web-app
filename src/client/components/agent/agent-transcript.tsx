@@ -10,6 +10,7 @@ import {
 import type { MessageDetailLevel } from "@/hooks/use-message-visibility";
 import { AssistantContentRenderer } from "@/components/assistant-content-renderer";
 import { collectMessageSources } from "@/lib/chat-sources";
+import { messageUiKey } from "@/lib/message-ui-key";
 import {
   isAssistantGenerationError,
   toUserFacingChatError,
@@ -59,10 +60,10 @@ export function AgentTranscriptView({
       !answer,
   );
 
-  if (!hasTranscript && !answer) {
-    if (!streaming) return null;
-    return <FreshTurnPlaceholder />;
-  }
+  if (!hasTranscript && !answer && !streaming) return null;
+
+  const stableMessageKey = messageUiKey(message);
+  const showWorking = streaming && !answer && !awaitingInput;
 
   return (
     <div
@@ -71,6 +72,11 @@ export function AgentTranscriptView({
       data-assistant-content="true"
       data-agent-transcript-root="true"
     >
+      {showWorking ? (
+        <AgentWorkingRow
+          startedAtMs={trace?.startedAtMs ?? message.createdAt}
+        />
+      ) : null}
       {hasTranscript ? (
         <AgentTraceView
           steps={traceSteps}
@@ -94,7 +100,7 @@ export function AgentTranscriptView({
                 content={step.content}
                 messageId={message.id}
                 isStreaming={active && step.isStreaming === true}
-                streamKey={`${message.id}-narration-${step.id}`}
+                streamKey={`${stableMessageKey}-narration-${step.id}`}
                 detailLevel={detailLevel}
                 {...({ sources } as any)}
               />
@@ -122,7 +128,7 @@ export function AgentTranscriptView({
               content={message.content}
               messageId={message.id}
               isStreaming={streaming}
-              streamKey={`${message.id}-narration-${mirroredNarrationId ?? "answer"}`}
+              streamKey={`${stableMessageKey}-narration-${mirroredNarrationId ?? "answer"}`}
               detailLevel={detailLevel}
               agentArtifacts={message.agentArtifacts}
               {...({ sources } as any)}
@@ -130,17 +136,6 @@ export function AgentTranscriptView({
           )}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function FreshTurnPlaceholder() {
-  return (
-    <div
-      className="flex w-full min-w-0 flex-col gap-1.5"
-      data-agent-fresh-turn="true"
-    >
-      <AgentWorkingRow />
     </div>
   );
 }

@@ -38,8 +38,9 @@ import {
 import { HintTooltip } from "./ui/hint-tooltip";
 import { useIsClient } from "@/hooks/use-is-client";
 import { MessageQueuePanel } from "./message-queue-panel";
-import type { ChatModelId } from "@/lib/chat-models";
+import { DEFAULT_CHAT_MODEL_ID, type ChatModelId } from "@/lib/chat-models";
 import type { HomerReasoningEffort } from "@/lib/model-effort";
+import { PromptModelSelector } from "./prompt-model-selector";
 import type { QueuedChatMessage } from "@/stores/chat-store";
 import {
   COMPOSER_FILE_ACCEPT,
@@ -175,6 +176,9 @@ export function PromptInput({
   onHomerReasoningEffortChange,
   extendedThinking: extendedThinkingProp,
   onExtendedThinkingChange,
+  showModelSelector = true,
+  chatModel = DEFAULT_CHAT_MODEL_ID,
+  onChatModelChange,
   lockedProjectId = null,
   showProjectStrip = true,
   placeholder = "Ask anything",
@@ -405,8 +409,7 @@ export function PromptInput({
     if (showDictationSurface) {
       const live = dictation.displayText ?? "";
       const hasExplicitNewline = live.includes("\n");
-      const approxMultiline =
-        hasExplicitNewline || live.trim().length > 72;
+      const approxMultiline = hasExplicitNewline || live.trim().length > 72;
       if (approxMultiline !== isMultilineRef.current) {
         isMultilineRef.current = approxMultiline;
         setIsMultiline(approxMultiline);
@@ -1084,10 +1087,7 @@ export function PromptInput({
           isCapturingScreenshot && "opacity-50",
         )}
       >
-        <Plus
-          className="icon-md shrink-0"
-          strokeWidth={1.75}
-        />
+        <Plus className="icon-md shrink-0" strokeWidth={1.75} />
       </button>
       <PromptAddMenuPanel
         open={isAddMenuOpen}
@@ -1108,7 +1108,13 @@ export function PromptInput({
     </div>
   );
 
-  const renderModelSelector = () => null;
+  const renderModelSelector = () =>
+    showModelSelector && onChatModelChange ? (
+      <PromptModelSelector
+        selectedModel={chatModel}
+        onSelectedModelChange={onChatModelChange}
+      />
+    ) : null;
 
   const renderPromptToolbar = (centerSlot?: ReactNode) => (
     <div className="flex items-center gap-1 px-1.5 py-1.5 sm:gap-1.5 sm:px-2 sm:py-1.5">

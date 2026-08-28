@@ -39,6 +39,7 @@ interface ChatAreaProps {
   onSendQueuedMessageNow?: (id: string) => void;
   onRemoveQueuedMessage?: (id: string) => void;
   onUpgradeClick: () => void;
+  showFreePlanUpgrade?: boolean;
   editMessageWithBranch: (
     chatId: string,
     messageId: string,
@@ -97,7 +98,6 @@ interface ChatAreaProps {
   /** Full-screen Incognito mode — no history chrome / attachments. */
   incognito?: boolean;
   onCloseIncognito?: () => void;
-  onOpenIncognito?: () => void;
 }
 
 const ARTIFACTS_LIST_PANEL_WIDTH = 384;
@@ -114,6 +114,7 @@ function ChatAreaLayout({
   onSendQueuedMessageNow,
   onRemoveQueuedMessage,
   onUpgradeClick,
+  showFreePlanUpgrade = false,
   editMessageWithBranch,
   redoUserMessageWithBranch,
   retryAssistantWithBranch,
@@ -144,7 +145,6 @@ function ChatAreaLayout({
   lockedProjectId = null,
   incognito = false,
   onCloseIncognito,
-  onOpenIncognito,
 }: ChatAreaProps) {
   const { isViewerOpen, activeArtifact, closeViewer, clearViewer } =
     useArtifactViewer();
@@ -450,7 +450,7 @@ function ChatAreaLayout({
               onOpenSettings={onOpenSettings}
               onOpenMobileNav={onOpenMobileNav}
               showMobileMenu={showMobileMenu}
-              onOpenIncognito={onOpenIncognito}
+              showFreePlanUpgrade={showFreePlanUpgrade}
               className="relative z-20 shrink-0"
             />
           ) : null}

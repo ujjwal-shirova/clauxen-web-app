@@ -35,6 +35,9 @@ export const CANONICAL_VERCEL_ENV_KEYS = [
   "Provider_API_Key",
   "Provider_BASE_URL",
   "Provider_SANDBOX_TIMEOUT_MS",
+  "Provider_Model_Virgil",
+  "Provider_Model_Homer",
+  "Provider_Model_Helios",
   "Provider_Model_Clauxen_V1",
   "EXA_API_KEY",
   "Assembly_Provider_Key",
@@ -78,9 +81,7 @@ function firstEnv(...names: string[]): string {
  * (`process.env.NEXT_PUBLIC_FOO`). Dynamic `process.env[name]` is empty in the
  * browser bundle — that caused "Supabase browser auth is not configured."
  */
-function firstPublicEnv(
-  ...values: Array<string | undefined>
-): string {
+function firstPublicEnv(...values: Array<string | undefined>): string {
   for (const value of values) {
     const trimmed = value?.trim();
     if (!isBlankEnvValue(trimmed)) return trimmed!;
@@ -165,6 +166,18 @@ export function bootstrapVercelEnvAliases(): void {
       "LLM_MODEL",
     );
     if (model) process.env.Provider_Model_Clauxen_V1 = model;
+  }
+  if (isBlankEnvValue(process.env.Provider_Model_Virgil)) {
+    const model = firstEnv("SHIROVA_VIRGIL_MODEL", "Provider_Model_Clauxen_V1");
+    if (model) process.env.Provider_Model_Virgil = model;
+  }
+  if (isBlankEnvValue(process.env.Provider_Model_Homer)) {
+    const model = firstEnv("SHIROVA_HOMER_MODEL", "Provider_Model_Clauxen_V1");
+    if (model) process.env.Provider_Model_Homer = model;
+  }
+  if (isBlankEnvValue(process.env.Provider_Model_Helios)) {
+    const model = firstEnv("SHIROVA_HELIOS_MODEL", "Provider_Model_Clauxen_V1");
+    if (model) process.env.Provider_Model_Helios = model;
   }
 
   // Sandbox SDK still reads NOVITA_API_KEY — mirror Provider key server-side only.

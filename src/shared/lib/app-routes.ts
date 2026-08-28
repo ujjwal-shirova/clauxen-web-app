@@ -68,8 +68,6 @@ export const APP_ROUTES = {
   root: "/",
   newChat: "/new",
   home: "/new",
-  /** Ephemeral chat — not saved to history, files, or memory. */
-  incognito: "/incognito",
   automations: "/automations",
   plugins: "/plugins",
   library: "/library",
@@ -227,8 +225,6 @@ export function isMainAppPath(pathname: string | null): boolean {
   return (
     pathname === "/" ||
     pathname === "/new" ||
-    pathname === "/incognito" ||
-    pathname.startsWith("/incognito/") ||
     pathname.startsWith("/c/") ||
     pathname === "/automations" ||
     pathname.startsWith("/automations/") ||

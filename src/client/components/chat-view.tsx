@@ -28,7 +28,10 @@ import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { useProjects } from "@/hooks/use-projects";
 import * as projectsApi from "@/lib/api/projects";
 import { getBillingSubscription } from "@/lib/api/billing";
-import { writeCachedBillingPlan } from "@/lib/billing-plan-cache";
+import {
+  readCachedBillingPlan,
+  writeCachedBillingPlan,
+} from "@/lib/billing-plan-cache";
 import { DEFAULT_CHAT_MODEL_ID, type ChatModelId } from "@/lib/chat-models";
 import {
   DEFAULT_HOMER_REASONING_EFFORT,
@@ -102,6 +105,48 @@ function ChatViewBody({
   const [enterMethod, setEnterMethod] = useState<string | null>(null);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [successPlanName, setSuccessPlanName] = useState<string | null>(null);
+  const [showFreePlanUpgrade, setShowFreePlanUpgrade] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const updateFromPlanId = (planId: string | null | undefined) => {
+      if (!cancelled) {
+        setShowFreePlanUpgrade(
+          (planId || "free").trim().toLowerCase() === "free",
+        );
+      }
+    };
+
+    const loadPlan = async () => {
+      const cachedPlan = readCachedBillingPlan();
+      if (cachedPlan) updateFromPlanId(cachedPlan.planId);
+
+      if (!auth.user?.id) {
+        if (!auth.loading) updateFromPlanId("free");
+        return;
+      }
+
+      try {
+        const overview = await getBillingSubscription();
+        if (cancelled) return;
+        const planId = overview.subscription?.plan_id ?? "free";
+        const match = overview.plans?.find((plan) => plan.id === planId);
+        writeCachedBillingPlan(planId, match?.display_name || planId);
+        updateFromPlanId(planId);
+      } catch {
+        if (!cachedPlan) updateFromPlanId("free");
+      }
+    };
+
+    void loadPlan();
+    const onBillingUpdated = () => void loadPlan();
+    window.addEventListener("clauxen:billing-updated", onBillingUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("clauxen:billing-updated", onBillingUpdated);
+    };
+  }, [auth.loading, auth.user?.id]);
 
   useEffect(() => {
     setEnterMethod(readChatEnterMethod());
@@ -359,11 +404,6 @@ function ChatViewBody({
     instantNavigate(APP_ROUTES.newChat, { replace: true });
   }, [instantNavigate, startNewChat]);
 
-  const handleOpenIncognito = useCallback(() => {
-    startNewChat();
-    instantNavigate(APP_ROUTES.incognito);
-  }, [instantNavigate, startNewChat]);
-
   const handleDeleteChatAndLeave = useCallback(
     (chatId: string) => {
       const wasActive = activeChatId === chatId;
@@ -438,6 +478,7 @@ function ChatViewBody({
         onSendQueuedMessageNow={sendQueuedMessageNow}
         onRemoveQueuedMessage={removeQueuedMessage}
         onUpgradeClick={() => overlays.openPricing()}
+        showFreePlanUpgrade={showFreePlanUpgrade}
         editMessageWithBranch={editMessageWithBranch}
         redoUserMessageWithBranch={redoUserMessageWithBranch}
         retryAssistantWithBranch={retryAssistantWithBranch}
@@ -467,7 +508,6 @@ function ChatViewBody({
         lockedProjectId={projectId ?? bindProjectId}
         incognito={isIncognito}
         onCloseIncognito={handleCloseIncognito}
-        onOpenIncognito={handleOpenIncognito}
       />
       <PaymentSuccessDialog
         open={showPaymentSuccess}

@@ -12,13 +12,11 @@ import { AgentTranscriptView } from "./agent-transcript";
 import { AgentWorkingRow } from "./agent-trace-view";
 import { collectMessageSources } from "@/lib/chat-sources";
 
-/** Once an agent turn has a trace, keep that renderer mounted through settle.
- * Switching back to the plain answer renderer on finalize remounted markdown
- * and caused the transient large/bold first frame. */
+/** Keep one agent renderer mounted from the optimistic Working frame through
+ * trace steps and the final answer. Switching renderers at those boundaries
+ * resets both the morph animation and streamed markdown presentation. */
 export function shouldUseAgentTraceLayout(message: Message): boolean {
-  return (
-    Boolean(message.agentMode) && (message.agentTrace?.steps.length ?? 0) > 0
-  );
+  return Boolean(message.agentMode);
 }
 
 export function AgentMessageContent({

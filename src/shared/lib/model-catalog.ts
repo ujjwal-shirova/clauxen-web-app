@@ -1,9 +1,10 @@
-/**
- * Product model catalog — single source of truth for the one visible chat model.
- * Legacy IDs are still parsed for old persisted chats, but the UI exposes Virgil only.
- */
+/** Product model catalog — single source of truth for visible chat models. */
 
-import { MODEL_CONFIG, normalizeUpstreamModelSlug, type ConfiguredModelId } from "./model-config";
+import {
+  MODEL_CONFIG,
+  normalizeUpstreamModelSlug,
+  type ConfiguredModelId,
+} from "./model-config";
 
 export type ChatModelId = ConfiguredModelId;
 
@@ -35,11 +36,37 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     description: MODEL_CONFIG.metadata.virgil.description,
     provider: "openai",
     defaultModelSlug: MODEL_CONFIG.models.virgil.defaultSlug,
-    modelEnvKey: MODEL_CONFIG.providerEnv.modelClauxenV1,
+    modelEnvKey: MODEL_CONFIG.providerEnv.modelVirgil,
     baseUrlEnvKey: MODEL_CONFIG.providerEnv.baseUrl,
-    defaultBaseUrl: "",
+    defaultBaseUrl: MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
     available: MODEL_CONFIG.metadata.virgil.available,
     requiresUpgrade: MODEL_CONFIG.metadata.virgil.requiresUpgrade,
+  },
+  {
+    id: "homer",
+    label: MODEL_CONFIG.metadata.homer.label,
+    shortLabel: MODEL_CONFIG.metadata.homer.shortLabel,
+    description: MODEL_CONFIG.metadata.homer.description,
+    provider: "openai",
+    defaultModelSlug: MODEL_CONFIG.models.homer.defaultSlug,
+    modelEnvKey: MODEL_CONFIG.providerEnv.modelHomer,
+    baseUrlEnvKey: MODEL_CONFIG.providerEnv.baseUrl,
+    defaultBaseUrl: MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
+    available: MODEL_CONFIG.metadata.homer.available,
+    requiresUpgrade: MODEL_CONFIG.metadata.homer.requiresUpgrade,
+  },
+  {
+    id: "helios",
+    label: MODEL_CONFIG.metadata.helios.label,
+    shortLabel: MODEL_CONFIG.metadata.helios.shortLabel,
+    description: MODEL_CONFIG.metadata.helios.description,
+    provider: "openai",
+    defaultModelSlug: MODEL_CONFIG.models.helios.defaultSlug,
+    modelEnvKey: MODEL_CONFIG.providerEnv.modelHelios,
+    baseUrlEnvKey: MODEL_CONFIG.providerEnv.baseUrl,
+    defaultBaseUrl: MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
+    available: MODEL_CONFIG.metadata.helios.available,
+    requiresUpgrade: MODEL_CONFIG.metadata.helios.requiresUpgrade,
   },
 ] as const;
 
@@ -73,7 +100,7 @@ function readEnvOverride(key: string): string | undefined {
   return value || undefined;
 }
 
-function readProviderModel(): string | undefined {
+function readLegacyProviderModel(): string | undefined {
   return (
     readEnvOverride(MODEL_CONFIG.providerEnv.modelClauxenV1) ||
     readEnvOverride("SHIROVA_DEFAULT_MODEL")
@@ -92,11 +119,11 @@ function modelSlugForEntry(
   entry: ModelCatalogEntry,
   env: ModelCatalogEnv,
 ): string {
-  const fromProvider = readProviderModel();
+  const fromProvider = readLegacyProviderModel();
   const fromEnv = readEnvOverride(entry.modelEnvKey);
   const raw =
-    fromProvider ??
     fromEnv ??
+    fromProvider ??
     (entry.id === "homer"
       ? env.homerModel
       : entry.id === "helios"
@@ -190,26 +217,26 @@ export function resolveOpenAiModelId(
 }
 
 export function modelCatalogEnvFromProcess(): ModelCatalogEnv {
-  const providerModel =
-    readProviderModel() ?? MODEL_CONFIG.models.virgil.defaultSlug;
-  const providerBase = readProviderBaseUrl() ?? "";
+  const legacyModel = readLegacyProviderModel();
+  const providerBase =
+    readProviderBaseUrl() ?? MODEL_CONFIG.endpoints.providerOpenAiBaseUrl;
 
   return {
     novitaOpenAiBaseUrl: providerBase,
     homerModel: normalizeUpstreamModelSlug(
-      providerModel,
+      readEnvOverride(MODEL_CONFIG.providerEnv.modelHomer) ?? legacyModel,
       MODEL_CONFIG.models.homer.defaultSlug,
     ),
     heliosModel: normalizeUpstreamModelSlug(
-      providerModel,
+      readEnvOverride(MODEL_CONFIG.providerEnv.modelHelios) ?? legacyModel,
       MODEL_CONFIG.models.helios.defaultSlug,
     ),
     virgilModel: normalizeUpstreamModelSlug(
-      providerModel,
+      readEnvOverride(MODEL_CONFIG.providerEnv.modelVirgil) ?? legacyModel,
       MODEL_CONFIG.models.virgil.defaultSlug,
     ),
     thinkingModel: normalizeUpstreamModelSlug(
-      providerModel,
+      readEnvOverride(MODEL_CONFIG.models.thinking.envKey) ?? legacyModel,
       MODEL_CONFIG.models.thinking.defaultSlug,
     ),
   };

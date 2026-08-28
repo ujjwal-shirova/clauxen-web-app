@@ -45,6 +45,9 @@ const CANONICAL_VERCEL_ENV_KEYS = [
   "Provider_API_Key",
   "Provider_BASE_URL",
   "Provider_SANDBOX_TIMEOUT_MS",
+  "Provider_Model_Virgil",
+  "Provider_Model_Homer",
+  "Provider_Model_Helios",
   "Provider_Model_Clauxen_V1",
   "EXA_API_KEY",
   "Assembly_Provider_Key",
@@ -74,7 +77,8 @@ const PROD_OVERRIDES = {
   NEXT_PUBLIC_AUTH_REQUIRED_FOR_CHAT: "true",
 };
 
-const PLACEHOLDER_RE = /YOUR_|change-me-in-production|CHANGEME|__FILL_IN_VERCEL_DASHBOARD__/i;
+const PLACEHOLDER_RE =
+  /YOUR_|change-me-in-production|CHANGEME|__FILL_IN_VERCEL_DASHBOARD__/i;
 const CIPHER_RE = /^eyJ2Ijoi/;
 
 function loadToken() {
@@ -118,7 +122,11 @@ function parseEnvLocal() {
 }
 
 function isUsable(value) {
-  return Boolean(value?.trim()) && !PLACEHOLDER_RE.test(value) && !CIPHER_RE.test(value);
+  return (
+    Boolean(value?.trim()) &&
+    !PLACEHOLDER_RE.test(value) &&
+    !CIPHER_RE.test(value)
+  );
 }
 
 async function api(path, { method = "GET", body } = {}, token) {
@@ -131,12 +139,17 @@ async function api(path, { method = "GET", body } = {}, token) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${text.slice(0, 500)}`);
+  if (!res.ok)
+    throw new Error(`${method} ${path} → ${res.status}: ${text.slice(0, 500)}`);
   return text ? JSON.parse(text) : null;
 }
 
 async function listEnv(token) {
-  const data = await api(`/v9/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`, {}, token);
+  const data = await api(
+    `/v9/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`,
+    {},
+    token,
+  );
   return data.envs ?? [];
 }
 
@@ -150,7 +163,11 @@ async function decryptValue(token, envId) {
 }
 
 async function deleteRow(token, id) {
-  await api(`/v9/projects/${PROJECT_ID}/env/${id}?teamId=${TEAM_ID}`, { method: "DELETE" }, token);
+  await api(
+    `/v9/projects/${PROJECT_ID}/env/${id}?teamId=${TEAM_ID}`,
+    { method: "DELETE" },
+    token,
+  );
 }
 
 async function createSensitive(token, key, value) {
@@ -202,7 +219,10 @@ async function main() {
   }
 
   const local = parseEnvLocal();
-  if (isUsable(local.Provider_Model_Clauxen_V1) && !isUsable(local.SHIROVA_DEFAULT_MODEL)) {
+  if (
+    isUsable(local.Provider_Model_Clauxen_V1) &&
+    !isUsable(local.SHIROVA_DEFAULT_MODEL)
+  ) {
     local.SHIROVA_DEFAULT_MODEL = local.Provider_Model_Clauxen_V1;
   }
 
@@ -241,7 +261,9 @@ async function main() {
   const keys = new Set([
     ...CANONICAL_VERCEL_ENV_KEYS,
     ...byKey.keys(),
-    ...Object.keys(local).filter((k) => !k.startsWith("VERCEL_") && k !== "CI" && k !== "NODE_ENV"),
+    ...Object.keys(local).filter(
+      (k) => !k.startsWith("VERCEL_") && k !== "CI" && k !== "NODE_ENV",
+    ),
   ]);
 
   // Do not push local-only tooling / Cloudflare deploy tokens into Vercel unless already present
@@ -256,7 +278,9 @@ async function main() {
   let skip = 0;
   let fail = 0;
 
-  console.log(`Reconciling ${keys.size} keys (sensitive on production+preview, encrypted on development)…`);
+  console.log(
+    `Reconciling ${keys.size} keys (sensitive on production+preview, encrypted on development)…`,
+  );
 
   for (const key of [...keys].sort()) {
     if (SKIP_SYNC.has(key) && !byKey.has(key)) continue;
@@ -327,7 +351,11 @@ async function main() {
     const hasPP = targets.has("production") && targets.has("preview");
     const hasDev = targets.has("development");
     const ppSensitive = after
-      .filter((e) => e.key === key && (e.target || []).some((t) => t === "production" || t === "preview"))
+      .filter(
+        (e) =>
+          e.key === key &&
+          (e.target || []).some((t) => t === "production" || t === "preview"),
+      )
       .every((e) => e.type === "sensitive");
     const okShape = hasPP && hasDev && ppSensitive;
     if (!okShape) {
