@@ -679,7 +679,7 @@ export function Sidebar({
         data-skip-global-prompt-focus
         onClick={() => !isMobileLayout && isCollapsed && setIsCollapsed(false)}
         className={cn(
-          "sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-shell-bg)] pt-[env(safe-area-inset-top)]",
+          "sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-sidebar-bg,var(--app-shell-bg))] pt-[env(safe-area-inset-top)]",
           isMobileLayout &&
             "fixed left-0 top-0 z-30 will-change-transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           !isMobileLayout && "relative z-20 shrink-0",

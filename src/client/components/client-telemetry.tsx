@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 
 /**
  * Analytics loads a third-party script that Attack Challenge can briefly
@@ -16,5 +17,29 @@ const AnalyticsLazy = dynamic(
 );
 
 export function ClientTelemetry() {
-  return <AnalyticsLazy />;
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    const syncStoredChoice = () => {
+      try {
+        const parsed = JSON.parse(
+          window.localStorage.getItem("clauxen.cookie-consent.v1") ?? "null",
+        ) as { performance?: unknown } | null;
+        setAllowed(parsed?.performance === true);
+      } catch {
+        setAllowed(false);
+      }
+    };
+    const onConsent = (event: Event) => {
+      const detail = (event as CustomEvent<{ performance?: unknown }>).detail;
+      setAllowed(detail?.performance === true);
+    };
+
+    syncStoredChoice();
+    window.addEventListener("clauxen:cookie-consent", onConsent);
+    return () =>
+      window.removeEventListener("clauxen:cookie-consent", onConsent);
+  }, []);
+
+  return allowed ? <AnalyticsLazy /> : null;
 }

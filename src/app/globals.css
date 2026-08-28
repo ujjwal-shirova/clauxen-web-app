@@ -75,7 +75,7 @@
     --ui-control-height-md: 28px;
     --ui-control-height-lg: 36px;
     /* Settings / product overlay surface */
-    --settings-canvas-bg: #f2f3f6;
+    --settings-canvas-bg: #faf7f6;
     --settings-card-bg: #ffffff;
     --settings-card-radius: 14px;
     --settings-card-shadow:
@@ -144,9 +144,10 @@
     --pricing-thumb-active: color-mix(in oklab, #14151a 9%, transparent);
 
     /* App shell — cool slate canvas shared by chat + product pages */
-    --app-shell-bg: #fcfcfc;
-    --app-panel-bg: #fcfcfc;
-    --chat-canvas-bg: #fcfcfc;
+    --app-shell-bg: #faf7f6;
+    --app-sidebar-bg: #f5f2f1;
+    --app-panel-bg: #faf7f6;
+    --chat-canvas-bg: #faf7f6;
     --chat-user-card-bg: #f7f7f7;
     --overlay-scrim: rgba(20, 21, 26, 0.42);
     --overlay-scrim-soft: rgba(232, 234, 238, 0.88);
@@ -154,7 +155,7 @@
     /* Shared chat / composer column breadth */
     --chat-column-max-width: 752px;
     --chat-reading-column-max-width: 704px;
-    --glass-chat-surface-background: #fcfcfc;
+    --glass-chat-surface-background: #faf7f6;
     /* Solid popup surface — no glass/blur */
     --popup-bg: #ffffff;
     --popup-border: rgba(20, 21, 26, 0.1);
@@ -227,6 +228,7 @@
     --icon-muted: rgba(244, 244, 245, 0.66);
     --icon-subtle: rgba(244, 244, 245, 0.6);
     --app-shell-bg: #141416;
+    --app-sidebar-bg: #141416;
     --app-panel-bg: #1a1a1c;
     --chat-canvas-bg: #141416;
     --chat-user-card-bg: #1c1c1f;
@@ -1520,7 +1522,7 @@ svg.app-icon[fill="currentColor"] {
 }
 
 nav.sidebar-hover-area {
-  background-color: var(--app-shell-bg) !important;
+  background-color: var(--app-sidebar-bg, var(--app-shell-bg)) !important;
   border-right: none !important;
 }
 
@@ -2702,7 +2704,7 @@ button.user-message-card__body:not(:disabled):hover,
 /* Narration is a progress note, not an activity event and not the answer. */
 .agent-narration {
   margin: 0.15rem 0 0.25rem;
-  padding-left: 0.15rem;
+  padding-left: 0;
   color: #52525b;
 }
 
@@ -2803,7 +2805,7 @@ button.user-message-card__body:not(:disabled):hover,
 
 .glass-sidebar-docked {
   border-right: 0 !important;
-  background: var(--app-shell-bg) !important;
+  background: var(--app-sidebar-bg, var(--app-shell-bg)) !important;
   box-shadow: none !important;
   font-size: var(--nav-label-size);
   line-height: var(--nav-label-line);
@@ -3965,7 +3967,7 @@ button[data-speed-toggle][data-state="open"] {
 }
 
 .glass-sidebar-docked {
-  background: var(--app-shell-bg) !important;
+  background: var(--app-sidebar-bg, var(--app-shell-bg)) !important;
 }
 
 .glass-sidebar-docked .ui-sidebar-top-bar {
@@ -4399,6 +4401,14 @@ button[data-speed-toggle][data-state="open"] {
 .agent-trace-timeline__step {
   position: relative;
   padding-left: 24px;
+}
+
+.agent-trace-timeline__step--narration {
+  padding-left: 0;
+}
+
+.agent-trace-timeline__step--narration:not(:last-child)::before {
+  display: none;
 }
 
 .agent-trace-timeline__step:not(:last-child)::before {

@@ -210,7 +210,7 @@ function ThinkingTraceRow({ step }: { step: AgentThinkingStep }) {
         aria-hidden={!expanded}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="max-w-[48rem] pt-1 pr-3 text-[14px] font-normal leading-6 text-zinc-600 dark:text-zinc-300">
+          <div className="agent-thinking-body max-w-[48rem] pt-1 pr-3 text-[14px] font-normal leading-6 text-zinc-500 dark:text-zinc-400">
             {step.isStreaming ? (
               <StreamingTextFade
                 content={content}
@@ -323,7 +323,7 @@ function TraceSteps({
         if (row.kind === "searches") {
           return (
             <div
-              className="agent-trace-timeline__step agent-trace-enter min-w-0"
+              className="agent-trace-timeline__step agent-trace-enter ml-5 min-w-0"
               key={row.id}
             >
               <SearchTraceGroup tools={row.tools} />
@@ -334,7 +334,7 @@ function TraceSteps({
         if (step.kind === "thinking") {
           return (
             <div
-              className="agent-trace-timeline__step agent-trace-enter min-w-0"
+              className="agent-trace-timeline__step agent-trace-enter ml-5 min-w-0"
               key={step.id}
             >
               <ThinkingTraceRow step={step} />
@@ -345,7 +345,7 @@ function TraceSteps({
           if (!step.content.trim() || !renderNarration) return null;
           return (
             <div
-              className="agent-trace-timeline__step agent-trace-enter min-w-0"
+              className="agent-trace-timeline__step agent-trace-timeline__step--narration agent-trace-enter min-w-0"
               key={step.id}
             >
               {renderNarration(step)}
@@ -354,7 +354,7 @@ function TraceSteps({
         }
         return (
           <div
-            className="agent-trace-timeline__step agent-trace-enter min-w-0"
+            className="agent-trace-timeline__step agent-trace-enter ml-5 min-w-0"
             key={step.id}
           >
             <AgentToolBlock tool={step} />
@@ -416,7 +416,7 @@ function CompletedTrace({
         aria-hidden={!expanded}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="pt-1.5 pl-5">
+          <div className="pt-1.5">
             <TraceSteps steps={steps} renderNarration={renderNarration} />
           </div>
         </div>
@@ -470,7 +470,7 @@ export function AgentTraceView({
       data-agent-trace-view="true"
     >
       <AgentWorkingRow startedAtMs={startedAtMs} />
-      <div className="pl-5">
+      <div>
         <TraceSteps steps={visibleSteps} renderNarration={renderNarration} />
       </div>
     </div>

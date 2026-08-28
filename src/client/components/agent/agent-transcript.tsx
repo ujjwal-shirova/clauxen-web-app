@@ -87,7 +87,7 @@ export function AgentTranscriptView({
           keepExpanded={awaitingInput}
           renderNarration={(step: AgentNarrationStep) => (
             <div
-              className="agent-answer-body agent-intermediate-narration"
+              className="agent-answer-body agent-intermediate-narration agent-narration"
               data-agent-intermediate-narration="true"
             >
               <AssistantContentRenderer

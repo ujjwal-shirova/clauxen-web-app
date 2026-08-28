@@ -11,6 +11,7 @@ import { AppNotificationsProvider } from "@/hooks/use-app-notifications";
 import { AppNotificationHost } from "@/components/app-notifications/app-notification-host";
 import { AuthProvider } from "@/contexts/auth-context";
 import { AppPreferencesProvider } from "@/contexts/app-preferences-context";
+import { CookieConsent } from "@/components/cookie-consent";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -109,6 +110,7 @@ export default function RootLayout({
               <ClientToaster />
               <SavedNotificationHost />
               <AppNotificationHost />
+              <CookieConsent />
               <ClientTelemetry />
             </AppNotificationsProvider>
           </AppPreferencesProvider>
