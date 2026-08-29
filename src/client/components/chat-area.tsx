@@ -398,6 +398,7 @@ function ChatAreaLayout({
       onAddMenuOpenChange={setIsAddMenuOpen}
       focusKey={activeChatId ?? (incognito ? "incognito" : "new")}
       onUpgradeClick={onUpgradeClick}
+      isFreePlan={showFreePlanUpgrade}
       homerReasoningEffort={homerReasoningEffort}
       onHomerReasoningEffortChange={onHomerReasoningEffortChange}
       extendedThinking={extendedThinking}

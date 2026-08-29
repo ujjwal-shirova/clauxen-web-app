@@ -91,7 +91,7 @@ const settingsRowBase =
   "relative flex flex-col items-stretch gap-3 px-[var(--settings-row-pad-x)] py-[var(--settings-row-pad-y)] sm:flex-row sm:items-center sm:gap-[var(--settings-row-gap)]";
 
 const settingsRowHairline =
-  "before:pointer before:left-[var(--settings-row-pad-x)] before:right-[var(--settings-row-pad-x)] before:top-0 before:h-px before:bg-[var(--settings-hairline)] first:before:hidden";
+  "before:pointer-events-none before:absolute before:left-[var(--settings-row-pad-x)] before:right-[var(--settings-row-pad-x)] before:top-0 before:h-px before:bg-[var(--settings-hairline)] before:content-[''] first:before:hidden";
 
 export function SettingsValueRow({
   label,
@@ -422,10 +422,7 @@ export function SettingsToggleRow({
         checked={checked}
         onCheckedChange={onCheckedChange}
         disabled={disabled}
-        className={cn(
-          "settings-switch h-[22px] w-[38px] border-2 border-transparent data-[state=unchecked]:bg-[var(--settings-switch-track)] data-[state=checked]:bg-[var(--settings-fg)]",
-          "[&>span]:h-[18px] [&>span]:w-[18px] data-[state=checked]:[&>span]:translate-x-4",
-        )}
+        className="settings-switch"
       />
     </SettingsRow>
   );

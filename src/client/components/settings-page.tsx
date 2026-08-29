@@ -435,7 +435,7 @@ export function SettingsModal({
           </p>
 
           <div className="flex min-h-0 flex-1 flex-col bg-[var(--settings-canvas-bg)] md:flex-row md:items-stretch">
-            <div className="shrink-0 border-b border-[var(--settings-modal-border)] bg-[var(--settings-sidebar-bg)] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
+            <div className="shrink-0 bg-[var(--settings-sidebar-bg)] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
               <div className="mb-3 flex h-8 items-center justify-between gap-3">
                 <h2 className="truncate text-[18px] font-semibold tracking-[-0.02em] text-[var(--settings-fg)]">
                   Settings
@@ -469,7 +469,7 @@ export function SettingsModal({
             </aside>
 
             <main className="settings-canvas relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--settings-canvas-bg)]">
-              <header className="hidden shrink-0 items-start justify-between gap-8 border-b border-[var(--settings-modal-border)] px-8 py-6 md:flex">
+              <header className="hidden shrink-0 items-start justify-between gap-8 px-8 pb-4 pt-6 md:flex">
                 <div className="min-w-0">
                   <h2 className="text-[20px] font-semibold leading-7 tracking-[-0.025em] text-[var(--settings-fg)]">
                     {activeTab}
@@ -492,7 +492,7 @@ export function SettingsModal({
                 ref={contentScrollRef}
                 data-scroll-region=""
                 className={cn(
-                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 sm:px-7 md:px-8 md:pb-12 md:pt-7",
+                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 sm:px-7 md:px-8 md:pb-12 md:pt-4",
                 )}
                 aria-busy={contentHydrating || undefined}
               >

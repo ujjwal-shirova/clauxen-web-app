@@ -30,19 +30,6 @@ export type ModelCatalogEntry = {
 
 export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   {
-    id: "virgil",
-    label: MODEL_CONFIG.metadata.virgil.label,
-    shortLabel: MODEL_CONFIG.metadata.virgil.shortLabel,
-    description: MODEL_CONFIG.metadata.virgil.description,
-    provider: "openai",
-    defaultModelSlug: MODEL_CONFIG.models.virgil.defaultSlug,
-    modelEnvKey: MODEL_CONFIG.providerEnv.modelVirgil,
-    baseUrlEnvKey: MODEL_CONFIG.providerEnv.baseUrl,
-    defaultBaseUrl: MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
-    available: MODEL_CONFIG.metadata.virgil.available,
-    requiresUpgrade: MODEL_CONFIG.metadata.virgil.requiresUpgrade,
-  },
-  {
     id: "homer",
     label: MODEL_CONFIG.metadata.homer.label,
     shortLabel: MODEL_CONFIG.metadata.homer.shortLabel,
@@ -67,6 +54,19 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     defaultBaseUrl: MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
     available: MODEL_CONFIG.metadata.helios.available,
     requiresUpgrade: MODEL_CONFIG.metadata.helios.requiresUpgrade,
+  },
+  {
+    id: "virgil",
+    label: MODEL_CONFIG.metadata.virgil.label,
+    shortLabel: MODEL_CONFIG.metadata.virgil.shortLabel,
+    description: MODEL_CONFIG.metadata.virgil.description,
+    provider: "openai",
+    defaultModelSlug: MODEL_CONFIG.models.virgil.defaultSlug,
+    modelEnvKey: MODEL_CONFIG.providerEnv.modelVirgil,
+    baseUrlEnvKey: MODEL_CONFIG.providerEnv.baseUrl,
+    defaultBaseUrl: MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
+    available: MODEL_CONFIG.metadata.virgil.available,
+    requiresUpgrade: MODEL_CONFIG.metadata.virgil.requiresUpgrade,
   },
 ] as const;
 

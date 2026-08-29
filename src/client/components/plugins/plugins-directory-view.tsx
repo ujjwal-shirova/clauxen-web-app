@@ -3,12 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Check, ChevronRight, Plus, Search } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
 import {
   INITIAL_INSTALLED_PLUGINS,
   PLUGIN_SECTIONS,
+  getPluginCategory,
+  pluginCategorySlugForTitle,
   pluginIconPath,
   type DirectoryPlugin,
 } from "./plugin-directory-data";
@@ -79,8 +81,13 @@ function PluginRow({
   );
 }
 
-export function PluginsDirectoryView() {
+export function PluginsDirectoryView({
+  initialCategory = null,
+}: {
+  initialCategory?: string | null;
+}) {
   const [query, setQuery] = useState("");
+  const [activeCategorySlug, setActiveCategorySlug] = useState(initialCategory);
   const [showAllInstalled, setShowAllInstalled] = useState(false);
   const [installed, setInstalled] = useState<Set<string>>(
     () => new Set(INITIAL_INSTALLED_PLUGINS),
@@ -100,6 +107,19 @@ export function PluginsDirectoryView() {
     } catch {
       // Keep the Builder-provided installed set when local storage is unavailable.
     }
+  }, []);
+
+  useEffect(() => {
+    const syncCategoryFromUrl = () => {
+      const category = new URLSearchParams(window.location.search).get(
+        "category",
+      );
+      setActiveCategorySlug(getPluginCategory(category)?.slug ?? null);
+      setQuery("");
+    };
+
+    window.addEventListener("popstate", syncCategoryFromUrl);
+    return () => window.removeEventListener("popstate", syncCategoryFromUrl);
   }, []);
 
   const togglePlugin = (name: string) => {
@@ -129,12 +149,106 @@ export function PluginsDirectoryView() {
       ),
     })).filter((section) => section.plugins.length > 0);
   }, [normalizedQuery]);
+  const activeCategory = getPluginCategory(activeCategorySlug);
+  const visibleCategoryPlugins = useMemo(() => {
+    if (!activeCategory) return [];
+    if (!normalizedQuery) return activeCategory.plugins;
+    return activeCategory.plugins.filter((plugin) =>
+      `${plugin.name} ${plugin.description}`
+        .toLowerCase()
+        .includes(normalizedQuery),
+    );
+  }, [activeCategory, normalizedQuery]);
 
   const installedNames = [...installed];
   const visibleInstalled = showAllInstalled
     ? installedNames
     : installedNames.slice(0, 14);
   const hiddenInstalledCount = Math.max(0, installedNames.length - 14);
+
+  if (activeCategory) {
+    return (
+      <div className={appPage.surface}>
+        <div className="app-scrollbar flex-1 overflow-y-auto">
+          <nav className="sticky top-0 z-20 flex bg-[rgba(252,252,252,0.88)] px-4 pb-2 pt-2.5 backdrop-blur-xl">
+            <Link
+              href="/plugins"
+              onClick={() => {
+                setActiveCategorySlug(null);
+                setQuery("");
+              }}
+              className="inline-flex h-9 items-center gap-1 rounded-lg px-1.5 text-[14px] font-medium text-zinc-900 transition-colors hover:bg-black/[0.04]"
+            >
+              <ChevronLeft className="size-5" strokeWidth={1.7} />
+              Plugins
+            </Link>
+          </nav>
+
+          <main className="mobile-page-inset mx-auto w-full max-w-[832px] px-4 pb-24 pt-8 sm:px-4 sm:pt-10">
+            <header className="flex flex-wrap items-start gap-5">
+              <div className="min-w-[240px] flex-1">
+                <h1 className="text-[28px] font-semibold leading-9 tracking-[-0.025em] text-zinc-950">
+                  {activeCategory.title}
+                </h1>
+                <p className="mt-1 text-[15px] leading-6 text-zinc-600">
+                  {activeCategory.description}
+                </p>
+              </div>
+              <form
+                role="search"
+                className="relative w-full sm:ml-auto sm:w-[270px]"
+                onSubmit={(event) => event.preventDefault()}
+              >
+                <Search
+                  aria-hidden
+                  className="pointer-events-none absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-zinc-400"
+                  strokeWidth={1.6}
+                />
+                <input
+                  type="search"
+                  name="category-plugin-search"
+                  autoComplete="off"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={activeCategory.searchPlaceholder}
+                  aria-label={activeCategory.searchPlaceholder}
+                  className="h-10 w-full rounded-full border border-black/10 bg-white py-2 pl-9 pr-3 text-[14px] leading-5 text-zinc-900 outline-none transition-shadow placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-2 focus:ring-zinc-200/70"
+                />
+              </form>
+            </header>
+
+            {visibleCategoryPlugins.length > 0 ? (
+              <section
+                aria-label={`${activeCategory.title} plugins`}
+                className="mt-12 grid grid-cols-1 gap-x-7 gap-y-1 sm:grid-cols-2"
+              >
+                {visibleCategoryPlugins.map((plugin) => (
+                  <PluginRow
+                    key={plugin.name}
+                    plugin={plugin}
+                    installed={installed.has(plugin.name)}
+                    onToggle={() => togglePlugin(plugin.name)}
+                  />
+                ))}
+              </section>
+            ) : (
+              <div className="flex min-h-64 flex-col items-center justify-center text-center">
+                <div className="flex size-11 items-center justify-center rounded-full bg-black/[0.04]">
+                  <Search className="size-5 text-zinc-500" strokeWidth={1.6} />
+                </div>
+                <h2 className="mt-3 text-[15px] font-medium text-zinc-900">
+                  No plugins found
+                </h2>
+                <p className="mt-1 text-[13px] text-zinc-500">
+                  Try a different plugin name.
+                </p>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={appPage.surface}>
@@ -267,20 +381,41 @@ export function PluginsDirectoryView() {
                     />
                   ))}
                 </div>
-                {!normalizedQuery && section.more.length > 0 ? (
-                  <div className="group -ml-2 mt-2 flex min-h-12 items-center gap-3 rounded-2xl p-2 text-[14px] text-zinc-600 transition-colors hover:bg-black/[0.035] hover:text-zinc-800">
+                {!normalizedQuery ? (
+                  <Link
+                    href={`/plugins?category=${pluginCategorySlugForTitle(section.title)}`}
+                    onClick={() => {
+                      setActiveCategorySlug(
+                        pluginCategorySlugForTitle(section.title),
+                      );
+                      setQuery("");
+                    }}
+                    className="group -ml-2 mt-2 flex min-h-12 items-center gap-3 rounded-2xl p-2 text-[14px] text-zinc-600 transition-colors hover:bg-black/[0.035] hover:text-zinc-800"
+                  >
                     <div className="flex shrink-0 items-center pl-1 pr-1">
-                      {section.more.map((name, index) => (
+                      {(section.more.length > 0
+                        ? section.more
+                        : section.plugins
+                            .slice(0, 2)
+                            .map((plugin) => plugin.name)
+                      ).map((name, index) => (
                         <span key={name} className={cn(index > 0 && "-ml-1.5")}>
                           <PluginArtwork name={name} size={24} />
                         </span>
                       ))}
                     </div>
                     <span className="min-w-0 flex-1 truncate">
-                      See {section.more.slice(0, 2).join(", ")}, and more
+                      See{" "}
+                      {(section.more.length > 0
+                        ? section.more
+                        : section.plugins.map((plugin) => plugin.name)
+                      )
+                        .slice(0, 2)
+                        .join(", ")}
+                      , and more
                     </span>
                     <ChevronRight className="mr-2 size-4 shrink-0 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100" />
-                  </div>
+                  </Link>
                 ) : null}
               </section>
             ))

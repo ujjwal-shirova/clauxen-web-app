@@ -28,13 +28,13 @@ export const MODEL_CONFIG = {
   // 2. Upstream Model Slugs (Default Slugs)
   // ==========================================
   models: {
-    /** Homer — balanced medium model (optional override) */
+    /** Homer — smartest model (optional override) */
     homer: {
       defaultSlug: "qwen/qwen3.8-2.4t-a95b",
       envKey: "Provider_Model_Homer",
     },
 
-    /** Helios — smartest model */
+    /** Helios — balanced medium model */
     helios: {
       defaultSlug: "moonshotai/kimi-k2.6",
       envKey: "Provider_Model_Helios",
@@ -66,16 +66,16 @@ export const MODEL_CONFIG = {
     homer: {
       label: "Homer",
       shortLabel: "Homer",
-      description: "Balanced for complex tasks",
+      description: "Smartest for demanding work",
       available: true,
-      requiresUpgrade: false,
+      requiresUpgrade: true,
     },
     helios: {
       label: "Helios",
       shortLabel: "Helios",
-      description: "Smartest for demanding work",
+      description: "Balanced for complex tasks",
       available: true,
-      requiresUpgrade: false,
+      requiresUpgrade: true,
     },
     virgil: {
       label: "Virgil",

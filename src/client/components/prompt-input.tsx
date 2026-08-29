@@ -83,6 +83,7 @@ interface PromptInputProps {
   /** When this value changes (e.g. new chat), the textarea is focused again. */
   focusKey?: string;
   onUpgradeClick?: () => void;
+  isFreePlan?: boolean;
   homerReasoningEffort?: HomerReasoningEffort;
   onHomerReasoningEffortChange?: (effort: HomerReasoningEffort) => void;
   /** Live Thinking toggle — forwarded to /generate as extendedThinking. */
@@ -172,6 +173,8 @@ export function PromptInput({
   onPromptChange,
   focusKey,
   onAddMenuOpenChange,
+  onUpgradeClick,
+  isFreePlan = false,
   homerReasoningEffort,
   onHomerReasoningEffortChange,
   extendedThinking: extendedThinkingProp,
@@ -1113,6 +1116,10 @@ export function PromptInput({
       <PromptModelSelector
         selectedModel={chatModel}
         onSelectedModelChange={onChatModelChange}
+        isFreePlan={isFreePlan}
+        onUpgradeClick={
+          onUpgradeClick ?? (() => openOverlayHash({ type: "pricing" }))
+        }
       />
     ) : null;
 

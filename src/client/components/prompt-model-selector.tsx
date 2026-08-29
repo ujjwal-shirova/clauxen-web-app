@@ -16,11 +16,15 @@ import {
 type PromptModelSelectorProps = {
   selectedModel: ChatModelId;
   onSelectedModelChange: (model: ChatModelId) => void;
+  isFreePlan?: boolean;
+  onUpgradeClick?: () => void;
 };
 
 export function PromptModelSelector({
   selectedModel,
   onSelectedModelChange,
+  isFreePlan = false,
+  onUpgradeClick,
 }: PromptModelSelectorProps) {
   const activeModel = getChatModelOption(selectedModel);
 
@@ -50,30 +54,47 @@ export function PromptModelSelector({
       >
         {CHAT_MODEL_OPTIONS.map((model) => {
           const selected = selectedModel === model.id;
+          const requiresUpgrade = isFreePlan && model.requiresUpgrade;
           return (
             <DropdownMenuItem
               key={model.id}
               role="menuitemradio"
               aria-checked={selected}
-              onSelect={() => onSelectedModelChange(model.id)}
-              className="grid min-h-[52px] cursor-pointer grid-cols-[minmax(0,1fr)_20px] items-center gap-2 rounded-lg px-2.5 pb-[7px] pt-1.5 text-left outline-none focus:bg-black/5 data-[highlighted]:bg-black/5"
+              aria-disabled={requiresUpgrade || undefined}
+              onSelect={() => {
+                if (requiresUpgrade) {
+                  onUpgradeClick?.();
+                  return;
+                }
+                onSelectedModelChange(model.id);
+              }}
+              className="grid min-h-[52px] cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2.5 pb-[7px] pt-1.5 text-left outline-none focus:bg-black/5 data-[highlighted]:bg-black/5"
             >
               <span className="flex min-w-0 flex-col">
-                <span className="truncate text-[14px] font-normal leading-5 text-[#0b0b0b]">
-                  {model.label}
+                <span className="flex min-w-0 items-center gap-1.5 text-[14px] font-normal leading-5 text-[#0b0b0b]">
+                  <span className="truncate">{model.label}</span>
+                  {model.requiresUpgrade ? (
+                    <span className="shrink-0 rounded-md bg-[#d8e9ff] px-1.5 py-0.5 text-[11px] font-medium leading-4 text-[#1e5d9f]">
+                      Pro
+                    </span>
+                  ) : null}
                 </span>
                 <span className="truncate text-[13px] font-normal leading-[17px] text-[#898781]">
                   {model.description}
                 </span>
               </span>
-              {selected ? (
+              {requiresUpgrade ? (
+                <span className="shrink-0 rounded-md bg-[#d8e9ff] px-2 py-0.5 text-[12px] font-medium leading-5 text-[#1e5d9f]">
+                  Upgrade
+                </span>
+              ) : selected ? (
                 <Check
                   className="size-5 shrink-0 text-[#2a78d6]"
                   strokeWidth={2}
                   aria-hidden="true"
                 />
               ) : (
-                <span className="size-5 shrink-0" aria-hidden="true" />
+                <span className="w-5 shrink-0" aria-hidden="true" />
               )}
             </DropdownMenuItem>
           );
