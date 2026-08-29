@@ -30,7 +30,7 @@ import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { APP_ROUTES, isIncognitoPath } from "@/lib/app-routes";
 import { Sidebar } from "@/components/sidebar";
-import { SidebarOpenIcon } from "@/components/icons";
+import { SidebarToggleIcon } from "@/components/icons";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
@@ -51,6 +51,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = useAppPathname();
   const nextPathname = usePathname() || "";
+  const isIncognito = isIncognitoPath(pathname);
   const instantNavigate = useInstantNavigate();
   const auth = useAuth();
   const {
@@ -104,6 +105,29 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     },
     [],
   );
+
+  React.useEffect(() => {
+    if (isMobile || isIncognito) return;
+    const handleSidebarShortcut = (event: KeyboardEvent) => {
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        event.key.toLowerCase() !== "b"
+      ) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        target?.closest("input, textarea, select, [contenteditable='true']")
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setSidebarCollapsedFromNav(!isSidebarCollapsed);
+    };
+    window.addEventListener("keydown", handleSidebarShortcut);
+    return () => window.removeEventListener("keydown", handleSidebarShortcut);
+  }, [isIncognito, isMobile, isSidebarCollapsed, setSidebarCollapsedFromNav]);
 
   useDocumentTitle();
 
@@ -260,7 +284,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const isMobileFullBleed = isMobile && shouldMobileFullBleed(pathname);
-  const isIncognito = isIncognitoPath(pathname);
 
   const sidebarActiveChatId = React.useMemo(() => {
     const routeId = getRouteChatIdForSidebar(pathname);
@@ -358,7 +381,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               !isMobile &&
                 isSidebarCollapsed &&
                 isSidebarPeekOpen &&
-                "rounded-r-[14px]",
+                "rounded-r-[14px] shadow-[10px_0_28px_rgba(28,25,23,0.10)] dark:shadow-[10px_0_32px_rgba(0,0,0,0.30)]",
             )}
           >
             <Sidebar
@@ -368,6 +391,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               setIsCollapsed={setSidebarCollapsedFromNav}
               isMobileLayout={isMobile}
               sidebarReady={sidebarHydrated}
+              isPeekPreview={
+                !isMobile && isSidebarCollapsed && isSidebarPeekOpen
+              }
               onNavigate={handleSidebarNavigate}
               onUpgradeClick={onUpgradeClick}
               onSettingsClick={() => onSettingsClick("General")}
@@ -420,7 +446,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
       {!isIncognito && !isMobile && isSidebarCollapsed ? (
         <button
           type="button"
-          aria-label="Expand sidebar"
+          aria-label="Show sidebar"
           aria-controls="app-primary-nav"
           onMouseEnter={openSidebarPeek}
           onMouseLeave={closeSidebarPeekSoon}
@@ -433,7 +459,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               "pointer-events-none opacity-0",
           )}
         >
-          <SidebarOpenIcon className="size-[18px]" />
+          <SidebarToggleIcon className="size-[18px]" />
         </button>
       ) : null}
 

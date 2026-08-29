@@ -21,12 +21,7 @@ import {
   Clock3,
   Blocks,
 } from "lucide-react";
-import {
-  SidebarToggleIcon,
-  SidebarOpenIcon,
-  NewChatBubbleIcon,
-  NavProjectsIcon,
-} from "./icons";
+import { SidebarToggleIcon, NewChatBubbleIcon, NavProjectsIcon } from "./icons";
 import { cn } from "@/lib/utils";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
@@ -179,6 +174,8 @@ interface SidebarProps {
   isMobileLayout: boolean;
   /** When false, width transitions are suppressed to avoid hydration flicker. */
   sidebarReady?: boolean;
+  /** Temporary desktop overlay revealed from the collapsed trigger. */
+  isPeekPreview?: boolean;
   /** Called after mobile drawer navigation actions (close overlay). */
   onNavigate?: () => void;
   onUpgradeClick: () => void;
@@ -224,6 +221,7 @@ export function Sidebar({
   setIsCollapsed,
   isMobileLayout,
   sidebarReady = true,
+  isPeekPreview = false,
   onNavigate,
   onUpgradeClick,
   onSettingsClick,
@@ -689,7 +687,7 @@ export function Sidebar({
               : "justify-between",
           )}
         >
-          {!isCollapsed ? (
+          {!isCollapsed && !isPeekPreview ? (
             <div className="flex min-w-0 items-center px-1">
               <span
                 className="clauxen-wordmark truncate text-[17px] font-medium leading-none tracking-[-0.03em] text-zinc-950"
@@ -700,37 +698,35 @@ export function Sidebar({
             </div>
           ) : null}
 
-          {isCollapsed && !isMobileLayout ? (
+          {isPeekPreview && !isMobileLayout ? (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsCollapsed(false);
               }}
-              aria-label="Expand sidebar"
-              className="ui-icon-button !size-9 !rounded-xl text-zinc-800/70 transition-colors duration-150 hover:bg-black/[0.05] hover:text-zinc-900"
+              aria-label="Keep sidebar open"
+              className="ui-icon-button !size-8 !rounded-[9px] text-[#52514e] transition-colors duration-150 hover:bg-black/[0.05] hover:text-zinc-900"
             >
-              <SidebarOpenIcon className="size-4" />
+              <SidebarToggleIcon className="size-[18px]" />
             </button>
-          ) : (
+          ) : isMobileLayout ? (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsCollapsed(!isCollapsed);
               }}
-              aria-label={
-                isMobileLayout && !isCollapsed ? "Close menu" : "Toggle sidebar"
-              }
+              aria-label={!isCollapsed ? "Close menu" : "Open menu"}
               className="ui-icon-button text-zinc-800/66 transition-all duration-200 hover:bg-black/[0.04]"
             >
-              {isMobileLayout && !isCollapsed ? (
+              {!isCollapsed ? (
                 <X className="size-4" />
               ) : (
                 <SidebarToggleIcon className="size-4" />
               )}
             </button>
-          )}
+          ) : null}
         </div>
 
         <div

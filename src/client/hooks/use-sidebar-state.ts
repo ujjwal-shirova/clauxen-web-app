@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 const STORAGE_KEY = "clauxen-sidebar-collapsed";
 const MOBILE_MQ = "(max-width: 1023px)";
@@ -28,7 +33,9 @@ function getMobileSidebarCollapsedServerSnapshot(): boolean {
   return true;
 }
 
-function setMobileSidebarCollapsed(value: boolean | ((prev: boolean) => boolean)) {
+function setMobileSidebarCollapsed(
+  value: boolean | ((prev: boolean) => boolean),
+) {
   const prev = mobileSidebarCollapsed;
   const next = typeof value === "function" ? value(prev) : value;
   if (next === prev) return;
@@ -42,20 +49,13 @@ function emitDesktopSidebarChange() {
 
 function subscribeDesktopSidebar(callback: () => void) {
   desktopSidebarListeners.add(callback);
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) {
-      callback();
-    }
-  };
-  window.addEventListener("storage", onStorage);
   return () => {
     desktopSidebarListeners.delete(callback);
-    window.removeEventListener("storage", onStorage);
   };
 }
 
 function getDesktopSidebarCollapsedSnapshot(): boolean {
-  const stored = window.localStorage.getItem(STORAGE_KEY);
+  const stored = window.sessionStorage.getItem(STORAGE_KEY);
   if (stored === "true") return true;
   if (stored === "false") return false;
   // Default expanded on first visit / reload with no preference stored.
@@ -113,14 +113,19 @@ export function useSidebarState() {
 
   const setIsSidebarCollapsed = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
-      if (typeof window !== "undefined" && window.matchMedia(MOBILE_MQ).matches) {
+      if (
+        typeof window !== "undefined" &&
+        window.matchMedia(MOBILE_MQ).matches
+      ) {
         setMobileSidebarCollapsed(value);
         return;
       }
 
       const prev = getDesktopSidebarCollapsedSnapshot();
       const next = typeof value === "function" ? value(prev) : value;
-      window.localStorage.setItem(STORAGE_KEY, String(next));
+      // Reloads retain the choice, while a new browser session starts with
+      // the sidebar expanded again.
+      window.sessionStorage.setItem(STORAGE_KEY, String(next));
       emitDesktopSidebarChange();
     },
     [],

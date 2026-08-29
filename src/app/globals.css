@@ -3495,8 +3495,8 @@ button.user-message-card__body:not(:disabled):hover,
   }
 
   .glass-sidebar-docked .ui-sidebar-top-bar {
-    min-height: 44px;
-    height: 44px;
+    min-height: 48px;
+    height: 48px;
     padding: 0 8px;
   }
 
@@ -3570,6 +3570,14 @@ button.user-message-card__body:not(:disabled):hover,
 
 .content-pane-top-bar > div {
   padding-inline: 8px !important;
+}
+
+/* The floating sidebar trigger occupies the first header slot only while the
+   desktop sidebar is collapsed. Incognito has no trigger, so it is excluded. */
+.app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
+  .content-pane-top-bar
+  > div {
+  padding-left: 48px !important;
 }
 
 .content-pane-top-bar .ui-chrome-text-btn {
