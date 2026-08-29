@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>OptionsAhoy — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_00000000d25081f5b8dddc30916dab5a&amp;cdn=1&amp;cp=pi&amp;ma=30326400&amp;ts=0&amp;p=pi&amp;cid=8&amp;sig=ac3ed38a6839add88a2d6a6f5f34549d78f761e62b0a08637bbdaac0a8e0d409&amp;v=0" alt="OptionsAhoy logo">
+        <div><h1>OptionsAhoy</h1><div class="subtitle">Equity comp tax planning</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>10,000 vested RKLB ISOs granted 2022, $5 strike, now $100. Single in CA, $200K income. Minimize AMT over 3 years.</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>300 GOOGL RSUs vesting now at $350. Married filing jointly in NY, $300K income. Sell at vest or hold 2 years?</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>Need $250K after tax by June 2027. HOOD: 3,000 @ $25 (2023), 2,000 @ $70 (2025), now $106. Single in TX, $180K. Which first?</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About OptionsAhoy</h2><div class="description">Exercise now or wait. Sell at vest or hold. Which lots to sell first. Each of these has a right answer for your specific situation, and it turns on how alternative minimum tax (AMT), holding periods, state tax, and the time value of taxes paid early interact across several years. That is where rules of thumb break down. Ask in plain language and OptionsAhoy returns the answer with the year-by-year schedule behind it.
+
+1. Which incentive stock options (ISOs) to exercise in which year, to hold down AMT and recover the credit later. We optimize across multiple years, with your tax status in mind.
+
+2. Whether to sell restricted stock units (RSUs) at vest or hold for long-term capital gains, and what the twelve-month cliff is actually worth. We show you the optimal solution.
+
+3. Which vested RSU lots to sell and in what order, and what that saves against selling oldest-first (the default order your broker&#39;s UI will offer). This sounds like a minute optimization. On a $725,000 sale from a concentrated position, the gap between the optimal order and your broker&#39;s default could be over $100,000 in tax.
+
+4. Whether non-qualified stock options (NSOs) are better exercised and sold, or exercised and held.
+
+5. Whether your shares pass the six statutory tests for qualified small business stock (QSBS). Best to check early for potential tax savings, the rules just changed.
+
+6. How exposed a single position leaves you, and what selling down, holding, or hedging each cost. We calculate and compare different strategies across three years, with your taxes in mind.
+
+7. What a protective put or a zero-cost collar prices at. If you need to protect your holdings, you&#39;re probably considering a hedge. But which one? We make it easy to decide.
+
+8. How to convert some of your holdings to a target amount of after-tax cash by a deadline with the smallest tax bill. We optimize against your inputs and risk tolerance, then you choose, the way an investment firm would.
+
+Every result is computed against the federal tax code plus all fifty states and the District of Columbia. The 2026 federal constants match IRS Revenue Procedure 2025-32. Federal cases reproduce to the cent against the independently maintained PSL Tax-Calculator, and state results reproduce to the cent against OpenTaxSolver across California, New York, New Jersey, Pennsylvania, and Massachusetts. That proof recomputes live in your browser at optionsahoy.com/verification.
+
+This matters because language models are confident and wrong at exactly this task. In a published benchmark, five frontier models were given the same multi-year ISO problem, three runs each. All five overstated the after-tax value of their own proposed schedules, by 1.6x to 17.6x against the provable optimum. One model claimed $3.9M, $5.2M, and $13.0M on three runs of identical input. The prompt and full transcripts are public at optionsahoy.com/benchmark. The arithmetic here is deterministic instead: the same inputs on the same date give the same answer every time, with no model inference anywhere in the number.
+
+Free, no account, no API key, and your figures are not retained. United States tax logic only. This is a planning calculator, not tax advice.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>AlphaLatitude Inc.</dd></div><div class="meta-row"><dt>Category</dt><dd>Finance</dd></div><div class="meta-row"><dt>Version</dt><dd>3.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://optionsahoy.com/for-agents" rel="noreferrer">optionsahoy.com/for-agents</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://optionsahoy.com/privacy" rel="noreferrer">optionsahoy.com/privacy</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://optionsahoy.com/terms" rel="noreferrer">optionsahoy.com/terms</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_6a2a589865a88191933e9bad10f5bc67" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_6a2a589865a88191933e9bad10f5bc67</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

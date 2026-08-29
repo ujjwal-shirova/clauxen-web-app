@@ -217,7 +217,12 @@ export function StreamdownStreamingMarkdown({
         inline?: boolean;
         className?: string;
         children?: ReactNode;
-      }) => <CodeRenderer {...codeProps} />,
+      }) => (
+        <CodeRenderer
+          {...codeProps}
+          isStreaming={isStreamingRef.current}
+        />
+      ),
       a: createMarkdownLinkRenderer(stableSources),
     } satisfies Components;
 

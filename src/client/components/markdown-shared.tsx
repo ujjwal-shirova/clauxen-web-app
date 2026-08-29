@@ -48,8 +48,17 @@ export function CodeRenderer(props: {
   children?: React.ReactNode;
   /** @deprecated no-op */
   streamFade?: unknown;
+  /** Keep unfinished code cheap; syntax highlighting runs once after completion. */
+  isStreaming?: boolean;
 }) {
-  const { inline, className, children, streamFade: _streamFade, ...rest } = props;
+  const {
+    inline,
+    className,
+    children,
+    streamFade: _streamFade,
+    isStreaming = false,
+    ...rest
+  } = props;
   const [isCopied, setIsCopied] = useState(false);
   const match = /language-([\w+#.-]+)/.exec(className || "");
   const language = match ? match[1] : "";
@@ -75,10 +84,16 @@ export function CodeRenderer(props: {
         language={resolvedLanguage}
         onCopy={handleCopy}
         isCopied={isCopied}
-        onDownload={handleDownload}
+        onDownload={isStreaming ? undefined : handleDownload}
         downloadExtension={extension}
       >
-        <HighlightCode code={content} language={resolvedLanguage} />
+        {isStreaming ? (
+          <pre className="m-0 min-w-full whitespace-pre bg-transparent px-3.5 py-4 font-mono text-[14px] leading-[1.6] text-zinc-800">
+            <code>{content}</code>
+          </pre>
+        ) : (
+          <HighlightCode code={content} language={resolvedLanguage} />
+        )}
       </CodeBlockFrame>
     );
   }
@@ -110,10 +125,10 @@ export const markdownComponents = {
     <StyledBlockquote>{children}</StyledBlockquote>
   ),
   ul: ({ children }: { children?: React.ReactNode }) => (
-    <div className="my-1.5 space-y-0">{children}</div>
+    <div className="my-2 space-y-0">{children}</div>
   ),
   ol: ({ children }: { children?: React.ReactNode }) => (
-    <div className="my-1.5 space-y-0">{children}</div>
+    <div className="my-2 space-y-0">{children}</div>
   ),
   li: ({
     children,

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Hockey- Scores+Standings+Stats — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_00000000449c8243adc81c8474347a5f&amp;cdn=1&amp;cp=pi&amp;ma=31104000&amp;ts=0&amp;p=pi&amp;cid=8&amp;sig=ec962a7f70aab9fc311280510811fd7fbc8728ca27cb36d32d1659c4a071ad5f&amp;v=0" alt="Hockey- Scores+Standings+Stats logo">
+        <div><h1>Hockey- Scores+Standings+Stats</h1><div class="subtitle">Games/Box/Players/Ice App</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>⠀</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About Hockey- Scores+Standings+Stats</h2><div class="description">Get NHL scores, schedules, standings, team details, player information, and game updates without leaving your chat. This app brings hockey information right into your conversation. Ask a question in plain English and get a clear answer. You do not need to search many websites or open another app. Everything stays in one place, making it fast and easy to follow the NHL.
+
+Want today’s scores? Just ask. Want tonight’s games? Ask that too. Need the latest standings? The app can show them. You can check team records, player stats, game times, and much more. If you want to know who won, who is playing next, or how your favorite team is doing, simply ask.
+
+The app works like a hockey helper. You can ask short questions or longer ones. You can say things like “Who plays tonight?”, “Did the Oilers win?”, “Show me the Eastern Conference standings,” or “When do the Rangers play next?” The app understands natural language, so you do not have to learn special commands.
+
+Follow one team or every team. Keep up with the regular season, the playoffs, and important games. Find schedules, scores, and standings in seconds. Whether you watch every game or only check in once in a while, the information is easy to find.
+
+Player information is also simple to explore. Ask about a player and learn which team they play for, their position, and other useful details. Compare players, check team matchups, or look up game information before the puck drops.
+
+Need a quick answer during a game? Ask for the live score. Want to know what happened after the game ends? Ask for the final score. Looking ahead? Check upcoming games and schedules. Looking back? Review recent results. The app helps you stay connected all season long.
+
+Everything happens inside your conversation. There is no need to jump between tabs or search through many pages. Just ask another question and keep going. It feels like talking with a friend who always knows what is happening around the NHL.
+
+The app is built to be clear and easy to use. Answers are organized so they are simple to read. Whether you ask one question or many, the goal is to help you find hockey information quickly.
+
+Great for longtime fans. Great for new fans. Great for people learning about hockey. If you know every player, you can dive into detailed information. If you are just starting to watch the NHL, you can ask basic questions and learn as you go.
+
+Use the app to check scores before work, during lunch, after school, or before bed. See who is winning, who is climbing the standings, and what games are coming next. Keep track of your favorite team throughout the season without extra searching.
+
+You can ask about today’s games, tomorrow’s games, team records, conference standings, division standings, schedules, results, matchups, and more. The app is made to help you find hockey information in a simple and friendly way.
+
+Whether you want a fast score check, a full schedule, the latest standings, player information, or answers to everyday NHL questions, this app keeps everything together inside ChatGPT. Ask, explore, and stay up to date with the National Hockey League from one easy conversation.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>Widget</dd></div><div class="meta-row"><dt>Category</dt><dd>Entertainment</dd></div><div class="meta-row"><dt>Version</dt><dd>1.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://www.widget.olutely.com/" rel="noreferrer">www.widget.olutely.com/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://www.widget.olutely.com/privacy" rel="noreferrer">www.widget.olutely.com/privacy</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://www.widget.olutely.com/terms" rel="noreferrer">www.widget.olutely.com/terms</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_6a5e7246954c81918bd8285fd79143d9" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_6a5e7246954c81918bd8285fd79143d9</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

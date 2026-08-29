@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Coupler.io — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_000000004e58720cb8bbfc0978e3367e&amp;cdn=1&amp;cp=pi&amp;ma=30758400&amp;ts=0&amp;p=pi&amp;cid=1&amp;sig=1b0376e78ef2e4f6f05a5b9bc138133fa5d468103e983c1f706341fe5f2293a7&amp;v=0" alt="Coupler.io logo">
+        <div><h1>Coupler.io</h1><div class="subtitle">Analyze data from 400+ apps</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>Show overall spend, impressions, clicks, and CPC</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About Coupler.io</h2><div class="description">Analyze multi-channel marketing, financial, sales, e-commerce, and other business data within Codex by connecting to your Coupler.io data flows. Fetch and transform raw data from platforms like Google Ads, Facebook, HubSpot, and Salesforce into actionable intelligence for smarter, faster decision-making with accurate, up-to-date business information.
+
+You can use the Coupler.io connector to:
+
+1. Analyze customer acquisition costs: &quot;What&#39;s our overall customer acquisition cost across all paid channels this quarter compared to last quarter? I need this for the board meeting&quot;
+2. Review marketing ROI: &quot;Show me the ROI breakdown by marketing channel for the past 6 months. I need to reallocate our annual budget&quot;
+3. Identify high-performing campaigns:&quot;Which campaigns are contributing most to our pipeline revenue? I want to double down on what&#39;s working&quot;
+4. Review sales pipeline: &quot;Can you pull the sales pipeline report for this month? I need to see how many deals are in each stage and the total value at each stage&quot;
+5. Analyze conversion rates: &quot;What are our conversion rates from lead to opportunity and from opportunity to closed-won for the last quarter? How do they compare to our targets?&quot;
+6. Forecast revenue: &quot;How many deals are expected to close this month based on their probability scores? What&#39;s our forecasted revenue vs our monthly target?&quot;
+7. Compare quarterly profits: &quot;Check the profit for this quarter, compare it to last quarter, and provide a breakdown by department&quot;
+8. Generate cash flow reports: &quot;Could you provide a cash flow report for the last 30 days, including all incoming and outgoing transactions?&quot;
+9. Review accounts receivable: &quot;Share the current accounts receivable status and tell me how many overdue invoices we have and which customers owe the most&quot;</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>Coupler.io</dd></div><div class="meta-row"><dt>Category</dt><dd>Data &amp; Analytics</dd></div><div class="meta-row"><dt>Version</dt><dd>1.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://www.coupler.io/" rel="noreferrer">www.coupler.io/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://www.coupler.io/privacy-policy" rel="noreferrer">www.coupler.io/privacy-policy</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://www.coupler.io/terms-of-use" rel="noreferrer">www.coupler.io/terms-of-use</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_6939ea66e1588191af5f9d2a52964d19" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_6939ea66e1588191af5f9d2a52964d19</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

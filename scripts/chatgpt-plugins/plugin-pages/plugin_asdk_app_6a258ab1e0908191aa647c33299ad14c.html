@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>GSC Wizard — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_00000000db0c81f78b5a8630f4d35036&amp;cdn=1&amp;cp=pi&amp;ma=32486400&amp;ts=0&amp;p=pi&amp;cid=8&amp;sig=22499a6d2d83033b65b433a098b8d900d815035c55fea56da41d080d633ac503&amp;v=0" alt="GSC Wizard logo">
+        <div><h1>GSC Wizard</h1><div class="subtitle">Google Search data analysis</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>Which of my queries gained or lost rankings this month?</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>How did glippy.dev perform over the last 28 days?</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>What are my top queries for glippy.dev this month?</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About GSC Wizard</h2><div class="description">GSC Wizard connects ChatGPT to your own Google Search Console properties so you can analyze SEO performance in plain language. Ask for a performance summary, your top queries and pages, ranking changes between two periods, content decay, keyword cannibalization, CTR-versus-position curves, or a full SEO report, and get a finished answer back. Instead of streaming thousands of raw rows into the model, every analysis is computed server-side against a data warehouse, so results are fast, accurate, and token-efficient. You can also list and inspect properties, run Google&#39;s URL Inspection, track indexing, manage topic clusters and content groups, and submit URLs to IndexNow. It also reports on your own linked Google Analytics 4 properties: traffic overviews, dimension breakdowns, ecommerce, key events (conversions), traffic referred by AI assistants such as ChatGPT and Perplexity, and blended Search Console + GA4 landing-page views. Summary tools render interactive cards and tables directly in ChatGPT. All access is scoped to your own account through Google sign-in.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>GSC Wizard - 11 Internet</dd></div><div class="meta-row"><dt>Category</dt><dd>Developer Tools</dd></div><div class="meta-row"><dt>Version</dt><dd>2.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://www.gscwizard.com/" rel="noreferrer">www.gscwizard.com/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://www.gscwizard.com/privacy.html" rel="noreferrer">www.gscwizard.com/privacy.html</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://www.gscwizard.com/terms.html" rel="noreferrer">www.gscwizard.com/terms.html</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_6a258ab1e0908191aa647c33299ad14c" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_6a258ab1e0908191aa647c33299ad14c</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

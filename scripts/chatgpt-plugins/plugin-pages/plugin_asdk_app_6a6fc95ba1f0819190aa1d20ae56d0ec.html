@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>StrategyTune — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_000000003ac882439ab002dd4a15d579&amp;cdn=1&amp;cp=pi&amp;ma=32140800&amp;ts=0&amp;p=pi&amp;cid=8&amp;sig=831f52d7e8ff497be7c51fe3bafd6f2cd7a325ee73bd147001224d06faa6ee16&amp;v=0" alt="StrategyTune logo">
+        <div><h1>StrategyTune</h1><div class="subtitle">Build and backtest strategies</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      
+      <section><h2>About StrategyTune</h2><div class="description">StrategyTune is a backtesting platform for trading strategies, and this plugin gives ChatGPT hands-on access to it.
+
+ChatGPT can write and save the pieces you build with — chart indicators, reusable market conditions (StrategyTune calls them signals and filters), and full trading strategies — then run them tick-by-tick against real historical market data in StrategyTune&#39;s sandboxed cloud. A simple strategy backtests a year of history in seconds, so you can iterate fast.
+
+It is not limited to automated strategy backtesting. ChatGPT can run custom research code in the same sandbox: count how often a condition occurred, measure values at specific moments, gather your own statistics and write logs during the run. You say what you want to check, ChatGPT writes the code, runs it, reads the output back, and tells you what it found.
+
+When a run finishes you get the full report — performance statistics and the individual trades behind them. ChatGPT can also work with a StrategyTune chart you already have open: read the bars and each indicator&#39;s computed values, add and configure indicators, mark those conditions on the timeline so you can see exactly when they held, and switch instrument or timeframe. Reading the computed values also lets it debug its own work: if an indicator it wrote looks wrong on your chart, it can check the actual numbers behind the line instead of guessing.
+
+Everything runs on historical data. The plugin does not connect to a broker, place live orders, or give investment advice.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>StrategyTune</dd></div><div class="meta-row"><dt>Category</dt><dd>Finance</dd></div><div class="meta-row"><dt>Version</dt><dd>1.1.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://strategytune.com/" rel="noreferrer">strategytune.com/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://strategytune.com/privacy" rel="noreferrer">strategytune.com/privacy</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://strategytune.com/terms" rel="noreferrer">strategytune.com/terms</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_6a6fc95ba1f0819190aa1d20ae56d0ec" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_6a6fc95ba1f0819190aa1d20ae56d0ec</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

@@ -9,6 +9,7 @@ import {
 } from "@/lib/chat-sources";
 import { normalizeLatexDelimiters } from "@/components/markdown-shared";
 import { StreamdownStreamingMarkdown } from "@/components/streamdown-markdown";
+import { useRafBatchedText } from "@/lib/streaming-token-reveal";
 import { prepareFollowUpContent } from "@/lib/follow-up-tags";
 import { useFollowUpPrompt } from "@/contexts/follow-up-prompt-context";
 import { FollowUpPrompt } from "@/components/follow-up-prompt";
@@ -33,9 +34,10 @@ export function StreamingMarkdown({
   sources = [],
 }: StreamingMarkdownProps) {
   const { enabled: followUpsEnabled, onSelect } = useFollowUpPrompt();
+  const paintedContent = useRafBatchedText(content, isStreaming);
 
   const { markdown, prompts } = useMemo(() => {
-    let text = stripReferenceDefinitions(normalizeLatexDelimiters(content));
+    let text = stripReferenceDefinitions(normalizeLatexDelimiters(paintedContent));
     // Always use the streaming strip path for the markdown body so flipping
     // `isStreaming` does not rewrite the answer text (end-of-stream blink).
     const prepared = prepareFollowUpContent(text, {
@@ -51,7 +53,7 @@ export function StreamingMarkdown({
       nextMarkdown = convertCitationReferencesToLinks(nextMarkdown, sources);
     }
     return { markdown: nextMarkdown, prompts: prepared.prompts };
-  }, [content, sources, followUpsEnabled]);
+  }, [paintedContent, sources, followUpsEnabled]);
 
   const showPrompts =
     followUpsEnabled &&

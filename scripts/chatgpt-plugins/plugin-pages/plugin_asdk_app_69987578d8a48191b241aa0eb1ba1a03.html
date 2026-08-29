@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Allianz Direct España — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_000000006628722f958477d69dd083a6&amp;cdn=1&amp;cp=pi&amp;ma=31363200&amp;ts=0&amp;p=pi&amp;cid=1&amp;sig=8a0d5e9e6d22613ee19e54732ee51ec20b372776b71efa2d967d9f8bf7b7e17f&amp;v=0" alt="Allianz Direct España logo">
+        <div><h1>Allianz Direct España</h1><div class="subtitle">Get smart on car insurance</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>¿Que cubre la asistencia de viaje estándar de mi póliza?</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>¿Ahora que tienes todos los datos, me podrías dar un precio indicativo?</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>Dime que coberturas incluye mi póliza a terceros</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About Allianz Direct España</h2><div class="description">The Allianz Direct Spain Car Insurance Explorer offers a transparent way to visualize and understand Allianz Direct car insurance options within ChatGPT. This tool helps you see how a car insurance policy could be structured, focusing on clarity and customization. Use this app to design a potential policy configuration, learn about protection details, and get an estimated price without any commitment.
+
+Key Features:
+• Detailed Coverage Analysis: Receive detailed breakdowns of what is included and what can be included in an Allianz Direct policy for a specific type of car.
+
+• Clarified Terms: Request immediate definitions of insurance concepts (e.g., &quot;additional coverage&quot; or &quot;exclusions&quot;) to ensure you fully understand the terminology used.
+
+• Interactive Customization: Understand policy parameters, such as liability limits or specific coverage inclusions, to see how they influence the insurance estimate.
+
+How it works:
+
+Simply describe your car&#39;s characteristics and what you need (e.g., &quot;A basic third-party car insurance for a Seat Ibiza&quot;). The app will generate a corresponding non-binding policy outline. You can then ask the assistant for information about the coverage, request modifications to the details, or ask for explanations of specific clauses to see how the coverage adapts to your needs and what options are available. If you wish to proceed, the app will request the necessary details and provide a price estimate. For an official quote or policy issuance, users are directed to Allianz Direct&#39;s official purchasing channels.
+
+Note: This tool is for informational and exploration purposes only, providing estimates based on the details shared in the chat. Official policy issuance requires verification through Allianz Direct Spain&#39;s official website. The insurance part of the Service that Allianz Direct operates is subject to human oversight by Allianz; you may contact human advisors at any time through Allianz Direct&#39;s official channels. 
+
+Please bear in mind that AI systems may produce outputs that are inaccurate, incomplete or not fully adapted to specific circumstances, and the accuracy of any indicative quotation depends directly on the accuracy and completeness of the information provided.
+
+Important: Do NOT provide payment data (bank account numbers, IBANs, payment card details), national identity documents (DNI/NIE), passport numbers or any other sensitive personal identification data through this chat. Such data should only be provided through Allianz Direct&#39;s secure contracting environment. 
+
+Data required for quotation: To generate an indicative quotation, the Service will request the following information: date of birth, driving license details, vehicle data (registration plate, date of first registration and type of use), postcode, estimated annual mileage and payment frequency preference. The Service does not collect national identification documents or any special categories of personal data.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>Allianz Direct España</dd></div><div class="meta-row"><dt>Category</dt><dd>Finance</dd></div><div class="meta-row"><dt>Version</dt><dd>1.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://www.allianzdirect.es/" rel="noreferrer">www.allianzdirect.es/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://www.allianzdirect.es/ia-privacidad/" rel="noreferrer">www.allianzdirect.es/ia-privacidad/</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://www.allianzdirect.es/chatgpt-terminos-y-condiciones/" rel="noreferrer">www.allianzdirect.es/chatgpt-terminos-y-condiciones/</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_69987578d8a48191b241aa0eb1ba1a03" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_69987578d8a48191b241aa0eb1ba1a03</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

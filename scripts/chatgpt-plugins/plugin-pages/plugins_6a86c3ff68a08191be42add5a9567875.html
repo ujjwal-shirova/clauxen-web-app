@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Kling AI — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#000000; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_000000009ff081fba36ae145bd629e4b&amp;cdn=1&amp;cp=pi&amp;ma=30412800&amp;ts=0&amp;p=pi&amp;cid=8&amp;sig=1de3a224ba857696da767e87627a69b318afa92fd0006d585931ca334336fde9&amp;v=0" alt="Kling AI logo">
+        <div><h1>Kling AI</h1><div class="subtitle">Create images and videos</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>Vintage spacesuit red panda floats by station porthole, Earth&#39;s blue atmosphere rim-lighting face, cinematic 8k detailed.</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>Giant mecha crashes down from sky, explosive shockwave sends rocks flying, dynamic camera zoom-in, intense cinematic.</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>15s shoe promo: urban opening hook, rapid transition to close-up and wearing shot in 3s, ending on sole close-up.</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About Kling AI</h2><div class="description">Turn every idea into a striking image or video. Kling AI is an AI image and video generator for creators. In Codex, use natural language for text-to-image, image-to-image, text-to-video, image-to-video, and single-shot or multi-shot video. Create posters, illustrations, portraits, product photos, e-commerce hero images, product listing images, product detail images, ad creatives, product showcase videos, marketing clips, e-commerce short videos, social media videos, and cinematic content for Taobao, Tmall, JD.com, Pinduoduo, Douyin, Kuaishou, Xiaohongshu, TikTok, Amazon, Shopify, and more. Upload reference images, check remaining credits, submit generation jobs, track progress, check task status, and download final images or videos. Looking for similar AI generators or alternatives like Hailuo AI, Seedance, Vidu, Jimeng, Runway, Pika, Sora, or Veo? Use Kling AI (KLING / Kling / 可灵) to build a high-quality Kling creative workflow in Codex.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>KLING AI</dd></div><div class="meta-row"><dt>Category</dt><dd>Creativity</dd></div><div class="meta-row"><dt>Version</dt><dd>1.0.1</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://kling.ai/" rel="noreferrer">kling.ai/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://kling.ai/app/docs/privacy-policy" rel="noreferrer">kling.ai/app/docs/privacy-policy</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://kling.ai/app/docs/user-policy" rel="noreferrer">kling.ai/app/docs/user-policy</a></dd></div></dl></section>
+      <section><h2>Keywords</h2><div class="tags"><span class="tag">kling</span><span class="tag">kling-ai</span><span class="tag">image-generation</span><span class="tag">video-generation</span><span class="tag">cli</span><span class="tag">codex</span></div></section>
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugins_6a86c3ff68a08191be42add5a9567875" rel="noreferrer">https://chatgpt.com/plugins/plugins_6a86c3ff68a08191be42add5a9567875</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>trainedby.ai — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_00000000fd7471f6b7ef96442f57c0b4&amp;cdn=1&amp;cp=pi&amp;ma=31190400&amp;ts=0&amp;p=pi&amp;cid=1&amp;sig=4572f2e40ee8672700d1157cae0c16c4f588e3b4959084302afa1a790fa91d97&amp;v=0" alt="trainedby.ai logo">
+        <div><h1>trainedby.ai</h1><div class="subtitle">AI Fitness coaching</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>Is today a good day for a hard workout?</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>What else do you need to know about my training to help me better?</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>Analyze trends in my training history from last months</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About trainedby.ai</h2><div class="description">trainedby.ai connects your wearables to ChatGPT, so your AI coach knows your real training load, sleep patterns, and recovery without you typing a word.
+
+**The problem with AI fitness coaching today**
+
+People are turning to ChatGPT to plan their marathon training, strength programs, or HYROX prep. It makes sense, because AI is available 24/7, extremely patient, and quite knowledgeable.
+
+But somehow it doesn&#39;t quite work.
+
+And that is because you have to tell it everything. Every. Single. Time.
+
+Every conversation starts from zero. You have to describe in detail your current level, recent workouts, schedule, and goals. You paste in screenshots from Garmin. You try to remember what you did last week, how you slept, that your resting HR has been elevated, or that your HRV has been trending down for weeks.
+
+The advice is based on what you told it, not what actually happened.
+
+And what you tell it is incomplete, subjective, and often wrong.
+
+What if your AI coach could see everything?
+
+We connect your wearables (Garmin, Oura, Whoop, Apple Health, and 50+ other platforms) directly to your AI assistant.
+
+When you open ChatGPT and ask about your training, it already knows:
+- Workouts from the past weeks, months, and year
+- Sleep quality and patterns
+- Heart rate variability and resting heart rate trends
+- Daily activity and recovery metrics
+- Nutrition and menstrual cycle data (if you track it)
+
+No more context dumps. No more subjective self-reporting.
+
+**How it works**
+
+We use smart compression to turn weeks of wearable data into something an AI can understand and analyze. Instead of dumping raw heart rate readings into a chat window, we surface the trends and patterns that matter—elevated resting HR, declining HRV, increasing training load, poor sleep consistency.
+
+The data rolls up from days to weeks to months to years, so you can spot trends.
+
+And because it&#39;s integrated into ChatGPT, you just start chatting.
+
+Beyond wearable data, you can add notes like workout goals, feedback, and other personal information such as availability and injuries. This way, the AI gets that bit of subjective context it needs to give you the best advice.
+
+**Who this is for**
+
+If you&#39;re already wearing a watch or ring, and using AI to help plan your training, whether that&#39;s for a marathon, strength program, or general fitness, trainedby.ai makes that experience dramatically better.
+
+**Get started**
+
+The product is free to use.
+
+Connect your wearables, add the integration to your AI assistant, and start chatting.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>Joost Rothweiler</dd></div><div class="meta-row"><dt>Category</dt><dd>Healthcare</dd></div><div class="meta-row"><dt>Version</dt><dd>1.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://trainedby.ai/" rel="noreferrer">trainedby.ai/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://trainedby.ai/privacy" rel="noreferrer">trainedby.ai/privacy</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://trainedby.ai/terms" rel="noreferrer">trainedby.ai/terms</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_69528c304ff08191865579052e70b158" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_69528c304ff08191865579052e70b158</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

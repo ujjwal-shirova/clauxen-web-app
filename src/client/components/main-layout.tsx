@@ -370,7 +370,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           <div
             className={cn(
               !isMobile &&
-                "absolute inset-y-0 left-0 w-[288px] overflow-hidden border-r border-black/[0.10] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] dark:border-white/[0.09]",
+                "absolute inset-y-0 left-0 w-[288px] overflow-hidden transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
               !isMobile &&
                 isSidebarCollapsed &&
                 !isSidebarPeekOpen &&

@@ -16,7 +16,7 @@ import {
 } from "@/lib/table-export";
 
 const bodyTextClass =
-  "font-sans text-[16px] leading-[25px] tracking-[-0.006em] text-zinc-800";
+  "font-sans text-[17px] leading-7 tracking-[-0.008em] text-[#2f2f32]";
 const subtleTextClass =
   "font-sans text-[15px] leading-[23px] tracking-[-0.004em] text-zinc-500";
 
@@ -51,7 +51,7 @@ export const StyledH3 = ({ children, hasCursor, Cursor }: any) => (
 );
 
 export const StyledParagraph = ({ children, hasCursor, Cursor }: any) => (
-  <div className={`${bodyTextClass} mb-2`}>
+  <div className={`${bodyTextClass} mb-2.5`}>
     {children}
 
     {hasCursor && <Cursor />}
@@ -110,9 +110,9 @@ export const StyledList = ({
   Cursor,
 }: any) => {
   return (
-    <div className="my-0.5 flex items-start pl-0.5">
+    <div className="my-2.5 flex items-start pl-0.5">
       <span
-        className={`mr-2 mt-[2px] flex shrink-0 items-center justify-center ${
+        className={`mr-3 mt-1.5 flex shrink-0 items-center justify-center ${
           isOrdered
             ? "h-4 w-4 rounded-full border border-zinc-200 bg-zinc-100 text-[9.5px] font-semibold text-zinc-600"
             : "h-4 w-4"
@@ -121,7 +121,7 @@ export const StyledList = ({
         {isOrdered ? (
           index
         ) : (
-          <div className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
+          <div className="h-1.5 w-1.5 rounded-full bg-[#a3a3ad]" />
         )}
       </span>
       <span className={`${bodyTextClass} flex-1`}>

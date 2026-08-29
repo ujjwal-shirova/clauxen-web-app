@@ -1152,7 +1152,8 @@ export function Sidebar({
                     <Download className="size-[17px]" strokeWidth={1.7} />
                   </AppHref>
 
-                  <Popover
+                  {!isPeekPreview ? (
+                    <Popover
                     open={sidebarSearchOpen}
                     onOpenChange={(open) => {
                       setSidebarSearchOpen(open);
@@ -1225,17 +1226,20 @@ export function Sidebar({
                         )}
                       </div>
                     </PopoverContent>
-                  </Popover>
+                    </Popover>
+                  ) : null}
 
-                  <button
-                    type="button"
-                    onClick={() => setIsCollapsed(true)}
-                    aria-label="Collapse sidebar"
-                    title="Collapse sidebar"
-                    className="ui-icon-button !size-8 !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950"
-                  >
-                    <SidebarToggleIcon className="size-[17px]" aria-hidden />
-                  </button>
+                  {!isPeekPreview ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsCollapsed(true)}
+                      aria-label="Collapse sidebar"
+                      title="Collapse sidebar"
+                      className="ui-icon-button !size-8 !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950"
+                    >
+                      <SidebarToggleIcon className="size-[17px]" aria-hidden />
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
             </div>

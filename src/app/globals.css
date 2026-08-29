@@ -1216,7 +1216,7 @@
 
 /* Chat font — assistant markdown only (not app chrome / labels). */
 html[data-chat-font="Default"] {
-  --chat-font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --chat-font-family: var(--font-inter), Inter, system-ui, sans-serif;
 }
 html[data-chat-font="Sans"] {
   --chat-font-family: var(--font-inter), Inter, system-ui, sans-serif;
@@ -2975,6 +2975,13 @@ button.user-message-card__body:not(:disabled):hover,
   color: rgba(24, 24, 27, 0.88);
 }
 
+/* The panel's left border reads as a sidebar divider on desktop. */
+@media (min-width: 1024px) {
+  .app-main-shell:not([data-sidebar-collapsed]) .app-agent-panel {
+    border-left-color: transparent;
+  }
+}
+
 .glass-sidebar-docked .ui-sidebar-top-bar {
   border-bottom: 0;
   height: auto;
@@ -3490,7 +3497,7 @@ button.user-message-card__body:not(:disabled):hover,
    Measured proportions with Clauxen's own navigation and product identity. */
 @media (min-width: 1024px) {
   .glass-sidebar-docked {
-    border-right: 0.5px solid rgba(11, 11, 11, 0.1) !important;
+    border-right: 0 !important;
     color: #52514e;
   }
 
@@ -3565,7 +3572,7 @@ button.user-message-card__body:not(:disabled):hover,
 
 .content-pane-top-bar {
   padding-inline: 0 !important;
-  background: transparent !important;
+  background: var(--app-panel-bg, #fcfcfb) !important;
 }
 
 .content-pane-top-bar > div {

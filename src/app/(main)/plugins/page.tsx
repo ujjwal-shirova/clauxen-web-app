@@ -1,4 +1,5 @@
 import { PluginsDirectoryView } from "@/components/plugins/plugins-directory-view";
+import { getPluginDirectory } from "@/server/plugins/catalog";
 
 export default async function PluginsPage({
   searchParams,
@@ -10,5 +11,15 @@ export default async function PluginsPage({
     ? params.category[0]
     : params.category;
 
-  return <PluginsDirectoryView initialCategory={category ?? null} />;
+  const initialData = await getPluginDirectory({
+    category: category ?? null,
+    overview: !category,
+  });
+
+  return (
+    <PluginsDirectoryView
+      initialCategory={initialData.category?.slug ?? null}
+      initialData={initialData}
+    />
+  );
 }

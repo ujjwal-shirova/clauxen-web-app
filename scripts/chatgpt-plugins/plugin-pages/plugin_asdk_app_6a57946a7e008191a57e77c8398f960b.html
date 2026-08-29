@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>LIAM — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_00000000ea9071f79a3f047c98dda9f8&amp;cdn=1&amp;cp=pi&amp;ma=32227200&amp;ts=0&amp;p=pi&amp;cid=8&amp;sig=83555a8055609b31bb80240f0eee072c88e034cfdbdd2dd66b777d5bf349cfae&amp;v=0" alt="LIAM logo">
+        <div><h1>LIAM</h1><div class="subtitle">Your personal memory assistant</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>Remember that I prefer window seats on flights and I&#39;m allergic to shellfish</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>Who do I know at Acme, and what do I remember about them?</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>Log my lunch — chicken caesar salad — and tell me how much protein I&#39;ve had today</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About LIAM</h2><div class="description">LIAM is a personal memory assistant. It saves and recalls the facts, preferences, and notes you want to keep across conversations; stores and searches your contacts; keeps multi-step recipes and routines; and logs your meals and receipts with daily nutrition and spending summaries. You can type a request or just upload a photo — a receipt, a meal, a business card, or a note — and LIAM reads it and files it in the right place automatically (a restaurant receipt is logged as both an expense and a meal). Only extracted text/values are stored, never the raw image.
+Example use cases
+&quot;Remember I prefer window seats on flights — tag it &#39;travel&#39;.&quot;
+&quot;Who do I know at Nova Retail?&quot; / &quot;Add Sarah Chen from Acme as a contact.&quot;
+&quot;Log my lunch: chicken caesar salad&quot; → &quot;How much protein did I have today?&quot;
+&quot;Log this receipt: Loblaws $87.43 groceries&quot; → &quot;How much did I spend today?&quot;
+Upload a business-card photo → contact created; upload a receipt photo → expense + meal logged.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>NetXD Inc</dd></div><div class="meta-row"><dt>Category</dt><dd>Productivity</dd></div><div class="meta-row"><dt>Version</dt><dd>1.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://liam.askbuddy.ai/" rel="noreferrer">liam.askbuddy.ai/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://liam.askbuddy.ai/privacy" rel="noreferrer">liam.askbuddy.ai/privacy</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://liam.askbuddy.ai/terms" rel="noreferrer">liam.askbuddy.ai/terms</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_6a57946a7e008191a57e77c8398f960b" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_6a57946a7e008191a57e77c8398f960b</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

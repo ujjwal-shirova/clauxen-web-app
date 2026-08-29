@@ -1,37 +1,61 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-/** Soften first-token paint — visible enough to read as typing, short enough to feel live. */
-const MIN_DURATION_MS = 90;
-const MAX_DURATION_MS = 220;
+/** One React/Markdown update per paint, regardless of SSE chunk cadence. */
+export function useRafBatchedText(text: string, isStreaming: boolean): string {
+  const [paintedText, setPaintedText] = useState(text);
+  const targetRef = useRef(text);
+  const frameRef = useRef<number | null>(null);
 
-/**
- * Duration scales with inter-chunk gap so animation speed tracks the model's
- * token rate: slow tokens get a gentle rise, fast tokens stay snappy without
- * overlapping into a blur.
- */
-export function computeStreamTokenDurationMs(
-  elapsedSinceLastChunk: number,
-  chunkLength: number,
-): number {
-  if (elapsedSinceLastChunk > 600) {
-    return MAX_DURATION_MS;
-  }
+  targetRef.current = text;
 
-  const duration =
-    elapsedSinceLastChunk <= 0
-      ? MIN_DURATION_MS
-      : Math.min(MAX_DURATION_MS, elapsedSinceLastChunk * 0.45);
+  useEffect(() => {
+    if (!isStreaming) {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+      setPaintedText(text);
+      return;
+    }
 
-  const sizeBoost = Math.min(40, Math.sqrt(Math.max(0, chunkLength)) * 4);
-  return Math.round(
-    Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, duration + sizeBoost)),
+    if (frameRef.current !== null) return;
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      setPaintedText(targetRef.current);
+    });
+  }, [isStreaming, text]);
+
+  useEffect(
+    () => () => {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    },
+    [],
   );
+
+  // Do not leave the final answer one frame behind when the stream ends.
+  return isStreaming ? paintedText : text;
 }
 
-/** Shared prefix length — survives citation rewrites mid-stream without full wipe. */
-export function commonPrefixLength(a: string, b: string): number {
+/** Drain a burst at a steady reading pace, while catching up quickly. */
+const DRAIN_BACKLOG_MS = 260;
+const MAX_CHARS_PER_FRAME = 30;
+
+type PaintSession = {
+  id: string;
+  displayed: string;
+  target: string;
+};
+
+const paintGroups = new Map<string, PaintSession[]>();
+
+function streamGroupKey(sessionKey: string): string {
+  const cut = sessionKey.indexOf(":");
+  return cut === -1 ? sessionKey : sessionKey.slice(0, cut);
+}
+
+function commonPrefixLength(a: string, b: string): number {
   const max = Math.min(a.length, b.length);
   let index = 0;
   while (index < max && a.charCodeAt(index) === b.charCodeAt(index)) {
@@ -40,27 +64,7 @@ export function commonPrefixLength(a: string, b: string): number {
   return index;
 }
 
-type PaintSession = {
-  id: string;
-  prev: string;
-  settled: string;
-  delta: string;
-  duration: number;
-  lastAt: number;
-};
-
-/**
- * Survive Streamdown remounts: paint state lives outside React so growing
- * text nodes don't flash-delete when the markdown AST reshuffles.
- */
-const paintGroups = new Map<string, PaintSession[]>();
-
-function streamGroupKey(sessionKey: string): string {
-  const cut = sessionKey.indexOf(":");
-  return cut === -1 ? sessionKey : sessionKey.slice(0, cut);
-}
-
-function resolvePaintSession(sessionKey: string, text: string): PaintSession {
+function resolvePaintSession(sessionKey: string, text = ""): PaintSession {
   const groupKey = streamGroupKey(sessionKey);
   let group = paintGroups.get(groupKey);
   if (!group) {
@@ -68,41 +72,54 @@ function resolvePaintSession(sessionKey: string, text: string): PaintSession {
     paintGroups.set(groupKey, group);
   }
 
-  let hit = group.find((session) => session.id === sessionKey);
-
-  if (!hit) {
-    // Remounted text node: reuse the session that already painted this growth.
-    hit = group.find((session) => {
-      if (!session.prev) return false;
-      if (text.startsWith(session.prev) || session.prev.startsWith(text))
-        return true;
-      const shared = commonPrefixLength(session.prev, text);
-      const minShared = Math.min(
-        4,
-        Math.floor(Math.min(session.prev.length, text.length) * 0.3),
-      );
-      return shared >= minShared;
+  let session = group.find((entry) => entry.id === sessionKey);
+  if (!session && text) {
+    // Streamdown may replace a text node when its Markdown tree reshapes.
+    // Reuse its closest sibling session so settled prose never replays.
+    session = group.find((entry) => {
+      const known = entry.target || entry.displayed;
+      if (!known) return false;
+      if (text.startsWith(known) || known.startsWith(text)) return true;
+      const shared = commonPrefixLength(known, text);
+      return shared >= Math.min(4, Math.floor(Math.min(known.length, text.length) * 0.3));
     });
   }
-
-  if (!hit) {
-    hit = {
-      id: sessionKey,
-      prev: "",
-      settled: "",
-      delta: "",
-      duration: 50,
-      lastAt: 0,
-    };
-    group.push(hit);
+  if (!session) {
+    session = { id: sessionKey, displayed: "", target: "" };
+    group.push(session);
   } else {
-    hit.id = sessionKey;
+    session.id = sessionKey;
   }
-
-  return hit;
+  return session;
 }
 
-/** Drop paint state when a stream session finishes. */
+/** Advances by Unicode code points, never splitting an emoji surrogate pair. */
+function advanceByCodePoints(text: string, start: number, count: number): number {
+  let index = start;
+  let remaining = count;
+  while (index < text.length && remaining > 0) {
+    const point = text.codePointAt(index);
+    index += point && point > 0xffff ? 2 : 1;
+    remaining -= 1;
+  }
+  return index;
+}
+
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  return reduced;
+}
+
+/** Drop paint state after a message settles or its renderer unmounts. */
 export function clearStreamPaintSessions(streamKeyPrefix: string): void {
   for (const key of [...paintGroups.keys()]) {
     if (key === streamKeyPrefix || key.startsWith(streamKeyPrefix)) {
@@ -111,116 +128,123 @@ export function clearStreamPaintSessions(streamKeyPrefix: string): void {
   }
 }
 
-export type StreamFadeConfig = {
-  animation: string;
-  animationDuration: string;
-  animationTimingFunction: string;
-};
-
-export const DEFAULT_STREAM_FADE: StreamFadeConfig = {
-  animation: "stream-token-fade",
-  animationDuration: "140ms",
-  animationTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+type RevealFrame = {
+  text: string;
+  freshStart: number;
 };
 
 /**
- * Rate-adaptive per-chunk fade for newly appended text during streaming.
- * Settled prefix stays static; only the delta gets the enter animation.
+ * Paints only the newest suffix. Incoming chunks are turned into a bounded
+ * requestAnimationFrame backlog instead of restarting an animation per token.
  */
 export function StreamingTokenReveal({
   text,
   sessionKey = "stream",
   enabled = true,
-  durationMs,
 }: {
   text: string;
   sessionKey?: string;
   enabled?: boolean;
-  durationMs?: number;
 }) {
-  // Touch a ref so React still re-renders when parent passes new text.
-  const versionRef = useRef(0);
+  const reducedMotion = useReducedMotion();
+  const sessionRef = useRef<PaintSession | null>(null);
+  const sessionKeyRef = useRef(sessionKey);
+  const frameRef = useRef<number | null>(null);
+  const lastFrameAtRef = useRef(0);
+  const [frame, setFrame] = useState<RevealFrame>(() => {
+    const session = resolvePaintSession(sessionKey, text);
+    sessionRef.current = session;
+    sessionKeyRef.current = sessionKey;
+    return { text: session.displayed, freshStart: session.displayed.length };
+  });
+
+  if (sessionKeyRef.current !== sessionKey) {
+    sessionKeyRef.current = sessionKey;
+    sessionRef.current = resolvePaintSession(sessionKey, text);
+  }
 
   useEffect(() => {
-    if (enabled) return;
-    // Defer cleanup so the settled span stays mounted through the stream→done flip.
-    const timer = window.setTimeout(() => {
-      clearStreamPaintSessions(streamGroupKey(sessionKey));
-    }, 400);
-    return () => window.clearTimeout(timer);
-  }, [enabled, sessionKey]);
+    const session = sessionRef.current!;
+    session.target = text;
 
-  if (!text) return null;
+    const stop = () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
 
-  const session = resolvePaintSession(sessionKey, text);
-
-  // Settled: collapse into one stable span using the same element type as the
-  // streaming paint path — never swap to a bare text node (that blinks).
-  if (!enabled) {
-    if (session.prev !== text || session.delta) {
-      session.settled = text;
-      session.delta = "";
-      session.prev = text;
+    if (!enabled || reducedMotion) {
+      stop();
+      session.displayed = text;
+      setFrame({ text, freshStart: text.length });
+      return;
     }
-    return (
-      <span className="stream-token-stable">{session.settled || text}</span>
-    );
-  }
 
-  if (text !== session.prev) {
-    const previous = session.prev;
-    const now =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
-    const prefixLen =
-      previous.length === 0 ? 0 : commonPrefixLength(previous, text);
-    const isGrowth =
-      prefixLen === previous.length && text.length >= previous.length;
-    const deltaLength = Math.max(0, text.length - prefixLen);
-    const elapsed = session.lastAt > 0 ? now - session.lastAt : 0;
-
-    // Zero-overlap rewrites (citation reshuffle / AST remount) or text that
-    // shrank/settled must not re-animate — that is the gray/white flicker.
-    const settleWithoutFade =
-      (!isGrowth && prefixLen === 0 && deltaLength > 16) ||
-      (previous.length > 0 && text.length <= previous.length);
-
-    if (settleWithoutFade) {
-      session.settled = text;
-      session.delta = "";
-      session.duration = 0;
-    } else {
-      session.duration =
-        durationMs ??
-        computeStreamTokenDurationMs(isGrowth ? elapsed : 0, deltaLength);
-      session.settled = text.slice(0, prefixLen);
-      session.delta = text.slice(prefixLen);
+    // Markdown can reshape text nodes when a delimiter closes. Never replay
+    // an already-visible block after that structural correction.
+    if (!text.startsWith(session.displayed)) {
+      stop();
+      session.displayed = text;
+      setFrame({ text, freshStart: text.length });
+      return;
     }
-    session.lastAt = now;
-    session.prev = text;
-    versionRef.current += 1;
-  }
 
-  // Prefer a single stable span once the delta has landed — avoids a
-  // fragment remount when streaming ends mid-paint.
-  if (!session.delta) {
-    return (
-      <span className="stream-token-stable">{session.settled || text}</span>
-    );
-  }
+    if (session.displayed === text || frameRef.current !== null) return;
 
+    const paint = (now: number) => {
+      const active = sessionRef.current!;
+      const target = active.target;
+      const displayed = active.displayed;
+
+      if (!target.startsWith(displayed)) {
+        active.displayed = target;
+        setFrame({ text: target, freshStart: target.length });
+        frameRef.current = null;
+        return;
+      }
+
+      const remaining = target.length - displayed.length;
+      if (remaining <= 0) {
+        frameRef.current = null;
+        return;
+      }
+
+      const elapsed = lastFrameAtRef.current
+        ? Math.max(1, now - lastFrameAtRef.current)
+        : 16;
+      lastFrameAtRef.current = now;
+      const characters = Math.min(
+        MAX_CHARS_PER_FRAME,
+        Math.max(1, Math.ceil((remaining * elapsed) / DRAIN_BACKLOG_MS)),
+      );
+      const nextEnd = advanceByCodePoints(target, displayed.length, characters);
+      const next = target.slice(0, nextEnd);
+      active.displayed = next;
+      setFrame({ text: next, freshStart: displayed.length });
+
+      frameRef.current =
+        next === target ? null : requestAnimationFrame(paint);
+    };
+
+    frameRef.current = requestAnimationFrame(paint);
+  }, [enabled, reducedMotion, sessionKey, text]);
+
+  useEffect(
+    () => () => {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    },
+    [],
+  );
+
+  if (!frame.text) return null;
+
+  const settled = frame.text.slice(0, frame.freshStart);
+  const fresh = frame.text.slice(frame.freshStart);
   return (
     <>
-      {session.settled ? (
-        <span className="stream-token-stable">{session.settled}</span>
-      ) : null}
-      <span
-        className="stream-token-enter"
-        style={{
-          animationDuration: `${session.duration}ms`,
-        }}
-      >
-        {session.delta}
-      </span>
+      {settled ? <span className="stream-token-stable">{settled}</span> : null}
+      {fresh ? <span className="stream-token-enter">{fresh}</span> : null}
     </>
   );
 }

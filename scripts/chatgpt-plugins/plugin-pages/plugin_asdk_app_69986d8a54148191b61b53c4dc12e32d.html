@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Metronome: Music tempo+beat — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_00000000a6b471f69d0499fbb8416f9b&amp;cdn=1&amp;cp=pi&amp;ma=32400000&amp;ts=0&amp;p=pi&amp;cid=7&amp;sig=a5476c615e4c1347cb3913ee421794911bcfbfce102c52ffafbecb241a6341bc&amp;v=0" alt="Metronome: Music tempo+beat logo">
+        <div><h1>Metronome: Music tempo+beat</h1><div class="subtitle">Timer tool: practice audio</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>Show a fast metronome</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About Metronome: Music tempo+beat</h2><div class="description">Metronome
+
+Need a steady beat? This metronome is ready to help. Pick a speed, press start, and follow the click. It is made for music practice that is easy, clear, and fun.
+
+You can use it for almost any instrument. Play piano, guitar, drums, violin, bass, ukulele, flute, trumpet, saxophone, cello, or any other instrument. You can also use it for singing, dancing, clapping, marching, or learning rhythm. If you want to stay on the beat, this metronome can help.
+
+Choose your tempo in BPM, which means beats per minute. Want to play slowly? Pick a low number. Want to play fast? Pick a high number. You are in control. Change the speed whenever you want until it feels just right.
+
+If you do not know the BPM you need, use tap tempo. Tap along with the beat you hear in your head. The metronome will help find the speed for you. It is quick, simple, and useful.
+
+Practice one step at a time. Start slow so your hands learn the notes. When you can play without mistakes, make the tempo a little faster. Keep doing this until you reach your goal. Small steps help you get better.
+
+A steady beat is one of the best ways to improve. It helps your timing, rhythm, and confidence. It also helps you play with other people because everyone follows the same beat.
+
+This metronome works well for beginners, students, teachers, hobby players, and professional musicians. It is useful during lessons, rehearsals, warm-ups, concerts, and daily practice. Whether you play for five minutes or five hours, a steady beat makes practice more helpful.
+
+Use it to learn new songs. Use it to fix hard parts. Use it to build speed without rushing. Use it to make tricky rhythms easier to understand. You can even use it to keep a steady pace while reading music or practicing scales, chords, arpeggios, and exercises.
+
+Different songs need different speeds. A slow ballad feels different from a fast rock song. Classical music, jazz, pop, folk, blues, country, hip-hop, and many other styles all use tempo. Finding the right BPM helps music sound the way it should.
+
+Teachers can use this metronome in class. Students can use it at home. Bands can use it during rehearsal. Choirs can practice together. Drum lines can stay together. Solo musicians can improve their timing. Anyone who wants a steady beat can use it.
+
+If you are learning rhythm, ask questions. If you are not sure what BPM to use, ask for help. If you want practice ideas, ask. You can also ask about note values, rests, counting, time signatures, subdivisions, swing feel, accents, or ways to practice difficult rhythms. Simple answers make learning easier.
+
+Try setting small goals. Play one line correctly three times. Raise the BPM by a few beats. Repeat until you reach your target speed. Slow practice is not weak practice. It is smart practice.
+
+Remember to relax while you play. Breathe normally. Keep good posture. Listen carefully to every click. Try to match each note to the beat instead of chasing it. Good timing comes from careful listening and steady practice.
+
+This metronome is designed to be simple. You do not need special music knowledge to begin. Just choose a tempo, start the beat, and play. You can change the speed whenever you need. The goal is to make practice easier, clearer, and more enjoyable.
+
+Whether you are learning your first song, preparing for an audition, practicing with a band, getting ready for a concert, or simply working on better rhythm, this metronome is here to help. Keep the beat. Stay steady. Practice a little every day. Small improvements grow into big results, and every beat brings you one step closer to becoming a stronger, more confident musician.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>Widget</dd></div><div class="meta-row"><dt>Category</dt><dd>Education &amp; Research</dd></div><div class="meta-row"><dt>Version</dt><dd>2.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://www.widget.olutely.com/" rel="noreferrer">www.widget.olutely.com/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://www.widget.olutely.com/privacy" rel="noreferrer">www.widget.olutely.com/privacy</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://www.widget.olutely.com/terms" rel="noreferrer">www.widget.olutely.com/terms</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_69986d8a54148191b61b53c4dc12e32d" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_69986d8a54148191b61b53c4dc12e32d</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

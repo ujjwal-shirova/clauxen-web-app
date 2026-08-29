@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>AI Color Picker - Design Tool — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#000000; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_00000000573c72468d159d0c0e27670f&amp;cdn=1&amp;cp=pi&amp;ma=31968000&amp;ts=0&amp;p=pi&amp;cid=8&amp;sig=92dc0c840ddc3e18b6f9576ba0fcfadff55e47a02b17afcfb3b56b0f5e857825&amp;v=0" alt="AI Color Picker - Design Tool logo">
+        <div><h1>AI Color Picker - Design Tool</h1><div class="subtitle">Brand,Graphic,Logo,Website...</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>Help me pick an exciting color for my new website</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About AI Color Picker - Design Tool</h2><div class="description">Pick any color you like and talk about it with AI. 
+
+Tap, drag, or click on the color picker to choose a color. Then ask questions, get ideas, and learn what makes that color special.
+
+There is no right or wrong answer. Just pick a color and start the conversation.
+
+This app makes colors easy to understand. You do not need to know art, design, or color theory. The AI explains things in simple words. Ask why a color feels calm. Ask why two colors look good together. Ask what a color might mean in different places or for different people. The AI helps you learn one step at a time.
+
+Try bright colors, dark colors, soft colors, or bold colors. Move around the picker to see tiny changes. Even a small change can make a color feel very different. Talk about what you see. Ask what changed and why.
+
+Need help choosing colors? The AI can suggest colors that work well together. Explore matching colors, opposite colors, warm colors, cool colors, and balanced color sets. Make palettes for websites, apps, games, logos, posters, drawings, rooms, clothes, or school projects.
+
+Want a happy feeling? A calm feeling? A strong feeling? A fun feeling? Tell the AI what you want. It can suggest colors that fit your idea. You can also show the AI a color you already picked and ask what other colors match it.
+
+Learn about color harmony in a simple way. Find complementary colors that stand out. Explore analogous colors that sit close together. Try triadic colors for a playful look. Build monochromatic palettes from light and dark shades of the same color. The AI explains each idea with easy examples.
+
+Discover what colors can mean. Red can feel exciting. Blue can feel peaceful. Green can remind people of nature. Yellow can feel bright and cheerful. Purple can feel rich or magical. Black can feel bold. White can feel clean. These ideas are common, but they are not rules. The AI can explain different views from around the world.
+
+Working on a design? Ask for ideas for buttons, backgrounds, text, icons, charts, banners, or menus. Building a brand? Explore colors for logos, products, packaging, and marketing. Decorating a room? Compare paint colors and ask how they might look together. Picking clothes? Ask which colors work well for outfits.
+
+If you know color codes, the AI can help with those too. Talk about HEX, RGB, HSL, and other common color formats. Ask how colors change on screens. Learn how brightness, saturation, and hue work. If you are new to these ideas, the AI explains them in plain language.
+
+Accessibility matters. Ask how easy it is to read text on a color. Learn why some color pairs are easier to see than others. Explore better color choices for people with different kinds of color vision. Small changes can make designs easier for everyone to use.
+
+This app is great for students, teachers, artists, designers, developers, creators, hobbyists, and anyone who enjoys colors. You can ask simple questions or deep questions. You can explore for one minute or one hour. Every conversation starts with the color you choose.
+
+Try fun games too. Ask the AI to guess what a color reminds you of. Ask for color trivia. Build a rainbow. Find colors that match the seasons. Explore colors from nature, space, oceans, forests, flowers, food, animals, or famous works of art. Make up stories inspired by colors or invent names for your favorite shades.
+
+There is always something new to discover. Every color has its own story. Every small change creates a new idea. Pick a color, ask a question, and keep exploring. Whether you want to learn, create, compare, imagine, or simply play with colors, this app gives you an easy and friendly way to turn every color into a conversation.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>Widget</dd></div><div class="meta-row"><dt>Category</dt><dd>Creativity</dd></div><div class="meta-row"><dt>Version</dt><dd>2.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://www.widget.olutely.com/" rel="noreferrer">www.widget.olutely.com/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://www.widget.olutely.com/privacy/color-picker.html" rel="noreferrer">www.widget.olutely.com/privacy/color-picker.html</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://www.widget.olutely.com/terms" rel="noreferrer">www.widget.olutely.com/terms</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_695d100ea2e881918c922c735a9784c8" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_695d100ea2e881918c922c735a9784c8</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

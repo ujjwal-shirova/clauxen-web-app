@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Color Designer - Palette Maker — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_00000000f1a871f6a60063fdc43ed144&amp;cdn=1&amp;cp=pi&amp;ma=32572800&amp;ts=0&amp;p=pi&amp;cid=7&amp;sig=d1558bc1d8b72c49fd11c900c754c2978b8472e9eb9d0c6820ac0d38c6e04f01&amp;v=0" alt="Color Designer - Palette Maker logo">
+        <div><h1>Color Designer - Palette Maker</h1><div class="subtitle">Generate schemes+designs+logos</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>Suggest a warm color scheme for a bedroom</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>Give me ocean colors for a playroom redecoration</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>Suggest a palette for a kid who loves dinosaurs</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About Color Designer - Palette Maker</h2><div class="description">Get perfect color ideas in seconds. Ask ChatGPT to suggest colors that work well together, then see them as a simple palette you can use right away. You can keep the colors you like, remove the ones you do not, change any color, or add new ones. The goal is to help you move from an idea to a useful color palette without getting stuck or spending a long time making small choices.
+
+Every suggested color appears as a large color tile that is easy to see. If a color does not fit your project, tap the remove button. Want another idea? Add a new color. Need to fine tune a palette? Change a color instead of starting over. You stay in control while ChatGPT helps you explore new combinations. The result feels fast, simple, and playful, even if you have never worked with color before.
+
+The app is made for anyone. You do not need to know color theory. You do not need to remember color names or search through huge lists. Just describe what you want, let ChatGPT suggest a palette, and make small edits until everything looks right. It works well for beginners, designers, artists, students, teachers, developers, and anyone making something that needs good colors.
+
+A simple editing flow keeps everything easy to understand. Each color is shown as a big square so it is easy to compare with the others. The remove button is always nearby, making it clear how to take a color away. An empty tile with a plus sign lets you add another color whenever you want. Because every action is visible, you always know what to do next.
+
+This makes the app useful for many kinds of projects. Build a brand palette. Pick colors for a website. Try ideas for a mobile app. Match colors for a game. Create art. Plan a room. Design a poster. Choose colors for a presentation. Make social media graphics. Find colors for invitations, stickers, shirts, or school projects. Even if you only want a fun mix of colors to inspire you, the app can help.
+
+ChatGPT can suggest calm colors, bright colors, warm colors, cool colors, playful colors, elegant colors, nature inspired colors, seasonal colors, or almost any style you can describe. If your idea changes, simply ask for another direction and keep editing until the palette feels right. You are never locked into the first answer.
+
+Because the palette is interactive, experimenting is easy. Swap one color instead of replacing everything. Keep your favorite shades while trying new accents. Remove colors that feel too dark, too bright, or too similar. Add another color when the design needs more variety. Small changes can quickly lead to a palette that feels balanced and complete.
+
+The clean layout helps you focus on the colors instead of extra menus or complicated tools. Large color blocks make differences easy to spot. Clear controls reduce confusion. The interface encourages trying new ideas because changing your mind only takes a tap.
+
+The app is also a great way to learn. As you explore different palettes, you naturally see how colors work together. You begin to notice contrast, harmony, and balance without reading long lessons. Every new suggestion is another chance to discover combinations you might never have picked yourself.
+
+Whether you already know exactly what you want or you are starting with nothing but a simple idea, this app helps turn words into color palettes that are easy to edit, easy to understand, and ready for your next creative project. It combines ChatGPT’s ability to generate fresh ideas with a straightforward editing experience, making color selection feel less like work and more like play.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>Widget</dd></div><div class="meta-row"><dt>Category</dt><dd>Creativity</dd></div><div class="meta-row"><dt>Version</dt><dd>2.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://www.widget.olutely.com/" rel="noreferrer">www.widget.olutely.com/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://www.widget.olutely.com/privacy" rel="noreferrer">www.widget.olutely.com/privacy</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://www.widget.olutely.com/terms" rel="noreferrer">www.widget.olutely.com/terms</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_696e890a45388191b24c4a36d2177201" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_696e890a45388191b24c4a36d2177201</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

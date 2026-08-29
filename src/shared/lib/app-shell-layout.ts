@@ -5,7 +5,7 @@ export const APP_SIDEBAR_RAIL_WIDTH_PX = 48;
 export const APP_SIDEBAR_EXPANDED_WIDTH_PX = 288;
 export const APP_SHELL_GAP = "0.625rem";
 
-/** Shared main-content inset — uniform padding; sidebar sits in the flex row beside main. */
+/** Shared main-content inset — the panel sits as a contained surface in sidebar-colored shell space. */
 export function appMainShellClassName(options: {
   isMobile: boolean;
   fullBleed?: boolean;
@@ -29,7 +29,7 @@ export function appMainShellClassName(options: {
 
   return cn(
     "app-main-shell relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-sidebar-bg,var(--app-shell-bg))]",
-    "pb-2 pr-2 pt-2 pl-0 transition-[padding] duration-300 ease-in-out data-[sidebar-collapsed=true]:pl-2",
+    "p-2 transition-[padding] duration-300 ease-in-out",
   );
 }
 

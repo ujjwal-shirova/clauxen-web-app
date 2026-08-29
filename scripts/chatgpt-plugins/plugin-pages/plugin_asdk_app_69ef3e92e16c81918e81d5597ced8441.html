@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>SurveySparrow: Forms &amp; Surveys — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_000000008fb481f69b1fe68aa0a33fea&amp;cdn=1&amp;cp=pi&amp;ma=31622400&amp;ts=0&amp;p=pi&amp;cid=8&amp;sig=2ae1b4a73f3d4874031541b06ff64904dad71bdb96bf9ebc6841a3615c199540&amp;v=0" alt="SurveySparrow: Forms &amp; Surveys logo">
+        <div><h1>SurveySparrow: Forms &amp; Surveys</h1><div class="subtitle">Build and run forms or surveys</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>Draft a quick post-purchase feedback survey.</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>Email this survey to abc@gmail.com</span><span class="arrow" aria-hidden="true">→</span></div><div class="prompt"><span>What are the top 3 topics from the responses?</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About SurveySparrow: Forms &amp; Surveys</h2><div class="description">Create surveys and forms, distribute them to respondents, and analyze the results — all within a single ChatGPT conversation using the SurveySparrow app.
+
+What you can do:
+- Design surveys and forms for any use-case (NPS, feedback, employee engagement, and more)
+- Publish surveys to your SurveySparrow account and distribute them via email, SMS, or WhatsApp
+- Review live response counts and track survey activity across your account
+- Analyze responses and surface patterns or key themes from collected data
+
+Example prompts:
+
+1. Build a survey
+&quot;Create an NPS survey for customers who purchased in the last 30 days with a rating scale and an open-ended follow-up question&quot;
+
+2. Edit a survey
+&quot;Add a required email field and make question 5 more concise&quot;
+
+3. Publish a survey
+&quot;Publish this survey to my SurveySparrow account so it&#39;s ready to collect responses&quot;
+
+4. Share a survey
+&quot;Send this NPS survey to my customer list via email&quot;
+
+5. Check response activity
+&quot;How many people have completed the customer feedback form?&quot;
+
+6. Track your survey library
+&quot;How many NPS surveys are active right now?&quot;
+
+7. Analyze responses
+&quot;Group the responses by common themes and show me the top 3 insights&quot;
+
+Requirements: An active SurveySparrow account is required to use this app.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>SurveySparrow</dd></div><div class="meta-row"><dt>Category</dt><dd>Business &amp; Operations</dd></div><div class="meta-row"><dt>Version</dt><dd>2.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://surveysparrow.com/" rel="noreferrer">surveysparrow.com/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://surveysparrow.com/legal/privacy-policy/" rel="noreferrer">surveysparrow.com/legal/privacy-policy/</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://surveysparrow.com/legal/terms-of-service/" rel="noreferrer">surveysparrow.com/legal/terms-of-service/</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_69ef3e92e16c81918e81d5597ced8441" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_69ef3e92e16c81918e81d5597ced8441</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,39 +1,74 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  LoaderCircle,
+  Plus,
+  Search,
+} from "lucide-react";
 import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
 import {
-  INITIAL_INSTALLED_PLUGINS,
-  PLUGIN_SECTIONS,
-  getPluginCategory,
-  pluginCategorySlugForTitle,
-  pluginIconPath,
-  pluginSlug,
-  type DirectoryPlugin,
+  pluginRouteSegment,
+  type PluginDirectoryResponse,
+  type PluginSummary,
 } from "./plugin-directory-data";
 
-const STORAGE_KEY = "clauxen_installed_directory_plugins_v1";
+const STORAGE_KEY = "clauxen_installed_directory_plugin_ids_v2";
 
-function PluginArtwork({ name, size = 40 }: { name: string; size?: number }) {
+function readInstalledPlugins() {
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const ids = JSON.parse(saved) as unknown;
+      if (Array.isArray(ids)) {
+        return new Set(
+          ids.filter((item): item is string => typeof item === "string"),
+        );
+      }
+    }
+  } catch {
+    // Installation toggles continue in memory when storage is unavailable.
+  }
+  return new Set<string>();
+}
+
+function PluginArtwork({
+  plugin,
+  size = 40,
+}: {
+  plugin: PluginSummary;
+  size?: number;
+}) {
+  const initial = (plugin.displayName || plugin.name || "P")
+    .slice(0, 1)
+    .toUpperCase();
   return (
     <span
       className={cn(
-        "relative flex shrink-0 items-center justify-center overflow-hidden border border-black/10 bg-white",
-        size === 40 ? "size-10 rounded-xl" : "size-8 rounded-[9px]",
+        "flex shrink-0 items-center justify-center overflow-hidden border border-black/10 bg-white text-xs font-semibold text-white",
+        size >= 40 ? "size-10 rounded-xl" : "size-8 rounded-[9px]",
       )}
+      style={{
+        backgroundColor: plugin.logoUrl
+          ? "white"
+          : plugin.brandColor || "#8c8c8c",
+      }}
     >
-      <Image
-        src={pluginIconPath(name)}
-        alt=""
-        width={size}
-        height={size}
-        unoptimized
-        className="size-full object-cover"
-      />
+      {plugin.logoUrl ? (
+        <img
+          src={plugin.logoUrl}
+          alt=""
+          className="size-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        initial
+      )}
     </span>
   );
 }
@@ -44,32 +79,33 @@ function PluginRow({
   installed,
   onToggle,
 }: {
-  plugin: DirectoryPlugin;
-  categorySlug: string;
+  plugin: PluginSummary;
+  categorySlug: string | null;
   installed: boolean;
   onToggle: () => void;
 }) {
+  const href = `/plugins/${pluginRouteSegment(plugin)}${categorySlug ? `?category=${encodeURIComponent(categorySlug)}` : ""}`;
   return (
     <article className="group relative flex min-w-0 items-center rounded-2xl p-2 transition-colors duration-150 hover:bg-black/[0.035]">
       <Link
-        href={`/plugins/${pluginSlug(plugin.name)}?category=${encodeURIComponent(categorySlug)}`}
-        aria-label={`Open ${plugin.name} plugin`}
+        href={href}
+        aria-label={`Open ${plugin.displayName} plugin`}
         className="flex min-w-0 flex-1 items-center gap-3.5 pr-3 outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-zinc-400 focus-visible:after:ring-offset-2"
       >
-        <PluginArtwork name={plugin.name} />
+        <PluginArtwork plugin={plugin} />
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-[14px] font-medium leading-[18px] text-zinc-900">
-            {plugin.name}
+            {plugin.displayName}
           </h3>
           <p className="mt-0.5 truncate text-[13px] leading-[18px] text-zinc-500">
-            {plugin.description}
+            {plugin.description || "Use this plugin with Clauxen"}
           </p>
         </div>
       </Link>
       <button
         type="button"
         onClick={onToggle}
-        aria-label={`${installed ? "Remove" : "Add"} ${plugin.name}`}
+        aria-label={`${installed ? "Remove" : "Install"} ${plugin.displayName}`}
         aria-pressed={installed}
         className={cn(
           "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2",
@@ -88,220 +124,175 @@ function PluginRow({
   );
 }
 
+async function loadDirectory(
+  category: string | null,
+  query: string,
+  page = 1,
+): Promise<PluginDirectoryResponse> {
+  const params = new URLSearchParams({ page: String(page), pageSize: "48" });
+  if (category) params.set("category", category);
+  if (query) params.set("q", query);
+  const response = await fetch(`/api/plugins?${params.toString()}`);
+  if (!response.ok) throw new Error("Unable to load plugins");
+  return response.json() as Promise<PluginDirectoryResponse>;
+}
+
 export function PluginsDirectoryView({
   initialCategory = null,
+  initialData,
 }: {
   initialCategory?: string | null;
+  initialData: PluginDirectoryResponse;
 }) {
   const [query, setQuery] = useState("");
-  const [activeCategorySlug, setActiveCategorySlug] = useState(initialCategory);
-  const [showAllInstalled, setShowAllInstalled] = useState(false);
-  const [installed, setInstalled] = useState<Set<string>>(
-    () => new Set(INITIAL_INSTALLED_PLUGINS),
-  );
+  const deferredQuery = useDeferredValue(query);
+  const [categorySlug, setCategorySlug] = useState(initialCategory);
+  const [data, setData] = useState(initialData);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState(false);
+  const [installed, setInstalled] = useState<Set<string>>(() => new Set());
 
+  useEffect(() => setInstalled(readInstalledPlugins()), []);
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const names = JSON.parse(saved) as unknown;
-        if (Array.isArray(names)) {
-          setInstalled(
-            new Set(names.filter((item) => typeof item === "string")),
-          );
-        }
-      }
-    } catch {
-      // Keep the Builder-provided installed set when local storage is unavailable.
-    }
-  }, []);
-
-  useEffect(() => {
-    const syncCategoryFromUrl = () => {
-      const category = new URLSearchParams(window.location.search).get(
-        "category",
+    const handlePopState = () => {
+      setCategorySlug(
+        new URLSearchParams(window.location.search).get("category"),
       );
-      setActiveCategorySlug(getPluginCategory(category)?.slug ?? null);
       setQuery("");
     };
-
-    window.addEventListener("popstate", syncCategoryFromUrl);
-    return () => window.removeEventListener("popstate", syncCategoryFromUrl);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    if (!deferredQuery && categorySlug === initialCategory) {
+      setData(initialData);
+      return () => controller.abort();
+    }
+    setIsLoading(true);
+    setError(false);
+    void loadDirectory(categorySlug, deferredQuery.trim())
+      .then((result) => {
+        if (!controller.signal.aborted) setData(result);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false);
+      });
+    return () => controller.abort();
+  }, [categorySlug, deferredQuery, initialCategory, initialData]);
 
-  const togglePlugin = (name: string) => {
+  const activeCategory = data.category;
+  const isSearch = Boolean(deferredQuery.trim());
+  const togglePlugin = (id: string) =>
     setInstalled((current) => {
       const next = new Set(current);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
       } catch {
-        // The in-memory interaction still works in private/restricted contexts.
+        /* in-memory state remains available */
       }
       return next;
     });
+  const installedItems = useMemo(() => {
+    const all =
+      data.sections?.flatMap((section) => section.plugins) ?? data.plugins;
+    return all.filter((plugin) => installed.has(plugin.id)).slice(0, 14);
+  }, [data.plugins, data.sections, installed]);
+  const pageTitle = activeCategory
+    ? activeCategory.title
+    : isSearch
+      ? `Results for “${deferredQuery.trim()}”`
+      : "Plugins";
+  const pageDescription = activeCategory
+    ? activeCategory.description
+    : isSearch
+      ? `${data.total.toLocaleString()} matching plugins`
+      : "Work with Clauxen across your favorite tools.";
+  const loadMore = async () => {
+    setIsLoadingMore(true);
+    try {
+      const next = await loadDirectory(
+        categorySlug,
+        deferredQuery.trim(),
+        data.page + 1,
+      );
+      setData((current) => ({
+        ...next,
+        plugins: [...current.plugins, ...next.plugins].filter(
+          (plugin, index, list) =>
+            list.findIndex((candidate) => candidate.id === plugin.id) === index,
+        ),
+      }));
+    } catch {
+      setError(true);
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
-
-  const deferredQuery = useDeferredValue(query);
-  const normalizedQuery = deferredQuery.trim().toLowerCase();
-  const visibleSections = useMemo(() => {
-    if (!normalizedQuery) return PLUGIN_SECTIONS;
-    return PLUGIN_SECTIONS.map((section) => ({
-      ...section,
-      plugins: section.plugins.filter((plugin) =>
-        `${plugin.name} ${plugin.description} ${section.title}`
-          .toLowerCase()
-          .includes(normalizedQuery),
-      ),
-    })).filter((section) => section.plugins.length > 0);
-  }, [normalizedQuery]);
-  const activeCategory = getPluginCategory(activeCategorySlug);
-  const visibleCategoryPlugins = useMemo(() => {
-    if (!activeCategory) return [];
-    if (!normalizedQuery) return activeCategory.plugins;
-    return activeCategory.plugins.filter((plugin) =>
-      `${plugin.name} ${plugin.description}`
-        .toLowerCase()
-        .includes(normalizedQuery),
-    );
-  }, [activeCategory, normalizedQuery]);
-
-  const installedNames = [...installed];
-  const visibleInstalled = showAllInstalled
-    ? installedNames
-    : installedNames.slice(0, 14);
-  const hiddenInstalledCount = Math.max(0, installedNames.length - 14);
-
-  if (activeCategory) {
-    return (
-      <div className={appPage.surface}>
-        <div className="app-scrollbar flex-1 overflow-y-auto">
-          <nav className="sticky top-0 z-20 flex bg-[rgba(252,252,252,0.88)] px-4 pb-2 pt-2.5 backdrop-blur-xl">
-            <Link
-              href="/plugins"
-              onClick={() => {
-                setActiveCategorySlug(null);
-                setQuery("");
-              }}
-              className="inline-flex h-9 items-center gap-1 rounded-lg px-1.5 text-[14px] font-medium text-zinc-900 transition-colors hover:bg-black/[0.04]"
-            >
-              <ChevronLeft className="size-5" strokeWidth={1.7} />
-              Plugins
-            </Link>
-          </nav>
-
-          <main className="mobile-page-inset mx-auto w-full max-w-[832px] px-4 pb-24 pt-8 sm:px-4 sm:pt-10">
-            <header className="flex flex-wrap items-start gap-5">
-              <div className="min-w-[240px] flex-1">
-                <h1 className="text-[28px] font-semibold leading-9 tracking-[-0.025em] text-zinc-950">
-                  {activeCategory.title}
-                </h1>
-                <p className="mt-1 text-[15px] leading-6 text-zinc-600">
-                  {activeCategory.description}
-                </p>
-              </div>
-              <form
-                role="search"
-                className="relative w-full sm:ml-auto sm:w-[270px]"
-                onSubmit={(event) => event.preventDefault()}
-              >
-                <Search
-                  aria-hidden
-                  className="pointer-events-none absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-zinc-400"
-                  strokeWidth={1.6}
-                />
-                <input
-                  type="search"
-                  name="category-plugin-search"
-                  autoComplete="off"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder={activeCategory.searchPlaceholder}
-                  aria-label={activeCategory.searchPlaceholder}
-                  className="h-10 w-full rounded-full border border-black/10 bg-white py-2 pl-9 pr-3 text-[14px] leading-5 text-zinc-900 outline-none transition-shadow placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-2 focus:ring-zinc-200/70"
-                />
-              </form>
-            </header>
-
-            {visibleCategoryPlugins.length > 0 ? (
-              <section
-                aria-label={`${activeCategory.title} plugins`}
-                className="mt-12 grid grid-cols-1 gap-x-7 gap-y-1 sm:grid-cols-2"
-              >
-                {visibleCategoryPlugins.map((plugin) => (
-                  <PluginRow
-                    key={plugin.name}
-                    plugin={plugin}
-                    categorySlug={activeCategory.slug}
-                    installed={installed.has(plugin.name)}
-                    onToggle={() => togglePlugin(plugin.name)}
-                  />
-                ))}
-              </section>
-            ) : (
-              <div className="flex min-h-64 flex-col items-center justify-center text-center">
-                <div className="flex size-11 items-center justify-center rounded-full bg-black/[0.04]">
-                  <Search className="size-5 text-zinc-500" strokeWidth={1.6} />
-                </div>
-                <h2 className="mt-3 text-[15px] font-medium text-zinc-900">
-                  No plugins found
-                </h2>
-                <p className="mt-1 text-[13px] text-zinc-500">
-                  Try a different plugin name.
-                </p>
-              </div>
-            )}
-          </main>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={appPage.surface}>
       <div className="app-scrollbar flex-1 overflow-y-auto">
-        <nav
-          aria-label="Directory type"
-          className="sticky top-0 z-20 hidden justify-center bg-[rgba(252,252,252,0.88)] pb-2 pt-2.5 backdrop-blur-xl sm:flex"
-        >
-          <div
-            role="tablist"
-            aria-label="Directory type"
-            className="relative grid grid-cols-2 rounded-full bg-black/[0.03] p-px"
-          >
-            <span className="pointer-events-none absolute bottom-0 left-0 top-0 w-1/2 rounded-full border border-black/10 bg-white shadow-[0_1px_6px_rgba(0,0,0,0.05)]" />
-            <span
-              role="tab"
-              aria-selected="true"
-              className="relative z-10 flex h-9 min-w-[96px] items-center justify-center rounded-full px-6 text-[14px] font-medium text-zinc-900"
-            >
-              Plugins
-            </span>
+        {activeCategory ? (
+          <nav className="sticky top-0 z-20 flex bg-[rgba(252,252,252,0.88)] px-4 pb-2 pt-2.5 backdrop-blur-xl">
             <Link
-              role="tab"
-              aria-selected="false"
-              href="/new#settings/Skills"
-              className="relative z-10 flex h-9 min-w-[96px] items-center justify-center rounded-full px-6 text-[14px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
+              href="/plugins"
+              onClick={() => {
+                setCategorySlug(null);
+                setQuery("");
+              }}
+              className="inline-flex h-9 items-center gap-1 rounded-lg px-1.5 text-[14px] font-medium text-zinc-900 transition-colors hover:bg-black/[0.04]"
             >
-              Skills
+              <ChevronLeft className="size-5" strokeWidth={1.7} /> Plugins
             </Link>
-          </div>
-        </nav>
-
-        <main className="mobile-page-inset mx-auto flex w-full max-w-[832px] flex-col gap-6 px-4 pb-24 pt-5 sm:px-4 sm:pt-[62px]">
+          </nav>
+        ) : (
+          <nav
+            aria-label="Directory type"
+            className="sticky top-0 z-20 hidden justify-center bg-[rgba(252,252,252,0.88)] pb-2 pt-2.5 backdrop-blur-xl sm:flex"
+          >
+            <div
+              role="tablist"
+              className="relative grid grid-cols-2 rounded-full bg-black/[0.03] p-px"
+            >
+              <span className="pointer-events-none absolute inset-y-0 left-0 w-1/2 rounded-full border border-black/10 bg-white shadow-[0_1px_6px_rgba(0,0,0,0.05)]" />
+              <span
+                role="tab"
+                aria-selected="true"
+                className="relative z-10 flex h-9 min-w-[96px] items-center justify-center rounded-full px-6 text-[14px] font-medium text-zinc-900"
+              >
+                Plugins
+              </span>
+              <Link
+                role="tab"
+                aria-selected="false"
+                href="/new#settings/Skills"
+                className="relative z-10 flex h-9 min-w-[96px] items-center justify-center rounded-full px-6 text-[14px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
+              >
+                Skills
+              </Link>
+            </div>
+          </nav>
+        )}
+        <main className="mobile-page-inset mx-auto flex w-full max-w-[900px] flex-col gap-7 px-4 pb-24 pt-8 sm:px-6 sm:pt-[62px]">
           <header className="flex min-h-[76px] flex-wrap items-start gap-4">
             <div className="min-w-[220px] flex-1">
               <h1 className="text-[28px] font-medium leading-9 tracking-[-0.025em] text-zinc-950">
-                Plugins
+                {pageTitle}
               </h1>
               <p className="mt-1 text-[16px] leading-6 text-zinc-600">
-                Work with Clauxen across your favorite tools.
+                {pageDescription}
               </p>
             </div>
             <form
               role="search"
-              className="relative w-full sm:ml-auto sm:w-60"
+              className="relative w-full sm:ml-auto sm:w-[280px]"
               onSubmit={(event) => event.preventDefault()}
             >
               <Search
@@ -311,123 +302,119 @@ export function PluginsDirectoryView({
               />
               <input
                 type="search"
-                name="plugin-search"
                 autoComplete="off"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search plugins"
+                placeholder={
+                  activeCategory?.searchPlaceholder ?? "Search all plugins"
+                }
                 aria-label="Search plugins"
-                className="h-9 w-full rounded-full border border-black/10 bg-white py-2 pl-9 pr-3 text-[14px] leading-5 text-zinc-900 outline-none transition-shadow placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-2 focus:ring-zinc-200/70"
+                className="h-10 w-full rounded-full border border-black/10 bg-white py-2 pl-9 pr-9 text-[14px] leading-5 text-zinc-900 outline-none transition-shadow placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-2 focus:ring-zinc-200/70"
               />
+              {isLoading ? (
+                <LoaderCircle className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-zinc-400" />
+              ) : null}
             </form>
           </header>
-
-          {!normalizedQuery && installedNames.length > 0 ? (
+          {!isSearch && !activeCategory && installedItems.length > 0 ? (
             <section aria-labelledby="installed-plugins-heading">
-              <button
-                type="button"
-                onClick={() => setShowAllInstalled((value) => !value)}
-                className="group mb-2 inline-flex items-center gap-0.5 text-[14px] font-medium leading-5 text-zinc-900"
+              <h2
+                id="installed-plugins-heading"
+                className="mb-2 text-[14px] font-medium text-zinc-900"
               >
-                <span id="installed-plugins-heading">Installed</span>
-                <ChevronRight
-                  className={cn(
-                    "size-4 text-zinc-400 transition-transform duration-200 group-hover:text-zinc-700",
-                    showAllInstalled && "rotate-90",
-                  )}
-                  strokeWidth={1.7}
-                />
-              </button>
+                Installed
+              </h2>
               <div className="-ml-1 flex flex-wrap gap-0.5">
-                {visibleInstalled.map((name) => (
+                {installedItems.map((plugin) => (
                   <Link
-                    key={name}
-                    href={`/plugins/${pluginSlug(name)}`}
-                    title={name}
-                    aria-label={`Open ${name} plugin`}
+                    key={plugin.id}
+                    href={`/plugins/${pluginRouteSegment(plugin)}`}
+                    title={plugin.displayName}
                     className="flex size-12 items-center justify-center rounded-[14px] transition-colors hover:bg-black/[0.04]"
                   >
-                    <PluginArtwork name={name} size={32} />
+                    <PluginArtwork plugin={plugin} size={32} />
                   </Link>
                 ))}
-                {!showAllInstalled && hiddenInstalledCount > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllInstalled(true)}
-                    className="flex h-12 min-w-12 items-center justify-center rounded-[14px] px-2 text-[12px] font-medium text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-800"
-                  >
-                    +{hiddenInstalledCount}
-                  </button>
-                ) : null}
               </div>
             </section>
           ) : null}
-
-          {visibleSections.length > 0 ? (
-            visibleSections.map((section) => (
+          {error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              The plugin directory could not be loaded. Please try again.
+            </div>
+          ) : null}
+          {data.sections && !isSearch && !activeCategory ? (
+            data.sections.map((section) => (
               <section
-                key={section.title}
-                aria-labelledby={`plugin-section-${section.title}`}
+                key={section.slug}
+                aria-labelledby={`plugin-section-${section.slug}`}
                 className="[content-visibility:auto] [contain-intrinsic-size:auto_260px]"
               >
-                <div className="mb-1 flex items-center justify-between gap-4 pb-1">
+                <div className="mb-1 flex items-baseline justify-between gap-4 pb-1">
                   <h2
-                    id={`plugin-section-${section.title}`}
+                    id={`plugin-section-${section.slug}`}
                     className="text-[14px] font-medium leading-5 text-zinc-900"
                   >
                     {section.title}
                   </h2>
+                  <span className="text-xs text-zinc-400">
+                    {section.count.toLocaleString()}
+                  </span>
                 </div>
                 <div className="grid grid-cols-1 gap-x-2 sm:grid-cols-2">
                   {section.plugins.map((plugin) => (
                     <PluginRow
-                      key={plugin.name}
+                      key={plugin.id}
                       plugin={plugin}
-                      categorySlug={pluginCategorySlugForTitle(section.title)}
-                      installed={installed.has(plugin.name)}
-                      onToggle={() => togglePlugin(plugin.name)}
+                      categorySlug={section.slug}
+                      installed={installed.has(plugin.id)}
+                      onToggle={() => togglePlugin(plugin.id)}
                     />
                   ))}
                 </div>
-                {!normalizedQuery ? (
-                  <Link
-                    href={`/plugins?category=${pluginCategorySlugForTitle(section.title)}`}
-                    onClick={() => {
-                      setActiveCategorySlug(
-                        pluginCategorySlugForTitle(section.title),
-                      );
-                      setQuery("");
-                    }}
-                    className="group -ml-2 mt-2 flex min-h-12 items-center gap-3 rounded-2xl p-2 text-[14px] text-zinc-600 transition-colors hover:bg-black/[0.035] hover:text-zinc-800"
-                  >
-                    <div className="flex shrink-0 items-center pl-1 pr-1">
-                      {(section.more.length > 0
-                        ? section.more
-                        : section.plugins
-                            .slice(0, 2)
-                            .map((plugin) => plugin.name)
-                      ).map((name, index) => (
-                        <span key={name} className={cn(index > 0 && "-ml-1.5")}>
-                          <PluginArtwork name={name} size={24} />
-                        </span>
-                      ))}
-                    </div>
-                    <span className="min-w-0 flex-1 truncate">
-                      See{" "}
-                      {(section.more.length > 0
-                        ? section.more
-                        : section.plugins.map((plugin) => plugin.name)
-                      )
-                        .slice(0, 2)
-                        .join(", ")}
-                      , and more
-                    </span>
-                    <ChevronRight className="mr-2 size-4 shrink-0 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100" />
-                  </Link>
-                ) : null}
+                <Link
+                  href={`/plugins?category=${encodeURIComponent(section.slug)}`}
+                  onClick={() => {
+                    setCategorySlug(section.slug);
+                    setQuery("");
+                  }}
+                  className="group -ml-2 mt-2 flex min-h-12 items-center gap-3 rounded-2xl p-2 text-[14px] text-zinc-600 transition-colors hover:bg-black/[0.035] hover:text-zinc-800"
+                >
+                  <div className="flex shrink-0 items-center">
+                    {section.plugins.slice(0, 3).map((plugin, index) => (
+                      <span
+                        key={plugin.id}
+                        className={cn(index > 0 && "-ml-1.5")}
+                      >
+                        <PluginArtwork plugin={plugin} size={24} />
+                      </span>
+                    ))}
+                  </div>
+                  <span className="min-w-0 flex-1 truncate">
+                    See all {section.count.toLocaleString()}{" "}
+                    {section.title.toLowerCase()} plugins
+                  </span>
+                  <ChevronRight className="mr-2 size-4 shrink-0 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100" />
+                </Link>
               </section>
             ))
           ) : (
+            <section
+              aria-label="Plugin results"
+              className="grid grid-cols-1 gap-x-7 gap-y-1 sm:grid-cols-2"
+            >
+              {data.plugins.map((plugin) => (
+                <PluginRow
+                  key={plugin.id}
+                  plugin={plugin}
+                  categorySlug={activeCategory?.slug ?? null}
+                  installed={installed.has(plugin.id)}
+                  onToggle={() => togglePlugin(plugin.id)}
+                />
+              ))}
+            </section>
+          )}
+          {!data.sections && data.plugins.length === 0 && !isLoading ? (
             <div className="flex min-h-52 flex-col items-center justify-center text-center">
               <div className="flex size-11 items-center justify-center rounded-full bg-black/[0.04]">
                 <Search className="size-5 text-zinc-500" strokeWidth={1.6} />
@@ -439,7 +426,22 @@ export function PluginsDirectoryView({
                 Try a different name or category.
               </p>
             </div>
-          )}
+          ) : null}
+          {!data.sections && data.plugins.length > 0 && data.hasMore ? (
+            <div className="flex justify-center pt-3">
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                disabled={isLoadingMore}
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-black/10 bg-white px-5 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-50 disabled:cursor-wait disabled:opacity-60"
+              >
+                {isLoadingMore ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : null}
+                {isLoadingMore ? "Loading plugins" : "Load more"}
+              </button>
+            </div>
+          ) : null}
         </main>
       </div>
     </div>

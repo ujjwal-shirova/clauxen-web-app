@@ -1,28 +1,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PluginDetailView } from "@/components/plugins/plugin-detail-view";
-import {
-  ALL_DIRECTORY_PLUGINS,
-  getPluginDetail,
-  pluginSlug,
-} from "@/components/plugins/plugin-directory-data";
+import { getPluginByRouteSegment } from "@/server/plugins/catalog";
 
 type PluginPageProps = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export function generateStaticParams() {
-  return ALL_DIRECTORY_PLUGINS.map((plugin) => ({
-    slug: pluginSlug(plugin.name),
-  }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
 }: PluginPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const plugin = getPluginDetail(slug);
+  const plugin = await getPluginByRouteSegment(slug);
   return plugin
     ? {
         title: `${plugin.name} plugin - Clauxen`,
@@ -36,7 +28,7 @@ export default async function PluginPage({
   searchParams,
 }: PluginPageProps) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
-  const plugin = getPluginDetail(slug);
+  const plugin = await getPluginByRouteSegment(slug);
   if (!plugin) notFound();
 
   const rawCategory = Array.isArray(query.category)

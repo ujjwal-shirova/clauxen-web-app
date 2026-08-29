@@ -553,7 +553,7 @@ function ChatAreaLayout({
               onOpenMobileNav={onOpenMobileNav}
               showMobileMenu={showMobileMenu}
               projectBreadcrumb={projectBreadcrumb}
-              className="z-20"
+              className="z-40"
             />
           ) : null}
         </div>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Baseball-Teams/Schedules/Stats — Plugin capture</title>
+  <style>
+    :root { color-scheme: light; --ink:#111; --muted:#6f6f6f; --line:#e8e8e8; --surface:#fff; --wash:#f7f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width:min(100% - 48px, 1120px); margin:0 auto; padding:42px 0 80px; }
+    .back { color:#303030; display:inline-flex; gap:8px; align-items:center; font-size:15px; text-decoration:none; margin-bottom:68px; }
+    .back::before { content:"‹"; font-size:32px; font-weight:300; line-height:12px; }
+    .hero { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; max-width:920px; margin:0 auto 52px; }
+    .identity { display:flex; gap:22px; align-items:flex-start; }
+    .logo, .logo-fallback { width:102px; height:102px; border:1px solid var(--line); border-radius:24px; background:#fff; object-fit:contain; padding:12px; flex:none; }
+    .logo-fallback { display:grid; place-items:center; background:#f1f1f1; color:#fff; font-size:34px; font-weight:700; }
+    h1 { margin:4px 0 10px; font-size:50px; letter-spacing:-.05em; line-height:1; }
+    .subtitle { max-width:560px; color:var(--muted); font-size:21px; line-height:1.35; }
+    .install { appearance:none; border:0; background:#1f1f1f; color:white; padding:15px 25px; border-radius:999px; font:600 16px/1 inherit; white-space:nowrap; }
+    .content { max-width:920px; margin:0 auto; }
+    section { margin-top:42px; }
+    h2 { font-size:20px; margin:0 0 15px; letter-spacing:-.02em; }
+    .description { max-width:760px; color:#3e3e3e; font-size:17px; line-height:1.6; white-space:pre-wrap; }
+    .prompts { padding:46px; border-radius:28px; background:linear-gradient(135deg, #b7e3fb 0%, #55b7df 51%, #83c59f 100%); }
+    .prompt { display:flex; align-items:center; gap:14px; min-height:76px; margin:14px 0 0; padding:18px 18px 18px 24px; border:1px solid rgba(255,255,255,.7); border-radius:999px; background:rgba(255,255,255,.78); color:#2d3438; font-size:17px; line-height:1.35; }
+    .prompt strong { font-weight:650; }
+    .arrow { display:grid; place-items:center; width:38px; height:38px; margin-left:auto; border-radius:50%; background:#fff; color:#555; flex:none; font-size:23px; }
+    .info { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 32px; border-top:1px solid var(--line); }
+    .meta-row { padding:18px 0; border-bottom:1px solid var(--line); }
+    dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+    dd { margin:0; font-size:15px; overflow-wrap:anywhere; }
+    a { color:#1671c6; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { background:var(--wash); border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:#555; font-size:13px; }
+    footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:700px) { main{ width:min(100% - 32px,1120px); padding-top:24px; } .back{ margin-bottom:42px; } .hero{grid-template-columns:1fr; gap:24px;} h1{font-size:42px;} .logo,.logo-fallback{width:82px;height:82px;border-radius:20px;} .prompts{padding:22px;border-radius:22px;} .prompt{border-radius:22px;font-size:15px;padding:15px;} .info{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="https://chatgpt.com/plugins">Plugins</a>
+    <header class="hero">
+      <div class="identity">
+        <img class="logo" src="https://files.openai.com/content?id=file_0000000058d081f4beb6ec3c3e1d9481&amp;cdn=1&amp;cp=pi&amp;ma=31449600&amp;ts=0&amp;p=pi&amp;cid=8&amp;sig=65ffbc4210234e54b13d9bf977cf82e200f87476f681da0e3a8ea4bed023d6b7&amp;v=0" alt="Baseball-Teams/Schedules/Stats logo">
+        <div><h1>Baseball-Teams/Schedules/Stats</h1><div class="subtitle">Track+Chat Scores+Games+Inning</div></div>
+      </div>
+      <button class="install" type="button" aria-disabled="true">Install plugin</button>
+    </header>
+    <div class="content">
+      <section class="prompts" aria-label="Suggested prompts"><div class="prompt"><span>⠀</span><span class="arrow" aria-hidden="true">→</span></div></section>
+      <section><h2>About Baseball-Teams/Schedules/Stats</h2><div class="description">Follow every baseball game without leaving ChatGPT. Get live MLB scores, game schedules, standings, team records, and game results right inside your conversation. Ask about today’s games, check who won, see what is coming next, or look at the latest standings. You do not need to open another website or switch to another app. Just ask your question and get the baseball information you want in one place.
+
+If you want to know what games are happening today, simply ask. If you want to see yesterday’s scores, ask that too. You can check upcoming games, recent results, and how every team is doing during the season. Whether you follow one favorite club or every team in Major League Baseball, finding information is quick and easy.
+
+See live scores while games are being played. Find out who is winning, who has already finished, and which games have not started yet. Keep up with the action throughout the day without searching across different websites. Everything is shown inside your chat so you can spend more time enjoying baseball.
+
+Need to check the standings? You can see how every team ranks in its division. Follow the race to the playoffs and watch teams move up or down as the season goes on. Check team records, wins, losses, and where clubs stand compared with their rivals.
+
+You can also look ahead. Find upcoming games, see who plays next, and plan which matchups you want to watch. Whether you are getting ready for tonight’s game or looking several days ahead, schedules are easy to find.
+
+This app is made for baseball fans of every kind. Maybe you watch every game. Maybe you only follow your hometown team. Maybe you just want to know today’s scores. No matter how closely you follow MLB, getting the information you need is simple.
+
+Ask questions in your own words. You do not need special commands or complicated menus. Try questions like “Who won the Dodgers game?”, “What MLB games are on today?”, “Show me the AL East standings,” or “When do the Cubs play next?” The app understands natural questions and helps you find the answer.
+
+Everything happens inside ChatGPT, so you can keep talking without changing apps. Ask one question or ask many. Compare teams, check schedules, see standings, and follow scores in the same conversation. It feels like talking with someone who is always ready to help with baseball information.
+
+The app is useful all season long. Check Opening Day games, follow exciting division races, watch the push toward the playoffs, and keep up during the postseason. Whenever games are happening, you can quickly see what is going on.
+
+Whether you cheer for the Yankees, Dodgers, Cubs, Braves, Mets, Red Sox, Phillies, Astros, Padres, Mariners, or any other MLB team, you can easily keep track of scores, schedules, standings, and results. Follow your favorite club or explore the whole league.
+
+Use this app when you want baseball information that is fast, clear, and easy to understand. Stay up to date with live MLB scores, today’s games, completed results, upcoming schedules, team records, division standings, and season progress without leaving your conversation. Just ask a question, get the latest baseball information, and enjoy the game.</div></section>
+      <section><h2>Information</h2><dl class="info"><div class="meta-row"><dt>Developer</dt><dd>Widget</dd></div><div class="meta-row"><dt>Category</dt><dd>Entertainment</dd></div><div class="meta-row"><dt>Version</dt><dd>1.0.0</dd></div><div class="meta-row"><dt>Website</dt><dd><a href="https://www.widget.olutely.com/" rel="noreferrer">www.widget.olutely.com/</a></dd></div><div class="meta-row"><dt>Privacy policy</dt><dd><a href="https://www.widget.olutely.com/privacy" rel="noreferrer">www.widget.olutely.com/privacy</a></dd></div><div class="meta-row"><dt>Terms of service</dt><dd><a href="https://www.widget.olutely.com/terms" rel="noreferrer">www.widget.olutely.com/terms</a></dd></div></dl></section>
+      
+      <footer>Sanitized main-content capture from <a href="https://chatgpt.com/plugins/plugin_asdk_app_6a5df44b1bc081919ee040500972615d" rel="noreferrer">https://chatgpt.com/plugins/plugin_asdk_app_6a5df44b1bc081919ee040500972615d</a>. No account data, cookies, application scripts, or sidebar markup are included.</footer>
+    </div>
+  </main>
+</body>
+</html>
