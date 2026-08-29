@@ -63,7 +63,11 @@ export const hubPages: MarketingPage[] = [
     ),
     linkGrid([
       { title: "Skills", body: "Specialized workflows", href: "/skills" },
-      { title: "Plugins", body: "Work extensions", href: "/plugins" },
+      {
+        title: "Plugins",
+        body: "Work extensions",
+        href: "/platform/plugins",
+      },
       { title: "Connectors", body: "Company tools", href: "/connectors" },
     ]),
     ctaBand("Browse in the app"),
@@ -76,13 +80,18 @@ export const hubPages: MarketingPage[] = [
     ),
     ctaBand("Open connectors", "Sign in → Customize → Connectors."),
   ]),
-  definePage("/plugins", "Plugins", "Extend Clauxen Work with plugins.", [
-    hero(
-      "Plugins",
-      "Package repeatable workflows for finance, legal, marketing, and ops.",
-    ),
-    ctaBand("Explore plugins"),
-  ]),
+  definePage(
+    "/platform/plugins",
+    "Plugins",
+    "Extend Clauxen Work with plugins.",
+    [
+      hero(
+        "Plugins",
+        "Package repeatable workflows for finance, legal, marketing, and ops.",
+      ),
+      ctaBand("Explore plugins"),
+    ],
+  ),
   definePage("/skills", "Skills", "Teach Clauxen specialized workflows.", [
     hero(
       "Skills",

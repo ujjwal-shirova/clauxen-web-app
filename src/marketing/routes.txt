@@ -74,7 +74,7 @@ https://clauxen.com/plans
 https://clauxen.com/plans/k12-teachers
 https://clauxen.com/platform/api
 https://clauxen.com/platform/marketplace
-https://clauxen.com/plugins
+https://clauxen.com/platform/plugins
 https://clauxen.com/problem-solvers
 https://clauxen.com/product/clauxen-science
 https://clauxen.com/product/clauxen-security

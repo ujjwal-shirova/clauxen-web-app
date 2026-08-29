@@ -124,7 +124,7 @@ export const FOOTER_COLUMNS: {
       { label: "API", href: "/platform/api" },
       { label: "Marketplace", href: "/platform/marketplace" },
       { label: "Connectors", href: "/connectors" },
-      { label: "Plugins", href: "/plugins" },
+      { label: "Plugins", href: "/platform/plugins" },
       { label: "Skills", href: "/skills" },
       { label: "Partners", href: "/partners" },
     ],

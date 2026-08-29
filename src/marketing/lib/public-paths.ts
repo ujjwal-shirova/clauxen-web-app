@@ -24,7 +24,7 @@ export const MARKETING_PUBLIC_EXACT = [
   "/customers",
   "/community",
   "/connectors",
-  "/plugins",
+  "/platform/plugins",
   "/skills",
   "/docs",
   "/blog",
