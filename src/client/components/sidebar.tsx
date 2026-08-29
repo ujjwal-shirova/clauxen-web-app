@@ -20,6 +20,8 @@ import {
   LayoutGrid,
   Clock3,
   Blocks,
+  Download,
+  Search,
 } from "lucide-react";
 import { SidebarToggleIcon, NewChatBubbleIcon, NavProjectsIcon } from "./icons";
 import { cn } from "@/lib/utils";
@@ -47,6 +49,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TypingDots } from "./ui/typing-dots";
 import { StreamingChatTitle } from "./streaming-chat-title";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
@@ -267,6 +274,18 @@ export function Sidebar({
   );
   const [planLoading, setPlanLoading] = useState(() => !cachedPlan);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [sidebarSearchOpen, setSidebarSearchOpen] = useState(false);
+  const [sidebarSearchQuery, setSidebarSearchQuery] = useState("");
+
+  const sidebarSearchResults = useMemo(() => {
+    const query = sidebarSearchQuery.trim().toLocaleLowerCase();
+    if (!query) return recentChats.slice(0, 8);
+    return recentChats
+      .filter((chat) =>
+        (chat.name || "New Chat").toLocaleLowerCase().includes(query),
+      )
+      .slice(0, 8);
+  }, [recentChats, sidebarSearchQuery]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -941,7 +960,7 @@ export function Sidebar({
                       "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center border border-transparent bg-transparent outline-none transition-[background-color,border-color] duration-150 hover:border-black/[0.045] hover:bg-black/[0.035] data-[state=open]:border-black/[0.055] data-[state=open]:bg-black/[0.045]",
                       isCollapsed
                         ? "h-7 w-7 shrink-0 items-center justify-center rounded-full !p-0"
-                        : "min-h-11 w-full justify-start gap-2.5 rounded-xl px-2.5 py-1.5",
+                        : "min-h-11 min-w-0 flex-1 justify-start gap-2.5 rounded-xl px-2.5 py-1.5",
                     )}
                   >
                     <UserAvatarDisplay
@@ -1121,6 +1140,104 @@ export function Sidebar({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {!isCollapsed ? (
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <AppHref
+                    href="/download"
+                    aria-label="Download Clauxen"
+                    title="Download Clauxen"
+                    className="ui-icon-button !size-8 !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950"
+                  >
+                    <Download className="size-[17px]" strokeWidth={1.7} />
+                  </AppHref>
+
+                  <Popover
+                    open={sidebarSearchOpen}
+                    onOpenChange={(open) => {
+                      setSidebarSearchOpen(open);
+                      if (!open) setSidebarSearchQuery("");
+                    }}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Search chats"
+                        title="Search chats"
+                        className="ui-icon-button !size-8 !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950 data-[state=open]:bg-black/[0.06]"
+                      >
+                        <Search className="size-[17px]" strokeWidth={1.7} />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      side="top"
+                      align="end"
+                      sideOffset={10}
+                      collisionPadding={10}
+                      className="z-[70] w-[272px] rounded-xl border border-black/[0.10] bg-[#fcfcfb] p-2 shadow-[0_12px_34px_rgba(28,25,23,0.14)]"
+                    >
+                      <div className="flex h-9 items-center gap-2 rounded-lg border border-black/[0.09] bg-white px-2.5 focus-within:border-black/[0.18]">
+                        <Search
+                          className="size-4 shrink-0 text-[#898781]"
+                          strokeWidth={1.7}
+                          aria-hidden
+                        />
+                        <input
+                          autoFocus
+                          value={sidebarSearchQuery}
+                          onChange={(event) =>
+                            setSidebarSearchQuery(event.target.value)
+                          }
+                          placeholder="Search chats"
+                          aria-label="Search chat history"
+                          className="min-w-0 flex-1 bg-transparent text-[13px] text-[#252522] outline-none placeholder:text-[#898781]"
+                        />
+                      </div>
+                      <div className="mt-1 max-h-72 overflow-y-auto py-1">
+                        {sidebarSearchResults.length ? (
+                          sidebarSearchResults.map((chat) => (
+                            <AppHref
+                              key={chat.id}
+                              href={
+                                chat.projectId
+                                  ? APP_ROUTES.projectChat(
+                                      chat.projectId,
+                                      chat.id,
+                                    )
+                                  : APP_ROUTES.chat(chat.id)
+                              }
+                              onClick={() => {
+                                setSidebarSearchOpen(false);
+                                onSelectChat(chat);
+                                if (isMobileLayout) onNavigate?.();
+                              }}
+                              className="flex h-9 w-full items-center rounded-lg px-2.5 text-left text-[13px] text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-[#252522]"
+                            >
+                              <span className="truncate">
+                                {chat.name || "New Chat"}
+                              </span>
+                            </AppHref>
+                          ))
+                        ) : (
+                          <p className="px-2.5 py-5 text-center text-[12px] text-[#898781]">
+                            No chats found
+                          </p>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsCollapsed(true)}
+                    aria-label="Collapse sidebar"
+                    title="Collapse sidebar"
+                    className="ui-icon-button !size-8 !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950"
+                  >
+                    <SidebarToggleIcon className="size-[17px]" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
