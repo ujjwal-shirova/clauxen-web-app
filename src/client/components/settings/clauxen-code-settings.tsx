@@ -91,15 +91,15 @@ export function ClauxenCodeSettings({
   };
 
   return (
-    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Clauxen Code</SettingsPanelTitle>
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="settings-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <h2 className="text-[16px] font-semibold">Clauxen Code</h2>
-          <p className="mt-1 max-w-xl text-[14px] leading-relaxed text-zinc-600">
+          <p className="mt-1 max-w-xl text-[14px] leading-relaxed text-[var(--settings-fg-muted)]">
             Sign in from the terminal with{" "}
-            <code className="rounded bg-zinc-200/80 px-1 py-0.5 text-[12px]">
+            <code className="rounded bg-[var(--settings-icon-bg)] px-1 py-0.5 text-[12px]">
               clauxen
             </code>{" "}
             (browser OAuth) or create an authorization token below for API-key
@@ -107,13 +107,13 @@ export function ClauxenCodeSettings({
           </p>
           <a
             href="/new#pricing"
-            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full bg-zinc-900 px-4 text-[13px] font-medium text-white transition-colors hover:bg-zinc-800"
+            className="settings-btn settings-btn--primary mt-3"
           >
             Upgrade to Max or Pro
             <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           </a>
         </div>
-        <div className="hidden shrink-0 rounded-xl border border-zinc-200 bg-zinc-900 px-4 py-3 font-mono text-[11px] text-zinc-100 sm:block">
+        <div className="hidden shrink-0 rounded-xl border border-[var(--settings-input-border)] bg-zinc-900 px-4 py-3 font-mono text-[11px] text-zinc-100 sm:block">
           <p className="text-zinc-400">&gt; Fix the auth bug in signup flow</p>
           <p className="mt-1 text-rose-400">* Contemplating…</p>
         </div>
@@ -140,7 +140,7 @@ export function ClauxenCodeSettings({
       </SettingsSection>
 
       <SettingsSection title="Code appearance">
-        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 px-[var(--settings-row-pad-x)] pt-[var(--settings-row-pad-y)] sm:grid-cols-2">
           <SettingsOptionPicker
             value="Clauxen Light"
             options={["Clauxen Light", "GitHub Light", "Solarized Light"]}
@@ -154,7 +154,7 @@ export function ClauxenCodeSettings({
             aria-label="Dark code theme"
           />
         </div>
-        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 px-[var(--settings-row-pad-x)] py-4 sm:grid-cols-2">
           <CodeDiffPreview theme="light" />
           <CodeDiffPreview theme="dark" />
         </div>
@@ -168,7 +168,7 @@ export function ClauxenCodeSettings({
             value={prefs.codeFont}
             onChange={(e) => patchPrefs({ codeFont: e.target.value })}
             placeholder="e.g. JetBrains Mono"
-            className="h-9 w-full max-w-[14rem] rounded-lg border border-zinc-200 bg-white px-3 text-[13px] outline-none focus:border-zinc-400"
+            className="settings-field max-w-[14rem]"
           />
         </SettingsRow>
       </SettingsSection>
@@ -215,7 +215,7 @@ export function ClauxenCodeSettings({
             type="text"
             value={prefs.branchPrefix}
             onChange={(e) => patchPrefs({ branchPrefix: e.target.value })}
-            className="h-9 w-28 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] outline-none focus:border-zinc-400"
+            className="settings-field w-28"
           />
         </SettingsRow>
         <SettingsToggleRow
@@ -236,19 +236,19 @@ export function ClauxenCodeSettings({
       </SettingsSection>
 
       <SettingsSection title="Authorization tokens">
-        <p className="mb-3 text-[13px] leading-snug text-zinc-500">
+        <p className="px-[var(--settings-row-pad-x)] pt-[var(--settings-row-pad-y)] text-[13px] leading-snug text-[var(--settings-fg-muted)]">
           Created when you sign in to Clauxen Code. Revoke a token to sign out
           from that device.
         </p>
 
-        <div className="mb-3 flex items-center justify-end">
+        <div className="flex items-center justify-end px-[var(--settings-row-pad-x)] py-3">
           <SettingsPillButton onClick={() => void handleCreate()}>
             Create token
           </SettingsPillButton>
         </div>
 
         {createdKey ? (
-          <div className="mb-3 rounded-xl border border-green-500/30 bg-green-50 p-4 text-sm">
+          <div className="mx-[var(--settings-row-pad-x)] mb-3 rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-sm">
             <p className="mb-2 font-medium">
               Copy your key now — it won&apos;t be shown again:
             </p>
@@ -256,9 +256,9 @@ export function ClauxenCodeSettings({
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-xl border border-zinc-200">
+        <div className="border-t border-[var(--settings-hairline)]">
           <table className="w-full text-left text-[13px]">
-            <thead className="bg-zinc-50 text-zinc-500">
+            <thead className="bg-[var(--settings-sidebar-bg)] text-[var(--settings-fg-muted)]">
               <tr>
                 <th className="px-4 py-2.5 font-medium">Application</th>
                 <th className="px-4 py-2.5 font-medium">Scopes</th>
@@ -270,7 +270,7 @@ export function ClauxenCodeSettings({
                 <tr>
                   <td
                     colSpan={3}
-                    className="px-4 py-8 text-center text-zinc-500"
+                    className="px-4 py-8 text-center text-[var(--settings-fg-muted)]"
                   >
                     Loading…
                   </td>
@@ -279,7 +279,7 @@ export function ClauxenCodeSettings({
                 <tr>
                   <td
                     colSpan={3}
-                    className="px-4 py-8 text-center text-zinc-500"
+                    className="px-4 py-8 text-center text-[var(--settings-fg-muted)]"
                   >
                     No connected Clauxen Code instances. When you sign in to
                     Clauxen Code, your authorization tokens will appear here.
@@ -287,9 +287,14 @@ export function ClauxenCodeSettings({
                 </tr>
               ) : (
                 keys.map((key) => (
-                  <tr key={key.id} className="border-t border-zinc-100">
+                  <tr
+                    key={key.id}
+                    className="border-t border-[var(--settings-hairline)]"
+                  >
                     <td className="px-4 py-3 font-medium">{key.name}</td>
-                    <td className="px-4 py-3 text-zinc-600">api</td>
+                    <td className="px-4 py-3 text-[var(--settings-fg-muted)]">
+                      api
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <button
                         type="button"
@@ -307,30 +312,30 @@ export function ClauxenCodeSettings({
         </div>
       </SettingsSection>
 
-      <div className="border-t border-zinc-100 pt-6">
-        <h3 className="mb-3 text-[15px] font-semibold">
-          Clauxen Code (CLI, Desktop, IDE)
-        </h3>
-        <div className="flex min-h-[72px] items-start justify-between gap-4">
-          <div className="min-w-0 flex-1 pr-4">
-            <p className="text-[14px] font-medium">
-              Delete sessions stored by Clauxen
-            </p>
-            <p className="mt-1 text-[13px] leading-snug text-zinc-500">
+      <SettingsSection title="Clauxen Code (CLI, Desktop, IDE)">
+        <SettingsRow
+          label="Delete sessions stored by Clauxen"
+          description={
+            <>
               Removes cloud-stored session history for Clauxen Code. Local
               transcripts on your devices are not affected.{" "}
-              <a href="/legal/privacy" className="text-[#1b67b2] hover:underline">
+              <a
+                href="/legal/privacy"
+                className="font-medium text-[var(--settings-fg)] underline underline-offset-2"
+              >
                 Learn more
               </a>
               .
-            </p>
-          </div>
-          <SettingsPillButton>
+            </>
+          }
+          borderless
+        >
+          <SettingsPillButton variant="danger">
             Delete…
             <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
           </SettingsPillButton>
-        </div>
-      </div>
+        </SettingsRow>
+      </SettingsSection>
     </div>
   );
 }
@@ -351,19 +356,11 @@ function SegmentedRow({
   borderless?: boolean;
 }) {
   return (
-    <div
-      className={
-        borderless
-          ? "flex min-h-[72px] items-start justify-between gap-4 py-3"
-          : "flex min-h-[72px] items-start justify-between gap-4 border-b border-zinc-100 py-3"
-      }
+    <SettingsRow
+      label={label}
+      description={description}
+      borderless={borderless}
     >
-      <div className="min-w-0 flex-1 pr-4">
-        <p className="text-[14px] font-medium">{label}</p>
-        <p className="mt-1 text-[13px] leading-snug text-zinc-500">
-          {description}
-        </p>
-      </div>
       <div className={segmentedTrackClass}>
         {options.map((option) => {
           const active = value === option;
@@ -379,7 +376,7 @@ function SegmentedRow({
           );
         })}
       </div>
-    </div>
+    </SettingsRow>
   );
 }
 
@@ -390,19 +387,21 @@ function CodeDiffPreview({ theme }: { theme: "light" | "dark" }) {
       className={
         dark
           ? "overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 p-3 font-mono text-[11px] leading-5 text-zinc-200"
-          : "overflow-hidden rounded-xl border border-zinc-200 bg-white p-3 font-mono text-[11px] leading-5 text-zinc-800"
+          : "overflow-hidden rounded-xl border border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] p-3 font-mono text-[11px] leading-5 text-[var(--settings-fg)]"
       }
     >
       <code>
-        <span className="text-zinc-400">1 </span>
+        <span className="text-[var(--settings-fg-subtle)]">1 </span>
         {"function greet(name: string) {\n"}
         <span
           className={
-            dark ? "block bg-rose-950/60 text-rose-300" : "block bg-rose-50 text-rose-700"
+            dark
+              ? "block bg-rose-950/60 text-rose-300"
+              : "block bg-rose-50 text-rose-700"
           }
         >
-          <span className="text-zinc-400">2 </span>
-          {"-   return \"Hello, \" + name;"}
+          <span className="text-[var(--settings-fg-subtle)]">2 </span>
+          {'-   return "Hello, " + name;'}
         </span>
         <span
           className={
@@ -411,10 +410,10 @@ function CodeDiffPreview({ theme }: { theme: "light" | "dark" }) {
               : "block bg-emerald-50 text-emerald-700"
           }
         >
-          <span className="text-zinc-400">2 </span>
+          <span className="text-[var(--settings-fg-subtle)]">2 </span>
           {"+   return `Hello, ${name}!`;"}
         </span>
-        <span className="text-zinc-400">3 </span>
+        <span className="text-[var(--settings-fg-subtle)]">3 </span>
         {"}"}
       </code>
     </pre>

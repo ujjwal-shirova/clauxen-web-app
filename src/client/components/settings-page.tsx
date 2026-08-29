@@ -4,6 +4,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import {
   isSettingsTab,
+  settingsTabDescriptions,
   type SettingsTab,
 } from "@/components/settings/constants";
 import { SettingsNavSidebar } from "@/components/settings/settings-nav-sidebar";
@@ -64,6 +65,7 @@ export function SettingsModal({
   onTabChange,
 }: SettingsModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
   const { refresh: refreshAuth } = useAuth();
   const {
     general: preferenceGeneral,
@@ -102,6 +104,7 @@ export function SettingsModal({
 
   const handleTabChange = (tab: SettingsTab) => {
     setActiveTab(tab);
+    contentScrollRef.current?.scrollTo({ top: 0 });
     onTabChange?.(tab);
   };
 
@@ -119,7 +122,32 @@ export function SettingsModal({
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter(
+        (element) =>
+          element.getClientRects().length > 0 &&
+          element.getAttribute("aria-hidden") !== "true",
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -371,7 +399,7 @@ export function SettingsModal({
 
   return (
     <FullscreenPortal>
-      <div className="fixed inset-0 z-[200]" role="presentation">
+      <div className="settings-theme fixed inset-0 z-[200]" role="presentation">
         {/*
         Div (not button): global button:hover forces background-color to near-transparent
         and washed out the settings backdrop on hover outside the dialog.
@@ -379,7 +407,10 @@ export function SettingsModal({
         <div
           aria-hidden
           data-settings-washout
-          className={cn(chrome.overlay.scrim, "cursor-default max-md:opacity-95")}
+          className={cn(
+            chrome.overlay.scrim,
+            "cursor-default max-md:opacity-95",
+          )}
           onClick={onClose}
         />
 
@@ -403,24 +434,19 @@ export function SettingsModal({
             Manage your Clauxen account and application preferences.
           </p>
 
-          <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch">
-            <div className="shrink-0 border-b border-[var(--ui-border)] bg-[var(--app-shell-bg)] px-4 py-3 md:hidden">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[12px] leading-[14px] text-zinc-500">
-                    Settings
-                  </p>
-                  <h2 className="app-page-section-title truncate">
-                    {activeTab}
-                  </h2>
-                </div>
+          <div className="flex min-h-0 flex-1 flex-col bg-[var(--settings-canvas-bg)] md:flex-row md:items-stretch">
+            <div className="shrink-0 border-b border-[var(--settings-modal-border)] bg-[var(--settings-sidebar-bg)] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
+              <div className="mb-3 flex h-8 items-center justify-between gap-3">
+                <h2 className="truncate text-[18px] font-semibold tracking-[-0.02em] text-[var(--settings-fg)]">
+                  Settings
+                </h2>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="ui-icon-button shrink-0 text-zinc-700 transition-colors hover:bg-[var(--ui-hover-wash)]"
+                  className="ui-icon-button no-hover-overlay shrink-0 text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
                   aria-label="Close settings"
                 >
-                  <X className="icon-lg" strokeWidth={1.75} />
+                  <X className="icon-lg" strokeWidth={1.8} />
                 </button>
               </div>
               <SettingsNavSidebar
@@ -430,27 +456,43 @@ export function SettingsModal({
               />
             </div>
 
-            <aside className="hidden min-h-0 shrink-0 bg-[var(--app-shell-bg)] md:flex md:w-[192px] md:flex-col md:border-r md:border-[var(--ui-border)] md:p-3">
+            <aside className="hidden min-h-0 shrink-0 bg-[var(--settings-sidebar-bg)] md:flex md:w-[256px] md:flex-col md:border-r md:border-[var(--settings-modal-border)] md:px-3 md:pb-3 md:pt-5">
+              <div className="mb-4 flex h-9 items-center px-2">
+                <h2 className="text-[20px] font-semibold tracking-[-0.025em] text-[var(--settings-fg)]">
+                  Settings
+                </h2>
+              </div>
               <SettingsNavSidebar
                 activeTab={activeTab}
                 onTabChange={handleTabChange}
               />
             </aside>
 
-            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--settings-canvas-bg)] settings-canvas">
-              <button
-                type="button"
-                onClick={onClose}
-                className="ui-icon-button absolute right-3 top-3 z-10 hidden text-[var(--settings-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--settings-fg)] md:inline-flex"
-                aria-label="Close settings"
-              >
-                <X className="icon-lg" strokeWidth={1.75} />
-              </button>
+            <main className="settings-canvas relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--settings-canvas-bg)]">
+              <header className="hidden shrink-0 items-start justify-between gap-8 border-b border-[var(--settings-modal-border)] px-8 py-6 md:flex">
+                <div className="min-w-0">
+                  <h2 className="text-[20px] font-semibold leading-7 tracking-[-0.025em] text-[var(--settings-fg)]">
+                    {activeTab}
+                  </h2>
+                  <p className="mt-0.5 max-w-[620px] text-[13px] leading-[19px] text-[var(--settings-fg-muted)]">
+                    {settingsTabDescriptions[activeTab]}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="ui-icon-button no-hover-overlay mt-0.5 h-8 w-8 shrink-0 rounded-lg text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
+                  aria-label="Close settings"
+                >
+                  <X className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                </button>
+              </header>
 
               <div
+                ref={contentScrollRef}
                 data-scroll-region=""
                 className={cn(
-                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 md:px-6 md:pb-6 md:pt-10",
+                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 sm:px-7 md:px-8 md:pb-12 md:pt-7",
                 )}
                 aria-busy={contentHydrating || undefined}
               >
@@ -461,11 +503,13 @@ export function SettingsModal({
                   )}
                 >
                   <SettingsTabErrorBoundary tabLabel={activeTab}>
-                    {renderActiveTab()}
+                    <div key={activeTab} className="settings-panel-enter">
+                      {renderActiveTab()}
+                    </div>
                   </SettingsTabErrorBoundary>
                 </div>
               </div>
-            </div>
+            </main>
           </div>
         </div>
       </div>

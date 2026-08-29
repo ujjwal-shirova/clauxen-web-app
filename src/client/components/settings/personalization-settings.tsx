@@ -47,20 +47,14 @@ function CharacteristicRow({
   borderless?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "flex min-h-[44px] items-center justify-between gap-4 py-2.5",
-        !borderless && "border-b border-[rgba(11,11,11,0.05)]",
-      )}
-    >
-      <p className="text-[14px] leading-5 text-zinc-900">{label}</p>
+    <SettingsRow label={label} borderless={borderless}>
       <SettingsOptionPicker
         value={value || "Default"}
         options={options}
         onValueChange={onChange}
         aria-label={`${label}: ${value || "Default"}`}
       />
-    </div>
+    </SettingsRow>
   );
 }
 
@@ -75,11 +69,8 @@ export function PersonalizationSettingsPanel({
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Personalization</SettingsPanelTitle>
-      <h2 className="mb-5 text-[20px] font-semibold tracking-tight text-zinc-900">
-        Personalization
-      </h2>
 
       <SettingsSection title="Style">
         <SettingsRow
@@ -95,10 +86,10 @@ export function PersonalizationSettingsPanel({
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection title="Characteristics">
-        <p className="mb-1 text-[13px] leading-snug text-zinc-500">
-          Choose additional customizations on top of your base style and tone.
-        </p>
+      <SettingsSection
+        title="Characteristics"
+        description="Choose additional customizations on top of your base style and tone."
+      >
         <CharacteristicRow
           label="Warm"
           value={p.characteristicWarm}
@@ -157,28 +148,23 @@ export function PersonalizationSettingsPanel({
             onChange({ referenceChatHistory })
           }
         />
-        <div className="flex min-h-[56px] items-center justify-between gap-4 border-b border-[rgba(11,11,11,0.05)] py-3">
-          <div className="min-w-0 flex-1 pr-3">
-            <p className="text-[14px] font-medium text-zinc-900">
-              Manage memories
-            </p>
-            <p className="mt-0.5 text-[13px] leading-snug text-zinc-500">
-              Review or delete saved memories.
-            </p>
-          </div>
+        <SettingsRow
+          label="Manage memories"
+          description="Review or delete saved memories."
+        >
           <button
             type="button"
             onClick={onManageMemory}
-            className="inline-flex h-8 shrink-0 items-center rounded-lg border border-zinc-200 bg-white px-3.5 text-[13px] font-medium text-zinc-900 transition-colors hover:bg-zinc-50"
+            className="settings-btn"
           >
             Manage
           </button>
-        </div>
-        <p className="pt-3 text-[12px] leading-relaxed text-zinc-500">
+        </SettingsRow>
+        <p className="px-[var(--settings-row-pad-x)] py-3 text-[12px] leading-[18px] text-[var(--settings-fg-muted)]">
           Clauxen may use Memory to personalize queries to search providers.{" "}
           <a
             href="/legal/privacy"
-            className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-800"
+            className="underline underline-offset-2 hover:text-[var(--settings-fg)]"
           >
             Learn more
           </a>
@@ -190,14 +176,14 @@ export function PersonalizationSettingsPanel({
           type="button"
           onClick={() => setAdvancedOpen((open) => !open)}
           aria-expanded={advancedOpen}
-          className="no-hover-overlay flex w-full items-center justify-between gap-3 py-1 text-left"
+          className="no-hover-overlay flex w-full items-center justify-between gap-3 px-[var(--settings-row-pad-x)] py-[var(--settings-row-pad-y)] text-left"
         >
-          <h3 className="text-[15px] font-semibold leading-5 text-zinc-900">
+          <h3 className="text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
             Advanced
           </h3>
           <ChevronDown
             className={cn(
-              "h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200",
+              "h-4 w-4 shrink-0 text-[var(--settings-fg-muted)] transition-transform duration-200",
               advancedOpen && "rotate-180",
             )}
             aria-hidden
@@ -205,7 +191,7 @@ export function PersonalizationSettingsPanel({
         </button>
 
         {advancedOpen ? (
-          <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="border-t border-[var(--settings-hairline)]">
             <SettingsToggleRow
               label="Web search"
               description="Let Clauxen automatically search the web for answers."

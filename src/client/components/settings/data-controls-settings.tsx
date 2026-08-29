@@ -49,18 +49,20 @@ export function DataControlsSettings() {
   };
 
   return (
-    <div className="flex animate-in fade-in flex-col gap-2 duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col gap-2 duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Data controls</SettingsPanelTitle>
 
-      <div className="flex min-h-[60px] items-center justify-between gap-4 border-b border-[#0d0d0d]/5 py-3">
-        <span className="text-[14px] font-[430] text-zinc-900">Export data</span>
+      <div className="flex min-h-[60px] items-center justify-between gap-4 border-b border-[var(--settings-hairline)] px-[var(--settings-row-pad-x)] py-3">
+        <span className="text-[14px] font-[430] text-[var(--settings-fg)]">
+          Export data
+        </span>
         <SettingsPillButton onClick={() => void handleExport()}>
           {exporting ? "Requesting…" : "Export"}
         </SettingsPillButton>
       </div>
 
-      <div className="flex min-h-[60px] items-center justify-between gap-4 border-b border-[#0d0d0d]/5 py-3">
-        <span className="text-[14px] font-[430] text-zinc-900">
+      <div className="flex min-h-[60px] items-center justify-between gap-4 border-b border-[var(--settings-hairline)] px-[var(--settings-row-pad-x)] py-3">
+        <span className="text-[14px] font-[430] text-[var(--settings-fg)]">
           Delete account & data
         </span>
         <SettingsPillButton

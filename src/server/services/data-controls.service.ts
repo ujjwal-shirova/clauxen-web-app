@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { AppError } from "@/server/db/errors";
 import * as dataControlsRepo from "@/server/repositories/data-controls.repository";
+import { purgeCookieDataForUser } from "@/server/services/cookie-consent.service";
 
 export async function requestDataExport(
   userId: string,
@@ -37,6 +38,8 @@ export async function requestDataDeletion(
   });
 
   if (!request) throw new AppError("Failed to create deletion request.", 500);
+
+  await purgeCookieDataForUser(userId);
 
   // ponytail: verification email/worker not wired — token returned once for dev flow.
   return { request, verificationToken };

@@ -23,25 +23,29 @@ import {
 
 export function SettingsSection({
   title,
+  description,
   children,
   className,
   card = true,
 }: {
   title?: string;
+  description?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   /** Wrap children in a settings card. Default true. */
   card?: boolean;
 }) {
   return (
-    <section
-      className={cn(
-        "mb-4 flex flex-col gap-2 last:mb-0 sm:mb-4",
-        className,
-      )}
-    >
-      {title ? (
-        <h3 className="settings-section-label px-0.5">{title}</h3>
+    <section className={cn("mb-7 flex flex-col gap-2.5 last:mb-0", className)}>
+      {title || description ? (
+        <div className="px-0.5">
+          {title ? <h3 className="settings-section-label">{title}</h3> : null}
+          {description ? (
+            <p className="settings-muted mt-1 max-w-[640px] text-pretty">
+              {description}
+            </p>
+          ) : null}
+        </div>
       ) : null}
       {card ? <div className="settings-card">{children}</div> : children}
     </section>
@@ -66,8 +70,8 @@ export function SettingsPanelHeaderWithHelp({
   helpLabel?: string;
 }) {
   return (
-    <div className="mb-4 grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
-      <h2 className="text-[13px] font-medium leading-5 text-[var(--settings-fg)]">
+    <div className="mb-5 grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
+      <h2 className="text-[15px] font-semibold leading-5 tracking-[-0.01em] text-[var(--settings-fg)]">
         {title}
       </h2>
       <a
@@ -84,7 +88,7 @@ export function SettingsPanelHeaderWithHelp({
 }
 
 const settingsRowBase =
-  "relative flex flex-col items-stretch gap-2.5 px-[var(--settings-row-pad-x)] py-[var(--settings-row-pad-y)] sm:flex-row sm:items-center sm:gap-[var(--settings-row-gap)]";
+  "relative flex flex-col items-stretch gap-3 px-[var(--settings-row-pad-x)] py-[var(--settings-row-pad-y)] sm:flex-row sm:items-center sm:gap-[var(--settings-row-gap)]";
 
 const settingsRowHairline =
   "before:pointer before:left-[var(--settings-row-pad-x)] before:right-[var(--settings-row-pad-x)] before:top-0 before:h-px before:bg-[var(--settings-hairline)] first:before:hidden";
@@ -102,10 +106,11 @@ export function SettingsValueRow({
     <div
       className={cn(
         settingsRowBase,
+        "!flex-row !items-center",
         !borderless && settingsRowHairline,
       )}
     >
-      <span className="min-w-0 flex-1 text-[13px] leading-5 text-[var(--settings-fg)]">
+      <span className="min-w-0 flex-1 text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
         {label}
       </span>
       <span className="settings-muted min-w-0 flex-1 truncate sm:text-right">
@@ -144,7 +149,7 @@ export function SettingsSectionHeading({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-2 flex items-center justify-between gap-3 px-0.5">
+    <div className="mb-2.5 flex items-center justify-between gap-3 px-0.5">
       <h3 className="settings-section-label">{children}</h3>
       {action}
     </div>
@@ -174,14 +179,14 @@ export function SettingsRow({
       role="group"
     >
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] leading-5 text-[var(--settings-fg)]">
+        <div className="text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
           {label}
         </div>
         {description ? (
           <div className="settings-muted mt-0.5 text-pretty">{description}</div>
         ) : null}
       </div>
-      <div className="flex w-full min-w-0 justify-end sm:w-auto sm:shrink-0 sm:flex-1 [&_button]:max-w-full sm:[&_button]:max-w-none">
+      <div className="flex w-full min-w-0 justify-start sm:w-auto sm:shrink-0 sm:flex-1 sm:justify-end [&_button]:max-w-full sm:[&_button]:max-w-none">
         {children}
       </div>
     </div>
@@ -209,26 +214,28 @@ function normalizeSettingsOptions(
 const settingsFocusReset =
   "outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0";
 
-const settingsOptionMenuContentClass =
-  cn(chrome.overlay.panel, "z-[120] min-w-[14rem] max-w-[20rem] p-1 text-zinc-900 dark:text-zinc-100");
+const settingsOptionMenuContentClass = cn(
+  chrome.overlay.panel,
+  "settings-theme z-[220] min-w-[15rem] max-w-[22rem] rounded-xl border border-[var(--settings-modal-border)] bg-[var(--settings-elevated-bg)] p-1.5 text-[var(--settings-fg)] shadow-[var(--settings-modal-shadow)]",
+);
 
 const settingsOptionTriggerClass = cn(
-  "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] w-full shrink-0 justify-between gap-1.5 px-2 text-[13px] leading-[18px] sm:w-auto sm:justify-start",
-  "bg-[var(--settings-card-bg)] text-[var(--settings-fg)] hover:bg-[var(--settings-card-bg)] data-[state=open]:shadow-[inset_0_0_0_1px_color-mix(in_oklab,#18181b_18%,transparent)]",
+  "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] w-full shrink-0 justify-between gap-2 px-3 text-[13px] font-medium leading-[18px] sm:w-auto sm:justify-start",
+  "text-[var(--settings-fg)] data-[state=open]:bg-[var(--settings-elevated-bg)] data-[state=open]:shadow-[inset_0_0_0_1px_var(--settings-input-focus),0_0_0_3px_var(--settings-focus-ring)]",
   settingsFocusReset,
 );
 
 const settingsOptionMenuItemClass = cn(
-  "flex cursor-pointer select-none items-start gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-[13px] font-medium leading-[18px] text-zinc-900 transition-colors hover:bg-[var(--ui-hover-wash)] focus:bg-[var(--ui-hover-wash)] focus:text-zinc-900 data-[highlighted]:bg-[var(--ui-hover-wash)] data-[highlighted]:text-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800 dark:data-[highlighted]:bg-zinc-800",
+  "flex cursor-pointer select-none items-start gap-2.5 rounded-[10px] px-3 py-2.5 text-[13px] font-medium leading-[18px] text-[var(--settings-fg)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] focus:bg-[var(--settings-nav-hover-bg)] focus:text-[var(--settings-fg)] data-[highlighted]:bg-[var(--settings-nav-hover-bg)] data-[highlighted]:text-[var(--settings-fg)]",
   settingsFocusReset,
 );
 
 /** Radio circles in settings panels — Clauxen charcoal, no blue focus ring. */
 export const settingsRadioItemClass = cn(
-  "no-hover-overlay mt-0.5 border-2 border-zinc-300 text-[#0d0d0d]",
-  "hover:border-zinc-400 data-[state=checked]:hover:border-[#0d0d0d]",
-  "data-[state=checked]:border-[#0d0d0d]",
-  "focus-visible:ring-2 focus-visible:ring-[#0d0d0d]/20",
+  "no-hover-overlay mt-0.5 h-[18px] w-[18px] border-2 border-[var(--settings-input-border)] text-[var(--settings-fg)]",
+  "hover:border-[var(--settings-input-focus)] data-[state=checked]:hover:border-[var(--settings-fg)]",
+  "data-[state=checked]:border-[var(--settings-fg)]",
+  "focus-visible:ring-4 focus-visible:ring-[var(--settings-focus-ring)]",
   settingsFocusReset,
 );
 
@@ -275,7 +282,10 @@ export function SettingsOptionPicker({
           >
             {selected.label ?? selected.value}
           </span>
-          <ChevronDown className="icon-md shrink-0 text-zinc-500" aria-hidden />
+          <ChevronDown
+            className="icon-md shrink-0 text-[var(--settings-fg-muted)]"
+            aria-hidden
+          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -306,14 +316,14 @@ export function SettingsOptionPicker({
                   {item.label ?? item.value}
                 </span>
                 {item.description ? (
-                  <span className="mt-0.5 block text-[12px] leading-4 text-zinc-500">
+                  <span className="mt-0.5 block text-[12px] leading-4 text-[var(--settings-fg-muted)]">
                     {item.description}
                   </span>
                 ) : null}
               </span>
               {isSelected ? (
                 <Check
-                  className="icon-md mt-0.5 shrink-0 text-zinc-900"
+                  className="icon-md mt-0.5 shrink-0 text-[var(--settings-fg)]"
                   aria-hidden
                 />
               ) : (
@@ -354,7 +364,10 @@ export function SettingsSelectButton({
     >
       {leading}
       <span>{value}</span>
-      <ChevronDown className="icon-md text-zinc-500" aria-hidden />
+      <ChevronDown
+        className="icon-md text-[var(--settings-fg-muted)]"
+        aria-hidden
+      />
     </button>
   );
 }
@@ -403,14 +416,15 @@ export function SettingsToggleRow({
       label={label}
       description={description}
       borderless={borderless}
+      className="!flex-row !items-center [&>div:last-child]:!w-auto [&>div:last-child]:!flex-none [&>div:last-child]:!justify-end"
     >
       <Switch
         checked={checked}
         onCheckedChange={onCheckedChange}
         disabled={disabled}
         className={cn(
-          "settings-switch h-5 w-[34px] border-2 border-transparent data-[state=unchecked]:bg-[var(--settings-switch-track)] data-[state=checked]:bg-[var(--settings-fg)]",
-          "[&>span]:h-4 [&>span]:w-4 data-[state=checked]:[&>span]:translate-x-[14px]",
+          "settings-switch h-[22px] w-[38px] border-2 border-transparent data-[state=unchecked]:bg-[var(--settings-switch-track)] data-[state=checked]:bg-[var(--settings-fg)]",
+          "[&>span]:h-[18px] [&>span]:w-[18px] data-[state=checked]:[&>span]:translate-x-4",
         )}
       />
     </SettingsRow>
@@ -438,7 +452,7 @@ export function SettingsTextarea({
       rows={rows}
       maxLength={maxLength}
       className={cn(
-        "settings-field min-h-[72px] resize-none py-2",
+        "settings-field min-h-[88px] resize-none py-2.5",
         settingsFocusReset,
       )}
     />
@@ -498,7 +512,7 @@ export function SettingsPillButton({
 }: {
   children: React.ReactNode;
   onClick?: () => void;
-  variant?: "default" | "danger" | "ghost";
+  variant?: "default" | "primary" | "danger" | "ghost";
   className?: string;
   disabled?: boolean;
 }) {
@@ -509,8 +523,9 @@ export function SettingsPillButton({
       disabled={disabled}
       className={cn(
         "no-hover-overlay settings-btn shrink-0",
+        variant === "primary" && "settings-btn--primary",
         variant === "danger" &&
-          "text-[#e02e2a] shadow-[inset_0_0_0_1px_rgba(224,46,42,0.35)] hover:bg-[#e02e2a]/5",
+          "text-[var(--settings-danger)] shadow-[inset_0_0_0_1px_rgba(217,45,32,0.35)] hover:bg-[var(--settings-danger-soft)]",
         variant === "ghost" && "settings-btn--muted shadow-none",
         settingsFocusReset,
         className,
@@ -556,12 +571,12 @@ export function SettingsChevronRow({
       className={cn(
         "no-hover-overlay",
         settingsRowBase,
-        "w-full text-left transition-colors hover:bg-[var(--ui-hover-wash)]",
+        "!flex-row !items-center w-full text-left transition-colors hover:bg-[var(--settings-nav-hover-bg)]",
         settingsFocusReset,
         !borderless && settingsRowHairline,
       )}
     >
-      <span className="min-w-0 flex-1 text-[13px] leading-5 text-[var(--settings-fg)]">
+      <span className="min-w-0 flex-1 text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
         {label}
       </span>
       <span className="settings-muted flex shrink-0 items-center gap-1">
@@ -585,10 +600,11 @@ export function SettingsManageRow({
     <div
       className={cn(
         settingsRowBase,
+        "!flex-row !items-center",
         !borderless && settingsRowHairline,
       )}
     >
-      <span className="min-w-0 flex-1 text-[13px] leading-5 text-[var(--settings-fg)]">
+      <span className="min-w-0 flex-1 text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
         {label}
       </span>
       <SettingsPillButton onClick={onManage}>Manage</SettingsPillButton>
@@ -606,9 +622,10 @@ export function SettingsStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex rounded-md px-2 py-0.5 text-[13px] font-medium leading-[18px]",
-        tone === "success" && "bg-emerald-50 text-emerald-700",
-        tone === "info" && "bg-blue-50 text-blue-700",
+        "inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold leading-4",
+        tone === "success" &&
+          "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+        tone === "info" && "bg-blue-500/10 text-blue-700 dark:text-blue-300",
       )}
     >
       {children}
@@ -630,7 +647,7 @@ export function SettingsProgressBar({
     <div className="flex flex-col gap-3">
       <p className="app-page-body font-semibold">{label}</p>
       <div
-        className="relative h-3 overflow-hidden rounded-full border border-zinc-100 bg-zinc-200"
+        className="relative h-2 overflow-hidden rounded-full bg-[var(--settings-switch-track)]"
         role="progressbar"
         aria-valuenow={value}
         aria-valuemin={0}
@@ -638,7 +655,7 @@ export function SettingsProgressBar({
         aria-label={label}
       >
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-zinc-900"
+          className="absolute inset-y-0 left-0 rounded-full bg-[var(--settings-fg)]"
           style={{ width: `${Math.max(pct, 0.5)}%` }}
         />
       </div>
@@ -654,11 +671,9 @@ export function SettingsFieldBlock({
   value: string;
 }) {
   return (
-    <div className="border-b border-zinc-200 py-3 last:border-b-0">
+    <div className="border-b border-[var(--settings-hairline)] py-3 last:border-b-0">
       <p className="app-page-body">{label}</p>
-      <p className="app-page-muted mt-1 whitespace-pre-line">
-        {value || "—"}
-      </p>
+      <p className="app-page-muted mt-1 whitespace-pre-line">{value || "—"}</p>
     </div>
   );
 }
@@ -672,7 +687,7 @@ export function SettingsIconMenuButton({
     <button
       type="button"
       aria-label={ariaLabel}
-      className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+      className="rounded-lg p-1.5 text-[var(--settings-fg-subtle)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
     >
       <MoreHorizontal className="icon-lg" />
     </button>

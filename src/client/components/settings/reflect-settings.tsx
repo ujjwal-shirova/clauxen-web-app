@@ -25,16 +25,13 @@ export function ReflectSettings({
   onRefresh,
 }: ReflectSettingsProps) {
   return (
-    <div className="flex min-h-full animate-in fade-in flex-col duration-300 text-zinc-900">
+    <div className="flex min-h-full animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Reflect</SettingsPanelTitle>
 
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-[20px] font-semibold tracking-tight">Reflect</h2>
-          <p className="mt-1 text-[14px] text-zinc-500">
-            Based on your conversations in Clauxen chat.
-          </p>
-        </div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[14px] text-[var(--settings-fg-muted)]">
+          Based on your conversations in Clauxen chat.
+        </p>
         <div className="flex items-center gap-2">
           <SettingsOptionPicker
             value={range}
@@ -44,7 +41,7 @@ export function ReflectSettings({
           <button
             type="button"
             onClick={onRefresh}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--settings-fg-muted)] transition-colors hover:bg-[var(--settings-nav-hover-bg)]"
             aria-label="Refresh reflect"
           >
             <RefreshCw className="size-5" />
@@ -52,11 +49,11 @@ export function ReflectSettings({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 py-16 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 text-zinc-400">
+      <div className="settings-card flex flex-1 flex-col items-center justify-center gap-2.5 px-6 py-14 text-center">
+        <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--settings-icon-bg)] text-[var(--settings-fg-muted)]">
           <svg
-            width="40"
-            height="40"
+            width="28"
+            height="28"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -67,10 +64,10 @@ export function ReflectSettings({
             <path d="M9 8h5M9 11h5M9 14h3" />
           </svg>
         </div>
-        <p className="text-[15px] font-medium text-zinc-800">
+        <p className="text-[14px] font-medium text-[var(--settings-fg)]">
           Surfacing themes and patterns.
         </p>
-        <p className="text-[13px] text-zinc-500">
+        <p className="text-[13px] text-[var(--settings-fg-muted)]">
           This should only take a minute or so.
         </p>
       </div>

@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/billing";
 import { FullscreenPortal } from "@/components/fullscreen-portal";
 import { SettingsPillButton } from "@/components/settings/settings-ui";
+import { Switch } from "@/components/ui/switch";
 
 type ManagePlanDialogProps = {
   open: boolean;
@@ -111,27 +112,29 @@ export function ManagePlanDialog({
 
   return (
     <FullscreenPortal>
-      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/40 p-4">
+      <div className="settings-theme fixed inset-0 z-[220] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="manage-plan-title"
-          className="w-full max-w-md rounded-2xl bg-white shadow-xl"
+          className="w-full max-w-[520px] overflow-hidden rounded-[18px] border border-[var(--settings-modal-border)] bg-[var(--settings-elevated-bg)] text-[var(--settings-fg)] shadow-[var(--settings-modal-shadow)]"
         >
-          <div className="flex items-start justify-between border-b border-zinc-100 px-5 py-4">
+          <div className="flex items-start justify-between border-b border-[var(--settings-hairline)] px-5 py-4">
             <div>
               <h2
                 id="manage-plan-title"
-                className="text-[17px] font-semibold text-zinc-900"
+                className="text-[17px] font-semibold text-[var(--settings-fg)]"
               >
                 Manage plan
               </h2>
-              <p className="mt-0.5 text-[13px] text-zinc-500">{planName}</p>
+              <p className="mt-0.5 text-[13px] text-[var(--settings-fg-muted)]">
+                {planName}
+              </p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+              className="rounded-lg p-1.5 text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
               aria-label="Close"
             >
               <X className="h-4 w-4" />
@@ -141,10 +144,10 @@ export function ManagePlanDialog({
           <div className="flex flex-col gap-5 px-5 py-5">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-[14px] font-medium text-zinc-900">
+                <div className="text-[14px] font-medium text-[var(--settings-fg)]">
                   Auto-renew
                 </div>
-                <p className="mt-0.5 text-[12px] leading-4 text-zinc-500">
+                <p className="mt-0.5 text-[12px] leading-4 text-[var(--settings-fg-muted)]">
                   {autoPay
                     ? renewLabel
                       ? `Renews on ${renewLabel}`
@@ -154,27 +157,17 @@ export function ManagePlanDialog({
                       : "Auto-renew is off."}
                 </p>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={autoPay}
+              <Switch
+                checked={autoPay}
+                onCheckedChange={(checked) => void setAutoRenew(checked)}
                 disabled={busy}
-                onClick={() => void setAutoRenew(!autoPay)}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
-                  autoPay ? "bg-zinc-900" : "bg-zinc-200"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
-                    autoPay ? "left-[22px]" : "left-0.5"
-                  }`}
-                />
-              </button>
+                className="settings-switch"
+              />
             </div>
 
             {confirmCancel ? (
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
-                <p className="text-[13px] leading-5 text-zinc-700">
+              <div className="rounded-xl border border-[var(--settings-input-border)] bg-[var(--settings-sidebar-bg)] px-4 py-3">
+                <p className="text-[13px] leading-5 text-[var(--settings-fg-muted)]">
                   Cancel at the end of the billing period
                   {renewLabel ? ` (${renewLabel})` : ""}. You keep access until
                   then.
@@ -183,14 +176,13 @@ export function ManagePlanDialog({
                   <SettingsPillButton onClick={() => setConfirmCancel(false)}>
                     Keep plan
                   </SettingsPillButton>
-                  <button
-                    type="button"
+                  <SettingsPillButton
+                    variant="danger"
                     disabled={busy}
                     onClick={() => void cancelSubscription()}
-                    className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-4 text-[14px] font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
                   >
                     {busy ? "Canceling…" : "Confirm cancel"}
-                  </button>
+                  </SettingsPillButton>
                 </div>
               </div>
             ) : (
@@ -203,20 +195,17 @@ export function ManagePlanDialog({
                 >
                   Change plan
                 </SettingsPillButton>
-                <button
-                  type="button"
+                <SettingsPillButton
+                  variant="danger"
                   disabled={busy || cancelAtPeriodEnd}
                   onClick={() => setConfirmCancel(true)}
-                  className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 px-4 text-[14px] font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-default disabled:opacity-50"
                 >
                   {cancelAtPeriodEnd ? "Cancellation scheduled" : "Cancel plan"}
-                </button>
+                </SettingsPillButton>
               </div>
             )}
 
-            {error ? (
-              <p className="text-[13px] text-red-600">{error}</p>
-            ) : null}
+            {error ? <p className="text-[13px] text-red-600">{error}</p> : null}
           </div>
         </div>
       </div>

@@ -45,12 +45,11 @@ function CatalogHeader({
   showBrowse = true,
 }: PluginsOrConnectorsHeaderProps) {
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-[20px] font-semibold tracking-tight">{title}</h2>
+    <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
       <div className="flex items-center gap-2">
         <button
           type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)]"
           aria-label={`Search ${title.toLowerCase()}`}
         >
           <Search className="h-4 w-4" />
@@ -120,7 +119,7 @@ export function ConnectorsCatalogSettings({
   };
 
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Connectors</SettingsPanelTitle>
       <CatalogHeader
         title="Connectors"
@@ -129,7 +128,7 @@ export function ConnectorsCatalogSettings({
         addLabel="Add plugin"
       />
 
-      <div className="mb-4 flex gap-1 rounded-[10px] bg-zinc-100/80 p-0.5 w-fit">
+      <div className="mb-4 flex gap-1 rounded-[10px] bg-[var(--settings-icon-bg)]/80 p-0.5 w-fit">
         {FILTERS.map((item) => (
           <button
             key={item}
@@ -138,8 +137,8 @@ export function ConnectorsCatalogSettings({
             className={cn(
               "rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
               filter === item
-                ? "bg-white text-zinc-900 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-800",
+                ? "bg-[var(--settings-elevated-bg)] text-[var(--settings-fg)] shadow-sm"
+                : "text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]",
             )}
           >
             {item}
@@ -147,9 +146,9 @@ export function ConnectorsCatalogSettings({
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200">
+      <div className="settings-card overflow-x-auto">
         <table className="w-full text-left text-[13px]">
-          <thead className="bg-zinc-50 text-zinc-500">
+          <thead className="bg-[var(--settings-sidebar-bg)] text-[var(--settings-fg-muted)]">
             <tr>
               <th className="px-4 py-2.5 font-medium">Connector</th>
               <th className="px-4 py-2.5 font-medium">Type</th>
@@ -158,11 +157,16 @@ export function ConnectorsCatalogSettings({
           </thead>
           <tbody>
             {visibleConnectors.map((row) => (
-              <tr key={row.name} className="border-t border-zinc-100">
-                <td className="px-4 py-3 font-medium text-zinc-900">
+              <tr
+                key={row.name}
+                className="border-t border-[var(--settings-hairline)]"
+              >
+                <td className="px-4 py-3 font-medium text-[var(--settings-fg)]">
                   {row.name}
                 </td>
-                <td className="px-4 py-3 text-zinc-600">{row.type}</td>
+                <td className="px-4 py-3 text-[var(--settings-fg-muted)]">
+                  {row.type}
+                </td>
                 <td className="px-4 py-3">
                   <SettingsPillButton
                     onClick={() => void toggleConnector(row.id)}
@@ -203,7 +207,7 @@ export function PluginsSettings({ onBrowse, onAdd }: PluginsSettingsProps) {
   const [directoryOpen, setDirectoryOpen] = useState(false);
 
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Plugins</SettingsPanelTitle>
       <CatalogHeader
         title="Plugins"
@@ -217,9 +221,9 @@ export function PluginsSettings({ onBrowse, onAdd }: PluginsSettingsProps) {
         onAdd={onAdd ?? (() => setDirectoryOpen(true))}
       />
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200">
+      <div className="settings-card overflow-x-auto">
         <table className="w-full text-left text-[13px]">
-          <thead className="bg-zinc-50 text-zinc-500">
+          <thead className="bg-[var(--settings-sidebar-bg)] text-[var(--settings-fg-muted)]">
             <tr>
               <th className="px-4 py-2.5 font-medium">Plugin</th>
               <th className="px-4 py-2.5 font-medium">Author</th>
@@ -229,13 +233,22 @@ export function PluginsSettings({ onBrowse, onAdd }: PluginsSettingsProps) {
           </thead>
           <tbody>
             {DEMO_PLUGINS.map((plugin) => (
-              <tr key={plugin.name} className="border-t border-zinc-100">
-                <td className="px-4 py-3 font-medium text-zinc-900">
+              <tr
+                key={plugin.name}
+                className="border-t border-[var(--settings-hairline)]"
+              >
+                <td className="px-4 py-3 font-medium text-[var(--settings-fg)]">
                   {plugin.name}
                 </td>
-                <td className="px-4 py-3 text-zinc-600">{plugin.author}</td>
-                <td className="px-4 py-3 text-zinc-600">{plugin.skills}</td>
-                <td className="px-4 py-3 text-zinc-600">{plugin.updated}</td>
+                <td className="px-4 py-3 text-[var(--settings-fg-muted)]">
+                  {plugin.author}
+                </td>
+                <td className="px-4 py-3 text-[var(--settings-fg-muted)]">
+                  {plugin.skills}
+                </td>
+                <td className="px-4 py-3 text-[var(--settings-fg-muted)]">
+                  {plugin.updated}
+                </td>
               </tr>
             ))}
           </tbody>

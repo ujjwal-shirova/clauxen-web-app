@@ -15,10 +15,7 @@ import {
   type BillingAddressDto,
   type PaymentMethodDto,
 } from "@/lib/api/billing";
-import {
-  listPurchasedGifts,
-  type PurchasedGiftRow,
-} from "@/lib/api/gifts";
+import { listPurchasedGifts, type PurchasedGiftRow } from "@/lib/api/gifts";
 import { useAuth } from "@/hooks/use-auth";
 import {
   CARD_BRAND_ICONS,
@@ -152,10 +149,7 @@ export function BillingSettings({
   const planCard = useMemo(() => resolvePlanCard(planId), [planId]);
   const planTitle = formatPlanTitle(planCard, planId);
   const planSubtitle = planCard.subtitle || "See what AI can do";
-  const planFeatures = useMemo(
-    () => resolvePlanFeatures(planCard),
-    [planCard],
-  );
+  const planFeatures = useMemo(() => resolvePlanFeatures(planCard), [planCard]);
 
   const billingName =
     address?.fullName ||
@@ -211,8 +205,7 @@ export function BillingSettings({
     };
   }, [reload]);
 
-  const showUpgrade =
-    cancelAtEnd || !planId || planCard.id === "free";
+  const showUpgrade = cancelAtEnd || !planId || planCard.id === "free";
 
   const openAddressEditor = () => {
     if (address) {
@@ -282,18 +275,21 @@ export function BillingSettings({
   }
 
   return (
-    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900 dark:text-zinc-100">
+    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Billing</SettingsPanelTitle>
 
-      <section className="border-b border-zinc-200 pb-6 dark:border-white/10">
+      <section className="border-b border-[var(--settings-hairline)] pb-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 dark:border-white/10 dark:bg-zinc-900">
-              <Sparkles className="h-4 w-4 text-zinc-700 dark:text-zinc-200" aria-hidden />
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--settings-icon-bg)]">
+              <Sparkles
+                className="h-4 w-4 text-[var(--settings-fg-muted)]"
+                aria-hidden
+              />
             </div>
             <div className="min-w-0">
               <h3 className="text-[18px] font-medium leading-7">{planTitle}</h3>
-              <p className="mt-1 text-[14px] leading-5 text-zinc-500">
+              <p className="mt-1 text-[14px] leading-5 text-[var(--settings-fg-muted)]">
                 {cancelAtEnd && periodEnd
                   ? `Your plan will be canceled on ${formatDate(periodEnd)}`
                   : planSubtitle}
@@ -308,20 +304,21 @@ export function BillingSettings({
               }
               setManagePlanOpen(true);
             }}
-            className="min-w-[140px] !border-zinc-900 !bg-zinc-900 !text-white hover:!bg-zinc-800"
+            variant="primary"
+            className="min-w-[140px]"
           >
             {showUpgrade ? "Upgrade plan" : "Manage plan"}
           </SettingsPillButton>
         </div>
 
-        <ul className="mt-5 space-y-2.5 border-t border-zinc-100 pt-5">
+        <ul className="mt-5 space-y-2.5 border-t border-[var(--settings-hairline)] pt-5">
           {planFeatures.map((feature) => (
             <li
               key={feature}
-              className="flex items-start gap-2.5 text-[14px] leading-5 text-zinc-700"
+              className="flex items-start gap-2.5 text-[14px] leading-5 text-[var(--settings-fg-muted)]"
             >
               <Check
-                className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400"
+                className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg-subtle)]"
                 strokeWidth={2}
                 aria-hidden
               />
@@ -331,10 +328,10 @@ export function BillingSettings({
         </ul>
       </section>
 
-      <section className="border-b border-zinc-200 pb-6">
+      <section className="border-b border-[var(--settings-hairline)] pb-7">
         <SettingsSectionHeading>Billing history</SettingsSectionHeading>
         {invoices.length === 0 ? (
-          <p className="py-4 text-[14px] text-zinc-400">
+          <p className="py-4 text-[14px] text-[var(--settings-fg-subtle)]">
             We have not sent you an invoice yet.
           </p>
         ) : (
@@ -342,11 +339,11 @@ export function BillingSettings({
             {invoices.map((inv) => (
               <li
                 key={inv.id}
-                className="grid grid-cols-1 gap-x-4 gap-y-2 border-b border-zinc-100 py-3 text-[14px] last:border-b-0 sm:grid-cols-[minmax(7rem,1fr)_5rem_5rem_auto] sm:items-center sm:py-2"
+                className="grid grid-cols-1 gap-x-4 gap-y-2 border-b border-[var(--settings-hairline)] py-3 text-[14px] last:border-b-0 sm:grid-cols-[minmax(7rem,1fr)_5rem_5rem_auto] sm:items-center sm:py-2"
               >
                 <span>{formatDate(inv.created_at) ?? inv.created_at}</span>
                 <div className="flex items-center justify-between gap-3 sm:contents">
-                  <span className="font-variant-numeric tabular-nums text-zinc-400 sm:text-center">
+                  <span className="font-variant-numeric tabular-nums text-[var(--settings-fg-subtle)] sm:text-center">
                     ₹{(inv.amount_paise / 100).toFixed(2)}
                   </span>
                   <span className="sm:flex sm:justify-center">
@@ -358,7 +355,7 @@ export function BillingSettings({
                 <button
                   type="button"
                   onClick={() => void viewInvoice(inv.id)}
-                  className="label-hover-bold justify-self-start text-[14px] font-medium text-zinc-700 hover:text-zinc-950 sm:justify-self-end"
+                  className="label-hover-bold justify-self-start text-[14px] font-medium text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)] sm:justify-self-end"
                 >
                   View
                 </button>
@@ -368,10 +365,10 @@ export function BillingSettings({
         )}
       </section>
 
-      <section className="border-b border-zinc-200 pb-6">
+      <section className="border-b border-[var(--settings-hairline)] pb-7">
         <SettingsSectionHeading>Gifts you purchased</SettingsSectionHeading>
         {purchasedGifts.length === 0 ? (
-          <p className="py-4 text-[14px] text-zinc-400">
+          <p className="py-4 text-[14px] text-[var(--settings-fg-subtle)]">
             You have not purchased any gifts yet.
           </p>
         ) : (
@@ -388,18 +385,19 @@ export function BillingSettings({
                   ? "Ready to claim"
                   : gift.status === "redeemed"
                     ? "Claimed"
-                    : gift.status.charAt(0).toUpperCase() + gift.status.slice(1);
+                    : gift.status.charAt(0).toUpperCase() +
+                      gift.status.slice(1);
               return (
                 <li
                   key={gift.id}
-                  className="border-b border-zinc-100 py-3 last:border-b-0"
+                  className="border-b border-[var(--settings-hairline)] py-3 last:border-b-0"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[14px] font-medium text-zinc-900">
+                      <p className="text-[14px] font-medium text-[var(--settings-fg)]">
                         {monthsLabel} of Clauxen {gift.plan_name}
                       </p>
-                      <p className="mt-0.5 text-[13px] text-zinc-500">
+                      <p className="mt-0.5 text-[13px] text-[var(--settings-fg-muted)]">
                         {formatDate(gift.purchased_at) ?? "Purchased"}
                         {" · "}
                         {gift.delivery_method === "email"
@@ -407,10 +405,9 @@ export function BillingSettings({
                             ? `Emailed to ${gift.recipient_email}`
                             : "Sent by email"
                           : "Shareable link"}
-                        {" · "}
-                        ₹{(gift.amount_paise / 100).toFixed(2)}
+                        {" · "}₹{(gift.amount_paise / 100).toFixed(2)}
                       </p>
-                      <p className="mt-0.5 text-[12px] text-zinc-400">
+                      <p className="mt-0.5 text-[12px] text-[var(--settings-fg-subtle)]">
                         Code {gift.code_prefix}…{gift.code_last4}
                       </p>
                     </div>
@@ -431,7 +428,9 @@ export function BillingSettings({
                           type="button"
                           onClick={async () => {
                             try {
-                              await navigator.clipboard.writeText(gift.claim_url!);
+                              await navigator.clipboard.writeText(
+                                gift.claim_url!,
+                              );
                               setCopiedGiftId(gift.id);
                               window.setTimeout(
                                 () => setCopiedGiftId(null),
@@ -441,7 +440,7 @@ export function BillingSettings({
                               /* ignore */
                             }
                           }}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--settings-input-border)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--settings-fg-muted)] transition-colors hover:bg-[var(--settings-nav-hover-bg)]"
                         >
                           {copiedGiftId === gift.id ? (
                             <>
@@ -465,7 +464,7 @@ export function BillingSettings({
         )}
       </section>
 
-      <section className="border-b border-zinc-200 pb-6">
+      <section className="border-b border-[var(--settings-hairline)] pb-7">
         <SettingsSectionHeading
           action={
             <SettingsPillButton onClick={openAddressEditor}>
@@ -499,7 +498,7 @@ export function BillingSettings({
         </SettingsSectionHeading>
 
         {paymentMethods.length === 0 ? (
-          <p className="mt-2 py-3 text-[14px] text-zinc-500">
+          <p className="mt-2 py-3 text-[14px] text-[var(--settings-fg-muted)]">
             No payment methods yet. Add a card or UPI to check out faster next
             time.
           </p>
@@ -516,38 +515,43 @@ export function BillingSettings({
               return (
                 <li
                   key={method.id}
-                  className="flex items-center justify-between gap-4 border-b border-zinc-100 py-3"
+                  className="flex items-center justify-between gap-4 border-b border-[var(--settings-hairline)] py-3"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <CheckoutPaymentIcon
                       src={iconSrc}
                       alt={iconAlt}
-                      className="h-7 w-10 rounded-[5px] border border-zinc-200 bg-white p-0.5"
+                      className="h-7 w-10 rounded-[5px] border border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] p-0.5"
                     />
                     <div className="min-w-0">
-                      <p className="text-[14px] text-zinc-900">
+                      <p className="text-[14px] text-[var(--settings-fg)]">
                         {method.brand || iconAlt}
                       </p>
-                      <p className="truncate text-[14px] text-zinc-400">
+                      <p className="truncate text-[14px] text-[var(--settings-fg-subtle)]">
                         {method.maskedNumber}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {method.isDefault && (
-                      <SettingsStatusBadge tone="info">Default</SettingsStatusBadge>
+                      <SettingsStatusBadge tone="info">
+                        Default
+                      </SettingsStatusBadge>
                     )}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
                           aria-label="Payment method options"
-                          className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+                          className="rounded p-1 text-[var(--settings-fg-subtle)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
                         >
                           <MoreHorizontal className="h-5 w-5" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="min-w-[200px]">
+                      <DropdownMenuContent
+                        align="end"
+                        className="settings-theme min-w-[200px] border-[var(--settings-modal-border)] bg-[var(--settings-elevated-bg)] text-[var(--settings-fg)]"
+                      >
                         {!method.isDefault && (
                           <DropdownMenuItem
                             onClick={() =>
@@ -581,7 +585,7 @@ export function BillingSettings({
           </ul>
         )}
         {!auth.isAuthenticated && (
-          <p className="mt-3 text-[12px] text-zinc-400">
+          <p className="mt-3 text-[12px] text-[var(--settings-fg-subtle)]">
             Sign in to manage billing and payment methods.
           </p>
         )}
@@ -596,7 +600,7 @@ export function BillingSettings({
       {editingAddress && (
         <FullscreenPortal>
           <div
-            className="fixed inset-0 z-[210] flex items-end justify-center bg-black/35 p-4 sm:items-center"
+            className="settings-theme fixed inset-0 z-[210] flex items-end justify-center bg-black/40 p-4 backdrop-blur-[2px] sm:items-center"
             role="dialog"
             aria-modal="true"
             aria-label="Edit billing address"
@@ -604,8 +608,8 @@ export function BillingSettings({
               if (e.target === e.currentTarget) setEditingAddress(false);
             }}
           >
-            <div className="w-full max-w-md rounded-[22px] border border-zinc-200 bg-white p-5 shadow-xl">
-              <h3 className="mb-4 text-[16px] font-semibold text-zinc-900">
+            <div className="w-full max-w-[520px] rounded-[18px] border border-[var(--settings-modal-border)] bg-[var(--settings-elevated-bg)] p-6 text-[var(--settings-fg)] shadow-[var(--settings-modal-shadow)]">
+              <h3 className="mb-4 text-[16px] font-semibold text-[var(--settings-fg)]">
                 Billing address
               </h3>
               <CheckoutBillingAddress
@@ -619,14 +623,13 @@ export function BillingSettings({
                 <SettingsPillButton onClick={() => setEditingAddress(false)}>
                   Cancel
                 </SettingsPillButton>
-                <button
-                  type="button"
+                <SettingsPillButton
+                  variant="primary"
                   disabled={savingAddress}
                   onClick={() => void saveAddress()}
-                  className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-4 text-[14px] font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
                 >
                   {savingAddress ? "Saving…" : "Save"}
-                </button>
+                </SettingsPillButton>
               </div>
             </div>
           </div>
@@ -635,7 +638,10 @@ export function BillingSettings({
 
       {invoiceView && (
         <FullscreenPortal>
-          <div className="fixed inset-0 z-[210] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)]" data-scroll-region="">
+          <div
+            className="fixed inset-0 z-[210] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)]"
+            data-scroll-region=""
+          >
             <InvoiceView
               data={invoiceView}
               onClose={() => setInvoiceView(null)}

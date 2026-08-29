@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import {
   SettingsPanelTitle,
   SettingsProgressBar,
+  SettingsSection,
 } from "@/components/settings/settings-ui";
 import * as settingsApi from "@/lib/api/settings-extended";
 
@@ -52,44 +53,49 @@ export function StorageSettings() {
   const usedLabel = `${formatStorage(usedBytes)} of ${formatStorage(quotaBytes)} used`;
 
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Storage</SettingsPanelTitle>
-      <h2 className="mb-4 text-[20px] font-semibold tracking-tight">Storage</h2>
-      <div className="mb-8 border-b border-zinc-200 pb-8">
-        <SettingsProgressBar
-          value={usedBytes}
-          max={quotaBytes}
-          label={usedLabel}
-        />
-      </div>
+      <SettingsSection title="Usage">
+        <div className="p-5">
+          <SettingsProgressBar
+            value={usedBytes}
+            max={quotaBytes}
+            label={usedLabel}
+          />
+        </div>
+      </SettingsSection>
 
-      <section>
-        <h3 className="text-[15px] font-semibold">Manage storage</h3>
-        <p className="mt-1 text-[13px] text-zinc-500">
-          Manage your library to free up storage
-        </p>
-        <ul className="mt-4">
+      <SettingsSection
+        title="Manage storage"
+        description="Manage your library to free up storage."
+      >
+        <ul>
           {categories.map((item) => (
-            <li key={item.id} className="border-t border-zinc-100 first:border-t-0">
+            <li
+              key={item.id}
+              className="border-t border-[var(--settings-hairline)] first:border-t-0"
+            >
               <button
                 type="button"
-                className="flex w-full items-center justify-between gap-3 py-3 text-left transition-colors hover:bg-zinc-50"
+                className="flex w-full items-center justify-between gap-3 px-[var(--settings-row-pad-x)] py-3.5 text-left transition-colors hover:bg-[var(--settings-nav-hover-bg)]"
               >
                 <div>
-                  <p className="text-[14px] text-zinc-900">{item.title}</p>
-                  <p className="mt-0.5 text-[12px] text-zinc-400">
+                  <p className="text-[14px] text-[var(--settings-fg)]">
+                    {item.title}
+                  </p>
+                  <p className="mt-0.5 text-[12px] text-[var(--settings-fg-subtle)]">
                     {formatStorage(item.bytes)} • {item.count} {item.unit}
                   </p>
                 </div>
                 <ChevronRight
-                  className="h-4 w-4 shrink-0 text-zinc-400"
+                  className="h-4 w-4 shrink-0 text-[var(--settings-fg-subtle)]"
                   aria-hidden
                 />
               </button>
             </li>
           ))}
         </ul>
-      </section>
+      </SettingsSection>
     </div>
   );
 }

@@ -54,6 +54,28 @@ export const settingsNav = [
 
 export type SettingsTab = (typeof settingsNav)[number]["name"];
 
+export const settingsTabDescriptions: Record<SettingsTab, string> = {
+  General: "Appearance, language, voice, and everyday preferences.",
+  Personalization: "Shape how Clauxen responds and remembers what matters.",
+  Notifications: "Choose what reaches you and where you receive it.",
+  Account: "Manage your account, sessions, and organization details.",
+  Security: "Protect your account and review sign-in activity.",
+  Privacy: "Control your data, cookies, model improvement, and shared content.",
+  Billing: "Review your plan, usage, and payment methods.",
+  Storage: "See what is using space and manage stored content.",
+  Capabilities: "Choose which tools and workspace abilities Clauxen can use.",
+  Reflect: "Tune your activity summaries and reflection preferences.",
+  "Time and focus": "Set quiet hours, focus behavior, and time preferences.",
+  Safety: "Adjust safeguards for sensitive content and interactions.",
+  "Parental controls": "Manage family protections and age-appropriate access.",
+  "Trusted contact": "Choose who can help with account safety concerns.",
+  "Clauxen Code": "Configure coding sessions, environments, and permissions.",
+  Keyboard: "Review and customize shortcuts across the app.",
+  Skills: "Manage the instructions and skills available to Clauxen.",
+  Connectors: "Connect services that Clauxen can search and use.",
+  Plugins: "Install and manage extensions for your workspace.",
+};
+
 export const settingsNavByName = Object.fromEntries(
   settingsNav.map((item) => [item.name, item]),
 ) as Record<SettingsTab, (typeof settingsNav)[number]>;

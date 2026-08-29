@@ -31,7 +31,7 @@ export function UserAvatarDisplay({
   return (
     <span
       className={cn(
-        "relative inline-flex shrink-0 overflow-hidden rounded-full bg-zinc-200 font-semibold text-zinc-700",
+        "relative inline-flex shrink-0 overflow-hidden rounded-full bg-[var(--settings-icon-bg)] font-semibold text-[var(--settings-fg-muted)]",
         avatarSizeClass(size),
         className,
       )}
@@ -105,7 +105,7 @@ export function ProfileAvatarUpload({
         disabled={busy}
         aria-label="Upload profile photo"
         className={cn(
-          "group relative shrink-0 overflow-hidden rounded-full bg-zinc-200 font-semibold text-zinc-700 outline-none transition-opacity disabled:opacity-60",
+          "group relative shrink-0 overflow-hidden rounded-full bg-[var(--settings-icon-bg)] font-semibold text-[var(--settings-fg-muted)] outline-none transition-opacity disabled:opacity-60",
           dim,
           className,
         )}
@@ -124,7 +124,7 @@ export function ProfileAvatarUpload({
         <span
           className={cn(
             "absolute inset-0 flex items-center justify-center bg-zinc-900/0 text-white transition-colors",
-            "group-hover:bg-zinc-500/45 group-focus-visible:bg-zinc-500/45",
+            "group-hover:bg-black/45 group-focus-visible:bg-black/45",
           )}
         >
           <Upload

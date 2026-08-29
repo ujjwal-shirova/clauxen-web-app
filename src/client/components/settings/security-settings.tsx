@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import {
   SettingsPanelTitle,
   SettingsPillButton,
-  SettingsSectionHeading,
+  SettingsRow,
+  SettingsSection,
   SettingsToggleRow,
 } from "@/components/settings/settings-ui";
 import * as settingsApi from "@/lib/api/settings-extended";
@@ -45,13 +46,10 @@ export function SecuritySettings({
   }, []);
 
   return (
-    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Security</SettingsPanelTitle>
-      <h2 className="text-[20px] font-semibold tracking-tight">
-        Security and login
-      </h2>
 
-      <section>
+      <SettingsSection title="Account protection">
         <SettingsToggleRow
           label="Multi-factor authentication"
           description="Require a second factor when signing in to your Clauxen account."
@@ -59,54 +57,63 @@ export function SecuritySettings({
           onCheckedChange={(v) => onMfaChange?.(v)}
           borderless
         />
-      </section>
+      </SettingsSection>
 
-      <section>
-        <SettingsSectionHeading>Recent sign-in activity</SettingsSectionHeading>
-        {loading ? (
-          <p className="text-sm text-zinc-500">Loading…</p>
-        ) : sessions.length === 0 ? (
-          <p className="text-sm text-zinc-500">No recent activity recorded.</p>
-        ) : (
-          <ul className="divide-y divide-zinc-100">
-            {sessions.map((session) => (
-              <li key={session.id} className="py-3 text-sm">
-                <p className="font-medium">{session.eventType}</p>
-                <p className="text-xs text-zinc-500">
-                  {session.ipAddress ?? "Unknown IP"} ·{" "}
-                  {new Date(session.createdAt).toLocaleString()}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <SettingsSection title="Recent sign-in activity">
+        <div className="px-[var(--settings-row-pad-x)] py-2">
+          {loading ? (
+            <p className="py-3 text-sm text-[var(--settings-fg-muted)]">
+              Loading…
+            </p>
+          ) : sessions.length === 0 ? (
+            <p className="py-3 text-sm text-[var(--settings-fg-muted)]">
+              No recent activity recorded.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[var(--settings-hairline)]">
+              {sessions.map((session) => (
+                <li key={session.id} className="py-3 text-sm">
+                  <p className="font-medium">{session.eventType}</p>
+                  <p className="mt-0.5 text-xs text-[var(--settings-fg-muted)]">
+                    {session.ipAddress ?? "Unknown IP"} ·{" "}
+                    {new Date(session.createdAt).toLocaleString()}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </SettingsSection>
 
-      <section>
-        <SettingsSectionHeading>Linked providers</SettingsSectionHeading>
-        {providers.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            No third-party sign-in providers linked.
-          </p>
-        ) : (
-          <ul className="divide-y divide-zinc-100">
-            {providers.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center justify-between py-3 text-sm"
-              >
-                <span>{p.provider}</span>
-                <span className="text-zinc-500">{p.status}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <SettingsSection title="Linked providers">
+        <div className="px-[var(--settings-row-pad-x)] py-2">
+          {providers.length === 0 ? (
+            <p className="py-3 text-sm text-[var(--settings-fg-muted)]">
+              No third-party sign-in providers linked.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[var(--settings-hairline)]">
+              {providers.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex items-center justify-between gap-4 py-3 text-sm"
+                >
+                  <span>{p.provider}</span>
+                  <span className="text-[var(--settings-fg-muted)]">
+                    {p.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </SettingsSection>
 
-      <div className="flex min-h-[56px] items-center justify-between gap-4 border-t border-zinc-100 pt-6">
-        <span className="text-[14px]">Log out of this device</span>
-        <SettingsPillButton onClick={onLogout}>Log out</SettingsPillButton>
-      </div>
+      <SettingsSection title="This device">
+        <SettingsRow label="Log out of this device" borderless>
+          <SettingsPillButton onClick={onLogout}>Log out</SettingsPillButton>
+        </SettingsRow>
+      </SettingsSection>
     </div>
   );
 }

@@ -2,76 +2,21 @@
 
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ShieldCheck, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-
-const CONSENT_KEY = "clauxen.cookie-consent.v1";
-const CONSENT_COOKIE = "clauxen_cookie_consent";
-
-type CookieConsentValue = {
-  essential: true;
-  performance: boolean;
-  advertising: boolean;
-  updatedAt: string;
-};
-
-function isConsentValue(value: unknown): value is CookieConsentValue {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<CookieConsentValue>;
-  return (
-    candidate.essential === true &&
-    typeof candidate.performance === "boolean" &&
-    typeof candidate.advertising === "boolean" &&
-    typeof candidate.updatedAt === "string"
-  );
-}
-
-function readStoredConsent(): CookieConsentValue | null {
-  try {
-    const stored = window.localStorage.getItem(CONSENT_KEY);
-    if (stored) {
-      const parsed: unknown = JSON.parse(stored);
-      if (isConsentValue(parsed)) return parsed;
-    }
-
-    const prefix = `${CONSENT_COOKIE}=`;
-    const encoded = document.cookie
-      .split(";")
-      .map((part) => part.trim())
-      .find((part) => part.startsWith(prefix))
-      ?.slice(prefix.length);
-    if (!encoded) return null;
-    const parsed: unknown = JSON.parse(decodeURIComponent(encoded));
-    return isConsentValue(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function persistConsent(
-  performance: boolean,
-  advertising: boolean,
-): CookieConsentValue {
-  const value: CookieConsentValue = {
-    essential: true,
-    performance,
-    advertising,
-    updatedAt: new Date().toISOString(),
-  };
-  const serialized = JSON.stringify(value);
-  try {
-    window.localStorage.setItem(CONSENT_KEY, serialized);
-  } catch {
-    // The first-party cookie remains the persistence fallback.
-  }
-  document.cookie = `${CONSENT_COOKIE}=${encodeURIComponent(serialized)}; Path=/; Max-Age=31536000; SameSite=Lax${
-    window.location.protocol === "https:" ? "; Secure" : ""
-  }`;
-  window.dispatchEvent(
-    new CustomEvent("clauxen:cookie-consent", { detail: value }),
-  );
-  return value;
-}
+import * as cookiesApi from "@/lib/api/cookies";
+import {
+  DEFAULT_OPTIONAL_COOKIES,
+  OPEN_COOKIE_SETTINGS_EVENT,
+  applyOptionalBrowserCookies,
+  createConsentValue,
+  parseUtmAttribution,
+  readBrowserConsent,
+  readBrowserUtm,
+  writeBrowserConsent,
+  type CookieConsentSource,
+  type CookieConsentValue,
+} from "@/lib/cookie-consent";
 
 const secondaryButton =
   "inline-flex min-h-8 items-center justify-center rounded-full border border-black/15 bg-transparent px-3 text-[13px] font-medium text-zinc-800 transition-colors hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20";
@@ -117,33 +62,126 @@ function PreferenceRow({
   );
 }
 
+function persistLocally(value: CookieConsentValue) {
+  writeBrowserConsent(value);
+  applyOptionalBrowserCookies(value);
+}
+
+async function persistConsent(
+  performance: boolean,
+  advertising: boolean,
+  source: CookieConsentSource,
+): Promise<CookieConsentValue> {
+  const value = createConsentValue(performance, advertising);
+  persistLocally(value);
+  try {
+    const utm = advertising
+      ? (parseUtmAttribution(window.location.search) ?? readBrowserUtm())
+      : null;
+    const saved = await cookiesApi.saveCookieConsent({
+      performance,
+      advertising,
+      source,
+      utm,
+    });
+    if (saved.consent) {
+      persistLocally(saved.consent);
+      return saved.consent;
+    }
+  } catch {
+    // Local cookies still gate collection for this browser.
+  }
+  return value;
+}
+
 export function CookieConsent() {
   const [ready, setReady] = useState(false);
   const [consent, setConsent] = useState<CookieConsentValue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [performance, setPerformance] = useState(false);
-  const [advertising, setAdvertising] = useState(false);
+  const [performance, setPerformance] = useState(DEFAULT_OPTIONAL_COOKIES);
+  const [advertising, setAdvertising] = useState(DEFAULT_OPTIONAL_COOKIES);
 
   useEffect(() => {
-    const stored = readStoredConsent();
+    const stored = readBrowserConsent();
     if (stored) {
       setConsent(stored);
       setPerformance(stored.performance);
       setAdvertising(stored.advertising);
+      applyOptionalBrowserCookies(stored);
     }
     setReady(true);
+
+    let cancelled = false;
+    void cookiesApi
+      .getCookieConsent()
+      .then(async (data) => {
+        if (cancelled) return;
+        if (data.consent) {
+          const localIsNewer =
+            stored &&
+            Date.parse(stored.updatedAt) > Date.parse(data.consent.updatedAt);
+          const resolved = localIsNewer
+            ? await persistConsent(
+                stored.performance,
+                stored.advertising,
+                "settings",
+              )
+            : data.consent;
+          if (cancelled) return;
+          persistLocally(resolved);
+          setConsent(resolved);
+          setPerformance(resolved.performance);
+          setAdvertising(resolved.advertising);
+          return;
+        }
+        if (stored) {
+          await persistConsent(
+            stored.performance,
+            stored.advertising,
+            "settings",
+          );
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const save = (nextPerformance: boolean, nextAdvertising: boolean) => {
+  useEffect(() => {
+    const open = () => {
+      setPerformance(consent?.performance ?? DEFAULT_OPTIONAL_COOKIES);
+      setAdvertising(consent?.advertising ?? DEFAULT_OPTIONAL_COOKIES);
+      setSettingsOpen(true);
+    };
+    window.addEventListener(OPEN_COOKIE_SETTINGS_EVENT, open);
+    return () => window.removeEventListener(OPEN_COOKIE_SETTINGS_EVENT, open);
+  }, [consent]);
+
+  const save = (
+    nextPerformance: boolean,
+    nextAdvertising: boolean,
+    source: CookieConsentSource,
+  ) => {
     setPerformance(nextPerformance);
     setAdvertising(nextAdvertising);
-    setConsent(persistConsent(nextPerformance, nextAdvertising));
     setSettingsOpen(false);
+    const value = createConsentValue(nextPerformance, nextAdvertising);
+    persistLocally(value);
+    setConsent(value);
+    void persistConsent(nextPerformance, nextAdvertising, source).then(
+      (saved) => {
+        setConsent(saved);
+        setPerformance(saved.performance);
+        setAdvertising(saved.advertising);
+      },
+    );
   };
 
   const openSettings = () => {
-    setPerformance(consent?.performance ?? false);
-    setAdvertising(consent?.advertising ?? false);
+    setPerformance(consent?.performance ?? DEFAULT_OPTIONAL_COOKIES);
+    setAdvertising(consent?.advertising ?? DEFAULT_OPTIONAL_COOKIES);
     setSettingsOpen(true);
   };
 
@@ -160,7 +198,7 @@ export function CookieConsent() {
         >
           <button
             type="button"
-            onClick={() => save(false, false)}
+            onClick={() => save(false, false, "dismiss")}
             aria-label="Dismiss cookie notice"
             className="absolute top-1.5 right-1.5 inline-flex size-6 items-center justify-center rounded text-zinc-900/45 transition-colors hover:bg-black/[0.04] hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20"
           >
@@ -214,14 +252,14 @@ export function CookieConsent() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => save(false, false)}
+                onClick={() => save(false, false, "reject_all")}
                 className={secondaryButton}
               >
                 Reject All
               </button>
               <button
                 type="button"
-                onClick={() => save(true, true)}
+                onClick={() => save(true, true, "accept_all")}
                 className={primaryButton}
               >
                 Accept All Cookies
@@ -235,19 +273,14 @@ export function CookieConsent() {
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-[2147483646] bg-black/35 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
           <Dialog.Content className="fixed top-1/2 left-1/2 z-[2147483647] w-[calc(100vw-1.5rem)] max-w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] border border-black/[0.08] bg-[#faf7f6] p-5 font-sans text-zinc-900 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.35)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:p-6">
-            <div className="flex items-start gap-3 pr-8">
-              <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white">
-                <ShieldCheck className="size-4" strokeWidth={1.8} />
-              </span>
-              <div>
-                <Dialog.Title className="text-[18px] font-semibold leading-6 tracking-[-0.015em]">
-                  Cookie settings
-                </Dialog.Title>
-                <Dialog.Description className="mt-1 text-[13px] leading-5 text-zinc-500">
-                  Choose which optional cookies Clauxen may use. Essential
-                  cookies cannot be disabled.
-                </Dialog.Description>
-              </div>
+            <div className="pr-8">
+              <Dialog.Title className="text-[18px] font-semibold leading-6 tracking-[-0.015em]">
+                Cookie settings
+              </Dialog.Title>
+              <Dialog.Description className="mt-1 text-[13px] leading-5 text-zinc-500">
+                Choose which optional cookies Clauxen may use. Essential cookies
+                cannot be disabled.
+              </Dialog.Description>
             </div>
 
             <Dialog.Close asChild>
@@ -284,21 +317,21 @@ export function CookieConsent() {
             <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => save(false, false)}
+                onClick={() => save(false, false, "reject_all")}
                 className={secondaryButton}
               >
                 Reject all
               </button>
               <button
                 type="button"
-                onClick={() => save(performance, advertising)}
+                onClick={() => save(performance, advertising, "settings")}
                 className={secondaryButton}
               >
                 Save choices
               </button>
               <button
                 type="button"
-                onClick={() => save(true, true)}
+                onClick={() => save(true, true, "accept_all")}
                 className={primaryButton}
               >
                 Accept all

@@ -21,6 +21,7 @@ import { openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import { useAuth } from "@/hooks/use-auth";
 import { checkoutUi } from "@/lib/checkout-ui";
 import { cn } from "@/lib/utils";
+import { SettingsPillButton } from "@/components/settings/settings-ui";
 
 type MethodKind = "card" | "upi";
 
@@ -149,7 +150,7 @@ export function AddPaymentMethodDialog({
   return (
     <FullscreenPortal>
       <div
-        className="fixed inset-0 z-[210] flex items-end justify-center bg-black/35 p-4 sm:items-center"
+        className="settings-theme fixed inset-0 z-[210] flex items-end justify-center bg-black/40 p-4 backdrop-blur-[2px] sm:items-center"
         role="dialog"
         aria-modal="true"
         aria-label="Add payment method"
@@ -157,11 +158,11 @@ export function AddPaymentMethodDialog({
           if (e.target === e.currentTarget && !busy) onClose();
         }}
       >
-        <div className="w-full max-w-md rounded-[22px] border border-zinc-200 bg-white p-5 shadow-xl">
-          <h3 className="text-[17px] font-semibold text-zinc-900">
+        <div className="w-full max-w-[520px] rounded-[18px] border border-[var(--settings-modal-border)] bg-[var(--settings-elevated-bg)] p-6 text-[var(--settings-fg)] shadow-[var(--settings-modal-shadow)]">
+          <h3 className="text-[17px] font-semibold text-[var(--settings-fg)]">
             Add payment method
           </h3>
-          <p className="mt-1 text-[13px] leading-5 text-zinc-500">
+          <p className="mt-1 text-[13px] leading-5 text-[var(--settings-fg-muted)]">
             Authorize a ₹25,000 mandate with no charge today. You can use this
             method for future upgrades.
           </p>
@@ -173,8 +174,8 @@ export function AddPaymentMethodDialog({
               className={cn(
                 "flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] font-medium transition-colors",
                 kind === "card"
-                  ? "border-zinc-900 bg-zinc-900 text-white"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50",
+                  ? "border-[var(--settings-fg)] bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)]"
+                  : "border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)]",
               )}
             >
               <CreditCard className="h-4 w-4" />
@@ -186,8 +187,8 @@ export function AddPaymentMethodDialog({
               className={cn(
                 "flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] font-medium transition-colors",
                 kind === "upi"
-                  ? "border-zinc-900 bg-zinc-900 text-white"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50",
+                  ? "border-[var(--settings-fg)] bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)]"
+                  : "border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)]",
               )}
             >
               <Smartphone className="h-4 w-4" />
@@ -224,25 +225,23 @@ export function AddPaymentMethodDialog({
             )}
           </div>
 
-          {error && (
-            <p className="mt-3 text-[13px] text-red-600">{error}</p>
-          )}
+          {error && <p className="mt-3 text-[13px] text-red-600">{error}</p>}
 
           <div className="mt-5 flex flex-col gap-3">
-            <button
-              type="button"
+            <SettingsPillButton
+              variant="primary"
               disabled={busy}
               onClick={() => void handleAuthorize()}
-              className="inline-flex h-11 w-full items-center justify-center rounded-full bg-zinc-900 text-[14px] font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-60"
+              className="h-11 w-full"
             >
               {busy ? "Authorizing…" : "Authorize · ₹0"}
-            </button>
+            </SettingsPillButton>
             <CheckoutRazorpayTrust />
             <button
               type="button"
               disabled={busy}
               onClick={onClose}
-              className="text-[13px] font-medium text-zinc-500 hover:text-zinc-800"
+              className="text-[13px] font-medium text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
             >
               Cancel
             </button>

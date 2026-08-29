@@ -53,7 +53,7 @@ const overlay = {
     "app-surface-shell fixed inset-0 z-[200] flex min-h-0 flex-col overflow-hidden outline-none",
   /** Centered modal shell on desktop (Settings). */
   modalShell:
-    "app-surface-panel fixed z-[201] flex min-h-0 flex-col overflow-hidden inset-0 h-[100dvh] w-full md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(680px,calc(100dvh-2rem))] md:w-[min(960px,calc(100vw-1.5rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[var(--radius-md)] md:border md:border-[var(--ui-border)] md:shadow-[var(--popup-shadow)]",
+    "app-surface-panel fixed z-[201] flex min-h-0 flex-col overflow-hidden inset-0 h-[100dvh] w-full md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(740px,calc(100dvh-2rem))] md:w-[min(1040px,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[18px] md:border md:border-[var(--settings-modal-border,var(--ui-border))] md:shadow-[var(--settings-modal-shadow,var(--popup-shadow))]",
 } as const;
 
 const field = {
@@ -78,7 +78,8 @@ const checkout = {
 
   tabBase:
     "flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] px-2 py-2 text-[13px] font-medium leading-[18px] transition-colors duration-150 shadow-[inset_0_0_0_1px_var(--settings-btn-border)]",
-  tabSelected: "bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)] shadow-none",
+  tabSelected:
+    "bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)] shadow-none",
   tabUnselected:
     "bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]",
 
@@ -130,7 +131,12 @@ export function checkoutTabClass(selected: boolean) {
 }
 
 export function appButtonClass(
-  variant: keyof typeof appBtn | "primary" | "secondary" | "ghost" | "ghostIcon",
+  variant:
+    | keyof typeof appBtn
+    | "primary"
+    | "secondary"
+    | "ghost"
+    | "ghostIcon",
   extra?: string,
 ) {
   const key =

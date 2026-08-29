@@ -55,6 +55,8 @@ export default function CookiePolicyPage() {
             <p>
               With your permission, these help us measure reliability, diagnose
               errors, and understand which product experiences need improvement.
+              When enabled, Clauxen loads first-party performance events (page
+              views and load timing) and Vercel Analytics.
             </p>
           </section>
 
@@ -64,8 +66,10 @@ export default function CookiePolicyPage() {
             </h2>
             <p>
               With your permission, these may be used to measure campaigns and
-              personalize Clauxen marketing outside the app. Clauxen does not
-              enable them when you reject optional cookies.
+              personalize Clauxen marketing outside the app. When enabled,
+              Clauxen stores a first-party advertising identifier and campaign
+              parameters (such as UTM tags) and records landing attribution.
+              Clauxen does not enable them when you reject optional cookies.
             </p>
           </section>
 
@@ -75,9 +79,14 @@ export default function CookiePolicyPage() {
             </h2>
             <p>
               You can accept all optional cookies, reject them, or choose each
-              category in the cookie settings dialog. Your choice is stored for
-              up to one year and can be changed by clearing the Clauxen consent
-              cookie and local site data.
+              category in the cookie settings dialog. Optional categories start
+              selected in that dialog; collection begins only after you save or
+              accept. Your choice is stored for up to one year in a first-party
+              cookie and, when you are signed in, on your Clauxen account. You
+              can change it later from Settings → Privacy, or by clearing
+              Clauxen cookies and local site data. Rejecting optional cookies
+              stops collection and deletes matching first-party telemetry for
+              this visitor.
             </p>
           </section>
 

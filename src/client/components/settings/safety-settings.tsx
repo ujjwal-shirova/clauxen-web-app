@@ -16,9 +16,8 @@ export function SafetySettings({
   onChange,
 }: SafetySettingsProps) {
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Safety</SettingsPanelTitle>
-      <h2 className="mb-6 text-[20px] font-semibold tracking-tight">Safety</h2>
 
       <SettingsSection title="Content">
         <SettingsToggleRow
@@ -30,7 +29,7 @@ export function SafetySettings({
         />
       </SettingsSection>
 
-      <p className="mt-2 text-[13px] leading-relaxed text-zinc-500">
+      <p className="mt-2 text-[13px] leading-relaxed text-[var(--settings-fg-muted)]">
         For family safeguards, use Parental controls. For crisis support
         contacts, use Trusted contact.
       </p>

@@ -51,7 +51,9 @@ if (!res.ok) {
 }
 
 console.log(`✓ Enabled X / Twitter (OAuth 2.0) on project ${PROJECT_REF}`);
-console.log("  Callback URL: https://auth.clauxen.com/auth/v1/callback");
+console.log(
+  "  Callback URL: https://ntplcfsbcyhiqklkbldk.supabase.co/auth/v1/callback",
+);
 console.log(
   "  Ensure that callback is set in the X Developer Portal, and “Request email from users” is ON.",
 );

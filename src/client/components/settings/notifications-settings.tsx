@@ -50,7 +50,7 @@ export function NotificationsSettings({
   setSoundEffects,
 }: NotificationsSettingsProps) {
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Notifications</SettingsPanelTitle>
 
       <SettingsSection title="Notifications">
@@ -111,7 +111,7 @@ export function NotificationsSettings({
               Get notified when tasks you&apos;ve created have updates.{" "}
               <button
                 type="button"
-                className="underline decoration-zinc-400/60 underline-offset-2 hover:text-zinc-900"
+                className="font-medium underline decoration-[var(--settings-input-border)] underline-offset-2 hover:text-[var(--settings-fg)]"
               >
                 Manage tasks
               </button>

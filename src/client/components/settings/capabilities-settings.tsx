@@ -5,6 +5,7 @@ import {
   SettingsOptionPicker,
   SettingsPanelTitle,
   SettingsPillButton,
+  SettingsRow,
   SettingsSection,
   SettingsToggleRow,
 } from "@/components/settings/settings-ui";
@@ -35,7 +36,7 @@ const TOOL_MODE_LABELS = [
 ] as const;
 
 const linkClass =
-  "text-[#184f95] underline decoration-[rgba(24,79,149,0.4)] underline-offset-[3px] hover:text-[#1b67b2]";
+  "font-medium text-[var(--settings-fg)] underline decoration-[var(--settings-input-border)] underline-offset-[3px] hover:decoration-[var(--settings-fg)]";
 
 function toolModeToLabel(mode: string): string {
   if (mode === "auto") return "Auto";
@@ -56,7 +57,7 @@ export function CapabilitiesSettings({
   memoryUpdatedLabel = "Updated 3 hours ago",
 }: CapabilitiesSettingsProps) {
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Capabilities</SettingsPanelTitle>
 
       <SettingsSection title="Memory">
@@ -78,52 +79,49 @@ export function CapabilitiesSettings({
 
         <button
           type="button"
-          className="mb-1 flex w-full items-center justify-between gap-3 rounded-lg bg-[rgba(11,11,11,0.05)] px-3 py-2 text-left transition-colors hover:bg-[rgba(11,11,11,0.07)]"
+          className="no-hover-overlay mx-[var(--settings-row-pad-x)] mb-2 flex items-center justify-between gap-3 rounded-lg bg-[var(--settings-icon-bg)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--settings-nav-hover-bg)]"
         >
           <span className="min-w-0 truncate text-[14px] leading-5">
-            <span className="text-zinc-900">View and manage memory</span>
-            <span className="text-[13px] leading-4 text-zinc-500">
+            <span className="text-[var(--settings-fg)]">
+              View and manage memory
+            </span>
+            <span className="text-[13px] leading-4 text-[var(--settings-fg-muted)]">
               {" "}
               · {memoryUpdatedLabel}
             </span>
           </span>
           <ChevronRight
-            className="h-4 w-4 shrink-0 text-zinc-500"
+            className="h-4 w-4 shrink-0 text-[var(--settings-fg-muted)]"
             strokeWidth={1.75}
             aria-hidden
           />
         </button>
 
-        <div className="flex items-center justify-between gap-7 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[14px] leading-5 text-zinc-900">
-              Import memory from other AI providers
-            </p>
-            <p className="mt-1 text-[14px] leading-5 text-zinc-500">
+        <SettingsRow
+          label="Import memory from other AI providers"
+          description={
+            <>
               Bring relevant context and data from another AI provider to
               Clauxen. We&apos;ll provide a prompt you can use to fetch the
               memory from your other account.{" "}
               <a href="/legal/privacy" className={linkClass}>
                 Learn more
               </a>
-            </p>
-          </div>
+            </>
+          }
+          borderless
+        >
           <SettingsPillButton className="h-8 shrink-0 rounded-lg px-3">
             Start import
           </SettingsPillButton>
-        </div>
+        </SettingsRow>
       </SettingsSection>
 
       <SettingsSection title="General">
-        <div className="flex items-center justify-between gap-7 border-b border-[rgba(11,11,11,0.05)] py-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[14px] leading-5 text-zinc-900">
-              Tool access mode
-            </p>
-            <p className="mt-1 text-[14px] leading-5 text-zinc-500">
-              Controls how connector tools are loaded in new conversations.
-            </p>
-          </div>
+        <SettingsRow
+          label="Tool access mode"
+          description="Controls how connector tools are loaded in new conversations."
+        >
           <SettingsOptionPicker
             value={toolModeToLabel(capabilities.toolMode)}
             options={TOOL_MODE_LABELS}
@@ -131,7 +129,7 @@ export function CapabilitiesSettings({
               onChange({ toolMode: labelToToolMode(label) })
             }
           />
-        </div>
+        </SettingsRow>
 
         <SettingsToggleRow
           label="Connector search"
@@ -192,7 +190,7 @@ export function CapabilitiesSettings({
         />
 
         {capabilities.codeExecution ? (
-          <div className="mt-3 rounded-xl border border-[rgba(11,11,11,0.1)] bg-[rgba(11,11,11,0.05)] p-6">
+          <div className="border-t border-[var(--settings-hairline)] bg-[var(--settings-sidebar-bg)]">
             <SettingsToggleRow
               label="Allow network egress"
               description={
@@ -229,7 +227,7 @@ export function CapabilitiesSettings({
       </SettingsSection>
 
       <SettingsSection title="Skills">
-        <p className="py-3 text-[13px] leading-4 text-zinc-600">
+        <p className="py-3 text-[13px] leading-4 text-[var(--settings-fg-muted)]">
           Skills live in the{" "}
           {onGoToCustomize ? (
             <button

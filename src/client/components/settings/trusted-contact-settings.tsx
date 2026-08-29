@@ -3,37 +3,38 @@
 import {
   SettingsAddFamilyButton,
   SettingsPanelTitle,
+  SettingsSection,
 } from "@/components/settings/settings-ui";
 
 export function TrustedContactSettings() {
   return (
-    <div className="flex max-w-[488px] animate-in fade-in flex-col gap-6 duration-300 text-zinc-900">
+    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>Trusted contact</SettingsPanelTitle>
-
-      <p className="text-[14px] leading-relaxed text-zinc-900">
-        Having a trusted contact can make it easier to get support from someone
-        who knows you well.
-      </p>
-
-      <p className="text-[14px] leading-relaxed text-zinc-900">
-        In the future, if you discuss serious safety concerns with Clauxen in a
-        way that indicates risk, we may automatically notify your trusted
-        contact so they can check in with you. They must be 18+ to participate.{" "}
-        <a
-          href="https://help.openai.com/articles/20001105"
-          className="underline decoration-zinc-400/60 underline-offset-2 hover:text-zinc-600"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn more
-        </a>
-      </p>
-
-      <div className="pt-2">
-        <SettingsAddFamilyButton onClick={() => {}} className="min-h-11 px-5">
-          Add contact
-        </SettingsAddFamilyButton>
-      </div>
+      <SettingsSection title="Safety contact">
+        <div className="px-[var(--settings-row-pad-x)] py-5">
+          <p className="max-w-[600px] text-[14px] leading-6 text-[var(--settings-fg)]">
+            Having a trusted contact can make it easier to get support from
+            someone who knows you well.
+          </p>
+          <p className="mt-3 max-w-[600px] text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+            In the future, if you discuss serious safety concerns with Clauxen
+            in a way that indicates risk, we may automatically notify your
+            trusted contact so they can check in with you. They must be 18+ to
+            participate.{" "}
+            <a
+              href="https://help.openai.com/articles/20001105"
+              className="font-medium text-[var(--settings-fg)] underline underline-offset-2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Learn more
+            </a>
+          </p>
+          <SettingsAddFamilyButton onClick={() => {}} className="mt-5">
+            Add contact
+          </SettingsAddFamilyButton>
+        </div>
+      </SettingsSection>
     </div>
   );
 }

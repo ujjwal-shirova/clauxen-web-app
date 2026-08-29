@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 /** Shared pill track for settings / pricing segmented controls. */
 export const segmentedTrackClass =
-  "inline-flex rounded-md bg-[color-mix(in_oklab,#18181b_6%,transparent)] p-0.5";
+  "inline-flex rounded-lg bg-[var(--settings-icon-bg)] p-0.5";
 
 /** Text or icon pill — active state has no global hover washout. */
 export function segmentedOptionClass(
@@ -18,7 +18,7 @@ export function segmentedOptionClass(
   return cn(
     base,
     active
-      ? "bg-[var(--settings-card-bg,#ffffff)] text-[var(--settings-fg,#18181b)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#18181b_8%,transparent)]"
+      ? "bg-[var(--settings-elevated-bg,#ffffff)] text-[var(--settings-fg,#18181b)] shadow-[inset_0_0_0_1px_var(--settings-hairline)]"
       : "text-[var(--settings-fg-muted,rgba(24,24,27,0.74))] hover:text-[var(--settings-fg,#18181b)]",
   );
 }

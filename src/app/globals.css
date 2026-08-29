@@ -76,20 +76,35 @@
     --ui-control-height-lg: 36px;
     /* Settings / product overlay surface */
     --settings-canvas-bg: #faf7f6;
-    --settings-card-bg: #ffffff;
-    --settings-card-radius: 14px;
+    --settings-sidebar-bg: #f5f2f1;
+    --settings-card-bg: #fffdfc;
+    --settings-elevated-bg: #fffdfc;
+    --settings-icon-bg: #f4efed;
+    --settings-nav-active-bg: rgba(255, 253, 252, 0.88);
+    --settings-nav-hover-bg: rgba(45, 42, 40, 0.045);
+    --settings-card-radius: 18px;
     --settings-card-shadow:
-      0 1px 2px rgba(20, 21, 26, 0.04), 0 0 0 1px rgba(20, 21, 26, 0.07);
-    --settings-control-height: 28px;
-    --settings-row-gap: 20px;
+      0 1px 2px rgba(45, 42, 40, 0.035), 0 0 0 1px rgba(45, 42, 40, 0.075),
+      0 10px 30px -26px rgba(45, 42, 40, 0.32);
+    --settings-modal-border: rgba(45, 42, 40, 0.1);
+    --settings-modal-shadow:
+      0 24px 80px -20px rgba(0, 0, 0, 0.24),
+      0 8px 28px -14px rgba(0, 0, 0, 0.16);
+    --settings-control-height: 36px;
+    --settings-row-gap: 24px;
     --settings-row-pad-x: 16px;
-    --settings-row-pad-y: 12px;
-    --settings-fg: #14151a;
-    --settings-fg-muted: color-mix(in oklab, #14151a 72%, transparent);
-    --settings-hairline: color-mix(in oklab, #14151a 8%, transparent);
-    --settings-input-border: color-mix(in oklab, #14151a 14%, transparent);
-    --settings-btn-border: color-mix(in oklab, #14151a 10%, transparent);
-    --settings-switch-track: color-mix(in oklab, #14151a 16%, transparent);
+    --settings-row-pad-y: 14px;
+    --settings-fg: #2d2a28;
+    --settings-fg-muted: color-mix(in oklab, #2d2a28 66%, transparent);
+    --settings-fg-subtle: color-mix(in oklab, #2d2a28 48%, transparent);
+    --settings-hairline: color-mix(in oklab, #2d2a28 8%, transparent);
+    --settings-input-border: color-mix(in oklab, #2d2a28 13%, transparent);
+    --settings-input-focus: color-mix(in oklab, #2d2a28 30%, transparent);
+    --settings-focus-ring: color-mix(in oklab, #2d2a28 7%, transparent);
+    --settings-btn-border: color-mix(in oklab, #2d2a28 11%, transparent);
+    --settings-switch-track: color-mix(in oklab, #2d2a28 18%, transparent);
+    --settings-danger: #d92d20;
+    --settings-danger-soft: rgba(217, 45, 32, 0.07);
     --ui-page-max-width: 880px;
     --ui-page-max-width-wide: 1120px;
     --ui-card-bg: #ffffff;
@@ -240,6 +255,23 @@
     --ui-fg-body: #e4e4e7;
     --ui-fg-muted: #a1a1aa;
     --ui-fg-placeholder: #71717a;
+    --settings-canvas-bg: #181719;
+    --settings-sidebar-bg: #141416;
+    --settings-card-bg: #211f20;
+    --settings-elevated-bg: #211f20;
+    --settings-icon-bg: #292627;
+    --settings-nav-active-bg: rgba(255, 255, 255, 0.075);
+    --settings-nav-hover-bg: rgba(255, 255, 255, 0.05);
+    --settings-fg: #f4f1ef;
+    --settings-fg-muted: rgba(244, 241, 239, 0.65);
+    --settings-fg-subtle: rgba(244, 241, 239, 0.43);
+    --settings-hairline: rgba(255, 255, 255, 0.075);
+    --settings-input-border: rgba(255, 255, 255, 0.12);
+    --settings-input-focus: rgba(255, 255, 255, 0.26);
+    --settings-focus-ring: rgba(255, 255, 255, 0.07);
+    --settings-btn-border: rgba(255, 255, 255, 0.11);
+    --settings-switch-track: rgba(255, 255, 255, 0.18);
+    --settings-modal-border: rgba(255, 255, 255, 0.1);
     --ui-field-bg: #18181b;
     --ui-field-focus-border: rgba(255, 255, 255, 0.2);
     --ui-field-focus-ring: rgba(255, 255, 255, 0.08);
@@ -266,6 +298,57 @@
     --skeleton-base: #1c1c1f;
     --skeleton-highlight: rgba(255, 255, 255, 0.06);
   }
+}
+
+/* Settings v2 is intentionally scoped so shared app-page tokens stay unchanged. */
+.settings-theme {
+  --settings-canvas-bg: #ffffff;
+  --settings-sidebar-bg: #f7f7f8;
+  --settings-card-bg: #ffffff;
+  --settings-elevated-bg: #ffffff;
+  --settings-icon-bg: #f3f3f3;
+  --settings-nav-active-bg: #e9e9eb;
+  --settings-nav-hover-bg: #eeeeef;
+  --settings-card-radius: 12px;
+  --settings-card-shadow: inset 0 0 0 1px rgba(15, 15, 15, 0.1);
+  --settings-modal-border: rgba(15, 15, 15, 0.14);
+  --settings-modal-shadow:
+    0 24px 80px -20px rgba(0, 0, 0, 0.24),
+    0 8px 28px -14px rgba(0, 0, 0, 0.16);
+  --settings-control-height: 36px;
+  --settings-row-gap: 24px;
+  --settings-row-pad-x: 16px;
+  --settings-row-pad-y: 14px;
+  --settings-fg: #171717;
+  --settings-fg-muted: #666666;
+  --settings-fg-subtle: #8a8a8a;
+  --settings-hairline: rgba(15, 15, 15, 0.08);
+  --settings-input-border: rgba(15, 15, 15, 0.14);
+  --settings-input-focus: rgba(15, 15, 15, 0.42);
+  --settings-focus-ring: rgba(15, 15, 15, 0.08);
+  --settings-btn-border: rgba(15, 15, 15, 0.12);
+  --settings-switch-track: #d1d1d1;
+  --settings-danger: #d92d20;
+  --settings-danger-soft: rgba(217, 45, 32, 0.07);
+}
+
+.dark .settings-theme {
+  --settings-canvas-bg: #212121;
+  --settings-sidebar-bg: #181818;
+  --settings-card-bg: #262626;
+  --settings-elevated-bg: #2f2f2f;
+  --settings-icon-bg: #303030;
+  --settings-nav-active-bg: #303030;
+  --settings-nav-hover-bg: #282828;
+  --settings-fg: #f2f2f2;
+  --settings-fg-muted: #b4b4b4;
+  --settings-fg-subtle: #8c8c8c;
+  --settings-hairline: rgba(255, 255, 255, 0.09);
+  --settings-input-border: rgba(255, 255, 255, 0.14);
+  --settings-input-focus: rgba(255, 255, 255, 0.38);
+  --settings-focus-ring: rgba(255, 255, 255, 0.09);
+  --settings-btn-border: rgba(255, 255, 255, 0.13);
+  --settings-switch-track: #555555;
 }
 
 /* ——— Shared chrome utilities (prefer over ad-hoc Tailwind) ——— */
@@ -357,8 +440,23 @@
 .settings-canvas {
   background-color: var(--settings-canvas-bg);
   color: var(--settings-fg);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.settings-panel-enter {
+  animation: settings-panel-enter 180ms ease-out both;
+}
+
+@keyframes settings-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .settings-card {
@@ -369,19 +467,25 @@
   border-radius: var(--settings-card-radius);
   background: var(--settings-card-bg);
   box-shadow: var(--settings-card-shadow);
+  overflow: hidden;
+}
+
+.settings-card:has(> table) {
+  overflow-x: auto;
 }
 
 .settings-section-label {
   font-size: 13px;
-  line-height: 20px;
-  font-weight: 500;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
   color: var(--settings-fg);
 }
 
 .settings-muted {
   color: var(--settings-fg-muted);
   font-size: 13px;
-  line-height: 18px;
+  line-height: 19px;
 }
 
 .settings-field {
@@ -389,15 +493,19 @@
   width: 100%;
   height: var(--settings-control-height);
   min-height: var(--settings-control-height);
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   border: 1px solid var(--settings-input-border);
   background: var(--settings-card-bg);
-  padding-left: 8px;
-  padding-right: 8px;
+  padding-left: 11px;
+  padding-right: 11px;
   font-size: 13px;
   line-height: 18px;
   color: var(--settings-fg);
   outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .settings-field::placeholder {
@@ -405,21 +513,22 @@
 }
 
 .settings-field:focus {
-  border-color: color-mix(in oklab, #18181b 22%, transparent);
+  border-color: var(--settings-input-focus);
+  box-shadow: 0 0 0 3px var(--settings-focus-ring);
 }
 
 .settings-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
   height: var(--settings-control-height);
   min-height: var(--settings-control-height);
-  padding-left: 8px;
-  padding-right: 8px;
-  border-radius: var(--radius-sm);
+  padding-left: 11px;
+  padding-right: 11px;
+  border-radius: 9px;
   border: none;
-  background: transparent;
+  background: var(--settings-elevated-bg);
   box-shadow: inset 0 0 0 1px var(--settings-btn-border);
   font-size: 13px;
   line-height: 18px;
@@ -427,11 +536,22 @@
   white-space: nowrap;
   transition:
     color 0.15s ease,
-    background-color 0.15s ease;
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
 .settings-btn:hover:not(:disabled) {
-  background: var(--ui-hover-wash);
+  background: color-mix(
+    in oklab,
+    var(--settings-elevated-bg) 92%,
+    var(--settings-fg) 8%
+  );
+  box-shadow: inset 0 0 0 1px var(--settings-input-border);
+}
+
+.settings-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .settings-btn:disabled {
@@ -451,10 +571,24 @@
   color: var(--settings-fg);
 }
 
+.settings-btn--primary {
+  background: var(--settings-fg);
+  box-shadow: none;
+  color: var(--settings-canvas-bg);
+}
+
+.settings-btn--primary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--settings-fg) 88%, transparent);
+  box-shadow: none;
+}
+
 .settings-switch {
-  height: 20px;
-  width: 34px;
+  height: 22px;
+  width: 38px;
   border-width: 2px;
+  transition:
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .settings-switch[data-state="unchecked"] {
@@ -467,12 +601,34 @@
 
 .settings-switch [data-slot="thumb"],
 .settings-switch > span {
-  height: 16px;
-  width: 16px;
+  height: 18px;
+  width: 18px;
+  box-shadow: 0 1px 3px rgba(45, 42, 40, 0.2);
 }
 
 .settings-switch[data-state="checked"] > span {
-  transform: translateX(14px);
+  transform: translateX(16px);
+}
+
+.settings-canvas table {
+  color: var(--settings-fg);
+}
+
+.settings-canvas table thead {
+  background: color-mix(in oklab, var(--settings-card-bg) 91%, #2d2a28 9%);
+  color: var(--settings-fg-muted);
+}
+
+.settings-canvas table th {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.settings-canvas table tr,
+.settings-canvas table td,
+.settings-canvas table th {
+  border-color: var(--settings-hairline);
 }
 
 .app-page-row {

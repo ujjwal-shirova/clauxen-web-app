@@ -123,7 +123,7 @@ export function GeneralSettings({
   };
 
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-zinc-900 dark:text-zinc-100">
+    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
       <SettingsPanelTitle>General</SettingsPanelTitle>
 
       <SettingsSection title="Profile">

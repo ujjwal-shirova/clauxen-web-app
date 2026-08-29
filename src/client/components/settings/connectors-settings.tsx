@@ -32,8 +32,8 @@ export function ConnectorsSettings({
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-300">
-      <section className="flex flex-col gap-6 text-zinc-800">
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+      <section className="flex flex-col gap-6 text-[var(--settings-fg)]">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--settings-input-border)] bg-[var(--settings-sidebar-bg)] p-4">
           <p className="text-[14px] leading-snug">
             Manage connectors from the Connectors tab in Settings.
           </p>
@@ -50,16 +50,20 @@ export function ConnectorsSettings({
         <div className="mt-4">
           <h2 className="text-[16px] font-semibold">Connected accounts</h2>
           {accounts.length === 0 && installations.length === 0 ? (
-            <p className="mt-2 text-sm text-zinc-500">No connected apps yet.</p>
+            <p className="mt-2 text-sm text-[var(--settings-fg-muted)]">
+              No connected apps yet.
+            </p>
           ) : (
-            <ul className="mt-3 divide-y divide-zinc-100">
+            <ul className="mt-3 divide-y divide-[var(--settings-hairline)]">
               {accounts.map((account) => (
                 <li
                   key={account.id}
                   className="flex items-center justify-between py-3 text-sm"
                 >
                   <span>{account.provider}</span>
-                  <span className="text-zinc-500">{account.status}</span>
+                  <span className="text-[var(--settings-fg-muted)]">
+                    {account.status}
+                  </span>
                 </li>
               ))}
               {installations.map((row) => (
@@ -68,7 +72,9 @@ export function ConnectorsSettings({
                   className="flex items-center justify-between py-3 text-sm"
                 >
                   <span>{row.connectorName}</span>
-                  <span className="text-zinc-500">{row.status}</span>
+                  <span className="text-[var(--settings-fg-muted)]">
+                    {row.status}
+                  </span>
                 </li>
               ))}
             </ul>
