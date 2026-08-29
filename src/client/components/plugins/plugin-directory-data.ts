@@ -32,7 +32,7 @@ export const INITIAL_INSTALLED_PLUGINS = [
 
 export const PLUGIN_SECTIONS: PluginSection[] = [
   {
-    title: "Featured",
+    title: "Popular",
     plugins: [
       { name: "Gmail", description: "Read and manage Gmail" },
       {

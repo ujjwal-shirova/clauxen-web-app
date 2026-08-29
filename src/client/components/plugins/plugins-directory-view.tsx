@@ -28,6 +28,7 @@ function PluginArtwork({ name, size = 40 }: { name: string; size?: number }) {
         alt=""
         width={size}
         height={size}
+        unoptimized
         className="size-full object-cover"
       />
     </span>
