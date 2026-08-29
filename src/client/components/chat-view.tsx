@@ -48,6 +48,8 @@ interface ChatViewProps {
     href?: string;
     onClick?: () => void;
   };
+  /** Optional prompt launched from a plugin example. Sent once on mount. */
+  initialPrompt?: string;
 }
 
 type ChatController = ReturnType<typeof useChat> & {
@@ -78,11 +80,13 @@ function ChatViewBody({
   projectId = null,
   projectBreadcrumb,
   incognito = false,
+  initialPrompt,
 }: {
   chat: ChatController;
   projectId?: string | null;
   projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
   incognito?: boolean;
+  initialPrompt?: string;
 }) {
   const pathname = useAppPathname();
   const instantNavigate = useInstantNavigate();
@@ -217,6 +221,14 @@ function ChatViewBody({
     startNewChat,
     handleSelectChat,
   } = chat;
+  const sentInitialPromptRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const prompt = initialPrompt?.trim();
+    if (!prompt || sentInitialPromptRef.current === prompt) return;
+    sentInitialPromptRef.current = prompt;
+    void handleSendMessage(prompt);
+  }, [handleSendMessage, initialPrompt]);
 
   const creatingChatPending = Boolean(
     (chat as { creatingChatPending?: boolean }).creatingChatPending,
@@ -525,6 +537,7 @@ export function ChatView({
   apiEnabled,
   incognito = false,
   projectBreadcrumb,
+  initialPrompt,
 }: ChatViewProps) {
   const auth = useAuth();
   const session = useOptionalChatSession();
@@ -536,6 +549,7 @@ export function ChatView({
         projectId={projectId}
         projectBreadcrumb={projectBreadcrumb}
         incognito={incognito}
+        initialPrompt={initialPrompt}
       />
     );
   }
@@ -551,6 +565,7 @@ export function ChatView({
       apiEnabled={apiEnabled ?? Boolean(auth.user)}
       projectBreadcrumb={projectBreadcrumb}
       incognito={incognito}
+      initialPrompt={initialPrompt}
     />
   );
 }
@@ -560,11 +575,13 @@ function ChatViewStandalone({
   apiEnabled,
   projectBreadcrumb,
   incognito = false,
+  initialPrompt,
 }: {
   projectId?: string | null;
   apiEnabled: boolean;
   projectBreadcrumb?: ChatViewProps["projectBreadcrumb"];
   incognito?: boolean;
+  initialPrompt?: string;
 }) {
   const [chatModel, setChatModel] = useState<ChatModelId>(
     DEFAULT_CHAT_MODEL_ID,
@@ -591,6 +608,7 @@ function ChatViewStandalone({
       projectId={projectId}
       projectBreadcrumb={projectBreadcrumb}
       incognito={incognito}
+      initialPrompt={initialPrompt}
     />
   );
 }

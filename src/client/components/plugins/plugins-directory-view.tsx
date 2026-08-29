@@ -12,6 +12,7 @@ import {
   getPluginCategory,
   pluginCategorySlugForTitle,
   pluginIconPath,
+  pluginSlug,
   type DirectoryPlugin,
 } from "./plugin-directory-data";
 
@@ -39,16 +40,22 @@ function PluginArtwork({ name, size = 40 }: { name: string; size?: number }) {
 
 function PluginRow({
   plugin,
+  categorySlug,
   installed,
   onToggle,
 }: {
   plugin: DirectoryPlugin;
+  categorySlug: string;
   installed: boolean;
   onToggle: () => void;
 }) {
   return (
     <article className="group relative flex min-w-0 items-center rounded-2xl p-2 transition-colors duration-150 hover:bg-black/[0.035]">
-      <div className="flex min-w-0 flex-1 items-center gap-3.5 pr-3">
+      <Link
+        href={`/plugins/${pluginSlug(plugin.name)}?category=${encodeURIComponent(categorySlug)}`}
+        aria-label={`Open ${plugin.name} plugin`}
+        className="flex min-w-0 flex-1 items-center gap-3.5 pr-3 outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-zinc-400 focus-visible:after:ring-offset-2"
+      >
         <PluginArtwork name={plugin.name} />
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-[14px] font-medium leading-[18px] text-zinc-900">
@@ -58,7 +65,7 @@ function PluginRow({
             {plugin.description}
           </p>
         </div>
-      </div>
+      </Link>
       <button
         type="button"
         onClick={onToggle}
@@ -226,6 +233,7 @@ export function PluginsDirectoryView({
                   <PluginRow
                     key={plugin.name}
                     plugin={plugin}
+                    categorySlug={activeCategory.slug}
                     installed={installed.has(plugin.name)}
                     onToggle={() => togglePlugin(plugin.name)}
                   />
@@ -332,16 +340,15 @@ export function PluginsDirectoryView({
               </button>
               <div className="-ml-1 flex flex-wrap gap-0.5">
                 {visibleInstalled.map((name) => (
-                  <button
+                  <Link
                     key={name}
-                    type="button"
-                    onClick={() => togglePlugin(name)}
-                    title={`${name} · click to remove`}
-                    aria-label={`Remove ${name}`}
+                    href={`/plugins/${pluginSlug(name)}`}
+                    title={name}
+                    aria-label={`Open ${name} plugin`}
                     className="flex size-12 items-center justify-center rounded-[14px] transition-colors hover:bg-black/[0.04]"
                   >
                     <PluginArtwork name={name} size={32} />
-                  </button>
+                  </Link>
                 ))}
                 {!showAllInstalled && hiddenInstalledCount > 0 ? (
                   <button
@@ -376,6 +383,7 @@ export function PluginsDirectoryView({
                     <PluginRow
                       key={plugin.name}
                       plugin={plugin}
+                      categorySlug={pluginCategorySlugForTitle(section.title)}
                       installed={installed.has(plugin.name)}
                       onToggle={() => togglePlugin(plugin.name)}
                     />

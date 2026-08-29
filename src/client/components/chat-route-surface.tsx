@@ -10,6 +10,10 @@ import { ChatView } from "@/components/chat-view";
  * /new → /c/:id transition swapped two unrelated page components, which
  * remounted ChatView mid-stream — the visible "sudden reload".
  */
-export function ChatRouteSurface() {
-  return <ChatView />;
+export function ChatRouteSurface({
+  initialPrompt,
+}: {
+  initialPrompt?: string;
+}) {
+  return <ChatView initialPrompt={initialPrompt} />;
 }

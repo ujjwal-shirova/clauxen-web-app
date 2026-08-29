@@ -17,6 +17,18 @@ export type PluginCategory = {
   plugins: DirectoryPlugin[];
 };
 
+export type PluginDetail = DirectoryPlugin & {
+  slug: string;
+  category: string;
+  categorySlug: string;
+  overview: string;
+  prompts: [string, string, string];
+  capabilities: string;
+  developer: string;
+  version: string;
+  apps: string[];
+};
+
 export const INITIAL_INSTALLED_PLUGINS = [
   "Hostinger Mail",
   "Higgsfield",
@@ -661,13 +673,151 @@ export function pluginCategorySlugForTitle(title: string): string {
   );
 }
 
-export function pluginIconPath(name: string): string {
-  const slug = name
+export function pluginSlug(name: string): string {
+  return name
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-  return `/assets/plugins/${slug}.png`;
+}
+
+const allPluginsBySlug = new Map<string, DirectoryPlugin>();
+for (const category of PLUGIN_CATEGORIES) {
+  for (const plugin of category.plugins) {
+    allPluginsBySlug.set(pluginSlug(plugin.name), plugin);
+  }
+}
+
+export const ALL_DIRECTORY_PLUGINS = [...allPluginsBySlug.values()];
+
+export function getDirectoryPlugin(slug: string): DirectoryPlugin | null {
+  return allPluginsBySlug.get(slug) ?? null;
+}
+
+export function getDirectoryPluginCategory(
+  name: string,
+): PluginCategory | null {
+  return (
+    PLUGIN_CATEGORIES.find(
+      (category) =>
+        category.slug !== "featured" &&
+        category.plugins.some((plugin) => plugin.name === name),
+    ) ??
+    PLUGIN_CATEGORIES.find((category) =>
+      category.plugins.some((plugin) => plugin.name === name),
+    ) ??
+    null
+  );
+}
+
+const DETAIL_OVERVIEWS: Record<string, string> = {
+  Gmail:
+    "Review your Gmail conversations to prepare replies, recap recent exchanges, gather talking points for meetings, or highlight action items. Use past threads with a colleague or customer to quickly reorient yourself, understand what still needs attention, and write more confident, well-informed responses.",
+  GitHub:
+    "Explore repository files, documentation, folder structures, and commit history to understand code, prepare reviews, or document a project. Summarize pull requests, clarify how parts of the codebase fit together, and turn technical details into approachable explanations when sharing work with others.",
+  "Google Drive":
+    "Find and work with the documents, spreadsheets, slides, and files stored in Google Drive. Bring useful context into a conversation, compare material across files, and turn existing work into clear summaries, plans, and polished deliverables.",
+  Notion:
+    "Search your Notion workspace for project context, decisions, notes, and documentation. Connect related information across pages, summarize ongoing work, and turn scattered knowledge into useful next steps.",
+  Slack:
+    "Review conversations and shared context from Slack to catch up quickly, surface decisions, and prepare thoughtful responses. Summarize channels or threads and turn discussions into clear actions.",
+};
+
+const APP_OVERRIDES: Record<string, string[]> = {
+  GitHub: ["GitHub", "GitHub Enterprise"],
+  "Google Drive": [
+    "Google Drive",
+    "Google Docs",
+    "Google Sheets",
+    "Google Slides",
+  ],
+  "Microsoft Teams": ["Microsoft Teams"],
+  Teams: ["Microsoft Teams"],
+  "Outlook Email": ["Microsoft Outlook"],
+  "Outlook Calendar": ["Microsoft Outlook"],
+};
+
+function pluginPrompts(
+  plugin: DirectoryPlugin,
+  category: PluginCategory,
+): [string, string, string] {
+  const mention = `@${plugin.name}`;
+  const categoryPrompts: Record<string, [string, string, string]> = {
+    communication: [
+      `${mention} Summarize the latest conversations and highlight decisions, open questions, and follow-ups`,
+      `${mention} Draft a concise, thoughtful response to the most important outstanding message`,
+      `${mention} Turn recent discussions into an action tracker with owners and deadlines`,
+    ],
+    "developer-tools": [
+      `${mention} Explain this project's architecture, key components, and request flow`,
+      `${mention} Review the latest changes and identify risks, regressions, and missing tests`,
+      `${mention} Turn recent development activity into a concise stakeholder update`,
+    ],
+    creativity: [
+      `${mention} Create three polished directions for this idea and explain the tradeoffs`,
+      `${mention} Review this concept and suggest specific ways to make it clearer and stronger`,
+      `${mention} Turn this brief into a production-ready creative plan with next steps`,
+    ],
+    finance: [
+      `${mention} Summarize the latest financial information and highlight the most important changes`,
+      `${mention} Compare these options, explain the tradeoffs, and flag the key risks`,
+      `${mention} Turn this market context into a clear research brief with follow-up questions`,
+    ],
+    healthcare: [
+      `${mention} Summarize the available information and organize the most useful trends`,
+      `${mention} Help me prepare focused questions based on this health context`,
+      `${mention} Turn this data into a clear, practical tracking plan`,
+    ],
+    travel: [
+      `${mention} Find the best options for this trip and compare the important tradeoffs`,
+      `${mention} Build a practical itinerary around my dates, budget, and preferences`,
+      `${mention} Review this travel plan and flag timing, booking, or logistics risks`,
+    ],
+  };
+
+  return (
+    categoryPrompts[category.slug] ?? [
+      `${mention} Find the most relevant information for this task and summarize it clearly`,
+      `${mention} Compare the available options and recommend the strongest next step`,
+      `${mention} Turn this context into an organized plan with actions and priorities`,
+    ]
+  );
+}
+
+export function getPluginDetail(slug: string): PluginDetail | null {
+  const plugin = getDirectoryPlugin(slug);
+  if (!plugin) return null;
+  const category = getDirectoryPluginCategory(plugin.name);
+  if (!category) return null;
+
+  const writeCategories = new Set([
+    "communication",
+    "productivity",
+    "creativity",
+    "developer-tools",
+    "business-and-operations",
+  ]);
+
+  return {
+    ...plugin,
+    slug,
+    category: category.title,
+    categorySlug: category.slug,
+    overview:
+      DETAIL_OVERVIEWS[plugin.name] ??
+      `${plugin.description}. Bring ${plugin.name} into Clauxen to find useful context, understand what matters, and move from information to a clear result without interrupting your workflow.`,
+    prompts: pluginPrompts(plugin, category),
+    capabilities: writeCategories.has(category.slug)
+      ? "Interactive, Write"
+      : "Interactive, Read",
+    developer: "Clauxen",
+    version: "1.0.0",
+    apps: APP_OVERRIDES[plugin.name] ?? [plugin.name],
+  };
+}
+
+export function pluginIconPath(name: string): string {
+  return `/assets/plugins/${pluginSlug(name)}.png`;
 }
