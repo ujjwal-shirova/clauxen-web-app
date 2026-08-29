@@ -30,6 +30,7 @@ import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { APP_ROUTES, isIncognitoPath } from "@/lib/app-routes";
 import { Sidebar } from "@/components/sidebar";
+import { SidebarOpenIcon } from "@/components/icons";
 
 const MOBILE_FULL_BLEED_PREFIXES = [
   "/library",
@@ -58,6 +59,51 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     setIsSidebarCollapsed,
     sidebarHydrated,
   } = useSidebarState();
+  const [isSidebarPeekOpen, setIsSidebarPeekOpen] = React.useState(false);
+  const sidebarPeekCloseTimerRef = React.useRef<number | null>(null);
+
+  const cancelSidebarPeekClose = useCallback(() => {
+    if (sidebarPeekCloseTimerRef.current === null) return;
+    window.clearTimeout(sidebarPeekCloseTimerRef.current);
+    sidebarPeekCloseTimerRef.current = null;
+  }, []);
+
+  const openSidebarPeek = useCallback(() => {
+    if (isMobile || !isSidebarCollapsed) return;
+    cancelSidebarPeekClose();
+    setIsSidebarPeekOpen(true);
+  }, [cancelSidebarPeekClose, isMobile, isSidebarCollapsed]);
+
+  const closeSidebarPeekSoon = useCallback(() => {
+    if (isMobile || !isSidebarCollapsed) return;
+    cancelSidebarPeekClose();
+    sidebarPeekCloseTimerRef.current = window.setTimeout(() => {
+      setIsSidebarPeekOpen(false);
+      sidebarPeekCloseTimerRef.current = null;
+    }, 180);
+  }, [cancelSidebarPeekClose, isMobile, isSidebarCollapsed]);
+
+  const setSidebarCollapsedFromNav = useCallback(
+    (collapsed: boolean) => {
+      cancelSidebarPeekClose();
+      setIsSidebarPeekOpen(false);
+      setIsSidebarCollapsed(collapsed);
+    },
+    [cancelSidebarPeekClose, setIsSidebarCollapsed],
+  );
+
+  React.useEffect(() => {
+    if (!isSidebarCollapsed || isMobile) setIsSidebarPeekOpen(false);
+  }, [isMobile, isSidebarCollapsed]);
+
+  React.useEffect(
+    () => () => {
+      if (sidebarPeekCloseTimerRef.current !== null) {
+        window.clearTimeout(sidebarPeekCloseTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useDocumentTitle();
 
@@ -98,6 +144,14 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const closeMobileNav = useCallback(() => {
     if (isMobile) setIsSidebarCollapsed(true);
   }, [isMobile, setIsSidebarCollapsed]);
+
+  const handleSidebarNavigate = useCallback(() => {
+    closeMobileNav();
+    if (!isMobile && isSidebarCollapsed) {
+      cancelSidebarPeekClose();
+      setIsSidebarPeekOpen(false);
+    }
+  }, [cancelSidebarPeekClose, closeMobileNav, isMobile, isSidebarCollapsed]);
 
   React.useEffect(() => {
     if (isMobile) setIsSidebarCollapsed(true);
@@ -265,63 +319,122 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 
       {!isIncognito ? (
         <div
-          className={cn(overlayOpen && "pointer-events-none")}
+          className={cn(
+            !isMobile &&
+              "relative z-40 h-full shrink-0 overflow-visible transition-[width] duration-300 ease-in-out",
+            !isMobile && (isSidebarCollapsed ? "w-0" : "w-[288px]"),
+            overlayOpen && "pointer-events-none",
+          )}
+          onMouseEnter={!isMobile ? openSidebarPeek : undefined}
+          onMouseLeave={!isMobile ? closeSidebarPeekSoon : undefined}
+          onFocusCapture={!isMobile ? openSidebarPeek : undefined}
+          onBlurCapture={
+            !isMobile
+              ? (event) => {
+                  if (
+                    !event.currentTarget.contains(
+                      event.relatedTarget as Node | null,
+                    )
+                  ) {
+                    closeSidebarPeekSoon();
+                  }
+                }
+              : undefined
+          }
           inert={overlayOpen || undefined}
           aria-hidden={overlayOpen || undefined}
         >
-          <Sidebar
-            id="app-primary-nav"
-            handleNewChat={handleNewChat}
-            isCollapsed={isSidebarCollapsed}
-            setIsCollapsed={setIsSidebarCollapsed}
-            isMobileLayout={isMobile}
-            sidebarReady={sidebarHydrated}
-            onNavigate={closeMobileNav}
-            onUpgradeClick={onUpgradeClick}
-            onSettingsClick={() => onSettingsClick("General")}
-            onPersonalizationClick={onPersonalizationClick}
-            onAppsExtensionsClick={onAppsExtensionsClick}
-            onGiftClick={onGiftClick}
-            onProjectsClick={goToProjects}
-            onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
-            activeView={computeActiveView(
-              pathname,
-              overlays.currentOverlay?.type ?? null,
-              overlays.settingsTab,
+          <div
+            className={cn(
+              !isMobile &&
+                "absolute inset-y-0 left-0 w-[288px] overflow-hidden border-r border-black/[0.10] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] dark:border-white/[0.09]",
+              !isMobile &&
+                isSidebarCollapsed &&
+                !isSidebarPeekOpen &&
+                "pointer-events-none -translate-x-full opacity-0",
+              !isMobile &&
+                (!isSidebarCollapsed || isSidebarPeekOpen) &&
+                "translate-x-0 opacity-100",
+              !isMobile &&
+                isSidebarCollapsed &&
+                isSidebarPeekOpen &&
+                "rounded-r-[14px]",
             )}
-            recentChats={startedRecentChats}
-            activeChatId={sidebarActiveChatId}
-            chatsLoading={chatsLoading}
-            creatingChatPending={creatingChatPending}
-            onSelectChat={onSelectChatFromSidebar}
-            onDeleteChat={onDeleteChatFromSidebar}
-            onRenameChat={handleRenameChat}
-            onPinChat={handlePinChat}
-            generatingChatIds={generatingChatIds}
-            projects={projects.projects}
-            pinnedProjects={projects.pinnedProjects}
-            projectsLoading={projects.loading}
-            activeProjectId={activeProjectId}
-            onNewProjectClick={goToCreateProject}
-            onSelectProject={openProjectDetail}
-            onPinProject={projects.pinProject}
-            userDisplayName={
-              auth.loading && !auth.user
-                ? null
-                : auth.user
-                  ? sidebarDisplayNameOrNull({
-                      fullName: auth.user.displayName,
-                      preferredName: auth.user.preferredName,
-                      email: auth.user.email,
-                    })
-                  : "Guest"
-            }
-            accountLoading={auth.loading && !auth.user}
-            userAvatarUrl={auth.user?.avatarUrl}
-            userEmail={auth.user?.email ?? ""}
-            onLogoutClick={() => void auth.logout()}
-          />
+          >
+            <Sidebar
+              id="app-primary-nav"
+              handleNewChat={handleNewChat}
+              isCollapsed={isMobile ? isSidebarCollapsed : false}
+              setIsCollapsed={setSidebarCollapsedFromNav}
+              isMobileLayout={isMobile}
+              sidebarReady={sidebarHydrated}
+              onNavigate={handleSidebarNavigate}
+              onUpgradeClick={onUpgradeClick}
+              onSettingsClick={() => onSettingsClick("General")}
+              onPersonalizationClick={onPersonalizationClick}
+              onAppsExtensionsClick={onAppsExtensionsClick}
+              onGiftClick={onGiftClick}
+              onProjectsClick={goToProjects}
+              onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
+              activeView={computeActiveView(
+                pathname,
+                overlays.currentOverlay?.type ?? null,
+                overlays.settingsTab,
+              )}
+              recentChats={startedRecentChats}
+              activeChatId={sidebarActiveChatId}
+              chatsLoading={chatsLoading}
+              creatingChatPending={creatingChatPending}
+              onSelectChat={onSelectChatFromSidebar}
+              onDeleteChat={onDeleteChatFromSidebar}
+              onRenameChat={handleRenameChat}
+              onPinChat={handlePinChat}
+              generatingChatIds={generatingChatIds}
+              projects={projects.projects}
+              pinnedProjects={projects.pinnedProjects}
+              projectsLoading={projects.loading}
+              activeProjectId={activeProjectId}
+              onNewProjectClick={goToCreateProject}
+              onSelectProject={openProjectDetail}
+              onPinProject={projects.pinProject}
+              userDisplayName={
+                auth.loading && !auth.user
+                  ? null
+                  : auth.user
+                    ? sidebarDisplayNameOrNull({
+                        fullName: auth.user.displayName,
+                        preferredName: auth.user.preferredName,
+                        email: auth.user.email,
+                      })
+                    : "Guest"
+              }
+              accountLoading={auth.loading && !auth.user}
+              userAvatarUrl={auth.user?.avatarUrl}
+              userEmail={auth.user?.email ?? ""}
+              onLogoutClick={() => void auth.logout()}
+            />
+          </div>
         </div>
+      ) : null}
+
+      {!isIncognito && !isMobile && isSidebarCollapsed ? (
+        <button
+          type="button"
+          aria-label="Expand sidebar"
+          aria-controls="app-primary-nav"
+          onMouseEnter={openSidebarPeek}
+          onMouseLeave={closeSidebarPeekSoon}
+          onFocus={openSidebarPeek}
+          onBlur={closeSidebarPeekSoon}
+          onClick={() => setSidebarCollapsedFromNav(false)}
+          className={cn(
+            "fixed left-2 top-2 z-[42] flex size-8 items-center justify-center rounded-[9px] border-0 bg-transparent text-[#52514e] shadow-none transition-[background-color,color,opacity] hover:bg-black/[0.05] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07]",
+            (isSidebarPeekOpen || overlayOpen) &&
+              "pointer-events-none opacity-0",
+          )}
+        >
+          <SidebarOpenIcon className="size-[18px]" />
+        </button>
       ) : null}
 
       <main

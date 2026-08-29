@@ -2,10 +2,7 @@
 
 import { Download, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  downloadArtifact,
-  type ChatArtifact,
-} from "@/lib/chat-artifacts";
+import { downloadArtifact, type ChatArtifact } from "@/lib/chat-artifacts";
 import {
   artifactMetaLabel,
   artifactSupportsPreview,
@@ -43,10 +40,7 @@ export function ArtifactFileCard({
   const viewer = useOptionalArtifactViewer();
   const title =
     artifact.description || artifact.fileName.replace(/\.[^.]+$/, "");
-  const meta = artifactMetaLabel(
-    artifact.path,
-    artifact.language ?? "text",
-  );
+  const meta = artifactMetaLabel(artifact.path, artifact.language ?? "text");
   const isPanel = variant === "panel";
 
   const openFile = () => {
@@ -63,8 +57,8 @@ export function ArtifactFileCard({
   return (
     <div
       className={cn(
-        "artifact-file-card relative my-3 flex w-full min-w-0 items-stretch gap-1.5 rounded-lg border border-zinc-200/90 bg-white p-1",
-        isPanel && "my-0 rounded-lg p-1",
+        "artifact-file-card relative my-3 flex w-full min-w-0 items-stretch gap-1.5 rounded-xl border border-black/[0.10] bg-[#fcfcfb] p-1.5 shadow-[0_1px_2px_rgba(28,25,23,0.035)]",
+        isPanel && "my-0 rounded-xl p-1",
         className,
       )}
     >
@@ -72,8 +66,8 @@ export function ArtifactFileCard({
         type="button"
         onClick={openFile}
         className={cn(
-          "artifact-file-card__body group/file-body no-hover-overlay flex min-w-0 flex-1 items-center gap-2.5 rounded-md bg-zinc-50/80 px-2 py-1.5 text-left transition-colors duration-150",
-          "hover:bg-zinc-100/90",
+          "artifact-file-card__body group/file-body no-hover-overlay flex min-w-0 flex-1 items-center gap-3 rounded-lg bg-transparent px-2.5 py-2 text-left transition-colors duration-150",
+          "hover:bg-black/[0.035]",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300",
           isPanel && "gap-2 rounded-md px-2 py-1.5",
         )}
@@ -106,9 +100,7 @@ export function ArtifactFileCard({
           "no-hover-overlay inline-flex shrink-0 items-center justify-center gap-1.5 self-center rounded-md border border-zinc-200/90 bg-white text-zinc-700 transition-colors duration-150",
           "hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300",
-          isPanel
-            ? "h-7 w-7"
-            : "h-7 px-2.5 text-[12px] font-medium",
+          isPanel ? "h-7 w-7" : "h-7 px-2.5 text-[12px] font-medium",
         )}
       >
         <Download className="h-3.5 w-3.5 shrink-0" strokeWidth={1.9} />

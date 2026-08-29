@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 export const APP_SIDEBAR_RAIL_WIDTH_PX = 48;
 /** Expanded primary nav width. */
-export const APP_SIDEBAR_EXPANDED_WIDTH_PX = 256;
+export const APP_SIDEBAR_EXPANDED_WIDTH_PX = 288;
 export const APP_SHELL_GAP = "0.625rem";
 
 /** Shared main-content inset — uniform padding; sidebar sits in the flex row beside main. */
@@ -23,9 +23,13 @@ export function appMainShellClassName(options: {
     );
   }
 
+  if (fullBleed) {
+    return "app-main-shell relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-sidebar-bg,var(--app-shell-bg))] p-0";
+  }
+
   return cn(
-    "app-main-shell relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-shell-bg)]",
-    "p-0",
+    "app-main-shell relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-sidebar-bg,var(--app-shell-bg))]",
+    "pb-2 pr-2 pt-2 pl-0 transition-[padding] duration-300 ease-in-out data-[sidebar-collapsed=true]:pl-2",
   );
 }
 
@@ -50,7 +54,7 @@ export function appAgentPanelClassName(options: {
     "app-agent-panel agent-panel relative flex h-full min-h-0 max-h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] [transform:translateZ(0)]",
     fullBleed
       ? "min-h-[100dvh] rounded-none border-0 shadow-none"
-      : "rounded-none border-0 border-l border-zinc-200/70 shadow-none",
+      : "rounded-[18px] border border-black/[0.08] shadow-[0_10px_34px_rgba(28,25,23,0.055)] dark:border-white/[0.08] dark:shadow-[0_12px_38px_rgba(0,0,0,0.24)]",
   );
 }
 

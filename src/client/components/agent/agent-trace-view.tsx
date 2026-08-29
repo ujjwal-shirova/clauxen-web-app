@@ -9,7 +9,10 @@ import type {
   AgentToolStep,
 } from "@/lib/agent-trace";
 import { cn } from "@/lib/utils";
-import { formatElapsedSeconds } from "@/lib/agent-trace-labels";
+import {
+  formatElapsedSeconds,
+  summarizeTraceSteps,
+} from "@/lib/agent-trace-labels";
 import { preserveScrollAnchorOnToggle } from "@/lib/chat-scroll-anchor";
 import { StreamingTextFade } from "@/lib/streaming-text-fade";
 import { AgentToolBlock } from "./agent-tool-blocks";
@@ -128,7 +131,7 @@ function elapsedLabel(startedAtMs?: number, endedAtMs = Date.now()): string {
 
 /** Live, layout-stable activity label shown from send until answer paint. */
 export function AgentWorkingRow({
-  startedAtMs,
+  startedAtMs: _startedAtMs,
   activeLabel,
   className,
 }: {
@@ -136,13 +139,6 @@ export function AgentWorkingRow({
   activeLabel?: string;
   className?: string;
 }) {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
   return (
     <div
       className={cn(
@@ -156,7 +152,7 @@ export function AgentWorkingRow({
       <MorphingWorkIcon />
       <span className="min-w-0 truncate text-[14px] font-normal leading-6 tracking-[-0.01em]">
         <span className="shimmer-text" data-shimmer-active="true">
-          {activeLabel ?? "Working"} for {elapsedLabel(startedAtMs, now)}
+          {activeLabel ?? "Working"}
         </span>
       </span>
     </div>
@@ -254,7 +250,6 @@ function groupTraceRows(steps: AgentStep[]): TraceDisplayRow[] {
 
 function SearchTraceGroup({ tools }: { tools: AgentToolStep[] }) {
   const running = tools.some((tool) => tool.status === "running");
-  const count = tools.length;
   return (
     <AgentTraceBlock
       leading={<Search className="size-4 text-zinc-500" strokeWidth={1.8} />}
@@ -263,9 +258,7 @@ function SearchTraceGroup({ tools }: { tools: AgentToolStep[] }) {
           className={cn(running && "shimmer-text")}
           data-shimmer-active={running || undefined}
         >
-          {running
-            ? "Searching the web"
-            : `Ran ${count} ${count === 1 ? "search" : "searches"}`}
+          {running ? "Searching the web" : "Searched the web"}
         </span>
       }
       isActive={running}
@@ -379,6 +372,7 @@ function CompletedTrace({
   const [expanded, setExpanded] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const duration = elapsedLabel(startedAtMs, completedAtMs ?? startedAtMs);
+  const summary = summarizeTraceSteps(steps) ?? `Worked for ${duration}`;
 
   return (
     <div
@@ -397,7 +391,7 @@ function CompletedTrace({
         className="group/worked no-hover no-hover-overlay inline-flex min-h-6 max-w-full items-center gap-2 border-0 bg-transparent p-0 text-left text-[14px] font-normal leading-6 tracking-[-0.01em] text-zinc-500 shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 dark:text-zinc-400"
         aria-expanded={expanded}
       >
-        <span className="truncate">Worked for {duration}</span>
+        <span className="truncate">{summary}</span>
         <ChevronRight
           className={cn(
             "size-3.5 shrink-0 text-zinc-400 opacity-0 transition-[opacity,transform] duration-180 group-hover/worked:opacity-100 group-focus-visible/worked:opacity-100",

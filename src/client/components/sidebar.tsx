@@ -28,7 +28,6 @@ import {
   NavProjectsIcon,
 } from "./icons";
 import { cn } from "@/lib/utils";
-import { useIsClient } from "@/hooks/use-is-client";
 import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
 import { APP_ROUTES, buildOverlayLocation } from "@/lib/app-routes";
@@ -156,14 +155,6 @@ function SidebarSectionBody({
   );
 }
 
-function ShortcutKey({ children }: { children: React.ReactNode }) {
-  return (
-    <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded-[4px] border border-zinc-800/10 bg-black/[0.018] px-1 font-sans text-[10px] font-medium leading-none text-zinc-800/55 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400">
-      {children}
-    </kbd>
-  );
-}
-
 /** Up/down chevron (Phosphor-style) for profile menu affordance */
 const ProfileMenuChevron = ({ className }: { className?: string }) => (
   <svg
@@ -266,13 +257,6 @@ export function Sidebar({
   showAccountMenu = true,
 }: SidebarProps) {
   const pathname = useAppPathname() || APP_ROUTES.newChat;
-  const isClient = useIsClient();
-  const isApplePlatform =
-    isClient &&
-    typeof navigator !== "undefined" &&
-    /Mac|iPhone|iPad|iPod/i.test(
-      `${navigator.platform ?? ""} ${navigator.userAgent ?? ""}`,
-    );
   const [chatGroupBy, setChatGroupBy] = useState<ChatGroupBy>("none");
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
@@ -694,7 +678,7 @@ export function Sidebar({
             !isCollapsed &&
             "z-40 w-[min(88vw,280px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[env(safe-area-inset-bottom)]",
           !isMobileLayout && isCollapsed && "w-[56px] cursor-pointer",
-          !isMobileLayout && !isCollapsed && "w-[min(86vw,256px)] lg:w-[256px]",
+          !isMobileLayout && !isCollapsed && "w-[min(86vw,288px)] lg:w-[288px]",
         )}
       >
         <div
@@ -791,12 +775,13 @@ export function Sidebar({
                   className="sidebar-new-chat-button group no-hover-overlay flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-black/[0.055] bg-black/[0.028] px-2.5 text-[13px] font-medium leading-[18px] text-zinc-800 transition-[background-color,border-color] hover:border-black/[0.075] hover:bg-black/[0.055]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <NewChatBubbleIcon className="size-4 shrink-0 text-zinc-800/70" />
-                    <span className="truncate">New Chat</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-0.5 text-zinc-500 opacity-70">
-                    <ShortcutKey>{isApplePlatform ? "⌘" : "Ctrl"}</ShortcutKey>
-                    <ShortcutKey>K</ShortcutKey>
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-black/[0.055]">
+                      <Plus
+                        className="size-4 text-[#52514e]"
+                        strokeWidth={1.65}
+                      />
+                    </span>
+                    <span className="truncate">New</span>
                   </span>
                 </AppHref>
               )}

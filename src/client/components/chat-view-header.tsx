@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useIsClient } from "@/hooks/use-is-client";
-import { MoreHorizontal } from "lucide-react";
+import { ChevronDown, MoreHorizontal } from "lucide-react";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
@@ -75,6 +75,31 @@ export function ChatViewHeader({
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
 
   const displayTitle = resolveDisplayChatTitle(chatTitle, isTitleStreaming);
+  const chatOptionsMenu = isClient ? (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Chat options"
+          className="ui-icon-button rounded-lg text-zinc-600 transition-colors hover:bg-black/[0.045] hover:text-zinc-900 data-[state=open]:bg-black/[0.055]"
+        >
+          <MoreHorizontal className="size-[18px]" strokeWidth={1.8} />
+        </button>
+      </DropdownMenuTrigger>
+      <ChatRowMenuContent
+        align="start"
+        side="bottom"
+        className="z-[100]"
+        isPinned={isChatPinned}
+        onShare={onShareClick}
+        onRename={() => setRenameDialogOpen(true)}
+        onMoveToProject={onMoveToProject}
+        onPin={onPinChat}
+        onUnpin={onUnpinChat}
+        onDelete={() => setDeleteDialogOpen(true)}
+      />
+    </DropdownMenu>
+  ) : null;
 
   if (isConversationStarted) {
     return (
@@ -92,7 +117,7 @@ export function ChatViewHeader({
                 aria-controls="app-primary-nav"
               />
             ) : null}
-            <div className="flex min-w-0 flex-1 items-center overflow-hidden">
+            <div className="flex min-w-0 items-center overflow-hidden">
               {projectBreadcrumb ? (
                 <div className="mr-1 flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-zinc-800">
                   <span
@@ -125,7 +150,23 @@ export function ChatViewHeader({
                   )}
                 </div>
               ) : null}
+              <button
+                type="button"
+                onClick={() => setRenameDialogOpen(true)}
+                className="ui-chrome-text-btn group/title min-w-0 max-w-[min(52vw,34rem)] gap-1.5 bg-transparent px-2 text-[#52514e] hover:bg-black/[0.045] hover:text-zinc-950"
+                aria-label={`${displayTitle}, rename chat`}
+              >
+                <span className="truncate">{displayTitle}</span>
+                <ChevronDown
+                  className="size-3.5 shrink-0 text-[#898781] transition-transform group-hover/title:text-[#52514e]"
+                  strokeWidth={1.7}
+                  aria-hidden
+                />
+              </button>
+              {!headerControlsLoading ? chatOptionsMenu : null}
             </div>
+
+            <div className="min-w-0 flex-1" />
 
             <div className="content-pane-top-bar__trailing-wrap flex shrink-0 items-center gap-1">
               {headerControlsLoading ? null : (
@@ -133,36 +174,7 @@ export function ChatViewHeader({
                   isArtifactsPanelOpen={isArtifactsPanelOpen}
                   onToggleArtifactsPanel={onToggleArtifactsPanel}
                   onShareClick={onShareClick}
-                  menu={
-                    isClient ? (
-                      <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label="Chat options"
-                            className="ui-icon-button rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 data-[state=open]:bg-zinc-100"
-                          >
-                            <MoreHorizontal
-                              className="size-[18px]"
-                              strokeWidth={1.8}
-                            />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <ChatRowMenuContent
-                          align="end"
-                          side="bottom"
-                          className="z-[100]"
-                          isPinned={isChatPinned}
-                          onShare={onShareClick}
-                          onRename={() => setRenameDialogOpen(true)}
-                          onMoveToProject={onMoveToProject}
-                          onPin={onPinChat}
-                          onUnpin={onUnpinChat}
-                          onDelete={() => setDeleteDialogOpen(true)}
-                        />
-                      </DropdownMenu>
-                    ) : null
-                  }
+                  menu={undefined}
                 />
               )}
             </div>
