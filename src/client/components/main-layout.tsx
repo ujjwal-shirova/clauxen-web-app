@@ -40,6 +40,15 @@ const MOBILE_FULL_BLEED_PREFIXES = [
   "/incognito",
 ] as const;
 
+const APP_SHELL_PREFETCH_ROUTES = [
+  APP_ROUTES.newChat,
+  APP_ROUTES.automations,
+  APP_ROUTES.plugins,
+  APP_ROUTES.library,
+  APP_ROUTES.projects,
+  APP_ROUTES.myClauxen,
+] as const;
+
 function shouldMobileFullBleed(pathname: string | null): boolean {
   if (!pathname) return false;
   return MOBILE_FULL_BLEED_PREFIXES.some(
@@ -131,6 +140,13 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 
   useDocumentTitle();
 
+  React.useEffect(() => {
+    if (auth.loading || !auth.user?.id) return;
+    for (const route of APP_SHELL_PREFETCH_ROUTES) {
+      router.prefetch(route);
+    }
+  }, [auth.loading, auth.user?.id, router]);
+
   // Client auth gate — middleware is primary; this catches JWT-less shells.
   React.useEffect(() => {
     if (auth.loading) return;
@@ -164,6 +180,13 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 
   const projects = useProjects(auth.isAuthenticated);
   const overlays = useAppOverlays();
+
+  React.useEffect(() => {
+    if (!auth.user?.id) return;
+    for (const project of projects.projects.slice(0, 12)) {
+      router.prefetch(APP_ROUTES.project(project.id));
+    }
+  }, [auth.user?.id, projects.projects, router]);
 
   const closeMobileNav = useCallback(() => {
     if (isMobile) setIsSidebarCollapsed(true);

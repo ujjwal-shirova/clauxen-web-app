@@ -158,27 +158,15 @@ export function AppOverlayHost() {
   const overlays = useAppOverlays();
   const auth = useAuth();
 
-  // Warm overlay chunks so Settings / Pricing / Gift open without a blank wait.
+  // These surfaces are reachable from persistent app chrome. Start fetching
+  // their chunks as soon as the shell mounts so the first open is immediate.
   useEffect(() => {
-    const warm = () => {
-      void import("@/components/upgrade-view");
-      void import("@/components/settings-page");
-      void import("@/components/gift-view");
-      void import("@/components/apps-extensions-view");
-    };
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (
-        callback: IdleRequestCallback,
-        options?: IdleRequestOptions,
-      ) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    if (typeof idleWindow.requestIdleCallback === "function") {
-      const id = idleWindow.requestIdleCallback(warm, { timeout: 8000 });
-      return () => idleWindow.cancelIdleCallback?.(id);
-    }
-    const timer = window.setTimeout(warm, 4000);
-    return () => window.clearTimeout(timer);
+    void Promise.all([
+      import("@/components/upgrade-view"),
+      import("@/components/settings-page"),
+      import("@/components/gift-view"),
+      import("@/components/apps-extensions-view"),
+    ]);
   }, []);
 
   if (!overlays.currentOverlay) return null;

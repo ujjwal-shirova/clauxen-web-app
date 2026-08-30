@@ -54,6 +54,18 @@ function r2ImagePatterns(): NonNullable<
     },
     {
       protocol: "https",
+      hostname: "files.openai.com",
+      port: "",
+      pathname: "/**",
+    },
+    {
+      protocol: "https",
+      hostname: "chatgpt.com",
+      port: "",
+      pathname: "/**",
+    },
+    {
+      protocol: "https",
       hostname: "*.r2.dev",
       port: "",
       pathname: "/**",

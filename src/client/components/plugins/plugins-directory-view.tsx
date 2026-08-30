@@ -1,7 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+  type MouseEvent,
+} from "react";
 import {
   Check,
   ChevronLeft,
@@ -9,6 +16,7 @@ import {
   LoaderCircle,
   Plus,
   Search,
+  Sparkles,
 } from "lucide-react";
 import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
@@ -23,48 +31,56 @@ const STORAGE_KEY = "clauxen_installed_directory_plugin_ids_v2";
 function readInstalledPlugins() {
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const ids = JSON.parse(saved) as unknown;
-      if (Array.isArray(ids)) {
-        return new Set(
-          ids.filter((item): item is string => typeof item === "string"),
-        );
-      }
-    }
+    const ids = saved ? (JSON.parse(saved) as unknown) : [];
+    return new Set(
+      Array.isArray(ids)
+        ? ids.filter((item): item is string => typeof item === "string")
+        : [],
+    );
   } catch {
-    // Installation toggles continue in memory when storage is unavailable.
+    return new Set<string>();
   }
-  return new Set<string>();
 }
 
 function PluginArtwork({
   plugin,
-  size = 40,
+  compact = false,
 }: {
   plugin: PluginSummary;
-  size?: number;
+  compact?: boolean;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
   const initial = (plugin.displayName || plugin.name || "P")
     .slice(0, 1)
     .toUpperCase();
+  const size = compact ? 30 : 40;
+
+  useEffect(() => setImageFailed(false), [plugin.logoUrl]);
+
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden border border-black/10 bg-white text-xs font-semibold text-white",
-        size >= 40 ? "size-10 rounded-xl" : "size-8 rounded-[9px]",
+        "relative flex shrink-0 items-center justify-center overflow-hidden border border-[var(--ui-border)] text-[12px] font-semibold shadow-[0_1px_3px_rgba(20,21,26,0.05)]",
+        compact ? "size-[30px] rounded-[9px]" : "size-10 rounded-xl",
       )}
       style={{
-        backgroundColor: plugin.logoUrl
-          ? "white"
-          : plugin.brandColor || "#8c8c8c",
+        backgroundColor:
+          plugin.logoUrl && !imageFailed
+            ? "var(--app-panel-bg)"
+            : plugin.brandColor || "#737373",
+        color: "white",
       }}
     >
-      {plugin.logoUrl ? (
-        <img
+      {plugin.logoUrl && !imageFailed ? (
+        <Image
           src={plugin.logoUrl}
           alt=""
+          width={size}
+          height={size}
+          sizes={`${size}px`}
+          unoptimized
           className="size-full object-cover"
-          loading="lazy"
+          onError={() => setImageFailed(true)}
         />
       ) : (
         initial
@@ -73,7 +89,7 @@ function PluginArtwork({
   );
 }
 
-function PluginRow({
+function PluginCard({
   plugin,
   categorySlug,
   installed,
@@ -86,39 +102,40 @@ function PluginRow({
 }) {
   const href = `/plugins/${pluginRouteSegment(plugin)}${categorySlug ? `?category=${encodeURIComponent(categorySlug)}` : ""}`;
   return (
-    <article className="group relative flex min-w-0 items-center rounded-2xl p-2 transition-colors duration-150 hover:bg-black/[0.035]">
+    <article className="group relative flex min-w-0 items-start gap-3 rounded-2xl border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-3 transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-[var(--ui-border)] hover:shadow-[0_8px_24px_-18px_rgba(20,21,26,0.28)]">
       <Link
         href={href}
+        prefetch
         aria-label={`Open ${plugin.displayName} plugin`}
-        className="flex min-w-0 flex-1 items-center gap-3.5 pr-3 outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-zinc-400 focus-visible:after:ring-offset-2"
-      >
-        <PluginArtwork plugin={plugin} />
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[14px] font-medium leading-[18px] text-zinc-900">
-            {plugin.displayName}
-          </h3>
-          <p className="mt-0.5 truncate text-[13px] leading-[18px] text-zinc-500">
-            {plugin.description || "Use this plugin with Clauxen"}
-          </p>
-        </div>
-      </Link>
+        className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-panel-bg)]"
+      />
+      <PluginArtwork plugin={plugin} />
+      <div className="min-w-0 flex-1 pt-0.5">
+        <h3 className="truncate text-[13.5px] font-semibold leading-[18px] text-[var(--ui-fg)]">
+          {plugin.displayName}
+        </h3>
+        <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-[17px] text-[var(--ui-fg-muted)]">
+          {plugin.description || "Use this plugin with Clauxen"}
+        </p>
+      </div>
       <button
         type="button"
         onClick={onToggle}
         aria-label={`${installed ? "Remove" : "Install"} ${plugin.displayName}`}
         aria-pressed={installed}
         className={cn(
-          "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2",
+          "relative z-10 flex h-7 shrink-0 items-center gap-1 rounded-lg border px-2 text-[11.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)]",
           installed
-            ? "border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-50"
-            : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-white hover:shadow-sm",
+            ? "border-[var(--ui-border)] bg-[var(--settings-nav-active-bg)] text-[var(--ui-fg)]"
+            : "border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] text-[var(--ui-fg-muted)] hover:border-[var(--ui-border)] hover:text-[var(--ui-fg)]",
         )}
       >
         {installed ? (
-          <Check className="size-4" strokeWidth={2} />
+          <Check className="size-3" strokeWidth={2.2} />
         ) : (
-          <Plus className="size-5" strokeWidth={1.6} />
+          <Plus className="size-3" strokeWidth={2} />
         )}
+        {installed ? "Added" : "Add"}
       </button>
     </article>
   );
@@ -128,11 +145,12 @@ async function loadDirectory(
   category: string | null,
   query: string,
   page = 1,
+  signal?: AbortSignal,
 ): Promise<PluginDirectoryResponse> {
   const params = new URLSearchParams({ page: String(page), pageSize: "48" });
   if (category) params.set("category", category);
   if (query) params.set("q", query);
-  const response = await fetch(`/api/plugins?${params.toString()}`);
+  const response = await fetch(`/api/plugins?${params.toString()}`, { signal });
   if (!response.ok) throw new Error("Unable to load plugins");
   return response.json() as Promise<PluginDirectoryResponse>;
 }
@@ -156,9 +174,7 @@ export function PluginsDirectoryView({
   useEffect(() => setInstalled(readInstalledPlugins()), []);
   useEffect(() => {
     const handlePopState = () => {
-      setCategorySlug(
-        new URLSearchParams(window.location.search).get("category"),
-      );
+      setCategorySlug(new URLSearchParams(window.location.search).get("category"));
       setQuery("");
     };
     window.addEventListener("popstate", handlePopState);
@@ -172,12 +188,17 @@ export function PluginsDirectoryView({
     }
     setIsLoading(true);
     setError(false);
-    void loadDirectory(categorySlug, deferredQuery.trim())
-      .then((result) => {
-        if (!controller.signal.aborted) setData(result);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setError(true);
+    void loadDirectory(
+      categorySlug,
+      deferredQuery.trim(),
+      1,
+      controller.signal,
+    )
+      .then((result) => setData(result))
+      .catch((loadError: unknown) => {
+        if (!(loadError instanceof DOMException && loadError.name === "AbortError")) {
+          setError(true);
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setIsLoading(false);
@@ -185,7 +206,10 @@ export function PluginsDirectoryView({
     return () => controller.abort();
   }, [categorySlug, deferredQuery, initialCategory, initialData]);
 
-  const activeCategory = data.category;
+  const requestedCategory = useMemo(
+    () => data.categories.find((item) => item.slug === categorySlug) ?? null,
+    [categorySlug, data.categories],
+  );
   const isSearch = Boolean(deferredQuery.trim());
   const togglePlugin = (id: string) =>
     setInstalled((current) => {
@@ -195,25 +219,39 @@ export function PluginsDirectoryView({
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
       } catch {
-        /* in-memory state remains available */
+        // The in-memory selection remains usable.
       }
       return next;
     });
-  const installedItems = useMemo(() => {
-    const all =
-      data.sections?.flatMap((section) => section.plugins) ?? data.plugins;
-    return all.filter((plugin) => installed.has(plugin.id)).slice(0, 14);
-  }, [data.plugins, data.sections, installed]);
-  const pageTitle = activeCategory
-    ? activeCategory.title
+  const allVisiblePlugins =
+    data.sections?.flatMap((section) => section.plugins) ?? data.plugins;
+  const installedItems = allVisiblePlugins
+    .filter((plugin) => installed.has(plugin.id))
+    .slice(0, 12);
+  const pageTitle = requestedCategory
+    ? requestedCategory.title
     : isSearch
-      ? `Results for “${deferredQuery.trim()}”`
-      : "Plugins";
-  const pageDescription = activeCategory
-    ? activeCategory.description
+      ? "Search results"
+      : "Plugin gallery";
+  const pageDescription = requestedCategory
+    ? requestedCategory.description
     : isSearch
-      ? `${data.total.toLocaleString()} matching plugins`
-      : "Work with Clauxen across your favorite tools.";
+      ? `${data.total.toLocaleString()} tools match “${deferredQuery.trim()}”`
+      : "Bring specialist tools into your Clauxen workspace.";
+
+  const selectCategory = (
+    event: MouseEvent<HTMLAnchorElement>,
+    nextCategory: string | null,
+  ) => {
+    event.preventDefault();
+    const url = nextCategory
+      ? `/plugins?category=${encodeURIComponent(nextCategory)}`
+      : "/plugins";
+    window.history.pushState(window.history.state, "", url);
+    setCategorySlug(nextCategory);
+    setQuery("");
+  };
+
   const loadMore = async () => {
     setIsLoadingMore(true);
     try {
@@ -237,208 +275,205 @@ export function PluginsDirectoryView({
   };
 
   return (
-    <div className={appPage.surface}>
-      <div className="app-scrollbar flex-1 overflow-y-auto">
-        {activeCategory ? (
-          <nav className="sticky top-0 z-20 flex bg-[rgba(252,252,252,0.88)] px-4 pb-2 pt-2.5 backdrop-blur-xl">
-            <Link
-              href="/plugins"
-              onClick={() => {
-                setCategorySlug(null);
-                setQuery("");
-              }}
-              className="inline-flex h-9 items-center gap-1 rounded-lg px-1.5 text-[14px] font-medium text-zinc-900 transition-colors hover:bg-black/[0.04]"
-            >
-              <ChevronLeft className="size-5" strokeWidth={1.7} /> Plugins
-            </Link>
-          </nav>
-        ) : (
-          <nav
-            aria-label="Directory type"
-            className="sticky top-0 z-20 hidden justify-center bg-[rgba(252,252,252,0.88)] pb-2 pt-2.5 backdrop-blur-xl sm:flex"
-          >
-            <div
-              role="tablist"
-              className="relative grid grid-cols-2 rounded-full bg-black/[0.03] p-px"
-            >
-              <span className="pointer-events-none absolute inset-y-0 left-0 w-1/2 rounded-full border border-black/10 bg-white shadow-[0_1px_6px_rgba(0,0,0,0.05)]" />
-              <span
-                role="tab"
-                aria-selected="true"
-                className="relative z-10 flex h-9 min-w-[96px] items-center justify-center rounded-full px-6 text-[14px] font-medium text-zinc-900"
+    <div className={cn(appPage.surface, "bg-[var(--app-panel-bg)]")}>
+      <div className="app-scrollbar flex-1 overflow-y-auto bg-[var(--app-panel-bg)]">
+        <nav className="sticky top-0 z-20 border-b border-[var(--ui-border-subtle)] bg-[color-mix(in_oklab,var(--app-panel-bg)_94%,transparent)] backdrop-blur-xl">
+          <div className="mx-auto flex h-14 w-full max-w-[1180px] items-center justify-between px-4 sm:px-7">
+            {requestedCategory ? (
+              <Link
+                href="/plugins"
+                onClick={(event) => selectCategory(event, null)}
+                className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[13px] font-medium text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-hover-wash)]"
               >
+                <ChevronLeft className="size-4" /> All plugins
+              </Link>
+            ) : (
+              <div className="flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--ui-fg-placeholder)]">
+                <Sparkles className="size-3.5" /> Tool gallery
+              </div>
+            )}
+            <div className="flex items-center rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-0.5">
+              <span className="flex h-7 items-center rounded-[9px] bg-[var(--app-panel-bg)] px-3 text-[12.5px] font-medium text-[var(--ui-fg)] shadow-sm">
                 Plugins
               </span>
               <Link
-                role="tab"
-                aria-selected="false"
                 href="/new#settings/Skills"
-                className="relative z-10 flex h-9 min-w-[96px] items-center justify-center rounded-full px-6 text-[14px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
+                className="flex h-7 items-center rounded-[9px] px-3 text-[12.5px] font-medium text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]"
               >
                 Skills
               </Link>
             </div>
-          </nav>
-        )}
-        <main className="mobile-page-inset mx-auto flex w-full max-w-[900px] flex-col gap-7 px-4 pb-24 pt-8 sm:px-6 sm:pt-[62px]">
-          <header className="flex min-h-[76px] flex-wrap items-start gap-4">
-            <div className="min-w-[220px] flex-1">
-              <h1 className="text-[28px] font-medium leading-9 tracking-[-0.025em] text-zinc-950">
+          </div>
+        </nav>
+
+        <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 px-4 pb-24 pt-5 sm:px-7 sm:pt-7">
+          <header className="grid gap-5 rounded-[24px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-5 sm:p-6 lg:grid-cols-[1fr_360px] lg:items-end">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ui-fg-placeholder)]">
+                {requestedCategory ? "Collection" : "Clauxen tools"}
+              </p>
+              <h1 className="mt-1.5 text-[24px] font-semibold leading-8 tracking-[-0.025em] text-[var(--ui-fg)]">
                 {pageTitle}
               </h1>
-              <p className="mt-1 text-[16px] leading-6 text-zinc-600">
+              <p className="mt-1 max-w-[620px] text-[13.5px] leading-5 text-[var(--ui-fg-muted)]">
                 {pageDescription}
               </p>
             </div>
             <form
               role="search"
-              className="relative w-full sm:ml-auto sm:w-[280px]"
+              className="relative w-full"
               onSubmit={(event) => event.preventDefault()}
             >
               <Search
                 aria-hidden
-                className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-zinc-400"
-                strokeWidth={1.6}
+                className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--ui-fg-placeholder)]"
+                strokeWidth={1.7}
               />
               <input
                 type="search"
                 autoComplete="off"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={
-                  activeCategory?.searchPlaceholder ?? "Search all plugins"
-                }
+                placeholder={requestedCategory?.searchPlaceholder ?? "Find a plugin or capability"}
                 aria-label="Search plugins"
-                className="h-10 w-full rounded-full border border-black/10 bg-white py-2 pl-9 pr-9 text-[14px] leading-5 text-zinc-900 outline-none transition-shadow placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-2 focus:ring-zinc-200/70"
+                className="h-11 w-full rounded-xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] py-2 pl-10 pr-10 text-[13px] text-[var(--ui-fg)] outline-none transition-[border-color,box-shadow] placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-field-focus-border)] focus:ring-2 focus:ring-[var(--ui-field-focus-ring)]"
               />
               {isLoading ? (
-                <LoaderCircle className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-zinc-400" />
+                <LoaderCircle className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 animate-spin text-[var(--ui-fg-placeholder)]" />
               ) : null}
             </form>
           </header>
-          {!isSearch && !activeCategory && installedItems.length > 0 ? (
-            <section aria-labelledby="installed-plugins-heading">
-              <h2
-                id="installed-plugins-heading"
-                className="mb-2 text-[14px] font-medium text-zinc-900"
+
+          {!isSearch ? (
+            <div className="app-scrollbar flex gap-2 overflow-x-auto pb-1" aria-label="Plugin categories">
+              <Link
+                href="/plugins"
+                onClick={(event) => selectCategory(event, null)}
+                className={cn(
+                  "shrink-0 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors",
+                  !categorySlug
+                    ? "border-[var(--ui-fg)] bg-[var(--ui-fg)] text-[var(--app-panel-bg)]"
+                    : "border-[var(--ui-border-subtle)] text-[var(--ui-fg-muted)] hover:border-[var(--ui-border)] hover:text-[var(--ui-fg)]",
+                )}
               >
-                Installed
-              </h2>
-              <div className="-ml-1 flex flex-wrap gap-0.5">
+                Overview
+              </Link>
+              {data.categories.map((category) => (
+                <Link
+                  key={category.slug}
+                  href={`/plugins?category=${encodeURIComponent(category.slug)}`}
+                  onClick={(event) => selectCategory(event, category.slug)}
+                  className={cn(
+                    "shrink-0 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors",
+                    categorySlug === category.slug
+                      ? "border-[var(--ui-fg)] bg-[var(--ui-fg)] text-[var(--app-panel-bg)]"
+                      : "border-[var(--ui-border-subtle)] text-[var(--ui-fg-muted)] hover:border-[var(--ui-border)] hover:text-[var(--ui-fg)]",
+                  )}
+                >
+                  {category.title}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+
+          {!isSearch && !requestedCategory && installedItems.length > 0 ? (
+            <section className="flex items-center gap-3 rounded-2xl border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] px-4 py-3">
+              <span className="shrink-0 text-[12px] font-semibold text-[var(--ui-fg)]">Your tools</span>
+              <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
                 {installedItems.map((plugin) => (
                   <Link
                     key={plugin.id}
                     href={`/plugins/${pluginRouteSegment(plugin)}`}
+                    prefetch
                     title={plugin.displayName}
-                    className="flex size-12 items-center justify-center rounded-[14px] transition-colors hover:bg-black/[0.04]"
+                    className="rounded-[10px] p-1 transition-colors hover:bg-[var(--ui-hover-wash)]"
                   >
-                    <PluginArtwork plugin={plugin} size={32} />
+                    <PluginArtwork plugin={plugin} compact />
                   </Link>
                 ))}
               </div>
             </section>
           ) : null}
+
           {error ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
               The plugin directory could not be loaded. Please try again.
             </div>
           ) : null}
-          {data.sections && !isSearch && !activeCategory ? (
-            data.sections.map((section) => (
-              <section
-                key={section.slug}
-                aria-labelledby={`plugin-section-${section.slug}`}
-                className="[content-visibility:auto] [contain-intrinsic-size:auto_260px]"
-              >
-                <div className="mb-1 flex items-baseline justify-between gap-4 pb-1">
-                  <h2
-                    id={`plugin-section-${section.slug}`}
-                    className="text-[14px] font-medium leading-5 text-zinc-900"
-                  >
-                    {section.title}
-                  </h2>
-                  <span className="text-xs text-zinc-400">
-                    {section.count.toLocaleString()}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 gap-x-2 sm:grid-cols-2">
-                  {section.plugins.map((plugin) => (
-                    <PluginRow
-                      key={plugin.id}
-                      plugin={plugin}
-                      categorySlug={section.slug}
-                      installed={installed.has(plugin.id)}
-                      onToggle={() => togglePlugin(plugin.id)}
-                    />
-                  ))}
-                </div>
-                <Link
-                  href={`/plugins?category=${encodeURIComponent(section.slug)}`}
-                  onClick={() => {
-                    setCategorySlug(section.slug);
-                    setQuery("");
-                  }}
-                  className="group -ml-2 mt-2 flex min-h-12 items-center gap-3 rounded-2xl p-2 text-[14px] text-zinc-600 transition-colors hover:bg-black/[0.035] hover:text-zinc-800"
+
+          {data.sections && !isSearch && !requestedCategory ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {data.sections.map((section) => (
+                <section
+                  key={section.slug}
+                  aria-labelledby={`plugin-section-${section.slug}`}
+                  className="rounded-[20px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-3 [content-visibility:auto] [contain-intrinsic-size:auto_390px]"
                 >
-                  <div className="flex shrink-0 items-center">
-                    {section.plugins.slice(0, 3).map((plugin, index) => (
-                      <span
+                  <div className="flex items-center justify-between gap-4 px-1 pb-2 pt-0.5">
+                    <div>
+                      <h2 id={`plugin-section-${section.slug}`} className="text-[13px] font-semibold text-[var(--ui-fg)]">
+                        {section.title}
+                      </h2>
+                      <p className="text-[11.5px] text-[var(--ui-fg-placeholder)]">
+                        {section.count.toLocaleString()} available
+                      </p>
+                    </div>
+                    <Link
+                      href={`/plugins?category=${encodeURIComponent(section.slug)}`}
+                      onClick={(event) => selectCategory(event, section.slug)}
+                      className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-[11.5px] font-medium text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
+                    >
+                      View all <ChevronRight className="size-3.5" />
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {section.plugins.map((plugin) => (
+                      <PluginCard
                         key={plugin.id}
-                        className={cn(index > 0 && "-ml-1.5")}
-                      >
-                        <PluginArtwork plugin={plugin} size={24} />
-                      </span>
+                        plugin={plugin}
+                        categorySlug={section.slug}
+                        installed={installed.has(plugin.id)}
+                        onToggle={() => togglePlugin(plugin.id)}
+                      />
                     ))}
                   </div>
-                  <span className="min-w-0 flex-1 truncate">
-                    See all {section.count.toLocaleString()}{" "}
-                    {section.title.toLowerCase()} plugins
-                  </span>
-                  <ChevronRight className="mr-2 size-4 shrink-0 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100" />
-                </Link>
-              </section>
-            ))
+                </section>
+              ))}
+            </div>
           ) : (
-            <section
-              aria-label="Plugin results"
-              className="grid grid-cols-1 gap-x-7 gap-y-1 sm:grid-cols-2"
-            >
+            <section aria-label="Plugin results" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {data.plugins.map((plugin) => (
-                <PluginRow
+                <PluginCard
                   key={plugin.id}
                   plugin={plugin}
-                  categorySlug={activeCategory?.slug ?? null}
+                  categorySlug={requestedCategory?.slug ?? null}
                   installed={installed.has(plugin.id)}
                   onToggle={() => togglePlugin(plugin.id)}
                 />
               ))}
             </section>
           )}
+
           {!data.sections && data.plugins.length === 0 && !isLoading ? (
-            <div className="flex min-h-52 flex-col items-center justify-center text-center">
-              <div className="flex size-11 items-center justify-center rounded-full bg-black/[0.04]">
-                <Search className="size-5 text-zinc-500" strokeWidth={1.6} />
+            <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ui-border)] text-center">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-[var(--app-frame-bg)]">
+                <Search className="size-4 text-[var(--ui-fg-muted)]" />
               </div>
-              <h2 className="mt-3 text-[15px] font-medium text-zinc-900">
-                No plugins found
-              </h2>
-              <p className="mt-1 text-[13px] text-zinc-500">
-                Try a different name or category.
-              </p>
+              <h2 className="mt-3 text-[13px] font-semibold text-[var(--ui-fg)]">No plugins found</h2>
+              <p className="mt-1 text-[12px] text-[var(--ui-fg-muted)]">Try a different name or collection.</p>
             </div>
           ) : null}
+
           {!data.sections && data.plugins.length > 0 && data.hasMore ? (
             <div className="flex justify-center pt-3">
               <button
                 type="button"
                 onClick={() => void loadMore()}
                 disabled={isLoadingMore}
-                className="inline-flex h-10 items-center gap-2 rounded-full border border-black/10 bg-white px-5 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-50 disabled:cursor-wait disabled:opacity-60"
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] px-4 text-[12.5px] font-medium text-[var(--ui-fg)] hover:bg-[var(--app-frame-bg)] disabled:cursor-wait disabled:opacity-60"
               >
-                {isLoadingMore ? (
-                  <LoaderCircle className="size-4 animate-spin" />
-                ) : null}
-                {isLoadingMore ? "Loading plugins" : "Load more"}
+                {isLoadingMore ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
+                {isLoadingMore ? "Loading" : "Load more"}
               </button>
             </div>
           ) : null}

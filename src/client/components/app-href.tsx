@@ -2,10 +2,12 @@
 
 import {
   forwardRef,
+  useCallback,
   type AnchorHTMLAttributes,
   type MouseEvent,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +55,8 @@ export const AppHref = forwardRef<HTMLAnchorElement, AppHrefProps>(
       soft = true,
       replace = false,
       onClick,
+      onPointerEnter,
+      onFocus,
       className,
       children,
       ...rest
@@ -60,6 +64,12 @@ export const AppHref = forwardRef<HTMLAnchorElement, AppHrefProps>(
     ref,
   ) {
     const navigate = useInstantNavigate();
+    const router = useRouter();
+
+    const prefetchDestination = useCallback(() => {
+      if (!soft || isExternalHref(href)) return;
+      router.prefetch(href);
+    }, [href, router, soft]);
 
     const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
       onClick?.(event);
@@ -74,6 +84,14 @@ export const AppHref = forwardRef<HTMLAnchorElement, AppHrefProps>(
         ref={ref}
         href={href}
         onClick={handleClick}
+        onPointerEnter={(event) => {
+          onPointerEnter?.(event);
+          prefetchDestination();
+        }}
+        onFocus={(event) => {
+          onFocus?.(event);
+          prefetchDestination();
+        }}
         className={cn(className)}
         {...rest}
       >
