@@ -213,7 +213,11 @@ export function SettingsModal({
         updatePreferenceGeneral({
           appearancePreset: preset,
           colorMode:
-            preset === "Light" ? "Light" : preset === "Dark" ? "Dark" : "Auto",
+            preset === "Light"
+              ? "Light"
+              : preset === "Dark"
+                ? "Dark"
+                : "Auto",
         })
       }
       chatFont={appearanceGeneral.chatFont}
@@ -240,7 +244,9 @@ export function SettingsModal({
       soundEffects={notifications.soundEffects}
       setCodexChannel={(v) => updateNotifications({ codexChannel: v })}
       setResponseChannel={(v) => updateNotifications({ responseChannel: v })}
-      setGroupChatChannel={(v) => updateNotifications({ groupChatChannel: v })}
+      setGroupChatChannel={(v) =>
+        updateNotifications({ groupChatChannel: v })
+      }
       setTasksChannel={(v) => updateNotifications({ tasksChannel: v })}
       setProjectsChannel={(v) => updateNotifications({ projectsChannel: v })}
       setRecommendationsChannel={(v) =>
@@ -325,14 +331,69 @@ export function SettingsModal({
   const renderActiveTab = () => {
     switch (activeTab) {
       case "General":
-        return renderGeneralSettings();
-      case "Notifications":
-        return renderNotificationsSettings();
-      case "Personalization":
-        return renderPersonalizationSettings();
-      case "Plugins":
         return (
           <SettingsCategoryStack>
+            {renderGeneralSettings()}
+            {renderNotificationsSettings()}
+            <TimeAndFocusSettings
+              timeAndFocus={timeAndFocus}
+              onChange={updateTimeAndFocus}
+            />
+            <KeyboardSettings />
+          </SettingsCategoryStack>
+        );
+      case "Personalization":
+        return (
+          <SettingsCategoryStack>
+            {renderPersonalizationSettings()}
+            <ReflectSettings
+              range={reflect.range}
+              onRangeChange={(range) => updateReflect({ range })}
+            />
+          </SettingsCategoryStack>
+        );
+      case "Account & data":
+        return (
+          <SettingsCategoryStack>
+            {renderAccountSettings()}
+            <PrivacySettings
+              privacy={privacy}
+              onChange={updatePrivacy}
+              onGoToPersonalization={() => handleTabChange("Personalization")}
+            />
+            <StorageSettings />
+          </SettingsCategoryStack>
+        );
+      case "Security & safety":
+        return (
+          <SettingsCategoryStack>
+            <SecuritySettings
+              onLogout={onLogout}
+              mfaEnabled={Boolean(safety.mfaEnabled)}
+              onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
+            />
+            <SafetySettings
+              reduceSensitiveContent={Boolean(safety.reduceSensitiveContent)}
+              onChange={(reduceSensitiveContent) =>
+                updateSafety({ reduceSensitiveContent })
+              }
+            />
+            <ParentalControlsSettings />
+            <TrustedContactSettings />
+          </SettingsCategoryStack>
+        );
+      case "Plan & billing":
+        return (
+          <BillingSettings
+            onUpgradeClick={onUpgradeClick}
+            userDisplayName={user?.displayName ?? user?.email}
+            userEmail={user?.email}
+          />
+        );
+      case "Capabilities & developer":
+        return (
+          <SettingsCategoryStack>
+            {renderCapabilitiesSettings()}
             <ClauxenCodeSettings isAuthenticated={Boolean(user?.id)} />
             <SkillsSettings />
             <ConnectorsCatalogSettings
@@ -341,73 +402,6 @@ export function SettingsModal({
             <PluginsSettings />
           </SettingsCategoryStack>
         );
-      case "Billing":
-        return (
-          <BillingSettings
-            onUpgradeClick={onUpgradeClick}
-            userDisplayName={user?.displayName ?? user?.email}
-            userEmail={user?.email}
-          />
-        );
-      case "Usage":
-        return (
-          <BillingSettings
-            onUpgradeClick={onUpgradeClick}
-            userDisplayName={user?.displayName ?? user?.email}
-            userEmail={user?.email}
-          />
-        );
-      case "Analytics":
-        return (
-          <SettingsCategoryStack>
-            <ReflectSettings
-              range={reflect.range}
-              onRangeChange={(range) => updateReflect({ range })}
-            />
-            <TimeAndFocusSettings
-              timeAndFocus={timeAndFocus}
-              onChange={updateTimeAndFocus}
-            />
-          </SettingsCategoryStack>
-        );
-      case "Data controls":
-        return (
-          <PrivacySettings
-            privacy={privacy}
-            onChange={updatePrivacy}
-            onGoToPersonalization={() => handleTabChange("Personalization")}
-          />
-        );
-      case "Cloud browser":
-        return renderCapabilitiesSettings();
-      case "Storage":
-        return <StorageSettings />;
-      case "Safety":
-        return (
-          <SafetySettings
-            reduceSensitiveContent={Boolean(safety.reduceSensitiveContent)}
-            onChange={(reduceSensitiveContent) =>
-              updateSafety({ reduceSensitiveContent })
-            }
-          />
-        );
-      case "Security and login":
-        return (
-          <SecuritySettings
-            onLogout={onLogout}
-            mfaEnabled={Boolean(safety.mfaEnabled)}
-            onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
-          />
-        );
-      case "Parental controls":
-        return <ParentalControlsSettings />;
-      case "Trusted contact":
-        return <TrustedContactSettings />;
-      case "Account":
-        return renderAccountSettings();
-      case "Keyboard":
-        return <KeyboardSettings />;
-      /* Keeps the exhaustive switch resilient while the typed map evolves. */
       default:
         return (
           <p className="text-sm text-zinc-500">

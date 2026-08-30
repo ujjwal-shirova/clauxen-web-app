@@ -1,16 +1,17 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  BarChart3,
   Bell,
   Briefcase,
-  Cloud,
   Code2,
   CreditCard,
   Database,
+  FileText,
   HardDrive,
   Keyboard,
   KeyRound,
+  LayoutGrid,
   Lightbulb,
+  Moon,
   Settings,
   Shield,
   ShieldAlert,
@@ -20,39 +21,38 @@ import {
   Wand2,
 } from "lucide-react";
 
-/** Voice is deliberately not part of Clauxen's settings surface. */
+/**
+ * Settings IA (no Voice).
+ * Visible categories stay compact; older deep links still resolve through
+ * settingsTabAliases so routes and in-app links remain stable.
+ */
 export const settingsNav = [
   { name: "General", icon: Settings },
-  { name: "Notifications", icon: Bell },
   { name: "Personalization", icon: Sparkles },
-  { name: "Plugins", icon: Wand2 },
-  { name: "Billing", icon: CreditCard },
-  { name: "Usage", icon: BarChart3 },
-  { name: "Analytics", icon: Lightbulb },
-  { name: "Data controls", icon: Database },
-  { name: "Cloud browser", icon: Cloud },
-  { name: "Storage", icon: HardDrive },
-  { name: "Safety", icon: ShieldAlert },
-  { name: "Security and login", icon: KeyRound },
-  { name: "Parental controls", icon: Users },
-  { name: "Trusted contact", icon: Shield },
-  { name: "Account", icon: UserCircle },
-  { name: "Keyboard", icon: Keyboard },
-] as const satisfies ReadonlyArray<{ name: string; icon: LucideIcon }>;
-
-/** Deep-link-only destinations which resolve to a visible section. */
-export const settingsLegacyNav = [
   { name: "Account & data", icon: UserCircle },
   { name: "Security & safety", icon: KeyRound },
   { name: "Plan & billing", icon: CreditCard },
   { name: "Capabilities & developer", icon: Briefcase },
+] as const satisfies ReadonlyArray<{ name: string; icon: LucideIcon }>;
+
+export const settingsLegacyNav = [
+  { name: "Notifications", icon: Bell },
+  { name: "Account", icon: UserCircle },
+  { name: "Security", icon: KeyRound },
   { name: "Privacy", icon: Shield },
+  { name: "Billing", icon: CreditCard },
+  { name: "Storage", icon: HardDrive },
   { name: "Capabilities", icon: Briefcase },
   { name: "Reflect", icon: Lightbulb },
-  { name: "Time and focus", icon: Settings },
+  { name: "Time and focus", icon: Moon },
+  { name: "Safety", icon: ShieldAlert },
+  { name: "Parental controls", icon: Users },
+  { name: "Trusted contact", icon: Database },
   { name: "Clauxen Code", icon: Code2 },
-  { name: "Skills", icon: Briefcase },
-  { name: "Connectors", icon: Wand2 },
+  { name: "Keyboard", icon: Keyboard },
+  { name: "Skills", icon: FileText },
+  { name: "Connectors", icon: LayoutGrid },
+  { name: "Plugins", icon: Wand2 },
 ] as const satisfies ReadonlyArray<{ name: string; icon: LucideIcon }>;
 
 export type SettingsCategory = (typeof settingsNav)[number]["name"];
@@ -61,22 +61,15 @@ export type SettingsTab = SettingsCategory | LegacySettingsTab;
 type SettingsNavItem = { name: SettingsTab; icon: LucideIcon };
 
 export const settingsTabDescriptions: Record<SettingsCategory, string> = {
-  General: "Appearance, language, and everyday chat preferences.",
-  Notifications: "Choose how Clauxen keeps you up to date.",
+  General: "Appearance, language, voice, and everyday preferences.",
   Personalization: "Shape how Clauxen responds and remembers what matters.",
-  Plugins: "Manage plugins, connectors, skills, and developer tools.",
-  Billing: "Review your plan, invoices, and payment methods.",
-  Usage: "Review plan usage and limits.",
-  Analytics: "Control reflection and focus preferences.",
-  "Data controls": "Manage privacy, history, and how your data is used.",
-  "Cloud browser": "Choose how Clauxen can browse and use connected tools.",
-  Storage: "Review stored files and workspace content.",
-  Safety: "Tune safety preferences for your conversations.",
-  "Security and login": "Protect your account and active sessions.",
-  "Parental controls": "Set family controls for this account.",
-  "Trusted contact": "Choose a trusted contact for account recovery.",
-  Account: "Manage your account profile and access.",
-  Keyboard: "View and customize keyboard shortcuts.",
+  "Account & data":
+    "Manage your account, privacy, stored content, and data controls.",
+  "Security & safety":
+    "Protect your account and tune safety, family, and recovery settings.",
+  "Plan & billing": "Review your plan, usage, invoices, and payment methods.",
+  "Capabilities & developer":
+    "Configure tools, skills, connectors, plugins, and Clauxen Code.",
 };
 
 export const settingsNavByName = Object.fromEntries(
@@ -84,23 +77,41 @@ export const settingsNavByName = Object.fromEntries(
 ) as Record<SettingsTab, SettingsNavItem>;
 
 export const settingsTabAliases: Record<LegacySettingsTab, SettingsCategory> = {
-  "Account & data": "Account",
-  "Security & safety": "Security and login",
-  "Plan & billing": "Billing",
-  "Capabilities & developer": "Plugins",
-  Privacy: "Data controls",
-  Capabilities: "Cloud browser",
-  Reflect: "Analytics",
-  "Time and focus": "Analytics",
-  "Clauxen Code": "Plugins",
-  Skills: "Plugins",
-  Connectors: "Plugins",
+  Notifications: "General",
+  Account: "Account & data",
+  Security: "Security & safety",
+  Privacy: "Account & data",
+  Billing: "Plan & billing",
+  Storage: "Account & data",
+  Capabilities: "Capabilities & developer",
+  Reflect: "Personalization",
+  "Time and focus": "General",
+  Safety: "Security & safety",
+  "Parental controls": "Security & safety",
+  "Trusted contact": "Security & safety",
+  "Clauxen Code": "Capabilities & developer",
+  Keyboard: "General",
+  Skills: "Capabilities & developer",
+  Connectors: "Capabilities & developer",
+  Plugins: "Capabilities & developer",
 };
 
 export const settingsNavGroups: ReadonlyArray<{
   label: string;
   items: readonly SettingsCategory[];
-}> = [{ label: "Settings", items: settingsNav.map((item) => item.name) }];
+}> = [
+  {
+    label: "Settings",
+    items: [
+      "General",
+      "Personalization",
+      "Account & data",
+      "Security & safety",
+      "Plan & billing",
+      "Capabilities & developer",
+    ],
+  },
+];
 
 export function isSettingsTab(value: string): value is SettingsTab {
   return value in settingsNavByName;
@@ -123,11 +134,11 @@ export const fontThemes = CHAT_FONT_OPTIONS.map((option) => ({
   label: option.label,
   serif: Boolean(
     option.cssVar?.includes("playfair") ||
-    option.familyName === "Lora" ||
-    option.familyName?.toLowerCase().includes("serif") ||
-    option.familyName === "Literata" ||
-    option.familyName === "Merriweather" ||
-    option.id === "Default",
+      option.familyName === "Lora" ||
+      option.familyName?.toLowerCase().includes("serif") ||
+      option.familyName === "Literata" ||
+      option.familyName === "Merriweather" ||
+      option.id === "Default",
   ),
   dyslexic: option.id === "Atkinson Hyperlegible",
 }));
