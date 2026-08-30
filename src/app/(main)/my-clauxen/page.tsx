@@ -5,13 +5,7 @@ import { MyClauxenView } from "@/components/my-clauxen-view";
 export default function MyClauxenRoutePage() {
   return (
     <Suspense
-      fallback={
-        <AppRouteLoadingShell
-          label="Opening My Clauxen"
-          title="My Clauxen"
-          rows={4}
-        />
-      }
+      fallback={<AppRouteLoadingShell label="Opening My Clauxen" />}
     >
       <MyClauxenView />
     </Suspense>

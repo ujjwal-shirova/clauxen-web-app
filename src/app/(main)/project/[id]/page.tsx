@@ -18,13 +18,7 @@ import { AppRouteLoadingShell } from "@/components/app-route-loading-shell";
 export default function ProjectHomeRoutePage() {
   return (
     <Suspense
-      fallback={
-        <AppRouteLoadingShell
-          label="Opening project"
-          title="Project"
-          rows={4}
-        />
-      }
+      fallback={<AppRouteLoadingShell label="Opening project" />}
     >
       <ProjectHomeGate />
     </Suspense>

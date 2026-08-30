@@ -203,6 +203,11 @@ export const env = {
   billingWorkerUrl: normalizeBaseUrl(optional("BILLING_WORKER_URL")),
   /** Shared secret for billing Worker internal routes. */
   billingInternalToken: optional("BILLING_INTERNAL_TOKEN"),
+
+  /** Cloudflare connector gateway (OAuth, token vault, tool execution). */
+  connectorGatewayUrl: normalizeBaseUrl(optional("CONNECTOR_GATEWAY_URL")),
+  /** Shared Vercel → connector gateway authentication secret. */
+  connectorGatewayInternalToken: optional("CONNECTOR_GATEWAY_INTERNAL_TOKEN"),
   /**
    * AES-256 key for encrypting Razorpay card/token refs at rest.
    * Prefer 64-char hex (32 bytes). Passphrases are SHA-256 hashed.

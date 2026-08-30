@@ -21,6 +21,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useChatScrollActivity } from "@/hooks/use-chat-scroll-activity";
 import { cn } from "@/lib/utils";
+import { AppContentLoader } from "@/components/app-content-loader";
 import { CLAUXEN_CHAT_SEND_EVENT } from "@/lib/chat-send-event";
 import type { SendMessageOptions } from "@/lib/composer-attachments";
 import { findPendingAskUserInput } from "@/lib/pending-ask-user-input";
@@ -482,7 +483,9 @@ function ChatAreaLayout({
                   className="flex w-full min-w-0 max-w-full flex-1"
                   aria-busy="true"
                   aria-label="Loading conversation"
-                />
+                >
+                  <AppContentLoader label="Loading conversation" />
+                </div>
               ) : showMessageLoadError ? (
                 <div className="flex w-full flex-col items-start gap-3 px-4 py-10 sm:px-6">
                   <p className="text-sm text-zinc-600">
@@ -501,7 +504,9 @@ function ChatAreaLayout({
                   className="flex w-full min-w-0 max-w-full flex-1"
                   aria-busy="true"
                   aria-label="Loading conversation"
-                />
+                >
+                  <AppContentLoader label="Loading conversation" />
+                </div>
               ) : (
                 <ConversationThread
                   messages={displayMessages}

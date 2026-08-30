@@ -25,9 +25,10 @@ HYPERDRIVE_ID="${HYPERDRIVE_ID:-54df64d31cce4e6f8f34415c6fb4e849}"
 echo "==> Whoami"
 npx wrangler@latest whoami
 
-echo "==> Disable Hyperdrive query caching for chat read-after-write consistency"
+echo "==> Keep Hyperdrive fresh and cap origin connections for the 60-slot database"
 npx wrangler@latest hyperdrive update "$HYPERDRIVE_ID" \
   --caching-disabled \
+  --origin-connection-limit=12 \
   || echo "Hyperdrive update skipped (check token permissions)"
 
 echo "==> Deploy chat-history Worker"

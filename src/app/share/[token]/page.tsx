@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { AppContentLoader } from "@/components/app-content-loader";
 
 type SharedMessage = {
   id: string;
@@ -38,7 +39,7 @@ export default function PublicSharePage() {
   if (loading) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-[#faf9f5]">
-        <div className="h-8 w-8 animate-pulse rounded-full bg-black/10" />
+        <AppContentLoader label="Loading shared conversation" />
       </div>
     );
   }

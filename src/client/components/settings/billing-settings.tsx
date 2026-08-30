@@ -32,7 +32,7 @@ import {
 } from "@/components/checkout-billing-address";
 import { AddPaymentMethodDialog } from "@/components/settings/add-payment-method-dialog";
 import { ManagePlanDialog } from "@/components/settings/manage-plan-dialog";
-import { SettingsBillingSkeleton } from "@/components/settings/settings-page-skeleton";
+import { AppContentLoader } from "@/components/app-content-loader";
 import { writeCachedBillingPlan } from "@/lib/billing-plan-cache";
 import {
   SettingsFieldBlock,
@@ -271,7 +271,7 @@ export function BillingSettings({
   };
 
   if (loading) {
-    return <SettingsBillingSkeleton />;
+    return <AppContentLoader label="Loading billing" />;
   }
 
   return (

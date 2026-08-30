@@ -54,10 +54,9 @@ import {
   type TranscriptAgentModelTurn,
 } from "@/server/training/transcript-format";
 import { McpConnectorHarness } from "@/server/mcp/registry";
-import { listMcpServers } from "@/server/mcp/types";
 
 /** Cap MCP discovery so a hung connector cannot delay first token. */
-const MCP_DISCOVER_BUDGET_MS = 200;
+const MCP_DISCOVER_BUDGET_MS = 1_500;
 
 /** Single autonomous step budget. The model decides how many steps it needs. */
 const MAX_STEPS = 24;
@@ -342,9 +341,9 @@ export async function runAutonomousAgent(
 
   // MCP connectors: discover with a hard budget so unreachable servers never
   // sit on the TTFT critical path.
-  const mcp = new McpConnectorHarness();
+  const mcp = new McpConnectorHarness({ userId });
   let mcpTools: Awaited<ReturnType<McpConnectorHarness["discover"]>> = [];
-  if (listMcpServers().length > 0) {
+  if (mcp.hasSources()) {
     try {
       mcpTools = await Promise.race([
         mcp.discover(),

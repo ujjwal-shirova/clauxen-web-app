@@ -5,9 +5,7 @@ import { LibraryView } from "@/components/library-view";
 export default function LibraryRoutePage() {
   return (
     <Suspense
-      fallback={
-        <AppRouteLoadingShell label="Opening Library" title="Library" />
-      }
+      fallback={<AppRouteLoadingShell label="Opening Library" />}
     >
       <LibraryView />
     </Suspense>

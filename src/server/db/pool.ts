@@ -94,6 +94,10 @@ export function getPool(): Pool {
       // every request while allowExitOnIdle still lets a Vercel isolate finish.
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
+      statement_timeout: 30_000,
+      query_timeout: 35_000,
+      lock_timeout: 5_000,
+      idle_in_transaction_session_timeout: 10_000,
       allowExitOnIdle: env.isVercel,
       ssl: connectionString.includes("localhost")
         ? false

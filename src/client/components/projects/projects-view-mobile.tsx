@@ -11,7 +11,7 @@ import {
   sortProjects,
   type ProjectSortKey,
 } from "@/components/projects/project-sort-menu";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AppContentLoader } from "@/components/app-content-loader";
 import { Button } from "@/components/ui/button";
 
 interface ProjectsViewMobileProps {
@@ -23,22 +23,6 @@ interface ProjectsViewMobileProps {
 }
 
 const SEARCH_DEBOUNCE_MS = 320;
-
-function ProjectListRowSkeleton({ delayMs = 0 }: { delayMs?: number }) {
-  return (
-    <div
-      className="flex min-h-[68px] items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3.5 py-3"
-      style={{ ["--skeleton-delay" as string]: `${delayMs}ms` }}
-      aria-hidden
-    >
-      <Skeleton className="h-10 w-10 shrink-0 rounded-xl" animation="shimmer" />
-      <div className="min-w-0 flex-1 space-y-2">
-        <Skeleton className="h-4 w-[55%] rounded-md" animation="shimmer" />
-        <Skeleton className="h-3 w-[35%] rounded-md" animation="shimmer" />
-      </div>
-    </div>
-  );
-}
 
 export function ProjectsViewMobile({
   projects,
@@ -144,13 +128,7 @@ export function ProjectsViewMobile({
 
       <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 pb-[max(5rem,env(safe-area-inset-bottom))] sm:px-4">
         {showSkeletons ? (
-          <ul className="flex flex-col gap-2 p-0">
-            {Array.from({ length: 6 }, (_, i) => (
-              <li key={i} className="list-none">
-                <ProjectListRowSkeleton delayMs={i * 50} />
-              </li>
-            ))}
-          </ul>
+          <AppContentLoader label="Loading projects" />
         ) : null}
 
         {isEmptySearch ? (

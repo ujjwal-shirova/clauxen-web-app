@@ -29,7 +29,6 @@ import { useAppPathname } from "@/hooks/use-app-pathname";
 import { AppHref, isPlainLeftClick } from "@/components/app-href";
 import { APP_ROUTES, buildOverlayLocation } from "@/lib/app-routes";
 import { UserAvatarDisplay } from "@/components/settings/profile-avatar-upload";
-import { Skeleton } from "@/components/ui/skeleton";
 import { focusAppSurface } from "@/lib/surface-focus";
 import {
   readCachedBillingPlan,
@@ -475,7 +474,7 @@ export function Sidebar({
 
   const navButtonClass = (active = false, muted = false) =>
     cn(
-      "ui-sidebar-menu-button no-hover-overlay group/nav mb-0 w-full rounded-lg text-[13px] font-medium leading-[18px] transition-[background-color,color,box-shadow] duration-150 hover:bg-black/[0.04]",
+      "ui-sidebar-menu-button no-hover-overlay group/nav mb-0 w-full rounded-lg text-[13px] font-normal leading-[18px] transition-[background-color,color,box-shadow] duration-150 hover:bg-black/[0.04]",
       muted ? "text-zinc-800/40 hover:text-zinc-800/55" : "text-zinc-800/90",
       isCollapsed
         ? "ui-icon-button mx-auto flex !size-9 justify-center gap-0 !rounded-xl px-0"
@@ -788,10 +787,10 @@ export function Sidebar({
                     handleNewChat();
                   }}
                   aria-label="New chat"
-                  className="sidebar-new-chat-button group no-hover-overlay flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-black/[0.055] bg-black/[0.028] px-2.5 text-[13px] font-medium leading-[18px] text-zinc-800 transition-[background-color,border-color] hover:border-black/[0.075] hover:bg-black/[0.055]"
+                  className="group no-hover-overlay flex h-9 w-full items-center justify-between gap-2 rounded-xl px-2.5 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-black/[0.055]">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full">
                       <Plus
                         className="size-4 text-[#52514e]"
                         strokeWidth={1.65}
@@ -817,7 +816,7 @@ export function Sidebar({
                 runNavAction(() => {
                   onClauxenCodeClick?.();
                 }),
-              active: activeView === "clauxen-code",
+              active: false,
               trailing: !isCollapsed ? (
                 <ArrowUpRight
                   className="size-3.5 shrink-0 text-zinc-800/45 opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100"
@@ -976,20 +975,14 @@ export function Sidebar({
                         isCollapsed ? "hidden w-0 opacity-0" : "opacity-100",
                       )}
                     >
-                      {accountLoading || !userDisplayName ? (
-                        <Skeleton
-                          className="h-3.5 w-[7.5rem] max-w-full"
-                          variant="text"
-                        />
-                      ) : (
+                      {!accountLoading && userDisplayName ? (
                         <p className="truncate text-[13px] font-medium leading-[18px] text-zinc-800/75">
                           {userDisplayName}
                         </p>
-                      )}
-                      {accountLoading ||
-                      (Boolean(userEmail) && (planLoading || !planLabel)) ? (
-                        <Skeleton className="h-3 w-[4.75rem]" variant="text" />
-                      ) : planLabel ? (
+                      ) : null}
+                      {!accountLoading &&
+                      !(Boolean(userEmail) && (planLoading || !planLabel)) &&
+                      planLabel ? (
                         <p className="truncate text-[12px] font-medium leading-4 text-zinc-800/60">
                           {planLabel}
                         </p>

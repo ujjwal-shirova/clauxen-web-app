@@ -4,8 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Plus, Search } from "lucide-react";
 import type { ApiProject } from "@/lib/api/projects";
+import { AppContentLoader } from "@/components/app-content-loader";
 import { ProjectCard } from "@/components/projects/project-card";
-import { ProjectCardSkeletonGrid } from "@/components/projects/project-card-skeleton";
 import {
   ProjectSortMenu,
   sortProjects,
@@ -144,7 +144,7 @@ export function ProjectsView({
 
       <div className="flex-1 overflow-y-auto">
         <div className={appPage.content}>
-          {showSkeletons && <ProjectCardSkeletonGrid count={6} />}
+          {showSkeletons && <AppContentLoader label="Loading projects" />}
 
           {isEmptySearch && (
             <p className="py-16 text-center text-[14px] leading-5 text-zinc-500">

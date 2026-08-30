@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { SoftErrorBoundary } from "@/components/soft-error-boundary";
 import { SettingsErrorBoundary } from "@/components/settings/settings-error-boundary";
-import { SettingsPageSkeleton } from "@/components/settings/settings-page-skeleton";
+import { AppContentLoader } from "@/components/app-content-loader";
 import { FullscreenPortal } from "@/components/fullscreen-portal";
 import { useAppOverlays } from "@/hooks/use-app-overlays";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,7 +26,7 @@ function SettingsLoadingShell() {
           data-app-overlay-surface=""
           className={chrome.overlay.modalShell}
         >
-          <SettingsPageSkeleton />
+          <AppContentLoader label="Loading settings" />
         </div>
       </div>
     </FullscreenPortal>
@@ -48,11 +48,12 @@ function PricingLoadingShell() {
           "overflow-y-auto bg-[var(--pricing-bg)] text-[var(--pricing-fg)]",
         )}
       >
-        <header className="sticky top-0 z-20 flex items-center justify-center border-b border-[var(--ui-border-subtle)] bg-[var(--pricing-bg)] px-12 py-3.5 sm:py-4">
+        <AppContentLoader label="Loading pricing" />
+        <header className="hidden sticky top-0 z-20 items-center justify-center border-b border-[var(--ui-border-subtle)] bg-[var(--pricing-bg)] px-12 py-3.5 sm:py-4">
           <Skeleton className="h-8 w-52 rounded-full" animation="none" />
         </header>
 
-        <main className="mobile-page-inset mx-auto flex w-full max-w-[1152px] flex-col gap-5 py-5 pb-24 sm:gap-6 sm:py-6 lg:px-6">
+        <main className="hidden mobile-page-inset mx-auto w-full max-w-[1152px] flex-col gap-5 py-5 pb-24 sm:gap-6 sm:py-6 lg:px-6">
           <div className="flex flex-wrap items-center gap-3">
             <Skeleton className="h-9 w-52 rounded-full" animation="none" />
             <Skeleton className="h-9 w-60 rounded-full" animation="none" />
@@ -110,17 +111,7 @@ function OverlayPageLoadingShell({ label }: { label: string }) {
         tabIndex={-1}
         className={chrome.overlay.surface}
       >
-        <div className="flex items-center gap-3 px-4 py-4 sm:px-6">
-          <Skeleton className="h-9 w-9 rounded-lg" />
-          <Skeleton className="h-5 w-40" variant="text" />
-        </div>
-        <div className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-4 px-6 pb-16 pt-6">
-          <Skeleton className="h-9 w-64 max-w-full" variant="text" />
-          <Skeleton className="h-4 w-full max-w-md" variant="text" />
-          <Skeleton className="app-page-card mt-4 h-40 w-full" />
-          <Skeleton className="app-page-card h-28 w-full" />
-          <Skeleton className="app-page-card h-28 w-full" />
-        </div>
+        <AppContentLoader label={label} />
       </div>
     </FullscreenPortal>
   );

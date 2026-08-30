@@ -41,6 +41,12 @@ else
   echo "$hd" | head -40
   fail=1
 fi
+if echo "$hd" | grep -q '"origin_connection_limit": 12'; then
+  echo "OK  Hyperdrive origin connections capped at 12"
+else
+  echo "FAIL Hyperdrive origin connection limit is not 12"
+  fail=1
+fi
 
 TOKEN_FILE="/tmp/clauxen-chat-coord-internal-token.txt"
 if [[ -f "$TOKEN_FILE" ]]; then

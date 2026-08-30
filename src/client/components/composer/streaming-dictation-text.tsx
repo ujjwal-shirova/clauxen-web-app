@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import type { DictationStatus } from "@/features/dictation/types";
 
 type StreamingDictationTextProps = {
@@ -9,16 +8,15 @@ type StreamingDictationTextProps = {
   status: DictationStatus;
 };
 
-/** Match prompt composer single-line metrics — never inflate height just for listening. */
+/** Match the textarea exactly so typing and dictation never change text scale. */
 const DICTATION_LINE =
-  "min-h-[var(--prompt-editor-min-height,22px)] text-[13px] font-[430] leading-[18px]";
+  "min-h-[var(--prompt-editor-min-height,24px)] text-[16px] font-[430] leading-[24px]";
 
 export function StreamingDictationText({
   text,
   status: _status,
 }: StreamingDictationTextProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion();
   const parts = useMemo(() => text.split(/(\s+)/), [text]);
 
   useEffect(() => {
@@ -52,14 +50,9 @@ export function StreamingDictationText({
         /^\s+$/.test(part) ? (
           part
         ) : (
-          <motion.span
-            key={`${index}-${part}`}
-            initial={reduceMotion ? false : { opacity: 0, filter: "blur(5px)" }}
-            animate={{ opacity: 1, filter: "blur(0px)" }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
+          <span key={`${index}-${part}`}>
             {part}
-          </motion.span>
+          </span>
         ),
       )}
     </div>
