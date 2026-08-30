@@ -483,7 +483,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               "pointer-events-none -translate-x-1 opacity-0",
           )}
         >
-          <SidebarToggleIcon className="size-[18px]" />
+          <SidebarToggleIcon className="size-[18px] shrink-0" />
         </button>
       ) : null}
 

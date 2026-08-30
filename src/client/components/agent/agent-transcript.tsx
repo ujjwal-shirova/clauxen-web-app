@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import type { Message } from "@/lib/types";
 import {
-  agentTraceIsActive,
   type AgentNarrationStep,
   type AgentStep,
 } from "@/lib/agent-trace";
@@ -51,7 +50,19 @@ export function AgentTranscriptView({
     () => steps.filter((step) => step.id !== mirroredNarrationId),
     [mirroredNarrationId, steps],
   );
-  const hasTranscript = traceSteps.length > 0;
+  const narrationSteps = useMemo(
+    () =>
+      traceSteps.filter(
+        (step): step is AgentNarrationStep =>
+          step.kind === "narration" && step.content.trim().length > 0,
+      ),
+    [traceSteps],
+  );
+  const activitySteps = useMemo(
+    () => traceSteps.filter((step) => step.kind !== "narration"),
+    [traceSteps],
+  );
+  const hasTranscript = activitySteps.length > 0 || narrationSteps.length > 0;
   const awaitingInput = steps.some(
     (step) =>
       step.kind === "tool" &&
@@ -72,40 +83,34 @@ export function AgentTranscriptView({
       data-assistant-content="true"
       data-agent-transcript-root="true"
     >
-      {showWorking ? (
+      {narrationSteps.map((step) => (
+        <div
+          key={step.id}
+          className="agent-answer-body agent-intermediate-narration agent-narration"
+          data-agent-intermediate-narration="true"
+        >
+          <AssistantContentRenderer
+            content={step.content}
+            messageId={message.id}
+            isStreaming={active && step.isStreaming === true}
+            streamKey={`${stableMessageKey}-narration-${step.id}`}
+            detailLevel={detailLevel}
+            {...({ sources } as any)}
+          />
+        </div>
+      ))}
+      {showWorking && activitySteps.length === 0 ? (
         <AgentWorkingRow
           startedAtMs={trace?.startedAtMs ?? message.createdAt}
         />
       ) : null}
-      {hasTranscript ? (
+      {activitySteps.length > 0 ? (
         <AgentTraceView
-          steps={traceSteps}
-          isActive={
-            active &&
-            !answer &&
-            agentTraceIsActive({
-              steps: traceSteps,
-              complete: trace?.complete,
-            })
-          }
+          steps={activitySteps}
+          isActive={active && !answer && !awaitingInput}
           startedAtMs={trace?.startedAtMs}
           completedAtMs={trace?.completedAtMs}
           keepExpanded={awaitingInput}
-          renderNarration={(step: AgentNarrationStep) => (
-            <div
-              className="agent-answer-body agent-intermediate-narration agent-narration"
-              data-agent-intermediate-narration="true"
-            >
-              <AssistantContentRenderer
-                content={step.content}
-                messageId={message.id}
-                isStreaming={active && step.isStreaming === true}
-                streamKey={`${stableMessageKey}-narration-${step.id}`}
-                detailLevel={detailLevel}
-                {...({ sources } as any)}
-              />
-            </div>
-          )}
         />
       ) : null}
 

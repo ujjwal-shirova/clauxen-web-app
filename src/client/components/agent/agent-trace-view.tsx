@@ -1,13 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Globe2, Search } from "lucide-react";
-import type {
-  AgentNarrationStep,
-  AgentStep,
-  AgentThinkingStep,
-  AgentToolStep,
-} from "@/lib/agent-trace";
+import type { AgentStep, AgentThinkingStep, AgentToolStep } from "@/lib/agent-trace";
 import { cn } from "@/lib/utils";
 import {
   formatElapsedSeconds,
@@ -131,7 +126,7 @@ function elapsedLabel(startedAtMs?: number, endedAtMs = Date.now()): string {
 
 /** Live, layout-stable activity label shown from send until answer paint. */
 export function AgentWorkingRow({
-  startedAtMs: _startedAtMs,
+  startedAtMs,
   activeLabel,
   className,
 }: {
@@ -139,6 +134,16 @@ export function AgentWorkingRow({
   activeLabel?: string;
   className?: string;
 }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const label = activeLabel ?? `Working for ${elapsedLabel(startedAtMs, now)}`;
+
   return (
     <div
       className={cn(
@@ -152,7 +157,7 @@ export function AgentWorkingRow({
       <MorphingWorkIcon />
       <span className="min-w-0 truncate text-[14px] font-normal leading-6 tracking-[-0.01em]">
         <span className="shimmer-text" data-shimmer-active="true">
-          {activeLabel ?? "Working"}
+          {label}
         </span>
       </span>
     </div>
@@ -301,10 +306,8 @@ function SearchTraceGroup({ tools }: { tools: AgentToolStep[] }) {
 
 function TraceSteps({
   steps,
-  renderNarration,
 }: {
   steps: AgentStep[];
-  renderNarration?: (step: AgentNarrationStep) => ReactNode;
 }) {
   const rows = groupTraceRows(steps);
   return (
@@ -334,17 +337,8 @@ function TraceSteps({
             </div>
           );
         }
-        if (step.kind === "narration") {
-          if (!step.content.trim() || !renderNarration) return null;
-          return (
-            <div
-              className="agent-trace-timeline__step agent-trace-timeline__step--narration agent-trace-enter min-w-0"
-              key={step.id}
-            >
-              {renderNarration(step)}
-            </div>
-          );
-        }
+        // Narration is rendered by AgentTranscriptView outside the trace.
+        if (step.kind === "narration") return null;
         return (
           <div
             className="agent-trace-timeline__step agent-trace-enter ml-5 min-w-0"
@@ -362,12 +356,10 @@ function CompletedTrace({
   steps,
   startedAtMs,
   completedAtMs,
-  renderNarration,
 }: {
   steps: AgentStep[];
   startedAtMs?: number;
   completedAtMs?: number;
-  renderNarration?: (step: AgentNarrationStep) => ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -411,7 +403,7 @@ function CompletedTrace({
       >
         <div className="min-h-0 overflow-hidden">
           <div className="pt-1.5">
-            <TraceSteps steps={steps} renderNarration={renderNarration} />
+            <TraceSteps steps={steps} />
           </div>
         </div>
       </div>
@@ -426,7 +418,6 @@ export function AgentTraceView({
   startedAtMs,
   completedAtMs,
   keepExpanded,
-  renderNarration,
 }: {
   steps: AgentStep[];
   isActive: boolean;
@@ -434,14 +425,16 @@ export function AgentTraceView({
   completedAtMs?: number;
   /** Actionable traces (for example ask-user-input) must remain visible. */
   keepExpanded?: boolean;
-  renderNarration?: (step: AgentNarrationStep) => ReactNode;
 }) {
-  const visibleSteps = useMemo(() => steps, [steps]);
+  const visibleSteps = useMemo(
+    () => steps.filter((step) => step.kind !== "narration"),
+    [steps],
+  );
   if (!isActive) {
     if (visibleSteps.length === 0) return null;
     if (keepExpanded) {
       return (
-        <TraceSteps steps={visibleSteps} renderNarration={renderNarration} />
+        <TraceSteps steps={visibleSteps} />
       );
     }
     const lastStepCompletedAtMs = visibleSteps.reduce(
@@ -453,7 +446,6 @@ export function AgentTraceView({
         steps={visibleSteps}
         startedAtMs={startedAtMs}
         completedAtMs={(completedAtMs ?? lastStepCompletedAtMs) || undefined}
-        renderNarration={renderNarration}
       />
     );
   }
@@ -464,8 +456,9 @@ export function AgentTraceView({
       data-agent-trace-view="true"
     >
       <div>
-        <TraceSteps steps={visibleSteps} renderNarration={renderNarration} />
+        <TraceSteps steps={visibleSteps} />
       </div>
+      <AgentWorkingRow startedAtMs={startedAtMs} />
     </div>
   );
 }

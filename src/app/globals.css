@@ -3457,6 +3457,7 @@ button.user-message-card__body:not(:disabled):hover,
 /* User message branch nav — hidden until hover/focus */
 .user-message-actions {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
   transition: opacity 0.2s ease;
 }
@@ -3464,14 +3465,8 @@ button.user-message-card__body:not(:disabled):hover,
 .group:hover .user-message-actions,
 .group:focus-within .user-message-actions {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
-}
-
-@media (hover: none) {
-  .user-message-actions {
-    opacity: 1;
-    pointer-events: auto;
-  }
 }
 
 @media (max-width: 640px) {
@@ -4338,9 +4333,8 @@ button[data-speed-toggle][data-state="open"] {
 }
 
 /* The collapsed trigger and the trigger in the hover-preview header represent
-   the same control. Lock their hit area to the same geometry. The desktop
-   header's 56px height and 8px/4px vertical padding center this at 14px from
-   the top, which is also the collapsed trigger's fixed offset. */
+   the same control. Their React anchors are both 10px from the left and 14px
+   from the top; lock their hit area to the same geometry here. */
 @media (min-width: 1024px) {
   .app-sidebar-peek-toggle {
     box-sizing: border-box;
@@ -4588,13 +4582,9 @@ button[data-speed-toggle][data-state="open"] {
   border-radius: 10px !important;
 }
 
-/* A docked user message needs persistent, legible controls: the transcript
-   continues beneath the sticky bubble, so keep Edit / Copy on an opaque
-   surface rather than letting their icons float directly over that content. */
+/* Keep the docked controls on a solid surface without making them persistent;
+   they remain visible only while their user message is hovered or focused. */
 .sticky-user-msg--stuck .user-message-actions {
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
   top: calc(100% + 4px);
   height: 36px;
   min-height: 36px;

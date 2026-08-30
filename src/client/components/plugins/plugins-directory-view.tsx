@@ -11,12 +11,10 @@ import {
 } from "react";
 import {
   Check,
-  ChevronLeft,
   ChevronRight,
   LoaderCircle,
   Plus,
   Search,
-  Sparkles,
 } from "lucide-react";
 import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
@@ -231,17 +229,6 @@ export function PluginsDirectoryView({
   const installedItems = allVisiblePlugins
     .filter((plugin) => installed.has(plugin.id))
     .slice(0, 12);
-  const pageTitle = requestedCategory
-    ? requestedCategory.title
-    : isSearch
-      ? "Search results"
-      : "Plugin gallery";
-  const pageDescription = requestedCategory
-    ? requestedCategory.description
-    : isSearch
-      ? `${data.total.toLocaleString()} tools match “${deferredQuery.trim()}”`
-      : "Bring specialist tools into your Clauxen workspace.";
-
   const selectCategory = (
     event: MouseEvent<HTMLAnchorElement>,
     nextCategory: string | null,
@@ -280,22 +267,16 @@ export function PluginsDirectoryView({
   return (
     <div className={cn(appPage.surface, "bg-[var(--app-panel-bg)]")}>
       <div className="app-scrollbar flex-1 overflow-y-auto bg-[var(--app-panel-bg)]">
-        <nav className="sticky top-0 z-20 border-b border-[var(--ui-border-subtle)] bg-[color-mix(in_oklab,var(--app-panel-bg)_94%,transparent)] backdrop-blur-xl">
-          <div className="mx-auto flex h-14 w-full max-w-[1180px] items-center justify-between px-4 sm:px-7">
-            {requestedCategory ? (
-              <Link
-                href="/plugins"
-                onClick={(event) => selectCategory(event, null)}
-                className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[13px] font-medium text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-hover-wash)]"
-              >
-                <ChevronLeft className="size-4" /> All plugins
-              </Link>
-            ) : (
-              <div className="flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--ui-fg-placeholder)]">
-                <Sparkles className="size-3.5" /> Tool gallery
-              </div>
-            )}
-            <div className="flex items-center rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-0.5">
+        <nav className="sticky top-0 z-20 bg-[color-mix(in_oklab,var(--app-panel-bg)_94%,transparent)] backdrop-blur-xl">
+          <div className="mx-auto grid min-h-14 w-full max-w-[1180px] grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 px-4 py-2 sm:grid-cols-[1fr_auto_1fr] sm:px-7">
+            <Link
+              href="/plugins"
+              onClick={(event) => selectCategory(event, null)}
+              className="justify-self-start text-[15px] font-semibold tracking-[-0.01em] text-[var(--ui-fg)]"
+            >
+              Plugins
+            </Link>
+            <div className="flex items-center justify-self-end rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-0.5 sm:justify-self-center">
               <span className="flex h-7 items-center rounded-[9px] bg-[var(--app-panel-bg)] px-3 text-[12.5px] font-medium text-[var(--ui-fg)] shadow-sm">
                 Plugins
               </span>
@@ -306,30 +287,14 @@ export function PluginsDirectoryView({
                 Skills
               </Link>
             </div>
-          </div>
-        </nav>
-
-        <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 px-4 pb-24 pt-5 sm:px-7 sm:pt-7">
-          <header className="grid gap-5 rounded-[24px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-5 sm:p-6 lg:grid-cols-[1fr_360px] lg:items-end">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ui-fg-placeholder)]">
-                {requestedCategory ? "Collection" : "Clauxen tools"}
-              </p>
-              <h1 className="mt-1.5 text-[24px] font-semibold leading-8 tracking-[-0.025em] text-[var(--ui-fg)]">
-                {pageTitle}
-              </h1>
-              <p className="mt-1 max-w-[620px] text-[13.5px] leading-5 text-[var(--ui-fg-muted)]">
-                {pageDescription}
-              </p>
-            </div>
             <form
               role="search"
-              className="relative w-full"
+              className="relative col-span-2 w-full justify-self-end sm:col-span-1 sm:max-w-[320px]"
               onSubmit={(event) => event.preventDefault()}
             >
               <Search
                 aria-hidden
-                className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--ui-fg-placeholder)]"
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--ui-fg-placeholder)]"
                 strokeWidth={1.7}
               />
               <input
@@ -337,16 +302,21 @@ export function PluginsDirectoryView({
                 autoComplete="off"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={requestedCategory?.searchPlaceholder ?? "Find a plugin or capability"}
+                placeholder={
+                  requestedCategory?.searchPlaceholder ??
+                  "Find a plugin or capability"
+                }
                 aria-label="Search plugins"
-                className="h-11 w-full rounded-xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] py-2 pl-10 pr-10 text-[13px] text-[var(--ui-fg)] outline-none transition-[border-color,box-shadow] placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-field-focus-border)] focus:ring-2 focus:ring-[var(--ui-field-focus-ring)]"
+                className="h-9 w-full rounded-xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] py-2 pl-9 pr-9 text-[12.5px] text-[var(--ui-fg)] outline-none transition-[border-color,box-shadow] placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-field-focus-border)] focus:ring-2 focus:ring-[var(--ui-field-focus-ring)]"
               />
               {isLoading ? (
-                <LoaderCircle className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 animate-spin text-[var(--ui-fg-placeholder)]" />
+                <LoaderCircle className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-[var(--ui-fg-placeholder)]" />
               ) : null}
             </form>
-          </header>
+          </div>
+        </nav>
 
+        <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 px-4 pb-24 pt-5 sm:px-7 sm:pt-7">
           {!isSearch ? (
             <div className="app-scrollbar flex gap-2 overflow-x-auto pb-1" aria-label="Plugin categories">
               <Link
