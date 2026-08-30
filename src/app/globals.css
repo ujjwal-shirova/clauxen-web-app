@@ -4705,9 +4705,9 @@ button[data-speed-toggle][data-state="open"] {
 
 .glass-sidebar-docked a[aria-label="New chat"]:not(.ui-icon-button) {
   height: 38px !important;
-  border-color: rgba(24, 24, 27, 0.055) !important;
+  border-color: transparent !important;
   border-radius: 10px !important;
-  background: rgba(24, 24, 27, 0.028) !important;
+  background: transparent !important;
   box-shadow: none !important;
   padding-inline: 10px !important;
   font-size: 14px !important;
@@ -4731,8 +4731,8 @@ button[data-speed-toggle][data-state="open"] {
 }
 
 .dark .glass-sidebar-docked a[aria-label="New chat"]:not(.ui-icon-button) {
-  border-color: rgba(255, 255, 255, 0.065) !important;
-  background: rgba(255, 255, 255, 0.045) !important;
+  border-color: transparent !important;
+  background: transparent !important;
 }
 
 .dark

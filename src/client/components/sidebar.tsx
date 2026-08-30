@@ -790,7 +790,7 @@ export function Sidebar({
                   className="group no-hover-overlay flex h-9 w-full items-center justify-between gap-2 rounded-xl px-2.5 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-black/[0.06] dark:bg-white/[0.1]">
                       <Plus
                         className="size-4 text-[#52514e]"
                         strokeWidth={1.65}
