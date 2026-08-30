@@ -158,9 +158,12 @@
     --pricing-toggle-track: #e8eaee;
     --pricing-thumb-active: color-mix(in oklab, #14151a 9%, transparent);
 
-    /* App shell — cool slate canvas shared by chat + product pages */
-    --app-shell-bg: #fafaf9;
-    --app-sidebar-bg: #fafaf9;
+    /* App shell — the sidebar and the inset around the main panel are one
+       continuous frame surface. Keep them on a single token so the panel
+       never appears to sit on a differently coloured canvas. */
+    --app-frame-bg: #fafaf9;
+    --app-shell-bg: var(--app-frame-bg);
+    --app-sidebar-bg: var(--app-frame-bg);
     --app-panel-bg: #fcfcfb;
     --chat-canvas-bg: #fcfcfb;
     --chat-user-card-bg: #f7f7f7;
@@ -242,8 +245,9 @@
     --icon-color: #f4f4f5;
     --icon-muted: rgba(244, 244, 245, 0.66);
     --icon-subtle: rgba(244, 244, 245, 0.6);
-    --app-shell-bg: #141416;
-    --app-sidebar-bg: #141416;
+    --app-frame-bg: #141416;
+    --app-shell-bg: var(--app-frame-bg);
+    --app-sidebar-bg: var(--app-frame-bg);
     --app-panel-bg: #1a1a1c;
     --chat-canvas-bg: #141416;
     --chat-user-card-bg: #1c1c1f;
