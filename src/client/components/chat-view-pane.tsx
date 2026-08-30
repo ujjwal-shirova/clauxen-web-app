@@ -42,6 +42,8 @@ interface ChatViewPaneProps {
   /** Optional override; defaults to preferred name from session. */
   userPreferredName?: string | null;
   onUpgradeClick?: () => void;
+  /** Free-plan upgrade card shown only on the blank `/new` welcome route. */
+  showNewChatUpgradeCard?: boolean;
 };
 
 const allChips = [
@@ -123,6 +125,7 @@ export function ChatViewPane({
   welcomeVariant = "default",
   userPreferredName,
   onUpgradeClick,
+  showNewChatUpgradeCard = false,
 }: ChatViewPaneProps) {
   const { user } = useAuth();
   const composerOnlyWelcome = welcomeVariant === "composer-only";
@@ -264,6 +267,23 @@ export function ChatViewPane({
                     "gap-4 sm:gap-6",
                   )}
                 >
+                  {showNewChatUpgradeCard ? (
+                    <button
+                      type="button"
+                      onClick={onUpgradeClick}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#f6f6f4] px-3 text-[14px] font-normal leading-5 text-[#898781] transition-colors hover:bg-[#f1f1ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#256abf]/40"
+                    >
+                      <span>Free plan</span>
+                      <span
+                        className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[rgba(137,135,129,0.3)]"
+                        aria-hidden="true"
+                      />
+                      <span className="text-[#184f95] underline decoration-[rgba(24,79,149,0.4)] underline-offset-[3px]">
+                        Upgrade
+                      </span>
+                    </button>
+                  ) : null}
+
                   {incognitoWelcome ? (
                     <button
                       type="button"

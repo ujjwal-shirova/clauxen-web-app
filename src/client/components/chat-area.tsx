@@ -40,6 +40,8 @@ interface ChatAreaProps {
   onRemoveQueuedMessage?: (id: string) => void;
   onUpgradeClick: () => void;
   showFreePlanUpgrade?: boolean;
+  /** Keep the free-plan card exclusive to the blank `/new` welcome state. */
+  showNewChatUpgradeCard?: boolean;
   editMessageWithBranch: (
     chatId: string,
     messageId: string,
@@ -115,6 +117,7 @@ function ChatAreaLayout({
   onRemoveQueuedMessage,
   onUpgradeClick,
   showFreePlanUpgrade = false,
+  showNewChatUpgradeCard = false,
   editMessageWithBranch,
   redoUserMessageWithBranch,
   retryAssistantWithBranch,
@@ -451,7 +454,7 @@ function ChatAreaLayout({
               onOpenSettings={onOpenSettings}
               onOpenMobileNav={onOpenMobileNav}
               showMobileMenu={showMobileMenu}
-              showFreePlanUpgrade={showFreePlanUpgrade}
+              showFreePlanUpgrade={false}
               className="relative z-20 shrink-0"
             />
           ) : null}
@@ -472,6 +475,7 @@ function ChatAreaLayout({
             scrollAreaRef={scrollAreaRef}
             welcomeVariant={incognito ? "incognito" : "default"}
             onUpgradeClick={onUpgradeClick}
+            showNewChatUpgradeCard={showNewChatUpgradeCard}
             conversation={
               blankRouteHydration ? (
                 <div
