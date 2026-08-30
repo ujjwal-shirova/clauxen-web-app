@@ -1445,68 +1445,6 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   background-clip: text;
 }
 
-@keyframes stream-token-fade {
-  from {
-    opacity: 0;
-    transform: translateY(2px);
-  }
-  60% {
-    opacity: 1;
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.stream-token-fade,
-.stream-token-enter {
-  display: inline;
-  white-space: pre-wrap;
-  animation-name: stream-token-fade;
-  animation-duration: 140ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-fill-mode: both;
-  will-change: opacity, transform;
-}
-
-.stream-token-stable {
-  display: inline;
-  white-space: pre-wrap;
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stream-token-fade,
-  .stream-token-enter {
-    animation: none !important;
-    opacity: 1 !important;
-    filter: none !important;
-    transform: none !important;
-  }
-}
-
-/* Ultra-snappy per-token pop for live streaming.
-   Short durations (4-28ms) make the animation track the model's actual tokens/sec. */
-@keyframes clx-stream-pop {
-  from {
-    opacity: 0.85;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.clx-stream-pop {
-  display: inline;
-  white-space: pre-wrap;
-  animation-name: clx-stream-pop;
-  animation-duration: 40ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-fill-mode: forwards;
-  will-change: opacity;
-}
-
 /* Lucide icon system — crisp 16px default (chrome); menus use --menu-icon-size */
 svg.lucide {
   width: var(--icon-size);
@@ -3392,18 +3330,6 @@ button.user-message-card__body:not(:disabled):hover,
 
 .markdown-content .task-list-item {
   list-style: none;
-}
-
-/* Streaming token reveal — keep animated spans inline with prose layout */
-.markdown-content .stream-token-enter,
-.markdown-content .stream-token-stable {
-  display: inline;
-  white-space: pre-wrap;
-}
-
-.markdown-content .stream-token-fade,
-.markdown-content .stream-token-enter {
-  animation-fill-mode: both;
 }
 
 .markdown-content [style*="animation-name"],

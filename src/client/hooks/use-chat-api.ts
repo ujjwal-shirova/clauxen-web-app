@@ -18,8 +18,6 @@ function canFastAppendAnswer(message: Message | undefined): boolean {
   return Boolean(message && !message.agentMode);
 }
 import { createStreamEventBatcher } from "@/lib/stream-event-batcher";
-import { clearStreamPaintSessions } from "@/lib/streaming-token-reveal";
-import { messageUiKey } from "@/lib/message-ui-key";
 import type { Message, RecentChat } from "@/lib/types";
 import { useAiStream } from "@/hooks/use-ai-stream";
 import {
@@ -1190,9 +1188,6 @@ export function useChatApi(
             (assistantId &&
               (message.id === assistantId || message.clientId === assistantId));
           if (!matches) return clearIdleStreamingFlags(message);
-          clearStreamPaintSessions(messageUiKey(message));
-          if (message.id) clearStreamPaintSessions(message.id);
-          if (message.clientId) clearStreamPaintSessions(message.clientId);
           return clearIdleStreamingFlags(
             applyAgentStreamEvent(message, { type: "done" }),
           );

@@ -1,8 +1,8 @@
 "use client";
 
-import { StreamingTokenReveal } from "@/lib/streaming-token-reveal";
+import { useSmoothStreamingText } from "@/lib/smooth-streaming-text";
 
-/** Lightweight stream text with rate-adaptive fade on new chunks. */
+/** Lightweight plain-text view using the shared lossless stream smoother. */
 export function StreamingTextFade({
   content,
   streamKey = "stream",
@@ -12,9 +12,11 @@ export function StreamingTextFade({
   streamKey?: string;
   className?: string;
 }) {
+  const visibleText = useSmoothStreamingText(content, { streamKey });
+
   return (
     <div className={className} data-streaming>
-      <StreamingTokenReveal text={content} sessionKey={streamKey} enabled />
+      {visibleText}
     </div>
   );
 }
