@@ -1,45 +1,22 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   ArrowRight,
   Check,
   ChevronLeft,
   ExternalLink,
   Plus,
+  ShieldCheck,
+  Wrench,
 } from "lucide-react";
 import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
 import type { PluginCatalogItem } from "@/lib/plugins/types";
 
 const STORAGE_KEY = "clauxen_installed_directory_plugin_ids_v2";
-
-const CATEGORY_GRADIENTS: Record<string, string> = {
-  featured: "linear-gradient(135deg, #c9e9ff 0%, #76c8eb 52%, #86d0aa 100%)",
-  productivity:
-    "linear-gradient(135deg, #e6dcff 0%, #bbb9f5 50%, #8bcfd2 100%)",
-  creativity: "linear-gradient(135deg, #ffd8e7 0%, #d9b8f3 48%, #8ccfec 100%)",
-  "developer-tools":
-    "linear-gradient(135deg, #d5e4ff 0%, #9ab9ef 48%, #8193cf 100%)",
-  "business-and-operations":
-    "linear-gradient(135deg, #ffe4b8 0%, #eec77d 48%, #8fd2ad 100%)",
-  "data-and-analytics":
-    "linear-gradient(135deg, #c9edf1 0%, #83cad0 50%, #80a9db 100%)",
-  communication:
-    "linear-gradient(135deg, #c6e8ff 0%, #72c3e8 52%, #80c9a6 100%)",
-  "education-and-research":
-    "linear-gradient(135deg, #f4e0b9 0%, #dac594 48%, #9abfc9 100%)",
-  "scientific-research":
-    "linear-gradient(135deg, #d7e7ff 0%, #a9c6e8 48%, #91cfbd 100%)",
-  security: "linear-gradient(135deg, #d5ddeb 0%, #9facbf 52%, #7ea49d 100%)",
-  finance: "linear-gradient(135deg, #d8efce 0%, #a2d3a7 48%, #78b7b0 100%)",
-  healthcare: "linear-gradient(135deg, #d5f0ea 0%, #9bd6c9 48%, #9fbde7 100%)",
-  travel: "linear-gradient(135deg, #d4ebff 0%, #87c9ef 48%, #89d5c0 100%)",
-  entertainment:
-    "linear-gradient(135deg, #f4d4ff 0%, #c6a7ed 48%, #84bde8 100%)",
-  other: "linear-gradient(135deg, #ebe3d7 0%, #c8b9a4 48%, #9cb9b0 100%)",
-};
 
 function readInstalled() {
   try {
@@ -55,32 +32,46 @@ function readInstalled() {
   }
 }
 
+function safeAccent(value: string) {
+  return /^#[0-9a-f]{3,8}$/i.test(value) ? value : "#64748b";
+}
+
 function PluginLogo({
   plugin,
-  size = 68,
+  size = 52,
 }: {
   plugin: PluginCatalogItem;
   size?: number;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
   const initial = (plugin.displayName || plugin.name || "P")
     .slice(0, 1)
     .toUpperCase();
+
+  useEffect(() => setImageFailed(false), [plugin.logoUrl]);
+
   return (
     <span
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white text-xl font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-[var(--ui-border)] text-[15px] font-semibold text-white shadow-[0_2px_8px_rgba(20,21,26,0.06)]"
       style={{
         width: size,
         height: size,
-        backgroundColor: plugin.logoUrl
-          ? "white"
-          : plugin.brandColor || "#8c8c8c",
+        backgroundColor:
+          plugin.logoUrl && !imageFailed
+            ? "var(--app-panel-bg)"
+            : safeAccent(plugin.brandColor),
       }}
     >
-      {plugin.logoUrl ? (
-        <img
+      {plugin.logoUrl && !imageFailed ? (
+        <Image
           src={plugin.logoUrl}
-          alt={`${plugin.displayName} logo`}
+          alt=""
+          width={size}
+          height={size}
+          sizes={`${size}px`}
+          unoptimized
           className="size-full object-cover"
+          onError={() => setImageFailed(true)}
         />
       ) : (
         initial
@@ -115,6 +106,7 @@ export function PluginDetailView({
 }) {
   const [installed, setInstalled] = useState(false);
   useEffect(() => setInstalled(readInstalled().has(plugin.id)), [plugin.id]);
+
   const prompts = useMemo(
     () => plugin.defaultPrompts.filter(Boolean).slice(0, 3),
     [plugin.defaultPrompts],
@@ -134,9 +126,18 @@ export function PluginDetailView({
     : "/plugins";
   const externalLinks = [
     ["Website", safeExternalUrl(plugin.websiteUrl)],
-    ["Privacy policy", safeExternalUrl(plugin.privacyPolicyUrl)],
-    ["Terms of service", safeExternalUrl(plugin.termsOfServiceUrl)],
+    ["Privacy", safeExternalUrl(plugin.privacyPolicyUrl)],
+    ["Terms", safeExternalUrl(plugin.termsOfServiceUrl)],
   ].flatMap(([label, href]) => (href ? [{ label, href }] : []));
+  const informationRows: Array<[string, string]> = [
+    ["Category", primaryCategory],
+    ["Developer", plugin.developer],
+    ["Version", plugin.version],
+    ["Capabilities", plugin.capabilities.join(", ")],
+  ].filter((row): row is [string, string] => Boolean(row[1]));
+  const accentStyle = {
+    "--plugin-accent": safeAccent(plugin.brandColor),
+  } as CSSProperties;
 
   const toggleInstallation = () => {
     const next = readInstalled();
@@ -145,159 +146,200 @@ export function PluginDetailView({
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
     } catch {
-      /* in-memory state remains available */
+      // Keep the current-session state when storage is unavailable.
     }
     setInstalled(next.has(plugin.id));
   };
 
   return (
-    <div className={appPage.surface}>
-      <div className="app-scrollbar flex-1 overflow-y-auto">
-        <nav className="sticky top-0 z-20 flex bg-[rgba(252,252,252,0.88)] px-4 pb-2 pt-2.5 backdrop-blur-xl">
-          <Link
-            href={backHref}
-            className="inline-flex h-9 items-center gap-1 rounded-lg px-1.5 text-[14px] font-medium text-zinc-900 transition-colors hover:bg-black/[0.04]"
-          >
-            <ChevronLeft className="size-5" strokeWidth={1.7} /> Plugins
-          </Link>
+    <div
+      className={cn(appPage.surface, "bg-[var(--app-panel-bg)]")}
+      style={accentStyle}
+    >
+      <div className="app-scrollbar flex-1 overflow-y-auto bg-[var(--app-panel-bg)]">
+        <nav className="sticky top-0 z-20 border-b border-[var(--ui-border-subtle)] bg-[color-mix(in_oklab,var(--app-panel-bg)_94%,transparent)] backdrop-blur-xl">
+          <div className="mx-auto flex h-14 w-full max-w-[1080px] items-center justify-between px-4 sm:px-7">
+            <Link
+              href={backHref}
+              prefetch
+              className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[13px] font-medium text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-hover-wash)]"
+            >
+              <ChevronLeft className="size-4" strokeWidth={1.8} />
+              Plugin gallery
+            </Link>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ui-fg-placeholder)]">
+              Tool profile
+            </span>
+          </div>
         </nav>
-        <main className="mobile-page-inset mx-auto w-full max-w-[896px] px-4 pb-24 pt-12 sm:px-6 sm:pt-20">
-          <section className="flex flex-col gap-7">
-            <PluginLogo plugin={plugin} />
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <h1 className="text-[32px] font-semibold leading-10 tracking-[-0.03em] text-zinc-950">
-                  {plugin.displayName}
-                </h1>
-                <p className="mt-1.5 text-[16px] leading-6 text-zinc-600">
+
+        <main className="mx-auto w-full max-w-[1080px] px-4 pb-24 pt-5 sm:px-7 sm:pt-7">
+          <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_292px]">
+            <div className="relative overflow-hidden rounded-[24px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-5 sm:p-6">
+              <div
+                aria-hidden
+                className="absolute inset-y-0 left-0 w-1 bg-[var(--plugin-accent)]"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 opacity-70"
+                style={{
+                  background:
+                    "linear-gradient(135deg, color-mix(in srgb, var(--plugin-accent) 12%, transparent), transparent 48%)",
+                }}
+              />
+              <div className="relative">
+                <div className="flex min-w-0 items-start gap-4">
+                  <PluginLogo plugin={plugin} />
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--ui-fg-placeholder)]">
+                      {primaryCategory}
+                    </p>
+                    <h1 className="mt-0.5 truncate text-[24px] font-semibold leading-8 tracking-[-0.025em] text-[var(--ui-fg)]">
+                      {plugin.displayName}
+                    </h1>
+                  </div>
+                </div>
+                <p className="mt-4 max-w-[660px] text-[13.5px] leading-5 text-[var(--ui-fg-muted)]">
                   {plugin.shortDescription ||
                     plugin.description ||
                     "Use this plugin with Clauxen."}
                 </p>
-              </div>
-              {installed ? (
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="mt-5 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={toggleInstallation}
-                    className="inline-flex h-10 items-center gap-1.5 rounded-full border border-black/10 bg-white px-4 text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-50"
+                    aria-pressed={installed}
+                    className={cn(
+                      "inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 text-[12.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)]",
+                      installed
+                        ? "border-[var(--ui-border)] bg-[var(--app-panel-bg)] text-[var(--ui-fg)]"
+                        : "border-[var(--ui-fg)] bg-[var(--ui-fg)] text-[var(--app-panel-bg)] hover:opacity-90",
+                    )}
                   >
-                    <Check className="size-4" strokeWidth={1.8} /> Installed
+                    {installed ? (
+                      <Check className="size-3.5" strokeWidth={2.2} />
+                    ) : (
+                      <Plus className="size-3.5" strokeWidth={2} />
+                    )}
+                    {installed ? "Added to Clauxen" : "Add to Clauxen"}
                   </button>
                   <Link
                     href={`/new?prompt=${encodeURIComponent(`@${plugin.displayName} `)}`}
-                    className="inline-flex h-10 items-center rounded-full bg-zinc-900 px-5 text-[14px] font-medium text-white transition-colors hover:bg-zinc-800"
+                    prefetch
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] px-3.5 text-[12.5px] font-semibold text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-hover-wash)]"
                   >
-                    Try in chat
+                    Open in chat <ArrowRight className="size-3.5" />
                   </Link>
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={toggleInstallation}
-                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-zinc-900 px-5 text-[14px] font-medium text-white transition-colors hover:bg-zinc-800"
-                >
-                  <Plus className="size-4" /> Install plugin
-                </button>
-              )}
+              </div>
             </div>
+
+            <aside className="rounded-[20px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-4">
+              <div className="flex items-center gap-2 text-[12px] font-semibold text-[var(--ui-fg)]">
+                <Wrench className="size-3.5 text-[var(--ui-fg-muted)]" />
+                At a glance
+              </div>
+              <dl className="mt-3 divide-y divide-[var(--ui-border-subtle)]">
+                {informationRows.map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="grid grid-cols-[88px_1fr] gap-3 py-2.5 first:pt-0 last:pb-0"
+                  >
+                    <dt className="text-[11.5px] text-[var(--ui-fg-placeholder)]">
+                      {label}
+                    </dt>
+                    <dd className="min-w-0 text-right text-[11.5px] font-medium leading-4 text-[var(--ui-fg-muted)]">
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </aside>
           </section>
+
           {prompts.length > 0 ? (
-            <section
-              aria-label={`Try ${plugin.displayName}`}
-              className="mt-10 flex min-h-[390px] items-center rounded-[22px] px-5 py-12 sm:min-h-[450px] sm:px-12"
-              style={{
-                background:
-                  CATEGORY_GRADIENTS[categorySlug] ?? CATEGORY_GRADIENTS.other,
-              }}
-            >
-              <div className="mx-auto flex w-full max-w-[680px] flex-col gap-4">
-                {prompts.map((prompt) => (
+            <section className="mt-5" aria-labelledby="plugin-starters-title">
+              <div className="mb-2.5">
+                <h2
+                  id="plugin-starters-title"
+                  className="text-[14px] font-semibold text-[var(--ui-fg)]"
+                >
+                  Starter routes
+                </h2>
+                <p className="mt-0.5 text-[11.5px] text-[var(--ui-fg-placeholder)]">
+                  Begin with a focused request, then refine it in chat.
+                </p>
+              </div>
+              <div className="grid gap-2.5 md:grid-cols-3">
+                {prompts.map((prompt, index) => (
                   <Link
                     key={prompt}
                     href={`/new?prompt=${encodeURIComponent(`@${plugin.displayName} ${prompt}`)}`}
-                    className="group flex min-h-[68px] items-center gap-4 rounded-[28px] border border-white/65 bg-white/80 px-5 py-3 text-left text-[15px] leading-6 text-zinc-800 shadow-[0_8px_28px_rgba(45,75,100,0.12)] backdrop-blur-md transition-all hover:bg-white/95 hover:shadow-[0_10px_34px_rgba(45,75,100,0.17)] sm:px-6 sm:text-[16px]"
+                    prefetch
+                    className="group flex min-h-[118px] flex-col justify-between rounded-[18px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-4 transition-[border-color,transform,box-shadow] duration-150 hover:-translate-y-px hover:border-[var(--ui-border)] hover:shadow-[0_10px_28px_-22px_rgba(20,21,26,0.35)]"
                   >
-                    <span className="min-w-0 flex-1">
-                      <strong>@{plugin.displayName} </strong>
-                      {prompt}
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="text-[10.5px] font-semibold tabular-nums text-[var(--plugin-accent)]">
+                        0{index + 1}
+                      </span>
+                      <ArrowRight className="size-3.5 text-[var(--ui-fg-placeholder)] transition-transform group-hover:translate-x-0.5" />
                     </span>
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm transition-transform group-hover:translate-x-0.5">
-                      <ArrowRight className="size-5" strokeWidth={1.6} />
+                    <span className="mt-4 line-clamp-3 text-[12.5px] font-medium leading-[18px] text-[var(--ui-fg)]">
+                      {prompt}
                     </span>
                   </Link>
                 ))}
               </div>
             </section>
           ) : null}
-          {description ? (
-            <section className="mt-10">
-              <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-zinc-900">
-                About {plugin.displayName}
+
+          <section className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_292px]">
+            <article className="rounded-[20px] border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-4 sm:p-5">
+              <h2 className="text-[14px] font-semibold text-[var(--ui-fg)]">
+                About this tool
               </h2>
-              <p className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-zinc-600">
-                {description}
+              <p className="mt-2 whitespace-pre-wrap text-[13px] leading-[21px] text-[var(--ui-fg-muted)]">
+                {description ||
+                  `${plugin.displayName} can be used from a Clauxen conversation.`}
               </p>
-            </section>
-          ) : null}
-          <section className="mt-12 border-t border-black/[0.08] pt-9">
-            <div className="grid gap-x-12 gap-y-9 sm:grid-cols-2">
-              <div>
-                <h2 className="text-[13px] font-medium uppercase tracking-[0.06em] text-zinc-500">
-                  App
-                </h2>
-                <div className="mt-4 flex items-center gap-3">
-                  <PluginLogo plugin={plugin} size={36} />
-                  <div>
-                    <p className="text-[14px] font-medium text-zinc-900">
-                      {plugin.displayName}
-                    </p>
-                    {plugin.developer ? (
-                      <p className="text-[13px] text-zinc-500">
-                        by {plugin.developer}
-                      </p>
-                    ) : null}
-                  </div>
+              {plugin.keywords.length > 0 ? (
+                <div
+                  className="mt-4 flex flex-wrap gap-1.5"
+                  aria-label="Plugin topics"
+                >
+                  {plugin.keywords.slice(0, 10).map((keyword) => (
+                    <span
+                      key={keyword}
+                      className="rounded-md bg-[var(--ui-hover-wash)] px-2 py-1 text-[10.5px] text-[var(--ui-fg-muted)]"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
                 </div>
-              </div>
-              <div>
-                <h2 className="text-[13px] font-medium uppercase tracking-[0.06em] text-zinc-500">
-                  Information
+              ) : null}
+            </article>
+
+            <aside className="rounded-[20px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-[var(--ui-fg-muted)]" />
+                <h2 className="text-[13px] font-semibold text-[var(--ui-fg)]">
+                  Connection notes
                 </h2>
-                <dl className="mt-4 divide-y divide-black/[0.06]">
-                  {[
-                    ["Capabilities", plugin.capabilities.join(", ")],
-                    ["Developer", plugin.developer],
-                    ["Category", primaryCategory],
-                    ["Version", plugin.version],
-                  ]
-                    .filter(([, value]) => value)
-                    .map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="flex items-start justify-between gap-6 py-3 first:pt-0"
-                      >
-                        <dt className="text-[13px] text-zinc-500">{label}</dt>
-                        <dd className="text-right text-[13px] font-medium text-zinc-800">
-                          {value}
-                        </dd>
-                      </div>
-                    ))}
-                </dl>
               </div>
-            </div>
-          </section>
-          {externalLinks.length > 0 || plugin.keywords.length > 0 ? (
-            <section className="mt-10 border-t border-black/[0.08] pt-8">
+              <p className="mt-2 text-[11.5px] leading-[17px] text-[var(--ui-fg-muted)]">
+                Clauxen may share relevant chat context with this tool when you
+                use it. The provider&apos;s terms govern its data use.
+              </p>
               {externalLinks.length > 0 ? (
-                <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-medium text-zinc-700">
+                <div className="mt-3 flex flex-col border-t border-[var(--ui-border-subtle)] pt-2">
                   {externalLinks.map(({ label, href }) => (
                     <a
                       key={label}
                       href={href}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 hover:text-zinc-950"
+                      className="flex min-h-8 items-center justify-between gap-3 rounded-lg px-1.5 text-[11.5px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       {label}
                       <ExternalLink className="size-3" />
@@ -305,26 +347,8 @@ export function PluginDetailView({
                   ))}
                 </div>
               ) : null}
-              {plugin.keywords.length > 0 ? (
-                <div className="mt-6 flex flex-wrap gap-2">
-                  {plugin.keywords.slice(0, 12).map((keyword) => (
-                    <span
-                      key={keyword}
-                      className="rounded-full border border-black/[0.08] bg-black/[0.025] px-2.5 py-1 text-xs text-zinc-600"
-                    >
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-          <p className="mt-8 text-[12px] leading-5 text-zinc-500">
-            When connected to {plugin.displayName}, Clauxen may share relevant
-            chat context with this plugin to help complete your requests. A
-            plugin&apos;s use of data is subject to its own terms and privacy
-            policy. You can remove a plugin at any time from this page.
-          </p>
+            </aside>
+          </section>
         </main>
       </div>
     </div>

@@ -225,6 +225,9 @@ export function PluginsDirectoryView({
     });
   const allVisiblePlugins =
     data.sections?.flatMap((section) => section.plugins) ?? data.plugins;
+  const categoryPreview =
+    data.sections?.find((section) => section.slug === categorySlug)?.plugins ?? [];
+  const resultPlugins = data.plugins.length > 0 ? data.plugins : categoryPreview;
   const installedItems = allVisiblePlugins
     .filter((plugin) => installed.has(plugin.id))
     .slice(0, 12);
@@ -442,7 +445,7 @@ export function PluginsDirectoryView({
             </div>
           ) : (
             <section aria-label="Plugin results" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {data.plugins.map((plugin) => (
+              {resultPlugins.map((plugin) => (
                 <PluginCard
                   key={plugin.id}
                   plugin={plugin}
@@ -454,7 +457,7 @@ export function PluginsDirectoryView({
             </section>
           )}
 
-          {!data.sections && data.plugins.length === 0 && !isLoading ? (
+          {!data.sections && resultPlugins.length === 0 && !isLoading ? (
             <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ui-border)] text-center">
               <div className="flex size-10 items-center justify-center rounded-xl bg-[var(--app-frame-bg)]">
                 <Search className="size-4 text-[var(--ui-fg-muted)]" />

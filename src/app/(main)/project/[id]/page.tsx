@@ -13,10 +13,19 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { isProjectPinned } from "@/lib/pinned-projects";
 import { AppHref } from "@/components/app-href";
+import { AppRouteLoadingShell } from "@/components/app-route-loading-shell";
 
 export default function ProjectHomeRoutePage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <AppRouteLoadingShell
+          label="Opening project"
+          title="Project"
+          rows={4}
+        />
+      }
+    >
       <ProjectHomeGate />
     </Suspense>
   );
@@ -43,6 +52,8 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
   const [project, setProject] = useState<ApiProject | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const cachedProject = projectsHook.projects.find((item) => item.id === id) ?? null;
+  const visibleProject = project ?? cachedProject;
 
   useEffect(() => {
     let cancelled = false;
@@ -112,7 +123,7 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
     [session, id, instantNavigate],
   );
 
-  if (loadFailed && !project) {
+  if (loadFailed && !visibleProject) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-white text-zinc-500">
         <p>Project not found.</p>
@@ -126,21 +137,34 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
     );
   }
 
-  if (!project) {
+  if (!visibleProject) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-white text-sm text-zinc-500">
-        Loading project…
+      <div
+        className="flex flex-1 flex-col bg-[var(--app-panel-bg)] px-5 py-6"
+        aria-busy="true"
+        aria-label="Opening project"
+      >
+        <div className="h-8 w-48 rounded-lg bg-[var(--ui-hover-wash)]" />
+        <div className="mt-3 h-4 w-72 max-w-full rounded bg-[var(--ui-hover-wash)]" />
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-24 rounded-2xl border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)]"
+            />
+          ))}
+        </div>
       </div>
     );
   }
 
-  const pinned = isProjectPinned(project.id, projectsHook.pinnedIds);
+  const pinned = isProjectPinned(visibleProject.id, projectsHook.pinnedIds);
 
   return (
     <ProjectHomeView
-      project={project}
+      project={visibleProject}
       pinned={pinned}
-      onPinChange={(next) => projectsHook.pinProject(project.id, next)}
+      onPinChange={(next) => projectsHook.pinProject(visibleProject.id, next)}
       onSendMessage={handleSendMessage}
       onStopGeneration={() => session?.stopGeneration()}
       isGenerating={isGenerating || Boolean(session?.isGenerating)}

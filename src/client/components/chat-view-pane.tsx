@@ -300,14 +300,15 @@ export function ChatViewPane({
                     ) : composerOnlyWelcome ? (
                       "What can I help with?"
                     ) : greeting ? (
-                      <span className="inline-flex items-center gap-3 sm:gap-4">
+                      <span className="inline-flex items-center gap-3.5 sm:gap-5">
                         <Image
                           src="/assets/icons/clauxen-icon.png"
-                          width={44}
-                          height={44}
+                          width={70}
+                          height={70}
                           alt=""
                           aria-hidden="true"
-                          className="h-8 w-8 shrink-0 object-contain sm:h-10 sm:w-10"
+                          priority
+                          className="h-14 w-14 shrink-0 object-contain sm:h-[70px] sm:w-[70px]"
                         />
                         <span>
                           {firstName ? `${greeting}, ${firstName}` : greeting}

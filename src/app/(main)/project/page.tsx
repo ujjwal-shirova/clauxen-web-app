@@ -9,7 +9,11 @@ import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 
 export default function ProjectCreateRoutePage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <div className="h-full min-h-0 w-full flex-1 bg-[var(--app-panel-bg)]" />
+      }
+    >
       <ProjectCreateContent />
     </Suspense>
   );
@@ -52,7 +56,7 @@ function ProjectCreateContent() {
   };
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto bg-white">
+    <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto bg-[var(--app-panel-bg)]">
       <div className="mx-auto flex w-full max-w-[720px] flex-1 flex-col items-center justify-center px-4 py-10 sm:px-6">
         <CreateProjectForm
           onSubmit={handleCreate}

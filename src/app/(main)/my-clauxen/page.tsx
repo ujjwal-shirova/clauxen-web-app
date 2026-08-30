@@ -1,9 +1,18 @@
 import { Suspense } from "react";
+import { AppRouteLoadingShell } from "@/components/app-route-loading-shell";
 import { MyClauxenView } from "@/components/my-clauxen-view";
 
 export default function MyClauxenRoutePage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <AppRouteLoadingShell
+          label="Opening My Clauxen"
+          title="My Clauxen"
+          rows={4}
+        />
+      }
+    >
       <MyClauxenView />
     </Suspense>
   );
