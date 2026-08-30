@@ -23,19 +23,16 @@ import {
 
 /**
  * Settings IA (no Voice).
- * Visible categories stay compact; older deep links still resolve through
- * settingsTabAliases so routes and in-app links remain stable.
+ * Conflicts resolved:
+ * - Memory generate → Capabilities; memory reference → Personalization
+ * - Export / delete / archive → Privacy (no separate Data controls)
+ * - Sessions → Account; MFA / sign-in activity → Security
+ * - Apps → Connectors only
+ * - Notifications → own tab (not duplicated in General)
  */
 export const settingsNav = [
   { name: "General", icon: Settings },
   { name: "Personalization", icon: Sparkles },
-  { name: "Account & data", icon: UserCircle },
-  { name: "Security & safety", icon: KeyRound },
-  { name: "Plan & billing", icon: CreditCard },
-  { name: "Capabilities & developer", icon: Briefcase },
-] as const satisfies ReadonlyArray<{ name: string; icon: LucideIcon }>;
-
-export const settingsLegacyNav = [
   { name: "Notifications", icon: Bell },
   { name: "Account", icon: UserCircle },
   { name: "Security", icon: KeyRound },
@@ -55,75 +52,68 @@ export const settingsLegacyNav = [
   { name: "Plugins", icon: Wand2 },
 ] as const satisfies ReadonlyArray<{ name: string; icon: LucideIcon }>;
 
-export type SettingsCategory = (typeof settingsNav)[number]["name"];
-export type LegacySettingsTab = (typeof settingsLegacyNav)[number]["name"];
-export type SettingsTab = SettingsCategory | LegacySettingsTab;
-type SettingsNavItem = { name: SettingsTab; icon: LucideIcon };
+export type SettingsTab = (typeof settingsNav)[number]["name"];
 
-export const settingsTabDescriptions: Record<SettingsCategory, string> = {
+export const settingsTabDescriptions: Record<SettingsTab, string> = {
   General: "Appearance, language, voice, and everyday preferences.",
   Personalization: "Shape how Clauxen responds and remembers what matters.",
-  "Account & data":
-    "Manage your account, privacy, stored content, and data controls.",
-  "Security & safety":
-    "Protect your account and tune safety, family, and recovery settings.",
-  "Plan & billing": "Review your plan, usage, invoices, and payment methods.",
-  "Capabilities & developer":
-    "Configure tools, skills, connectors, plugins, and Clauxen Code.",
+  Notifications: "Choose what reaches you and where you receive it.",
+  Account: "Manage your account, sessions, and organization details.",
+  Security: "Protect your account and review sign-in activity.",
+  Privacy: "Control your data, cookies, model improvement, and shared content.",
+  Billing: "Review your plan, usage, and payment methods.",
+  Storage: "See what is using space and manage stored content.",
+  Capabilities: "Choose which tools and workspace abilities Clauxen can use.",
+  Reflect: "Tune your activity summaries and reflection preferences.",
+  "Time and focus": "Set quiet hours, focus behavior, and time preferences.",
+  Safety: "Adjust safeguards for sensitive content and interactions.",
+  "Parental controls": "Manage family protections and age-appropriate access.",
+  "Trusted contact": "Choose who can help with account safety concerns.",
+  "Clauxen Code": "Configure coding sessions, environments, and permissions.",
+  Keyboard: "Review and customize shortcuts across the app.",
+  Skills: "Manage the instructions and skills available to Clauxen.",
+  Connectors: "Connect services that Clauxen can search and use.",
+  Plugins: "Install and manage extensions for your workspace.",
 };
 
 export const settingsNavByName = Object.fromEntries(
-  [...settingsNav, ...settingsLegacyNav].map((item) => [item.name, item]),
-) as Record<SettingsTab, SettingsNavItem>;
-
-export const settingsTabAliases: Record<LegacySettingsTab, SettingsCategory> = {
-  Notifications: "General",
-  Account: "Account & data",
-  Security: "Security & safety",
-  Privacy: "Account & data",
-  Billing: "Plan & billing",
-  Storage: "Account & data",
-  Capabilities: "Capabilities & developer",
-  Reflect: "Personalization",
-  "Time and focus": "General",
-  Safety: "Security & safety",
-  "Parental controls": "Security & safety",
-  "Trusted contact": "Security & safety",
-  "Clauxen Code": "Capabilities & developer",
-  Keyboard: "General",
-  Skills: "Capabilities & developer",
-  Connectors: "Capabilities & developer",
-  Plugins: "Capabilities & developer",
-};
+  settingsNav.map((item) => [item.name, item]),
+) as Record<SettingsTab, (typeof settingsNav)[number]>;
 
 export const settingsNavGroups: ReadonlyArray<{
   label: string;
-  items: readonly SettingsCategory[];
+  items: readonly SettingsTab[];
 }> = [
   {
     label: "Settings",
     items: [
       "General",
       "Personalization",
-      "Account & data",
-      "Security & safety",
-      "Plan & billing",
-      "Capabilities & developer",
+      "Notifications",
+      "Account",
+      "Security",
+      "Privacy",
+      "Billing",
+      "Storage",
+      "Capabilities",
+      "Reflect",
+      "Time and focus",
+      "Clauxen Code",
+      "Keyboard",
     ],
+  },
+  {
+    label: "Customize",
+    items: ["Skills", "Connectors", "Plugins"],
+  },
+  {
+    label: "Safety & family",
+    items: ["Safety", "Parental controls", "Trusted contact"],
   },
 ];
 
 export function isSettingsTab(value: string): value is SettingsTab {
   return value in settingsNavByName;
-}
-
-export function isSettingsCategory(value: string): value is SettingsCategory {
-  return settingsNav.some((item) => item.name === value);
-}
-
-export function getCanonicalSettingsTab(tab: SettingsTab): SettingsCategory {
-  if (isSettingsCategory(tab)) return tab;
-  return settingsTabAliases[tab];
 }
 
 import { CHAT_FONT_OPTIONS } from "@/lib/app-preferences";

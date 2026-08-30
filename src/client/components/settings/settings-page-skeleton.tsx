@@ -18,7 +18,7 @@ function SettingsNavStaticShell() {
       <div className="mb-4 h-9 w-28 rounded-lg bg-[var(--settings-icon-bg)]" />
       <div className="mb-3 h-9 w-full rounded-[10px] bg-[var(--settings-nav-active-bg)]" />
       <div className="mx-2 mb-1 mt-2 h-3 w-14 rounded bg-[var(--settings-icon-bg)]" />
-      {Array.from({ length: 6 }).map((_, index) => (
+      {Array.from({ length: 8 }).map((_, index) => (
         <div
           key={index}
           className="h-9 w-full rounded-lg bg-[var(--settings-icon-bg)]"

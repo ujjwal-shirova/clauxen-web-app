@@ -7,21 +7,20 @@
  */
 
 import {
-  getCanonicalSettingsTab,
   isSettingsTab,
   type SettingsTab,
 } from "@/components/settings/constants";
 
 const LEGACY_SETTINGS_TABS: Record<string, SettingsTab> = {
   Enterprise: "General",
-  "Data controls": "Account & data",
-  Apps: "Capabilities & developer",
+  "Data controls": "Privacy",
+  Apps: "Connectors",
   Voice: "General",
 };
 
 export function normalizeSettingsTab(value: string): SettingsTab {
   const decoded = decodeURIComponent(value).trim();
-  if (isSettingsTab(decoded)) return getCanonicalSettingsTab(decoded);
+  if (isSettingsTab(decoded)) return decoded;
   const fromSlug = decoded
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -29,52 +28,36 @@ export function normalizeSettingsTab(value: string): SettingsTab {
   const slugMap: Record<string, SettingsTab> = {
     general: "General",
     personalization: "Personalization",
-    "account-and-data": "Account & data",
-    "account & data": "Account & data",
-    "account-data": "Account & data",
-    "security-and-safety": "Security & safety",
-    "security & safety": "Security & safety",
-    "security-safety": "Security & safety",
-    "plan-and-billing": "Plan & billing",
-    "plan & billing": "Plan & billing",
-    "plan-billing": "Plan & billing",
-    "capabilities-and-developer": "Capabilities & developer",
-    "capabilities & developer": "Capabilities & developer",
-    "capabilities-developer": "Capabilities & developer",
-    notifications: "General",
-    account: "Account & data",
-    security: "Security & safety",
-    privacy: "Account & data",
-    billing: "Plan & billing",
-    storage: "Account & data",
-    capabilities: "Capabilities & developer",
-    reflect: "Personalization",
-    "time-and-focus": "General",
-    "time and focus": "General",
-    safety: "Security & safety",
-    "parental-controls": "Security & safety",
-    "parental controls": "Security & safety",
-    "trusted-contact": "Security & safety",
-    "trusted contact": "Security & safety",
-    "clauxen-code": "Capabilities & developer",
-    "clauxen code": "Capabilities & developer",
-    keyboard: "General",
-    skills: "Capabilities & developer",
-    connectors: "Capabilities & developer",
-    plugins: "Capabilities & developer",
+    notifications: "Notifications",
+    account: "Account",
+    security: "Security",
+    privacy: "Privacy",
+    billing: "Billing",
+    storage: "Storage",
+    capabilities: "Capabilities",
+    reflect: "Reflect",
+    "time-and-focus": "Time and focus",
+    "time and focus": "Time and focus",
+    safety: "Safety",
+    "parental-controls": "Parental controls",
+    "parental controls": "Parental controls",
+    "trusted-contact": "Trusted contact",
+    "trusted contact": "Trusted contact",
+    "clauxen-code": "Clauxen Code",
+    "clauxen code": "Clauxen Code",
+    keyboard: "Keyboard",
+    skills: "Skills",
+    connectors: "Connectors",
+    plugins: "Plugins",
   };
   const lower = decoded.toLowerCase();
   if (slugMap[lower]) return slugMap[lower];
-  if (isSettingsTab(fromSlug)) return getCanonicalSettingsTab(fromSlug);
+  if (isSettingsTab(fromSlug)) return fromSlug;
   return LEGACY_SETTINGS_TABS[decoded] ?? "General";
 }
 
 export function settingsTabToSlug(tab: SettingsTab): string {
-  return getCanonicalSettingsTab(tab)
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/&/g, "and");
+  return tab.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
 /** Query flag: chat was started (or opened) from a project dashboard. */
@@ -169,10 +152,9 @@ export function overlayToHash(overlay: AppOverlayPath): string {
     case "gift":
       return "#gift";
     case "settings":
-      const tab = getCanonicalSettingsTab(overlay.tab);
-      return tab === "General"
+      return overlay.tab === "General"
         ? "#settings"
-        : `#settings/${encodeURIComponent(tab)}`;
+        : `#settings/${encodeURIComponent(overlay.tab)}`;
     default:
       return "";
   }
