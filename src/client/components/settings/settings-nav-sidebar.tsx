@@ -5,13 +5,15 @@ import { ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   settingsNav,
+  settingsTabAliases,
   settingsNavByName,
   settingsNavGroups,
+  type SettingsCategory,
   type SettingsTab,
 } from "@/components/settings/constants";
 
 interface SettingsNavSidebarProps {
-  activeTab: SettingsTab;
+  activeTab: SettingsCategory;
   onTabChange: (tab: SettingsTab) => void;
   variant?: "sidebar" | "mobile-toolbar";
 }
@@ -21,7 +23,7 @@ function NavButton({
   isActive,
   onSelect,
 }: {
-  tab: SettingsTab;
+  tab: SettingsCategory;
   isActive: boolean;
   onSelect: () => void;
 }) {
@@ -95,9 +97,15 @@ export function SettingsNavSidebar({
     return settingsNavGroups
       .map((group) => ({
         ...group,
-        items: group.items.filter((name) =>
-          normalized ? name.toLowerCase().includes(normalized) : true,
-        ),
+        items: group.items.filter((name) => {
+          if (!normalized) return true;
+          const aliases = Object.entries(settingsTabAliases)
+            .filter(([, category]) => category === name)
+            .map(([alias]) => alias);
+          return [name, ...aliases].some((label) =>
+            label.toLowerCase().includes(normalized),
+          );
+        }),
       }))
       .filter((group) => group.items.length > 0);
   }, [query]);

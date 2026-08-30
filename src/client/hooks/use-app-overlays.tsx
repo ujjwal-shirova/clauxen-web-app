@@ -12,7 +12,10 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useAppPathname } from "@/hooks/use-app-pathname";
-import type { SettingsTab } from "@/components/settings/constants";
+import {
+  getCanonicalSettingsTab,
+  type SettingsTab,
+} from "@/components/settings/constants";
 import {
   APP_ROUTES,
   buildOverlayLocation,
@@ -272,7 +275,8 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
     [openOverlay],
   );
   const openSettings = useCallback(
-    (tab: SettingsTab = "General") => openOverlay({ type: "settings", tab }),
+    (tab: SettingsTab = "General") =>
+      openOverlay({ type: "settings", tab: getCanonicalSettingsTab(tab) }),
     [openOverlay],
   );
 

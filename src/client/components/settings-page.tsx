@@ -3,7 +3,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import {
+  getCanonicalSettingsTab,
   isSettingsTab,
+  type SettingsCategory,
   settingsTabDescriptions,
   type SettingsTab,
 } from "@/components/settings/constants";
@@ -54,6 +56,10 @@ interface SettingsModalProps {
   onTabChange?: (tab: SettingsTab) => void;
 }
 
+function SettingsCategoryStack({ children }: { children: React.ReactNode }) {
+  return <div className="settings-category-stack">{children}</div>;
+}
+
 export function SettingsModal({
   open,
   onClose,
@@ -92,8 +98,10 @@ export function SettingsModal({
    */
   const contentHydrating = settingsEnabled && !settingsReady;
 
-  const safeInitial = isSettingsTab(initialTab) ? initialTab : "General";
-  const [activeTab, setActiveTab] = useState<SettingsTab>(safeInitial);
+  const safeInitial = isSettingsTab(initialTab)
+    ? getCanonicalSettingsTab(initialTab)
+    : "General";
+  const [activeTab, setActiveTab] = useState<SettingsCategory>(safeInitial);
   const [copied, setCopied] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
 
@@ -103,14 +111,19 @@ export function SettingsModal({
   }, [open]);
 
   const handleTabChange = (tab: SettingsTab) => {
-    setActiveTab(tab);
+    const canonicalTab = getCanonicalSettingsTab(tab);
+    setActiveTab(canonicalTab);
     contentScrollRef.current?.scrollTo({ top: 0 });
-    onTabChange?.(tab);
+    onTabChange?.(canonicalTab);
   };
 
   useEffect(() => {
     if (open) {
-      setActiveTab(isSettingsTab(initialTab) ? initialTab : "General");
+      setActiveTab(
+        isSettingsTab(initialTab)
+          ? getCanonicalSettingsTab(initialTab)
+          : "General",
+      );
       preloadChatFontCatalog();
       if (settingsEnabled) {
         void refreshSettings();
@@ -187,138 +200,189 @@ export function SettingsModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const renderGeneralSettings = () => (
+    <GeneralSettings
+      personalization={personalization}
+      onPersonalizationChange={updatePersonalization}
+      avatarUrl={user?.avatarUrl}
+      onAvatarUpdated={() => {
+        void refreshAuth({ quiet: true });
+      }}
+      appearancePreset={appearanceGeneral.appearancePreset}
+      onAppearanceChange={(preset) =>
+        updatePreferenceGeneral({
+          appearancePreset: preset,
+          colorMode:
+            preset === "Light"
+              ? "Light"
+              : preset === "Dark"
+                ? "Dark"
+                : "Auto",
+        })
+      }
+      chatFont={appearanceGeneral.chatFont}
+      setChatFont={(v) => updatePreferenceGeneral({ chatFont: v })}
+      motion={appearanceGeneral.motion ?? "System"}
+      setMotion={(v) => updatePreferenceGeneral({ motion: v })}
+      followUpSuggestions={appearanceGeneral.followUpSuggestions ?? true}
+      setFollowUpSuggestions={(v) =>
+        updatePreferenceGeneral({ followUpSuggestions: v })
+      }
+    />
+  );
+
+  const renderNotificationsSettings = () => (
+    <NotificationsSettings
+      codexChannel={notifications.codexChannel}
+      responseChannel={notifications.responseChannel}
+      groupChatChannel={notifications.groupChatChannel}
+      tasksChannel={notifications.tasksChannel}
+      projectsChannel={notifications.projectsChannel}
+      recommendationsChannel={notifications.recommendationsChannel}
+      usageChannel={notifications.usageChannel}
+      desktopAlerts={notifications.desktopAlerts}
+      soundEffects={notifications.soundEffects}
+      setCodexChannel={(v) => updateNotifications({ codexChannel: v })}
+      setResponseChannel={(v) => updateNotifications({ responseChannel: v })}
+      setGroupChatChannel={(v) =>
+        updateNotifications({ groupChatChannel: v })
+      }
+      setTasksChannel={(v) => updateNotifications({ tasksChannel: v })}
+      setProjectsChannel={(v) => updateNotifications({ projectsChannel: v })}
+      setRecommendationsChannel={(v) =>
+        updateNotifications({ recommendationsChannel: v })
+      }
+      setUsageChannel={(v) => updateNotifications({ usageChannel: v })}
+      setDesktopAlerts={(v) => updateNotifications({ desktopAlerts: v })}
+      setSoundEffects={(v) => updateNotifications({ soundEffects: v })}
+    />
+  );
+
+  const renderPersonalizationSettings = () => (
+    <PersonalizationSettingsPanel
+      personalization={personalization}
+      onChange={updatePersonalization}
+      advanced={{
+        webSearch: personalization.webSearch ?? true,
+        canvas: Boolean(capabilities.artifacts),
+        connectorSearch: Boolean(capabilities.connectorSearch),
+      }}
+      onAdvancedChange={(patch) => {
+        if (patch.webSearch != null) {
+          updatePersonalization({ webSearch: patch.webSearch });
+        }
+        const capabilityPatch: {
+          artifacts?: boolean;
+          connectorSearch?: boolean;
+        } = {};
+        if (patch.canvas != null) {
+          capabilityPatch.artifacts = patch.canvas;
+        }
+        if (patch.connectorSearch != null) {
+          capabilityPatch.connectorSearch = patch.connectorSearch;
+        }
+        if (Object.keys(capabilityPatch).length > 0) {
+          updateCapabilities(capabilityPatch);
+        }
+      }}
+      onManageMemory={() => handleTabChange("Capabilities")}
+    />
+  );
+
+  const renderAccountSettings = () => (
+    <AccountSettings
+      copied={copied}
+      onCopyOrgId={handleCopyOrgId}
+      userId={user?.id}
+      onLogout={onLogout}
+      onLogoutAllDevices={onLogout}
+      workspace={workspace}
+      sessions={[
+        {
+          device: "Chrome",
+          location: "-",
+          created: "-",
+          updated: "-",
+          current: true,
+        },
+      ]}
+    />
+  );
+
+  const renderCapabilitiesSettings = () => (
+    <CapabilitiesSettings
+      capabilities={{
+        ...capabilities,
+        toolMode: general.toolMode ?? "auto",
+      }}
+      onChange={(patch) => {
+        if (patch.toolMode != null) {
+          updateGeneral({ toolMode: patch.toolMode });
+        }
+        const { toolMode: _toolMode, ...rest } = patch;
+        if (Object.keys(rest).length > 0) {
+          updateCapabilities(rest);
+        }
+      }}
+      onGoToCustomize={onGoToCustomize}
+    />
+  );
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case "General":
         return (
-          <GeneralSettings
-            personalization={personalization}
-            onPersonalizationChange={updatePersonalization}
-            avatarUrl={user?.avatarUrl}
-            onAvatarUpdated={() => {
-              void refreshAuth({ quiet: true });
-            }}
-            appearancePreset={appearanceGeneral.appearancePreset}
-            onAppearanceChange={(preset) =>
-              updatePreferenceGeneral({
-                appearancePreset: preset,
-                colorMode:
-                  preset === "Light"
-                    ? "Light"
-                    : preset === "Dark"
-                      ? "Dark"
-                      : "Auto",
-              })
-            }
-            chatFont={appearanceGeneral.chatFont}
-            setChatFont={(v) => updatePreferenceGeneral({ chatFont: v })}
-            motion={appearanceGeneral.motion ?? "System"}
-            setMotion={(v) => updatePreferenceGeneral({ motion: v })}
-            followUpSuggestions={appearanceGeneral.followUpSuggestions ?? true}
-            setFollowUpSuggestions={(v) =>
-              updatePreferenceGeneral({ followUpSuggestions: v })
-            }
-          />
+          <SettingsCategoryStack>
+            {renderGeneralSettings()}
+            {renderNotificationsSettings()}
+            <TimeAndFocusSettings
+              timeAndFocus={timeAndFocus}
+              onChange={updateTimeAndFocus}
+            />
+            <KeyboardSettings />
+          </SettingsCategoryStack>
         );
       case "Personalization":
         return (
-          <PersonalizationSettingsPanel
-            personalization={personalization}
-            onChange={updatePersonalization}
-            advanced={{
-              webSearch: personalization.webSearch ?? true,
-              canvas: Boolean(capabilities.artifacts),
-              connectorSearch: Boolean(capabilities.connectorSearch),
-            }}
-            onAdvancedChange={(patch) => {
-              if (patch.webSearch != null) {
-                updatePersonalization({ webSearch: patch.webSearch });
-              }
-              const capabilityPatch: {
-                artifacts?: boolean;
-                connectorSearch?: boolean;
-              } = {};
-              if (patch.canvas != null) {
-                capabilityPatch.artifacts = patch.canvas;
-              }
-              if (patch.connectorSearch != null) {
-                capabilityPatch.connectorSearch = patch.connectorSearch;
-              }
-              if (Object.keys(capabilityPatch).length > 0) {
-                updateCapabilities(capabilityPatch);
-              }
-            }}
-            onManageMemory={() => handleTabChange("Capabilities")}
-          />
+          <SettingsCategoryStack>
+            {renderPersonalizationSettings()}
+            <ReflectSettings
+              range={reflect.range}
+              onRangeChange={(range) => updateReflect({ range })}
+            />
+          </SettingsCategoryStack>
         );
-      case "Notifications":
+      case "Account & data":
         return (
-          <NotificationsSettings
-            codexChannel={notifications.codexChannel}
-            responseChannel={notifications.responseChannel}
-            groupChatChannel={notifications.groupChatChannel}
-            tasksChannel={notifications.tasksChannel}
-            projectsChannel={notifications.projectsChannel}
-            recommendationsChannel={notifications.recommendationsChannel}
-            usageChannel={notifications.usageChannel}
-            desktopAlerts={notifications.desktopAlerts}
-            soundEffects={notifications.soundEffects}
-            setCodexChannel={(v) => updateNotifications({ codexChannel: v })}
-            setResponseChannel={(v) =>
-              updateNotifications({ responseChannel: v })
-            }
-            setGroupChatChannel={(v) =>
-              updateNotifications({ groupChatChannel: v })
-            }
-            setTasksChannel={(v) => updateNotifications({ tasksChannel: v })}
-            setProjectsChannel={(v) =>
-              updateNotifications({ projectsChannel: v })
-            }
-            setRecommendationsChannel={(v) =>
-              updateNotifications({ recommendationsChannel: v })
-            }
-            setUsageChannel={(v) => updateNotifications({ usageChannel: v })}
-            setDesktopAlerts={(v) => updateNotifications({ desktopAlerts: v })}
-            setSoundEffects={(v) => updateNotifications({ soundEffects: v })}
-          />
+          <SettingsCategoryStack>
+            {renderAccountSettings()}
+            <PrivacySettings
+              privacy={privacy}
+              onChange={updatePrivacy}
+              onGoToPersonalization={() => handleTabChange("Personalization")}
+            />
+            <StorageSettings />
+          </SettingsCategoryStack>
         );
-      case "Account":
+      case "Security & safety":
         return (
-          <AccountSettings
-            copied={copied}
-            onCopyOrgId={handleCopyOrgId}
-            userId={user?.id}
-            onLogout={onLogout}
-            onLogoutAllDevices={onLogout}
-            workspace={workspace}
-            sessions={[
-              {
-                device: "Chrome",
-                location: "—",
-                created: "—",
-                updated: "—",
-                current: true,
-              },
-            ]}
-          />
+          <SettingsCategoryStack>
+            <SecuritySettings
+              onLogout={onLogout}
+              mfaEnabled={Boolean(safety.mfaEnabled)}
+              onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
+            />
+            <SafetySettings
+              reduceSensitiveContent={Boolean(safety.reduceSensitiveContent)}
+              onChange={(reduceSensitiveContent) =>
+                updateSafety({ reduceSensitiveContent })
+              }
+            />
+            <ParentalControlsSettings />
+            <TrustedContactSettings />
+          </SettingsCategoryStack>
         );
-      case "Security":
-        return (
-          <SecuritySettings
-            onLogout={onLogout}
-            mfaEnabled={Boolean(safety.mfaEnabled)}
-            onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
-          />
-        );
-      case "Privacy":
-        return (
-          <PrivacySettings
-            privacy={privacy}
-            onChange={updatePrivacy}
-            onGoToPersonalization={() => handleTabChange("Personalization")}
-          />
-        );
-      case "Billing":
+      case "Plan & billing":
         return (
           <BillingSettings
             onUpgradeClick={onUpgradeClick}
@@ -326,66 +390,18 @@ export function SettingsModal({
             userEmail={user?.email}
           />
         );
-      case "Storage":
-        return <StorageSettings />;
-      case "Capabilities":
+      case "Capabilities & developer":
         return (
-          <CapabilitiesSettings
-            capabilities={{
-              ...capabilities,
-              toolMode: general.toolMode ?? "auto",
-            }}
-            onChange={(patch) => {
-              if (patch.toolMode != null) {
-                updateGeneral({ toolMode: patch.toolMode });
-              }
-              const { toolMode: _toolMode, ...rest } = patch;
-              if (Object.keys(rest).length > 0) {
-                updateCapabilities(rest);
-              }
-            }}
-            onGoToCustomize={onGoToCustomize}
-          />
+          <SettingsCategoryStack>
+            {renderCapabilitiesSettings()}
+            <ClauxenCodeSettings isAuthenticated={Boolean(user?.id)} />
+            <SkillsSettings />
+            <ConnectorsCatalogSettings
+              onAdd={() => handleTabChange("Plugins")}
+            />
+            <PluginsSettings />
+          </SettingsCategoryStack>
         );
-      case "Reflect":
-        return (
-          <ReflectSettings
-            range={reflect.range}
-            onRangeChange={(range) => updateReflect({ range })}
-          />
-        );
-      case "Time and focus":
-        return (
-          <TimeAndFocusSettings
-            timeAndFocus={timeAndFocus}
-            onChange={updateTimeAndFocus}
-          />
-        );
-      case "Safety":
-        return (
-          <SafetySettings
-            reduceSensitiveContent={Boolean(safety.reduceSensitiveContent)}
-            onChange={(reduceSensitiveContent) =>
-              updateSafety({ reduceSensitiveContent })
-            }
-          />
-        );
-      case "Parental controls":
-        return <ParentalControlsSettings />;
-      case "Trusted contact":
-        return <TrustedContactSettings />;
-      case "Clauxen Code":
-        return <ClauxenCodeSettings isAuthenticated={Boolean(user?.id)} />;
-      case "Keyboard":
-        return <KeyboardSettings />;
-      case "Skills":
-        return <SkillsSettings />;
-      case "Connectors":
-        return (
-          <ConnectorsCatalogSettings onAdd={() => handleTabChange("Plugins")} />
-        );
-      case "Plugins":
-        return <PluginsSettings />;
       default:
         return (
           <p className="text-sm text-zinc-500">

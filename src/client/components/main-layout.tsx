@@ -381,7 +381,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               !isMobile &&
                 isSidebarCollapsed &&
                 isSidebarPeekOpen &&
-                "rounded-r-[14px] shadow-[10px_0_28px_rgba(28,25,23,0.10)] dark:shadow-[10px_0_32px_rgba(0,0,0,0.30)]",
+                "rounded-r-[14px] shadow-[10px_0_28px_rgba(28,25,23,0.10)] will-change-transform dark:shadow-[10px_0_32px_rgba(0,0,0,0.30)]",
             )}
           >
             <Sidebar
@@ -454,9 +454,9 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           onBlur={closeSidebarPeekSoon}
           onClick={() => setSidebarCollapsedFromNav(false)}
           className={cn(
-            "fixed left-2 top-2 z-[42] flex size-8 items-center justify-center rounded-[9px] border-0 bg-transparent text-[#52514e] shadow-none transition-[background-color,color,opacity] hover:bg-black/[0.05] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07]",
+            "fixed left-2 top-2 z-[42] flex size-8 items-center justify-center rounded-[9px] border-0 bg-transparent text-[#52514e] shadow-none transition-[background-color,color,opacity,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-black/[0.05] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07]",
             (isSidebarPeekOpen || overlayOpen) &&
-              "pointer-events-none opacity-0",
+              "pointer-events-none -translate-x-1 opacity-0",
           )}
         >
           <SidebarToggleIcon className="size-[18px]" />
