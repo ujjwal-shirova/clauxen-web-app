@@ -158,7 +158,7 @@ export function PluginDetailView({
     >
       <div className="app-scrollbar flex-1 overflow-y-auto bg-[var(--app-panel-bg)]">
         <nav className="sticky top-0 z-20 border-b border-[var(--ui-border-subtle)] bg-[color-mix(in_oklab,var(--app-panel-bg)_94%,transparent)] backdrop-blur-xl">
-          <div className="mx-auto flex h-14 w-full max-w-[1080px] items-center justify-between px-4 sm:px-7">
+          <div className="mx-auto flex h-14 w-full max-w-[1080px] items-center px-4 sm:px-7">
             <Link
               href={backHref}
               prefetch
@@ -167,9 +167,6 @@ export function PluginDetailView({
               <ChevronLeft className="size-4" strokeWidth={1.8} />
               Plugin gallery
             </Link>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ui-fg-placeholder)]">
-              Tool profile
-            </span>
           </div>
         </nav>
 
@@ -211,10 +208,10 @@ export function PluginDetailView({
                     onClick={toggleInstallation}
                     aria-pressed={installed}
                     className={cn(
-                      "inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 text-[12.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)]",
+                      "no-hover no-hover-overlay inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 text-[12.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)]",
                       installed
-                        ? "border-[var(--ui-border)] bg-[var(--app-panel-bg)] text-[var(--ui-fg)]"
-                        : "border-[var(--ui-fg)] bg-[var(--ui-fg)] text-[var(--app-panel-bg)] hover:opacity-90",
+                        ? "border-[var(--ui-border)] bg-[var(--app-panel-bg)] text-[var(--ui-fg)] hover:border-[var(--ui-border)] hover:bg-[var(--app-panel-bg)] hover:text-[var(--ui-fg)]"
+                        : "border-[var(--ui-fg)] bg-[var(--ui-fg)] text-[var(--app-panel-bg)] hover:border-[var(--ui-fg)] hover:bg-[var(--ui-fg)] hover:text-[var(--app-panel-bg)]",
                     )}
                   >
                     {installed ? (
