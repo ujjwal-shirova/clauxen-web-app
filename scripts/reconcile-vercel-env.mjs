@@ -47,7 +47,6 @@ const CANONICAL_VERCEL_ENV_KEYS = [
   "Provider_SANDBOX_TIMEOUT_MS",
   "Provider_Model_Virgil",
   "Provider_Model_Homer",
-  "Provider_Model_Helios",
   "Provider_Model_Clauxen_V1",
   "EXA_API_KEY",
   "Assembly_Provider_Key",

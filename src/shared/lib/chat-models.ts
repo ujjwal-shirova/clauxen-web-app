@@ -13,7 +13,5 @@ export {
 
 import { MODEL_CONFIG } from "@/lib/model-config";
 
-/** @deprecated Use resolveModelRuntime("homer").modelSlug */
-export const HOMER_OPENAI_MODEL = MODEL_CONFIG.models.homer.defaultSlug;
 /** @deprecated Use resolveModelRuntime("helios").modelSlug */
 export const HELIOS_OPENAI_MODEL = MODEL_CONFIG.models.helios.defaultSlug;

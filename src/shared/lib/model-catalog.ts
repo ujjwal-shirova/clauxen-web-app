@@ -30,26 +30,13 @@ export type ModelCatalogEntry = {
 
 export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   {
-    id: "homer",
-    label: MODEL_CONFIG.metadata.homer.label,
-    shortLabel: MODEL_CONFIG.metadata.homer.shortLabel,
-    description: MODEL_CONFIG.metadata.homer.description,
-    provider: "openai",
-    defaultModelSlug: MODEL_CONFIG.models.homer.defaultSlug,
-    modelEnvKey: MODEL_CONFIG.providerEnv.modelHomer,
-    baseUrlEnvKey: MODEL_CONFIG.providerEnv.baseUrl,
-    defaultBaseUrl: MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
-    available: MODEL_CONFIG.metadata.homer.available,
-    requiresUpgrade: MODEL_CONFIG.metadata.homer.requiresUpgrade,
-  },
-  {
     id: "helios",
     label: MODEL_CONFIG.metadata.helios.label,
     shortLabel: MODEL_CONFIG.metadata.helios.shortLabel,
     description: MODEL_CONFIG.metadata.helios.description,
     provider: "openai",
     defaultModelSlug: MODEL_CONFIG.models.helios.defaultSlug,
-    modelEnvKey: MODEL_CONFIG.providerEnv.modelHelios,
+    modelEnvKey: MODEL_CONFIG.providerEnv.modelHomer,
     baseUrlEnvKey: MODEL_CONFIG.providerEnv.baseUrl,
     defaultBaseUrl: MODEL_CONFIG.endpoints.providerOpenAiBaseUrl,
     available: MODEL_CONFIG.metadata.helios.available,
@@ -85,7 +72,6 @@ export type ModelRuntimeConfig = {
 
 export type ModelCatalogEnv = {
   novitaOpenAiBaseUrl: string;
-  homerModel: string;
   heliosModel: string;
   virgilModel: string;
   thinkingModel: string;
@@ -124,11 +110,7 @@ function modelSlugForEntry(
   const raw =
     fromEnv ??
     fromProvider ??
-    (entry.id === "homer"
-      ? env.homerModel
-      : entry.id === "helios"
-        ? env.heliosModel
-        : env.virgilModel);
+    (entry.id === "helios" ? env.heliosModel : env.virgilModel);
   return normalizeUpstreamModelSlug(raw, entry.defaultModelSlug);
 }
 
@@ -149,7 +131,9 @@ export function getCatalogEntry(id: ChatModelId): ModelCatalogEntry {
 }
 
 export function parseChatModelId(value?: string | null): ChatModelId {
-  if (value === "homer" || value === "helios" || value === "virgil") {
+  // Migrate the former public Homer id to its new Helios identity.
+  if (value === "homer") return "helios";
+  if (value === "helios" || value === "virgil") {
     return value;
   }
   return DEFAULT_CHAT_MODEL_ID;
@@ -205,11 +189,10 @@ export function formatChatModelVersionLabel(label: string): string {
 /** @deprecated Use resolveModelRuntime().modelSlug */
 export function resolveOpenAiModelId(
   chatModelId: ChatModelId,
-  models: { homerModel: string; heliosModel: string },
+  models: { heliosModel: string },
 ): string {
   return resolveModelRuntime(chatModelId, {
     novitaOpenAiBaseUrl: "",
-    homerModel: models.homerModel,
     heliosModel: models.heliosModel,
     virgilModel: MODEL_CONFIG.models.virgil.defaultSlug,
     thinkingModel: MODEL_CONFIG.models.thinking.defaultSlug,
@@ -223,12 +206,8 @@ export function modelCatalogEnvFromProcess(): ModelCatalogEnv {
 
   return {
     novitaOpenAiBaseUrl: providerBase,
-    homerModel: normalizeUpstreamModelSlug(
-      readEnvOverride(MODEL_CONFIG.providerEnv.modelHomer) ?? legacyModel,
-      MODEL_CONFIG.models.homer.defaultSlug,
-    ),
     heliosModel: normalizeUpstreamModelSlug(
-      readEnvOverride(MODEL_CONFIG.providerEnv.modelHelios) ?? legacyModel,
+      readEnvOverride(MODEL_CONFIG.providerEnv.modelHomer) ?? legacyModel,
       MODEL_CONFIG.models.helios.defaultSlug,
     ),
     virgilModel: normalizeUpstreamModelSlug(

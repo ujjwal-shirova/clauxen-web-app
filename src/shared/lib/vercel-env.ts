@@ -37,7 +37,6 @@ export const CANONICAL_VERCEL_ENV_KEYS = [
   "Provider_SANDBOX_TIMEOUT_MS",
   "Provider_Model_Virgil",
   "Provider_Model_Homer",
-  "Provider_Model_Helios",
   "Provider_Model_Clauxen_V1",
   "EXA_API_KEY",
   "Assembly_Provider_Key",
@@ -161,7 +160,6 @@ export function bootstrapVercelEnvAliases(): void {
   if (isBlankEnvValue(process.env.Provider_Model_Clauxen_V1)) {
     const model = firstEnv(
       "SHIROVA_DEFAULT_MODEL",
-      "SHIROVA_HELIOS_MODEL",
       "SHIROVA_VIRGIL_MODEL",
       "LLM_MODEL",
     );
@@ -174,10 +172,6 @@ export function bootstrapVercelEnvAliases(): void {
   if (isBlankEnvValue(process.env.Provider_Model_Homer)) {
     const model = firstEnv("SHIROVA_HOMER_MODEL", "Provider_Model_Clauxen_V1");
     if (model) process.env.Provider_Model_Homer = model;
-  }
-  if (isBlankEnvValue(process.env.Provider_Model_Helios)) {
-    const model = firstEnv("SHIROVA_HELIOS_MODEL", "Provider_Model_Clauxen_V1");
-    if (model) process.env.Provider_Model_Helios = model;
   }
 
   // Sandbox SDK still reads NOVITA_API_KEY — mirror Provider key server-side only.

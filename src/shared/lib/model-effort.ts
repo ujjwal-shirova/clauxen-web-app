@@ -50,11 +50,10 @@ export function resolveOpenAIReasoningParams(input: {
   if (!enabled) {
     return { enabled: false };
   }
-  if (input.chatModel === "homer") {
+  if (input.chatModel === "helios") {
     return {
       enabled: true,
-      effort:
-        input.homerReasoningEffort ?? DEFAULT_HOMER_REASONING_EFFORT,
+      effort: input.homerReasoningEffort ?? DEFAULT_HOMER_REASONING_EFFORT,
     };
   }
   return { enabled: true };
@@ -65,7 +64,7 @@ export function resolveOpenAIReasoningParams(input: {
  *
  * User preference (composer Thinking On|Off) is authoritative and defaults
  * off. Capable models only receive extended thinking when the user opts in.
- * The Homer effort dial (high/max) remains the quality knob when On.
+ * The Helios effort dial (high/max) remains the quality knob when On.
  */
 export function resolveAutonomousThinkingParams(input: {
   chatModel: ConfiguredModelId;

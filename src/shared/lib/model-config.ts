@@ -28,16 +28,10 @@ export const MODEL_CONFIG = {
   // 2. Upstream Model Slugs (Default Slugs)
   // ==========================================
   models: {
-    /** Homer — smartest model (optional override) */
-    homer: {
+    /** Helios — premium model (uses the former Homer upstream model) */
+    helios: {
       defaultSlug: "qwen/qwen3.8-2.4t-a95b",
       envKey: "Provider_Model_Homer",
-    },
-
-    /** Helios — balanced medium model */
-    helios: {
-      defaultSlug: "moonshotai/kimi-k2.6",
-      envKey: "Provider_Model_Helios",
     },
 
     /** Virgil — default chat model */
@@ -63,13 +57,6 @@ export const MODEL_CONFIG = {
   // 3. Model Display Metadata
   // ==========================================
   metadata: {
-    homer: {
-      label: "Homer",
-      shortLabel: "Homer",
-      description: "Smartest for demanding work",
-      available: true,
-      requiresUpgrade: true,
-    },
     helios: {
       label: "Helios",
       shortLabel: "Helios",
@@ -98,7 +85,6 @@ export const MODEL_CONFIG = {
     sandboxTimeoutMs: "Provider_SANDBOX_TIMEOUT_MS",
     modelVirgil: "Provider_Model_Virgil",
     modelHomer: "Provider_Model_Homer",
-    modelHelios: "Provider_Model_Helios",
     /** Legacy one-model override retained for old deployments. */
     modelClauxenV1: "Provider_Model_Clauxen_V1",
   },
@@ -126,4 +112,4 @@ export function normalizeUpstreamModelSlug(
   return trimmed;
 }
 
-export type ConfiguredModelId = "homer" | "helios" | "virgil";
+export type ConfiguredModelId = "helios" | "virgil";

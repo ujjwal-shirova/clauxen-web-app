@@ -77,13 +77,9 @@ export const env = {
   /** Novita OpenAI-compatible base URL. */
   providerBaseUrl: providerOpenAiBaseUrl,
 
-  /** Composer-selectable Novita OpenAI-compatible models. */
-  homerModel: normalizeUpstreamModelSlug(
-    firstOptional(PROVIDER.modelHomer, PROVIDER.modelClauxenV1),
-    MODEL_CONFIG.models.homer.defaultSlug,
-  ),
+  /** Composer-selectable OpenAI-compatible models. */
   heliosModel: normalizeUpstreamModelSlug(
-    firstOptional(PROVIDER.modelHelios, PROVIDER.modelClauxenV1),
+    firstOptional(PROVIDER.modelHomer, PROVIDER.modelClauxenV1),
     MODEL_CONFIG.models.helios.defaultSlug,
   ),
   virgilModel: normalizeUpstreamModelSlug(
