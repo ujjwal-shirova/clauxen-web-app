@@ -103,7 +103,7 @@ export function GiftClaimDialog({
                 style={{
                   background: gift.themeColor
                     ? `linear-gradient(165deg, ${gift.themeColor} 0%, color-mix(in srgb, ${gift.themeColor} 72%, white) 48%, white 100%)`
-                    : "linear-gradient(165deg, #e4e4e7 0%, #fafafa 60%, white 100%)",
+                    : "linear-gradient(165deg, var(--app-frame-bg) 0%, var(--app-panel-bg) 60%, var(--app-panel-bg) 100%)",
                 }}
               >
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.55),transparent_55%)]" />
@@ -120,7 +120,7 @@ export function GiftClaimDialog({
                     </div>
                     <h2
                       id="gift-claim-title"
-                      className="font-serif text-[22px] font-medium text-zinc-900"
+                      className="font-serif text-[22px] font-medium text-[var(--ui-fg)]"
                     >
                       Gift claimed
                     </h2>
@@ -140,7 +140,7 @@ export function GiftClaimDialog({
                   <>
                     <h2
                       id="gift-claim-title"
-                      className="font-serif text-[22px] font-medium text-zinc-900"
+                      className="font-serif text-[22px] font-medium text-[var(--ui-fg)]"
                     >
                       You are gifted {gift.planName}
                     </h2>

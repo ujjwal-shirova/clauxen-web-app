@@ -726,7 +726,7 @@ export function Sidebar({
               }}
               aria-label="Keep sidebar open"
               title="Keep sidebar open"
-              className="ui-icon-button !size-8 !rounded-[9px] border-0 bg-transparent text-[#52514e] shadow-none transition-[background-color,color,opacity,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-black/[0.05] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07]"
+              className="app-sidebar-peek-toggle ui-icon-button !size-8 !rounded-[9px] border-0 bg-transparent text-[#52514e] shadow-none transition-[background-color,color,opacity,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-black/[0.05] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07] motion-reduce:transition-none"
             >
               <SidebarToggleIcon className="size-[18px]" />
             </button>

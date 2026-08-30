@@ -249,7 +249,7 @@ export function GiftView({ onClose }: GiftViewProps) {
 
   return (
     <FullscreenPortal>
-      <div ref={surfaceRef} data-app-overlay-surface="" tabIndex={-1} className={cn(chrome.overlay.surface, "pt-[env(safe-area-inset-top)] font-sans lg:flex-row lg:pt-0")}>
+      <div ref={surfaceRef} data-app-overlay-surface="" tabIndex={-1} className={cn(chrome.overlay.surface, "bg-[var(--app-frame-bg)] pt-[env(safe-area-inset-top)] font-sans lg:flex-row lg:pt-0")}>
         <button
           type="button"
           onClick={handleBack}
@@ -538,7 +538,7 @@ export function GiftView({ onClose }: GiftViewProps) {
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col items-center justify-center bg-[color-mix(in_oklab,#18181b_4%,var(--settings-canvas-bg))] p-5 sm:p-8 lg:sticky lg:top-0 lg:h-full lg:flex-1">
+        <div className="flex shrink-0 flex-col items-center justify-center bg-[var(--app-frame-bg)] p-5 sm:p-8 lg:sticky lg:top-0 lg:h-full lg:flex-1">
           <div className="relative flex scale-[0.92] flex-col items-center gap-4 transition-all duration-500 animate-in zoom-in-95 sm:scale-100 lg:scale-[1.2]">
             <div className="relative w-[min(100%,248px)] sm:w-[300px]">
               <div

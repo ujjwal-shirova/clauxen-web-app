@@ -167,7 +167,7 @@ export function UpgradeView({ onClose }: UpgradeViewProps) {
         className={
           currentView === "plans"
             ? "fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--pricing-bg)] outline-none [scrollbar-gutter:stable]"
-            : "fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)] outline-none [scrollbar-gutter:stable]"
+            : "fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--app-panel-bg)] outline-none [scrollbar-gutter:stable]"
         }
         data-scroll-region=""
       >

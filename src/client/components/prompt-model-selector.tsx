@@ -54,6 +54,7 @@ export function PromptModelSelector({
       >
         {CHAT_MODEL_OPTIONS.map((model) => {
           const selected = selectedModel === model.id;
+          const showUpgradeCard = Boolean(model.requiresUpgrade);
           const requiresUpgrade = isFreePlan && model.requiresUpgrade;
           return (
             <DropdownMenuItem
@@ -83,7 +84,7 @@ export function PromptModelSelector({
                   {model.description}
                 </span>
               </span>
-              {requiresUpgrade ? (
+              {showUpgradeCard ? (
                 <span className="shrink-0 rounded-md bg-[#d8e9ff] px-2 py-0.5 text-[12px] font-medium leading-5 text-[#1e5d9f]">
                   Upgrade
                 </span>

@@ -74,19 +74,21 @@
     --ui-control-height: 28px;
     --ui-control-height-md: 28px;
     --ui-control-height-lg: 36px;
-    /* Settings / product overlay surface */
-    --settings-canvas-bg: #faf7f6;
-    --settings-sidebar-bg: #f5f2f1;
-    --settings-card-bg: #fffdfc;
-    --settings-elevated-bg: #fffdfc;
-    --settings-icon-bg: #f4efed;
-    --settings-nav-active-bg: rgba(255, 253, 252, 0.88);
-    --settings-nav-hover-bg: rgba(45, 42, 40, 0.045);
+    /* Settings / checkout / gift overlays share the app's neutral surfaces.
+       These aliases deliberately resolve to the same values before and after
+       a code-split overlay mounts, preventing a cream-to-grey flash. */
+    --settings-canvas-bg: var(--app-panel-bg);
+    --settings-sidebar-bg: var(--app-frame-bg);
+    --settings-card-bg: var(--app-panel-bg);
+    --settings-elevated-bg: var(--app-panel-bg);
+    --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 94%, #14151a 6%);
+    --settings-nav-active-bg: color-mix(in oklab, var(--app-panel-bg) 90%, #14151a 10%);
+    --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 95%, #14151a 5%);
     --settings-card-radius: 18px;
     --settings-card-shadow:
-      0 1px 2px rgba(45, 42, 40, 0.035), 0 0 0 1px rgba(45, 42, 40, 0.075),
-      0 10px 30px -26px rgba(45, 42, 40, 0.32);
-    --settings-modal-border: rgba(45, 42, 40, 0.1);
+      0 1px 2px rgba(20, 21, 26, 0.035), 0 0 0 1px rgba(20, 21, 26, 0.075),
+      0 10px 30px -26px rgba(20, 21, 26, 0.32);
+    --settings-modal-border: rgba(20, 21, 26, 0.1);
     --settings-modal-shadow:
       0 24px 80px -20px rgba(0, 0, 0, 0.24),
       0 8px 28px -14px rgba(0, 0, 0, 0.16);
@@ -94,15 +96,15 @@
     --settings-row-gap: 24px;
     --settings-row-pad-x: 16px;
     --settings-row-pad-y: 14px;
-    --settings-fg: #2d2a28;
-    --settings-fg-muted: color-mix(in oklab, #2d2a28 66%, transparent);
-    --settings-fg-subtle: color-mix(in oklab, #2d2a28 48%, transparent);
-    --settings-hairline: color-mix(in oklab, #2d2a28 8%, transparent);
-    --settings-input-border: color-mix(in oklab, #2d2a28 13%, transparent);
-    --settings-input-focus: color-mix(in oklab, #2d2a28 30%, transparent);
-    --settings-focus-ring: color-mix(in oklab, #2d2a28 7%, transparent);
-    --settings-btn-border: color-mix(in oklab, #2d2a28 11%, transparent);
-    --settings-switch-track: color-mix(in oklab, #2d2a28 18%, transparent);
+    --settings-fg: var(--ui-fg);
+    --settings-fg-muted: var(--ui-fg-muted);
+    --settings-fg-subtle: var(--ui-fg-placeholder);
+    --settings-hairline: var(--ui-border-subtle);
+    --settings-input-border: var(--ui-border);
+    --settings-input-focus: var(--ui-field-focus-border);
+    --settings-focus-ring: var(--ui-field-focus-ring);
+    --settings-btn-border: var(--ui-border);
+    --settings-switch-track: color-mix(in oklab, var(--app-panel-bg) 82%, #14151a 18%);
     --settings-danger: #d92d20;
     --settings-danger-soft: rgba(217, 45, 32, 0.07);
     --ui-page-max-width: 880px;
@@ -146,17 +148,17 @@
     --icon-muted: rgba(20, 21, 26, 0.64);
     --icon-subtle: rgba(20, 21, 26, 0.58);
 
-    /* Pricing / plan view — cool slate aligned with product shell */
-    --pricing-bg: #f0f1f4;
-    --pricing-card: #ffffff;
-    --pricing-thumb: #e2e4e9;
-    --pricing-fg: #14151a;
-    --pricing-muted: color-mix(in oklab, #14151a 58%, transparent);
-    --pricing-cta: #14151a;
-    --pricing-cta-fg: #f2f3f6;
-    --pricing-cta-secondary: #e2e4e9;
-    --pricing-toggle-track: #e8eaee;
-    --pricing-thumb-active: color-mix(in oklab, #14151a 9%, transparent);
+    /* Pricing / plan view follows the same frame + panel pairing as the app. */
+    --pricing-bg: var(--app-frame-bg);
+    --pricing-card: var(--app-panel-bg);
+    --pricing-thumb: color-mix(in oklab, var(--app-panel-bg) 88%, #14151a 12%);
+    --pricing-fg: var(--ui-fg);
+    --pricing-muted: var(--ui-fg-muted);
+    --pricing-cta: var(--ui-fg);
+    --pricing-cta-fg: var(--app-panel-bg);
+    --pricing-cta-secondary: var(--pricing-thumb);
+    --pricing-toggle-track: var(--pricing-thumb);
+    --pricing-thumb-active: color-mix(in oklab, var(--app-panel-bg) 91%, #14151a 9%);
 
     /* App shell — the sidebar and the inset around the main panel are one
        continuous frame surface. Keep them on a single token so the panel
@@ -259,22 +261,22 @@
     --ui-fg-body: #e4e4e7;
     --ui-fg-muted: #a1a1aa;
     --ui-fg-placeholder: #71717a;
-    --settings-canvas-bg: #181719;
-    --settings-sidebar-bg: #141416;
-    --settings-card-bg: #211f20;
-    --settings-elevated-bg: #211f20;
-    --settings-icon-bg: #292627;
-    --settings-nav-active-bg: rgba(255, 255, 255, 0.075);
-    --settings-nav-hover-bg: rgba(255, 255, 255, 0.05);
-    --settings-fg: #f4f1ef;
-    --settings-fg-muted: rgba(244, 241, 239, 0.65);
-    --settings-fg-subtle: rgba(244, 241, 239, 0.43);
-    --settings-hairline: rgba(255, 255, 255, 0.075);
-    --settings-input-border: rgba(255, 255, 255, 0.12);
-    --settings-input-focus: rgba(255, 255, 255, 0.26);
-    --settings-focus-ring: rgba(255, 255, 255, 0.07);
-    --settings-btn-border: rgba(255, 255, 255, 0.11);
-    --settings-switch-track: rgba(255, 255, 255, 0.18);
+    --settings-canvas-bg: var(--app-panel-bg);
+    --settings-sidebar-bg: var(--app-frame-bg);
+    --settings-card-bg: var(--app-panel-bg);
+    --settings-elevated-bg: var(--app-panel-bg);
+    --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 88%, white 12%);
+    --settings-nav-active-bg: color-mix(in oklab, var(--app-panel-bg) 84%, white 16%);
+    --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 92%, white 8%);
+    --settings-fg: var(--ui-fg);
+    --settings-fg-muted: var(--ui-fg-muted);
+    --settings-fg-subtle: var(--ui-fg-placeholder);
+    --settings-hairline: var(--ui-border-subtle);
+    --settings-input-border: var(--ui-border);
+    --settings-input-focus: var(--ui-field-focus-border);
+    --settings-focus-ring: var(--ui-field-focus-ring);
+    --settings-btn-border: var(--ui-border);
+    --settings-switch-track: color-mix(in oklab, var(--app-panel-bg) 78%, white 22%);
     --settings-modal-border: rgba(255, 255, 255, 0.1);
     --ui-field-bg: #18181b;
     --ui-field-focus-border: rgba(255, 255, 255, 0.2);
@@ -301,18 +303,28 @@
     --field-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     --skeleton-base: #1c1c1f;
     --skeleton-highlight: rgba(255, 255, 255, 0.06);
+    --pricing-bg: var(--app-frame-bg);
+    --pricing-card: var(--app-panel-bg);
+    --pricing-thumb: color-mix(in oklab, var(--app-panel-bg) 82%, white 18%);
+    --pricing-fg: var(--ui-fg);
+    --pricing-muted: var(--ui-fg-muted);
+    --pricing-cta: var(--ui-fg);
+    --pricing-cta-fg: var(--app-panel-bg);
+    --pricing-cta-secondary: var(--pricing-thumb);
+    --pricing-toggle-track: var(--pricing-thumb);
+    --pricing-thumb-active: color-mix(in oklab, var(--app-panel-bg) 86%, white 14%);
   }
 }
 
 /* Settings v2 is intentionally scoped so shared app-page tokens stay unchanged. */
 .settings-theme {
-  --settings-canvas-bg: #ffffff;
-  --settings-sidebar-bg: #f7f7f8;
-  --settings-card-bg: #ffffff;
-  --settings-elevated-bg: #ffffff;
-  --settings-icon-bg: #f3f3f3;
-  --settings-nav-active-bg: #e9e9eb;
-  --settings-nav-hover-bg: #eeeeef;
+  --settings-canvas-bg: var(--app-panel-bg);
+  --settings-sidebar-bg: var(--app-frame-bg);
+  --settings-card-bg: var(--app-panel-bg);
+  --settings-elevated-bg: var(--app-panel-bg);
+  --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 94%, #14151a 6%);
+  --settings-nav-active-bg: color-mix(in oklab, var(--app-panel-bg) 90%, #14151a 10%);
+  --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 95%, #14151a 5%);
   --settings-card-radius: 12px;
   --settings-card-shadow: inset 0 0 0 1px rgba(15, 15, 15, 0.1);
   --settings-modal-border: rgba(15, 15, 15, 0.14);
@@ -322,36 +334,36 @@
   --settings-row-gap: 24px;
   --settings-row-pad-x: 16px;
   --settings-row-pad-y: 14px;
-  --settings-fg: #171717;
-  --settings-fg-muted: #666666;
-  --settings-fg-subtle: #8a8a8a;
-  --settings-hairline: rgba(15, 15, 15, 0.08);
-  --settings-input-border: rgba(15, 15, 15, 0.14);
-  --settings-input-focus: rgba(15, 15, 15, 0.42);
-  --settings-focus-ring: rgba(15, 15, 15, 0.08);
-  --settings-btn-border: rgba(15, 15, 15, 0.12);
-  --settings-switch-track: #d1d1d1;
+  --settings-fg: var(--ui-fg);
+  --settings-fg-muted: var(--ui-fg-muted);
+  --settings-fg-subtle: var(--ui-fg-placeholder);
+  --settings-hairline: var(--ui-border-subtle);
+  --settings-input-border: var(--ui-border);
+  --settings-input-focus: var(--ui-field-focus-border);
+  --settings-focus-ring: var(--ui-field-focus-ring);
+  --settings-btn-border: var(--ui-border);
+  --settings-switch-track: color-mix(in oklab, var(--app-panel-bg) 82%, #14151a 18%);
   --settings-danger: #d92d20;
   --settings-danger-soft: rgba(217, 45, 32, 0.07);
 }
 
 .dark .settings-theme {
-  --settings-canvas-bg: #212121;
-  --settings-sidebar-bg: #181818;
-  --settings-card-bg: #262626;
-  --settings-elevated-bg: #2f2f2f;
-  --settings-icon-bg: #303030;
-  --settings-nav-active-bg: #303030;
-  --settings-nav-hover-bg: #282828;
-  --settings-fg: #f2f2f2;
-  --settings-fg-muted: #b4b4b4;
-  --settings-fg-subtle: #8c8c8c;
-  --settings-hairline: rgba(255, 255, 255, 0.09);
-  --settings-input-border: rgba(255, 255, 255, 0.14);
-  --settings-input-focus: rgba(255, 255, 255, 0.38);
-  --settings-focus-ring: rgba(255, 255, 255, 0.09);
-  --settings-btn-border: rgba(255, 255, 255, 0.13);
-  --settings-switch-track: #555555;
+  --settings-canvas-bg: var(--app-panel-bg);
+  --settings-sidebar-bg: var(--app-frame-bg);
+  --settings-card-bg: var(--app-panel-bg);
+  --settings-elevated-bg: var(--app-panel-bg);
+  --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 88%, white 12%);
+  --settings-nav-active-bg: color-mix(in oklab, var(--app-panel-bg) 84%, white 16%);
+  --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 92%, white 8%);
+  --settings-fg: var(--ui-fg);
+  --settings-fg-muted: var(--ui-fg-muted);
+  --settings-fg-subtle: var(--ui-fg-placeholder);
+  --settings-hairline: var(--ui-border-subtle);
+  --settings-input-border: var(--ui-border);
+  --settings-input-focus: var(--ui-field-focus-border);
+  --settings-focus-ring: var(--ui-field-focus-ring);
+  --settings-btn-border: var(--ui-border);
+  --settings-switch-track: color-mix(in oklab, var(--app-panel-bg) 78%, white 22%);
 }
 
 /* ——— Shared chrome utilities (prefer over ad-hoc Tailwind) ——— */
@@ -4325,6 +4337,21 @@ button[data-speed-toggle][data-state="open"] {
   padding: 8px 10px 4px;
 }
 
+/* The collapsed trigger and the trigger in the hover-preview header represent
+   the same control. Lock their hit area to the same geometry. The desktop
+   header's 56px height and 8px/4px vertical padding center this at 14px from
+   the top, which is also the collapsed trigger's fixed offset. */
+@media (min-width: 1024px) {
+  .app-sidebar-peek-toggle {
+    box-sizing: border-box;
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+  }
+}
+
 .glass-sidebar-docked .ui-sidebar-content {
   padding-inline: 6px;
 }
@@ -4559,6 +4586,36 @@ button[data-speed-toggle][data-state="open"] {
 
 .user-message-action-btn {
   border-radius: 10px !important;
+}
+
+/* A docked user message needs persistent, legible controls: the transcript
+   continues beneath the sticky bubble, so keep Edit / Copy on an opaque
+   surface rather than letting their icons float directly over that content. */
+.sticky-user-msg--stuck .user-message-actions {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  top: calc(100% + 4px);
+  height: 36px;
+  min-height: 36px;
+  padding: 2px;
+  gap: 0;
+  border: 1px solid rgba(24, 24, 27, 0.1);
+  border-radius: 10px;
+  background: var(--app-panel-bg, #fcfcfb);
+  box-shadow: 0 2px 8px rgba(24, 24, 27, 0.1);
+  isolation: isolate;
+}
+
+.sticky-user-msg--stuck .user-message-action-btn {
+  width: 30px;
+  height: 30px;
+}
+
+.dark .sticky-user-msg--stuck .user-message-actions {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--app-panel-bg, #1a1a1c);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
 }
 
 /* Assistant stream chrome keeps one metric box from first token to settled

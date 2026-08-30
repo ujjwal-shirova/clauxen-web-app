@@ -56,7 +56,7 @@ export function CheckoutCurrencySelector({
         <span>{selected.code}</span>
         <ChevronDown
           className={cn(
-            "ml-auto h-4 w-4 text-zinc-500 transition-transform duration-150",
+            "ml-auto h-4 w-4 text-[var(--settings-fg-muted)] transition-transform duration-150",
             open && "rotate-180",
           )}
         />
@@ -83,7 +83,9 @@ export function CheckoutCurrencySelector({
                 }}
                 className={cn(
                   "app-page-body flex w-full items-center gap-3 px-3 py-2 text-left transition-colors",
-                  isSelected ? "bg-zinc-100" : "hover:bg-zinc-50",
+                  isSelected
+                    ? "bg-[var(--settings-nav-active-bg)]"
+                    : "hover:bg-[var(--settings-nav-hover-bg)]",
                 )}
               >
                 <span className="text-base leading-none" aria-hidden>
@@ -91,7 +93,7 @@ export function CheckoutCurrencySelector({
                 </span>
                 <span className="font-medium">{option.code}</span>
                 {isSelected && (
-                  <Check className="ml-auto h-4 w-4 text-zinc-700" />
+                  <Check className="ml-auto h-4 w-4 text-[var(--settings-fg)]" />
                 )}
               </button>
             );

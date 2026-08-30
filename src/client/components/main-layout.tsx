@@ -81,7 +81,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     sidebarPeekCloseTimerRef.current = window.setTimeout(() => {
       setIsSidebarPeekOpen(false);
       sidebarPeekCloseTimerRef.current = null;
-    }, 180);
+    }, 260);
   }, [cancelSidebarPeekClose, isMobile, isSidebarCollapsed]);
 
   const setSidebarCollapsedFromNav = useCallback(
@@ -368,9 +368,14 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           aria-hidden={overlayOpen || undefined}
         >
           <div
+            onMouseEnter={!isMobile ? cancelSidebarPeekClose : undefined}
+            onMouseLeave={!isMobile ? closeSidebarPeekSoon : undefined}
             className={cn(
               !isMobile &&
-                "absolute inset-y-0 left-0 w-[288px] overflow-hidden transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
+                "absolute inset-y-0 left-0 w-[288px] overflow-hidden transform-gpu transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+              !isMobile &&
+                isSidebarCollapsed &&
+                "rounded-r-[14px] shadow-[10px_0_28px_rgba(28,25,23,0.10)] will-change-[transform,opacity] dark:shadow-[10px_0_32px_rgba(0,0,0,0.30)]",
               !isMobile &&
                 isSidebarCollapsed &&
                 !isSidebarPeekOpen &&
@@ -378,10 +383,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               !isMobile &&
                 (!isSidebarCollapsed || isSidebarPeekOpen) &&
                 "translate-x-0 opacity-100",
-              !isMobile &&
-                isSidebarCollapsed &&
-                isSidebarPeekOpen &&
-                "rounded-r-[14px] shadow-[10px_0_28px_rgba(28,25,23,0.10)] will-change-transform dark:shadow-[10px_0_32px_rgba(0,0,0,0.30)]",
             )}
           >
             <Sidebar
@@ -454,7 +455,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           onBlur={closeSidebarPeekSoon}
           onClick={() => setSidebarCollapsedFromNav(false)}
           className={cn(
-            "fixed left-2 top-2 z-[42] flex size-8 items-center justify-center rounded-[9px] border-0 bg-transparent text-[#52514e] shadow-none transition-[background-color,color,opacity,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-black/[0.05] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07]",
+            "app-sidebar-peek-toggle fixed left-[10px] top-[14px] z-[42] flex size-8 items-center justify-center rounded-[9px] border-0 bg-transparent text-[#52514e] shadow-none transition-[background-color,color,opacity,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-black/[0.05] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07] motion-reduce:transition-none",
             (isSidebarPeekOpen || overlayOpen) &&
               "pointer-events-none -translate-x-1 opacity-0",
           )}

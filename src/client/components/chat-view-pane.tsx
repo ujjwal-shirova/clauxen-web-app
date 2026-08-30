@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
 import {
   BookOpen,
   Code,
@@ -299,11 +300,19 @@ export function ChatViewPane({
                     ) : composerOnlyWelcome ? (
                       "What can I help with?"
                     ) : greeting ? (
-                      firstName ? (
-                        `${greeting}, ${firstName}`
-                      ) : (
-                        greeting
-                      )
+                      <span className="inline-flex items-center gap-3 sm:gap-4">
+                        <Image
+                          src="/assets/icons/clauxen-icon.png"
+                          width={44}
+                          height={44}
+                          alt=""
+                          aria-hidden="true"
+                          className="h-8 w-8 shrink-0 object-contain sm:h-10 sm:w-10"
+                        />
+                        <span>
+                          {firstName ? `${greeting}, ${firstName}` : greeting}
+                        </span>
+                      </span>
                     ) : (
                       "\u00a0"
                     )}

@@ -53,7 +53,7 @@ export class SettingsErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <div
-          className="fixed inset-0 z-[200] bg-[rgba(244,244,245,0.84)]"
+          className="settings-theme fixed inset-0 z-[200] bg-[var(--app-panel-bg)]"
           aria-busy="true"
         />
       );
