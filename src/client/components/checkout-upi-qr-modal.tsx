@@ -163,7 +163,7 @@ export function CheckoutUpiQrModal({
             <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
               {/* Fixed square — clean upi:// QR (from image_content), never tall branded card */}
               <div
-                className="relative h-[192px] w-[192px] shrink-0 overflow-hidden rounded-xl bg-white shadow-[0_1px_2px_rgba(24,24,27,0.06)] ring-1 ring-zinc-200/80"
+                className="relative h-[192px] w-[192px] shrink-0 overflow-hidden rounded-xl bg-white shadow-[0_1px_2px_rgba(24,24,27,0.06)] ring-1 ring-zinc-200/80 dark:bg-white dark:ring-white/20"
                 aria-busy={showShimmer}
               >
                 {showShimmer ? (
@@ -182,7 +182,7 @@ export function CheckoutUpiQrModal({
                     height={192}
                     className={cn(
                       // Keep quiet zone — square modules must stay scannable.
-                      "relative z-[1] h-full w-full bg-white object-contain p-2 transition-opacity duration-200",
+                      "relative z-[1] h-full w-full bg-white object-contain p-2 transition-opacity duration-200 dark:bg-white",
                       imageLoaded ? "opacity-100" : "opacity-0",
                     )}
                     referrerPolicy="no-referrer"
@@ -205,7 +205,7 @@ export function CheckoutUpiQrModal({
                   {UPI_APP_ICONS.map((app) => (
                     <div
                       key={app.alt}
-                      className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-zinc-200/80 bg-white"
+                      className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-zinc-200/80 bg-white dark:border-white/20 dark:bg-white"
                       title={app.alt}
                     >
                       <CheckoutPaymentIcon

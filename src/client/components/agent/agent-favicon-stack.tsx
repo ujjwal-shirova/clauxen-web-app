@@ -37,7 +37,7 @@ function FaviconCircle({
       src={faviconUrl(url)}
       alt=""
       className={cn(
-        "h-4 w-4 rounded-full border border-white bg-white object-cover",
+        "h-4 w-4 rounded-full border border-white bg-white object-cover dark:border-white dark:bg-white",
         className,
       )}
       onError={() => setFailed(true)}

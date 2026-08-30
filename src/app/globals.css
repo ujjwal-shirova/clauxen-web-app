@@ -210,6 +210,19 @@
     --skeleton-duration: 1.6s;
     --skeleton-delay: 0ms;
 
+    --syntax-plain: #24292f;
+    --syntax-comment: #6e7781;
+    --syntax-keyword: #8250df;
+    --syntax-string: #0a7f42;
+    --syntax-number: #953800;
+    --syntax-function: #0969da;
+    --syntax-property: #0550ae;
+    --syntax-type: #116329;
+    --syntax-operator: #57606a;
+    --syntax-punctuation: #57606a;
+    --syntax-line-number: #a1a1aa;
+    --syntax-selection: rgba(161, 161, 170, 0.18);
+
     --header-height-mobile: 80px;
     --header-height-desktop: 96px;
     --sticky-spacing: 8px;
@@ -247,24 +260,24 @@
     --icon-color: #f4f4f5;
     --icon-muted: rgba(244, 244, 245, 0.66);
     --icon-subtle: rgba(244, 244, 245, 0.6);
-    --app-frame-bg: #141416;
+    --app-frame-bg: #111113;
     --app-shell-bg: var(--app-frame-bg);
     --app-sidebar-bg: var(--app-frame-bg);
-    --app-panel-bg: #1a1a1c;
-    --chat-canvas-bg: #141416;
-    --chat-user-card-bg: #1c1c1f;
-    --ui-card-bg: #1c1c1f;
-    --ui-border: rgba(255, 255, 255, 0.1);
-    --ui-border-subtle: rgba(255, 255, 255, 0.06);
-    --ui-hover-wash: rgba(255, 255, 255, 0.06);
+    --app-panel-bg: #18181b;
+    --chat-canvas-bg: var(--app-panel-bg);
+    --chat-user-card-bg: #202023;
+    --ui-card-bg: #202023;
+    --ui-border: rgba(255, 255, 255, 0.11);
+    --ui-border-subtle: rgba(255, 255, 255, 0.07);
+    --ui-hover-wash: rgba(255, 255, 255, 0.07);
     --ui-fg: #fafafa;
     --ui-fg-body: #e4e4e7;
     --ui-fg-muted: #a1a1aa;
     --ui-fg-placeholder: #71717a;
     --settings-canvas-bg: var(--app-panel-bg);
     --settings-sidebar-bg: var(--app-frame-bg);
-    --settings-card-bg: var(--app-panel-bg);
-    --settings-elevated-bg: var(--app-panel-bg);
+    --settings-card-bg: #1d1d20;
+    --settings-elevated-bg: #232326;
     --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 88%, white 12%);
     --settings-nav-active-bg: color-mix(in oklab, var(--app-panel-bg) 84%, white 16%);
     --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 92%, white 8%);
@@ -278,14 +291,14 @@
     --settings-btn-border: var(--ui-border);
     --settings-switch-track: color-mix(in oklab, var(--app-panel-bg) 78%, white 22%);
     --settings-modal-border: rgba(255, 255, 255, 0.1);
-    --ui-field-bg: #18181b;
-    --ui-field-focus-border: rgba(255, 255, 255, 0.2);
-    --ui-field-focus-ring: rgba(255, 255, 255, 0.08);
-    --ui-muted-surface: rgba(255, 255, 255, 0.04);
+    --ui-field-bg: #202023;
+    --ui-field-focus-border: rgba(255, 255, 255, 0.24);
+    --ui-field-focus-ring: rgba(255, 255, 255, 0.09);
+    --ui-muted-surface: rgba(255, 255, 255, 0.05);
     --overlay-scrim: rgba(0, 0, 0, 0.55);
     --overlay-scrim-soft: rgba(0, 0, 0, 0.7);
-    --glass-chat-surface-background: #141416;
-    --popup-bg: #1c1c1f;
+    --glass-chat-surface-background: var(--app-panel-bg);
+    --popup-bg: #232326;
     --popup-border: rgba(255, 255, 255, 0.12);
     --popup-shadow:
       0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px -14px rgba(0, 0, 0, 0.55);
@@ -301,8 +314,20 @@
     --panel-shadow:
       0 1px 2px rgba(0, 0, 0, 0.25), 0 14px 36px -18px rgba(0, 0, 0, 0.55);
     --field-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    --skeleton-base: #1c1c1f;
-    --skeleton-highlight: rgba(255, 255, 255, 0.06);
+    --skeleton-base: #242427;
+    --skeleton-highlight: rgba(255, 255, 255, 0.08);
+    --syntax-plain: #e6edf3;
+    --syntax-comment: #8b949e;
+    --syntax-keyword: #ff7b72;
+    --syntax-string: #a5d6ff;
+    --syntax-number: #79c0ff;
+    --syntax-function: #d2a8ff;
+    --syntax-property: #79c0ff;
+    --syntax-type: #7ee787;
+    --syntax-operator: #c9d1d9;
+    --syntax-punctuation: #8b949e;
+    --syntax-line-number: #6e7681;
+    --syntax-selection: rgba(88, 166, 255, 0.24);
     --pricing-bg: var(--app-frame-bg);
     --pricing-card: var(--app-panel-bg);
     --pricing-thumb: color-mix(in oklab, var(--app-panel-bg) 82%, white 18%);
@@ -350,8 +375,8 @@
 .dark .settings-theme {
   --settings-canvas-bg: var(--app-panel-bg);
   --settings-sidebar-bg: var(--app-frame-bg);
-  --settings-card-bg: var(--app-panel-bg);
-  --settings-elevated-bg: var(--app-panel-bg);
+  --settings-card-bg: #1d1d20;
+  --settings-elevated-bg: #232326;
   --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 88%, white 12%);
   --settings-nav-active-bg: color-mix(in oklab, var(--app-panel-bg) 84%, white 16%);
   --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 92%, white 8%);
@@ -364,6 +389,15 @@
   --settings-focus-ring: var(--ui-field-focus-ring);
   --settings-btn-border: var(--ui-border);
   --settings-switch-track: color-mix(in oklab, var(--app-panel-bg) 78%, white 22%);
+  --settings-card-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.075),
+    0 12px 28px -24px rgba(0, 0, 0, 0.72);
+  --settings-modal-border: rgba(255, 255, 255, 0.11);
+  --settings-modal-shadow:
+    0 28px 90px -22px rgba(0, 0, 0, 0.78),
+    0 10px 32px -18px rgba(0, 0, 0, 0.68);
+  --settings-danger: #f87171;
+  --settings-danger-soft: rgba(248, 113, 113, 0.1);
 }
 
 /* ——— Shared chrome utilities (prefer over ad-hoc Tailwind) ——— */
@@ -571,7 +605,7 @@
 
 .settings-btn:disabled {
   color: var(--settings-fg-muted);
-  background: color-mix(in oklab, #18181b 6%, transparent);
+  background: var(--ui-muted-surface);
   box-shadow: none;
   pointer-events: none;
 }
@@ -638,7 +672,11 @@
 }
 
 .settings-canvas table thead {
-  background: color-mix(in oklab, var(--settings-card-bg) 91%, #2d2a28 9%);
+  background: color-mix(
+    in oklab,
+    var(--settings-card-bg) 92%,
+    var(--settings-fg) 8%
+  );
   color: var(--settings-fg-muted);
 }
 
@@ -1443,6 +1481,321 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   background-size: 240% 100%;
   -webkit-background-clip: text;
   background-clip: text;
+}
+
+/* --------------------------------------------------------------------------
+ * Dark-theme compatibility for legacy light-only utility surfaces.
+ *
+ * New product UI should use the semantic variables above. These selectors
+ * keep older and code-split pages coherent while they are migrated. Explicit
+ * `dark:*` utilities always win because those elements are excluded here.
+ * ----------------------------------------------------------------------- */
+.dark
+  :where(
+    .bg-white,
+    [class*="bg-white/"],
+    .bg-zinc-50,
+    .bg-zinc-100,
+    [class~="bg-[#fcfcfc]"],
+    [class~="bg-[#fcfcfc]/95"],
+    [class~="bg-[#fcfcfb]"],
+    [class~="bg-[#fafafa]"],
+    [class~="bg-[#faf9f5]"],
+    [class~="bg-[#faf7f6]"],
+    [class~="bg-[#FAFAF8]"],
+    [class~="bg-[#f8f8f8]"],
+    [class~="bg-[#f7f7f7]"],
+    [class~="bg-[#F7F7F5]"],
+    [class~="bg-[#f6f6f4]"],
+    [class~="bg-[#F3F3F0]"],
+    [class~="bg-[#f1f1ee]"],
+    [class~="bg-[#efefec]"],
+    [class~="bg-[#EBEBE8]"]
+  ):not([class*="dark:bg-"]) {
+  background-color: var(--ui-card-bg) !important;
+}
+
+.dark
+  :where(
+    .bg-zinc-200,
+    [class~="bg-[#e2e4e9]"],
+    [class~="bg-[#ebedf0]"],
+    [class~="bg-[#e8eaee]"],
+    [class~="bg-[#e8e6dc]"],
+    [class~="bg-[#E8E8E4]"],
+    [class~="bg-[#e6e5e0]"],
+    [class~="bg-[#EBEBE8]"]
+  ):not([class*="dark:bg-"]) {
+  background-color: var(--ui-muted-surface) !important;
+}
+
+.dark
+  :where(
+    .text-black,
+    .text-zinc-950,
+    .text-zinc-900,
+    .text-zinc-800,
+    [class~="text-[#0b0b0b]"],
+    [class~="text-[#0d0d0d]"],
+    [class~="text-[#0F0F10]"],
+    [class~="text-[#121212]"],
+    [class~="text-[#141413]"],
+    [class~="text-[#14151a]"],
+    [class~="text-[#1A1A1A]"],
+    [class~="text-[#252522]"],
+    [class~="text-[#2A2A2A]"],
+    [class~="text-[#2f2f32]"],
+    [class~="text-[#3A3A3A]"]
+  ):not([class*="dark:text-"]) {
+  color: var(--ui-fg-body) !important;
+}
+
+.dark
+  :where(
+    .text-zinc-700,
+    .text-zinc-600,
+    [class~="text-[#52514e]"],
+    [class~="text-[#52525b]"],
+    [class~="text-[#5B5B64]"],
+    [class~="text-[#5C5C5C]"],
+    [class~="text-[#6B6B6B]"],
+    [class~="text-[#6d6e78]"],
+    [class~="text-[#71717a]"],
+    [class~="text-[#7A7A7A]"],
+    [class~="text-[#7b7974]"],
+    [class~="text-[#898781]"],
+    [class~="text-[#9A9A9A]"]
+  ):not([class*="dark:text-"]) {
+  color: var(--ui-fg-muted) !important;
+}
+
+.dark
+  :where(
+    .text-zinc-500,
+    .text-zinc-400,
+    [class~="text-[#8a8a94]"]
+  ):not([class*="dark:text-"]) {
+  color: var(--ui-fg-placeholder) !important;
+}
+
+.dark
+  :where(
+    .border-white,
+    .border-zinc-100,
+    .border-zinc-200,
+    .border-zinc-300,
+    [class*="border-zinc-200/"],
+    [class~="border-[#e0e0e0]"],
+    [class~="border-[#E4E4E0]"],
+    [class~="border-[#E8E8E4]"],
+    [class~="border-[#0d0d0d]"],
+    [class~="border-[#0b0b0b]/10"]
+  ):not([class*="dark:border-"]) {
+  border-color: var(--ui-border) !important;
+}
+
+.dark
+  :where([class*="ring-zinc-200"], [class*="ring-black/"]):not(
+    [class*="dark:ring-"]
+  ) {
+  --tw-ring-color: var(--ui-border) !important;
+}
+
+.dark .divide-zinc-200 > :not(:last-child),
+.dark .divide-zinc-100 > :not(:last-child) {
+  border-color: var(--ui-border-subtle) !important;
+}
+
+.dark input,
+.dark textarea,
+.dark select,
+.dark option {
+  color-scheme: dark;
+  caret-color: var(--ui-fg);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--ui-fg-placeholder);
+}
+
+.dark ::selection {
+  background: rgba(147, 197, 253, 0.28);
+  color: #ffffff;
+}
+
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.dark .auth-text-link {
+  color: var(--ui-fg-muted);
+}
+
+.dark .auth-text-link:hover:not(:disabled),
+.dark .auth-text-link:focus-visible:not(:disabled) {
+  color: var(--ui-fg);
+}
+
+.dark .ui-row-icon-button:hover:not(:disabled),
+.dark .ui-row-icon-button[data-state="open"] {
+  background-color: var(--ui-hover-wash) !important;
+  color: var(--ui-fg) !important;
+}
+
+.dark
+  [class*="border-black/"]:not([class*="dark:border-"]) {
+  border-color: var(--ui-border) !important;
+}
+
+.dark
+  :where(
+    [class*="hover:bg-black/"],
+    [class*="focus:bg-black/"],
+    [class*="data-[state=open]:bg-black/"]
+  ):not([class*="dark:hover:bg-"]):hover,
+.dark [class*="data-[state=open]:bg-black/"][data-state="open"] {
+  background-color: var(--ui-hover-wash) !important;
+}
+
+.dark
+  :where(
+    .bg-blue-50,
+    [class~="bg-[#e9f3ff]"],
+    [class~="bg-[#e9f3ff]/70"],
+    [class~="bg-[#ddebff]"],
+    [class~="bg-[#d8e9ff]"]
+  ):not([class*="dark:bg-"]) {
+  background-color: rgba(59, 130, 246, 0.13) !important;
+}
+
+.dark
+  :where(
+    .text-blue-600,
+    .text-blue-700,
+    .text-blue-800,
+    [class~="text-[#184f95]"],
+    [class~="text-[#1e5d9f]"],
+    [class~="text-[#256bc1]"],
+    [class~="text-[#2a78d6]"],
+    [class~="text-[#2c84db]"],
+    [class~="text-[#2f6fed]"]
+  ):not([class*="dark:text-"]) {
+  color: #93c5fd !important;
+}
+
+.dark
+  :where(.border-blue-200, .border-blue-300, [class*="border-[#2c84db]"]):not(
+    [class*="dark:border-"]
+  ) {
+  border-color: rgba(96, 165, 250, 0.35) !important;
+}
+
+.dark
+  :where(.bg-red-50, .bg-rose-50):not([class*="dark:bg-"]) {
+  background-color: rgba(244, 63, 94, 0.12) !important;
+}
+
+.dark
+  :where(.text-red-700, .text-red-800, .text-rose-700, .text-rose-800):not(
+    [class*="dark:text-"]
+  ) {
+  color: #fda4af !important;
+}
+
+.dark
+  :where(.border-red-200, .border-rose-200):not([class*="dark:border-"]) {
+  border-color: rgba(251, 113, 133, 0.32) !important;
+}
+
+.dark
+  :where(.bg-amber-50, .bg-yellow-50):not([class*="dark:bg-"]) {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+}
+
+.dark
+  :where(
+    .text-amber-700,
+    .text-amber-800,
+    .text-yellow-700,
+    .text-yellow-800
+  ):not([class*="dark:text-"]) {
+  color: #fcd34d !important;
+}
+
+.dark
+  :where(.border-amber-200, .border-yellow-200):not([class*="dark:border-"]) {
+  border-color: rgba(251, 191, 36, 0.32) !important;
+}
+
+.dark
+  :where(.bg-emerald-50, .bg-green-50):not([class*="dark:bg-"]) {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+
+.dark
+  :where(
+    .text-emerald-700,
+    .text-emerald-800,
+    .text-green-700,
+    .text-green-800
+  ):not([class*="dark:text-"]) {
+  color: #6ee7b7 !important;
+}
+
+.dark
+  :where(.border-emerald-200, .border-green-200):not(
+    [class*="dark:border-"]
+  ) {
+  border-color: rgba(52, 211, 153, 0.3) !important;
+}
+
+.dark .ui-menu-row {
+  color: var(--ui-fg-body);
+}
+
+.dark
+  :where(
+    [class*="hover:bg-white"],
+    [class*="hover:bg-zinc-50"],
+    [class*="hover:bg-zinc-100"],
+    [class*="hover:bg-zinc-200"]
+  ):not([class*="dark:hover:bg-"]):hover,
+.dark
+  :where(
+    [class*="focus:bg-white"],
+    [class*="focus:bg-zinc-50"],
+    [class*="focus:bg-zinc-100"],
+    [class*="focus:bg-zinc-200"]
+  ):not([class*="dark:focus:bg-"]):focus {
+  background-color: var(--ui-hover-wash) !important;
+}
+
+.dark
+  :where(
+    [class*="hover:text-black"],
+    [class*="hover:text-zinc-950"],
+    [class*="hover:text-zinc-900"],
+    [class*="hover:text-zinc-800"],
+    [class*="hover:text-zinc-700"]
+  ):not([class*="dark:hover:text-"]):hover,
+.dark
+  :where(
+    [class*="focus:text-black"],
+    [class*="focus:text-zinc-950"],
+    [class*="focus:text-zinc-900"],
+    [class*="focus:text-zinc-800"],
+    [class*="focus:text-zinc-700"]
+  ):not([class*="dark:focus:text-"]):focus {
+  color: var(--ui-fg) !important;
 }
 
 /* Lucide icon system — crisp 16px default (chrome); menus use --menu-icon-size */
@@ -3167,6 +3520,25 @@ button.user-message-card__body:not(:disabled):hover,
   background: rgba(24, 24, 27, 0.32);
 }
 
+.dark .sidebar-scrollable::-webkit-scrollbar-thumb,
+.dark .code-scrollbars::-webkit-scrollbar-thumb,
+.dark [data-radix-scroll-area-viewport]::-webkit-scrollbar-thumb,
+.dark [data-scroll-region]::-webkit-scrollbar-thumb,
+.dark .overflow-y-auto::-webkit-scrollbar-thumb,
+.dark .overflow-x-auto::-webkit-scrollbar-thumb,
+.dark .overflow-auto::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dark .sidebar-scrollable::-webkit-scrollbar-thumb:hover,
+.dark .code-scrollbars::-webkit-scrollbar-thumb:hover,
+.dark [data-radix-scroll-area-viewport]::-webkit-scrollbar-thumb:hover,
+.dark .overflow-y-auto::-webkit-scrollbar-thumb:hover,
+.dark .overflow-x-auto::-webkit-scrollbar-thumb:hover,
+.dark .overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 .prose p,
 .markdown-content p {
   line-height: var(--chat-message-line-height) !important;
@@ -3258,6 +3630,11 @@ button.user-message-card__body:not(:disabled):hover,
   opacity: 1 !important;
 }
 
+.dark .assistant-message button[aria-label="More actions"]:hover {
+  background-color: var(--ui-hover-wash) !important;
+  color: var(--ui-fg) !important;
+}
+
 .markdown-content > *:first-child,
 .assistant-message > *:first-child {
   margin-top: 0 !important;
@@ -3284,12 +3661,12 @@ button.user-message-card__body:not(:disabled):hover,
 
 .markdown-content .composer-message-codeblock,
 .markdown-content table {
-  --shiki-foreground: #24292f;
-  --shiki-token-keyword: #8250df;
-  --shiki-token-function: #0969da;
-  --shiki-token-string: #0a7f42;
-  --shiki-token-constant: #953800;
-  --shiki-token-punctuation: #57606a;
+  --shiki-foreground: var(--syntax-plain);
+  --shiki-token-keyword: var(--syntax-keyword);
+  --shiki-token-function: var(--syntax-function);
+  --shiki-token-string: var(--syntax-string);
+  --shiki-token-constant: var(--syntax-number);
+  --shiki-token-punctuation: var(--syntax-punctuation);
 }
 
 .markdown-content .markdown-code-scroll,
@@ -3308,6 +3685,32 @@ button.user-message-card__body:not(:disabled):hover,
 
 .markdown-content .ui-code-block-content {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.dark .markdown-content .composer-message-codeblock {
+  background: linear-gradient(180deg, #202024, #1b1b1e) !important;
+  border-color: var(--ui-border) !important;
+  box-shadow: 0 10px 28px -22px rgba(0, 0, 0, 0.8) !important;
+}
+
+.dark .markdown-content .ui-code-block-content {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.dark .markdown-content .composer-message-table,
+.dark .markdown-content .ui-table-title-header,
+.dark .markdown-content .ui-code-block,
+.dark .markdown-content tbody {
+  background-color: var(--ui-card-bg) !important;
+  border-color: var(--ui-border) !important;
+}
+
+.dark .markdown-content thead {
+  background-color: var(--ui-muted-surface) !important;
+}
+
+.dark .markdown-content tr:hover {
+  background-color: var(--ui-hover-wash) !important;
 }
 
 .markdown-content .markdown-table-scroll,
@@ -3365,6 +3768,23 @@ button.user-message-card__body:not(:disabled):hover,
 .markdown-content .katex-display > .katex,
 .thinking-markdown .katex-display > .katex {
   color: #27272a;
+}
+
+.dark .markdown-content .katex-display,
+.dark .thinking-markdown .katex-display {
+  border-color: var(--ui-border);
+  background-color: var(--ui-muted-surface);
+}
+
+.dark .markdown-content .katex,
+.dark .thinking-markdown .katex,
+.dark .markdown-content .katex-display > .katex,
+.dark .thinking-markdown .katex-display > .katex {
+  color: var(--ui-fg-body);
+}
+
+.dark .markdown-content input[type="checkbox"] {
+  accent-color: #f4f4f5;
 }
 
 /* Presented file cards — soft lift on hover */
@@ -4807,5 +5227,93 @@ button[data-speed-toggle][data-state="open"] {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
+  }
+}
+
+/* ========== Final dark-theme cascade ======================================
+ * This block intentionally lives last. A few historical interaction rules
+ * below the token layer use fixed light-mode washes; these semantic overrides
+ * ensure hover, selected, sticky, and animated states remain dark as well.
+ */
+.dark .glass-sidebar-docked {
+  color: var(--ui-fg-body);
+}
+
+.dark .sticky-user-msg--stuck .user-message-card__body {
+  border-color: var(--ui-border) !important;
+}
+
+.dark .content-pane-top-bar,
+.dark .sticky-user-msg-host,
+.dark .sticky-user-msg--stuck {
+  background-color: var(--chat-canvas-bg) !important;
+}
+
+.dark [data-conversation-turn] .ui-code-block.code-block-header-sticky,
+.dark [data-conversation-turn] .ui-table-title-header.table-title-header-sticky {
+  background: var(--ui-card-bg) !important;
+  border-color: var(--ui-border) !important;
+}
+
+.dark .agent-thinking__card .markdown-content p {
+  color: #a1a1aa;
+}
+
+.dark .agent-narration .markdown-content code,
+.dark .agent-thinking__card .markdown-content code {
+  background: var(--ui-muted-surface);
+  color: var(--ui-fg-body);
+}
+
+.dark .shimmer-bg {
+  background-color: var(--skeleton-base);
+}
+
+.dark .shimmer-bg::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--skeleton-highlight) 48%,
+    transparent 100%
+  );
+}
+
+.dark
+  :where(
+    button[data-app-button],
+    [data-prompt-input] button,
+    .prompt-input button,
+    button[data-speed-toggle],
+    .app-action-button,
+    .dropdown-menu-trigger
+  ):not(.prompt-control-filled):not(.prompt-control-ghost):hover {
+  background-color: var(--ui-hover-wash) !important;
+}
+
+.dark
+  :where(
+    button[aria-pressed="true"],
+    button[data-active="true"],
+    button[aria-current="page"],
+    .app-action-button[aria-current="true"],
+    button[data-state="open"],
+    [role="button"][data-state="open"]
+  ):not(.prompt-control-filled):not(.prompt-control-ghost):not(
+    .context-usage-trigger
+  ) {
+  background-color: color-mix(
+    in oklab,
+    var(--ui-hover-wash) 78%,
+    white 22%
+  ) !important;
+}
+
+.dark button[data-speed-toggle][data-state="open"] {
+  background-color: rgba(255, 255, 255, 0.13) !important;
+}
+
+@media (min-width: 1024px) {
+  .dark .app-agent-panel {
+    border-left-color: var(--ui-border-subtle) !important;
   }
 }

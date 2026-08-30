@@ -57,7 +57,7 @@ function buildGeneralFromLocal(): GeneralSettings {
 
 function PreferencesInner({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const { setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const [general, setGeneral] = useState<GeneralSettings>(() =>
     typeof window === "undefined"
       ? DEFAULT_APP_SETTINGS.general
@@ -71,6 +71,19 @@ function PreferencesInner({ children }: { children: ReactNode }) {
   const dirtyRef = useRef(false);
   const persistEpoch = useRef(0);
   generalRef.current = general;
+
+  useEffect(() => {
+    if (resolvedTheme !== "dark" && resolvedTheme !== "light") return;
+    const root = document.documentElement;
+    root.style.colorScheme = resolvedTheme;
+    root.dataset.resolvedTheme = resolvedTheme;
+    document
+      .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+      ?.setAttribute(
+        "content",
+        resolvedTheme === "dark" ? "#111113" : "#fafaf9",
+      );
+  }, [resolvedTheme]);
 
   const applyGeneralToDom = useCallback(
     (next: GeneralSettings) => {

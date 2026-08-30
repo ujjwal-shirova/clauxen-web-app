@@ -24,7 +24,15 @@ export default function GlobalError({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Clauxen</title>
       </head>
-      <body style={{ margin: 0, background: "#fff", minHeight: "100dvh" }}>
+      <body
+        style={{
+          margin: 0,
+          background: "Canvas",
+          color: "CanvasText",
+          colorScheme: "light dark",
+          minHeight: "100dvh",
+        }}
+      >
         {/* Constant recovery script — must run before hydration, so it cannot
             be an external chunk. Static string, no user input. */}
         <script
