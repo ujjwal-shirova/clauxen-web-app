@@ -167,6 +167,7 @@ export function AgentWorkingRow({
 function ThinkingTraceRow({ step }: { step: AgentThinkingStep }) {
   const [expanded, setExpanded] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
   const content = step.content?.trim() ?? "";
 
   useEffect(() => {
@@ -182,8 +183,13 @@ function ThinkingTraceRow({ step }: { step: AgentThinkingStep }) {
   return (
     <div className="agent-thought-step min-w-0" data-agent-thinking-step="true">
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setExpanded((value) => !value)}
+        onClick={() =>
+          preserveScrollAnchorOnToggle(buttonRef.current, () => {
+            setExpanded((value) => !value);
+          })
+        }
         className="group/thought no-hover no-hover-overlay inline-flex min-h-6 max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left text-[14px] font-normal leading-6 text-zinc-500 shadow-none hover:bg-transparent focus-visible:outline-none"
         aria-expanded={expanded}
       >

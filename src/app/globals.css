@@ -3804,8 +3804,10 @@ button.user-message-card__body:not(:disabled):hover,
 .user-message-actions {
   opacity: 0;
   visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
+  pointer-events: auto;
+  transition:
+    opacity 0.16s ease 0.14s,
+    visibility 0s linear 0.3s;
 }
 
 .group:hover .user-message-actions,
@@ -3813,6 +3815,7 @@ button.user-message-card__body:not(:disabled):hover,
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
+  transition-delay: 0s;
 }
 
 @media (max-width: 640px) {
@@ -4922,6 +4925,16 @@ button[data-speed-toggle][data-state="open"] {
   margin-left: auto;
   margin-top: 4px;
   padding-right: 6px;
+}
+
+/* Preserve the hover path between the bubble and its absolutely positioned
+   controls. Together with delayed hiding above, this lets the pointer cross
+   the visual gap without the edit/copy buttons disappearing underneath it. */
+.user-message-actions::before {
+  content: "";
+  position: absolute;
+  inset: -6px 0 auto;
+  height: 6px;
 }
 
 .user-message-action-btn {

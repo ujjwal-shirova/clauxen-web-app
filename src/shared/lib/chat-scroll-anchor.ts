@@ -5,8 +5,8 @@
  */
 export const CHAT_SCROLL_ANCHOR_LOCK_ATTR = "data-chat-scroll-anchor-lock";
 
-/** Keep the lock through the CSS expand/collapse transition (~200ms). */
-const ANCHOR_LOCK_MS = 240;
+/** Keep the lock beyond the longest trace expand/collapse transition (280ms). */
+const ANCHOR_LOCK_MS = 360;
 
 export function isChatScrollAnchorLockActive(): boolean {
   if (typeof document === "undefined") return false;
