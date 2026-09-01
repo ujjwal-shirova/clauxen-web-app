@@ -23,16 +23,10 @@ export function segmentedOptionClass(
   );
 }
 
-/** Pricing / onboarding plan switcher pills. */
+/** Pricing / onboarding plan switcher pills — same chrome as settings. */
 export function subscriptionSegmentClass(active: boolean) {
-  return cn(
-    "no-hover-overlay relative z-[1] cursor-pointer rounded-full px-5 py-2.5 text-[13px] font-medium leading-4 transition-[background-color,color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pricing-fg)]/30",
-    active
-      ? "bg-[var(--pricing-card)] text-[var(--pricing-fg)] shadow-[0_1px_3px_rgba(20,21,26,0.16),inset_0_0_0_1px_rgba(20,21,26,0.06)]"
-      : "text-[var(--pricing-muted)] hover:bg-[var(--pricing-card)]/55 hover:text-[var(--pricing-fg)]",
-  );
+  return segmentedOptionClass(active);
 }
 
 /** Track around Monthly/Yearly and Individual/Team switches. */
-export const subscriptionSegmentTrackClass =
-  "relative inline-flex rounded-full bg-[var(--pricing-toggle-track)] p-1 shadow-[inset_0_1px_2px_rgba(20,21,26,0.08)]";
+export const subscriptionSegmentTrackClass = segmentedTrackClass;

@@ -76,12 +76,14 @@ const checkout = {
   panel: "settings-card px-4 py-3",
   panelMuted: field.mutedPanel,
 
+  fieldLabel: "mb-1.5 px-0.5 text-[11px] font-medium text-[var(--settings-fg-muted)]",
+
   tabBase:
-    "no-hover-overlay flex min-h-[48px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] px-2 py-2 text-[13px] font-medium leading-[18px] transition-[background-color,color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25 shadow-[inset_0_0_0_1px_var(--settings-btn-border)]",
+    "no-hover-overlay flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--settings-card-radius)] px-2 py-2.5 text-[13px] font-medium leading-[18px] transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25 shadow-[var(--settings-card-shadow)]",
   tabSelected:
-    "bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)] shadow-[0_2px_5px_rgba(24,24,27,0.16)]",
+    "bg-[var(--settings-card-bg)] text-[var(--settings-fg)] ring-1 ring-[var(--settings-fg)]",
   tabUnselected:
-    "bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))] hover:text-[var(--settings-fg)]",
+    "bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,var(--settings-fg))] hover:text-[var(--settings-fg)]",
 
   expressButton: cn(appBtn.primaryLg, "w-full gap-2"),
 
@@ -94,8 +96,7 @@ const checkout = {
   labelFine: "settings-muted text-[12px]",
   errorText: "text-[13px] leading-[18px] text-red-600",
 
-  payDisabled:
-    "h-9 w-full cursor-not-allowed rounded-[var(--radius-sm)] bg-[color-mix(in_oklab,#18181b_6%,transparent)] text-[13px] font-medium text-[var(--settings-fg-muted)]",
+  payDisabled: cn(appBtn.primaryLg, "w-full cursor-not-allowed opacity-50"),
 
   hint: cn(
     page.muted,
@@ -103,7 +104,7 @@ const checkout = {
   ),
 
   errorBanner:
-    "mb-4 flex items-center rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-2 text-[13px] leading-[18px] text-red-800",
+    "mb-4 flex items-center rounded-[var(--radius-sm)] border border-[var(--settings-danger)]/20 bg-[var(--settings-danger-soft)] px-3 py-2 text-[13px] leading-[18px] text-[var(--settings-danger)]",
 
   orLine: "h-px flex-1 bg-[var(--settings-hairline)]",
   orLabel: "px-1 text-[12px] font-medium text-[var(--settings-fg-muted)]",

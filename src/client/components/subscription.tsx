@@ -1,17 +1,13 @@
 "use client";
 
 import * as React from "react";
-import {
-  ArrowLeft,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Info,
-} from "lucide-react";
+import { ArrowLeft, Check, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { chrome } from "@/lib/app-chrome";
+import { appBtn } from "@/lib/app-buttons";
 import {
-  subscriptionSegmentClass,
-  subscriptionSegmentTrackClass,
+  segmentedOptionClass,
+  segmentedTrackClass,
 } from "@/lib/segmented-control";
 import type { MaxTier } from "@/components/billing-checkout";
 import {
@@ -65,16 +61,16 @@ function PlanBadge({
 }) {
   if (variant === "recommended") {
     return (
-      <div className="absolute right-3 top-3 flex h-6 items-center rounded-md border border-[var(--pricing-fg)]/40 bg-transparent px-2 text-[11px] font-medium text-[var(--pricing-fg)]">
+      <span className="inline-flex h-6 items-center rounded-[6px] px-2 text-[11px] font-medium text-[var(--settings-fg)] shadow-[inset_0_0_0_1px_var(--settings-btn-border)]">
         {label}
-      </div>
+      </span>
     );
   }
 
   return (
-    <div className="absolute right-3 top-3 flex h-6 items-center rounded-full bg-[var(--pricing-cta)] px-2.5 text-[11px] font-medium text-[var(--pricing-cta-fg)]">
+    <span className="inline-flex h-6 items-center rounded-[6px] bg-[var(--settings-fg)] px-2 text-[11px] font-medium text-[var(--settings-canvas-bg)]">
       {label}
-    </div>
+    </span>
   );
 }
 
@@ -95,14 +91,11 @@ function PricingCtaButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "no-hover-overlay inline-flex w-full cursor-pointer items-center justify-center rounded-full px-5 py-2.5 text-[13px] font-medium leading-4 transition-[background-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pricing-fg)]/30",
-        variant === "primary" &&
-          "bg-[#14151a] text-[#ffffff] hover:bg-[#27272a] active:bg-[#09090b]",
-        variant === "secondary" &&
-          "bg-[#e2e4e9] text-[#14151a] hover:bg-[#d5d8e0] active:bg-[#cbcfd8]",
+        "w-full",
+        variant === "primary" && appBtn.primaryLg,
+        variant === "secondary" && cn(appBtn.secondary, "h-9 w-full px-4"),
         variant === "current" &&
-          "cursor-default bg-[#e8eaee] text-[#52525b]",
-        disabled && "cursor-not-allowed opacity-60",
+          cn(appBtn.secondary, "h-9 w-full cursor-default px-4 opacity-70"),
       )}
     >
       {children}
@@ -187,125 +180,111 @@ function PlanCarouselCard({
     !forceSelectable &&
     (PLAN_RANK[normalizePlanId(plan.id)] ?? 0) < (PLAN_RANK[activeId] ?? 0);
   const isMax = plan.id === "max";
+  const isHighlighted = Boolean(plan.isPopular || plan.isRecommended);
 
   return (
-    <div className="relative flex w-[240px] shrink-0 flex-col rounded-2xl border border-[var(--pricing-fg)]/[0.06] bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px] shadow-[0_8px_28px_-22px_rgba(20,21,26,0.32)]">
-      {plan.isPopular && <PlanBadge label="Popular" variant="popular" />}
-      {plan.isRecommended && <PlanBadge label="Recommended" variant="recommended" />}
-      {plan.isSpecialOffer && (
-        <PlanBadge label="Special Offer" variant="special" />
+    <article
+      className={cn(
+        "app-page-card relative flex h-full min-h-0 flex-col p-4",
+        isHighlighted && "ring-1 ring-[var(--settings-fg)]",
       )}
-
-      {/* Top Header Block — Title, Price + 5x/20x Toggle, Subtitle, CTA Button */}
-      <div className="flex flex-col min-h-[165px]">
-        <h3 className="text-[22px] font-normal leading-[1.3] tracking-[-0.11px] text-[var(--pricing-fg)]">
-          {plan.name}
-        </h3>
-
-        {/* Cost label and 5x / 20x toggle on the right side */}
-        <div className="mt-0.5 flex items-center justify-between gap-1.5">
-          <p className="flex items-baseline gap-0.5 text-[22px] leading-[1.3] tracking-[-0.11px] text-[var(--pricing-muted)]">
-            {price.strikethrough != null && (
-              <span className="mr-1 text-[14px] line-through">
-                ₹{price.strikethrough.toLocaleString("en-IN")}
-              </span>
-            )}
-            <span>
-              {plan.customPriceLabel === "From" && !isMax ? "From " : ""}
-              {plan.customPriceLabel !== "Custom" ? "₹" : ""}
-              {price.main}
-            </span>
-            {price.suffix && (
-              <span className="text-[14px] leading-5">{price.suffix}</span>
-            )}
-          </p>
-
-          {isMax && (
-            <div
-              className={cn(
-                subscriptionSegmentTrackClass,
-                "shrink-0 bg-[var(--pricing-thumb)] p-0.5",
-              )}
-            >
-              {(["5x", "20x"] as const).map((tier) => (
-                <button
-                  key={tier}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMaxTierChange?.(tier);
-                  }}
-                  className={cn(
-                    "no-hover-overlay relative z-[1] cursor-pointer rounded-full px-2 py-0.5 text-[11px] font-medium leading-4 transition-[background-color,color,box-shadow]",
-                    maxTier === tier
-                      ? "bg-[var(--pricing-card)] text-[var(--pricing-fg)] shadow-[0_1px_2px_rgba(20,21,26,0.14)]"
-                      : "cursor-pointer text-[var(--pricing-muted)] hover:text-[var(--pricing-fg)]",
-                  )}
-                >
-                  {tier}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-1 min-h-[36px]">
-          {plan.subtitle ? (
-            <p className="text-[13px] leading-[18px] text-[var(--pricing-muted)]">
-              {plan.subtitle}
-            </p>
-          ) : price.subtext ? (
-            <p className="text-[12px] leading-4 text-[var(--pricing-muted)]">
-              {price.subtext}
-            </p>
-          ) : null}
-        </div>
-
-        {/* Button placed directly below the description/subtitle */}
-        <div className="mt-3">
-          {isCurrent ? (
-            <PricingCtaButton disabled variant="current">
-              <Check className="mr-1.5 h-4 w-4" />
-              Current plan
-            </PricingCtaButton>
-          ) : isLowerThanCurrent ? (
-            <div className="h-10" />
-          ) : (
-            <PricingCtaButton
-              onClick={onSelect}
-              variant={plan.isPopular ? "primary" : "secondary"}
-            >
-              {ctaLabel ??
-                (forceSelectable && plan.id === "free"
-                  ? "Continue with Free"
-                  : plan.buttonLabel)}
-            </PricingCtaButton>
-          )}
-        </div>
+    >
+      <div className="mb-1 flex items-start justify-between gap-2">
+        <h3 className="app-page-title text-[18px] leading-6">{plan.name}</h3>
+        {plan.isPopular && <PlanBadge label="Popular" variant="popular" />}
+        {plan.isRecommended && (
+          <PlanBadge label="Recommended" variant="recommended" />
+        )}
+        {plan.isSpecialOffer && (
+          <PlanBadge label="Special Offer" variant="special" />
+        )}
       </div>
 
-      {/* Feature section starts at exact same height for all cards */}
-      <div className="mt-4 flex flex-col flex-1">
-        {plan.highlight ? (
-          <p className="text-[13px] text-[var(--pricing-muted)]">
-            {plan.highlight}
-          </p>
-        ) : (
-          <p className="text-[13px] text-[var(--pricing-muted)]">Includes:</p>
-        )}
+      <div className="mt-1 flex items-center justify-between gap-2">
+        <p className="flex flex-wrap items-baseline gap-1 text-[22px] font-medium leading-7 tracking-[-0.02em] text-[var(--settings-fg)]">
+          {price.strikethrough != null && (
+            <span className="mr-0.5 text-[13px] font-normal text-[var(--settings-fg-muted)] line-through">
+              ₹{price.strikethrough.toLocaleString("en-IN")}
+            </span>
+          )}
+          <span>
+            {plan.customPriceLabel === "From" && !isMax ? "From " : ""}
+            {plan.customPriceLabel !== "Custom" ? "₹" : ""}
+            {price.main}
+          </span>
+          {price.suffix && (
+            <span className="text-[13px] font-normal text-[var(--settings-fg-muted)]">
+              {price.suffix}
+            </span>
+          )}
+        </p>
 
-        <ul className="mt-3 flex flex-col gap-[3.7px]" role="list">
+        {isMax && (
+          <div className={cn(segmentedTrackClass, "shrink-0")}>
+            {(["5x", "20x"] as const).map((tier) => (
+              <button
+                key={tier}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMaxTierChange?.(tier);
+                }}
+                className={segmentedOptionClass(maxTier === tier)}
+              >
+                {tier}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-1 min-h-[36px]">
+        {plan.subtitle ? (
+          <p className="app-page-muted">{plan.subtitle}</p>
+        ) : price.subtext ? (
+          <p className="app-page-muted">{price.subtext}</p>
+        ) : null}
+      </div>
+
+      <div className="mt-4">
+        {isCurrent ? (
+          <PricingCtaButton disabled variant="current">
+            <Check className="h-4 w-4" />
+            Current plan
+          </PricingCtaButton>
+        ) : isLowerThanCurrent ? (
+          <div className="h-9" />
+        ) : (
+          <PricingCtaButton
+            onClick={onSelect}
+            variant={plan.isPopular ? "primary" : "secondary"}
+          >
+            {ctaLabel ??
+              (forceSelectable && plan.id === "free"
+                ? "Continue with Free"
+                : plan.buttonLabel)}
+          </PricingCtaButton>
+        )}
+      </div>
+
+      <div className="mt-5 flex min-h-0 flex-1 flex-col">
+        <p className="settings-section-label">
+          {plan.highlight ? plan.highlight : "Includes"}
+        </p>
+        <ul className="mt-2.5 flex flex-col gap-1.5" role="list">
           {features.map((feature) => (
-            <li key={feature} className="flex gap-[7.5px] text-[13px] leading-[18px] text-[var(--pricing-fg)]">
-              <span className="shrink-0 text-[var(--pricing-fg)]" aria-hidden>
-                ✓
-              </span>
+            <li key={feature} className="flex gap-2 text-[13px] leading-[18px] text-[var(--settings-fg)]">
+              <Check
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--settings-fg-muted)]"
+                strokeWidth={2}
+                aria-hidden
+              />
               <span>{feature}</span>
             </li>
           ))}
         </ul>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -324,37 +303,38 @@ function OrganizationPlanCarouselCard({
     plan.yearlySupported && billingCycle === "yearly" ? "yearly" : "monthly";
   const isPrimaryCta =
     plan.isRecommended || plan.isSpecialOffer || plan.isHighlight;
-
   const displayName = plan.nameAccent
     ? `${plan.name} ${plan.nameAccent}`
     : plan.name;
 
   return (
-    <div className="relative flex w-[240px] shrink-0 flex-col justify-between rounded-2xl border border-[var(--pricing-fg)]/[0.06] bg-[var(--pricing-card)] px-[15px] pb-[15px] pt-[13px] shadow-[0_8px_28px_-22px_rgba(20,21,26,0.32)]">
-      {plan.isRecommended && (
-        <PlanBadge label="Recommended" variant="recommended" />
+    <article
+      className={cn(
+        "app-page-card relative flex h-full flex-col justify-between p-4",
+        isPrimaryCta && "ring-1 ring-[var(--settings-fg)]",
       )}
-      {plan.isSpecialOffer && (
-        <PlanBadge label="Special Offer" variant="special" />
-      )}
-
+    >
       <div className="flex flex-col">
-        <h3 className="text-[22px] font-normal leading-[1.3] tracking-[-0.11px] text-[var(--pricing-fg)]">
-          {displayName}
-        </h3>
+        <div className="mb-1 flex items-start justify-between gap-2">
+          <h3 className="app-page-title text-[18px] leading-6">{displayName}</h3>
+          {plan.isRecommended && (
+            <PlanBadge label="Recommended" variant="recommended" />
+          )}
+          {plan.isSpecialOffer && (
+            <PlanBadge label="Special Offer" variant="special" />
+          )}
+        </div>
 
-        <p className="mt-0.5 text-[13px] leading-[18px] text-[var(--pricing-muted)]">
-          {plan.subtitle}
-        </p>
+        <p className="app-page-muted">{plan.subtitle}</p>
 
-        <div className="mt-4 rounded-lg bg-[var(--pricing-thumb)]/70 p-3">
-          <p className="mb-2.5 text-[11px] font-medium leading-4 text-[var(--pricing-muted)]">
+        <div className="mt-4 rounded-[var(--radius-sm)] bg-[var(--settings-icon-bg)] p-3">
+          <p className="mb-2.5 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
             {plan.userRangeLabel}
           </p>
 
           {plan.pricingModel === "per-seat" && plan.seatOptions && (
             <div className="flex flex-col">
-              <p className="mb-2.5 text-[11px] font-medium leading-4 text-[var(--pricing-muted)]">
+              <p className="mb-2.5 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
                 Min {plan.minSeats} seats · configure each seat separately
               </p>
               {plan.seatOptions.map((seat, index) => {
@@ -366,29 +346,28 @@ function OrganizationPlanCarouselCard({
                 return (
                   <div key={seat.id}>
                     {index > 0 && (
-                      <div className="my-2.5 border-t border-[var(--pricing-fg)]/10" />
+                      <div className="my-2.5 border-t border-[var(--settings-hairline)]" />
                     )}
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-[12px] font-medium leading-4 text-[var(--pricing-fg)]">
+                      <span className="text-[12px] font-medium leading-4 text-[var(--settings-fg)]">
                         {seat.label}
                       </span>
                       <div className="shrink-0 text-right">
                         <div className="flex items-baseline justify-end gap-1">
                           {display.strikethrough != null && (
-                            <span className="text-[11px] text-[var(--pricing-muted)] line-through">
-                              ₹
-                              {display.strikethrough.toLocaleString("en-IN")}
+                            <span className="text-[11px] text-[var(--settings-fg-muted)] line-through">
+                              ₹{display.strikethrough.toLocaleString("en-IN")}
                             </span>
                           )}
-                          <span className="text-[13px] font-semibold leading-4 text-[var(--pricing-fg)]">
+                          <span className="text-[13px] font-medium leading-4 text-[var(--settings-fg)]">
                             ₹{display.amount.toLocaleString("en-IN")}
-                            <span className="text-[11px] font-medium text-[var(--pricing-muted)]">
+                            <span className="text-[11px] font-medium text-[var(--settings-fg-muted)]">
                               /mo
                             </span>
                           </span>
                         </div>
                         {seat.note && (
-                          <p className="mt-0.5 max-w-[118px] text-[10px] leading-[14px] text-[var(--pricing-muted)]">
+                          <p className="mt-0.5 max-w-[118px] text-[10px] leading-[14px] text-[var(--settings-fg-muted)]">
                             {seat.note}
                           </p>
                         )}
@@ -403,12 +382,12 @@ function OrganizationPlanCarouselCard({
           {plan.pricingModel === "bundle-seat" &&
             plan.bundleSeatMonthlyInr != null && (
               <div className="flex flex-col gap-1">
-                <p className="text-[11px] font-medium leading-4 text-[var(--pricing-muted)]">
+                <p className="text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
                   Min {plan.minSeats} seats · per seat
                 </p>
                 <div className="flex flex-wrap items-baseline gap-1">
                   {plan.bundleSeatMonthlyStrikethroughInr != null && (
-                    <span className="text-[11px] text-[var(--pricing-muted)] line-through">
+                    <span className="text-[11px] text-[var(--settings-fg-muted)] line-through">
                       ₹
                       {plan.bundleSeatMonthlyStrikethroughInr.toLocaleString(
                         "en-IN",
@@ -423,10 +402,10 @@ function OrganizationPlanCarouselCard({
                     );
                     return (
                       <>
-                        <span className="text-[15px] font-medium text-[var(--pricing-fg)]">
+                        <span className="text-[15px] font-medium text-[var(--settings-fg)]">
                           ₹{display.amount.toLocaleString("en-IN")}
                         </span>
-                        <span className="text-[11px] font-medium text-[var(--pricing-muted)]">
+                        <span className="text-[11px] font-medium text-[var(--settings-fg-muted)]">
                           / seat / mo
                         </span>
                       </>
@@ -434,7 +413,7 @@ function OrganizationPlanCarouselCard({
                   })()}
                 </div>
                 {cycle === "yearly" && (
-                  <p className="text-[10px] leading-4 text-[var(--pricing-muted)]">
+                  <p className="text-[10px] leading-4 text-[var(--settings-fg-muted)]">
                     Billed annually · {YEARLY_DISCOUNT_PERCENT}% off vs monthly
                   </p>
                 )}
@@ -443,14 +422,14 @@ function OrganizationPlanCarouselCard({
 
           {plan.pricingModel === "usage" && (
             <div className="flex flex-col gap-1">
-              <p className="text-[11px] font-medium leading-4 text-[var(--pricing-muted)]">
+              <p className="text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
                 Min {plan.minSeats} members
               </p>
-              <p className="text-[15px] font-medium text-[var(--pricing-fg)]">
+              <p className="text-[15px] font-medium text-[var(--settings-fg)]">
                 {plan.usagePricingLabel}
               </p>
               {plan.usagePricingSubtext && (
-                <p className="text-[10px] leading-4 text-[var(--pricing-muted)]">
+                <p className="text-[10px] leading-4 text-[var(--settings-fg-muted)]">
                   {plan.usagePricingSubtext}
                 </p>
               )}
@@ -459,32 +438,32 @@ function OrganizationPlanCarouselCard({
 
           {plan.pricingModel === "seat-plus-usage" && (
             <div className="flex flex-col gap-2">
-              <p className="text-[11px] font-medium leading-4 text-[var(--pricing-muted)]">
+              <p className="text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
                 Min {plan.minSeats} seats · pooled usage
               </p>
-              <p className="text-[15px] font-medium text-[var(--pricing-fg)]">
+              <p className="text-[15px] font-medium text-[var(--settings-fg)]">
                 {plan.usagePricingLabel}
               </p>
               {plan.usagePricingSubtext && (
-                <p className="text-[10px] leading-4 text-[var(--pricing-muted)]">
+                <p className="text-[10px] leading-4 text-[var(--settings-fg-muted)]">
                   {plan.usagePricingSubtext}
                 </p>
               )}
               {plan.seatOptions && (
-                <div className="border-t border-[var(--pricing-fg)]/10 pt-2">
-                  <p className="mb-1.5 text-[10px] font-medium leading-4 text-[var(--pricing-muted)]">
+                <div className="border-t border-[var(--settings-hairline)] pt-2">
+                  <p className="mb-1.5 text-[10px] font-medium leading-4 text-[var(--settings-fg-muted)]">
                     Per-seat personal tier (Plus, Pro, or Max):
                   </p>
                   {plan.seatOptions.slice(0, 2).map((seat) => (
                     <p
                       key={seat.id}
-                      className="text-[10px] leading-4 text-[var(--pricing-muted)]"
+                      className="text-[10px] leading-4 text-[var(--settings-fg-muted)]"
                     >
                       {seat.label}: ₹
                       {seat.monthlyPriceInr.toLocaleString("en-IN")}/mo
                     </p>
                   ))}
-                  <p className="text-[10px] leading-4 text-[var(--pricing-muted)]">
+                  <p className="text-[10px] leading-4 text-[var(--settings-fg-muted)]">
                     + Max 5x & Max 20x seats available
                   </p>
                 </div>
@@ -493,38 +472,34 @@ function OrganizationPlanCarouselCard({
           )}
         </div>
 
-        <div className="mt-4 min-h-[38px]" />
+        <p className="settings-section-label mt-5">
+          {plan.highlight ? plan.highlight : "Includes"}
+        </p>
 
-        {plan.highlight ? (
-          <p className="mt-4 text-[13px] text-[var(--pricing-muted)]">
-            {plan.highlight}
-          </p>
-        ) : (
-          <p className="mt-4 text-[13px] text-[var(--pricing-muted)]">Includes:</p>
-        )}
-
-        <ul className="mt-4 flex flex-col gap-[3.7px]" role="list">
+        <ul className="mt-2.5 flex flex-col gap-1.5" role="list">
           {plan.features.map((feature) => (
             <li
               key={feature}
-              className="flex gap-[7.5px] text-[13px] leading-[18px] text-[var(--pricing-fg)]"
+              className="flex gap-2 text-[13px] leading-[18px] text-[var(--settings-fg)]"
             >
-              <span className="shrink-0" aria-hidden>
-                ✓
-              </span>
+              <Check
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--settings-fg-muted)]"
+                strokeWidth={2}
+                aria-hidden
+              />
               <span>{feature}</span>
             </li>
           ))}
         </ul>
 
         {plan.footerNote && (
-          <p className="mt-3 text-[11px] leading-4 text-[var(--pricing-muted)]">
+          <p className="mt-3 text-[11px] leading-4 text-[var(--settings-fg-muted)]">
             {plan.footerNote}
           </p>
         )}
       </div>
 
-      <div className="mt-8">
+      <div className="mt-6">
         <PricingCtaButton
           onClick={onSelect}
           variant={isPrimaryCta ? "primary" : "secondary"}
@@ -532,7 +507,7 @@ function OrganizationPlanCarouselCard({
           {ctaLabel ?? plan.buttonLabel}
         </PricingCtaButton>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -575,40 +550,6 @@ export function PlansCarouselSection({
   );
   const [billingCycle, setBillingCycle] = React.useState<BillingCycle>("monthly");
   const [maxTier, setMaxTier] = React.useState<MaxTier>("5x");
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
-  const [canScrollRight, setCanScrollRight] = React.useState(true);
-
-  const updateScrollButtons = React.useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
-
-  React.useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    updateScrollButtons();
-    el.addEventListener("scroll", updateScrollButtons, { passive: true });
-    window.addEventListener("resize", updateScrollButtons);
-    return () => {
-      el.removeEventListener("scroll", updateScrollButtons);
-      window.removeEventListener("resize", updateScrollButtons);
-    };
-  }, [activeTab, layout, updateScrollButtons]);
-
-  React.useEffect(() => {
-    scrollRef.current?.scrollTo({ left: 0 });
-    updateScrollButtons();
-  }, [activeTab, layout, updateScrollButtons]);
-
-  const scrollBy = (direction: "left" | "right") => {
-    scrollRef.current?.scrollBy({
-      left: direction === "left" ? -280 : 280,
-      behavior: "smooth",
-    });
-  };
 
   const handlePersonalSelect = (plan: PlanCard) => {
     if (onCtaClick) {
@@ -633,144 +574,93 @@ export function PlansCarouselSection({
     onOrganizationPlanSelect?.(plan, cycle, plan.name);
   };
 
-  const showIndividual =
-    layout === "all" || activeTab === "individual";
-  const showOrganization =
-    layout === "all" || activeTab === "team";
+  const showIndividual = layout === "all" || activeTab === "individual";
+  const showOrganization = layout === "all" || activeTab === "team";
 
   return (
-    <div className={cn("flex flex-col gap-3 sm:gap-4", className)}>
+    <div className={cn("flex flex-col gap-4", className)}>
       <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
         {layout === "tabs" ? (
-          <div className={subscriptionSegmentTrackClass}>
+          <div className={segmentedTrackClass} role="tablist" aria-label="Plan type">
             <button
               type="button"
+              role="tab"
+              aria-selected={activeTab === "individual"}
               onClick={() => setActiveTab("individual")}
-              className={cn(
-                subscriptionSegmentClass(activeTab === "individual"),
-                activeTab === "individual" &&
-                  "bg-[var(--pricing-thumb)]",
-              )}
+              className={segmentedOptionClass(activeTab === "individual")}
             >
               Individual
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={activeTab === "team"}
               onClick={() => setActiveTab("team")}
-              className={cn(
-                subscriptionSegmentClass(activeTab === "team"),
-                activeTab === "team" && "bg-[var(--pricing-thumb)]",
-              )}
+              className={segmentedOptionClass(activeTab === "team")}
             >
               Team & Enterprise
             </button>
           </div>
         ) : null}
 
-        <div className={subscriptionSegmentTrackClass}>
+        <div className={segmentedTrackClass} role="group" aria-label="Billing cycle">
           <button
             type="button"
+            aria-pressed={billingCycle === "monthly"}
             onClick={() => setBillingCycle("monthly")}
-            className={cn(
-              subscriptionSegmentClass(billingCycle === "monthly"),
-              billingCycle === "monthly" && "bg-[var(--pricing-thumb)]",
-            )}
+            className={segmentedOptionClass(billingCycle === "monthly")}
           >
             Monthly
           </button>
           <button
             type="button"
+            aria-pressed={billingCycle === "yearly"}
             onClick={() => setBillingCycle("yearly")}
-            className={cn(
-              subscriptionSegmentClass(billingCycle === "yearly"),
-              billingCycle === "yearly" && "bg-[var(--pricing-thumb)]",
-            )}
+            className={segmentedOptionClass(billingCycle === "yearly")}
           >
             Yearly (save {YEARLY_DISCOUNT_PERCENT}%)
           </button>
         </div>
-
-        <div className="flex items-center justify-end gap-2 sm:ml-auto sm:gap-3">
-          <button
-            type="button"
-            aria-label="Scroll left"
-            disabled={!canScrollLeft}
-            onClick={() => scrollBy("left")}
-            className={cn(
-              "flex rounded-full bg-[var(--pricing-card)] p-1.5 transition-opacity",
-              canScrollLeft
-                ? "cursor-pointer text-[var(--pricing-fg)] hover:bg-[var(--pricing-thumb)]"
-                : "cursor-default text-[var(--pricing-muted)] opacity-40",
-            )}
-          >
-            <ChevronLeft className="h-[18px] w-[18px]" />
-          </button>
-          <button
-            type="button"
-            aria-label="Scroll right"
-            disabled={!canScrollRight}
-            onClick={() => scrollBy("right")}
-            className={cn(
-              "flex rounded-full bg-[var(--pricing-card)] p-1.5 transition-opacity",
-              canScrollRight
-                ? "cursor-pointer text-[var(--pricing-fg)] hover:bg-[var(--pricing-thumb)]"
-                : "cursor-default text-[var(--pricing-muted)] opacity-40",
-            )}
-          >
-            <ChevronRight className="h-[18px] w-[18px]" />
-          </button>
-        </div>
       </div>
 
-      <div className="relative -mx-4 overflow-hidden">
-        <div
-          ref={scrollRef}
-          className="flex items-stretch gap-2.5 overflow-x-auto px-7 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          style={{
-            maskImage:
-              "linear-gradient(90deg, transparent 0%, black 50px, black calc(100% - 50px), transparent 100%)",
-          }}
-        >
-          {showIndividual
-            ? PERSONAL_PLANS.map((plan) => (
-                <PlanCarouselCard
-                  key={plan.id}
-                  plan={plan}
-                  billingCycle={billingCycle}
-                  maxTier={maxTier}
-                  onMaxTierChange={
-                    plan.id === "max" ? setMaxTier : undefined
-                  }
-                  onSelect={() => handlePersonalSelect(plan)}
-                  ctaLabel={ctaLabel}
-                  forceSelectable={selectableCurrentPlanIds?.includes(plan.id)}
-                  currentPlanId={normalizePlanId(currentPlanId)}
-                />
-              ))
-            : null}
+      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {showIndividual
+          ? PERSONAL_PLANS.map((plan) => (
+              <PlanCarouselCard
+                key={plan.id}
+                plan={plan}
+                billingCycle={billingCycle}
+                maxTier={maxTier}
+                onMaxTierChange={plan.id === "max" ? setMaxTier : undefined}
+                onSelect={() => handlePersonalSelect(plan)}
+                ctaLabel={ctaLabel}
+                forceSelectable={selectableCurrentPlanIds?.includes(plan.id)}
+                currentPlanId={normalizePlanId(currentPlanId)}
+              />
+            ))
+          : null}
 
-          {showOrganization
-            ? ORGANIZATION_PLANS.map((plan) => (
-                <OrganizationPlanCarouselCard
-                  key={plan.id}
-                  plan={plan}
-                  billingCycle={billingCycle}
-                  onSelect={() => handleOrganizationSelect(plan)}
-                  ctaLabel={ctaLabel}
-                />
-              ))
-            : null}
-        </div>
+        {showOrganization
+          ? ORGANIZATION_PLANS.map((plan) => (
+              <OrganizationPlanCarouselCard
+                key={plan.id}
+                plan={plan}
+                billingCycle={billingCycle}
+                onSelect={() => handleOrganizationSelect(plan)}
+                ctaLabel={ctaLabel}
+              />
+            ))
+          : null}
       </div>
 
       {layout === "tabs" && activeTab === "team" ? (
-        <div className="flex items-center gap-2 rounded-xl bg-[var(--pricing-card)] p-3 text-[13px] text-[var(--pricing-muted)]">
-          <Info className="h-4 w-4 shrink-0 text-[var(--pricing-fg)]" />
-          <span>
+        <div className="settings-card flex items-start gap-2.5 px-3.5 py-3">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg)]" />
+          <p className="app-page-muted">
             Work email required. Each seat can be Plus, Pro, Max 5x, or Max 20x
             — Go is not available on organization plans. Minimum seats: Team 2 ·
             Business 4 · Enterprise 10.
-          </span>
+          </p>
         </div>
       ) : null}
     </div>
@@ -812,40 +702,50 @@ export default function UpgradePageContent({
   };
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-[var(--pricing-bg)] font-sans text-[var(--pricing-fg)]">
-      <header className="sticky top-0 z-20 flex items-center justify-center border-b border-[var(--pricing-fg)]/[0.06] bg-[var(--pricing-bg)]/95 px-12 py-3.5 pt-[max(0.75rem,env(safe-area-inset-top))] sm:py-4">
+    <div className={cn(chrome.overlay.surface, "settings-canvas")}>
+      <header className="relative z-20 flex w-full shrink-0 items-center justify-center px-4 py-3 sm:py-4">
         <button
+          type="button"
           onClick={onClose}
-          className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-colors hover:bg-[var(--pricing-card)] sm:left-4"
+          className="ui-icon-button no-hover-overlay absolute left-3 top-1/2 -translate-y-1/2 text-[var(--settings-fg)] sm:left-6"
           aria-label="Back"
         >
           <ArrowLeft className="icon-lg" />
         </button>
-        <h1 className="max-w-[min(100%,14rem)] truncate text-center text-[22px] font-normal leading-[1.3] tracking-[-0.11px] text-[var(--pricing-fg)] sm:max-w-none sm:text-[28px] sm:tracking-[-0.4px]">
-          Plans that grow with you
-        </h1>
       </header>
 
-      <main className="mobile-page-inset mx-auto flex w-full max-w-[1152px] flex-col gap-5 py-5 pb-24 sm:gap-6 sm:py-6 lg:px-6">
-        <PlansCarouselSection
-          layout="tabs"
-          currentPlanId={activePlanId}
-          onPersonalPlanSelect={handlePersonalPlanSelection}
-          onOrganizationPlanSelect={handleOrganizationPlanSelection}
-        />
+      <main
+        className="mobile-page-inset min-h-0 flex-1 overflow-y-auto pb-24 sm:px-6"
+        data-scroll-region=""
+      >
+        <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6 pt-1 sm:gap-7 sm:pt-2">
+          <div className="mx-auto max-w-[36rem] text-center">
+            <h1 className="app-page-title">Plans that grow with you</h1>
+            <p className="app-page-subtitle">
+              Start free, or pick a plan that fits how you work.
+            </p>
+          </div>
 
-        <p className="text-center text-[13px] text-[var(--pricing-muted)]">
-          *
-          <a
-            href="#"
-            onClick={handlePlaceholderLinkClick}
-            className="underline underline-offset-4 decoration-[var(--pricing-fg)]/25 hover:text-[var(--pricing-fg)]"
-          >
-            Usage limits apply
-          </a>
-          . Prices shown don&apos;t include applicable tax. Plans and pricing
-          are subject to change at Shirova&apos;s discretion.
-        </p>
+          <PlansCarouselSection
+            layout="tabs"
+            currentPlanId={activePlanId}
+            onPersonalPlanSelect={handlePersonalPlanSelection}
+            onOrganizationPlanSelect={handleOrganizationPlanSelection}
+          />
+
+          <p className="app-page-muted mx-auto max-w-xl text-center">
+            *
+            <a
+              href="#"
+              onClick={handlePlaceholderLinkClick}
+              className="underline decoration-[var(--settings-fg)]/25 underline-offset-4 hover:text-[var(--settings-fg)]"
+            >
+              Usage limits apply
+            </a>
+            . Prices shown don&apos;t include applicable tax. Plans and pricing
+            are subject to change at Shirova&apos;s discretion.
+          </p>
+        </div>
       </main>
     </div>
   );

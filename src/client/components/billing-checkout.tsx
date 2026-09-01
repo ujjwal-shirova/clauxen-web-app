@@ -2,7 +2,9 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Info, Minus, Plus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Info, Minus, Plus, ShieldCheck } from "lucide-react";
+import { chrome } from "@/lib/app-chrome";
+import { appBtn } from "@/lib/app-buttons";
 import {
   createBillingOrder,
   createCheckoutSession,
@@ -131,18 +133,13 @@ function SeatStepper({
   onIncrement: () => void;
 }) {
   return (
-    <div className="flex h-7 items-center rounded-[var(--radius-sm)] bg-[var(--settings-card-bg)] shadow-[inset_0_0_0_1px_var(--settings-btn-border)]">
+    <div className="flex h-8 items-center rounded-[var(--radius-sm)] bg-[var(--settings-icon-bg)] p-0.5">
       <button
         type="button"
         disabled={!canDecrement}
         onClick={onDecrement}
         aria-label="Decrease seats"
-        className={cn(
-          "flex h-7 w-7 items-center justify-center rounded-l-[var(--radius-sm)] transition-colors",
-          canDecrement
-            ? "text-[var(--settings-fg)] hover:bg-[var(--ui-hover-wash)]"
-            : "cursor-not-allowed text-[var(--settings-fg-muted)] opacity-40",
-        )}
+        className={cn(appBtn.ghostIcon, "h-7 w-7", !canDecrement && "opacity-40")}
       >
         <Minus className="h-3.5 w-3.5" />
       </button>
@@ -159,16 +156,67 @@ function SeatStepper({
         disabled={!canIncrement}
         onClick={onIncrement}
         aria-label="Increase seats"
-        className={cn(
-          "flex h-7 w-7 items-center justify-center rounded-r-[var(--radius-sm)] transition-colors",
-          canIncrement
-            ? "text-[var(--settings-fg)] hover:bg-[var(--ui-hover-wash)]"
-            : "cursor-not-allowed text-[var(--settings-fg-muted)] opacity-40",
-        )}
+        className={cn(appBtn.ghostIcon, "h-7 w-7", !canIncrement && "opacity-40")}
       >
         <Plus className="h-3.5 w-3.5" />
       </button>
     </div>
+  );
+}
+
+function ChoiceCard({
+  selected,
+  disabled,
+  onClick,
+  title,
+  subtitle,
+  badge,
+}: {
+  selected: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  title: string;
+  subtitle: string;
+  badge?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={selected}
+      className={cn(
+        "no-hover-overlay flex cursor-pointer flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] shadow-[var(--settings-card-shadow)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25",
+        selected
+          ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
+          : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,var(--settings-fg))]",
+        disabled && "cursor-not-allowed opacity-50",
+      )}
+    >
+      <div className="mb-3 flex w-full items-center justify-between">
+        <div
+          className={cn(
+            "flex h-5 w-5 items-center justify-center rounded-full border-2",
+            selected
+              ? "border-[var(--settings-fg)]"
+              : "border-[var(--settings-input-border)]",
+          )}
+        >
+          {selected && (
+            <div className="h-2 w-2 rounded-full bg-[var(--settings-fg)]" />
+          )}
+        </div>
+        {badge ? (
+          <span className="rounded-[6px] bg-[var(--settings-icon-bg)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
+            {badge}
+          </span>
+        ) : null}
+      </div>
+      <span className="max-w-[75%] text-left font-medium text-[var(--settings-fg)]">
+        {title}
+      </span>
+      <span className="app-page-muted mt-1 text-left">{subtitle}</span>
+    </button>
   );
 }
 
@@ -1398,80 +1446,32 @@ export function BillingCheckout({
   const billingCycleToggle =
     !isMaxPlan && !isVariableCheckoutPlan && !isGiftCheckout && (
     <div className="grid grid-cols-2 gap-2 sm:gap-3">
-      <button
-        type="button"
+      <ChoiceCard
+        selected={effectiveBillingCycle === "monthly"}
         onClick={() => setBillingCycle("monthly")}
-        aria-pressed={effectiveBillingCycle === "monthly"}
-        className={cn(
-          "no-hover-overlay flex cursor-pointer flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-[background-color,box-shadow,transform] shadow-[var(--settings-card-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25",
-          effectiveBillingCycle === "monthly"
-            ? "bg-[color-mix(in_oklab,var(--settings-card-bg)_96%,var(--settings-fg))] ring-1 ring-[var(--settings-fg)] shadow-[0_3px_10px_rgba(24,24,27,0.10)]"
-            : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))]",
-        )}
-      >
-        <div className="mb-3 flex w-full items-center justify-between">
-          <div
-            className={cn(
-              "flex h-5 w-5 items-center justify-center rounded-full border-2",
-              effectiveBillingCycle === "monthly"
-                ? "border-[var(--settings-fg)]"
-                : "border-[var(--settings-input-border)]",
-            )}
-          >
-            {effectiveBillingCycle === "monthly" && (
-              <div className="h-2 w-2 rounded-full bg-[var(--settings-fg)]" />
-            )}
-          </div>
-        </div>
-        <span className="max-w-[75%] text-left font-medium text-[var(--settings-fg)]">Monthly</span>
-        <span className="app-page-muted mt-1 text-left">
-          {isTeamPlan || isBusinessWorkspace
+        title="Monthly"
+        subtitle={
+          isTeamPlan || isBusinessWorkspace
             ? "Billed monthly per seat"
-            : `${formatInr(details.monthly)}/month`}
-        </span>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setBillingCycle("yearly")}
+            : `${formatInr(details.monthly)}/month`
+        }
+      />
+      <ChoiceCard
+        selected={effectiveBillingCycle === "yearly"}
         disabled={orgPlan ? !orgPlan.yearlySupported : false}
-        aria-pressed={effectiveBillingCycle === "yearly"}
-        className={cn(
-          "no-hover-overlay flex cursor-pointer flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-[background-color,box-shadow,transform] shadow-[var(--settings-card-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25",
-          effectiveBillingCycle === "yearly"
-            ? "bg-[color-mix(in_oklab,var(--settings-card-bg)_96%,var(--settings-fg))] ring-1 ring-[var(--settings-fg)] shadow-[0_3px_10px_rgba(24,24,27,0.10)]"
-            : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))]",
-          orgPlan &&
-            !orgPlan.yearlySupported &&
-            "cursor-not-allowed opacity-50",
-        )}
-      >
-        <div className="mb-3 flex w-full items-center justify-between">
-          <div
-            className={cn(
-              "flex h-5 w-5 items-center justify-center rounded-full border-2",
-              effectiveBillingCycle === "yearly"
-                ? "border-[var(--settings-fg)]"
-                : "border-[var(--settings-input-border)]",
-            )}
-          >
-            {effectiveBillingCycle === "yearly" && (
-              <div className="h-2 w-2 rounded-full bg-[var(--settings-fg)]" />
-            )}
-          </div>
-          {(orgPlan?.yearlySupported ?? details.yearly > 0) && (
-            <div className="rounded-[4px] bg-[color-mix(in_oklab,#18181b_6%,transparent)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
-              Save {YEARLY_DISCOUNT_PERCENT}%
-            </div>
-          )}
-        </div>
-        <span className="max-w-[75%] text-left font-medium text-[var(--settings-fg)]">Yearly</span>
-        <span className="app-page-muted mt-1 text-left">
-          {isTeamPlan || isBusinessWorkspace
+        onClick={() => setBillingCycle("yearly")}
+        title="Yearly"
+        subtitle={
+          isTeamPlan || isBusinessWorkspace
             ? `Save ${YEARLY_DISCOUNT_PERCENT}% billed annually`
-            : `${formatInr(details.yearly)}/year`}
-        </span>
-      </button>
+            : `${formatInr(details.yearly)}/year`
+        }
+        badge={
+          orgPlan?.yearlySupported ?? details.yearly > 0
+            ? `Save ${YEARLY_DISCOUNT_PERCENT}%`
+            : undefined
+        }
+      />
     </div>
   );
 
@@ -1482,44 +1482,14 @@ export function BillingCheckout({
           [MaxTier, (typeof MAX_TIER_OPTIONS)[MaxTier]]
         >
       ).map(([tier, tierDetails]) => (
-        <button
+        <ChoiceCard
           key={tier}
-          type="button"
+          selected={maxTier === tier}
           onClick={() => setMaxTier(tier)}
-          aria-pressed={maxTier === tier}
-          className={cn(
-            "no-hover-overlay flex cursor-pointer flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-[background-color,box-shadow,transform] shadow-[var(--settings-card-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25",
-            maxTier === tier
-              ? "bg-[color-mix(in_oklab,var(--settings-card-bg)_96%,var(--settings-fg))] ring-1 ring-[var(--settings-fg)] shadow-[0_3px_10px_rgba(24,24,27,0.10)]"
-              : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))]",
-          )}
-        >
-          <div className="mb-3 flex w-full items-center justify-between">
-            <div
-              className={cn(
-                "flex h-5 w-5 items-center justify-center rounded-full border-2",
-                maxTier === tier
-                  ? "border-[var(--settings-fg)]"
-                  : "border-[var(--settings-input-border)]",
-              )}
-            >
-              {maxTier === tier && (
-                <div className="h-2 w-2 rounded-full bg-[var(--settings-fg)]" />
-              )}
-            </div>
-            {tierDetails.badge && (
-              <div className="rounded-[4px] bg-[color-mix(in_oklab,#18181b_6%,transparent)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
-                {tierDetails.badge}
-              </div>
-            )}
-          </div>
-          <span className="max-w-[75%] text-left font-medium text-[var(--settings-fg)]">
-            {tierDetails.usageLabel}
-          </span>
-          <span className="app-page-muted mt-1 text-left">
-            {formatInr(tierDetails.monthlyPriceInr)}/month
-          </span>
-        </button>
+          title={tierDetails.usageLabel}
+          subtitle={`${formatInr(tierDetails.monthlyPriceInr)}/month`}
+          badge={tierDetails.badge}
+        />
       ))}
     </div>
   );
