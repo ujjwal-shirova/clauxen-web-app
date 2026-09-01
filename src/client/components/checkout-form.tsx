@@ -191,10 +191,10 @@ export function CheckoutForm({
               if (!payDisabled) onPayPrepare?.();
             }}
             className={cn(
-              "inline-flex h-11 min-h-[44px] w-full items-center justify-center rounded-[var(--radius-sm)] px-5 text-[14px] font-medium leading-5 transition-all duration-150",
+              "no-hover-overlay inline-flex h-11 min-h-[44px] w-full items-center justify-center rounded-[var(--radius-sm)] px-5 text-[14px] font-medium leading-5 transition-[background-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14151a]/30",
               payDisabled
                 ? "cursor-not-allowed bg-[#e2e4e9] text-[#71717a]"
-                : "bg-[#14151a] text-[#ffffff] hover:bg-[#27272a] active:bg-[#09090b] shadow-xs",
+                : "cursor-pointer bg-[#14151a] text-[#ffffff] shadow-[0_1px_2px_rgba(20,21,26,0.18)] hover:bg-[#27272a] hover:shadow-[0_3px_8px_rgba(20,21,26,0.18)] active:bg-[#09090b]",
             )}
           >
             {paying ? "Processing…" : payLabel}

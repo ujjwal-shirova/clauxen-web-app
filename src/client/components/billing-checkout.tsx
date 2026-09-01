@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Info, Minus, Plus } from "lucide-react";
+import { Info, Minus, Plus, ShieldCheck } from "lucide-react";
 import {
   createBillingOrder,
   createCheckoutSession,
@@ -1401,11 +1401,12 @@ export function BillingCheckout({
       <button
         type="button"
         onClick={() => setBillingCycle("monthly")}
+        aria-pressed={effectiveBillingCycle === "monthly"}
         className={cn(
-          "flex flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-colors shadow-[var(--settings-card-shadow)]",
+          "no-hover-overlay flex cursor-pointer flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-[background-color,box-shadow,transform] shadow-[var(--settings-card-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25",
           effectiveBillingCycle === "monthly"
-            ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
-            : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]",
+            ? "bg-[color-mix(in_oklab,var(--settings-card-bg)_96%,var(--settings-fg))] ring-1 ring-[var(--settings-fg)] shadow-[0_3px_10px_rgba(24,24,27,0.10)]"
+            : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))]",
         )}
       >
         <div className="mb-3 flex w-full items-center justify-between">
@@ -1434,11 +1435,12 @@ export function BillingCheckout({
         type="button"
         onClick={() => setBillingCycle("yearly")}
         disabled={orgPlan ? !orgPlan.yearlySupported : false}
+        aria-pressed={effectiveBillingCycle === "yearly"}
         className={cn(
-          "flex flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-colors shadow-[var(--settings-card-shadow)]",
+          "no-hover-overlay flex cursor-pointer flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-[background-color,box-shadow,transform] shadow-[var(--settings-card-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25",
           effectiveBillingCycle === "yearly"
-            ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
-            : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]",
+            ? "bg-[color-mix(in_oklab,var(--settings-card-bg)_96%,var(--settings-fg))] ring-1 ring-[var(--settings-fg)] shadow-[0_3px_10px_rgba(24,24,27,0.10)]"
+            : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))]",
           orgPlan &&
             !orgPlan.yearlySupported &&
             "cursor-not-allowed opacity-50",
@@ -1484,11 +1486,12 @@ export function BillingCheckout({
           key={tier}
           type="button"
           onClick={() => setMaxTier(tier)}
+          aria-pressed={maxTier === tier}
           className={cn(
-            "flex flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-colors shadow-[var(--settings-card-shadow)]",
+            "no-hover-overlay flex cursor-pointer flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] transition-[background-color,box-shadow,transform] shadow-[var(--settings-card-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25",
             maxTier === tier
-              ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
-              : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,#18181b)]",
+              ? "bg-[color-mix(in_oklab,var(--settings-card-bg)_96%,var(--settings-fg))] ring-1 ring-[var(--settings-fg)] shadow-[0_3px_10px_rgba(24,24,27,0.10)]"
+              : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))]",
           )}
         >
           <div className="mb-3 flex w-full items-center justify-between">
@@ -1765,14 +1768,36 @@ export function BillingCheckout({
       </button>
 
       <div className="w-full">
-        <main className="mx-auto flex w-full max-w-[1080px] flex-col items-start gap-8 px-4 pb-28 pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.25rem))] sm:gap-10 sm:px-6 lg:flex-row">
+        <main className="mx-auto flex w-full max-w-[1120px] flex-col items-start gap-7 px-4 pb-28 pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.25rem))] sm:gap-8 sm:px-6 lg:flex-row lg:gap-10">
           {/* Left column — plan summary */}
           <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[400px]">
-            <h1 className="app-page-title mb-5">
-              {details.name}
-            </h1>
+            <div className="mb-5 px-1">
+              <div className="mb-2 inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--settings-fg-muted)]">
+                <ShieldCheck className="h-4 w-4" aria-hidden />
+                Secure checkout
+              </div>
+              <h1 className="app-page-title">Complete your purchase</h1>
+              <p className="app-page-subtitle mt-1.5">
+                Review your plan, then choose a payment method.
+              </p>
+            </div>
 
             <div className="flex flex-col gap-4">
+              <div className="rounded-[var(--settings-card-radius)] border border-[var(--settings-hairline)] bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))] px-4 py-3.5 shadow-[var(--settings-card-shadow)]">
+                <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--settings-fg-muted)]">
+                  Selected plan
+                </p>
+                <div className="mt-1 flex items-baseline justify-between gap-3">
+                  <span className="text-[18px] font-semibold tracking-[-0.02em] text-[var(--settings-fg)]">
+                    {details.name}
+                  </span>
+                  {!isVariableCheckoutPlan && (
+                    <span className="text-[13px] font-medium text-[var(--settings-fg-muted)]">
+                      {cycleDetailLabel}
+                    </span>
+                  )}
+                </div>
+              </div>
               {maxTierToggle}
               {billingCycleToggle}
               {teamSeatConfigurator}
@@ -1889,7 +1914,14 @@ export function BillingCheckout({
           </aside>
 
           {/* Right column — checkout form */}
-          <div className="app-page-card box-border min-w-0 w-full flex-1 rounded-[var(--radius-md)] px-5 py-5 shadow-[0_1px_2px_rgba(24,24,27,0.03)] sm:px-6 sm:py-6">
+          <div className="app-page-card box-border min-w-0 w-full flex-1 rounded-[var(--radius-md)] px-5 py-5 shadow-[0_10px_32px_-24px_rgba(24,24,27,0.38)] sm:px-6 sm:py-6">
+            <div className="mb-5 flex items-start justify-between gap-4 border-b border-[var(--settings-hairline)] pb-4">
+              <div>
+                <h2 className="app-page-section-title">Payment details</h2>
+                <p className="app-page-muted mt-1">Your payment information is encrypted and secure.</p>
+              </div>
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--settings-fg-muted)]" aria-hidden />
+            </div>
             {payError && <CheckoutErrorBanner message={payError} />}
             <CheckoutForm
               paymentTab={paymentTab}

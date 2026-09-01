@@ -95,7 +95,7 @@ function PricingCtaButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 text-[13px] font-medium leading-4 transition-all duration-150",
+        "no-hover-overlay inline-flex w-full cursor-pointer items-center justify-center rounded-full px-5 py-2.5 text-[13px] font-medium leading-4 transition-[background-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pricing-fg)]/30",
         variant === "primary" &&
           "bg-[#14151a] text-[#ffffff] hover:bg-[#27272a] active:bg-[#09090b]",
         variant === "secondary" &&
@@ -236,10 +236,10 @@ function PlanCarouselCard({
                     onMaxTierChange?.(tier);
                   }}
                   className={cn(
-                    "relative z-[1] rounded-full px-2 py-0.5 text-[11px] font-medium leading-4 transition-colors",
+                    "no-hover-overlay relative z-[1] cursor-pointer rounded-full px-2 py-0.5 text-[11px] font-medium leading-4 transition-[background-color,color,box-shadow]",
                     maxTier === tier
-                      ? "bg-[var(--pricing-thumb-active)] text-[var(--pricing-fg)]"
-                      : "text-[var(--pricing-muted)] hover:text-[var(--pricing-fg)]",
+                      ? "bg-[var(--pricing-card)] text-[var(--pricing-fg)] shadow-[0_1px_2px_rgba(20,21,26,0.14)]"
+                      : "cursor-pointer text-[var(--pricing-muted)] hover:text-[var(--pricing-fg)]",
                   )}
                 >
                   {tier}
@@ -699,7 +699,7 @@ export function PlansCarouselSection({
             className={cn(
               "flex rounded-full bg-[var(--pricing-card)] p-1.5 transition-opacity",
               canScrollLeft
-                ? "text-[var(--pricing-fg)] hover:bg-[var(--pricing-thumb)]"
+                ? "cursor-pointer text-[var(--pricing-fg)] hover:bg-[var(--pricing-thumb)]"
                 : "cursor-default text-[var(--pricing-muted)] opacity-40",
             )}
           >
@@ -713,7 +713,7 @@ export function PlansCarouselSection({
             className={cn(
               "flex rounded-full bg-[var(--pricing-card)] p-1.5 transition-opacity",
               canScrollRight
-                ? "text-[var(--pricing-fg)] hover:bg-[var(--pricing-thumb)]"
+                ? "cursor-pointer text-[var(--pricing-fg)] hover:bg-[var(--pricing-thumb)]"
                 : "cursor-default text-[var(--pricing-muted)] opacity-40",
             )}
           >

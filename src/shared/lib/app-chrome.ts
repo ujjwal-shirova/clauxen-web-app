@@ -77,11 +77,11 @@ const checkout = {
   panelMuted: field.mutedPanel,
 
   tabBase:
-    "flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] px-2 py-2 text-[13px] font-medium leading-[18px] transition-colors duration-150 shadow-[inset_0_0_0_1px_var(--settings-btn-border)]",
+    "no-hover-overlay flex min-h-[48px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] px-2 py-2 text-[13px] font-medium leading-[18px] transition-[background-color,color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25 shadow-[inset_0_0_0_1px_var(--settings-btn-border)]",
   tabSelected:
-    "bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)] shadow-none",
+    "bg-[var(--settings-fg)] text-[var(--settings-canvas-bg)] shadow-[0_2px_5px_rgba(24,24,27,0.16)]",
   tabUnselected:
-    "bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]",
+    "bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))] hover:text-[var(--settings-fg)]",
 
   expressButton: cn(appBtn.primaryLg, "w-full gap-2"),
 
