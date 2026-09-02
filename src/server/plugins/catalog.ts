@@ -258,3 +258,7 @@ export async function getPluginByRouteSegment(segment: string) {
     null
   );
 }
+
+export async function getPluginById(pluginId: string) {
+  return getPluginByRouteSegment(pluginId);
+}

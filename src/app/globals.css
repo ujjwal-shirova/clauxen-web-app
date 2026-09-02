@@ -868,6 +868,14 @@
     flex-shrink: 0;
   }
 
+  .plugin-add-button {
+    cursor: pointer !important;
+  }
+
+  .plugin-add-button:disabled {
+    cursor: wait !important;
+  }
+
   /* ── Primary (dark solid) — hover must NOT wash out white label ── */
   .app-btn-primary,
   .btn-solid-dark {
@@ -1040,6 +1048,16 @@
     border-radius: var(--radius-sm);
     gap: 0;
   }
+}
+
+button.plugin-add-button,
+.plugin-add-button {
+  cursor: pointer !important;
+}
+
+button.plugin-add-button:disabled,
+.plugin-add-button:disabled {
+  cursor: wait !important;
 }
 
 /* Exclude app-btn variants from legacy universal inset overlay (prevents wash-out) */

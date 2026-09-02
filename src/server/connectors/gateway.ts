@@ -17,6 +17,35 @@ export type ConnectorGatewayTool = {
   inputSchema: Record<string, unknown>;
 };
 
+export type ConnectorConnection = {
+  id: string;
+  connectorKey: string;
+  connectorName: string;
+  provider: string;
+  protocol?: string;
+  pluginId?: string | null;
+  mcpUrl?: string | null;
+  logoUrl?: string | null;
+  status: string;
+  accountLabel?: string | null;
+  grantedScopes?: string[];
+  connectedAt?: string | null;
+  lastUsedAt?: string | null;
+  lastErrorCode?: string | null;
+  toolCount?: number;
+  skills?: unknown;
+};
+
+export type McpInstallResult = {
+  status: "connected" | "authorization_required";
+  connectorKey: string;
+  installationId: string | null;
+  authorizeUrl: string | null;
+  toolCount?: number;
+  skillCount?: number;
+  expiresIn?: number;
+};
+
 export type ConnectorGatewayCallResult = {
   text: string;
   isError: boolean;
@@ -39,6 +68,7 @@ async function gatewayRequest<T>(
   path: string,
   userId: string,
   init: RequestInit = {},
+  timeoutMs = 30_000,
 ): Promise<T> {
   if (!connectorGatewayConfigured()) {
     throw new AppError(
@@ -57,7 +87,7 @@ async function gatewayRequest<T>(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let response: Response;
   try {
     response = await fetch(`${env.connectorGatewayUrl}${path}`, {
@@ -99,9 +129,29 @@ async function gatewayRequest<T>(
 }
 
 export function listConnectorConnections(userId: string) {
-  return gatewayRequest<{ connections: unknown[] }>("/v1/connections", userId, {
-    method: "GET",
-  });
+  return gatewayRequest<{ connections: ConnectorConnection[] }>(
+    "/v1/connections",
+    userId,
+    { method: "GET" },
+  );
+}
+
+export function installMcpPlugin(
+  userId: string,
+  input: {
+    pluginId: string;
+    displayName: string;
+    mcpUrl: string;
+    logoUrl?: string | null;
+    returnUrl: string;
+  },
+) {
+  return gatewayRequest<McpInstallResult>(
+    "/v1/mcp/install",
+    userId,
+    { method: "POST", body: JSON.stringify(input) },
+    45_000,
+  );
 }
 
 export function startConnectorOAuth(

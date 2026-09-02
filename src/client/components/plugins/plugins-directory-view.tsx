@@ -23,22 +23,7 @@ import {
   type PluginDirectoryResponse,
   type PluginSummary,
 } from "./plugin-directory-data";
-
-const STORAGE_KEY = "clauxen_installed_directory_plugin_ids_v2";
-
-function readInstalledPlugins() {
-  try {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    const ids = saved ? (JSON.parse(saved) as unknown) : [];
-    return new Set(
-      Array.isArray(ids)
-        ? ids.filter((item): item is string => typeof item === "string")
-        : [],
-    );
-  } catch {
-    return new Set<string>();
-  }
-}
+import { usePluginInstallations } from "./use-plugin-installations";
 
 function PluginArtwork({
   plugin,
@@ -91,11 +76,13 @@ function PluginCard({
   plugin,
   categorySlug,
   installed,
+  busy,
   onToggle,
 }: {
   plugin: PluginSummary;
   categorySlug: string | null;
   installed: boolean;
+  busy: boolean;
   onToggle: () => void;
 }) {
   const href = `/plugins/${pluginRouteSegment(plugin)}${categorySlug ? `?category=${encodeURIComponent(categorySlug)}` : ""}`;
@@ -118,22 +105,90 @@ function PluginCard({
       </div>
       <button
         type="button"
-        onClick={onToggle}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onToggle();
+        }}
+        disabled={busy}
         aria-label={`${installed ? "Remove" : "Install"} ${plugin.displayName}`}
         aria-pressed={installed}
         className={cn(
-          "relative z-10 flex h-7 shrink-0 items-center gap-1 rounded-lg border px-2 text-[11.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)]",
+          "plugin-add-button relative z-10 flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-lg border px-2 text-[11.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)] disabled:cursor-wait disabled:opacity-60",
           installed
             ? "border-[var(--ui-border)] bg-[var(--settings-nav-active-bg)] text-[var(--ui-fg)]"
             : "border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] text-[var(--ui-fg-muted)] hover:border-[var(--ui-border)] hover:text-[var(--ui-fg)]",
         )}
       >
-        {installed ? (
+        {busy ? (
+          <LoaderCircle className="size-3 animate-spin" />
+        ) : installed ? (
           <Check className="size-3" strokeWidth={2.2} />
         ) : (
           <Plus className="size-3" strokeWidth={2} />
         )}
-        {installed ? "Added" : "Add"}
+        {busy ? "Working" : installed ? "Added" : "Add"}
+      </button>
+    </article>
+  );
+}
+
+function PluginListRow({
+  plugin,
+  categorySlug,
+  installed,
+  busy,
+  onToggle,
+}: {
+  plugin: PluginSummary;
+  categorySlug: string | null;
+  installed: boolean;
+  busy: boolean;
+  onToggle: () => void;
+}) {
+  const href = `/plugins/${pluginRouteSegment(plugin)}${categorySlug ? `?category=${encodeURIComponent(categorySlug)}` : ""}`;
+  return (
+    <article className="group relative flex min-h-[72px] min-w-0 items-center gap-3 rounded-2xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] px-3 py-2.5">
+      <Link
+        href={href}
+        prefetch
+        aria-label={`Open ${plugin.displayName} plugin`}
+        className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-panel-bg)]"
+      />
+      <PluginArtwork plugin={plugin} />
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate text-[14px] font-semibold leading-5 text-[var(--ui-fg)]">
+          {plugin.displayName}
+        </h3>
+        <p className="mt-0.5 line-clamp-1 text-[12.5px] leading-[17px] text-[var(--ui-fg-muted)]">
+          {plugin.description || "Use this plugin with Clauxen"}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onToggle();
+        }}
+        disabled={busy}
+        aria-label={`${installed ? "Remove" : "Install"} ${plugin.displayName}`}
+        aria-pressed={installed}
+        className={cn(
+          "plugin-add-button relative z-10 inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-full border px-3 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)] disabled:cursor-wait disabled:opacity-60",
+          installed
+            ? "border-[var(--ui-border)] bg-[var(--settings-nav-active-bg)] text-[var(--ui-fg)]"
+            : "border-[var(--ui-border)] bg-[var(--app-panel-bg)] text-[var(--ui-fg-muted)] hover:border-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]",
+        )}
+      >
+        {busy ? (
+          <LoaderCircle className="size-3.5 animate-spin" />
+        ) : installed ? (
+          <Check className="size-3.5" strokeWidth={2.2} />
+        ) : (
+          <Plus className="size-3.5" strokeWidth={2} />
+        )}
+        {busy ? "Working" : installed ? "Added" : "Add"}
       </button>
     </article>
   );
@@ -167,9 +222,7 @@ export function PluginsDirectoryView({
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState(false);
-  const [installed, setInstalled] = useState<Set<string>>(() => new Set());
-
-  useEffect(() => setInstalled(readInstalledPlugins()), []);
+  const installations = usePluginInstallations();
   useEffect(() => {
     const handlePopState = () => {
       setCategorySlug(new URLSearchParams(window.location.search).get("category"));
@@ -209,25 +262,23 @@ export function PluginsDirectoryView({
     [categorySlug, data.categories],
   );
   const isSearch = Boolean(deferredQuery.trim());
-  const togglePlugin = (id: string) =>
-    setInstalled((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
-      } catch {
-        // The in-memory selection remains usable.
-      }
-      return next;
-    });
+  const togglePlugin = (id: string) => {
+    if (installations.isInstalled(id)) void installations.remove(id);
+    else {
+      const returnPath = `${window.location.pathname}${window.location.search}`;
+      void installations.install(id, {
+        category: categorySlug,
+        returnPath: returnPath.startsWith("/plugins") ? returnPath : "/plugins",
+      });
+    }
+  };
   const allVisiblePlugins =
     data.sections?.flatMap((section) => section.plugins) ?? data.plugins;
   const categoryPreview =
     data.sections?.find((section) => section.slug === categorySlug)?.plugins ?? [];
   const resultPlugins = data.plugins.length > 0 ? data.plugins : categoryPreview;
   const installedItems = allVisiblePlugins
-    .filter((plugin) => installed.has(plugin.id))
+    .filter((plugin) => installations.isInstalled(plugin.id))
     .slice(0, 12);
   const selectCategory = (
     event: MouseEvent<HTMLAnchorElement>,
@@ -386,6 +437,12 @@ export function PluginsDirectoryView({
             </div>
           ) : null}
 
+          {installations.error ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+              {installations.error}
+            </div>
+          ) : null}
+
           {data.sections && !isSearch && !requestedCategory ? (
             <div className="grid gap-4 lg:grid-cols-2">
               {data.sections.map((section) => (
@@ -417,7 +474,8 @@ export function PluginsDirectoryView({
                         key={plugin.id}
                         plugin={plugin}
                         categorySlug={section.slug}
-                        installed={installed.has(plugin.id)}
+                        installed={installations.isInstalled(plugin.id)}
+                        busy={installations.pendingId === plugin.id}
                         onToggle={() => togglePlugin(plugin.id)}
                       />
                     ))}
@@ -426,13 +484,14 @@ export function PluginsDirectoryView({
               ))}
             </div>
           ) : (
-            <section aria-label="Plugin results" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            <section aria-label="Plugin results" className="grid grid-cols-1 gap-2">
               {resultPlugins.map((plugin) => (
-                <PluginCard
+                <PluginListRow
                   key={plugin.id}
                   plugin={plugin}
                   categorySlug={requestedCategory?.slug ?? null}
-                  installed={installed.has(plugin.id)}
+                  installed={installations.isInstalled(plugin.id)}
+                  busy={installations.pendingId === plugin.id}
                   onToggle={() => togglePlugin(plugin.id)}
                 />
               ))}

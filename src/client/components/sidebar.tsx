@@ -4,9 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Settings,
   ArrowUpCircle,
-  ArrowUpRight,
   ChevronRight,
-  Code2,
   Gift,
   HelpCircle,
   LogOut,
@@ -190,7 +188,6 @@ interface SidebarProps {
   onAppsExtensionsClick: () => void;
   onGiftClick: () => void;
   onProjectsClick: () => void;
-  onClauxenCodeClick?: () => void;
   activeView?: string;
   recentChats: RecentChat[];
   activeChatId: string | null;
@@ -235,7 +232,6 @@ export function Sidebar({
   onAppsExtensionsClick,
   onGiftClick,
   onProjectsClick,
-  onClauxenCodeClick,
   activeView,
   recentChats,
   activeChatId,
@@ -809,23 +805,6 @@ export function Sidebar({
               isCollapsed ? "flex flex-col items-center px-0" : "px-1.5",
             )}
           >
-            {renderNavButton({
-              label: "Clauxen Code",
-              icon: <Code2 className="size-4" strokeWidth={1.5} />,
-              onClick: () =>
-                runNavAction(() => {
-                  onClauxenCodeClick?.();
-                }),
-              active: false,
-              trailing: !isCollapsed ? (
-                <ArrowUpRight
-                  className="size-3.5 shrink-0 text-zinc-800/45 opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100"
-                  strokeWidth={1.75}
-                  aria-hidden
-                />
-              ) : undefined,
-            })}
-
             {renderNavButton({
               label: "Automations",
               icon: <Clock3 className="size-4" strokeWidth={1.5} />,

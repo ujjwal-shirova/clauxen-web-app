@@ -3,6 +3,7 @@ import { canonicalJson, openText, sealText, sha256 } from "./crypto";
 import { withDatabase } from "./db";
 import { enqueueAudit } from "./events";
 import { recordMetric } from "./metrics";
+import { WorkerMcpClient } from "./mcp-client";
 import { HttpError, json, readJsonObject, stringField } from "./http";
 import {
   oauthConfigByKey,
@@ -15,6 +16,10 @@ type InstallationToolRow = {
   connector_id: string;
   connector_key: string;
   connector_name: string;
+  protocol: string;
+  mcp_url: string | null;
+  mcp_tool_name: string | null;
+  mcp_kind: string | null;
   tool_name: string;
   tool_title: string;
   description: string;
@@ -25,11 +30,11 @@ type InstallationToolRow = {
   risk_level: "read" | "write" | "destructive" | "sensitive";
   requires_confirmation: boolean;
   permission_policy: "inherit" | "allow" | "confirm" | "deny" | null;
-  encrypted_access_token: string;
-  access_token_nonce: string;
+  encrypted_access_token: string | null;
+  access_token_nonce: string | null;
   encrypted_refresh_token: string | null;
   refresh_token_nonce: string | null;
-  token_type: string;
+  token_type: string | null;
   expires_at: string | null;
 };
 
@@ -218,24 +223,39 @@ export async function listConnections(
         connectorKey: string;
         connectorName: string;
         provider: string;
+        protocol: string;
+        pluginId: string | null;
+        mcpUrl: string | null;
+        logoUrl: string | null;
         status: string;
         accountLabel: string | null;
         grantedScopes: string[];
         connectedAt: string | null;
         lastUsedAt: string | null;
         lastErrorCode: string | null;
+        toolCount: number;
+        skills: unknown;
       }>
     >`
       select installation.id,
              catalog.key as "connectorKey",
              catalog.name as "connectorName",
              catalog.provider,
+             catalog.protocol,
+             catalog.metadata->>'pluginId' as "pluginId",
+             catalog.mcp_url as "mcpUrl",
+             catalog.metadata->>'logoUrl' as "logoUrl",
              installation.status,
              installation.account_label as "accountLabel",
              installation.granted_scopes as "grantedScopes",
              installation.connected_at as "connectedAt",
              installation.last_used_at as "lastUsedAt",
-             installation.last_error_code as "lastErrorCode"
+             installation.last_error_code as "lastErrorCode",
+             (
+               select count(*)::int from public.connector_tools tool
+               where tool.connector_id = catalog.id and tool.is_enabled = true
+             ) as "toolCount",
+             installation.settings->'mcpSkills' as skills
       from public.connector_installations installation
       join public.connector_catalog catalog on catalog.id = installation.connector_id
       where installation.user_id = ${userId}::uuid
@@ -255,11 +275,13 @@ export async function listTools(env: Env, userId: string): Promise<Response> {
         toolName: string;
         description: string;
         inputSchema: Record<string, unknown>;
+        mcpKind: string | null;
       }>
     >`
       select catalog.key as "connectorKey", catalog.name as "connectorName",
              tool.name as "toolName", tool.description,
-             tool.input_schema as "inputSchema"
+             tool.input_schema as "inputSchema",
+             tool.metadata->>'kind' as "mcpKind"
       from public.connector_installations installation
       join public.connector_catalog catalog on catalog.id = installation.connector_id
       join public.connector_tools tool on tool.connector_id = catalog.id
@@ -273,15 +295,18 @@ export async function listTools(env: Env, userId: string): Promise<Response> {
       order by catalog.key, tool.name
       limit 500
     `;
-    const tools = rows.map((row) => ({
-      qualifiedName: `mcp__${row.connectorKey.replace(/[^a-zA-Z0-9_-]/g, "_")}__${row.toolName}`,
-      connectorKey: row.connectorKey,
-      connectorName: row.connectorName,
-      toolName: row.toolName,
-      description:
-        row.description || `${row.toolName} from ${row.connectorName}`,
-      inputSchema: row.inputSchema,
-    }));
+    const tools = rows.map((row) => {
+      const kindLabel =
+        row.mcpKind === "skill" ? "MCP skill" : "MCP tool";
+      return {
+        qualifiedName: `mcp__${row.connectorKey.replace(/[^a-zA-Z0-9_-]/g, "_")}__${row.toolName}`,
+        connectorKey: row.connectorKey,
+        connectorName: row.connectorName,
+        toolName: row.toolName,
+        description: `${row.description || row.toolName} ${kindLabel} from ${row.connectorName}. Connected Clauxen plugin: ${row.connectorName}.`,
+        inputSchema: row.inputSchema,
+      };
+    });
     return json({ data: { tools } });
   });
 }
@@ -297,6 +322,10 @@ async function toolRow(
            catalog.id as connector_id,
            catalog.key as connector_key,
            catalog.name as connector_name,
+           catalog.protocol,
+           catalog.mcp_url,
+           tool.metadata->>'mcpName' as mcp_tool_name,
+           tool.metadata->>'kind' as mcp_kind,
            tool.name as tool_name,
            tool.title as tool_title,
            tool.description,
@@ -316,7 +345,7 @@ async function toolRow(
     from public.connector_installations installation
     join public.connector_catalog catalog on catalog.id = installation.connector_id
     join public.connector_tools tool on tool.connector_id = catalog.id
-    join private.connector_credentials credential
+    left join private.connector_credentials credential
       on credential.installation_id = installation.id
     left join public.connector_tool_permissions permission
       on permission.installation_id = installation.id
@@ -424,6 +453,13 @@ async function refreshAccessToken(
     ? Date.parse(row.expires_at)
     : Number.POSITIVE_INFINITY;
   if (currentExpiry > Date.now() + 60_000) {
+    if (!row.encrypted_access_token || !row.access_token_nonce) {
+      throw new HttpError(
+        "Reconnect this plugin before using it.",
+        409,
+        "reauthorization_required",
+      );
+    }
     return openText(
       row.encrypted_access_token,
       row.access_token_nonce,
@@ -678,14 +714,83 @@ export async function callTool(
     }
 
     const config = await oauthConfigByKey(sql, connectorKey);
-    if (!config) {
-      throw new HttpError(
-        "Connector OAuth configuration is unavailable.",
-        409,
-        "connector_not_configured",
-      );
-    }
     try {
+      if (row.protocol === "mcp") {
+        if (!row.mcp_url) {
+          throw new HttpError(
+            "This plugin is missing its MCP server URL.",
+            409,
+            "tool_not_configured",
+          );
+        }
+        let accessToken: string | null = null;
+        if (row.encrypted_access_token && row.access_token_nonce) {
+          accessToken = config
+            ? await refreshAccessToken(sql, env, row, config)
+            : await openText(
+                row.encrypted_access_token,
+                row.access_token_nonce,
+                env.CONNECTOR_ENCRYPTION_KEY,
+                `installation:${row.installation_id}:access`,
+              );
+        }
+        const client = new WorkerMcpClient(row.mcp_url, accessToken);
+        try {
+          const outcome =
+            row.mcp_kind === "skill"
+              ? await client.getPrompt(row.mcp_tool_name || row.tool_name, args)
+              : await client.callTool(
+                  row.mcp_tool_name || row.tool_name,
+                  args,
+                );
+          await sql`
+            update public.connector_installations
+            set last_used_at = now(),
+                last_error_code = ${outcome.isError ? "mcp_tool_error" : null},
+                last_error_at = ${outcome.isError ? new Date() : null},
+                updated_at = now()
+            where id = ${row.installation_id}::uuid
+          `;
+          const durationMs = Date.now() - started;
+          enqueueAudit(env, ctx, {
+            userId,
+            installationId: row.installation_id,
+            connectorKey,
+            eventType: "tool_called",
+            toolName: name,
+            requestId,
+            status: outcome.isError ? "failed" : "succeeded",
+            durationMs,
+            errorCode: outcome.isError ? "mcp_tool_error" : null,
+            metadata: { protocol: "mcp", risk: row.risk_level },
+          });
+          recordMetric({
+            kind: "tool_call",
+            route: name,
+            status: outcome.isError ? "mcp_error" : "200",
+            connectorKey,
+            userId,
+            durationMs,
+          });
+          return json({
+            data: {
+              text: outcome.text,
+              isError: outcome.isError,
+              status: outcome.isError ? 502 : 200,
+            },
+          });
+        } finally {
+          await client.close();
+        }
+      }
+
+      if (!config) {
+        throw new HttpError(
+          "Connector OAuth configuration is unavailable.",
+          409,
+          "connector_not_configured",
+        );
+      }
       const accessToken = await refreshAccessToken(sql, env, row, config);
       const providerRequest = renderProviderRequest(
         config,

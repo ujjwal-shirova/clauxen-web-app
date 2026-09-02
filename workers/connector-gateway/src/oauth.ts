@@ -8,6 +8,7 @@ import {
 } from "./crypto";
 import { withDatabase } from "./db";
 import { enqueueAudit } from "./events";
+import { syncMcpTools } from "./mcp-install";
 import {
   allowedReturnUrl,
   HttpError,
@@ -688,8 +689,38 @@ export async function finishOAuth(
         metadata: { scopes: grantedScopes },
       });
 
+      const mcpRows = await sql<{ protocol: string; mcp_url: string | null }[]>`
+        select protocol, mcp_url
+        from public.connector_catalog
+        where id = ${config.connector_id}::uuid
+        limit 1
+      `;
+      if (
+        mcpRows[0]?.protocol === "mcp" &&
+        mcpRows[0].mcp_url &&
+        typeof token.access_token === "string"
+      ) {
+        try {
+          await syncMcpTools(sql, {
+            connectorId: config.connector_id,
+            installationId,
+            mcpUrl: mcpRows[0].mcp_url,
+            accessToken: token.access_token,
+          });
+        } catch {
+          await sql`
+            update public.connector_installations
+            set last_error_code = 'mcp_sync_failed',
+                last_error_at = now(),
+                updated_at = now()
+            where id = ${installationId}::uuid
+          `;
+        }
+      }
+
       return redirectWithResult(transaction.return_url, {
         connector: connectorKey,
+        plugin: "1",
         connector_connected: "1",
       });
     } catch (error) {

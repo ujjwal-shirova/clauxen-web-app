@@ -1241,7 +1241,9 @@ export type Database = {
           id: string
           key: string
           metadata: Json
+          mcp_url: string | null
           name: string
+          protocol: string
           provider: string
           scopes: string[]
           status: string
@@ -1251,10 +1253,13 @@ export type Database = {
           auth_type?: string
           config_schema?: Json
           created_at?: string
+          documentation_url?: string | null
           id?: string
           key: string
           metadata?: Json
+          mcp_url?: string | null
           name: string
+          protocol?: string
           provider: string
           scopes?: string[]
           status?: string
@@ -1264,10 +1269,13 @@ export type Database = {
           auth_type?: string
           config_schema?: Json
           created_at?: string
+          documentation_url?: string | null
           id?: string
           key?: string
           metadata?: Json
+          mcp_url?: string | null
           name?: string
+          protocol?: string
           provider?: string
           scopes?: string[]
           status?: string

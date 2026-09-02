@@ -56,7 +56,7 @@ import {
 import { McpConnectorHarness } from "@/server/mcp/registry";
 
 /** Cap MCP discovery so a hung connector cannot delay first token. */
-const MCP_DISCOVER_BUDGET_MS = 1_500;
+const MCP_DISCOVER_BUDGET_MS = 4_000;
 
 /** Single autonomous step budget. The model decides how many steps it needs. */
 const MAX_STEPS = 24;
@@ -325,7 +325,7 @@ export async function runAutonomousAgent(
     conversationId,
     userCountryCode,
     signal,
-    systemPrompt,
+    systemPrompt: initialSystemPrompt,
     maxTokens,
     onPauseForUser,
   } = options;
@@ -355,6 +355,32 @@ export async function runAutonomousAgent(
       mcpTools = [];
     }
   }
+
+  const connectedPluginNames = [
+    ...new Set(
+      mcpTools
+        .map((tool) => {
+          const match = /Connected Clauxen plugin: ([^.]+)\./.exec(
+            tool.description,
+          );
+          return match?.[1]?.trim();
+        })
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ];
+  const connectedSkills = mcpTools.filter((tool) =>
+    tool.description.includes("MCP skill from"),
+  );
+  const pluginPrompt = connectedPluginNames.length
+    ? `\n\nThe user connected these MCP plugins in Clauxen. Use their mcp__ tools when the request is about those products or accounts:\n${connectedPluginNames.map((name) => `- ${name}`).join("\n")}`
+    : "";
+  const skillPrompt = connectedSkills.length
+    ? `\n\nConnected MCP skills (invoke the matching mcp__ tool to run them):\n${connectedSkills
+        .slice(0, 40)
+        .map((tool) => `- ${tool.name}`)
+        .join("\n")}`
+    : "";
+  const systemPrompt = `${initialSystemPrompt ?? ""}${pluginPrompt}${skillPrompt}` || initialSystemPrompt;
 
   const openAITools = toOpenAITools([
     ...autonomousAgentTools

@@ -8,6 +8,7 @@ import {
   Check,
   ChevronLeft,
   ExternalLink,
+  LoaderCircle,
   Plus,
   ShieldCheck,
   Wrench,
@@ -15,22 +16,7 @@ import {
 import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
 import type { PluginCatalogItem } from "@/lib/plugins/types";
-
-const STORAGE_KEY = "clauxen_installed_directory_plugin_ids_v2";
-
-function readInstalled() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const saved = raw ? (JSON.parse(raw) as unknown) : [];
-    return new Set(
-      Array.isArray(saved)
-        ? saved.filter((value): value is string => typeof value === "string")
-        : [],
-    );
-  } catch {
-    return new Set<string>();
-  }
-}
+import { usePluginInstallations } from "./use-plugin-installations";
 
 function safeAccent(value: string) {
   return /^#[0-9a-f]{3,8}$/i.test(value) ? value : "#64748b";
@@ -104,8 +90,9 @@ export function PluginDetailView({
   plugin: PluginCatalogItem;
   returnCategory?: string | null;
 }) {
-  const [installed, setInstalled] = useState(false);
-  useEffect(() => setInstalled(readInstalled().has(plugin.id)), [plugin.id]);
+  const installations = usePluginInstallations();
+  const installed = installations.isInstalled(plugin.id);
+  const busy = installations.pendingId === plugin.id;
 
   const prompts = useMemo(
     () => plugin.defaultPrompts.filter(Boolean).slice(0, 3),
@@ -141,15 +128,8 @@ export function PluginDetailView({
   } as CSSProperties;
 
   const toggleInstallation = () => {
-    const next = readInstalled();
-    if (next.has(plugin.id)) next.delete(plugin.id);
-    else next.add(plugin.id);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
-    } catch {
-      // Keep the current-session state when storage is unavailable.
-    }
-    setInstalled(next.has(plugin.id));
+    if (installed) void installations.remove(plugin.id);
+    else void installations.install(plugin.id, { category: returnCategory });
   };
 
   return (
@@ -207,20 +187,27 @@ export function PluginDetailView({
                   <button
                     type="button"
                     onClick={toggleInstallation}
+                    disabled={busy}
                     aria-pressed={installed}
                     className={cn(
-                      "no-hover no-hover-overlay inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 text-[12.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)]",
+                      "plugin-add-button no-hover no-hover-overlay inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border px-3.5 text-[12.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)] disabled:cursor-wait disabled:opacity-60",
                       installed
                         ? "border-[var(--ui-border)] bg-[var(--app-panel-bg)] text-[var(--ui-fg)] hover:border-[var(--ui-border)] hover:bg-[var(--app-panel-bg)] hover:text-[var(--ui-fg)]"
                         : "border-[var(--ui-fg)] bg-[var(--ui-fg)] text-[var(--app-panel-bg)] hover:border-[var(--ui-fg)] hover:bg-[var(--ui-fg)] hover:text-[var(--app-panel-bg)]",
                     )}
                   >
-                    {installed ? (
+                    {busy ? (
+                      <LoaderCircle className="size-3.5 animate-spin" />
+                    ) : installed ? (
                       <Check className="size-3.5" strokeWidth={2.2} />
                     ) : (
                       <Plus className="size-3.5" strokeWidth={2} />
                     )}
-                    {installed ? "Added to Clauxen" : "Add to Clauxen"}
+                    {busy
+                      ? "Connecting"
+                      : installed
+                        ? "Added to Clauxen"
+                        : "Add to Clauxen"}
                   </button>
                   <Link
                     href={`/new?prompt=${encodeURIComponent(`@${plugin.displayName} `)}`}
@@ -230,6 +217,11 @@ export function PluginDetailView({
                     Open in chat <ArrowRight className="size-3.5" />
                   </Link>
                 </div>
+                {installations.error ? (
+                  <p className="mt-3 text-[12px] text-red-600">
+                    {installations.error}
+                  </p>
+                ) : null}
               </div>
             </div>
 

@@ -137,19 +137,30 @@ export function errorResponse(error: unknown, requestId: string): Response {
 }
 
 export function allowedReturnUrl(value: string, env: Env): string {
-  const candidate = httpsUrl(value, "returnUrl");
-  const url = new URL(candidate);
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new HttpError("returnUrl must be a valid URL.", 400, "invalid_url");
+  }
+  const isLocal =
+    parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+  if (parsed.protocol !== "https:" && !(isLocal && parsed.protocol === "http:")) {
+    throw new HttpError("returnUrl must use HTTPS.", 400, "invalid_url");
+  }
   const rules = env.APP_ORIGINS.split(",").map((item) => item.trim());
   const allowed = rules.some((rule) => {
     if (!rule) return false;
-    if (rule === url.origin) return true;
-    if (!rule.startsWith("https://*.")) return false;
-    const suffix = rule.slice("https://*.".length);
-    return (
-      url.protocol === "https:" &&
-      url.hostname.endsWith(`.${suffix}`) &&
-      url.hostname !== suffix
-    );
+    if (rule === parsed.origin) return true;
+    if (rule.startsWith("https://*.")) {
+      const suffix = rule.slice("https://*.".length);
+      return (
+        parsed.protocol === "https:" &&
+        parsed.hostname.endsWith(`.${suffix}`) &&
+        parsed.hostname !== suffix
+      );
+    }
+    return false;
   });
   if (!allowed) {
     throw new HttpError(
@@ -158,5 +169,5 @@ export function allowedReturnUrl(value: string, env: Env): string {
       "invalid_return_url",
     );
   }
-  return url.toString();
+  return parsed.toString();
 }

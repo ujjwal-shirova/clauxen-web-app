@@ -425,7 +425,6 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               onAppsExtensionsClick={onAppsExtensionsClick}
               onGiftClick={onGiftClick}
               onProjectsClick={goToProjects}
-              onClauxenCodeClick={() => onSettingsClick("Clauxen Code")}
               activeView={computeActiveView(
                 pathname,
                 overlays.currentOverlay?.type ?? null,

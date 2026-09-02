@@ -14,6 +14,7 @@ import {
   requireAdmin,
   requireInternal,
 } from "./http";
+import { installMcpPlugin } from "./mcp-install";
 import { configureOAuthConnector, finishOAuth, startOAuth } from "./oauth";
 import { consumeConnectorEvents } from "./events";
 import { recordMetric } from "./metrics";
@@ -98,6 +99,10 @@ async function route(
   if (request.method === "POST" && path === "/v1/oauth/start") {
     await enforceRateLimit(env.CONNECTOR_OAUTH_RATE_LIMITER, `oauth:${userId}`);
     return startOAuth(request, env, ctx, userId);
+  }
+  if (request.method === "POST" && path === "/v1/mcp/install") {
+    await enforceRateLimit(env.CONNECTOR_OAUTH_RATE_LIMITER, `oauth:${userId}`);
+    return installMcpPlugin(request, env, ctx, userId);
   }
   if (request.method === "POST" && path === "/v1/tools/call") {
     await enforceRateLimit(env.CONNECTOR_TOOL_RATE_LIMITER, `tool:${userId}`);
