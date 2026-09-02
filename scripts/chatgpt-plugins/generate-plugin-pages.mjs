@@ -44,6 +44,7 @@ const metadataRows = (plugin) => {
 
   const links = [
     ['Website', cleanUrl(plugin.websiteUrl)],
+    ['MCP', cleanUrl(plugin.mcpUrl)],
     ['Privacy policy', cleanUrl(plugin.privacyPolicyUrl)],
     ['Terms of service', cleanUrl(plugin.termsOfServiceUrl)],
   ].filter(([, value]) => value);

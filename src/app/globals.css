@@ -4528,9 +4528,12 @@ button[data-speed-toggle]:hover,
   box-shadow: none !important;
 }
 
-/* Active / pressed / selected / open states — skip filled prompt controls */
-button[aria-pressed="true"]:not(:disabled):not(.prompt-control-filled),
-button[data-active="true"]:not(.prompt-control-filled),
+/* Active / pressed / selected / open states — skip filled prompt controls
+   and segmented pills (those own their own elevated background). */
+button[aria-pressed="true"]:not(:disabled):not(.prompt-control-filled):not(
+    .segmented-option
+  ),
+button[data-active="true"]:not(.prompt-control-filled):not(.segmented-option),
 button[data-speed-toggle][data-active="true"],
 [data-prompt-input]
   button[aria-expanded="true"]:not(.prompt-control-filled):not(
@@ -5313,7 +5316,7 @@ button[data-speed-toggle][data-state="open"] {
     [role="button"][data-state="open"]
   ):not(.prompt-control-filled):not(.prompt-control-ghost):not(
     .context-usage-trigger
-  ) {
+  ):not(.segmented-option) {
   background-color: color-mix(
     in oklab,
     var(--ui-hover-wash) 78%,

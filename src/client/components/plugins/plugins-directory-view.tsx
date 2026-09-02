@@ -349,6 +349,18 @@ export function PluginsDirectoryView({
             </div>
           ) : null}
 
+          {!isSearch ? (
+            <p className="text-[12px] text-[var(--ui-fg-placeholder)]">
+              {requestedCategory
+                ? `${requestedCategory.count.toLocaleString()} in ${requestedCategory.title}`
+                : `${data.total.toLocaleString()} plugins`}
+            </p>
+          ) : data.total > 0 ? (
+            <p className="text-[12px] text-[var(--ui-fg-placeholder)]">
+              {data.total.toLocaleString()} results
+            </p>
+          ) : null}
+
           {!isSearch && !requestedCategory && installedItems.length > 0 ? (
             <section className="flex items-center gap-3 rounded-2xl border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] px-4 py-3">
               <span className="shrink-0 text-[12px] font-semibold text-[var(--ui-fg)]">Your tools</span>

@@ -22,6 +22,7 @@ export type PluginCatalogItem = {
   directoryDescription: string;
   captureStatus: "detail-api" | "index-only";
   detailFetchError?: string;
+  mcpUrl: string;
 };
 
 export type PluginSummary = Pick<

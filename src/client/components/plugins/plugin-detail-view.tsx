@@ -126,6 +126,7 @@ export function PluginDetailView({
     : "/plugins";
   const externalLinks = [
     ["Website", safeExternalUrl(plugin.websiteUrl)],
+    ["MCP", safeExternalUrl(plugin.mcpUrl)],
     ["Privacy", safeExternalUrl(plugin.privacyPolicyUrl)],
     ["Terms", safeExternalUrl(plugin.termsOfServiceUrl)],
   ].flatMap(([label, href]) => (href ? [{ label, href }] : []));

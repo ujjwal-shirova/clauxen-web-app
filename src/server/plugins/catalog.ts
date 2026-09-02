@@ -25,6 +25,11 @@ const categoryCopy: Record<string, Omit<PluginCategory, "slug" | "count">> = {
     description: "A curated selection of useful and noteworthy plugins.",
     searchPlaceholder: "Search popular plugins",
   },
+  "new-and-noteworthy": {
+    title: "New & Noteworthy",
+    description: "Recently listed plugins worth trying.",
+    searchPlaceholder: "Search new plugins",
+  },
   productivity: {
     title: "Productivity",
     description: "Organize your work, automate tasks, and get more done.",
@@ -101,9 +106,16 @@ const categoryCopy: Record<string, Omit<PluginCategory, "slug" | "count">> = {
 let catalogPromise: Promise<RawCatalog> | null = null;
 
 async function getCatalog(): Promise<RawCatalog> {
-  catalogPromise ??= readFile(catalogPath, "utf8").then(
-    (value) => JSON.parse(value) as RawCatalog,
-  );
+  catalogPromise ??= readFile(catalogPath, "utf8").then((value) => {
+    const parsed = JSON.parse(value) as RawCatalog;
+    const plugins = (parsed.plugins || []).filter(
+      (plugin) => typeof plugin.mcpUrl === "string" && plugin.mcpUrl.length > 0,
+    );
+    const categories = (parsed.categories || []).filter((slug) =>
+      plugins.some((plugin) => plugin.categories.includes(slug)),
+    );
+    return { categories, plugins };
+  });
   return catalogPromise;
 }
 
@@ -126,20 +138,22 @@ function makeSummary(plugin: PluginCatalogItem): PluginSummary {
 }
 
 function categoryList(catalog: RawCatalog): PluginCategory[] {
-  return catalog.categories.map((slug) => {
-    const copy = categoryCopy[slug] ?? {
-      title: slug.replace(/-/g, " "),
-      description: "Explore available plugins.",
-      searchPlaceholder: "Search plugins",
-    };
-    return {
-      slug,
-      ...copy,
-      count: catalog.plugins.filter((plugin) =>
-        plugin.categories.includes(slug),
-      ).length,
-    };
-  });
+  return catalog.categories
+    .map((slug) => {
+      const copy = categoryCopy[slug] ?? {
+        title: slug.replace(/-/g, " "),
+        description: "Explore available plugins.",
+        searchPlaceholder: "Search plugins",
+      };
+      return {
+        slug,
+        ...copy,
+        count: catalog.plugins.filter((plugin) =>
+          plugin.categories.includes(slug),
+        ).length,
+      };
+    })
+    .filter((category) => category.count > 0);
 }
 
 function matches(plugin: PluginCatalogItem, query: string) {
