@@ -96,7 +96,11 @@ export function enqueueAudit(
   ctx: ExecutionContext,
   event: ConnectorAuditEvent,
 ): void {
-  ctx.waitUntil(env.CONNECTOR_EVENTS.send(queuedEvent(event)));
+  try {
+    ctx.waitUntil(env.CONNECTOR_EVENTS.send(queuedEvent(event)));
+  } catch {
+    // Audit delivery must never fail the user-facing connector request.
+  }
 }
 
 function parseQueuedEvent(value: unknown): QueuedConnectorAuditEvent | null {

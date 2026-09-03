@@ -262,3 +262,33 @@ export async function getPluginByRouteSegment(segment: string) {
 export async function getPluginById(pluginId: string) {
   return getPluginByRouteSegment(pluginId);
 }
+
+export async function getRelatedPlugins(
+  plugin: PluginCatalogItem,
+  limit = 6,
+): Promise<PluginSummary[]> {
+  const catalog = await getCatalog();
+  const primaryCategories = new Set(plugin.categories || []);
+  const primaryKeywords = new Set((plugin.keywords || []).map((k) => k.toLowerCase()));
+
+  const scored = catalog.plugins
+    .filter((candidate) => candidate.id !== plugin.id)
+    .map((candidate) => {
+      let score = 0;
+      for (const cat of candidate.categories || []) {
+        if (primaryCategories.has(cat)) score += 3;
+      }
+      for (const kw of candidate.keywords || []) {
+        if (primaryKeywords.has(kw.toLowerCase())) score += 1;
+      }
+      if (candidate.developer && plugin.developer && candidate.developer.toLowerCase() === plugin.developer.toLowerCase()) {
+        score += 2;
+      }
+      return { candidate, score };
+    })
+    .sort((a, b) => b.score - a.score || (a.candidate.displayName || "").localeCompare(b.candidate.displayName || ""))
+    .slice(0, limit)
+    .map(({ candidate }) => makeSummary(candidate));
+
+  return scored;
+}

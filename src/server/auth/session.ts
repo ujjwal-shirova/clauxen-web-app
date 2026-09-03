@@ -107,9 +107,24 @@ async function getBearerSession(
 async function getCookieSession(
   request: NextRequest,
 ): Promise<SessionUser | null> {
-  const session = request.cookies.get(env.sessionCookieName)?.value;
-  if (!session) return null;
-  return profileForUserId(session);
+  const session = request.cookies.get(env.sessionCookieName)?.value?.trim();
+  if (
+    !session ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      session,
+    )
+  ) {
+    return null;
+  }
+  const profile = await profileForUserId(session);
+  if (profile) return profile;
+  return {
+    id: session,
+    email: null,
+    displayName: "Dev",
+    preferredName: null,
+    avatarUrl: null,
+  };
 }
 
 /**

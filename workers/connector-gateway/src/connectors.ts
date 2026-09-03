@@ -298,13 +298,29 @@ export async function listTools(env: Env, userId: string): Promise<Response> {
     const tools = rows.map((row) => {
       const kindLabel =
         row.mcpKind === "skill" ? "MCP skill" : "MCP tool";
+      let inputSchema: Record<string, unknown> = {
+        type: "object",
+        properties: {},
+      };
+      if (row.inputSchema && typeof row.inputSchema === "object") {
+        inputSchema = row.inputSchema;
+      } else if (typeof row.inputSchema === "string") {
+        try {
+          const parsed = JSON.parse(row.inputSchema) as unknown;
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            inputSchema = parsed as Record<string, unknown>;
+          }
+        } catch {
+          // keep empty object schema
+        }
+      }
       return {
         qualifiedName: `mcp__${row.connectorKey.replace(/[^a-zA-Z0-9_-]/g, "_")}__${row.toolName}`,
         connectorKey: row.connectorKey,
         connectorName: row.connectorName,
         toolName: row.toolName,
         description: `${row.description || row.toolName} ${kindLabel} from ${row.connectorName}. Connected Clauxen plugin: ${row.connectorName}.`,
-        inputSchema: row.inputSchema,
+        inputSchema,
       };
     });
     return json({ data: { tools } });

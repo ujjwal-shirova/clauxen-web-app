@@ -16,6 +16,7 @@ import {
   stringField,
 } from "./http";
 import { WorkerMcpClient, type McpHttpTool, type McpPrompt } from "./mcp-client";
+import { textArray } from "./pg";
 
 type JsonValue =
   | null
@@ -375,7 +376,7 @@ async function writeMcpTools(
         update public.connector_tools
         set is_enabled = false, updated_at = now()
         where connector_id = ${connectorId}::uuid
-          and not (name = any(${names}))
+          and not (name = any(${textArray(tx, names)}))
       `;
     }
   });
@@ -397,7 +398,7 @@ async function upsertMcpCatalog(
       key, name, provider, auth_type, protocol, mcp_url, scopes, status, metadata
     ) values (
       ${input.connectorKey}, ${input.displayName}, ${new URL(input.mcpUrl).hostname},
-      ${input.authType}, 'mcp', ${input.mcpUrl}, '{}', 'active',
+      ${input.authType}, 'mcp', ${input.mcpUrl}, '{}'::text[], 'active',
       ${sql.json({
         pluginId: input.pluginId,
         mcpUrl: input.mcpUrl,
@@ -503,6 +504,7 @@ export async function installMcpPlugin(
   }
 
   return withDatabase(env, async (sql) => {
+    try {
     if (probe.authorized) {
       const connectorId = await upsertMcpCatalog(sql, {
         connectorKey,
@@ -601,7 +603,7 @@ export async function installMcpPlugin(
           ${sealedSecret?.ciphertext ?? null}, ${sealedSecret?.nonce ?? null},
           ${discovery.authorizationEndpoint}, ${discovery.tokenEndpoint},
           ${discovery.revocationEndpoint}, ${mcpUrl},
-          ${registered.authMethod}, ${discovery.scopes},
+          ${registered.authMethod}, ${textArray(sql, discovery.scopes)},
           ${sql.json({ resource: discovery.resource })},
           ${sql.json({ resource: discovery.resource })},
           true, true
@@ -629,7 +631,7 @@ export async function installMcpPlugin(
             token_endpoint = ${discovery.tokenEndpoint},
             revocation_endpoint = ${discovery.revocationEndpoint},
             api_base_url = ${mcpUrl},
-            scopes = ${discovery.scopes},
+            scopes = ${textArray(sql, discovery.scopes)},
             authorization_params = ${sql.json({ resource: discovery.resource })},
             token_params = ${sql.json({ resource: discovery.resource })},
             supports_pkce = true,
@@ -664,7 +666,7 @@ export async function installMcpPlugin(
       ) values (
         ${stateHash}, ${connectorId}::uuid, ${userId}::uuid, null,
         ${verifierEnvelope.ciphertext}, ${verifierEnvelope.nonce},
-        ${redirectUri}, ${returnUrl}, ${discovery.scopes},
+        ${redirectUri}, ${returnUrl}, ${textArray(sql, discovery.scopes)},
         now() + (${ttlSeconds} * interval '1 second')
       )
     `;
@@ -698,6 +700,14 @@ export async function installMcpPlugin(
         expiresIn: ttlSeconds,
       },
     });
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(
+        "Unable to add this plugin.",
+        502,
+        "mcp_install_failed",
+      );
+    }
   });
 }
 

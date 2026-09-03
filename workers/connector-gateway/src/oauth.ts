@@ -9,6 +9,7 @@ import {
 import { withDatabase } from "./db";
 import { enqueueAudit } from "./events";
 import { syncMcpTools } from "./mcp-install";
+import { parseTextArray, textArray } from "./pg";
 import {
   allowedReturnUrl,
   HttpError,
@@ -153,7 +154,12 @@ async function oauthConfigByKey(
       and (${enabledOnly} = false or config.enabled = true)
     limit 1
   `;
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    ...row,
+    scopes: parseTextArray(row.scopes),
+  };
 }
 
 export async function configureOAuthConnector(
@@ -213,7 +219,7 @@ export async function configureOAuthConnector(
       insert into public.connector_catalog (
         key, name, provider, auth_type, protocol, scopes, status, metadata
       ) values (
-        ${connectorKey}, ${name}, ${provider}, 'oauth2', 'rest', ${scopes},
+        ${connectorKey}, ${name}, ${provider}, 'oauth2', 'rest', ${textArray(sql, scopes)},
         'beta', '{}'::jsonb
       )
       on conflict (key) do update set
@@ -246,7 +252,7 @@ export async function configureOAuthConnector(
         ${sealed?.nonce ?? null}, ${authorizationEndpoint}, ${tokenEndpoint},
         ${revocationRaw ? httpsUrl(revocationRaw, "revocationEndpoint") : null},
         ${apiBaseRaw ? httpsUrl(apiBaseRaw, "apiBaseUrl") : null},
-        ${clientAuthMethod}, ${scopes}, ${sql.json(safeOAuthParams(authorizationParams))},
+        ${clientAuthMethod}, ${textArray(sql, scopes)}, ${sql.json(safeOAuthParams(authorizationParams))},
         ${sql.json(safeOAuthParams(tokenParams))}, ${supportsPkce}, ${enabled}
       )
       on conflict (connector_id) do update set
@@ -359,7 +365,7 @@ export async function startOAuth(
       ) values (
         ${stateHash}, ${config.connector_id}::uuid, ${userId}::uuid,
         ${workspaceId}::uuid, ${verifierEnvelope.ciphertext},
-        ${verifierEnvelope.nonce}, ${redirectUri}, ${returnUrl}, ${config.scopes},
+        ${verifierEnvelope.nonce}, ${redirectUri}, ${returnUrl}, ${textArray(sql, config.scopes)},
         now() + (${ttlSeconds} * interval '1 second')
       )
     `;
@@ -549,6 +555,7 @@ export async function finishOAuth(
         "invalid_oauth_state",
       );
     }
+    transaction.requested_scopes = parseTextArray(transaction.requested_scopes);
     if (providerError || !code) {
       enqueueAudit(env, ctx, {
         userId: transaction.user_id,
@@ -592,7 +599,7 @@ export async function finishOAuth(
           connector_id, user_id, workspace_id, status, granted_scopes, connected_at
         ) values (
           ${config.connector_id}::uuid, ${transaction.user_id}::uuid,
-          ${transaction.workspace_id}::uuid, 'pending', ${transaction.requested_scopes}, now()
+          ${transaction.workspace_id}::uuid, 'pending', ${textArray(sql, transaction.requested_scopes)}, now()
         )
         on conflict do nothing
         returning id
@@ -672,7 +679,7 @@ export async function finishOAuth(
         `;
         await transactionSql`
           update public.connector_installations
-          set status = 'active', granted_scopes = ${grantedScopes},
+          set status = 'active', granted_scopes = ${textArray(transactionSql, grantedScopes)},
               connected_at = now(), last_error_code = null,
               last_error_at = null, updated_at = now()
           where id = ${installationId}::uuid

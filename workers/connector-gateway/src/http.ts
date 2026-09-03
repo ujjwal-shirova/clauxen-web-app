@@ -129,7 +129,10 @@ export function errorResponse(error: unknown, requestId: string): Response {
   );
   return json(
     {
-      error: { code: "internal_error", message: "Internal connector error." },
+      error: {
+        code: "internal_error",
+        message: "Internal connector error.",
+      },
       requestId,
     },
     500,

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PluginDetailView } from "@/components/plugins/plugin-detail-view";
-import { getPluginByRouteSegment } from "@/server/plugins/catalog";
+import {
+  getPluginByRouteSegment,
+  getRelatedPlugins,
+} from "@/server/plugins/catalog";
 
 type PluginPageProps = {
   params: Promise<{ slug: string }>;
@@ -15,8 +18,11 @@ export async function generateMetadata({
   const plugin = await getPluginByRouteSegment(slug);
   return plugin
     ? {
-        title: `${plugin.name} plugin - Clauxen`,
-        description: plugin.description,
+        title: `${plugin.displayName || plugin.name} Plugin - Clauxen`,
+        description:
+          plugin.shortDescription ||
+          plugin.description ||
+          `Use the ${plugin.displayName} plugin with Clauxen.`,
       }
     : { title: "Plugin not found - Clauxen" };
 }
@@ -33,7 +39,13 @@ export default async function PluginPage({
     ? query.category[0]
     : query.category;
 
+  const related = await getRelatedPlugins(plugin, 6);
+
   return (
-    <PluginDetailView plugin={plugin} returnCategory={rawCategory ?? null} />
+    <PluginDetailView
+      plugin={plugin}
+      relatedPlugins={related}
+      returnCategory={rawCategory ?? null}
+    />
   );
 }

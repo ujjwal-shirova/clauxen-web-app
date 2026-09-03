@@ -56,7 +56,7 @@ import {
 import { McpConnectorHarness } from "@/server/mcp/registry";
 
 /** Cap MCP discovery so a hung connector cannot delay first token. */
-const MCP_DISCOVER_BUDGET_MS = 4_000;
+const MCP_DISCOVER_BUDGET_MS = 8_000;
 
 /** Single autonomous step budget. The model decides how many steps it needs. */
 const MAX_STEPS = 24;
