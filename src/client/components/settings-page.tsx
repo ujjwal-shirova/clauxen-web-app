@@ -309,7 +309,7 @@ export function SettingsModal({
         return (
           <SecuritySettings
             onLogout={onLogout}
-            userEmail={user?.email}
+            userEmail={user?.email ?? undefined}
             mfaEnabled={Boolean(safety.mfaEnabled)}
             onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
           />
