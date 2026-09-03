@@ -53,7 +53,7 @@ export function DeleteChatDialog({
                   onOpenChange(false);
                   onOpenSettings?.();
                 }}
-                className="font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 transition-colors hover:text-zinc-900 hover:decoration-zinc-500"
+                className="clickable-label cursor-pointer font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 transition-colors hover:text-zinc-900 hover:decoration-zinc-500"
               >
                 settings
               </button>{" "}

@@ -84,6 +84,19 @@ export type SafetySettings = {
   mfaEnabled: boolean;
 };
 
+export const PLUGIN_PERMISSION_MODES = [
+  "always-ask",
+  "allow-low-risk",
+  "always-allow",
+] as const;
+
+export type PluginPermissionMode = (typeof PLUGIN_PERMISSION_MODES)[number];
+
+export type PluginSettings = {
+  permissionMode: PluginPermissionMode;
+  developerMode: boolean;
+};
+
 export type ClawDeployment = {
   id: string;
   name: string;
@@ -109,6 +122,7 @@ export type AppSettings = {
   timeAndFocus: TimeAndFocusSettings;
   reflect: ReflectSettings;
   safety: SafetySettings;
+  plugins: PluginSettings;
   claw: { deployments: ClawDeployment[] };
 };
 
@@ -125,6 +139,7 @@ export async function updateSettings(patch: {
   timeAndFocus?: Partial<TimeAndFocusSettings>;
   reflect?: Partial<ReflectSettings>;
   safety?: Partial<SafetySettings>;
+  plugins?: Partial<PluginSettings>;
   claw?: Partial<{ deployments: ClawDeployment[] }>;
 }) {
   return apiFetch<AppSettings>("/api/v1/settings", {

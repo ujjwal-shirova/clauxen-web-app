@@ -8,6 +8,7 @@ import type {
   GeneralSettings,
   NotificationSettings,
   PersonalizationSettings,
+  PluginSettings,
   PrivacySettings,
   ReflectSettings,
   SafetySettings,
@@ -38,6 +39,7 @@ function mergeLocal(prev: AppSettings, patch: SettingsPatch): AppSettings {
       : prev.timeAndFocus,
     reflect: patch.reflect ? { ...prev.reflect, ...patch.reflect } : prev.reflect,
     safety: patch.safety ? { ...prev.safety, ...patch.safety } : prev.safety,
+    plugins: patch.plugins ? { ...prev.plugins, ...patch.plugins } : prev.plugins,
     claw: patch.claw ? { ...prev.claw, ...patch.claw } : prev.claw,
   });
 }
@@ -66,6 +68,7 @@ function mergePatches(a: SettingsPatch, b: SettingsPatch): SettingsPatch {
         : undefined,
     reflect: a.reflect || b.reflect ? { ...a.reflect, ...b.reflect } : undefined,
     safety: a.safety || b.safety ? { ...a.safety, ...b.safety } : undefined,
+    plugins: a.plugins || b.plugins ? { ...a.plugins, ...b.plugins } : undefined,
     claw: a.claw || b.claw ? { ...a.claw, ...b.claw } : undefined,
   };
 }
@@ -226,6 +229,11 @@ export function useSettings(enabled: boolean) {
     [schedulePersist],
   );
 
+  const updatePlugins = useCallback(
+    (patch: Partial<PluginSettings>) => schedulePersist({ plugins: patch }),
+    [schedulePersist],
+  );
+
   const createClawDeployment = useCallback(
     async (
       name: string,
@@ -274,6 +282,7 @@ export function useSettings(enabled: boolean) {
     updateTimeAndFocus,
     updateReflect,
     updateSafety,
+    updatePlugins,
     createClawDeployment,
     persist,
   };

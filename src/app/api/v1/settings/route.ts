@@ -98,6 +98,17 @@ const defaultSafety = {
   mfaEnabled: false,
 };
 
+const defaultPlugins = {
+  permissionMode: "allow-low-risk",
+  developerMode: false,
+};
+
+const PLUGIN_PERMISSION_MODES = [
+  "always-ask",
+  "allow-low-risk",
+  "always-allow",
+] as const;
+
 function mergeSettings<T extends Record<string, unknown>>(
   defaults: T,
   stored?: Record<string, unknown> | null,
@@ -184,6 +195,22 @@ function toClientPayload(
       defaultSafety,
       stored.safety as Record<string, unknown>,
     ),
+    plugins: (() => {
+      const merged = mergeSettings(
+        defaultPlugins,
+        stored.plugins as Record<string, unknown>,
+      );
+      if (
+        typeof merged.permissionMode !== "string" ||
+        !PLUGIN_PERMISSION_MODES.includes(
+          merged.permissionMode as (typeof PLUGIN_PERMISSION_MODES)[number],
+        )
+      ) {
+        merged.permissionMode = defaultPlugins.permissionMode;
+      }
+      merged.developerMode = Boolean(merged.developerMode);
+      return merged;
+    })(),
     claw: (stored.claw as { deployments?: unknown[] }) ?? { deployments: [] },
   };
 }
@@ -253,6 +280,7 @@ export const PATCH = withApiHandler(
       timeAndFocus?: Record<string, unknown>;
       reflect?: Record<string, unknown>;
       safety?: Record<string, unknown>;
+      plugins?: Record<string, unknown>;
       claw?: Record<string, unknown>;
     };
 
@@ -271,6 +299,7 @@ export const PATCH = withApiHandler(
       "timeAndFocus",
       "reflect",
       "safety",
+      "plugins",
       "claw",
     ] as const) {
       if (body[key]) {
@@ -282,6 +311,19 @@ export const PATCH = withApiHandler(
           patch.customInstructions = sanitizeCustomInstructions(
             patch.customInstructions,
           );
+        }
+        if (key === "plugins") {
+          if (
+            typeof patch.permissionMode === "string" &&
+            !PLUGIN_PERMISSION_MODES.includes(
+              patch.permissionMode as (typeof PLUGIN_PERMISSION_MODES)[number],
+            )
+          ) {
+            delete patch.permissionMode;
+          }
+          if (patch.developerMode != null) {
+            patch.developerMode = Boolean(patch.developerMode);
+          }
         }
         nextSettings[key] = {
           ...((currentSettings[key] as Record<string, unknown>) ?? {}),

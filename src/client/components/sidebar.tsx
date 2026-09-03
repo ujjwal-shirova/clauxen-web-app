@@ -14,6 +14,7 @@ import {
   Plus,
   Languages,
   Sparkles,
+  Wand2,
   X,
   LayoutGrid,
   Clock3,
@@ -185,6 +186,7 @@ interface SidebarProps {
   onUpgradeClick: () => void;
   onSettingsClick: () => void;
   onPersonalizationClick?: () => void;
+  onPluginsClick?: () => void;
   onAppsExtensionsClick: () => void;
   onGiftClick: () => void;
   onProjectsClick: () => void;
@@ -229,6 +231,7 @@ export function Sidebar({
   onUpgradeClick,
   onSettingsClick,
   onPersonalizationClick,
+  onPluginsClick,
   onAppsExtensionsClick,
   onGiftClick,
   onProjectsClick,
@@ -1016,6 +1019,25 @@ export function Sidebar({
                       >
                         <Sparkles className="size-4 text-zinc-800" />
                         <span>Personalization</span>
+                      </AppHref>
+                    </DropdownMenuItem>
+                  )}
+                  {onPluginsClick && (
+                    <DropdownMenuItem asChild>
+                      <AppHref
+                        href={overlayHref({
+                          type: "settings",
+                          tab: "Plugins",
+                        })}
+                        onClick={(e) => {
+                          if (!isPlainLeftClick(e)) return;
+                          e.preventDefault();
+                          runAccountOverlayAction(onPluginsClick);
+                        }}
+                        className="ui-menu-row no-hover-overlay cursor-pointer"
+                      >
+                        <Wand2 className="size-4 text-zinc-800" />
+                        <span>Plugins</span>
                       </AppHref>
                     </DropdownMenuItem>
                   )}

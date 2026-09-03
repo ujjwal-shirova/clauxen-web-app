@@ -265,6 +265,11 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     closeMobileNav();
   }, [overlays, closeMobileNav]);
 
+  const onPluginsClick = useCallback(() => {
+    overlays.openSettings("Plugins");
+    closeMobileNav();
+  }, [overlays, closeMobileNav]);
+
   const onAppsExtensionsClick = useCallback(() => {
     overlays.openApps();
     closeMobileNav();
@@ -422,6 +427,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               onUpgradeClick={onUpgradeClick}
               onSettingsClick={() => onSettingsClick("General")}
               onPersonalizationClick={onPersonalizationClick}
+              onPluginsClick={onPluginsClick}
               onAppsExtensionsClick={onAppsExtensionsClick}
               onGiftClick={onGiftClick}
               onProjectsClick={goToProjects}

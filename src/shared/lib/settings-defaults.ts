@@ -76,5 +76,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     reduceSensitiveContent: true,
     mfaEnabled: false,
   },
+  plugins: {
+    permissionMode: "allow-low-risk",
+    developerMode: false,
+  },
   claw: { deployments: [] },
 };

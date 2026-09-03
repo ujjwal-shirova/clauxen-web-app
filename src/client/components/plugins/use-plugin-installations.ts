@@ -7,6 +7,7 @@ export type PluginInstallation = {
   connectorKey: string;
   connectorName: string;
   pluginId?: string | null;
+  logoUrl?: string | null;
   status: string;
   toolCount?: number;
 };
@@ -61,6 +62,7 @@ export function usePluginInstallations() {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   // Load collection on client mount & listen for updates
   useEffect(() => {
@@ -79,11 +81,18 @@ export function usePluginInstallations() {
   }, []);
 
   const refresh = useCallback(async () => {
-    const response = await fetch("/api/v1/connectors", { cache: "no-store" });
-    if (response.status === 401) return;
-    if (!response.ok) return;
-    const payload = (await response.json()) as ConnectionsEnvelope;
-    setConnections(payload.data?.connections ?? []);
+    try {
+      const response = await fetch("/api/v1/connectors", { cache: "no-store" });
+      if (response.status === 401) {
+        setConnections([]);
+        return;
+      }
+      if (!response.ok) return;
+      const payload = (await response.json()) as ConnectionsEnvelope;
+      setConnections(payload.data?.connections ?? []);
+    } finally {
+      setLoaded(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -179,8 +188,12 @@ export function usePluginInstallations() {
 
   const remove = useCallback(
     async (pluginId: string) => {
-      const connection = byPluginId.get(pluginId);
-      if (!connection) return;
+      const connection =
+        byPluginId.get(pluginId) ??
+        connections.find(
+          (item) => item.id === pluginId || item.connectorKey === pluginId,
+        );
+      if (!connection) return false;
       setPendingId(pluginId);
       setError(null);
       try {
@@ -192,17 +205,19 @@ export function usePluginInstallations() {
           throw new Error("Unable to remove this plugin.");
         }
         await refresh();
+        return true;
       } catch (removeError) {
         setError(
           removeError instanceof Error
             ? removeError.message
             : "Unable to remove this plugin.",
         );
+        return false;
       } finally {
         setPendingId(null);
       }
     },
-    [byPluginId, refresh],
+    [byPluginId, connections, refresh],
   );
 
   const isInstalled = useCallback(
@@ -268,6 +283,8 @@ export function usePluginInstallations() {
   );
 
   return {
+    connections,
+    loaded,
     byPluginId,
     pendingId,
     error,

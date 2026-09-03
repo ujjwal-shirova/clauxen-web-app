@@ -1,4 +1,8 @@
-import type { AppSettings } from "@/lib/api/settings";
+import {
+  PLUGIN_PERMISSION_MODES,
+  type AppSettings,
+  type PluginSettings,
+} from "@/lib/api/settings";
 import { DEFAULT_APP_SETTINGS } from "@/lib/settings-defaults";
 import { normalizeChatFontId } from "@/lib/app-preferences";
 
@@ -46,6 +50,20 @@ export function normalizeAppSettings(raw: unknown): AppSettings {
     ),
     reflect: mergeSection(DEFAULT_APP_SETTINGS.reflect, data.reflect),
     safety: mergeSection(DEFAULT_APP_SETTINGS.safety, data.safety),
+    plugins: normalizePluginSettings(data.plugins),
     claw: { deployments: deployments as AppSettings["claw"]["deployments"] },
   };
+}
+
+function normalizePluginSettings(stored: unknown): PluginSettings {
+  const merged = mergeSection(DEFAULT_APP_SETTINGS.plugins, stored);
+  if (
+    !PLUGIN_PERMISSION_MODES.includes(
+      merged.permissionMode as PluginSettings["permissionMode"],
+    )
+  ) {
+    merged.permissionMode = DEFAULT_APP_SETTINGS.plugins.permissionMode;
+  }
+  merged.developerMode = Boolean(merged.developerMode);
+  return merged;
 }

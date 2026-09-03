@@ -164,7 +164,7 @@ export function MyClauxenView() {
             {error}
             <button
               type="button"
-              className="ml-2 font-medium underline"
+              className="clickable-label cursor-pointer ml-2 font-medium underline"
               onClick={() => {
                 setLoading(true);
                 void load();
@@ -292,7 +292,7 @@ export function MyClauxenView() {
                         type="button"
                         disabled={saving}
                         onClick={() => void setSelfGrowth(true)}
-                        className="font-medium text-zinc-900 underline-offset-2 hover:underline"
+                        className="clickable-label cursor-pointer font-medium text-zinc-900 underline-offset-2 hover:underline"
                       >
                         Enable it
                       </button>

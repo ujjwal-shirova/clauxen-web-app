@@ -84,6 +84,7 @@ export function SettingsModal({
     updateNotifications,
     updatePersonalization,
     updateSafety,
+    updatePlugins,
     refresh: refreshSettings,
   } = useSettings(settingsEnabled);
   /**
@@ -166,6 +167,7 @@ export function SettingsModal({
   const personalization =
     settings.personalization ?? DEFAULT_APP_SETTINGS.personalization;
   const safety = settings.safety ?? DEFAULT_APP_SETTINGS.safety;
+  const plugins = settings.plugins ?? DEFAULT_APP_SETTINGS.plugins;
 
   useEffect(() => {
     if (!open || !user?.id) {
@@ -302,10 +304,12 @@ export function SettingsModal({
             ]}
           />
         );
-      case "Security":
+      case "Security & login":
+      case "Security" as unknown as SettingsTab:
         return (
           <SecuritySettings
             onLogout={onLogout}
+            userEmail={user?.email}
             mfaEnabled={Boolean(safety.mfaEnabled)}
             onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
           />
@@ -385,7 +389,13 @@ export function SettingsModal({
           <ConnectorsCatalogSettings onAdd={() => handleTabChange("Plugins")} />
         );
       case "Plugins":
-        return <PluginsSettings />;
+        return (
+          <PluginsSettings
+            permissionMode={plugins.permissionMode}
+            developerMode={plugins.developerMode}
+            onChange={updatePlugins}
+          />
+        );
       default:
         return (
           <p className="text-sm text-zinc-500">

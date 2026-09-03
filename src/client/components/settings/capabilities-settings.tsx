@@ -36,7 +36,7 @@ const TOOL_MODE_LABELS = [
 ] as const;
 
 const linkClass =
-  "font-medium text-[var(--settings-fg)] underline decoration-[var(--settings-input-border)] underline-offset-[3px] hover:decoration-[var(--settings-fg)]";
+  "clickable-label cursor-pointer font-medium text-[var(--settings-fg)] underline decoration-[var(--settings-input-border)] underline-offset-[3px] hover:decoration-[var(--settings-fg)]";
 
 function toolModeToLabel(mode: string): string {
   if (mode === "auto") return "Auto";

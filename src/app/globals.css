@@ -583,6 +583,7 @@
   line-height: 18px;
   color: var(--settings-fg);
   white-space: nowrap;
+  cursor: pointer;
   transition:
     color 0.15s ease,
     background-color 0.15s ease,
@@ -637,6 +638,7 @@
   width: 36px !important;
   border: 0 !important;
   padding: 2px !important;
+  cursor: pointer !important;
   transition:
     background-color 0.18s ease,
     box-shadow 0.18s ease;
@@ -656,11 +658,12 @@
   width: 16px !important;
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(45, 42, 40, 0.2);
-  transform: translateX(0) !important;
+  transform: none !important;
 }
 
+.settings-switch[data-state="checked"] [data-slot="thumb"],
 .settings-switch[data-state="checked"] > span {
-  transform: translateX(16px) !important;
+  transform: none !important;
 }
 
 .dark .settings-theme .settings-switch[data-state="checked"] > span {
@@ -1133,6 +1136,26 @@ button.plugin-add-button:disabled,
     letter-spacing: -0.011em;
   }
 
+  /* Interactive cursor defaults — hand cursor for all interactive elements across the entire app */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  label[for],
+  label:has(input:not(:disabled)),
+  label:has(button) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  input[type="button"]:disabled,
+  input[type="submit"]:disabled,
+  input[type="reset"]:disabled {
+    cursor: not-allowed;
+  }
+
   /* Neutral control transitions — color/background only (no press scale or shift) */
   button,
   a,
@@ -1154,7 +1177,9 @@ button.plugin-add-button:disabled,
    */
   button:not(:disabled):not(.no-hover-overlay):not(.auth-text-link):not(
       .label-hover-bold
-    ):not(.follow-up-prompt):not(.user-message-card__body):not(.app-btn):not(
+    ):not(.follow-up-prompt):not(.clickable-label):not([class*="underline"]):not(
+      [class*="hover:underline"]
+    ):not(.user-message-card__body):not(.app-btn):not(
       .app-btn-primary
     ):not(.app-btn-secondary):not(.app-btn-ghost):not(.btn-solid-dark):not(
       [class*="bg-black"]
@@ -1167,19 +1192,27 @@ button.plugin-add-button:disabled,
     ):hover,
   a[role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(
       .auth-text-link
-    ):not(.label-hover-bold):not(.follow-up-prompt):not(.app-btn):not(
+    ):not(.label-hover-bold):not(.follow-up-prompt):not(.clickable-label):not(
+      [class*="underline"]
+    ):not([class*="hover:underline"]):not(.app-btn):not(
       [class*="bg-black"]
     ):not([class*="text-white"]):hover,
   [role="button"]:not([aria-disabled="true"]):not(.no-hover-overlay):not(
       .auth-text-link
-    ):not(.label-hover-bold):not(.follow-up-prompt):not(.app-btn):not(
+    ):not(.label-hover-bold):not(.follow-up-prompt):not(.clickable-label):not(
+      [class*="underline"]
+    ):not([class*="hover:underline"]):not(.app-btn):not(
       .context-usage-trigger
     ):not([class*="bg-black"]):not([class*="text-white"]):hover,
   input[type="button"]:not(:disabled):not(.no-hover-overlay):not(
       .auth-text-link
+    ):not(.clickable-label):not([class*="underline"]):not(
+      [class*="hover:underline"]
     ):hover,
   input[type="submit"]:not(:disabled):not(.no-hover-overlay):not(
       .auth-text-link
+    ):not(.clickable-label):not([class*="underline"]):not(
+      [class*="hover:underline"]
     ):hover {
     box-shadow: inset 0 0 0 9999px rgba(24, 24, 27, 0.05);
   }
@@ -1192,18 +1225,45 @@ button.plugin-add-button:disabled,
   .ui-menu-row:hover,
   .glass-sidebar-footer-account-trigger:hover,
   .follow-up-prompt:hover,
-  .label-hover-bold:hover {
+  .label-hover-bold:hover,
+  .clickable-label:hover,
+  button[class*="underline"]:hover,
+  button[class*="hover:underline"]:hover,
+  [role="button"][class*="underline"]:hover,
+  [role="button"][class*="hover:underline"]:hover {
     box-shadow: none !important;
   }
 
-  /* Text labels / ghost links — no button wash; only darken + weight */
+  /* Text labels / ghost links / clickable labels — no button wash; only darken + weight + hand cursor */
   .auth-text-link,
   .label-hover-bold,
-  .follow-up-prompt {
+  .follow-up-prompt,
+  .clickable-label,
+  button[class*="underline"],
+  button[class*="hover:underline"],
+  [role="button"][class*="underline"],
+  [role="button"][class*="hover:underline"] {
     background: transparent !important;
+    background-color: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    cursor: pointer;
+    cursor: pointer !important;
+  }
+
+  .clickable-label:hover,
+  .clickable-label:focus-visible,
+  button[class*="underline"]:hover,
+  button[class*="underline"]:focus-visible,
+  button[class*="hover:underline"]:hover,
+  button[class*="hover:underline"]:focus-visible,
+  [role="button"][class*="underline"]:hover,
+  [role="button"][class*="underline"]:focus-visible,
+  [role="button"][class*="hover:underline"]:hover,
+  [role="button"][class*="hover:underline"]:focus-visible {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
   }
   .auth-text-link {
     padding: 0;
@@ -4498,7 +4558,9 @@ button[data-speed-toggle],
 /* Hover state — ghost/toolbar buttons only (never override solid primary CTAs) */
 button:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
     .label-hover-bold
-  ):not(.follow-up-prompt):not(.user-message-card__body):not(:disabled):not(
+  ):not(.follow-up-prompt):not(.clickable-label):not([class*="underline"]):not(
+    [class*="hover:underline"]
+  ):not(.user-message-card__body):not(:disabled):not(
     .app-btn
   ):not(.app-btn-primary):not(.app-btn-secondary):not(.app-btn-ghost):not(
     .btn-solid-dark
@@ -4509,7 +4571,9 @@ button:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
   ):not(.prompt-control-ghost):hover,
 [role="button"]:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
     .label-hover-bold
-  ):not(.follow-up-prompt):not([aria-disabled="true"]):not(.app-btn):not(
+  ):not(.follow-up-prompt):not(.clickable-label):not([class*="underline"]):not(
+    [class*="hover:underline"]
+  ):not([aria-disabled="true"]):not(.app-btn):not(
     .context-usage-trigger
   ):not([class*="text-white"]):not(.prompt-control-filled):not(
     .prompt-control-ghost
@@ -4539,11 +4603,22 @@ button[data-speed-toggle]:hover,
 .glass-sidebar-agent-menu-btn [role="button"]:hover,
 .follow-up-prompt:hover,
 .label-hover-bold:hover,
+.clickable-label:hover,
+button[class*="underline"]:hover,
+button[class*="hover:underline"]:hover,
+[role="button"][class*="underline"]:hover,
+[role="button"][class*="hover:underline"]:hover,
 .follow-up-prompt:focus-visible,
-.label-hover-bold:focus-visible {
+.label-hover-bold:focus-visible,
+.clickable-label:focus-visible,
+button[class*="underline"]:focus-visible,
+button[class*="hover:underline"]:focus-visible,
+[role="button"][class*="underline"]:focus-visible,
+[role="button"][class*="hover:underline"]:focus-visible {
   background-color: transparent !important;
   background: transparent !important;
   box-shadow: none !important;
+  cursor: pointer !important;
 }
 
 /* Active / pressed / selected / open states — skip filled prompt controls

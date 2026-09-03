@@ -111,7 +111,7 @@ export function NotificationsSettings({
               Get notified when tasks you&apos;ve created have updates.{" "}
               <button
                 type="button"
-                className="font-medium underline decoration-[var(--settings-input-border)] underline-offset-2 hover:text-[var(--settings-fg)]"
+                className="clickable-label cursor-pointer font-medium underline decoration-[var(--settings-input-border)] underline-offset-2 hover:text-[var(--settings-fg)]"
               >
                 Manage tasks
               </button>

@@ -299,7 +299,7 @@ export function ClauxenCodeSettings({
                       <button
                         type="button"
                         onClick={() => void handleRevoke(key.id)}
-                        className="text-[13px] text-rose-600 hover:underline"
+                        className="clickable-label cursor-pointer text-[13px] text-rose-600 hover:underline"
                       >
                         Revoke
                       </button>

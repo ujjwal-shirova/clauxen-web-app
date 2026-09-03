@@ -35,7 +35,7 @@ export const settingsNav = [
   { name: "Personalization", icon: Sparkles },
   { name: "Notifications", icon: Bell },
   { name: "Account", icon: UserCircle },
-  { name: "Security", icon: KeyRound },
+  { name: "Security & login", icon: KeyRound },
   { name: "Privacy", icon: Shield },
   { name: "Billing", icon: CreditCard },
   { name: "Storage", icon: HardDrive },
@@ -59,7 +59,7 @@ export const settingsTabDescriptions: Record<SettingsTab, string> = {
   Personalization: "Shape how Clauxen responds and remembers what matters.",
   Notifications: "Choose what reaches you and where you receive it.",
   Account: "Manage your account, sessions, and organization details.",
-  Security: "Protect your account and review sign-in activity.",
+  "Security & login": "Protect your account and review sign-in activity.",
   Privacy: "Control your data, cookies, model improvement, and shared content.",
   Billing: "Review your plan, usage, and payment methods.",
   Storage: "See what is using space and manage stored content.",
@@ -73,7 +73,7 @@ export const settingsTabDescriptions: Record<SettingsTab, string> = {
   Keyboard: "Review and customize shortcuts across the app.",
   Skills: "Manage the instructions and skills available to Clauxen.",
   Connectors: "Connect services that Clauxen can search and use.",
-  Plugins: "Install and manage extensions for your workspace.",
+  Plugins: "Manage plugins you've installed",
 };
 
 export const settingsNavByName = Object.fromEntries(
@@ -91,7 +91,7 @@ export const settingsNavGroups: ReadonlyArray<{
       "Personalization",
       "Notifications",
       "Account",
-      "Security",
+      "Security & login",
       "Privacy",
       "Billing",
       "Storage",

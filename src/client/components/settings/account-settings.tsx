@@ -60,7 +60,7 @@ export function AccountSettings({
             type="button"
             onClick={onCopyOrgId}
             title={copied ? "Copied" : "Copy organization ID"}
-            className="settings-btn max-w-[min(100%,22rem)] truncate font-mono text-[12px]"
+            className="settings-btn cursor-pointer max-w-[min(100%,22rem)] truncate font-mono text-[12px]"
           >
             {copied ? "Copied" : orgId}
           </button>

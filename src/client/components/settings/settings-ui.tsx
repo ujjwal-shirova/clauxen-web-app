@@ -535,6 +535,8 @@ export function SettingsPillButton({
 
 export function SettingsChevronRow({
   label,
+  description,
+  leading,
   value,
   onClick,
   options,
@@ -542,6 +544,8 @@ export function SettingsChevronRow({
   borderless,
 }: {
   label: React.ReactNode;
+  description?: React.ReactNode;
+  leading?: React.ReactNode;
   value?: string;
   onClick?: () => void;
   options?: readonly string[];
@@ -550,7 +554,11 @@ export function SettingsChevronRow({
 }) {
   if (options?.length && value !== undefined && onValueChange) {
     return (
-      <SettingsRow label={label} borderless={borderless}>
+      <SettingsRow
+        label={label}
+        description={description}
+        borderless={borderless}
+      >
         <SettingsOptionPicker
           value={value}
           options={options}
@@ -568,16 +576,34 @@ export function SettingsChevronRow({
       className={cn(
         "no-hover-overlay",
         settingsRowBase,
-        "!flex-row !items-center w-full text-left transition-colors hover:bg-[var(--settings-nav-hover-bg)]",
+        "!flex-row w-full text-left transition-colors hover:bg-[var(--settings-nav-hover-bg)]",
+        description ? "!items-start" : "!items-center",
         settingsFocusReset,
         !borderless && settingsRowHairline,
       )}
     >
-      <span className="min-w-0 flex-1 text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
-        {label}
+      {leading ? (
+        <span className={cn("shrink-0", description && "mt-0.5")}>{leading}</span>
+      ) : null}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
+          {label}
+        </span>
+        {description ? (
+          <span className="settings-muted mt-0.5 block text-pretty">
+            {description}
+          </span>
+        ) : null}
       </span>
-      <span className="settings-muted flex shrink-0 items-center gap-1">
-        {value ? <span>{value}</span> : null}
+      <span
+        className={cn(
+          "settings-muted flex shrink-0 items-center gap-1",
+          description && "mt-0.5",
+        )}
+      >
+        {value ? (
+          <span className="max-w-[11rem] truncate text-right">{value}</span>
+        ) : null}
         <ChevronRight className="icon-md" aria-hidden />
       </span>
     </button>
