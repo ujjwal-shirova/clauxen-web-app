@@ -120,7 +120,7 @@ export function AuthOAuthButtons({
   );
 }
 
-function CountryCodePicker({
+export function CountryCodePicker({
   country,
   onSelect,
 }: {
