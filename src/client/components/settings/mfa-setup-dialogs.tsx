@@ -87,10 +87,13 @@ export function AuthenticatorSetupDialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay
+          data-nested-settings-dialog=""
+          className="fixed inset-0 z-[220] bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+        />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-[50%] top-[50%] z-50 w-[min(calc(100vw-2rem),430px)] translate-x-[-50%] translate-y-[-50%]",
+            "fixed left-[50%] top-[50%] z-[221] w-[min(calc(100vw-2rem),430px)] translate-x-[-50%] translate-y-[-50%]",
             "rounded-[22px] border border-black/[0.08] bg-white p-6 shadow-[0_20px_50px_rgba(0,0,0,0.18)] outline-none duration-150",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
             "dark:border-white/10 dark:bg-[#1a1a1a] text-zinc-900 dark:text-zinc-100",
@@ -299,10 +302,13 @@ export function PhoneSetupDialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay
+          data-nested-settings-dialog=""
+          className="fixed inset-0 z-[220] bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+        />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-[50%] top-[50%] z-50 w-[min(calc(100vw-2rem),430px)] translate-x-[-50%] translate-y-[-50%]",
+            "fixed left-[50%] top-[50%] z-[221] w-[min(calc(100vw-2rem),430px)] translate-x-[-50%] translate-y-[-50%]",
             "rounded-[22px] border border-black/[0.08] bg-white p-6 shadow-[0_20px_50px_rgba(0,0,0,0.18)] outline-none duration-150",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
             "dark:border-white/10 dark:bg-[#1a1a1a] text-zinc-900 dark:text-zinc-100",

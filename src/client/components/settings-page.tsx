@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import {
   isSettingsTab,
   settingsTabDescriptions,
@@ -25,7 +25,10 @@ import { preloadChatFontCatalog } from "@/components/chat-font-loader";
 import { PersonalizationSettingsPanel } from "@/components/settings/personalization-settings";
 import { NotificationsSettings } from "@/components/settings/notifications-settings";
 import { AccountSettings } from "@/components/settings/account-settings";
-import { SecuritySettings } from "@/components/settings/security-settings";
+import {
+  SecuritySettings,
+  type SecuritySettingsView,
+} from "@/components/settings/security-settings";
 import { PrivacySettings } from "@/components/settings/privacy-settings";
 import { BillingSettings } from "@/components/settings/billing-settings";
 import { StorageSettings } from "@/components/settings/storage-settings";
@@ -95,6 +98,8 @@ export function SettingsModal({
 
   const safeInitial = isSettingsTab(initialTab) ? initialTab : "General";
   const [activeTab, setActiveTab] = useState<SettingsTab>(safeInitial);
+  const [securityView, setSecurityView] =
+    useState<SecuritySettingsView>("main");
   const [copied, setCopied] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
 
@@ -105,6 +110,7 @@ export function SettingsModal({
 
   const handleTabChange = (tab: SettingsTab) => {
     setActiveTab(tab);
+    setSecurityView("main");
     contentScrollRef.current?.scrollTo({ top: 0 });
     onTabChange?.(tab);
   };
@@ -112,6 +118,7 @@ export function SettingsModal({
   useEffect(() => {
     if (open) {
       setActiveTab(isSettingsTab(initialTab) ? initialTab : "General");
+      setSecurityView("main");
       preloadChatFontCatalog();
       if (settingsEnabled) {
         void refreshSettings();
@@ -123,7 +130,17 @@ export function SettingsModal({
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
+      const nestedOverlay = document.querySelector(
+        "[data-nested-settings-dialog]",
+      );
+      if (nestedOverlay) return;
+
       if (event.key === "Escape") {
+        if (securityView !== "main") {
+          event.preventDefault();
+          setSecurityView("main");
+          return;
+        }
         onClose();
         return;
       }
@@ -152,7 +169,7 @@ export function SettingsModal({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, securityView]);
 
   const general = settings.general ?? DEFAULT_APP_SETTINGS.general;
   const appearanceGeneral = preferenceGeneral ?? general;
@@ -312,6 +329,11 @@ export function SettingsModal({
             userEmail={user?.email ?? undefined}
             mfaEnabled={Boolean(safety.mfaEnabled)}
             onMfaChange={(mfaEnabled) => updateSafety({ mfaEnabled })}
+            view={securityView}
+            onViewChange={(next) => {
+              setSecurityView(next);
+              contentScrollRef.current?.scrollTo({ top: 0 });
+            }}
           />
         );
       case "Privacy":
@@ -405,6 +427,11 @@ export function SettingsModal({
     }
   };
 
+  const showPasskeysSubpage =
+    securityView === "passkeys" &&
+    (activeTab === "Security & login" ||
+      (activeTab as string) === "Security");
+
   if (!open) return null;
 
   return (
@@ -479,15 +506,41 @@ export function SettingsModal({
             </aside>
 
             <main className="settings-canvas relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--settings-canvas-bg)]">
-              <header className="hidden shrink-0 items-start justify-between gap-8 px-8 pb-4 pt-6 md:flex">
-                <div className="min-w-0">
-                  <h2 className="text-[20px] font-semibold leading-7 tracking-[-0.025em] text-[var(--settings-fg)]">
-                    {activeTab}
-                  </h2>
-                  <p className="mt-0.5 max-w-[620px] text-[13px] leading-[19px] text-[var(--settings-fg-muted)]">
-                    {settingsTabDescriptions[activeTab]}
-                  </p>
-                </div>
+              <header
+                className={cn(
+                  "hidden shrink-0 items-start justify-between gap-8 px-8 md:flex",
+                  showPasskeysSubpage
+                    ? "items-center border-b border-[var(--settings-hairline)] pb-3 pt-5"
+                    : "pb-4 pt-6",
+                )}
+              >
+                {showPasskeysSubpage ? (
+                  <div className="flex min-w-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSecurityView("main");
+                        contentScrollRef.current?.scrollTo({ top: 0 });
+                      }}
+                      aria-label="Back"
+                      className="ui-icon-button no-hover-overlay -ml-1.5 h-8 w-8 shrink-0 rounded-lg text-[var(--settings-fg)] hover:bg-[var(--settings-nav-hover-bg)]"
+                    >
+                      <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
+                    </button>
+                    <h2 className="truncate text-[16px] font-semibold leading-6 tracking-[-0.015em] text-[var(--settings-fg)]">
+                      Security keys & passkeys
+                    </h2>
+                  </div>
+                ) : (
+                  <div className="min-w-0">
+                    <h2 className="text-[20px] font-semibold leading-7 tracking-[-0.025em] text-[var(--settings-fg)]">
+                      {activeTab}
+                    </h2>
+                    <p className="mt-0.5 max-w-[620px] text-[13px] leading-[19px] text-[var(--settings-fg-muted)]">
+                      {settingsTabDescriptions[activeTab]}
+                    </p>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={onClose}

@@ -183,6 +183,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (!auth.user?.id) return;
+    router.prefetch(APP_ROUTES.newChat);
     for (const project of projects.projects.slice(0, 12)) {
       router.prefetch(APP_ROUTES.project(project.id));
     }

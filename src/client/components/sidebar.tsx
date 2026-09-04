@@ -586,10 +586,11 @@ export function Sidebar({
         className={cn(
           "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose min-h-8 w-full rounded-lg px-2.5 text-[13px] font-[450] leading-[18px] tracking-[-0.006em] text-zinc-800/90 transition-[background-color,box-shadow,color] duration-150",
           // One continuous row highlight — never nest hover/selection on
-          // the title button or pin/menu actions.
+          // the title button or pin/menu actions. Keep the hover pill while
+          // pin/menu are focused or the overflow menu is open.
           isActive
             ? "bg-black/[0.065] shadow-[inset_0_0_0_1px_rgba(24,24,27,0.025)]"
-            : "hover:bg-black/[0.04]",
+            : "hover:bg-black/[0.04] focus-within:bg-black/[0.04] has-[[data-state=open]]:bg-black/[0.04]",
         )}
       >
         <AppHref
@@ -631,7 +632,7 @@ export function Sidebar({
                   event.stopPropagation();
                   onPinChat?.(chat.id, !chat.pinned);
                 }}
-                className="ui-row-icon-button opacity-0 group-hover/chat:opacity-100 focus-visible:opacity-100"
+                className="ui-row-icon-button opacity-0 group-hover/chat:opacity-100 group-focus-within/chat:opacity-100 group-has-[[data-state=open]]/chat:opacity-100 focus-visible:opacity-100"
               >
                 {chat.pinned ? (
                   <PinOff strokeWidth={1.5} />
@@ -644,7 +645,7 @@ export function Sidebar({
                   <button
                     type="button"
                     aria-label={`Chat options for ${chat.name || "New Chat"}`}
-                    className="ui-row-icon-button opacity-0 group-hover/chat:opacity-100 data-[state=open]:opacity-100 focus-visible:opacity-100"
+                    className="ui-row-icon-button opacity-0 group-hover/chat:opacity-100 group-focus-within/chat:opacity-100 group-has-[[data-state=open]]/chat:opacity-100 data-[state=open]:opacity-100 focus-visible:opacity-100"
                   >
                     <MoreVertical className="icon-sm" />
                   </button>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  ChevronLeft,
   ChevronRight,
   ShieldAlert,
   Terminal,
@@ -13,12 +14,185 @@ import {
   PhoneSetupDialog,
 } from "@/components/settings/mfa-setup-dialogs";
 import * as settingsApi from "@/lib/api/settings-extended";
+import { cn } from "@/lib/utils";
+
+export type SecuritySettingsView = "main" | "passkeys";
+
+const securityLinkRowClass =
+  "group no-hover-overlay flex w-full cursor-pointer items-center justify-between bg-transparent text-left hover:bg-transparent";
+
+type StoredPasskey = {
+  id: string;
+  name: string;
+  addedAt: number;
+};
+
+function defaultPasskeyName() {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad/.test(ua)) return "iCloud Keychain";
+  if (/Mac/.test(ua)) return "Mac";
+  if (/Windows/.test(ua)) return "Windows Hello";
+  if (/Android/.test(ua)) return "Google Password Manager";
+  return "Passkey";
+}
+
+function PasskeysPanel({
+  userEmail,
+  onBack,
+}: {
+  userEmail?: string;
+  onBack: () => void;
+}) {
+  const [passkeys, setPasskeys] = useState<StoredPasskey[]>([]);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAdd = async () => {
+    if (typeof window === "undefined" || !window.PublicKeyCredential) {
+      setError("This browser doesn’t support security keys or passkeys.");
+      return;
+    }
+
+    setAdding(true);
+    setError(null);
+
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const userId = new TextEncoder().encode(userEmail || "clauxen-user");
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: {
+            name: "Clauxen",
+            id: window.location.hostname,
+          },
+          user: {
+            id: userId,
+            name: userEmail || "user",
+            displayName: userEmail || "Clauxen user",
+          },
+          pubKeyCredParams: [
+            { alg: -7, type: "public-key" },
+            { alg: -257, type: "public-key" },
+          ],
+          authenticatorSelection: {
+            residentKey: "preferred",
+            userVerification: "preferred",
+          },
+          timeout: 60_000,
+        },
+      });
+
+      if (!credential) {
+        setError("Couldn’t create a security key or passkey.");
+        return;
+      }
+
+      setPasskeys((prev) => [
+        ...prev,
+        {
+          id: credential.id,
+          name: defaultPasskeyName(),
+          addedAt: Date.now(),
+        },
+      ]);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "NotAllowedError") {
+        return;
+      }
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Couldn’t add a security key or passkey.",
+      );
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  return (
+    <div className="flex w-full flex-col text-[14px] leading-5 text-[var(--settings-fg)] animate-in fade-in duration-200">
+      <SettingsPanelTitle>Security keys & passkeys</SettingsPanelTitle>
+
+      <div className="mb-4 flex items-center gap-1.5 border-b border-black/[0.08] pb-3 md:hidden dark:border-white/10">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Back"
+          className="ui-icon-button no-hover-overlay -ml-1.5 h-8 w-8 shrink-0 rounded-lg text-[var(--settings-fg)] hover:bg-[var(--settings-nav-hover-bg)]"
+        >
+          <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
+        </button>
+        <h3 className="min-w-0 truncate text-[16px] font-semibold tracking-[-0.015em] text-[var(--settings-fg)]">
+          Security keys & passkeys
+        </h3>
+      </div>
+
+      <p className="text-[13px] leading-5 text-[rgb(143,143,143)] dark:text-zinc-400">
+        See all the active security keys and passkeys.
+      </p>
+
+      {passkeys.length > 0 ? (
+        <ul className="mt-3 border-t border-black/[0.08] dark:border-white/10">
+          {passkeys.map((passkey) => (
+            <li
+              key={passkey.id}
+              className="flex items-center justify-between gap-3 border-b border-black/[0.05] py-3 dark:border-white/[0.06]"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-[14px] font-medium text-[var(--settings-fg)]">
+                  {passkey.name}
+                </div>
+                <div className="mt-0.5 text-[12px] text-[rgb(143,143,143)] dark:text-zinc-400">
+                  Added {new Date(passkey.addedAt).toLocaleDateString()}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setPasskeys((prev) =>
+                    prev.filter((item) => item.id !== passkey.id),
+                  )
+                }
+                className="clickable-label no-hover-overlay cursor-pointer shrink-0 text-[13px] text-[rgb(143,143,143)] hover:text-[var(--settings-fg)] dark:text-zinc-400"
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {error ? (
+        <p className="mt-3 text-[12px] leading-4 text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => void handleAdd()}
+        disabled={adding}
+        className={cn(
+          "no-hover-overlay mt-5 inline-flex h-9 w-fit cursor-pointer items-center justify-center rounded-full bg-[#18181b] px-4 text-[13px] font-medium text-white transition-colors",
+          adding
+            ? "cursor-not-allowed opacity-70"
+            : "hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white",
+        )}
+      >
+        {adding ? "Waiting for device…" : "Add a Security key or Passkey"}
+      </button>
+    </div>
+  );
+}
 
 interface SecuritySettingsProps {
   onLogout?: () => void;
   mfaEnabled?: boolean;
   onMfaChange?: (enabled: boolean) => void;
   userEmail?: string;
+  view?: SecuritySettingsView;
+  onViewChange?: (view: SecuritySettingsView) => void;
 }
 
 export function SecuritySettings({
@@ -26,6 +200,8 @@ export function SecuritySettings({
   mfaEnabled = false,
   onMfaChange,
   userEmail,
+  view = "main",
+  onViewChange,
 }: SecuritySettingsProps) {
   // MFA states
   const [authenticatorOpen, setAuthenticatorOpen] = useState(false);
@@ -79,8 +255,18 @@ export function SecuritySettings({
       role="tabpanel"
       aria-labelledby="radix-_r_pb_-trigger-Security"
       tabIndex={0}
-      className="flex w-full flex-col overflow-y-auto px-4 py-1 text-[14px] leading-5 text-[var(--settings-fg)] outline-none"
+      className={cn(
+        "flex w-full flex-col overflow-y-auto py-1 text-[14px] leading-5 text-[var(--settings-fg)] outline-none",
+        view === "passkeys" ? "px-0" : "px-4",
+      )}
     >
+      {view === "passkeys" ? (
+        <PasskeysPanel
+          userEmail={userEmail}
+          onBack={() => onViewChange?.("main")}
+        />
+      ) : (
+        <>
       <SettingsPanelTitle>Security and login</SettingsPanelTitle>
 
       {/* =====================================================================
@@ -106,7 +292,7 @@ export function SecuritySettings({
               onClick={() => {
                 window.alert("Password change form or reset link will be sent to your email.");
               }}
-              className="group cursor-pointer flex w-full items-center justify-between text-left transition-colors"
+              className={securityLinkRowClass}
             >
               <div className="text-[14px] font-medium text-[var(--settings-fg)]">
                 Password
@@ -126,10 +312,8 @@ export function SecuritySettings({
           <div className="w-full">
             <button
               type="button"
-              onClick={() => {
-                window.alert("Hardware security key / passkey registration dialog.");
-              }}
-              className="group cursor-pointer flex w-full items-center justify-between text-left transition-colors"
+              onClick={() => onViewChange?.("passkeys")}
+              className={securityLinkRowClass}
             >
               <div className="pr-4">
                 <div className="text-[14px] font-medium text-[var(--settings-fg)]">
@@ -227,7 +411,7 @@ export function SecuritySettings({
                   onLogout?.();
                 }
               }}
-              className="group cursor-pointer flex w-full items-center justify-between text-left transition-colors"
+              className={securityLinkRowClass}
             >
               <div className="pr-4">
                 <div className="text-[14px] font-medium text-[var(--settings-fg)]">
@@ -266,7 +450,7 @@ export function SecuritySettings({
               onClick={() => {
                 window.alert("Advanced account security enrollment wizard.");
               }}
-              className="group cursor-pointer flex w-full items-center justify-between text-left transition-colors"
+              className={securityLinkRowClass}
             >
               <div className="pr-4">
                 <div className="text-[14px] font-medium text-[var(--settings-fg)]">
@@ -507,6 +691,8 @@ export function SecuritySettings({
           </div>
         </div>
       </section>
+        </>
+      )}
 
       {/* Dialogs */}
       <AuthenticatorSetupDialog
