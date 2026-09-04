@@ -81,7 +81,7 @@ function PreferencesInner({ children }: { children: ReactNode }) {
       .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
       ?.setAttribute(
         "content",
-        resolvedTheme === "dark" ? "#111113" : "#fafaf9",
+        resolvedTheme === "dark" ? "#111113" : "#f4f4f3",
       );
   }, [resolvedTheme]);
 

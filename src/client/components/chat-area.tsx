@@ -106,6 +106,10 @@ interface ChatAreaProps {
 const ARTIFACTS_LIST_PANEL_WIDTH = 384;
 /** Desktop file viewer rail — fixed px so open/close doesn't hard-cut the chat. */
 const ARTIFACT_VIEWER_WIDTH = 560;
+/** Right sidebar (artifacts/files) rail — user-resizable within these bounds. */
+const ARTIFACTS_RAIL_DEFAULT_WIDTH = 480;
+const ARTIFACTS_RAIL_MIN_WIDTH = 360;
+const ARTIFACTS_RAIL_MAX_WIDTH = 880;
 
 function ChatAreaLayout({
   messages,
@@ -161,6 +165,10 @@ function ChatAreaLayout({
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [hasPromptDraft, setHasPromptDraft] = useState(false);
   const [isArtifactsPanelOpen, setIsArtifactsPanelOpen] = useState(false);
+  const [artifactsRailWidth, setArtifactsRailWidth] = useState(
+    ARTIFACTS_RAIL_DEFAULT_WIDTH,
+  );
+  const [isArtifactsRailResizing, setIsArtifactsRailResizing] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isSourcesPanelOpen, setIsSourcesPanelOpen] = useState(false);
   const [sourcesMessageId, setSourcesMessageId] = useState<string | null>(null);
@@ -357,6 +365,39 @@ function ChatAreaLayout({
     setIsArtifactsPanelOpen(false);
   }, []);
 
+  /** Drag the right sidebar's left edge to resize it; chat column follows. */
+  const handleArtifactsRailResizeStart = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const startX = event.clientX;
+      const startWidth = artifactsRailWidth;
+      setIsArtifactsRailResizing(true);
+      const onMove = (moveEvent: PointerEvent) => {
+        const max = Math.min(
+          ARTIFACTS_RAIL_MAX_WIDTH,
+          Math.round(window.innerWidth * 0.62),
+        );
+        const next = Math.min(
+          max,
+          Math.max(
+            ARTIFACTS_RAIL_MIN_WIDTH,
+            startWidth + (startX - moveEvent.clientX),
+          ),
+        );
+        setArtifactsRailWidth(next);
+      };
+      const onUp = () => {
+        setIsArtifactsRailResizing(false);
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [artifactsRailWidth],
+  );
+
   const handleDeleteActiveChat = React.useCallback(() => {
     if (!activeChatId) return;
     onDeleteChat?.(activeChatId);
@@ -435,8 +476,19 @@ function ChatAreaLayout({
         <div
           className={cn(
             "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0 pb-1.5 transition-[padding-right] duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] sm:pb-1.5",
-            showDesktopArtifactsRail && isArtifactsPanelOpen && "lg:pr-[392px]",
+            showDesktopArtifactsRail &&
+              isArtifactsPanelOpen &&
+              "lg:pr-[var(--chat-right-rail-w,0px)]",
+            isArtifactsRailResizing && "transition-none",
           )}
+          style={
+            {
+              "--chat-right-rail-w":
+                showDesktopArtifactsRail && isArtifactsPanelOpen
+                  ? `${artifactsRailWidth}px`
+                  : "0px",
+            } as React.CSSProperties
+          }
         >
           {!incognito &&
           !composerAsConversation &&
@@ -705,18 +757,33 @@ function ChatAreaLayout({
           ) : null}
         </AnimatePresence>
 
-        {showDesktopArtifactsRail && isArtifactsPanelOpen ? (
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-30 hidden w-[384px] flex-col items-stretch py-2 pr-2 lg:flex">
+        {showDesktopArtifactsRail ? (
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 z-30 hidden lg:block"
+            style={{ width: artifactsRailWidth }}
+            aria-hidden={!isArtifactsPanelOpen}
+          >
             <AnimatePresence initial={false}>
               {isArtifactsPanelOpen ? (
                 <motion.div
                   key="desktop-artifacts-panel"
-                  initial={{ opacity: 0, y: -8, scale: 0.985 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.985 }}
-                  transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-                  className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden"
+                  initial={{ x: 72, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 72, opacity: 0 }}
+                  transition={{
+                    duration: isArtifactsRailResizing ? 0 : 0.34,
+                    ease: [0.32, 0.72, 0, 1],
+                  }}
+                  className="pointer-events-auto relative flex h-full min-h-0 flex-col"
                 >
+                  {/* Left-edge grip — drag to resize the right sidebar. */}
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize right sidebar"
+                    onPointerDown={handleArtifactsRailResizeStart}
+                    className="absolute inset-y-0 -left-2 z-40 w-4 cursor-col-resize touch-none"
+                  />
                   <ChatArtifactsPanel
                     messages={messages}
                     onClose={() => setIsArtifactsPanelOpen(false)}

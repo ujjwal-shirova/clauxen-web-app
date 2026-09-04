@@ -443,6 +443,15 @@ function ChatViewBody({
       : activeChatId;
   const displayActiveChat =
     blankNewChatComposer || switchingRouteChat ? null : activeChat;
+  // Route-first title: while `activeChatId` catches up after soft-nav to /c/:id,
+  // resolve the clicked row's title so the header never falls back to "New Chat".
+  const routeChat = routeChatId
+    ? ((chat.recentChats ?? []).find((c) => c.id === routeChatId) ?? null)
+    : null;
+  const displayTitleChat =
+    displayActiveChat ??
+    (switchingRouteChat ? routeChat : null) ??
+    (!blankNewChatComposer ? routeChat : null);
   const displayMessagesLoading =
     !blankNewChatComposer && Boolean(messagesLoading);
 
@@ -472,7 +481,7 @@ function ChatViewBody({
       ? "Incognito"
       : blankNewChatComposer
         ? (resolvedProjectName ?? "Project")
-        : (displayActiveChat?.name ?? null),
+        : (displayTitleChat?.name ?? null),
     {
       brandOnly: brandOnlyTab,
     },
@@ -507,9 +516,12 @@ function ChatViewBody({
         messagesLoadError={messagesLoadError}
         onRetryMessages={retryLoadMessages}
         creatingChatPending={creatingChatPending && !blankNewChatComposer}
-        activeChatTitle={displayActiveChat?.name ?? "New Chat"}
-        isActiveChatTitleStreaming={!!displayActiveChat?.isTitleStreaming}
-        isActiveChatPinned={!!displayActiveChat?.pinned}
+        activeChatTitle={displayTitleChat?.name ?? "New Chat"}
+        isActiveChatTitleStreaming={
+          !!displayActiveChat?.isTitleStreaming &&
+          displayActiveChat?.id === displayTitleChat?.id
+        }
+        isActiveChatPinned={!!displayTitleChat?.pinned}
         onRenameChat={handleRenameChat}
         onPinChat={handlePinChat}
         onDeleteChat={handleDeleteChatAndLeave}

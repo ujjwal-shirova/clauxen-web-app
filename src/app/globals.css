@@ -160,12 +160,11 @@
     --pricing-toggle-track: var(--pricing-thumb);
     --pricing-thumb-active: color-mix(in oklab, var(--app-panel-bg) 91%, #14151a 9%);
 
-    /* App shell — the sidebar and the inset around the main panel are one
-       continuous frame surface. Keep them on a single token so the panel
-       never appears to sit on a differently coloured canvas. */
-    --app-frame-bg: #fafaf9;
-    --app-shell-bg: var(--app-frame-bg);
-    --app-sidebar-bg: var(--app-frame-bg);
+    /* App shell — sidebar + the inset around the elevated panel share one
+       canvas so the main content reads as a pop-out of the sidebar surface. */
+    --app-sidebar-bg: #f4f4f3;
+    --app-frame-bg: var(--app-sidebar-bg);
+    --app-shell-bg: var(--app-sidebar-bg);
     --app-panel-bg: #fcfcfb;
     --chat-canvas-bg: #fcfcfb;
     --chat-user-card-bg: #f7f7f7;
@@ -260,9 +259,9 @@
     --icon-color: #f4f4f5;
     --icon-muted: rgba(244, 244, 245, 0.66);
     --icon-subtle: rgba(244, 244, 245, 0.6);
-    --app-frame-bg: #111113;
-    --app-shell-bg: var(--app-frame-bg);
-    --app-sidebar-bg: var(--app-frame-bg);
+    --app-sidebar-bg: #111113;
+    --app-frame-bg: var(--app-sidebar-bg);
+    --app-shell-bg: var(--app-sidebar-bg);
     --app-panel-bg: #18181b;
     --chat-canvas-bg: var(--app-panel-bg);
     --chat-user-card-bg: #202023;
@@ -741,7 +740,7 @@
 }
 
 .app-surface-shell {
-  background-color: var(--app-shell-bg);
+  background-color: var(--app-sidebar-bg, var(--app-shell-bg));
   color: hsl(var(--foreground));
   font-size: var(--ui-font-size);
   line-height: var(--ui-line-height);
@@ -1115,7 +1114,7 @@ button.plugin-add-button:disabled,
 /* ========== App behavioral / chat / layout rules ========== */
 @layer base {
   html {
-    background-color: var(--app-shell-bg);
+    background-color: var(--app-sidebar-bg, var(--app-shell-bg));
     overflow: hidden;
     height: 100%;
     overscroll-behavior: none;
@@ -1125,7 +1124,7 @@ button.plugin-add-button:disabled,
     border-color: hsl(var(--border));
   }
   body {
-    background-color: var(--app-shell-bg);
+    background-color: var(--app-sidebar-bg, var(--app-shell-bg));
     color: hsl(var(--foreground));
     overflow: hidden;
     height: 100%;
