@@ -2,12 +2,13 @@ import { AppError } from "@/server/db/errors";
 import { query } from "@/server/db/pool";
 import * as profileRepo from "@/server/repositories/profile.repository";
 import * as settingsRepo from "@/server/repositories/settings.repository";
-import * as filesService from "@/server/services/files.service";
+import * as avatarService from "@/server/services/avatar.service";
 import {
   resolveAuthAvatarUrl,
   resolveAuthFullName,
   trimProfileName,
 } from "@/lib/profile-names";
+import { resolveClientAvatarUrl } from "@/lib/avatar-url";
 
 const AVATAR_MIMES = new Set([
   "image/png",
@@ -19,6 +20,19 @@ const AVATAR_MIMES = new Set([
 
 export async function getProfileForUser(userId: string) {
   return profileRepo.getProfile(userId);
+}
+
+export function toClientAvatarUrl(
+  row: Awaited<ReturnType<typeof profileRepo.getProfile>>,
+) {
+  if (!row) return null;
+  return resolveClientAvatarUrl({
+    userId: row.id,
+    avatarFileId: row.avatar_file_id,
+    avatarStoragePath: row.avatar_storage_path,
+    avatarUrl: row.avatar_url,
+    avatarUpdatedAt: row.avatar_updated_at,
+  });
 }
 
 export async function syncProfileFromAuth(input: {
@@ -133,16 +147,16 @@ export async function updateUserProfile(
   const preferredName = trimProfileName(input.preferredName);
   const occupation = trimProfileName(input.occupation);
 
-  let avatarUrl: string | null | undefined;
   if (input.avatarFileId) {
-    avatarUrl = await resolveAvatarUrl(userId, input.avatarFileId);
+    await avatarService.attachUploadedAvatar(userId, input.avatarFileId);
   }
 
-  await profileRepo.updateProfile(userId, {
-    ...(fullName !== null ? { displayName: fullName } : {}),
-    ...(preferredName !== null ? { preferredName } : {}),
-    ...(avatarUrl !== undefined ? { avatarUrl } : {}),
-  });
+  if (fullName !== null || preferredName !== null) {
+    await profileRepo.updateProfile(userId, {
+      ...(fullName !== null ? { displayName: fullName } : {}),
+      ...(preferredName !== null ? { preferredName } : {}),
+    });
+  }
 
   await mirrorPersonalizationNames(userId, {
     ...(fullName !== null ? { fullName } : {}),
@@ -174,11 +188,6 @@ export async function updateUserProfile(
   }
 
   return profileRepo.getProfile(userId);
-}
-
-async function resolveAvatarUrl(userId: string, fileId: string) {
-  const download = await filesService.getUserFileDownloadUrl(userId, fileId);
-  return download.url;
 }
 
 export function assertAvatarMime(mimeType: string | null | undefined) {

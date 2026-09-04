@@ -7,6 +7,7 @@ import {
   getSupabaseUserIdFromRequest,
 } from "@/server/auth/supabase-session";
 import { resolveAuthAvatarUrl, resolveAuthFullName } from "@/lib/profile-names";
+import { resolveClientAvatarUrl } from "@/lib/avatar-url";
 import { resolveAccessTokenUser } from "@/server/oauth/service";
 import { ACCESS_TOKEN_PREFIX } from "@/server/oauth/constants";
 
@@ -26,8 +27,12 @@ async function profileForUserId(userId: string): Promise<SessionUser | null> {
       display_name: string | null;
       preferred_name: string | null;
       avatar_url: string | null;
+      avatar_file_id: string | null;
+      avatar_storage_path: string | null;
+      avatar_updated_at: string | null;
     }>(
-      `select id, email, display_name, preferred_name, avatar_url
+      `select id, email, display_name, preferred_name, avatar_url,
+              avatar_file_id, avatar_storage_path, avatar_updated_at
        from public.profiles where id = $1`,
       [userId],
     );
@@ -39,7 +44,13 @@ async function profileForUserId(userId: string): Promise<SessionUser | null> {
       email: profile.email,
       displayName: profile.display_name,
       preferredName: profile.preferred_name,
-      avatarUrl: profile.avatar_url,
+      avatarUrl: resolveClientAvatarUrl({
+        userId: profile.id,
+        avatarFileId: profile.avatar_file_id,
+        avatarStoragePath: profile.avatar_storage_path,
+        avatarUrl: profile.avatar_url,
+        avatarUpdatedAt: profile.avatar_updated_at,
+      }),
     };
   } catch (err) {
     console.warn("[session] profile lookup failed:", err);

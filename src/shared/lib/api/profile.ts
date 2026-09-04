@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api/client";
 import * as filesApi from "@/lib/api/files";
+import { createClient } from "@/utils/supabase/client";
 
 export type UserProfile = {
   id: string | null;
@@ -45,7 +46,7 @@ export async function uploadAvatar(file: File) {
     throw new Error("Avatar must be 2 MB or smaller.");
   }
 
-  const { fileId, uploadUrl, method, stub } = await filesApi.presignUpload({
+  const { fileId, uploadUrl, method, stub, worker } = await filesApi.presignUpload({
     originalName: file.name,
     mimeType: mime,
     sizeBytes: file.size,
@@ -53,16 +54,30 @@ export async function uploadAvatar(file: File) {
   });
 
   if (!stub) {
+    const headers: Record<string, string> = { "content-type": mime };
+    if (worker) {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    }
     const upload = await fetch(uploadUrl, {
       method: method || "PUT",
       body: file,
-      headers: { "content-type": mime },
+      headers,
     });
     if (!upload.ok) {
       throw new Error("Avatar upload failed.");
     }
   }
 
+  // completeUpload triggers attachUploadedAvatar server-side, which writes
+  // avatar_file_id / avatar_storage_* / avatar_url onto the profile row.
+  // Calling updateProfile({ avatarFileId }) here would attach a second time
+  // (redundant DB writes), so just fetch the already-updated profile.
   await filesApi.completeUpload({ fileId, sizeBytes: file.size });
-  return updateProfile({ avatarFileId: fileId });
+  return getProfile();
 }

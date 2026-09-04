@@ -54,9 +54,11 @@ function assertKeyOwnedByUser(key: string, userId: string): boolean {
   return key.startsWith(userPrefix) || key.startsWith(avatarPrefix);
 }
 
-/** Unauthenticated public reads are limited to the public/ prefix only. */
+/** Unauthenticated public reads: marketing/public assets and profile photos. */
 function isPublicObjectKey(key: string): boolean {
-  return Boolean(key) && !key.includes("..") && key.startsWith("public/");
+  if (!key || key.includes("..") || key.startsWith("/")) return false;
+  if (key.startsWith("public/")) return true;
+  return /^avatars\/[0-9a-f-]{36}\//i.test(key);
 }
 
 function json(data: unknown, status = 200, extraHeaders?: HeadersInit) {
@@ -93,7 +95,8 @@ export default {
       ? decodeURIComponent(url.pathname.slice("/download/".length))
       : "";
 
-    // Public objects under public/ may be read without a JWT.
+    // Public objects under public/ and profile photos under avatars/{userId}/
+    // may be read without a JWT so <img> tags can load them.
     const allowAnonymousPublicRead =
       isDownload && isPublicObjectKey(downloadKey);
 

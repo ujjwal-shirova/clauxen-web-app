@@ -243,7 +243,7 @@ export function ChatArtifactsPanel({
             type="button"
             onClick={onClose}
             aria-label="Close right sidebar"
-            className="ui-icon-button text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800 lg:hidden"
+            className="ui-icon-button text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800"
           >
             <X className="size-4" />
           </button>

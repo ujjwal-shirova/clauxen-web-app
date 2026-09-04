@@ -173,7 +173,6 @@ export function ChatViewHeader({
                 <ChatRightRailControls
                   isArtifactsPanelOpen={isArtifactsPanelOpen}
                   onToggleArtifactsPanel={onToggleArtifactsPanel}
-                  onShareClick={onShareClick}
                   menu={undefined}
                 />
               )}

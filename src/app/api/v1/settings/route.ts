@@ -160,7 +160,7 @@ function toClientPayload(
     personalization,
     profile: profile
       ? {
-          avatarUrl: profile.avatar_url,
+          avatarUrl: profileService.toClientAvatarUrl(profile),
           fullName: profile.display_name,
           preferredName: profile.preferred_name,
           sidebarName: sidebarDisplayName({

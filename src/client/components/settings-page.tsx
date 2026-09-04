@@ -123,9 +123,10 @@ export function SettingsModal({
       if (settingsEnabled) {
         void refreshSettings();
         void refreshPreferences({ quiet: true });
+        void refreshAuth({ quiet: true });
       }
     }
-  }, [initialTab, open, settingsEnabled, refreshSettings, refreshPreferences]);
+  }, [initialTab, open, settingsEnabled, refreshSettings, refreshPreferences, refreshAuth]);
 
   useEffect(() => {
     if (!open) return;
@@ -370,7 +371,6 @@ export function SettingsModal({
                 updateCapabilities(rest);
               }
             }}
-            onGoToCustomize={onGoToCustomize}
           />
         );
       case "Reflect":

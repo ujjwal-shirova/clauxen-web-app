@@ -3829,6 +3829,10 @@ export type Database = {
         Row: {
           account_kind: string
           acquisition_source: string | null
+          avatar_file_id: string | null
+          avatar_storage_bucket: string | null
+          avatar_storage_path: string | null
+          avatar_updated_at: string | null
           avatar_url: string | null
           compliance_region: string | null
           created_at: string
@@ -3854,6 +3858,10 @@ export type Database = {
         Insert: {
           account_kind?: string
           acquisition_source?: string | null
+          avatar_file_id?: string | null
+          avatar_storage_bucket?: string | null
+          avatar_storage_path?: string | null
+          avatar_updated_at?: string | null
           avatar_url?: string | null
           compliance_region?: string | null
           created_at?: string
@@ -3879,6 +3887,10 @@ export type Database = {
         Update: {
           account_kind?: string
           acquisition_source?: string | null
+          avatar_file_id?: string | null
+          avatar_storage_bucket?: string | null
+          avatar_storage_path?: string | null
+          avatar_updated_at?: string | null
           avatar_url?: string | null
           compliance_region?: string | null
           created_at?: string
@@ -3902,6 +3914,13 @@ export type Database = {
           user_segment?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_avatar_file_id_fkey"
+            columns: ["avatar_file_id"]
+            isOneToOne: false
+            referencedRelation: "user_files"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_default_workspace_fk"
             columns: ["default_workspace_id"]

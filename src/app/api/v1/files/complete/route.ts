@@ -2,8 +2,8 @@ import { after } from "next/server";
 import { withApiHandler } from "@/server/http/api-handler";
 import { jsonData } from "@/server/http/api-response";
 import { requireSession } from "@/server/auth/require-session";
-import * as profileRepo from "@/server/repositories/profile.repository";
 import * as filesService from "@/server/services/files.service";
+import * as avatarService from "@/server/services/avatar.service";
 import * as userFilesRepo from "@/server/repositories/user-files.repository";
 
 export const runtime = "nodejs";
@@ -33,11 +33,7 @@ export const POST = withApiHandler(
         : null;
 
     if (purpose === "avatar") {
-      const download = await filesService.getUserFileDownloadUrl(
-        user.id,
-        file.id,
-      );
-      await profileRepo.updateProfile(user.id, { avatarUrl: download.url });
+      await avatarService.attachUploadedAvatar(user.id, file.id);
     }
 
     if (file.project_id) {

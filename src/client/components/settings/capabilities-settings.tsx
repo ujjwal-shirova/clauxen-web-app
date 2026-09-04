@@ -25,7 +25,6 @@ export type CapabilitiesSettingsState = {
 interface CapabilitiesSettingsProps {
   capabilities: CapabilitiesSettingsState;
   onChange: (patch: Partial<CapabilitiesSettingsState>) => void;
-  onGoToCustomize?: (tab: "skills" | "connectors") => void;
   memoryUpdatedLabel?: string;
 }
 
@@ -53,7 +52,6 @@ function labelToToolMode(label: string): string {
 export function CapabilitiesSettings({
   capabilities,
   onChange,
-  onGoToCustomize,
   memoryUpdatedLabel = "Updated 3 hours ago",
 }: CapabilitiesSettingsProps) {
   return (
@@ -224,26 +222,6 @@ export function CapabilitiesSettings({
             />
           </div>
         ) : null}
-      </SettingsSection>
-
-      <SettingsSection title="Skills">
-        <p className="py-3 text-[13px] leading-4 text-[var(--settings-fg-muted)]">
-          Skills live in the{" "}
-          {onGoToCustomize ? (
-            <button
-              type="button"
-              onClick={() => onGoToCustomize("skills")}
-              className={linkClass}
-            >
-              Skills
-            </button>
-          ) : (
-            <a href="/new#settings/Skills" className={linkClass}>
-              Skills
-            </a>
-          )}{" "}
-          settings tab.
-        </p>
       </SettingsSection>
     </div>
   );

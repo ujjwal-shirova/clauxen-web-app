@@ -716,20 +716,7 @@ export function Sidebar({
             </div>
           ) : null}
 
-          {isPeekPreview && !isMobileLayout ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsCollapsed(false);
-              }}
-              aria-label="Keep sidebar open"
-              title="Keep sidebar open"
-              className="app-sidebar-peek-toggle fixed left-[10px] top-[14px] z-50 flex size-8 items-center justify-center rounded-[9px] border-0 bg-transparent text-[#52514e] shadow-none transition-[background-color,color,opacity,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-black/[0.05] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:text-zinc-300 dark:hover:bg-white/[0.07] motion-reduce:transition-none"
-            >
-              <SidebarToggleIcon className="size-[18px] shrink-0" />
-            </button>
-          ) : isMobileLayout ? (
+          {isMobileLayout ? (
             <button
               type="button"
               onClick={(e) => {
@@ -942,15 +929,20 @@ export function Sidebar({
                     className={cn(
                       "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center border border-transparent bg-transparent outline-none transition-[background-color,border-color] duration-150 hover:border-black/[0.045] hover:bg-black/[0.035] data-[state=open]:border-black/[0.055] data-[state=open]:bg-black/[0.045]",
                       isCollapsed
-                        ? "h-7 w-7 shrink-0 items-center justify-center rounded-full !p-0"
-                        : "min-h-11 min-w-0 flex-1 justify-start gap-2.5 rounded-xl px-2.5 py-1.5",
+                        ? "h-12 w-12 shrink-0 items-center justify-center rounded-full !p-0"
+                        : "min-h-14 min-w-0 flex-1 justify-start gap-2.5 rounded-xl px-2.5 py-1.5",
                     )}
                   >
                     <UserAvatarDisplay
                       name={userDisplayName || "?"}
                       avatarUrl={userAvatarUrl}
-                      size="sm"
-                      className="h-7 w-7 shrink-0 bg-black/[0.065] text-[10px] leading-none text-zinc-700"
+                      size={isCollapsed ? "md" : "lg"}
+                      className={cn(
+                        "shrink-0 bg-black/[0.065] leading-none text-zinc-700",
+                        isCollapsed
+                          ? "h-11 w-11 text-[13px]"
+                          : "h-12 w-12 text-[14px]",
+                      )}
                     />
                     <div
                       className={cn(

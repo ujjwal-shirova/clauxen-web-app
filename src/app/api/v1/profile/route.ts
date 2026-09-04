@@ -14,7 +14,7 @@ function toClientProfile(
     email: row?.email ?? null,
     fullName: row?.display_name ?? null,
     preferredName: row?.preferred_name ?? null,
-    avatarUrl: row?.avatar_url ?? null,
+    avatarUrl: profileService.toClientAvatarUrl(row),
   };
 }
 

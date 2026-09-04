@@ -49,6 +49,32 @@ export async function getUserFile(fileId: string, userId: string) {
   );
 }
 
+/** Current (or latest) uploaded avatar for a user. Safe for public profile-photo reads. */
+export async function getPublicAvatarFile(userId: string) {
+  const linked = await queryOne<UserFileRow>(
+    `select ${USER_FILE_COLUMNS}
+     from public.user_files uf
+     join public.profiles p
+       on p.avatar_file_id = uf.id
+      and p.id = uf.user_id
+     where p.id = $1
+       and uf.status = 'uploaded'`,
+    [userId],
+  );
+  if (linked) return linked;
+
+  return queryOne<UserFileRow>(
+    `select ${USER_FILE_COLUMNS}
+     from public.user_files
+     where user_id = $1
+       and status = 'uploaded'
+       and coalesce(metadata->>'purpose', '') = 'avatar'
+     order by updated_at desc
+     limit 1`,
+    [userId],
+  );
+}
+
 export async function listProjectFiles(projectId: string, userId: string) {
   return query<UserFileRow>(
     `select ${USER_FILE_COLUMNS}

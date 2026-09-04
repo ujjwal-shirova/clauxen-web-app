@@ -148,7 +148,8 @@ const fullSessionHandler = withApiHandler(async ({ request, session }) => {
             null,
           preferredName: row.preferred_name ?? null,
           avatarUrl:
-            row.avatar_url ?? resolveAuthAvatarUrl(user.user_metadata),
+            profileService.toClientAvatarUrl(row) ??
+            resolveAuthAvatarUrl(user.user_metadata),
         } satisfies SessionUser;
       });
     }
