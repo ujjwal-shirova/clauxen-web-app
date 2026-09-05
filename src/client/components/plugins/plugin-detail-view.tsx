@@ -1,44 +1,24 @@
 "use client";
 
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-} from "react";
-import Image from "next/image";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
-  ArrowRight,
   Bookmark,
   BookmarkCheck,
   Check,
   Copy,
   ExternalLink,
-  Globe,
-  Info,
   LoaderCircle,
-  MessageSquare,
   Plus,
   Share2,
-  ShieldCheck,
-  Sparkles,
-  Terminal,
-  Wrench,
-  Zap,
 } from "lucide-react";
 import { appPage } from "@/lib/app-page-chrome";
-import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
 import type { PluginCatalogItem, PluginSummary } from "@/lib/plugins/types";
 import { pluginRouteSegment } from "@/lib/plugins/types";
 import { usePluginInstallations } from "./use-plugin-installations";
-
-function safeAccent(value: string | undefined): string {
-  if (!value) return "#64748b";
-  return /^#[0-9a-f]{3,8}$/i.test(value) ? value : "#64748b";
-}
+import { PluginArtwork } from "./plugin-artwork";
+import { PluginPageHeader } from "./plugin-page-header";
 
 function safeExternalUrl(value: string | undefined): string | null {
   if (!value) return null;
@@ -58,100 +38,27 @@ function categoryLabel(slug: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function PluginHeroLogo({
-  plugin,
-  size = 64,
-}: {
-  plugin: PluginCatalogItem;
-  size?: number;
-}) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const initial = (plugin.displayName || plugin.name || "P")
-    .slice(0, 1)
-    .toUpperCase();
-  const accent = safeAccent(plugin.brandColor);
-
-  useEffect(() => setImageFailed(false), [plugin.logoUrl]);
-
-  return (
-    <div
-      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-[var(--ui-border)] text-2xl font-bold text-white shadow-md"
-      style={{
-        width: size,
-        height: size,
-        backgroundColor:
-          plugin.logoUrl && !imageFailed
-            ? "var(--app-panel-bg)"
-            : accent,
-      }}
-    >
-      {plugin.logoUrl && !imageFailed ? (
-        <Image
-          src={plugin.logoUrl}
-          alt=""
-          width={size}
-          height={size}
-          sizes={`${size}px`}
-          unoptimized
-          className="size-full object-cover"
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <span className="drop-shadow-sm">{initial}</span>
-      )}
-    </div>
-  );
-}
-
 function PluginMiniCard({ plugin }: { plugin: PluginSummary }) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const initial = (plugin.displayName || plugin.name || "P")
-    .slice(0, 1)
-    .toUpperCase();
-  const accent = safeAccent(plugin.brandColor);
-
+  const name = plugin.displayName || plugin.name;
   return (
     <Link
       href={`/plugins/${pluginRouteSegment(plugin)}`}
       prefetch
-      className="group flex flex-col justify-between rounded-2xl border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-3.5 transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--ui-border)] hover:shadow-xs"
+      className="flex items-center gap-3 rounded-xl border border-zinc-200/80 px-3 py-2.5 hover:bg-black/[0.02]"
     >
-      <div className="flex items-start gap-2.5">
-        <span
-          className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[var(--ui-border-subtle)] text-[12px] font-semibold text-white"
-          style={{
-            backgroundColor:
-              plugin.logoUrl && !imageFailed
-                ? "var(--app-panel-bg)"
-                : accent,
-          }}
-        >
-          {plugin.logoUrl && !imageFailed ? (
-            <Image
-              src={plugin.logoUrl}
-              alt=""
-              width={36}
-              height={36}
-              unoptimized
-              className="size-full object-cover"
-              onError={() => setImageFailed(true)}
-            />
-          ) : (
-            initial
-          )}
-        </span>
-        <div className="min-w-0 flex-1">
-          <h4 className="truncate text-[13px] font-semibold text-[var(--ui-fg)] group-hover:text-black dark:group-hover:text-white">
-            {plugin.displayName || plugin.name}
-          </h4>
-          <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-4 text-[var(--ui-fg-muted)]">
-            {plugin.shortDescription || plugin.description || "Integrate with Clauxen"}
-          </p>
-        </div>
-      </div>
-      <div className="mt-3 flex items-center justify-between text-[11px] font-medium text-[var(--ui-fg-muted)]">
-        <span>View details</span>
-        <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+      <PluginArtwork
+        name={name}
+        logoUrl={plugin.logoUrl}
+        brandColor={plugin.brandColor}
+        size={36}
+      />
+      <div className="min-w-0 flex-1">
+        <h4 className="truncate text-[13.5px] font-medium text-zinc-900">
+          {name}
+        </h4>
+        <p className="line-clamp-1 text-[12px] text-zinc-500">
+          {plugin.shortDescription || plugin.description || "Plugin"}
+        </p>
       </div>
     </Link>
   );
@@ -181,26 +88,23 @@ export function PluginDetailView({
   );
 
   const categorySlug =
-    plugin.categories.find((c) => c !== "featured" && c !== "new-and-noteworthy") ??
+    plugin.categories.find(
+      (item) => item !== "featured" && item !== "new-and-noteworthy",
+    ) ??
     plugin.categories[0] ??
     "tool";
   const primaryCategory = categoryLabel(categorySlug);
+  const name = plugin.displayName || plugin.name;
 
   const description =
     plugin.longDescription ||
     plugin.description ||
     plugin.shortDescription ||
     plugin.directoryDescription ||
-    `The ${plugin.displayName} plugin gives Clauxen direct access to its tools and resources.`;
+    `${name} gives Clauxen access to its tools.`;
 
-  const backHref = "/plugins";
-
-  const chatMention = `@${plugin.displayName || plugin.name}`;
+  const chatMention = `@${name}`;
   const defaultChatHref = `/new?prompt=${encodeURIComponent(`${chatMention} `)}`;
-
-  const accentStyle = {
-    "--plugin-accent": safeAccent(plugin.brandColor),
-  } as CSSProperties;
 
   const toggleInstallation = () => {
     if (installed) {
@@ -236,462 +140,260 @@ export function PluginDetailView({
   };
 
   const externalLinks = [
-    { label: "Website", href: safeExternalUrl(plugin.websiteUrl), icon: Globe },
-    { label: "MCP Protocol", href: safeExternalUrl(plugin.mcpUrl), icon: Terminal },
-    { label: "Privacy Policy", href: safeExternalUrl(plugin.privacyPolicyUrl), icon: ShieldCheck },
-    { label: "Terms of Service", href: safeExternalUrl(plugin.termsOfServiceUrl), icon: Info },
-  ].filter((item): item is { label: string; href: string; icon: typeof Globe } => Boolean(item.href));
+    { label: "Website", href: safeExternalUrl(plugin.websiteUrl) },
+    { label: "MCP", href: safeExternalUrl(plugin.mcpUrl) },
+    { label: "Privacy", href: safeExternalUrl(plugin.privacyPolicyUrl) },
+    { label: "Terms", href: safeExternalUrl(plugin.termsOfServiceUrl) },
+  ].filter(
+    (item): item is { label: string; href: string } => Boolean(item.href),
+  );
+
+  const addLabel = busy
+    ? "Working"
+    : installed
+      ? "Added"
+      : pending
+        ? "Sign in"
+        : "Add";
 
   return (
-    <div
-      className={cn(appPage.surface, "bg-[var(--app-panel-bg)]")}
-      style={accentStyle}
-    >
-      <div className="app-scrollbar flex-1 overflow-y-auto">
-        {/* Sticky Header Nav */}
-        <header className="sticky top-0 z-30 border-b border-[var(--ui-border-subtle)] bg-[color-mix(in_oklab,var(--app-panel-bg)_94%,transparent)] backdrop-blur-xl">
-          <div className="mx-auto flex h-14 w-full max-w-[1100px] items-center justify-between px-4 sm:px-8">
-            <div className="flex items-center gap-2">
-              <Link
-                href={backHref}
-                prefetch
-                className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[12.5px] font-medium text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-hover-wash)]"
-              >
-                <ArrowLeft className="size-3.5" />
-                <span>All Plugins</span>
-              </Link>
-              <span className="text-[var(--ui-fg-placeholder)]">/</span>
-              <span className="hidden sm:inline text-[12.5px] font-medium text-[var(--ui-fg-muted)]">
-                {primaryCategory}
-              </span>
-              <span className="hidden sm:inline text-[var(--ui-fg-placeholder)]">/</span>
-              <span className="truncate text-[12.5px] font-semibold text-[var(--ui-fg)] max-w-[180px] sm:max-w-[260px]">
-                {plugin.displayName || plugin.name}
-              </span>
-            </div>
+    <div className={appPage.surface}>
+      <PluginPageHeader
+        title={name}
+        backHref="/plugins"
+        trailing={
+          <>
+            <button
+              type="button"
+              onClick={() => installations.toggleCollection(plugin.id)}
+              className="ui-icon-button text-zinc-500 hover:bg-black/[0.05] hover:text-zinc-900"
+              title={isSaved ? "Saved" : "Save"}
+              aria-label={isSaved ? "Remove from saved" : "Save plugin"}
+            >
+              {isSaved ? (
+                <BookmarkCheck className="size-[18px]" strokeWidth={1.75} />
+              ) : (
+                <Bookmark className="size-[18px]" strokeWidth={1.75} />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="ui-icon-button hidden text-zinc-500 hover:bg-black/[0.05] hover:text-zinc-900 sm:inline-flex"
+              title="Copy link"
+              aria-label="Copy link"
+            >
+              {copiedLink ? (
+                <Check className="size-[18px]" strokeWidth={1.75} />
+              ) : (
+                <Share2 className="size-[18px]" strokeWidth={1.75} />
+              )}
+            </button>
+          </>
+        }
+      />
 
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handleCopyMention}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] px-2.5 text-[12px] font-medium text-[var(--ui-fg)] transition-colors hover:bg-[var(--app-frame-bg)]"
-                title="Copy mention tag for chat"
-              >
-                {copiedMention ? (
-                  <Check className="size-3.5 text-emerald-600" />
-                ) : (
-                  <Copy className="size-3.5 text-[var(--ui-fg-muted)]" />
-                )}
-                <span>{copiedMention ? "Copied @mention" : chatMention}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => installations.toggleCollection(plugin.id)}
-                className={cn(
-                  "flex size-8 items-center justify-center rounded-lg border transition-colors",
-                  isSaved
-                    ? "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                    : "border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] text-[var(--ui-fg-muted)] hover:bg-[var(--app-frame-bg)] hover:text-[var(--ui-fg)]",
-                )}
-                title={isSaved ? "Saved in your collection" : "Add to collection"}
-                aria-label={isSaved ? "Saved in your collection" : "Add to collection"}
-              >
-                {isSaved ? (
-                  <BookmarkCheck className="size-4 fill-current" />
-                ) : (
-                  <Bookmark className="size-4" />
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleShare}
-                className="flex size-8 items-center justify-center rounded-lg border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--app-frame-bg)] hover:text-[var(--ui-fg)]"
-                title="Share plugin link"
-                aria-label="Share plugin link"
-              >
-                {copiedLink ? (
-                  <Check className="size-4 text-emerald-600" />
-                ) : (
-                  <Share2 className="size-4" />
-                )}
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <main className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 px-4 pb-24 pt-6 sm:px-8">
-          {/* Hero Card */}
-          <section className="relative overflow-hidden rounded-[24px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-6 sm:p-8">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -right-16 -top-16 size-80 rounded-full opacity-60 blur-3xl"
-              style={{
-                backgroundColor: "var(--plugin-accent)",
-              }}
+      <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto">
+        <main className="mx-auto flex w-full max-w-[880px] flex-col gap-6 px-3 pb-28 pt-5 sm:px-8 sm:pb-16 sm:pt-8">
+          <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+            <PluginArtwork
+              name={name}
+              logoUrl={plugin.logoUrl}
+              brandColor={plugin.brandColor}
+              size={56}
+              className="rounded-xl"
             />
+            <div className="min-w-0 flex-1">
+              <p className="text-[12.5px] text-zinc-500">
+                {primaryCategory}
+                {plugin.developer ? ` · ${plugin.developer}` : ""}
+                {plugin.version ? ` · v${plugin.version}` : ""}
+              </p>
+              <h2 className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] text-zinc-900 sm:text-[22px]">
+                {name}
+              </h2>
+              <p className="mt-1.5 max-w-xl text-[13.5px] leading-5 text-zinc-600">
+                {plugin.shortDescription || plugin.description}
+              </p>
 
-            <div className="relative flex flex-col gap-6">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-5">
-                <div className="flex items-start gap-4">
-                  <PluginHeroLogo plugin={plugin} size={64} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md bg-[color-mix(in_oklab,var(--ui-fg)_6%,transparent)] px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-[var(--ui-fg-muted)]">
-                        {primaryCategory}
-                      </span>
-                      {plugin.version ? (
-                        <span className="rounded-md border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] px-2 py-0.5 text-[11px] font-mono font-medium text-[var(--ui-fg-muted)]">
-                          v{plugin.version}
-                        </span>
-                      ) : null}
-                      {plugin.developer ? (
-                        <span className="text-[12px] text-[var(--ui-fg-muted)]">
-                          by <strong className="font-medium text-[var(--ui-fg)]">{plugin.developer}</strong>
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <h1 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-[var(--ui-fg)]">
-                      {plugin.displayName || plugin.name}
-                    </h1>
-
-                    <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-[var(--ui-fg-muted)]">
-                      {plugin.shortDescription || plugin.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons Toolbar */}
-              <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-[var(--ui-border-subtle)]">
-                {/* Connect / Add Button */}
+              <div className="mt-4 hidden flex-wrap items-center gap-2 sm:flex">
                 <button
                   type="button"
                   onClick={toggleInstallation}
                   disabled={busy}
                   className={cn(
-                    "inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border px-4 text-[13px] font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-field-focus-border)] disabled:cursor-wait disabled:opacity-60 shadow-xs",
+                    "plugin-add-button inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-[13px] font-medium disabled:opacity-60",
                     installed
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                      : "border-[var(--ui-fg)] bg-[var(--ui-fg)] text-[var(--app-panel-bg)] hover:opacity-90",
+                      ? "bg-black/[0.05] text-zinc-800"
+                      : "bg-zinc-900 text-white hover:bg-zinc-800",
                   )}
                 >
                   {busy ? (
-                    <LoaderCircle className="size-4 animate-spin" />
+                    <LoaderCircle className="size-3.5 animate-spin" />
                   ) : installed ? (
-                    <Check className="size-4" strokeWidth={2.5} />
+                    <Check className="size-3.5" strokeWidth={2} />
                   ) : (
-                    <Plus className="size-4" strokeWidth={2} />
+                    <Plus className="size-3.5" strokeWidth={2} />
                   )}
-                  <span>
-                    {busy
-                      ? "Connecting..."
-                      : installed
-                        ? "Added to Clauxen"
-                        : pending
-                          ? "Sign in to Connect"
-                          : "Add to Clauxen"}
-                  </span>
+                  {addLabel}
                 </button>
-
-                {/* Open in Chat Button */}
                 <Link
                   href={defaultChatHref}
                   prefetch
-                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] px-4 text-[13px] font-semibold text-[var(--ui-fg)] shadow-xs transition-colors hover:bg-[var(--ui-hover-wash)]"
+                  className="inline-flex h-9 items-center rounded-lg border border-zinc-200 px-3.5 text-[13px] font-medium text-zinc-800 hover:bg-black/[0.03]"
                 >
-                  <MessageSquare className="size-4" />
-                  <span>Open in Chat</span>
-                  <ArrowRight className="size-3.5 opacity-60" />
+                  Open in chat
                 </Link>
-
-                {/* Add to Collection Bookmark Button */}
                 <button
                   type="button"
-                  onClick={() => installations.toggleCollection(plugin.id)}
-                  className={cn(
-                    "inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-[12.5px] font-medium transition-colors",
-                    isSaved
-                      ? "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                      : "border-[var(--ui-border)] bg-[var(--app-panel-bg)] text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)] hover:bg-[var(--app-frame-bg)]",
-                  )}
+                  onClick={handleCopyMention}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-zinc-500 hover:bg-black/[0.03] hover:text-zinc-800"
                 >
-                  {isSaved ? (
-                    <BookmarkCheck className="size-4 fill-current" />
+                  {copiedMention ? (
+                    <Check className="size-3.5" />
                   ) : (
-                    <Bookmark className="size-4" />
+                    <Copy className="size-3.5" />
                   )}
-                  <span>{isSaved ? "Saved to Collection" : "Add to Collection"}</span>
+                  {copiedMention ? "Copied" : chatMention}
                 </button>
-
-                {/* Website Link */}
-                {plugin.websiteUrl && safeExternalUrl(plugin.websiteUrl) ? (
-                  <a
-                    href={safeExternalUrl(plugin.websiteUrl)!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--ui-border)] bg-[var(--app-panel-bg)] px-3 text-[12.5px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
-                  >
-                    <span>Website</span>
-                    <ExternalLink className="size-3" />
-                  </a>
-                ) : null}
               </div>
-
-              {installations.error ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-[12.5px] text-red-600 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400">
-                  {installations.error}
-                </div>
-              ) : null}
             </div>
           </section>
 
-          {/* Starter Prompts Section */}
-          {prompts.length > 0 ? (
-            <section className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="size-4 text-amber-500" />
-                <h2 className="text-[15px] font-semibold text-[var(--ui-fg)]">
-                  Starter Prompts
-                </h2>
-                <span className="text-[12px] text-[var(--ui-fg-muted)]">
-                  — click any prompt to start chatting
-                </span>
-              </div>
+          {installations.error ? (
+            <p className="rounded-lg bg-red-50 px-3 py-2.5 text-[13px] text-red-700">
+              {installations.error}
+            </p>
+          ) : null}
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                {prompts.map((prompt, index) => {
+          {prompts.length > 0 ? (
+            <section>
+              <h3 className="text-[13px] font-medium text-zinc-900">
+                Try in chat
+              </h3>
+              <ul className="mt-2 divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200/80">
+                {prompts.map((prompt) => {
                   const promptHref = `/new?prompt=${encodeURIComponent(`${chatMention} ${prompt}`)}`;
                   return (
-                    <Link
-                      key={prompt}
-                      href={promptHref}
-                      prefetch
-                      className="group flex min-h-[110px] flex-col justify-between rounded-[18px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-4 transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--ui-border)] hover:bg-[var(--app-panel-bg)] hover:shadow-xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="rounded-md bg-[var(--ui-hover-wash)] px-1.5 py-0.5 text-[11px] font-mono font-semibold text-[var(--plugin-accent)]">
-                          0{index + 1}
-                        </span>
-                        <ArrowRight className="size-3.5 text-[var(--ui-fg-placeholder)] transition-transform group-hover:translate-x-1 group-hover:text-[var(--ui-fg)]" />
-                      </div>
-                      <p className="mt-3 line-clamp-3 text-[13px] font-medium leading-snug text-[var(--ui-fg)]">
-                        &ldquo;{prompt}&rdquo;
-                      </p>
-                    </Link>
+                    <li key={prompt}>
+                      <Link
+                        href={promptHref}
+                        prefetch
+                        className="block px-3.5 py-3 text-[13.5px] leading-5 text-zinc-700 hover:bg-black/[0.02]"
+                      >
+                        {prompt}
+                      </Link>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </section>
           ) : null}
 
-          {/* 2-Column Detail Layout */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-            {/* Left Column (Main Info) */}
-            <div className="flex flex-col gap-6">
-              {/* About Article */}
-              <article className="rounded-[20px] border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-5 sm:p-6">
-                <h2 className="text-[16px] font-semibold text-[var(--ui-fg)]">
-                  About {plugin.displayName || plugin.name}
-                </h2>
-                <div className="mt-3 text-[13.5px] leading-relaxed text-[var(--ui-fg-muted)] space-y-3 whitespace-pre-wrap">
-                  {description}
-                </div>
-
-                {/* Capabilities Badges */}
-                {plugin.capabilities && plugin.capabilities.length > 0 ? (
-                  <div className="mt-5 border-t border-[var(--ui-border-subtle)] pt-4">
-                    <h3 className="text-[12px] font-semibold uppercase tracking-wider text-[var(--ui-fg-placeholder)]">
-                      Supported Capabilities
-                    </h3>
-                    <div className="mt-2.5 flex flex-wrap gap-2">
-                      {plugin.capabilities.map((cap) => (
-                        <div
-                          key={cap}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] px-2.5 py-1 text-[12px] font-medium text-[var(--ui-fg)]"
-                        >
-                          <Zap className="size-3 text-amber-500" />
-                          <span>{cap}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Keyword Pills */}
-                {plugin.keywords && plugin.keywords.length > 0 ? (
-                  <div className="mt-5 border-t border-[var(--ui-border-subtle)] pt-4">
-                    <h3 className="text-[12px] font-semibold uppercase tracking-wider text-[var(--ui-fg-placeholder)]">
-                      Related Topics
-                    </h3>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      {plugin.keywords.slice(0, 16).map((kw) => (
-                        <span
-                          key={kw}
-                          className="rounded-md bg-[var(--ui-hover-wash)] px-2 py-0.5 text-[11px] text-[var(--ui-fg-muted)]"
-                        >
-                          #{kw}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </article>
-
-              {/* How to Use Guide */}
-              <section className="rounded-[20px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-5 sm:p-6">
-                <div className="flex items-center gap-2">
-                  <Terminal className="size-4 text-[var(--ui-fg-muted)]" />
-                  <h2 className="text-[15px] font-semibold text-[var(--ui-fg)]">
-                    How to use in Clauxen
-                  </h2>
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-3.5">
-                    <span className="text-[11px] font-mono font-semibold text-[var(--ui-fg-muted)]">
-                      STEP 1
-                    </span>
-                    <h4 className="mt-1 text-[13px] font-semibold text-[var(--ui-fg)]">
-                      Mention the Tool
-                    </h4>
-                    <p className="mt-1 text-[12px] text-[var(--ui-fg-muted)]">
-                      Type <code className="rounded bg-[var(--ui-hover-wash)] px-1 text-[11px] font-mono">{chatMention}</code> in any chat to invoke it.
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-3.5">
-                    <span className="text-[11px] font-mono font-semibold text-[var(--ui-fg-muted)]">
-                      STEP 2
-                    </span>
-                    <h4 className="mt-1 text-[13px] font-semibold text-[var(--ui-fg)]">
-                      State Your Task
-                    </h4>
-                    <p className="mt-1 text-[12px] text-[var(--ui-fg-muted)]">
-                      Ask questions, query live data, or request automated actions.
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-3.5">
-                    <span className="text-[11px] font-mono font-semibold text-[var(--ui-fg-muted)]">
-                      STEP 3
-                    </span>
-                    <h4 className="mt-1 text-[13px] font-semibold text-[var(--ui-fg)]">
-                      Inspect Results
-                    </h4>
-                    <p className="mt-1 text-[12px] text-[var(--ui-fg-muted)]">
-                      Clauxen securely executes tool functions and formats responses.
-                    </p>
-                  </div>
-                </div>
-              </section>
+          <section>
+            <h3 className="text-[13px] font-medium text-zinc-900">About</h3>
+            <div className="mt-2 whitespace-pre-wrap text-[13.5px] leading-6 text-zinc-600">
+              {description}
             </div>
 
-            {/* Right Column (Sidebar Cards) */}
-            <aside className="flex flex-col gap-4">
-              {/* Technical Specifications */}
-              <div className="rounded-[20px] border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-4 sm:p-5">
-                <div className="flex items-center gap-2 pb-3 border-b border-[var(--ui-border-subtle)] text-[13px] font-semibold text-[var(--ui-fg)]">
-                  <Wrench className="size-3.5 text-[var(--ui-fg-muted)]" />
-                  <span>Technical Details</span>
-                </div>
-
-                <dl className="mt-3 divide-y divide-[var(--ui-border-subtle)] text-[12.5px]">
-                  <div className="flex items-center justify-between py-2">
-                    <dt className="text-[var(--ui-fg-placeholder)]">Category</dt>
-                    <dd className="font-medium text-[var(--ui-fg)]">{primaryCategory}</dd>
-                  </div>
-                  {plugin.developer ? (
-                    <div className="flex items-center justify-between py-2">
-                      <dt className="text-[var(--ui-fg-placeholder)]">Developer</dt>
-                      <dd className="font-medium text-[var(--ui-fg)] truncate max-w-[150px]">
-                        {plugin.developer}
-                      </dd>
-                    </div>
-                  ) : null}
-                  {plugin.version ? (
-                    <div className="flex items-center justify-between py-2">
-                      <dt className="text-[var(--ui-fg-placeholder)]">Version</dt>
-                      <dd className="font-mono text-[var(--ui-fg)]">{plugin.version}</dd>
-                    </div>
-                  ) : null}
-                  <div className="flex items-center justify-between py-2">
-                    <dt className="text-[var(--ui-fg-placeholder)]">Protocol</dt>
-                    <dd className="font-medium text-[var(--ui-fg)]">Model Context Protocol</dd>
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <dt className="text-[var(--ui-fg-placeholder)]">Connector</dt>
-                    <dd className="font-medium text-emerald-600 dark:text-emerald-400">
-                      Cloudflare Verified
-                    </dd>
-                  </div>
-                </dl>
+            {plugin.capabilities && plugin.capabilities.length > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {plugin.capabilities.map((cap) => (
+                  <span
+                    key={cap}
+                    className="rounded-md bg-black/[0.04] px-2 py-0.5 text-[12px] text-zinc-600"
+                  >
+                    {cap}
+                  </span>
+                ))}
               </div>
+            ) : null}
+          </section>
 
-              {/* Links & Resources */}
-              {externalLinks.length > 0 ? (
-                <div className="rounded-[20px] border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] p-4 sm:p-5">
-                  <h3 className="text-[13px] font-semibold text-[var(--ui-fg)] pb-2 border-b border-[var(--ui-border-subtle)]">
-                    Links & Documentation
-                  </h3>
-                  <div className="mt-2 flex flex-col divide-y divide-[var(--ui-border-subtle)]">
-                    {externalLinks.map(({ label, href, icon: Icon }) => (
+          <section>
+            <h3 className="text-[13px] font-medium text-zinc-900">
+              How to use
+            </h3>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-[13.5px] leading-5 text-zinc-600">
+              <li>
+                Add the plugin, then type{" "}
+                <button
+                  type="button"
+                  onClick={handleCopyMention}
+                  className="rounded bg-black/[0.05] px-1 py-0.5 font-mono text-[12px] text-zinc-800"
+                >
+                  {copiedMention ? "Copied" : chatMention}
+                </button>{" "}
+                in a chat.
+              </li>
+              <li>Ask it to look something up or take an action.</li>
+              <li>Clauxen runs the tool and shows the result in the thread.</li>
+            </ol>
+          </section>
+
+          <section className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div>
+              <h3 className="text-[13px] font-medium text-zinc-900">Details</h3>
+              <dl className="mt-2 space-y-2 text-[13px]">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-zinc-500">Category</dt>
+                  <dd className="text-zinc-800">{primaryCategory}</dd>
+                </div>
+                {plugin.developer ? (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-zinc-500">Developer</dt>
+                    <dd className="truncate text-zinc-800">{plugin.developer}</dd>
+                  </div>
+                ) : null}
+                {plugin.version ? (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-zinc-500">Version</dt>
+                    <dd className="text-zinc-800">{plugin.version}</dd>
+                  </div>
+                ) : null}
+                <div className="flex justify-between gap-4">
+                  <dt className="text-zinc-500">Protocol</dt>
+                  <dd className="text-zinc-800">MCP</dd>
+                </div>
+              </dl>
+            </div>
+
+            {externalLinks.length > 0 ? (
+              <div>
+                <h3 className="text-[13px] font-medium text-zinc-900">Links</h3>
+                <ul className="mt-2 space-y-1.5">
+                  {externalLinks.map(({ label, href }) => (
+                    <li key={label}>
                       <a
-                        key={label}
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-between py-2 text-[12.5px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:text-[var(--ui-fg)]"
+                        className="inline-flex items-center gap-1.5 text-[13px] text-zinc-600 hover:text-zinc-900"
                       >
-                        <div className="flex items-center gap-2">
-                          <Icon className="size-3.5 text-[var(--ui-fg-placeholder)]" />
-                          <span>{label}</span>
-                        </div>
-                        <ExternalLink className="size-3 text-[var(--ui-fg-placeholder)]" />
+                        {label}
+                        <ExternalLink className="size-3" strokeWidth={1.75} />
                       </a>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Security & Data Notes */}
-              <div className="rounded-[20px] border border-[var(--ui-border-subtle)] bg-[var(--app-frame-bg)] p-4 sm:p-5">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
-                  <h3 className="text-[13px] font-semibold text-[var(--ui-fg)]">
-                    Privacy & Sandboxing
-                  </h3>
-                </div>
-                <p className="mt-2 text-[12px] leading-relaxed text-[var(--ui-fg-muted)]">
-                  MCP tools operate in isolated Cloudflare sandboxes. Clauxen only shares explicit query parameters requested by you during conversation.
-                </p>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </aside>
-          </div>
+            ) : null}
+          </section>
 
-          {/* Related Plugins Section */}
-          {relatedPlugins && relatedPlugins.length > 0 ? (
-            <section className="mt-4 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-[15px] font-semibold text-[var(--ui-fg)]">
-                    Related Tools & Plugins
-                  </h2>
-                  <p className="text-[12px] text-[var(--ui-fg-muted)]">
-                    More plugins in {primaryCategory} and related workflows.
-                  </p>
-                </div>
+          {relatedPlugins.length > 0 ? (
+            <section>
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-[13px] font-medium text-zinc-900">
+                  Related
+                </h3>
                 <Link
                   href="/plugins"
-                  className="text-[12px] font-medium text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)]"
+                  className="text-[12.5px] text-zinc-500 hover:text-zinc-800"
                 >
-                  Browse all →
+                  All plugins
                 </Link>
               </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-2 flex flex-col gap-1.5">
                 {relatedPlugins.map((item) => (
                   <PluginMiniCard key={item.id} plugin={item} />
                 ))}
@@ -699,6 +401,38 @@ export function PluginDetailView({
             </section>
           ) : null}
         </main>
+      </div>
+
+      <div className="sticky bottom-0 z-20 border-t border-zinc-200/80 bg-[var(--app-panel-bg,#fcfcfb)] px-3 py-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))] sm:hidden">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={toggleInstallation}
+            disabled={busy}
+            className={cn(
+              "plugin-add-button inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg text-[13.5px] font-medium disabled:opacity-60",
+              installed
+                ? "bg-black/[0.06] text-zinc-800"
+                : "bg-zinc-900 text-white",
+            )}
+          >
+            {busy ? (
+              <LoaderCircle className="size-4 animate-spin" />
+            ) : installed ? (
+              <Check className="size-4" strokeWidth={2} />
+            ) : (
+              <Plus className="size-4" strokeWidth={2} />
+            )}
+            {addLabel}
+          </button>
+          <Link
+            href={defaultChatHref}
+            prefetch
+            className="inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-lg border border-zinc-200 text-[13.5px] font-medium text-zinc-800"
+          >
+            Open in chat
+          </Link>
+        </div>
       </div>
     </div>
   );
