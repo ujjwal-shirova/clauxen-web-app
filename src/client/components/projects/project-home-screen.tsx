@@ -9,6 +9,7 @@ import { useAppLayout } from "@/components/app-layout-context";
 import * as projectsApi from "@/lib/api/projects";
 import type { ApiProject } from "@/lib/api/projects";
 import { APP_ROUTES, getProjectIdFromPath } from "@/lib/app-routes";
+import { PROJECT_NAME_MAX_LENGTH } from "@/lib/project-limits";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { isProjectPinned } from "@/lib/pinned-projects";
 import { AppHref } from "@/components/app-href";
@@ -193,6 +194,14 @@ function ProjectHomeContent({
           icon: next.icon,
           color: next.color,
         });
+        setProject(updated);
+      }}
+      onSaveName={async (name) => {
+        const nextName = name.trim().slice(0, PROJECT_NAME_MAX_LENGTH);
+        if (!nextName || nextName === visibleProject.name) return;
+        setProject((prev) => (prev ? { ...prev, name: nextName } : prev));
+        if (!apiEnabled) return;
+        const updated = await projectsHook.updateProject(id, { name: nextName });
         setProject(updated);
       }}
       projectChats={projectChats}

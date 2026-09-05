@@ -31,6 +31,7 @@ import {
   DEFAULT_PROJECT_COLOR,
   DEFAULT_PROJECT_ICON,
 } from "@/lib/project-appearance";
+import { PROJECT_NAME_MAX_LENGTH } from "@/lib/project-limits";
 
 type ProjectHomeViewProps = {
   project: ApiProject;
@@ -44,6 +45,7 @@ type ProjectHomeViewProps = {
     icon: string;
     color: string;
   }) => void | Promise<void>;
+  onSaveName?: (name: string) => void | Promise<void>;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
   projectChats?: RecentChat[];
@@ -63,6 +65,7 @@ export function ProjectHomeView({
   isGenerating = false,
   onSaveInstructions,
   onSaveAppearance,
+  onSaveName,
   onOpenMobileNav,
   showMobileMenu = false,
   projectChats = [],
@@ -74,6 +77,8 @@ export function ProjectHomeView({
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const [textDialogOpen, setTextDialogOpen] = useState(false);
+  const [isRenamingProject, setIsRenamingProject] = useState(false);
+  const [projectRenameValue, setProjectRenameValue] = useState("");
   const [instructions, setInstructions] = useState(
     () => project.system_prompt ?? getProjectInstructions(project.id),
   );
@@ -196,12 +201,56 @@ export function ProjectHomeView({
           icon={project.icon || DEFAULT_PROJECT_ICON}
           color={project.color || DEFAULT_PROJECT_COLOR}
           size="sm"
+          className="shrink-0"
           onChange={(next) => void onSaveAppearance?.(next)}
         />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[15px] font-semibold tracking-[-0.01em] text-zinc-900">
-            {project.name}
-          </h1>
+          {isRenamingProject ? (
+            <input
+              autoFocus
+              aria-label="Project name"
+              value={projectRenameValue}
+              maxLength={PROJECT_NAME_MAX_LENGTH}
+              onChange={(event) =>
+                setProjectRenameValue(
+                  event.target.value.slice(0, PROJECT_NAME_MAX_LENGTH),
+                )
+              }
+              onBlur={() => {
+                const next = projectRenameValue
+                  .trim()
+                  .slice(0, PROJECT_NAME_MAX_LENGTH);
+                setIsRenamingProject(false);
+                if (next && next !== project.name) {
+                  void onSaveName?.(next);
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  event.currentTarget.blur();
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setIsRenamingProject(false);
+                  setProjectRenameValue(project.name);
+                }
+              }}
+              className="h-7 w-full max-w-[min(100%,18rem)] rounded-md border border-zinc-200 bg-white px-1.5 text-[15px] font-semibold tracking-[-0.01em] text-zinc-900 outline-none ring-0"
+            />
+          ) : (
+            <button
+              type="button"
+              title="Rename project"
+              onClick={() => {
+                setProjectRenameValue(project.name);
+                setIsRenamingProject(true);
+              }}
+              className="block max-w-full truncate whitespace-nowrap text-left text-[15px] font-semibold tracking-[-0.01em] text-zinc-900 transition-opacity hover:opacity-80"
+            >
+              {project.name}
+            </button>
+          )}
         </div>
         <button
           type="button"

@@ -9,6 +9,10 @@ import {
   DEFAULT_PROJECT_COLOR,
   DEFAULT_PROJECT_ICON,
 } from "@/lib/project-appearance";
+import {
+  PROJECT_DESCRIPTION_MAX_LENGTH,
+  PROJECT_NAME_MAX_LENGTH,
+} from "@/lib/project-limits";
 
 export type CreateProjectFormValues = {
   name: string;
@@ -32,6 +36,29 @@ type CreateProjectFormProps = {
   errorMessage?: string | null;
 };
 
+function FieldCounter({
+  value,
+  max,
+  className,
+}: {
+  value: number;
+  max: number;
+  className?: string;
+}) {
+  const atLimit = value >= max;
+  return (
+    <span
+      className={cn(
+        "pointer-events-none absolute text-[11px] tabular-nums leading-none",
+        atLimit ? "text-zinc-500" : "text-zinc-400/90",
+        className,
+      )}
+    >
+      {value}/{max}
+    </span>
+  );
+}
+
 export function CreateProjectForm({
   onSubmit,
   cancelHref,
@@ -46,8 +73,12 @@ export function CreateProjectForm({
   initialColor = DEFAULT_PROJECT_COLOR,
   errorMessage,
 }: CreateProjectFormProps) {
-  const [name, setName] = useState(initialName);
-  const [description, setDescription] = useState(initialDescription);
+  const [name, setName] = useState(
+    initialName.slice(0, PROJECT_NAME_MAX_LENGTH),
+  );
+  const [description, setDescription] = useState(
+    initialDescription.slice(0, PROJECT_DESCRIPTION_MAX_LENGTH),
+  );
   const [icon, setIcon] = useState(initialIcon);
   const [color, setColor] = useState(initialColor);
   const canSubmit = name.trim().length > 0 && !isSubmitting;
@@ -56,8 +87,8 @@ export function CreateProjectForm({
     e.preventDefault();
     if (!canSubmit) return;
     void onSubmit({
-      name: name.trim(),
-      description: description.trim(),
+      name: name.trim().slice(0, PROJECT_NAME_MAX_LENGTH),
+      description: description.trim().slice(0, PROJECT_DESCRIPTION_MAX_LENGTH),
       icon,
       color,
     });
@@ -89,16 +120,26 @@ export function CreateProjectForm({
             >
               Project name
             </label>
-            <input
-              id="project-name"
-              name="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Name your project"
-              className="h-10 w-full rounded-xl border-0 bg-white px-3 text-[14px] shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.22)]"
-              autoFocus
-              disabled={isSubmitting}
-            />
+            <div className="relative">
+              <input
+                id="project-name"
+                name="name"
+                value={name}
+                maxLength={PROJECT_NAME_MAX_LENGTH}
+                onChange={(e) =>
+                  setName(e.target.value.slice(0, PROJECT_NAME_MAX_LENGTH))
+                }
+                placeholder="Name your project"
+                className="h-10 w-full rounded-xl border-0 bg-white py-0 pl-3 pr-12 text-[14px] shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.22)]"
+                autoFocus
+                disabled={isSubmitting}
+              />
+              <FieldCounter
+                value={name.length}
+                max={PROJECT_NAME_MAX_LENGTH}
+                className="bottom-2 right-2.5"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -108,16 +149,28 @@ export function CreateProjectForm({
             >
               Description
             </label>
-            <textarea
-              id="project-description"
-              name="description"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What this project is for"
-              className="min-h-[84px] w-full resize-y rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] leading-5 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.22)]"
-              disabled={isSubmitting}
-            />
+            <div className="relative">
+              <textarea
+                id="project-description"
+                name="description"
+                rows={3}
+                value={description}
+                maxLength={PROJECT_DESCRIPTION_MAX_LENGTH}
+                onChange={(e) =>
+                  setDescription(
+                    e.target.value.slice(0, PROJECT_DESCRIPTION_MAX_LENGTH),
+                  )
+                }
+                placeholder="What this project is for"
+                className="min-h-[84px] w-full resize-y rounded-xl border-0 bg-white px-3 pb-6 pt-2.5 text-[14px] leading-5 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.22)]"
+                disabled={isSubmitting}
+              />
+              <FieldCounter
+                value={description.length}
+                max={PROJECT_DESCRIPTION_MAX_LENGTH}
+                className="bottom-2 right-2.5"
+              />
+            </div>
           </div>
         </div>
 

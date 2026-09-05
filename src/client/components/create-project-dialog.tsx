@@ -10,6 +10,10 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  PROJECT_DESCRIPTION_MAX_LENGTH,
+  PROJECT_NAME_MAX_LENGTH,
+} from "@/lib/project-limits";
 
 type CreateProjectDialogProps = {
   open: boolean;
@@ -38,8 +42,15 @@ export function CreateProjectDialog({
 
   useEffect(() => {
     if (!open) return;
-    setName(mode === "edit" ? initialName : "");
-    setDescription(mode === "edit" ? initialDescription : "");
+    setName(
+      (mode === "edit" ? initialName : "").slice(0, PROJECT_NAME_MAX_LENGTH),
+    );
+    setDescription(
+      (mode === "edit" ? initialDescription : "").slice(
+        0,
+        PROJECT_DESCRIPTION_MAX_LENGTH,
+      ),
+    );
   }, [open, mode, initialName, initialDescription]);
 
   const isEdit = mode === "edit";
@@ -49,7 +60,10 @@ export function CreateProjectDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    void onSubmit({ name: name.trim(), description: description.trim() });
+    void onSubmit({
+      name: name.trim().slice(0, PROJECT_NAME_MAX_LENGTH),
+      description: description.trim().slice(0, PROJECT_DESCRIPTION_MAX_LENGTH),
+    });
   };
 
   return (
@@ -95,15 +109,30 @@ export function CreateProjectDialog({
               >
                 Project name
               </label>
-              <input
-                id="project-name"
-                name="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Name your project"
-                className="h-8 w-full rounded-lg border-0 bg-white/80 px-2 text-[14px] shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
-                autoFocus
-              />
+              <div className="relative">
+                <input
+                  id="project-name"
+                  name="name"
+                  value={name}
+                  maxLength={PROJECT_NAME_MAX_LENGTH}
+                  onChange={(e) =>
+                    setName(e.target.value.slice(0, PROJECT_NAME_MAX_LENGTH))
+                  }
+                  placeholder="Name your project"
+                  className="h-8 w-full rounded-lg border-0 bg-white/80 py-0 pl-2 pr-12 text-[14px] shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
+                  autoFocus
+                />
+                <span
+                  className={cn(
+                    "pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] tabular-nums leading-none",
+                    name.length >= PROJECT_NAME_MAX_LENGTH
+                      ? "text-zinc-500"
+                      : "text-zinc-400/90",
+                  )}
+                >
+                  {name.length}/{PROJECT_NAME_MAX_LENGTH}
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -113,15 +142,32 @@ export function CreateProjectDialog({
               >
                 Description
               </label>
-              <textarea
-                id="project-description"
-                name="description"
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="What this project is for"
-                className="min-h-[72px] w-full resize-y rounded-lg border-0 bg-white/80 px-2 py-2 text-[14px] leading-5 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
-              />
+              <div className="relative">
+                <textarea
+                  id="project-description"
+                  name="description"
+                  rows={3}
+                  value={description}
+                  maxLength={PROJECT_DESCRIPTION_MAX_LENGTH}
+                  onChange={(e) =>
+                    setDescription(
+                      e.target.value.slice(0, PROJECT_DESCRIPTION_MAX_LENGTH),
+                    )
+                  }
+                  placeholder="What this project is for"
+                  className="min-h-[72px] w-full resize-y rounded-lg border-0 bg-white/80 px-2 pb-6 pt-2 text-[14px] leading-5 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
+                />
+                <span
+                  className={cn(
+                    "pointer-events-none absolute bottom-2 right-2.5 text-[11px] tabular-nums leading-none",
+                    description.length >= PROJECT_DESCRIPTION_MAX_LENGTH
+                      ? "text-zinc-500"
+                      : "text-zinc-400/90",
+                  )}
+                >
+                  {description.length}/{PROJECT_DESCRIPTION_MAX_LENGTH}
+                </span>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3">

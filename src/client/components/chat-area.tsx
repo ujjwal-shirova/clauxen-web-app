@@ -97,7 +97,10 @@ interface ChatAreaProps {
   showMobileMenu?: boolean;
   projectBreadcrumb?: {
     label: string;
+    href?: string;
     onClick?: () => void;
+    icon?: string | null;
+    color?: string | null;
   };
   /** When the chat already belongs to a project, lock the composer strip. */
   lockedProjectId?: string | null;

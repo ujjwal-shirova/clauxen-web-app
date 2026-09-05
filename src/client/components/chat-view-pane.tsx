@@ -130,6 +130,8 @@ export function ChatViewPane({
   const { user } = useAuth();
   const composerOnlyWelcome = welcomeVariant === "composer-only";
   const incognitoWelcome = welcomeVariant === "incognito";
+  const dockComposer =
+    hasConversation || (!composerOnlyWelcome && !incognitoWelcome);
   const [greeting, setGreeting] = useState<string | null>(null);
   const firstName = welcomeFirstName({
     preferredName: userPreferredName ?? user?.preferredName,
@@ -152,16 +154,16 @@ export function ChatViewPane({
   }, []);
 
   useEffect(() => {
-    if (hasConversation) return;
+    if (dockComposer) return;
     const minReserve = getMinComposerReservePx();
     composerReserveRef.current = minReserve;
     if (shellRef.current) {
       applyComposerReserveCss(shellRef.current, minReserve);
     }
-  }, [hasConversation, scrollAreaRef]);
+  }, [dockComposer, scrollAreaRef]);
 
   useEffect(() => {
-    if (!hasConversation) return;
+    if (!dockComposer) return;
     const shell = shellRef.current;
     const composer = composerMeasureRef.current;
     if (!shell || !composer) return;
@@ -201,7 +203,7 @@ export function ChatViewPane({
       observer.disconnect();
       cancelAnimationFrame(composerMeasureRafRef.current);
     };
-  }, [hasConversation, scrollAreaRef, isAddMenuOpen]);
+  }, [dockComposer, scrollAreaRef, isAddMenuOpen]);
 
   return (
     <section
@@ -213,13 +215,41 @@ export function ChatViewPane({
       data-chat-active={hasConversation || undefined}
       data-chat-streaming={isGenerating || undefined}
       style={
-        hasConversation
+        dockComposer
           ? ({
               "--chat-composer-reserve": `${composerReserveRef.current}px`,
             } as CSSProperties)
           : undefined
       }
     >
+      {!hasConversation && !composerOnlyWelcome && !incognitoWelcome ? (
+        <div
+          className="flex min-h-0 flex-1 flex-col items-center justify-center px-4"
+          style={{
+            paddingBottom: `var(--chat-composer-reserve, ${MIN_CHAT_COMPOSER_RESERVE_PX}px)`,
+          }}
+        >
+          <Image
+            src="/assets/icons/clauxen-icon.png"
+            width={56}
+            height={56}
+            alt=""
+            aria-hidden="true"
+            priority
+            className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
+          />
+          <h2
+            className="mt-4 max-w-[min(100%,22rem)] truncate whitespace-nowrap text-center text-[20px] font-semibold tracking-[-0.03em] text-zinc-800 sm:max-w-[28rem] sm:text-[24px]"
+            suppressHydrationWarning
+          >
+            {greeting
+              ? firstName
+                ? `${greeting}, ${firstName}`
+                : greeting
+              : "\u00a0"}
+          </h2>
+        </div>
+      ) : (
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <ScrollArea
           className="h-full min-h-0 min-w-0 flex-1 overflow-hidden"
@@ -419,8 +449,9 @@ export function ChatViewPane({
           </div>
         </ScrollArea>
       </div>
+      )}
 
-      {hasConversation ? (
+      {dockComposer ? (
         <>
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30">
             <div className="chat-composer-row">

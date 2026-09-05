@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import * as projectsApi from "@/lib/api/projects";
 import type { ApiProject } from "@/lib/api/projects";
 import { readPinnedProjectIds, setProjectPinned } from "@/lib/pinned-projects";
-
-const MAX_PROJECT_NAME_LENGTH = 200;
+import {
+  PROJECT_DESCRIPTION_MAX_LENGTH,
+  PROJECT_NAME_MAX_LENGTH,
+} from "@/lib/project-limits";
 const API_PROJECTS_CACHE_KEY = "clauxen-api-projects-cache";
 const PROJECTS_UPDATED_EVENT = "clauxen:projects-updated";
 const LIST_DEDUP_TTL_MS = 5_000;
@@ -129,8 +131,11 @@ export function useProjects(apiEnabled: boolean) {
       icon?: string;
       color?: string;
     }) => {
-      const trimmed = input.name.trim();
-      if (!trimmed || trimmed.length > MAX_PROJECT_NAME_LENGTH) return;
+      const trimmed = input.name.trim().slice(0, PROJECT_NAME_MAX_LENGTH);
+      if (!trimmed) return;
+      const description = input.description
+        ?.trim()
+        .slice(0, PROJECT_DESCRIPTION_MAX_LENGTH);
 
       if (!apiEnabled) {
         throw new Error("Sign in before creating a project.");
@@ -145,7 +150,7 @@ export function useProjects(apiEnabled: boolean) {
       const optimistic: ApiProject = {
         id,
         name: trimmed,
-        description: input.description?.trim() || null,
+        description: description || null,
         system_prompt: null,
         icon: input.icon ?? null,
         color: input.color ?? null,
@@ -165,7 +170,7 @@ export function useProjects(apiEnabled: boolean) {
         const { project } = await projectsApi.createProject({
           id,
           name: trimmed,
-          description: input.description?.trim() || undefined,
+          description: description || undefined,
           icon: input.icon,
           color: input.color,
         });
@@ -199,7 +204,23 @@ export function useProjects(apiEnabled: boolean) {
       },
     ) => {
       if (!apiEnabled) throw new Error("Sign in before updating a project.");
-      const { project } = await projectsApi.updateProject(projectId, patch);
+      const nextPatch = {
+        ...patch,
+        ...(patch.name !== undefined
+          ? { name: patch.name.trim().slice(0, PROJECT_NAME_MAX_LENGTH) }
+          : {}),
+        ...(patch.description !== undefined
+          ? {
+              description: patch.description
+                .trim()
+                .slice(0, PROJECT_DESCRIPTION_MAX_LENGTH),
+            }
+          : {}),
+      };
+      if (patch.name !== undefined && !nextPatch.name) {
+        throw new Error("Project name cannot be empty.");
+      }
+      const { project } = await projectsApi.updateProject(projectId, nextPatch);
       const next = loadCachedApiProjects().map((p) =>
         p.id === projectId ? project : p,
       );

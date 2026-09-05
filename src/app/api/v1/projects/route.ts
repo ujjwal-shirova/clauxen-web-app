@@ -7,8 +7,10 @@ import { requireSession } from "@/server/auth/require-session"; // null session 
 import * as projectsRepo from "@/server/repositories/projects.repository"; // listProjects / createProject SQL
 import { AppError } from "@/server/db/errors"; // validation errors — 400 bad request factory
 
-const MAX_PROJECT_NAME_LENGTH = 200;
-const MAX_PROJECT_DESCRIPTION_LENGTH = 2000;
+import {
+  PROJECT_DESCRIPTION_MAX_LENGTH,
+  PROJECT_NAME_MAX_LENGTH,
+} from "@/lib/project-limits";
 const PROJECT_COLOR_HEX = /^#[0-9A-Fa-f]{6}$/;
 const MAX_PROJECT_ICON_LENGTH = 16;
 
@@ -54,7 +56,7 @@ export const POST = withApiHandler(
         : undefined;
     const name = typeof body.name === "string" ? body.name.trim() : "";
     if (!name) throw new AppError("Project name is required.", 400);
-    if (name.length > MAX_PROJECT_NAME_LENGTH) {
+    if (name.length > PROJECT_NAME_MAX_LENGTH) {
       throw new AppError("Project name is too long.", 400);
     }
     let description: string | undefined;
@@ -63,7 +65,7 @@ export const POST = withApiHandler(
         throw new AppError("Invalid description.", 400);
       }
       const trimmed = body.description.trim();
-      if (trimmed.length > MAX_PROJECT_DESCRIPTION_LENGTH) {
+      if (trimmed.length > PROJECT_DESCRIPTION_MAX_LENGTH) {
         throw new AppError("Description is too long.", 400);
       }
       description = trimmed || undefined;

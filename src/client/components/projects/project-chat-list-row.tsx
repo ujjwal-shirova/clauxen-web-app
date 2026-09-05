@@ -55,10 +55,11 @@ export function ProjectChatListRow({
           active && "bg-zinc-50",
         )}
       >
-        <span className="flex items-center gap-1 text-[14px] font-medium leading-5 text-zinc-900">
+        <span className="flex min-w-0 items-center gap-1 text-[14px] font-medium leading-5 text-zinc-900">
           <StreamingChatTitle
             title={title}
             isStreaming={!!chat.isTitleStreaming}
+            className="min-w-0 truncate"
           />
           {chat.isTitleStreaming ? <TypingDots className="ml-1" /> : null}
         </span>

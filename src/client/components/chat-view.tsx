@@ -17,7 +17,6 @@ import { useAppOverlays } from "@/hooks/use-app-overlays";
 import { useAppLayout } from "@/components/app-layout-context";
 import {
   APP_ROUTES,
-  CHAT_ENTER_METHOD_PROJECT,
   getProjectIdFromPath,
   isIncognitoPath,
   isIncognitoSessionId,
@@ -48,6 +47,8 @@ interface ChatViewProps {
     label: string;
     href?: string;
     onClick?: () => void;
+    icon?: string | null;
+    color?: string | null;
   };
   /** Optional prompt launched from a plugin example. Sent once on mount. */
   initialPrompt?: string;
@@ -69,11 +70,6 @@ function getRouteChatId(pathname: string): string | null {
     pathname.match(/^\/c\/([^/]+)/)?.[1] ??
     null
   );
-}
-
-function readChatEnterMethod(): string | null {
-  if (typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get("chat_enter_method");
 }
 
 function ChatViewBody({
@@ -107,7 +103,6 @@ function ChatViewBody({
   const [resolvedProjectName, setResolvedProjectName] = useState<string | null>(
     projectBreadcrumb?.label ?? null,
   );
-  const [enterMethod, setEnterMethod] = useState<string | null>(null);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [successPlanName, setSuccessPlanName] = useState<string | null>(null);
   const [showFreePlanUpgrade, setShowFreePlanUpgrade] = useState(false);
@@ -152,10 +147,6 @@ function ChatViewBody({
       window.removeEventListener("clauxen:billing-updated", onBillingUpdated);
     };
   }, [auth.loading, auth.user?.id]);
-
-  useEffect(() => {
-    setEnterMethod(readChatEnterMethod());
-  }, [pathname]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -319,25 +310,23 @@ function ChatViewBody({
     };
   }, [bindProjectId, projectBreadcrumb?.label, projects.projects]);
 
+  const breadcrumbProject =
+    projects.projects.find((item) => item.id === bindProjectId) ?? null;
   const effectiveBreadcrumb = useMemo(() => {
     if (projectBreadcrumb) return projectBreadcrumb;
     if (!bindProjectId || !resolvedProjectName) return undefined;
-    const showChrome =
-      Boolean(scopedProjectId) ||
-      enterMethod === CHAT_ENTER_METHOD_PROJECT ||
-      Boolean(activeChat?.projectId);
-    if (!showChrome) return undefined;
     return {
       label: resolvedProjectName,
       href: APP_ROUTES.project(bindProjectId),
+      icon: breadcrumbProject?.icon,
+      color: breadcrumbProject?.color,
     };
   }, [
     projectBreadcrumb,
     bindProjectId,
     resolvedProjectName,
-    enterMethod,
-    activeChat?.projectId,
-    scopedProjectId,
+    breadcrumbProject?.icon,
+    breadcrumbProject?.color,
   ]);
 
   const openChatRoute = useCallback(

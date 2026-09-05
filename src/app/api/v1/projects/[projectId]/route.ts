@@ -3,12 +3,14 @@ import { jsonData } from "@/server/http/api-response"; // uniform JSON success e
 import { requireSession } from "@/server/auth/require-session";
 import * as projectsRepo from "@/server/repositories/projects.repository"; // projects table — get/update/soft-delete SQL
 import { AppError, notFound } from "@/server/db/errors";
+import {
+  PROJECT_DESCRIPTION_MAX_LENGTH,
+  PROJECT_NAME_MAX_LENGTH,
+} from "@/lib/project-limits";
 
 const PROJECT_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const MAX_PROJECT_NAME_LENGTH = 200;
-const MAX_PROJECT_DESCRIPTION_LENGTH = 2000;
 const MAX_PROJECT_COLOR_LENGTH = 32;
 const MAX_PROJECT_SYSTEM_PROMPT_LENGTH = 8000;
 const MAX_PROJECT_ICON_LENGTH = 16;
@@ -42,7 +44,7 @@ function parseProjectPatch(body: unknown): {
       throw new AppError("Invalid project name.", 400);
     const name = raw.name.trim();
     if (!name) throw new AppError("Project name cannot be empty.", 400);
-    if (name.length > MAX_PROJECT_NAME_LENGTH) {
+    if (name.length > PROJECT_NAME_MAX_LENGTH) {
       throw new AppError("Project name is too long.", 400);
     }
     patch.name = name;
@@ -52,7 +54,7 @@ function parseProjectPatch(body: unknown): {
       throw new AppError("Invalid project description.", 400);
     }
     const description = raw.description.trim();
-    if (description.length > MAX_PROJECT_DESCRIPTION_LENGTH) {
+    if (description.length > PROJECT_DESCRIPTION_MAX_LENGTH) {
       throw new AppError("Project description is too long.", 400);
     }
     patch.description = description;

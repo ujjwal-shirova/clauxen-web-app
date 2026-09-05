@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
 import { AppHref } from "@/components/app-href";
+import { ProjectAvatar } from "@/components/projects/project-avatar";
 
 interface ChatViewHeaderProps {
   isConversationStarted: boolean;
@@ -46,6 +47,8 @@ interface ChatViewHeaderProps {
     label: string;
     href?: string;
     onClick?: () => void;
+    icon?: string | null;
+    color?: string | null;
   };
   /** Hide interactive header controls until the chat id exists on the server (no shimmer). */
   headerControlsLoading?: boolean;
@@ -130,46 +133,57 @@ export function ChatViewHeader({
                 className="-ml-0.5 shrink-0"
               />
             ) : null}
-            <div className="flex min-w-0 flex-1 items-center overflow-hidden">
+            <div className="flex min-w-0 flex-1 flex-nowrap items-center overflow-hidden">
               {projectBreadcrumb ? (
-                <div className="mr-1 hidden min-w-0 items-center gap-1.5 text-[13px] font-medium text-zinc-800 sm:flex">
-                  <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2f6fed]"
-                    aria-hidden
-                  >
-                    {}
-                    <img
-                      src="/assets/icons/clauxen-icon.png"
-                      alt=""
-                      className="h-5 w-5 object-cover"
-                    />
-                  </span>
+                <>
                   {projectBreadcrumb.href ? (
                     <AppHref
                       href={projectBreadcrumb.href}
                       onClick={projectBreadcrumb.onClick}
-                      className="max-w-[min(28vw,180px)] truncate transition-colors hover:text-zinc-950"
+                      className="flex min-w-0 max-w-[42%] items-center gap-1.5 overflow-hidden whitespace-nowrap text-[13px] font-medium text-zinc-800 transition-colors hover:text-zinc-950 sm:max-w-[38%]"
                     >
-                      {projectBreadcrumb.label}
+                      <ProjectAvatar
+                        icon={projectBreadcrumb.icon}
+                        color={projectBreadcrumb.color}
+                        size="xs"
+                        className="shrink-0"
+                      />
+                      <span className="min-w-0 truncate">
+                        {projectBreadcrumb.label}
+                      </span>
                     </AppHref>
                   ) : (
                     <button
                       type="button"
                       onClick={projectBreadcrumb.onClick}
-                      className="max-w-[min(28vw,180px)] truncate transition-colors hover:text-zinc-950"
+                      className="flex min-w-0 max-w-[42%] items-center gap-1.5 overflow-hidden whitespace-nowrap text-[13px] font-medium text-zinc-800 transition-colors hover:text-zinc-950 sm:max-w-[38%]"
                     >
-                      {projectBreadcrumb.label}
+                      <ProjectAvatar
+                        icon={projectBreadcrumb.icon}
+                        color={projectBreadcrumb.color}
+                        size="xs"
+                        className="shrink-0"
+                      />
+                      <span className="min-w-0 truncate">
+                        {projectBreadcrumb.label}
+                      </span>
                     </button>
                   )}
-                </div>
+                  <span
+                    className="mx-1 shrink-0 text-[13px] font-medium text-zinc-400"
+                    aria-hidden
+                  >
+                    /
+                  </span>
+                </>
               ) : null}
               <button
                 type="button"
                 onClick={() => setRenameDialogOpen(true)}
-                className="ui-chrome-text-btn group/title min-w-0 max-w-[min(48vw,12.5rem)] gap-1 bg-transparent px-1.5 text-[#52514e] hover:bg-black/[0.045] hover:text-zinc-950 sm:max-w-[min(52vw,34rem)] sm:gap-1.5 sm:px-2"
+                className="ui-chrome-text-btn group/title min-w-0 max-w-none flex-1 gap-1 overflow-hidden bg-transparent px-1.5 text-[#52514e] hover:bg-black/[0.045] hover:text-zinc-950 sm:flex-none sm:max-w-[min(42vw,22rem)] sm:gap-1.5 sm:px-2"
                 aria-label={`${displayTitle}, rename chat`}
               >
-                <span className="truncate">{displayTitle}</span>
+                <span className="truncate whitespace-nowrap">{displayTitle}</span>
                 <ChevronDown
                   className="size-3.5 shrink-0 text-[#898781] transition-transform group-hover/title:text-[#52514e]"
                   strokeWidth={1.7}
