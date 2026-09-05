@@ -1,22 +1,13 @@
 {
   "mcpServers": {
     "vercel": {
-      "url": "https://mcp.vercel.com",
-      "headers": {
-        "Authorization": "Bearer ${env:VERCEL_TOKEN}"
-      }
+      "url": "https://mcp.vercel.com"
     },
     "supabase": {
-      "url": "https://mcp.supabase.com/mcp?project_ref=ntplcfsbcyhiqklkbldk",
-      "headers": {
-        "Authorization": "Bearer ${env:SUPABASE_ACCESS_TOKEN}"
-      }
+      "url": "https://mcp.supabase.com/mcp?project_ref=ntplcfsbcyhiqklkbldk"
     },
-    "cloudflare": {
-      "url": "https://mcp.cloudflare.com/mcp",
-      "headers": {
-        "Authorization": "Bearer ${env:CLOUDFLARE_API_TOKEN}"
-      }
+    "cloudflare-api": {
+      "url": "https://mcp.cloudflare.com/mcp"
     },
     "cloudflare-docs": {
       "url": "https://docs.mcp.cloudflare.com/mcp"
