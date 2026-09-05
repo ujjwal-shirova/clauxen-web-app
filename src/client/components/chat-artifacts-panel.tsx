@@ -217,11 +217,11 @@ export function ChatArtifactsPanel({
   return (
     <aside
       className={cn(
-        "flex h-full w-full min-w-0 flex-col bg-transparent p-2",
+        "flex h-full w-full min-w-0 flex-col bg-[var(--chat-canvas-bg,#f2f3f6)] p-2 max-lg:bg-white max-lg:p-0",
         className,
       )}
     >
-      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[14px] border border-[rgba(15,13,10,0.04)] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:border-white/[0.06] dark:bg-zinc-900">
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[14px] border border-[rgba(15,13,10,0.06)] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] max-lg:rounded-none max-lg:border-0 max-lg:shadow-none dark:border-white/[0.08] dark:bg-zinc-900">
         {/* Rail header — Preview / Files tabs */}
         <div className="flex h-11 shrink-0 items-center gap-1.5 border-b border-[rgba(15,13,10,0.04)] p-1.5 dark:border-white/[0.05]">
           <RailTabButton

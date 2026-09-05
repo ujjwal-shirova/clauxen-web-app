@@ -707,9 +707,9 @@ function ChatAreaLayout({
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: "100%", opacity: 0 }}
                 transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
-                className="fixed inset-y-0 right-0 z-50 flex shrink-0 overflow-hidden shadow-[-8px_0_28px_rgba(26,23,18,0.12)] will-change-[transform,width,opacity]"
+                className="fixed inset-y-0 right-0 z-50 flex h-full w-[min(100vw,360px)] shrink-0 overflow-hidden rounded-l-[18px] border-l border-zinc-200/70 bg-white shadow-[-18px_0_40px_-24px_rgba(24,24,27,0.28)] will-change-[transform,opacity]"
               >
-                <div className="h-full w-[min(100vw,360px)] shrink-0">
+                <div className="h-full w-full min-w-0 shrink-0 bg-white">
                   {isSourcesPanelOpen ? (
                     <ChatSourcesPanel
                       messages={messages}
@@ -774,7 +774,7 @@ function ChatAreaLayout({
                     duration: isArtifactsRailResizing ? 0 : 0.34,
                     ease: [0.32, 0.72, 0, 1],
                   }}
-                  className="pointer-events-auto relative flex h-full min-h-0 flex-col"
+                  className="pointer-events-auto relative flex h-full min-h-0 flex-col bg-[var(--chat-canvas-bg,#f2f3f6)]"
                 >
                   {/* Left-edge grip — drag to resize the right sidebar. */}
                   <div
