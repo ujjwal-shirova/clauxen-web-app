@@ -91,15 +91,145 @@ function PricingCtaButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "w-full",
+        "w-full max-sm:min-h-11",
         variant === "primary" && appBtn.primaryLg,
-        variant === "secondary" && cn(appBtn.secondary, "h-9 w-full px-4"),
+        variant === "secondary" && cn(appBtn.secondary, "h-9 w-full px-4 max-sm:h-11"),
         variant === "current" &&
-          cn(appBtn.secondary, "h-9 w-full cursor-default px-4 opacity-70"),
+          cn(appBtn.secondary, "h-9 w-full cursor-default px-4 opacity-70 max-sm:h-11"),
       )}
     >
       {children}
     </button>
+  );
+}
+
+const FEATURE_PREVIEW_COUNT = 4;
+
+function PlanFeatureList({
+  heading,
+  features,
+}: {
+  heading?: string;
+  features: string[];
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+  const hiddenCount = Math.max(0, features.length - FEATURE_PREVIEW_COUNT);
+
+  return (
+    <div className="mt-5 flex min-h-0 flex-1 flex-col">
+      {heading ? (
+        <p className="settings-section-label">{heading}</p>
+      ) : null}
+      <ul className="mt-2.5 flex flex-col gap-1.5" role="list">
+        {features.map((feature, index) => (
+          <li
+            key={feature}
+            className={cn(
+              "flex gap-2 text-[13px] leading-[18px] text-[var(--settings-fg)]",
+              index >= FEATURE_PREVIEW_COUNT && !expanded && "max-sm:hidden",
+            )}
+          >
+            <Check
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--settings-fg-muted)]"
+              strokeWidth={2}
+              aria-hidden
+            />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+      {hiddenCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((open) => !open)}
+          className="mt-2 min-h-8 self-start px-0.5 text-[12.5px] font-medium text-zinc-500 sm:hidden"
+        >
+          {expanded ? "Show less" : `${hiddenCount} more`}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function PlanCardsScroller({
+  resetKey,
+  children,
+}: {
+  resetKey: string;
+  children: React.ReactNode;
+}) {
+  const scrollerRef = React.useRef<HTMLDivElement>(null);
+  const items = React.Children.toArray(children);
+  const [activeIndex, setActiveIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    const node = scrollerRef.current;
+    if (!node) return;
+    node.scrollTo({ left: 0 });
+    setActiveIndex(0);
+  }, [resetKey]);
+
+  const onScroll = () => {
+    const node = scrollerRef.current;
+    if (!node) return;
+    const cards = Array.from(node.children) as HTMLElement[];
+    if (cards.length === 0) return;
+    const midpoint = node.scrollLeft + node.clientWidth / 2;
+    let best = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    cards.forEach((card, index) => {
+      const center = card.offsetLeft + card.offsetWidth / 2;
+      const distance = Math.abs(center - midpoint);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = index;
+      }
+    });
+    setActiveIndex(best);
+  };
+
+  const scrollToIndex = (index: number) => {
+    const node = scrollerRef.current;
+    const card = node?.children[index] as HTMLElement | undefined;
+    card?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  };
+
+  return (
+    <div>
+      <div
+        ref={scrollerRef}
+        onScroll={onScroll}
+        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-3"
+      >
+        {items.map((child, index) => (
+          <div
+            key={index}
+            className="flex w-[min(calc(100vw-4.25rem),22rem)] shrink-0 snap-center sm:w-auto sm:min-w-0 sm:snap-align-none"
+          >
+            {child}
+          </div>
+        ))}
+      </div>
+      {items.length > 1 ? (
+        <div className="mt-3 flex items-center justify-center gap-1.5 sm:hidden">
+          {items.map((_, index) => (
+            <button
+              key={index}
+              type="button"
+              aria-label={`Show plan ${index + 1}`}
+              onClick={() => scrollToIndex(index)}
+              className={cn(
+                "h-1.5 rounded-full transition-[width,background-color]",
+                index === activeIndex
+                  ? "w-4 bg-zinc-900"
+                  : "w-1.5 bg-zinc-300",
+              )}
+              aria-current={index === activeIndex ? "true" : undefined}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -185,7 +315,7 @@ function PlanCarouselCard({
   return (
     <article
       className={cn(
-        "app-page-card relative flex h-full min-h-0 flex-col p-4",
+        "app-page-card relative flex h-full min-h-0 w-full flex-col p-4",
         isHighlighted && "ring-1 ring-[var(--settings-fg)]",
       )}
     >
@@ -267,23 +397,10 @@ function PlanCarouselCard({
         )}
       </div>
 
-      <div className="mt-5 flex min-h-0 flex-1 flex-col">
-        <p className="settings-section-label">
-          {plan.highlight ? plan.highlight : "Includes"}
-        </p>
-        <ul className="mt-2.5 flex flex-col gap-1.5" role="list">
-          {features.map((feature) => (
-            <li key={feature} className="flex gap-2 text-[13px] leading-[18px] text-[var(--settings-fg)]">
-              <Check
-                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--settings-fg-muted)]"
-                strokeWidth={2}
-                aria-hidden
-              />
-              <span>{feature}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <PlanFeatureList
+        heading={plan.highlight ? plan.highlight : "Includes"}
+        features={features}
+      />
     </article>
   );
 }
@@ -310,7 +427,7 @@ function OrganizationPlanCarouselCard({
   return (
     <article
       className={cn(
-        "app-page-card relative flex h-full flex-col justify-between p-4",
+        "app-page-card relative flex h-full w-full flex-col p-4",
         isPrimaryCta && "ring-1 ring-[var(--settings-fg)]",
       )}
     >
@@ -472,40 +589,25 @@ function OrganizationPlanCarouselCard({
           )}
         </div>
 
-        <p className="settings-section-label mt-5">
-          {plan.highlight ? plan.highlight : "Includes"}
-        </p>
+        <div className="mt-4">
+          <PricingCtaButton
+            onClick={onSelect}
+            variant={isPrimaryCta ? "primary" : "secondary"}
+          >
+            {ctaLabel ?? plan.buttonLabel}
+          </PricingCtaButton>
+        </div>
 
-        <ul className="mt-2.5 flex flex-col gap-1.5" role="list">
-          {plan.features.map((feature) => (
-            <li
-              key={feature}
-              className="flex gap-2 text-[13px] leading-[18px] text-[var(--settings-fg)]"
-            >
-              <Check
-                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--settings-fg-muted)]"
-                strokeWidth={2}
-                aria-hidden
-              />
-              <span>{feature}</span>
-            </li>
-          ))}
-        </ul>
+        <PlanFeatureList
+          heading={plan.highlight ? plan.highlight : "Includes"}
+          features={plan.features}
+        />
 
         {plan.footerNote && (
           <p className="mt-3 text-[11px] leading-4 text-[var(--settings-fg-muted)]">
             {plan.footerNote}
           </p>
         )}
-      </div>
-
-      <div className="mt-6">
-        <PricingCtaButton
-          onClick={onSelect}
-          variant={isPrimaryCta ? "primary" : "secondary"}
-        >
-          {ctaLabel ?? plan.buttonLabel}
-        </PricingCtaButton>
       </div>
     </article>
   );
@@ -579,15 +681,16 @@ export function PlansCarouselSection({
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+      <div className="sticky top-0 z-10 -mx-4 bg-[var(--pricing-bg,var(--settings-canvas-bg,#f4f4f3))] px-4 py-2 sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:py-0">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
         {layout === "tabs" ? (
-          <div className={segmentedTrackClass} role="tablist" aria-label="Plan type">
+          <div className={cn(segmentedTrackClass, "w-full sm:w-auto")} role="tablist" aria-label="Plan type">
             <button
               type="button"
               role="tab"
               aria-selected={activeTab === "individual"}
               onClick={() => setActiveTab("individual")}
-              className={segmentedOptionClass(activeTab === "individual")}
+              className={cn(segmentedOptionClass(activeTab === "individual"), "flex-1 sm:flex-none")}
             >
               Individual
             </button>
@@ -596,19 +699,20 @@ export function PlansCarouselSection({
               role="tab"
               aria-selected={activeTab === "team"}
               onClick={() => setActiveTab("team")}
-              className={segmentedOptionClass(activeTab === "team")}
+              className={cn(segmentedOptionClass(activeTab === "team"), "flex-1 sm:flex-none")}
             >
-              Team & Enterprise
+              <span className="sm:hidden">Team</span>
+              <span className="hidden sm:inline">Team & Enterprise</span>
             </button>
           </div>
         ) : null}
 
-        <div className={segmentedTrackClass} role="group" aria-label="Billing cycle">
+        <div className={cn(segmentedTrackClass, "w-full sm:w-auto")} role="group" aria-label="Billing cycle">
           <button
             type="button"
             aria-pressed={billingCycle === "monthly"}
             onClick={() => setBillingCycle("monthly")}
-            className={segmentedOptionClass(billingCycle === "monthly")}
+            className={cn(segmentedOptionClass(billingCycle === "monthly"), "flex-1 sm:flex-none")}
           >
             Monthly
           </button>
@@ -616,14 +720,16 @@ export function PlansCarouselSection({
             type="button"
             aria-pressed={billingCycle === "yearly"}
             onClick={() => setBillingCycle("yearly")}
-            className={segmentedOptionClass(billingCycle === "yearly")}
+            className={cn(segmentedOptionClass(billingCycle === "yearly"), "flex-1 sm:flex-none")}
           >
-            Yearly (save {YEARLY_DISCOUNT_PERCENT}%)
+            <span className="sm:hidden">Yearly · {YEARLY_DISCOUNT_PERCENT}% off</span>
+            <span className="hidden sm:inline">Yearly (save {YEARLY_DISCOUNT_PERCENT}%)</span>
           </button>
+        </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <PlanCardsScroller resetKey={`${layout}-${activeTab}`}>
         {showIndividual
           ? PERSONAL_PLANS.map((plan) => (
               <PlanCarouselCard
@@ -651,7 +757,7 @@ export function PlansCarouselSection({
               />
             ))
           : null}
-      </div>
+      </PlanCardsScroller>
 
       {layout === "tabs" && activeTab === "team" ? (
         <div className="settings-card flex items-start gap-2.5 px-3.5 py-3">
@@ -703,23 +809,26 @@ export default function UpgradePageContent({
 
   return (
     <div className={cn(chrome.overlay.surface, "settings-canvas")}>
-      <header className="relative z-20 flex w-full shrink-0 items-center justify-center px-4 py-3 sm:py-4">
+      <header className="relative z-20 flex w-full shrink-0 items-center px-2 py-2 sm:justify-center sm:px-4 sm:py-4">
         <button
           type="button"
           onClick={onClose}
-          className="ui-icon-button no-hover-overlay absolute left-3 top-1/2 -translate-y-1/2 text-[var(--settings-fg)] sm:left-6"
+          className="ui-icon-button no-hover-overlay text-[var(--settings-fg)] sm:absolute sm:left-6 sm:top-1/2 sm:-translate-y-1/2"
           aria-label="Back"
         >
           <ArrowLeft className="icon-lg" />
         </button>
+        <h1 className="min-w-0 flex-1 truncate px-1 text-[15px] font-medium tracking-[-0.02em] text-[var(--settings-fg)] sm:hidden">
+          Plans
+        </h1>
       </header>
 
       <main
         className="mobile-page-inset min-h-0 flex-1 overflow-y-auto pb-24 sm:px-6"
         data-scroll-region=""
       >
-        <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6 pt-1 sm:gap-7 sm:pt-2">
-          <div className="mx-auto max-w-[36rem] text-center">
+        <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 pt-1 sm:gap-7 sm:pt-2">
+          <div className="mx-auto hidden max-w-[36rem] text-center sm:block">
             <h1 className="app-page-title">Plans that grow with you</h1>
             <p className="app-page-subtitle">
               Start free, or pick a plan that fits how you work.

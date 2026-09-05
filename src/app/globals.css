@@ -4765,6 +4765,22 @@ button[data-speed-toggle][data-state="open"] {
   animation: checkout-upi-qr-shimmer 1.35s ease-in-out infinite;
 }
 
+@media (max-width: 1023px) {
+  [data-checkout-form] .app-field,
+  [data-checkout-form] input[type="text"],
+  [data-checkout-form] input[type="tel"],
+  [data-checkout-form] select {
+    min-height: 44px;
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  [data-checkout-form] input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+  }
+}
+
 /* ── 2026 chat surface ─────────────────────────────────────────────────────
    Builder/Grok-derived proportions, expressed through Clauxen's existing
    semantic hooks so every control keeps its original behavior. */
