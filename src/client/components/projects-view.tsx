@@ -116,9 +116,6 @@ export function ProjectsView({
                 ) : null}
                 <div className="min-w-0">
                   <h1 className={appPage.title}>Projects</h1>
-                  <p className={appPage.subtitle}>
-                    Organize chats, files, and instructions in one place.
-                  </p>
                 </div>
               </div>
 
@@ -175,15 +172,11 @@ export function ProjectsView({
                     <path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
                   </svg>
                 </div>
-                <h3 className={appPage.emptyTitle}>Create your first project</h3>
-                <p className={appPage.emptyBody}>
-                  Upload materials, set custom instructions, and keep related
-                  conversations together.
-                </p>
+                <h3 className={appPage.emptyTitle}>No projects yet</h3>
                 <button
                   type="button"
                   onClick={onNewProject}
-                  className={appPage.outlineCta}
+                  className={cn(appPage.outlineCta, "mt-5")}
                 >
                   New project
                 </button>

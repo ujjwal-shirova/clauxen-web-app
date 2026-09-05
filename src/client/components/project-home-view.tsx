@@ -245,9 +245,6 @@ export function ProjectHomeView({
             ) : null}
 
             <div ref={composerAnchorRef} className="mb-8">
-              <h2 className="mb-3 text-[20px] font-semibold tracking-[-0.02em] text-zinc-900">
-                What are you working on?
-              </h2>
               <PromptInput
                 onSendMessage={onSendMessage}
                 onStopGeneration={onStopGeneration}
@@ -255,7 +252,7 @@ export function ProjectHomeView({
                 isGenerating={isGenerating}
                 lockedProjectId={project.id}
                 showProjectStrip={false}
-                placeholder={`Start a chat in '${project.name}'...`}
+                placeholder="New chat"
               />
             </div>
 
@@ -281,13 +278,7 @@ export function ProjectHomeView({
                 ))}
               </div>
             ) : (
-              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-white/60 px-6 text-center">
-                <p className="max-w-[36ch] text-[13px] leading-5 text-zinc-500">
-                  Chats started here share this project&apos;s instructions and
-                  files. Start one above, or move an existing chat from the
-                  sidebar menu.
-                </p>
-              </div>
+              <div className="min-h-[120px] rounded-2xl border border-dashed border-zinc-200 bg-white/60" />
             )}
           </div>
 
@@ -306,9 +297,7 @@ export function ProjectHomeView({
                 </span>
               </div>
               <p className="line-clamp-4 text-[12px] leading-4 text-zinc-500">
-                {instructions.trim()
-                  ? instructions.trim()
-                  : "Add instructions so Clauxen can answer according to your preferences."}
+                {instructions.trim() || "None"}
               </p>
             </button>
 
@@ -342,9 +331,7 @@ export function ProjectHomeView({
                   ) : null}
                 </ul>
               ) : (
-                <p className="text-[12px] leading-4 text-zinc-500">
-                  Added files are referenced across all chats in this project.
-                </p>
+                <p className="text-[12px] leading-4 text-zinc-500">None</p>
               )}
             </button>
           </div>

@@ -62,11 +62,7 @@ export function CreateProjectDialog({
         )}
       >
         <DialogTitle className="sr-only">{heading}</DialogTitle>
-        <DialogDescription className="sr-only">
-          {isEdit
-            ? "Update the project name and description."
-            : "Name your project and add a short description to organize your work."}
-        </DialogDescription>
+        <DialogDescription className="sr-only">{heading}</DialogDescription>
 
         <div className="flex max-h-[min(721px,90dvh)] flex-col overflow-y-auto p-6">
           <div className="mb-3 flex items-start gap-2">
@@ -92,31 +88,12 @@ export function CreateProjectDialog({
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-7 pt-3">
-            {isEdit ? null : (
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-[14px] leading-5 text-zinc-600">
-                <div className="mb-3 font-medium text-zinc-900">
-                  How to use projects
-                </div>
-                <div className="flex flex-col gap-3">
-                  <p>
-                    Projects help organize your work and leverage knowledge across
-                    multiple conversations. Upload docs, code, and files to create
-                    themed collections that Clauxen can reference again and again.
-                  </p>
-                  <p>
-                    Start by creating a memorable title and description to
-                    organize your project. You can always edit it later.
-                  </p>
-                </div>
-              </div>
-            )}
-
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="project-name"
                 className="text-[14px] font-medium text-zinc-900"
               >
-                What are you working on?
+                Project name
               </label>
               <input
                 id="project-name"
@@ -134,7 +111,7 @@ export function CreateProjectDialog({
                 htmlFor="project-description"
                 className="text-[14px] font-medium text-zinc-900"
               >
-                What are you trying to achieve?
+                Description
               </label>
               <textarea
                 id="project-description"
@@ -142,7 +119,7 @@ export function CreateProjectDialog({
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe your project, goals, subject, etc..."
+                placeholder="What this project is for"
                 className="min-h-[72px] w-full resize-y rounded-lg border-0 bg-white/80 px-2 py-2 text-[14px] leading-5 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
               />
             </div>

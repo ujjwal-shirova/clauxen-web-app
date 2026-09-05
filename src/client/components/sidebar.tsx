@@ -695,18 +695,20 @@ export function Sidebar({
         className={cn(
           "sidebar-hover-area glass-sidebar-docked flex h-full min-h-0 select-none flex-col overflow-hidden bg-[var(--app-sidebar-bg,var(--app-shell-bg))] pt-[env(safe-area-inset-top)]",
           isMobileLayout &&
-            "fixed left-0 top-0 z-30 will-change-transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+            "fixed left-0 top-0 z-40 will-change-transform transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           !isMobileLayout && "relative z-20 shrink-0",
           !isMobileLayout &&
             sidebarReady &&
             "transition-[width] duration-300 ease-in-out",
           !isMobileLayout && !sidebarReady && "transition-none",
           isMobileLayout &&
+            "w-[min(92vw,320px)] shadow-[12px_0_32px_rgba(24,24,27,0.08)]",
+          isMobileLayout &&
             isCollapsed &&
-            "pointer-events-none w-[min(92vw,320px)] -translate-x-full shadow-none",
+            "pointer-events-none -translate-x-full",
           isMobileLayout &&
             !isCollapsed &&
-            "z-40 w-[min(92vw,320px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[max(0.5rem,env(safe-area-inset-bottom))]",
+            "translate-x-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]",
           !isMobileLayout && isCollapsed && "w-[56px] cursor-pointer",
           !isMobileLayout && !isCollapsed && "w-[min(86vw,288px)] lg:w-[288px]",
         )}

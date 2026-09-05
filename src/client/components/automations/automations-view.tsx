@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { useAppLayout } from "@/components/app-layout-context";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
+import { AppContentLoader } from "@/components/app-content-loader";
 
 type EditorValue = AutomationPreset | ApiAutomation | null;
 const CATEGORIES = [
@@ -332,14 +333,7 @@ export function AutomationsView() {
           ) : (
             <div className="space-y-9">
               {loading ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {Array.from({ length: 3 }, (_, index) => (
-                    <div
-                      key={index}
-                      className="h-44 animate-pulse rounded-3xl bg-black/[0.04]"
-                    />
-                  ))}
-                </div>
+                <AppContentLoader label="Loading automations" className="py-24" />
               ) : null}
 
               {!loading && tasks.length > 0 ? (

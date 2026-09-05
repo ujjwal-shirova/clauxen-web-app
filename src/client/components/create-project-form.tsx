@@ -76,16 +76,10 @@ export function CreateProjectForm({
             setColor(next.color);
           }}
         />
-        <p className="mt-2.5 text-[12px] text-zinc-500">
-          Hover or click to choose an icon and color
-        </p>
 
         <h1 className="mt-6 w-full text-center text-[22px] font-semibold tracking-[-0.03em] text-zinc-900">
           {heading}
         </h1>
-        <p className="mt-1.5 w-full text-center text-[14px] leading-5 text-zinc-500">
-          Group chats, files, and instructions around one piece of work.
-        </p>
 
         <div className="mt-7 flex w-full flex-col gap-5">
           <div className="flex flex-col gap-1.5">
@@ -113,7 +107,6 @@ export function CreateProjectForm({
               className="text-[13px] font-medium text-zinc-800"
             >
               Description
-              <span className="ml-1 font-normal text-zinc-400">optional</span>
             </label>
             <textarea
               id="project-description"

@@ -61,21 +61,8 @@ export function SetProjectInstructionsDialog({
                 className="text-[22px] font-semibold leading-[26px] text-zinc-900"
                 aria-hidden="true"
               >
-                Set project instructions
+                Instructions
               </h2>
-              <p
-                className="mt-1 text-[14px] leading-5 text-zinc-600"
-                aria-hidden="true"
-              >
-                Provide Clauxen with relevant instructions and information for
-                chats within{" "}
-                <span className="font-medium text-zinc-800">{projectName}</span>
-                . This will work alongside your{" "}
-                <span className="text-[#184f95] underline decoration-[#184f95]/40 underline-offset-[3px]">
-                  profile instructions
-                </span>{" "}
-                and the selected style in a chat.
-              </p>
             </div>
             <button
               type="button"
@@ -95,7 +82,6 @@ export function SetProjectInstructionsDialog({
             value={text}
             onChange={(e) => setText(e.target.value)}
             aria-label="Set project instructions"
-            placeholder="Think step by step and show reasoning for complex problems. Use specific examples."
             className="mb-4 max-h-[320px] min-h-[200px] w-full resize-y rounded-lg border-0 bg-white/80 px-2 py-2 text-[14px] leading-5 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
           />
 

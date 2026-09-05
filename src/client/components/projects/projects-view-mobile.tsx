@@ -112,11 +112,13 @@ export function ProjectsViewMobile({
           />
         </div>
         <div className="mt-2.5 flex items-center justify-between gap-2">
-          <p className="text-[12px] text-zinc-500">
-            {showList
-              ? `${filtered.length} project${filtered.length === 1 ? "" : "s"}`
-              : "Organize chats and files"}
-          </p>
+          {showList ? (
+            <p className="text-[12px] text-zinc-500">
+              {filtered.length} project{filtered.length === 1 ? "" : "s"}
+            </p>
+          ) : (
+            <span />
+          )}
           <ProjectSortMenu value={sortKey} onChange={setSortKey} />
         </div>
       </div>
@@ -144,12 +146,9 @@ export function ProjectsViewMobile({
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400">
               <Plus className="h-6 w-6" strokeWidth={1.75} />
             </div>
-            <h3 className="mb-1.5 text-[15px] font-medium text-zinc-800">
+            <h3 className="mb-5 text-[15px] font-medium text-zinc-800">
               No projects yet
             </h3>
-            <p className="mb-5 max-w-[280px] text-[13px] leading-relaxed text-zinc-500">
-              Create a project to group chats, instructions, and reference files.
-            </p>
             <Button
               type="button"
               onClick={onNewProject}

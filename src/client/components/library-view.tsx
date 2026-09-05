@@ -53,6 +53,7 @@ import {
 import { chrome, appPage } from "@/lib/app-chrome";
 import { appBtn } from "@/lib/app-buttons";
 import { cn } from "@/lib/utils";
+import { AppContentLoader } from "@/components/app-content-loader";
 
 type LibraryEntry =
   | { kind: "folder"; id: string; name: string; updatedAt: string; folder: LibraryFolder }
@@ -310,7 +311,6 @@ export function LibraryView() {
         <div className="mobile-page-inset mx-auto flex w-full max-w-[var(--ui-page-max-width-wide,1120px)] flex-wrap items-center gap-3 px-4 py-4 sm:px-8 sm:py-5">
           <div className="min-w-0 flex-1 basis-full sm:basis-auto">
             <h1 className={cn(appPage.title, "hidden sm:block")}>Library</h1>
-            <p className={cn(appPage.subtitle, "hidden sm:block")}>Your uploads, generated files, images, and saved text.</p>
           </div>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:flex-none">
             <div className="flex h-7 shrink-0 items-center gap-0.5 rounded-[var(--radius-sm)] bg-[color-mix(in_oklab,#18181b_6%,transparent)] p-0.5 dark:bg-white/10">
@@ -376,12 +376,11 @@ export function LibraryView() {
           </div>
 
           {loading ? (
-            <div className="grid place-items-center py-24 text-[13px] leading-[18px] text-[var(--settings-fg-muted)]">Loading your library…</div>
+            <AppContentLoader label="Loading library" className="py-24" />
           ) : entries.length === 0 ? (
             <div className="mx-auto flex max-w-md flex-col items-center py-24 text-center">
               <div className={appPage.emptyIconWell}><Folder className="icon-lg" /></div>
               <h2 className="app-page-section-title mt-1">{query ? "Nothing found" : "This folder is empty"}</h2>
-              <p className="app-page-muted mt-1 max-w-[380px]">Upload files, paste text, or create a folder. Files created by the assistant also appear here.</p>
               {!query ? <Button onClick={() => uploadInputRef.current?.click()} variant="outline" className={cn(appPage.outlineCta, "mt-5")}><Upload className="icon-md" /> Upload files</Button> : null}
             </div>
           ) : (
