@@ -123,6 +123,7 @@ export function useProjects(apiEnabled: boolean) {
 
   const createProject = useCallback(
     async (input: {
+      id?: string;
       name: string;
       description?: string;
       icon?: string;
@@ -134,21 +135,54 @@ export function useProjects(apiEnabled: boolean) {
       if (!apiEnabled) {
         throw new Error("Sign in before creating a project.");
       }
-      const { project } = await projectsApi.createProject({
+
+      const id =
+        input.id ??
+        (typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now().toString(16)}-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, "0")}`);
+      const now = new Date().toISOString();
+      const optimistic: ApiProject = {
+        id,
         name: trimmed,
-        description: input.description?.trim() || undefined,
-        icon: input.icon,
-        color: input.color,
-      });
+        description: input.description?.trim() || null,
+        system_prompt: null,
+        icon: input.icon ?? null,
+        color: input.color ?? null,
+        created_at: now,
+        updated_at: now,
+      };
       setProjects((prev) => [
-        project,
-        ...prev.filter((p) => p.id !== project.id),
+        optimistic,
+        ...prev.filter((p) => p.id !== id),
       ]);
       publishProjects([
-        project,
-        ...loadCachedApiProjects().filter((p) => p.id !== project.id),
+        optimistic,
+        ...loadCachedApiProjects().filter((p) => p.id !== id),
       ]);
-      return project;
+
+      try {
+        const { project } = await projectsApi.createProject({
+          id,
+          name: trimmed,
+          description: input.description?.trim() || undefined,
+          icon: input.icon,
+          color: input.color,
+        });
+        setProjects((prev) => [
+          project,
+          ...prev.filter((p) => p.id !== project.id),
+        ]);
+        publishProjects([
+          project,
+          ...loadCachedApiProjects().filter((p) => p.id !== project.id),
+        ]);
+        return project;
+      } catch (error) {
+        setProjects((prev) => prev.filter((p) => p.id !== id));
+        publishProjects(loadCachedApiProjects().filter((p) => p.id !== id));
+        throw error;
+      }
     },
     [apiEnabled],
   );

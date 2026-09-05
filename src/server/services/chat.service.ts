@@ -213,7 +213,7 @@ export async function getRecentMessagesForInference(
 
 export async function createChatForUser(
   userId: string,
-  input?: { title?: string; projectId?: string | null },
+  input?: { id?: string; title?: string; projectId?: string | null },
 ) {
   if (input?.projectId) {
     const project = await projectsRepo.getProject(input.projectId, userId);
@@ -222,6 +222,7 @@ export async function createChatForUser(
   // Single round-trip: allocate id + insert with workspace from profiles subquery.
   const chat = await chatsRepo.createChatFast({
     userId,
+    id: input?.id,
     title: input?.title,
     projectId: input?.projectId,
   });

@@ -82,6 +82,7 @@ export async function listChats(projectId?: string) {
 }
 
 export async function createChat(input?: {
+  id?: string;
   title?: string;
   projectId?: string;
 }) {

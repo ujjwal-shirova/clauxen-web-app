@@ -29,6 +29,7 @@ export const POST = withApiHandler(
   async ({ session, request }) => {
     const user = requireSession(session);
     let body: {
+      id?: string;
       name?: string;
       description?: string;
       color?: string;
@@ -36,6 +37,7 @@ export const POST = withApiHandler(
     };
     try {
       body = (await request.json()) as {
+        id?: string;
         name?: string;
         description?: string;
         color?: string;
@@ -44,6 +46,12 @@ export const POST = withApiHandler(
     } catch {
       throw new AppError("Invalid JSON body.", 400);
     }
+    const PROJECT_ID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const requestedId =
+      typeof body.id === "string" && PROJECT_ID.test(body.id.trim())
+        ? body.id.trim()
+        : undefined;
     const name = typeof body.name === "string" ? body.name.trim() : "";
     if (!name) throw new AppError("Project name is required.", 400);
     if (name.length > MAX_PROJECT_NAME_LENGTH) {
@@ -83,6 +91,7 @@ export const POST = withApiHandler(
     // createProject — insert returning full row; workspace_id default null
     const project = await projectsRepo.createProject({
       userId: user.id,
+      id: requestedId,
       name, // leading/trailing spaces strip — display consistency
       description,
       color,

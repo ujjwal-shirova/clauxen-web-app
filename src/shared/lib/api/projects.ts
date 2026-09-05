@@ -45,6 +45,7 @@ export async function createProject(input: {
   description?: string;
   color?: string;
   icon?: string;
+  id?: string;
 }) {
   return apiFetch<{ project: ApiProject }>("/api/v1/projects", {
     method: "POST",

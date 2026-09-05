@@ -42,7 +42,36 @@ export async function createProject(input: {
   color?: string;
   icon?: string;
   workspaceId?: string | null;
+  id?: string;
 }) {
+  if (input.id) {
+    return queryOne<ProjectRow>(
+      `insert into public.projects (id, user_id, workspace_id, name, description, color, icon)
+       select $1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7
+       where $3::uuid is null
+          or exists (
+            select 1 from public.workspaces w
+            where w.id = $3::uuid
+              and (
+                w.owner_id = $2::uuid
+                or exists (
+                  select 1 from public.workspace_members wm
+                  where wm.workspace_id = w.id and wm.user_id = $2::uuid and wm.status = 'active'
+                )
+              )
+          )
+       returning id, user_id, workspace_id, name, description, system_prompt, color, icon, status, created_at, updated_at`,
+      [
+        input.id,
+        input.userId,
+        input.workspaceId ?? null,
+        input.name,
+        input.description ?? null,
+        input.color ?? null,
+        input.icon ?? null,
+      ],
+    );
+  }
   return queryOne<ProjectRow>(
     `insert into public.projects (user_id, workspace_id, name, description, color, icon)
      select $1::uuid, $2::uuid, $3, $4, $5, $6

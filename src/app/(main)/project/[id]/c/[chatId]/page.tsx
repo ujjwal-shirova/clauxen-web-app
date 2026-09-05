@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { ChatView } from "@/components/chat-view";
 import { ChatRouteSeedRegistrar } from "@/components/chat-route-seed-registrar";
 import { loadChatRouteSeed } from "@/server/chat/load-chat-route-seed";
 
@@ -13,13 +12,10 @@ export default async function ProjectChatPage({
 }: {
   params: Promise<{ id: string; chatId: string }>;
 }) {
-  const { id, chatId } = await params;
+  const { chatId } = await params;
   return (
-    <>
-      <Suspense fallback={null}>
-        <ProjectChatSeed chatId={chatId} />
-      </Suspense>
-      <ChatView projectId={id} />
-    </>
+    <Suspense fallback={null}>
+      <ProjectChatSeed chatId={chatId} />
+    </Suspense>
   );
 }

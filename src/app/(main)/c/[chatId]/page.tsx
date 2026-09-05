@@ -1,11 +1,11 @@
 import { Suspense } from "react";
-import { ChatRouteSurface } from "@/client/components/chat-route-surface";
 import { ChatRouteSeedRegistrar } from "@/components/chat-route-seed-registrar";
 import { loadChatRouteSeed } from "@/server/chat/load-chat-route-seed";
 
 /**
  * Stream the shell immediately; hydrate the thread seed in a sibling Suspense
  * boundary so cold opens never withhold the document for the DB race.
+ * ChatView itself lives in AppPageSurface so /new → /c/:id never remounts.
  */
 async function ChatRouteSeedLoader({
   params,
@@ -23,13 +23,8 @@ export default function ChatRoutePage({
   params: Promise<{ chatId: string }>;
 }) {
   return (
-    <>
-      <Suspense fallback={null}>
-        <ChatRouteSeedLoader params={params} />
-      </Suspense>
-      {/* Same surface component as /new — React reconciles it across the
-          /new → /c/:id swap instead of remounting the live chat tree. */}
-      <ChatRouteSurface />
-    </>
+    <Suspense fallback={null}>
+      <ChatRouteSeedLoader params={params} />
+    </Suspense>
   );
 }

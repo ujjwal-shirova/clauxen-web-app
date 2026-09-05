@@ -29,6 +29,7 @@ import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { readIdentityHintFromDocument } from "@/utils/identity-cookie";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { APP_ROUTES, isIncognitoPath } from "@/lib/app-routes";
+import { AppPageSurface } from "@/components/app-page-surface";
 import { Sidebar } from "@/components/sidebar";
 import { SidebarToggleIcon } from "@/components/icons";
 
@@ -363,12 +364,14 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           aria-hidden={isSidebarCollapsed}
           onClick={isSidebarCollapsed ? undefined : closeMobileNav}
           className={cn(
-            "fixed inset-0 z-[35] bg-[rgba(24,24,27,0.38)] backdrop-blur-[6px] transition-[opacity,backdrop-filter] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none lg:hidden",
+            "fixed inset-0 z-[35] transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none lg:hidden",
             isSidebarCollapsed
-              ? "pointer-events-none opacity-0 backdrop-blur-none"
+              ? "pointer-events-none opacity-0"
               : "pointer-events-auto cursor-default opacity-100",
           )}
-        />
+        >
+          <div className="absolute inset-0 bg-[rgba(24,24,27,0.38)] backdrop-blur-[6px]" />
+        </div>
       ) : null}
 
       {!isIncognito ? (
@@ -534,7 +537,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
           <div className="flex min-h-0 h-full w-full max-w-full flex-1 flex-col overflow-hidden items-stretch">
             <AppLayoutProvider value={layoutValue}>
               <SoftErrorBoundary name="main-panel">
-                {children}
+                <AppPageSurface>{children}</AppPageSurface>
               </SoftErrorBoundary>
             </AppLayoutProvider>
           </div>

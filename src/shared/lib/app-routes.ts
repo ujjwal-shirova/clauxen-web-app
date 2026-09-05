@@ -119,6 +119,26 @@ export function isProjectCreatePath(pathname: string | null): boolean {
   return pathname === "/project" || pathname === "/project/";
 }
 
+/** Project id from `/project/:id` or `/project/:id/c/:chatId`. */
+export function getProjectIdFromPath(pathname: string | null): string | null {
+  if (!pathname || isProjectCreatePath(pathname)) return null;
+  const match = pathname.match(/^\/project\/([^/]+)/);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+/** Chat thread surfaces — `/`, `/new`, `/c/:id`, project chats, incognito. */
+export function isChatSurfacePath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (isNewChatPath(pathname) || isIncognitoPath(pathname)) return true;
+  if (pathname.startsWith("/c/")) return true;
+  return /^\/project\/[^/]+\/c\//.test(pathname);
+}
+
 export type AppOverlayPath =
   | { type: "pricing" }
   | { type: "apps" }

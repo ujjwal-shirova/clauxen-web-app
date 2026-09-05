@@ -18,6 +18,7 @@ import { useAppLayout } from "@/components/app-layout-context";
 import {
   APP_ROUTES,
   CHAT_ENTER_METHOD_PROJECT,
+  getProjectIdFromPath,
   isIncognitoPath,
   isIncognitoSessionId,
   isNewChatPath,
@@ -244,9 +245,11 @@ function ChatViewBody({
 
   const routeChatId = getRouteChatId(pathname);
   const isProjectHome = isProjectHomePath(pathname);
+  const routeProjectId = getProjectIdFromPath(pathname);
+  const scopedProjectId = projectId ?? routeProjectId;
 
   // Bind new chats from the project dashboard without filtering the sidebar list.
-  const bindProjectId = projectId ?? activeChat?.projectId ?? null;
+  const bindProjectId = scopedProjectId ?? activeChat?.projectId ?? null;
 
   // Keep showing the live conversation as soon as a chat id / messages exist,
   // even before Next finishes soft-navigating off /new or /project/:id.
@@ -279,13 +282,12 @@ function ChatViewBody({
       void handleSelectChatRef.current(routeChatId);
       return;
     }
-    // Clear the old conversation only after the /new route has committed.
-    // Clearing it from the sidebar click while /c/:id was still mounted made
-    // this effect re-select that route id and fight the chat scroll owner.
-    if (isProjectHome || isNewChatPath(pathname)) {
+    // ChatView stays mounted off-route; only clear when the visible surface
+    // is the blank new-chat page. Project dashboards use ProjectHomeView.
+    if (isNewChatPath(pathname)) {
       startNewChatRef.current();
     }
-  }, [isIncognito, activeChatId, routeChatId, isProjectHome, pathname]);
+  }, [isIncognito, activeChatId, routeChatId, pathname]);
 
   // Resolve project name for breadcrumb when opened via /c?chat_enter_method=project.
   useEffect(() => {
@@ -321,7 +323,7 @@ function ChatViewBody({
     if (projectBreadcrumb) return projectBreadcrumb;
     if (!bindProjectId || !resolvedProjectName) return undefined;
     const showChrome =
-      Boolean(projectId) ||
+      Boolean(scopedProjectId) ||
       enterMethod === CHAT_ENTER_METHOD_PROJECT ||
       Boolean(activeChat?.projectId);
     if (!showChrome) return undefined;
@@ -335,21 +337,21 @@ function ChatViewBody({
     resolvedProjectName,
     enterMethod,
     activeChat?.projectId,
-    projectId,
+    scopedProjectId,
   ]);
 
   const openChatRoute = useCallback(
     (chatId: string) => {
-      if (projectId || bindProjectId) {
+      if (scopedProjectId || bindProjectId) {
         instantNavigate(
-          APP_ROUTES.projectChat(projectId ?? bindProjectId!, chatId),
+          APP_ROUTES.projectChat(scopedProjectId ?? bindProjectId!, chatId),
           { replace: true },
         );
         return;
       }
       instantNavigate(APP_ROUTES.chat(chatId), { replace: true });
     },
-    [instantNavigate, projectId, bindProjectId],
+    [instantNavigate, scopedProjectId, bindProjectId],
   );
 
   const handleSendMessageAndRoute = useCallback(
@@ -374,13 +376,13 @@ function ChatViewBody({
         forceNew ||
         isNewChatPath(pathname) ||
         isProjectHome ||
-        Boolean(projectId);
+        Boolean(scopedProjectId);
 
       const chatId = await handleSendMessage(prompt, {
         forceNewChat: forceNew,
         attachments: options?.attachments,
         bypassQueue: options?.bypassQueue,
-        projectId: projectId ?? undefined,
+        projectId: scopedProjectId ?? undefined,
         // Swap URL the instant the durable chat id exists.
         ...(shouldOpenRoute ? { onChatCreated: openChatRoute } : {}),
       });
@@ -391,8 +393,8 @@ function ChatViewBody({
           ? `${window.location.pathname}${window.location.search}`
           : pathname;
       const targetPath =
-        projectId || bindProjectId
-          ? APP_ROUTES.projectChat(projectId ?? bindProjectId!, chatId)
+        scopedProjectId || bindProjectId
+          ? APP_ROUTES.projectChat(scopedProjectId ?? bindProjectId!, chatId)
           : APP_ROUTES.chat(chatId);
       if (shouldOpenRoute && pathNow !== targetPath) {
         openChatRoute(chatId);
@@ -402,7 +404,7 @@ function ChatViewBody({
       handleSendMessage,
       blankNewChatComposer,
       activeChatId,
-      projectId,
+      scopedProjectId,
       bindProjectId,
       pathname,
       isProjectHome,
@@ -423,12 +425,12 @@ function ChatViewBody({
       void handleDeleteChat(chatId);
       if (!wasActive) return;
       const target =
-        projectId || bindProjectId
-          ? APP_ROUTES.project(projectId || bindProjectId!)
+        scopedProjectId || bindProjectId
+          ? APP_ROUTES.project(scopedProjectId || bindProjectId!)
           : APP_ROUTES.newChat;
       instantNavigate(target, { replace: true });
     },
-    [activeChatId, handleDeleteChat, projectId, bindProjectId, instantNavigate],
+    [activeChatId, handleDeleteChat, scopedProjectId, bindProjectId, instantNavigate],
   );
 
   const switchingRouteChat = Boolean(
@@ -539,7 +541,7 @@ function ChatViewBody({
         }}
         projects={projects.projects}
         currentProjectId={
-          displayTitleChat?.projectId ?? projectId ?? bindProjectId
+          displayTitleChat?.projectId ?? scopedProjectId ?? bindProjectId
         }
         moveToProjectHref={
           displayActiveChatId
@@ -555,7 +557,7 @@ function ChatViewBody({
         extendedThinking={extendedThinking}
         onExtendedThinkingChange={setExtendedThinking}
         projectBreadcrumb={effectiveBreadcrumb}
-        lockedProjectId={projectId ?? bindProjectId}
+        lockedProjectId={scopedProjectId ?? bindProjectId}
         incognito={isIncognito}
         onCloseIncognito={handleCloseIncognito}
       />

@@ -42,6 +42,7 @@ import {
   useChatStore,
 } from "@/stores/chat-store";
 import * as chatsApi from "@/lib/api/chats";
+import { generateChatId } from "@/lib/chat-id";
 import { uploadUserFile } from "@/lib/api/files";
 import {
   toMessageAttachments,
@@ -2271,7 +2272,7 @@ export function useChatApi(
       if (!chatId) {
         pendingChatId = ephemeral
           ? `incognito-${randomUUID()}`
-          : `pending-${randomUUID()}`;
+          : generateChatId(recentChatsRef.current.map((chat) => chat.id));
         chatId = pendingChatId;
         if (!ephemeral) {
           setCreatingChatPending(true);
@@ -2344,21 +2345,37 @@ export function useChatApi(
 
       try {
         if (pendingChatId && !ephemeral) {
+          // Open the chat URL immediately — persist the row in the background.
+          try {
+            options?.onChatCreated?.(pendingChatId);
+          } catch {
+            // Navigation callbacks must not abort the send path.
+          }
+
           const { chat } = await chatsApi.createChat({
+            id: pendingChatId,
             title: "New chat",
             projectId: bindProjectId ?? undefined,
           });
           const realId = chat.id;
 
-          // Remap generation map key if anything was registered under pending.
-          const pendingGen = getGeneration(pendingChatId);
-          if (pendingGen) {
-            setGeneration(pendingChatId, null);
-            setGeneration(realId, pendingGen);
+          if (realId !== pendingChatId) {
+            const pendingGen = getGeneration(pendingChatId);
+            if (pendingGen) {
+              setGeneration(pendingChatId, null);
+              setGeneration(realId, pendingGen);
+            }
+            useChatStore.getState().migrateChatId(pendingChatId, realId);
+            hydratedChatIdsRef.current.delete(pendingChatId);
+            hydratedChatIdsRef.current.add(realId);
+            chatId = realId;
+            useChatStore.getState().setChatGenerating(realId, true);
+            try {
+              options?.onChatCreated?.(realId);
+            } catch {
+              /* keep the live turn even if a second navigate fails */
+            }
           }
-          useChatStore.getState().migrateChatId(pendingChatId, realId);
-          hydratedChatIdsRef.current.delete(pendingChatId);
-          hydratedChatIdsRef.current.add(realId);
 
           setRecentChats((prev) => {
             const next = [
@@ -2375,10 +2392,7 @@ export function useChatApi(
             recentChatsRef.current = next;
             return next;
           });
-          chatId = realId;
           setCreatingChatPending(false);
-          // Mark generating before navigation so /c/[id] select treats this as
-          // a live turn and never kicks off a wiping hydrate/shimmer.
           useChatStore.getState().setChatGenerating(realId, true);
         } else if (pendingChatId && ephemeral) {
           useChatStore.getState().setChatGenerating(pendingChatId, true);
@@ -2549,7 +2563,7 @@ export function useChatApi(
           try {
             options?.onChatCreated?.(chatId!);
           } catch {
-            // Navigation callbacks must not abort the send path.
+            // Safety net if the early navigate was skipped.
           }
         }
 
