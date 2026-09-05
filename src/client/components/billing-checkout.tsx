@@ -2,8 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Info, Minus, Plus, ShieldCheck } from "lucide-react";
-import { chrome } from "@/lib/app-chrome";
+import { ArrowLeft, ChevronDown, Info, Minus, Plus, ShieldCheck } from "lucide-react";
 import { appBtn } from "@/lib/app-buttons";
 import {
   createBillingOrder,
@@ -133,13 +132,13 @@ function SeatStepper({
   onIncrement: () => void;
 }) {
   return (
-    <div className="flex h-8 items-center rounded-[var(--radius-sm)] bg-[var(--settings-icon-bg)] p-0.5">
+    <div className="flex h-8 items-center rounded-[var(--radius-sm)] bg-[var(--settings-icon-bg)] p-0.5 max-lg:h-10">
       <button
         type="button"
         disabled={!canDecrement}
         onClick={onDecrement}
         aria-label="Decrease seats"
-        className={cn(appBtn.ghostIcon, "h-7 w-7", !canDecrement && "opacity-40")}
+        className={cn(appBtn.ghostIcon, "h-7 w-7 max-lg:h-9 max-lg:w-9", !canDecrement && "opacity-40")}
       >
         <Minus className="h-3.5 w-3.5" />
       </button>
@@ -156,7 +155,7 @@ function SeatStepper({
         disabled={!canIncrement}
         onClick={onIncrement}
         aria-label="Increase seats"
-        className={cn(appBtn.ghostIcon, "h-7 w-7", !canIncrement && "opacity-40")}
+        className={cn(appBtn.ghostIcon, "h-7 w-7 max-lg:h-9 max-lg:w-9", !canIncrement && "opacity-40")}
       >
         <Plus className="h-3.5 w-3.5" />
       </button>
@@ -186,7 +185,7 @@ function ChoiceCard({
       disabled={disabled}
       aria-pressed={selected}
       className={cn(
-        "no-hover-overlay flex cursor-pointer flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] shadow-[var(--settings-card-shadow)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25",
+        "no-hover-overlay flex cursor-pointer flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] shadow-[var(--settings-card-shadow)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25 max-lg:min-h-[4.5rem]",
         selected
           ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
           : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,var(--settings-fg))]",
@@ -250,6 +249,7 @@ export function BillingCheckout({
   const hasSavedPaymentMethod = savedMethod != null;
   const [paymentTab, setPaymentTab] = useState<CheckoutPaymentTab>("card");
   const [billingAddressCollapsed, setBillingAddressCollapsed] = useState(false);
+  const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(
     needsSessionRemint ? null : (initialCheckoutSessionId ?? null),
   );
@@ -1720,10 +1720,32 @@ export function BillingCheckout({
 
   return (
     <div className="app-surface-shell settings-canvas relative w-full font-sans text-[var(--settings-fg)]">
+      <header className="sticky top-0 z-30 flex items-center gap-1 border-b border-[var(--settings-hairline)] bg-[var(--settings-canvas-bg,var(--app-panel-bg))] px-2 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:hidden">
+        <button
+          type="button"
+          onClick={onBack}
+          className="ui-icon-button text-[var(--settings-fg)]"
+          aria-label="Back"
+        >
+          <ArrowLeft className="size-[18px]" strokeWidth={1.75} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-medium tracking-[-0.02em]">
+            Checkout
+          </p>
+          <p className="truncate text-[12px] text-[var(--settings-fg-muted)]">
+            {details.name}
+          </p>
+        </div>
+        <span className="shrink-0 pr-2 text-[13px] font-medium">
+          {isVariableCheckoutPlan ? "Quote" : formatInr(total)}
+        </span>
+      </header>
+
       <button
         type="button"
         onClick={onBack}
-        className="ui-icon-button absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 text-[var(--settings-fg)] transition-colors hover:bg-[var(--ui-hover-wash)] sm:left-6"
+        className="ui-icon-button absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 hidden text-[var(--settings-fg)] transition-colors hover:bg-[var(--ui-hover-wash)] sm:left-6 lg:inline-flex"
         aria-label="Back"
       >
         <svg
@@ -1738,10 +1760,10 @@ export function BillingCheckout({
       </button>
 
       <div className="w-full">
-        <main className="mx-auto flex w-full max-w-[1120px] flex-col items-start gap-7 px-4 pb-28 pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.25rem))] sm:gap-8 sm:px-6 lg:flex-row lg:gap-10">
+        <main className="mx-auto flex w-full max-w-[1120px] flex-col items-start gap-4 px-3 pb-8 pt-4 sm:gap-8 sm:px-6 sm:pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.25rem))] lg:flex-row lg:gap-10 lg:pb-28 lg:pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.25rem))]">
           {/* Left column — plan summary */}
           <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[400px]">
-            <div className="mb-5 px-1">
+            <div className="mb-5 hidden px-1 lg:block">
               <div className="mb-2 inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--settings-fg-muted)]">
                 <ShieldCheck className="h-4 w-4" aria-hidden />
                 Secure checkout
@@ -1752,8 +1774,35 @@ export function BillingCheckout({
               </p>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <div className="rounded-[var(--settings-card-radius)] border border-[var(--settings-hairline)] bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))] px-4 py-3.5 shadow-[var(--settings-card-shadow)]">
+            <div className="flex flex-col gap-3 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => setOrderSummaryOpen((open) => !open)}
+                className="flex w-full items-center justify-between gap-3 rounded-[var(--settings-card-radius)] border border-[var(--settings-hairline)] bg-[var(--settings-card-bg)] px-3.5 py-3 text-left lg:hidden"
+                aria-expanded={orderSummaryOpen}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-[14px] font-medium text-[var(--settings-fg)]">
+                    {details.name}
+                  </p>
+                  <p className="truncate text-[12px] text-[var(--settings-fg-muted)]">
+                    {cycleDetailLabel}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-[14px] font-medium">
+                    {isVariableCheckoutPlan ? "Quote" : formatInr(total)}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "size-4 text-zinc-500 transition-transform",
+                      orderSummaryOpen && "rotate-180",
+                    )}
+                  />
+                </div>
+              </button>
+
+              <div className="hidden rounded-[var(--settings-card-radius)] border border-[var(--settings-hairline)] bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))] px-4 py-3.5 shadow-[var(--settings-card-shadow)] lg:block">
                 <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--settings-fg-muted)]">
                   Selected plan
                 </p>
@@ -1774,7 +1823,12 @@ export function BillingCheckout({
               {businessSeatConfigurator}
               {variablePlanNotice}
 
-              <div className="settings-card flex flex-col gap-3 px-4 py-3.5">
+              <div
+                className={cn(
+                  "settings-card flex flex-col gap-3 px-4 py-3.5",
+                  !orderSummaryOpen && "max-lg:hidden",
+                )}
+              >
                 <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-[var(--settings-fg-muted)]">
                   Order details
                 </div>
@@ -1832,7 +1886,12 @@ export function BillingCheckout({
                 </div>
               </div>
 
-              <div className="settings-card flex gap-3 px-3.5 py-3">
+              <div
+                className={cn(
+                  "settings-card flex gap-3 px-3.5 py-3",
+                  !orderSummaryOpen && "max-lg:hidden",
+                )}
+              >
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg-muted)]" />
                 <p className="settings-muted">
                   {isGiftCheckout ? (
@@ -1884,14 +1943,17 @@ export function BillingCheckout({
           </aside>
 
           {/* Right column — checkout form */}
-          <div className="app-page-card box-border min-w-0 w-full flex-1 rounded-[var(--radius-md)] px-5 py-5 shadow-[0_10px_32px_-24px_rgba(24,24,27,0.38)] sm:px-6 sm:py-6">
-            <div className="mb-5 flex items-start justify-between gap-4 border-b border-[var(--settings-hairline)] pb-4">
+          <div className="app-page-card box-border min-w-0 w-full flex-1 rounded-[var(--radius-md)] px-3 py-4 shadow-none sm:px-6 sm:py-6 sm:shadow-[0_10px_32px_-24px_rgba(24,24,27,0.38)]">
+            <div className="mb-4 hidden items-start justify-between gap-4 border-b border-[var(--settings-hairline)] pb-4 lg:flex">
               <div>
                 <h2 className="app-page-section-title">Payment details</h2>
                 <p className="app-page-muted mt-1">Your payment information is encrypted and secure.</p>
               </div>
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--settings-fg-muted)]" aria-hidden />
             </div>
+            <h2 className="mb-3 text-[14px] font-medium text-[var(--settings-fg)] lg:hidden">
+              Payment
+            </h2>
             {payError && <CheckoutErrorBanner message={payError} />}
             <CheckoutForm
               paymentTab={paymentTab}

@@ -1,12 +1,13 @@
 "use client";
 
 import { checkoutUi } from "@/lib/checkout-ui";
+import { cn } from "@/lib/utils";
 
 export function CheckoutQrHint() {
   return (
-    <p className={checkoutUi.hint}>
+    <p className={cn(checkoutUi.hint, "max-lg:gap-2 max-lg:px-3 max-lg:py-2")}>
       <svg
-        className="mr-3 h-[42px] w-[42px] shrink-0"
+        className="mr-3 h-[42px] w-[42px] shrink-0 max-lg:mr-0 max-lg:h-7 max-lg:w-7"
         role="presentation"
         viewBox="0 0 24 24"
         fill="none"

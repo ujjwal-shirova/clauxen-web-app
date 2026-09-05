@@ -79,7 +79,7 @@ const checkout = {
   fieldLabel: "mb-1.5 px-0.5 text-[11px] font-medium text-[var(--settings-fg-muted)]",
 
   tabBase:
-    "no-hover-overlay flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--settings-card-radius)] px-2 py-2.5 text-[13px] font-medium leading-[18px] transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25 shadow-[var(--settings-card-shadow)]",
+    "no-hover-overlay flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--settings-card-radius)] px-2 py-2.5 text-[13px] font-medium leading-[18px] transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25 shadow-[var(--settings-card-shadow)] max-lg:min-h-[56px]",
   tabSelected:
     "bg-[var(--settings-card-bg)] text-[var(--settings-fg)] ring-1 ring-[var(--settings-fg)]",
   tabUnselected:
