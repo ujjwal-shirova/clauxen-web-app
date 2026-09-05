@@ -19,7 +19,7 @@ export function appMainShellClassName(options: {
   if (isMobile) {
     return cn(
       "app-main-shell relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-sidebar-bg,var(--app-shell-bg))]",
-      "px-[max(0.75rem,env(safe-area-inset-left))] pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.35rem,env(safe-area-inset-bottom))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:px-2.5 sm:pt-2.5 sm:pb-2.5",
+      "px-[max(0.5rem,env(safe-area-inset-left))] pt-[max(0.35rem,env(safe-area-inset-top))] pb-[max(0.25rem,env(safe-area-inset-bottom))] pr-[max(0.5rem,env(safe-area-inset-right))] sm:px-2.5 sm:pt-2.5 sm:pb-2.5",
     );
   }
 

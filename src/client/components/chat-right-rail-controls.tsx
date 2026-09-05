@@ -21,7 +21,7 @@ export function ChatRightRailControls({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-end gap-1.5",
+        "flex shrink-0 items-center justify-end gap-0.5 sm:gap-1.5",
         className,
       )}
     >
@@ -34,7 +34,7 @@ export function ChatRightRailControls({
             aria-label="Toggle right sidebar"
             aria-pressed={isArtifactsPanelOpen}
             className={cn(
-              "ui-icon-button rounded-lg border transition-all",
+              "ui-icon-button rounded-lg border transition-all max-[360px]:hidden",
               isArtifactsPanelOpen
                 ? "border-zinc-200 bg-zinc-100 text-zinc-800"
                 : "border-transparent text-zinc-600 hover:border-zinc-200 hover:bg-zinc-100 hover:text-zinc-900",

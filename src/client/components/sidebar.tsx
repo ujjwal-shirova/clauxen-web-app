@@ -689,10 +689,10 @@ export function Sidebar({
           !isMobileLayout && !sidebarReady && "transition-none",
           isMobileLayout &&
             isCollapsed &&
-            "pointer-events-none w-[min(88vw,280px)] -translate-x-full shadow-none",
+            "pointer-events-none w-[min(92vw,320px)] -translate-x-full shadow-none",
           isMobileLayout &&
             !isCollapsed &&
-            "z-40 w-[min(88vw,280px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[env(safe-area-inset-bottom)]",
+            "z-40 w-[min(92vw,320px)] translate-x-0 shadow-[12px_0_32px_rgba(24,24,27,0.08)] pb-[max(0.5rem,env(safe-area-inset-bottom))]",
           !isMobileLayout && isCollapsed && "w-[56px] cursor-pointer",
           !isMobileLayout && !isCollapsed && "w-[min(86vw,288px)] lg:w-[288px]",
         )}
@@ -700,6 +700,7 @@ export function Sidebar({
         <div
           className={cn(
             "ui-sidebar-top-bar relative flex h-10 shrink-0 items-center px-1.5",
+            isMobileLayout && "h-12 px-2.5",
             isCollapsed && !isMobileLayout
               ? "justify-center"
               : "justify-between",
@@ -714,23 +715,21 @@ export function Sidebar({
                 Clauxen
               </span>
             </div>
-          ) : null}
+          ) : (
+            <span className="sr-only">Clauxen</span>
+          )}
 
-          {isMobileLayout ? (
+          {isMobileLayout && !isCollapsed ? (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                setIsCollapsed(!isCollapsed);
+                setIsCollapsed(true);
               }}
-              aria-label={!isCollapsed ? "Close menu" : "Open menu"}
-              className="ui-icon-button text-zinc-800/66 transition-all duration-200 hover:bg-black/[0.04]"
+              aria-label="Close menu"
+              className="ui-icon-button !size-10 shrink-0 touch-manipulation text-zinc-800/70 transition-all duration-200 hover:bg-black/[0.04]"
             >
-              {!isCollapsed ? (
-                <X className="size-4" />
-              ) : (
-                <SidebarToggleIcon className="size-4" />
-              )}
+              <X className="size-5" />
             </button>
           ) : null}
         </div>
@@ -912,6 +911,7 @@ export function Sidebar({
               className={cn(
                 "flex items-center",
                 isCollapsed ? "justify-center" : "gap-1",
+                isMobileLayout && !isCollapsed && "gap-0.5",
               )}
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
@@ -1131,14 +1131,16 @@ export function Sidebar({
 
               {!isCollapsed ? (
                 <div className="flex shrink-0 items-center gap-0.5">
-                  <AppHref
-                    href="/download"
-                    aria-label="Download Clauxen"
-                    title="Download Clauxen"
-                    className="ui-icon-button !size-8 !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950"
-                  >
-                    <Download className="size-[17px]" strokeWidth={1.7} />
-                  </AppHref>
+                  {!isMobileLayout ? (
+                    <AppHref
+                      href="/download"
+                      aria-label="Download Clauxen"
+                      title="Download Clauxen"
+                      className="ui-icon-button !size-8 !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950"
+                    >
+                      <Download className="size-[17px]" strokeWidth={1.7} />
+                    </AppHref>
+                  ) : null}
 
                   {!isPeekPreview ? (
                     <Popover
@@ -1153,7 +1155,10 @@ export function Sidebar({
                         type="button"
                         aria-label="Search chats"
                         title="Search chats"
-                        className="ui-icon-button !size-8 !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950 data-[state=open]:bg-black/[0.06]"
+                        className={cn(
+                          "ui-icon-button !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950 data-[state=open]:bg-black/[0.06]",
+                          isMobileLayout ? "!size-10" : "!size-8",
+                        )}
                       >
                         <Search className="size-[17px]" strokeWidth={1.7} />
                       </button>
@@ -1163,7 +1168,7 @@ export function Sidebar({
                       align="end"
                       sideOffset={10}
                       collisionPadding={10}
-                      className="z-[70] w-[272px] rounded-xl border border-black/[0.10] bg-[#fcfcfb] p-2 shadow-[0_12px_34px_rgba(28,25,23,0.14)]"
+                      className="z-[70] w-[min(calc(92vw-1.5rem),272px)] rounded-xl border border-black/[0.10] bg-[#fcfcfb] p-2 shadow-[0_12px_34px_rgba(28,25,23,0.14)]"
                     >
                       <div className="flex h-9 items-center gap-2 rounded-lg border border-black/[0.09] bg-white px-2.5 focus-within:border-black/[0.18]">
                         <Search
@@ -1217,7 +1222,7 @@ export function Sidebar({
                     </Popover>
                   ) : null}
 
-                  {!isPeekPreview ? (
+                  {!isPeekPreview && !isMobileLayout ? (
                     <button
                       type="button"
                       onClick={() => setIsCollapsed(true)}
