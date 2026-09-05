@@ -122,7 +122,12 @@ export function useProjects(apiEnabled: boolean) {
   }, []);
 
   const createProject = useCallback(
-    async (input: { name: string; description?: string; icon?: string }) => {
+    async (input: {
+      name: string;
+      description?: string;
+      icon?: string;
+      color?: string;
+    }) => {
       const trimmed = input.name.trim();
       if (!trimmed || trimmed.length > MAX_PROJECT_NAME_LENGTH) return;
 
@@ -133,6 +138,7 @@ export function useProjects(apiEnabled: boolean) {
         name: trimmed,
         description: input.description?.trim() || undefined,
         icon: input.icon,
+        color: input.color,
       });
       setProjects((prev) => [
         project,
@@ -155,6 +161,7 @@ export function useProjects(apiEnabled: boolean) {
         description?: string;
         system_prompt?: string;
         icon?: string;
+        color?: string;
       },
     ) => {
       if (!apiEnabled) throw new Error("Sign in before updating a project.");

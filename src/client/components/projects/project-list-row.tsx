@@ -1,9 +1,10 @@
 "use client";
 
-import { ChevronRight, FolderKanban, Star } from "lucide-react";
+import { ChevronRight, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { ApiProject } from "@/lib/api/projects";
+import { ProjectAvatar } from "@/components/projects/project-avatar";
 
 type ProjectListRowProps = {
   project: ApiProject;
@@ -31,9 +32,12 @@ export function ProjectListRow({
             "transition-colors active:bg-zinc-50",
           )}
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600">
-            <FolderKanban className="h-5 w-5" strokeWidth={1.75} />
-          </span>
+          <ProjectAvatar
+            icon={project.icon}
+            color={project.color}
+            name={project.name}
+            size="md"
+          />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[15px] font-medium leading-5 text-zinc-900">
               {project.name}

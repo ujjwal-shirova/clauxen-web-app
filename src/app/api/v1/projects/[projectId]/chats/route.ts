@@ -6,6 +6,7 @@ import { jsonData } from "@/server/http/api-response"; // { data: { chat } } suc
 import { requireSession } from "@/server/auth/require-session"; // null session → 401
 import * as projectsRepo from "@/server/repositories/projects.repository"; // project lookup — user_id scoped
 import * as chatsRepo from "@/server/repositories/chats.repository"; // chat update — project_id column set
+import * as projectChatsRepo from "@/server/repositories/project-chats.repository";
 import { AppError, notFound } from "@/server/db/errors"; // 400 validation, 404 missing resources
 import { requireChatIdParam } from "@/server/http/chat-id";
 
@@ -15,6 +16,23 @@ const UUID_RE =
 
 export const runtime = "nodejs"; // Node.js runtime — pg parameterized queries
 export const dynamic = "force-dynamic";
+
+export const GET = withApiRouteParams<{ projectId: string }>(
+  async ({ session, params }) => {
+    const user = requireSession(session);
+    if (!UUID_RE.test(params.projectId)) {
+      throw new AppError("Invalid project id.", 400, "bad_request");
+    }
+    const project = await projectsRepo.getProject(params.projectId, user.id);
+    if (!project) throw notFound("Project not found.");
+    const chats = await projectChatsRepo.listProjectChats(
+      params.projectId,
+      user.id,
+    );
+    return jsonData({ chats });
+  },
+  { requireAuth: true },
+);
 
 export const POST = withApiRouteParams<{ projectId: string }>(
   async ({ session, request, params }) => {

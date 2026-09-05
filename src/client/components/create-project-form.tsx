@@ -5,137 +5,130 @@ import { cn } from "@/lib/utils";
 import { appBtn } from "@/lib/app-buttons";
 import { AppHref } from "@/components/app-href";
 import { ProjectIconPicker } from "@/components/project-icon-picker";
+import {
+  DEFAULT_PROJECT_COLOR,
+  DEFAULT_PROJECT_ICON,
+} from "@/lib/project-appearance";
 
 export type CreateProjectFormValues = {
   name: string;
   description: string;
   icon: string;
+  color: string;
 };
 
 type CreateProjectFormProps = {
   onSubmit: (data: CreateProjectFormValues) => void | Promise<void>;
-  /** Plain href cancel — preferred over onCancel for real `<a href>`. */
   cancelHref?: string;
   onCancel?: () => void;
   isSubmitting?: boolean;
   className?: string;
-  /** When true, show the “How to use projects” intro card. */
-  showIntro?: boolean;
   heading?: string;
   submitLabel?: string;
   initialName?: string;
   initialDescription?: string;
   initialIcon?: string;
+  initialColor?: string;
   errorMessage?: string | null;
 };
 
-/**
- * Inline project create/edit form — centered on `/project`, no dialog chrome.
- */
 export function CreateProjectForm({
   onSubmit,
   cancelHref,
   onCancel,
   isSubmitting = false,
   className,
-  showIntro = true,
   heading = "Create a project",
   submitLabel = "Create project",
   initialName = "",
   initialDescription = "",
-  initialIcon = "📁",
+  initialIcon = DEFAULT_PROJECT_ICON,
+  initialColor = DEFAULT_PROJECT_COLOR,
   errorMessage,
 }: CreateProjectFormProps) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
   const [icon, setIcon] = useState(initialIcon);
+  const [color, setColor] = useState(initialColor);
   const canSubmit = name.trim().length > 0 && !isSubmitting;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    void onSubmit({ name: name.trim(), description: description.trim(), icon });
+    void onSubmit({
+      name: name.trim(),
+      description: description.trim(),
+      icon,
+      color,
+    });
   };
 
   return (
-    <div
-      className={cn("w-full max-w-[520px] font-sans text-zinc-900", className)}
-    >
-      <h1 className="mb-3 text-[22px] font-semibold leading-[26px] text-zinc-900">
-        {heading}
-      </h1>
+    <div className={cn("w-full max-w-[440px] font-sans text-zinc-900", className)}>
+      <form onSubmit={handleSubmit} className="flex flex-col items-center">
+        <ProjectIconPicker
+          icon={icon}
+          color={color}
+          size="lg"
+          disabled={isSubmitting}
+          onChange={(next) => {
+            setIcon(next.icon);
+            setColor(next.color);
+          }}
+        />
+        <p className="mt-2.5 text-[12px] text-zinc-500">
+          Hover or click to choose an icon and color
+        </p>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-7 pt-3">
-        {showIntro ? (
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-[14px] leading-5 text-zinc-600">
-            <div className="mb-3 font-medium text-zinc-900">
-              How to use projects
-            </div>
-            <div className="flex flex-col gap-3">
-              <p>
-                Projects help organize your work and leverage knowledge across
-                multiple conversations. Upload docs, code, and files to create
-                themed collections that Clauxen can reference again and again.
-              </p>
-              <p>
-                Start by creating a memorable title and description to organize
-                your project. You can always edit it later.
-              </p>
-            </div>
+        <h1 className="mt-6 w-full text-center text-[22px] font-semibold tracking-[-0.03em] text-zinc-900">
+          {heading}
+        </h1>
+        <p className="mt-1.5 w-full text-center text-[14px] leading-5 text-zinc-500">
+          Group chats, files, and instructions around one piece of work.
+        </p>
+
+        <div className="mt-7 flex w-full flex-col gap-5">
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="project-name"
+              className="text-[13px] font-medium text-zinc-800"
+            >
+              Project name
+            </label>
+            <input
+              id="project-name"
+              name="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name your project"
+              className="h-10 w-full rounded-xl border-0 bg-white px-3 text-[14px] shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.22)]"
+              autoFocus
+              disabled={isSubmitting}
+            />
           </div>
-        ) : null}
 
-        <div className="flex flex-col gap-2">
-          <span className="text-[14px] font-medium text-zinc-900">
-            Project icon
-          </span>
-          <ProjectIconPicker
-            value={icon}
-            onChange={setIcon}
-            disabled={isSubmitting}
-            gallery
-          />
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="project-description"
+              className="text-[13px] font-medium text-zinc-800"
+            >
+              Description
+              <span className="ml-1 font-normal text-zinc-400">optional</span>
+            </label>
+            <textarea
+              id="project-description"
+              name="description"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What this project is for"
+              className="min-h-[84px] w-full resize-y rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] leading-5 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.22)]"
+              disabled={isSubmitting}
+            />
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="project-name"
-            className="text-[14px] font-medium text-zinc-900"
-          >
-            What are you working on?
-          </label>
-          <input
-            id="project-name"
-            name="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name your project"
-            className="h-8 w-full rounded-lg border-0 bg-white/80 px-2 text-[14px] shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
-            autoFocus
-            disabled={isSubmitting}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="project-description"
-            className="text-[14px] font-medium text-zinc-900"
-          >
-            What are you trying to achieve?
-          </label>
-          <textarea
-            id="project-description"
-            name="description"
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe your project, goals, subject, etc..."
-            className="min-h-[72px] w-full resize-y rounded-lg border-0 bg-white/80 px-2 py-2 text-[14px] leading-5 shadow-[inset_0_0_0_1px_rgba(11,11,11,0.1)] outline-none transition focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(11,11,11,0.18)]"
-            disabled={isSubmitting}
-          />
-        </div>
-
-        <div className="flex justify-end gap-3">
+        <div className="mt-7 flex w-full justify-end gap-2.5">
           {cancelHref ? (
             <AppHref
               href={cancelHref}
@@ -167,7 +160,7 @@ export function CreateProjectForm({
           </button>
         </div>
         {errorMessage ? (
-          <p role="alert" className="-mt-4 text-sm text-red-600">
+          <p role="alert" className="mt-3 w-full text-sm text-red-600">
             {errorMessage}
           </p>
         ) : null}

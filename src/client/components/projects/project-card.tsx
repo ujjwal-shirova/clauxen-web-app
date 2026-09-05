@@ -5,7 +5,6 @@ import {
   MoreHorizontal,
   Star,
   Pencil,
-  Archive,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
@@ -19,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { ApiProject } from "@/lib/api/projects";
+import { ProjectAvatar } from "@/components/projects/project-avatar";
 
 function ProjectMenuRow({
   icon: Icon,
@@ -62,7 +62,6 @@ type ProjectCardProps = {
   onOpen: () => void;
   onToggleStar?: () => void;
   onEditDetails?: () => void;
-  onArchive?: () => void;
   onDelete?: () => void;
 };
 
@@ -72,7 +71,6 @@ export function ProjectCard({
   onOpen,
   onToggleStar,
   onEditDetails,
-  onArchive,
   onDelete,
 }: ProjectCardProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -90,7 +88,13 @@ export function ProjectCard({
             "focus-visible:ring-2 focus-visible:ring-zinc-900/15",
           )}
         >
-          <div className="flex items-center overflow-hidden pr-10">
+          <div className="flex items-center gap-3 overflow-hidden pr-10">
+            <ProjectAvatar
+              icon={project.icon}
+              color={project.color}
+              name={project.name}
+              size="md"
+            />
             <div className="min-w-0 truncate text-[14px] font-medium leading-5 text-zinc-900">
               {project.name}
             </div>
@@ -135,7 +139,7 @@ export function ProjectCard({
             >
               <ProjectMenuRow
                 icon={Star}
-                label={starred ? "Unstar" : "Star"}
+                label={starred ? "Unpin" : "Pin"}
                 onClick={() => {
                   onToggleStar?.();
                   setMenuOpen(false);
@@ -143,21 +147,13 @@ export function ProjectCard({
               />
               <ProjectMenuRow
                 icon={Pencil}
-                label="Edit details"
+                label="Open project"
                 onClick={() => {
                   onEditDetails?.();
                   setMenuOpen(false);
                 }}
               />
               <DropdownMenuSeparator className="mx-2.5 my-1 bg-[rgba(11,11,11,0.1)]" />
-              <ProjectMenuRow
-                icon={Archive}
-                label="Archive"
-                onClick={() => {
-                  onArchive?.();
-                  setMenuOpen(false);
-                }}
-              />
               <ProjectMenuRow
                 icon={Trash2}
                 label="Delete"

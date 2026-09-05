@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { MessageSquare, MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ApiProject } from "@/lib/api/projects";
 import { PromptInput } from "@/components/prompt-input";
@@ -23,9 +23,14 @@ import {
 } from "@/lib/project-storage";
 import { MobileMenuButton } from "@/components/mobile-menu-button";
 import { ProjectIconPicker } from "@/components/project-icon-picker";
+import { ProjectChatListRow } from "@/components/projects/project-chat-list-row";
 import * as projectFilesApi from "@/lib/api/project-files";
 import { useAppNotifications } from "@/hooks/use-app-notifications";
 import type { RecentChat } from "@/lib/types";
+import {
+  DEFAULT_PROJECT_COLOR,
+  DEFAULT_PROJECT_ICON,
+} from "@/lib/project-appearance";
 
 type ProjectHomeViewProps = {
   project: ApiProject;
@@ -35,116 +40,19 @@ type ProjectHomeViewProps = {
   onStopGeneration: () => void;
   isGenerating?: boolean;
   onSaveInstructions?: (text: string) => void | Promise<void>;
-  onSaveIcon?: (icon: string) => void | Promise<void>;
+  onSaveAppearance?: (next: {
+    icon: string;
+    color: string;
+  }) => void | Promise<void>;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
   projectChats?: RecentChat[];
   onOpenChat?: (chatId: string) => void;
+  onNewChat?: () => void;
 };
 
-function SharedContextIllustration({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 160 120"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden
-    >
-      <rect
-        x="28"
-        y="22"
-        width="72"
-        height="48"
-        rx="16"
-        fill="#f4f4f5"
-        stroke="#e4e4e7"
-      />
-      <rect x="40" y="36" width="36" height="6" rx="3" fill="#d4d4d8" />
-      <rect x="40" y="48" width="48" height="6" rx="3" fill="#e4e4e7" />
-      <rect
-        x="60"
-        y="50"
-        width="72"
-        height="48"
-        rx="16"
-        fill="#fafafa"
-        stroke="#e4e4e7"
-      />
-      <rect x="72" y="64" width="40" height="6" rx="3" fill="#d4d4d8" />
-      <rect x="72" y="76" width="28" height="6" rx="3" fill="#e4e4e7" />
-    </svg>
-  );
-}
-
-function InstructionsIllustration({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 120 80"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden
-    >
-      <rect
-        x="24"
-        y="16"
-        width="56"
-        height="48"
-        rx="8"
-        fill="#f4f4f5"
-        stroke="#e4e4e7"
-      />
-      <rect x="34" y="28" width="36" height="4" rx="2" fill="#d4d4d8" />
-      <rect x="34" y="38" width="28" height="4" rx="2" fill="#e4e4e7" />
-      <rect x="34" y="48" width="32" height="4" rx="2" fill="#e4e4e7" />
-      <path
-        d="M78 52l12-12 6 6-12 12-7 1 1-7z"
-        fill="#fafafa"
-        stroke="#a1a1aa"
-        strokeWidth="1.25"
-      />
-    </svg>
-  );
-}
-
-function FilesIllustration({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 120 80"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden
-    >
-      <rect
-        x="30"
-        y="20"
-        width="36"
-        height="44"
-        rx="6"
-        fill="#f4f4f5"
-        stroke="#e4e4e7"
-      />
-      <rect
-        x="48"
-        y="28"
-        width="36"
-        height="44"
-        rx="6"
-        fill="#fafafa"
-        stroke="#d4d4d8"
-      />
-      <rect x="56" y="40" width="20" height="3" rx="1.5" fill="#d4d4d8" />
-      <rect x="56" y="48" width="16" height="3" rx="1.5" fill="#e4e4e7" />
-      <rect x="56" y="56" width="18" height="3" rx="1.5" fill="#e4e4e7" />
-    </svg>
-  );
-}
-
 /**
- * Project dashboard — shared context + instructions/files + composer.
- * Sending a prompt starts a project-scoped chat (wired by the route).
+ * Project dashboard — chats, instructions, files, and a composer for a new chat.
  */
 export function ProjectHomeView({
   project,
@@ -154,13 +62,15 @@ export function ProjectHomeView({
   onStopGeneration,
   isGenerating = false,
   onSaveInstructions,
-  onSaveIcon,
+  onSaveAppearance,
   onOpenMobileNav,
   showMobileMenu = false,
   projectChats = [],
   onOpenChat,
+  onNewChat,
 }: ProjectHomeViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const composerAnchorRef = useRef<HTMLDivElement>(null);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const [textDialogOpen, setTextDialogOpen] = useState(false);
@@ -171,6 +81,10 @@ export function ProjectHomeView({
     getProjectFiles(project.id),
   );
   const { notifyInfo, notifyWarning } = useAppNotifications();
+
+  useEffect(() => {
+    setInstructions(project.system_prompt ?? getProjectInstructions(project.id));
+  }, [project.id, project.system_prompt]);
 
   const refreshFiles = useCallback(async () => {
     const { files: rows } = await projectFilesApi.listProjectFiles(project.id);
@@ -256,28 +170,47 @@ export function ProjectHomeView({
     [notifyInfo, notifyWarning, project.id, refreshFiles],
   );
 
+  const focusComposer = () => {
+    onNewChat?.();
+    composerAnchorRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    window.setTimeout(() => {
+      composerAnchorRef.current
+        ?.querySelector<HTMLElement>("textarea, [contenteditable='true']")
+        ?.focus();
+    }, 80);
+  };
+
   return (
-    <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-white font-sans text-zinc-900">
-      <header className="flex h-11 shrink-0 items-center gap-2 px-3 sm:px-5">
+    <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[var(--app-panel-bg)] font-sans text-zinc-900">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-zinc-100 px-3 sm:px-5">
         {showMobileMenu && onOpenMobileNav ? (
           <MobileMenuButton
             onClick={onOpenMobileNav}
             aria-controls="app-primary-nav"
           />
         ) : null}
-        <div className="relative">
-          <ProjectIconPicker
-            value={project.icon || "📁"}
-            onChange={(icon) => void onSaveIcon?.(icon)}
-          />
-          <span
-            className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#2f6fed]"
-            aria-hidden
-          />
+        <ProjectIconPicker
+          icon={project.icon || DEFAULT_PROJECT_ICON}
+          color={project.color || DEFAULT_PROJECT_COLOR}
+          size="sm"
+          onChange={(next) => void onSaveAppearance?.(next)}
+        />
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[15px] font-semibold tracking-[-0.01em] text-zinc-900">
+            {project.name}
+          </h1>
         </div>
-        <h1 className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[-0.01em] text-zinc-900">
-          {project.name}
-        </h1>
+        <button
+          type="button"
+          onClick={focusComposer}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-zinc-900 px-2.5 text-[13px] font-medium text-white transition hover:bg-zinc-800"
+        >
+          <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+          <span className="hidden sm:inline">New chat</span>
+        </button>
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <button
@@ -302,10 +235,16 @@ export function ProjectHomeView({
         </DropdownMenu>
       </header>
 
-      <div className="mx-auto flex min-h-0 w-full max-w-[1040px] flex-1 flex-col overflow-y-auto px-4 pb-8 pt-5 sm:px-6 lg:px-8">
-        <div className="grid min-h-0 flex-1 gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1040px] flex-1 flex-col overflow-y-auto px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+        <div className="grid min-h-0 flex-1 gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-10">
           <div className="flex min-w-0 flex-col">
-            <div className="mb-8">
+            {project.description ? (
+              <p className="mb-5 max-w-[54ch] text-[14px] leading-5 text-zinc-500">
+                {project.description}
+              </p>
+            ) : null}
+
+            <div ref={composerAnchorRef} className="mb-8">
               <h2 className="mb-3 text-[20px] font-semibold tracking-[-0.02em] text-zinc-900">
                 What are you working on?
               </h2>
@@ -327,35 +266,32 @@ export function ProjectHomeView({
               </span>
             </div>
             {projectChats.length > 0 ? (
-              <div className="overflow-hidden rounded-2xl border border-zinc-200/90">
+              <div className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white px-3 sm:px-4">
                 {projectChats.map((chat) => (
-                  <button
+                  <ProjectChatListRow
                     key={chat.id}
-                    type="button"
-                    onClick={() => onOpenChat?.(chat.id)}
-                    className="flex w-full items-center gap-3 border-b border-zinc-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-zinc-50"
-                  >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
-                      <MessageSquare className="h-4 w-4" strokeWidth={1.7} />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-zinc-800">
-                      {chat.name || "New chat"}
-                    </span>
-                  </button>
+                    chat={chat}
+                    onOpen={() => onOpenChat?.(chat.id)}
+                    onRename={() => onOpenChat?.(chat.id)}
+                    onPin={() => undefined}
+                    onUnpin={() => undefined}
+                    onDelete={() => undefined}
+                    showMenu={false}
+                  />
                 ))}
               </div>
             ) : (
-              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 px-6 text-center">
-                <SharedContextIllustration className="mb-3 h-[88px] w-[118px]" />
-                <p className="max-w-[34ch] text-[13px] leading-5 text-zinc-500">
+              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-white/60 px-6 text-center">
+                <p className="max-w-[36ch] text-[13px] leading-5 text-zinc-500">
                   Chats started here share this project&apos;s instructions and
-                  files.
+                  files. Start one above, or move an existing chat from the
+                  sidebar menu.
                 </p>
               </div>
             )}
           </div>
 
-          <div className="mx-auto flex w-full max-w-[300px] shrink-0 flex-col gap-3 lg:mx-0">
+          <div className="mx-auto flex w-full max-w-[280px] shrink-0 flex-col gap-3 lg:mx-0">
             <button
               type="button"
               onClick={() => setInstructionsOpen(true)}
@@ -369,10 +305,9 @@ export function ProjectHomeView({
                   <Plus className="h-4 w-4" strokeWidth={1.75} />
                 </span>
               </div>
-              <InstructionsIllustration className="mx-auto mb-3 h-16 w-24" />
-              <p className="text-[12px] leading-4 text-zinc-500">
+              <p className="line-clamp-4 text-[12px] leading-4 text-zinc-500">
                 {instructions.trim()
-                  ? "Custom instructions are active for chats in this project."
+                  ? instructions.trim()
                   : "Add instructions so Clauxen can answer according to your preferences."}
               </p>
             </button>
@@ -390,12 +325,27 @@ export function ProjectHomeView({
                   <Plus className="h-4 w-4" strokeWidth={1.75} />
                 </span>
               </div>
-              <FilesIllustration className="mx-auto mb-3 h-16 w-24" />
-              <p className="text-[12px] leading-4 text-zinc-500">
-                {files.length > 0
-                  ? `${files.length} file${files.length === 1 ? "" : "s"} available across project chats.`
-                  : "Added files are referenced and managed by Clauxen across all project chats, and may be modified or removed in the process."}
-              </p>
+              {files.length > 0 ? (
+                <ul className="flex flex-col gap-1.5">
+                  {files.slice(0, 4).map((file) => (
+                    <li
+                      key={file.id}
+                      className="truncate text-[12px] leading-4 text-zinc-600"
+                    >
+                      {file.name}
+                    </li>
+                  ))}
+                  {files.length > 4 ? (
+                    <li className="text-[12px] text-zinc-400">
+                      +{files.length - 4} more
+                    </li>
+                  ) : null}
+                </ul>
+              ) : (
+                <p className="text-[12px] leading-4 text-zinc-500">
+                  Added files are referenced across all chats in this project.
+                </p>
+              )}
             </button>
           </div>
         </div>

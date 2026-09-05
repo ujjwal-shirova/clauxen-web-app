@@ -46,6 +46,7 @@ const APP_SHELL_PREFETCH_ROUTES = [
   APP_ROUTES.plugins,
   APP_ROUTES.library,
   APP_ROUTES.projects,
+  APP_ROUTES.projectNew,
   APP_ROUTES.myClauxen,
 ] as const;
 
@@ -175,6 +176,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
     handleDeleteChat,
     handleRenameChat,
     handlePinChat,
+    handleMoveChatToProject,
     startNewChat,
   } = chat;
 
@@ -287,7 +289,7 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     const onOpenCreate = () => {
-      instantNavigate(APP_ROUTES.projects);
+      instantNavigate(APP_ROUTES.projectNew);
       closeMobileNav();
     };
     window.addEventListener(CLAUXEN_OPEN_CREATE_PROJECT_EVENT, onOpenCreate);
@@ -445,6 +447,17 @@ function MainLayoutShell({ children }: { children: React.ReactNode }) {
               onDeleteChat={onDeleteChatFromSidebar}
               onRenameChat={handleRenameChat}
               onPinChat={handlePinChat}
+              onMoveChatToProject={(chatId, projectId) => {
+                void handleMoveChatToProject(chatId, projectId);
+                if (activeChatId === chatId) {
+                  if (projectId) {
+                    instantNavigate(APP_ROUTES.projectChat(projectId, chatId));
+                  } else {
+                    instantNavigate(APP_ROUTES.chat(chatId));
+                  }
+                }
+                closeMobileNav();
+              }}
               generatingChatIds={generatingChatIds}
               projects={projects.projects}
               pinnedProjects={projects.pinnedProjects}

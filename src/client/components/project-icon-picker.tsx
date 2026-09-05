@@ -1,248 +1,129 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ProjectAvatar } from "@/components/projects/project-avatar";
+import {
+  PROJECT_COLORS,
+  PROJECT_ICONS,
+  resolveProjectColor,
+  resolveProjectIcon,
+} from "@/lib/project-appearance";
 
-export const PROJECT_ICONS = [
-  "📁",
-  "💡",
-  "🧠",
-  "📝",
-  "💻",
-  "📚",
-  "🎨",
-  "🔬",
-  "🚀",
-  "📈",
-  "🎓",
-  "🛡️",
-  "🧪",
-  "💬",
-  "🌱",
-  "🌍",
-  "🤖",
-  "💰",
-  "🎯",
-  "🧩",
-  "⚡",
-  "🌈",
-  "📰",
-  "👀",
-  "✅",
-  "🗂️",
-  "📌",
-  "🔭",
-  "🎮",
-  "🎵",
-  "🏗️",
-  "🏆",
-  "❤️",
-  "💜",
-  "💚",
-  "🖤",
-] as const;
+export { PROJECT_ICONS };
 
 type ProjectIconPickerProps = {
-  value: string;
-  onChange: (icon: string) => void;
+  icon: string;
+  color: string;
+  onChange: (next: { icon: string; color: string }) => void;
   disabled?: boolean;
   className?: string;
-  /** A click-only folder carousel for the project-creation flow. */
+  size?: "sm" | "md" | "lg";
+  /** @deprecated Gallery carousel removed — kept so older call sites type-check. */
   gallery?: boolean;
+  /** @deprecated Use `icon` + `color` instead. */
+  value?: string;
 };
 
 export function ProjectIconPicker({
-  value,
+  icon,
+  color,
   onChange,
   disabled = false,
   className,
-  gallery = false,
+  size = "lg",
+  value,
 }: ProjectIconPickerProps) {
   const [open, setOpen] = useState(false);
-  const initialIndex = Math.max(
-    0,
-    PROJECT_ICONS.indexOf(value as (typeof PROJECT_ICONS)[number]),
-  );
-  const [activeIndex, setActiveIndex] = useState(initialIndex);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const resolvedIcon = resolveProjectIcon(icon || value);
+  const resolvedColor = resolveProjectColor(color);
 
-  useEffect(() => {
-    const next = PROJECT_ICONS.indexOf(value as (typeof PROJECT_ICONS)[number]);
-    if (next >= 0) setActiveIndex(next);
-  }, [value]);
-
-  useEffect(() => {
-    if (!open) return;
-    const closeWhenOutside = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", closeWhenOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeWhenOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
-
-  const choose = (icon: string) => {
-    onChange(icon);
-    setOpen(false);
+  const chooseIcon = (nextIcon: string) => {
+    onChange({ icon: nextIcon, color: resolvedColor });
   };
 
-  const visibleIcons = useMemo(
-    () =>
-      [-2, -1, 0, 1, 2].map((offset) => {
-        const index =
-          (activeIndex + offset + PROJECT_ICONS.length) % PROJECT_ICONS.length;
-        return { icon: PROJECT_ICONS[index]!, offset, index };
-      }),
-    [activeIndex],
-  );
-
-  const move = (direction: -1 | 1) => {
-    const next =
-      (activeIndex + direction + PROJECT_ICONS.length) % PROJECT_ICONS.length;
-    setActiveIndex(next);
-    onChange(PROJECT_ICONS[next]!);
+  const chooseColor = (nextColor: string) => {
+    onChange({ icon: resolvedIcon, color: nextColor });
   };
 
   return (
-    <div ref={rootRef} className={cn("relative", className)}>
-      {gallery ? (
-        <div className="relative h-[192px] overflow-hidden rounded-2xl border border-zinc-100 bg-gradient-to-b from-white to-zinc-50/70">
-          <div className="pointer-events-none absolute inset-x-0 top-3 text-center text-xs font-medium text-zinc-500">
-            Pick an icon for your project
-          </div>
-          <div className="absolute inset-x-0 bottom-3 top-8 flex items-end justify-center">
-            {visibleIcons.map(({ icon, offset, index }) => {
-              const selected = offset === 0;
-              const distance = Math.abs(offset);
-              return (
-                <button
-                  key={`${icon}-${offset}`}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => {
-                    if (selected) setOpen(true);
-                    else {
-                      setActiveIndex(index);
-                      onChange(icon);
-                    }
-                  }}
-                  aria-label={
-                    selected
-                      ? "Change selected project icon"
-                      : `Use ${icon} as the project icon`
-                  }
-                  aria-pressed={selected}
-                  className={cn(
-                    "absolute bottom-0 flex flex-col items-center justify-end transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500",
-                    selected
-                      ? "z-20 h-[126px] w-[176px] opacity-100"
-                      : distance === 1
-                        ? "z-10 h-[96px] w-[132px] opacity-65"
-                        : "h-[72px] w-[104px] opacity-35",
-                    offset === -2 &&
-                      "translate-x-[-200px] sm:translate-x-[-270px]",
-                    offset === -1 &&
-                      "translate-x-[-116px] sm:translate-x-[-166px]",
-                    offset === 1 &&
-                      "translate-x-[116px] sm:translate-x-[166px]",
-                    offset === 2 &&
-                      "translate-x-[200px] sm:translate-x-[270px]",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "relative flex h-full w-full items-end justify-end overflow-hidden rounded-[22px] border-2 border-zinc-300 bg-white p-4 shadow-sm transition-transform",
-                      selected &&
-                        "border-zinc-400 shadow-md hover:-translate-y-1",
-                    )}
-                  >
-                    <span className="absolute left-[14%] top-[-2px] h-7 w-[38%] rounded-t-[16px] border-x-2 border-t-2 border-zinc-300 bg-white" />
-                    <span
-                      className={cn(
-                        "absolute left-5 top-8 h-1 rounded-full bg-zinc-200",
-                        selected ? "w-24" : "w-14",
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "relative",
-                        selected ? "text-4xl" : "text-2xl",
-                      )}
-                    >
-                      {icon}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => move(-1)}
-            aria-label="Show previous project icon"
-            className="absolute left-2 top-1/2 z-30 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white/95 text-zinc-600 shadow-sm transition hover:bg-white hover:text-zinc-950 disabled:opacity-40"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => move(1)}
-            aria-label="Show next project icon"
-            className="absolute right-2 top-1/2 z-30 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white/95 text-zinc-600 shadow-sm transition hover:bg-white hover:text-zinc-950 disabled:opacity-40"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
-      ) : (
+    <Popover open={open} onOpenChange={(next) => !disabled && setOpen(next)}>
+      <PopoverTrigger asChild>
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setOpen((shown) => !shown)}
-          aria-label="Change project icon"
+          aria-label="Change project icon and color"
           aria-expanded={open}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-lg transition hover:bg-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+          className={cn(
+            "group relative rounded-full outline-none transition",
+            "focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:ring-offset-2",
+            "disabled:cursor-not-allowed disabled:opacity-60",
+            className,
+          )}
         >
-          {value || "📁"}
+          <ProjectAvatar icon={resolvedIcon} color={resolvedColor} size={size} />
+          <span className="pointer-events-none absolute inset-0 rounded-full bg-black/0 transition group-hover:bg-black/10" />
         </button>
-      )}
-
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Choose a project icon"
-          className="absolute left-0 top-full z-[120] mt-2 w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl"
-        >
-          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-800">
-            <Sparkles className="size-4 text-zinc-500" /> Choose an icon
+      </PopoverTrigger>
+      <PopoverContent
+        align="center"
+        sideOffset={10}
+        className="z-[120] w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-zinc-200 bg-white p-3.5 shadow-[0_8px_28px_rgba(24,24,27,0.14)]"
+      >
+        <div className="mb-3">
+          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-zinc-500">
+            Color
+          </p>
+          <div className="mt-2 grid grid-cols-6 gap-2">
+            {PROJECT_COLORS.map((swatch) => {
+              const selected = resolvedColor.toLowerCase() === swatch.toLowerCase();
+              return (
+                <button
+                  key={swatch}
+                  type="button"
+                  aria-label={`Use ${swatch} as the project color`}
+                  aria-pressed={selected}
+                  onClick={() => chooseColor(swatch)}
+                  className={cn(
+                    "h-8 w-8 rounded-full transition",
+                    selected
+                      ? "ring-2 ring-zinc-900 ring-offset-2"
+                      : "hover:scale-105",
+                  )}
+                  style={{ backgroundColor: swatch }}
+                />
+              );
+            })}
           </div>
-          <div className="grid grid-cols-8 gap-1 sm:grid-cols-9">
-            {PROJECT_ICONS.map((icon) => (
+        </div>
+        <div>
+          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-zinc-500">
+            Icon
+          </p>
+          <div className="mt-2 grid max-h-48 grid-cols-8 gap-1 overflow-y-auto pr-0.5">
+            {PROJECT_ICONS.map((glyph) => (
               <button
-                key={icon}
+                key={glyph}
                 type="button"
-                onClick={() => choose(icon)}
-                aria-label={`Use ${icon} as the project icon`}
-                aria-pressed={value === icon}
+                aria-label={`Use ${glyph} as the project icon`}
+                aria-pressed={resolvedIcon === glyph}
+                onClick={() => chooseIcon(glyph)}
                 className={cn(
-                  "flex size-10 items-center justify-center rounded-lg text-xl transition hover:bg-zinc-100",
-                  value === icon && "bg-zinc-100 ring-1 ring-zinc-300",
+                  "flex size-8 items-center justify-center rounded-lg text-lg transition hover:bg-zinc-100",
+                  resolvedIcon === glyph && "bg-zinc-100 ring-1 ring-zinc-300",
                 )}
               >
-                {icon}
+                {glyph}
               </button>
             ))}
           </div>
         </div>
-      ) : null}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }

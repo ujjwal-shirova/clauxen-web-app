@@ -87,6 +87,7 @@ export function ChatSessionProvider({
       chat.handleDeleteChat,
       chat.handleRenameChat,
       chat.handlePinChat,
+      chat.handleMoveChatToProject,
       chat.editMessageWithBranch,
       chat.redoUserMessageWithBranch,
       chat.retryAssistantWithBranch,

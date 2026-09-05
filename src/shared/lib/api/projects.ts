@@ -72,3 +72,19 @@ export async function linkChatToProject(projectId: string, chatId: string) {
     },
   );
 }
+
+export type ApiProjectChat = {
+  id: string;
+  project_id: string;
+  user_id: string;
+  title: string;
+  starred: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function listProjectChats(projectId: string) {
+  return apiFetch<{ chats: ApiProjectChat[] }>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/chats`,
+  );
+}

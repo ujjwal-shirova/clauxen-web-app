@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { ProjectHomeView } from "@/components/project-home-view";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,12 +13,21 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { useInstantNavigate } from "@/hooks/use-instant-navigate";
 import { isProjectPinned } from "@/lib/pinned-projects";
 import { AppHref } from "@/components/app-href";
-import { AppRouteLoadingShell } from "@/components/app-route-loading-shell";
+import type { RecentChat } from "@/lib/types";
 
 export default function ProjectHomeRoutePage() {
   return (
     <Suspense
-      fallback={<AppRouteLoadingShell label="Opening project" />}
+      fallback={
+        <div
+          className="flex flex-1 flex-col bg-[var(--app-panel-bg)] px-5 py-6"
+          aria-busy="true"
+          aria-label="Opening project"
+        >
+          <div className="h-8 w-48 rounded-lg bg-[var(--ui-hover-wash)]" />
+          <div className="mt-3 h-4 w-72 max-w-full rounded bg-[var(--ui-hover-wash)]" />
+        </div>
+      }
     >
       <ProjectHomeGate />
     </Suspense>
@@ -46,6 +55,7 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
   const [project, setProject] = useState<ApiProject | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [fetchedChats, setFetchedChats] = useState<RecentChat[]>([]);
   const cachedProject = projectsHook.projects.find((item) => item.id === id) ?? null;
   const visibleProject = project ?? cachedProject;
 
@@ -84,6 +94,43 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
       cancelled = true;
     };
   }, [id, apiEnabled, projectsHook.projects]);
+
+  useEffect(() => {
+    if (!id || !apiEnabled) return;
+    let cancelled = false;
+    void projectsApi.listProjectChats(id).then(
+      ({ chats }) => {
+        if (cancelled) return;
+        setFetchedChats(
+          chats.map((chat) => ({
+            id: chat.id,
+            name: chat.title || "New chat",
+            pinned: chat.starred,
+            projectId: chat.project_id,
+            updatedAt: Date.parse(chat.updated_at) || undefined,
+          })),
+        );
+      },
+      () => {
+        if (!cancelled) setFetchedChats([]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [id, apiEnabled]);
+
+  const projectChats = useMemo(() => {
+    const fromSession = (session?.startedRecentChats ?? []).filter(
+      (chat) => chat.projectId === id,
+    );
+    const byId = new Map<string, RecentChat>();
+    for (const chat of fetchedChats) byId.set(chat.id, chat);
+    for (const chat of fromSession) byId.set(chat.id, chat);
+    return Array.from(byId.values()).sort(
+      (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0),
+    );
+  }, [fetchedChats, id, session?.startedRecentChats]);
 
   const handleSendMessage = useCallback(
     async (prompt: string) => {
@@ -125,7 +172,7 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
           href={APP_ROUTES.projects}
           className="text-sm text-zinc-800 underline"
         >
-          New project
+          All projects
         </AppHref>
       </div>
     );
@@ -167,14 +214,15 @@ function ProjectHomeContent({ apiEnabled }: { apiEnabled: boolean }) {
           await projectsHook.updateProject(id, { system_prompt: text });
         }
       }}
-      onSaveIcon={async (icon) => {
+      onSaveAppearance={async (next) => {
         if (!apiEnabled) return;
-        const updated = await projectsHook.updateProject(id, { icon });
+        const updated = await projectsHook.updateProject(id, {
+          icon: next.icon,
+          color: next.color,
+        });
         setProject(updated);
       }}
-      projectChats={(session?.startedRecentChats ?? []).filter(
-        (chat) => chat.projectId === id,
-      )}
+      projectChats={projectChats}
       onOpenChat={(chatId) =>
         instantNavigate(APP_ROUTES.projectChat(id, chatId))
       }

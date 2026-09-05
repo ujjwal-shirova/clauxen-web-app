@@ -160,7 +160,7 @@ export async function updateChat(
     `update public.chats set
        title = coalesce($3, title),
        starred = coalesce($4, starred),
-       project_id = coalesce($5, project_id),
+       project_id = case when $6::boolean then $5::uuid else project_id end,
        updated_at = now()
      where id = $1 and user_id = $2 and status != 'deleted'
      returning id, user_id, workspace_id, project_id, title, status, model_id, starred, created_at, updated_at`,
@@ -170,6 +170,7 @@ export async function updateChat(
       patch.title ?? null, // null → coalesce skip — field unchanged
       patch.starred ?? null,
       patch.projectId ?? null,
+      patch.projectId !== undefined,
     ],
   );
 }

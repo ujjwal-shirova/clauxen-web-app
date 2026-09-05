@@ -11,14 +11,15 @@ import {
   sortProjects,
   type ProjectSortKey,
 } from "@/components/projects/project-sort-menu";
-import { AppContentLoader } from "@/components/app-content-loader";
 import { Button } from "@/components/ui/button";
 
 interface ProjectsViewMobileProps {
   projects: ApiProject[];
   loading?: boolean;
+  pinnedIds?: string[];
   onNewProject: () => void;
   onOpenProject?: (projectId: string) => void;
+  onTogglePin?: (projectId: string, pinned: boolean) => void;
   onOpenMobileNav?: () => void;
 }
 
@@ -27,8 +28,10 @@ const SEARCH_DEBOUNCE_MS = 320;
 export function ProjectsViewMobile({
   projects,
   loading,
+  pinnedIds = [],
   onNewProject,
   onOpenProject,
+  onTogglePin,
   onOpenMobileNav,
 }: ProjectsViewMobileProps) {
   const shell = useAppLayout();
@@ -38,7 +41,7 @@ export function ProjectsViewMobile({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isSearchPending, setIsSearchPending] = useState(false);
   const [sortKey, setSortKey] = useState<ProjectSortKey>("recent_activity");
-  const [starredIds, setStarredIds] = useState<Set<string>>(() => new Set());
+  const pinned = useMemo(() => new Set(pinnedIds), [pinnedIds]);
 
   useEffect(() => {
     if (query === debouncedQuery) {
@@ -69,22 +72,14 @@ export function ProjectsViewMobile({
   }, [sorted, debouncedQuery]);
 
   const showSkeletons =
-    loading || (isSearchPending && debouncedQuery.trim().length > 0);
+    Boolean(loading && projects.length === 0) ||
+    (isSearchPending && debouncedQuery.trim().length > 0);
   const hasSearchQuery = debouncedQuery.trim().length > 0;
   const isEmptySearch =
     !showSkeletons && hasSearchQuery && filtered.length === 0;
   const isEmptyLibrary =
     !showSkeletons && !hasSearchQuery && !loading && projects.length === 0;
   const showList = !showSkeletons && filtered.length > 0;
-
-  const toggleStar = (projectId: string) => {
-    setStarredIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(projectId)) next.delete(projectId);
-      else next.add(projectId);
-      return next;
-    });
-  };
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[var(--app-shell-bg)] lg:hidden">
@@ -128,7 +123,14 @@ export function ProjectsViewMobile({
 
       <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 pb-[max(5rem,env(safe-area-inset-bottom))] sm:px-4">
         {showSkeletons ? (
-          <AppContentLoader label="Loading projects" />
+          <ul className="flex flex-col gap-2 p-0">
+            {Array.from({ length: 5 }, (_, index) => (
+              <li
+                key={index}
+                className="h-[68px] animate-pulse rounded-xl bg-zinc-100"
+              />
+            ))}
+          </ul>
         ) : null}
 
         {isEmptySearch ? (
@@ -164,9 +166,11 @@ export function ProjectsViewMobile({
               <ProjectListRow
                 key={project.id}
                 project={project}
-                starred={starredIds.has(project.id)}
+                starred={pinned.has(project.id)}
                 onOpen={() => onOpenProject?.(project.id)}
-                onToggleStar={() => toggleStar(project.id)}
+                onToggleStar={() =>
+                  onTogglePin?.(project.id, !pinned.has(project.id))
+                }
               />
             ))}
           </ul>

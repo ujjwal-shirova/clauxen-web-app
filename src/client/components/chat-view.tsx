@@ -526,6 +526,26 @@ function ChatViewBody({
         onPinChat={handlePinChat}
         onDeleteChat={handleDeleteChatAndLeave}
         onOpenSettings={() => overlays.openSettings("General")}
+        onMoveChatToProject={(projectId) => {
+          if (!displayActiveChatId) return;
+          void chat.handleMoveChatToProject?.(displayActiveChatId, projectId);
+          if (projectId) {
+            instantNavigate(
+              APP_ROUTES.projectChat(projectId, displayActiveChatId),
+            );
+          } else {
+            instantNavigate(APP_ROUTES.chat(displayActiveChatId));
+          }
+        }}
+        projects={projects.projects}
+        currentProjectId={
+          displayTitleChat?.projectId ?? projectId ?? bindProjectId
+        }
+        moveToProjectHref={
+          displayActiveChatId
+            ? APP_ROUTES.projectNewWithChat(displayActiveChatId)
+            : APP_ROUTES.projectNew
+        }
         onOpenMobileNav={openMobileNav}
         showMobileMenu={isMobile && isSidebarCollapsed}
         chatModel={chatModel}

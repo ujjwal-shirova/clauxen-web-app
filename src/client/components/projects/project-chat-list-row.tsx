@@ -22,6 +22,7 @@ type ProjectChatListRowProps = {
   onDelete: () => void;
   onShare?: () => void;
   className?: string;
+  showMenu?: boolean;
 };
 
 export function ProjectChatListRow({
@@ -34,6 +35,7 @@ export function ProjectChatListRow({
   onDelete,
   onShare,
   className,
+  showMenu = true,
 }: ProjectChatListRowProps) {
   const title = chat.name || "New Chat";
 
@@ -68,7 +70,8 @@ export function ProjectChatListRow({
         </span>
       </button>
 
-      <div className="flex shrink-0 items-center pr-1 sm:pr-0">
+      {showMenu ? (
+        <div className="flex shrink-0 items-center pr-1 sm:pr-0">
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <button
@@ -99,6 +102,7 @@ export function ProjectChatListRow({
           />
         </DropdownMenu>
       </div>
+      ) : null}
     </div>
   );
 }

@@ -63,6 +63,7 @@ import {
 } from "@/lib/chat-grouping";
 import type { ApiProject } from "@/lib/api/projects";
 import type { RecentChat } from "@/lib/types";
+import { ProjectAvatar } from "@/components/projects/project-avatar";
 
 const CHAT_GROUP_STORAGE_KEY = "clauxen_chat_group_by";
 const SECTION_STORAGE_PREFIX = "clauxen_sidebar_section_";
@@ -210,6 +211,7 @@ interface SidebarProps {
   onNewProjectClick?: () => void;
   onSelectProject?: (project: ApiProject) => void;
   onPinProject?: (projectId: string, pinned: boolean) => void;
+  onMoveChatToProject?: (chatId: string, projectId: string | null) => void;
   userDisplayName?: string | null;
   /** True while auth identity is resolving — show skeletons, not mock labels. */
   accountLoading?: boolean;
@@ -252,6 +254,7 @@ export function Sidebar({
   onNewProjectClick,
   onSelectProject,
   onPinProject,
+  onMoveChatToProject,
   userDisplayName = null,
   accountLoading = false,
   userAvatarUrl,
@@ -411,7 +414,16 @@ export function Sidebar({
           className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
         >
           <span className="ui-nav-icon flex size-4 items-center justify-center text-[15px] leading-none text-zinc-800/66">
-            {project.icon || <NavProjectsIcon className="size-4" />}
+            {project.icon ? (
+              <ProjectAvatar
+                icon={project.icon}
+                color={project.color}
+                size="sm"
+                className="h-4 w-4 text-[10px]"
+              />
+            ) : (
+              <NavProjectsIcon className="size-4" />
+            )}
           </span>
           <span className="min-w-0 flex-1 truncate">
             {project.name || "Untitled project"}
@@ -655,10 +667,12 @@ export function Sidebar({
                   side="right"
                   isPinned={!!chat.pinned}
                   onRename={() => setRenameChatId(chat.id)}
-                  moveToProjectHref={APP_ROUTES.projects}
-                  onMoveToProject={() => {
-                    // Side-effects only — AppHref owns the route change.
-                    runNavAction(onProjectsClick);
+                  projects={projects}
+                  currentProjectId={chat.projectId}
+                  moveToProjectHref={APP_ROUTES.projectNewWithChat(chat.id)}
+                  onMoveChatToProject={(projectId) => {
+                    onMoveChatToProject?.(chat.id, projectId);
+                    if (isMobileLayout) onNavigate?.();
                   }}
                   onPin={() => onPinChat?.(chat.id, true)}
                   onUnpin={() => onPinChat?.(chat.id, false)}
@@ -842,6 +856,19 @@ export function Sidebar({
                 >
                   <AppHref
                     href={APP_ROUTES.projects}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!isPlainLeftClick(event)) return;
+                      onProjectsClick?.();
+                      if (isMobileLayout) onNavigate?.();
+                    }}
+                    className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-md px-2 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
+                  >
+                    <NavProjectsIcon className="size-4 shrink-0 text-zinc-800/66" />
+                    <span className="truncate">All projects</span>
+                  </AppHref>
+                  <AppHref
+                    href={APP_ROUTES.projectNew}
                     onClick={(event) => {
                       event.stopPropagation();
                       if (!isPlainLeftClick(event)) return;

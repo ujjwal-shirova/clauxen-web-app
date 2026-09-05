@@ -29,6 +29,8 @@ import { useToast } from "@/hooks/use-toast";
 import { appPage } from "@/lib/app-page-chrome";
 import { cn } from "@/lib/utils";
 import { APP_ROUTES } from "@/lib/app-routes";
+import { useAppLayout } from "@/components/app-layout-context";
+import { MobileMenuButton } from "@/components/mobile-menu-button";
 
 type EditorValue = AutomationPreset | ApiAutomation | null;
 const CATEGORIES = [
@@ -72,6 +74,8 @@ function taskSchedule(task: ApiAutomation) {
 
 export function AutomationsView() {
   const { toast } = useToast();
+  const { isMobile, isSidebarCollapsed, openMobileNav } = useAppLayout();
+  const showMobileMenu = isMobile && isSidebarCollapsed;
   const [tab, setTab] = useState<"automations" | "runs">("automations");
   const [tasks, setTasks] = useState<ApiAutomation[]>([]);
   const [runs, setRuns] = useState<ApiAutomationRun[]>([]);
@@ -214,9 +218,17 @@ export function AutomationsView() {
       <header className="w-full shrink-0">
         <div className="mobile-page-inset mx-auto w-full max-w-[1120px] px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 sm:pb-4 sm:pt-7">
           <div className="flex items-center justify-between gap-4">
-            <h1 className="text-[28px] font-semibold tracking-[-0.035em] text-zinc-950 sm:text-[34px]">
-              Automations
-            </h1>
+            <div className="flex min-w-0 items-center gap-2">
+              {showMobileMenu ? (
+                <MobileMenuButton
+                  onClick={openMobileNav}
+                  aria-controls="app-primary-nav"
+                />
+              ) : null}
+              <h1 className="text-[28px] font-semibold tracking-[-0.035em] text-zinc-950 sm:text-[34px]">
+                Automations
+              </h1>
+            </div>
             <button
               type="button"
               onClick={() => openEditor(null)}

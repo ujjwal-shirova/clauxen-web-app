@@ -33,6 +33,10 @@ interface ChatViewHeaderProps {
   onDeleteChat?: () => void;
   onOpenSettings?: () => void;
   onMoveToProject?: () => void;
+  onMoveChatToProject?: (projectId: string | null) => void;
+  projects?: import("@/lib/api/projects").ApiProject[];
+  currentProjectId?: string | null;
+  moveToProjectHref?: string;
   onOpenMobileNav?: () => void;
   showMobileMenu?: boolean;
   /** Show the centered free-plan upgrade prompt on the new-chat surface. */
@@ -63,6 +67,10 @@ export function ChatViewHeader({
   onDeleteChat,
   onOpenSettings,
   onMoveToProject,
+  onMoveChatToProject,
+  projects,
+  currentProjectId,
+  moveToProjectHref,
   onOpenMobileNav,
   showMobileMenu = false,
   showFreePlanUpgrade = false,
@@ -94,6 +102,10 @@ export function ChatViewHeader({
         onShare={onShareClick}
         onRename={() => setRenameDialogOpen(true)}
         onMoveToProject={onMoveToProject}
+        onMoveChatToProject={onMoveChatToProject}
+        projects={projects}
+        currentProjectId={currentProjectId}
+        moveToProjectHref={moveToProjectHref}
         onPin={onPinChat}
         onUnpin={onUnpinChat}
         onDelete={() => setDeleteDialogOpen(true)}

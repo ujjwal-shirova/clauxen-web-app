@@ -2789,6 +2789,42 @@ export function useChatApi(
     [userId],
   );
 
+  const handleMoveChatToProject = useCallback(
+    async (chatId: string, projectId: string | null) => {
+      const previous =
+        recentChatsRef.current.find((chat) => chat.id === chatId)?.projectId ??
+        null;
+      setRecentChats((prev) => {
+        const next = prev.map((chat) =>
+          chat.id === chatId ? { ...chat, projectId } : chat,
+        );
+        recentChatsRef.current = next;
+        return next;
+      });
+      if (userId) {
+        writeSyncDeviceChatList(userId, recentChatsRef.current);
+        void persistDeviceRecentChatsNow(
+          userId,
+          recentChatsRef.current,
+          useChatStore.getState().activeChatId,
+        );
+      }
+      try {
+        await chatsApi.updateChat(chatId, { projectId });
+      } catch (error) {
+        console.error("Failed to move chat to project:", error);
+        setRecentChats((prev) => {
+          const next = prev.map((chat) =>
+            chat.id === chatId ? { ...chat, projectId: previous } : chat,
+          );
+          recentChatsRef.current = next;
+          return next;
+        });
+      }
+    },
+    [userId],
+  );
+
   const editMessageWithBranch = useCallback(
     async (
       chatId: string,
@@ -3080,6 +3116,7 @@ export function useChatApi(
     handleDeleteChat,
     handleRenameChat,
     handlePinChat,
+    handleMoveChatToProject,
     editMessageWithBranch,
     redoUserMessageWithBranch,
     retryAssistantWithBranch,

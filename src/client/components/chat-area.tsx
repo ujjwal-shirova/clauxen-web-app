@@ -21,7 +21,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useChatScrollActivity } from "@/hooks/use-chat-scroll-activity";
 import { cn } from "@/lib/utils";
-import { AppContentLoader } from "@/components/app-content-loader";
 import { CLAUXEN_CHAT_SEND_EVENT } from "@/lib/chat-send-event";
 import type { SendMessageOptions } from "@/lib/composer-attachments";
 import { findPendingAskUserInput } from "@/lib/pending-ask-user-input";
@@ -82,6 +81,10 @@ interface ChatAreaProps {
   onDeleteChat?: (chatId: string) => void;
   onOpenSettings?: () => void;
   onMoveToProject?: () => void;
+  onMoveChatToProject?: (projectId: string | null) => void;
+  projects?: import("@/lib/api/projects").ApiProject[];
+  currentProjectId?: string | null;
+  moveToProjectHref?: string;
   homerReasoningEffort: import("@/lib/model-effort").HomerReasoningEffort;
   onHomerReasoningEffortChange: (
     effort: import("@/lib/model-effort").HomerReasoningEffort,
@@ -141,6 +144,10 @@ function ChatAreaLayout({
   onDeleteChat,
   onOpenSettings,
   onMoveToProject,
+  onMoveChatToProject,
+  projects,
+  currentProjectId,
+  moveToProjectHref,
   homerReasoningEffort,
   onHomerReasoningEffortChange,
   extendedThinking = false,
@@ -532,11 +539,13 @@ function ChatAreaLayout({
             conversation={
               blankRouteHydration ? (
                 <div
-                  className="flex w-full min-w-0 max-w-full flex-1"
+                  className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-6 px-4 pt-8 sm:px-6"
                   aria-busy="true"
                   aria-label="Loading conversation"
                 >
-                  <AppContentLoader label="Loading conversation" />
+                  <div className="ml-auto h-12 w-[min(72%,28rem)] rounded-2xl bg-[var(--ui-hover-wash)]" />
+                  <div className="h-20 w-[min(80%,34rem)] rounded-2xl bg-[var(--ui-hover-wash)]" />
+                  <div className="ml-auto h-10 w-[min(56%,22rem)] rounded-2xl bg-[var(--ui-hover-wash)]" />
                 </div>
               ) : showMessageLoadError ? (
                 <div className="flex w-full flex-col items-start gap-3 px-4 py-10 sm:px-6">
@@ -553,11 +562,12 @@ function ChatAreaLayout({
                 </div>
               ) : showMessageSkeleton ? (
                 <div
-                  className="flex w-full min-w-0 max-w-full flex-1"
+                  className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-6 px-4 pt-8 sm:px-6"
                   aria-busy="true"
                   aria-label="Loading conversation"
                 >
-                  <AppContentLoader label="Loading conversation" />
+                  <div className="ml-auto h-12 w-[min(72%,28rem)] rounded-2xl bg-[var(--ui-hover-wash)]" />
+                  <div className="h-20 w-[min(80%,34rem)] rounded-2xl bg-[var(--ui-hover-wash)]" />
                 </div>
               ) : (
                 <ConversationThread
@@ -611,6 +621,10 @@ function ChatAreaLayout({
               onDeleteChat={handleDeleteActiveChat}
               onOpenSettings={onOpenSettings}
               onMoveToProject={onMoveToProject}
+              onMoveChatToProject={onMoveChatToProject}
+              projects={projects}
+              currentProjectId={currentProjectId}
+              moveToProjectHref={moveToProjectHref}
               onOpenMobileNav={onOpenMobileNav}
               showMobileMenu={showMobileMenu}
               projectBreadcrumb={projectBreadcrumb}

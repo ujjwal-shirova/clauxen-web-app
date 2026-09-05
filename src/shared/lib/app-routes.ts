@@ -74,13 +74,18 @@ export const APP_ROUTES = {
   automations: "/automations",
   plugins: "/plugins",
   library: "/library",
-  /** Create-project surface (inline form, not a gallery). */
-  projects: "/project",
+  /** Projects library / gallery. */
+  projects: "/projects",
+  /** Create-project surface. */
+  projectNew: "/project",
   /** @deprecated Removed — Customize nav opens settings Connectors. Kept for redirects. */
   customize: "/customize",
   myClauxen: "/my-clauxen",
 
   chat: (chatId: string) => `/c/${encodeURIComponent(chatId)}`,
+  /** Open the create form and attach this chat after save. */
+  projectNewWithChat: (chatId: string) =>
+    `/project?chatId=${encodeURIComponent(chatId)}`,
   /** Project dashboard — blank composer scoped to this project. */
   project: (projectId: string) => `/project/${encodeURIComponent(projectId)}`,
   /** Canonical chat surface inside a project. */

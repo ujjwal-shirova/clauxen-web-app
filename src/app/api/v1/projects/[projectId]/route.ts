@@ -64,6 +64,9 @@ function parseProjectPatch(body: unknown): {
     if (color.length > MAX_PROJECT_COLOR_LENGTH) {
       throw new AppError("Project color is too long.", 400);
     }
+    if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      throw new AppError("Invalid project color.", 400);
+    }
     patch.color = color;
   }
   if ("system_prompt" in raw) {
