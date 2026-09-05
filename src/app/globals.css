@@ -4879,6 +4879,78 @@ button[data-speed-toggle][data-state="open"] {
   border-radius: 10px;
 }
 
+/* Compact chat chrome + sidebar on phones / tablets in portrait. */
+@media (max-width: 1023px) {
+  .content-pane-top-bar {
+    padding-inline: 4px !important;
+  }
+
+  .content-pane-top-bar > div {
+    padding-inline: 8px !important;
+    gap: 6px;
+  }
+
+  .app-main-shell[data-sidebar-collapsed="true"]:not([data-incognito])
+    .content-pane-top-bar
+    > div {
+    padding-left: 8px !important;
+  }
+
+  .content-pane-top-bar .ui-chrome-text-btn {
+    min-height: 32px;
+    height: 32px;
+    max-width: min(48vw, 12.5rem);
+    padding-inline: 6px;
+    font-size: 13px;
+  }
+
+  .content-pane-top-bar .ui-icon-button,
+  .content-pane-top-bar button[aria-label="Incognito"],
+  .content-pane-top-bar button[aria-label="Chat options"],
+  .content-pane-top-bar button[aria-label="Toggle artifacts panel"],
+  .content-pane-top-bar button[aria-label="Toggle right sidebar"],
+  .content-pane-top-bar button[aria-label="Open navigation menu"],
+  .content-pane-top-bar button[aria-label="Share chat"] {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 6px;
+    border-radius: 10px;
+  }
+
+  .chat-column {
+    padding-inline: 10px;
+  }
+
+  .glass-sidebar-docked {
+    max-width: min(92vw, 320px);
+  }
+
+  .glass-sidebar-docked .ui-sidebar-top-bar {
+    min-height: 52px;
+    padding: 8px 10px;
+  }
+
+  .glass-sidebar-docked .ui-nav-row {
+    min-height: 40px;
+  }
+
+  .glass-sidebar-docked a[aria-label="New chat"]:not(.ui-icon-button) {
+    min-height: 40px;
+    height: 40px;
+  }
+
+  .glass-sidebar-docked .sidebar-account-footer {
+    padding-bottom: max(0.65rem, env(safe-area-inset-bottom));
+  }
+
+  .glass-sidebar-docked .glass-sidebar-footer-account-trigger:not(.h-12) {
+    min-height: 52px;
+    padding-inline: 8px;
+  }
+}
+
 .agent-panel-conversation-shell[data-chat-active]
   .chat-scroll-content
   > .chat-column {
@@ -4963,6 +5035,40 @@ button[data-speed-toggle][data-state="open"] {
   min-height: 20px;
   font-size: 11px;
   color: #96969e;
+}
+
+/* Mobile overrides must follow the 2026 desktop column/composer rules. */
+@media (max-width: 1023px) {
+  :root {
+    --chat-header-height: 48px;
+    --chat-header-icon-btn: 36px;
+  }
+
+  .chat-column,
+  [data-composer-dock] .chat-column,
+  .agent-panel-conversation-shell[data-chat-active]
+    .chat-scroll-content
+    > .chat-column {
+    max-width: 100%;
+    padding-inline: 10px;
+  }
+
+  .user-message-card__body {
+    max-width: min(92%, 620px) !important;
+    padding: 8px 12px 8px 14px !important;
+    border-radius: 20px 20px 8px 20px !important;
+  }
+
+  [data-prompt-root] [data-prompt-shell] .prompt-body-grid {
+    min-height: 48px;
+    padding: 6px 8px;
+    column-gap: 8px;
+  }
+
+  .assistant-message-actions {
+    gap: 2px;
+    margin-top: 8px;
+  }
 }
 
 /* Unified elevated action containers — shared by header, composer, sidebar,

@@ -110,16 +110,17 @@ export function ChatViewHeader({
             className,
           )}
         >
-          <div className="pointer-events-auto flex h-full w-full min-w-0 items-center gap-2 px-3 sm:gap-2.5 sm:px-4">
+          <div className="pointer-events-auto flex h-full w-full min-w-0 items-center gap-1 px-1 sm:gap-2.5 sm:px-4">
             {showMobileMenu && onOpenMobileNav ? (
               <MobileMenuButton
                 onClick={onOpenMobileNav}
                 aria-controls="app-primary-nav"
+                className="-ml-0.5 shrink-0"
               />
             ) : null}
-            <div className="flex min-w-0 items-center overflow-hidden">
+            <div className="flex min-w-0 flex-1 items-center overflow-hidden">
               {projectBreadcrumb ? (
-                <div className="mr-1 flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-zinc-800">
+                <div className="mr-1 hidden min-w-0 items-center gap-1.5 text-[13px] font-medium text-zinc-800 sm:flex">
                   <span
                     className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2f6fed]"
                     aria-hidden
@@ -153,7 +154,7 @@ export function ChatViewHeader({
               <button
                 type="button"
                 onClick={() => setRenameDialogOpen(true)}
-                className="ui-chrome-text-btn group/title min-w-0 max-w-[min(52vw,34rem)] gap-1.5 bg-transparent px-2 text-[#52514e] hover:bg-black/[0.045] hover:text-zinc-950"
+                className="ui-chrome-text-btn group/title min-w-0 max-w-[min(48vw,12.5rem)] gap-1 bg-transparent px-1.5 text-[#52514e] hover:bg-black/[0.045] hover:text-zinc-950 sm:max-w-[min(52vw,34rem)] sm:gap-1.5 sm:px-2"
                 aria-label={`${displayTitle}, rename chat`}
               >
                 <span className="truncate">{displayTitle}</span>
@@ -166,9 +167,7 @@ export function ChatViewHeader({
               {!headerControlsLoading ? chatOptionsMenu : null}
             </div>
 
-            <div className="min-w-0 flex-1" />
-
-            <div className="content-pane-top-bar__trailing-wrap flex shrink-0 items-center gap-1">
+            <div className="content-pane-top-bar__trailing-wrap ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
               {headerControlsLoading ? null : (
                 <ChatRightRailControls
                   isArtifactsPanelOpen={isArtifactsPanelOpen}
@@ -200,32 +199,37 @@ export function ChatViewHeader({
   return (
     <header
       className={cn(
-        "content-pane-top-bar relative sticky top-0 z-20 flex w-full shrink-0 items-center overflow-visible bg-[var(--app-panel-bg)] px-3 font-sans sm:px-4",
+        "content-pane-top-bar relative sticky top-0 z-20 flex w-full shrink-0 items-center overflow-visible bg-[var(--app-panel-bg)] font-sans",
         className,
       )}
     >
-      {showMobileMenu && onOpenMobileNav ? (
-        <MobileMenuButton
-          onClick={onOpenMobileNav}
-          aria-controls="app-primary-nav"
-        />
-      ) : null}
-      {showFreePlanUpgrade ? (
-        <div className="absolute left-1/2 top-1/2 flex h-8 -translate-x-1/2 -translate-y-1/2 select-none items-center gap-1.5 rounded-lg bg-[#f6f6f4] px-2 pr-2.5 text-center text-[14px] font-normal leading-5 text-[#898781]">
-          <span>Free plan</span>
-          <span
-            className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[rgba(137,135,129,0.3)]"
-            aria-hidden="true"
+      <div className="flex h-full w-full min-w-0 items-center gap-1 px-1 sm:gap-2.5 sm:px-4">
+        {showMobileMenu && onOpenMobileNav ? (
+          <MobileMenuButton
+            onClick={onOpenMobileNav}
+            aria-controls="app-primary-nav"
+            className="-ml-0.5 shrink-0"
           />
-          <button
-            type="button"
-            onClick={onUpgradeClick}
-            className="rounded-sm text-[#184f95] underline decoration-[rgba(24,79,149,0.4)] underline-offset-[3px] outline-none transition-[color,text-decoration-color,box-shadow] duration-[60ms] hover:text-[#123f79] hover:decoration-[#184f95] focus-visible:ring-2 focus-visible:ring-[#256abf]/40"
-          >
-            Upgrade
-          </button>
-        </div>
-      ) : null}
+        ) : null}
+        {showFreePlanUpgrade ? (
+          <div className="pointer-events-none absolute inset-x-12 top-1/2 flex h-8 -translate-y-1/2 select-none items-center justify-center sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2">
+            <div className="pointer-events-auto flex h-8 items-center gap-1.5 rounded-lg bg-[#f6f6f4] px-2 pr-2.5 text-center text-[13px] font-normal leading-5 text-[#898781] sm:text-[14px]">
+              <span>Free plan</span>
+              <span
+                className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[rgba(137,135,129,0.3)]"
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                onClick={onUpgradeClick}
+                className="rounded-sm text-[#184f95] underline decoration-[rgba(24,79,149,0.4)] underline-offset-[3px] outline-none transition-[color,text-decoration-color,box-shadow] duration-[60ms] hover:text-[#123f79] hover:decoration-[#184f95] focus-visible:ring-2 focus-visible:ring-[#256abf]/40"
+              >
+                Upgrade
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </header>
   );
 }

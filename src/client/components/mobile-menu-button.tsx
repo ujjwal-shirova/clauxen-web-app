@@ -24,7 +24,7 @@ export function MobileMenuButton({
       aria-controls={ariaControls}
       onClick={onClick}
       className={cn(
-        "ui-icon-button shrink-0 touch-manipulation border border-zinc-200/70 bg-white text-zinc-600 shadow-[0_1px_2px_rgba(24,24,27,0.03)] transition-colors hover:border-zinc-300/80 hover:bg-zinc-50 lg:hidden",
+        "ui-icon-button relative z-30 shrink-0 touch-manipulation text-zinc-700 transition-colors hover:bg-black/[0.05] hover:text-zinc-950 lg:hidden",
         className,
       )}
     >

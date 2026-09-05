@@ -257,14 +257,14 @@ export function ChatViewPane({
                   // Demo welcome: fill the pane and center greeting + composer.
                   composerOnlyWelcome
                     ? "absolute inset-0 min-h-0 px-1 py-3"
-                    : "min-h-[calc(100dvh-10.5rem)] flex-1 py-6 sm:min-h-[calc(100dvh-9rem)] sm:py-10",
+                    : "min-h-full flex-1 px-3 py-5 sm:min-h-[calc(100dvh-9rem)] sm:px-0 sm:py-10",
                 )}
                 data-demo-welcome={composerOnlyWelcome || undefined}
               >
                 <div
                   className={cn(
                     "chat-column flex w-full min-w-0 flex-col items-center",
-                    "gap-4 sm:gap-6",
+                    "gap-3 sm:gap-6",
                   )}
                 >
                   {showNewChatUpgradeCard ? (
@@ -298,12 +298,12 @@ export function ChatViewPane({
                     className={cn(
                       "select-none text-center tracking-tight text-zinc-800",
                       incognitoWelcome
-                        ? "font-handwriting text-[26px] leading-[34px] sm:text-[38px] sm:leading-[48px]"
+                        ? "font-handwriting text-[22px] leading-[30px] sm:text-[38px] sm:leading-[48px]"
                         : "font-handwriting",
                       !incognitoWelcome &&
                         (composerOnlyWelcome
-                          ? "text-[24px] leading-[32px] sm:text-[38px] sm:leading-[46px]"
-                          : "text-[26px] leading-[34px] sm:text-[44px] sm:leading-[52px]"),
+                          ? "text-[22px] leading-[30px] sm:text-[38px] sm:leading-[46px]"
+                          : "text-[22px] leading-[1.2] max-[380px]:text-[20px] sm:text-[36px] sm:leading-[44px] lg:text-[44px] lg:leading-[52px]"),
                     )}
                     suppressHydrationWarning
                   >
@@ -320,7 +320,7 @@ export function ChatViewPane({
                     ) : composerOnlyWelcome ? (
                       "What can I help with?"
                     ) : greeting ? (
-                      <span className="inline-flex items-center gap-3.5 sm:gap-5">
+                      <span className="inline-flex max-w-full flex-wrap items-center justify-center gap-2.5 px-1 text-balance sm:flex-nowrap sm:gap-5">
                         <Image
                           src="/assets/icons/clauxen-icon.png"
                           width={70}
@@ -328,9 +328,9 @@ export function ChatViewPane({
                           alt=""
                           aria-hidden="true"
                           priority
-                          className="h-14 w-14 shrink-0 object-contain sm:h-[70px] sm:w-[70px]"
+                          className="h-10 w-10 shrink-0 object-contain max-[380px]:h-9 max-[380px]:w-9 sm:h-14 sm:w-14 lg:h-[70px] lg:w-[70px]"
                         />
-                        <span>
+                        <span className="min-w-0 max-w-full">
                           {firstName ? `${greeting}, ${firstName}` : greeting}
                         </span>
                       </span>
@@ -389,7 +389,7 @@ export function ChatViewPane({
                           exit={{ opacity: 0, y: -10 }}
                           transition={{ duration: 0.2 }}
                           className={cn(
-                            "mt-1 flex w-full flex-wrap justify-center gap-2 sm:mt-2 sm:gap-2",
+                            "mt-1 flex w-full flex-wrap justify-center gap-1.5 sm:mt-2 sm:gap-2",
                             composerOnlyWelcome && "gap-1 sm:gap-1",
                           )}
                         >
@@ -399,7 +399,7 @@ export function ChatViewPane({
                               type="button"
                               onClick={() => onActiveChipChange(chip.label)}
                               className={cn(
-                                "flex h-9 items-center gap-2 rounded-full border border-zinc-200/80 bg-transparent px-3.5 text-[13px] leading-5 text-zinc-600 transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 sm:h-9 sm:px-4 sm:text-[14px]",
+                                "flex h-8 items-center gap-1.5 rounded-full border border-zinc-200/80 bg-transparent px-3 text-[12.5px] leading-5 text-zinc-600 transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 sm:h-9 sm:gap-2 sm:px-4 sm:text-[14px]",
                                 composerOnlyWelcome &&
                                   "h-7 px-2.5 text-[11.5px] sm:h-7 sm:px-2.5 sm:text-[12px]",
                               )}
