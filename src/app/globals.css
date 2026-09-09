@@ -232,9 +232,9 @@
       0 1px 2px rgba(20, 21, 26, 0.04), 0 12px 28px -16px rgba(20, 21, 26, 0.12);
     --field-shadow: 0 1px 2px rgba(20, 21, 26, 0.04);
 
-    --skeleton-base: #f4f4f5;
-    --skeleton-highlight: rgba(255, 255, 255, 0.6);
-    --skeleton-duration: 1.6s;
+    --skeleton-base: #e8e8eb;
+    --skeleton-highlight: rgba(255, 255, 255, 0.92);
+    --skeleton-duration: 1.35s;
     --skeleton-delay: 0ms;
 
     --syntax-plain: #24292f;
@@ -366,8 +366,9 @@
     --panel-shadow:
       0 1px 2px rgba(0, 0, 0, 0.25), 0 14px 36px -18px rgba(0, 0, 0, 0.55);
     --field-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    --skeleton-base: #242427;
-    --skeleton-highlight: rgba(255, 255, 255, 0.08);
+    --skeleton-base: #2e2e33;
+    --skeleton-highlight: rgba(255, 255, 255, 0.16);
+    --skeleton-duration: 1.35s;
     --syntax-plain: #e6edf3;
     --syntax-comment: #8b949e;
     --syntax-keyword: #ff7b72;
@@ -4468,24 +4469,28 @@ html[data-reduce-motion="1"] .orb-cursor-core {
 .shimmer-bg {
   position: relative;
   overflow: hidden;
-  background-color: rgb(244, 244, 245);
+  background-color: var(--skeleton-base);
   isolation: isolate;
 }
 
 .shimmer-bg::after {
   content: "";
   position: absolute;
-  inset: 0;
-  transform: translate3d(-100%, 0, 0);
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 55%;
+  transform: translate3d(-120%, 0, 0);
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.72) 48%,
+    var(--skeleton-highlight) 50%,
     transparent 100%
   );
-  /* linear + fully off-screen endpoints = seamless loop, no hard cut */
-  animation: skeleton-shimmer 1.4s linear infinite;
+  animation: skeleton-shimmer var(--skeleton-duration, 1.35s) ease-in-out
+    infinite;
   pointer-events: none;
+  will-change: transform;
 }
 
 /* Magic link — soft entrance + sparkle pulse */
@@ -4600,28 +4605,27 @@ html[data-reduce-motion="1"] .orb-cursor-core {
 }
 
 /*
- * Skeleton shimmer — animates ::after with transform only (compositor-friendly).
- * @see https://asoasis.tech/articles/2026-05-19-1455-react-skeleton-screen-shimmer-effect/
+ * Skeleton shimmer — compositor-only transform on ::after.
+ * Continuous sweep with no opacity fade, so placeholders never look static.
  */
 .skeleton--shimmer {
-  animation: skeleton-base-breathe calc(var(--skeleton-duration) * 1.35)
-    ease-in-out infinite;
+  background-color: var(--skeleton-base);
 }
 
 .skeleton--shimmer::after {
   content: "";
   position: absolute;
-  inset: 0;
-  transform: translate3d(-120%, 0, 0);
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 55%;
+  transform: translate3d(-130%, 0, 0);
   background: linear-gradient(
-    90deg,
+    105deg,
     transparent 0%,
-    transparent 28%,
     var(--skeleton-highlight) 50%,
-    transparent 72%,
     transparent 100%
   );
-  /* ease-in-out loop — soft edges avoid a hard cut at the seam */
   animation: skeleton-shimmer var(--skeleton-duration) ease-in-out infinite;
   animation-delay: var(--skeleton-delay, 0ms);
   pointer-events: none;
@@ -4630,51 +4634,43 @@ html[data-reduce-motion="1"] .orb-cursor-core {
 
 @keyframes skeleton-shimmer {
   0% {
-    transform: translate3d(-120%, 0, 0);
-    opacity: 0;
-  }
-  12% {
-    opacity: 1;
-  }
-  88% {
-    opacity: 1;
+    transform: translate3d(-130%, 0, 0);
   }
   100% {
-    transform: translate3d(120%, 0, 0);
-    opacity: 0;
+    transform: translate3d(240%, 0, 0);
   }
 }
 
-@keyframes skeleton-base-breathe {
-  0%,
-  100% {
-    filter: brightness(1);
-  }
-  50% {
-    filter: brightness(0.96);
-  }
+.chat-skeleton-bubble {
+  border-radius: 18px;
+}
+
+.chat-skeleton-bubble--user {
+  border-radius: 20px 20px 6px 20px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton--shimmer::after {
+  .skeleton--shimmer::after,
+  .shimmer-bg::after {
     animation: none;
     opacity: 0;
   }
 
-  .skeleton--shimmer {
+  .skeleton--shimmer,
+  .shimmer-bg {
     animation: skeleton-pulse-static 2.2s ease-in-out infinite;
-    filter: none;
   }
 }
 
-html[data-reduce-motion="1"] .skeleton--shimmer::after {
+html[data-reduce-motion="1"] .skeleton--shimmer::after,
+html[data-reduce-motion="1"] .shimmer-bg::after {
   animation: none;
   opacity: 0;
 }
 
-html[data-reduce-motion="1"] .skeleton--shimmer {
+html[data-reduce-motion="1"] .skeleton--shimmer,
+html[data-reduce-motion="1"] .shimmer-bg {
   animation: skeleton-pulse-static 2.2s ease-in-out infinite;
-  filter: none;
 }
 
 @keyframes skeleton-pulse-static {
@@ -4781,7 +4777,7 @@ button:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
     [class*="text-[#fcfcfc]"]
   ):not([class*="bg-[#141414]"]):not([class*="bg-black"]):not(
     .prompt-control-filled
-  ):not(.prompt-control-ghost):hover,
+  ):not(.prompt-control-ghost):not(.prompt-model-selector):hover,
 [role="button"]:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
     .label-hover-bold
   ):not(.follow-up-prompt):not(.clickable-label):not([class*="underline"]):not(
@@ -4790,23 +4786,29 @@ button:not(.no-hover):not(.no-hover-overlay):not(.auth-text-link):not(
     .context-usage-trigger
   ):not([class*="text-white"]):not(.prompt-control-filled):not(
     .prompt-control-ghost
-  ):hover,
+  ):not(.prompt-model-selector):hover,
 button[data-app-button]:not([class*="text-white"]):not(
     [class*="text-[#fcfcfc]"]
   ):not([class*="bg-zinc-9"]):not([class*="bg-black"]):not(
     [class*="bg-[#141414]"]
-  ):not(.prompt-control-filled):not(.prompt-control-ghost):hover,
+  ):not(.prompt-control-filled):not(.prompt-control-ghost):not(
+    .prompt-model-selector
+  ):hover,
 [data-prompt-input]
   button:not([class*="text-white"]):not([class*="text-[#fcfcfc]"]):not(
     [class*="bg-[#141414]"]
-  ):not(.prompt-control-filled):not(.prompt-control-ghost):hover,
+  ):not(.prompt-control-filled):not(.prompt-control-ghost):not(
+    .prompt-model-selector
+  ):hover,
 .prompt-input
   button:not([class*="text-white"]):not([class*="text-[#fcfcfc]"]):not(
     [class*="bg-[#141414]"]
-  ):not(.prompt-control-filled):not(.prompt-control-ghost):hover,
+  ):not(.prompt-control-filled):not(.prompt-control-ghost):not(
+    .prompt-model-selector
+  ):hover,
 button[data-speed-toggle]:hover,
 .app-action-button:hover,
-.dropdown-menu-trigger:hover {
+.dropdown-menu-trigger:not(.prompt-model-selector):hover {
   background-color: rgba(24, 24, 27, 0.05) !important;
 }
 
@@ -4838,25 +4840,27 @@ button[class*="hover:underline"]:focus-visible,
    and segmented pills (those own their own elevated background). */
 button[aria-pressed="true"]:not(:disabled):not(.prompt-control-filled):not(
     .segmented-option
+  ):not(.prompt-model-selector),
+button[data-active="true"]:not(.prompt-control-filled):not(.segmented-option):not(
+    .prompt-model-selector
   ),
-button[data-active="true"]:not(.prompt-control-filled):not(.segmented-option),
 button[data-speed-toggle][data-active="true"],
 [data-prompt-input]
   button[aria-expanded="true"]:not(.prompt-control-filled):not(
     .prompt-control-ghost
-  ),
+  ):not(.prompt-model-selector),
 .prompt-input
   button[aria-expanded="true"]:not(.prompt-control-filled):not(
     .prompt-control-ghost
-  ),
+  ):not(.prompt-model-selector),
 button[aria-current="page"]:not(.prompt-control-filled),
 .app-action-button[aria-current="true"],
 button[data-state="open"]:not(.context-usage-trigger):not(
     .prompt-control-filled
-  ):not(.prompt-control-ghost),
+  ):not(.prompt-control-ghost):not(.prompt-model-selector),
 [role="button"][data-state="open"]:not(.context-usage-trigger):not(
     .prompt-control-filled
-  ):not(.prompt-control-ghost) {
+  ):not(.prompt-control-ghost):not(.prompt-model-selector) {
   background-color: rgba(24, 24, 27, 0.08) !important;
 }
 
@@ -5730,7 +5734,9 @@ button[data-speed-toggle][data-state="open"] {
     button[data-speed-toggle],
     .app-action-button,
     .dropdown-menu-trigger
-  ):not(.prompt-control-filled):not(.prompt-control-ghost):hover {
+  ):not(.prompt-control-filled):not(.prompt-control-ghost):not(
+    .prompt-model-selector
+  ):hover {
   background-color: var(--ui-hover-wash) !important;
 }
 
@@ -5744,7 +5750,7 @@ button[data-speed-toggle][data-state="open"] {
     [role="button"][data-state="open"]
   ):not(.prompt-control-filled):not(.prompt-control-ghost):not(
     .context-usage-trigger
-  ):not(.segmented-option) {
+  ):not(.segmented-option):not(.prompt-model-selector) {
   background-color: color-mix(
     in oklab,
     var(--ui-hover-wash) 78%,
@@ -5864,4 +5870,304 @@ button[data-speed-toggle][data-state="open"] {
 .glass-chat-status-bar,
 .glass-chat-status-bar__center {
   color: var(--ui-fg-placeholder) !important;
+}
+
+/*
+ * Model selector — transparent at rest. Global open/hover washes must not
+ * paint a filled pill while the cursor is elsewhere.
+ */
+button.prompt-model-selector,
+button.prompt-model-selector:focus,
+button.prompt-model-selector:focus-visible,
+button.prompt-model-selector[aria-expanded="false"],
+button.prompt-model-selector[data-state="closed"] {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+button.prompt-model-selector:hover:not(:disabled),
+button.prompt-model-selector:focus-visible:not(:disabled),
+button.prompt-model-selector[data-state="open"],
+button.prompt-model-selector[aria-expanded="true"] {
+  background-color: var(--ui-hover-wash) !important;
+  box-shadow: none !important;
+}
+
+/* ── Checkout — split payment / order layout ─────────────────────────────── */
+.checkout-shell {
+  display: flex;
+  min-height: 100dvh;
+  width: 100%;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--app-panel-bg);
+  color: var(--settings-fg);
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+}
+
+.checkout-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 56px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--settings-hairline);
+  background: var(--app-panel-bg);
+}
+
+.checkout-topbar__secure {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--settings-fg-muted);
+}
+
+.checkout-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.checkout-pay {
+  min-width: 0;
+  padding: 20px 16px 8rem;
+}
+
+.checkout-rail {
+  order: -1;
+  min-width: 0;
+  padding: 12px 16px 8px;
+  background: var(--app-panel-bg);
+}
+
+.checkout-pay__inner,
+.checkout-rail__inner {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.checkout-heading {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.checkout-kicker {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--settings-fg-muted);
+}
+
+.checkout-segment {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--settings-icon-bg, var(--ui-muted-surface));
+}
+
+.checkout-segment__item {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 11px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--settings-fg-muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.checkout-segment__item:hover:not([aria-checked="true"]):not([aria-pressed="true"]) {
+  color: var(--settings-fg);
+  background: color-mix(in oklab, var(--app-panel-bg) 70%, transparent);
+}
+
+.checkout-segment__item[aria-checked="true"],
+.checkout-segment__item[aria-pressed="true"] {
+  background: var(--app-panel-bg);
+  color: var(--settings-fg);
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.08), 0 0 0 1px var(--settings-hairline);
+}
+
+.checkout-cycle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--settings-icon-bg, var(--ui-muted-surface));
+}
+
+.checkout-cycle__item {
+  display: flex;
+  min-height: 52px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 11px;
+  padding: 8px 12px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.checkout-cycle__item[aria-pressed="true"] {
+  background: var(--app-panel-bg);
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.08), 0 0 0 1px var(--settings-hairline);
+}
+
+.checkout-cycle__title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--settings-fg);
+}
+
+.checkout-cycle__meta {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--settings-fg-muted);
+}
+
+.checkout-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checkout-totals__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.checkout-totals__due {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--settings-hairline);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.checkout-stepper {
+  display: inline-flex;
+  height: 36px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--settings-icon-bg);
+  padding: 2px;
+}
+
+.checkout-check {
+  display: flex;
+  cursor: pointer;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.checkout-pay-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin: 0 -16px -8rem;
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  background: color-mix(in oklab, var(--app-panel-bg) 92%, transparent);
+  border-top: 1px solid var(--settings-hairline);
+  backdrop-filter: blur(12px);
+}
+
+.checkout-pay-cta--desktop {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .checkout-shell {
+    overflow: hidden;
+    height: 100dvh;
+  }
+
+  .checkout-topbar {
+    padding: 0 28px;
+  }
+
+  .checkout-split {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+    min-height: 0;
+    flex: 1;
+  }
+
+  .checkout-pay,
+  .checkout-rail {
+    height: 100%;
+    overflow-y: auto;
+    order: 0;
+  }
+
+  .checkout-pay {
+    padding: 40px 40px 48px;
+  }
+
+  .checkout-rail {
+    padding: 32px 28px 36px;
+    background: color-mix(in oklab, var(--settings-canvas-bg, #f4f4f5) 88%, var(--app-panel-bg));
+    border-top: 0;
+    border-left: 1px solid var(--settings-hairline);
+  }
+
+  .checkout-pay__inner {
+    max-width: 520px;
+    margin: 0 0 0 auto;
+    padding-right: 24px;
+  }
+
+  .checkout-rail__inner {
+    max-width: none;
+  }
+
+  .checkout-pay-dock--mobile {
+    display: none;
+  }
+
+  .checkout-pay-cta--desktop {
+    display: block;
+    margin-top: 28px;
+  }
+}
+
+.dark .checkout-rail {
+  background: color-mix(in oklab, var(--settings-canvas-bg) 70%, #000);
+}
+
+.dark .checkout-segment,
+.dark .checkout-cycle {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dark .checkout-segment__item[aria-checked="true"],
+.dark .checkout-segment__item[aria-pressed="true"],
+.dark .checkout-cycle__item[aria-pressed="true"] {
+  background: #2a2a31;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }

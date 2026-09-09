@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { IsolatedChatInput } from "./isolated-chat-input";
 import type { Message } from "@/lib/types";
 import { ConversationThread } from "./conversation-thread";
+import { ConversationLoadingSkeleton } from "./message-skeleton";
 import { ShareDialog } from "./share-dialog";
 import { ChatViewHeader } from "./chat-view-header";
 import { IncognitoChatHeader } from "./incognito-chat-header";
@@ -541,15 +542,7 @@ function ChatAreaLayout({
             showNewChatUpgradeCard={showNewChatUpgradeCard}
             conversation={
               blankRouteHydration ? (
-                <div
-                  className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-6 px-4 pt-8 sm:px-6"
-                  aria-busy="true"
-                  aria-label="Loading conversation"
-                >
-                  <div className="ml-auto h-12 w-[min(72%,28rem)] rounded-2xl bg-[var(--ui-hover-wash)]" />
-                  <div className="h-20 w-[min(80%,34rem)] rounded-2xl bg-[var(--ui-hover-wash)]" />
-                  <div className="ml-auto h-10 w-[min(56%,22rem)] rounded-2xl bg-[var(--ui-hover-wash)]" />
-                </div>
+                <ConversationLoadingSkeleton />
               ) : showMessageLoadError ? (
                 <div className="flex w-full flex-col items-start gap-3 px-4 py-10 sm:px-6">
                   <p className="text-sm text-zinc-600">
@@ -564,14 +557,7 @@ function ChatAreaLayout({
                   </button>
                 </div>
               ) : showMessageSkeleton ? (
-                <div
-                  className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-6 px-4 pt-8 sm:px-6"
-                  aria-busy="true"
-                  aria-label="Loading conversation"
-                >
-                  <div className="ml-auto h-12 w-[min(72%,28rem)] rounded-2xl bg-[var(--ui-hover-wash)]" />
-                  <div className="h-20 w-[min(80%,34rem)] rounded-2xl bg-[var(--ui-hover-wash)]" />
-                </div>
+                <ConversationLoadingSkeleton />
               ) : (
                 <ConversationThread
                   messages={displayMessages}
