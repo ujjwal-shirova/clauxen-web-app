@@ -35,7 +35,7 @@ export default async function CheckoutSessionPage({
     <div
       data-checkout-scroll=""
       data-scroll-region=""
-      className="fixed inset-0 overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)] [scrollbar-gutter:stable]"
+      className="fixed inset-0 overflow-hidden bg-[var(--app-shell-bg)]"
     >
       <CheckoutSessionClient
         planId={claims.planId}

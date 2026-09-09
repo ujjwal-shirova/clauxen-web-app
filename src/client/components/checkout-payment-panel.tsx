@@ -168,7 +168,7 @@ function NetbankingBankPanel({
       )}
 
       <div
-        className="settings-card max-h-[220px] overflow-y-auto"
+        className="max-h-[220px] overflow-y-auto rounded-xl bg-[var(--settings-icon-bg)]"
         role="listbox"
         aria-label="Banks"
       >
@@ -290,7 +290,7 @@ export function CheckoutPaymentPanel({
           <CheckoutPaymentIcon
             src={icon.src}
             alt={icon.label}
-            className="h-8 w-11 rounded-[5px] border border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] p-0.5"
+            className="h-8 w-11 rounded-[5px] bg-[var(--settings-elevated-bg)] p-0.5"
           />
           <div className="min-w-0">
             <div className="truncate text-[13px] font-medium leading-5 text-[var(--settings-fg)]">

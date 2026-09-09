@@ -64,27 +64,25 @@ const field = {
 } as const;
 
 const checkout = {
-  form: "app-page-surface w-full font-sans text-[var(--settings-fg)]",
-  stack: "flex flex-col gap-5",
-  section: "flex flex-col gap-3",
+  form: "w-full font-sans text-[var(--settings-fg)]",
+  stack: "flex flex-col gap-8",
+  section: "flex flex-col gap-4",
 
   field: field.base,
   fieldWithIcons: field.withIcons,
   fieldWithTrailingIcon: field.withTrailing,
 
-  sectionTitle: "text-[13px] font-semibold leading-5 text-[var(--settings-fg)] px-0.5",
-  sectionHint: "px-0.5 text-[13px] leading-5 text-[var(--settings-fg-muted)]",
-  panel: "settings-card px-4 py-3",
+  sectionTitle: "text-[15px] font-semibold leading-5 tracking-[-0.02em] text-[var(--settings-fg)]",
+  sectionHint: "text-[13px] leading-5 text-[var(--settings-fg-muted)]",
+  panel: "rounded-xl bg-[var(--settings-icon-bg)] px-4 py-3",
   panelMuted: field.mutedPanel,
 
-  fieldLabel: "mb-1.5 px-0.5 text-[12px] font-medium leading-4 text-[var(--settings-fg-muted)]",
+  fieldLabel: "mb-1.5 text-[12px] font-medium leading-4 text-[var(--settings-fg-muted)]",
 
   tabBase:
-    "no-hover-overlay flex min-h-[60px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border px-2 py-3 text-[13px] font-medium leading-[18px] transition-[background-color,color,border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] max-lg:min-h-[64px]",
-  tabSelected:
-    "border-[hsl(var(--brand))] bg-[var(--brand-soft)] text-[var(--settings-fg)] shadow-[0_0_0_1px_hsl(var(--brand))]",
-  tabUnselected:
-    "border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:border-[var(--settings-input-focus)] hover:text-[var(--settings-fg)]",
+    "checkout-segment__item no-hover-overlay no-hover",
+  tabSelected: "",
+  tabUnselected: "",
 
   expressButton: cn(appBtn.primaryLg, "w-full gap-2"),
 
@@ -92,19 +90,16 @@ const checkout = {
     "ui-icon-button border border-transparent text-[var(--settings-fg-muted)] hover:bg-[var(--ui-hover-wash)]",
 
   checkbox:
-    "h-4 w-4 shrink-0 rounded border border-[var(--settings-input-border)] accent-[hsl(var(--brand))]",
+    "mt-0.5 h-4 w-4 shrink-0 rounded border border-[var(--settings-input-border)] accent-[hsl(var(--brand))]",
   labelMuted: page.muted,
   labelFine: "text-[13px] leading-5 text-[var(--settings-fg-muted)]",
   errorText: "text-[13px] leading-5 text-[var(--settings-danger)]",
 
   payDisabled: cn(appBtn.primaryLg, "w-full cursor-not-allowed opacity-50"),
 
-  hint: cn(
-    page.muted,
-    "flex items-center gap-3 rounded-[var(--settings-card-radius)] bg-[var(--settings-card-bg)] px-3.5 py-2.5 shadow-[var(--settings-card-shadow)]",
-  ),
+  hint: "flex items-center gap-3 rounded-xl bg-[var(--settings-icon-bg)] px-3.5 py-2.5 text-[13px] leading-5 text-[var(--settings-fg-muted)]",
 
-  errorBanner: "app-banner app-banner--danger mb-4",
+  errorBanner: "app-banner app-banner--danger mb-5",
 
   successBanner: "app-banner app-banner--success mb-4",
 

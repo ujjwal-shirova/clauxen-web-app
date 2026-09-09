@@ -99,7 +99,7 @@ export function PlanSelectionStep({
 
   if (view === "checkout" && selectedPlanId) {
     return (
-      <div className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-[var(--app-shell-bg)]">
+      <div className="fixed inset-0 z-[100] overflow-hidden bg-[var(--app-shell-bg)]">
         <BillingCheckout
           onBack={backToPlans}
           onPaymentSuccess={() => {

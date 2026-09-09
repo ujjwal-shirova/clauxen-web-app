@@ -10,7 +10,7 @@ export function CheckoutBootstrapping({
 }) {
   return (
     <div
-      className="app-surface-shell flex min-h-[100dvh] w-full items-center justify-center px-6"
+      className="checkout-shell items-center justify-center px-6"
       role="status"
       aria-live="polite"
       data-checkout-bootstrapping=""
@@ -20,7 +20,7 @@ export function CheckoutBootstrapping({
           className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--settings-hairline)] border-t-[var(--settings-fg)]"
           aria-hidden
         />
-        <p className="app-page-muted font-medium">
+        <p className="text-[13px] font-medium text-[var(--settings-fg-muted)]">
           {message}
         </p>
       </div>

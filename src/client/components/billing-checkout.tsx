@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ChevronDown, Info, Minus, Plus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ChevronDown, Info, Lock, Minus, Plus } from "lucide-react";
 import { appBtn } from "@/lib/app-buttons";
 import {
   createBillingOrder,
@@ -17,6 +17,7 @@ import {
 } from "@/lib/api/billing";
 import { CheckoutErrorBanner } from "@/components/checkout-error-banner";
 import { CheckoutForm } from "@/components/checkout-form";
+import { CheckoutPayCta } from "@/components/checkout-pay-cta";
 import type {
   CheckoutCardFieldState,
   CheckoutNetbankingFieldState,
@@ -132,30 +133,30 @@ function SeatStepper({
   onIncrement: () => void;
 }) {
   return (
-    <div className="flex h-9 items-center rounded-xl border border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] p-0.5 max-lg:h-10">
+    <div className="checkout-stepper">
       <button
         type="button"
         disabled={!canDecrement}
         onClick={onDecrement}
         aria-label="Decrease seats"
-        className={cn(appBtn.ghostIcon, "h-7 w-7 max-lg:h-9 max-lg:w-9", !canDecrement && "opacity-40")}
+        className={cn(appBtn.ghostIcon, "h-8 w-8", !canDecrement && "opacity-40")}
       >
         <Minus className="h-3.5 w-3.5" />
       </button>
       <span
         className={cn(
-          "min-w-[48px] px-1 text-center text-[13px] font-semibold leading-[18px] tabular-nums",
+          "min-w-[40px] px-1 text-center text-[13px] font-semibold tabular-nums",
           count === 0 ? "text-[var(--settings-fg-muted)]" : "text-[var(--settings-fg)]",
         )}
       >
-        {count === 0 ? "None" : count}
+        {count === 0 ? "—" : count}
       </span>
       <button
         type="button"
         disabled={!canIncrement}
         onClick={onIncrement}
         aria-label="Increase seats"
-        className={cn(appBtn.ghostIcon, "h-7 w-7 max-lg:h-9 max-lg:w-9", !canIncrement && "opacity-40")}
+        className={cn(appBtn.ghostIcon, "h-8 w-8", !canIncrement && "opacity-40")}
       >
         <Plus className="h-3.5 w-3.5" />
       </button>
@@ -163,20 +164,18 @@ function SeatStepper({
   );
 }
 
-function ChoiceCard({
+function CycleOption({
   selected,
   disabled,
   onClick,
   title,
   subtitle,
-  badge,
 }: {
   selected: boolean;
   disabled?: boolean;
   onClick: () => void;
   title: string;
   subtitle: string;
-  badge?: string;
 }) {
   return (
     <button
@@ -185,36 +184,12 @@ function ChoiceCard({
       disabled={disabled}
       aria-pressed={selected}
       className={cn(
-        "no-hover-overlay flex cursor-pointer flex-col items-start rounded-2xl border px-3.5 py-3 text-left text-[13px] leading-[18px] transition-[border-color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] max-lg:min-h-[4.5rem]",
-        selected
-          ? "border-[hsl(var(--brand))] bg-[var(--brand-soft)] shadow-[0_0_0_1px_hsl(var(--brand))]"
-          : "border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] hover:border-[var(--settings-input-focus)]",
+        "checkout-cycle__item no-hover-overlay no-hover",
         disabled && "cursor-not-allowed opacity-50",
       )}
     >
-      <div className="mb-3 flex w-full items-center justify-between">
-        <div
-          className={cn(
-            "flex h-5 w-5 items-center justify-center rounded-full border-2",
-            selected
-              ? "border-[hsl(var(--brand))]"
-              : "border-[var(--settings-input-border)]",
-          )}
-        >
-          {selected && (
-            <div className="h-2 w-2 rounded-full bg-[hsl(var(--brand))]" />
-          )}
-        </div>
-        {badge ? (
-          <span className="rounded-md bg-[var(--settings-icon-bg)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
-            {badge}
-          </span>
-        ) : null}
-      </div>
-      <span className="text-left text-[13px] font-semibold text-[var(--settings-fg)]">
-        {title}
-      </span>
-      <span className="mt-1 text-left text-[12px] leading-4 text-[var(--settings-fg-muted)]">{subtitle}</span>
+      <span className="checkout-cycle__title">{title}</span>
+      <span className="checkout-cycle__meta">{subtitle}</span>
     </button>
   );
 }
@@ -1445,65 +1420,56 @@ export function BillingCheckout({
 
   const billingCycleToggle =
     !isMaxPlan && !isVariableCheckoutPlan && !isGiftCheckout && (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-      <ChoiceCard
+    <div className="checkout-cycle" role="radiogroup" aria-label="Billing cycle">
+      <CycleOption
         selected={effectiveBillingCycle === "monthly"}
         onClick={() => setBillingCycle("monthly")}
         title="Monthly"
         subtitle={
           isTeamPlan || isBusinessWorkspace
-            ? "Billed monthly per seat"
-            : `${formatInr(details.monthly)}/month`
+            ? "Billed per seat"
+            : `${formatInr(details.monthly)}/mo`
         }
       />
-      <ChoiceCard
+      <CycleOption
         selected={effectiveBillingCycle === "yearly"}
         disabled={orgPlan ? !orgPlan.yearlySupported : false}
         onClick={() => setBillingCycle("yearly")}
         title="Yearly"
         subtitle={
           isTeamPlan || isBusinessWorkspace
-            ? `Save ${YEARLY_DISCOUNT_PERCENT}% billed annually`
-            : `${formatInr(details.yearly)}/year`
-        }
-        badge={
-          orgPlan?.yearlySupported ?? details.yearly > 0
             ? `Save ${YEARLY_DISCOUNT_PERCENT}%`
-            : undefined
+            : `${formatInr(details.yearly)}/yr · save ${YEARLY_DISCOUNT_PERCENT}%`
         }
       />
     </div>
   );
 
   const maxTierToggle = isMaxPlan && (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+    <div className="checkout-cycle" role="radiogroup" aria-label="Usage tier">
       {(
         Object.entries(MAX_TIER_OPTIONS) as Array<
           [MaxTier, (typeof MAX_TIER_OPTIONS)[MaxTier]]
         >
       ).map(([tier, tierDetails]) => (
-        <ChoiceCard
+        <CycleOption
           key={tier}
           selected={maxTier === tier}
           onClick={() => setMaxTier(tier)}
           title={tierDetails.usageLabel}
-          subtitle={`${formatInr(tierDetails.monthlyPriceInr)}/month`}
-          badge={tierDetails.badge}
+          subtitle={`${formatInr(tierDetails.monthlyPriceInr)}/mo`}
         />
       ))}
     </div>
   );
 
   const teamSeatConfigurator = isTeamPlan && orgPlan && (
-    <div className="settings-card px-3.5 py-3">
-      <p className="mb-1 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
-        {orgPlan.userRangeLabel}
+    <div className="flex flex-col gap-3">
+      <p className="text-[12px] leading-4 text-[var(--settings-fg-muted)]">
+        {orgPlan.userRangeLabel} · min {minSeats} seats
       </p>
-      <p className="mb-3 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
-        Min {minSeats} seats · configure each seat separately
-      </p>
-      <div className="flex flex-col">
-        {SEAT_ASSIGNABLE_IDS.map((seatId, index) => {
+      <div className="flex flex-col divide-y divide-[var(--settings-hairline)]">
+        {SEAT_ASSIGNABLE_IDS.map((seatId) => {
           const seat = SEAT_ASSIGNABLE_PLANS[seatId];
           const count = seatCounts[seatId];
           const display = getOrganizationSeatDisplayPrice(
@@ -1515,44 +1481,38 @@ export function BillingCheckout({
           const canIncrement = totalSeats < maxSeats;
 
           return (
-            <div key={seatId}>
-              {index > 0 && <div className="my-2.5 border-t border-[var(--settings-hairline)]" />}
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <span className="text-[12px] font-medium leading-4 text-[var(--settings-fg)]">
-                    {seat.label}
-                  </span>
-                  <div className="mt-1 flex flex-wrap items-baseline gap-1">
-                    {display.strikethrough != null && (
-                      <span className="text-[11px] text-[var(--settings-fg-muted)] line-through">
-                        ₹{display.strikethrough.toLocaleString("en-IN")}
-                      </span>
-                    )}
-                    <span className="text-[13px] font-medium leading-4 text-[var(--settings-fg)]">
-                      ₹{display.amount.toLocaleString("en-IN")}
-                      <span className="text-[11px] font-medium text-[var(--settings-fg-muted)]">
-                        /mo
-                      </span>
+            <div key={seatId} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+              <div className="min-w-0 flex-1">
+                <span className="text-[13px] font-medium leading-5 text-[var(--settings-fg)]">
+                  {seat.label}
+                </span>
+                <div className="mt-0.5 flex flex-wrap items-baseline gap-1">
+                  {display.strikethrough != null && (
+                    <span className="text-[12px] text-[var(--settings-fg-muted)] line-through">
+                      ₹{display.strikethrough.toLocaleString("en-IN")}
                     </span>
-                  </div>
-                  <p className="mt-0.5 max-w-[200px] text-[10px] leading-[14px] text-[var(--settings-fg-muted)]">
-                    {seat.usageNote}
-                  </p>
+                  )}
+                  <span className="text-[13px] font-medium tabular-nums text-[var(--settings-fg)]">
+                    ₹{display.amount.toLocaleString("en-IN")}
+                    <span className="text-[12px] font-medium text-[var(--settings-fg-muted)]">
+                      /mo
+                    </span>
+                  </span>
                 </div>
-                <SeatStepper
-                  count={count}
-                  canDecrement={canDecrement}
-                  canIncrement={canIncrement}
-                  onDecrement={() => handleSeatChange(seatId, -1)}
-                  onIncrement={() => handleSeatChange(seatId, 1)}
-                />
               </div>
+              <SeatStepper
+                count={count}
+                canDecrement={canDecrement}
+                canIncrement={canIncrement}
+                onDecrement={() => handleSeatChange(seatId, -1)}
+                onIncrement={() => handleSeatChange(seatId, 1)}
+              />
             </div>
           );
         })}
       </div>
       {!seatsValid && (
-        <p className="mt-3 text-[12px] text-[var(--settings-danger)]">
+        <p className="text-[12px] text-[var(--settings-danger)]">
           Select at least {minSeats} seats (max {maxSeats}).
         </p>
       )}
@@ -1560,79 +1520,64 @@ export function BillingCheckout({
   );
 
   const businessSeatConfigurator = isBusinessWorkspace && orgPlan && (
-    <div className="settings-card px-3.5 py-3">
-      <p className="mb-1 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
-        {orgPlan.userRangeLabel}
-      </p>
-      <p className="mb-3 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
-        Min {minSeats} seats · per seat
-      </p>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <span className="text-[12px] font-medium leading-4 text-[var(--settings-fg)]">
-            Business seat
-          </span>
-          <div className="mt-1 flex flex-wrap items-baseline gap-1">
-            {orgPlan.bundleSeatMonthlyStrikethroughInr != null && (
-              <span className="text-[11px] text-[var(--settings-fg-muted)] line-through">
-                ₹
-                {orgPlan.bundleSeatMonthlyStrikethroughInr.toLocaleString(
-                  "en-IN",
-                )}
-              </span>
-            )}
-            {(() => {
-              const display = getOrganizationSeatDisplayPrice(
-                orgPlan.bundleSeatMonthlyInr ??
-                  BUSINESS_WORKSPACE_SEAT_MONTHLY_INR,
-                effectiveBillingCycle,
-                orgPlan.yearlySupported,
-              );
-              return (
-                <span className="text-[13px] font-medium leading-4 text-[var(--settings-fg)]">
-                  ₹{display.amount.toLocaleString("en-IN")}
-                  <span className="text-[11px] font-medium text-[var(--settings-fg-muted)]">
-                    /mo
-                  </span>
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <span className="text-[13px] font-medium leading-5 text-[var(--settings-fg)]">
+          Business seat
+        </span>
+        <p className="mt-0.5 text-[12px] leading-4 text-[var(--settings-fg-muted)]">
+          {orgPlan.userRangeLabel} · min {minSeats}
+        </p>
+        <div className="mt-1 flex flex-wrap items-baseline gap-1">
+          {orgPlan.bundleSeatMonthlyStrikethroughInr != null && (
+            <span className="text-[12px] text-[var(--settings-fg-muted)] line-through">
+              ₹
+              {orgPlan.bundleSeatMonthlyStrikethroughInr.toLocaleString("en-IN")}
+            </span>
+          )}
+          {(() => {
+            const display = getOrganizationSeatDisplayPrice(
+              orgPlan.bundleSeatMonthlyInr ?? BUSINESS_WORKSPACE_SEAT_MONTHLY_INR,
+              effectiveBillingCycle,
+              orgPlan.yearlySupported,
+            );
+            return (
+              <span className="text-[13px] font-medium tabular-nums text-[var(--settings-fg)]">
+                ₹{display.amount.toLocaleString("en-IN")}
+                <span className="text-[12px] font-medium text-[var(--settings-fg-muted)]">
+                  /mo
                 </span>
-              );
-            })()}
-          </div>
-          <p className="mt-0.5 max-w-[200px] text-[10px] leading-[14px] text-[var(--settings-fg-muted)]">
-            Clauxen & Collabry bundle for every seat
-          </p>
+              </span>
+            );
+          })()}
         </div>
-        <SeatStepper
-          count={bundleSeatCount}
-          canDecrement={bundleSeatCount > minSeats}
-          canIncrement={bundleSeatCount < (orgPlan.maxSeats ?? 500)}
-          onDecrement={() =>
-            setBundleSeatCount((n) => Math.max(minSeats, n - 1))
-          }
-          onIncrement={() =>
-            setBundleSeatCount((n) => Math.min(orgPlan.maxSeats ?? 500, n + 1))
-          }
-        />
       </div>
+      <SeatStepper
+        count={bundleSeatCount}
+        canDecrement={bundleSeatCount > minSeats}
+        canIncrement={bundleSeatCount < (orgPlan.maxSeats ?? 500)}
+        onDecrement={() => setBundleSeatCount((n) => Math.max(minSeats, n - 1))}
+        onIncrement={() =>
+          setBundleSeatCount((n) => Math.min(orgPlan.maxSeats ?? 500, n + 1))
+        }
+      />
     </div>
   );
 
   const variablePlanNotice = isVariableCheckoutPlan && (
-    <div className="settings-card px-3.5 py-3 settings-muted">
+    <p className="text-[13px] leading-5 text-[var(--settings-fg-muted)]">
       {isUsageCodePlan ? (
-        <p>
-          <strong>Usage pricing:</strong> Clauxen Code usage is metered and
-          invoiced on actual use. There is no fixed seat charge at checkout; our
-          team confirms rates when your workspace is activated.
-        </p>
+        <>
+          Clauxen Code is metered and invoiced on actual use. There is no fixed
+          seat charge at checkout.
+        </>
       ) : (
-        <p>
-          <strong>Enterprise:</strong> Pricing and contract terms are prepared
-          for your organization. Submit your details below—no card charge until
-          a quote is accepted.
-        </p>
+        <>
+          Enterprise pricing is prepared for your organization. No card charge
+          until a quote is accepted.
+        </>
       )}
-    </div>
+    </p>
   );
 
   const cycleDetailLabel = isMaxPlan
@@ -1718,237 +1663,94 @@ export function BillingCheckout({
     return <CheckoutBootstrapping message={bootMessage} />;
   }
 
+  const payDisabled =
+    !agreed ||
+    isVariableCheckoutPlan ||
+    paying ||
+    !seatsValid ||
+    !bundleSeatsValid ||
+    !billingFormValid ||
+    !paymentFieldsValid;
+  const payLabel = `Pay ${formatInr(total)}`;
+  const variablePayNotice = isVariableCheckoutPlan
+    ? "Card charges are disabled for this plan until pricing is confirmed."
+    : null;
+  const handlePayPrepare = () => {
+    if ((paymentTab !== "netbanking" && paymentTab !== "card") || isUsd) {
+      return;
+    }
+    const keyId =
+      prefetchedOrderRef.current?.keyId ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim();
+    if (keyId) {
+      void warmRazorpayCustomCheckout(keyId).then((ok) => {
+        if (ok || isRazorpayCustomScriptReady()) {
+          setRazorpayScriptReady(true);
+        }
+      });
+    } else {
+      void loadRazorpayCustomScript().then((ok) => {
+        if (ok) setRazorpayScriptReady(true);
+      });
+    }
+  };
+
+  const renewalCopy = isGiftCheckout ? (
+    <>
+      Gift for{" "}
+      {giftMonths === 1 ? "1 month" : `${giftMonths ?? 0} months`} of{" "}
+      {details.name.replace(/ plan$/i, "")}. It will not auto-renew. You will be
+      charged {formatInr(total)} today
+      {taxResult.showTaxRow && !taxResult.isGstExempt
+        ? ", including tax"
+        : ""}
+      .
+    </>
+  ) : isVariableCheckoutPlan ? (
+    <>
+      No automatic charge until pricing is confirmed. Submit the form so we
+      can follow up.
+    </>
+  ) : (
+    <>
+      Renews on {renewalDate}. Charged {formatInr(total)} today
+      {taxResult.showTaxRow && !taxResult.isGstExempt ? ", including tax" : ""}{" "}
+      and {formatInr(subtotal)}
+      {cycleLabel} at renewal.
+    </>
+  );
+
   return (
-    <div className="app-surface-shell settings-canvas relative w-full font-sans text-[var(--settings-fg)]">
-      <header className="sticky top-0 z-30 flex items-center gap-1 border-b border-[var(--settings-hairline)] bg-[var(--settings-canvas-bg,var(--app-panel-bg))] px-2 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:hidden">
+    <div className="checkout-shell">
+      <header className="checkout-topbar pt-[max(0px,env(safe-area-inset-top))]">
         <button
           type="button"
           onClick={onBack}
-          className="ui-icon-button text-[var(--settings-fg)]"
+          className="ui-icon-button -ml-1.5 text-[var(--settings-fg)]"
           aria-label="Back"
         >
           <ArrowLeft className="size-[18px]" strokeWidth={1.75} />
         </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-medium tracking-[-0.02em]">
-            Checkout
-          </p>
-          <p className="truncate text-[12px] text-[var(--settings-fg-muted)]">
-            {details.name}
-          </p>
-        </div>
-        <span className="shrink-0 pr-2 text-[13px] font-medium">
-          {isVariableCheckoutPlan ? "Quote" : formatInr(total)}
+        <span className="clauxen-wordmark min-w-0 truncate text-[17px] font-medium tracking-[-0.02em]">
+          Clauxen
+        </span>
+        <span className="checkout-topbar__secure">
+          <Lock className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+          Encrypted
         </span>
       </header>
 
-      <button
-        type="button"
-        onClick={onBack}
-        className="ui-icon-button absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 hidden text-[var(--settings-fg)] transition-colors hover:bg-[var(--ui-hover-wash)] sm:left-6 lg:inline-flex"
-        aria-label="Back"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="18"
-          height="18"
-          fill="currentColor"
-          viewBox="0 0 256 256"
-        >
-          <path d="M228,128a12,12,0,0,1-12,12H69l51.52,51.51a12,12,0,0,1-17,17l-72-72a12,12,0,0,1,0-17l72-72a12,12,0,0,1,17,17L69,116H216A12,12,0,0,1,228,128Z" />
-        </svg>
-      </button>
-
-      <div className="w-full">
-        <main className="mx-auto flex w-full max-w-[1120px] flex-col items-start gap-4 px-3 pb-8 pt-4 sm:gap-8 sm:px-6 sm:pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.25rem))] lg:flex-row lg:gap-10 lg:pb-28 lg:pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.25rem))]">
-          {/* Left column — plan summary */}
-          <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[400px]">
-            <div className="mb-5 hidden px-1 lg:block">
-              <h1 className="text-[22px] font-semibold leading-7 tracking-[-0.025em] text-[var(--settings-fg)]">
-                Checkout
-              </h1>
-              <p className="mt-1 text-[13px] leading-5 text-[var(--settings-fg-muted)]">
-                Review your plan, then pay.
+      <div className="checkout-split">
+        <main className="checkout-pay">
+          <div className="checkout-pay__inner">
+            <div className="mb-7">
+              <h1 className="checkout-heading">Subscribe to {details.name}</h1>
+              <p className="checkout-kicker">
+                {isVariableCheckoutPlan
+                  ? "Share your details. We’ll confirm pricing next."
+                  : `${formatInr(total)} due today · ${cycleDetailLabel}`}
               </p>
             </div>
-
-            <div className="flex flex-col gap-3 sm:gap-4">
-              <button
-                type="button"
-                onClick={() => setOrderSummaryOpen((open) => !open)}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--settings-hairline)] bg-[var(--settings-card-bg)] px-3.5 py-3 text-left lg:hidden"
-                aria-expanded={orderSummaryOpen}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-[14px] font-semibold text-[var(--settings-fg)]">
-                    {details.name}
-                  </p>
-                  <p className="truncate text-[12px] text-[var(--settings-fg-muted)]">
-                    {cycleDetailLabel}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-[14px] font-semibold tabular-nums">
-                    {isVariableCheckoutPlan ? "Quote" : formatInr(total)}
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      "size-4 text-[var(--settings-fg-muted)] transition-transform",
-                      orderSummaryOpen && "rotate-180",
-                    )}
-                  />
-                </div>
-              </button>
-
-              <div className="settings-card hidden px-4 py-3.5 lg:block">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[17px] font-semibold tracking-[-0.02em] text-[var(--settings-fg)]">
-                    {details.name}
-                  </span>
-                  {!isVariableCheckoutPlan && (
-                    <span className="shrink-0 text-[13px] font-medium text-[var(--settings-fg-muted)]">
-                      {cycleDetailLabel}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {maxTierToggle}
-              {billingCycleToggle}
-              {teamSeatConfigurator}
-              {businessSeatConfigurator}
-              {variablePlanNotice}
-
-              <div
-                className={cn(
-                  "settings-card flex flex-col gap-3 px-4 py-4",
-                  !orderSummaryOpen && "max-lg:hidden",
-                )}
-              >
-                <div className="text-[13px] font-semibold leading-5 text-[var(--settings-fg)]">
-                  Order
-                </div>
-
-                {orderLineItems.map((item) => (
-                  <div
-                    key={item.key}
-                    className="flex items-center justify-between gap-3 text-[13px] leading-[18px]"
-                  >
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate font-medium text-[var(--settings-fg)]">{item.label}</span>
-                      <span className="text-[var(--settings-fg-muted)]">{item.sublabel}</span>
-                    </div>
-                    <span className="shrink-0 font-medium tabular-nums text-[var(--settings-fg)]">
-                      {isVariableCheckoutPlan
-                        ? isUsageCodePlan
-                          ? "Usage"
-                          : "Quote"
-                        : formatInr(item.amount)}
-                    </span>
-                  </div>
-                ))}
-
-                <div className="h-px w-full bg-[var(--settings-hairline)]" />
-
-                <div className="flex items-center justify-between text-[13px] font-medium leading-[18px]">
-                  <span className="text-[var(--settings-fg-muted)]">Subtotal</span>
-                  <span className="tabular-nums">
-                    {isVariableCheckoutPlan
-                      ? isUsageCodePlan
-                        ? "Usage"
-                        : "Quote"
-                      : formatInr(subtotal)}
-                  </span>
-                </div>
-                {taxResult.showTaxRow && (
-                  <div className="flex items-center justify-between text-[13px] font-medium leading-[18px]">
-                    <span className="text-[var(--settings-fg-muted)]">{taxResult.taxLabel ?? "Tax"}</span>
-                    <span className="tabular-nums">
-                      {taxResult.isGstExempt ? formatInr(0) : formatInr(tax)}
-                    </span>
-                  </div>
-                )}
-                {taxResult.taxNote && (
-                  <p className="text-[12px] leading-4 text-[var(--settings-fg-muted)]">
-                    {taxResult.taxNote}
-                  </p>
-                )}
-                <div className="h-px w-full bg-[var(--settings-hairline)]" />
-                <div className="flex items-center justify-between text-[14px] font-semibold leading-5 text-[var(--settings-fg)]">
-                  <span>Total today</span>
-                  <span className="tabular-nums">
-                    {isVariableCheckoutPlan ? formatInr(0) : formatInr(total)}
-                  </span>
-                </div>
-              </div>
-
-              <div
-                className={cn(
-                  "settings-card flex gap-3 px-3.5 py-3",
-                  !orderSummaryOpen && "max-lg:hidden",
-                )}
-              >
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg-muted)]" />
-                <p className="text-[13px] leading-5 text-[var(--settings-fg-muted)]">
-                  {isGiftCheckout ? (
-                    <>
-                      Gift subscription for{" "}
-                      <span className="font-semibold">
-                        {giftMonths === 1
-                          ? "1 month"
-                          : `${giftMonths ?? 0} months`}
-                      </span>{" "}
-                      of {details.name.replace(/ plan$/i, "")}. It will not
-                      auto-renew. Unredeemed gifts expire one year after
-                      purchase. You will be charged{" "}
-                      <span className="font-semibold">
-                        {formatInr(total)} today
-                        {taxResult.showTaxRow && !taxResult.isGstExempt
-                          ? " including applicable tax"
-                          : ""}
-                      </span>
-                      .
-                    </>
-                  ) : isVariableCheckoutPlan ? (
-                    <>
-                      No automatic renewal charge applies until a fixed price or
-                      usage schedule is agreed. Use the form on the right so we
-                      can follow up on next steps.
-                    </>
-                  ) : (
-                    <>
-                      Your subscription will auto renew on {renewalDate}. You
-                      will be charged{" "}
-                      <span className="font-semibold">
-                        {formatInr(total)} today
-                        {taxResult.showTaxRow && !taxResult.isGstExempt
-                          ? " including applicable tax"
-                          : ""}{" "}
-                        and {formatInr(subtotal)}
-                        {cycleLabel} on renewal
-                        {taxResult.showTaxRow && !taxResult.isGstExempt
-                          ? " plus tax where applicable"
-                          : ""}
-                      </span>
-                      .
-                    </>
-                  )}
-                </p>
-              </div>
-            </div>
-          </aside>
-
-          {/* Right column — checkout form */}
-          <div className="settings-card box-border min-w-0 w-full flex-1 px-4 py-5 sm:px-6">
-            <div className="mb-5 hidden items-start justify-between gap-4 border-b border-[var(--settings-hairline)] pb-4 lg:flex">
-              <div>
-                <h2 className="text-[15px] font-semibold leading-5 text-[var(--settings-fg)]">Payment</h2>
-                <p className="mt-1 text-[13px] leading-5 text-[var(--settings-fg-muted)]">Encrypted and secure.</p>
-              </div>
-              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--settings-fg-muted)]" aria-hidden />
-            </div>
-            <h2 className="mb-4 text-[14px] font-semibold text-[var(--settings-fg)] lg:hidden">
-              Payment
-            </h2>
             {payError && <CheckoutErrorBanner message={payError} />}
             <CheckoutForm
               paymentTab={paymentTab}
@@ -1975,45 +1777,12 @@ export function BillingCheckout({
               agreed={agreed}
               onAgreedChange={setAgreed}
               paying={paying}
-              payDisabled={
-                !agreed ||
-                isVariableCheckoutPlan ||
-                paying ||
-                !seatsValid ||
-                !bundleSeatsValid ||
-                !billingFormValid ||
-                !paymentFieldsValid
-              }
+              payDisabled={payDisabled}
               payDisabledReason={payDisabledReason}
-              payLabel={`Pay ${formatInr(total)}`}
-              variablePlanNotice={
-                isVariableCheckoutPlan
-                  ? "Card charges are disabled for this plan until pricing is confirmed."
-                  : null
-              }
+              payLabel={payLabel}
+              variablePlanNotice={variablePayNotice}
               onPay={() => void handleSubscribe()}
-              onPayPrepare={() => {
-                if (
-                  (paymentTab !== "netbanking" && paymentTab !== "card") ||
-                  isUsd
-                ) {
-                  return;
-                }
-                const keyId =
-                  prefetchedOrderRef.current?.keyId ||
-                  process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim();
-                if (keyId) {
-                  void warmRazorpayCustomCheckout(keyId).then((ok) => {
-                    if (ok || isRazorpayCustomScriptReady()) {
-                      setRazorpayScriptReady(true);
-                    }
-                  });
-                } else {
-                  void loadRazorpayCustomScript().then((ok) => {
-                    if (ok) setRazorpayScriptReady(true);
-                  });
-                }
-              }}
+              onPayPrepare={handlePayPrepare}
               paymentMobile={paymentMobile}
               onPaymentMobileChange={setPaymentMobile}
               onCardFieldsChange={handleCardFieldsChange}
@@ -2033,16 +1802,132 @@ export function BillingCheckout({
               }}
             />
           </div>
-
-          <CheckoutUpiQrModal
-            open={upiModalOpen}
-            imageUrl={upiQrImageUrl}
-            amountLabel={formatInr(total)}
-            closeBy={upiCloseBy}
-            onClose={handleUpiModalClose}
-          />
         </main>
+
+        <aside className="checkout-rail">
+          <div className="checkout-rail__inner flex h-full flex-col gap-5">
+            <button
+              type="button"
+              onClick={() => setOrderSummaryOpen((open) => !open)}
+              className="flex w-full items-center justify-between gap-3 py-1 text-left lg:hidden"
+              aria-expanded={orderSummaryOpen}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-[14px] font-semibold">{details.name}</p>
+                <p className="truncate text-[12px] text-[var(--settings-fg-muted)]">
+                  {cycleDetailLabel}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-[14px] font-semibold tabular-nums">
+                  {isVariableCheckoutPlan ? "Quote" : formatInr(total)}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "size-4 text-[var(--settings-fg-muted)] transition-transform",
+                    orderSummaryOpen && "rotate-180",
+                  )}
+                />
+              </div>
+            </button>
+
+            <div className={cn("flex flex-col gap-5", !orderSummaryOpen && "max-lg:hidden")}>
+              <div className="hidden lg:block">
+                <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--settings-fg-muted)]">
+                  Order
+                </p>
+                <h2 className="mt-1 text-[20px] font-semibold tracking-[-0.03em]">
+                  {details.name}
+                </h2>
+                <p className="mt-1 text-[13px] text-[var(--settings-fg-muted)]">
+                  {cycleDetailLabel}
+                </p>
+              </div>
+
+              {maxTierToggle}
+              {billingCycleToggle}
+              {teamSeatConfigurator}
+              {businessSeatConfigurator}
+              {variablePlanNotice}
+
+              <div className="checkout-totals">
+                {orderLineItems.map((item) => (
+                  <div key={item.key} className="checkout-totals__row">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{item.label}</div>
+                      <div className="text-[12px] text-[var(--settings-fg-muted)]">
+                        {item.sublabel}
+                      </div>
+                    </div>
+                    <span className="shrink-0 tabular-nums">
+                      {isVariableCheckoutPlan
+                        ? isUsageCodePlan
+                          ? "Usage"
+                          : "Quote"
+                        : formatInr(item.amount)}
+                    </span>
+                  </div>
+                ))}
+                <div className="checkout-totals__row text-[var(--settings-fg-muted)]">
+                  <span>Subtotal</span>
+                  <span className="tabular-nums">
+                    {isVariableCheckoutPlan
+                      ? isUsageCodePlan
+                        ? "Usage"
+                        : "Quote"
+                      : formatInr(subtotal)}
+                  </span>
+                </div>
+                {taxResult.showTaxRow && (
+                  <div className="checkout-totals__row">
+                    <span className="text-[var(--settings-fg-muted)]">
+                      {taxResult.taxLabel ?? "Tax"}
+                    </span>
+                    <span className="tabular-nums">
+                      {taxResult.isGstExempt ? formatInr(0) : formatInr(tax)}
+                    </span>
+                  </div>
+                )}
+                {taxResult.taxNote && (
+                  <p className="text-[12px] leading-4 text-[var(--settings-fg-muted)]">
+                    {taxResult.taxNote}
+                  </p>
+                )}
+                <div className="checkout-totals__row checkout-totals__due">
+                  <span>Due today</span>
+                  <span className="tabular-nums">
+                    {isVariableCheckoutPlan ? formatInr(0) : formatInr(total)}
+                  </span>
+                </div>
+              </div>
+
+              <p className="flex gap-2 text-[12px] leading-5 text-[var(--settings-fg-muted)]">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>{renewalCopy}</span>
+              </p>
+            </div>
+
+            <div className="checkout-pay-cta--desktop mt-auto">
+              <CheckoutPayCta
+                paying={paying}
+                payDisabled={payDisabled}
+                payLabel={payLabel}
+                payDisabledReason={payDisabledReason}
+                variablePlanNotice={variablePayNotice}
+                onPayPrepare={handlePayPrepare}
+              />
+            </div>
+          </div>
+        </aside>
       </div>
+
+      <CheckoutUpiQrModal
+        open={upiModalOpen}
+        imageUrl={upiQrImageUrl}
+        amountLabel={formatInr(total)}
+        closeBy={upiCloseBy}
+        onClose={handleUpiModalClose}
+      />
     </div>
   );
 }

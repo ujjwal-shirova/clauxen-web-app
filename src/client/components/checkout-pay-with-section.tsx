@@ -10,13 +10,35 @@ import {
   type CheckoutNetbankingFieldState,
 } from "@/components/checkout-payment-panel";
 import { CheckoutPaymentIcon } from "@/components/checkout-payment-icon";
-import { checkoutTabClass, checkoutUi } from "@/lib/checkout-ui";
+import { checkoutUi } from "@/lib/checkout-ui";
 import { cn } from "@/lib/utils";
 import { CHECKOUT_UPI_ICON_URL } from "@/lib/checkout-payment-icons";
 import type {
   CheckoutPaymentTab,
   SavedPaymentMethod,
 } from "@/lib/checkout-payment-tab";
+
+function TabButton({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onClick}
+      className="checkout-segment__item no-hover-overlay no-hover"
+    >
+      {children}
+    </button>
+  );
+}
 
 export function CheckoutPayWithSection({
   paymentTab,
@@ -44,16 +66,11 @@ export function CheckoutPayWithSection({
   onNetbankingChange?: (state: CheckoutNetbankingFieldState) => void;
 }) {
   const showSaved = Boolean(savedMethod);
-  const tabCount =
-    (showSaved ? 1 : 0) +
-    (hideNetbanking ? 0 : 1) +
-    1 +
-    (hideUpi ? 0 : 1);
 
   return (
-    <div className={checkoutUi.section}>
+    <section className="flex flex-col gap-4">
       <div>
-        <h3 className={checkoutUi.sectionTitle}>Payment method</h3>
+        <h2 className={checkoutUi.sectionTitle}>Payment</h2>
         <p className={cn(checkoutUi.sectionHint, "mt-1")}>
           Encrypted and processed securely.
         </p>
@@ -73,69 +90,44 @@ export function CheckoutPayWithSection({
         </>
       )}
 
-      <div
-        role="radiogroup"
-        aria-label="Payment method"
-        className={cn(
-          "grid gap-2",
-          tabCount === 1 && "grid-cols-1",
-          tabCount === 2 && "grid-cols-2",
-          tabCount === 3 && "grid-cols-3",
-          tabCount >= 4 && "grid-cols-2 sm:grid-cols-4",
-        )}
-      >
+      <div role="radiogroup" aria-label="Payment method" className="checkout-segment">
         {showSaved && (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={paymentTab === "saved"}
+          <TabButton
+            selected={paymentTab === "saved"}
             onClick={() => onPaymentTabChange("saved")}
-            className={checkoutTabClass(paymentTab === "saved")}
           >
             <Wallet className="h-4 w-4" strokeWidth={1.75} />
-            <span>Saved</span>
-          </button>
+            Saved
+          </TabButton>
         )}
-
-        {!hideNetbanking && (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={paymentTab === "netbanking"}
-            onClick={() => onPaymentTabChange("netbanking")}
-            className={checkoutTabClass(paymentTab === "netbanking")}
-          >
-            <Landmark className="h-4 w-4" strokeWidth={1.75} />
-            <span className="text-center leading-tight">Netbanking</span>
-          </button>
-        )}
-
-        <button
-          type="button"
-          role="radio"
-          aria-checked={paymentTab === "card"}
+        <TabButton
+          selected={paymentTab === "card"}
           onClick={() => onPaymentTabChange("card")}
-          className={checkoutTabClass(paymentTab === "card")}
         >
           <CreditCard className="h-4 w-4" strokeWidth={1.75} />
-          <span>Card</span>
-        </button>
-
+          Card
+        </TabButton>
         {!hideUpi && (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={paymentTab === "upi"}
+          <TabButton
+            selected={paymentTab === "upi"}
             onClick={() => onPaymentTabChange("upi")}
-            className={checkoutTabClass(paymentTab === "upi")}
           >
             <CheckoutPaymentIcon
               src={CHECKOUT_UPI_ICON_URL}
-              alt="UPI"
-              className="h-5 w-8 rounded-[3px]"
+              alt=""
+              className="h-4 w-7 rounded-[3px]"
             />
-            <span>UPI</span>
-          </button>
+            UPI
+          </TabButton>
+        )}
+        {!hideNetbanking && (
+          <TabButton
+            selected={paymentTab === "netbanking"}
+            onClick={() => onPaymentTabChange("netbanking")}
+          >
+            <Landmark className="h-4 w-4" strokeWidth={1.75} />
+            Netbanking
+          </TabButton>
         )}
       </div>
 
@@ -147,6 +139,6 @@ export function CheckoutPayWithSection({
         onCardFieldsChange={onCardFieldsChange}
         onNetbankingChange={onNetbankingChange}
       />
-    </div>
+    </section>
   );
 }

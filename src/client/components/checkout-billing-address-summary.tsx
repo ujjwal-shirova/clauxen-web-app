@@ -2,8 +2,6 @@
 
 import React from "react";
 import { Pencil } from "lucide-react";
-import { checkoutUi } from "@/lib/checkout-ui";
-import { cn } from "@/lib/utils";
 import type { CheckoutAddressState } from "@/components/checkout-billing-address";
 
 export function CheckoutBillingAddressSummary({
@@ -23,7 +21,7 @@ export function CheckoutBillingAddressSummary({
     <button
       type="button"
       onClick={onEdit}
-      className="flex h-auto min-h-[38px] w-full items-start justify-between gap-3 rounded-xl border border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] p-3 text-left transition-colors hover:border-[var(--settings-input-focus)]"
+      className="flex h-auto min-h-[38px] w-full items-start justify-between gap-3 rounded-xl bg-[var(--settings-icon-bg)] p-3 text-left transition-colors hover:bg-[var(--ui-hover-wash)]"
       aria-label="Edit billing address"
     >
       <div className="min-w-0 flex-1">

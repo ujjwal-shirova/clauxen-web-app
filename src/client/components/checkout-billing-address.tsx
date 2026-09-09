@@ -70,96 +70,73 @@ export function CheckoutBillingAddress({
     value.pin.length > 0 && !/^\d{6}$/.test(value.pin.trim());
 
   return (
-    <div className="flex flex-col gap-3">
+    <section className="flex flex-col gap-3">
       <div>
-        <h3 className={checkoutUi.sectionTitle}>Billing address</h3>
+        <h2 className={checkoutUi.sectionTitle}>Billing address</h2>
         <p className={cn(checkoutUi.sectionHint, "mt-1")}>
           Used for receipts and tax.
         </p>
       </div>
 
-      <div>
-        <label className={checkoutUi.fieldLabel} htmlFor="checkout-full-name">
-          Full name
-        </label>
-        <input
-          id="checkout-full-name"
-          type="text"
-          autoComplete="name"
-          placeholder="Full name"
-          value={value.fullName}
-          onChange={(e) => patch({ fullName: e.target.value })}
-          className={checkoutUi.field}
-        />
-      </div>
-
-      <div>
-        <label className={checkoutUi.fieldLabel} htmlFor="checkout-country">
-          Country
-        </label>
-        <div className="relative">
-          <select
-            id="checkout-country"
-            value={value.countryCode}
-            onChange={(e) => patch({ countryCode: e.target.value })}
-            className={cn(checkoutUi.field, "appearance-none pr-9")}
-            aria-label="Country"
-          >
-            <option value="IN">India</option>
-          </select>
-          <ChevronDown
-            className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
-            strokeWidth={1.75}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <label className={checkoutUi.fieldLabel} htmlFor="checkout-full-name">
+            Full name
+          </label>
+          <input
+            id="checkout-full-name"
+            type="text"
+            autoComplete="name"
+            placeholder="Full name"
+            value={value.fullName}
+            onChange={(e) => patch({ fullName: e.target.value })}
+            className={checkoutUi.field}
           />
         </div>
-      </div>
 
-      <div>
-        <label className={checkoutUi.fieldLabel} htmlFor="checkout-address-1">
-          Address line 1
-        </label>
-        <input
-          id="checkout-address-1"
-          type="text"
-          autoComplete="address-line1"
-          placeholder="Street address"
-          value={value.addressLine1}
-          onChange={(e) => patch({ addressLine1: e.target.value })}
-          className={checkoutUi.field}
-        />
-      </div>
+        <div className="sm:col-span-2">
+          <label className={checkoutUi.fieldLabel} htmlFor="checkout-address-1">
+            Address
+          </label>
+          <input
+            id="checkout-address-1"
+            type="text"
+            autoComplete="address-line1"
+            placeholder="Street address"
+            value={value.addressLine1}
+            onChange={(e) => patch({ addressLine1: e.target.value })}
+            className={checkoutUi.field}
+          />
+        </div>
 
-      <div>
-        <label className={checkoutUi.fieldLabel} htmlFor="checkout-address-2">
-          Address line 2 <span className="font-normal">(optional)</span>
-        </label>
-        <input
-          id="checkout-address-2"
-          type="text"
-          autoComplete="address-line2"
-          placeholder="Apartment, suite, etc."
-          value={value.addressLine2}
-          onChange={(e) => patch({ addressLine2: e.target.value })}
-          className={checkoutUi.field}
-        />
-      </div>
+        <div className="sm:col-span-2">
+          <input
+            id="checkout-address-2"
+            type="text"
+            autoComplete="address-line2"
+            placeholder="Apartment, suite (optional)"
+            value={value.addressLine2}
+            onChange={(e) => patch({ addressLine2: e.target.value })}
+            className={checkoutUi.field}
+            aria-label="Address line 2"
+          />
+        </div>
 
-      <div>
-        <label className={checkoutUi.fieldLabel} htmlFor="checkout-city">
-          City
-        </label>
-        <input
-          id="checkout-city"
-          type="text"
-          autoComplete="address-level2"
-          placeholder="City"
-          value={value.city}
-          onChange={(e) => patch({ city: e.target.value })}
-          className={checkoutUi.field}
-        />
-      </div>
+        <div>
+          <label className={checkoutUi.fieldLabel} htmlFor="checkout-city">
+            City
+          </label>
+          <input
+            id="checkout-city"
+            type="text"
+            autoComplete="address-level2"
+            placeholder="City"
+            value={value.city}
+            onChange={(e) => patch({ city: e.target.value })}
+            className={checkoutUi.field}
+          />
+        </div>
 
-      <div className="grid grid-cols-[2fr_3fr] gap-3">
         <div>
           <label className={checkoutUi.fieldLabel} htmlFor="checkout-pin">
             PIN
@@ -181,11 +158,10 @@ export function CheckoutBillingAddress({
             aria-invalid={pinInvalid}
           />
           {pinInvalid && (
-            <p className={cn(checkoutUi.errorText, "mt-1 px-0.5")}>
-              PIN must be 6 digits
-            </p>
+            <p className={cn(checkoutUi.errorText, "mt-1")}>PIN must be 6 digits</p>
           )}
         </div>
+
         <div>
           <label className={checkoutUi.fieldLabel} htmlFor="checkout-state">
             State
@@ -211,8 +187,29 @@ export function CheckoutBillingAddress({
             />
           </div>
         </div>
+
+        <div>
+          <label className={checkoutUi.fieldLabel} htmlFor="checkout-country">
+            Country
+          </label>
+          <div className="relative">
+            <select
+              id="checkout-country"
+              value={value.countryCode}
+              onChange={(e) => patch({ countryCode: e.target.value })}
+              className={cn(checkoutUi.field, "appearance-none pr-9")}
+              aria-label="Country"
+            >
+              <option value="IN">India</option>
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
+              strokeWidth={1.75}
+            />
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
