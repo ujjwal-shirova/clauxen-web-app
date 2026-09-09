@@ -21,7 +21,7 @@ import { openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import { useAuth } from "@/hooks/use-auth";
 import { checkoutUi } from "@/lib/checkout-ui";
 import { cn } from "@/lib/utils";
-import { SettingsPillButton } from "@/components/settings/settings-ui";
+import { SettingsButton } from "@/components/settings/settings-ui";
 
 type MethodKind = "card" | "upi";
 
@@ -225,17 +225,21 @@ export function AddPaymentMethodDialog({
             )}
           </div>
 
-          {error && <p className="mt-3 text-[13px] text-red-600">{error}</p>}
+          {error && (
+            <p className="mt-3 text-[13px] text-[var(--settings-danger)]">
+              {error}
+            </p>
+          )}
 
           <div className="mt-5 flex flex-col gap-3">
-            <SettingsPillButton
+            <SettingsButton
               variant="primary"
               disabled={busy}
               onClick={() => void handleAuthorize()}
               className="h-11 w-full"
             >
               {busy ? "Authorizing…" : "Authorize · ₹0"}
-            </SettingsPillButton>
+            </SettingsButton>
             <CheckoutRazorpayTrust />
             <button
               type="button"

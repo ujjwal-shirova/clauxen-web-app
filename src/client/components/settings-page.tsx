@@ -3,9 +3,12 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, X } from "lucide-react";
 import {
+  extensionSubViewForTab,
   isSettingsTab,
+  resolveVisibleTab,
   settingsTabDescriptions,
   type SettingsTab,
+  type VisibleSettingsTab,
 } from "@/components/settings/constants";
 import { SettingsNavSidebar } from "@/components/settings/settings-nav-sidebar";
 import { SettingsTabErrorBoundary } from "@/components/settings/settings-tab-error-boundary";
@@ -29,22 +32,11 @@ import {
   SecuritySettings,
   type SecuritySettingsView,
 } from "@/components/settings/security-settings";
-import { PrivacySettings } from "@/components/settings/privacy-settings";
+import { PrivacySafetySettings } from "@/components/settings/privacy-settings";
 import { BillingSettings } from "@/components/settings/billing-settings";
-import { StorageSettings } from "@/components/settings/storage-settings";
 import { CapabilitiesSettings } from "@/components/settings/capabilities-settings";
-import { ReflectSettings } from "@/components/settings/reflect-settings";
-import { TimeAndFocusSettings } from "@/components/settings/time-and-focus-settings";
-import { SafetySettings } from "@/components/settings/safety-settings";
-import { ParentalControlsSettings } from "@/components/settings/parental-controls-settings";
-import { TrustedContactSettings } from "@/components/settings/trusted-contact-settings";
 import { ClauxenCodeSettings } from "@/components/settings/clauxen-code-settings";
-import { KeyboardSettings } from "@/components/settings/keyboard-settings";
-import { SkillsSettings } from "@/components/settings/skills-settings";
-import {
-  ConnectorsCatalogSettings,
-  PluginsSettings,
-} from "@/components/settings/plugins-settings";
+import { ExtensionsSettings } from "@/components/settings/extensions-settings";
 
 interface SettingsModalProps {
   open: boolean;
@@ -102,6 +94,11 @@ export function SettingsModal({
     useState<SecuritySettingsView>("main");
   const [copied, setCopied] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+
+  /** Visible section — legacy deep links resolve (Skills → Extensions). */
+  const visibleTab: VisibleSettingsTab = resolveVisibleTab(activeTab);
+  /** Legacy extension tabs preselect their sub-view. */
+  const extensionInitialView = extensionSubViewForTab(activeTab);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -208,16 +205,10 @@ export function SettingsModal({
   };
 
   const renderActiveTab = () => {
-    switch (activeTab) {
+    switch (visibleTab) {
       case "General":
         return (
           <GeneralSettings
-            personalization={personalization}
-            onPersonalizationChange={updatePersonalization}
-            avatarUrl={user?.avatarUrl}
-            onAvatarUpdated={() => {
-              void refreshAuth({ quiet: true });
-            }}
             appearancePreset={appearanceGeneral.appearancePreset}
             onAppearanceChange={(preset) =>
               updatePreferenceGeneral({
@@ -274,6 +265,12 @@ export function SettingsModal({
                 updateCapabilities(capabilityPatch);
               }
             }}
+            reflectRange={reflect.range}
+            onReflectRangeChange={(range) => updateReflect({ range })}
+            generateMemory={Boolean(capabilities.generateMemory)}
+            onGenerateMemoryChange={(generateMemory) =>
+              updateCapabilities({ generateMemory })
+            }
             onManageMemory={() => handleTabChange("Capabilities")}
           />
         );
@@ -306,6 +303,8 @@ export function SettingsModal({
             setUsageChannel={(v) => updateNotifications({ usageChannel: v })}
             setDesktopAlerts={(v) => updateNotifications({ desktopAlerts: v })}
             setSoundEffects={(v) => updateNotifications({ soundEffects: v })}
+            timeAndFocus={timeAndFocus}
+            onTimeAndFocusChange={updateTimeAndFocus}
           />
         );
       case "Account":
@@ -314,6 +313,15 @@ export function SettingsModal({
             copied={copied}
             onCopyOrgId={handleCopyOrgId}
             userId={user?.id}
+            userEmail={user?.email}
+            avatarUrl={user?.avatarUrl}
+            onAvatarUpdated={() => {
+              void refreshAuth({ quiet: true });
+            }}
+            fullName={personalization.fullName}
+            onFullNameChange={(fullName) =>
+              updatePersonalization({ fullName })
+            }
             onLogout={onLogout}
             onLogoutAllDevices={onLogout}
             workspace={workspace}
@@ -328,8 +336,7 @@ export function SettingsModal({
             ]}
           />
         );
-      case "Security & login":
-      case "Security" as unknown as SettingsTab:
+      case "Security":
         return (
           <SecuritySettings
             onLogout={onLogout}
@@ -343,11 +350,15 @@ export function SettingsModal({
             }}
           />
         );
-      case "Privacy":
+      case "Privacy & safety":
         return (
-          <PrivacySettings
+          <PrivacySafetySettings
             privacy={privacy}
-            onChange={updatePrivacy}
+            onPrivacyChange={updatePrivacy}
+            reduceSensitiveContent={Boolean(safety.reduceSensitiveContent)}
+            onSafetyChange={(reduceSensitiveContent) =>
+              updateSafety({ reduceSensitiveContent })
+            }
             onGoToPersonalization={() => handleTabChange("Personalization")}
           />
         );
@@ -359,8 +370,6 @@ export function SettingsModal({
             userEmail={user?.email}
           />
         );
-      case "Storage":
-        return <StorageSettings />;
       case "Capabilities":
         return (
           <CapabilitiesSettings
@@ -379,51 +388,19 @@ export function SettingsModal({
             }}
           />
         );
-      case "Reflect":
+      case "Extensions":
         return (
-          <ReflectSettings
-            range={reflect.range}
-            onRangeChange={(range) => updateReflect({ range })}
-          />
-        );
-      case "Time and focus":
-        return (
-          <TimeAndFocusSettings
-            timeAndFocus={timeAndFocus}
-            onChange={updateTimeAndFocus}
-          />
-        );
-      case "Safety":
-        return (
-          <SafetySettings
-            reduceSensitiveContent={Boolean(safety.reduceSensitiveContent)}
-            onChange={(reduceSensitiveContent) =>
-              updateSafety({ reduceSensitiveContent })
-            }
-          />
-        );
-      case "Parental controls":
-        return <ParentalControlsSettings />;
-      case "Trusted contact":
-        return <TrustedContactSettings />;
-      case "Clauxen Code":
-        return <ClauxenCodeSettings isAuthenticated={Boolean(user?.id)} />;
-      case "Keyboard":
-        return <KeyboardSettings />;
-      case "Skills":
-        return <SkillsSettings />;
-      case "Connectors":
-        return (
-          <ConnectorsCatalogSettings onAdd={() => handleTabChange("Plugins")} />
-        );
-      case "Plugins":
-        return (
-          <PluginsSettings
+          <ExtensionsSettings
+            key={extensionInitialView ?? "default"}
+            initialView={extensionInitialView ?? undefined}
             permissionMode={plugins.permissionMode}
             developerMode={plugins.developerMode}
-            onChange={updatePlugins}
+            onPluginsChange={updatePlugins}
+            onGoToCustomize={onGoToCustomize}
           />
         );
+      case "Clauxen Code":
+        return <ClauxenCodeSettings isAuthenticated={Boolean(user?.id)} />;
       default:
         return (
           <p className="text-sm text-zinc-500">
@@ -434,9 +411,7 @@ export function SettingsModal({
   };
 
   const showPasskeysSubpage =
-    securityView === "passkeys" &&
-    (activeTab === "Security & login" ||
-      (activeTab as string) === "Security");
+    securityView === "passkeys" && visibleTab === "Security";
 
   if (!open) return null;
 
@@ -478,7 +453,7 @@ export function SettingsModal({
           </p>
 
           <div className="flex min-h-0 flex-1 flex-col bg-[var(--settings-canvas-bg)] md:flex-row md:items-stretch">
-            <div className="shrink-0 bg-[var(--settings-sidebar-bg)] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
+            <div className="shrink-0 border-b border-[var(--settings-hairline)] bg-[var(--settings-sidebar-bg)] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
               <div className="mb-3 flex h-8 items-center justify-between gap-3">
                 <h2 className="truncate text-[18px] font-semibold tracking-[-0.02em] text-[var(--settings-fg)]">
                   Settings
@@ -493,20 +468,20 @@ export function SettingsModal({
                 </button>
               </div>
               <SettingsNavSidebar
-                activeTab={activeTab}
+                activeTab={visibleTab}
                 onTabChange={handleTabChange}
                 variant="mobile-toolbar"
               />
             </div>
 
-            <aside className="hidden min-h-0 shrink-0 bg-[var(--settings-sidebar-bg)] md:flex md:w-[256px] md:flex-col md:border-r md:border-[var(--settings-modal-border)] md:px-3 md:pb-3 md:pt-5">
+            <aside className="hidden min-h-0 shrink-0 bg-[var(--settings-sidebar-bg)] md:flex md:w-[264px] md:flex-col md:border-r md:border-[var(--settings-modal-border)] md:px-3 md:pb-3 md:pt-5">
               <div className="mb-4 flex h-9 items-center px-2">
                 <h2 className="text-[20px] font-semibold tracking-[-0.025em] text-[var(--settings-fg)]">
                   Settings
                 </h2>
               </div>
               <SettingsNavSidebar
-                activeTab={activeTab}
+                activeTab={visibleTab}
                 onTabChange={handleTabChange}
               />
             </aside>
@@ -514,10 +489,7 @@ export function SettingsModal({
             <main className="settings-canvas relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--settings-canvas-bg)]">
               <header
                 className={cn(
-                  "hidden shrink-0 items-start justify-between gap-8 px-8 md:flex",
-                  showPasskeysSubpage
-                    ? "items-center border-b border-[var(--settings-hairline)] pb-3 pt-5"
-                    : "pb-4 pt-6",
+                  "hidden shrink-0 items-start justify-between gap-8 border-b border-[var(--settings-hairline)] px-8 pb-4 pt-6 md:flex",
                 )}
               >
                 {showPasskeysSubpage ? (
@@ -540,10 +512,10 @@ export function SettingsModal({
                 ) : (
                   <div className="min-w-0">
                     <h2 className="text-[20px] font-semibold leading-7 tracking-[-0.025em] text-[var(--settings-fg)]">
-                      {activeTab}
+                      {visibleTab}
                     </h2>
-                    <p className="mt-0.5 max-w-[620px] text-[13px] leading-[19px] text-[var(--settings-fg-muted)]">
-                      {settingsTabDescriptions[activeTab]}
+                    <p className="mt-0.5 max-w-[560px] text-[13px] leading-[19px] text-[var(--settings-fg-muted)]">
+                      {settingsTabDescriptions[visibleTab]}
                     </p>
                   </div>
                 )}
@@ -561,18 +533,18 @@ export function SettingsModal({
                 ref={contentScrollRef}
                 data-scroll-region=""
                 className={cn(
-                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 sm:px-7 md:px-8 md:pb-12 md:pt-4",
+                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 sm:px-6 md:px-8 md:pb-12 md:pt-6",
                 )}
                 aria-busy={contentHydrating || undefined}
               >
                 <div
                   className={cn(
-                    "mx-auto w-full max-w-[720px]",
+                    "mx-auto w-full max-w-[680px]",
                     contentHydrating && "opacity-[0.97]",
                   )}
                 >
-                  <SettingsTabErrorBoundary tabLabel={activeTab}>
-                    <div key={activeTab} className="settings-panel-enter">
+                  <SettingsTabErrorBoundary tabLabel={visibleTab}>
+                    <div key={visibleTab} className="settings-panel-enter">
                       {renderActiveTab()}
                     </div>
                   </SettingsTabErrorBoundary>

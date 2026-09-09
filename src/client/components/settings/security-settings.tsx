@@ -1,25 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, Terminal } from "lucide-react";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ShieldAlert,
-  Terminal,
-} from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { SettingsPanelTitle } from "@/components/settings/settings-ui";
+  SettingsButton,
+  SettingsPage,
+  SettingsPanelTitle,
+  SettingsRow,
+  SettingsSection,
+  SettingsToggleRow,
+} from "@/components/settings/settings-ui";
 import {
   AuthenticatorSetupDialog,
   PhoneSetupDialog,
 } from "@/components/settings/mfa-setup-dialogs";
 import * as settingsApi from "@/lib/api/settings-extended";
-import { cn } from "@/lib/utils";
 
 export type SecuritySettingsView = "main" | "passkeys";
-
-const securityLinkRowClass =
-  "group no-hover-overlay flex w-full cursor-pointer items-center justify-between bg-transparent text-left hover:bg-transparent";
 
 type StoredPasskey = {
   id: string;
@@ -49,7 +46,7 @@ function PasskeysPanel({
 
   const handleAdd = async () => {
     if (typeof window === "undefined" || !window.PublicKeyCredential) {
-      setError("This browser doesn’t support security keys or passkeys.");
+      setError("This browser doesn't support passkeys.");
       return;
     }
 
@@ -84,7 +81,7 @@ function PasskeysPanel({
       });
 
       if (!credential) {
-        setError("Couldn’t create a security key or passkey.");
+        setError("Couldn't create a passkey.");
         return;
       }
 
@@ -101,9 +98,7 @@ function PasskeysPanel({
         return;
       }
       setError(
-        err instanceof Error
-          ? err.message
-          : "Couldn’t add a security key or passkey.",
+        err instanceof Error ? err.message : "Couldn't add a passkey.",
       );
     } finally {
       setAdding(false);
@@ -111,10 +106,10 @@ function PasskeysPanel({
   };
 
   return (
-    <div className="flex w-full flex-col text-[14px] leading-5 text-[var(--settings-fg)] animate-in fade-in duration-200">
-      <SettingsPanelTitle>Security keys & passkeys</SettingsPanelTitle>
+    <div className="flex w-full animate-in fade-in flex-col duration-200">
+      <SettingsPanelTitle>Security keys and passkeys</SettingsPanelTitle>
 
-      <div className="mb-4 flex items-center gap-1.5 border-b border-black/[0.08] pb-3 md:hidden dark:border-white/10">
+      <div className="mb-4 flex items-center gap-1.5 border-b border-[var(--settings-hairline)] pb-3 md:hidden">
         <button
           type="button"
           onClick={onBack}
@@ -128,22 +123,22 @@ function PasskeysPanel({
         </h3>
       </div>
 
-      <p className="text-[13px] leading-5 text-[rgb(143,143,143)] dark:text-zinc-400">
-        See all the active security keys and passkeys.
+      <p className="text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+        Active keys and passkeys for this account.
       </p>
 
       {passkeys.length > 0 ? (
-        <ul className="mt-3 border-t border-black/[0.08] dark:border-white/10">
+        <ul className="settings-card mt-4">
           {passkeys.map((passkey) => (
             <li
               key={passkey.id}
-              className="flex items-center justify-between gap-3 border-b border-black/[0.05] py-3 dark:border-white/[0.06]"
+              className="flex items-center justify-between gap-3 border-b border-[var(--settings-hairline)] px-4 py-3 last:border-b-0 sm:px-5"
             >
               <div className="min-w-0">
                 <div className="truncate text-[14px] font-medium text-[var(--settings-fg)]">
                   {passkey.name}
                 </div>
-                <div className="mt-0.5 text-[12px] text-[rgb(143,143,143)] dark:text-zinc-400">
+                <div className="mt-0.5 text-[12px] text-[var(--settings-fg-muted)]">
                   Added {new Date(passkey.addedAt).toLocaleDateString()}
                 </div>
               </div>
@@ -154,7 +149,7 @@ function PasskeysPanel({
                     prev.filter((item) => item.id !== passkey.id),
                   )
                 }
-                className="clickable-label no-hover-overlay cursor-pointer shrink-0 text-[13px] text-[rgb(143,143,143)] hover:text-[var(--settings-fg)] dark:text-zinc-400"
+                className="shrink-0 text-[13px] font-medium text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
               >
                 Remove
               </button>
@@ -164,24 +159,20 @@ function PasskeysPanel({
       ) : null}
 
       {error ? (
-        <p className="mt-3 text-[12px] leading-4 text-red-600 dark:text-red-400">
+        <p className="mt-3 text-[13px] text-[var(--settings-danger)]">
           {error}
         </p>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => void handleAdd()}
-        disabled={adding}
-        className={cn(
-          "no-hover-overlay mt-5 inline-flex h-9 w-fit cursor-pointer items-center justify-center rounded-full bg-[#18181b] px-4 text-[13px] font-medium text-white transition-colors",
-          adding
-            ? "cursor-not-allowed opacity-70"
-            : "hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white",
-        )}
-      >
-        {adding ? "Waiting for device…" : "Add a Security key or Passkey"}
-      </button>
+      <div className="mt-5">
+        <SettingsButton
+          variant="primary"
+          disabled={adding}
+          onClick={() => void handleAdd()}
+        >
+          {adding ? "Waiting for device…" : "Add a key or passkey"}
+        </SettingsButton>
+      </div>
     </div>
   );
 }
@@ -203,22 +194,20 @@ export function SecuritySettings({
   view = "main",
   onViewChange,
 }: SecuritySettingsProps) {
-  // MFA states
   const [authenticatorOpen, setAuthenticatorOpen] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [authenticatorEnabled, setAuthenticatorEnabled] = useState(mfaEnabled);
   const [textMessageEnabled, setTextMessageEnabled] = useState(false);
 
-  // Security toggles
   const [lockdownMode, setLockdownMode] = useState(false);
   const [developerMode, setDeveloperMode] = useState(false);
   const [enforceCsp, setEnforceCsp] = useState(false);
   const [deviceCodeAuth, setDeviceCodeAuth] = useState(false);
 
-  // Codex CLI connection state
   const [codexCliConnected, setCodexCliConnected] = useState(true);
+  const [confirmDisconnectCli, setConfirmDisconnectCli] = useState(false);
+  const [confirmLogoutOthers, setConfirmLogoutOthers] = useState(false);
 
-  // Dynamic session count from backend
   const [sessionCount, setSessionCount] = useState<number>(6);
 
   useEffect(() => {
@@ -250,451 +239,189 @@ export function SecuritySettings({
     }
   };
 
+  if (view === "passkeys") {
+    return (
+      <PasskeysPanel
+        userEmail={userEmail}
+        onBack={() => onViewChange?.("main")}
+      />
+    );
+  }
+
   return (
-    <div
-      role="tabpanel"
-      aria-labelledby="radix-_r_pb_-trigger-Security"
-      tabIndex={0}
-      className={cn(
-        "flex w-full flex-col overflow-y-auto py-1 text-[14px] leading-5 text-[var(--settings-fg)] outline-none",
-        view === "passkeys" ? "px-0" : "px-4",
-      )}
-    >
-      {view === "passkeys" ? (
-        <PasskeysPanel
-          userEmail={userEmail}
-          onBack={() => onViewChange?.("main")}
+    <SettingsPage>
+      <SettingsPanelTitle>Security</SettingsPanelTitle>
+
+      <SettingsSection title="Sign in" description="Password and passkeys.">
+        <SettingsRow label="Password" description="Reset by email.">
+          <SettingsButton
+            onClick={() => {
+              window.open("/auth/reset-password", "_blank", "noopener");
+            }}
+          >
+            Set new password
+          </SettingsButton>
+        </SettingsRow>
+        <SettingsRow
+          label="Security keys & passkeys"
+          description="Phishing-resistant sign-in."
+          borderless
+        >
+          <SettingsButton onClick={() => onViewChange?.("passkeys")}>
+            Manage
+            <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          </SettingsButton>
+        </SettingsRow>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Two-step verification"
+        description="A second code at sign-in."
+      >
+        <SettingsToggleRow
+          label="Authenticator app"
+          description="One-time codes from an app."
+          checked={authenticatorEnabled}
+          onCheckedChange={handleToggleAuthenticator}
         />
-      ) : (
-        <>
-      <SettingsPanelTitle>Security and login</SettingsPanelTitle>
+        <SettingsToggleRow
+          label="Text message"
+          description="6-digit codes by SMS or WhatsApp."
+          checked={textMessageEnabled}
+          onCheckedChange={handleToggleTextMessage}
+          borderless
+        />
+      </SettingsSection>
 
-      {/* =====================================================================
-          Section 1: Main Header & Primary Sign-In Methods (Password, Passkeys)
-          ===================================================================== */}
-      <section className="relative mb-4 text-[14px] leading-5">
-        {/* Section title */}
-        <div className="flex min-h-[60px] items-start border-b border-black/[0.08] py-3 dark:border-white/10">
-          <div className="w-full">
-            <div className="flex items-center gap-2">
-              <h3 className="text-[18px] font-semibold leading-7 tracking-[-0.01em] text-[var(--settings-fg)] text-balance">
-                Security & login
-              </h3>
-            </div>
-          </div>
-        </div>
-
-        {/* Row: Password */}
-        <div className="flex min-h-[60px] items-center border-b border-black/[0.05] py-2 dark:border-white/[0.06]">
-          <div className="w-full">
-            <button
-              type="button"
-              onClick={() => {
-                window.alert("Password change form or reset link will be sent to your email.");
-              }}
-              className={securityLinkRowClass}
-            >
-              <div className="text-[14px] font-medium text-[var(--settings-fg)]">
-                Password
-              </div>
-              <div className="flex min-h-[38px] items-center text-[14px] text-[rgb(93,93,93)] dark:text-zinc-400">
-                <span className="mr-1 text-[14px] font-normal whitespace-nowrap">
-                  Add
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-[rgb(93,93,93)] transition-transform group-hover:translate-x-0.5 dark:text-zinc-400" />
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Row: Security keys & passkeys */}
-        <div className="flex min-h-[60px] items-center border-b border-black/[0.05] py-2 dark:border-white/[0.06]">
-          <div className="w-full">
-            <button
-              type="button"
-              onClick={() => onViewChange?.("passkeys")}
-              className={securityLinkRowClass}
-            >
-              <div className="pr-4">
-                <div className="text-[14px] font-medium text-[var(--settings-fg)]">
-                  Security keys & passkeys
-                </div>
-                <p className="mt-1 text-[12px] leading-4 text-[rgb(143,143,143)] dark:text-zinc-400 text-pretty">
-                  Use hardware security keys or passkeys to sign in. These
-                  phishing-resistant methods provide stronger protection than
-                  passwords.
-                </p>
-              </div>
-              <div className="flex min-h-[38px] shrink-0 items-center text-[14px] text-[rgb(93,93,93)] dark:text-zinc-400">
-                <span className="mr-1 text-[14px] font-normal whitespace-nowrap">
-                  Add
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-[rgb(93,93,93)] transition-transform group-hover:translate-x-0.5 dark:text-zinc-400" />
-              </div>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* =====================================================================
-          Section 2: Multi-factor authentication (MFA)
-          ===================================================================== */}
-      <div className="flex flex-col text-[14px] leading-5">
-        <h3 className="mb-1.5 mt-6 text-[18px] font-semibold leading-7 tracking-[-0.01em] text-[var(--settings-fg)] text-balance">
-          Multi-factor authentication (MFA)
-        </h3>
-
-        {/* MFA: Authenticator app */}
-        <div className="flex min-h-[60px] items-center border-b border-black/[0.05] py-2 dark:border-white/[0.06]">
-          <div className="w-full">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex-1">
-                <div className="text-[14px] font-medium text-[var(--settings-fg)]">
-                  Authenticator app
-                </div>
-                <div className="my-1 pr-6 text-[12px] leading-4 text-[rgb(143,143,143)] dark:text-zinc-400 text-balance">
-                  Use one-time codes from an authenticator app.
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center">
-                <Switch
-                  checked={authenticatorEnabled}
-                  onCheckedChange={handleToggleAuthenticator}
-                  className="settings-switch"
-                  aria-label="Authenticator app MFA"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* MFA: Text message */}
-        <div className="flex min-h-[60px] items-center border-b border-black/[0.05] py-2 dark:border-white/[0.06]">
-          <div className="w-full">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex-1">
-                <div className="text-[14px] font-medium text-[var(--settings-fg)]">
-                  Text message
-                </div>
-                <div className="my-1 pr-6 text-[12px] leading-4 text-[rgb(143,143,143)] dark:text-zinc-400 text-balance">
-                  Get 6-digit verification codes by SMS or WhatsApp based on your
-                  country code.
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center">
-                <Switch
-                  checked={textMessageEnabled}
-                  onCheckedChange={handleToggleTextMessage}
-                  className="settings-switch"
-                  aria-label="Text message MFA"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* =====================================================================
-          Section 3: Sessions
-          ===================================================================== */}
-      <div className="flex flex-col text-[14px] leading-5">
-        <h4 className="mb-1.5 mt-6 text-[18px] font-semibold leading-7 tracking-[-0.01em] text-[var(--settings-fg)] text-balance">
-          Sessions
-        </h4>
-
-        <div className="flex min-h-[60px] items-center border-y border-black/[0.05] py-2 dark:border-white/[0.06]">
-          <div className="w-full">
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm("Do you want to log out of other sessions?")) {
-                  onLogout?.();
-                }
-              }}
-              className={securityLinkRowClass}
-            >
-              <div className="pr-4">
-                <div className="text-[14px] font-medium text-[var(--settings-fg)]">
-                  Active sessions
-                </div>
-                <div className="mb-1 text-[12px] leading-4 text-[rgb(143,143,143)] dark:text-zinc-400 text-balance">
-                  View all devices that have accessed your account. You can
-                  review active sessions, remove trusted devices, or use Log out
-                  all to end all sessions.
-                </div>
-              </div>
-              <div className="flex min-h-[38px] shrink-0 items-center text-[14px] text-[rgb(93,93,93)] dark:text-zinc-400">
-                <span className="mr-1 text-[14px] font-normal tabular-nums whitespace-nowrap">
-                  {sessionCount}
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-[rgb(93,93,93)] transition-transform group-hover:translate-x-0.5 dark:text-zinc-400" />
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* =====================================================================
-          Section 4: Advanced security
-          ===================================================================== */}
-      <div className="flex flex-col text-[14px] leading-5">
-        <h4 className="mb-1.5 mt-6 text-[18px] font-semibold leading-7 tracking-[-0.01em] text-[var(--settings-fg)] text-balance">
-          Advanced security
-        </h4>
-
-        {/* Row: Advanced account security */}
-        <div className="flex min-h-[60px] items-center border-y border-black/[0.05] py-2 dark:border-white/[0.06]">
-          <div className="w-full">
-            <button
-              type="button"
-              onClick={() => {
-                window.alert("Advanced account security enrollment wizard.");
-              }}
-              className={securityLinkRowClass}
-            >
-              <div className="pr-4">
-                <div className="text-[14px] font-medium text-[var(--settings-fg)]">
-                  Advanced account security
-                </div>
-                <div className="mb-1 text-[12px] leading-4 text-[rgb(143,143,143)] dark:text-zinc-400 text-balance">
-                  Adds the highest level of account security by requiring
-                  stronger sign-in methods and applying stricter protections to
-                  help prevent unauthorized access.
-                </div>
-              </div>
-              <div className="flex min-h-[38px] shrink-0 items-center text-[14px] text-[rgb(93,93,93)] dark:text-zinc-400">
-                <span className="mr-1 text-[14px] font-normal whitespace-nowrap">
-                  Enroll
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-[rgb(93,93,93)] transition-transform group-hover:translate-x-0.5 dark:text-zinc-400" />
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Row: Lockdown mode */}
-        <div className="flex min-h-[60px] items-center border-b border-black/[0.05] py-2 dark:border-white/[0.06]">
-          <div className="w-full">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex-1">
-                <div className="text-[14px] font-medium text-[var(--settings-fg)]">
-                  Lockdown mode
-                </div>
-                <div className="my-1 pr-6 text-[12px] leading-4 text-[rgb(143,143,143)] dark:text-zinc-400 text-balance">
-                  Helps protect sensitive data from prompt-injection attacks by
-                  limiting features that can connect to the web or external
-                  services.{" "}
-                  <a
-                    href="https://help.openai.com/en/articles/20001061-lockdown-mode"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="clickable-label cursor-pointer text-[rgb(143,143,143)] underline hover:text-[var(--settings-fg)] dark:text-zinc-400"
-                  >
-                    Learn more
-                  </a>
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center">
-                <Switch
-                  checked={lockdownMode}
-                  onCheckedChange={setLockdownMode}
-                  className="settings-switch"
-                  aria-label="Lockdown mode"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* =====================================================================
-          Section 5: Developer mode
-          ===================================================================== */}
-      <section className="relative mb-4 mt-2 text-[14px] leading-5">
-        <h4 className="mb-1.5 mt-2 text-[18px] font-semibold leading-7 tracking-[-0.01em] text-[var(--settings-fg)] text-balance">
-          Developer mode
-        </h4>
-
-        {/* Row: Developer mode */}
-        <div className="flex min-h-[60px] items-center border-b border-black/[0.05] py-2 dark:border-white/[0.06]">
-          <div className="w-full">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-medium text-[var(--settings-fg)]">
-                    Developer mode
-                  </span>
-                  <a
-                    href="https://help.openai.com/en/articles/20001062"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 rounded-full border border-[rgb(251,232,219)] bg-[rgb(253,245,241)] px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-3 text-[rgb(186,38,35)] transition-colors hover:bg-[rgb(249,231,222)]"
-                  >
-                    <ShieldAlert className="h-3 w-3 shrink-0" />
-                    <span>Elevated risk</span>
-                  </a>
-                </div>
-                <div className="my-1 pr-6 text-[12px] leading-4 text-[rgb(143,143,143)] dark:text-zinc-400 text-balance">
-                  Allows you to add unverified connectors that could modify or
-                  erase data permanently. Use at your own risk.{" "}
-                  <a
-                    href="https://platform.openai.com/docs/mcp#risks-and-safety"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="clickable-label cursor-pointer text-[rgb(143,143,143)] underline hover:text-[var(--settings-fg)] dark:text-zinc-400"
-                  >
-                    Learn more
-                  </a>
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center">
-                <Switch
-                  checked={developerMode}
-                  onCheckedChange={(val) => {
-                    setDeveloperMode(val);
-                    if (!val) setEnforceCsp(false);
-                  }}
-                  className="settings-switch"
-                  aria-label="Developer mode"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Row: Enforce CSP in developer mode */}
-        <div className="flex min-h-[60px] items-center border-none py-2">
-          <div className="w-full">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex-1">
-                <div className="text-[14px] font-medium text-[var(--settings-fg)]">
-                  Enforce CSP in developer mode
-                </div>
-                <div className="my-1 pr-6 text-[12px] leading-4 text-[rgb(143,143,143)] dark:text-zinc-400 text-balance">
-                  When enabled, dev mode apps without a declared CSP get the same
-                  restricted default CSP they would in production instead of
-                  unrestricted network access.{" "}
-                  <a
-                    href="https://developers.openai.com/apps-sdk/build/mcp-server#content-security-policy-csp"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="clickable-label cursor-pointer text-[rgb(143,143,143)] underline hover:text-[var(--settings-fg)] dark:text-zinc-400"
-                  >
-                    Learn more
-                  </a>
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center">
-                <Switch
-                  checked={enforceCsp}
-                  onCheckedChange={setEnforceCsp}
-                  disabled={!developerMode}
-                  className="settings-switch"
-                  aria-label="Enforce CSP in developer mode"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =====================================================================
-          Section 6: Secure sign in with Clauxen / ChatGPT & Connected Apps
-          ===================================================================== */}
-      <section className="relative mb-4 text-[14px] leading-5">
-        <div className="flex min-h-[60px] flex-col border-b border-black/[0.1] py-3 dark:border-white/10">
-          <div className="w-full">
-            <h3 className="text-[18px] font-semibold leading-7 tracking-[-0.01em] text-[var(--settings-fg)] text-balance">
-              Secure sign in with Clauxen
-            </h3>
-            <div className="mt-0.5 text-[12px] leading-4 text-[rgb(143,143,143)] dark:text-zinc-400">
-              Sign in to websites and apps across the internet with the trusted
-              security of Clauxen.{" "}
-              <a
-                href="https://help.openai.com/en/collections/13193904-secure-sign-in"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="clickable-label cursor-pointer text-[rgb(143,143,143)] underline hover:text-[var(--settings-fg)] dark:text-zinc-400"
+      <SettingsSection title="Sessions" description="Where you're signed in.">
+        {confirmLogoutOthers ? (
+          <div className="flex flex-col gap-3 px-4 py-4 sm:px-5">
+            <p className="text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+              End {sessionCount} active sessions on other devices? This device
+              stays signed in.
+            </p>
+            <div className="flex justify-end gap-2">
+              <SettingsButton
+                size="sm"
+                onClick={() => setConfirmLogoutOthers(false)}
               >
-                Learn more
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Connected CLI App Item: Codex CLI */}
-        <div className="flex min-h-[60px] items-center border-none py-2">
-          <div className="w-full">
-            <div className="flex w-full items-center justify-between gap-4">
-              <div className="mr-4 flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                  <Terminal className="h-5 w-5" />
-                </div>
-                <div className="flex flex-1 flex-col">
-                  <div className="text-[14px] font-medium text-[var(--settings-fg)]">
-                    Codex CLI
-                  </div>
-                  <div className="text-[12px] leading-4 text-[rgb(93,93,93)] dark:text-zinc-400">
-                    Allow Codex CLI to use models from the API.
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
+                Keep
+              </SettingsButton>
+              <SettingsButton
+                size="sm"
+                variant="danger"
                 onClick={() => {
-                  if (codexCliConnected) {
-                    if (window.confirm("Disconnect Codex CLI from your account?")) {
-                      setCodexCliConnected(false);
-                    }
-                  } else {
-                    setCodexCliConnected(true);
-                  }
+                  setConfirmLogoutOthers(false);
+                  onLogout?.();
                 }}
-                className={
-                  codexCliConnected
-                    ? "cursor-pointer flex min-h-[28px] shrink-0 items-center justify-center rounded-full border border-[rgb(255,0,42)] px-2.5 text-[12px] font-medium leading-4 text-[rgb(255,0,42)] transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
-                    : "cursor-pointer flex min-h-[28px] shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-2.5 text-[12px] font-medium leading-4 text-zinc-800 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
-                }
               >
-                {codexCliConnected ? "Disconnect" : "Connect"}
-              </button>
+                Log out others
+              </SettingsButton>
             </div>
           </div>
-        </div>
+        ) : (
+          <SettingsRow
+            label="Active sessions"
+            description={`${sessionCount} devices have accessed your account.`}
+            borderless
+          >
+            <SettingsButton onClick={() => setConfirmLogoutOthers(true)}>
+              Log out others
+            </SettingsButton>
+          </SettingsRow>
+        )}
+      </SettingsSection>
 
-        {/* Enable device code authorization */}
-        <div className="pb-2">
-          <div className="flex min-h-[60px] items-center border-none py-2">
-            <div className="w-full">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex-1">
-                  <div className="text-[14px] font-medium text-[var(--settings-fg)]">
-                    Enable device code authorization for Codex
-                  </div>
-                  <div className="my-1 pr-6 text-[12px] leading-4 text-[rgb(143,143,143)] dark:text-zinc-400 text-balance">
-                    Use device code sign-in for headless or remote environments
-                    where the normal browser flow isn’t available. Exercise
-                    caution in enabling, as device codes can be phished. Never
-                    share a device code.
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center">
-                  <Switch
-                    checked={deviceCodeAuth}
-                    onCheckedChange={setDeviceCodeAuth}
-                    className="settings-switch"
-                    aria-label="Enable device code authorization for Codex"
-                  />
-                </div>
-              </div>
+      <SettingsSection
+        title="Advanced"
+        description="Stronger protections with trade-offs."
+      >
+        <SettingsToggleRow
+          label="Lockdown mode"
+          description="Limit web and external features to resist prompt injection."
+          checked={lockdownMode}
+          onCheckedChange={setLockdownMode}
+        />
+        <SettingsToggleRow
+          label="Developer mode"
+          description="Allow unverified connectors. Can modify or erase data."
+          checked={developerMode}
+          onCheckedChange={(val) => {
+            setDeveloperMode(val);
+            if (!val) setEnforceCsp(false);
+          }}
+        />
+        {developerMode ? (
+          <SettingsToggleRow
+            label="Enforce CSP in developer mode"
+            description="Apply production content rules to dev apps."
+            checked={enforceCsp}
+            onCheckedChange={setEnforceCsp}
+            borderless
+          />
+        ) : null}
+      </SettingsSection>
+
+      <SettingsSection
+        title="Connected apps"
+        description="Tools signed in with Clauxen."
+      >
+        <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--settings-icon-bg)] text-[var(--settings-fg-muted)]">
+              <Terminal className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[14px] font-medium text-[var(--settings-fg)]">
+                Codex CLI
+              </p>
+              <p className="mt-0.5 text-[13px] text-[var(--settings-fg-muted)]">
+                {codexCliConnected ? "Connected" : "Disconnected"}
+              </p>
             </div>
           </div>
+          {confirmDisconnectCli ? (
+            <div className="flex shrink-0 items-center gap-2">
+              <SettingsButton
+                size="sm"
+                onClick={() => setConfirmDisconnectCli(false)}
+              >
+                Keep
+              </SettingsButton>
+              <SettingsButton
+                size="sm"
+                variant="danger"
+                onClick={() => {
+                  setCodexCliConnected(false);
+                  setConfirmDisconnectCli(false);
+                }}
+              >
+                Disconnect
+              </SettingsButton>
+            </div>
+          ) : codexCliConnected ? (
+            <SettingsButton
+              size="sm"
+              variant="danger"
+              onClick={() => setConfirmDisconnectCli(true)}
+            >
+              Disconnect
+            </SettingsButton>
+          ) : (
+            <SettingsButton size="sm" onClick={() => setCodexCliConnected(true)}>
+              Connect
+            </SettingsButton>
+          )}
         </div>
-      </section>
-        </>
-      )}
+        <SettingsToggleRow
+          label="Device code sign-in"
+          description="For headless environments. Never share a code."
+          checked={deviceCodeAuth}
+          onCheckedChange={setDeviceCodeAuth}
+          borderless
+        />
+      </SettingsSection>
 
-      {/* Dialogs */}
       <AuthenticatorSetupDialog
         open={authenticatorOpen}
         onOpenChange={(open) => {
@@ -717,6 +444,6 @@ export function SecuritySettings({
           onMfaChange?.(true);
         }}
       />
-    </div>
+    </SettingsPage>
   );
 }

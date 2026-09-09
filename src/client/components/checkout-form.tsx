@@ -140,44 +140,58 @@ export function CheckoutForm({
         </div>
 
         <div className={checkoutUi.section}>
-          <label className="flex cursor-pointer items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-2.5">
             <input
               type="checkbox"
               checked={purchasingAsBusiness}
               onChange={(e) => onPurchasingAsBusinessChange(e.target.checked)}
               className={checkoutUi.checkbox}
             />
-            <span className={checkoutUi.labelMuted}>
-              I&apos;m purchasing as business
+            <span className="text-[13px] font-medium leading-5 text-[var(--settings-fg)]">
+              Buying for a business
             </span>
           </label>
 
           {purchasingAsBusiness && (
             <div className="flex animate-in fade-in slide-in-from-top-1 flex-col gap-3 duration-200">
-              <input
-                type="text"
-                value={billToName}
-                onChange={(e) => onBillToNameChange(e.target.value)}
-                placeholder="Business name"
-                className={checkoutUi.field}
-              />
-              <input
-                type="text"
-                value={gstin}
-                onChange={(e) => onGstinChange(e.target.value.toUpperCase())}
-                onBlur={onGstinBlur}
-                placeholder="GSTIN"
-                className={cn(checkoutUi.field, "uppercase")}
-              />
-              {gstinError && (
-                <p className={checkoutUi.errorText}>{gstinError}</p>
-              )}
+              <div>
+                <label className={checkoutUi.fieldLabel} htmlFor="checkout-business-name">
+                  Business name
+                </label>
+                <input
+                  id="checkout-business-name"
+                  type="text"
+                  value={billToName}
+                  onChange={(e) => onBillToNameChange(e.target.value)}
+                  placeholder="Business name"
+                  className={checkoutUi.field}
+                />
+              </div>
+              <div>
+                <label className={checkoutUi.fieldLabel} htmlFor="checkout-gstin">
+                  GSTIN
+                </label>
+                <input
+                  id="checkout-gstin"
+                  type="text"
+                  value={gstin}
+                  onChange={(e) => onGstinChange(e.target.value.toUpperCase())}
+                  onBlur={onGstinBlur}
+                  placeholder="15-character GSTIN"
+                  className={cn(checkoutUi.field, "uppercase")}
+                />
+                {gstinError && (
+                  <p className={cn(checkoutUi.errorText, "mt-1 px-0.5")}>
+                    {gstinError}
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
 
         <div className={checkoutUi.section}>
-          <label className="flex cursor-pointer items-start gap-2">
+          <label className="flex cursor-pointer items-start gap-2.5">
             <input
               type="checkbox"
               checked={agreed}
@@ -185,14 +199,14 @@ export function CheckoutForm({
               className={cn(checkoutUi.checkbox, "mt-0.5")}
             />
             <span className={checkoutUi.labelFine}>
-              You agree that Shirova will charge your payment method for this
-              purchase and on a recurring basis until you cancel.
+              I agree to automatic renewal until I cancel. I can cancel anytime
+              from Billing.
             </span>
           </label>
         </div>
       </div>
 
-      <div className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:border-t max-lg:border-zinc-200/80 max-lg:bg-[var(--settings-canvas-bg,var(--app-panel-bg,#fcfcfb))] max-lg:px-3 max-lg:pt-3 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-lg:shadow-[0_-10px_28px_-18px_rgba(24,24,27,0.4)]">
+      <div className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:border-t max-lg:border-[var(--settings-hairline)] max-lg:bg-[var(--settings-canvas-bg,var(--app-panel-bg,#fcfcfb))] max-lg:px-3 max-lg:pt-3 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-lg:shadow-[0_-10px_28px_-18px_rgba(24,24,27,0.4)]">
         <button
           type="submit"
           disabled={payDisabled}
@@ -200,10 +214,9 @@ export function CheckoutForm({
             if (!payDisabled) onPayPrepare?.();
           }}
           className={cn(
-            "no-hover-overlay inline-flex h-12 min-h-[48px] w-full items-center justify-center rounded-[var(--radius-sm)] px-5 text-[15px] font-medium leading-5 transition-[background-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14151a]/30 sm:h-11 sm:min-h-[44px] sm:text-[14px]",
-            payDisabled
-              ? "cursor-not-allowed bg-[#e2e4e9] text-[#71717a]"
-              : "cursor-pointer bg-[#14151a] text-[#ffffff] shadow-[0_1px_2px_rgba(20,21,26,0.18)] hover:bg-[#27272a] hover:shadow-[0_3px_8px_rgba(20,21,26,0.18)] active:bg-[#09090b]",
+            appBtn.primaryLg,
+            "no-hover-overlay w-full !h-12 !min-h-[3rem] !text-[15px]",
+            payDisabled && "cursor-not-allowed opacity-50",
           )}
         >
           {paying ? "Processing…" : payLabel}
@@ -212,7 +225,7 @@ export function CheckoutForm({
         <CheckoutRazorpayTrust className="pt-2" />
 
         {payDisabled && payDisabledReason && !paying && (
-          <p className={cn(checkoutUi.labelFine, "pt-2 text-center text-[#911E1B]")}>
+          <p className={cn(checkoutUi.errorText, "pt-2 text-center")}>
             {payDisabledReason}
           </p>
         )}

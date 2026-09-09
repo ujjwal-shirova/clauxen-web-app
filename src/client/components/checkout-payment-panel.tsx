@@ -56,26 +56,32 @@ export function CheckoutMobileField({
 }) {
   return (
     <div>
-      <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
+      <label
+        className={checkoutUi.fieldLabel}
+        htmlFor="checkout-mobile-number"
+      >
         Mobile number
-      </div>
+      </label>
       <div className="relative">
-        <span className="app-page-muted pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-medium text-[13px]">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-medium text-[var(--settings-fg-muted)]">
           +91
         </span>
         <input
+          id="checkout-mobile-number"
           type="tel"
           inputMode="numeric"
           autoComplete="tel-national"
           placeholder="10-digit mobile number"
           value={value}
           onChange={(e) => onChange(formatIndianMobileInput(e.target.value))}
-          className={cn(checkoutUi.field, "pl-12 text-[13px]")}
+          className={cn(checkoutUi.field, "pl-12")}
           aria-label="Mobile number"
         />
       </div>
       {hint ? (
-        <p className="mt-1.5 px-1 text-[12px] leading-4 text-zinc-500">{hint}</p>
+        <p className="mt-1.5 px-0.5 text-[12px] leading-4 text-[var(--settings-fg-muted)]">
+          {hint}
+        </p>
       ) : null}
     </div>
   );
@@ -110,9 +116,8 @@ function NetbankingBankPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="px-0.5 text-[13px] leading-5 text-zinc-500">
-        Choose your bank. You&apos;ll sign in on your bank&apos;s secure page —
-        we never see your netbanking password.
+      <p className="px-0.5 text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+        You sign in on your bank&apos;s page. We never see your password.
       </p>
 
       <CheckoutMobileField
@@ -122,7 +127,7 @@ function NetbankingBankPanel({
 
       <div className="relative">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
           strokeWidth={1.75}
           aria-hidden
         />
@@ -138,19 +143,21 @@ function NetbankingBankPanel({
       </div>
 
       {!query.trim() && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Popular banks">
           {popular.map((bank) => {
             const selected = selectedCode === bank.code;
             return (
               <button
                 key={bank.code}
                 type="button"
+                role="radio"
+                aria-checked={selected}
                 onClick={() => selectBank(bank.code)}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors duration-150",
                   selected
-                    ? "border-zinc-900 bg-zinc-900 text-white"
-                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50",
+                    ? "border-[hsl(var(--brand))] bg-[var(--brand-soft)] text-[var(--settings-fg)]"
+                    : "border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:border-[var(--settings-input-focus)] hover:text-[var(--settings-fg)]",
                 )}
               >
                 {bank.name}
@@ -161,12 +168,12 @@ function NetbankingBankPanel({
       )}
 
       <div
-        className="app-page-card max-h-[220px] overflow-y-auto shadow-[0_1px_2px_rgba(24,24,27,0.03)]"
+        className="settings-card max-h-[220px] overflow-y-auto"
         role="listbox"
         aria-label="Banks"
       >
         {banks.length === 0 ? (
-          <div className="app-page-muted px-4 py-6 text-center">
+          <div className="px-4 py-6 text-center text-[13px] text-[var(--settings-fg-muted)]">
             No banks match “{query.trim()}”.
           </div>
         ) : (
@@ -180,17 +187,19 @@ function NetbankingBankPanel({
                 aria-selected={selected}
                 onClick={() => selectBank(bank.code)}
                 className={cn(
-                  "app-page-body flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors duration-100",
-                  index > 0 && "border-t border-zinc-100",
+                  "flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] transition-colors duration-100",
+                  index > 0 && "border-t border-[var(--settings-hairline)]",
                   selected
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-800 hover:bg-zinc-50",
+                    ? "bg-[var(--brand-soft)] text-[var(--settings-fg)]"
+                    : "text-[var(--settings-fg)] hover:bg-[var(--settings-nav-hover-bg)]",
                 )}
               >
                 <span
                   className={cn(
                     "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                    selected ? "bg-white/15" : "bg-zinc-100 text-zinc-600",
+                    selected
+                      ? "bg-[var(--settings-card-bg)] text-[var(--settings-fg)]"
+                      : "bg-[var(--settings-icon-bg)] text-[var(--settings-fg-muted)]",
                   )}
                 >
                   <Landmark className="h-4 w-4" strokeWidth={1.75} />
@@ -260,7 +269,7 @@ export function CheckoutPaymentPanel({
     if (!savedMethod) {
       return (
         <div className={checkoutUi.panelMuted}>
-          No saved payment methods. Use Card to pay securely.
+          No saved methods. Pay with a card instead.
         </div>
       );
     }
@@ -277,17 +286,17 @@ export function CheckoutPaymentPanel({
 
     return (
       <div className={cn(checkoutUi.panel, "flex items-center justify-between")}>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <CheckoutPaymentIcon
             src={icon.src}
             alt={icon.label}
-            className="h-8 w-11 rounded-[5px] border border-[#e0e0e0] bg-white p-0.5"
+            className="h-8 w-11 rounded-[5px] border border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] p-0.5"
           />
-          <div>
-            <div className="app-page-body font-medium">
+          <div className="min-w-0">
+            <div className="truncate text-[13px] font-medium leading-5 text-[var(--settings-fg)]">
               {savedMethod.brand}
             </div>
-            <div className="app-page-muted">
+            <div className="truncate text-[13px] leading-5 text-[var(--settings-fg-muted)]">
               {savedMethod.maskedNumber ||
                 (isUpi
                   ? savedMethod.upiVpa || "UPI"
@@ -313,6 +322,7 @@ export function CheckoutPaymentPanel({
       <CheckoutMobileField
         value={paymentMobile}
         onChange={(value) => onPaymentMobileChange?.(value)}
+        hint="A QR code appears after you continue."
       />
     );
   }
@@ -334,11 +344,12 @@ export function CheckoutPaymentPanel({
         onChange={(value) => onPaymentMobileChange?.(value)}
       />
       <div>
-        <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
+        <label className={checkoutUi.fieldLabel} htmlFor="checkout-card-number">
           Card number
-        </div>
+        </label>
         <div className="relative">
           <input
+            id="checkout-card-number"
             type="text"
             inputMode="numeric"
             autoComplete="cc-number"
@@ -357,10 +368,11 @@ export function CheckoutPaymentPanel({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
-            Expiry date
-          </div>
+          <label className={checkoutUi.fieldLabel} htmlFor="checkout-card-expiry">
+            Expiry
+          </label>
           <input
+            id="checkout-card-expiry"
             type="text"
             inputMode="numeric"
             autoComplete="cc-exp"
@@ -371,11 +383,12 @@ export function CheckoutPaymentPanel({
           />
         </div>
         <div>
-          <div className="mb-1.5 px-1 text-[11px] font-medium text-zinc-600">
+          <label className={checkoutUi.fieldLabel} htmlFor="checkout-card-cvc">
             CVC
-          </div>
+          </label>
           <div className="relative">
             <input
+              id="checkout-card-cvc"
               type="text"
               inputMode="numeric"
               autoComplete="cc-csc"
@@ -387,7 +400,7 @@ export function CheckoutPaymentPanel({
               className={checkoutUi.fieldWithTrailingIcon}
             />
             <CreditCard
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--settings-fg-subtle)]"
               strokeWidth={1.5}
             />
           </div>

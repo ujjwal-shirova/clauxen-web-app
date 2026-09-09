@@ -15,11 +15,11 @@ export function CheckoutRazorpayTrust({ className }: { className?: string }) {
   return (
     <p
       className={cn(
-        "flex items-center justify-center gap-1.5 text-[12px] leading-5 text-zinc-500",
+        "flex items-center justify-center gap-1.5 text-[12px] leading-5 text-[var(--settings-fg-muted)]",
         className,
       )}
     >
-      <span>Payment is securely handled by</span>
+      <span>Secured by</span>
       <a
         href={RAZORPAY_TRUST_HREF}
         target="_blank"

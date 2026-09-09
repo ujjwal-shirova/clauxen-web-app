@@ -2,9 +2,10 @@
 
 import { ChevronRight } from "lucide-react";
 import {
+  SettingsButton,
   SettingsOptionPicker,
+  SettingsPage,
   SettingsPanelTitle,
-  SettingsPillButton,
   SettingsRow,
   SettingsSection,
   SettingsToggleRow,
@@ -34,9 +35,6 @@ const TOOL_MODE_LABELS = [
   "Always available",
 ] as const;
 
-const linkClass =
-  "clickable-label cursor-pointer font-medium text-[var(--settings-fg)] underline decoration-[var(--settings-input-border)] underline-offset-[3px] hover:decoration-[var(--settings-fg)]";
-
 function toolModeToLabel(mode: string): string {
   if (mode === "auto") return "Auto";
   if (mode === "always") return "Always available";
@@ -55,29 +53,20 @@ export function CapabilitiesSettings({
   memoryUpdatedLabel = "Updated 3 hours ago",
 }: CapabilitiesSettingsProps) {
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
+    <SettingsPage>
       <SettingsPanelTitle>Capabilities</SettingsPanelTitle>
 
-      <SettingsSection title="Memory">
+      <SettingsSection title="Memory" description="What Clauxen retains.">
         <SettingsToggleRow
-          label="Generate memory from chat history"
-          description={
-            <>
-              Allow Clauxen to remember relevant context from your chats. This
-              setting controls memory for both chats and projects.{" "}
-              <a href="/legal/privacy" className={linkClass}>
-                Learn more
-              </a>
-              .
-            </>
-          }
+          label="Remember from chats"
+          description="Save relevant context from chats and projects."
           checked={capabilities.generateMemory}
           onCheckedChange={(generateMemory) => onChange({ generateMemory })}
         />
 
         <button
           type="button"
-          className="no-hover-overlay mx-[var(--settings-row-pad-x)] mb-2 flex items-center justify-between gap-3 rounded-lg bg-[var(--settings-icon-bg)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--settings-nav-hover-bg)]"
+          className="no-hover-overlay mx-4 mb-2 flex items-center justify-between gap-3 rounded-lg bg-[var(--settings-icon-bg)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--settings-nav-hover-bg)] sm:mx-5"
         >
           <span className="min-w-0 truncate text-[14px] leading-5">
             <span className="text-[var(--settings-fg)]">
@@ -96,49 +85,36 @@ export function CapabilitiesSettings({
         </button>
 
         <SettingsRow
-          label="Import memory from other AI providers"
-          description={
-            <>
-              Bring relevant context and data from another AI provider to
-              Clauxen. We&apos;ll provide a prompt you can use to fetch the
-              memory from your other account.{" "}
-              <a href="/legal/privacy" className={linkClass}>
-                Learn more
-              </a>
-            </>
-          }
+          label="Import memory"
+          description="Bring context from another AI provider."
           borderless
         >
-          <SettingsPillButton className="h-8 shrink-0 rounded-lg px-3">
-            Start import
-          </SettingsPillButton>
+          <SettingsButton size="sm">Start import</SettingsButton>
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection title="General">
-        <SettingsRow
-          label="Tool access mode"
-          description="Controls how connector tools are loaded in new conversations."
-        >
+      <SettingsSection title="Tools" description="How tools load and switch.">
+        <SettingsRow label="Tool access">
           <SettingsOptionPicker
             value={toolModeToLabel(capabilities.toolMode)}
             options={TOOL_MODE_LABELS}
             onValueChange={(label) =>
               onChange({ toolMode: labelToToolMode(label) })
             }
+            aria-label="Tool access"
           />
         </SettingsRow>
 
         <SettingsToggleRow
           label="Connector search"
-          description="Let Clauxen search the connector directory and surface ones relevant to your conversation."
+          description="Surface relevant connectors in conversation."
           checked={capabilities.connectorSearch}
           onCheckedChange={(connectorSearch) => onChange({ connectorSearch })}
         />
 
         <SettingsToggleRow
-          label="Switch models when a message is flagged"
-          description="When safety measures flag a message, automatically switch to a different model to keep chatting. When off, your chat will pause instead."
+          label="Switch models when flagged"
+          description="Keep chatting on another model instead of pausing."
           checked={capabilities.switchModelsWhenFlagged}
           onCheckedChange={(switchModelsWhenFlagged) =>
             onChange({ switchModelsWhenFlagged })
@@ -147,17 +123,20 @@ export function CapabilitiesSettings({
         />
       </SettingsSection>
 
-      <SettingsSection title="Visuals">
+      <SettingsSection
+        title="Creation"
+        description="Artifacts, visuals, and code."
+      >
         <SettingsToggleRow
           label="Artifacts"
-          description="Generate code, documents, and designs in a dedicated window alongside your conversation."
+          description="Open code and documents beside the chat."
           checked={capabilities.artifacts}
           onCheckedChange={(artifacts) => onChange({ artifacts })}
           disabled
         />
         <SettingsToggleRow
           label="AI-powered artifacts"
-          description="Build apps and interactive documents that use Clauxen inside the artifact."
+          description="Build apps that use Clauxen inside."
           checked={capabilities.aiPoweredArtifacts}
           onCheckedChange={(aiPoweredArtifacts) =>
             onChange({ aiPoweredArtifacts })
@@ -165,19 +144,15 @@ export function CapabilitiesSettings({
         />
         <SettingsToggleRow
           label="Inline visualizations"
-          description="Allow Clauxen to generate interactive visualizations, charts, and diagrams directly in the conversation."
+          description="Charts and diagrams inside replies."
           checked={capabilities.inlineVisualizations}
           onCheckedChange={(inlineVisualizations) =>
             onChange({ inlineVisualizations })
           }
-          borderless
         />
-      </SettingsSection>
-
-      <SettingsSection title="Code execution and file creation">
         <SettingsToggleRow
-          label="Code execution and file creation"
-          description="Clauxen can execute code and create and edit docs, spreadsheets, presentations, PDFs, and data reports. Required for skills."
+          label="Code execution and files"
+          description="Run code and create docs, sheets, and PDFs. Required for skills."
           checked={capabilities.codeExecution}
           onCheckedChange={(codeExecution) => {
             onChange({
@@ -185,37 +160,14 @@ export function CapabilitiesSettings({
               ...(codeExecution ? {} : { networkEgress: false }),
             });
           }}
+          borderless={!capabilities.codeExecution}
         />
 
         {capabilities.codeExecution ? (
           <div className="border-t border-[var(--settings-hairline)] bg-[var(--settings-sidebar-bg)]">
             <SettingsToggleRow
-              label="Allow network egress"
-              description={
-                <>
-                  Allow Clauxen to access common package managers to install
-                  packages and libraries for data analysis, visualizations, and
-                  file processing.{" "}
-                  <a
-                    href="/legal/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={linkClass}
-                  >
-                    View package manager domains
-                  </a>
-                  . Monitor chats closely as this comes with{" "}
-                  <a
-                    href="/legal/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={linkClass}
-                  >
-                    security risks
-                  </a>
-                  .
-                </>
-              }
+              label="Allow network access"
+              description="Let code install packages for analysis and files."
               checked={capabilities.networkEgress}
               onCheckedChange={(networkEgress) => onChange({ networkEgress })}
               borderless
@@ -223,6 +175,6 @@ export function CapabilitiesSettings({
           </div>
         ) : null}
       </SettingsSection>
-    </div>
+    </SettingsPage>
   );
 }

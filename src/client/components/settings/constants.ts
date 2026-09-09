@@ -1,119 +1,194 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,
+  Blocks,
   Briefcase,
   Code2,
   CreditCard,
-  Database,
-  FileText,
-  HardDrive,
-  Keyboard,
   KeyRound,
-  LayoutGrid,
-  Lightbulb,
-  Moon,
   Settings,
   Shield,
-  ShieldAlert,
   Sparkles,
   UserCircle,
-  Users,
-  Wand2,
 } from "lucide-react";
 
 /**
- * Settings IA (no Voice).
- * Conflicts resolved:
- * - Memory generate → Capabilities; memory reference → Personalization
- * - Export / delete / archive → Privacy (no separate Data controls)
- * - Sessions → Account; MFA / sign-in activity → Security
- * - Apps → Connectors only
- * - Notifications → own tab (not duplicated in General)
+ * Settings IA — 10 sections in 3 groups.
+ *
+ * Consolidation (was 19 tabs):
+ * - General absorbs Keyboard shortcuts.
+ * - Personalization absorbs Reflect activity range.
+ * - Notifications absorbs Time and focus (breaks + quiet hours).
+ * - Account owns profile, org, sessions, and devices.
+ * - Security owns sign-in, MFA, passkeys, and advanced protections.
+ * - Privacy & safety merges Privacy, Safety, Parental controls, Trusted contact.
+ * - Billing absorbs Storage usage.
+ * - Extensions merges Skills, Connectors, Plugins behind one sub-nav.
+ * - Clauxen Code stays standalone for developer workflows.
  */
 export const settingsNav = [
   { name: "General", icon: Settings },
   { name: "Personalization", icon: Sparkles },
   { name: "Notifications", icon: Bell },
   { name: "Account", icon: UserCircle },
-  { name: "Security & login", icon: KeyRound },
-  { name: "Privacy", icon: Shield },
+  { name: "Security", icon: KeyRound },
+  { name: "Privacy & safety", icon: Shield },
   { name: "Billing", icon: CreditCard },
-  { name: "Storage", icon: HardDrive },
   { name: "Capabilities", icon: Briefcase },
-  { name: "Reflect", icon: Lightbulb },
-  { name: "Time and focus", icon: Moon },
-  { name: "Safety", icon: ShieldAlert },
-  { name: "Parental controls", icon: Users },
-  { name: "Trusted contact", icon: Database },
+  { name: "Extensions", icon: Blocks },
   { name: "Clauxen Code", icon: Code2 },
-  { name: "Keyboard", icon: Keyboard },
-  { name: "Skills", icon: FileText },
-  { name: "Connectors", icon: LayoutGrid },
-  { name: "Plugins", icon: Wand2 },
 ] as const satisfies ReadonlyArray<{ name: string; icon: LucideIcon }>;
 
-export type SettingsTab = (typeof settingsNav)[number]["name"];
+export type VisibleSettingsTab = (typeof settingsNav)[number]["name"];
+
+/** Removed top-level tabs — still accepted for deep links and old hashes. */
+export type LegacySettingsTab =
+  | "Security & login"
+  | "Security"
+  | "Privacy"
+  | "Reflect"
+  | "Time and focus"
+  | "Safety"
+  | "Parental controls"
+  | "Trusted contact"
+  | "Storage"
+  | "Keyboard"
+  | "Skills"
+  | "Connectors"
+  | "Plugins"
+  | "Data controls"
+  | "Enterprise"
+  | "Apps"
+  | "Voice";
+
+export type SettingsTab = VisibleSettingsTab | LegacySettingsTab;
+
+export type ExtensionSubView = "skills" | "connectors" | "plugins";
+
+/** Map any accepted tab (visible or legacy) to the visible section. */
+export function resolveVisibleTab(tab: string): VisibleSettingsTab {
+  switch (tab) {
+    case "General":
+    case "Personalization":
+    case "Notifications":
+    case "Account":
+    case "Security":
+    case "Privacy & safety":
+    case "Billing":
+    case "Capabilities":
+    case "Extensions":
+    case "Clauxen Code":
+      return tab;
+    case "Security & login":
+      return "Security";
+    case "Privacy":
+    case "Safety":
+    case "Parental controls":
+    case "Trusted contact":
+    case "Data controls":
+      return "Privacy & safety";
+    case "Reflect":
+      return "Personalization";
+    case "Time and focus":
+      return "Notifications";
+    case "Storage":
+      return "Billing";
+    case "Keyboard":
+    case "Enterprise":
+    case "Voice":
+      return "General";
+    case "Skills":
+    case "Connectors":
+    case "Plugins":
+    case "Apps":
+      return "Extensions";
+    default:
+      return "General";
+  }
+}
+
+/** Legacy extension tabs preselect their sub-view inside Extensions. */
+export function extensionSubViewForTab(
+  tab: string,
+): ExtensionSubView | null {
+  if (tab === "Skills") return "skills";
+  if (tab === "Connectors" || tab === "Apps") return "connectors";
+  if (tab === "Plugins") return "plugins";
+  return null;
+}
 
 export const settingsTabDescriptions: Record<SettingsTab, string> = {
-  General: "Appearance, language, voice, and everyday preferences.",
-  Personalization: "Shape how Clauxen responds and remembers what matters.",
-  Notifications: "Choose what reaches you and where you receive it.",
-  Account: "Manage your account, sessions, and organization details.",
-  "Security & login": "Protect your account and review sign-in activity.",
-  Privacy: "Control your data, cookies, model improvement, and shared content.",
-  Billing: "Review your plan, usage, and payment methods.",
-  Storage: "See what is using space and manage stored content.",
-  Capabilities: "Choose which tools and workspace abilities Clauxen can use.",
-  Reflect: "Tune your activity summaries and reflection preferences.",
-  "Time and focus": "Set quiet hours, focus behavior, and time preferences.",
-  Safety: "Adjust safeguards for sensitive content and interactions.",
-  "Parental controls": "Manage family protections and age-appropriate access.",
-  "Trusted contact": "Choose who can help with account safety concerns.",
-  "Clauxen Code": "Configure coding sessions, environments, and permissions.",
-  Keyboard: "Review and customize shortcuts across the app.",
-  Skills: "Manage the instructions and skills available to Clauxen.",
-  Connectors: "Connect services that Clauxen can search and use.",
-  Plugins: "Manage plugins you've installed",
+  General: "Theme, reading, and shortcuts.",
+  Personalization: "How Clauxen talks to you and what it remembers.",
+  Notifications: "What you hear about, and when to stay quiet.",
+  Account: "Profile, organization, sessions, and devices.",
+  Security: "Sign-in, two-step verification, and passkeys.",
+  "Privacy & safety": "Your data, content safety, and family.",
+  Billing: "Plan, usage, invoices, and payment.",
+  Capabilities: "Memory, tools, and things Clauxen can do.",
+  Extensions: "Skills, connectors, and plugins.",
+  "Clauxen Code": "Terminal and IDE coding sessions.",
+  "Security & login": "Sign-in, two-step verification, and passkeys.",
+  Privacy: "Your data, content safety, and family.",
+  Reflect: "How Clauxen talks to you and what it remembers.",
+  "Time and focus": "What you hear about, and when to stay quiet.",
+  Safety: "Your data, content safety, and family.",
+  "Parental controls": "Your data, content safety, and family.",
+  "Trusted contact": "Your data, content safety, and family.",
+  Storage: "Plan, usage, invoices, and payment.",
+  Keyboard: "Theme, reading, and shortcuts.",
+  Skills: "Skills, connectors, and plugins.",
+  Connectors: "Skills, connectors, and plugins.",
+  Plugins: "Skills, connectors, and plugins.",
+  "Data controls": "Your data, content safety, and family.",
+  Enterprise: "Theme, reading, and shortcuts.",
+  Apps: "Skills, connectors, and plugins.",
+  Voice: "Theme, reading, and shortcuts.",
 };
 
 export const settingsNavByName = Object.fromEntries(
   settingsNav.map((item) => [item.name, item]),
-) as Record<SettingsTab, (typeof settingsNav)[number]>;
+) as Record<VisibleSettingsTab, (typeof settingsNav)[number]>;
 
 export const settingsNavGroups: ReadonlyArray<{
   label: string;
-  items: readonly SettingsTab[];
+  items: readonly VisibleSettingsTab[];
 }> = [
   {
-    label: "Settings",
-    items: [
-      "General",
-      "Personalization",
-      "Notifications",
-      "Account",
-      "Security & login",
-      "Privacy",
-      "Billing",
-      "Storage",
-      "Capabilities",
-      "Reflect",
-      "Time and focus",
-      "Clauxen Code",
-      "Keyboard",
-    ],
+    label: "Preferences",
+    items: ["General", "Personalization", "Notifications"],
   },
   {
-    label: "Customize",
-    items: ["Skills", "Connectors", "Plugins"],
+    label: "Account",
+    items: ["Account", "Security", "Privacy & safety", "Billing"],
   },
   {
-    label: "Safety & family",
-    items: ["Safety", "Parental controls", "Trusted contact"],
+    label: "Workspace",
+    items: ["Capabilities", "Extensions", "Clauxen Code"],
   },
 ];
 
+const LEGACY_TAB_SET = new Set<string>([
+  "Security & login",
+  "Privacy",
+  "Reflect",
+  "Time and focus",
+  "Safety",
+  "Parental controls",
+  "Trusted contact",
+  "Storage",
+  "Keyboard",
+  "Skills",
+  "Connectors",
+  "Plugins",
+  "Data controls",
+  "Enterprise",
+  "Apps",
+  "Voice",
+]);
+
 export function isSettingsTab(value: string): value is SettingsTab {
-  return value in settingsNavByName;
+  return value in settingsNavByName || LEGACY_TAB_SET.has(value);
 }
 
 import { CHAT_FONT_OPTIONS } from "@/lib/app-preferences";
@@ -167,7 +242,7 @@ export const baseStyleToneOptions = [
 
 /** Rich labels for Base style and tone dropdown. */
 export const baseStyleToneOptionItems = [
-  { value: "Default", label: "Default", description: "Preset style and tone" },
+  { value: "Default", label: "Default", description: "Balanced style" },
   {
     value: "Professional",
     label: "Professional",

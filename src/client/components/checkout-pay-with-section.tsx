@@ -52,7 +52,12 @@ export function CheckoutPayWithSection({
 
   return (
     <div className={checkoutUi.section}>
-      <h3 className={checkoutUi.sectionTitle}>Pay with</h3>
+      <div>
+        <h3 className={checkoutUi.sectionTitle}>Payment method</h3>
+        <p className={cn(checkoutUi.sectionHint, "mt-1")}>
+          Encrypted and processed securely.
+        </p>
+      </div>
 
       {showExpressCheckout && (
         <>
@@ -69,6 +74,8 @@ export function CheckoutPayWithSection({
       )}
 
       <div
+        role="radiogroup"
+        aria-label="Payment method"
         className={cn(
           "grid gap-2",
           tabCount === 1 && "grid-cols-1",
@@ -80,6 +87,8 @@ export function CheckoutPayWithSection({
         {showSaved && (
           <button
             type="button"
+            role="radio"
+            aria-checked={paymentTab === "saved"}
             onClick={() => onPaymentTabChange("saved")}
             className={checkoutTabClass(paymentTab === "saved")}
           >
@@ -91,16 +100,20 @@ export function CheckoutPayWithSection({
         {!hideNetbanking && (
           <button
             type="button"
+            role="radio"
+            aria-checked={paymentTab === "netbanking"}
             onClick={() => onPaymentTabChange("netbanking")}
             className={checkoutTabClass(paymentTab === "netbanking")}
           >
             <Landmark className="h-4 w-4" strokeWidth={1.75} />
-            <span className="text-center leading-tight">Net Banking</span>
+            <span className="text-center leading-tight">Netbanking</span>
           </button>
         )}
 
         <button
           type="button"
+          role="radio"
+          aria-checked={paymentTab === "card"}
           onClick={() => onPaymentTabChange("card")}
           className={checkoutTabClass(paymentTab === "card")}
         >
@@ -111,6 +124,8 @@ export function CheckoutPayWithSection({
         {!hideUpi && (
           <button
             type="button"
+            role="radio"
+            aria-checked={paymentTab === "upi"}
             onClick={() => onPaymentTabChange("upi")}
             className={checkoutTabClass(paymentTab === "upi")}
           >

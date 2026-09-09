@@ -65,25 +65,26 @@ const field = {
 
 const checkout = {
   form: "app-page-surface w-full font-sans text-[var(--settings-fg)]",
-  stack: "flex flex-col gap-4",
-  section: "flex flex-col gap-2",
+  stack: "flex flex-col gap-5",
+  section: "flex flex-col gap-3",
 
   field: field.base,
   fieldWithIcons: field.withIcons,
   fieldWithTrailingIcon: field.withTrailing,
 
-  sectionTitle: "settings-section-label px-0.5",
+  sectionTitle: "text-[13px] font-semibold leading-5 text-[var(--settings-fg)] px-0.5",
+  sectionHint: "px-0.5 text-[13px] leading-5 text-[var(--settings-fg-muted)]",
   panel: "settings-card px-4 py-3",
   panelMuted: field.mutedPanel,
 
-  fieldLabel: "mb-1.5 px-0.5 text-[11px] font-medium text-[var(--settings-fg-muted)]",
+  fieldLabel: "mb-1.5 px-0.5 text-[12px] font-medium leading-4 text-[var(--settings-fg-muted)]",
 
   tabBase:
-    "no-hover-overlay flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--settings-card-radius)] px-2 py-2.5 text-[14px] font-medium leading-[20px] transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] shadow-[var(--settings-card-shadow)] max-lg:min-h-[56px]",
+    "no-hover-overlay flex min-h-[60px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border px-2 py-3 text-[13px] font-medium leading-[18px] transition-[background-color,color,border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] max-lg:min-h-[64px]",
   tabSelected:
-    "bg-[var(--settings-card-bg)] text-[var(--settings-fg)] ring-1 ring-[hsl(var(--brand))]",
+    "border-[hsl(var(--brand))] bg-[var(--brand-soft)] text-[var(--settings-fg)] shadow-[0_0_0_1px_hsl(var(--brand))]",
   tabUnselected:
-    "bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,var(--settings-fg))] hover:text-[var(--settings-fg)]",
+    "border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:border-[var(--settings-input-focus)] hover:text-[var(--settings-fg)]",
 
   expressButton: cn(appBtn.primaryLg, "w-full gap-2"),
 
@@ -93,8 +94,8 @@ const checkout = {
   checkbox:
     "h-4 w-4 shrink-0 rounded border border-[var(--settings-input-border)] accent-[hsl(var(--brand))]",
   labelMuted: page.muted,
-  labelFine: "settings-muted text-[12px]",
-  errorText: "text-[14px] leading-[20px] text-[var(--settings-danger)]",
+  labelFine: "text-[13px] leading-5 text-[var(--settings-fg-muted)]",
+  errorText: "text-[13px] leading-5 text-[var(--settings-danger)]",
 
   payDisabled: cn(appBtn.primaryLg, "w-full cursor-not-allowed opacity-50"),
 

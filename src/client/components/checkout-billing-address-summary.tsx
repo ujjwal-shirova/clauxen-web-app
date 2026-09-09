@@ -23,25 +23,25 @@ export function CheckoutBillingAddressSummary({
     <button
       type="button"
       onClick={onEdit}
-      className="flex h-auto min-h-[38px] w-full items-start justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] p-3 text-left transition-colors hover:border-zinc-400"
+      className="flex h-auto min-h-[38px] w-full items-start justify-between gap-3 rounded-xl border border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] p-3 text-left transition-colors hover:border-[var(--settings-input-focus)]"
       aria-label="Edit billing address"
     >
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-[#6d6e78]">
+        <p className="text-[12px] font-medium leading-4 text-[var(--settings-fg-muted)]">
           Billing address
         </p>
         <div className="mt-1 space-y-0.5">
           {lines.map((line) => (
             <p
               key={line}
-              className="app-page-body truncate text-[13px] leading-[18px]"
+              className="truncate text-[13px] leading-[18px] text-[var(--settings-fg)]"
             >
               {line}
             </p>
           ))}
         </div>
       </div>
-      <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+      <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg-subtle)]" aria-hidden />
     </button>
   );
 }

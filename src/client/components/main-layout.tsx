@@ -579,7 +579,7 @@ function computeActiveView(
   if (overlayType === "pricing") return "upgrade";
   if (overlayType === "gift") return "gift";
   if (overlayType === "apps") return "apps";
-  if (overlayType === "settings" && settingsTab === "Connectors") {
+  if (overlayType === "settings" && settingsTab === "Extensions") {
     return "connectors";
   }
   if (overlayType === "settings" && settingsTab === "Clauxen Code") {

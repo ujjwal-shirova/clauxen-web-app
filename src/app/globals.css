@@ -105,7 +105,7 @@
     --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 94%, #14151a 6%);
     --settings-nav-active-bg: color-mix(in oklab, hsl(var(--brand)) 10%, var(--app-panel-bg));
     --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 95%, #14151a 5%);
-    --settings-card-radius: 18px;
+    --settings-card-radius: 16px;
     --settings-card-shadow:
       0 1px 2px rgba(20, 21, 26, 0.035), 0 0 0 1px rgba(20, 21, 26, 0.075),
       0 10px 30px -26px rgba(20, 21, 26, 0.32);
@@ -402,7 +402,7 @@
   --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 94%, #14151a 6%);
   --settings-nav-active-bg: color-mix(in oklab, hsl(var(--brand)) 10%, var(--app-panel-bg));
   --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 95%, #14151a 5%);
-  --settings-card-radius: 12px;
+  --settings-card-radius: 16px;
   --settings-card-shadow: inset 0 0 0 1px rgba(15, 15, 15, 0.1);
   --settings-modal-border: rgba(15, 15, 15, 0.14);
   --settings-modal-shadow:
@@ -691,14 +691,16 @@ html.dark[data-contrast="Increased"] {
   gap: 7px;
   height: var(--settings-control-height);
   min-height: var(--settings-control-height);
-  padding-left: 11px;
-  padding-right: 11px;
-  border-radius: 9px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-radius: 10px;
   border: none;
   background: var(--settings-elevated-bg);
   box-shadow: inset 0 0 0 1px var(--settings-btn-border);
   font-size: 14px;
   line-height: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   color: var(--settings-fg);
   white-space: nowrap;
   cursor: pointer;

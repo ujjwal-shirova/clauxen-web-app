@@ -7,7 +7,7 @@ import {
   resumeBillingSubscription,
 } from "@/lib/api/billing";
 import { FullscreenPortal } from "@/components/fullscreen-portal";
-import { SettingsPillButton } from "@/components/settings/settings-ui";
+import { SettingsButton } from "@/components/settings/settings-ui";
 import { Switch } from "@/components/ui/switch";
 
 type ManagePlanDialogProps = {
@@ -173,39 +173,43 @@ export function ManagePlanDialog({
                   then.
                 </p>
                 <div className="mt-3 flex justify-end gap-2">
-                  <SettingsPillButton onClick={() => setConfirmCancel(false)}>
+                  <SettingsButton onClick={() => setConfirmCancel(false)}>
                     Keep plan
-                  </SettingsPillButton>
-                  <SettingsPillButton
+                  </SettingsButton>
+                  <SettingsButton
                     variant="danger"
                     disabled={busy}
                     onClick={() => void cancelSubscription()}
                   >
                     {busy ? "Canceling…" : "Confirm cancel"}
-                  </SettingsPillButton>
+                  </SettingsButton>
                 </div>
               </div>
             ) : (
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-                <SettingsPillButton
+                <SettingsButton
                   onClick={() => {
                     onClose();
                     onUpgradeClick?.();
                   }}
                 >
                   Change plan
-                </SettingsPillButton>
-                <SettingsPillButton
+                </SettingsButton>
+                <SettingsButton
                   variant="danger"
                   disabled={busy || cancelAtPeriodEnd}
                   onClick={() => setConfirmCancel(true)}
                 >
                   {cancelAtPeriodEnd ? "Cancellation scheduled" : "Cancel plan"}
-                </SettingsPillButton>
+                </SettingsButton>
               </div>
             )}
 
-            {error ? <p className="text-[13px] text-red-600">{error}</p> : null}
+            {error ? (
+              <p className="text-[13px] text-[var(--settings-danger)]">
+                {error}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

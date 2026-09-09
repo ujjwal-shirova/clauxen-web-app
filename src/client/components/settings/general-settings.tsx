@@ -1,25 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PersonalizationSettings } from "@/lib/api/settings";
 import {
   segmentedOptionClass,
   segmentedTrackClass,
 } from "@/lib/segmented-control";
 import { accentColors, contrastOptions, motionOptions } from "./constants";
 import {
+  SettingsButton,
   SettingsOptionPicker,
+  SettingsPage,
   SettingsPanelTitle,
   SettingsRow,
   SettingsSection,
   SettingsToggleRow,
   type SettingsOptionItem,
 } from "./settings-ui";
-import { ProfileAvatarUpload } from "./profile-avatar-upload";
-import type { UserProfile } from "@/lib/api/profile";
-import { WORK_ROLE_OPTIONS } from "@/lib/work-roles";
 import {
   CHAT_FONT_OPTIONS,
   chatFontOption,
@@ -27,6 +25,14 @@ import {
   normalizeChatFontId,
   normalizeContrastMode,
 } from "@/lib/app-preferences";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import {
+  DEFAULT_KEYBOARD_SHORTCUTS,
+  formatShortcutKeys,
+  parseShortcutKeys,
+  type KeyboardShortcutId,
+} from "@/lib/keyboard-shortcuts-defaults";
+import { Switch } from "@/components/ui/switch";
 
 const appearanceModes = [
   { value: "System", icon: Monitor, label: "System" },
@@ -34,15 +40,7 @@ const appearanceModes = [
   { value: "Dark", icon: Moon, label: "Dark" },
 ] as const;
 
-const MAX_CUSTOM_INSTRUCTIONS = 1500;
-
-const inputClass = "settings-field max-w-[20rem]";
-
 interface GeneralSettingsProps {
-  personalization: PersonalizationSettings;
-  onPersonalizationChange: (patch: Partial<PersonalizationSettings>) => void;
-  avatarUrl?: string | null;
-  onAvatarUpdated?: (profile: UserProfile) => void;
   appearancePreset: string;
   /** Single optimistic update — UI theme applies before DB persist. */
   onAppearanceChange: (preset: string) => void;
@@ -59,10 +57,6 @@ interface GeneralSettingsProps {
 }
 
 export function GeneralSettings({
-  personalization,
-  onPersonalizationChange,
-  avatarUrl,
-  onAvatarUpdated,
   appearancePreset,
   onAppearanceChange,
   chatFont,
@@ -76,38 +70,6 @@ export function GeneralSettings({
   followUpSuggestions,
   setFollowUpSuggestions,
 }: GeneralSettingsProps) {
-  const p = personalization;
-  const [nameDraft, setNameDraft] = useState(p.fullName);
-  const [callMeDraft, setCallMeDraft] = useState(p.nickname || p.fullName);
-  const [instructionsDraft, setInstructionsDraft] = useState(
-    p.customInstructions,
-  );
-
-  useEffect(() => setNameDraft(p.fullName), [p.fullName]);
-  useEffect(
-    () => setCallMeDraft(p.nickname || p.fullName),
-    [p.nickname, p.fullName],
-  );
-  useEffect(
-    () => setInstructionsDraft(p.customInstructions),
-    [p.customInstructions],
-  );
-
-  const avatarName = useMemo(
-    () => nameDraft || callMeDraft || "U",
-    [nameDraft, callMeDraft],
-  );
-
-  const workOptions = useMemo(() => {
-    const base = ["Select", ...WORK_ROLE_OPTIONS] as string[];
-    if (p.occupation && !base.includes(p.occupation)) {
-      return ["Select", p.occupation, ...WORK_ROLE_OPTIONS];
-    }
-    return base;
-  }, [p.occupation]);
-
-  const workValue = p.occupation?.trim() ? p.occupation : "Select";
-
   const chatFontOptions: SettingsOptionItem[] = useMemo(
     () =>
       CHAT_FONT_OPTIONS.map((option) => ({
@@ -144,97 +106,45 @@ export function GeneralSettings({
   const accentValue = normalizeAccentId(accentColor);
   const contrastValue = normalizeContrastMode(contrastMode);
 
-  const commitInstructions = () => {
-    const next = instructionsDraft.trim().slice(0, MAX_CUSTOM_INSTRUCTIONS);
-    setInstructionsDraft(next);
-    onPersonalizationChange({ customInstructions: next });
+  const { shortcuts, updateShortcut, resetToDefaults } = useKeyboardShortcuts();
+  const hasShortcutChanges = useMemo(
+    () =>
+      JSON.stringify(shortcuts) !== JSON.stringify(DEFAULT_KEYBOARD_SHORTCUTS),
+    [shortcuts],
+  );
+
+  const editShortcutKeys = (
+    id: KeyboardShortcutId,
+    label: string,
+    keys: string[],
+  ) => {
+    const next = window.prompt(
+      `Keys for "${label}" (e.g. ⇧⌘O)`,
+      formatShortcutKeys(keys),
+    );
+    if (next === null) return;
+    updateShortcut(id, { keys: parseShortcutKeys(next) });
   };
 
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
+    <SettingsPage>
       <SettingsPanelTitle>General</SettingsPanelTitle>
 
-      <SettingsSection title="Profile">
-        <SettingsRow label="Avatar">
-          <ProfileAvatarUpload
-            name={avatarName}
-            avatarUrl={avatarUrl}
-            onUpdated={onAvatarUpdated}
-          />
-        </SettingsRow>
-        <SettingsRow label="Full name">
-          <input
-            type="text"
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value)}
-            onBlur={() =>
-              onPersonalizationChange({ fullName: nameDraft.trim() })
-            }
-            className={inputClass}
-            autoComplete="name"
-            maxLength={120}
-          />
-        </SettingsRow>
-        <SettingsRow label="What should Clauxen call you?">
-          <input
-            type="text"
-            value={callMeDraft}
-            onChange={(e) => setCallMeDraft(e.target.value)}
-            onBlur={() =>
-              onPersonalizationChange({ nickname: callMeDraft.trim() })
-            }
-            className={inputClass}
-            maxLength={120}
-          />
-        </SettingsRow>
-        <SettingsRow label="What best describes your work?">
-          <SettingsOptionPicker
-            value={workValue}
-            options={workOptions}
-            onValueChange={(value) =>
-              onPersonalizationChange({
-                occupation: value === "Select" ? "" : value,
-              })
-            }
-          />
-        </SettingsRow>
-        <SettingsRow
-          label="Custom instructions"
-          description="Clauxen will keep these in mind across chats within Shirova guidelines."
-          className="!flex-col !items-stretch sm:!flex-col"
-        >
-          <div className="w-full">
-            <textarea
-              value={instructionsDraft}
-              onChange={(e) =>
-                setInstructionsDraft(
-                  e.target.value.slice(0, MAX_CUSTOM_INSTRUCTIONS),
-                )
-              }
-              onBlur={commitInstructions}
-              rows={4}
-              maxLength={MAX_CUSTOM_INSTRUCTIONS}
-              placeholder="e.g. when learning new concepts, I find analogies particularly helpful"
-              className="settings-field mt-1 min-h-[96px] w-full resize-y py-2"
-            />
-            <p className="mt-1.5 text-right text-[11px] text-[var(--settings-fg-muted)]">
-              {instructionsDraft.length}/{MAX_CUSTOM_INSTRUCTIONS}
-            </p>
-          </div>
-        </SettingsRow>
-      </SettingsSection>
-
-      <SettingsSection title="Preferences">
-        <SettingsRow label="Appearance">
-          <div className={segmentedTrackClass}>
+      <SettingsSection
+        title="Appearance"
+        description="Theme, accent, and contrast across the app."
+      >
+        <SettingsRow label="Theme">
+          <div className={segmentedTrackClass} role="radiogroup" aria-label="Theme">
             {appearanceModes.map(({ value, icon: Icon, label }) => {
               const active = appearancePreset === value;
               return (
                 <button
                   key={value}
                   type="button"
+                  role="radio"
+                  aria-checked={active}
                   aria-label={label}
-                  aria-pressed={active}
                   onClick={() => onAppearanceChange(value)}
                   className={segmentedOptionClass(active, "icon")}
                 >
@@ -245,18 +155,9 @@ export function GeneralSettings({
           </div>
         </SettingsRow>
 
-        <SettingsRow label="Chat font">
-          <SettingsOptionPicker
-            value={chatFontValue}
-            options={chatFontOptions}
-            onValueChange={(value) => setChatFont(normalizeChatFontId(value))}
-            aria-label={`Chat font: ${selectedChatFont.label}`}
-          />
-        </SettingsRow>
-
         <SettingsRow
-          label="Accent color"
-          description="Focus rings, links, and selected states across the app."
+          label="Accent"
+          description="Focus rings, links, and selected states."
         >
           <SettingsOptionPicker
             value={accentValue}
@@ -268,7 +169,7 @@ export function GeneralSettings({
 
         <SettingsRow
           label="Contrast"
-          description="Lift secondary text and borders. System follows your OS setting."
+          description="System follows your OS setting."
         >
           <SettingsOptionPicker
             value={contrastValue}
@@ -280,17 +181,16 @@ export function GeneralSettings({
           />
         </SettingsRow>
 
-        <SettingsRow
-          label="Motion"
-          description="Reduce animation in streaming responses and other interface elements."
-        >
-          <div className={cn(segmentedTrackClass, "shrink-0")}>
+        <SettingsRow label="Motion" description="Reduce animation.">
+          <div className={cn(segmentedTrackClass, "shrink-0")} role="radiogroup" aria-label="Motion">
             {motionOptions.map((option) => {
               const active = motion === option;
               return (
                 <button
                   key={option}
                   type="button"
+                  role="radio"
+                  aria-checked={active}
                   onClick={() => setMotion(option)}
                   className={segmentedOptionClass(active)}
                 >
@@ -300,15 +200,72 @@ export function GeneralSettings({
             })}
           </div>
         </SettingsRow>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Chat"
+        description="Type and follow-ups in conversations."
+      >
+        <SettingsRow label="Chat font">
+          <SettingsOptionPicker
+            value={chatFontValue}
+            options={chatFontOptions}
+            onValueChange={(value) => setChatFont(normalizeChatFontId(value))}
+            aria-label={`Chat font: ${selectedChatFont.label}`}
+          />
+        </SettingsRow>
 
         <SettingsToggleRow
           label="Follow-up suggestions"
-          description="Let Clauxen end replies with clickable follow-up prompts."
+          description="End replies with clickable follow-ups."
           checked={followUpSuggestions}
           onCheckedChange={setFollowUpSuggestions}
           borderless
         />
       </SettingsSection>
-    </div>
+
+      <SettingsSection
+        title="Shortcuts"
+        description="Turn off shortcuts you don't use, or pick new keys."
+        action={
+          <SettingsButton
+            size="sm"
+            disabled={!hasShortcutChanges}
+            onClick={resetToDefaults}
+          >
+            Restore defaults
+          </SettingsButton>
+        }
+      >
+        {shortcuts.map((shortcut, index) => (
+          <SettingsRow
+            key={shortcut.id}
+            label={shortcut.label}
+            borderless={index === shortcuts.length - 1}
+          >
+            <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+              <Switch
+                checked={shortcut.enabled}
+                onCheckedChange={(enabled) =>
+                  updateShortcut(shortcut.id, { enabled })
+                }
+                aria-label={`${shortcut.label}, ${shortcut.enabled ? "on" : "off"}`}
+                className="settings-switch"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  editShortcutKeys(shortcut.id, shortcut.label, shortcut.keys)
+                }
+                className="settings-btn min-w-[72px] font-mono"
+                aria-label={`Change shortcut for ${shortcut.label}`}
+              >
+                {formatShortcutKeys(shortcut.keys)}
+              </button>
+            </div>
+          </SettingsRow>
+        ))}
+      </SettingsSection>
+    </SettingsPage>
   );
 }

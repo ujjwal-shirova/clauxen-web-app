@@ -35,10 +35,12 @@ import { ManagePlanDialog } from "@/components/settings/manage-plan-dialog";
 import { AppContentLoader } from "@/components/app-content-loader";
 import { writeCachedBillingPlan } from "@/lib/billing-plan-cache";
 import {
+  SettingsButton,
   SettingsFieldBlock,
+  SettingsPage,
   SettingsPanelTitle,
-  SettingsPillButton,
-  SettingsSectionHeading,
+  SettingsProgressBar,
+  SettingsSection,
   SettingsStatusBadge,
 } from "@/components/settings/settings-ui";
 import {
@@ -52,6 +54,7 @@ import {
   resolvePlanFeatures,
   type PlanCard,
 } from "@/lib/plans-catalog";
+import * as settingsApi from "@/lib/api/settings-extended";
 
 interface BillingSettingsProps {
   onUpgradeClick?: () => void;
@@ -65,6 +68,19 @@ type InvoiceRow = {
   status: string;
   created_at: string;
 };
+
+const FALLBACK_QUOTA = 512 * 1024 * 1024;
+
+function formatStorage(bytes: number) {
+  if (bytes <= 0) return "0 B";
+  if (bytes >= 1024 ** 3) {
+    const gb = bytes / 1024 ** 3;
+    return gb % 1 === 0 ? `${gb} GB` : `${gb.toFixed(1)} GB`;
+  }
+  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} B`;
+}
 
 function resolvePlanCard(planId: string | null | undefined): PlanCard {
   if (!planId) return PERSONAL_PLANS.find((p) => p.id === "free")!;
@@ -145,6 +161,8 @@ export function BillingSettings({
   const [invoiceView, setInvoiceView] = useState<InvoiceData | null>(null);
   const [addMethodOpen, setAddMethodOpen] = useState(false);
   const [managePlanOpen, setManagePlanOpen] = useState(false);
+  const [usedBytes, setUsedBytes] = useState(0);
+  const [quotaBytes, setQuotaBytes] = useState(FALLBACK_QUOTA);
 
   const planCard = useMemo(() => resolvePlanCard(planId), [planId]);
   const planTitle = formatPlanTitle(planCard, planId);
@@ -184,6 +202,13 @@ export function BillingSettings({
       setPurchasedGifts(gifts.gifts ?? []);
       setAddress(addr.address);
       setPaymentMethods(methods.paymentMethods ?? []);
+      void settingsApi
+        .getStorageSummary()
+        .then(({ storage }) => {
+          setUsedBytes(storage.usedBytes);
+          setQuotaBytes(storage.quotaBytes || FALLBACK_QUOTA);
+        })
+        .catch(() => undefined);
     } catch {
       // keep defaults
     } finally {
@@ -275,28 +300,13 @@ export function BillingSettings({
   }
 
   return (
-    <div className="flex animate-in fade-in flex-col gap-8 duration-300 text-[var(--settings-fg)]">
+    <SettingsPage>
       <SettingsPanelTitle>Billing</SettingsPanelTitle>
 
-      <section className="border-b border-[var(--settings-hairline)] pb-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--settings-icon-bg)]">
-              <Sparkles
-                className="h-4 w-4 text-[var(--settings-fg-muted)]"
-                aria-hidden
-              />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-[18px] font-medium leading-7">{planTitle}</h3>
-              <p className="mt-1 text-[14px] leading-5 text-[var(--settings-fg-muted)]">
-                {cancelAtEnd && periodEnd
-                  ? `Your plan will be canceled on ${formatDate(periodEnd)}`
-                  : planSubtitle}
-              </p>
-            </div>
-          </div>
-          <SettingsPillButton
+      <SettingsSection
+        title="Plan"
+        action={
+          <SettingsButton
             onClick={() => {
               if (showUpgrade) {
                 onUpgradeClick?.();
@@ -305,17 +315,33 @@ export function BillingSettings({
               setManagePlanOpen(true);
             }}
             variant="primary"
-            className="min-w-[140px]"
+            size="sm"
           >
-            {showUpgrade ? "Upgrade plan" : "Manage plan"}
-          </SettingsPillButton>
+            {showUpgrade ? "Upgrade" : "Manage"}
+          </SettingsButton>
+        }
+      >
+        <div className="flex items-start gap-3 px-4 py-4 sm:px-5">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--settings-icon-bg)]">
+            <Sparkles
+              className="h-4 w-4 text-[var(--settings-fg-muted)]"
+              aria-hidden
+            />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-[16px] font-semibold leading-6">{planTitle}</h3>
+            <p className="mt-0.5 text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+              {cancelAtEnd && periodEnd
+                ? `Ends ${formatDate(periodEnd)}`
+                : planSubtitle}
+            </p>
+          </div>
         </div>
-
-        <ul className="mt-5 space-y-2.5 border-t border-[var(--settings-hairline)] pt-5">
+        <ul className="space-y-2 border-t border-[var(--settings-hairline)] px-4 py-4 sm:px-5">
           {planFeatures.map((feature) => (
             <li
               key={feature}
-              className="flex items-start gap-2.5 text-[14px] leading-5 text-[var(--settings-fg-muted)]"
+              className="flex items-start gap-2.5 text-[13px] leading-5 text-[var(--settings-fg-muted)]"
             >
               <Check
                 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg-subtle)]"
@@ -326,53 +352,172 @@ export function BillingSettings({
             </li>
           ))}
         </ul>
-      </section>
+      </SettingsSection>
 
-      <section className="border-b border-[var(--settings-hairline)] pb-7">
-        <SettingsSectionHeading>Billing history</SettingsSectionHeading>
+      <SettingsSection title="Usage" description="Files and images stored.">
+        <div className="px-4 py-4 sm:px-5">
+          <SettingsProgressBar
+            value={usedBytes}
+            max={quotaBytes}
+            label={`${formatStorage(usedBytes)} of ${formatStorage(quotaBytes)} used`}
+          />
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title="Invoices" description="Receipts for charges.">
         {invoices.length === 0 ? (
-          <p className="py-4 text-[14px] text-[var(--settings-fg-subtle)]">
-            We have not sent you an invoice yet.
+          <p className="px-4 py-6 text-center text-[13px] text-[var(--settings-fg-subtle)] sm:px-5">
+            No invoices yet.
           </p>
         ) : (
-          <ul className="mt-2">
+          <ul>
             {invoices.map((inv) => (
               <li
                 key={inv.id}
-                className="grid grid-cols-1 gap-x-4 gap-y-2 border-b border-[var(--settings-hairline)] py-3 text-[14px] last:border-b-0 sm:grid-cols-[minmax(7rem,1fr)_5rem_5rem_auto] sm:items-center sm:py-2"
+                className="flex items-center justify-between gap-3 border-b border-[var(--settings-hairline)] px-4 py-3 text-[13px] last:border-b-0 sm:px-5"
               >
-                <span>{formatDate(inv.created_at) ?? inv.created_at}</span>
-                <div className="flex items-center justify-between gap-3 sm:contents">
-                  <span className="font-variant-numeric tabular-nums text-[var(--settings-fg-subtle)] sm:text-center">
+                <span className="min-w-0 truncate">
+                  {formatDate(inv.created_at) ?? inv.created_at}
+                </span>
+                <span className="flex shrink-0 items-center gap-3">
+                  <span className="font-variant-numeric tabular-nums text-[var(--settings-fg-muted)]">
                     ₹{(inv.amount_paise / 100).toFixed(2)}
                   </span>
-                  <span className="sm:flex sm:justify-center">
-                    <SettingsStatusBadge tone={invoiceStatusTone(inv.status)}>
-                      {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
-                    </SettingsStatusBadge>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void viewInvoice(inv.id)}
-                  className="label-hover-bold justify-self-start text-[14px] font-medium text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)] sm:justify-self-end"
-                >
-                  View
-                </button>
+                  <SettingsStatusBadge tone={invoiceStatusTone(inv.status)}>
+                    {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                  </SettingsStatusBadge>
+                  <button
+                    type="button"
+                    onClick={() => void viewInvoice(inv.id)}
+                    className="font-medium text-[var(--settings-fg-muted)] hover:text-[var(--settings-fg)]"
+                  >
+                    View
+                  </button>
+                </span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </SettingsSection>
 
-      <section className="border-b border-[var(--settings-hairline)] pb-7">
-        <SettingsSectionHeading>Gifts you purchased</SettingsSectionHeading>
-        {purchasedGifts.length === 0 ? (
-          <p className="py-4 text-[14px] text-[var(--settings-fg-subtle)]">
-            You have not purchased any gifts yet.
+      <SettingsSection
+        title="Payment methods"
+        description="Cards and UPI for faster checkout."
+        action={
+          <SettingsButton size="sm" onClick={() => setAddMethodOpen(true)}>
+            Add
+          </SettingsButton>
+        }
+      >
+        {paymentMethods.length === 0 ? (
+          <p className="px-4 py-6 text-center text-[13px] text-[var(--settings-fg-muted)] sm:px-5">
+            No payment methods yet.
           </p>
         ) : (
-          <ul className="mt-2">
+          <ul>
+            {paymentMethods.map((method) => {
+              const iconKey = networkIcon(method.network);
+              const iconSrc =
+                iconKey === "upi"
+                  ? CHECKOUT_UPI_ICON_URL
+                  : CARD_BRAND_ICONS[iconKey].src;
+              const iconAlt =
+                iconKey === "upi" ? "UPI" : CARD_BRAND_ICONS[iconKey].label;
+              return (
+                <li
+                  key={method.id}
+                  className="flex items-center justify-between gap-4 border-b border-[var(--settings-hairline)] px-4 py-3 last:border-b-0 sm:px-5"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <CheckoutPaymentIcon
+                      src={iconSrc}
+                      alt={iconAlt}
+                      className="h-7 w-10 rounded-[5px] border border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] p-0.5"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium text-[var(--settings-fg)]">
+                        {method.brand || iconAlt}
+                      </p>
+                      <p className="truncate text-[13px] text-[var(--settings-fg-subtle)]">
+                        {method.maskedNumber}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {method.isDefault && (
+                      <SettingsStatusBadge tone="info">
+                        Default
+                      </SettingsStatusBadge>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Payment method options"
+                          className="rounded-lg p-1.5 text-[var(--settings-fg-subtle)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="settings-theme min-w-[200px] border-[var(--settings-modal-border)] bg-[var(--settings-elevated-bg)] text-[var(--settings-fg)]"
+                      >
+                        {!method.isDefault && (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              void setDefaultPaymentMethod(method.id).then(() =>
+                                reload(),
+                              )
+                            }
+                          >
+                            Make default
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={openAddressEditor}>
+                          Update billing address
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600"
+                          onClick={() =>
+                            void deletePaymentMethod(method.id).then(() =>
+                              reload(),
+                            )
+                          }
+                        >
+                          Remove
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </SettingsSection>
+
+      <SettingsSection
+        title="Billing details"
+        description="Name and address on invoices."
+        action={
+          <SettingsButton size="sm" onClick={openAddressEditor}>
+            Edit
+          </SettingsButton>
+        }
+      >
+        <div className="px-4 py-2 sm:px-5">
+          <SettingsFieldBlock label="Name" value={billingName} />
+          <SettingsFieldBlock
+            label="Address"
+            value={address?.summary || "Not set."}
+          />
+        </div>
+      </SettingsSection>
+
+      {purchasedGifts.length > 0 ? (
+        <SettingsSection title="Gifts" description="Purchased gift subscriptions.">
+          <ul>
             {purchasedGifts.map((gift) => {
               const monthsLabel =
                 gift.months === 12
@@ -382,7 +527,7 @@ export function BillingSettings({
                     : `${gift.months} months`;
               const statusLabel =
                 gift.status === "purchased"
-                  ? "Ready to claim"
+                  ? "Ready"
                   : gift.status === "redeemed"
                     ? "Claimed"
                     : gift.status.charAt(0).toUpperCase() +
@@ -390,35 +535,22 @@ export function BillingSettings({
               return (
                 <li
                   key={gift.id}
-                  className="border-b border-[var(--settings-hairline)] py-3 last:border-b-0"
+                  className="border-b border-[var(--settings-hairline)] px-4 py-3 last:border-b-0 sm:px-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[14px] font-medium text-[var(--settings-fg)]">
+                      <p className="text-[13px] font-medium text-[var(--settings-fg)]">
                         {monthsLabel} of Clauxen {gift.plan_name}
                       </p>
-                      <p className="mt-0.5 text-[13px] text-[var(--settings-fg-muted)]">
+                      <p className="mt-0.5 text-[12px] text-[var(--settings-fg-muted)]">
                         {formatDate(gift.purchased_at) ?? "Purchased"}
-                        {" · "}
-                        {gift.delivery_method === "email"
-                          ? gift.recipient_email
-                            ? `Emailed to ${gift.recipient_email}`
-                            : "Sent by email"
-                          : "Shareable link"}
                         {" · "}₹{(gift.amount_paise / 100).toFixed(2)}
-                      </p>
-                      <p className="mt-0.5 text-[12px] text-[var(--settings-fg-subtle)]">
-                        Code {gift.code_prefix}…{gift.code_last4}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <SettingsStatusBadge
                         tone={
-                          gift.status === "purchased"
-                            ? "info"
-                            : gift.status === "redeemed"
-                              ? "success"
-                              : "info"
+                          gift.status === "redeemed" ? "success" : "info"
                         }
                       >
                         {statusLabel}
@@ -461,135 +593,8 @@ export function BillingSettings({
               );
             })}
           </ul>
-        )}
-      </section>
-
-      <section className="border-b border-[var(--settings-hairline)] pb-7">
-        <SettingsSectionHeading
-          action={
-            <SettingsPillButton onClick={openAddressEditor}>
-              Edit
-            </SettingsPillButton>
-          }
-        >
-          Billing information
-        </SettingsSectionHeading>
-        <div className="mt-2">
-          <SettingsFieldBlock label="Name" value={billingName} />
-          <SettingsFieldBlock
-            label="Address"
-            value={
-              address?.summary ||
-              "Add a billing address to use on invoices and checkout."
-            }
-          />
-        </div>
-      </section>
-
-      <section>
-        <SettingsSectionHeading
-          action={
-            <SettingsPillButton onClick={() => setAddMethodOpen(true)}>
-              Add payment method
-            </SettingsPillButton>
-          }
-        >
-          Payment methods
-        </SettingsSectionHeading>
-
-        {paymentMethods.length === 0 ? (
-          <p className="mt-2 py-3 text-[14px] text-[var(--settings-fg-muted)]">
-            No payment methods yet. Add a card or UPI to check out faster next
-            time.
-          </p>
-        ) : (
-          <ul className="mt-2">
-            {paymentMethods.map((method) => {
-              const iconKey = networkIcon(method.network);
-              const iconSrc =
-                iconKey === "upi"
-                  ? CHECKOUT_UPI_ICON_URL
-                  : CARD_BRAND_ICONS[iconKey].src;
-              const iconAlt =
-                iconKey === "upi" ? "UPI" : CARD_BRAND_ICONS[iconKey].label;
-              return (
-                <li
-                  key={method.id}
-                  className="flex items-center justify-between gap-4 border-b border-[var(--settings-hairline)] py-3"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <CheckoutPaymentIcon
-                      src={iconSrc}
-                      alt={iconAlt}
-                      className="h-7 w-10 rounded-[5px] border border-[var(--settings-input-border)] bg-[var(--settings-elevated-bg)] p-0.5"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-[14px] text-[var(--settings-fg)]">
-                        {method.brand || iconAlt}
-                      </p>
-                      <p className="truncate text-[14px] text-[var(--settings-fg-subtle)]">
-                        {method.maskedNumber}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {method.isDefault && (
-                      <SettingsStatusBadge tone="info">
-                        Default
-                      </SettingsStatusBadge>
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label="Payment method options"
-                          className="rounded p-1 text-[var(--settings-fg-subtle)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
-                        >
-                          <MoreHorizontal className="h-5 w-5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="settings-theme min-w-[200px] border-[var(--settings-modal-border)] bg-[var(--settings-elevated-bg)] text-[var(--settings-fg)]"
-                      >
-                        {!method.isDefault && (
-                          <DropdownMenuItem
-                            onClick={() =>
-                              void setDefaultPaymentMethod(method.id).then(() =>
-                                reload(),
-                              )
-                            }
-                          >
-                            Make default
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={openAddressEditor}>
-                          Update billing address
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600 focus:text-red-600"
-                          onClick={() =>
-                            void deletePaymentMethod(method.id).then(() =>
-                              reload(),
-                            )
-                          }
-                        >
-                          Remove payment method
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {!auth.isAuthenticated && (
-          <p className="mt-3 text-[12px] text-[var(--settings-fg-subtle)]">
-            Sign in to manage billing and payment methods.
-          </p>
-        )}
-      </section>
+        </SettingsSection>
+      ) : null}
 
       <AddPaymentMethodDialog
         open={addMethodOpen}
@@ -617,19 +622,21 @@ export function BillingSettings({
                 onChange={setAddressForm}
               />
               {addressError && (
-                <p className="mt-3 text-[13px] text-red-600">{addressError}</p>
+                <p className="mt-3 text-[13px] text-[var(--settings-danger)]">
+                  {addressError}
+                </p>
               )}
               <div className="mt-5 flex justify-end gap-2">
-                <SettingsPillButton onClick={() => setEditingAddress(false)}>
+                <SettingsButton onClick={() => setEditingAddress(false)}>
                   Cancel
-                </SettingsPillButton>
-                <SettingsPillButton
+                </SettingsButton>
+                <SettingsButton
                   variant="primary"
                   disabled={savingAddress}
                   onClick={() => void saveAddress()}
                 >
                   {savingAddress ? "Saving…" : "Save"}
-                </SettingsPillButton>
+                </SettingsButton>
               </div>
             </div>
           </div>
@@ -672,6 +679,6 @@ export function BillingSettings({
         }}
         onUpgradeClick={onUpgradeClick}
       />
-    </div>
+    </SettingsPage>
   );
 }

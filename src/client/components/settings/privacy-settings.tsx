@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import {
+  SettingsButton,
+  SettingsPage,
   SettingsPanelTitle,
-  SettingsPillButton,
   SettingsRow,
   SettingsSection,
   SettingsToggleRow,
@@ -17,17 +18,21 @@ export type PrivacySettingsState = {
   helpImproveModels: boolean;
 };
 
-interface PrivacySettingsProps {
+interface PrivacySafetySettingsProps {
   privacy: PrivacySettingsState;
-  onChange: (patch: Partial<PrivacySettingsState>) => void;
+  onPrivacyChange: (patch: Partial<PrivacySettingsState>) => void;
+  reduceSensitiveContent: boolean;
+  onSafetyChange: (reduceSensitiveContent: boolean) => void;
   onGoToPersonalization?: () => void;
 }
 
-export function PrivacySettings({
+export function PrivacySafetySettings({
   privacy,
-  onChange,
+  onPrivacyChange,
+  reduceSensitiveContent,
+  onSafetyChange,
   onGoToPersonalization,
-}: PrivacySettingsProps) {
+}: PrivacySafetySettingsProps) {
   const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,130 +52,130 @@ export function PrivacySettings({
   };
 
   return (
-    <div className="flex animate-in fade-in flex-col duration-300 text-[var(--settings-fg)]">
-      <SettingsPanelTitle>Privacy</SettingsPanelTitle>
+    <SettingsPage>
+      <SettingsPanelTitle>Privacy and safety</SettingsPanelTitle>
 
-      <section className="settings-card mb-7 p-5">
-        <p className="max-w-xl text-[14px] leading-relaxed text-[var(--settings-fg-muted)]">
-          Learn how your information is protected when using Clauxen products,
-          and visit our{" "}
-          <a
-            href="/legal/privacy"
-            className="font-medium text-[var(--settings-fg)] underline underline-offset-2"
-          >
-            Privacy Center
-          </a>{" "}
-          and{" "}
-          <a
-            href="/legal/privacy"
-            className="font-medium text-[var(--settings-fg)] underline underline-offset-2"
-          >
-            Privacy Policy
-          </a>
-          .
-        </p>
-        <div className="mt-4 flex flex-col border-t border-[var(--settings-hairline)]">
+      <SettingsSection
+        title="How your data is used"
+        description="Learn how information is protected, and what helps improve Clauxen."
+      >
+        <div className="flex flex-col border-b border-[var(--settings-hairline)] px-4 py-2 sm:px-5">
           {["How we protect your data", "How we use your data"].map((label) => (
-            <button
+            <a
               key={label}
-              type="button"
-              className="flex h-11 items-center justify-between border-b border-[var(--settings-hairline)] text-left text-[14px] text-[var(--settings-fg)] transition-colors last:border-b-0 hover:bg-[var(--settings-nav-hover-bg)]"
+              href="/legal/privacy"
+              className="flex h-11 items-center justify-between text-left text-[14px] text-[var(--settings-fg)]"
             >
               <span>{label}</span>
               <ChevronRight
                 className="h-4 w-4 text-[var(--settings-fg-subtle)]"
                 aria-hidden
               />
-            </button>
+            </a>
           ))}
         </div>
-      </section>
-
-      <SettingsSection title="Preferences">
         <SettingsToggleRow
           label="Location metadata"
-          description={
-            <>
-              Allow Clauxen to use coarse location metadata (city/region) to
-              improve product experiences.{" "}
-              <a
-                href="/legal/privacy"
-                className="font-medium text-[var(--settings-fg)] underline underline-offset-2"
-              >
-                Learn more
-              </a>
-              .
-            </>
-          }
+          description="Use coarse location (city or region) to improve answers."
           checked={privacy.locationMetadata}
-          onCheckedChange={(locationMetadata) => onChange({ locationMetadata })}
+          onCheckedChange={(locationMetadata) =>
+            onPrivacyChange({ locationMetadata })
+          }
         />
         <SettingsToggleRow
-          label="Help improve our AI models"
-          description={
-            <>
-              Allow the use of your chats and coding sessions to train and
-              improve Clauxen.{" "}
-              <a
-                href="/legal/privacy"
-                className="font-medium text-[var(--settings-fg)] underline underline-offset-2"
-              >
-                Learn more
-              </a>
-              .
-            </>
-          }
+          label="Help improve models"
+          description="Allow chats and coding sessions to be used for training."
           checked={privacy.helpImproveModels}
           onCheckedChange={(helpImproveModels) =>
-            onChange({ helpImproveModels })
+            onPrivacyChange({ helpImproveModels })
           }
         />
         <SettingsRow
-          label="Cookie settings"
-          description="Choose optional performance and advertising cookies. Essential cookies stay on."
+          label="Cookies"
+          description="Essential cookies stay on. Choose the optional ones."
           borderless
         >
-          <SettingsPillButton onClick={() => openCookieSettings()}>
+          <SettingsButton onClick={() => openCookieSettings()}>
             Manage
-          </SettingsPillButton>
+          </SettingsButton>
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection title="Your data">
-        <SettingsRow label="Export data">
-          <SettingsPillButton onClick={() => void handleExport()}>
-            {exporting ? "Requesting…" : "Export data"}
-          </SettingsPillButton>
+      <SettingsSection
+        title="Your data"
+        description="Export, archive, or review what you have shared."
+      >
+        <SettingsRow label="Export data" borderless={false}>
+          <SettingsButton onClick={() => void handleExport()}>
+            {exporting ? "Requesting…" : "Export"}
+          </SettingsButton>
         </SettingsRow>
         <SettingsRow label="Archive all chats">
-          <SettingsPillButton
+          <SettingsButton
             onClick={() =>
               window.confirm("Archive all chats? You can still export later.")
             }
           >
             Archive all
-          </SettingsPillButton>
+          </SettingsButton>
         </SettingsRow>
         <SettingsRow label="Shared chats">
-          <SettingsPillButton>Manage</SettingsPillButton>
+          <SettingsButton>Manage</SettingsButton>
         </SettingsRow>
         <SettingsRow label="Shared artifacts">
-          <SettingsPillButton>Manage</SettingsPillButton>
+          <SettingsButton>Manage</SettingsButton>
         </SettingsRow>
-        <SettingsRow label="Memory preferences" borderless>
-          <SettingsPillButton onClick={onGoToPersonalization}>
+        <SettingsRow label="Memory" description="Review saved memories.">
+          <SettingsButton onClick={onGoToPersonalization}>
             Manage
-            <ExternalLink className="ml-1.5 h-3.5 w-3.5" aria-hidden />
-          </SettingsPillButton>
+          </SettingsButton>
         </SettingsRow>
-        {(message || error) && (
+        {message || error ? (
           <p
-            className={`border-t border-[var(--settings-hairline)] px-[var(--settings-row-pad-x)] py-3 text-[13px] ${error ? "text-rose-600" : "text-[var(--settings-fg-muted)]"}`}
+            className={
+              error
+                ? "border-t border-[var(--settings-hairline)] px-4 py-3 text-[13px] text-[var(--settings-danger)] sm:px-5"
+                : "border-t border-[var(--settings-hairline)] px-4 py-3 text-[13px] text-[var(--settings-fg-muted)] sm:px-5"
+            }
           >
             {error ?? message}
           </p>
-        )}
+        ) : null}
       </SettingsSection>
-    </div>
+
+      <SettingsSection
+        title="Content safety"
+        description="Reduce graphic or highly sensitive material when possible."
+      >
+        <SettingsToggleRow
+          label="Reduce sensitive content"
+          checked={reduceSensitiveContent}
+          onCheckedChange={onSafetyChange}
+          borderless
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title="Family"
+        description="Safeguards for teens, and a contact for serious safety concerns."
+      >
+        <SettingsRow
+          label="Parental controls"
+          description="Link accounts to set limits and age-appropriate access."
+        >
+          <SettingsButton>Add member</SettingsButton>
+        </SettingsRow>
+        <SettingsRow
+          label="Trusted contact"
+          description="Someone 18+ we can notify if you may be at risk."
+          borderless
+        >
+          <SettingsButton>Add contact</SettingsButton>
+        </SettingsRow>
+      </SettingsSection>
+    </SettingsPage>
   );
 }
+
+/** @deprecated Use PrivacySafetySettings. */
+export const PrivacySettings = PrivacySafetySettings;

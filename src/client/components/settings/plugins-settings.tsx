@@ -18,10 +18,12 @@ import type {
 } from "@/lib/api/settings";
 import { cn } from "@/lib/utils";
 import {
+  SettingsButton,
   SettingsChevronRow,
+  SettingsEmpty,
   SettingsPanelTitle,
-  SettingsPillButton,
   SettingsSection,
+  SettingsTable,
   SettingsToggleRow,
 } from "@/components/settings/settings-ui";
 import {
@@ -50,19 +52,19 @@ function CatalogHeader({
   addLabel = "Add",
 }: PluginsOrConnectorsHeaderProps) {
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
+    <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
       <div className="flex items-center gap-2">
         <button
           type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)]"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--settings-fg-muted)] hover:bg-[var(--settings-nav-hover-bg)] hover:text-[var(--settings-fg)]"
           aria-label={`Search ${title.toLowerCase()}`}
         >
           <Search className="h-4 w-4" />
         </button>
-        <SettingsPillButton onClick={onAdd}>
+        <SettingsButton size="sm" onClick={onAdd}>
           {addLabel}
           <ChevronDown className="ml-1 h-3.5 w-3.5" />
-        </SettingsPillButton>
+        </SettingsButton>
       </div>
     </div>
   );
@@ -125,12 +127,13 @@ export function ConnectorsCatalogSettings({
         addLabel="Add"
       />
 
-      <div className="mb-4 flex gap-1 rounded-[10px] bg-[var(--settings-icon-bg)]/80 p-0.5 w-fit">
+      <div className="mb-4 flex w-fit gap-1 rounded-[10px] bg-[var(--settings-icon-bg)]/80 p-0.5">
         {FILTERS.map((item) => (
           <button
             key={item}
             type="button"
             onClick={() => setFilter(item)}
+            aria-pressed={filter === item}
             className={cn(
               "rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
               filter === item
@@ -143,45 +146,54 @@ export function ConnectorsCatalogSettings({
         ))}
       </div>
 
-      <div className="settings-card overflow-x-auto">
-        <table className="w-full text-left text-[13px]">
-          <thead className="bg-[var(--settings-sidebar-bg)] text-[var(--settings-fg-muted)]">
-            <tr>
-              <th className="px-4 py-2.5 font-medium">Connector</th>
-              <th className="px-4 py-2.5 font-medium">Type</th>
-              <th className="px-4 py-2.5 font-medium">Status</th>
+      <SettingsTable
+        head={
+          <tr>
+            <th className="px-4 py-2.5 font-medium">Connector</th>
+            <th className="px-4 py-2.5 font-medium">Type</th>
+            <th className="px-4 py-2.5 text-right font-medium">Status</th>
+          </tr>
+        }
+      >
+        {visibleConnectors.length === 0 ? (
+          <tr>
+            <td
+              colSpan={3}
+              className="px-4 py-10 text-center text-[var(--settings-fg-muted)]"
+            >
+              No connectors match this filter.
+            </td>
+          </tr>
+        ) : (
+          visibleConnectors.map((row) => (
+            <tr
+              key={row.name}
+              className="border-t border-[var(--settings-hairline)]"
+            >
+              <td className="px-4 py-3 font-medium text-[var(--settings-fg)]">
+                {row.name}
+              </td>
+              <td className="px-4 py-3 text-[var(--settings-fg-muted)]">
+                {row.type}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <SettingsButton
+                  size="sm"
+                  onClick={() => void toggleConnector(row.id)}
+                >
+                  {pendingConnector === row.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : connected.has(row.id) ? (
+                    "Connected"
+                  ) : (
+                    "Connect"
+                  )}
+                </SettingsButton>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {visibleConnectors.map((row) => (
-              <tr
-                key={row.name}
-                className="border-t border-[var(--settings-hairline)]"
-              >
-                <td className="px-4 py-3 font-medium text-[var(--settings-fg)]">
-                  {row.name}
-                </td>
-                <td className="px-4 py-3 text-[var(--settings-fg-muted)]">
-                  {row.type}
-                </td>
-                <td className="px-4 py-3">
-                  <SettingsPillButton
-                    onClick={() => void toggleConnector(row.id)}
-                  >
-                    {pendingConnector === row.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : connected.has(row.id) ? (
-                      "Connected"
-                    ) : (
-                      "Connect"
-                    )}
-                  </SettingsPillButton>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))
+        )}
+      </SettingsTable>
     </div>
   );
 }
@@ -230,7 +242,6 @@ function PluginMark({
     <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[var(--settings-hairline)] bg-[var(--settings-elevated-bg)] text-[12px] font-semibold text-[var(--settings-fg)]">
       {logoUrl && !failed ? (
         // External plugin artwork — fall back to an initial if the image fails.
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={logoUrl}
           alt=""
@@ -412,8 +423,9 @@ export function PluginsSettings({
             <span className="text-[14px] font-medium leading-5 text-[var(--settings-fg)]">
               Remove plugin
             </span>
-            <SettingsPillButton
+            <SettingsButton
               variant="danger"
+              size="sm"
               disabled={removing}
               onClick={() => {
                 void installations.remove(pluginId).then((removed) => {
@@ -426,7 +438,7 @@ export function PluginsSettings({
               ) : (
                 "Remove"
               )}
-            </SettingsPillButton>
+            </SettingsButton>
           </div>
         </SettingsSection>
         {installations.error ? (

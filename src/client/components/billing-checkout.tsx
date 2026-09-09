@@ -132,7 +132,7 @@ function SeatStepper({
   onIncrement: () => void;
 }) {
   return (
-    <div className="flex h-8 items-center rounded-[var(--radius-sm)] bg-[var(--settings-icon-bg)] p-0.5 max-lg:h-10">
+    <div className="flex h-9 items-center rounded-xl border border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] p-0.5 max-lg:h-10">
       <button
         type="button"
         disabled={!canDecrement}
@@ -144,7 +144,7 @@ function SeatStepper({
       </button>
       <span
         className={cn(
-          "min-w-[48px] px-1 text-center text-[12px] font-medium leading-[18px]",
+          "min-w-[48px] px-1 text-center text-[13px] font-semibold leading-[18px] tabular-nums",
           count === 0 ? "text-[var(--settings-fg-muted)]" : "text-[var(--settings-fg)]",
         )}
       >
@@ -185,10 +185,10 @@ function ChoiceCard({
       disabled={disabled}
       aria-pressed={selected}
       className={cn(
-        "no-hover-overlay flex cursor-pointer flex-col items-start rounded-[var(--settings-card-radius)] px-3.5 py-3 text-left text-[13px] leading-[18px] shadow-[var(--settings-card-shadow)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25 max-lg:min-h-[4.5rem]",
+        "no-hover-overlay flex cursor-pointer flex-col items-start rounded-2xl border px-3.5 py-3 text-left text-[13px] leading-[18px] transition-[border-color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] max-lg:min-h-[4.5rem]",
         selected
-          ? "bg-[var(--settings-card-bg)] ring-1 ring-[var(--settings-fg)]"
-          : "bg-[var(--settings-card-bg)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,var(--settings-fg))]",
+          ? "border-[hsl(var(--brand))] bg-[var(--brand-soft)] shadow-[0_0_0_1px_hsl(var(--brand))]"
+          : "border-[var(--settings-input-border)] bg-[var(--settings-card-bg)] hover:border-[var(--settings-input-focus)]",
         disabled && "cursor-not-allowed opacity-50",
       )}
     >
@@ -197,24 +197,24 @@ function ChoiceCard({
           className={cn(
             "flex h-5 w-5 items-center justify-center rounded-full border-2",
             selected
-              ? "border-[var(--settings-fg)]"
+              ? "border-[hsl(var(--brand))]"
               : "border-[var(--settings-input-border)]",
           )}
         >
           {selected && (
-            <div className="h-2 w-2 rounded-full bg-[var(--settings-fg)]" />
+            <div className="h-2 w-2 rounded-full bg-[hsl(var(--brand))]" />
           )}
         </div>
         {badge ? (
-          <span className="rounded-[6px] bg-[var(--settings-icon-bg)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
+          <span className="rounded-md bg-[var(--settings-icon-bg)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[var(--settings-fg-muted)]">
             {badge}
           </span>
         ) : null}
       </div>
-      <span className="max-w-[75%] text-left font-medium text-[var(--settings-fg)]">
+      <span className="text-left text-[13px] font-semibold text-[var(--settings-fg)]">
         {title}
       </span>
-      <span className="app-page-muted mt-1 text-left">{subtitle}</span>
+      <span className="mt-1 text-left text-[12px] leading-4 text-[var(--settings-fg-muted)]">{subtitle}</span>
     </button>
   );
 }
@@ -1552,8 +1552,8 @@ export function BillingCheckout({
         })}
       </div>
       {!seatsValid && (
-        <p className="mt-3 text-[11px] text-red-600">
-          Select at least {minSeats} seats across tiers (max {maxSeats}).
+        <p className="mt-3 text-[12px] text-[var(--settings-danger)]">
+          Select at least {minSeats} seats (max {maxSeats}).
         </p>
       )}
     </div>
@@ -1764,13 +1764,11 @@ export function BillingCheckout({
           {/* Left column — plan summary */}
           <aside className="w-full shrink-0 self-start lg:sticky lg:top-6 lg:w-[400px]">
             <div className="mb-5 hidden px-1 lg:block">
-              <div className="mb-2 inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--settings-fg-muted)]">
-                <ShieldCheck className="h-4 w-4" aria-hidden />
-                Secure checkout
-              </div>
-              <h1 className="app-page-title">Complete your purchase</h1>
-              <p className="app-page-subtitle mt-1.5">
-                Review your plan, then choose a payment method.
+              <h1 className="text-[22px] font-semibold leading-7 tracking-[-0.025em] text-[var(--settings-fg)]">
+                Checkout
+              </h1>
+              <p className="mt-1 text-[13px] leading-5 text-[var(--settings-fg-muted)]">
+                Review your plan, then pay.
               </p>
             </div>
 
@@ -1778,11 +1776,11 @@ export function BillingCheckout({
               <button
                 type="button"
                 onClick={() => setOrderSummaryOpen((open) => !open)}
-                className="flex w-full items-center justify-between gap-3 rounded-[var(--settings-card-radius)] border border-[var(--settings-hairline)] bg-[var(--settings-card-bg)] px-3.5 py-3 text-left lg:hidden"
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--settings-hairline)] bg-[var(--settings-card-bg)] px-3.5 py-3 text-left lg:hidden"
                 aria-expanded={orderSummaryOpen}
               >
                 <div className="min-w-0">
-                  <p className="truncate text-[14px] font-medium text-[var(--settings-fg)]">
+                  <p className="truncate text-[14px] font-semibold text-[var(--settings-fg)]">
                     {details.name}
                   </p>
                   <p className="truncate text-[12px] text-[var(--settings-fg-muted)]">
@@ -1790,28 +1788,25 @@ export function BillingCheckout({
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-[14px] font-medium">
+                  <span className="text-[14px] font-semibold tabular-nums">
                     {isVariableCheckoutPlan ? "Quote" : formatInr(total)}
                   </span>
                   <ChevronDown
                     className={cn(
-                      "size-4 text-zinc-500 transition-transform",
+                      "size-4 text-[var(--settings-fg-muted)] transition-transform",
                       orderSummaryOpen && "rotate-180",
                     )}
                   />
                 </div>
               </button>
 
-              <div className="hidden rounded-[var(--settings-card-radius)] border border-[var(--settings-hairline)] bg-[color-mix(in_oklab,var(--settings-card-bg)_94%,var(--settings-fg))] px-4 py-3.5 shadow-[var(--settings-card-shadow)] lg:block">
-                <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--settings-fg-muted)]">
-                  Selected plan
-                </p>
-                <div className="mt-1 flex items-baseline justify-between gap-3">
-                  <span className="text-[18px] font-semibold tracking-[-0.02em] text-[var(--settings-fg)]">
+              <div className="settings-card hidden px-4 py-3.5 lg:block">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[17px] font-semibold tracking-[-0.02em] text-[var(--settings-fg)]">
                     {details.name}
                   </span>
                   {!isVariableCheckoutPlan && (
-                    <span className="text-[13px] font-medium text-[var(--settings-fg-muted)]">
+                    <span className="shrink-0 text-[13px] font-medium text-[var(--settings-fg-muted)]">
                       {cycleDetailLabel}
                     </span>
                   )}
@@ -1825,28 +1820,28 @@ export function BillingCheckout({
 
               <div
                 className={cn(
-                  "settings-card flex flex-col gap-3 px-4 py-3.5",
+                  "settings-card flex flex-col gap-3 px-4 py-4",
                   !orderSummaryOpen && "max-lg:hidden",
                 )}
               >
-                <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-[var(--settings-fg-muted)]">
-                  Order details
+                <div className="text-[13px] font-semibold leading-5 text-[var(--settings-fg)]">
+                  Order
                 </div>
 
                 {orderLineItems.map((item) => (
                   <div
                     key={item.key}
-                    className="flex items-center justify-between text-[13px] leading-[18px]"
+                    className="flex items-center justify-between gap-3 text-[13px] leading-[18px]"
                   >
-                    <div className="flex flex-col">
-                      <span className="font-medium text-[var(--settings-fg)]">{item.label}</span>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate font-medium text-[var(--settings-fg)]">{item.label}</span>
                       <span className="text-[var(--settings-fg-muted)]">{item.sublabel}</span>
                     </div>
-                    <span className="font-medium text-[var(--settings-fg)]">
+                    <span className="shrink-0 font-medium tabular-nums text-[var(--settings-fg)]">
                       {isVariableCheckoutPlan
                         ? isUsageCodePlan
-                          ? "Usage pricing"
-                          : "Custom quote"
+                          ? "Usage"
+                          : "Quote"
                         : formatInr(item.amount)}
                     </span>
                   </div>
@@ -1855,32 +1850,32 @@ export function BillingCheckout({
                 <div className="h-px w-full bg-[var(--settings-hairline)]" />
 
                 <div className="flex items-center justify-between text-[13px] font-medium leading-[18px]">
-                  <span>Subtotal</span>
-                  <span>
+                  <span className="text-[var(--settings-fg-muted)]">Subtotal</span>
+                  <span className="tabular-nums">
                     {isVariableCheckoutPlan
                       ? isUsageCodePlan
-                        ? "Usage pricing"
-                        : "Custom quote"
+                        ? "Usage"
+                        : "Quote"
                       : formatInr(subtotal)}
                   </span>
                 </div>
                 {taxResult.showTaxRow && (
                   <div className="flex items-center justify-between text-[13px] font-medium leading-[18px]">
-                    <span>{taxResult.taxLabel ?? "Tax"}</span>
-                    <span>
+                    <span className="text-[var(--settings-fg-muted)]">{taxResult.taxLabel ?? "Tax"}</span>
+                    <span className="tabular-nums">
                       {taxResult.isGstExempt ? formatInr(0) : formatInr(tax)}
                     </span>
                   </div>
                 )}
                 {taxResult.taxNote && (
-                  <p className="settings-muted text-[12px]">
+                  <p className="text-[12px] leading-4 text-[var(--settings-fg-muted)]">
                     {taxResult.taxNote}
                   </p>
                 )}
                 <div className="h-px w-full bg-[var(--settings-hairline)]" />
-                <div className="flex items-center justify-between text-[13px] font-medium leading-[18px] text-[var(--settings-fg)]">
-                  <span>Total due today</span>
-                  <span>
+                <div className="flex items-center justify-between text-[14px] font-semibold leading-5 text-[var(--settings-fg)]">
+                  <span>Total today</span>
+                  <span className="tabular-nums">
                     {isVariableCheckoutPlan ? formatInr(0) : formatInr(total)}
                   </span>
                 </div>
@@ -1893,7 +1888,7 @@ export function BillingCheckout({
                 )}
               >
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--settings-fg-muted)]" />
-                <p className="settings-muted">
+                <p className="text-[13px] leading-5 text-[var(--settings-fg-muted)]">
                   {isGiftCheckout ? (
                     <>
                       Gift subscription for{" "}
@@ -1943,15 +1938,15 @@ export function BillingCheckout({
           </aside>
 
           {/* Right column — checkout form */}
-          <div className="app-page-card box-border min-w-0 w-full flex-1 rounded-[var(--radius-md)] px-3 py-4 shadow-none sm:px-6 sm:py-6 sm:shadow-[0_10px_32px_-24px_rgba(24,24,27,0.38)]">
-            <div className="mb-4 hidden items-start justify-between gap-4 border-b border-[var(--settings-hairline)] pb-4 lg:flex">
+          <div className="settings-card box-border min-w-0 w-full flex-1 px-4 py-5 sm:px-6">
+            <div className="mb-5 hidden items-start justify-between gap-4 border-b border-[var(--settings-hairline)] pb-4 lg:flex">
               <div>
-                <h2 className="app-page-section-title">Payment details</h2>
-                <p className="app-page-muted mt-1">Your payment information is encrypted and secure.</p>
+                <h2 className="text-[15px] font-semibold leading-5 text-[var(--settings-fg)]">Payment</h2>
+                <p className="mt-1 text-[13px] leading-5 text-[var(--settings-fg-muted)]">Encrypted and secure.</p>
               </div>
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--settings-fg-muted)]" aria-hidden />
             </div>
-            <h2 className="mb-3 text-[14px] font-medium text-[var(--settings-fg)] lg:hidden">
+            <h2 className="mb-4 text-[14px] font-semibold text-[var(--settings-fg)] lg:hidden">
               Payment
             </h2>
             {payError && <CheckoutErrorBanner message={payError} />}

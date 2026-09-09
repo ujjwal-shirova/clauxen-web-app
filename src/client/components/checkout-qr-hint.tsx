@@ -93,7 +93,7 @@ export function CheckoutQrHint() {
         />
       </svg>
       <span>
-        You will be shown a QR code to scan with your preferred payment app.
+        After you continue, scan the QR code with any UPI app to pay.
       </span>
     </p>
   );
