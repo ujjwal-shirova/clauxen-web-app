@@ -13,7 +13,7 @@ export function segmentedOptionClass(
     "segmented-option no-hover-overlay font-medium transition-colors",
     size === "icon"
       ? "inline-flex h-7 w-8 items-center justify-center rounded-full"
-      : "h-7 rounded-full px-2.5 text-[13px] leading-[18px]",
+      : "h-7 rounded-full px-2.5 text-[14px] leading-[20px]",
   );
   return cn(
     base,

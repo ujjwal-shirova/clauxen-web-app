@@ -282,7 +282,7 @@ export function AvatarCropDialog({
               value={zoom}
               disabled={busy}
               onChange={(event) => applyZoom(Number(event.target.value))}
-              className="h-1.5 w-full cursor-pointer accent-[var(--settings-fg)]"
+              className="h-1.5 w-full cursor-pointer accent-[hsl(var(--brand))]"
             />
           </label>
         </div>

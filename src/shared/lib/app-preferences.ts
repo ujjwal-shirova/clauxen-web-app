@@ -7,13 +7,18 @@ export const APPEARANCE_STORAGE_KEY = "clauxen.appearance";
 export const CHAT_FONT_STORAGE_KEY = "clauxen.chatFont";
 export const MOTION_STORAGE_KEY = "clauxen.motion";
 export const FOLLOW_UP_STORAGE_KEY = "clauxen.followUpSuggestions";
+export const ACCENT_STORAGE_KEY = "clauxen.accent";
+export const CONTRAST_STORAGE_KEY = "clauxen.contrast";
 
 export type AppearancePreset = "System" | "Light" | "Dark";
 export type MotionPreset = "System" | "Reduced";
+export type AccentId = "Blue" | "Forest" | "Amber" | "Rose";
+export type ContrastMode = "System" | "Default" | "Increased";
 
 export type ChatFontId =
   | "Default"
   | "Sans"
+  | "Clauxen Serif"
   | "Lora"
   | "Source Serif"
   | "Literata"
@@ -43,7 +48,13 @@ export type ChatFontOption = {
 export const CHAT_FONT_OPTIONS: readonly ChatFontOption[] = [
   {
     id: "Default",
-    label: "Clauxen",
+    label: "Default",
+    cssVar: "--font-inter",
+    stack: "system-ui, sans-serif",
+  },
+  {
+    id: "Clauxen Serif",
+    label: "Clauxen Serif",
     cssVar: "--font-playfair",
     stack: "Georgia, 'Times New Roman', serif",
   },
@@ -145,7 +156,9 @@ const CHAT_FONT_IDS = new Set(
 /** Normalize legacy / display labels to stored chat font ids. */
 export function normalizeChatFontId(value: string | null | undefined): ChatFontId {
   const raw = (value ?? "Default").trim();
-  if (raw === "Clauxen Serif" || raw === "Clauxen" || raw === "Default") {
+  // Legacy "Clauxen" label predates the Inter default — it now resolves to
+  // Default (Inter). "Clauxen Serif" remains a standalone Playfair option.
+  if (raw === "Clauxen" || raw === "Default") {
     return "Default";
   }
   if (raw === "Dyslexic friendly") return "Atkinson Hyperlegible";
@@ -189,6 +202,24 @@ export function normalizeMotionPreset(
   return value === "Reduced" ? "Reduced" : "System";
 }
 
+const ACCENT_IDS: readonly AccentId[] = ["Blue", "Forest", "Amber", "Rose"];
+
+/** Normalize the stored accentColor preference to a supported swatch. */
+export function normalizeAccentId(value: string | null | undefined): AccentId {
+  const raw = (value ?? "Blue").trim();
+  return (ACCENT_IDS as readonly string[]).includes(raw)
+    ? (raw as AccentId)
+    : "Blue";
+}
+
+/** Normalize the stored contrastMode preference. */
+export function normalizeContrastMode(
+  value: string | null | undefined,
+): ContrastMode {
+  if (value === "Default" || value === "Increased") return value;
+  return "System";
+}
+
 function osPrefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
   try {
@@ -205,11 +236,13 @@ export function shouldReduceMotion(motion: string | null | undefined): boolean {
   return osPrefersReducedMotion();
 }
 
-/** Apply non-theme document attrs (font + motion). Theme is owned by next-themes. */
+/** Apply non-theme document attrs (font + motion + accent + contrast). Theme is owned by next-themes. */
 export function applyDocumentPreferenceAttrs(input: {
   chatFont?: string | null;
   motion?: string | null;
   followUpSuggestions?: boolean | null;
+  accentColor?: string | null;
+  contrastMode?: string | null;
 }) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
@@ -250,6 +283,26 @@ export function applyDocumentPreferenceAttrs(input: {
       /* ignore */
     }
   }
+
+  if (input.accentColor != null) {
+    const accent = normalizeAccentId(input.accentColor);
+    root.setAttribute("data-accent", accent);
+    try {
+      localStorage.setItem(ACCENT_STORAGE_KEY, accent);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (input.contrastMode != null) {
+    const contrast = normalizeContrastMode(input.contrastMode);
+    root.setAttribute("data-contrast", contrast);
+    try {
+      localStorage.setItem(CONTRAST_STORAGE_KEY, contrast);
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export function persistAppearanceLocal(preset: string) {
@@ -266,6 +319,8 @@ export function readLocalGeneralPrefs(): {
   chatFont: ChatFontId;
   motion: MotionPreset;
   followUpSuggestions: boolean;
+  accentColor: AccentId;
+  contrastMode: ContrastMode;
 } {
   if (typeof window === "undefined") {
     return {
@@ -273,6 +328,8 @@ export function readLocalGeneralPrefs(): {
       chatFont: "Default",
       motion: "System",
       followUpSuggestions: true,
+      accentColor: "Blue",
+      contrastMode: "System",
     };
   }
   try {
@@ -293,6 +350,10 @@ export function readLocalGeneralPrefs(): {
       chatFont: normalizeChatFontId(localStorage.getItem(CHAT_FONT_STORAGE_KEY)),
       motion: normalizeMotionPreset(localStorage.getItem(MOTION_STORAGE_KEY)),
       followUpSuggestions: followRaw !== "0",
+      accentColor: normalizeAccentId(localStorage.getItem(ACCENT_STORAGE_KEY)),
+      contrastMode: normalizeContrastMode(
+        localStorage.getItem(CONTRAST_STORAGE_KEY),
+      ),
     };
   } catch {
     return {
@@ -300,6 +361,8 @@ export function readLocalGeneralPrefs(): {
       chatFont: "Default",
       motion: "System",
       followUpSuggestions: true,
+      accentColor: "Blue",
+      contrastMode: "System",
     };
   }
 }

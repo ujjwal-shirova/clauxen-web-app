@@ -79,9 +79,9 @@ const checkout = {
   fieldLabel: "mb-1.5 px-0.5 text-[11px] font-medium text-[var(--settings-fg-muted)]",
 
   tabBase:
-    "no-hover-overlay flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--settings-card-radius)] px-2 py-2.5 text-[13px] font-medium leading-[18px] transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--settings-fg)]/25 shadow-[var(--settings-card-shadow)] max-lg:min-h-[56px]",
+    "no-hover-overlay flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--settings-card-radius)] px-2 py-2.5 text-[14px] font-medium leading-[20px] transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] shadow-[var(--settings-card-shadow)] max-lg:min-h-[56px]",
   tabSelected:
-    "bg-[var(--settings-card-bg)] text-[var(--settings-fg)] ring-1 ring-[var(--settings-fg)]",
+    "bg-[var(--settings-card-bg)] text-[var(--settings-fg)] ring-1 ring-[hsl(var(--brand))]",
   tabUnselected:
     "bg-[var(--settings-card-bg)] text-[var(--settings-fg-muted)] hover:bg-[color-mix(in_oklab,var(--settings-card-bg)_92%,var(--settings-fg))] hover:text-[var(--settings-fg)]",
 
@@ -91,10 +91,10 @@ const checkout = {
     "ui-icon-button border border-transparent text-[var(--settings-fg-muted)] hover:bg-[var(--ui-hover-wash)]",
 
   checkbox:
-    "h-4 w-4 shrink-0 rounded border border-[var(--settings-input-border)] accent-[var(--settings-fg)]",
+    "h-4 w-4 shrink-0 rounded border border-[var(--settings-input-border)] accent-[hsl(var(--brand))]",
   labelMuted: page.muted,
   labelFine: "settings-muted text-[12px]",
-  errorText: "text-[13px] leading-[18px] text-red-600",
+  errorText: "text-[14px] leading-[20px] text-[var(--settings-danger)]",
 
   payDisabled: cn(appBtn.primaryLg, "w-full cursor-not-allowed opacity-50"),
 
@@ -103,8 +103,13 @@ const checkout = {
     "flex items-center gap-3 rounded-[var(--settings-card-radius)] bg-[var(--settings-card-bg)] px-3.5 py-2.5 shadow-[var(--settings-card-shadow)]",
   ),
 
-  errorBanner:
-    "mb-4 flex items-center rounded-[var(--radius-sm)] border border-[var(--settings-danger)]/20 bg-[var(--settings-danger-soft)] px-3 py-2 text-[13px] leading-[18px] text-[var(--settings-danger)]",
+  errorBanner: "app-banner app-banner--danger mb-4",
+
+  successBanner: "app-banner app-banner--success mb-4",
+
+  warningBanner: "app-banner app-banner--warning mb-4",
+
+  infoBanner: "app-banner app-banner--info mb-4",
 
   orLine: "h-px flex-1 bg-[var(--settings-hairline)]",
   orLabel: "px-1 text-[12px] font-medium text-[var(--settings-fg-muted)]",

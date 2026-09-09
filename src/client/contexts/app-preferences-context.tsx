@@ -21,7 +21,9 @@ import {
   applyDocumentPreferenceAttrs,
   appearanceToNextTheme,
   colorModeForAppearance,
+  normalizeAccentId,
   normalizeChatFontId,
+  normalizeContrastMode,
   normalizeMotionPreset,
   persistAppearanceLocal,
   readLocalGeneralPrefs,
@@ -52,6 +54,8 @@ function buildGeneralFromLocal(): GeneralSettings {
     chatFont: local.chatFont,
     motion: local.motion,
     followUpSuggestions: local.followUpSuggestions,
+    accentColor: local.accentColor,
+    contrastMode: local.contrastMode,
   };
 }
 
@@ -94,6 +98,8 @@ function PreferencesInner({ children }: { children: ReactNode }) {
         chatFont: normalizeChatFontId(next.chatFont),
         motion: normalizeMotionPreset(next.motion),
         followUpSuggestions: next.followUpSuggestions ?? true,
+        accentColor: normalizeAccentId(next.accentColor),
+        contrastMode: normalizeContrastMode(next.contrastMode),
       });
     },
     [setTheme],
@@ -143,6 +149,8 @@ function PreferencesInner({ children }: { children: ReactNode }) {
           ...data.general,
           chatFont: normalizeChatFontId(data.general.chatFont),
           motion: normalizeMotionPreset(data.general.motion),
+          accentColor: normalizeAccentId(data.general.accentColor),
+          contrastMode: normalizeContrastMode(data.general.contrastMode),
           colorMode: colorModeForAppearance(data.general.appearancePreset),
         };
         setGeneral(next);
@@ -181,6 +189,12 @@ function PreferencesInner({ children }: { children: ReactNode }) {
             : {}),
           ...(typeof patch.motion === "string"
             ? { motion: normalizeMotionPreset(patch.motion) }
+            : {}),
+          ...(typeof patch.accentColor === "string"
+            ? { accentColor: normalizeAccentId(patch.accentColor) }
+            : {}),
+          ...(typeof patch.contrastMode === "string"
+            ? { contrastMode: normalizeContrastMode(patch.contrastMode) }
             : {}),
           ...(typeof patch.appearancePreset === "string"
             ? {

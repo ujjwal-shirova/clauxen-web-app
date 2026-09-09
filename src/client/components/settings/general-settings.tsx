@@ -8,7 +8,7 @@ import {
   segmentedOptionClass,
   segmentedTrackClass,
 } from "@/lib/segmented-control";
-import { motionOptions } from "./constants";
+import { accentColors, contrastOptions, motionOptions } from "./constants";
 import {
   SettingsOptionPicker,
   SettingsPanelTitle,
@@ -23,7 +23,9 @@ import { WORK_ROLE_OPTIONS } from "@/lib/work-roles";
 import {
   CHAT_FONT_OPTIONS,
   chatFontOption,
+  normalizeAccentId,
   normalizeChatFontId,
+  normalizeContrastMode,
 } from "@/lib/app-preferences";
 
 const appearanceModes = [
@@ -46,6 +48,10 @@ interface GeneralSettingsProps {
   onAppearanceChange: (preset: string) => void;
   chatFont: string;
   setChatFont: (value: string) => void;
+  accentColor: string;
+  setAccentColor: (value: string) => void;
+  contrastMode: string;
+  setContrastMode: (value: string) => void;
   motion: string;
   setMotion: (value: string) => void;
   followUpSuggestions: boolean;
@@ -61,6 +67,10 @@ export function GeneralSettings({
   onAppearanceChange,
   chatFont,
   setChatFont,
+  accentColor,
+  setAccentColor,
+  contrastMode,
+  setContrastMode,
   motion,
   setMotion,
   followUpSuggestions,
@@ -115,6 +125,24 @@ export function GeneralSettings({
   );
   const chatFontValue = normalizeChatFontId(chatFont);
   const selectedChatFont = chatFontOption(chatFontValue);
+
+  const accentOptionItems: SettingsOptionItem[] = useMemo(
+    () =>
+      accentColors.map((swatch) => ({
+        value: swatch.name,
+        label: swatch.name,
+        leading: (
+          <span
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border border-black/10 dark:border-white/20"
+            style={{ backgroundColor: swatch.value }}
+            aria-hidden
+          />
+        ),
+      })),
+    [],
+  );
+  const accentValue = normalizeAccentId(accentColor);
+  const contrastValue = normalizeContrastMode(contrastMode);
 
   const commitInstructions = () => {
     const next = instructionsDraft.trim().slice(0, MAX_CUSTOM_INSTRUCTIONS);
@@ -223,6 +251,32 @@ export function GeneralSettings({
             options={chatFontOptions}
             onValueChange={(value) => setChatFont(normalizeChatFontId(value))}
             aria-label={`Chat font: ${selectedChatFont.label}`}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Accent color"
+          description="Focus rings, links, and selected states across the app."
+        >
+          <SettingsOptionPicker
+            value={accentValue}
+            options={accentOptionItems}
+            onValueChange={(value) => setAccentColor(normalizeAccentId(value))}
+            aria-label={`Accent color: ${accentValue}`}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Contrast"
+          description="Lift secondary text and borders. System follows your OS setting."
+        >
+          <SettingsOptionPicker
+            value={contrastValue}
+            options={contrastOptions}
+            onValueChange={(value) =>
+              setContrastMode(normalizeContrastMode(value))
+            }
+            aria-label={`Contrast: ${contrastValue}`}
           />
         </SettingsRow>
 

@@ -18,6 +18,8 @@
     /*
      * Clauxen product palette — cool slate shell, white elevated panels,
      * ink CTAs. Soft elevation + true borders (not hairline-only cards).
+     * One restrained brand accent (deep blue) is reserved for focus rings,
+     * links, active nav, and selected states — never for primary buttons.
      */
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
@@ -37,13 +39,32 @@
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+    --ring: var(--brand);
     --panel-edge: 240 5.9% 90%;
-    --chart-1: 240 5.9% 10%;
-    --chart-2: 240 3.8% 46%;
-    --chart-3: 240 5% 64%;
-    --chart-4: 240 4.8% 86%;
-    --chart-5: 240 5.9% 90%;
+
+    /* Brand accent — default Blue; overridden per html[data-accent]. */
+    --brand: 210 73% 40%;
+    --brand-strong: 210 78% 32%;
+    --brand-soft: color-mix(in oklab, hsl(var(--brand)) 10%, transparent);
+    --brand-ring: color-mix(in oklab, hsl(var(--brand)) 38%, transparent);
+    --link: hsl(var(--brand));
+    --link-hover: hsl(var(--brand-strong));
+    --link-decoration: color-mix(in oklab, hsl(var(--brand)) 35%, transparent);
+
+    /* Semantic scale — status pills, banners, connector health. */
+    --success: 142 70% 30%;
+    --success-soft: color-mix(in oklab, hsl(var(--success)) 10%, transparent);
+    --warning: 28 88% 36%;
+    --warning-soft: color-mix(in oklab, hsl(var(--warning)) 12%, transparent);
+    --info: var(--brand);
+    --info-soft: var(--brand-soft);
+
+    /* Charts — brand-led hues, distinguishable at a glance. */
+    --chart-1: var(--brand);
+    --chart-2: 172 55% 38%;
+    --chart-3: 36 82% 48%;
+    --chart-4: 282 58% 55%;
+    --chart-5: 240 5% 64%;
 
     /* Radius scale: controls / cards / composer */
     --radius: 10px;
@@ -82,7 +103,7 @@
     --settings-card-bg: var(--app-panel-bg);
     --settings-elevated-bg: var(--app-panel-bg);
     --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 94%, #14151a 6%);
-    --settings-nav-active-bg: color-mix(in oklab, var(--app-panel-bg) 90%, #14151a 10%);
+    --settings-nav-active-bg: color-mix(in oklab, hsl(var(--brand)) 10%, var(--app-panel-bg));
     --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 95%, #14151a 5%);
     --settings-card-radius: 18px;
     --settings-card-shadow:
@@ -98,7 +119,7 @@
     --settings-row-pad-y: 14px;
     --settings-fg: var(--ui-fg);
     --settings-fg-muted: var(--ui-fg-muted);
-    --settings-fg-subtle: var(--ui-fg-placeholder);
+    --settings-fg-subtle: var(--ui-fg-subtle);
     --settings-hairline: var(--ui-border-subtle);
     --settings-input-border: var(--ui-border);
     --settings-input-focus: var(--ui-field-focus-border);
@@ -107,6 +128,12 @@
     --settings-switch-track: color-mix(in oklab, var(--app-panel-bg) 82%, #14151a 18%);
     --settings-danger: #d92d20;
     --settings-danger-soft: rgba(217, 45, 32, 0.07);
+    --settings-success: hsl(var(--success));
+    --settings-success-soft: var(--success-soft);
+    --settings-warning: hsl(var(--warning));
+    --settings-warning-soft: var(--warning-soft);
+    --settings-info: hsl(var(--info));
+    --settings-info-soft: var(--info-soft);
     --ui-page-max-width: 880px;
     --ui-page-max-width-wide: 1120px;
     --ui-card-bg: #ffffff;
@@ -116,10 +143,11 @@
     --ui-fg: #14151a;
     --ui-fg-body: #14151a;
     --ui-fg-muted: color-mix(in oklab, #14151a 72%, transparent);
+    --ui-fg-subtle: color-mix(in oklab, #14151a 62%, transparent);
     --ui-fg-placeholder: color-mix(in oklab, #14151a 50%, transparent);
     --ui-field-bg: #ffffff;
-    --ui-field-focus-border: color-mix(in oklab, #14151a 24%, transparent);
-    --ui-field-focus-ring: color-mix(in oklab, #14151a 7%, transparent);
+    --ui-field-focus-border: color-mix(in oklab, hsl(var(--brand)) 45%, transparent);
+    --ui-field-focus-ring: var(--brand-soft);
     --ui-muted-surface: color-mix(in oklab, #14151a 4%, transparent);
 
     --chat-header-height: 44px;
@@ -226,7 +254,7 @@
     --header-height-desktop: 96px;
     --sticky-spacing: 8px;
 
-    --chat-font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+    --chat-font-family: var(--font-inter), Inter, system-ui, sans-serif;
   }
 
   .dark {
@@ -249,13 +277,31 @@
     --destructive-foreground: 0 0% 98%;
     --border: 240 4% 18%;
     --input: 240 4% 18%;
-    --ring: 240 5% 64%;
+    --ring: var(--brand);
     --panel-edge: 240 4% 18%;
-    --chart-1: 0 0% 98%;
-    --chart-2: 240 5% 64%;
-    --chart-3: 240 4% 40%;
-    --chart-4: 240 4% 22%;
-    --chart-5: 240 4% 18%;
+
+    /* Brand accent (dark) — lifted for contrast on near-black panels. */
+    --brand: 210 85% 68%;
+    --brand-strong: 210 90% 76%;
+    --brand-soft: color-mix(in oklab, hsl(var(--brand)) 14%, transparent);
+    --brand-ring: color-mix(in oklab, hsl(var(--brand)) 42%, transparent);
+    --link: hsl(var(--brand));
+    --link-hover: hsl(var(--brand-strong));
+    --link-decoration: color-mix(in oklab, hsl(var(--brand)) 40%, transparent);
+
+    /* Semantic scale (dark). */
+    --success: 142 60% 62%;
+    --success-soft: color-mix(in oklab, hsl(var(--success)) 13%, transparent);
+    --warning: 40 90% 62%;
+    --warning-soft: color-mix(in oklab, hsl(var(--warning)) 13%, transparent);
+    --info: var(--brand);
+    --info-soft: var(--brand-soft);
+
+    --chart-1: var(--brand);
+    --chart-2: 172 60% 55%;
+    --chart-3: 40 90% 60%;
+    --chart-4: 282 70% 70%;
+    --chart-5: 240 4% 40%;
     --icon-color: #f4f4f5;
     --icon-muted: rgba(244, 244, 245, 0.66);
     --icon-subtle: rgba(244, 244, 245, 0.6);
@@ -272,17 +318,18 @@
     --ui-fg: #fafafa;
     --ui-fg-body: #e4e4e7;
     --ui-fg-muted: #a1a1aa;
+    --ui-fg-subtle: #8e8e97;
     --ui-fg-placeholder: #71717a;
     --settings-canvas-bg: var(--app-panel-bg);
     --settings-sidebar-bg: var(--app-frame-bg);
     --settings-card-bg: #1d1d20;
     --settings-elevated-bg: #232326;
     --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 88%, white 12%);
-    --settings-nav-active-bg: color-mix(in oklab, var(--app-panel-bg) 84%, white 16%);
+    --settings-nav-active-bg: color-mix(in oklab, hsl(var(--brand)) 14%, var(--app-panel-bg));
     --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 92%, white 8%);
     --settings-fg: var(--ui-fg);
     --settings-fg-muted: var(--ui-fg-muted);
-    --settings-fg-subtle: var(--ui-fg-placeholder);
+    --settings-fg-subtle: var(--ui-fg-subtle);
     --settings-hairline: var(--ui-border-subtle);
     --settings-input-border: var(--ui-border);
     --settings-input-focus: var(--ui-field-focus-border);
@@ -290,9 +337,15 @@
     --settings-btn-border: var(--ui-border);
     --settings-switch-track: color-mix(in oklab, var(--app-panel-bg) 78%, white 22%);
     --settings-modal-border: rgba(255, 255, 255, 0.1);
+    --settings-success: hsl(var(--success));
+    --settings-success-soft: var(--success-soft);
+    --settings-warning: hsl(var(--warning));
+    --settings-warning-soft: var(--warning-soft);
+    --settings-info: hsl(var(--info));
+    --settings-info-soft: var(--info-soft);
     --ui-field-bg: #202023;
-    --ui-field-focus-border: rgba(255, 255, 255, 0.24);
-    --ui-field-focus-ring: rgba(255, 255, 255, 0.09);
+    --ui-field-focus-border: color-mix(in oklab, hsl(var(--brand)) 50%, transparent);
+    --ui-field-focus-ring: var(--brand-soft);
     --ui-muted-surface: rgba(255, 255, 255, 0.05);
     --overlay-scrim: rgba(0, 0, 0, 0.55);
     --overlay-scrim-soft: rgba(0, 0, 0, 0.7);
@@ -347,7 +400,7 @@
   --settings-card-bg: var(--app-panel-bg);
   --settings-elevated-bg: var(--app-panel-bg);
   --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 94%, #14151a 6%);
-  --settings-nav-active-bg: color-mix(in oklab, var(--app-panel-bg) 90%, #14151a 10%);
+  --settings-nav-active-bg: color-mix(in oklab, hsl(var(--brand)) 10%, var(--app-panel-bg));
   --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 95%, #14151a 5%);
   --settings-card-radius: 12px;
   --settings-card-shadow: inset 0 0 0 1px rgba(15, 15, 15, 0.1);
@@ -360,7 +413,7 @@
   --settings-row-pad-y: 14px;
   --settings-fg: var(--ui-fg);
   --settings-fg-muted: var(--ui-fg-muted);
-  --settings-fg-subtle: var(--ui-fg-placeholder);
+  --settings-fg-subtle: var(--ui-fg-subtle);
   --settings-hairline: var(--ui-border-subtle);
   --settings-input-border: var(--ui-border);
   --settings-input-focus: var(--ui-field-focus-border);
@@ -377,11 +430,11 @@
   --settings-card-bg: #1d1d20;
   --settings-elevated-bg: #232326;
   --settings-icon-bg: color-mix(in oklab, var(--app-panel-bg) 88%, white 12%);
-  --settings-nav-active-bg: color-mix(in oklab, var(--app-panel-bg) 84%, white 16%);
+  --settings-nav-active-bg: color-mix(in oklab, hsl(var(--brand)) 14%, var(--app-panel-bg));
   --settings-nav-hover-bg: color-mix(in oklab, var(--app-panel-bg) 92%, white 8%);
   --settings-fg: var(--ui-fg);
   --settings-fg-muted: var(--ui-fg-muted);
-  --settings-fg-subtle: var(--ui-fg-placeholder);
+  --settings-fg-subtle: var(--ui-fg-subtle);
   --settings-hairline: var(--ui-border-subtle);
   --settings-input-border: var(--ui-border);
   --settings-input-focus: var(--ui-field-focus-border);
@@ -397,6 +450,72 @@
     0 10px 32px -18px rgba(0, 0, 0, 0.68);
   --settings-danger: #f87171;
   --settings-danger-soft: rgba(248, 113, 113, 0.1);
+}
+
+/* Brand accent variants — driven by the stored accentColor preference
+   (html[data-accent]). Blue is the default; values mirror the Settings
+   swatches. Dark variants are lifted for contrast on near-black panels. */
+html[data-accent="Forest"] {
+  --brand: 144 20% 32%;
+  --brand-strong: 144 24% 25%;
+}
+
+html[data-accent="Amber"] {
+  --brand: 34 68% 42%;
+  --brand-strong: 32 74% 34%;
+}
+
+html[data-accent="Rose"] {
+  --brand: 345 36% 50%;
+  --brand-strong: 345 42% 42%;
+}
+
+html.dark[data-accent="Forest"] {
+  --brand: 145 30% 60%;
+  --brand-strong: 145 36% 68%;
+}
+
+html.dark[data-accent="Amber"] {
+  --brand: 36 85% 60%;
+  --brand-strong: 36 90% 68%;
+}
+
+html.dark[data-accent="Rose"] {
+  --brand: 345 60% 68%;
+  --brand-strong: 345 66% 75%;
+}
+
+/* Increased contrast — driven by the contrastMode preference
+   (html[data-contrast]). Lifts secondary text and borders; "System"
+   follows the OS prefers-contrast signal automatically. */
+html[data-contrast="Increased"] {
+  --ui-fg-muted: color-mix(in oklab, #14151a 86%, transparent);
+  --ui-fg-subtle: color-mix(in oklab, #14151a 76%, transparent);
+  --ui-border: color-mix(in oklab, #14151a 20%, transparent);
+  --ui-border-subtle: color-mix(in oklab, #14151a 13%, transparent);
+}
+
+html.dark[data-contrast="Increased"] {
+  --ui-fg-muted: #d4d4d8;
+  --ui-fg-subtle: #b6b6bd;
+  --ui-border: rgba(255, 255, 255, 0.2);
+  --ui-border-subtle: rgba(255, 255, 255, 0.13);
+}
+
+@media (prefers-contrast: more) {
+  html[data-contrast="System"] {
+    --ui-fg-muted: color-mix(in oklab, #14151a 86%, transparent);
+    --ui-fg-subtle: color-mix(in oklab, #14151a 76%, transparent);
+    --ui-border: color-mix(in oklab, #14151a 20%, transparent);
+    --ui-border-subtle: color-mix(in oklab, #14151a 13%, transparent);
+  }
+
+  html.dark[data-contrast="System"] {
+    --ui-fg-muted: #d4d4d8;
+    --ui-fg-subtle: #b6b6bd;
+    --ui-border: rgba(255, 255, 255, 0.2);
+    --ui-border-subtle: rgba(255, 255, 255, 0.13);
+  }
 }
 
 /* ——— Shared chrome utilities (prefer over ad-hoc Tailwind) ——— */
@@ -523,8 +642,8 @@
 }
 
 .settings-section-label {
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   letter-spacing: -0.005em;
   color: var(--settings-fg);
@@ -532,8 +651,8 @@
 
 .settings-muted {
   color: var(--settings-fg-muted);
-  font-size: 13px;
-  line-height: 19px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .settings-field {
@@ -546,8 +665,8 @@
   background: var(--settings-card-bg);
   padding-left: 11px;
   padding-right: 11px;
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--settings-fg);
   outline: none;
   transition:
@@ -578,8 +697,8 @@
   border: none;
   background: var(--settings-elevated-bg);
   box-shadow: inset 0 0 0 1px var(--settings-btn-border);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--settings-fg);
   white-space: nowrap;
   cursor: pointer;
@@ -648,7 +767,7 @@
 }
 
 .settings-switch[data-state="checked"] {
-  background-color: var(--settings-fg);
+  background-color: hsl(var(--brand));
 }
 
 .settings-switch [data-slot="thumb"],
@@ -666,7 +785,7 @@
 }
 
 .dark .settings-theme .settings-switch[data-state="checked"] > span {
-  background: #212121;
+  background: #ffffff;
 }
 
 .settings-canvas table {
@@ -755,18 +874,19 @@
   outline: none;
 }
 
-/* Shared form field — checkout + settings + dialogs */
+/* Shared form field — checkout + settings + dialogs.
+   Roomy 36px / 14px controls; chat chrome keeps compact 28px / 13px. */
 .app-field {
   box-sizing: border-box;
   width: 100%;
-  height: var(--ui-control-height);
-  min-height: var(--ui-control-height);
+  height: var(--settings-control-height, 36px);
+  min-height: var(--settings-control-height, 36px);
   border-radius: var(--radius-sm);
   border: 1px solid var(--settings-input-border, var(--ui-border));
   background: var(--settings-card-bg, var(--ui-field-bg));
   padding: 0 0.5rem;
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  font-size: 14px;
+  line-height: 20px;
   color: var(--ui-fg);
   box-shadow: none;
   transition: border-color 0.15s ease;
@@ -780,6 +900,12 @@
   outline: none;
   border-color: var(--ui-field-focus-border);
   box-shadow: none;
+}
+
+textarea.app-field {
+  height: auto;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .app-field--icons {
@@ -799,6 +925,69 @@
   text-align: center;
   font-size: var(--ui-font-size);
   line-height: var(--ui-line-height);
+  color: var(--ui-fg-muted);
+}
+
+/* Semantic banners — settings / billing / automations callouts.
+   Tones resolve per theme via the semantic scale. */
+.app-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  padding: 0.5rem 0.75rem;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.app-banner--success {
+  border-color: color-mix(in oklab, hsl(var(--success)) 24%, transparent);
+  background: var(--success-soft);
+  color: hsl(var(--success));
+}
+
+.app-banner--warning {
+  border-color: color-mix(in oklab, hsl(var(--warning)) 26%, transparent);
+  background: var(--warning-soft);
+  color: hsl(var(--warning));
+}
+
+.app-banner--info {
+  border-color: color-mix(in oklab, hsl(var(--info)) 24%, transparent);
+  background: var(--info-soft);
+  color: hsl(var(--info));
+}
+
+.app-banner--danger {
+  border-color: color-mix(in oklab, var(--settings-danger) 22%, transparent);
+  background: var(--settings-danger-soft);
+  color: var(--settings-danger);
+}
+
+/* Semantic status pills — run states, connector health, plan badges. */
+.app-status-pill--success {
+  background: var(--success-soft);
+  color: hsl(var(--success));
+}
+
+.app-status-pill--warning {
+  background: var(--warning-soft);
+  color: hsl(var(--warning));
+}
+
+.app-status-pill--info {
+  background: var(--info-soft);
+  color: hsl(var(--info));
+}
+
+.app-status-pill--danger {
+  background: var(--settings-danger-soft);
+  color: var(--settings-danger);
+}
+
+.app-status-pill--neutral {
+  background: var(--ui-muted-surface);
   color: var(--ui-fg-muted);
 }
 
@@ -1011,6 +1200,18 @@
     font-size: var(--ui-font-size, 13px);
     line-height: var(--ui-line-height, 18px);
     border-radius: var(--radius-sm);
+  }
+
+  /* Form density — settings, dialogs, and checkout use roomy 36px buttons
+     while chat chrome keeps compact 28px controls. */
+  .settings-canvas .app-btn-md,
+  .app-dialog-panel .app-btn-md,
+  [data-checkout-form] .app-btn-md {
+    height: 36px;
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+    font-size: 14px;
+    line-height: 20px;
   }
 
   .app-btn-lg {
@@ -1267,7 +1468,7 @@ button.plugin-add-button:disabled,
   .auth-text-link {
     padding: 0;
     font: inherit;
-    color: #71717a;
+    color: var(--link);
     font-weight: 500;
     transition:
       color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
@@ -1275,7 +1476,7 @@ button.plugin-add-button:disabled,
   }
   .auth-text-link:hover:not(:disabled),
   .auth-text-link:focus-visible:not(:disabled) {
-    color: #18181b;
+    color: var(--link-hover);
     font-weight: 600;
     box-shadow: none !important;
     background: transparent !important;
@@ -1336,6 +1537,13 @@ button.plugin-add-button:disabled,
   -webkit-font-smoothing: antialiased;
 }
 
+/* Default new-chat greeting — Playfair display voice for the empty state. */
+.new-chat-greeting {
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
 .font-sans {
   font-family: var(--font-inter), Inter, system-ui, sans-serif;
   letter-spacing: -0.005em;
@@ -1345,12 +1553,17 @@ button.plugin-add-button:disabled,
   font-family: "Homemade Apple", cursive;
 }
 
-/* Chat font — assistant markdown only (not app chrome / labels). */
+/* Chat font — assistant markdown only (not app chrome / labels).
+   Default is Inter for scannable streaming answers; Playfair stays
+   available as "Clauxen Serif" plus wordmark / marketing / greeting display. */
 html[data-chat-font="Default"] {
   --chat-font-family: var(--font-inter), Inter, system-ui, sans-serif;
 }
 html[data-chat-font="Sans"] {
   --chat-font-family: var(--font-inter), Inter, system-ui, sans-serif;
+}
+html[data-chat-font="Clauxen Serif"] {
+  --chat-font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
 }
 html[data-chat-font="Manrope"] {
   --chat-font-family: "Manrope", system-ui, sans-serif;
@@ -1453,11 +1666,11 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
   color: #d4d4d8;
 }
 .dark .markdown-content a {
-  color: #93c5fd;
-  text-decoration-color: rgba(147, 197, 253, 0.35);
+  color: var(--link);
+  text-decoration-color: var(--link-decoration);
 }
 .dark .markdown-content a:hover {
-  color: #bfdbfe;
+  color: var(--link-hover);
 }
 .dark .user-message-card__body {
   background: var(--chat-user-card-bg, #1c1c1f) !important;
@@ -1648,7 +1861,7 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
     .text-zinc-400,
     [class~="text-[#8a8a94]"]
   ):not([class*="dark:text-"]) {
-  color: var(--ui-fg-placeholder) !important;
+  color: var(--ui-fg-subtle) !important;
 }
 
 .dark
@@ -1710,12 +1923,12 @@ html[data-follow-up-suggestions="0"] .follow-up-suggestions {
 }
 
 .dark .auth-text-link {
-  color: var(--ui-fg-muted);
+  color: var(--link);
 }
 
 .dark .auth-text-link:hover:not(:disabled),
 .dark .auth-text-link:focus-visible:not(:disabled) {
-  color: var(--ui-fg);
+  color: var(--link-hover);
 }
 
 .dark .ui-row-icon-button:hover:not(:disabled),
@@ -2574,7 +2787,7 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .agent-panel-followup-status-area {
-  color: #71717a;
+  color: var(--ui-fg-subtle);
 }
 
 .glass-chat-status-bar {
@@ -3405,7 +3618,7 @@ button.user-message-card__body:not(:disabled):hover,
 .glass-sidebar-docked .glass-sidebar-agent-menu-btn.bg-black\/\[0\.06\],
 .glass-sidebar-docked .glass-sidebar-agent-menu-btn[data-active="true"],
 .glass-sidebar-docked .ui-sidebar-menu-button.bg-black\/\[0\.06\] {
-  background: rgba(24, 24, 27, 0.07) !important;
+  background: var(--brand-soft) !important;
   box-shadow: none;
 }
 
@@ -3492,7 +3705,7 @@ button.user-message-card__body:not(:disabled):hover,
 .dark .glass-sidebar-docked .glass-sidebar-agent-menu-btn.bg-black\/\[0\.06\],
 .dark .glass-sidebar-docked .glass-sidebar-agent-menu-btn[data-active="true"],
 .dark .glass-sidebar-docked .ui-sidebar-menu-button.bg-black\/\[0\.06\] {
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: var(--brand-soft) !important;
 }
 
 .sidebar-scrollable,
@@ -3719,8 +3932,8 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .markdown-content a {
-  color: #2563eb;
-  text-decoration-color: rgba(37, 99, 235, 0.28);
+  color: var(--link);
+  text-decoration-color: var(--link-decoration);
   text-underline-offset: 3px;
   transition:
     color 0.15s ease,
@@ -3728,8 +3941,8 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .markdown-content a:hover {
-  color: #1d4ed8;
-  text-decoration-color: rgba(29, 78, 216, 0.5);
+  color: var(--link-hover);
+  text-decoration-color: var(--link-decoration);
 }
 
 .markdown-content .composer-message-codeblock,
@@ -3801,7 +4014,7 @@ button.user-message-card__body:not(:disabled):hover,
   height: 14px;
   margin-right: 0.45rem;
   vertical-align: -2px;
-  accent-color: #18181b;
+  accent-color: hsl(var(--brand));
 }
 
 .markdown-content .task-list-item {
@@ -3857,7 +4070,7 @@ button.user-message-card__body:not(:disabled):hover,
 }
 
 .dark .markdown-content input[type="checkbox"] {
-  accent-color: #f4f4f5;
+  accent-color: hsl(var(--brand));
 }
 
 /* Presented file cards — soft lift on hover */
@@ -3990,7 +4203,7 @@ button.user-message-card__body:not(:disabled):hover,
   .glass-sidebar-docked .glass-sidebar-agent-menu-btn[data-active="true"]:has([data-state="open"]),
   .glass-sidebar-docked .glass-sidebar-agent-menu-btn[aria-current="page"],
   .glass-sidebar-docked .ui-sidebar-menu-button.bg-black\/\[0\.06\] {
-    background: #edece8 !important;
+    background: var(--brand-soft) !important;
     box-shadow: none !important;
   }
 

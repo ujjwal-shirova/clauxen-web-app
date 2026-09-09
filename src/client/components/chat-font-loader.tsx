@@ -64,7 +64,7 @@ export function preloadChatFontCatalog() {
 
 /**
  * Loads only the selected chat font on demand.
- * Default / Sans / System use Inter + Playfair already in the root layout.
+ * Default / Sans / System use bundled Inter; Clauxen Serif uses Playfair.
  */
 export function ChatFontLoader() {
   useEffect(() => {

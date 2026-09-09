@@ -87,7 +87,7 @@ export function DeepResearchView({
               <Microscope className="w-[30px] h-[30px]" />{" "}
               {/* research/microscope icon — brand blue */}
             </span>
-            <h1 className="text-[28px] leading-[34px] tracking-[0.38px] font-semibold text-zinc-900">
+            <h1 className="font-headline text-[28px] leading-[34px] tracking-[0.38px] font-semibold text-zinc-900">
               {" "}
               {/* primary headline typography */}
               What can I help with?

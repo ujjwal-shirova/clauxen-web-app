@@ -4,7 +4,11 @@ import {
   type PluginSettings,
 } from "@/lib/api/settings";
 import { DEFAULT_APP_SETTINGS } from "@/lib/settings-defaults";
-import { normalizeChatFontId } from "@/lib/app-preferences";
+import {
+  normalizeAccentId,
+  normalizeChatFontId,
+  normalizeContrastMode,
+} from "@/lib/app-preferences";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -28,6 +32,8 @@ export function normalizeAppSettings(raw: unknown): AppSettings {
 
   const general = mergeSection(DEFAULT_APP_SETTINGS.general, data.general);
   general.chatFont = normalizeChatFontId(general.chatFont);
+  general.accentColor = normalizeAccentId(general.accentColor);
+  general.contrastMode = normalizeContrastMode(general.contrastMode);
 
   return {
     general,

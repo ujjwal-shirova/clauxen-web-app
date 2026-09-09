@@ -239,7 +239,7 @@ export function ChatViewPane({
             className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
           />
           <h2
-            className="mt-4 max-w-[min(100%,22rem)] truncate whitespace-nowrap text-center text-[20px] font-semibold tracking-[-0.03em] text-zinc-800 sm:max-w-[28rem] sm:text-[24px]"
+            className="new-chat-greeting mt-4 max-w-[min(100%,22rem)] truncate whitespace-nowrap text-center text-[20px] text-zinc-800 sm:max-w-[28rem] sm:text-[24px]"
             suppressHydrationWarning
           >
             {greeting
@@ -301,14 +301,14 @@ export function ChatViewPane({
                     <button
                       type="button"
                       onClick={onUpgradeClick}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#f6f6f4] px-3 text-[14px] font-normal leading-5 text-[#898781] transition-colors hover:bg-[#f1f1ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#256abf]/40"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#f6f6f4] px-3 text-[14px] font-normal leading-5 text-[#898781] transition-colors hover:bg-[#f1f1ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                     >
                       <span>Free plan</span>
                       <span
                         className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[rgba(137,135,129,0.3)]"
                         aria-hidden="true"
                       />
-                      <span className="text-[#184f95] underline decoration-[rgba(24,79,149,0.4)] underline-offset-[3px]">
+                      <span className="text-[var(--link)] underline decoration-[var(--link-decoration)] underline-offset-[3px]">
                         Upgrade
                       </span>
                     </button>

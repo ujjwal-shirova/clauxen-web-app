@@ -232,6 +232,12 @@ export function SettingsModal({
             }
             chatFont={appearanceGeneral.chatFont}
             setChatFont={(v) => updatePreferenceGeneral({ chatFont: v })}
+            accentColor={appearanceGeneral.accentColor}
+            setAccentColor={(v) => updatePreferenceGeneral({ accentColor: v })}
+            contrastMode={appearanceGeneral.contrastMode}
+            setContrastMode={(v) =>
+              updatePreferenceGeneral({ contrastMode: v })
+            }
             motion={appearanceGeneral.motion ?? "System"}
             setMotion={(v) => updatePreferenceGeneral({ motion: v })}
             followUpSuggestions={appearanceGeneral.followUpSuggestions ?? true}

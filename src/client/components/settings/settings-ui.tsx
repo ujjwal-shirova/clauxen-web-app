@@ -220,21 +220,21 @@ const settingsOptionMenuContentClass = cn(
 );
 
 const settingsOptionTriggerClass = cn(
-  "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] w-full shrink-0 justify-between gap-2 px-3 text-[13px] font-medium leading-[18px] sm:w-auto sm:justify-start",
+  "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] w-full shrink-0 justify-between gap-2 px-3 text-[14px] font-medium leading-[20px] sm:w-auto sm:justify-start",
   "text-[var(--settings-fg)] data-[state=open]:bg-[var(--settings-elevated-bg)] data-[state=open]:shadow-[inset_0_0_0_1px_var(--settings-input-focus),0_0_0_3px_var(--settings-focus-ring)]",
   settingsFocusReset,
 );
 
 const settingsOptionMenuItemClass = cn(
-  "flex cursor-pointer select-none items-start gap-2.5 rounded-[10px] px-3 py-2.5 text-[13px] font-medium leading-[18px] text-[var(--settings-fg)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] focus:bg-[var(--settings-nav-hover-bg)] focus:text-[var(--settings-fg)] data-[highlighted]:bg-[var(--settings-nav-hover-bg)] data-[highlighted]:text-[var(--settings-fg)]",
+  "flex cursor-pointer select-none items-start gap-2.5 rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-[20px] text-[var(--settings-fg)] transition-colors hover:bg-[var(--settings-nav-hover-bg)] focus:bg-[var(--settings-nav-hover-bg)] focus:text-[var(--settings-fg)] data-[highlighted]:bg-[var(--settings-nav-hover-bg)] data-[highlighted]:text-[var(--settings-fg)]",
   settingsFocusReset,
 );
 
-/** Radio circles in settings panels — Clauxen charcoal, no blue focus ring. */
+/** Radio circles in settings panels — brand accent when checked. */
 export const settingsRadioItemClass = cn(
-  "no-hover-overlay mt-0.5 h-[18px] w-[18px] border-2 border-[var(--settings-input-border)] text-[var(--settings-fg)]",
-  "hover:border-[var(--settings-input-focus)] data-[state=checked]:hover:border-[var(--settings-fg)]",
-  "data-[state=checked]:border-[var(--settings-fg)]",
+  "no-hover-overlay mt-0.5 h-[18px] w-[18px] border-2 border-[var(--settings-input-border)] text-[hsl(var(--brand))]",
+  "hover:border-[var(--settings-input-focus)] data-[state=checked]:hover:border-[hsl(var(--brand))]",
+  "data-[state=checked]:border-[hsl(var(--brand))]",
   "focus-visible:ring-4 focus-visible:ring-[var(--settings-focus-ring)]",
   settingsFocusReset,
 );
@@ -357,7 +357,7 @@ export function SettingsSelectButton({
       onClick={onClick}
       aria-label={ariaLabel ?? value}
       className={cn(
-        "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] shrink-0 gap-2 px-2 text-[13px] leading-[18px]",
+        "no-hover-overlay settings-btn inline-flex h-[var(--settings-control-height)] min-h-[var(--settings-control-height)] shrink-0 gap-2 px-2 text-[14px] leading-[20px]",
         settingsFocusReset,
         className,
       )}
@@ -646,9 +646,8 @@ export function SettingsStatusBadge({
     <span
       className={cn(
         "inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold leading-4",
-        tone === "success" &&
-          "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-        tone === "info" && "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+        tone === "success" && "app-status-pill--success",
+        tone === "info" && "app-status-pill--info",
       )}
     >
       {children}

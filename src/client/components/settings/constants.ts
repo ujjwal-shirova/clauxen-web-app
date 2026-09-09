@@ -128,7 +128,7 @@ export const fontThemes = CHAT_FONT_OPTIONS.map((option) => ({
       option.familyName?.toLowerCase().includes("serif") ||
       option.familyName === "Literata" ||
       option.familyName === "Merriweather" ||
-      option.id === "Default",
+      option.id === "Clauxen Serif",
   ),
   dyslexic: option.id === "Atkinson Hyperlegible",
 }));

@@ -301,13 +301,13 @@ export function AutomationsView() {
                         className={cn(
                           "rounded-full px-2.5 py-1 text-[11px] font-medium capitalize",
                           run.status === "success" &&
-                            "bg-emerald-100 text-emerald-700",
-                          run.status === "failed" && "bg-red-100 text-red-700",
+                            "app-status-pill--success",
+                          run.status === "failed" && "app-status-pill--danger",
                           (run.status === "queued" ||
                             run.status === "running") &&
-                            "bg-amber-100 text-amber-700",
+                            "app-status-pill--warning",
                           run.status === "skipped" &&
-                            "bg-zinc-200 text-zinc-600",
+                            "app-status-pill--neutral",
                         )}
                       >
                         {run.status}
