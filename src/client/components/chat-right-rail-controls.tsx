@@ -36,8 +36,8 @@ export function ChatRightRailControls({
             className={cn(
               "ui-icon-button rounded-lg border transition-all max-[360px]:hidden",
               isArtifactsPanelOpen
-                ? "border-zinc-200 bg-zinc-100 text-zinc-800"
-                : "border-transparent text-zinc-600 hover:border-zinc-200 hover:bg-zinc-100 hover:text-zinc-900",
+                ? "border-[var(--ui-border)] bg-[var(--brand-soft)] text-[var(--ui-fg)]"
+                : "border-transparent text-[var(--ui-fg-muted)] hover:border-[var(--ui-border-subtle)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
             )}
           >
             <PanelRight className="size-[18px]" strokeWidth={1.8} />

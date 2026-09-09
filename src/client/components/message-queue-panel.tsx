@@ -52,30 +52,30 @@ export function MessageQueuePanel({
 
   return (
     <div
-      className="mb-1.5 w-full overflow-hidden rounded-xl border border-zinc-200/80 bg-white"
+      className="mb-1.5 w-full overflow-hidden rounded-xl border border-[var(--ui-border)] bg-[var(--ui-field-bg)]"
       data-message-queue
     >
       <div className="flex items-center justify-between gap-2 px-2.5 py-1.5">
         <div className="flex min-w-0 items-center gap-1 text-[12px] leading-none">
-          <span className="font-medium text-zinc-700">{countLabel}</span>
+          <span className="font-medium text-[var(--ui-fg)]">{countLabel}</span>
           <CornerDownLeft
-            className="h-3 w-3 shrink-0 text-zinc-400"
+            className="h-3 w-3 shrink-0 text-[var(--ui-fg-placeholder)]"
             strokeWidth={2}
             aria-hidden
           />
-          <span className="text-zinc-400">to Send</span>
+          <span className="text-[var(--ui-fg-placeholder)]">to Send</span>
         </div>
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="no-hover inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[12px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
+          className="no-hover inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[12px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:text-[var(--ui-fg)]"
           aria-expanded={expanded}
         >
           Start Multitasking
           {expanded ? (
-            <ChevronDown className="h-3 w-3 text-zinc-400" aria-hidden />
+            <ChevronDown className="h-3 w-3 text-[var(--ui-fg-placeholder)]" aria-hidden />
           ) : (
-            <ChevronUp className="h-3 w-3 text-zinc-400" aria-hidden />
+            <ChevronUp className="h-3 w-3 text-[var(--ui-fg-placeholder)]" aria-hidden />
           )}
         </button>
       </div>
@@ -91,7 +91,7 @@ export function MessageQueuePanel({
             {items.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center gap-1.5 rounded-lg bg-zinc-50 px-2 py-1"
+                className="flex items-center gap-1.5 rounded-lg bg-[var(--ui-muted-surface)] px-2 py-1"
               >
                 {editingId === item.id ? (
                   <input
@@ -109,10 +109,10 @@ export function MessageQueuePanel({
                         setDraft("");
                       }
                     }}
-                    className="min-w-0 flex-1 bg-transparent text-[12px] leading-4 text-zinc-800 outline-none"
+                    className="min-w-0 flex-1 bg-transparent text-[12px] leading-4 text-[var(--ui-fg)] outline-none"
                   />
                 ) : (
-                  <p className="min-w-0 flex-1 truncate text-[12px] leading-4 text-zinc-700">
+                  <p className="min-w-0 flex-1 truncate text-[12px] leading-4 text-[var(--ui-fg-muted)]">
                     {item.content}
                   </p>
                 )}
@@ -122,7 +122,7 @@ export function MessageQueuePanel({
                       type="button"
                       aria-label="Edit queued message"
                       onClick={() => startEdit(item)}
-                      className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-200/70 hover:text-zinc-700"
+                      className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--ui-fg-placeholder)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       <Pencil className="h-3 w-3" />
                     </button>
@@ -132,7 +132,7 @@ export function MessageQueuePanel({
                       type="button"
                       aria-label="Send queued message now"
                       onClick={() => onSendNow(item.id)}
-                      className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-200/70 hover:text-zinc-700"
+                      className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--ui-fg-placeholder)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       <ArrowUp className="h-3 w-3" />
                     </button>
@@ -142,7 +142,7 @@ export function MessageQueuePanel({
                       type="button"
                       aria-label="Remove queued message"
                       onClick={() => onRemove(item.id)}
-                      className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-200/70 hover:text-zinc-700"
+                      className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--ui-fg-placeholder)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>

@@ -31,7 +31,7 @@ function SourceFavicon({
       loading="lazy"
       decoding="async"
       className={cn(
-        "h-3.5 w-3.5 shrink-0 rounded-[3px] border border-zinc-200/80 bg-white object-cover",
+        "h-3.5 w-3.5 shrink-0 rounded-[3px] border border-[var(--ui-border-subtle)] bg-[var(--ui-field-bg)] object-cover",
         className,
       )}
     />
@@ -53,11 +53,11 @@ export function SourcePreviewCard({ source }: { source: ChatSource }) {
       <div className="mb-2 flex items-center gap-2">
         <SourceFavicon source={source} className="h-5 w-5" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-medium text-zinc-800">
+          <p className="truncate text-[12.5px] font-medium text-[var(--ui-fg)]">
             {source.domain}
           </p>
           {source.publishedDate ? (
-            <p className="truncate text-[11px] text-zinc-500">
+            <p className="truncate text-[11px] text-[var(--ui-fg-muted)]">
               {new Date(source.publishedDate).toLocaleDateString(undefined, {
                 day: "numeric",
                 month: "short",
@@ -67,11 +67,11 @@ export function SourcePreviewCard({ source }: { source: ChatSource }) {
           ) : null}
         </div>
       </div>
-      <p className="line-clamp-2 text-[13px] font-semibold leading-5 text-zinc-900">
+      <p className="line-clamp-2 text-[13px] font-semibold leading-5 text-[var(--ui-fg)]">
         {source.title || source.url}
       </p>
       {excerpt ? (
-        <p className="mt-1.5 line-clamp-3 text-[12px] leading-[1.4] text-zinc-600">
+        <p className="mt-1.5 line-clamp-3 text-[12px] leading-[1.4] text-[var(--ui-fg-muted)]">
           {excerpt}
         </p>
       ) : null}
@@ -222,7 +222,7 @@ export function SourceChip({
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
         className={cn(
-          "relative mx-0.5 inline-flex whitespace-nowrap align-middle items-center border border-zinc-200/90 bg-white font-medium text-zinc-700 outline-none transition-colors duration-150 hover:border-zinc-300 hover:bg-zinc-50 focus-visible:border-zinc-300 focus-visible:ring-0 overflow-anchor-none",
+          "relative mx-0.5 inline-flex whitespace-nowrap align-middle items-center border border-[var(--ui-border)] bg-[var(--ui-field-bg)] font-medium text-[var(--ui-fg-muted)] outline-none transition-colors duration-150 hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] focus-visible:border-[var(--ui-field-focus-border)] focus-visible:ring-0 overflow-anchor-none",
           sizeClasses,
         )}
         data-source-chip=""
@@ -234,7 +234,7 @@ export function SourceChip({
         />
         <span className="truncate leading-none">{source.domain}</span>
         {index != null ? (
-          <span className="text-[11px] tabular-nums text-zinc-400">
+          <span className="text-[11px] tabular-nums text-[var(--ui-fg-placeholder)]">
             {index + 1}
           </span>
         ) : null}
@@ -315,25 +315,25 @@ function SourcePanelRow({
       href={source.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block rounded-lg border border-zinc-200/90 bg-white p-2.5 text-[13px] transition-colors hover:bg-zinc-50"
+      className="block rounded-lg border border-[var(--ui-border)] bg-[var(--ui-field-bg)] p-2.5 text-[13px] transition-colors hover:bg-[var(--ui-hover-wash)]"
     >
       <div className="mb-1.5 flex items-center gap-2">
         <SourceFavicon source={source} className="h-4 w-4 rounded-[3px]" />
-        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-zinc-700">
+        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--ui-fg-muted)]">
           {source.domain}
         </span>
-        <span className="tabular-nums text-[11px] text-zinc-400">
+        <span className="tabular-nums text-[11px] text-[var(--ui-fg-placeholder)]">
           {index + 1}
         </span>
       </div>
       <div className="flex items-start gap-1.5">
-        <p className="min-w-0 flex-1 text-[13px] font-medium leading-5 text-zinc-900">
+        <p className="min-w-0 flex-1 text-[13px] font-medium leading-5 text-[var(--ui-fg)]">
           {source.title || source.url}
         </p>
-        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
+        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--ui-fg-placeholder)]" />
       </div>
       {excerpt ? (
-        <p className="mt-1.5 line-clamp-3 text-[12px] leading-[1.4] text-zinc-500">
+        <p className="mt-1.5 line-clamp-3 text-[12px] leading-[1.4] text-[var(--ui-fg-muted)]">
           {excerpt}
         </p>
       ) : null}
@@ -359,19 +359,19 @@ export function ChatSourcesPanel({
   }, [messages, messageId]);
 
   return (
-    <aside className="flex h-full w-full min-w-0 flex-col border-zinc-200/80 bg-[var(--app-panel-bg)] lg:w-[min(340px,34vw)] lg:shrink-0 lg:border-l">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-200/80 bg-[var(--app-panel-bg)] px-3 py-2.5">
-        <h3 className="text-[13px] font-medium tracking-[-0.01em] text-zinc-800">
+    <aside className="flex h-full w-full min-w-0 flex-col border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] lg:w-[min(340px,34vw)] lg:shrink-0 lg:border-l">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] px-3 py-2.5">
+        <h3 className="text-[13px] font-medium tracking-[-0.01em] text-[var(--ui-fg)]">
           Sources
           {sources.length > 0 ? (
-            <span className="ml-1 text-zinc-400">({sources.length})</span>
+            <span className="ml-1 text-[var(--ui-fg-placeholder)]">({sources.length})</span>
           ) : null}
         </h3>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close sources panel"
-          className="ui-icon-button text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800"
+          className="ui-icon-button text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
         >
           <X className="size-4" />
         </button>
@@ -380,7 +380,7 @@ export function ChatSourcesPanel({
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-1.5 p-2.5">
           {sources.length === 0 ? (
-            <p className="px-2 py-6 text-center text-[13px] leading-5 text-zinc-500">
+            <p className="px-2 py-6 text-center text-[13px] leading-5 text-[var(--ui-fg-muted)]">
               Sources cited in answers will appear here.
             </p>
           ) : (

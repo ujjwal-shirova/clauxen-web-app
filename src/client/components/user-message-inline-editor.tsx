@@ -311,7 +311,7 @@ export function UserMessageInlineEditor({
         rows={1}
         placeholder="Edit message…"
         className={cn(
-          "w-full resize-none bg-transparent text-[13.5px] font-[430] leading-[1.55] text-zinc-900 outline-none placeholder:text-zinc-400 sm:text-[14px] sm:leading-[1.58]",
+          "w-full resize-none bg-transparent text-[13.5px] font-[430] leading-[1.55] text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)] sm:text-[14px] sm:leading-[1.58]",
           "max-h-[176px]",
         )}
         style={{ lineHeight: `${EDIT_LINE_HEIGHT_PX}px` }}
@@ -329,7 +329,7 @@ export function UserMessageInlineEditor({
             aria-label="Add files"
             disabled={disabled || isSubmitting}
             onClick={() => fileInputRef.current?.click()}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
           >
             <Plus className="h-4 w-4" strokeWidth={1.75} />
           </button>
@@ -341,7 +341,7 @@ export function UserMessageInlineEditor({
               type="button"
               onClick={() => void startDictation()}
               aria-label="Stop dictation"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-zinc-700"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-hover-wash)] text-[var(--ui-fg)]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -353,7 +353,7 @@ export function UserMessageInlineEditor({
               onClick={() => void startDictation()}
               disabled={disabled || isSubmitting || isTranscribing}
               aria-pressed={isDictating}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-field-bg)] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
             >
               {isTranscribing ? (
                 <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -370,7 +370,7 @@ export function UserMessageInlineEditor({
           type="button"
           onClick={onCancel}
           disabled={disabled || isSubmitting}
-          className="no-hover-overlay inline-flex h-8 items-center justify-center rounded-xl px-3 text-[14px] font-medium text-zinc-600 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-40"
+          className="no-hover-overlay inline-flex h-8 items-center justify-center rounded-xl px-3 text-[14px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] disabled:opacity-40"
         >
           Cancel
         </button>
@@ -380,7 +380,7 @@ export function UserMessageInlineEditor({
           disabled={!canSubmit || disabled || isSubmitting}
           aria-label="Save edited message"
           className={cn(
-            "no-hover-overlay inline-flex h-8 min-w-[58px] items-center justify-center rounded-xl bg-zinc-900 px-3 text-[14px] font-medium text-white transition-colors hover:bg-zinc-700",
+            "no-hover-overlay inline-flex h-8 min-w-[58px] items-center justify-center rounded-xl bg-[var(--ui-fg)] px-3 text-[14px] font-medium text-[var(--app-panel-bg)] transition-colors hover:opacity-90",
             (!canSubmit || disabled || isSubmitting) &&
               "cursor-not-allowed opacity-40",
           )}

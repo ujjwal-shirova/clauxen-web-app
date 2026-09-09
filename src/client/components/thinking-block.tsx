@@ -117,7 +117,7 @@ export function ThinkingBlock({
             <button
               type="button"
               onClick={() => setIsVisible((value) => !value)}
-              className="group flex w-fit max-w-full items-center gap-1.5 border-0 bg-transparent py-0.5 text-left text-[14px] font-normal leading-6 text-zinc-500 transition-colors duration-200 hover:bg-transparent hover:text-zinc-600 focus-visible:outline-none"
+              className="group flex w-fit max-w-full items-center gap-1.5 border-0 bg-transparent py-0.5 text-left text-[14px] font-normal leading-6 text-[var(--ui-fg-muted)] transition-colors duration-200 hover:bg-transparent hover:text-[var(--ui-fg)] focus-visible:outline-none"
               aria-expanded={isVisible}
             >
               <span
@@ -148,7 +148,7 @@ export function ThinkingBlock({
             aria-hidden={!isVisible}
           >
             <div className="overflow-hidden pt-0.5">
-              <div className="agent-thinking-body grid max-w-[48rem] gap-3 pr-3 text-[14px] font-normal leading-6 text-zinc-600">
+              <div className="agent-thinking-body grid max-w-[48rem] gap-3 pr-3 text-[14px] font-normal leading-6 text-[var(--ui-fg-muted)]">
                 <div
                   ref={scrollRef}
                   className="pr-1 text-[14px] leading-6"
@@ -163,7 +163,7 @@ export function ThinkingBlock({
                         lightweightStream={isStreaming}
                       />
                     ) : (
-                      <p className="text-zinc-400">
+                      <p className="text-[var(--ui-fg-placeholder)]">
                         {isStreaming
                           ? "Extended reasoning is in progress."
                           : "Extended reasoning completed before this response."}

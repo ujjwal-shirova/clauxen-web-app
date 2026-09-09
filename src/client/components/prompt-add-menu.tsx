@@ -131,16 +131,16 @@ function ToggleSubmenu<T extends string>({
             className="items-start focus:outline-none"
           >
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-medium leading-[18px] tracking-[-0.08px] text-zinc-900">
+              <span className="block text-[13px] font-medium leading-[18px] tracking-[-0.08px] text-[var(--ui-fg)]">
                 {option.label}
               </span>
-              <span className="mt-0.5 block text-[12px] leading-4 text-zinc-500">
+              <span className="mt-0.5 block text-[12px] leading-4 text-[var(--ui-fg-muted)]">
                 {option.description}
               </span>
             </span>
             {selected ? (
               <Check
-                className="mt-0.5 h-[14px] w-[14px] shrink-0 text-[#3a83f7]"
+                className="mt-0.5 h-[14px] w-[14px] shrink-0 text-[var(--link)]"
                 strokeWidth={2.25}
                 aria-hidden
               />
@@ -168,16 +168,16 @@ function PlaceholderSubmenu({
   return (
     <div className="flex min-w-[var(--popup-width)] flex-col gap-2 p-1">
       <div>
-        <p className="text-[13px] font-medium leading-[18px] tracking-[-0.08px] text-zinc-900">
+        <p className="text-[13px] font-medium leading-[18px] tracking-[-0.08px] text-[var(--ui-fg)]">
           {title}
         </p>
-        <p className="mt-0.5 text-[12px] leading-4 text-zinc-500">{body}</p>
+        <p className="mt-0.5 text-[12px] leading-4 text-[var(--ui-fg-muted)]">{body}</p>
       </div>
       {actionLabel && onAction ? (
         <button
           type="button"
           onClick={onAction}
-          className="rounded-[var(--menu-item-radius)] bg-zinc-900 px-2 py-1.5 text-left text-[12.5px] font-medium leading-[18px] text-white transition-colors hover:bg-zinc-800"
+          className="rounded-[var(--menu-item-radius)] bg-[var(--ui-fg)] px-2 py-1.5 text-left text-[12.5px] font-medium leading-[18px] text-[var(--app-panel-bg)] transition-colors hover:opacity-90"
         >
           {actionLabel}
         </button>

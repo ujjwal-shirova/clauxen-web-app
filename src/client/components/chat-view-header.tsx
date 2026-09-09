@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useIsClient } from "@/hooks/use-is-client";
-import { ChevronDown, MoreHorizontal } from "lucide-react";
+import { ChevronDown, MoreHorizontal, Share } from "lucide-react";
 import { DeleteChatDialog } from "./delete-chat-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 import { ChatRowMenuContent } from "./chat-row-menu-content";
@@ -92,7 +92,7 @@ export function ChatViewHeader({
         <button
           type="button"
           aria-label="Chat options"
-          className="ui-icon-button rounded-lg text-zinc-600 transition-colors hover:bg-black/[0.045] hover:text-zinc-900 data-[state=open]:bg-black/[0.055]"
+          className="ui-icon-button rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] data-[state=open]:bg-[var(--ui-hover-wash)] data-[state=open]:text-[var(--ui-fg)]"
         >
           <MoreHorizontal className="size-[18px]" strokeWidth={1.8} />
         </button>
@@ -121,11 +121,11 @@ export function ChatViewHeader({
       <>
         <header
           className={cn(
-            "content-pane-top-bar pointer-events-none absolute inset-x-0 top-0 flex items-center bg-[var(--chat-canvas-bg,#f2f3f6)] font-sans",
+            "content-pane-top-bar pointer-events-none absolute inset-x-0 top-0 z-40 flex items-center bg-[var(--chat-canvas-bg,#f2f3f6)] font-sans",
             className,
           )}
         >
-          <div className="pointer-events-auto flex h-full w-full min-w-0 items-center gap-1 px-1 sm:gap-2.5 sm:px-4">
+          <div className="pointer-events-auto flex h-full w-full min-w-0 items-center gap-1 px-2 sm:gap-1.5 sm:px-4">
             {showMobileMenu && onOpenMobileNav ? (
               <MobileMenuButton
                 onClick={onOpenMobileNav}
@@ -140,7 +140,7 @@ export function ChatViewHeader({
                     <AppHref
                       href={projectBreadcrumb.href}
                       onClick={projectBreadcrumb.onClick}
-                      className="flex min-w-0 max-w-[42%] items-center gap-1.5 overflow-hidden whitespace-nowrap text-[13px] font-medium text-zinc-800 transition-colors hover:text-zinc-950 sm:max-w-[38%]"
+                      className="flex min-w-0 max-w-[42%] items-center gap-1.5 overflow-hidden whitespace-nowrap text-[13px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:text-[var(--ui-fg)] sm:max-w-[38%]"
                     >
                       <ProjectAvatar
                         icon={projectBreadcrumb.icon}
@@ -156,7 +156,7 @@ export function ChatViewHeader({
                     <button
                       type="button"
                       onClick={projectBreadcrumb.onClick}
-                      className="flex min-w-0 max-w-[42%] items-center gap-1.5 overflow-hidden whitespace-nowrap text-[13px] font-medium text-zinc-800 transition-colors hover:text-zinc-950 sm:max-w-[38%]"
+                      className="flex min-w-0 max-w-[42%] items-center gap-1.5 overflow-hidden whitespace-nowrap text-[13px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:text-[var(--ui-fg)] sm:max-w-[38%]"
                     >
                       <ProjectAvatar
                         icon={projectBreadcrumb.icon}
@@ -170,7 +170,7 @@ export function ChatViewHeader({
                     </button>
                   )}
                   <span
-                    className="mx-1 shrink-0 text-[13px] font-medium text-zinc-400"
+                    className="mx-1 shrink-0 text-[13px] font-medium text-[var(--ui-fg-placeholder)]"
                     aria-hidden
                   >
                     /
@@ -180,12 +180,12 @@ export function ChatViewHeader({
               <button
                 type="button"
                 onClick={() => setRenameDialogOpen(true)}
-                className="ui-chrome-text-btn group/title min-w-0 max-w-none flex-1 gap-1 overflow-hidden bg-transparent px-1.5 text-[#52514e] hover:bg-black/[0.045] hover:text-zinc-950 sm:flex-none sm:max-w-[min(42vw,22rem)] sm:gap-1.5 sm:px-2"
+                className="ui-chrome-text-btn group/title min-w-0 max-w-none flex-1 gap-1 overflow-hidden bg-transparent px-1.5 text-[14px] font-medium text-[var(--ui-fg)] hover:bg-[var(--ui-hover-wash)] sm:flex-none sm:max-w-[min(42vw,22rem)] sm:gap-1.5 sm:px-2"
                 aria-label={`${displayTitle}, rename chat`}
               >
                 <span className="truncate whitespace-nowrap">{displayTitle}</span>
                 <ChevronDown
-                  className="size-3.5 shrink-0 text-[#898781] transition-transform group-hover/title:text-[#52514e]"
+                  className="size-3.5 shrink-0 text-[var(--ui-fg-muted)] transition-transform group-hover/title:text-[var(--ui-fg)]"
                   strokeWidth={1.7}
                   aria-hidden
                 />
@@ -195,11 +195,23 @@ export function ChatViewHeader({
 
             <div className="content-pane-top-bar__trailing-wrap ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
               {headerControlsLoading ? null : (
-                <ChatRightRailControls
-                  isArtifactsPanelOpen={isArtifactsPanelOpen}
-                  onToggleArtifactsPanel={onToggleArtifactsPanel}
-                  menu={undefined}
-                />
+                <>
+                  {onShareClick ? (
+                    <button
+                      type="button"
+                      onClick={onShareClick}
+                      aria-label="Share chat"
+                      className="ui-icon-button rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] max-[400px]:hidden"
+                    >
+                      <Share className="size-[17px]" strokeWidth={1.8} />
+                    </button>
+                  ) : null}
+                  <ChatRightRailControls
+                    isArtifactsPanelOpen={isArtifactsPanelOpen}
+                    onToggleArtifactsPanel={onToggleArtifactsPanel}
+                    menu={undefined}
+                  />
+                </>
               )}
             </div>
           </div>
@@ -225,11 +237,11 @@ export function ChatViewHeader({
   return (
     <header
       className={cn(
-        "content-pane-top-bar relative sticky top-0 z-20 flex w-full shrink-0 items-center overflow-visible bg-[var(--app-panel-bg)] font-sans",
+        "content-pane-top-bar content-pane-top-bar--landing relative sticky top-0 z-20 flex w-full shrink-0 items-center overflow-visible bg-transparent font-sans",
         className,
       )}
     >
-      <div className="flex h-full w-full min-w-0 items-center gap-1 px-1 sm:gap-2.5 sm:px-4">
+      <div className="flex h-full w-full min-w-0 items-center gap-1 px-2 sm:gap-2.5 sm:px-4">
         {showMobileMenu && onOpenMobileNav ? (
           <MobileMenuButton
             onClick={onOpenMobileNav}
@@ -239,16 +251,16 @@ export function ChatViewHeader({
         ) : null}
         {showFreePlanUpgrade ? (
           <div className="pointer-events-none absolute inset-x-12 top-1/2 flex h-8 -translate-y-1/2 select-none items-center justify-center sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2">
-            <div className="pointer-events-auto flex h-8 items-center gap-1.5 rounded-lg bg-[#f6f6f4] px-2 pr-2.5 text-center text-[13px] font-normal leading-5 text-[#898781] sm:text-[14px]">
+            <div className="pointer-events-auto flex h-8 items-center gap-1.5 rounded-lg bg-[var(--ui-muted-surface)] px-2 pr-2.5 text-center text-[13px] font-normal leading-5 text-[var(--ui-fg-muted)] sm:text-[14px]">
               <span>Free plan</span>
               <span
-                className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[rgba(137,135,129,0.3)]"
+                className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[var(--ui-fg-placeholder)] opacity-40"
                 aria-hidden="true"
               />
               <button
                 type="button"
                 onClick={onUpgradeClick}
-                className="rounded-sm text-[#184f95] underline decoration-[rgba(24,79,149,0.4)] underline-offset-[3px] outline-none transition-[color,text-decoration-color,box-shadow] duration-[60ms] hover:text-[#123f79] hover:decoration-[#184f95] focus-visible:ring-2 focus-visible:ring-[#256abf]/40"
+                className="rounded-sm text-[var(--link)] underline decoration-[var(--link-decoration)] underline-offset-[3px] outline-none transition-[color,text-decoration-color,box-shadow] duration-[60ms] hover:text-[var(--link-hover)] focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
               >
                 Upgrade
               </button>

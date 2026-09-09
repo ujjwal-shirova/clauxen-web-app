@@ -56,6 +56,80 @@ const allChips = [
   { icon: Microscope, label: "Deep Research" },
 ] as const;
 
+/** Welcome suggestion chips + expanded suggestion card (new-chat hero + demos). */
+function WelcomeChips({
+  hasPromptDraft,
+  activeChip,
+  onActiveChipChange,
+  onSendMessage,
+  compact = false,
+}: {
+  hasPromptDraft: boolean;
+  activeChip: string | null;
+  onActiveChipChange: (chip: string | null) => void;
+  onSendMessage: (prompt: string) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex w-full flex-col items-center justify-start transition-[min-height] duration-200 ease-out",
+        compact ? "min-h-0" : "min-h-[96px]",
+      )}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        {!hasPromptDraft && activeChip ? (
+          <motion.div
+            key={`suggestions-${activeChip}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="w-full"
+          >
+            <PromptSuggestions
+              category={activeChip}
+              onClose={() => onActiveChipChange(null)}
+              onSelect={(suggestion) => {
+                onSendMessage(suggestion);
+                onActiveChipChange(null);
+              }}
+            />
+          </motion.div>
+        ) : !hasPromptDraft ? (
+          <motion.div
+            key="chips"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className={cn(
+              "mt-1 flex w-full flex-wrap justify-center gap-1.5 sm:mt-2 sm:gap-2",
+              compact && "gap-1 sm:gap-1",
+            )}
+          >
+            {allChips.map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                onClick={() => onActiveChipChange(chip.label)}
+                className={cn(
+                  "flex h-8 items-center gap-1.5 rounded-full border border-[var(--ui-border)] bg-transparent px-3 text-[12.5px] leading-5 text-[var(--ui-fg-muted)] transition-all duration-150 hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] sm:h-9 sm:gap-2 sm:px-4 sm:text-[14px]",
+                  compact &&
+                    "h-7 px-2.5 text-[11.5px] sm:h-7 sm:px-2.5 sm:text-[12px]",
+                )}
+              >
+                <chip.icon className="h-4 w-4 shrink-0" aria-hidden />
+                <span>{chip.label}</span>
+              </button>
+            ))}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function getTimeOfDayGreeting() {
   const hour = new Date().getHours();
 
@@ -130,8 +204,11 @@ export function ChatViewPane({
   const { user } = useAuth();
   const composerOnlyWelcome = welcomeVariant === "composer-only";
   const incognitoWelcome = welcomeVariant === "incognito";
-  const dockComposer =
-    hasConversation || (!composerOnlyWelcome && !incognitoWelcome);
+  // Blank new-chat landing — centered hero (icon + greeting + composer + chips).
+  // Once a conversation exists the composer docks to the bottom instead.
+  const centeredWelcome =
+    !hasConversation && !composerOnlyWelcome && !incognitoWelcome;
+  const dockComposer = hasConversation;
   const [greeting, setGreeting] = useState<string | null>(null);
   const firstName = welcomeFirstName({
     preferredName: userPreferredName ?? user?.preferredName,
@@ -223,31 +300,56 @@ export function ChatViewPane({
       }
     >
       {!hasConversation && !composerOnlyWelcome && !incognitoWelcome ? (
-        <div
-          className="flex min-h-0 flex-1 flex-col items-center justify-center px-4"
-          style={{
-            paddingBottom: `var(--chat-composer-reserve, ${MIN_CHAT_COMPOSER_RESERVE_PX}px)`,
-          }}
-        >
-          <Image
-            src="/assets/icons/clauxen-icon.png"
-            width={56}
-            height={56}
-            alt=""
-            aria-hidden="true"
-            priority
-            className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
-          />
-          <h2
-            className="new-chat-greeting mt-4 max-w-[min(100%,22rem)] truncate whitespace-nowrap text-center text-[20px] text-zinc-800 sm:max-w-[28rem] sm:text-[24px]"
-            suppressHydrationWarning
-          >
-            {greeting
-              ? firstName
-                ? `${greeting}, ${firstName}`
-                : greeting
-              : "\u00a0"}
-          </h2>
+        <div className="new-chat-hero flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="m-auto flex w-full max-w-[var(--chat-column-max-width,720px)] flex-col items-center px-4 py-8 sm:px-6">
+            {showNewChatUpgradeCard ? (
+              <button
+                type="button"
+                onClick={onUpgradeClick}
+                className="mb-6 inline-flex h-8 items-center gap-1.5 rounded-xl bg-[var(--ui-muted-surface)] px-3 text-[14px] font-normal leading-5 text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+              >
+                <span>Free plan</span>
+                <span
+                  className="mt-0.5 h-[3px] w-[3px] shrink-0 rounded-full bg-[var(--ui-fg-placeholder)] opacity-40"
+                  aria-hidden="true"
+                />
+                <span className="text-[var(--link)] underline decoration-[var(--link-decoration)] underline-offset-[3px]">
+                  Upgrade
+                </span>
+              </button>
+            ) : null}
+            <Image
+              src="/assets/icons/clauxen-icon.png"
+              width={64}
+              height={64}
+              alt=""
+              aria-hidden="true"
+              priority
+              className="h-14 w-14 shrink-0 object-contain drop-shadow-sm sm:h-16 sm:w-16"
+            />
+            <h2
+              className="new-chat-greeting mt-5 w-full max-w-full truncate text-center text-[28px] leading-[36px] text-[var(--ui-fg)] sm:text-[32px] sm:leading-[40px]"
+              suppressHydrationWarning
+            >
+              {greeting
+                ? firstName
+                  ? `${greeting}, ${firstName}`
+                  : greeting
+                : "\u00a0"}
+            </h2>
+            <div className="mt-7 w-full">{promptInput}</div>
+            <div className="mt-3 w-full">
+              <WelcomeChips
+                hasPromptDraft={hasPromptDraft}
+                activeChip={activeChip}
+                onActiveChipChange={onActiveChipChange}
+                onSendMessage={onSendMessage}
+              />
+            </div>
+            <p className="mt-6 text-center text-[12px] leading-5 text-[var(--ui-fg-muted)]">
+              Clauxen can make mistakes. Check important info.
+            </p>
+          </div>
         </div>
       ) : (
       <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -386,61 +488,14 @@ export function ChatViewPane({
                     </div>
                   ) : (
                   /* Welcome action chips — same strip as main-app new chat. */
-                  <div
-                    className={cn(
-                      "flex w-full max-w-[var(--chat-column-max-width,720px)] flex-col items-center justify-start transition-[min-height] duration-200 ease-out min-h-[96px]",
-                      composerOnlyWelcome && "min-h-0",
-                    )}
-                  >
-                    <AnimatePresence mode="wait" initial={false}>
-                      {!hasPromptDraft && activeChip ? (
-                        <motion.div
-                          key={`suggestions-${activeChip}`}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.2 }}
-                          className="w-full"
-                        >
-                          <PromptSuggestions
-                            category={activeChip}
-                            onClose={() => onActiveChipChange(null)}
-                            onSelect={(suggestion) => {
-                              onSendMessage(suggestion);
-                              onActiveChipChange(null);
-                            }}
-                          />
-                        </motion.div>
-                      ) : !hasPromptDraft ? (
-                        <motion.div
-                          key="chips"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.2 }}
-                          className={cn(
-                            "mt-1 flex w-full flex-wrap justify-center gap-1.5 sm:mt-2 sm:gap-2",
-                            composerOnlyWelcome && "gap-1 sm:gap-1",
-                          )}
-                        >
-                          {allChips.map((chip) => (
-                            <button
-                              key={chip.label}
-                              type="button"
-                              onClick={() => onActiveChipChange(chip.label)}
-                              className={cn(
-                                "flex h-8 items-center gap-1.5 rounded-full border border-zinc-200/80 bg-transparent px-3 text-[12.5px] leading-5 text-zinc-600 transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 sm:h-9 sm:gap-2 sm:px-4 sm:text-[14px]",
-                                composerOnlyWelcome &&
-                                  "h-7 px-2.5 text-[11.5px] sm:h-7 sm:px-2.5 sm:text-[12px]",
-                              )}
-                            >
-                              <chip.icon className="h-4 w-4 shrink-0 text-zinc-500" />
-                              <span>{chip.label}</span>
-                            </button>
-                          ))}
-                        </motion.div>
-                      ) : null}
-                    </AnimatePresence>
+                  <div className="w-full max-w-[var(--chat-column-max-width,720px)]">
+                    <WelcomeChips
+                      hasPromptDraft={hasPromptDraft}
+                      activeChip={activeChip}
+                      onActiveChipChange={onActiveChipChange}
+                      onSendMessage={onSendMessage}
+                      compact={composerOnlyWelcome}
+                    />
                   </div>
                   )}
                 </div>

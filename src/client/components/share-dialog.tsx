@@ -152,7 +152,7 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="fixed inset-0 z-50 bg-black/15 backdrop-blur-[1px]"
+            className="fixed inset-0 z-50 bg-[var(--overlay-scrim)] backdrop-blur-[1px]"
             onClick={onClose}
             aria-hidden
           />
@@ -168,19 +168,17 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
           >
             <div
               className={cn(
-                "w-[min(400px,calc(100vw-24px))] overflow-hidden rounded-[20px]",
-                "border border-[#E8E8E4] bg-[#F7F7F5]",
-                "shadow-[0_16px_48px_rgba(0,0,0,0.14)]",
+                "app-dialog-panel w-[min(400px,calc(100vw-24px))] overflow-hidden !rounded-[20px]",
               )}
             >
               {/* Header */}
               <div className="px-5 pb-0 pt-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-[18px] font-semibold leading-none tracking-[-0.02em] text-[#1A1A1A]">
+                    <h2 className="text-[18px] font-semibold leading-none tracking-[-0.02em] text-[var(--ui-fg)]">
                       Share chat
                     </h2>
-                    <p className="mt-2.5 pr-10 text-[13.5px] leading-[1.45] text-[#6B6B6B]">
+                    <p className="mt-2.5 pr-10 text-[13.5px] leading-[1.45] text-[var(--ui-fg-muted)]">
                       Create a link to share a read-only snapshot of this chat.
                     </p>
                   </div>
@@ -188,10 +186,9 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                     type="button"
                     onClick={onClose}
                     className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px]",
-                      "border border-[#2F6FED]/35 bg-transparent text-[#5C5C5C]",
-                      "transition-colors hover:bg-black/[0.03] hover:text-[#1A1A1A]",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F6FED]/40",
+                      "ui-icon-button !size-8 !rounded-lg border border-[var(--ui-border)] text-[var(--ui-fg-muted)]",
+                      "transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
                     )}
                     aria-label="Close"
                   >
@@ -200,22 +197,22 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                 </div>
               </div>
 
-              <div className="mx-5 mb-5 mt-4 h-px bg-[#E8E8E4]" />
+              <div className="mx-5 mb-5 mt-4 h-px bg-[var(--ui-border-subtle)]" />
 
               <div className="px-5 pb-5">
                 {!chatId ? (
-                  <p className="py-2 text-[13.5px] text-[#6B6B6B]">
+                  <p className="py-2 text-[13.5px] text-[var(--ui-fg-muted)]">
                     Send a message first to share this chat.
                   </p>
                 ) : loading ? (
-                  <div className="flex items-center gap-2 py-8 text-[13.5px] text-[#6B6B6B]">
+                  <div className="flex items-center gap-2 py-8 text-[13.5px] text-[var(--ui-fg-muted)]">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading…
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3.5">
                     {/* Options card */}
-                    <div className="overflow-hidden rounded-[14px] border border-[#E4E4E0] bg-white">
+                    <div className="overflow-hidden rounded-[14px] border border-[var(--ui-border-subtle)] bg-[var(--ui-field-bg)]">
                       {/* Keep private option */}
                       <button
                         type="button"
@@ -225,23 +222,23 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                           "flex w-full items-center gap-3.5 px-3.5 py-3.5 text-left transition-colors",
                           "disabled:opacity-60",
                           mode === "private"
-                            ? "bg-[#F3F3F0]"
-                            : "bg-white hover:bg-[#FAFAF8]",
+                            ? "bg-[var(--ui-hover-wash)]"
+                            : "bg-transparent hover:bg-[var(--ui-hover-wash)]",
                         )}
                       >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EBEBE8] text-[#2A2A2A]">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--ui-muted-surface)] text-[var(--ui-fg)]">
                           <Lock className="h-[17px] w-[17px]" strokeWidth={2} />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[14.5px] font-semibold leading-tight text-[#1A1A1A]">
+                          <span className="block text-[14.5px] font-semibold leading-tight text-[var(--ui-fg)]">
                             Keep private
                           </span>
-                          <span className="mt-0.5 block text-[13px] leading-tight text-[#6B6B6B]">
+                          <span className="mt-0.5 block text-[13px] leading-tight text-[var(--ui-fg-muted)]">
                             Only you can access this chat
                           </span>
                         </span>
                         {mode === "private" ? (
-                          <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[#1A1A1A] text-white">
+                          <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[var(--ui-fg)] text-[var(--app-panel-bg)]">
                             <Check className="h-3 w-3" strokeWidth={3} />
                           </span>
                         ) : (
@@ -249,7 +246,7 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                         )}
                       </button>
 
-                      <div className="h-px bg-[#E8E8E4]" />
+                      <div className="h-px bg-[var(--ui-border-subtle)]" />
 
                       {/* Create public link option */}
                       <button
@@ -260,27 +257,27 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                           "flex w-full items-center gap-3.5 px-3.5 py-3.5 text-left transition-colors",
                           "disabled:opacity-60",
                           mode === "link"
-                            ? "bg-[#F3F3F0]"
-                            : "bg-white hover:bg-[#FAFAF8]",
+                            ? "bg-[var(--ui-hover-wash)]"
+                            : "bg-transparent hover:bg-[var(--ui-hover-wash)]",
                         )}
                       >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EBEBE8] text-[#2A2A2A]">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--ui-muted-surface)] text-[var(--ui-fg)]">
                           <Globe className="h-[17px] w-[17px]" strokeWidth={2} />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[14.5px] font-semibold leading-tight text-[#1A1A1A]">
+                          <span className="block text-[14.5px] font-semibold leading-tight text-[var(--ui-fg)]">
                             Create public link
                           </span>
-                          <span className="mt-0.5 block text-[13px] leading-tight text-[#6B6B6B]">
+                          <span className="mt-0.5 block text-[13px] leading-tight text-[var(--ui-fg-muted)]">
                             Anyone with the link can view
                           </span>
                         </span>
                         {mode === "link" ? (
-                          <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[#1A1A1A] text-white">
+                          <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[var(--ui-fg)] text-[var(--app-panel-bg)]">
                             <Check className="h-3 w-3" strokeWidth={3} />
                           </span>
                         ) : busy ? (
-                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#9A9A9A]" />
+                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--ui-fg-placeholder)]" />
                         ) : (
                           <span className="h-[22px] w-[22px] shrink-0" />
                         )}
@@ -302,9 +299,9 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                         >
                           <div className="flex flex-col gap-2.5">
                             {/* URL display */}
-                            <div className="flex items-center gap-2 rounded-[12px] border border-[#E4E4E0] bg-white px-3 py-2.5">
-                              <Link2 className="h-4 w-4 shrink-0 text-[#9A9A9A]" />
-                              <p className="min-w-0 flex-1 truncate text-[13px] text-[#3A3A3A]">
+                            <div className="flex items-center gap-2 rounded-[12px] border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-3 py-2.5">
+                              <Link2 className="h-4 w-4 shrink-0 text-[var(--ui-fg-placeholder)]" />
+                              <p className="min-w-0 flex-1 truncate text-[13px] text-[var(--ui-fg-body)]">
                                 {shareUrl}
                               </p>
                             </div>
@@ -314,9 +311,7 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                               type="button"
                               onClick={() => void handleCopy()}
                               className={cn(
-                                "inline-flex h-10 w-full items-center justify-center gap-2 rounded-[12px]",
-                                "bg-[#1A1A1A] text-[13.5px] font-medium text-white",
-                                "transition-colors hover:bg-[#2A2A2A] active:scale-[0.99]",
+                                "app-btn app-btn-primary app-btn-md no-hover-overlay w-full",
                               )}
                             >
                               {copied ? (
@@ -333,7 +328,7 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                             </button>
 
                             {/* Footnote */}
-                            <p className="text-[12px] leading-snug text-[#7A7A7A]">
+                            <p className="text-[12px] leading-snug text-[var(--ui-fg-muted)]">
                               Future messages aren&apos;t included until you
                               create a new link.
                             </p>
@@ -351,7 +346,7 @@ export function ShareDialog({ isOpen, onClose, chatId }: ShareDialogProps) {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -4 }}
                           transition={{ duration: 0.15 }}
-                          className="text-[12.5px] text-red-600"
+                          className="text-[12.5px] text-[var(--settings-danger)]"
                           role="alert"
                         >
                           {error}

@@ -307,7 +307,7 @@ const MessageRow = React.memo(
                   <div className="user-message-card__preview relative">
                     <p
                       className={cn(
-                        "whitespace-pre-wrap text-[13px] leading-[18px] text-zinc-900",
+                        "whitespace-pre-wrap text-[14px] leading-[21px] text-[var(--ui-fg)]",
                         !userExpanded && "overflow-hidden",
                       )}
                       style={
@@ -349,13 +349,13 @@ const MessageRow = React.memo(
             {editingMessageId !== message.id ? (
               <div className="user-message-actions flex h-8 items-center justify-end gap-1">
                 {branchVersions > 1 ? (
-                  <div className="mr-1 flex items-center gap-1 text-zinc-500">
+                  <div className="mr-1 flex items-center gap-1 text-[var(--ui-fg-muted)]">
                     <HintTooltip content="Previous version" side="bottom">
                       <button
                         type="button"
                         onClick={() => onSwitchBranch(message.id, "prev")}
                         disabled={activeBranchIndex <= 0}
-                        className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                        className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
                       >
                         <svg
                           width="14"
@@ -376,7 +376,7 @@ const MessageRow = React.memo(
                         type="button"
                         onClick={() => onSwitchBranch(message.id, "next")}
                         disabled={activeBranchIndex >= branchVersions - 1}
-                        className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                        className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
                       >
                         <svg
                           width="14"
@@ -395,7 +395,7 @@ const MessageRow = React.memo(
                   <button
                     type="button"
                     aria-label="Edit message"
-                    className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                    className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     onClick={() => onStartEdit(message)}
                   >
                     <SquarePen className="size-4" strokeWidth={1.75} />
@@ -405,12 +405,12 @@ const MessageRow = React.memo(
                   <button
                     type="button"
                     aria-label="Copy user message"
-                    className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                    className="user-message-action-btn no-hover-overlay flex h-8 w-8 items-center justify-center rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     onClick={() => onCopy(message.id, message.content)}
                   >
                     {copiedId === message.id ? (
                       <Check
-                        className="size-4 text-emerald-600"
+                        className="size-4 text-[hsl(var(--success))]"
                         strokeWidth={2}
                       />
                     ) : (
@@ -427,8 +427,8 @@ const MessageRow = React.memo(
               "assistant-message group w-full min-w-0 max-w-full",
               isAssistantGenerationError(message) &&
                 !shouldUseAgentTraceLayout(message)
-                ? "text-red-600"
-                : "text-gray-800",
+                ? "text-[var(--settings-danger)]"
+                : "text-[var(--ui-fg-body)]",
             )}
           >
             {shouldUseAgentTraceLayout(message) ? (
@@ -447,7 +447,7 @@ const MessageRow = React.memo(
               <p
                 data-message-id={message.id}
                 data-assistant-error="true"
-                className="min-w-0 text-[15px] font-medium leading-[1.55] text-red-600"
+                className="min-w-0 text-[15px] font-medium leading-[1.55] text-[var(--settings-danger)]"
                 role="alert"
               >
                 {toUserFacingChatError(message.content)}
@@ -507,17 +507,17 @@ const MessageRow = React.memo(
             )}
             {outputComplete && !isAssistantGenerationError(message) ? (
               <>
-                <div className="assistant-message-actions relative mt-2.5 flex flex-wrap items-center gap-1 overflow-anchor-none font-sans text-zinc-500">
+                <div className="assistant-message-actions relative mt-2.5 flex flex-wrap items-center gap-1 overflow-anchor-none font-sans text-[var(--ui-fg-muted)]">
                   <HintTooltip content="Copy" side="bottom" align="start">
                     <button
                       type="button"
                       aria-label="Copy message"
                       onClick={() => onCopy(message.id, message.content)}
-                      className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                      className="ui-icon-button text-[var(--ui-fg-muted)] transition-all hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       {copiedId === message.id ? (
                         <Check
-                          className="size-4 text-emerald-600"
+                          className="size-4 text-[hsl(var(--success))]"
                           strokeWidth={2}
                         />
                       ) : (
@@ -529,7 +529,7 @@ const MessageRow = React.memo(
                     <button
                       type="button"
                       aria-label="Positive feedback"
-                      className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                      className="ui-icon-button text-[var(--ui-fg-muted)] transition-all hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       <ThumbsUpIcon />
                     </button>
@@ -538,7 +538,7 @@ const MessageRow = React.memo(
                     <button
                       type="button"
                       aria-label="Negative feedback"
-                      className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                      className="ui-icon-button text-[var(--ui-fg-muted)] transition-all hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       <ThumbsDownIcon />
                     </button>
@@ -548,7 +548,7 @@ const MessageRow = React.memo(
                       type="button"
                       aria-label="Retry"
                       onClick={() => onRetryAssistant(message.id)}
-                      className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                      className="ui-icon-button text-[var(--ui-fg-muted)] transition-all hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       <RetryIcon />
                     </button>
@@ -570,7 +570,7 @@ const MessageRow = React.memo(
                         }
                         await navigator.clipboard.writeText(text);
                       }}
-                      className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                      className="ui-icon-button text-[var(--ui-fg-muted)] transition-all hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       <ShareIcon />
                     </button>
@@ -586,7 +586,7 @@ const MessageRow = React.memo(
                             event.currentTarget.getBoundingClientRect();
                           onToggleMoreMenu?.(message.id, rect);
                         }}
-                        className="ui-icon-button text-zinc-500 transition-all hover:bg-zinc-100"
+                        className="ui-icon-button text-[var(--ui-fg-muted)] transition-all hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                       >
                         <MoreHorizontal className="size-4" strokeWidth={1.75} />
                       </button>
@@ -597,7 +597,7 @@ const MessageRow = React.memo(
                       <button
                         type="button"
                         onClick={() => onOpenSources?.(message.id)}
-                        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-zinc-200/90 bg-white px-2 text-[12px] font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+                        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-2 text-[12px] font-medium text-[var(--ui-fg-muted)] transition-colors hover:border-[var(--ui-field-focus-border)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                       >
                         <span className="flex -space-x-1">
                           {messageSources.slice(0, 3).map((source) => (
@@ -610,7 +610,7 @@ const MessageRow = React.memo(
                               alt=""
                               loading="lazy"
                               decoding="async"
-                              className="size-4 rounded-full border border-white bg-white"
+                              className="size-4 rounded-full border border-[var(--ui-border-subtle)] bg-[var(--ui-field-bg)]"
                             />
                           ))}
                         </span>
@@ -620,13 +620,13 @@ const MessageRow = React.memo(
                     </HintTooltip>
                   ) : null}
                   {branchVersions > 1 ? (
-                    <div className="ml-0.5 flex items-center gap-1 text-zinc-500">
+                    <div className="ml-0.5 flex items-center gap-1 text-[var(--ui-fg-muted)]">
                       <HintTooltip content="Previous version" side="bottom">
                         <button
                           type="button"
                           onClick={() => onSwitchBranch(message.id, "prev")}
                           disabled={activeBranchIndex <= 0}
-                          className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                          className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
                         >
                           <svg
                             width="14"
@@ -647,7 +647,7 @@ const MessageRow = React.memo(
                           type="button"
                           onClick={() => onSwitchBranch(message.id, "next")}
                           disabled={activeBranchIndex >= branchVersions - 1}
-                          className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-40"
+                          className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-[var(--ui-hover-wash)] disabled:pointer-events-none disabled:opacity-40"
                         >
                           <svg
                             width="14"
@@ -1446,7 +1446,7 @@ export function ConversationThread({
           !isMobile &&
           createPortal(
             <div
-              className="fixed z-[95] flex items-center overflow-hidden rounded-full border border-zinc-200 bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.28)] animate-in fade-in zoom-in-95 duration-150"
+              className="fixed z-[95] flex items-center overflow-hidden rounded-full border border-[var(--popup-border)] bg-[var(--popup-bg)] shadow-[var(--popup-shadow)] animate-in fade-in zoom-in-95 duration-150"
               style={{
                 left: `${selectionMenu.x}px`,
                 top: `${selectionMenu.y}px`,
@@ -1455,7 +1455,7 @@ export function ConversationThread({
             >
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium text-zinc-900 transition hover:bg-zinc-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium text-[var(--ui-fg)] transition hover:bg-[var(--ui-hover-wash)]"
                 onClick={() => {
                   navigator.clipboard
                     .writeText(selectionMenu.text)
@@ -1467,10 +1467,10 @@ export function ConversationThread({
                 <Sparkles className="h-3.5 w-3.5" />
                 Ask Clauxen
               </button>
-              <span className="h-5 w-px bg-zinc-200" aria-hidden />
+              <span className="h-5 w-px bg-[var(--ui-border)]" aria-hidden />
               <button
                 type="button"
-                className="px-3 py-1.5 text-[12.5px] font-medium text-zinc-700 transition hover:bg-zinc-50"
+                className="px-3 py-1.5 text-[12.5px] font-medium text-[var(--ui-fg-muted)] transition hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                 onClick={() => {
                   navigator.clipboard
                     .writeText(selectionMenu.text)
@@ -1491,7 +1491,7 @@ export function ConversationThread({
           createPortal(
             <div
               data-more-menu
-              className="fixed z-[95] w-[220px] rounded-[14px] border border-zinc-200 bg-white p-1 text-[13px] shadow-[0_10px_30px_-15px_rgba(24,24,27,0.25)]"
+              className="fixed z-[95] w-[220px] rounded-[14px] border border-[var(--popup-border)] bg-[var(--popup-bg)] p-1 text-[13px] text-[var(--ui-fg)] shadow-[var(--popup-shadow)]"
               style={{
                 left: `${moreMenuAnchor.left}px`,
                 top: `${moreMenuAnchor.top}px`,
@@ -1501,7 +1501,7 @@ export function ConversationThread({
                     : undefined,
               }}
             >
-              <div className="px-3 py-1.5 text-[11px] text-zinc-500">
+              <div className="px-3 py-1.5 text-[11px] text-[var(--ui-fg-muted)]">
                 {moreMenuMessage.createdAt
                   ? new Date(moreMenuMessage.createdAt).toLocaleString(
                       undefined,
@@ -1516,7 +1516,7 @@ export function ConversationThread({
               </div>
               <button
                 type="button"
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-zinc-700 hover:bg-zinc-100"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                 onClick={() => {
                   closeMoreMenu();
                   const branchText = `Continuing from: ${moreMenuMessage.content.slice(0, 120)}${moreMenuMessage.content.length > 120 ? "…" : ""}`;
@@ -1528,7 +1528,7 @@ export function ConversationThread({
               </button>
               <button
                 type="button"
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-zinc-700 hover:bg-zinc-100"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                 onClick={() => {
                   closeMoreMenu();
                   try {

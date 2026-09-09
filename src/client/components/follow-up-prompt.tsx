@@ -31,8 +31,8 @@ export function FollowUpPrompt({ prompt, className }: FollowUpPromptProps) {
         onSelect(text);
       }}
       className={cn(
-        "follow-up-prompt label-hover-bold no-hover-overlay group inline-flex max-w-full items-baseline gap-1.5 bg-transparent p-0 text-left font-[430] text-[13px] leading-[18px] text-zinc-600",
-        "hover:font-semibold hover:text-zinc-900",
+        "follow-up-prompt label-hover-bold no-hover-overlay group inline-flex max-w-full items-baseline gap-1.5 bg-transparent p-0 text-left font-[430] text-[13px] leading-[18px] text-[var(--ui-fg-muted)]",
+        "hover:font-semibold hover:text-[var(--ui-fg)]",
         "focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40",
         className,
       )}

@@ -38,13 +38,13 @@ const suggestions = [
   },
 ]; // suggestions array end
 
-// research run status → Tailwind badge color classes mapping
+// research run status → semantic pill classes (theme-aware)
 const statusColors: Record<string, string> = {
   // string keys match API run.status values
-  queued: "bg-zinc-100 text-zinc-600", // queued — neutral beige/gray badge
-  running: "bg-blue-50 text-blue-600", // in progress — blue tint
-  completed: "bg-emerald-50 text-emerald-700", // success — green tint
-  failed: "bg-red-50 text-red-600", // error — red tint
+  queued: "app-status-pill--neutral", // queued — neutral badge
+  running: "app-status-pill--info", // in progress — brand tint
+  completed: "app-status-pill--success", // success — green tint
+  failed: "app-status-pill--danger", // error — red tint
 }; // statusColors map end
 
 export function DeepResearchView({
@@ -69,7 +69,7 @@ export function DeepResearchView({
 
   return (
     // main page layout JSX
-    <div className="flex flex-1 w-full bg-white font-sans overflow-y-auto">
+    <div className="flex flex-1 w-full bg-[var(--app-panel-bg)] text-[var(--ui-fg)] font-sans overflow-y-auto">
       {" "}
       {/* full-area scrollable page — warm off-white background */}
       <div className="w-full px-4 sm:px-6 lg:px-16 pb-12">
@@ -81,18 +81,18 @@ export function DeepResearchView({
           <div className="text-center pt-10 sm:pt-14">
             {" "}
             {/* hero section — centered text; extra top padding on sm+ */}
-            <span className="mx-auto mb-3 flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 text-blue-600">
+            <span className="mx-auto mb-3 flex items-center justify-center w-16 h-16 rounded-full bg-[var(--brand-soft)] text-[var(--link)]">
               {" "}
               {/* circular icon badge — microscope hero */}
               <Microscope className="w-[30px] h-[30px]" />{" "}
               {/* research/microscope icon — brand blue */}
             </span>
-            <h1 className="font-headline text-[28px] leading-[34px] tracking-[0.38px] font-semibold text-zinc-900">
+            <h1 className="font-headline text-[28px] leading-[34px] tracking-[0.38px] font-semibold text-[var(--ui-fg)]">
               {" "}
               {/* primary headline typography */}
               What can I help with?
             </h1>
-            <p className="mt-2 text-[16px] leading-6 text-zinc-500">
+            <p className="mt-2 text-[16px] leading-6 text-[var(--ui-fg-muted)]">
               {" "}
               {/* subtitle — value proposition copy */}
               Ask a complex question. Get a full report, with sources.
@@ -125,19 +125,19 @@ export function DeepResearchView({
                       type="button" // suggestion row button
                       disabled={!auth.isAuthenticated}
                       onClick={() => void handleSubmit(item.title)} // click → submit suggestion title as prompt
-                      className="w-full flex items-center gap-3 rounded-xl px-[18px] py-3 text-left transition-colors hover:bg-zinc-50" // full-width row hover
+                      className="w-full flex items-center gap-3 rounded-xl px-[18px] py-3 text-left transition-colors hover:bg-[var(--ui-hover-wash)]" // full-width row hover
                     >
-                      <ArrowUpRight className="w-5 h-5 shrink-0 text-zinc-400" />{" "}
+                      <ArrowUpRight className="w-5 h-5 shrink-0 text-[var(--ui-fg-placeholder)]" />{" "}
                       {/* decorative arrow — indicates action/launch */}
                       <span className="flex items-center gap-2 w-full overflow-hidden">
                         {" "}
                         {/* title + description row — overflow hidden for truncate */}
-                        <span className="shrink-0 text-[14px] leading-5 text-zinc-900 font-medium">
+                        <span className="shrink-0 text-[14px] leading-5 text-[var(--ui-fg)] font-medium">
                           {" "}
                           {/* suggestion title — no shrink */}
                           {item.title}
                         </span>
-                        <span className="text-[14px] leading-[22px] tracking-[-0.14px] text-zinc-400 truncate">
+                        <span className="text-[14px] leading-[22px] tracking-[-0.14px] text-[var(--ui-fg-muted)] truncate">
                           {" "}
                           {/* description — truncate overflow */}
                           {item.description}
@@ -153,20 +153,20 @@ export function DeepResearchView({
           <section className="w-full pt-6" aria-label="Research runs">
             {" "}
             {/* recent runs section — user's past research jobs */}
-            <h2 className="text-[15px] font-semibold text-zinc-900 mb-3">
+            <h2 className="text-[15px] font-semibold text-[var(--ui-fg)] mb-3">
               {" "}
               {/* section heading */}
               Recent research
             </h2>
             {loading ? ( // API fetch in progress — spinner state
-              <div className="flex justify-center py-8 text-zinc-500">
+              <div className="flex justify-center py-8 text-[var(--ui-fg-muted)]">
                 {" "}
                 {/* centered loading container */}
                 <Loader2 className="w-5 h-5 animate-spin" />{" "}
                 {/* spinning loader icon */}
               </div>
             ) : runs.length === 0 ? ( // empty state — no runs yet
-              <p className="text-[14px] text-zinc-500 py-4">
+              <p className="text-[14px] text-[var(--ui-fg-muted)] py-4">
                 {" "}
                 {/* muted helper text */}
                 No research runs yet. Submit a question above to start.
@@ -182,12 +182,12 @@ export function DeepResearchView({
                   ) => (
                     <li
                       key={run.id} // React key — run UUID/id
-                      className="rounded-xl border border-zinc-200 bg-white px-4 py-3" // card styling — white bg bordered
+                      className="rounded-xl border border-[var(--ui-border-subtle)] bg-[var(--ui-field-bg)] px-4 py-3 shadow-[var(--panel-shadow)]" // card styling — token surface
                     >
                       <div className="flex items-start justify-between gap-3">
                         {" "}
                         {/* objective + status badge row */}
-                        <p className="text-[14px] font-medium text-zinc-900 line-clamp-2">
+                        <p className="text-[14px] font-medium text-[var(--ui-fg)] line-clamp-2">
                           {" "}
                           {/* run objective/prompt — max 2 lines */}
                           {run.objective}
@@ -203,7 +203,7 @@ export function DeepResearchView({
                           {/* raw status string display — capitalize via CSS */}
                         </span>
                       </div>
-                      <p className="mt-1 text-[12px] text-zinc-500">
+                      <p className="mt-1 text-[12px] text-[var(--ui-fg-muted)]">
                         {" "}
                         {/* created timestamp — localized format */}
                         {new Date(run.created_at).toLocaleString()}

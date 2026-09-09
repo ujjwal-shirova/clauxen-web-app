@@ -87,7 +87,7 @@ export function ComposerProjectStrip({
   return (
     <div
       className={cn(
-        "composer-project-strip relative flex h-10 items-center border-t border-zinc-200/70 bg-[#fafafa] px-3 sm:h-10 sm:px-4",
+        "composer-project-strip relative flex h-10 items-center border-t border-[var(--ui-border-subtle)] bg-[var(--ui-muted-surface)] px-3 sm:h-10 sm:px-4",
         className,
       )}
       data-composer-project-strip
@@ -97,14 +97,14 @@ export function ComposerProjectStrip({
           <button
             type="button"
             className={cn(
-              "inline-flex h-8 max-w-full items-center gap-2 rounded-full px-2 text-[13px] font-[430] text-zinc-600 transition-colors",
-              !locked && "hover:bg-black/[0.04] hover:text-zinc-800",
+              "inline-flex h-8 max-w-full items-center gap-2 rounded-full px-2 text-[13px] font-[430] text-[var(--ui-fg-muted)] transition-colors",
+              !locked && "hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
               locked && "cursor-default",
             )}
             aria-label="Select project"
           >
             <Folder
-              className="h-3.5 w-3.5 shrink-0 text-zinc-500"
+              className="h-3.5 w-3.5 shrink-0 text-[var(--ui-fg-muted)]"
               strokeWidth={1.75}
             />
             <span className="min-w-0 truncate">
@@ -112,7 +112,7 @@ export function ComposerProjectStrip({
             </span>
             {!locked ? (
               <ChevronDown
-                className="h-3 w-3 shrink-0 text-zinc-400"
+                className="h-3 w-3 shrink-0 text-[var(--ui-fg-placeholder)]"
                 strokeWidth={2}
               />
             ) : null}
@@ -122,7 +122,7 @@ export function ComposerProjectStrip({
           align="start"
           side="top"
           sideOffset={8}
-          className="z-[120] w-[min(calc(100vw-2rem),260px)] rounded-[16px] border-zinc-200/90 p-1.5 shadow-[0_14px_36px_-16px_rgba(24,24,27,0.35)]"
+          className="z-[120] w-[min(calc(100vw-2rem),260px)] rounded-[16px] border-[var(--popup-border)] bg-[var(--popup-bg)] p-1.5 shadow-[var(--popup-shadow)]"
         >
           <ProjectMenuRow
             icon={<FolderPlus className="h-4 w-4" strokeWidth={1.75} />}
@@ -136,7 +136,7 @@ export function ComposerProjectStrip({
             onClick={() => choose(null)}
           />
           {projects.length > 0 ? (
-            <div className="my-1 h-px bg-zinc-100" aria-hidden />
+            <div className="my-1 h-px bg-[var(--ui-border-subtle)]" aria-hidden />
           ) : null}
           {projects.map((project) => (
             <ProjectMenuRow
@@ -169,16 +169,16 @@ function ProjectMenuRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-[12px] px-2.5 py-2 text-left text-[13px] font-[430] text-zinc-800 transition-colors hover:bg-zinc-50",
-        selected && "bg-zinc-50",
+        "flex w-full items-center gap-2.5 rounded-[12px] px-2.5 py-2 text-left text-[13px] font-[430] text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-hover-wash)]",
+        selected && "bg-[var(--ui-hover-wash)]",
       )}
     >
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-zinc-500">
+      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-[var(--ui-fg-muted)]">
         {icon}
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {selected ? (
-        <Check className="h-4 w-4 shrink-0 text-[#2f6fed]" strokeWidth={2.25} />
+        <Check className="h-4 w-4 shrink-0 text-[var(--link)]" strokeWidth={2.25} />
       ) : null}
     </button>
   );

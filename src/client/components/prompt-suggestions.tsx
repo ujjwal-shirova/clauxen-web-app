@@ -102,9 +102,9 @@ export function PromptSuggestions({
       }}
       className="w-full overflow-hidden"
     >
-      <div className="w-full bg-white border border-zinc-200 rounded-[16px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] font-sans mt-2">
+      <div className="w-full bg-[var(--popup-bg)] border border-[var(--popup-border)] rounded-[16px] shadow-[var(--popup-shadow)] font-sans mt-2">
         <div className="flex items-center justify-between p-2 px-4">
-          <div className="flex items-center gap-2 text-zinc-500">
+          <div className="flex items-center gap-2 text-[var(--ui-fg-muted)]">
             <Icon className="icon-md shrink-0 icon-muted" />
             <span className="text-[12px] font-medium uppercase tracking-wide">
               {category}
@@ -113,7 +113,7 @@ export function PromptSuggestions({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 text-zinc-800 transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--ui-hover-wash)] text-[var(--ui-fg-muted)] hover:text-[var(--ui-fg)] transition-all"
             aria-label="Close suggestions"
           >
             <svg
@@ -130,12 +130,12 @@ export function PromptSuggestions({
 
         <ul className="flex flex-col" role="listbox">
           {config.suggestions.map((suggestion, index) => (
-            <li key={index} className="border-t border-zinc-200">
+            <li key={index} className="border-t border-[var(--ui-border-subtle)]">
               <button
                 onClick={() => onSelect(suggestion)}
-                className="w-full flex items-center justify-between py-[10px] px-4 hover:bg-black/[0.02] transition-colors group text-left"
+                className="w-full flex items-center justify-between py-[10px] px-4 hover:bg-[var(--ui-hover-wash)] transition-colors group text-left"
               >
-                <span className="text-[14px] text-zinc-800 leading-[20px] font-[430]">
+                <span className="text-[14px] text-[var(--ui-fg)] leading-[20px] font-[430]">
                   {suggestion}
                 </span>
 
@@ -145,7 +145,7 @@ export function PromptSuggestions({
                   height="16"
                   fill="currentColor"
                   viewBox="0 0 256 256"
-                  className="text-zinc-500 opacity-0 group-hover:opacity-100 transition-all"
+                  className="text-[var(--ui-fg-muted)] opacity-0 group-hover:opacity-100 transition-all"
                 >
                   <path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"></path>
                 </svg>

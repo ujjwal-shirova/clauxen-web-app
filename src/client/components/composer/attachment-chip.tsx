@@ -54,8 +54,10 @@ export function AttachmentChip({
         onOpen?.();
       }}
       className={cn(
-        "group relative overflow-hidden rounded-lg border bg-zinc-50 text-left transition-colors",
-        errored ? "border-red-300" : "border-zinc-200/90 hover:bg-zinc-100/80",
+        "group relative overflow-hidden rounded-lg border bg-[var(--ui-muted-surface)] text-left transition-colors",
+        errored
+          ? "border-[var(--settings-danger)]"
+          : "border-[var(--ui-border)] hover:bg-[var(--ui-hover-wash)]",
         isImage ? imageSize : docSize,
         className,
       )}
@@ -70,8 +72,8 @@ export function AttachmentChip({
             draggable={false}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-zinc-100">
-            <FileText className="h-4 w-4 text-zinc-400" />
+          <div className="flex h-full w-full items-center justify-center bg-[var(--ui-hover-wash)]">
+            <FileText className="h-4 w-4 text-[var(--ui-fg-placeholder)]" />
           </div>
         )
       ) : (
@@ -90,19 +92,19 @@ export function AttachmentChip({
                 draggable={false}
               />
             ) : (
-              <FileText className="h-4 w-4 text-zinc-500" />
+              <FileText className="h-4 w-4 text-[var(--ui-fg-muted)]" />
             )}
           </div>
           <div className="min-w-0">
             <p
               className={cn(
-                "truncate font-medium leading-3 text-zinc-800",
+                "truncate font-medium leading-3 text-[var(--ui-fg)]",
                 size === "lg" ? "text-[11px]" : "text-[10px]",
               )}
             >
               {file.name}
             </p>
-            <p className="mt-0.5 flex items-center gap-0.5 text-[9px] text-zinc-400">
+            <p className="mt-0.5 flex items-center gap-0.5 text-[9px] text-[var(--ui-fg-muted)]">
               <FileText className="h-2.5 w-2.5" />
               {documentTypeLabel(file)}
             </p>

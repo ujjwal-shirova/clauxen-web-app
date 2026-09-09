@@ -24,6 +24,10 @@ import {
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  segmentedOptionClass,
+  segmentedTrackClass,
+} from "@/lib/segmented-control";
+import {
   collectChatArtifacts,
   downloadArtifact,
   type ChatArtifact,
@@ -44,7 +48,7 @@ const TREE_DEFAULT_WIDTH = 180;
 const TREE_MIN_WIDTH = 140;
 const TREE_MAX_WIDTH = 320;
 
-/** 32×32 header tab button (Preview / Files) — matches the rail chrome. */
+/** Header tab pill (Preview / Files) — shared segmented chrome. */
 function RailTabButton({
   label,
   pressed,
@@ -62,12 +66,10 @@ function RailTabButton({
       onClick={onClick}
       aria-label={label}
       aria-pressed={pressed}
-      className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-[#636363] transition-colors duration-100 hover:bg-black/[0.04] hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-zinc-100",
-        pressed && "bg-black/[0.04] text-zinc-900 dark:bg-white/[0.08] dark:text-zinc-100",
-      )}
+      className={cn(segmentedOptionClass(pressed), "inline-flex items-center gap-1.5")}
     >
       {children}
+      <span>{label}</span>
     </button>
   );
 }
@@ -94,11 +96,11 @@ function ChromeIconButton({
       aria-label={label}
       aria-pressed={pressed}
       className={cn(
-        "flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-[#636363] transition-colors duration-100 dark:text-zinc-400",
+        "flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-[var(--ui-fg-muted)] transition-colors duration-100",
         disabled
           ? "pointer-events-none opacity-50"
-          : "hover:bg-black/[0.04] hover:text-zinc-900 dark:hover:bg-white/[0.06] dark:hover:text-zinc-100",
-        pressed && "bg-black/[0.04] text-zinc-900 dark:bg-white/[0.08] dark:text-zinc-100",
+          : "hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
+        pressed && "bg-[var(--ui-hover-wash)] text-[var(--ui-fg)]",
       )}
     >
       {children}
@@ -118,18 +120,18 @@ function EmptyState({
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 px-8 text-center">
       {title ? (
-        <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+        <p className="text-[15px] font-medium text-[var(--ui-fg)]">
           {title}
         </p>
       ) : null}
-      <p className="max-w-[420px] text-balance text-[14px] leading-[21px] text-[#858585] dark:text-zinc-400">
+      <p className="max-w-[420px] text-balance text-[14px] leading-[21px] text-[var(--ui-fg-muted)]">
         {body}
       </p>
       {action ? (
         <button
           type="button"
           onClick={action.onClick}
-          className="mt-3 inline-flex h-8 items-center justify-center gap-1 whitespace-nowrap rounded-full border border-[rgba(15,13,10,0.08)] bg-transparent px-2.5 text-[14px] font-medium tracking-[-0.2px] text-zinc-800 transition-colors duration-100 hover:bg-black/[0.03] dark:border-white/[0.10] dark:text-zinc-200 dark:hover:bg-white/[0.05]"
+          className="mt-3 inline-flex h-8 items-center justify-center gap-1 whitespace-nowrap rounded-full border border-[var(--ui-border)] bg-transparent px-2.5 text-[14px] font-medium tracking-[-0.2px] text-[var(--ui-fg)] transition-colors duration-100 hover:bg-[var(--ui-hover-wash)]"
         >
           {action.label}
         </button>
@@ -217,33 +219,35 @@ export function ChatArtifactsPanel({
   return (
     <aside
       className={cn(
-        "flex h-full w-full min-w-0 flex-col bg-[var(--chat-canvas-bg,#f2f3f6)] p-2 max-lg:bg-white max-lg:p-0",
+        "flex h-full w-full min-w-0 flex-col bg-[var(--chat-canvas-bg,#f2f3f6)] p-2 max-lg:bg-[var(--app-panel-bg)] max-lg:p-0",
         className,
       )}
     >
-      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[14px] border border-[rgba(15,13,10,0.06)] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] max-lg:rounded-none max-lg:border-0 max-lg:shadow-none dark:border-white/[0.08] dark:bg-zinc-900">
-        {/* Rail header — Preview / Files tabs */}
-        <div className="flex h-11 shrink-0 items-center gap-1.5 border-b border-[rgba(15,13,10,0.04)] p-1.5 dark:border-white/[0.05]">
-          <RailTabButton
-            label="Preview"
-            pressed={tab === "preview"}
-            onClick={() => setTab("preview")}
-          >
-            <Globe className="size-[18px]" strokeWidth={1.8} />
-          </RailTabButton>
-          <RailTabButton
-            label="Files"
-            pressed={tab === "files"}
-            onClick={() => setTab("files")}
-          >
-            <Folder className="size-[18px]" strokeWidth={1.8} />
-          </RailTabButton>
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[18px] border border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] shadow-[var(--panel-shadow)] max-lg:rounded-none max-lg:border-0 max-lg:shadow-none">
+        {/* Rail header — Preview / Files segmented tabs */}
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-[var(--ui-border-subtle)] px-2.5">
+          <div className={segmentedTrackClass} role="tablist" aria-label="Right sidebar view">
+            <RailTabButton
+              label="Preview"
+              pressed={tab === "preview"}
+              onClick={() => setTab("preview")}
+            >
+              <Globe className="size-4" strokeWidth={1.8} />
+            </RailTabButton>
+            <RailTabButton
+              label="Files"
+              pressed={tab === "files"}
+              onClick={() => setTab("files")}
+            >
+              <Folder className="size-4" strokeWidth={1.8} />
+            </RailTabButton>
+          </div>
           <div className="min-w-0 flex-1" />
           <button
             type="button"
             onClick={onClose}
             aria-label="Close right sidebar"
-            className="ui-icon-button text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800"
+            className="ui-icon-button text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
           >
             <X className="size-4" />
           </button>
@@ -252,7 +256,7 @@ export function ChatArtifactsPanel({
         {tab === "preview" ? (
           <>
             {/* Browser chrome */}
-            <div className="flex h-11 shrink-0 items-center gap-1 border-b border-[rgba(15,13,10,0.04)] px-1.5 dark:border-white/[0.05]">
+            <div className="flex h-11 shrink-0 items-center gap-1 border-b border-[var(--ui-border-subtle)] px-1.5">
               <ChromeIconButton label="Back" disabled>
                 <ArrowLeft className="size-4" strokeWidth={2} />
               </ChromeIconButton>
@@ -266,7 +270,7 @@ export function ChatArtifactsPanel({
               >
                 <RotateCw className="size-4" strokeWidth={2} />
               </ChromeIconButton>
-              <span className="ml-2 min-w-0 flex-1 truncate whitespace-nowrap text-[13px] leading-[18px] text-[#636363] dark:text-zinc-400">
+              <span className="ml-2 min-w-0 flex-1 truncate whitespace-nowrap text-[13px] leading-[18px] text-[var(--ui-fg-muted)]">
                 {selectedPreviewable ? selected?.fileName : ""}
               </span>
               <ChromeIconButton
@@ -287,12 +291,12 @@ export function ChatArtifactsPanel({
             </div>
 
             {selectedPreviewable && selected ? (
-              <div className="flex min-h-0 flex-1 justify-center overflow-hidden bg-[#fafafa] dark:bg-zinc-950/40">
+              <div className="flex min-h-0 flex-1 justify-center overflow-hidden bg-[var(--ui-muted-surface)]">
                 <div
                   className={cn(
-                    "min-h-0 min-w-0 flex-1 overflow-auto bg-white dark:bg-zinc-900",
+                    "min-h-0 min-w-0 flex-1 overflow-auto bg-[var(--app-panel-bg)]",
                     previewMobile &&
-                      "my-3 max-w-[390px] flex-none rounded-xl border border-[rgba(15,13,10,0.08)] shadow-sm dark:border-white/[0.08]",
+                      "my-3 max-w-[390px] flex-none rounded-xl border border-[var(--ui-border)] shadow-sm",
                   )}
                 >
                   <div
@@ -317,7 +321,7 @@ export function ChatArtifactsPanel({
         ) : (
           <>
             {/* Files toolbar */}
-            <div className="flex h-11 shrink-0 items-center gap-1 border-b border-[rgba(15,13,10,0.04)] px-1.5 dark:border-white/[0.05]">
+            <div className="flex h-11 shrink-0 items-center gap-1 border-b border-[var(--ui-border-subtle)] px-1.5">
               <ChromeIconButton
                 label="File tree"
                 pressed={treeOpen}
@@ -376,11 +380,11 @@ export function ChatArtifactsPanel({
                     style={{ width: treeWidth }}
                   >
                     <div className="flex min-h-[26px] shrink-0 items-center justify-between gap-1 px-1.5 py-1">
-                      <span className="text-[14px] leading-[21px] text-[#636363] dark:text-zinc-400">
+                      <span className="text-[14px] leading-[21px] text-[var(--ui-fg-muted)]">
                         Files
                       </span>
                       {artifacts.length > 0 ? (
-                        <span className="text-[11px] text-zinc-400">
+                        <span className="text-[11px] text-[var(--ui-fg-placeholder)]">
                           {artifacts.length}
                         </span>
                       ) : null}
@@ -395,17 +399,17 @@ export function ChatArtifactsPanel({
                           }
                           placeholder="Filter files"
                           autoFocus
-                          className="h-7 w-full rounded-md border border-[rgba(15,13,10,0.08)] bg-transparent px-2 text-[12.5px] text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-300 dark:border-white/[0.10] dark:text-zinc-200"
+                          className="h-8 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-2 text-[13px] text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)] focus:border-[var(--ui-field-focus-border)]"
                         />
                       </div>
                     ) : null}
                     <ScrollArea className="min-h-0 flex-1">
                       {artifacts.length === 0 ? (
-                        <p className="px-3 py-8 text-center text-[11px] leading-[15px] text-[#858585] dark:text-zinc-500">
+                        <p className="px-3 py-8 text-center text-[11px] leading-[15px] text-[var(--ui-fg-muted)]">
                           Files created during this session will appear here
                         </p>
                       ) : visibleArtifacts.length === 0 ? (
-                        <p className="px-3 py-8 text-center text-[11px] leading-[15px] text-[#858585] dark:text-zinc-500">
+                        <p className="px-3 py-8 text-center text-[11px] leading-[15px] text-[var(--ui-fg-muted)]">
                           No files match this filter
                         </p>
                       ) : (
@@ -419,8 +423,8 @@ export function ChatArtifactsPanel({
                               className={cn(
                                 "flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1.5 text-left transition-colors duration-100",
                                 selectedId === artifact.id
-                                  ? "bg-black/[0.05] text-zinc-900 dark:bg-white/[0.08] dark:text-zinc-100"
-                                  : "text-[#636363] hover:bg-black/[0.035] hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100",
+                                  ? "bg-[var(--brand-soft)] text-[var(--ui-fg)]"
+                                  : "text-[var(--ui-fg-muted)] hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
                               )}
                             >
                               <FileText
@@ -441,7 +445,7 @@ export function ChatArtifactsPanel({
                     aria-orientation="vertical"
                     aria-label="Resize file sidebar"
                     onPointerDown={startTreeResize}
-                    className="relative w-0 shrink-0 cursor-col-resize border-r border-[rgba(15,13,10,0.04)] transition-colors hover:border-zinc-300 dark:border-white/[0.05]"
+                    className="relative w-0 shrink-0 cursor-col-resize border-r border-[var(--ui-border-subtle)] transition-colors hover:border-[var(--ui-field-focus-border)]"
                   >
                     <span className="absolute inset-y-0 -left-1.5 -right-1.5" />
                   </div>
@@ -451,23 +455,23 @@ export function ChatArtifactsPanel({
               <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 {selected ? (
                   <>
-                    <div className="flex h-11 shrink-0 items-center gap-2 border-b border-[rgba(15,13,10,0.04)] px-3 dark:border-white/[0.05]">
+                    <div className="flex h-11 shrink-0 items-center gap-2 border-b border-[var(--ui-border-subtle)] px-3">
                       <FileText
-                        className="size-4 shrink-0 text-zinc-500"
+                        className="size-4 shrink-0 text-[var(--ui-fg-muted)]"
                         strokeWidth={1.8}
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium leading-[18px] text-zinc-900 dark:text-zinc-100">
+                        <p className="truncate text-[13px] font-medium leading-[18px] text-[var(--ui-fg)]">
                           {selected.fileName}
                         </p>
-                        <p className="truncate text-[11px] leading-[14px] text-zinc-500">
+                        <p className="truncate text-[11px] leading-[14px] text-[var(--ui-fg-muted)]">
                           {artifactMetaLabel(selected.path, selectedLanguage)}
                         </p>
                       </div>
                     </div>
                     {selected.content ? (
-                      <ScrollArea className="min-h-0 flex-1 bg-[#fafafa] dark:bg-zinc-950/40">
-                        <pre className="whitespace-pre-wrap break-words px-4 py-3 font-mono text-[12px] leading-[18px] text-zinc-800 dark:text-zinc-200">
+                      <ScrollArea className="min-h-0 flex-1 bg-[var(--ui-muted-surface)]">
+                        <pre className="whitespace-pre-wrap break-words px-4 py-3 font-mono text-[12px] leading-[18px] text-[var(--ui-fg-body)]">
                           {selected.content}
                         </pre>
                       </ScrollArea>

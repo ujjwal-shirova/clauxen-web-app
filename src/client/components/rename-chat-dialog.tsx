@@ -40,16 +40,16 @@ export function RenameChatDialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-black/25 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-[var(--overlay-scrim)] backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-1/2 top-1/2 z-[81] flex w-[min(calc(100vw-2rem),448px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white font-sans text-zinc-900 shadow-[0_8px_12px_rgba(0,0,0,0.08),0_0_1px_rgba(0,0,0,0.62)] outline-none",
+            "app-dialog-panel fixed left-1/2 top-1/2 z-[81] flex w-[min(calc(100vw-2rem),448px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden font-sans outline-none",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
           )}
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <header className="flex min-h-[52px] items-center justify-between px-4 pb-2.5 pt-2.5">
-            <DialogPrimitive.Title className="text-[18px] font-medium leading-7 text-zinc-900">
+            <DialogPrimitive.Title className="text-[18px] font-medium leading-7 text-[var(--ui-fg)]">
               Rename chat
             </DialogPrimitive.Title>
           </header>
@@ -66,7 +66,7 @@ export function RenameChatDialog({
                   handleSave();
                 }
               }}
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[15px] text-zinc-900 outline-none ring-0 focus:border-zinc-300"
+              className="app-field px-3 py-2.5 text-[15px]"
               aria-label="Chat title"
             />
 
@@ -74,14 +74,14 @@ export function RenameChatDialog({
               <button
                 type="button"
                 onClick={handleSave}
-                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 px-3 text-[14px] font-medium leading-5 text-white transition-colors hover:bg-zinc-800"
+                className="app-btn app-btn-primary app-btn-md no-hover-overlay"
               >
                 Save
               </button>
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-black/15 bg-white px-3 text-[14px] font-medium leading-5 text-zinc-900 transition-colors hover:bg-black/[0.03]"
+                className="app-btn app-btn-secondary app-btn-md"
               >
                 Cancel
               </button>

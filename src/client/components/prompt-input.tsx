@@ -1184,7 +1184,7 @@ export function PromptInput({
           onPaste={scheduleResizeTextarea}
           onCompositionEnd={scheduleResizeTextarea}
           className={cn(
-            "prompt-textarea block min-w-[3rem] min-h-0 flex-1 resize-none overflow-x-hidden border-0 bg-transparent text-[13px] font-[430] leading-[18px] text-zinc-800 shadow-none outline-none ring-0 placeholder:text-black/36 focus:border-0 focus:outline-none focus:ring-0 sm:text-[13px] sm:leading-[18px]",
+            "prompt-textarea block min-w-[3rem] min-h-0 flex-1 resize-none overflow-x-hidden border-0 bg-transparent text-[14px] font-[430] leading-[21px] text-[var(--ui-fg)] shadow-none outline-none ring-0 placeholder:text-black/36 focus:border-0 focus:outline-none focus:ring-0 sm:text-[14px] sm:leading-[21px]",
             showComposeControls ? "px-1 py-2" : "px-0 py-2",
             className,
           )}
@@ -1218,7 +1218,7 @@ export function PromptInput({
               <button
                 type="button"
                 onClick={onScrollToBottom}
-                className="absolute -top-11 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-[#fcfcfc]/95 text-zinc-500 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-white hover:text-zinc-700"
+                className="absolute -top-11 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-field-bg)]/95 text-[var(--ui-fg-muted)] shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
               >
                 <ArrowDown className="icon-md" />
               </button>
@@ -1249,7 +1249,7 @@ export function PromptInput({
             <div
               className={cn(
                 promptShellClass,
-                isDraggingFiles && "ring-2 ring-[#2c84db]/35",
+                isDraggingFiles && "ring-2 ring-[var(--brand-ring)]",
               )}
               ref={promptShellRef}
               data-prompt-shell
@@ -1259,7 +1259,7 @@ export function PromptInput({
               data-add-menu-open={isAddMenuOpen || undefined}
             >
               {isDraggingFiles ? (
-                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-[#2c84db]/50 bg-[#e9f3ff]/70 text-[13px] font-medium text-[#2c84db]">
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-[var(--ui-field-focus-border)] bg-[var(--brand-soft)] text-[13px] font-medium text-[var(--link)]">
                   Drop files to attach
                 </div>
               ) : null}
@@ -1277,7 +1277,7 @@ export function PromptInput({
                         key={action}
                         type="button"
                         onClick={() => handleQuickActionRemove(action)}
-                        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-zinc-200 bg-transparent px-2.5 text-[12px] text-zinc-600 transition-colors hover:bg-zinc-50"
+                        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[var(--ui-border)] bg-transparent px-2.5 text-[12px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                       >
                         <span>{quickActionLabelMap[action]}</span>
                         <X className="icon-sm" />
@@ -1309,14 +1309,14 @@ export function PromptInput({
               </AnimatePresence>
 
               {attachmentError ? (
-                <p className="px-2.5 pt-1 text-[11px] text-red-600 sm:px-3">
+                <p className="px-2.5 pt-1 text-[11px] text-[var(--settings-danger)] sm:px-3">
                   {attachmentError}
                 </p>
               ) : null}
 
               {dictation.error ? (
                 <p
-                  className="px-2.5 pt-1 text-[11px] text-red-600 sm:px-3"
+                  className="px-2.5 pt-1 text-[11px] text-[var(--settings-danger)] sm:px-3"
                   role="alert"
                 >
                   {dictation.error}
@@ -1341,7 +1341,7 @@ export function PromptInput({
                       onMouseEnter={() => setComposeChipHovered(true)}
                       onMouseLeave={() => setComposeChipHovered(false)}
                       onClick={handleComposeActionRemove}
-                      className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[#2c84db]/15 bg-[#e9f3ff] px-2.5 text-[12px] font-medium text-[#2c84db] transition-colors hover:bg-[#ddebff]"
+                      className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[var(--ui-field-focus-border)] bg-[var(--brand-soft)] px-2.5 text-[12px] font-medium text-[var(--link)] transition-colors hover:bg-[var(--ui-hover-wash)]"
                     >
                       {composeChipHovered ? (
                         <X className="icon-sm" />

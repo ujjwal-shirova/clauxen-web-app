@@ -676,7 +676,7 @@ function ChatAreaLayout({
                   ease: [0.32, 0.72, 0, 1],
                 }}
                 className={cn(
-                  "fixed inset-y-0 right-0 z-50 flex w-full max-w-full shrink-0 overflow-hidden border-l border-zinc-200/80 bg-white shadow-[-12px_0_40px_-24px_rgba(24,24,27,0.18)] will-change-[transform,width,opacity] lg:static lg:z-auto lg:w-auto lg:max-w-none lg:shadow-none",
+                  "fixed inset-y-0 right-0 z-50 flex w-full max-w-full shrink-0 overflow-hidden border-l border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] shadow-[-12px_0_40px_-24px_rgba(24,24,27,0.18)] will-change-[transform,width,opacity] lg:static lg:z-auto lg:w-auto lg:max-w-none lg:shadow-none",
                 )}
               >
                 <div
@@ -724,9 +724,9 @@ function ChatAreaLayout({
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: "100%", opacity: 0 }}
                 transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
-                className="fixed inset-y-0 right-0 z-50 flex h-full w-[min(100vw,360px)] shrink-0 overflow-hidden rounded-l-[18px] border-l border-zinc-200/70 bg-white shadow-[-18px_0_40px_-24px_rgba(24,24,27,0.28)] will-change-[transform,opacity]"
+                className="fixed inset-y-0 right-0 z-50 flex h-full w-[min(100vw,360px)] shrink-0 overflow-hidden rounded-l-[18px] border-l border-[var(--ui-border-subtle)] bg-[var(--app-panel-bg)] shadow-[-18px_0_40px_-24px_rgba(24,24,27,0.28)] will-change-[transform,opacity]"
               >
-                <div className="h-full w-full min-w-0 shrink-0 bg-white">
+                <div className="h-full w-full min-w-0 shrink-0 bg-[var(--app-panel-bg)]">
                   {isSourcesPanelOpen ? (
                     <ChatSourcesPanel
                       messages={messages}

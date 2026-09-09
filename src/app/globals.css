@@ -150,8 +150,8 @@
     --ui-field-focus-ring: var(--brand-soft);
     --ui-muted-surface: color-mix(in oklab, #14151a 4%, transparent);
 
-    --chat-header-height: 44px;
-    --chat-header-icon-btn: 36px;
+    --chat-header-height: 56px;
+    --chat-header-icon-btn: 32px;
     --chat-title-size: 14px;
     --chat-user-font-size: 15px;
     --chat-assistant-font-size: 16px;
@@ -5261,7 +5261,7 @@ button[data-speed-toggle][data-state="open"] {
 /* Mobile overrides must follow the 2026 desktop column/composer rules. */
 @media (max-width: 1023px) {
   :root {
-    --chat-header-height: 48px;
+    --chat-header-height: 52px;
     --chat-header-icon-btn: 36px;
   }
 
@@ -5758,4 +5758,108 @@ button[data-speed-toggle][data-state="open"] {
   .dark .app-agent-panel {
     border-left-color: var(--ui-border-subtle) !important;
   }
+}
+
+/* ── 2026 product redesign — chat shell polish ─────────────────────────────
+   Consolidated final block so the cascade stays reviewable. Every value
+   below resolves through theme tokens — no hardcoded light/dark colors. */
+
+/* Chat header — hairline separation from scrolled content; the new-chat
+   landing variant stays borderless above the centered hero. */
+.content-pane-top-bar {
+  border-bottom: 1px solid var(--ui-border-subtle) !important;
+}
+
+.content-pane-top-bar--landing {
+  border-bottom-color: transparent !important;
+}
+
+/* New-chat hero — clean scroll on short viewports, no visible scrollbar. */
+.new-chat-hero {
+  scrollbar-width: none;
+}
+
+.new-chat-hero::-webkit-scrollbar {
+  display: none;
+}
+
+/* User bubbles — refined geometry, theme-aware border + hover. */
+.user-message-card .user-message-card__body {
+  border: 1px solid var(--ui-border-subtle) !important;
+  border-radius: 20px 20px 6px 20px !important;
+  background: var(--chat-user-card-bg) !important;
+  padding: 10px 14px !important;
+  box-shadow: none !important;
+}
+
+.user-message-card .user-message-card__body:hover,
+.user-message-card .user-message-card__body:focus-visible {
+  background: color-mix(
+    in oklab,
+    var(--chat-user-card-bg) 94%,
+    var(--ui-fg)
+  ) !important;
+  border-color: var(--ui-border) !important;
+}
+
+/* Composer send — ink disc that inverts per theme (matches app-btn-primary). */
+[data-prompt-root] .prompt-control-filled,
+[data-prompt-root] .prompt-control-filled:hover,
+[data-prompt-root] .prompt-control-filled:focus,
+[data-prompt-root] .prompt-control-filled:focus-visible,
+[data-prompt-root] .prompt-control-filled[data-app-button]:hover {
+  background-color: var(--ui-fg) !important;
+  color: var(--app-panel-bg) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+[data-prompt-root] .prompt-control-filled:hover:not(:disabled),
+[data-prompt-root] .prompt-control-filled:focus-visible:not(:disabled) {
+  background-color: color-mix(
+    in oklab,
+    var(--ui-fg) 88%,
+    var(--app-panel-bg)
+  ) !important;
+  color: var(--app-panel-bg) !important;
+}
+
+[data-prompt-root] .prompt-control-filled:active:not(:disabled) {
+  background-color: color-mix(
+    in oklab,
+    var(--ui-fg) 78%,
+    var(--app-panel-bg)
+  ) !important;
+  color: var(--app-panel-bg) !important;
+}
+
+[data-prompt-root] .prompt-control-filled:disabled {
+  opacity: 0.35 !important;
+  background-color: var(--ui-fg) !important;
+  color: var(--app-panel-bg) !important;
+}
+
+[data-prompt-root] .prompt-control-ghost {
+  color: var(--ui-fg-muted) !important;
+}
+
+[data-prompt-root] .prompt-control-ghost:hover:not(:disabled),
+[data-prompt-root] .prompt-control-ghost:focus-visible:not(:disabled),
+[data-prompt-root] .prompt-control-ghost[aria-expanded="true"] {
+  background-color: var(--ui-hover-wash) !important;
+  color: var(--ui-fg) !important;
+  box-shadow: none !important;
+}
+
+/* Sidebar — selected nav keeps the brand wash over generic hover rules. */
+.glass-sidebar-docked .ui-sidebar-menu-button[aria-current="page"] {
+  background: var(--brand-soft) !important;
+  color: var(--ui-fg) !important;
+}
+
+/* Composer disclaimer — quiet placeholder tone in both themes. */
+.glass-chat-status-bar,
+.glass-chat-status-bar__center {
+  color: var(--ui-fg-placeholder) !important;
 }

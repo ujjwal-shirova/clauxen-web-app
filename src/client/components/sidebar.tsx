@@ -106,7 +106,7 @@ function SidebarSectionLabel({
   trailing?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-1 px-3 pb-0.5 pt-0">
+    <div className="flex items-center justify-between gap-1 px-3 pb-1 pt-0">
       <button
         type="button"
         onClick={(event) => {
@@ -114,12 +114,12 @@ function SidebarSectionLabel({
           onToggle();
         }}
         aria-expanded={expanded}
-        className="label-hover-bold no-hover-overlay group/section flex min-w-0 items-center gap-0.5 bg-transparent p-0 text-left text-[12px] font-medium leading-4 tracking-[-0.01em] text-zinc-800/60 hover:text-zinc-800/80"
+        className="no-hover-overlay group/section flex min-w-0 items-center gap-1 bg-transparent p-0 text-left text-[11px] font-semibold uppercase leading-4 tracking-[0.08em] text-[var(--ui-fg-muted)] transition-colors hover:text-[var(--ui-fg)]"
       >
         <span className="truncate">{label}</span>
         <ChevronRight
           className={cn(
-            "sidebar-section-chevron h-3 w-3 shrink-0 text-zinc-800/40 transition-[opacity,transform,color] duration-200 ease-out group-hover/section:text-zinc-800/60",
+            "sidebar-section-chevron h-3 w-3 shrink-0 text-[var(--ui-fg-placeholder)] transition-[opacity,transform,color] duration-200 ease-out group-hover/section:text-[var(--ui-fg-muted)]",
             expanded && "rotate-90",
           )}
           strokeWidth={2}
@@ -165,7 +165,7 @@ const ProfileMenuChevron = ({ className }: { className?: string }) => (
     fill="currentColor"
     viewBox="0 0 256 256"
     aria-hidden="true"
-    className={cn("size-4 shrink-0 text-zinc-500", className)}
+    className={cn("size-4 shrink-0 text-[var(--ui-fg-muted)]", className)}
   >
     <path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z" />
   </svg>
@@ -397,10 +397,10 @@ export function Sidebar({
         data-active={isActive ? "true" : undefined}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose min-h-8 w-full rounded-lg px-2.5 text-[13px] font-[450] leading-[18px] tracking-[-0.006em] text-zinc-800/90 transition-[background-color,box-shadow,color] duration-150",
+          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose min-h-8 w-full rounded-lg px-2.5 text-[13px] font-[450] leading-[18px] tracking-[-0.006em] text-[var(--ui-fg-body)] transition-[background-color,box-shadow,color] duration-150",
           isActive
-            ? "bg-black/[0.065] shadow-[inset_0_0_0_1px_rgba(24,24,27,0.025)]"
-            : "hover:bg-black/[0.04]",
+            ? "bg-[var(--brand-soft)] text-[var(--ui-fg)]"
+            : "hover:bg-[var(--ui-hover-wash)]",
         )}
       >
         <AppHref
@@ -411,9 +411,9 @@ export function Sidebar({
             onSelectProject?.(project);
             if (isMobileLayout) onNavigate?.();
           }}
-          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
         >
-          <span className="ui-nav-icon flex size-4 items-center justify-center text-[15px] leading-none text-zinc-800/66">
+          <span className="ui-nav-icon flex size-4 items-center justify-center text-[15px] leading-none text-[var(--ui-fg-muted)]">
             {project.icon ? (
               <ProjectAvatar
                 icon={project.icon}
@@ -485,12 +485,12 @@ export function Sidebar({
 
   const navButtonClass = (active = false, muted = false) =>
     cn(
-      "ui-sidebar-menu-button no-hover-overlay group/nav mb-0 w-full rounded-lg text-[13px] font-normal leading-[18px] transition-[background-color,color,box-shadow] duration-150 hover:bg-black/[0.04]",
-      muted ? "text-zinc-800/40 hover:text-zinc-800/55" : "text-zinc-800/90",
+      "ui-sidebar-menu-button no-hover-overlay group/nav mb-0 w-full rounded-lg text-[13px] font-normal leading-[18px] transition-[background-color,color,box-shadow] duration-150 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]",
+      muted ? "text-[var(--ui-fg-placeholder)]" : "text-[var(--ui-fg-body)]",
       isCollapsed
         ? "ui-icon-button mx-auto flex !size-9 justify-center gap-0 !rounded-xl px-0"
         : "ui-nav-row justify-start px-2",
-      active && "bg-black/[0.06]",
+      active && "bg-[var(--brand-soft)] font-medium text-[var(--ui-fg)]",
     );
 
   const renderNavButton = ({
@@ -524,7 +524,7 @@ export function Sidebar({
           <span
             className={cn(
               "flex min-w-0 items-center gap-0.5",
-              muted && "text-zinc-400",
+              muted && "text-[var(--ui-fg-placeholder)]",
             )}
           >
             <span className="truncate">{label}</span>
@@ -596,13 +596,13 @@ export function Sidebar({
         data-active={isActive ? "true" : undefined}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose min-h-8 w-full rounded-lg px-2.5 text-[13px] font-[450] leading-[18px] tracking-[-0.006em] text-zinc-800/90 transition-[background-color,box-shadow,color] duration-150",
+          "group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose min-h-8 w-full rounded-lg px-2.5 text-[13px] font-[450] leading-[18px] tracking-[-0.006em] text-[var(--ui-fg-body)] transition-[background-color,box-shadow,color] duration-150",
           // One continuous row highlight — never nest hover/selection on
           // the title button or pin/menu actions. Keep the hover pill while
           // pin/menu are focused or the overflow menu is open.
           isActive
-            ? "bg-black/[0.065] shadow-[inset_0_0_0_1px_rgba(24,24,27,0.025)]"
-            : "hover:bg-black/[0.04] focus-within:bg-black/[0.04] has-[[data-state=open]]:bg-black/[0.04]",
+            ? "bg-[var(--brand-soft)] text-[var(--ui-fg)]"
+            : "hover:bg-[var(--ui-hover-wash)] focus-within:bg-[var(--ui-hover-wash)] has-[[data-state=open]]:bg-[var(--ui-hover-wash)]",
         )}
       >
         <AppHref
@@ -612,7 +612,7 @@ export function Sidebar({
             onSelectChat(chat);
             if (isMobileLayout) onNavigate?.();
           }}
-          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+          className="no-hover-overlay flex h-full min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
         >
           <span className="min-w-0 flex-1 truncate">
             {chat.isTitleStreaming ? (
@@ -715,7 +715,7 @@ export function Sidebar({
       >
         <div
           className={cn(
-            "ui-sidebar-top-bar relative flex h-10 shrink-0 items-center px-1.5",
+            "ui-sidebar-top-bar relative flex h-12 shrink-0 items-center px-1.5",
             isMobileLayout && "h-12 px-2.5",
             isCollapsed && !isMobileLayout
               ? "justify-center"
@@ -725,7 +725,7 @@ export function Sidebar({
           {!isCollapsed && !isPeekPreview ? (
             <div className="flex min-w-0 items-center px-1">
               <span
-                className="clauxen-wordmark truncate text-[17px] font-medium leading-none tracking-[-0.03em] text-zinc-950"
+                className="clauxen-wordmark truncate text-[17px] font-medium leading-none tracking-[-0.03em] text-[var(--ui-fg)]"
                 aria-label="Clauxen"
               >
                 Clauxen
@@ -743,7 +743,7 @@ export function Sidebar({
                 setIsCollapsed(true);
               }}
               aria-label="Close menu"
-              className="ui-icon-button !size-10 shrink-0 touch-manipulation text-zinc-800/70 transition-all duration-200 hover:bg-black/[0.04]"
+              className="ui-icon-button !size-10 shrink-0 touch-manipulation text-[var(--ui-fg-muted)] transition-all duration-200 hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
             >
               <X className="size-5" />
             </button>
@@ -774,7 +774,7 @@ export function Sidebar({
                     handleNewChat();
                   }}
                   aria-label="New chat"
-                  className="ui-icon-button !size-9 !rounded-xl text-zinc-800/90 transition-colors hover:bg-black/[0.05]"
+                  className="ui-icon-button !size-9 !rounded-xl text-[var(--ui-fg-body)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                 >
                   <NewChatBubbleIcon className="size-4" />
                 </AppHref>
@@ -789,17 +789,10 @@ export function Sidebar({
                     handleNewChat();
                   }}
                   aria-label="New chat"
-                  className="group no-hover-overlay flex h-9 w-full items-center justify-between gap-2 rounded-xl px-2.5 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
+                  className="group no-hover-overlay flex h-9 w-full items-center gap-2 rounded-xl bg-[var(--ui-hover-wash)] px-2.5 text-[13px] font-medium leading-[18px] text-[var(--ui-fg)] transition-colors hover:bg-[var(--ui-border-subtle)]"
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-black/[0.06] dark:bg-white/[0.1]">
-                      <Plus
-                        className="size-4 text-[#52514e]"
-                        strokeWidth={1.65}
-                      />
-                    </span>
-                    <span className="truncate">New</span>
-                  </span>
+                  <Plus className="size-4 shrink-0" strokeWidth={1.75} />
+                  <span className="truncate">New chat</span>
                 </AppHref>
               )}
             </div>
@@ -864,9 +857,9 @@ export function Sidebar({
                       onProjectsClick?.();
                       if (isMobileLayout) onNavigate?.();
                     }}
-                    className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-md px-2 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
+                    className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-md px-2 text-[13px] font-medium leading-[18px] text-[var(--ui-fg-body)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                   >
-                    <NavProjectsIcon className="size-4 shrink-0 text-zinc-800/66" />
+                    <NavProjectsIcon className="size-4 shrink-0 text-[var(--ui-fg-muted)]" />
                     <span className="truncate">All projects</span>
                   </AppHref>
                   <AppHref
@@ -877,10 +870,10 @@ export function Sidebar({
                       onNewProjectClick?.();
                       if (isMobileLayout) onNavigate?.();
                     }}
-                    className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-md px-2 text-[13px] font-medium leading-[18px] text-zinc-800/90 transition-colors hover:bg-black/[0.04]"
+                    className="group/chat glass-sidebar-agent-menu-btn ui-nav-row ui-nav-row--loose w-full rounded-md px-2 text-[13px] font-medium leading-[18px] text-[var(--ui-fg-body)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                   >
                     <Plus
-                      className="size-4 shrink-0 text-zinc-800/66"
+                      className="size-4 shrink-0 text-[var(--ui-fg-muted)]"
                       strokeWidth={1.5}
                     />
                     <span className="truncate">New Project</span>
@@ -912,7 +905,7 @@ export function Sidebar({
                   {groupedChats.map((group) => (
                     <div key={group.label || "all"}>
                       {group.label ? (
-                        <p className="px-2 py-1.5 text-[12px] font-medium leading-4 text-zinc-800/60">
+                        <p className="px-2 py-1.5 text-[12px] font-medium leading-4 text-[var(--ui-fg-muted)]">
                           {group.label}
                         </p>
                       ) : null}
@@ -930,7 +923,7 @@ export function Sidebar({
         {showAccountMenu && (
           <div
             className={cn(
-              "sidebar-account-footer mt-auto shrink-0 flex flex-col border-t border-black/[0.045] bg-[var(--app-sidebar-bg,var(--app-shell-bg))]",
+              "sidebar-account-footer mt-auto shrink-0 flex flex-col border-t border-[var(--ui-border-subtle)] bg-[var(--app-sidebar-bg,var(--app-shell-bg))]",
               isCollapsed
                 ? "items-center gap-2 px-0 pb-2 pt-1"
                 : "items-stretch gap-1 px-2 py-2",
@@ -956,10 +949,10 @@ export function Sidebar({
                     onPointerDown={(e) => e.stopPropagation()}
                     aria-label="Account menu"
                     className={cn(
-                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center border border-transparent bg-transparent outline-none transition-[background-color,border-color] duration-150 hover:border-black/[0.045] hover:bg-black/[0.035] data-[state=open]:border-black/[0.055] data-[state=open]:bg-black/[0.045]",
+                      "menu-trigger-active glass-sidebar-footer-account-trigger no-hover-overlay flex items-center border border-transparent bg-transparent outline-none transition-[background-color,border-color] duration-150 hover:border-[var(--ui-border-subtle)] hover:bg-[var(--ui-hover-wash)] data-[state=open]:border-[var(--ui-border)] data-[state=open]:bg-[var(--ui-hover-wash)]",
                       isCollapsed
                         ? "h-12 w-12 shrink-0 items-center justify-center rounded-full !p-0"
-                        : "min-h-14 min-w-0 flex-1 justify-start gap-2.5 rounded-xl px-2.5 py-1.5",
+                        : "min-h-12 min-w-0 flex-1 justify-start gap-2.5 rounded-xl px-2.5 py-1.5",
                     )}
                   >
                     <UserAvatarDisplay
@@ -967,10 +960,10 @@ export function Sidebar({
                       avatarUrl={userAvatarUrl}
                       size={isCollapsed ? "md" : "lg"}
                       className={cn(
-                        "shrink-0 bg-black/[0.065] leading-none text-zinc-700",
+                        "shrink-0 bg-[var(--ui-hover-wash)] leading-none text-[var(--ui-fg-muted)]",
                         isCollapsed
-                          ? "h-11 w-11 text-[13px]"
-                          : "h-12 w-12 text-[14px]",
+                          ? "h-10 w-10 text-[13px]"
+                          : "h-10 w-10 text-[13px]",
                       )}
                     />
                     <div
@@ -980,14 +973,14 @@ export function Sidebar({
                       )}
                     >
                       {!accountLoading && userDisplayName ? (
-                        <p className="truncate text-[13px] font-medium leading-[18px] text-zinc-800/75">
+                        <p className="truncate text-[13px] font-medium leading-[18px] text-[var(--ui-fg-body)]">
                           {userDisplayName}
                         </p>
                       ) : null}
                       {!accountLoading &&
                       !(Boolean(userEmail) && (planLoading || !planLabel)) &&
                       planLabel ? (
-                        <p className="truncate text-[12px] font-medium leading-4 text-zinc-800/60">
+                        <p className="truncate text-[12px] font-medium leading-4 text-[var(--ui-fg-muted)]">
                           {planLabel}
                         </p>
                       ) : null}
@@ -1005,7 +998,7 @@ export function Sidebar({
                   onCloseAutoFocus={(e) => e.preventDefault()}
                   className="z-[60] w-[min(260px,calc(100vw-2rem))] font-sans"
                 >
-                  <DropdownMenuLabel className="px-2.5 py-1.5 text-[12px] font-medium text-zinc-500 truncate">
+                  <DropdownMenuLabel className="px-2.5 py-1.5 text-[12px] font-medium text-[var(--ui-fg-muted)] truncate">
                     {userEmail || "Not signed in"}
                   </DropdownMenuLabel>
                   <DropdownMenuItem asChild>
@@ -1019,10 +1012,10 @@ export function Sidebar({
                       className="ui-menu-row no-hover-overlay cursor-pointer justify-between"
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <Settings className="size-4 text-zinc-800" />
+                        <Settings className="size-4 text-[var(--ui-fg-muted)]" />
                         <span>Settings</span>
                       </div>
-                      <span className="text-[12px] text-zinc-500">⇧⌘,</span>
+                      <span className="text-[12px] text-[var(--ui-fg-muted)]">⇧⌘,</span>
                     </AppHref>
                   </DropdownMenuItem>
                   {onPersonalizationClick && (
@@ -1039,7 +1032,7 @@ export function Sidebar({
                         }}
                         className="ui-menu-row no-hover-overlay cursor-pointer"
                       >
-                        <Sparkles className="size-4 text-zinc-800" />
+                        <Sparkles className="size-4 text-[var(--ui-fg-muted)]" />
                         <span>Personalization</span>
                       </AppHref>
                     </DropdownMenuItem>
@@ -1058,14 +1051,14 @@ export function Sidebar({
                         }}
                         className="ui-menu-row no-hover-overlay cursor-pointer"
                       >
-                        <Wand2 className="size-4 text-zinc-800" />
+                        <Wand2 className="size-4 text-[var(--ui-fg-muted)]" />
                         <span>Plugins</span>
                       </AppHref>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger className="ui-menu-row no-hover-overlay cursor-pointer">
-                      <Languages className="size-4 text-zinc-800" />
+                      <Languages className="size-4 text-[var(--ui-fg-muted)]" />
                       <span>Language</span>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
@@ -1083,7 +1076,7 @@ export function Sidebar({
                     </DropdownMenuPortal>
                   </DropdownMenuSub>
                   <DropdownMenuItem className="ui-menu-row no-hover-overlay cursor-pointer">
-                    <HelpCircle className="size-4 text-zinc-800" />
+                    <HelpCircle className="size-4 text-[var(--ui-fg-muted)]" />
                     <span>Get help</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -1096,7 +1089,7 @@ export function Sidebar({
                       }}
                       className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
-                      <ArrowUpCircle className="size-4 text-zinc-800" />
+                      <ArrowUpCircle className="size-4 text-[var(--ui-fg-muted)]" />
                       <span>Upgrade plan</span>
                     </AppHref>
                   </DropdownMenuItem>
@@ -1110,7 +1103,7 @@ export function Sidebar({
                       }}
                       className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
-                      <LayoutGrid className="size-4 text-zinc-800" />
+                      <LayoutGrid className="size-4 text-[var(--ui-fg-muted)]" />
                       <span>Apps and extensions</span>
                     </AppHref>
                   </DropdownMenuItem>
@@ -1124,13 +1117,13 @@ export function Sidebar({
                       }}
                       className="ui-menu-row no-hover-overlay cursor-pointer"
                     >
-                      <Gift className="size-4 text-zinc-800" />
+                      <Gift className="size-4 text-[var(--ui-fg-muted)]" />
                       <span>Gift Clauxen</span>
                     </AppHref>
                   </DropdownMenuItem>
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger className="ui-menu-row no-hover-overlay cursor-pointer">
-                      <HelpCircle className="size-4 text-zinc-800" />
+                      <HelpCircle className="size-4 text-[var(--ui-fg-muted)]" />
                       <span>Learn more</span>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
@@ -1147,7 +1140,7 @@ export function Sidebar({
                       </DropdownMenuSubContent>
                     </DropdownMenuPortal>
                   </DropdownMenuSub>
-                  <DropdownMenuSeparator className="my-1.5 bg-zinc-900/10" />
+                  <DropdownMenuSeparator className="my-1.5 bg-[var(--ui-border-subtle)]" />
                   <DropdownMenuItem
                     onClick={() => onLogoutClick?.()}
                     className="ui-menu-row no-hover-overlay cursor-pointer text-destructive"
@@ -1165,7 +1158,7 @@ export function Sidebar({
                       href="/download"
                       aria-label="Download Clauxen"
                       title="Download Clauxen"
-                      className="ui-icon-button !size-8 !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950"
+                      className="ui-icon-button !size-8 !rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       <Download className="size-[17px]" strokeWidth={1.7} />
                     </AppHref>
@@ -1185,7 +1178,7 @@ export function Sidebar({
                         aria-label="Search chats"
                         title="Search chats"
                         className={cn(
-                          "ui-icon-button !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950 data-[state=open]:bg-black/[0.06]",
+                          "ui-icon-button !rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)] data-[state=open]:bg-[var(--ui-hover-wash)] data-[state=open]:text-[var(--ui-fg)]",
                           isMobileLayout ? "!size-10" : "!size-8",
                         )}
                       >
@@ -1197,11 +1190,11 @@ export function Sidebar({
                       align="end"
                       sideOffset={10}
                       collisionPadding={10}
-                      className="z-[70] w-[min(calc(92vw-1.5rem),272px)] rounded-xl border border-black/[0.10] bg-[#fcfcfb] p-2 shadow-[0_12px_34px_rgba(28,25,23,0.14)]"
+                      className="z-[70] w-[min(calc(92vw-1.5rem),272px)] rounded-xl border border-[var(--popup-border)] bg-[var(--popup-bg)] p-2 shadow-[var(--popup-shadow)]"
                     >
-                      <div className="flex h-9 items-center gap-2 rounded-lg border border-black/[0.09] bg-white px-2.5 focus-within:border-black/[0.18]">
+                      <div className="flex h-9 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-field-bg)] px-2.5 focus-within:border-[var(--ui-field-focus-border)]">
                         <Search
-                          className="size-4 shrink-0 text-[#898781]"
+                          className="size-4 shrink-0 text-[var(--ui-fg-placeholder)]"
                           strokeWidth={1.7}
                           aria-hidden
                         />
@@ -1213,7 +1206,7 @@ export function Sidebar({
                           }
                           placeholder="Search chats"
                           aria-label="Search chat history"
-                          className="min-w-0 flex-1 bg-transparent text-[13px] text-[#252522] outline-none placeholder:text-[#898781]"
+                          className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--ui-fg)] outline-none placeholder:text-[var(--ui-fg-placeholder)]"
                         />
                       </div>
                       <div className="mt-1 max-h-72 overflow-y-auto py-1">
@@ -1234,7 +1227,7 @@ export function Sidebar({
                                 onSelectChat(chat);
                                 if (isMobileLayout) onNavigate?.();
                               }}
-                              className="flex h-9 w-full items-center rounded-lg px-2.5 text-left text-[13px] text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-[#252522]"
+                              className="flex h-9 w-full items-center rounded-lg px-2.5 text-left text-[13px] text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                             >
                               <span className="truncate">
                                 {chat.name || "New Chat"}
@@ -1242,7 +1235,7 @@ export function Sidebar({
                             </AppHref>
                           ))
                         ) : (
-                          <p className="px-2.5 py-5 text-center text-[12px] text-[#898781]">
+                          <p className="px-2.5 py-5 text-center text-[12px] text-[var(--ui-fg-muted)]">
                             No chats found
                           </p>
                         )}
@@ -1257,7 +1250,7 @@ export function Sidebar({
                       onClick={() => setIsCollapsed(true)}
                       aria-label="Collapse sidebar"
                       title="Collapse sidebar"
-                      className="ui-icon-button !size-8 !rounded-lg text-[#52514e] transition-colors hover:bg-black/[0.05] hover:text-zinc-950"
+                      className="ui-icon-button !size-8 !rounded-lg text-[var(--ui-fg-muted)] transition-colors hover:bg-[var(--ui-hover-wash)] hover:text-[var(--ui-fg)]"
                     >
                       <SidebarToggleIcon className="size-[17px]" aria-hidden />
                     </button>
